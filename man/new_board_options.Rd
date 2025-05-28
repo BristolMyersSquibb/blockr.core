@@ -11,6 +11,7 @@
 \alias{validate_board_options.board_options}
 \alias{list_board_options}
 \alias{board_option}
+\alias{color_mode}
 \title{Board options}
 \usage{
 board_options(x)
@@ -40,6 +41,8 @@ validate_board_options(x)
 list_board_options(x)
 
 board_option(opt, x)
+
+color_mode(session = getDefaultReactiveDomain())
 }
 \arguments{
 \item{x}{Board options object}
@@ -58,6 +61,8 @@ block previews}
 \item{class}{Optional sub-class}
 
 \item{opt}{Board option}
+
+\item{session}{Shiny session}
 }
 \value{
 All of \code{new_board_options()}, \code{as_board_options()} and

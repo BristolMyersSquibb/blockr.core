@@ -364,3 +364,10 @@ print.board_options <- function(x, ...) {
   cat(format(x, ...), sep = "\n")
   invisible(x)
 }
+
+#' @param session Shiny session
+#' @rdname new_board_options
+#' @export
+color_mode <- function(session = getDefaultReactiveDomain()) {
+  session$userData$dark_mode()
+}
