@@ -16,6 +16,7 @@
 #' block previews
 #' @param filter_rows Enable filtering of rows in tabular block previews
 #' @param dark_mode Toggle between dark and light modes
+#' @param thematic Enable auto-theming for plots via
 #' @param ... Further options
 #' @param class Optional sub-class
 #'
@@ -43,6 +44,7 @@ new_board_options <- function(board_name = "Board",
                               page_size = blockr_option("page_size", 5L),
                               filter_rows = blockr_option("filter_rows", FALSE),
                               dark_mode = blockr_option("dark_mode", NULL),
+                              thematic = blockr_option("thematic", NULL),
                               ...,
                               class = character()) {
 
@@ -65,6 +67,7 @@ new_board_options <- function(board_name = "Board",
       page_size = as.integer(page_size),
       filter_rows = filter_rows,
       dark_mode = dark_mode,
+      thematic = thematic,
       ...
     ),
     class = c(class, "board_options")
@@ -116,7 +119,7 @@ validate_board_options.board_options <- function(x) {
   }
 
   expected <- c(
-    "board_name", "n_rows", "page_size", "filter_rows", "dark_mode"
+    "board_name", "n_rows", "page_size", "filter_rows", "dark_mode", "thematic"
   )
 
   if (!all(expected %in% names(x))) {
@@ -306,8 +309,14 @@ update_ui.board_options <- function(x, session, ...) {
   invisible()
 }
 
-board_option_to_userdata <- function(x, input, session) {
-  session$userData[[x]] <- reactive(input[[x]])
+board_option_to_userdata <- function(x, val, input, session) {
+
+  rv <- reactiveVal(val)
+
+  observeEvent(input[[x]], rv(input[[x]]))
+
+  session$userData[[x]] <- rv
+
   invisible()
 }
 
@@ -317,41 +326,48 @@ board_options_to_userdata <- function(x, input, session) {
     x <- board_options(x)
   }
 
-  lapply(list_board_options(x), board_option_to_userdata, input, session)
+  Map(board_option_to_userdata, names(x), x, MoreArgs = list(input, session))
 
   invisible()
 }
 
-board_option_from_userdata <- function(name, session) {
+#' @param session Shiny session
+#' @rdname new_board_options
+#' @export
+get_board_option_value <- function(opt, session = getDefaultReactiveDomain()) {
 
-  rv <- get0(name, envir = session$userData, inherits = FALSE)
+  env <- session$userData
 
-  if (is.null(rv)) {
-    return(NULL)
+  stopifnot(is_string(opt), is.environment(env))
+
+  if (!exists(opt, envir = env, inherits = FALSE, mode = "function")) {
+    abort(
+      paste0("Could not find option `", opt, "`."),
+      class = "board_option_not_found"
+    )
   }
+
+  rv <- get(opt, envir = env, inherits = FALSE, mode = "function")
 
   res <- rv()
 
-  if (is.null(res)) {
-    return(NULL)
-  }
-
-  if (identical(name, "page_size")) {
+  if (identical(opt, "page_size")) {
     res <- as.integer(res)
   }
 
   res
 }
 
-get_userdata_or_option <- function(name, session) {
-
-  res <- board_option_from_userdata(name, session)
-
-  if (is.null(res)) {
-    return(board_option(name, new_board_options()))
-  }
-
-  res
+#' @rdname new_board_options
+#' @export
+get_board_option_or_default <- function(opt,
+                                        session = getDefaultReactiveDomain()) {
+  tryCatch(
+    get_board_option_value(opt, session),
+    board_option_not_found = function(e) {
+      board_option(opt, new_board_options())
+    }
+  )
 }
 
 #' @export
@@ -363,11 +379,4 @@ format.board_options <- function(x, ...) {
 print.board_options <- function(x, ...) {
   cat(format(x, ...), sep = "\n")
   invisible(x)
-}
-
-#' @param session Shiny session
-#' @rdname new_board_options
-#' @export
-color_mode <- function(session = getDefaultReactiveDomain()) {
-  session$userData$dark_mode()
 }

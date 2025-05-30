@@ -11,7 +11,8 @@
 \alias{validate_board_options.board_options}
 \alias{list_board_options}
 \alias{board_option}
-\alias{color_mode}
+\alias{get_board_option_value}
+\alias{get_board_option_or_default}
 \title{Board options}
 \usage{
 board_options(x)
@@ -22,6 +23,7 @@ new_board_options(
   page_size = blockr_option("page_size", 5L),
   filter_rows = blockr_option("filter_rows", FALSE),
   dark_mode = blockr_option("dark_mode", NULL),
+  thematic = blockr_option("thematic", NULL),
   ...,
   class = character()
 )
@@ -42,7 +44,9 @@ list_board_options(x)
 
 board_option(opt, x)
 
-color_mode(session = getDefaultReactiveDomain())
+get_board_option_value(opt, session = getDefaultReactiveDomain())
+
+get_board_option_or_default(opt, session = getDefaultReactiveDomain())
 }
 \arguments{
 \item{x}{Board options object}
@@ -55,6 +59,8 @@ block previews}
 \item{filter_rows}{Enable filtering of rows in tabular block previews}
 
 \item{dark_mode}{Toggle between dark and light modes}
+
+\item{thematic}{Enable auto-theming for plots via}
 
 \item{...}{Further options}
 

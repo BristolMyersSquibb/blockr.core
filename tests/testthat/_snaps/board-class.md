@@ -67,6 +67,7 @@
        $ page_size  : int 5
        $ filter_rows: logi FALSE
        $ dark_mode  : NULL
+       $ thematic   : NULL
 
 ---
 
@@ -127,4 +128,5 @@
        $ page_size  : int 5
        $ filter_rows: logi FALSE
        $ dark_mode  : NULL
+       $ thematic   : NULL
 

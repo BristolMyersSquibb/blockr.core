@@ -2,8 +2,8 @@
 
 * Add Block-level notifications via (optional) `expr` server return value
   component `cond`.
-* Export `color_mode()` to make inform of `dark`/`light` mode settings and
-  changes.
+* Export `get_board_option_value()` to make available current option settings
+  via `session$UserData`.
 
 # blockr.core 0.1.0
 

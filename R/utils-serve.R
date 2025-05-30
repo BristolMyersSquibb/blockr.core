@@ -112,10 +112,10 @@ serve.board <- function(x, id = rand_names(), plugins = board_plugins(), ...) {
   server <- function(input, output, session) {
 
     observeEvent(
-      board_option_from_userdata("board_name", session),
+      get_board_option_value("board_name", session),
       session$sendCustomMessage(
         "change-board-title",
-        board_option_from_userdata("board_name", session)
+        get_board_option_value("board_name", session)
       )
     )
 
