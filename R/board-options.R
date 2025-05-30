@@ -169,6 +169,13 @@ validate_board_options.board_options <- function(x) {
     )
   }
 
+  if (isTRUE(x[["tematic"]]) && !is_pkg_avail("thematic")) {
+    abort(
+      "Please install `thematic` to enable auto theming of plots.",
+      class = "thematic_not_installed"
+    )
+  }
+
   x
 }
 
@@ -259,6 +266,13 @@ board_ui.board_options <- function(id, x, ...) {
       "Enable preview search",
       board_option("filter_rows", x)
     ),
+    if (is_pkg_avail("thematic")) {
+      bslib::input_switch(
+        ns("thematic"),
+        "Enable thematic",
+        coal(board_option("thematic", x), FALSE)
+      )
+    },
     span(
       bslib::input_dark_mode(
         id = ns("dark_mode"),
@@ -356,6 +370,10 @@ get_board_option_value <- function(opt, session = getDefaultReactiveDomain()) {
   }
 
   res
+}
+
+get_board_option_values <- function(..., session = getDefaultReactiveDomain()) {
+  lapply(set_names(nm = c(...)), get_board_option_value, session = session)
 }
 
 #' @rdname new_board_options

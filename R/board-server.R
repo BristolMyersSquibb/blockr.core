@@ -199,8 +199,48 @@ board_server.board <- function(id, x, plugins = list(), callbacks = list(),
         cb_res[[i]] <- do.call(callbacks[[i]], plugin_args)
       }
 
+      observeEvent(
+        get_board_option_values("thematic", "dark_mode"),
+        {
+          if (isTRUE(get_board_option_value("thematic"))) {
+            do.call(thematic::thematic_shiny, bs_theme_colors(session))
+          } else if (isFALSE(get_board_option_value("thematic"))) {
+            thematic::thematic_off()
+          }
+        }
+      )
+
       c(rv_lst, dot_args)
     }
+  )
+}
+
+bs_theme_colors <- function(session) {
+
+  theme <- bslib::bs_current_theme(session)
+
+  if (!bslib::is_bs_theme(theme)) {
+    return(
+      list(bg = "auto", fg = "auto", accent = "auto")
+    )
+  }
+
+  if ("3" %in% bslib::theme_version(theme)) {
+
+    vars <- c("body-bg", "text-color", "link-color")
+
+  } else {
+
+    vars <- c("body-bg", "body-color", "link-color")
+
+    if (identical(get_board_option_value("dark_mode"), "dark")) {
+      vars <- paste0(vars, "-dark")
+    }
+  }
+
+  set_names(
+    as.list(bslib::bs_get_variables(theme, vars)),
+    c("bg", "fg", "accent")
   )
 }
 
