@@ -59,7 +59,7 @@ knitr::include_url(empty_board_url, height = "800px")
 
 Each block is represented as a __card__ containing the block name, the __output__ data and a parameter icon on the top right side. The latter may be used to remove the block, change its name or append (add after) a new block. Some block can contain __inputs__. In our case, we can change the __output__ data.
 
-2. Click on `Add block` and add a new `Select block`, givin it `transform` as custom id.
+2. Click on `Add block` and add a new `Select block`, giving it `transform` as custom id.
 
 Notice the error message in red. You can also see that none of the select block field can be changed. This basically means no data is fed into this block. Let's change this.
 
@@ -94,11 +94,11 @@ Wouldn't it be nice to save this work? At anytime you may click on `Save`. Then 
 
 You may have notice in the top right side of the navbar. An option icon is also available at the entire application level. At the moment, you can change some table options like the number of pages, the number of previewed data, toggle search.
 
-### More sofisticated UIs
+### More sophisticated UIs
 
 `blockr.ui` exposes a fully customized [user experience](https://shinylive.io/r/app/#h=0&code=NobwRAdghgtgpmAXGKAHVA6ASmANGAYwHsIAXOMpMAdzgCMAnRRASwgGdSoAbbgCgA6YOtyIEA1gwwBXFkNwACBnFRF2CgLwKhAC1KlU7RAHpjBAJ4RJUDAHMWpHdLoYWRYyLGSMtOlmNCAJQCEL5MrBxcvILCohJSACao3OYM8koqapraYHoGRqYWVgw29o7Oru6e8T70-kEhYcxsnDz8QtXe7AmkMOnKqupauvqGJmaW1nYOTi5uHnHevvVgwaH04S1R7bFeUm79mUM5eWOFkyXT5XNVi1LLAash3CyMUAzmfJ1Ssmsvbx8vncMEkUgw-q8SoDvhhur0IQDPjC3GsGNIIAB9BJwGBEDFoVB8QJgAC+AF0gA) built on top of `block.core`.
 
-If none of the solution meet your needs, keep in mind that `blockr.core` is entirely customisable, which means you can talk to your developer team and get a new app.
+If none of the solution meet your needs, keep in mind that `blockr.core` is entirely customizable, which means you can talk to your developer team and get a new app.
 
 ## {blockr} for developers
 
@@ -116,11 +116,11 @@ flowchart TD
       direction TB
       import[Data 1]
       transform[Transform]
-      visualise[Visualise]
+      visualize[Visualize]
       import2[Data 2]
       merge[Merge data]
       transform2[Subset columns]
-      import --> transform --> |filter| merge --> |left join| visualise
+      import --> transform --> |filter| merge --> |left join| visualize
       import2 --> transform2 --> |subset| merge
     end
 
@@ -128,13 +128,13 @@ flowchart TD
       direction TB
       import3[Data 3]
       llm[Transform LLM]
-      visualise_llm[Visualise LLM]
+      visualise_llm[Visualize LLM]
       import3 --> llm --> visualise_llm
     end
   end
 ```
 
-At the top level, a blockr app is made of a __board__ object. That board may contains __blocks__, __stacks__ or group of blocks, and connections between blocks, also known as __links__. You may find interesting to read more about block metadata in this [vignette](https://cynkra.github.io/blockr.core/articles/blocks-registry.html).
+At the top level, a blockr app is made of a __board__ object. That board may contains __blocks__, __stacks__ or group of blocks, and connections between blocks, also known as __links__. You may find interesting to read more about block metadata in this [vignette](https://bristolmyerssquibb.github.io/blockr.core/articles/blocks-registry.html).
 
 ### Serve blocks
 
@@ -180,7 +180,7 @@ serve(new_board())
 ```
 
 This single line of code spins up an ready-to-use blockr board. In some cases, it is 
-possible to initialise the board with few blocks, stacks and links:
+possible to initialize the board with few blocks, stacks and links:
 
 ```{r simple-board, eval = FALSE}
 serve(
@@ -245,8 +245,8 @@ shinyApp(ui, server)
 
 #### Develop new blocks
 
-If you had to develop custom blocks, you can read this [vignette](https://cynkra.github.io/blockr.core/articles/create-block.html).
+If you had to develop custom blocks, you can read this [vignette](https://bristolmyerssquibb.github.io/blockr.core/articles/create-block.html).
 
 #### Extend blockr.core
 
-If you wish to customise the look and feel of block, look no further than this [article](https://cynkra.github.io/blockr.core/articles/extend-blockr.html).
+If you wish to customize the look and feel of block, look no further than this [article](https://bristolmyerssquibb.github.io/blockr.core/articles/extend-blockr.html).

@@ -1,3 +1,15 @@
+#' Vector-valued links (i.e. `links` objects) manage IDs that are unique (with
+#' empty strings being the only exception). These are either user-supplied or
+#' generated automatically (via random strings) and operations like renaming,
+#' concatenation and sub-assignments are guaranteed to not allow duplicated
+#' IDs.
+#'
+#' In addition to unique IDs, `links` objects are guaranteed to be consistent
+#' in that it is not possible to have multiple links pointing to the same
+#' target (combination of `to` and `input` attributes). Furthermore, links
+#' behave like edges in a directed acyclic graph (DAG) in that cycles are
+#' detected and disallowed.
+#'
 #' @rdname new_link
 #' @export
 links <- function(...) {
@@ -203,32 +215,27 @@ as_links <- function(x) {
   UseMethod("as_links")
 }
 
-#' @rdname new_link
 #' @export
 as_links.links <- function(x) {
   validate_links(x)
 }
 
-#' @rdname new_link
 #' @export
 as_links.link <- function(x) {
   as_links(as.list(x))
 }
 
-#' @rdname new_link
 #' @export
 as_links.list <- function(x) {
   do.call(links, x)
 }
 
-#' @rdname new_link
 #' @export
 as_links.NULL <- function(x) {
   links()
 }
 
 #' @method as_links data.frame
-#' @rdname new_link
 #' @export
 as_links.data.frame <- function(x) {
   as_links(as.list(x))

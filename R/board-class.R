@@ -1,6 +1,14 @@
 #' Board
 #'
-#' Blocks are placed on a board.
+#' A set of blocks, optionally connected via links and grouped into stacks
+#' are organized as a `board` object. Boards are constructed using `new_board()`
+#' and inheritance can be tested with `is_board()`, while validation is
+#' available as (generic function) `validate_board()`. This central data
+#' structure can be extended by adding further attributes and sub-classes. S3
+#' dispatch is used in many places to control how the UI looks and feels and
+#' using this extension mechanism, UI aspects can be customized to user
+#' requirements. Several utilities are available for retrieving and modifying
+#' block attributes (see [board_blocks()]).
 #'
 #' @param blocks Set of blocks
 #' @param links Set of links
@@ -8,6 +16,22 @@
 #' @param options Board-level user settings
 #' @param ... Further (metadata) attributes
 #' @param class Board sub-class
+#'
+#' @examples
+#' brd <- new_board(
+#'   c(
+#'      a = new_dataset_block(),
+#'      b = new_subset_block()
+#'   ),
+#'   list(from = "a", to = "b")
+#' )
+#'
+#' is_board(brd)
+#'
+#' @return The board constructor `new_board()` returns a `board` object, as does
+#' the validator `validate_board()`, which typically is called for side effects
+#' in the form of errors. Inheritance checking as `is_board()` returns a scalar
+#' logical.
 #'
 #' @export
 new_board <- function(blocks = list(), links = list(), stacks = list(),
@@ -141,6 +165,11 @@ validate_board_blocks_stacks <- function(blocks, stacks) {
 #' @rdname new_board
 #' @export
 validate_board <- function(x) {
+  UseMethod("validate_board", x)
+}
+
+#' @export
+validate_board.board <- function(x) {
 
   if (!is_board(x)) {
     abort(
@@ -171,6 +200,15 @@ validate_board <- function(x) {
   validate_board_blocks_stacks(blks, board_stacks(x))
 
   x
+}
+
+#' @export
+validate_board.default <- function(x) {
+
+  abort(
+    "Expecting a board object to inherit from \"baord\".",
+    class = "board_inheritance_invalid"
+  )
 }
 
 #' @rdname new_board
@@ -211,7 +249,53 @@ is_acyclic.board <- function(x) {
   is_acyclic(as.matrix(x))
 }
 
-#' @rdname new_board
+#' Board utils
+#'
+#' A set of utility functions is available for querying and manipulating board
+#' components (i.e. blocks, links and stacks). Functions for retrieving and
+#' modifying board options are documented in [new_board_options()].
+#'
+#' @section Blocks:
+#' Board blocks can be retrieved using `board_blocks()` and updated with the
+#' corresponding replacement function `board_blocks<-()`. If just the current
+#' board IDs are of interest, `board_block_ids()` is available as short for
+#' `names(board_blocks(x))`. In order to remove block(s) from a board, the
+#' (generic) convenience function `rm_blocks()` is exported, which takes care
+#' (in the default implementation for `board`) of also updating links and
+#' stacks accordingly. The more basic replacement function `board_blocks<-()`
+#' might fail at validation of the updated board object if an inconsistent
+#' state results from an update (e.g. a block referenced by a stack is no
+#' longer available).
+#'
+#' @param x Board
+#'
+#' @examples
+#' brd <- new_board(
+#'   c(
+#'      a = new_dataset_block(),
+#'      b = new_subset_block()
+#'   ),
+#'   list(from = "a", to = "b")
+#' )
+#'
+#' board_blocks(brd)
+#' board_block_ids(brd)
+#'
+#' board_links(brd)
+#' board_link_ids(brd)
+#'
+#' board_stacks(brd)
+#' board_stack_ids(brd)
+#'
+#' @return Functions for retrieving, as well as updating components
+#' (`board_blocks()`/`board_links()`/`board_stacks()` and
+#' `board_blocks<-()`/`board_links<-()`/`board_stacks<-()`) return corresponding
+#' objects (i.e. `blocks`, `links` and `stacks`), while ID getters
+#' (`board_block_ids()`, `board_link_ids()` and `board_stack_ids()`) return
+#' character vectors, as does `available_stack_blocks()`. Convenience functions
+#' `rm_blocks()`, `modify_board_links()` and `modify_board_stacks()` return an
+#' updated `board` object.
+#'
 #' @export
 board_blocks <- function(x) {
   stopifnot(is_board(x))
@@ -219,7 +303,7 @@ board_blocks <- function(x) {
 }
 
 #' @param value Replacement value
-#' @rdname new_board
+#' @rdname board_blocks
 #' @export
 `board_blocks<-` <- function(x, value) {
   stopifnot(is_board(x))
@@ -227,14 +311,58 @@ board_blocks <- function(x) {
   validate_board(x)
 }
 
-#' @rdname new_board
+#' @rdname board_blocks
+#' @export
+board_block_ids <- function(x) {
+  names(board_blocks(x))
+}
+
+#' @param rm Block/link/stack IDs to remove
+#' @rdname board_blocks
+#' @export
+rm_blocks <- function(x, rm) {
+  UseMethod("rm_blocks", x)
+}
+
+#' @export
+rm_blocks.board <- function(x, rm) {
+
+  if (is_blocks(rm)) {
+    rm <- names(rm)
+  }
+
+  blocks <- board_blocks(x)
+
+  stopifnot(is.character(rm), all(rm %in% names(blocks)))
+
+  links <- board_links(x)
+  board_links(x) <- links[!links$from %in% rm & !links$to %in% rm]
+
+  stacks <- board_stacks(x)
+  board_stacks(x) <- as_stacks(lapply(stacks, setdiff, rm))
+
+  board_blocks(x) <- blocks[!names(blocks) %in% rm]
+
+  x
+}
+
+#' @section Links:
+#' Board links can be retrieved using `board_links()` and updated with the
+#' corresponding replacement function `board_links<-()`. If only links IDs are
+#' of interest, this is available as `board_link_ids()`, which is short for
+#' `names(board_links(x))`. A (generic) convenience function for all kinds of
+#' updates to board links in one is available as `modify_board_links()`. With
+#' arguments `add`, `rm` and `mod`, links can be added, removed or modified in
+#' one go.
+#'
+#' @rdname board_blocks
 #' @export
 board_links <- function(x) {
   stopifnot(is_board(x))
   validate_links(x[["links"]])
 }
 
-#' @rdname new_board
+#' @rdname board_blocks
 #' @export
 `board_links<-` <- function(x, value) {
   stopifnot(is_board(x))
@@ -242,67 +370,22 @@ board_links <- function(x) {
   validate_board(x)
 }
 
-#' @rdname new_board
-#' @export
-board_stacks <- function(x) {
-  stopifnot(is_board(x))
-  validate_stacks(x[["stacks"]])
-}
-
-#' @rdname new_board
-#' @export
-`board_stacks<-` <- function(x, value) {
-  stopifnot(is_board(x))
-  x[["stacks"]] <- value
-  validate_board(x)
-}
-
-#' @rdname new_board
-#' @export
-board_options <- function(x) {
-
-  if (!inherits(x, "board")) {
-    abort(
-      "Can only extract board options from a board object.",
-      class = "board_options_board_invalid"
-    )
-  }
-
-  validate_board_options(x[["options"]])
-}
-
-#' @rdname new_board
-#' @export
-board_block_ids <- function(x) {
-  names(board_blocks(x))
-}
-
-#' @rdname new_board
+#' @rdname board_blocks
 #' @export
 board_link_ids <- function(x) {
   names(board_links(x))
 }
 
-#' @rdname new_board
-#' @export
-board_stack_ids <- function(x) {
-  names(board_stacks(x))
-}
-
-#' @rdname new_board
-#' @export
-available_stack_blocks <- function(x, stacks = board_stacks(x),
-                                   blocks = board_stack_ids(x)) {
-
-  Reduce(setdiff, lapply(stacks, as.character), blocks)
-}
-
 #' @param add Links/stacks to add
-#' @param rm Link/stack IDs to remove
-#' @param mod Link/stack IDs to modify
-#' @rdname new_board
+#' @param mod Link/stacks to modify
+#' @rdname board_blocks
 #' @export
 modify_board_links <- function(x, add = NULL, rm = NULL, mod = NULL) {
+  UseMethod("modify_board_links", x)
+}
+
+#' @export
+modify_board_links.board <- function(x, add = NULL, rm = NULL, mod = NULL) {
 
   if (!length(add) && !length(rm) && !length(mod)) {
     return(x)
@@ -328,9 +411,45 @@ modify_board_links <- function(x, add = NULL, rm = NULL, mod = NULL) {
   x
 }
 
-#' @rdname new_board
+#' @section Stacks:
+#' Board stacks can be retrieved using `board_stacks()` and updated with the
+#' corresponding replacement function `board_stacks<-()`. If only the stack IDs
+#' are of interest, this is available as `board_stack_ids()`, which is short
+#' for `names(board_stacks(x))`. A (generic) convenience function to update
+#' stacks is available as `modify_board_stacks()`, which can add, remove and
+#' modify stacks depending on arguments passed as `add`, `rm` and `mod`. If
+#' block IDs that are not already associated with a stack (i.e. "free" blocks)
+#' are of interest, this is available as `available_stack_blocks()`.
+#'
+#' @rdname board_blocks
+#' @export
+board_stacks <- function(x) {
+  stopifnot(is_board(x))
+  validate_stacks(x[["stacks"]])
+}
+
+#' @rdname board_blocks
+#' @export
+`board_stacks<-` <- function(x, value) {
+  stopifnot(is_board(x))
+  x[["stacks"]] <- value
+  validate_board(x)
+}
+
+#' @rdname board_blocks
+#' @export
+board_stack_ids <- function(x) {
+  names(board_stacks(x))
+}
+
+#' @rdname board_blocks
 #' @export
 modify_board_stacks <- function(x, add = NULL, rm = NULL, mod = NULL) {
+  UseMethod("modify_board_stacks", x)
+}
+
+#' @export
+modify_board_stacks.board <- function(x, add = NULL, rm = NULL, mod = NULL) {
 
   if (!length(add) && !length(rm) && !length(mod)) {
     return(x)
@@ -356,32 +475,31 @@ modify_board_stacks <- function(x, add = NULL, rm = NULL, mod = NULL) {
   x
 }
 
-#' @rdname new_board
+#' @param blocks,stacks Sets of blocks/stacks
+#' @rdname board_blocks
 #' @export
-rm_blocks <- function(x, rm) {
+available_stack_blocks <- function(x, stacks = board_stacks(x),
+                                   blocks = board_stack_ids(x)) {
 
-  if (is_blocks(rm)) {
-    rm <- names(rm)
-  }
-
-  blocks <- board_blocks(x)
-
-  stopifnot(is.character(rm), all(rm %in% names(blocks)))
-
-  links <- board_links(x)
-  board_links(x) <- links[!links$from %in% rm & !links$to %in% rm]
-
-  stacks <- board_stacks(x)
-  board_stacks(x) <- as_stacks(lapply(stacks, setdiff, rm))
-
-  board_blocks(x) <- blocks[!names(blocks) %in% rm]
-
-  x
+  Reduce(setdiff, lapply(stacks, as.character), blocks)
 }
 
-#' @rdname new_block
+#' @rdname new_board_options
 #' @export
-block_inputs.board <- function(x, ...) {
+board_options <- function(x) {
+
+  if (!inherits(x, "board")) {
+    abort(
+      "Can only extract board options from a board object.",
+      class = "board_options_board_invalid"
+    )
+  }
+
+  validate_board_options(x[["options"]])
+}
+
+#' @export
+block_inputs.board <- function(x) {
   lapply(set_names(board_blocks(x), board_block_ids(x)), block_inputs)
 }
 

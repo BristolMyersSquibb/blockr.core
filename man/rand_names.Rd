@@ -24,6 +24,22 @@ rand_names(
 
 \item{prefix, suffix}{ID pre-/suffix}
 }
+\value{
+A character vector of length \code{n} where each entry contains \code{length}
+characters (all among \code{chars} and start/end with \code{prefix}/\code{suffix}), is
+guaranteed to be unique and not present among values passed as \code{old_names}.
+}
 \description{
-Generate random unique IDs.
+Randomly generated unique IDs are used throughout the package, created by
+\code{rand_names()}. If random strings are required that may not clash with a set
+of existing values, this can be guaranteed by passing them as \code{old_names}.
+The set of allowed characters can be controlled via \code{chars} and non-random
+pre- and suffixes may be specified as \code{prefix}/\code{suffix} arguments, while
+uniqueness is guaranteed including pre- and suffixes.
+}
+\examples{
+rand_names(chars = c(letters, LETTERS, 0:9))
+rand_names(length = 5L)
+rand_names(n = 5L, prefix = "pre-", suffix = "-suf")
+
 }

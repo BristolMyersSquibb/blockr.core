@@ -1,3 +1,14 @@
+#' Similar to [`blocks`](new_block()) and [`links`][new_link()], multiple
+#' stacks can be handled using `stacks` container objects. These hand out
+#' (and guarantee) unique IDs (implemented as [base::names()]) and ensure
+#' further consistency criteria, such as disallowing membership in multiple
+#' stacks at the same time for a given block.
+#'
+#' Stack container objects (`stacks` objects) can be created with `stacks()`
+#' or `as_stacks()` and inheritance can be tested via `is_stacks()`. Further
+#' basic operations such as concatenation, subsetting and sub-assignments is
+#' available by means of base R generics.
+#'
 #' @rdname new_stack
 #' @export
 stacks <- function(...) {
@@ -118,25 +129,21 @@ as_stacks <- function(x, ...) {
   UseMethod("as_stacks")
 }
 
-#' @rdname new_stack
 #' @export
 as_stacks.stacks <- function(x, ...) {
   validate_stacks(x)
 }
 
-#' @rdname new_stack
 #' @export
 as_stacks.list <- function(x, ...) {
   do.call(stacks, x)
 }
 
-#' @rdname new_stack
 #' @export
 as_stacks.character <- function(x, ...) {
   as_stacks(list(x))
 }
 
-#' @rdname new_stack
 #' @export
 as_stacks.stack <- function(x, ...) {
   as_stacks(list(x))

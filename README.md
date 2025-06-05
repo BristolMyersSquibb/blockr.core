@@ -5,9 +5,10 @@
 
 <!-- badges: start -->
 
-[![lifecycle](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
-[![status](https://github.com/cynkra/blockr.core/actions/workflows/ci.yaml/badge.svg)](https://github.com/cynkra/blockr.core/actions/workflows/ci.yaml)
-[![coverage](https://codecov.io/gh/cynkra/blockr.core/graph/badge.svg?token=VoOPRU65KA)](https://codecov.io/gh/cynkra/blockr.core)
+[![cran](https://www.r-pkg.org/badges/version/blockr.core)](https://CRAN.R-project.org/package=blockr.core)
+[![lifecycle](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
+[![status](https://github.com/BristolMyersSquibb/blockr.core/actions/workflows/ci.yaml/badge.svg)](https://github.com/BristolMyersSquibb/blockr.core/actions/workflows/ci.yaml)
+[![coverage](https://codecov.io/gh/BristolMyersSquibb/blockr.core/graph/badge.svg?token=VoOPRU65KA)](https://app.codecov.io/gh/BristolMyersSquibb/blockr.core)
 <!-- badges: end -->
 
 ## Overview
@@ -22,7 +23,7 @@ You can install the development version of blockr.core from
 [GitHub](https://github.com/) with:
 
 ``` r
-pak::pak("cynkra/blockr.core")
+pak::pak("BristolMyersSquibb/blockr.core")
 ```
 
 ## What is blockr.core?
@@ -30,14 +31,14 @@ pak::pak("cynkra/blockr.core")
 `blockr.core` is the entry point to blockr, providing the core
 functionality needed to get started. It can be run as a stand-alone app,
 but is designed with extensibility in mind. A rich **API** is provided
-to connect your own blocks and override the default behaviours (e.g.,
-you can add your own GUI layer or serialisation).
+to connect your own blocks and override the default behaviors (e.g., you
+can add your own GUI layer or serialization).
 
 ## What is a block?
 
 A **block** is a fundamental unit of a data analysis workflow. A single
 block performs a single **task**, such as loading or filtering or
-visualisation. Blocks can be joined together using a **DAG** (direct
+visualization. Blocks can be joined together using a **DAG** (direct
 acyclic graph) to create powerful data **workflows**.
 
 ## Who is it for?
@@ -82,7 +83,7 @@ blockr.ui example
 ## Getting started
 
 To get started, we invite you to read this
-[vignette](https://cynkra.github.io/blockr.core/articles/get-started.html).
+[vignette](https://bristolmyerssquibb.github.io/blockr.core/articles/get-started.html).
 
 ## Extending blockr
 
@@ -98,4 +99,4 @@ capabilities:
   datasets blocks.
 
 If you wish to learn to develop your own blocks, have a look at this
-[vignette](https://cynkra.github.io/blockr.core/articles/create-block.html).
+[vignette](https://bristolmyerssquibb.github.io/blockr.core/articles/create-block.html).

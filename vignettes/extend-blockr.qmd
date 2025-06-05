@@ -76,7 +76,7 @@ blk_choices <- function() {
 
 ## Introduction
 
-In the `Create block` [vignette](https://cynkra.github.io/blockr.core/articles/create-block.html),
+In the `Create block` [vignette](https://bristolmyerssquibb.github.io/blockr.core/articles/create-block.html),
 you were taught how to design new blocks for blockr. Did you know that we could go much further?
 
 Each major `blockr.core` feature belongs to its own __plugin__, materialized as a shiny module:
@@ -88,8 +88,8 @@ data to block B.
 - Preserve the __board__ state: save and restore the application state.
 - ...
 
-All of the above is fully customisable by yourself, `blockr.core` only provides resonable defaults to get you started.
-`blockr.ui` is an example of full customisation.
+All of the above is fully customizable by yourself, `blockr.core` only provides reasonable defaults to get you started.
+`blockr.ui` is an example of full customization.
 
 ```{mermaid}
 flowchart TD
@@ -215,12 +215,12 @@ manage_blocks <- function(server, ui) {
 }
 ```
 
-In the following, we want to create a custom `manage_blocks` plugin that uses the `scoutbaR` package, described in [vignette](https://cynkra.github.io/blockr.core/articles/blocks-registry.html)
+In the following, we want to create a custom `manage_blocks` plugin that uses the `scoutbaR` package, described in [vignette](https://bristolmyerssquibb.github.io/blockr.core/articles/blocks-registry.html)
 
 ### A custom manage_blocks
 
 To create our custom manage blocks, we'll first need to overwrite the `add_rm_block_server` and `add_rm_block_ui` functions. 
-For sake of simplicity, on the UI side, we provide a `Add` block button as well as as scoutbar widget (`blk_choices()` is described in the following [vignette](https://cynkra.github.io/blockr.core/articles/blocks-registry.html)):
+For sake of simplicity, on the UI side, we provide a `Add` block button as well as as scoutbar widget (`blk_choices()` is described in the following [vignette](https://bristolmyerssquibb.github.io/blockr.core/articles/blocks-registry.html)):
 
 ```{r custom-plugin-ui, eval=FALSE}
 add_rm_block_ui <- function(id, board) {
@@ -351,7 +351,7 @@ custom_board_plugins <- function(which = NULL) {
 
 ### Testing the new plugin
 
-In the below example, you may click on the `Add block` button and see the scoubar opening and then select a block.
+In the below example, you may click on the `Add block` button and see the scoutbar opening and then select a block.
 
 ```{r custom-plugin-app, eval=FALSE}
 #| code-fold: true
@@ -537,7 +537,7 @@ Notice the use of few `blockr.core` helpers along the way:
 
 - `board_blocks()` to extract and validate the blocks of a board.
 - `is_blocks()` check whether an object correspond to a list of blocks.
-- `get_block_registry()` to get the current block metadata from the [registry](https://cynkra.github.io/blockr.core/articles/blocks-registry.html).
+- `get_block_registry()` to get the current block metadata from the [registry](https://bristolmyerssquibb.github.io/blockr.core/articles/blocks-registry.html).
 
 `add_rm_block_ui()` now leverages `shinyNextUI::actionButton`:
 
@@ -560,7 +560,7 @@ add_rm_block_ui <- function(id, board) {
 }
 ```
 
-Since `blockr.core` blocks utilises `shiny`/`bslib` UI, you'd also have to rewrite the UI and/or server part whenever necessary. This [vignette](https://cynkra.github.io/blockr.core/articles/create-block.html) provides a starting point to authoring blocks.
+Since `blockr.core` blocks utilizes `shiny`/`bslib` UI, you'd also have to rewrite the UI and/or server part whenever necessary. This [vignette](https://bristolmyerssquibb.github.io/blockr.core/articles/create-block.html) provides a starting point to authoring blocks.
 
 As a final step, when you call `new_board()` don't forget to add it the `custom_board` class so that the custom S3 methods are invoked.
 

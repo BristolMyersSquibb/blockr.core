@@ -1,9 +1,10 @@
-#' Row-bind block constructor
+#' @section Row-bind block:
+#' Row-wise concatenation of an arbitrary number of `data.frame`s, as performed
+#' by [base::rbind()] is available as an `rbind_block`. This mainly serves as
+#' an example for a variadic block via the "special" `...args` block data
+#' argument.
 #'
-#' This block performs row-binding of data inputs.
-#'
-#' @param ... Forwarded to [new_block()]
-#'
+#' @rdname new_transform_block
 #' @export
 new_rbind_block <- function(...) {
   new_transform_block(

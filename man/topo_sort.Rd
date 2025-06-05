@@ -12,7 +12,7 @@
 
 \method{is_acyclic}{links}(x)
 
-topo_sort(adj_matrix)
+topo_sort(x)
 
 is_acyclic(x)
 
@@ -20,9 +20,31 @@ is_acyclic(x)
 }
 \arguments{
 \item{x}{Object}
-
-\item{adj_matrix}{Adjacency matrix}
+}
+\value{
+Topological ordering via \code{topo_sort()} returns a character vector
+with sorted node IDs and the generic function \code{is_acyclic()} is expected to
+return a scalar logical value.
 }
 \description{
-Utilities for handling block dependency DAGs.
+Block dependencies are represented by DAGs and graph utility functions
+\code{topo_sort()} and \code{is_acyclic()} are used to create a topological ordering
+(implemented as DFS) of blocks and to check for cycles. An adjacency matrix
+corresponding to a board is available as \code{as.matrix()}.
+}
+\examples{
+brd <- new_board(
+  c(
+     a = new_dataset_block(),
+     b = new_dataset_block(),
+     c = new_scatter_block(),
+     d = new_subset_block()
+  ),
+  list(from = c("a", "d"), to = c("d", "c"))
+)
+
+as.matrix(brd)
+topo_sort(brd)
+is_acyclic(brd)
+
 }

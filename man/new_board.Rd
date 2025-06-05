@@ -4,20 +4,6 @@
 \alias{new_board}
 \alias{validate_board}
 \alias{is_board}
-\alias{board_blocks}
-\alias{board_blocks<-}
-\alias{board_links}
-\alias{board_links<-}
-\alias{board_stacks}
-\alias{board_stacks<-}
-\alias{board_options}
-\alias{board_block_ids}
-\alias{board_link_ids}
-\alias{board_stack_ids}
-\alias{available_stack_blocks}
-\alias{modify_board_links}
-\alias{modify_board_stacks}
-\alias{rm_blocks}
 \title{Board}
 \usage{
 new_board(
@@ -32,38 +18,6 @@ new_board(
 validate_board(x)
 
 is_board(x)
-
-board_blocks(x)
-
-board_blocks(x) <- value
-
-board_links(x)
-
-board_links(x) <- value
-
-board_stacks(x)
-
-board_stacks(x) <- value
-
-board_options(x)
-
-board_block_ids(x)
-
-board_link_ids(x)
-
-board_stack_ids(x)
-
-available_stack_blocks(
-  x,
-  stacks = board_stacks(x),
-  blocks = board_stack_ids(x)
-)
-
-modify_board_links(x, add = NULL, rm = NULL, mod = NULL)
-
-modify_board_stacks(x, add = NULL, rm = NULL, mod = NULL)
-
-rm_blocks(x, rm)
 }
 \arguments{
 \item{blocks}{Set of blocks}
@@ -79,15 +33,33 @@ rm_blocks(x, rm)
 \item{class}{Board sub-class}
 
 \item{x}{Board object}
-
-\item{value}{Replacement value}
-
-\item{add}{Links/stacks to add}
-
-\item{rm}{Link/stack IDs to remove}
-
-\item{mod}{Link/stack IDs to modify}
+}
+\value{
+The board constructor \code{new_board()} returns a \code{board} object, as does
+the validator \code{validate_board()}, which typically is called for side effects
+in the form of errors. Inheritance checking as \code{is_board()} returns a scalar
+logical.
 }
 \description{
-Blocks are placed on a board.
+A set of blocks, optionally connected via links and grouped into stacks
+are organized as a \code{board} object. Boards are constructed using \code{new_board()}
+and inheritance can be tested with \code{is_board()}, while validation is
+available as (generic function) \code{validate_board()}. This central data
+structure can be extended by adding further attributes and sub-classes. S3
+dispatch is used in many places to control how the UI looks and feels and
+using this extension mechanism, UI aspects can be customized to user
+requirements. Several utilities are available for retrieving and modifying
+block attributes (see \code{\link[=board_blocks]{board_blocks()}}).
+}
+\examples{
+brd <- new_board(
+  c(
+     a = new_dataset_block(),
+     b = new_subset_block()
+  ),
+  list(from = "a", to = "b")
+)
+
+is_board(brd)
+
 }

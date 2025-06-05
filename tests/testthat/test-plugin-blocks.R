@@ -1,7 +1,7 @@
 test_that("add/rm blocks", {
 
   testServer(
-    add_rm_block_server,
+    manage_blocks_server,
     {
       expect_null(update())
 
@@ -36,7 +36,7 @@ test_that("add/rm blocks", {
   )
 
   testServer(
-    add_rm_block_server,
+    manage_blocks_server,
     {
       expect_null(update())
 
@@ -56,7 +56,7 @@ test_that("add/rm blocks", {
   )
 
   testServer(
-    add_rm_block_server,
+    manage_blocks_server,
     {
       expect_null(update())
 
@@ -140,5 +140,5 @@ test_that("add/rm blocks return validation", {
 })
 
 test_that("dummy add/rm block ui test", {
-  expect_s3_class(add_rm_block_ui("add_rm", new_board()), "shiny.tag.list")
+  expect_s3_class(manage_blocks_ui("add_rm", new_board()), "shiny.tag.list")
 })

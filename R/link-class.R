@@ -1,15 +1,56 @@
 #' Board links
 #'
-#' Blocks on a board are linksed by board links.
+#' Two blocks can be connected via a (directed) link. This means the result from
+#' one block is passed as (data) input to the next. Source and destination are
+#' identified by `from` and `to` attributes and in case of polyadic receiving
+#' blocks, the `input` attribute identified which of the data inputs is the
+#' intended destination. In principle, the `link` object may be extended via
+#' sub-classing and passing further attributes, but this has not been properly
+#' tested so far.
+#'
+#' A links is created via the `new_link()` constructor and for a vector of
+#' links, the container object `links` is provided and a corresponding
+#' constructor `links()` exported from the package. Testing whether an object
+#' inherits from `link` (or `links`) is available via `is_link()` (or
+#' `is_links()`, respectively). Coercion to `link` (and `links`) objects is
+#' implemented as `as_link()` (and `as_links()`, respectively). Finally, links
+#' can be validated by calling `validate_links()`.
 #'
 #' @param from,to Block ID(s)
 #' @param input Block argument
 #' @param ... Extensibility
 #' @param class (Optional) link sub-class
 #'
+#' @examples
+#' lnks <- links(from = c("a", "b"), to = c("b", "c"), input = c("x", "y"))
+#' is_links(lnks)
+#' names(lnks)
+#'
+#' tryCatch(
+#'   c(lnks, new_link("a", "b", "x")),
+#'   error = function(e) conditionMessage(e)
+#' )
+#' tryCatch(
+#'   c(lnks, new_link("b", "a")),
+#'   error = function(e) conditionMessage(e)
+#' )
+#'
+#' lnks <- links(a = new_link("a", "b"), b = new_link("b", "c"))
+#' names(lnks)
+#'
+#' tryCatch(
+#'   c(lnks, a = new_link("a", "b")),
+#'   error = function(e) conditionMessage(e)
+#' )
+#'
+#' @return Both `new_link()`/`as_link()`, and `links()`/`as_links()` return
+#' `link` and `links` objects, respectively. Testing for inheritance is
+#' available as `is_link()`/`is_links()` and validation (for `links`) is
+#' performed with `validate_links()`, which returns its input (`x`) or throws
+#' an error.
+#'
 #' @export
-new_link <- function(from = "", to = "", input = "", ...,
-                     class = character()) {
+new_link <- function(from = "", to = "", input = "", ..., class = character()) {
 
   stopifnot(length(from) == length(to))
 
@@ -97,26 +138,22 @@ as_link <- function(x) {
   UseMethod("as_link")
 }
 
-#' @rdname new_link
 #' @export
 as_link.link <- function(x) {
   x
 }
 
-#' @rdname new_link
 #' @export
 as_link.character <- function(x) {
   do.call(new_link, as.list(x))
 }
 
-#' @rdname new_link
 #' @export
 as_link.list <- function(x) {
   do.call(new_link, x)
 }
 
 #' @method as_link data.frame
-#' @rdname new_link
 #' @export
 as_link.data.frame <- function(x) {
   do.call(new_link, x)

@@ -21,6 +21,16 @@ board_server(id, x, ...)
 \item{callbacks}{Single (or list of) callback function(s), called only
 for their side-effects)}
 }
+\value{
+A \code{board_server()} implementation (such as the default for the
+\code{board} base class) is expected to return a \code{\link[shiny:moduleServer]{shiny::moduleServer()}}.
+}
 \description{
-Shiny server function for \code{board} objects.
+A call to \code{board_server()}, dispatched on objects inheriting from \code{board},
+returns a \code{\link[shiny:moduleServer]{shiny::moduleServer()}}, containing all necessary logic to
+manipulate board components via UI. Extensibility over currently available
+functionality is provided in the form of S3, where a \code{board_server()}
+implementation of \code{board} sub-classes may be provided, as well as via a
+plugin architecture and callback functions which can be used to register
+additional observers.
 }

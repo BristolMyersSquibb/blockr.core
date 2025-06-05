@@ -1,6 +1,6 @@
 Package: blockr.core
-Title: A block-based framework for data manipulation and visualization
-Version: 0.0.1
+Title: Graphical Web-Framework for Data Manipulation and Visualization
+Version: 0.1.1
 Authors@R: 
     c(person(given = "Nicolas",
              family = "Bennett",
@@ -26,8 +26,9 @@ Authors@R:
              role = "fnd")
     )
 Description: A framework for data manipulation and visualization using a
-    web-based point and click user interface.
-URL: https://cynkra.github.io/blockr.core
+    web-based point and click user interface where analysis pipelines are decomposed into re-usable and parameterizable blocks.
+URL: https://bristolmyerssquibb.github.io/blockr.core/
+BugReports: https://github.com/BristolMyersSquibb/blockr.core/issues
 License: GPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE, packages = c("roxy.shinylive"))
@@ -42,7 +43,8 @@ Imports:
     vctrs,
     generics,
     rlang,
-    htmltools
+    htmltools,
+    shinyFiles
 Suggests:
     testthat (>= 3.0.0),
     memuse,
@@ -53,6 +55,8 @@ Suggests:
     knitr,
     rmarkdown,
     quarto,
-    scoutbaR
+    scoutbaR,
+    cli,
+    thematic
 Config/testthat/edition: 3
 VignetteBuilder: quarto

@@ -1,14 +1,29 @@
-#' Edit stack module
+#' Plugin module for editing board stacks
 #'
-#' Customizable logic for editing stack attributes such as stack title.
+#' Logic and user experience for editing stack attributes such as stack names
+#' can be customized or enhanced by providing an alternate version of this
+#' plugin. The default implementation only handles stack names, but if further
+#' (editable) stack attributes are to be introduced, corresponding UI and logic
+#' can be included here. In addition to stack names, this default
+#' implementation provides UI for removing the current stack.
 #'
+#' @param server,ui Server/UI for the plugin module
+#'
+#' @return A plugin container inheriting from `edit_stack` is returned by
+#' `edit_stack()`, while the UI component (e.g. `edit_stack_ui()`) is
+#' expected to return shiny UI (i.e. [shiny::tagList()]) and the server
+#' component (i.e. `edit_stack_server()`) is expected to return `NULL`.
+#'
+#' @export
+edit_stack <- function(server = edit_stack_server, ui = edit_stack_ui) {
+  new_plugin(server, ui, validator = expect_null, class = "edit_stack")
+}
+
 #' @param id Namespace ID
 #' @param stack_id Stack ID
 #' @param board Reactive values object containing board information
 #' @param update Reactive value object to initiate board updates
 #' @param ... Extra arguments passed from parent scope
-#'
-#' @return `NULL`
 #'
 #' @rdname edit_stack
 #' @export

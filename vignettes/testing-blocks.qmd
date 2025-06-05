@@ -19,7 +19,7 @@ Testing blocks is more complex than writing unit tests for standard R code.
 For blocks, we need methods to both interact with the reactive shiny values in the blocks, and to capture the state and expressions returned by our blocks.
 
 In both instances, we can take advantage of `shiny::testServer()`.
-This function allows us to simulate a blockr application, without having to spin up a full app (which would be time consuming to create and result in slow tests). This vignette will show how to apply `shiny::testServer()` to a suite of common test cases. For more details on how `shiny::testServer()` works, we reccommend you see [this](https://shiny.posit.co/r/articles/improve/server-function-testing/) article in the official Shiny docs.
+This function allows us to simulate a blockr application, without having to spin up a full app (which would be time consuming to create and result in slow tests). This vignette will show how to apply `shiny::testServer()` to a suite of common test cases. For more details on how `shiny::testServer()` works, we recommend you see [this](https://shiny.posit.co/r/articles/improve/server-function-testing/) article in the official Shiny docs.
 
 ## Common test cases
 

@@ -11,7 +11,7 @@ test_that("ser/deser module", {
   temp <- tempfile(fileext = ".json")
 
   testServer(
-    ser_deser_server,
+    preserve_board_server,
     {
       file.copy(output$serialize, temp)
     },
@@ -19,7 +19,7 @@ test_that("ser/deser module", {
   )
 
   testServer(
-    ser_deser_server,
+    preserve_board_server,
     {
       session$setInputs(restore = list(datapath = temp))
 
@@ -60,9 +60,7 @@ test_that("ser/deser board", {
     },
     args = list(
       x = test_board,
-      plugins = list(
-        preserve_board(server = ser_deser_server, ui = ser_deser_ui)
-      )
+      plugins = list(preserve_board())
     )
   )
 
@@ -82,9 +80,7 @@ test_that("ser/deser board", {
     },
     args = list(
       x = new_board(),
-      plugins = list(
-        preserve_board(server = ser_deser_server, ui = ser_deser_ui)
-      )
+      plugins = list(preserve_board())
     )
   )
 })
@@ -120,5 +116,5 @@ test_that("gen_code return validation", {
 })
 
 test_that("dummy ser/deser ui test", {
-  expect_s3_class(ser_deser_ui("ser_deser", new_board()), "shiny.tag.list")
+  expect_s3_class(preserve_board_ui("ser_deser", new_board()), "shiny.tag.list")
 })

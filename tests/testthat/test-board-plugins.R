@@ -1,7 +1,7 @@
 test_that("plugins", {
 
-  a <- preserve_board(server = ser_deser_server, ui = ser_deser_ui)
-  b <- manage_blocks(server = add_rm_block_server, ui = add_rm_block_ui)
+  a <- preserve_board()
+  b <- manage_blocks()
 
   expect_s3_class(a, "plugin")
   expect_s3_class(a, "preserve_board")
@@ -62,8 +62,8 @@ test_that("plugins", {
   expect_identical(as_plugin(as.list(a)), a)
   expect_identical(as_plugin(as_plugins(a)), a)
 
-  c <- manage_links(server = add_rm_link_server, ui = add_rm_link_ui)
-  d <- manage_stacks(server = add_rm_stack_server, ui = add_rm_stack_ui)
+  c <- manage_links()
+  d <- manage_stacks()
 
   cd <- plugins(c, d)
 

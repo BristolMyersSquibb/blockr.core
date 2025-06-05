@@ -28,9 +28,7 @@ test_that("generate code", {
     },
     args = list(
       x = board,
-      plugins = list(
-        generate_code(server = gen_code_server, ui = gen_code_ui)
-      )
+      plugins = list(generate_code())
     )
   )
 })
@@ -50,5 +48,5 @@ test_that("gen_code return validation", {
 })
 
 test_that("dummy add/rm block ui test", {
-  expect_s3_class(gen_code_ui("gen", new_board()), "shiny.tag.list")
+  expect_s3_class(generate_code_ui("gen", new_board()), "shiny.tag.list")
 })

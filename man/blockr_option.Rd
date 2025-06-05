@@ -11,8 +11,33 @@ blockr_option(name, default)
 
 \item{default}{Default value}
 }
+\value{
+The value set as option \code{name} or \code{default} if not set. In case of
+the option being available only as environment variable, the value will be
+a string and if available as \code{\link[base:options]{base::options()}} entry it may be of any R type.
+}
 \description{
-Retrieves options via \code{getOption()} or environment variable and prefixes
-the option with \code{blockr.} or \code{blockr_} respectively. Also converts to lower
-case for \code{getOption()} and upper case for environment variables.
+Retrieves options via \code{\link[base:options]{base::getOption()}} or \code{\link[base:Sys.getenv]{base::Sys.getenv()}}, in that
+order, and prefixes the option name passed as \code{name} with \code{blockr.} or
+\code{blockr_} respectively. Additionally, the name is converted to lower case
+for \code{getOption()} and upper case for environment variables. In case no value
+is available for a given \code{name}, \code{default} is returned.
+}
+\examples{
+blockr_option("test-example", "default")
+
+options(`blockr.test-example` = "non-default")
+blockr_option("test-example", "default")
+
+Sys.setenv(`BLOCKR_TEST-EXAMPLE` = "another value")
+tryCatch(
+  blockr_option("test-example", "default"),
+  error = function(e) conditionMessage(e)
+)
+options(`blockr.test-example` = NULL)
+blockr_option("test-example", "default")
+
+Sys.unsetenv("BLOCKR_TEST-EXAMPLE")
+blockr_option("test-example", "default")
+
 }

@@ -1,10 +1,13 @@
-#' Data upload block constructor
-#'
+#' @section Upload block:
 #' In order to make user data available to blockr, this block provides file-
-#' upload functionality.
+#' upload functionality via [shiny::fileInput()]. Given that data provided in
+#' this way are only available for the life-time of the shiny session, exported
+#' code is not self-contained and a script containing code from an upload block
+#' is cannot be run in a new session. Also, serialization of upload blocks is
+#' currently not allowed as the full data would have to be included during
+#' serialization.
 #'
-#' @param ... Forwarded to [new_block()]
-#'
+#' @rdname new_file_block
 #' @export
 new_upload_block <- function(...) {
   new_file_block(

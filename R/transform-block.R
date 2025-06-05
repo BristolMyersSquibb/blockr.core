@@ -1,16 +1,26 @@
-#' @rdname new_block
+#' Transform block constructors
+#'
+#' Many data transformations are be provided by blocks constructed via
+#' `new_transform_block()`, including examples where a single `data.frame` is
+#' transformed into another (e.g. `subset_block`), and two or more `data.frame`s
+#' are combined (e.g. `merge_block` or `rbind_block`).
+#'
+#' @param ... Forwarded to `new_transform_block()` and [new_block()]
+#' @inheritParams new_block
+#'
+#' @return All blocks constructed via `new_transform_block()` inherit from
+#' `transform_block`.
+#'
 #' @export
 new_transform_block <- function(server, ui, class, ctor = sys.parent(), ...) {
   new_block(server, ui, c(class, "transform_block"), ctor, ...)
 }
 
-#' @rdname block_ui
 #' @export
 block_output.transform_block <- function(x, result, session) {
   dt_result(result, session)
 }
 
-#' @rdname block_ui
 #' @export
 block_ui.transform_block <- function(id, x, ...) {
   tagList(

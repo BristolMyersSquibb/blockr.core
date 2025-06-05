@@ -7,17 +7,11 @@
 \alias{stack_blocks<-}
 \alias{stack_name}
 \alias{stack_name<-}
+\alias{validate_stack}
 \alias{as_stack}
-\alias{as_stack.stack}
-\alias{as_stack.character}
-\alias{as_stack.list}
 \alias{stacks}
 \alias{is_stacks}
 \alias{as_stacks}
-\alias{as_stacks.stacks}
-\alias{as_stacks.list}
-\alias{as_stacks.character}
-\alias{as_stacks.stack}
 \title{Stacks}
 \usage{
 new_stack(blocks = character(), name = NULL, ..., class = character())
@@ -32,27 +26,15 @@ stack_name(x, name)
 
 stack_name(x) <- value
 
+validate_stack(x)
+
 as_stack(x)
-
-\method{as_stack}{stack}(x)
-
-\method{as_stack}{character}(x)
-
-\method{as_stack}{list}(x)
 
 stacks(...)
 
 is_stacks(x)
 
 as_stacks(x, ...)
-
-\method{as_stacks}{stacks}(x, ...)
-
-\method{as_stacks}{list}(x, ...)
-
-\method{as_stacks}{character}(x, ...)
-
-\method{as_stacks}{stack}(x, ...)
 }
 \arguments{
 \item{blocks}{Set of blocks}
@@ -67,6 +49,49 @@ as_stacks(x, ...)
 
 \item{value}{Replacement value}
 }
+\value{
+Construction and coercion via \code{new_stack()}/\code{as_stack()} and
+\code{stacks()}/\code{as_stacks()} results in \code{stack} and \code{stacks} objects,
+respectively, while inheritance testing via \code{is_stack()} and \code{is_stacks()}
+returns scalar logicals. Attribute getters \code{stack_name()} and
+\code{stack_blocks()} return scalar and vector-valued character vectors while
+setters \verb{stack_name()<-} and \verb{stack_blocks()<-} return modified stack
+objects.
+}
 \description{
-Stacks are sets of blocks.
+Multiple (related) blocks can be grouped together into stacks. Such a
+grouping has no functional implications, rather it is an organizational tool
+to help users manage more complex pipelines. Stack objects constitute a set
+of attributes, the most important of which is \code{blocks} (a character vector
+of block IDs). Each \code{stack} may have an arbitrary \code{name} and the class can
+be extended by adding further attributes, maybe something like \code{color},
+coupled with sub-classing.
+
+Stack container objects (\code{stacks} objects) can be created with \code{stacks()}
+or \code{as_stacks()} and inheritance can be tested via \code{is_stacks()}. Further
+basic operations such as concatenation, subsetting and sub-assignments is
+available by means of base R generics.
+}
+\details{
+Individual stacks can be created using \code{new_stack()} or \code{as_stack()} and
+inheritance can be tested with \code{is_stack()}. Attributes can be retrieved
+(and modified) with \code{stack_blocks()}/\verb{stack_blocks<-()} and
+\code{stack_name()}/\verb{stack_name<-()}, while validation is available as
+(generic) \code{validate_stack()}.
+}
+\examples{
+stk <- new_stack(letters[1:5], "Alphabet 1")
+
+stack_blocks(stk)
+stack_name(stk)
+stack_name(stk) <- "Alphabet start"
+
+stks <- c(start = stk, cont = new_stack(letters[6:10], "Alphabet cont."))
+names(stks)
+
+tryCatch(
+  stack_blocks(stks[[2]]) <- letters[4:8],
+  error = function(e) conditionMessage(e)
+)
+
 }

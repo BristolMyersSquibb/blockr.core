@@ -3,6 +3,7 @@
 \name{block_name}
 \alias{block_name}
 \alias{block_name<-}
+\alias{validate_data_inputs}
 \alias{block_inputs}
 \alias{block_arity}
 \title{Block utilities}
@@ -11,7 +12,9 @@ block_name(x)
 
 block_name(x) <- value
 
-block_inputs(x, ...)
+validate_data_inputs(x, data)
+
+block_inputs(x)
 
 block_arity(x)
 }
@@ -19,9 +22,11 @@ block_arity(x)
 \item{x}{An object inheriting from \code{"block"}}
 
 \item{value}{New value}
+
+\item{data}{Data input values}
 }
 \value{
-Return types vary among the set of exported utilties:
+Return types vary among the set of exported utilities:
 \itemize{
 \item \code{block_name()}: string valued block name,
 \item \verb{block_name<-()}: \code{x} (invisibly),
@@ -33,15 +38,15 @@ the validator function otherwise,
 }
 \description{
 Several utilities for working (and manipulating) \code{block} objects are exported
-and developpers are encouraged to use these instead of relying on object
-implementatsion to extract or modify attributes. If functionality for working
+and developers are encouraged to use these instead of relying on object
+implementation to extract or modify attributes. If functionality for working
 with blocks in lacking, please consider opening an
-\href{https://github.com/cynkra/blockr.core/issues/new}{issue}.
+\href{https://github.com/BristolMyersSquibb/blockr.core/issues/new}{issue}.
 }
 \section{Block name}{
 
 Each block can have a name (by default constructed from the class vector)
-intended for users to esily identify different blocks. This name can freely
+intended for users to easily identify different blocks. This name can freely
 be changed during the lifetime of a block and no uniqueness restrictions are
 in place. The current block name can be retrieved with \code{block_name()} and
 set as \code{block_name(x) <- "some name"}.
@@ -51,7 +56,7 @@ set as \code{block_name(x) <- "some name"}.
 
 Data input validation is available via \code{validate_data_inputs()} which uses
 the (optional) validator function passed to \code{\link[=new_block]{new_block()}} at construction
-time. This mechanism can be used to prevent premature evaulation of the
+time. This mechanism can be used to prevent premature evaluation of the
 block expression as this might lead to unexpected errors.
 }
 

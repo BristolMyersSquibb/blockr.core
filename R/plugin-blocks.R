@@ -1,19 +1,38 @@
-#' Add/remove block module
+#' Plugin module for managing board blocks
 #'
-#' Customizable logic for adding/removing blocks to the board.
+#' Logic and user experience for adding/removing blocks to the board can be
+#' customized or enhanced by providing an alternate version of this plugin. The
+#' default implementation provides a modal-based UI with simple shiny inputs
+#' such as drop-downs and text fields.
 #'
+#' Updates are mediated via the [shiny::reactiveVal()] object passed as
+#' `update`, where block updates are communicated as list entry `blocks` with
+#' components `add` and `rm`, where
+#' * `add` may be `NULL` or a `block` object (block IDs may not already exist),
+#' * `rm` may be `NULL` or a string (of existing block IDs).
+#'
+#' @param server,ui Server/UI for the plugin module
+#'
+#' @return A plugin container inheriting from `manage_blocks` is returned by
+#' `manage_blocks()`, while the UI component (e.g. `manage_blocks_ui()`) is
+#' expected to return shiny UI (i.e. [shiny::tagList()]) and the server
+#' component (i.e. `manage_blocks_server()`) is expected to return `NULL`.
+#'
+#' @export
+manage_blocks <- function(server = manage_blocks_server,
+                          ui = manage_blocks_ui) {
+
+  new_plugin(server, ui, validator = expect_null, class = "manage_blocks")
+}
+
 #' @param id Namespace ID
 #' @param board Reactive values object
 #' @param update Reactive value object to initiate board updates
 #' @param ... Extra arguments passed from parent scope
 #'
-#' @return A [shiny::reactiveValues()] object with components `add` and `rm`,
-#' where `add` may be `NULL` or a `block` object and `rm` be `NULL` or a string
-#' (block ID).
-#'
-#' @rdname add_rm_block
+#' @rdname manage_blocks
 #' @export
-add_rm_block_server <- function(id, board, update, ...) {
+manage_blocks_server <- function(id, board, update, ...) {
   moduleServer(
     id,
     function(input, output, session) {
@@ -99,9 +118,9 @@ add_rm_block_server <- function(id, board, update, ...) {
 }
 
 #' @param board The initial `board` object
-#' @rdname add_rm_block
+#' @rdname manage_blocks
 #' @export
-add_rm_block_ui <- function(id, board) {
+manage_blocks_ui <- function(id, board) {
   tagList(
     actionButton(
       NS(id, "add_block"),

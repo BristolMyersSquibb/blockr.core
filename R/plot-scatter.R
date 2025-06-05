@@ -1,10 +1,14 @@
-#' Scatter plot block constructor
-#'
-#' This block draws a scattter plot using [base::plot()].
+#' @section Scatter block:
+#' Mainly for demonstration purposes, this block draws a scattter plot using
+#' [base::plot()]. In its current simplistic implementation, apart from axis
+#' labels (fixed to the corresponding column names), no further plotting
+#' options are available and for any "production" application, a more
+#' sophisticated (set of) block(s) for data visualization will most likely be
+#' required.
 #'
 #' @param x,y Columns to place on respective axes
-#' @param ... Forwarded to [new_block()]
 #'
+#' @rdname new_plot_block
 #' @export
 new_scatter_block <- function(x = character(), y = character(), ...) {
   new_plot_block(

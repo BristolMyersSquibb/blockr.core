@@ -68,9 +68,7 @@ test_that("board server", {
     },
     args = list(
       x = empty,
-      plugins = list(
-        manage_blocks(server = add_rm_block_server, ui = add_rm_block_ui)
-      )
+      plugins = list(manage_blocks())
     )
   )
 

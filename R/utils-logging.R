@@ -1,10 +1,21 @@
 #' Logging
 #'
-#' Infrastructure for logging messages.
+#' Internally used infrastructure for emitting log messages is exported, hoping
+#' that other packages which depend on this, use it and thereby logging is
+#' carried out consistently both in terms of presentation and output device.
+#' All log messages are associated with an (ordered) level ("fatal", "error",
+#' "warn", "info", "debug" or "trace") which is compared against the currently
+#' set value (available as `get_log_level()`) and output is only generated if
+#' the message level is greater or equal to the currently set value.
 #'
 #' @param ... Concatenated as `paste0(..., "\n")`
 #' @param level Logging level (possible values are "fatal", "error", "warn",
 #' "info", "debug" and "trace"
+#'
+#' @return Logging function `write_log()`, wrappers `log_*()` and loggers
+#' provided as `cnd_logger()`/cat_logger() all return `NULL` invisibly and are
+#' called for their side effect of emitting a message. Helpers `as_log_level()`
+#' and `get_log_level()` return a scalar-valued ordered factor.
 #'
 #' @export
 write_log <- function(..., level = "info") {
@@ -25,8 +36,6 @@ write_log <- function(..., level = "info") {
   )
 
   logger(msg, level = lvl)
-
-  invisible(NULL)
 }
 
 get_mem_use <- function(prefix = "", suffix = "") {
@@ -89,6 +98,8 @@ debug_log_level <- as_log_level("debug")
 
 trace_log_level <- as_log_level("trace")
 
+#' @rdname write_log
+#' @export
 get_log_level <- function() {
   as_log_level(
     blockr_option("log_level", "info")
@@ -120,6 +131,8 @@ cnd_logger <- function(msg, level) {
   } else {
     message(msg)
   }
+
+  invisible()
 }
 
 #' @rdname write_log
@@ -137,4 +150,6 @@ cat_logger <- function(msg, level) {
   }
 
   cat(paste0(msg, "\n"), file = out)
+
+  invisible()
 }

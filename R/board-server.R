@@ -1,10 +1,19 @@
 #' Board server
 #'
-#' Shiny server function for `board` objects.
+#' A call to `board_server()`, dispatched on objects inheriting from `board`,
+#' returns a [shiny::moduleServer()], containing all necessary logic to
+#' manipulate board components via UI. Extensibility over currently available
+#' functionality is provided in the form of S3, where a `board_server()`
+#' implementation of `board` sub-classes may be provided, as well as via a
+#' plugin architecture and callback functions which can be used to register
+#' additional observers.
 #'
 #' @param x Board
 #' @param id Parent namespace
 #' @param ... Generic consistency
+#'
+#' @return A `board_server()` implementation (such as the default for the
+#' `board` base class) is expected to return a [shiny::moduleServer()].
 #'
 #' @export
 board_server <- function(id, x, ...) {
@@ -190,8 +199,48 @@ board_server.board <- function(id, x, plugins = list(), callbacks = list(),
         cb_res[[i]] <- do.call(callbacks[[i]], plugin_args)
       }
 
+      observeEvent(
+        get_board_option_values("thematic", "dark_mode"),
+        {
+          if (isTRUE(get_board_option_value("thematic"))) {
+            do.call(thematic::thematic_shiny, bs_theme_colors(session))
+          } else if (isFALSE(get_board_option_value("thematic"))) {
+            thematic::thematic_off()
+          }
+        }
+      )
+
       c(rv_lst, dot_args)
     }
+  )
+}
+
+bs_theme_colors <- function(session) {
+
+  theme <- bslib::bs_current_theme(session)
+
+  if (!bslib::is_bs_theme(theme)) {
+    return(
+      list(bg = "auto", fg = "auto", accent = "auto")
+    )
+  }
+
+  if ("3" %in% bslib::theme_version(theme)) {
+
+    vars <- c("body-bg", "text-color", "link-color")
+
+  } else {
+
+    vars <- c("body-bg", "body-color", "link-color")
+
+    if (identical(get_board_option_value("dark_mode"), "dark")) {
+      vars <- paste0(vars, "-dark")
+    }
+  }
+
+  set_names(
+    as.list(bslib::bs_get_variables(theme, vars)),
+    c("bg", "fg", "accent")
   )
 }
 

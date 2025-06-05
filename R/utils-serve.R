@@ -1,9 +1,25 @@
 #' Serve object
 #'
-#' Start up shiny app.
+#' Intended as entry point to start up a shiny app, the generic function
+#' `serve()` can be dispatched either on a single block (mainly for previewing
+#' purposes during block development) or an entire board
 #'
 #' @param x Object
 #' @param ... Generic consistency
+#'
+#' @examplesShinylive
+#' webr::install("blockr.core", repos = "https://cynkra.github.io/blockr.webR/")
+#' library(blockr.core)
+#' serve(
+#'   new_merge_block("Time"),
+#'   data = list(
+#'     x = datasets::BOD,
+#'     y = datasets::ChickWeight
+#'   )
+#' )
+#'
+#' @return The generic `serve()` is expected to return the result of a call to
+#' [shiny::shinyApp()].
 #'
 #' @export
 serve <- function(x, ...) {
@@ -57,8 +73,9 @@ serve.block <- function(x, id = "block", ..., data = list()) {
 
 #' @param id Board namespace ID
 #' @param plugins Board plugins
+#'
 #' @rdname serve
-#' @export
+#'
 #' @examplesShinylive
 #' webr::install("blockr.core", repos = "https://cynkra.github.io/blockr.webR/")
 #' library(blockr.core)
@@ -76,6 +93,8 @@ serve.block <- function(x, id = "block", ..., data = list()) {
 #'     stacks = list(ac = c("a", "c"))
 #'   )
 #' )
+#'
+#' @export
 serve.board <- function(x, id = rand_names(), plugins = board_plugins(), ...) {
 
   ui <- bslib::page_fluid(
@@ -93,10 +112,10 @@ serve.board <- function(x, id = rand_names(), plugins = board_plugins(), ...) {
   server <- function(input, output, session) {
 
     observeEvent(
-      board_option_from_userdata("board_name", session),
+      get_board_option_value("board_name", session),
       session$sendCustomMessage(
         "change-board-title",
-        board_option_from_userdata("board_name", session)
+        get_board_option_value("board_name", session)
       )
     )
 

@@ -1,10 +1,10 @@
-#' CSV parser block constructor
-#'
-#' Following a file block, such as the upload block, this can parse the file.
+#' @section CSV block:
+#' Files in CSV format provided for example by a block created via
+#' [new_file_block()] may be parsed into `data.frame` by CSV blocks.
 #'
 #' @param sep,quote Forwarded to [utils::read.table()]
-#' @param ... Forwarded to [new_block()]
 #'
+#' @rdname new_parser_block
 #' @export
 new_csv_block <- function(sep = ",", quote = "\"", ...) {
   new_parser_block(
@@ -46,9 +46,6 @@ new_csv_block <- function(sep = ",", quote = "\"", ...) {
           value = quote
         )
       )
-    },
-    dat_val = function(file) {
-      stopifnot(file.exists(file))
     },
     class = "csv_block",
     ...

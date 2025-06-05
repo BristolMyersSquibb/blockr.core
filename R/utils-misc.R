@@ -1,12 +1,26 @@
 #' Random IDs
 #'
-#' Generate random unique IDs.
+#' Randomly generated unique IDs are used throughout the package, created by
+#' `rand_names()`. If random strings are required that may not clash with a set
+#' of existing values, this can be guaranteed by passing them as `old_names`.
+#' The set of allowed characters can be controlled via `chars` and non-random
+#' pre- and suffixes may be specified as `prefix`/`suffix` arguments, while
+#' uniqueness is guaranteed including pre- and suffixes.
 #'
 #' @param old_names Disallowed IDs
 #' @param n Number of IDs to generate
 #' @param length ID length
 #' @param chars Allowed characters
 #' @param prefix,suffix ID pre-/suffix
+#'
+#' @examples
+#' rand_names(chars = c(letters, LETTERS, 0:9))
+#' rand_names(length = 5L)
+#' rand_names(n = 5L, prefix = "pre-", suffix = "-suf")
+#'
+#' @return A character vector of length `n` where each entry contains `length`
+#' characters (all among `chars` and start/end with `prefix`/`suffix`), is
+#' guaranteed to be unique and not present among values passed as `old_names`.
 #'
 #' @export
 rand_names <- function(old_names = character(0L), n = 1L, length = 15L,
@@ -112,12 +126,35 @@ na_to_empty <- function(x) replace(x, is.na(x), "")
 
 #' Blockr Options
 #'
-#' Retrieves options via `getOption()` or environment variable and prefixes
-#' the option with `blockr.` or `blockr_` respectively. Also converts to lower
-#' case for `getOption()` and upper case for environment variables.
+#' Retrieves options via [base::getOption()] or [base::Sys.getenv()], in that
+#' order, and prefixes the option name passed as `name` with `blockr.` or
+#' `blockr_` respectively. Additionally, the name is converted to lower case
+#' for `getOption()` and upper case for environment variables. In case no value
+#' is available for a given `name`, `default` is returned.
 #'
 #' @param name Option name
 #' @param default Default value
+#'
+#' @examples
+#' blockr_option("test-example", "default")
+#'
+#' options(`blockr.test-example` = "non-default")
+#' blockr_option("test-example", "default")
+#'
+#' Sys.setenv(`BLOCKR_TEST-EXAMPLE` = "another value")
+#' tryCatch(
+#'   blockr_option("test-example", "default"),
+#'   error = function(e) conditionMessage(e)
+#' )
+#' options(`blockr.test-example` = NULL)
+#' blockr_option("test-example", "default")
+#'
+#' Sys.unsetenv("BLOCKR_TEST-EXAMPLE")
+#' blockr_option("test-example", "default")
+#'
+#' @return The value set as option `name` or `default` if not set. In case of
+#' the option being available only as environment variable, the value will be
+#' a string and if available as [base::options()] entry it may be of any R type.
 #'
 #' @export
 blockr_option <- function(name, default) {
@@ -200,4 +237,13 @@ exprs_to_lang <- function(exprs) {
 
 starts_with <- function(x, prefix) {
   x[startsWith(x, prefix)]
+}
+
+ansi_html <- function(x, ...) {
+
+  if (requireNamespace("cli", quietly = TRUE)) {
+    return(cli::ansi_html(x, ...))
+  }
+
+  x
 }

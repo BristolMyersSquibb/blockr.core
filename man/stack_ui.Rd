@@ -91,6 +91,25 @@ remove_block_from_stack(
 
 \item{block_id, stack_id, board_id}{Block/stack/board IDs}
 }
+\value{
+UI set up via \code{stack_ui()} is expected to return \code{\link[shiny:reexports]{shiny::tag()}} or
+\code{\link[shiny:reexports]{shiny::tagList()}} objects while stack/block insertion/removal functions
+(into/from board/stack objects) are called for their side-effects. Both
+\code{insert_stack_ui()}/\code{remove_stack_ui} and
+\code{add_block_to_stack()}/\code{remove_block_from_stack()} return \code{NULL} invisibly
+and where the former call \code{\link[shiny:insertUI]{shiny::insertUI()}}/\code{\link[shiny:insertUI]{shiny::removeUI()}} and the
+latter modify the DOM via \link[shiny:session]{shiny::session} custom messages.
+}
 \description{
-Shiny server function for \code{board} objects.
+Several generics are exported in order to integrate stack UI into board UI.
+We have \code{stack_ui()} which is dispatched on the \code{board} (and in the default
+implementation) on individual \code{stack} objects. This renders stacks as
+bootstrap accordion items (using \code{\link[bslib:accordion]{bslib::accordion()}}). If a different way
+of displaying stacks and integrating them with a board is desired, this can
+be implemented by introducing a board subclass and providing a \code{stack_ui()}
+method for that subclass. Inserting stacks into (and removing stacks from)
+a board is available as \code{insert_stack_ui()}/\code{remove_stack_ui()} and blocks
+into/from stacks via \code{add_block_to_stack()}/\code{remove_block_from_stack()}.
+All are S3 generics with implementations for \code{board} and alternative
+implementation may be provided for board sub-classes.
 }

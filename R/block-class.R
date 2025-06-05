@@ -1,17 +1,17 @@
 #' Blocks
 #'
 #' Steps in a data analysis pipeline are represented by blocks. Each block
-#' combines data input with user inpus to produce an output. In order to
+#' combines data input with user inputs to produce an output. In order to
 #' create a block, which is implemented as a shiny module, we require a server
 #' function, a function that produces some UI and a class vector.
 #'
 #' A block constructor may have arguments, which taken together define the
 #' block state. It is good practice to expose all user-selectable arguments of
-#' a block (i.e. everythig excluding the "data" input) as block arguments such
+#' a block (i.e. everything excluding the "data" input) as block arguments such
 #' that block can be fully initialized via the constructor. Some default values
 #' are required such that blocks can be constructed via constructor calls
 #' without arguments. Where it is sensible to do so, specific default values
-#' are acceptable, but if in any way data dependant, defaults should map to
+#' are acceptable, but if in any way data dependent, defaults should map to
 #' an "empty" input. For example, a block that provides [utils::head()]
 #' functionality, one such argument could be `n` and a reasonable default value
 #' could be `6L` (in line with corresponding default S3 method implementation).
@@ -29,11 +29,11 @@
 #' The server function (passed as `server`) is expected to be a function that
 #' returns a [shiny::moduleServer()]. This function is expected to have at
 #' least an argument `id` (string-valued), which will be used as the module ID.
-#' Further arguments may be used in the function sigature, one for each "data"
+#' Further arguments may be used in the function signature, one for each "data"
 #' input. A block implementing [utils::head()] for example could have a single
 #' extra argument `data`, while a block that performs [base::merge()] requires
 #' two extra arguments, e.g. `x` and `y`. Finally, a variadic block, e.g.
-#' a block implementing something like [base::rbind()], needs to accomodate for
+#' a block implementing something like [base::rbind()], needs to accommodate for
 #' an arbitrary number of inputs. This is achieved by passing a
 #' [shiny::reactiveValues()] object as `...args` and thus such a variadic block
 #' needs `...args` as part of the server function signature. All per-data input
@@ -42,7 +42,7 @@
 #'
 #' The server function may implement arbitrary shiny logic and is expected to
 #' return a list with components `expr` and `state`. The expression corresponds
-#' to the R code necessary to perform the block task and is exprected to be
+#' to the R code necessary to perform the block task and is expected to be
 #' a reactive quoted expression. It should contain user-chosen values for all
 #' user inputs and placeholders for all data inputs (using the same names for
 #' data inputs as in the server function signature). Such an expression for a
@@ -55,7 +55,7 @@
 #' }
 #' ```
 #'
-#' where `current_val()` is a reactive that evaulates to the current user
+#' where `current_val()` is a reactive that evaluates to the current user
 #' selection of the `by` columns. This should then be wrapped in a
 #' [shiny::reactive()] call such that `current_val()` can be evaluated whenever
 #' the current expression is required.
@@ -93,7 +93,7 @@
 #' classes to group together blocks with similar behavior (e.g.
 #' `transform_block`) and makes use of this inheritance structure in S3
 #' dispatch for methods like [block_output()] and [block_ui()]. This pattern is
-#' not required but encuoraged.
+#' not required but encouraged.
 #'
 #' @section Initialization/evaluation:
 #' Some control over when a block is considered "ready for evaluation" is
@@ -104,9 +104,9 @@
 #' error.
 #'
 #' Other conditions (messages and warnings) may be thrown as will be caught
-#' and displayed to the user but they will not interrupt evaulation. Errors
-#' are safe in that they will be caught as well but the will interrup evaluation
-#' as long as block data input does not satisfy valiidation.
+#' and displayed to the user but they will not interrupt evaluation. Errors
+#' are safe in that they will be caught as well but the will interrupt
+#' evaluation as long as block data input does not satisfy validation.
 #'
 #' @param server A function returning [shiny::moduleServer()]
 #' @param ui A function with a single argument (`ns`) returning a `shiny.tag`
@@ -145,9 +145,12 @@
 #' blk <- new_identity_block()
 #' is_block(blk)
 #'
-#' @returns Both `new_block()` and `as_block` return an object inheriting from
+#' @return Both `new_block()` and `as_block()` return an object inheriting from
 #' `block`, while `is_block()` returns a boolean indicating whether an object
-#' inherits from `block` or not.
+#' inherits from `block` or not. Block vectors, created using `blocks()`,
+#' `as_blocks()`, or by combining multiple blocks using [base::c()] all inherit
+#' frm `blocks` and `iss_block()` returns a boolean indicating whether an object
+#' inherits from `blocks` or not.
 #'
 #' @export
 new_block <- function(server, ui, class, ctor, ctor_pkg, dat_valid = NULL,
@@ -410,13 +413,11 @@ as_block <- function(x, ...) {
   UseMethod("as_block")
 }
 
-#' @rdname new_block
 #' @export
 as_block.block <- function(x, ...) {
   validate_block(x)
 }
 
-#' @rdname new_block
 #' @export
 as_block.list <- function(x, ...) {
 
@@ -491,14 +492,14 @@ c.block <- function(...) {
 #' Block utilities
 #'
 #' Several utilities for working (and manipulating) `block` objects are exported
-#' and developpers are encouraged to use these instead of relying on object
-#' implementatsion to extract or modify attributes. If functionality for working
+#' and developers are encouraged to use these instead of relying on object
+#' implementation to extract or modify attributes. If functionality for working
 #' with blocks in lacking, please consider opening an
-#' [issue](https://github.com/cynkra/blockr.core/issues/new).
+#' [issue](https://github.com/BristolMyersSquibb/blockr.core/issues/new).
 #'
 #' @section Block name:
 #' Each block can have a name (by default constructed from the class vector)
-#' intended for users to esily identify different blocks. This name can freely
+#' intended for users to easily identify different blocks. This name can freely
 #' be changed during the lifetime of a block and no uniqueness restrictions are
 #' in place. The current block name can be retrieved with `block_name()` and
 #' set as `block_name(x) <- "some name"`.
@@ -506,7 +507,7 @@ c.block <- function(...) {
 #' @section Input validation:
 #' Data input validation is available via `validate_data_inputs()` which uses
 #' the (optional) validator function passed to [new_block()] at construction
-#' time. This mechanism can be used to prevent premature evaulation of the
+#' time. This mechanism can be used to prevent premature evaluation of the
 #' block expression as this might lead to unexpected errors.
 #'
 #' @section Block arity/inputs:
@@ -535,7 +536,7 @@ c.block <- function(...) {
 #' block_inputs(new_rbind_block())
 #' block_arity(new_rbind_block())
 #'
-#' @returns Return types vary among the set of exported utilties:
+#' @return Return types vary among the set of exported utilities:
 #' * `block_name()`: string valued block name,
 #' * `block_name<-()`: `x` (invisibly),
 #' * `validate_data_inputs()`: `NULL` if no validator is set and the result of
@@ -594,7 +595,7 @@ block_allow_empty_state <- function(x) {
 }
 
 #' @param data Data input values
-#' @rdname new_block
+#' @rdname block_name
 #' @export
 validate_data_inputs <- function(x, data) {
 
@@ -607,7 +608,12 @@ validate_data_inputs <- function(x, data) {
 
 #' @rdname block_name
 #' @export
-block_inputs <- function(x, ...) {
+block_inputs <- function(x) {
+  UseMethod("block_inputs", x)
+}
+
+#' @export
+block_inputs.block <- function(x) {
   setdiff(block_expr_inputs(x), "...args")
 }
 

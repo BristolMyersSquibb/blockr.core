@@ -1,14 +1,42 @@
 #' Board options
 #'
-#' User settings at the board level.
+#' User settings at the board level are managed by a `board_options` object.
+#' This can be constructed via `new_board_options()` and in case the set of
+#' user options is to be extended, the constructor is designed with sub-classing
+#' in mind. Consequently, the associated validator `validate_board_options()`
+#' is available as S3 generic. Inheritance checking is available as
+#' `is_board_options()` and coercion as `as_board_options()`. The currently set
+#' options for a board object can be retrieved with `board_options()` and option
+#' names are available as `list_board_options()`, which is short for
+#' `names(board_options(.))`. Finally, in order to extract the value of a
+#' specific option, `board_option()` can be used.
 #'
 #' @param board_name String valued board name
-#' @param n_rows,page_size Numer of rows and page size to show for tabular
+#' @param n_rows,page_size Number of rows and page size to show for tabular
 #' block previews
 #' @param filter_rows Enable filtering of rows in tabular block previews
 #' @param dark_mode Toggle between dark and light modes
+#' @param thematic Enable auto-theming for plots via
 #' @param ... Further options
 #' @param class Optional sub-class
+#'
+#' @examples
+#' opt <- new_board_options()
+#'
+#' is_board_options(opt)
+#' list_board_options(opt)
+#'
+#' board_option("page_size", opt)
+#'
+#' @return All of `new_board_options()`, `as_board_options()` and
+#' `board_options()` return a `board_options` object, as does the validator
+#' `validate_board_options()`, which is typically called for side effects of
+#' throwing errors is validation does not pass. Inheritance checking as
+#' `is_board_options()` returns a scalar logical, while `list_board_options()`
+#' returns a character vector of option names. Finally, `board_option()` returns
+#' the current value for a specific board option, which in principle may be any
+#' R object, but typically we have values such as strings or scalar integers
+#' and logicals.
 #'
 #' @export
 new_board_options <- function(board_name = "Board",
@@ -16,6 +44,7 @@ new_board_options <- function(board_name = "Board",
                               page_size = blockr_option("page_size", 5L),
                               filter_rows = blockr_option("filter_rows", FALSE),
                               dark_mode = blockr_option("dark_mode", NULL),
+                              thematic = blockr_option("thematic", NULL),
                               ...,
                               class = character()) {
 
@@ -38,6 +67,7 @@ new_board_options <- function(board_name = "Board",
       page_size = as.integer(page_size),
       filter_rows = filter_rows,
       dark_mode = dark_mode,
+      thematic = thematic,
       ...
     ),
     class = c(class, "board_options")
@@ -89,7 +119,7 @@ validate_board_options.board_options <- function(x) {
   }
 
   expected <- c(
-    "board_name", "n_rows", "page_size", "filter_rows", "dark_mode"
+    "board_name", "n_rows", "page_size", "filter_rows", "dark_mode", "thematic"
   )
 
   if (!all(expected %in% names(x))) {
@@ -136,6 +166,13 @@ validate_board_options.board_options <- function(x) {
     abort(
       "Expecting `dark_mode` to be either `NULL`, \"light\" or \"dark\".",
       class = "board_options_dark_mode_invalid"
+    )
+  }
+
+  if (isTRUE(x[["tematic"]]) && !is_pkg_avail("thematic")) {
+    abort(
+      "Please install `thematic` to enable auto theming of plots.",
+      class = "thematic_not_installed"
     )
   }
 
@@ -229,6 +266,13 @@ board_ui.board_options <- function(id, x, ...) {
       "Enable preview search",
       board_option("filter_rows", x)
     ),
+    if (is_pkg_avail("thematic")) {
+      bslib::input_switch(
+        ns("thematic"),
+        "Enable thematic",
+        coal(board_option("thematic", x), FALSE)
+      )
+    },
     span(
       bslib::input_dark_mode(
         id = ns("dark_mode"),
@@ -279,8 +323,14 @@ update_ui.board_options <- function(x, session, ...) {
   invisible()
 }
 
-board_option_to_userdata <- function(x, input, session) {
-  session$userData[[x]] <- reactive(input[[x]])
+board_option_to_userdata <- function(x, val, input, session) {
+
+  rv <- reactiveVal(val)
+
+  observeEvent(input[[x]], rv(input[[x]]))
+
+  session$userData[[x]] <- rv
+
   invisible()
 }
 
@@ -290,41 +340,52 @@ board_options_to_userdata <- function(x, input, session) {
     x <- board_options(x)
   }
 
-  lapply(list_board_options(x), board_option_to_userdata, input, session)
+  Map(board_option_to_userdata, names(x), x, MoreArgs = list(input, session))
 
   invisible()
 }
 
-board_option_from_userdata <- function(name, session) {
+#' @param session Shiny session
+#' @rdname new_board_options
+#' @export
+get_board_option_value <- function(opt, session = getDefaultReactiveDomain()) {
 
-  rv <- get0(name, envir = session$userData, inherits = FALSE)
+  env <- session$userData
 
-  if (is.null(rv)) {
-    return(NULL)
+  stopifnot(is_string(opt), is.environment(env))
+
+  if (!exists(opt, envir = env, inherits = FALSE, mode = "function")) {
+    abort(
+      paste0("Could not find option `", opt, "`."),
+      class = "board_option_not_found"
+    )
   }
+
+  rv <- get(opt, envir = env, inherits = FALSE, mode = "function")
 
   res <- rv()
 
-  if (is.null(res)) {
-    return(NULL)
-  }
-
-  if (identical(name, "page_size")) {
+  if (identical(opt, "page_size")) {
     res <- as.integer(res)
   }
 
   res
 }
 
-get_userdata_or_option <- function(name, session) {
+get_board_option_values <- function(..., session = getDefaultReactiveDomain()) {
+  lapply(set_names(nm = c(...)), get_board_option_value, session = session)
+}
 
-  res <- board_option_from_userdata(name, session)
-
-  if (is.null(res)) {
-    return(board_option(name, new_board_options()))
-  }
-
-  res
+#' @rdname new_board_options
+#' @export
+get_board_option_or_default <- function(opt,
+                                        session = getDefaultReactiveDomain()) {
+  tryCatch(
+    get_board_option_value(opt, session),
+    board_option_not_found = function(e) {
+      board_option(opt, new_board_options())
+    }
+  )
 }
 
 #' @export

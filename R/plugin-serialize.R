@@ -1,17 +1,37 @@
-#' Serialization module
+#' Serialization plugin module
 #'
-#' Object (de)serialization in a board server context.
+#' Board state can be preserved by serializing all contained objects and
+#' restored via de-serialization. This mechanism can be used to power features
+#' such as save/restore (via download, as implemented in the default
+#' `preserve_board` plugin), but more refined user experience is conceivable
+#' in terms of undo/redo functionality and (automatic) saving of board state.
+#' Such enhancements can be implemented in a third-party `preserve_board`
+#' module.
 #'
+#' @param server,ui Server/UI for the plugin module
+#'
+#' @return A plugin container inheriting from `preserve_board` is returned by
+#' `preserve_board()`, while the UI component (e.g. `preserve_board_ui()`) is
+#' expected to return shiny UI (i.e. [shiny::tagList()]) and the server
+#' component (i.e. `preserve_board_server()`) is expected to return a
+#' [shiny::reactiveVal()] or [shiny::reactive()] which evaluates to `NULL` or a
+#' `board` object.
+#'
+#' @export
+preserve_board <- function(server = preserve_board_server,
+                           ui = preserve_board_ui) {
+
+  new_plugin(server, ui, validator = check_ser_deser_val,
+             class = "preserve_board")
+}
+
 #' @param id Namespace ID
 #' @param board Reactive values object
 #' @param ... Extra arguments passed from parent scope
 #'
-#' @return A [shiny::reactiveVal()] object that evaluates to `NULL` or a
-#' `board` obejct.
-#'
-#' @rdname ser_deser
+#' @rdname preserve_board
 #' @export
-ser_deser_server <- function(id, board, ...) {
+preserve_board_server <- function(id, board, ...) {
   moduleServer(
     id,
     function(input, output, session) {
@@ -35,9 +55,9 @@ ser_deser_server <- function(id, board, ...) {
 }
 
 #' @param board The initial `board` object
-#' @rdname ser_deser
+#' @rdname preserve_board
 #' @export
-ser_deser_ui <- function(id, board) {
+preserve_board_ui <- function(id, board) {
   tagList(
     downloadButton(
       NS(id, "serialize"),
@@ -78,7 +98,7 @@ write_board_to_disk <- function(rv, session) {
 
     opts <- lapply(
       set_names(nm = list_board_options(rv$board)),
-      board_option_from_userdata,
+      get_board_option_or_default,
       session
     )
 

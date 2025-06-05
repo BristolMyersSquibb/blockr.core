@@ -1,19 +1,45 @@
 #' Graph utils
 #'
-#' Utilities for handling block dependency DAGs.
+#' Block dependencies are represented by DAGs and graph utility functions
+#' `topo_sort()` and `is_acyclic()` are used to create a topological ordering
+#' (implemented as DFS) of blocks and to check for cycles. An adjacency matrix
+#' corresponding to a board is available as `as.matrix()`.
 #'
-#' @param adj_matrix Adjacency matrix
+#' @param x Adjacency matrix/board object
+#'
+#' @examples
+#' brd <- new_board(
+#'   c(
+#'      a = new_dataset_block(),
+#'      b = new_dataset_block(),
+#'      c = new_scatter_block(),
+#'      d = new_subset_block()
+#'   ),
+#'   list(from = c("a", "d"), to = c("d", "c"))
+#' )
+#'
+#' as.matrix(brd)
+#' topo_sort(brd)
+#' is_acyclic(brd)
+#'
+#' @return Topological ordering via `topo_sort()` returns a character vector
+#' with sorted node IDs and the generic function `is_acyclic()` is expected to
+#' return a scalar logical value.
 #'
 #' @export
-topo_sort <- function(adj_matrix) {
+topo_sort <- function(x) {
+
+  if (is_board(x)) {
+    x <- as.matrix(x)
+  }
 
   stopifnot(
-    is.matrix(adj_matrix), nrow(adj_matrix) == ncol(adj_matrix),
-    identical(rownames(adj_matrix), colnames(adj_matrix)),
-    is.integer(adj_matrix), all(adj_matrix %in% c(0L, 1L))
+    is.matrix(x), nrow(x) == ncol(x),
+    identical(rownames(x), colnames(x)),
+    is.integer(x), all(x %in% c(0L, 1L))
   )
 
-  num_nodes <- nrow(adj_matrix)
+  num_nodes <- nrow(x)
 
   if (!num_nodes) {
     return(character())
@@ -53,10 +79,10 @@ topo_sort <- function(adj_matrix) {
   stack <- integer()
 
   for (node in seq_len(num_nodes)) {
-    stack <- dfs(node, adj_matrix, stack)
+    stack <- dfs(node, x, stack)
   }
 
-  rownames(adj_matrix)[stack]
+  rownames(x)[stack]
 }
 
 as_adjacency_matrix <- function(from, to, nodes = union(from, to)) {

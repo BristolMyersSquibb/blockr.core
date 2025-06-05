@@ -4,18 +4,9 @@
 \alias{new_link}
 \alias{is_link}
 \alias{as_link}
-\alias{as_link.link}
-\alias{as_link.character}
-\alias{as_link.list}
-\alias{as_link.data.frame}
 \alias{links}
 \alias{is_links}
 \alias{as_links}
-\alias{as_links.links}
-\alias{as_links.link}
-\alias{as_links.list}
-\alias{as_links.NULL}
-\alias{as_links.data.frame}
 \alias{validate_links}
 \title{Board links}
 \usage{
@@ -25,29 +16,11 @@ is_link(x)
 
 as_link(x)
 
-\method{as_link}{link}(x)
-
-\method{as_link}{character}(x)
-
-\method{as_link}{list}(x)
-
-\method{as_link}{data.frame}(x)
-
 links(...)
 
 is_links(x)
 
 as_links(x)
-
-\method{as_links}{links}(x)
-
-\method{as_links}{link}(x)
-
-\method{as_links}{list}(x)
-
-\method{as_links}{`NULL`}(x)
-
-\method{as_links}{data.frame}(x)
 
 validate_links(x)
 }
@@ -62,6 +35,57 @@ validate_links(x)
 
 \item{x}{Links object}
 }
+\value{
+Both \code{new_link()}/\code{as_link()}, and \code{links()}/\code{as_links()} return
+\code{link} and \code{links} objects, respectively. Testing for inheritance is
+available as \code{is_link()}/\code{is_links()} and validation (for \code{links}) is
+performed with \code{validate_links()}, which returns its input (\code{x}) or throws
+an error.
+}
 \description{
-Blocks on a board are linksed by board links.
+Two blocks can be connected via a (directed) link. This means the result from
+one block is passed as (data) input to the next. Source and destination are
+identified by \code{from} and \code{to} attributes and in case of polyadic receiving
+blocks, the \code{input} attribute identified which of the data inputs is the
+intended destination. In principle, the \code{link} object may be extended via
+sub-classing and passing further attributes, but this has not been properly
+tested so far.
+
+In addition to unique IDs, \code{links} objects are guaranteed to be consistent
+in that it is not possible to have multiple links pointing to the same
+target (combination of \code{to} and \code{input} attributes). Furthermore, links
+behave like edges in a directed acyclic graph (DAG) in that cycles are
+detected and disallowed.
+}
+\details{
+A links is created via the \code{new_link()} constructor and for a vector of
+links, the container object \code{links} is provided and a corresponding
+constructor \code{links()} exported from the package. Testing whether an object
+inherits from \code{link} (or \code{links}) is available via \code{is_link()} (or
+\code{is_links()}, respectively). Coercion to \code{link} (and \code{links}) objects is
+implemented as \code{as_link()} (and \code{as_links()}, respectively). Finally, links
+can be validated by calling \code{validate_links()}.
+}
+\examples{
+lnks <- links(from = c("a", "b"), to = c("b", "c"), input = c("x", "y"))
+is_links(lnks)
+names(lnks)
+
+tryCatch(
+  c(lnks, new_link("a", "b", "x")),
+  error = function(e) conditionMessage(e)
+)
+tryCatch(
+  c(lnks, new_link("b", "a")),
+  error = function(e) conditionMessage(e)
+)
+
+lnks <- links(a = new_link("a", "b"), b = new_link("b", "c"))
+names(lnks)
+
+tryCatch(
+  c(lnks, a = new_link("a", "b")),
+  error = function(e) conditionMessage(e)
+)
+
 }

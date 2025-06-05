@@ -20,9 +20,9 @@ library(blockr.core)
 
 ## Creating blocks
 
-**Note:** If you are not already familiar with [Shiny modules](https://shiny.posit.co/r/articles/improve/modules/), it is recommended you familiarise yourself with them before continuing with this section.
+**Note:** If you are not already familiar with [Shiny modules](https://shiny.posit.co/r/articles/improve/modules/), it is recommended you familiarize yourself with them before continuing with this section.
 
-`blockr.core` is built on top of Shiny. At it's heart, a __block__ is nothing more than a specialised Shiny __module__ that returns two additional values:
+`blockr.core` is built on top of Shiny. At it's heart, a __block__ is nothing more than a specialized Shiny __module__ that returns two additional values:
 
 - **An expression** (called "expr"), a reactive expression defining a blocks computation. This allows R code to be exported and  data analyses to be recreated, outside of blockr and a reactive context.
 - **A state object** (called "state"), a list of reactive values tracking user inputs. This allows blocks to separate user-defined state from inputs specified by blocks.
@@ -44,7 +44,7 @@ While blocks *return* the "expr" and "state" values, blocks *consist* of three e
 
 1. A **UI function** to define the user interface. 
 2. A **Server function** to handle reactive logic that returns an expression and state object.
-3. A **Constructor function** wraps the UI and server to intialize the block state.
+3. A **Constructor function** wraps the UI and server to initialize the block state.
 
 Now, let's go through each element, building up a block template as we go.
 
@@ -92,7 +92,7 @@ flowchart TB
   join_blk --> |4| rbind_blk
 ```
 
-A server function should return as ouput a `moduleServer()` call, defining:
+A server function should return as output a `moduleServer()` call, defining:
 
 - **expr**: A quoted reactive expression representing the block’s computation. Data names should match between expression and the top-level server function arguments.
 - **state**: A list of reactive values tracking user selections. The set of returned values from the __state__ should match (both in count and names) that of the constructor signature.
@@ -117,7 +117,7 @@ server <- function(id, data) {
 Many options exist to build expressions, such as using tools offered by the `rlang` package or by passing a string to `base::parse()`.
 As a block developer you are free to choose the tools that your prefer, as long as the evaluated expression returns non-reactive R code which can be executed outside of blockr.
 
-The state is needed for __serialisation__ and __deserialisation__ to respectively save and restore the state of a blockr application.
+The state is needed for __serialization__ and __deserialization__ to respectively save and restore the state of a blockr application.
 
 ### Constructor function
 
@@ -261,7 +261,7 @@ results$code_filters
 results$code_plot
 ```
 
-When filters are applied with `esquisse`, the returned data are filtered, otherwise the module returns the unchanged input data. Based on what we already know about constructing block, we can write the following code for the constructor server function. This block will have 1 input materialised as the `data` parameter (data coming from the upstream block):
+When filters are applied with `esquisse`, the returned data are filtered, otherwise the module returns the unchanged input data. Based on what we already know about constructing block, we can write the following code for the constructor server function. This block will have 1 input materialized as the `data` parameter (data coming from the upstream block):
 
 ```{r esquisse-server, eval=FALSE}
 esquisse_block_server <- function(id, data) {
@@ -331,7 +331,7 @@ block_ui.complex_block <- function(id, x, ...) {
   )
 }
 ```
-The UI function of our constructor is simple, even though you would be totally free to customise it further:
+The UI function of our constructor is simple, even though you would be totally free to customize it further:
 
 ```{r esquisse-ui, eval=FALSE}
 esquisse_block_ui <- function(id) {

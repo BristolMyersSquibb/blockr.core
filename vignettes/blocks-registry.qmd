@@ -179,7 +179,7 @@ selectInput(
 )
 ```
 
-In the `blockr.ui` [package](), we designed a more sofisticated UI for the registry. We leverage our `scoutbaR` [package](https://cynkra.github.io/scoutbaR/) that provides a React-powered contextual menu with search and nicer metadata display. Block __categories__ are first extracted to
+In the `blockr.ui` [package](https://cynkra.github.io/blockr.ui/), we designed a more sophisticated UI for the registry. We leverage our `scoutbaR` [package](https://cynkra.github.io/scoutbaR/) that provides a React-powered contextual menu with search and nicer metadata display. Block __categories__ are first extracted to
 create the widget __sections__ with `scout_section()` and passing the right `label`. Within each section (ie block category) we create one `scout_action()`
 per block. Each `scout_action()` display the block icon for better user experience, the block name and its description.
 

@@ -1,10 +1,29 @@
-#' @rdname new_block
+#' Plot block constructors
+#'
+#' Blocks for data visualization using base R graphics can be created via
+#' `new_plot_block()`.
+#'
+#' Due to the current block evaluation procedure, where block evaluation is
+#' separated from block "rendering" (via  [shiny::renderPlot()]) integration of
+#' base R graphics requires some mechanism to achieve this decoupling. This
+#' is implemented by adding a `plot` attribute to the result of
+#' [block_eval()], generated with [grDevices::recordPlot()] and containing the
+#' required information to re-create the plot at a later time. As part of
+#' [block_output()], the attribute is retrieved and passed to
+#' [grDevices::replayPlot()]. Consequently, any block that inherits from
+#' `plot_block` is required to support this type of decoupling.
+#'
+#' @param ... Forwarded to `new_plot_block()` and [new_block()]
+#' @inheritParams new_block
+#'
+#' @return All blocks constructed via `new_plot_block()` inherit from
+#' `plot_block`.
+#'
 #' @export
 new_plot_block <- function(server, ui, class, ctor = sys.parent(), ...) {
   new_block(server, ui, c(class, "plot_block"), ctor, ...)
 }
 
-#' @rdname block_ui
 #' @export
 block_output.plot_block <- function(x, result, session) {
   plt <- attr(result, "plot")
@@ -12,7 +31,6 @@ block_output.plot_block <- function(x, result, session) {
   renderPlot(grDevices::replayPlot(plt))
 }
 
-#' @rdname block_ui
 #' @export
 block_ui.plot_block <- function(id, x, ...) {
   tagList(
@@ -20,7 +38,6 @@ block_ui.plot_block <- function(id, x, ...) {
   )
 }
 
-#' @rdname block_server
 #' @export
 block_eval.plot_block <- function(x, expr, data, ...) {
   structure(coal(NextMethod(), list()), plot = grDevices::recordPlot())

@@ -1,12 +1,13 @@
-#' Subset block constructor
-#'
-#' This block allows to perform row and column subsetting on `data.frame`
-#' objects (see [base::subset()]).
+#' @section Head block:
+#' Row-subsetting the first or last `n` rows of a `data.frame` (as provided by
+#' [utils::head()] and [utils::tail()]) is implemented as `head_block`. This is
+#' an example of a block that takes a single `data.frame` as input and produces
+#' a single `data.frame` as output.
 #'
 #' @param n Number of rows
 #' @param direction Either "head" or "tail"
-#' @param ... Forwarded to [new_block()]
 #'
+#' @rdname new_transform_block
 #' @export
 new_head_block <- function(n = 6L, direction = c("head", "tail"), ...) {
 

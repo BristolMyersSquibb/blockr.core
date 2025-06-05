@@ -1,11 +1,42 @@
-#' Generics for server generation
+#' Block server
 #'
-#' Calls shiny modules for the given element (block, fields).
+#' A block is represented by several (nested) shiny modules and the top level
+#' module is created using the `block_server()` generic. S3 dispatch is offered
+#' as a way to add flexibility, but in most cases the default method for the
+#' `block` class should suffice at top level. Further entry points for
+#' customization are offered by the generics `expr_server()` and `block_eval()`,
+#' which are responsible for initializing the block "expression" module (i.e.
+#' the block server function passed in [new_block()]) and block evaluation
+#' (evaluating the interpolated expression in the context of input data),
+#' respectively.
+#'
+#' The module returned from `block_server()`, at least in the default
+#' implementation, provides much of the essential but block-type agnostic
+#' functionality, including data input validation (if available), instantiation
+#' of the block expression server (handling the block-specific functionality,
+#' i.e. block user inputs and expression), and instantiation of the
+#' `edit_block` module (if passed from the parent scope).
+#'
+#' A block is considered ready for evaluation whenever input data is available
+#' that satisfies validation ([validate_data_inputs()]) and nonempty state
+#' values are available (unless otherwise instructed via `allow_empty_state`
+#' in [new_block()]). Conditions raised during validation and evaluation are
+#' caught and returned in order to be surfaced to the app user.
+#'
+#' Block-level user inputs (provided by the expression module) are separated
+#' from output, the behavior of which can be customized via the
+#' [block_output()] generic. The [block_ui()] generic can then be used to
+#' control rendering of outputs.
 #'
 #' @param id Namespace ID
-#' @param x Object for which to generate a [moduleServer()]
+#' @param x Object for which to generate a [shiny::moduleServer()]
 #' @param data Input data (list of reactives)
 #' @param ... Generic consistency
+#'
+#' @return Both `block_server()` and `expr_server()` return shiny server module
+#' (i.e. a call to [shiny::moduleServer()]), while `block_eval()` evaluates
+#' an interpolated (w.r.t. block "user" inputs) block expression in the context
+#' of block data inputs.
 #'
 #' @export
 block_server <- function(id, x, data = list(), ...) {
@@ -88,6 +119,22 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         )
       )
 
+      block_cond <- reactive(
+        {
+          if ("cond" %in% names(exp)) {
+            lapply(
+              reactiveValuesToList(exp[["cond"]]),
+              lapply,
+              new_condition,
+              session = session,
+              as_list = FALSE
+            )
+          } else {
+            empty_block_condition
+          }
+        }
+      )
+
       list(
         result = res,
         expr = lang,
@@ -96,7 +143,8 @@ block_server.block <- function(id, x, data = list(), block_id = id,
           list(
             data = rv$data_cond,
             state = rv$state_cond,
-            eval = rv$eval_cond
+            eval = rv$eval_cond,
+            block = block_cond()
           )
         )
       )
@@ -110,20 +158,18 @@ expr_server <- function(x, data, ...) {
   UseMethod("expr_server")
 }
 
-#' @rdname block_server
 #' @export
 expr_server.block <- function(x, data, ...) {
   do.call(block_expr_server(x), c(list(id = "expr"), data))
 }
 
+#' @param expr Quoted expression to evaluate in the context of `data`
 #' @rdname block_server
 #' @export
 block_eval <- function(x, expr, data, ...) {
   UseMethod("block_eval")
 }
 
-#' @param expr Quoted expression to evaluate in the context of `data`
-#' @rdname block_server
 #' @export
 block_eval.block <- function(x, expr, data, ...) {
   eval(expr, data)
@@ -155,7 +201,7 @@ reorder_dots_observer <- function(data, sess) {
   }
 }
 
-new_condition <- function(x, ...) {
+new_condition <- function(x, ..., as_list = TRUE) {
 
   id <- get_globals(...) + 1L
   set_globals(id, ...)
@@ -164,9 +210,13 @@ new_condition <- function(x, ...) {
     x <- conditionMessage(x)
   }
 
-  list(
-    structure(x, id = id, class = "block_cnd")
-  )
+  res <- structure(x, id = id, class = "block_cnd")
+
+  if (!isTRUE(as_list)) {
+    return(res)
+  }
+
+  list(res)
 }
 
 empty_block_condition <- list(
@@ -350,11 +400,11 @@ check_expr_val <- function(val, x) {
 
       required <- c("expr", "state")
 
-      if (!setequal(required, names(val))) {
+      if (!all(required %in% names(val))) {
         abort(
           paste0(
-            "The block server for ", cls, " is expected to ",
-            "return values ", paste_enum(required), "."
+            "The block server for ", cls, " is expected to return ",
+            "values ", paste_enum(setdiff(required, names(val))), "."
           ),
           class = "expr_server_return_component_missing"
         )
@@ -380,15 +430,42 @@ check_expr_val <- function(val, x) {
         )
       }
 
+      if ("cond" %in% names(val)) {
+
+        if (!is.reactivevalues(val[["cond"]])) {
+          abort(
+            paste(
+              "The `cond` component of the return value for", cls,
+              "is expected to be a `reactiveValues` object."
+            ),
+            class = "expr_server_return_type_invalid"
+          )
+        }
+
+        conds <- c("message", "warning", "error")
+
+        if (!all(names(val[["cond"]]) %in% conds)) {
+          abort(
+            paste0(
+              "The `cond` component of the return value for ", cls,
+              " is expected to contain components ",
+              paste_enum(conds), "."
+            ),
+            class = "expr_server_return_type_invalid"
+          )
+        }
+      }
+
       expected <- block_ctor_inputs(x)
       current <- names(val[["state"]])
+      missing <- setdiff(expected, current)
 
-      if (!setequal(current, expected)) {
+      if (length(missing)) {
         abort(
           paste0(
             "The `state` component of the return value for ", cls,
             " is expected to additionally return ",
-            paste_enum(setdiff(expected, current))
+            paste_enum(missing)
           ),
           class = "expr_server_return_state_invalid"
         )

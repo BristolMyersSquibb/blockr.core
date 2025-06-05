@@ -9,6 +9,7 @@
 \alias{log_debug}
 \alias{log_trace}
 \alias{as_log_level}
+\alias{get_log_level}
 \alias{cnd_logger}
 \alias{cat_logger}
 \title{Logging}
@@ -29,6 +30,8 @@ log_trace(...)
 
 as_log_level(level)
 
+get_log_level()
+
 cnd_logger(msg, level)
 
 cat_logger(msg, level)
@@ -41,6 +44,18 @@ cat_logger(msg, level)
 
 \item{msg}{Message (string)}
 }
+\value{
+Logging function \code{write_log()}, wrappers \verb{log_*()} and loggers
+provided as \code{cnd_logger()}/cat_logger() all return \code{NULL} invisibly and are
+called for their side effect of emitting a message. Helpers \code{as_log_level()}
+and \code{get_log_level()} return a scalar-valued ordered factor.
+}
 \description{
-Infrastructure for logging messages.
+Internally used infrastructure for emitting log messages is exported, hoping
+that other packages which depend on this, use it and thereby logging is
+carried out consistently both in terms of presentation and output device.
+All log messages are associated with an (ordered) level ("fatal", "error",
+"warn", "info", "debug" or "trace") which is compared against the currently
+set value (available as \code{get_log_level()}) and output is only generated if
+the message level is greater or equal to the currently set value.
 }

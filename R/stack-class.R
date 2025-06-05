@@ -1,11 +1,46 @@
 #' Stacks
 #'
-#' Stacks are sets of blocks.
+#' Multiple (related) blocks can be grouped together into stacks. Such a
+#' grouping has no functional implications, rather it is an organizational tool
+#' to help users manage more complex pipelines. Stack objects constitute a set
+#' of attributes, the most important of which is `blocks` (a character vector
+#' of block IDs). Each `stack` may have an arbitrary `name` and the class can
+#' be extended by adding further attributes, maybe something like `color`,
+#' coupled with sub-classing.
+#'
+#' Individual stacks can be created using `new_stack()` or `as_stack()` and
+#' inheritance can be tested with `is_stack()`. Attributes can be retrieved
+#' (and modified) with `stack_blocks()`/`stack_blocks<-()` and
+#' `stack_name()`/`stack_name<-()`, while validation is available as
+#' (generic) `validate_stack()`.
 #'
 #' @param blocks Set of blocks
 #' @param name Stack name
 #' @param ... Extensibility
 #' @param class (Optional) stack sub-class
+#'
+#' @examples
+#' stk <- new_stack(letters[1:5], "Alphabet 1")
+#'
+#' stack_blocks(stk)
+#' stack_name(stk)
+#' stack_name(stk) <- "Alphabet start"
+#'
+#' stks <- c(start = stk, cont = new_stack(letters[6:10], "Alphabet cont."))
+#' names(stks)
+#'
+#' tryCatch(
+#'   stack_blocks(stks[[2]]) <- letters[4:8],
+#'   error = function(e) conditionMessage(e)
+#' )
+#'
+#' @return Construction and coercion via `new_stack()`/`as_stack()` and
+#' `stacks()`/`as_stacks()` results in `stack` and `stacks` objects,
+#' respectively, while inheritance testing via `is_stack()` and `is_stacks()`
+#' returns scalar logicals. Attribute getters `stack_name()` and
+#' `stack_blocks()` return scalar and vector-valued character vectors while
+#' setters `stack_name()<-` and `stack_blocks()<-` return modified stack
+#' objects.
 #'
 #' @export
 new_stack <- function(blocks = character(), name = NULL, ...,
@@ -63,7 +98,14 @@ stack_name <- function(x, name) {
   x
 }
 
+#' @rdname new_stack
+#' @export
 validate_stack <- function(x) {
+  UseMethod("validate_stack")
+}
+
+#' @export
+validate_stack.stack <- function(x) {
 
   if (!is_stack(x)) {
     abort(
@@ -110,6 +152,14 @@ validate_stack <- function(x) {
   }
 
   x
+}
+
+#' @export
+validate_stack.default <- function(x) {
+  abort(
+    "Expecting a stack to inherit from `stack`.",
+    class = "stack_class_invalid"
+  )
 }
 
 #' @export
@@ -165,15 +215,12 @@ as.list.stack <- function(x, ...) {
 #' @export
 as_stack <- function(x) UseMethod("as_stack")
 
-#' @rdname new_stack
 #' @export
 as_stack.stack <- function(x) validate_stack(x)
 
-#' @rdname new_stack
 #' @export
 as_stack.character <- function(x) new_stack(x)
 
-#' @rdname new_stack
 #' @export
 as_stack.list <- function(x) {
   do.call(new_stack, x[c("blocks", "name")])

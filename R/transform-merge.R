@@ -1,12 +1,15 @@
-#' Subset block constructor
-#'
-#' This block allows to perform row and column subsetting on `data.frame`
-#' objects (see [base::subset()]).
+#' @section Merge block:
+#' Joining together two `data.frame`s, based on a set of index columns, using
+#' [base::merge()] is available as `merge_block`. Depending on values passed
+#' as `all_x`/`all_y` the result will correspond to an "inner", "outer", "lfet"
+#' or "right" join. See [base::merge()] for details. This block class serves
+#' as an example for a transform block that takes exactly two data inputs `x`
+#' and `y` to produce a single `data.frame` as output.
 #'
 #' @param by Column(s) tp join on
 #' @param all_x,all_y Join type, see [base::merge()]
-#' @param ... Forwarded to [new_block()]
 #'
+#' @rdname new_transform_block
 #' @export
 new_merge_block <- function(by = character(), all_x = FALSE, all_y = FALSE,
                             ...) {

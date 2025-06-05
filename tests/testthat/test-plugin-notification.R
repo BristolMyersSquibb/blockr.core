@@ -3,7 +3,7 @@ test_that("notify_user", {
   reset_gobals_env()
 
   testServer(
-    block_notification_server,
+    notify_user_server,
     {
       expect_null(session$returned())
       expect_identical(get_globals(session = session), list())

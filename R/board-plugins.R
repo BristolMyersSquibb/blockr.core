@@ -1,10 +1,34 @@
 #' Board plugin
 #'
-#' Plugins are used to customize/enhance UX aspects of the board bodule.
+#' A core mechanism for extending or customizing UX aspects of the board module
+#' is a "plugin" architecture. All plugins inherit from `plugin` and a sub-class
+#' is assigned to each specific plugin. The "manage blocks" plugin for example
+#' has a class vector `c("manage_blocks", "plugin")`. Sets of plugins are
+#' handled via a wrapper class `plugins`. Each plugin needs a server component,
+#' in most cases accompanied by a UI component and is optionally bundled with a
+#' validator function.
 #'
 #' @param server,ui Server/UI for the plugin module
 #' @param validator Validator function that validates server return values
 #' @param class Plugin subclass
+#'
+#' @examples
+#' plg <- board_plugins()
+#'
+#' is_plugins(plg)
+#' names(plg)
+#'
+#' plg[1:3]
+#'
+#' is_plugin(plg[["preserve_board"]])
+#'
+#' @return Constructors `new_plugin()`/`plugins()` return `plugin` and
+#' `plugins` objects, respectively, as do `as_plugin()`/`as_plugins()` and
+#' validators `validate_plugin()`/`validate_plugins()`, which are typically
+#' called for their side effects of throwing errors in case of validation
+#' failure. Inheritance checkers `is_plugin()`/`is_plugins()` return scalar
+#' logicals and finally, the convenience function `board_plugins()` returns a
+#' `plugins` object with all known plugins (or a selected subset thereof).
 #'
 #' @export
 new_plugin <- function(server, ui = NULL, validator = function(x, ...) x,
@@ -38,15 +62,12 @@ as_plugin <- function(x) {
   UseMethod("as_plugin")
 }
 
-#' @rdname new_plugin
 #' @export
 as_plugin.plugin <- function(x) x
 
-#' @rdname new_plugin
 #' @export
 as_plugin.list <- function(x) do.call(new_plugin, x)
 
-#' @rdname new_plugin
 #' @export
 as_plugin.plugins <- function(x) {
 
@@ -130,57 +151,6 @@ validate_plugin <- function(x) {
   }
 
   x
-}
-
-#' @rdname new_plugin
-#' @export
-preserve_board <- function(server, ui) {
-  new_plugin(server, ui, validator = check_ser_deser_val,
-             class = "preserve_board")
-}
-
-#' @rdname new_plugin
-#' @export
-manage_blocks <- function(server, ui) {
-  new_plugin(server, ui, validator = expect_null, class = "manage_blocks")
-}
-
-#' @rdname new_plugin
-#' @export
-manage_links <- function(server, ui) {
-  new_plugin(server, ui, validator = expect_null, class = "manage_links")
-}
-
-#' @rdname new_plugin
-#' @export
-manage_stacks <- function(server, ui) {
-  new_plugin(server, ui, validator = expect_null, class = "manage_stacks")
-}
-
-#' @rdname new_plugin
-#' @export
-notify_user <- function(server, ui = NULL) {
-  new_plugin(server, ui, validator = check_block_notifications_val,
-             class = "notify_user")
-}
-
-#' @rdname new_plugin
-#' @export
-generate_code <- function(server, ui) {
-  new_plugin(server, ui, validator = check_gen_code_val,
-             class = "generate_code")
-}
-
-#' @rdname new_plugin
-#' @export
-edit_block <- function(server, ui) {
-  new_plugin(server, ui, validator = expect_null, class = "edit_block")
-}
-
-#' @rdname new_plugin
-#' @export
-edit_stack <- function(server, ui) {
-  new_plugin(server, ui, validator = expect_null, class = "edit_stack")
 }
 
 #' @export
@@ -308,19 +278,19 @@ call_plugin_ui <- function(plugin, ns, ..., plugins = NULL) {
 }
 
 #' @param which (Optional) character vectors of plugins to include
-#' @rdname serve
+#' @rdname new_plugin
 #' @export
 board_plugins <- function(which = NULL) {
 
   plugins <- plugins(
-    preserve_board(server = ser_deser_server, ui = ser_deser_ui),
-    manage_blocks(server = add_rm_block_server, ui = add_rm_block_ui),
-    manage_links(server = add_rm_link_server, ui = add_rm_link_ui),
-    manage_stacks(server = add_rm_stack_server, ui = add_rm_stack_ui),
-    notify_user(server = block_notification_server),
-    generate_code(server = gen_code_server, ui = gen_code_ui),
-    edit_block(server = edit_block_server, ui = edit_block_ui),
-    edit_stack(server = edit_stack_server, ui = edit_stack_ui)
+    preserve_board(),
+    manage_blocks(),
+    manage_links(),
+    manage_stacks(),
+    notify_user(),
+    generate_code(),
+    edit_block(),
+    edit_stack()
   )
 
   if (is.null(which)) {
@@ -366,19 +336,16 @@ as_plugins <- function(x) {
   UseMethod("as_plugins")
 }
 
-#' @rdname new_plugin
 #' @export
 as_plugins.plugins <- function(x) {
   validate_plugins(x)
 }
 
-#' @rdname new_plugin
 #' @export
 as_plugins.list <- function(x) {
   do.call(plugins, x)
 }
 
-#' @rdname new_plugin
 #' @export
 as_plugins.plugin <- function(x) {
   as_plugins(list(x))
@@ -463,13 +430,11 @@ names.plugins <- function(x) {
   abort("Cannot modify plugin names.", class = "plugin_names_assign_invalid")
 }
 
-#' @rdname board_ui
 #' @export
 board_ui.plugin <- function(id, x, ...) {
   call_plugin_ui(x, NS(id), ...)
 }
 
-#' @rdname board_ui
 #' @export
 board_ui.plugins <- function(id, x, ...) {
   do.call(

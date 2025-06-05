@@ -1,12 +1,15 @@
-#' Data block constructor
-#'
-#' This block allows to selected data from a package,
-#' the default being datasets.
+#' @section Dataset block:
+#' This data block allows to select a dataset from a package, such as
+#' the datasets package available in most R installations as one of the
+#' packages with "recommended" priority. The source package can be chosen at
+#' time of block instantiation and can be set to any R package, for which then
+#' a set of candidate datasets is computed. This includes exported objects that
+#' inherit from `data.frame`.
 #'
 #' @param dataset Selected dataset
 #' @param package Name of an R package containing datasets
-#' @param ... Forwarded to [new_block()]
 #'
+#' @rdname new_data_block
 #' @export
 new_dataset_block <- function(dataset = character(), package = "datasets",
                               ...) {

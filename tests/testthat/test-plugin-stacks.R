@@ -8,7 +8,7 @@ test_that("add/rm stacks", {
   )
 
   testServer(
-    add_rm_stack_server,
+    manage_stacks_server,
     {
       expect_null(session$returned)
       expect_null(update())
@@ -62,7 +62,7 @@ test_that("add/rm stacks", {
   )
 
   testServer(
-    add_rm_stack_server,
+    manage_stacks_server,
     {
       expect_null(upd$edit)
       expect_length(upd$add, 0L)
@@ -123,7 +123,7 @@ test_that("add/rm stacks", {
   )
 
   testServer(
-    add_rm_stack_server,
+    manage_stacks_server,
     {
       expect_null(session$returned)
       expect_null(update())
@@ -245,6 +245,6 @@ test_that("add/rm stacks return validation", {
 })
 
 test_that("dummy ad/rm stack ui test", {
-  expect_s3_class(add_rm_stack_ui("stack", new_board()), "shiny.tag.list")
+  expect_s3_class(manage_stacks_ui("stack", new_board()), "shiny.tag.list")
   expect_s3_class(stacks_modal(NS("stacks")), "shiny.tag")
 })

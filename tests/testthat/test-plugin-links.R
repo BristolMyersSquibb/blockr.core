@@ -8,7 +8,7 @@ test_that("add/rm links", {
   )
 
   testServer(
-    add_rm_link_server,
+    manage_links_server,
     {
       expect_null(session$returned)
       expect_null(update())
@@ -68,7 +68,7 @@ test_that("add/rm links", {
   )
 
   testServer(
-    add_rm_link_server,
+    manage_links_server,
     {
       expect_null(upd$edit)
       expect_length(upd$add, 0L)
@@ -124,7 +124,7 @@ test_that("add/rm links", {
   )
 
   testServer(
-    add_rm_link_server,
+    manage_links_server,
     {
       expect_null(session$returned)
       expect_null(update())
@@ -245,6 +245,6 @@ test_that("add/rm links return validation", {
 })
 
 test_that("dummy ad/rm link ui test", {
-  expect_s3_class(add_rm_link_ui("link", new_board()), "shiny.tag.list")
+  expect_s3_class(manage_links_ui("link", new_board()), "shiny.tag.list")
   expect_s3_class(links_modal(NS("links")), "shiny.tag")
 })

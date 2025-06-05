@@ -1,3 +1,21 @@
+#' @section Block vectors:
+#' Multiple blocks can be combined into a `blocks` object, a container for
+#' an (ordered) set of blocks. Block IDs are handled at the `blocks` level
+#' which will ensure uniqueness.
+#'
+#' @examples
+#' blks <- c(a = new_dataset_block(), b = new_subset_block())
+#'
+#' is_block(blks)
+#' is_blocks(blks)
+#'
+#' names(blks)
+#'
+#' tryCatch(
+#'   names(blks["a"]) <- "b",
+#'   error = function(e) conditionMessage(e)
+#' )
+#'
 #' @rdname new_block
 #' @export
 blocks <- function(...) {
@@ -33,19 +51,16 @@ as_blocks <- function(x, ...) {
   UseMethod("as_blocks")
 }
 
-#' @rdname new_block
 #' @export
 as_blocks.blocks <- function(x, ...) {
   validate_blocks(x)
 }
 
-#' @rdname new_block
 #' @export
 as_blocks.list <- function(x, ...) {
   do.call(blocks, x)
 }
 
-#' @rdname new_block
 #' @export
 as_blocks.block <- function(x, ...) {
   as_blocks(list(x))

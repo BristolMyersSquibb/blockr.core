@@ -4,23 +4,10 @@
 \alias{new_plugin}
 \alias{is_plugin}
 \alias{as_plugin}
-\alias{as_plugin.plugin}
-\alias{as_plugin.list}
-\alias{as_plugin.plugins}
-\alias{preserve_board}
-\alias{manage_blocks}
-\alias{manage_links}
-\alias{manage_stacks}
-\alias{notify_user}
-\alias{generate_code}
-\alias{edit_block}
-\alias{edit_stack}
+\alias{board_plugins}
 \alias{plugins}
 \alias{is_plugins}
 \alias{as_plugins}
-\alias{as_plugins.plugins}
-\alias{as_plugins.list}
-\alias{as_plugins.plugin}
 \alias{validate_plugins}
 \title{Board plugin}
 \usage{
@@ -35,39 +22,13 @@ is_plugin(x)
 
 as_plugin(x)
 
-\method{as_plugin}{plugin}(x)
-
-\method{as_plugin}{list}(x)
-
-\method{as_plugin}{plugins}(x)
-
-preserve_board(server, ui)
-
-manage_blocks(server, ui)
-
-manage_links(server, ui)
-
-manage_stacks(server, ui)
-
-notify_user(server, ui = NULL)
-
-generate_code(server, ui)
-
-edit_block(server, ui)
-
-edit_stack(server, ui)
+board_plugins(which = NULL)
 
 plugins(...)
 
 is_plugins(x)
 
 as_plugins(x)
-
-\method{as_plugins}{plugins}(x)
-
-\method{as_plugins}{list}(x)
-
-\method{as_plugins}{plugin}(x)
 
 validate_plugins(x)
 }
@@ -80,8 +41,36 @@ validate_plugins(x)
 
 \item{x}{Plugin object}
 
+\item{which}{(Optional) character vectors of plugins to include}
+
 \item{...}{Plugin objects}
 }
+\value{
+Constructors \code{new_plugin()}/\code{plugins()} return \code{plugin} and
+\code{plugins} objects, respectively, as do \code{as_plugin()}/\code{as_plugins()} and
+validators \code{validate_plugin()}/\code{validate_plugins()}, which are typically
+called for their side effects of throwing errors in case of validation
+failure. Inheritance checkers \code{is_plugin()}/\code{is_plugins()} return scalar
+logicals and finally, the convenience function \code{board_plugins()} returns a
+\code{plugins} object with all known plugins (or a selected subset thereof).
+}
 \description{
-Plugins are used to customize/enhance UX aspects of the board bodule.
+A core mechanism for extending or customizing UX aspects of the board module
+is a "plugin" architecture. All plugins inherit from \code{plugin} and a sub-class
+is assigned to each specific plugin. The "manage blocks" plugin for example
+has a class vector \code{c("manage_blocks", "plugin")}. Sets of plugins are
+handled via a wrapper class \code{plugins}. Each plugin needs a server component,
+in most cases accompanied by a UI component and is optionally bundled with a
+validator function.
+}
+\examples{
+plg <- board_plugins()
+
+is_plugins(plg)
+names(plg)
+
+plg[1:3]
+
+is_plugin(plg[["preserve_board"]])
+
 }

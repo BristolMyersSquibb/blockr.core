@@ -1,9 +1,6 @@
-#' @import vctrs
+#' @import vctrs shiny
 #' @keywords internal
-"_PACKAGE"
-
 #' @importFrom rlang abort warn inform
-#' @import shiny
 NULL
 
 pkg_name <- function(env = parent.frame()) {
@@ -16,4 +13,8 @@ pkg_version <- function(pkg = pkg_name()) {
 
 pkg_file <- function(...) {
   system.file(..., package = pkg_name())
+}
+
+is_pkg_avail <- function(pkg) {
+  requireNamespace(pkg, quietly = TRUE)
 }

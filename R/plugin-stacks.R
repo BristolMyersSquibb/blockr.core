@@ -1,20 +1,41 @@
-#' Add/remove block stacks module
+#' Plugin module for managing board stacks
 #'
-#' Customizable logic for adding/removing stacks grouping blocks together on
-#' the board.
+#' Logic and user experience for adding new, removing and modifying existing
+#' stacks to/from the board can be customized or enhanced by providing an
+#' alternate version of this plugin. The default implementation provides a
+#' table-based UI, presented in a modal.
 #'
+#' Updates are mediated via the [shiny::reactiveVal()] object passed as
+#' `update`, where stack updates are communicated as list entry `stacks` with
+#' components `add`, `rm` or `mod`, where
+#' * `add` is either `NULL` or a `stacks` object (stack IDs may not already
+#'   exists),
+#' * `rm` is either `NULL` or a character vector of (existing) stack IDs,
+#' * `mod` is either `NULL` or a `stacks` object (where stack IDs must already
+#'   exist).
+#'
+#' @param server,ui Server/UI for the plugin module
+#'
+#' @return A plugin container inheriting from `manage_stacks` is returned by
+#' `manage_stacks()`, while the UI component (e.g. `manage_stacks_ui()`) is
+#' expected to return shiny UI (i.e. [shiny::tagList()]) and the server
+#' component (i.e. `manage_stacks_server()`) is expected to return `NULL`.
+#'
+#' @export
+manage_stacks <- function(server = manage_stacks_server,
+                          ui = manage_stacks_ui) {
+
+  new_plugin(server, ui, validator = expect_null, class = "manage_stacks")
+}
+
 #' @param id Namespace ID
 #' @param board Reactive values object
 #' @param update Reactive value object to initiate board updates
 #' @param ... Extra arguments passed from parent scope
 #'
-#' @return A reactive value that evaualtes to `NULL` or a list with components
-#' `add` and `rm`, where `add` is either `NULL` or a `stacks` object and `rm`
-#' is either `NULL` or a character vector of link IDs.
-#'
-#' @rdname add_rm_stack
+#' @rdname manage_stacks
 #' @export
-add_rm_stack_server <- function(id, board, update, ...) {
+manage_stacks_server <- function(id, board, update, ...) {
   moduleServer(
     id,
     function(input, output, session) {
@@ -65,9 +86,9 @@ add_rm_stack_server <- function(id, board, update, ...) {
 }
 
 #' @param board The initial `board` object
-#' @rdname add_rm_stack
+#' @rdname manage_stacks
 #' @export
-add_rm_stack_ui <- function(id, board) {
+manage_stacks_ui <- function(id, board) {
   tagList(
     actionButton(
       NS(id, "stacks_mod"),

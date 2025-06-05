@@ -1,21 +1,39 @@
-#' Add/remove block links module
+#' Plugin module for managing board links
 #'
-#' Customizable logic for adding/removing links between blocks on the
-#' board.
+#' Logic and user experience for adding new, removing and modifying existing
+#' links to/from the board can be customized or enhanced by providing an
+#' alternate version of this plugin. The default implementation provides a
+#' table-based UI, presented in a modal.
 #'
+#' Updates are mediated via the [shiny::reactiveVal()] object passed as
+#' `update`, where link updates are communicated as list entry `stacks` with
+#' components `add`, `rm` or `mod`, where
+#' * `add` is either `NULL` or a `links` object (link IDs may not already
+#'   exists),
+#' * `rm` is either `NULL` or a character vector of (existing) link IDs,
+#' * `mod` is either `NULL` or a `links` object (where link IDs must already
+#'   exist).
+#'
+#' @param server,ui Server/UI for the plugin module
+#'
+#' @return A plugin container inheriting from `manage_links` is returned by
+#' `manage_links()`, while the UI component (e.g. `manage_links_ui()`) is
+#' expected to return shiny UI (i.e. [shiny::tagList()]) and the server
+#' component (i.e. `manage_links_server()`) is expected to return `NULL`.
+#'
+#' @export
+manage_links <- function(server = manage_links_server, ui = manage_links_ui) {
+  new_plugin(server, ui, validator = expect_null, class = "manage_links")
+}
+
 #' @param id Namespace ID
 #' @param board Reactive values object
 #' @param update Reactive value object to initiate board updates
 #' @param ... Extra arguments passed from parent scope
 #'
-#' @return A reactive value that evaualtes to `NULL` or a list with components
-#' `add` and `rm`, where `add` is either `NULL` or a `data.frame` with columns
-#' `id`, `from`, `tp` and `input` and `rm` is either `NULL` or a character
-#' vector of link IDs.
-#'
-#' @rdname add_rm_link
+#' @rdname manage_links
 #' @export
-add_rm_link_server <- function(id, board, update, ...) {
+manage_links_server <- function(id, board, update, ...) {
   moduleServer(
     id,
     function(input, output, session) {
@@ -65,9 +83,9 @@ add_rm_link_server <- function(id, board, update, ...) {
 }
 
 #' @param board The initial `board` object
-#' @rdname add_rm_link
+#' @rdname manage_links
 #' @export
-add_rm_link_ui <- function(id, board) {
+manage_links_ui <- function(id, board) {
   tagList(
     actionButton(
       NS(id, "links_mod"),

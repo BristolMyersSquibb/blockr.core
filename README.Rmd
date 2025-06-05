@@ -16,9 +16,10 @@ knitr::opts_chunk$set(
 # blockr.core
 
 <!-- badges: start -->
-[![lifecycle](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
-[![status](https://github.com/cynkra/blockr.core/actions/workflows/ci.yaml/badge.svg)](https://github.com/cynkra/blockr.core/actions/workflows/ci.yaml)
-[![coverage](https://codecov.io/gh/cynkra/blockr.core/graph/badge.svg?token=VoOPRU65KA)](https://codecov.io/gh/cynkra/blockr.core)
+[![cran](https://www.r-pkg.org/badges/version/blockr.core)](https://CRAN.R-project.org/package=blockr.core)
+[![lifecycle](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
+[![status](https://github.com/BristolMyersSquibb/blockr.core/actions/workflows/ci.yaml/badge.svg)](https://github.com/BristolMyersSquibb/blockr.core/actions/workflows/ci.yaml)
+[![coverage](https://codecov.io/gh/BristolMyersSquibb/blockr.core/graph/badge.svg?token=VoOPRU65KA)](https://app.codecov.io/gh/BristolMyersSquibb/blockr.core)
 <!-- badges: end -->
 
 ## Overview
@@ -31,19 +32,19 @@ Use blockr to create web apps that perform __visual programming__, leveraging th
 You can install the development version of blockr.core from [GitHub](https://github.com/) with:
 
 ``` r
-pak::pak("cynkra/blockr.core")
+pak::pak("BristolMyersSquibb/blockr.core")
 ```
 
 ## What is blockr.core?
 
 `blockr.core` is the entry point to blockr, providing the core functionality needed to get started.
 It can be run as a stand-alone app, but is designed with extensibility in mind.
-A rich __API__ is provided to connect your own blocks and override the default behaviours (e.g., you can add your own GUI layer or serialisation).
+A rich __API__ is provided to connect your own blocks and override the default behaviors (e.g., you can add your own GUI layer or serialization).
 
 ## What is a block?
 
 A __block__ is a fundamental unit of a data analysis workflow.
-A single block performs a single __task__, such as loading or filtering or visualisation.
+A single block performs a single __task__, such as loading or filtering or visualization.
 Blocks can be joined together using a __DAG__ (direct acyclic graph) to create powerful data __workflows__.
 
 ## Who is it for?
@@ -68,7 +69,7 @@ knitr::include_graphics("man/figures/blockr-ui.png")
 
 ## Getting started
 
-To get started, we invite you to read this [vignette](https://cynkra.github.io/blockr.core/articles/get-started.html).
+To get started, we invite you to read this [vignette](https://bristolmyerssquibb.github.io/blockr.core/articles/get-started.html).
 
 ## Extending blockr
 
@@ -79,4 +80,4 @@ We started to build blockr extensions to enrich blockr.core's capabilities:
 - [blockr.io](https://github.com/cynkra/blockr.io): handle different data input format (xpt, csv, ...) and output for export.
 - [blockr.sdtm](https://github.com/cynkra/blockr.sdtm): pharmaverse datasets blocks.
 
-If you wish to learn to develop your own blocks, have a look at this [vignette](https://cynkra.github.io/blockr.core/articles/create-block.html).
+If you wish to learn to develop your own blocks, have a look at this [vignette](https://bristolmyerssquibb.github.io/blockr.core/articles/create-block.html).

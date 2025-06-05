@@ -1,11 +1,12 @@
-#' Subset block constructor
-#'
+#' @section Subset block:
 #' This block allows to perform row and column subsetting on `data.frame`
-#' objects (see [base::subset()]).
+#' objects via [base::subset()]. Using non-standard evaluation, strings passed
+#' as `subset`/`select` arguments or entered via shiny UI are turned into
+#' `language` objects by [base::parse()].
 #'
 #' @param subset,select Expressions (passed as strings)
-#' @param ... Forwarded to [new_block()]
 #'
+#' @rdname new_transform_block
 #' @export
 new_subset_block <- function(subset = "", select = "", ...) {
   new_transform_block(

@@ -1,10 +1,28 @@
 #' Stack UI
 #'
-#' Shiny server function for `board` objects.
+#' Several generics are exported in order to integrate stack UI into board UI.
+#' We have `stack_ui()` which is dispatched on the `board` (and in the default
+#' implementation) on individual `stack` objects. This renders stacks as
+#' bootstrap accordion items (using [bslib::accordion()]). If a different way
+#' of displaying stacks and integrating them with a board is desired, this can
+#' be implemented by introducing a board subclass and providing a `stack_ui()`
+#' method for that subclass. Inserting stacks into (and removing stacks from)
+#' a board is available as `insert_stack_ui()`/`remove_stack_ui()` and blocks
+#' into/from stacks via `add_block_to_stack()`/`remove_block_from_stack()`.
+#' All are S3 generics with implementations for `board` and alternative
+#' implementation may be provided for board sub-classes.
 #'
 #' @param id Parent namespace
 #' @param x Object
 #' @param ... Generic consistency
+#'
+#' @return UI set up via `stack_ui()` is expected to return [shiny::tag()] or
+#' [shiny::tagList()] objects while stack/block insertion/removal functions
+#' (into/from board/stack objects) are called for their side-effects. Both
+#' `insert_stack_ui()`/`remove_stack_ui` and
+#' `add_block_to_stack()`/`remove_block_from_stack()` return `NULL` invisibly
+#' and where the former call [shiny::insertUI()]/[shiny::removeUI()] and the
+#' latter modify the DOM via [shiny::session] custom messages.
 #'
 #' @export
 stack_ui <- function(id, x, ...) {

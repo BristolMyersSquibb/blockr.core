@@ -1,16 +1,34 @@
-#' Code generation module
+#' Code generation plugin module
 #'
-#' Generate reproducible code from a board.
+#' All code necessary for reproducing a data analysis as set up in blockr can
+#' be made available to the user. Several ways of providing such a script or
+#' code snippet are conceivable and currently implemented, we have a modal
+#' with copy-to-clipboard functionality. This is readily extensible, for example
+#' by offering a download button, by providing this functionality as a
+#' `generate_code` module.
 #'
+#' @param server,ui Server/UI for the plugin module
+#'
+#' @return A plugin container inheriting from `generate_code` is returned by
+#' `generate_code()`, while the UI component (e.g. `generate_code_ui()`) is
+#' expected to return shiny UI (i.e. [shiny::tagList()]) and the server
+#' component (i.e. `generate_code_server()`) is expected to return `NULL`.
+#'
+#' @export
+generate_code <- function(server = generate_code_server,
+                          ui = generate_code_ui) {
+
+  new_plugin(server, ui, validator = check_gen_code_val,
+             class = "generate_code")
+}
+
 #' @param id Namespace ID
 #' @param board Reactive values object
 #' @param ... Extra arguments passed from parent scope
 #'
-#' @return NULL (invisibly)
-#'
-#' @rdname gen_code
+#' @rdname generate_code
 #' @export
-gen_code_server <- function(id, board, ...) {
+generate_code_server <- function(id, board, ...) {
   moduleServer(
     id,
     function(input, output, session) {
@@ -42,15 +60,14 @@ gen_code_server <- function(id, board, ...) {
         }
       )
 
-      invisible(NULL)
+      NULL
     }
   )
 }
 
-#' @param board The initial `board` object
-#' @rdname gen_code
+#' @rdname generate_code
 #' @export
-gen_code_ui <- function(id, board) {
+generate_code_ui <- function(id, board) {
   tagList(
     actionButton(
       NS(id, "code_mod"),

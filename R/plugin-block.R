@@ -1,14 +1,30 @@
-#' Edit block module
+#' Plugin module for editing board blocks
 #'
-#' Customizable logic for editing block attributes such as block title.
+#' Logic and user experience for editing block attributes such as block titles
+#' can be customized or enhanced by providing an alternate version of this
+#' plugin. The default implementation only handles block titles, but if further
+#' (editable) block attributes are to be introduced, corresponding UI and logic
+#' can be included here. In addition to blocks titles, this default
+#' implementation provides UI for removing, as well as inserting blocks before
+#' or after the current one.
 #'
+#' @param server,ui Server/UI for the plugin module
+#'
+#' @return A plugin container inheriting from `edit_block` is returned by
+#' `edit_block()`, while the UI component (e.g. `edit_block_ui()`) is
+#' expected to return shiny UI (i.e. [shiny::tagList()]) and the server
+#' component (i.e. `edit_block_server()`) is expected to return `NULL`.
+#'
+#' @export
+edit_block <- function(server = edit_block_server, ui = edit_block_ui) {
+  new_plugin(server, ui, validator = expect_null, class = "edit_block")
+}
+
 #' @param id Namespace ID
 #' @param block_id Block ID
 #' @param board Reactive values object containing board information
 #' @param update Reactive value object to initiate board updates
 #' @param ... Extra arguments passed from parent scope
-#'
-#' @return `NULL`
 #'
 #' @rdname edit_block
 #' @export
