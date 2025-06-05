@@ -26,7 +26,7 @@ You can install the development version of blockr.core from
 pak::pak("BristolMyersSquibb/blockr.core")
 ```
 
-## What is blockr.core
+## What is blockr.core?
 
 `blockr.core` is the entry point to blockr, providing the core
 functionality needed to get started. It can be run as a stand-alone app,
@@ -45,14 +45,14 @@ acyclic graph) to create powerful data **workflows**.
 
 blockr targets two main user groups:
 
-- **non technical** users are empowered to create insightful data
-  workflows using pre-built blocks that can be **easily** connected, all
-  without writing a single line of code.
-- **developers** are provided with a set of tools to seamlessly create
-  new blocks, thereby enhancing the entire framework and fostering
-  **collaboration** within organizations teams.
+- **non developers** are empowered to create insightful data workflows
+  using pre-built blocks that can be **easily** connected, all without
+  writing a single line of code.
+- **developers** are provided with a set of tools to create new blocks
+  and extend blockr, thereby enhancing the entire framework and
+  fostering **collaboration** within teams and organisations.
 
-## What are the key features
+## Key features
 
 1.  **User-Friendly Interface**: Build data pipelines with intuitive
     interface, like with
@@ -80,12 +80,12 @@ blockr.ui example
 
 </div>
 
-## How to get started?
+## Getting started
 
 To get started, we invite you to read this
 [vignette](https://bristolmyerssquibb.github.io/blockr.core/articles/get-started.html).
 
-### How can I develop my own blocks?
+## Extending blockr
 
 We started to build blockr extensions to enrich blockr.core’s
 capabilities:
