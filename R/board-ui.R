@@ -8,7 +8,8 @@
 #' components, including blocks, links and stacks, but may rely on
 #' functionality that generates UI for these components, such as [block_ui()]
 #' or [stack_ui()], as well as already available UI provided by plugins
-#' themselves.
+#' themselves. Additionally, `toolbar_ui()` is responsible for creating a
+#' toolbar UI component from several plugin UI components.
 #'
 #' Dynamic UI updates are handled by functions `insert_block_ui()` and
 #' `remove_block_ui()` for adding and removing block-level UI elements to and
@@ -24,10 +25,10 @@
 #' @param ... Generic consistency
 #'
 #' @return A `board_ui()` implementation is expected to return [shiny::tag] or
-#' [shiny::tagList()] objects, while updater functions (`insert_block_ui()`,
-#' `remove_block_ui()` and `update_ui()`) are called for their side effects
-#' (which includes UI updates such as [shiny::insertUI()], [shiny::removeUI()])
-#' and return the board object passed as `x` invisibly.
+#' [shiny::tagList()] objects, as does `toolbar_ui()`, while updater functions
+#' (`insert_block_ui()`, `remove_block_ui()` and `update_ui()`) are called for
+#' their side effects (which includes UI updates such as [shiny::insertUI()],
+#' [shiny::removeUI()]) and return the board object passed as `x` invisibly.
 #'
 #' @export
 board_ui <- function(id, x, ...) {
@@ -39,52 +40,13 @@ board_ui <- function(id, x, ...) {
 #' @export
 board_ui.board <- function(id, x, plugins = list(), ...) {
 
-  plugins <- as_plugins(plugins)
-
-  toolbar_plugins <- c("preserve_board", "manage_blocks", "manage_links",
-                       "manage_stacks", "generate_code")
-
-  toolbar_plugins <- plugins[intersect(toolbar_plugins, names(plugins))]
-
-  toolbar_ui <- do.call(
-    tagList,
-    list(
-      board_ui(id, toolbar_plugins, x),
-      board_ui(id, board_options(x))
-    )
-  )
-
-  if ("edit_block" %in% names(plugins)) {
-    block_plugin <- plugins[["edit_block"]]
-  } else {
-    block_plugin <- NULL
-  }
-
-  if ("edit_stack" %in% names(plugins)) {
-    stack_plugin <- plugins[["edit_stack"]]
-  } else {
-    stack_plugin <- NULL
-  }
-
   tagList(
-    do.call(
-      div,
-      c(
-        class = paste(
-          "d-flex justify-content-evenly align-items-center",
-          "bg-light-subtle sticky-top border rounded-4",
-          "m-2 gap-5 p-2"
-        ),
-        toolbar_ui
-      )
-    ),
-    if ("notify_user" %in% names(plugins)) {
-      div(board_ui(id, plugins[["notify_user"]], x))
-    },
+    toolbar_ui(id, x, plugins),
+    board_ui(id, plugins[["notify_user"]], x),
     div(
       id = paste0(id, "_board"),
-      stack_ui(id, x, edit_ui = stack_plugin),
-      block_ui(id, x, edit_ui = block_plugin)
+      stack_ui(id, x, edit_ui = plugins[["edit_stack"]]),
+      block_ui(id, x, edit_ui = plugins[["edit_block"]])
     )
   )
 }
@@ -230,4 +192,42 @@ update_ui <- function(x, session, ...) {
 update_ui.board <- function(x, session, ...) {
   update_ui(board_options(x), session)
   invisible(x)
+}
+
+#' @rdname board_ui
+#' @export
+toolbar_ui <- function(id, x, plugins = list(), ...) {
+  UseMethod("toolbar_ui", x)
+}
+
+#' @rdname board_ui
+#' @export
+toolbar_ui.board <- function(id, x, plugins = list(), ...) {
+
+  plugins <- as_plugins(plugins)
+
+  toolbar_plugins <- c("preserve_board", "manage_blocks", "manage_links",
+                       "manage_stacks", "generate_code")
+
+  toolbar_plugins <- plugins[intersect(toolbar_plugins, names(plugins))]
+
+  toolbar_ui <- do.call(
+    tagList,
+    list(
+      board_ui(id, toolbar_plugins, x),
+      board_ui(id, board_options(x))
+    )
+  )
+
+  do.call(
+    div,
+    c(
+      class = paste(
+        "d-flex justify-content-evenly align-items-center",
+        "bg-light-subtle sticky-top border rounded-4",
+        "m-2 gap-5 p-2"
+      ),
+      toolbar_ui
+    )
+  )
 }

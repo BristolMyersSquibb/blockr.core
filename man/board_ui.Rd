@@ -12,6 +12,8 @@
 \alias{remove_block_ui.board}
 \alias{update_ui}
 \alias{update_ui.board}
+\alias{toolbar_ui}
+\alias{toolbar_ui.board}
 \title{Board UI}
 \usage{
 \method{board_ui}{board_options}(id, x, ...)
@@ -35,6 +37,10 @@ remove_block_ui(id, x, blocks = NULL, ...)
 update_ui(x, session, ...)
 
 \method{update_ui}{board}(x, session, ...)
+
+toolbar_ui(id, x, plugins = list(), ...)
+
+\method{toolbar_ui}{board}(id, x, plugins = list(), ...)
 }
 \arguments{
 \item{id}{Namespace ID}
@@ -51,10 +57,10 @@ update_ui(x, session, ...)
 }
 \value{
 A \code{board_ui()} implementation is expected to return \link[shiny:reexports]{shiny::tag} or
-\code{\link[shiny:reexports]{shiny::tagList()}} objects, while updater functions (\code{insert_block_ui()},
-\code{remove_block_ui()} and \code{update_ui()}) are called for their side effects
-(which includes UI updates such as \code{\link[shiny:insertUI]{shiny::insertUI()}}, \code{\link[shiny:insertUI]{shiny::removeUI()}})
-and return the board object passed as \code{x} invisibly.
+\code{\link[shiny:reexports]{shiny::tagList()}} objects, as does \code{toolbar_ui()}, while updater functions
+(\code{insert_block_ui()}, \code{remove_block_ui()} and \code{update_ui()}) are called for
+their side effects (which includes UI updates such as \code{\link[shiny:insertUI]{shiny::insertUI()}},
+\code{\link[shiny:insertUI]{shiny::removeUI()}}) and return the board object passed as \code{x} invisibly.
 }
 \description{
 As counterpart to \code{\link[=board_server]{board_server()}}, \code{board_ui()} is responsible for rendering
@@ -65,7 +71,8 @@ implementation is expected to handle UI for plugins and all board
 components, including blocks, links and stacks, but may rely on
 functionality that generates UI for these components, such as \code{\link[=block_ui]{block_ui()}}
 or \code{\link[=stack_ui]{stack_ui()}}, as well as already available UI provided by plugins
-themselves.
+themselves. Additionally, \code{toolbar_ui()} is responsible for creating a
+toolbar UI component from several plugin UI components.
 }
 \details{
 Dynamic UI updates are handled by functions \code{insert_block_ui()} and

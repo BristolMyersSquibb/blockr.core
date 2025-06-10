@@ -6,6 +6,7 @@
   via `session$UserData`.
 * Introduce (optional) dependency on [thematic](
   https://rstudio.github.io/thematic/) to auto-style plots.
+* Export `toolbar_ui()` which takes case of the "core" toolbar UI component.
 
 # blockr.core 0.1.0
 

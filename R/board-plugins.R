@@ -461,7 +461,15 @@ c.plugins <- function(...) {
 
 #' @export
 `[.plugins` <- function(x, i, ...) {
-  vec_slice(x, vec_as_location(i, length(x), chr_ply(x, plugin_id)))
+
+  loc <- vec_as_location(
+    i,
+    length(x),
+    chr_ply(x, plugin_id),
+    missing = "remove"
+  )
+
+  vec_slice(x, loc)
 }
 
 #' @export
@@ -471,9 +479,15 @@ c.plugins <- function(...) {
 
 #' @export
 `[[.plugins` <- function(x, i, ...) {
-  as_plugin(
-    vec_slice(x, vec_as_location2(i, length(x), chr_ply(x, plugin_id)))
+
+  loc <- vec_as_location2(
+    i,
+    length(x),
+    chr_ply(x, plugin_id),
+    missing = "propagate"
   )
+
+  as_plugin(vec_slice(x, loc))
 }
 
 #' @export
