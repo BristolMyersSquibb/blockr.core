@@ -7,7 +7,8 @@ implementation is expected to handle UI for plugins and all board
 components, including blocks, links and stacks, but may rely on
 functionality that generates UI for these components, such as block_ui()
 or stack_ui(), as well as already available UI provided by plugins
-themselves."><meta property="og:description" content="As counterpart to board_server(), board_ui() is responsible for rendering
+themselves. Additionally, toolbar_ui() is responsible for creating a
+toolbar UI component from several plugin UI components."><meta property="og:description" content="As counterpart to board_server(), board_ui() is responsible for rendering
 UI for a board module. This top-level entry point for customizing board
 appearance and functionality can be overridden by sub-classing the boar
 object and providing an implementation for this sub-class. Such an
@@ -15,7 +16,8 @@ implementation is expected to handle UI for plugins and all board
 components, including blocks, links and stacks, but may rely on
 functionality that generates UI for these components, such as block_ui()
 or stack_ui(), as well as already available UI provided by plugins
-themselves."><script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.5.0/mermaid.min.js" integrity="sha512-3EZqKCkk3nMLmbrI7mfry81KH7dkzy/BoDfQrodwLQnS/RbsVlERdYP6J0oiJegRUxSOmx7Y35WNbVKSw7mipw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script></head><body>
+themselves. Additionally, toolbar_ui() is responsible for creating a
+toolbar UI component from several plugin UI components."><script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.5.0/mermaid.min.js" integrity="sha512-3EZqKCkk3nMLmbrI7mfry81KH7dkzy/BoDfQrodwLQnS/RbsVlERdYP6J0oiJegRUxSOmx7Y35WNbVKSw7mipw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -72,7 +74,8 @@ implementation is expected to handle UI for plugins and all board
 components, including blocks, links and stacks, but may rely on
 functionality that generates UI for these components, such as <code><a href="block_ui.html">block_ui()</a></code>
 or <code><a href="stack_ui.html">stack_ui()</a></code>, as well as already available UI provided by plugins
-themselves.</p>
+themselves. Additionally, <code>toolbar_ui()</code> is responsible for creating a
+toolbar UI component from several plugin UI components.</p>
     </div>
 
     <div class="section level2">
@@ -104,7 +107,12 @@ themselves.</p>
 <span><span class="fu">update_ui</span><span class="op">(</span><span class="va">x</span>, <span class="va">session</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'board'</span></span>
-<span><span class="fu">update_ui</span><span class="op">(</span><span class="va">x</span>, <span class="va">session</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">update_ui</span><span class="op">(</span><span class="va">x</span>, <span class="va">session</span>, <span class="va">...</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">toolbar_ui</span><span class="op">(</span><span class="va">id</span>, <span class="va">x</span>, plugins <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, <span class="va">...</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># S3 method for class 'board'</span></span>
+<span><span class="fu">toolbar_ui</span><span class="op">(</span><span class="va">id</span>, <span class="va">x</span>, plugins <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -138,10 +146,10 @@ themselves.</p>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A <code>board_ui()</code> implementation is expected to return <a href="https://rdrr.io/pkg/shiny/man/reexports.html" class="external-link">shiny::tag</a> or
-<code><a href="https://rdrr.io/pkg/shiny/man/reexports.html" class="external-link">shiny::tagList()</a></code> objects, while updater functions (<code>insert_block_ui()</code>,
-<code>remove_block_ui()</code> and <code>update_ui()</code>) are called for their side effects
-(which includes UI updates such as <code><a href="https://rdrr.io/pkg/shiny/man/insertUI.html" class="external-link">shiny::insertUI()</a></code>, <code><a href="https://rdrr.io/pkg/shiny/man/insertUI.html" class="external-link">shiny::removeUI()</a></code>)
-and return the board object passed as <code>x</code> invisibly.</p>
+<code><a href="https://rdrr.io/pkg/shiny/man/reexports.html" class="external-link">shiny::tagList()</a></code> objects, as does <code>toolbar_ui()</code>, while updater functions
+(<code>insert_block_ui()</code>, <code>remove_block_ui()</code> and <code>update_ui()</code>) are called for
+their side effects (which includes UI updates such as <code><a href="https://rdrr.io/pkg/shiny/man/insertUI.html" class="external-link">shiny::insertUI()</a></code>,
+<code><a href="https://rdrr.io/pkg/shiny/man/insertUI.html" class="external-link">shiny::removeUI()</a></code>) and return the board object passed as <code>x</code> invisibly.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
