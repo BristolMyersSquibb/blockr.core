@@ -119,7 +119,7 @@ serve.board <- function(x, id = rand_names(), plugins = board_plugins(), ...) {
       )
     )
 
-    res <- board_server(id, x, plugins)
+    res <- board_server(id, x, plugins, ...)
 
     exportTestValues(
       result = lapply(
