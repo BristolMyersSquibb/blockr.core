@@ -126,6 +126,17 @@ block_ui.board <- function(id, x, blocks = NULL, edit_ui = NULL, ...) {
 #' @rdname board_ui
 #' @export
 insert_block_ui <- function(id, x, blocks = NULL, ...) {
+
+  if (is.null(blocks)) {
+    blocks <- board_blocks(x)
+  } else {
+    blocks <- board_blocks(x)[blocks]
+  }
+
+  if (!length(blocks)) {
+    return(NULL)
+  }
+
   UseMethod("insert_block_ui", x)
 }
 
@@ -148,6 +159,17 @@ insert_block_ui.board <- function(id, x, blocks = NULL, ...) {
 #' @rdname board_ui
 #' @export
 remove_block_ui <- function(id, x, blocks = NULL, ...) {
+
+  if (is.null(blocks)) {
+    blocks <- board_blocks(x)
+  } else {
+    blocks <- board_blocks(x)[blocks]
+  }
+
+  if (!length(blocks)) {
+    return(NULL)
+  }
+
   UseMethod("remove_block_ui", x)
 }
 
