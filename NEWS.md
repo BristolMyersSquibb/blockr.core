@@ -7,6 +7,10 @@
 * Introduce (optional) dependency on [thematic](
   https://rstudio.github.io/thematic/) to auto-style plots.
 * Export `toolbar_ui()` which takes case of the "core" toolbar UI component.
+* Utility functions `chr_ply()` and related are now exported for use in
+  dependent packages.
+* Export `export_code()` to make it easier for third-party `generate_code()`
+  plugin implementations.
 
 # blockr.core 0.1.0
 

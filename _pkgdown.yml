@@ -88,3 +88,5 @@ reference:
   - rand_names
   - blockr_option
   - serve
+  - export_code
+  - chr_ply

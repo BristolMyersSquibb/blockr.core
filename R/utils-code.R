@@ -1,8 +1,18 @@
-gen_code <- function(rv) {
+#' Utilities for code export
+#'
+#' To facilitate other means of code export than implemented by the default
+#' [generate_code()] plugin, this utility performs much of the heavy lifting
+#' to properly arrange and scope block-level expressions.
+#'
+#' @param expressions Block expressions
+#' @param board Board object
+#'
+#' @return String containing properly arranged block expressions.
+#'
+#' @export
+export_code <- function(expressions, board) {
 
-  exprs <- lapply(lst_xtr(rv$blocks, c("server", "expr")), reval)
-
-  lnks <- board_links(rv$board)
+  lnks <- board_links(board)
 
   arg_map <- lapply(
     split(as.list(lnks), lnks$to),
@@ -11,9 +21,9 @@ gen_code <- function(rv) {
     }
   )
 
-  ordering <- topo_sort(as.matrix(rv$board))
+  ordering <- topo_sort(as.matrix(board))
 
-  exprs <- Map(wrap_expr, exprs[ordering], arg_map[ordering])
+  exprs <- Map(wrap_expr, expressions[ordering], arg_map[ordering])
 
   exprs <- map(assignment, names(exprs), exprs)
   exprs <- lapply(exprs, deparse)

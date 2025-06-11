@@ -34,7 +34,7 @@ generate_code_server <- function(id, board, ...) {
     function(input, output, session) {
 
       code <- reactive(
-        gen_code(board)
+        export_code(lst_xtr_reval(board$blocks, "server", "expr"), board$board)
       )
 
       observeEvent(
