@@ -98,6 +98,6 @@ map <- function(fun, ..., use_names = FALSE) {
 
 #' @rdname chr_ply
 #' @export
-filter <- function (fun, x, ...) {
+filter <- function(fun, x, ...) {
   x[lgl_ply(x, match.fun(fun), ..., length = 1L, use_names = FALSE)]
 }
