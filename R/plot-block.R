@@ -26,9 +26,7 @@ new_plot_block <- function(server, ui, class, ctor = sys.parent(), ...) {
 
 #' @export
 block_output.plot_block <- function(x, result, session) {
-  plt <- attr(result, "plot")
-  req(plt)
-  renderPlot(grDevices::replayPlot(plt))
+  renderPlot(result)
 }
 
 #' @export
@@ -40,5 +38,12 @@ block_ui.plot_block <- function(id, x, ...) {
 
 #' @export
 block_eval.plot_block <- function(x, expr, data, ...) {
-  structure(coal(NextMethod(), list()), plot = grDevices::recordPlot())
+
+  res <- evaluate::evaluate(
+    expr,
+    list2env(data),
+    stop_on_error = 1L
+  )
+
+  filter(Negate(inherits), res, "source")
 }

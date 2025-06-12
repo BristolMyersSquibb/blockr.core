@@ -95,3 +95,9 @@ lst_xtr <- function(x, ...) {
 map <- function(fun, ..., use_names = FALSE) {
   Map(fun, ..., USE.NAMES = use_names)
 }
+
+#' @rdname chr_ply
+#' @export
+filter <- function (fun, x, ...) {
+  x[lgl_ply(x, match.fun(fun), ..., length = 1L, use_names = FALSE)]
+}

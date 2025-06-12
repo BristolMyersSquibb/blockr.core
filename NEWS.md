@@ -11,6 +11,7 @@
   dependent packages.
 * Export `export_code()` to make it easier for third-party `generate_code()`
   plugin implementations.
+* Use `evaluate::evaluate()` to capture plots.
 
 # blockr.core 0.1.0
 

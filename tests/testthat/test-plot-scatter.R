@@ -34,8 +34,8 @@ test_that("scetter plot block constructor", {
       session$flushReact()
 
       expect_s3_class(
-        attr(session$returned$result(), "plot"),
-        "recordedplot"
+        session$returned$result(),
+        "evaluate_evaluation"
       )
     },
     args = list(x = blk, data = list(data = function() iris))

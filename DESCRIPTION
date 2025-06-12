@@ -49,7 +49,7 @@ Suggests:
     testthat (>= 3.0.0),
     memuse,
     withr,
-    grDevices,
+    evaluate,
     shinytest2,
     roxy.shinylive,
     knitr,

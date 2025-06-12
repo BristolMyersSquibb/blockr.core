@@ -15,6 +15,7 @@
 \alias{dbl_xtr}
 \alias{lst_xtr}
 \alias{map}
+\alias{filter}
 \title{Functional programming utilities}
 \usage{
 chr_ply(x, fun, ..., length = 1L, use_names = FALSE)
@@ -44,6 +45,8 @@ dbl_xtr(x, i, ...)
 lst_xtr(x, ...)
 
 map(fun, ..., use_names = FALSE)
+
+filter(fun, x, ...)
 }
 \arguments{
 \item{x}{Object to iterate over}
