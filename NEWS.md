@@ -7,8 +7,9 @@
 * Introduce (optional) dependency on [thematic](
   https://rstudio.github.io/thematic/) to auto-style plots.
 * Export `toolbar_ui()` which takes case of the "core" toolbar UI component.
-* Utility functions `chr_ply()` and related are now exported for use in
-  dependent packages.
+* Utility functions `chr_ply()` and related, as well as miscellaneous utilities
+  such as `set_names()`, `coal()`, etc. are now exported for use in dependent
+  packages.
 * Export `export_code()` to make it easier for third-party `generate_code()`
   plugin implementations.
 * Use `evaluate::evaluate()` to capture plots.

@@ -90,3 +90,4 @@ reference:
   - serve
   - export_code
   - chr_ply
+  - set_names

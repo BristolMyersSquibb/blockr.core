@@ -72,11 +72,31 @@ inherits <- function(x, ..., agg = NULL) {
   agg(res)
 }
 
+#' Miscellaneous utilities
+#'
+#' Several internal utility functions are exported for convencience in case
+#' dependent packages can make use of this functionality.
+#'
+#' @param object,nm See [stats::setNames()]
+#'
+#' @return Function `set_names()` returns a names object, `paste_enum()` a
+#' string, `coal()` the first non-null object and `unlst()` performs the same
+#' action as [base::unlist()] but with differing defaults.
+#'
+#' @keywords internal
+#'
+#' @export
 set_names <- function(object = nm, nm) {
   names(object) <- nm
   object
 }
 
+#' @param x Character vector to [base::paste()]
+#' @param sep,conj Separation strings for all but last and last positions
+#' @param quotes Quotes to wrap each entry in `x` with
+#'
+#' @rdname set_names
+#' @export
 paste_enum <- function(x, sep = ", ", conj = " and ", quotes = "`") {
 
   if (length(x) == 0L) {
@@ -94,6 +114,11 @@ paste_enum <- function(x, sep = ", ", conj = " and ", quotes = "`") {
   )
 }
 
+#' @param ... Set of objects to iterate over
+#' @param fail_null Error if no non-null objects are present
+#'
+#' @rdname set_names
+#' @export
 coal <- function(..., fail_null = TRUE) {
 
   for (i in seq_len(...length())) {
@@ -118,6 +143,9 @@ int_to_chr <- function(x) {
   )
 }
 
+#' @param recursive,use_names See [base::unlist()]
+#' @rdname set_names
+#' @export
 unlst <- function(x, recursive = FALSE, use_names = FALSE) {
   unlist(x, recursive = recursive, use.names = use_names)
 }
