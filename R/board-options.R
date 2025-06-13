@@ -372,8 +372,18 @@ get_board_option_value <- function(opt, session = getDefaultReactiveDomain()) {
   res
 }
 
-get_board_option_values <- function(..., session = getDefaultReactiveDomain()) {
-  lapply(set_names(nm = c(...)), get_board_option_value, session = session)
+get_board_option_values <- function(...,
+  if_not_found = c("error", "default", "null"),
+  session = getDefaultReactiveDomain()) {
+
+  fun <- switch(
+    match.arg(if_not_found),
+    error = get_board_option_value,
+    default = get_board_option_or_default,
+    null = get_board_option_or_null
+  )
+
+  lapply(set_names(nm = c(...)), fun, session = session)
 }
 
 #' @rdname new_board_options
@@ -382,9 +392,15 @@ get_board_option_or_default <- function(opt,
                                         session = getDefaultReactiveDomain()) {
   tryCatch(
     get_board_option_value(opt, session),
-    board_option_not_found = function(e) {
-      board_option(opt, new_board_options())
-    }
+    board_option_not_found = function(e) board_option(opt, new_board_options())
+  )
+}
+
+get_board_option_or_null <- function(opt,
+                                        session = getDefaultReactiveDomain()) {
+  tryCatch(
+    get_board_option_value(opt, session),
+    board_option_not_found = function(e) NULL
   )
 }
 

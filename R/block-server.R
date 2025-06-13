@@ -325,6 +325,16 @@ state_check_observer <- function(id, x, dat, res, exp, rv, sess) {
   )
 }
 
+block_eval_trigger <- function(x, session = getDefaultReactiveDomain()) {
+  UseMethod("block_eval_trigger", x)
+}
+
+#' @noRd
+#' @export
+block_eval_trigger.block <- function(x, session = getDefaultReactiveDomain()) {
+  NULL
+}
+
 data_eval_observer <- function(id, x, dat, res, exp, lang, rv, sess) {
 
   dat_eval <- reactive(
@@ -338,6 +348,8 @@ data_eval_observer <- function(id, x, dat, res, exp, lang, rv, sess) {
       if ("...args" %in% names(res)) {
         res <- c(res[names(res) != "...args"], res[["...args"]])
       }
+
+      block_eval_trigger(x, sess)
 
       res
     },

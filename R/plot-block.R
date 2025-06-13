@@ -26,7 +26,7 @@ new_plot_block <- function(server, ui, class, ctor = sys.parent(), ...) {
 
 #' @export
 block_output.plot_block <- function(x, result, session) {
-  renderPlot(result)
+  renderPlot(evaluate::replay(result))
 }
 
 #' @export
@@ -46,4 +46,18 @@ block_eval.plot_block <- function(x, expr, data, ...) {
   )
 
   filter(Negate(inherits), res, "source")
+}
+
+#' @noRd
+#' @export
+block_eval_trigger.plot_block <- function(x,
+  session = getDefaultReactiveDomain()) {
+
+  invisible(
+    get_board_option_values(
+      c("thematic", "dark_mode"),
+      if_not_found = "null",
+      session = session
+    )
+  )
 }
