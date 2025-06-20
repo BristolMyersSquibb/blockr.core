@@ -41,14 +41,16 @@ block_ui.block <- function(id, x, ...) {
   NULL
 }
 
+#' @param state Optional block state, which will be added to the environment
+#' where the block `expr` UI is created
 #' @rdname block_ui
 #' @export
-expr_ui <- function(id, x, ...) {
+expr_ui <- function(id, x, state = list(), ...) {
   UseMethod("expr_ui", x)
 }
 
 #' @export
-expr_ui.block <- function(id, x, ...) {
+expr_ui.block <- function(id, x, state = list(), ...) {
 
   if (...length()) {
     abort(
@@ -59,7 +61,23 @@ expr_ui.block <- function(id, x, ...) {
     )
   }
 
-  do.call(block_expr_ui(x), list(id = NS(id, "expr")))
+  if (!is.list(state) || length(unique(names(state))) != length(state)) {
+    abort(
+      paste(
+        "Argument `state` in call to `expr_ui()` is expected to be a named",
+        "list with unique names."
+      ),
+      class = "unsuitable_expr_ui_state"
+    )
+  }
+
+  ui_fun <- block_expr_ui(x)
+
+  if (length(state)) {
+    environment(ui_fun) <- list2env(state, parent = environment(ui_fun))
+  }
+
+  do.call(ui_fun, list(id = NS(id, "expr")))
 }
 
 #' @param result Block result

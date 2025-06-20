@@ -9,7 +9,7 @@
 \usage{
 block_ui(id, x, ...)
 
-expr_ui(id, x, ...)
+expr_ui(id, x, state = list(), ...)
 
 block_output(x, result, session)
 
@@ -21,6 +21,9 @@ block_output(x, result, session)
 \item{x}{Object for which to generate a UI container}
 
 \item{...}{Generic consistency}
+
+\item{state}{Optional block state, which will be added to the environment
+where the block \code{expr} UI is created}
 
 \item{result}{Block result}
 

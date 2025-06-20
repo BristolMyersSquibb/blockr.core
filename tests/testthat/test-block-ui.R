@@ -34,3 +34,26 @@ test_that("dummy block ui test", {
     class = "superfluous_expr_ui_args"
   )
 })
+
+test_that("block ui with state", {
+
+  has_option <- function(html) {
+    grepl(
+      "option",
+      chr_ply(
+        htmltools::tagQuery(html)$find("select")$selectedTags(),
+        as.character
+      )
+    )
+  }
+
+  blk <- new_scatter_block()
+
+  ui_no_state <- expr_ui("block", blk)
+
+  expect_false(any(has_option(ui_no_state)))
+
+  ui_with_state <- expr_ui("block", blk, list(x = "a", y = "b"))
+
+  expect_true(all(has_option(ui_with_state)))
+})
