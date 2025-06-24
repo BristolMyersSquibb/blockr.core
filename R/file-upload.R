@@ -34,8 +34,3 @@ new_upload_block <- function(...) {
     ...
   )
 }
-
-#' @export
-as.list.upload_block <- function(x, ...) {
-  stop("Cannot serialize upload blocks.")
-}

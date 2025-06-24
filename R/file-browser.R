@@ -59,8 +59,3 @@ new_filebrowser_block <- function(file_path = character(),
     ...
   )
 }
-
-#' @export
-as.list.filebrowser_block <- function(x, ...) {
-  stop("Cannot serialize upload blocks.")
-}
