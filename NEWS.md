@@ -13,6 +13,8 @@
 * Export `export_code()` to make it easier for third-party `generate_code()`
   plugin implementations.
 * Use `evaluate::evaluate()` to capture plots.
+* Add `new_fixed_block()` for applying a fixed (i.e. non-paramtetrized)
+  transformation to data input.
 
 # blockr.core 0.1.0
 
