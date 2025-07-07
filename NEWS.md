@@ -15,6 +15,7 @@
 * Use `evaluate::evaluate()` to capture plots.
 * Add `new_fixed_block()` for applying a fixed (i.e. non-paramtetrized)
   transformation to data input.
+* Board server callbacks are invoked with an additional argument `session`.
 
 # blockr.core 0.1.0
 

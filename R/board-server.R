@@ -56,11 +56,13 @@ board_server.board <- function(id, x, plugins = list(), callbacks = list(),
         stacks = list()
       )
 
-      rv_lst <- list(board = make_read_only(rv))
+      rv_ro <- list(board = make_read_only(rv))
 
       board_update <- reactiveVal()
 
-      plugin_args <- c(rv_lst, list(update = board_update), dot_args)
+      plugin_args <- c(rv_ro, list(update = board_update), dot_args)
+      cb_args <- c(rv_ro, list(update = board_update, session = session),
+                   dot_args)
 
       edit_block <- get_plugin("edit_block", plugins)
       edit_stack <- get_plugin("edit_stack", plugins)
@@ -196,7 +198,7 @@ board_server.board <- function(id, x, plugins = list(), callbacks = list(),
       cb_res <- vector("list", length(callbacks))
 
       for (i in seq_along(callbacks)) {
-        cb_res[[i]] <- do.call(callbacks[[i]], plugin_args)
+        cb_res[[i]] <- do.call(callbacks[[i]], cb_args)
       }
 
       observeEvent(
@@ -210,7 +212,7 @@ board_server.board <- function(id, x, plugins = list(), callbacks = list(),
         }
       )
 
-      c(rv_lst, dot_args)
+      c(rv_ro, dot_args)
     }
   )
 }
