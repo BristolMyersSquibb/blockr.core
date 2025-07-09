@@ -16,6 +16,7 @@
 * Add `new_fixed_block()` for applying a fixed (i.e. non-paramtetrized)
   transformation to data input.
 * Board server callbacks are invoked with an additional argument `session`.
+* Export assertion utilities such as `is_string()`, `is_count()`, etc.
 
 # blockr.core 0.1.0
 
