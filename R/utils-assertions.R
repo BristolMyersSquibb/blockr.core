@@ -55,6 +55,7 @@ is_number <- function(x) {
   is.numeric(x) && is_scalar(x) && !is.na(x) && !is.nan(x) && is.finite(x)
 }
 
+#' @param ... Silently ignored
 #' @rdname assertions
 #' @export
 not_null <- Negate(is.null)

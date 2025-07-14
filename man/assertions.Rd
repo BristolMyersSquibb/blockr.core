@@ -28,6 +28,8 @@ not_null(...)
 \item{x}{Object to check}
 
 \item{allow_zero}{Determines whether the value 0 is considered a valid count}
+
+\item{...}{Silently ignored}
 }
 \value{
 Scalar logical value.
