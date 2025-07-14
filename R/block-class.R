@@ -431,10 +431,8 @@ as_block.list <- function(x, ...) {
     mode = "function"
   )
 
-  args <- setdiff(names(formals(ctor)), "...")
-
   args <- c(
-    x[["payload"]][args],
+    x[["payload"]],
     ctor = x[["constructor"]],
     ctor_pkg = x[["package"]]
   )
