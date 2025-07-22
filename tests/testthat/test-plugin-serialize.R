@@ -8,7 +8,7 @@ test_that("ser/deser module", {
     links = links(from = "a", to = "b")
   )
 
-  temp <- tempfile(fileext = ".json")
+  temp <- withr::local_tempfile(fileext = ".json")
 
   testServer(
     preserve_board_server,
@@ -50,7 +50,7 @@ test_that("ser/deser board", {
     )
   )
 
-  temp <- tempfile(fileext = ".json")
+  temp <- withr::local_tempfile(fileext = ".json")
 
   testServer(
     get_s3_method("board_server", test_board),

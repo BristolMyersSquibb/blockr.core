@@ -10,7 +10,7 @@ new_board(
   blocks = list(),
   links = list(),
   stacks = list(),
-  options = new_board_options(),
+  options = default_board_options(),
   ...,
   class = character()
 )

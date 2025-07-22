@@ -11,17 +11,14 @@
 #' `names(board_options(.))`. Finally, in order to extract the value of a
 #' specific option, `board_option()` can be used.
 #'
-#' @param board_name String valued board name
-#' @param n_rows,page_size Number of rows and page size to show for tabular
-#' block previews
-#' @param filter_rows Enable filtering of rows in tabular block previews
-#' @param dark_mode Toggle between dark and light modes
-#' @param thematic Enable auto-theming for plots via
-#' @param ... Further options
-#' @param class Optional sub-class
+#' @param ... Options passed as individual arguments
+#' @param lst A list of `board_option` objects
 #'
 #' @examples
-#' opt <- new_board_options()
+#' opt <- new_board_options(#'
+#'    new_board_name_option(),#'
+#'    new_page_size_option()#'
+#'  )
 #'
 #' is_board_options(opt)
 #' list_board_options(opt)
@@ -39,41 +36,26 @@
 #' and logicals.
 #'
 #' @export
-new_board_options <- function(board_name = "Board",
-                              n_rows = blockr_option("n_rows", 50L),
-                              page_size = blockr_option("page_size", 5L),
-                              filter_rows = blockr_option("filter_rows", FALSE),
-                              dark_mode = blockr_option("dark_mode", NULL),
-                              thematic = blockr_option("thematic", NULL),
-                              ...,
-                              class = character()) {
+new_board_options <- function(..., lst = list()) {
 
-  if (isTRUE(dark_mode)) {
-    dark_mode <- "dark"
-  }
-
-  if (isFALSE(dark_mode)) {
-    dark_mode <- "light"
-  }
-
-  if (length(dark_mode) && is.na(dark_mode)) {
-    dark_mode <- NULL
-  }
-
-  res <- structure(
-    list(
-      board_name = board_name,
-      n_rows = as.integer(n_rows),
-      page_size = as.integer(page_size),
-      filter_rows = filter_rows,
-      dark_mode = dark_mode,
-      thematic = thematic,
-      ...
-    ),
-    class = c(class, "board_options")
-  )
+  res <- structure(c(list(...), lst), class = "board_options")
 
   validate_board_options(res)
+
+  res
+}
+
+#' @rdname new_board_options
+#' @export
+default_board_options <- function() {
+  new_board_options(
+    new_board_name_option(),
+    new_n_rows_option(),
+    new_page_size_option(),
+    new_filter_rows_option(),
+    new_thematic_option(),
+    new_dark_mode_option()
+  )
 }
 
 #' @param x Board options object
@@ -97,8 +79,20 @@ as_board_options.board_options <- function(x) {
 
 #' @rdname new_board_options
 #' @export
-as_board_options.default <- function(x) {
-  do.call(new_board_options, as.list(x))
+as_board_options.board_option <- function(x) {
+  new_board_options(x)
+}
+
+#' @rdname new_board_options
+#' @export
+as_board_options.list <- function(x) {
+  new_board_options(lst = x)
+}
+
+#' @rdname new_board_options
+#' @export
+as_board_options.board <- function(x) {
+  board_options(x)
 }
 
 #' @rdname new_board_options
@@ -118,65 +112,20 @@ validate_board_options.board_options <- function(x) {
     )
   }
 
-  expected <- c(
-    "board_name", "n_rows", "page_size", "filter_rows", "dark_mode", "thematic"
-  )
+  for (opt in x) {
+    validate_board_option(opt)
+  }
 
-  if (!all(expected %in% names(x))) {
+  ids <- chr_ply(x, board_option_id)
+
+  if (length(unique(ids)) != length(x)) {
     abort(
-      paste(
-        "Expecting", paste_enum(setdiff(expected, names(x))),
-        "to be available as board options."
-      ),
-      class = "board_options_components_invalid"
+      "Non-unique board options IDs are being used.",
+      class = "board_options_duplicated_ids"
     )
   }
 
-  if (!is_string(x[["board_name"]])) {
-    abort(
-      "Expecting `board_name` to represent a string.",
-      class = "board_options_board_name_invalid"
-    )
-  }
-
-  if (!is_count(x[["n_rows"]])) {
-    abort(
-      "Expecting `n_rows` to represent a count.",
-      class = "board_options_n_rows_invalid"
-    )
-  }
-
-  if (!is_count(x[["page_size"]])) {
-    abort(
-      "Expecting `page_size` to represent a count.",
-      class = "board_options_page_size_invalid"
-    )
-  }
-
-  if (!is_bool(x[["filter_rows"]])) {
-    abort(
-      "Expecting `filter_rows` to represent a boolean.",
-      class = "board_options_filter_rows_invalid"
-    )
-  }
-
-  dm <- x[["dark_mode"]]
-
-  if (!(is.null(dm) || (is_string(dm) && dm %in% c("light", "dark")))) {
-    abort(
-      "Expecting `dark_mode` to be either `NULL`, \"light\" or \"dark\".",
-      class = "board_options_dark_mode_invalid"
-    )
-  }
-
-  if (isTRUE(x[["tematic"]]) && !is_pkg_avail("thematic")) {
-    abort(
-      "Please install `thematic` to enable auto theming of plots.",
-      class = "thematic_not_installed"
-    )
-  }
-
-  x
+  invisible(x)
 }
 
 #' @export
@@ -199,7 +148,16 @@ list_board_options <- function(x) {
     )
   }
 
-  names(x)
+  chr_ply(x, board_option_id)
+}
+
+#' @rdname new_board_options
+#' @export
+board_option_values <- function(x) {
+  set_names(
+    lapply(x, board_option_value),
+    chr_ply(x, board_option_id)
+  )
 }
 
 #' @param opt Board option
@@ -207,9 +165,7 @@ list_board_options <- function(x) {
 #' @export
 board_option <- function(opt, x) {
 
-  if (is_board(x)) {
-    x <- board_options(x)
-  }
+  x <- as_board_options(x)
 
   if (!is_board_options(x)) {
     abort(
@@ -232,115 +188,113 @@ board_option <- function(opt, x) {
     )
   }
 
-  x[[opt]]
+  x[[match(opt, chr_ply(x, board_option_id))]]
 }
 
 #' @rdname board_ui
 #' @export
 board_ui.board_options <- function(id, x, ...) {
+  do.call(tagList, lapply(x, board_option_ui, id))
+}
 
-  ns <- NS(id)
+board_option_to_userdata <- function(x, board, input,
+                                     session = getDefaultReactiveDomain()) {
 
-  bslib::popover(
-    bsicons::bs_icon("gear", size = "1.5em"),
-    textInput(
-      ns("board_name"),
-      "Board name",
-      board_option("board_name", x)
-    ),
-    numericInput(
-      ns("n_rows"),
-      "Preview rows",
-      board_option("n_rows", x),
-      min = 1L,
-      step = 1L
-    ),
-    selectInput(
-      ns("page_size"),
-      "Preview page size",
-      c(5, 10, 25, 50, 100),
-      board_option("page_size", x)
-    ),
-    bslib::input_switch(
-      ns("filter_rows"),
-      "Enable preview search",
-      board_option("filter_rows", x)
-    ),
-    if (is_pkg_avail("thematic")) {
-      bslib::input_switch(
-        ns("thematic"),
-        "Enable thematic",
-        coal(board_option("thematic", x), FALSE)
+  stopifnot(is_board_option(x), is_board(board))
+
+  id <- board_option_id(x)
+  rv <- reactiveVal(board_option_value(x))
+
+  res <- board_option_server(x, board, session)
+  obs <- observeEvent(
+    input[[id]],
+    {
+      new <- board_option_value(x, input[[id]])
+
+      if (!identical(new, rv())) {
+        log_debug("setting option ", id)
+        rv(new)
+      }
+    }
+  )
+
+  attr(rv, "observers") <- c(
+    list(obs),
+    if (is.list(res) && all(lgl_ply(res, inherits, "Observer"))) {
+      res
+    } else if (inherits(res, "Observer")) {
+      list(res)
+    } else {
+      abort(
+        paste0(
+          "Expecting a `board_option` server function to return either a ",
+          "single or list of observers."
+        ),
+        class = "invalid_board_option_server_return_value"
       )
-    },
-    span(
-      bslib::input_dark_mode(
-        id = ns("dark_mode"),
-        mode = board_option("dark_mode", x)
-      ),
-      tags$label(
-        "Light/dark mode",
-        style = "vertical-align: top; margin-top: 3px;"
-      )
-    ),
-    title = "Board options"
-  )
-}
-
-#' @rdname board_ui
-#' @export
-update_ui.board_options <- function(x, session, ...) {
-
-  updateTextInput(
-    session,
-    "board_name",
-    value = board_option("board_name", x)
+    }
   )
 
-  updateNumericInput(
-    session,
-    "n_rows",
-    value = board_option("n_rows", x)
-  )
+  env <- session$userData
 
-  updateSelectInput(
-    session,
-    "page_size",
-    selected = board_option("page_size", x)
-  )
-
-  bslib::toggle_switch(
-    "filter_rows",
-    value = board_option("filter_rows", x),
-    session = session
-  )
-
-  bslib::toggle_dark_mode(
-    mode = board_option("dark_mode", x),
-    session = session
-  )
-
-  invisible()
-}
-
-board_option_to_userdata <- function(x, val, input, session) {
-
-  rv <- reactiveVal(val)
-
-  observeEvent(input[[x]], rv(input[[x]]))
-
-  session$userData[[x]] <- rv
-
-  invisible()
-}
-
-board_options_to_userdata <- function(x, input, session) {
-
-  if (is_board(x)) {
-    x <- board_options(x)
+  if (!exists("board_options", envir = env, inherits = FALSE)) {
+    assign("board_options", list(), envir = env, inherits = FALSE)
   }
 
-  Map(board_option_to_userdata, names(x), x, MoreArgs = list(input, session))
+  env$board_options[[id]] <- rv
+
+  invisible()
+}
+
+board_options_to_userdata <- function(board, input,
+                                      options = board_options(board),
+                                      session = getDefaultReactiveDomain()) {
+
+  stopifnot(is_board(board), is_board_options(options))
+
+  for (opt in options) {
+    board_option_to_userdata(opt, board, input, session)
+  }
+
+  invisible()
+}
+
+clear_board_options <- function(session) {
+
+  env <- session$userData
+
+  if (exists("board_options", envir = env, inherits = FALSE)) {
+    for (opt in env$board_options) {
+      for (obs in attr(opt, "observer")) {
+        obs$destroy()
+      }
+    }
+  }
+
+  assign("board_options", list(), envir = env, inherits = FALSE)
+
+  invisible()
+}
+
+update_board_options <- function(new, session = getDefaultReactiveDomain()) {
+
+  new <- as_board_options(new)
+
+  val <- set_names(
+    lapply(new, board_option_value),
+    chr_ply(new, board_option_id)
+  )
+
+  env <- session$userData
+
+  stopifnot(
+    exists("board_options", envir = env, inherits = FALSE),
+    all(names(val) %in% names(env$board_options))
+  )
+
+  for (i in names(val)) {
+    env$board_options[[i]](val[[i]])
+  }
 
   invisible()
 }
@@ -354,22 +308,18 @@ get_board_option_value <- function(opt, session = getDefaultReactiveDomain()) {
 
   stopifnot(is_string(opt), is.environment(env))
 
-  if (!exists(opt, envir = env, inherits = FALSE, mode = "function")) {
+  if (!exists("board_options", envir = env, inherits = FALSE)) {
+    assign("board_options", list(), envir = env, inherits = FALSE)
+  }
+
+  if (!opt %in% names(env$board_options)) {
     abort(
       paste0("Could not find option `", opt, "`."),
       class = "board_option_not_found"
     )
   }
 
-  rv <- get(opt, envir = env, inherits = FALSE, mode = "function")
-
-  res <- rv()
-
-  if (identical(opt, "page_size")) {
-    res <- as.integer(res)
-  }
-
-  res
+  env$board_options[[opt]]()
 }
 
 get_board_option_values <- function(...,
@@ -386,18 +336,21 @@ get_board_option_values <- function(...,
   lapply(set_names(nm = c(...)), fun, session = session)
 }
 
+#' @param opts Board options
 #' @rdname new_board_options
 #' @export
-get_board_option_or_default <- function(opt,
+get_board_option_or_default <- function(opt, opts = default_board_options(),
                                         session = getDefaultReactiveDomain()) {
   tryCatch(
     get_board_option_value(opt, session),
-    board_option_not_found = function(e) board_option(opt, new_board_options())
+    board_option_not_found = function(e) {
+      board_option_value(board_option(opt, opts))
+    }
   )
 }
 
 get_board_option_or_null <- function(opt,
-                                        session = getDefaultReactiveDomain()) {
+                                     session = getDefaultReactiveDomain()) {
   tryCatch(
     get_board_option_value(opt, session),
     board_option_not_found = function(e) NULL
@@ -406,7 +359,10 @@ get_board_option_or_null <- function(opt,
 
 #' @export
 format.board_options <- function(x, ...) {
-  trimws(utils::capture.output(utils::str(as.list(x)))[-1L], "right")
+  c(
+    paste0("<", class(x)[1L], "[", length(x), "]>"),
+    if (length(x)) paste0("  ", chr_ply(x, format))
+  )
 }
 
 #' @export

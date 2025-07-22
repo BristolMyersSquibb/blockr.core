@@ -75,21 +75,23 @@ blockr_ser.blocks <- function(x, blocks = NULL, ...) {
 blockr_ser.board_options <- function(x, options = NULL, ...) {
 
   if (is.null(options)) {
-    options <- as.list(new_board_options())
+    options <- default_board_options()
   }
 
-  expected <- list_board_options(x)
+  if (is_board_options(options)) {
+    options <- board_option_values(options)
+  }
 
-  stopifnot(is.list(options), setequal(expected, names(options)))
+  expected <- board_option_values(x)
 
-  board_opts <- as.list(x)
+  stopifnot(setequal(names(expected), names(options)))
 
   list(
     object = class(x),
     payload = Map(
       coal,
-      options[expected],
-      board_opts[expected],
+      options[names(expected)],
+      expected,
       MoreArgs = list(fail_null = FALSE)
     )
   )
@@ -215,6 +217,7 @@ blockr_deser.stacks <- function(x, data, ...) {
 #' @rdname blockr_ser
 #' @export
 blockr_deser.board_options <- function(x, data, ...) {
+  browser()
   as_board_options(data[["payload"]])
 }
 
