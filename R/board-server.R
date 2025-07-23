@@ -195,13 +195,21 @@ board_server.board <- function(id, x, plugins = list(), callbacks = list(),
         plugins = plugins
       )
 
-      cb_res <- set_names(
-        vector("list", length(callbacks)),
-        names(callbacks)
-      )
+      cb_res <- list()
 
       for (i in seq_along(callbacks)) {
-        cb_res[[i]] <- do.call(callbacks[[i]], cb_args)
+
+        res <- do.call(callbacks[[i]], cb_args)
+
+        if (is.null(res)) {
+          next
+        }
+
+        if (is.null(names(callbacks))) {
+          cb_res[[length(cb_res) + 1L]] <- res
+        } else {
+          cb_res[[names(cb_res)[i]]] <- res
+        }
       }
 
       observeEvent(

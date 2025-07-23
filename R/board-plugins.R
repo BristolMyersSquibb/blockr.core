@@ -303,16 +303,29 @@ board_plugins <- function(which = NULL) {
 validate_callbacks <- function(x) {
 
   if (!is.list(x)) {
-    stop("Expecting a list of callbacks.")
+    abort(
+      "Expecting a list of callbacks.",
+      class = "invalid_callbacks"
+    )
   }
 
   for (f in x) {
     if (!is.function(f)) {
-      stop("Expecting callbacks to be passed as functions.")
+      abort(
+        "Expecting callbacks to be passed as functions.",
+        class = "invalid_callbacks"
+      )
     }
   }
 
-  invisible()
+  if (!is.null(names(x)) && length(unique(names(x))) != length(x)) {
+    abort(
+      "Callbacks must either be unnamed or named with unique names.",
+      class = "invalid_callbacks"
+    )
+  }
+
+  invisible(x)
 }
 
 #' @param ... Plugin objects
