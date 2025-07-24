@@ -10,6 +10,10 @@
 #' @export
 new_fixed_block <- function(expr, ...) {
 
+  if (is_string(expr)) {
+    expr <- str2lang(expr)
+  }
+
   if (!is.language(expr)) {
     abort(
       "Expecting `expr` to be of type \"language\".",
@@ -33,4 +37,11 @@ new_fixed_block <- function(expr, ...) {
     allow_empty_state = TRUE,
     ...
   )
+}
+
+#' @export
+as.list.fixed_block <- function(x, state = NULL, ...) {
+  res <- NextMethod()
+  res$payload$expr <- paste(deparse(res$payload$expr), collapse = "\n")
+  res
 }

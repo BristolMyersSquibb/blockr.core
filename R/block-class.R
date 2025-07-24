@@ -425,16 +425,21 @@ as_block.list <- function(x, ...) {
     all(c("constructor", "payload", "package", "object") %in% names(x))
   )
 
-  ctor <- get(
-    x[["constructor"]],
-    asNamespace(x[["package"]]),
-    mode = "function"
-  )
+  pkg <- x[["package"]]
+  ctr <- x[["constructor"]]
+
+  if (is_empty(pkg)) {
+    ctor <- unserialize(jsonlite::base64_dec(ctr))
+  } else {
+    ctor <- get(ctr, asNamespace(pkg), mode = "function")
+  }
+
+  stopifnot(is.function(ctor))
 
   args <- c(
     x[["payload"]],
-    ctor = x[["constructor"]],
-    ctor_pkg = x[["package"]]
+    ctor = ctr,
+    ctor_pkg = pkg
   )
 
   res <- do.call(ctor, args)
@@ -467,12 +472,30 @@ as.list.block <- function(x, state = NULL, ...) {
     ]
   )
 
+  ctor <- attr(x, "ctor")
+
+  if (is.function(ctor)) {
+
+    stopifnot(is.null(pkg))
+
+    ctor <- serialize(ctor, NULL)
+
+    pkg <- NA_character_
+    ver <- NA_character_
+
+  } else {
+
+    stopifnot(is_string(ctor), not_null(pkg))
+
+    ver <- as.character(pkg_version(pkg))
+  }
+
   list(
     object = class(x),
     payload = state,
-    constructor = attr(x, "ctor"),
+    constructor = ctor,
     package = pkg,
-    version = as.character(pkg_version(pkg))
+    version = ver
   )
 }
 
