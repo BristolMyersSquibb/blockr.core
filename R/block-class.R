@@ -431,6 +431,7 @@ as_block.list <- function(x, ...) {
   if (is.null(pkg)) {
     ctor <- unserialize(jsonlite::base64_dec(ctr))
     pkg <- list(NULL)
+    ctr <- ctor
   } else {
     ctor <- get(ctr, asNamespace(pkg), mode = "function")
   }
@@ -439,7 +440,7 @@ as_block.list <- function(x, ...) {
 
   args <- c(
     x[["payload"]],
-    ctor = ctor,
+    ctor = ctr,
     ctor_pkg = pkg
   )
 
