@@ -428,8 +428,9 @@ as_block.list <- function(x, ...) {
   pkg <- x[["package"]]
   ctr <- x[["constructor"]]
 
-  if (is_empty(pkg)) {
+  if (is.null(pkg)) {
     ctor <- unserialize(jsonlite::base64_dec(ctr))
+    pkg <- list(NULL)
   } else {
     ctor <- get(ctr, asNamespace(pkg), mode = "function")
   }
@@ -438,7 +439,7 @@ as_block.list <- function(x, ...) {
 
   args <- c(
     x[["payload"]],
-    ctor = ctr,
+    ctor = ctor,
     ctor_pkg = pkg
   )
 
@@ -480,8 +481,8 @@ as.list.block <- function(x, state = NULL, ...) {
 
     ctor <- serialize(ctor, NULL)
 
-    pkg <- NA_character_
-    ver <- NA_character_
+    pkg <- NULL
+    ver <- NULL
 
   } else {
 
