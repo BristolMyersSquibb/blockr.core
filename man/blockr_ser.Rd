@@ -5,6 +5,7 @@
 \alias{blockr_ser.block}
 \alias{blockr_ser.blocks}
 \alias{blockr_ser.board_options}
+\alias{blockr_ser.board_option}
 \alias{blockr_ser.board}
 \alias{blockr_ser.link}
 \alias{blockr_ser.links}
@@ -20,6 +21,7 @@
 \alias{blockr_deser.stack}
 \alias{blockr_deser.stacks}
 \alias{blockr_deser.board_options}
+\alias{blockr_deser.board_option}
 \alias{to_json}
 \alias{from_json}
 \title{Serialization utilities}
@@ -31,6 +33,8 @@ blockr_ser(x, ...)
 \method{blockr_ser}{blocks}(x, blocks = NULL, ...)
 
 \method{blockr_ser}{board_options}(x, options = NULL, ...)
+
+\method{blockr_ser}{board_option}(x, option = NULL, ...)
 
 \method{blockr_ser}{board}(x, blocks = NULL, options = NULL, ...)
 
@@ -62,6 +66,8 @@ blockr_deser(x, ...)
 
 \method{blockr_deser}{board_options}(x, data, ...)
 
+\method{blockr_deser}{board_option}(x, data, ...)
+
 to_json(x, ...)
 
 from_json(x)
@@ -75,7 +81,9 @@ from_json(x)
 
 \item{blocks}{Block states (\code{NULL} defaults to values from ctor scope)}
 
-\item{options}{Board option values (\code{NULL} means default values)}
+\item{options}{Board option values (\code{NULL} uses values provided by \code{x})}
+
+\item{option}{Board option value (\code{NULL} uses values provided by \code{x})}
 
 \item{data}{List valued data (converted from JSON)}
 }

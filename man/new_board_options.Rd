@@ -6,6 +6,8 @@
 \alias{new_board_option}
 \alias{is_board_option}
 \alias{validate_board_option}
+\alias{as_board_option}
+\alias{as_board_option.board_option}
 \alias{board_option_id}
 \alias{board_option_default}
 \alias{board_option_ui}
@@ -44,12 +46,18 @@ new_board_option(
   ui,
   server = function(board, session) {
  },
-  transform = identity
+  transform = identity,
+  ctor = sys.parent(),
+  pkg = NULL
 )
 
 is_board_option(x)
 
 validate_board_option(x)
+
+as_board_option(x, ...)
+
+\method{as_board_option}{board_option}(x, ...)
 
 board_option_id(x)
 
@@ -65,19 +73,19 @@ board_option_value(x, value = board_option_default(x))
 
 \method{validate_board_option}{default}(x)
 
-new_board_name_option(default = "Board")
+new_board_name_option(value = "Board", ...)
 
-new_n_rows_option(default = blockr_option("n_rows", 50L))
+new_n_rows_option(value = blockr_option("n_rows", 50L), ...)
 
-new_page_size_option(default = blockr_option("page_size", 5L))
+new_page_size_option(value = blockr_option("page_size", 5L), ...)
 
-new_filter_rows_option(default = blockr_option("filter_rows", FALSE))
+new_filter_rows_option(value = blockr_option("filter_rows", FALSE), ...)
 
-new_thematic_option(default = blockr_option("thematic", NULL))
+new_thematic_option(value = blockr_option("thematic", NULL), ...)
 
-new_dark_mode_option(default = blockr_option("dark_mode", NULL))
+new_dark_mode_option(value = blockr_option("dark_mode", NULL), ...)
 
-new_board_options(..., lst = list())
+new_board_options(...)
 
 default_board_options()
 
@@ -124,11 +132,11 @@ get_board_option_or_default(
 
 \item{transform}{(Optional) transform function}
 
+\item{ctor, pkg}{Constructor information (used for serialization)}
+
 \item{...}{Options passed as individual arguments}
 
 \item{value}{Option value}
-
-\item{lst}{A list of \code{board_option} objects}
 
 \item{opt}{Board option}
 
@@ -160,9 +168,9 @@ names are available as \code{list_board_options()}, which is short for
 specific option, \code{board_option()} can be used.
 }
 \examples{
-opt <- new_board_options(#'
-   new_board_name_option(),#'
-   new_page_size_option()#'
+opt <- new_board_options(
+   new_board_name_option(),
+   new_page_size_option()
  )
 
 is_board_options(opt)

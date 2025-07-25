@@ -69,31 +69,54 @@ blockr_ser.blocks <- function(x, blocks = NULL, ...) {
   )
 }
 
-#' @param options Board option values (`NULL` means default values)
+#' @param options Board option values (`NULL` uses values provided by `x`)
 #' @rdname blockr_ser
 #' @export
 blockr_ser.board_options <- function(x, options = NULL, ...) {
 
   if (is.null(options)) {
-    options <- default_board_options()
-  }
-
-  if (is_board_options(options)) {
+    options <- board_option_values(x)
+  } else if (is_board_options(options)) {
     options <- board_option_values(options)
   }
 
-  expected <- board_option_values(x)
+  expected <- list_board_options(x)
 
-  stopifnot(setequal(names(expected), names(options)))
+  stopifnot(is.list(options), setequal(expected, names(options)))
 
   list(
     object = class(x),
-    payload = Map(
-      coal,
-      options[names(expected)],
-      expected,
-      MoreArgs = list(fail_null = FALSE)
-    )
+    payload = map(blockr_ser, x, options[expected])
+  )
+}
+
+#' @param option Board option value (`NULL` uses values provided by `x`)
+#' @rdname blockr_ser
+#' @export
+blockr_ser.board_option <- function(x, option = NULL, ...) {
+
+  if (is.null(option)) {
+    option <- board_option_value(x)
+  }
+
+  ctor <- attr(x, "ctor")
+
+  fun <- attr(ctor, "fun")
+  pkg <- attr(ctor, "pkg")
+
+  if (is.null(fun)) {
+    fun <- serialize(ctor, NULL)
+    ver <- NULL
+  } else {
+    ver <- as.character(pkg_version(pkg))
+  }
+
+  list(
+    object = class(x),
+    payload = option,
+    constructor = fun,
+    package = pkg,
+    version = ver
   )
 }
 
@@ -217,8 +240,41 @@ blockr_deser.stacks <- function(x, data, ...) {
 #' @rdname blockr_ser
 #' @export
 blockr_deser.board_options <- function(x, data, ...) {
-  browser()
-  as_board_options(data[["payload"]])
+  as_board_options(
+    lapply(data[["payload"]], blockr_deser)
+  )
+}
+
+#' @rdname blockr_ser
+#' @export
+blockr_deser.board_option <- function(x, data, ...) {
+
+  stopifnot(
+    all(c("constructor", "payload", "package", "object") %in% names(data))
+  )
+
+  pkg <- data[["package"]]
+  ctr <- data[["constructor"]]
+
+  if (is.null(pkg)) {
+    ctor <- unserialize(jsonlite::base64_dec(ctr))
+    pkg <- list(NULL)
+    ctr <- ctor
+  } else {
+    ctor <- get(ctr, asNamespace(pkg), mode = "function")
+  }
+
+  stopifnot(is.function(ctor))
+
+  args <- c(
+    data[["payload"]],
+    list(
+      ctor = ctr,
+      pkg = pkg
+    )
+  )
+
+  do.call(ctor, args)
 }
 
 #' @rdname blockr_ser

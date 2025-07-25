@@ -3,17 +3,20 @@
 #' @param ui Option UI
 #' @param server (Optional) option server
 #' @param transform (Optional) transform function
+#' @param ctor,pkg Constructor information (used for serialization)
 
 #' @rdname new_board_options
 #' @export
 new_board_option <- function(id, default, ui,
                              server = function(board, session) {},
-                             transform = identity) {
+                             transform = identity,
+                             ctor = sys.parent(), pkg = NULL) {
 
 	res <- structure(
     list(ui = ui, server = server, transform = transform),
     default = default,
     id = id,
+    ctor = resolve_ctor(ctor, pkg),
     class = c(paste0(id, "_option"), "board_option")
   )
 
@@ -36,8 +39,14 @@ validate_board_option <- function(x) {
 
 #' @rdname new_board_options
 #' @export
-as_board_option <- function(id, value) {
-  UseMethod("as_board_option", structure(paste0(id, "_option")))
+as_board_option <- function(x, ...) {
+  UseMethod("as_board_option", x)
+}
+
+#' @rdname new_board_options
+#' @export
+as_board_option.board_option <- function(x, ...) {
+  x
 }
 
 #' @rdname new_board_options
@@ -185,7 +194,7 @@ print.board_option <- function(x, ...) {
 
 #' @rdname new_board_options
 #' @export
-new_board_name_option <- function(value = "Board") {
+new_board_name_option <- function(value = "Board", ...) {
 
   new_board_option(
     id = "board_name",
@@ -208,7 +217,8 @@ new_board_name_option <- function(value = "Board") {
           )
         }
       )
-    }
+    },
+    ...
   )
 }
 
@@ -229,7 +239,7 @@ validate_board_option.board_name_option <- function(x) {
 
 #' @rdname new_board_options
 #' @export
-new_n_rows_option <- function(value = blockr_option("n_rows", 50L)) {
+new_n_rows_option <- function(value = blockr_option("n_rows", 50L), ...) {
 
   new_board_option(
     id = "n_rows",
@@ -255,7 +265,8 @@ new_n_rows_option <- function(value = blockr_option("n_rows", 50L)) {
         }
       )
     },
-    transform = function(x) as.integer(x)
+    transform = function(x) as.integer(x),
+    ...
   )
 }
 
@@ -276,7 +287,7 @@ validate_board_option.n_rows_option <- function(x) {
 
 #' @rdname new_board_options
 #' @export
-new_page_size_option <- function(value = blockr_option("page_size", 5L)) {
+new_page_size_option <- function(value = blockr_option("page_size", 5L), ...) {
 
   new_board_option(
     id = "page_size",
@@ -301,7 +312,8 @@ new_page_size_option <- function(value = blockr_option("page_size", 5L)) {
         }
       )
     },
-    transform = function(x) as.integer(x)
+    transform = function(x) as.integer(x),
+    ...
   )
 }
 
@@ -323,7 +335,8 @@ validate_board_option.page_size_option <- function(x) {
 #' @rdname new_board_options
 #' @export
 new_filter_rows_option <- function(value = blockr_option("filter_rows",
-                                                         FALSE)) {
+                                                         FALSE),
+                                   ...) {
 
   new_board_option(
     id = "filter_rows",
@@ -346,7 +359,8 @@ new_filter_rows_option <- function(value = blockr_option("filter_rows",
           )
         }
       )
-    }
+    },
+    ...
   )
 }
 
@@ -367,7 +381,7 @@ validate_board_option.filter_rows_option <- function(x) {
 
 #' @rdname new_board_options
 #' @export
-new_thematic_option <- function(value = blockr_option("thematic", NULL)) {
+new_thematic_option <- function(value = blockr_option("thematic", NULL), ...) {
 
   new_board_option(
     id = "thematic",
@@ -392,7 +406,8 @@ new_thematic_option <- function(value = blockr_option("thematic", NULL)) {
           )
         }
       )
-    }
+    },
+    ...
   )
 }
 
@@ -420,7 +435,8 @@ validate_board_option.thematic_option <- function(x) {
 
 #' @rdname new_board_options
 #' @export
-new_dark_mode_option <- function(value = blockr_option("dark_mode", NULL)) {
+new_dark_mode_option <- function(value = blockr_option("dark_mode", NULL),
+                                 ...) {
 
   if (isTRUE(value)) {
     value <- "dark"
@@ -459,7 +475,8 @@ new_dark_mode_option <- function(value = blockr_option("dark_mode", NULL)) {
           )
         }
       )
-    }
+    },
+    ...
   )
 }
 

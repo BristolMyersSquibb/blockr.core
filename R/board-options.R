@@ -12,12 +12,11 @@
 #' specific option, `board_option()` can be used.
 #'
 #' @param ... Options passed as individual arguments
-#' @param lst A list of `board_option` objects
 #'
 #' @examples
-#' opt <- new_board_options(#'
-#'    new_board_name_option(),#'
-#'    new_page_size_option()#'
+#' opt <- new_board_options(
+#'    new_board_name_option(),
+#'    new_page_size_option()
 #'  )
 #'
 #' is_board_options(opt)
@@ -36,9 +35,12 @@
 #' and logicals.
 #'
 #' @export
-new_board_options <- function(..., lst = list()) {
+new_board_options <- function(...) {
 
-  res <- structure(c(list(...), lst), class = "board_options")
+  res <- structure(
+    lapply(list(...), as_board_option),
+    class = "board_options"
+  )
 
   validate_board_options(res)
 
@@ -86,7 +88,7 @@ as_board_options.board_option <- function(x) {
 #' @rdname new_board_options
 #' @export
 as_board_options.list <- function(x) {
-  new_board_options(lst = x)
+  do.call(new_board_options, x)
 }
 
 #' @rdname new_board_options
@@ -154,6 +156,11 @@ list_board_options <- function(x) {
 #' @rdname new_board_options
 #' @export
 board_option_values <- function(x) {
+
+  if (is_board(x)) {
+    x <- board_options(x)
+  }
+
   set_names(
     lapply(x, board_option_value),
     chr_ply(x, board_option_id)
