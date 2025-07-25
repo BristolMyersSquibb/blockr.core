@@ -99,7 +99,7 @@ serve.board <- function(x, id = rand_names(), plugins = board_plugins(), ...) {
 
   ui <- bslib::page_fluid(
     theme = bslib::bs_theme(version = 5),
-    title = board_option("board_name", x),
+    title = board_option_value(board_option("board_name", x)),
     board_ui(id, x, plugins),
     htmltools::htmlDependency(
       "change-board-title",

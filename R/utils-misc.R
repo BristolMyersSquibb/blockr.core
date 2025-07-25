@@ -275,3 +275,67 @@ ansi_html <- function(x, ...) {
 
   x
 }
+
+resolve_ctor <- function(ctor, ctor_pkg = NULL) {
+
+  try <- NULL
+
+  if (is.numeric(ctor)) {
+
+    fun <- sys.function(ctor)
+    call <- deparse(sys.call(ctor)[[1L]])
+
+    if (grepl("::", call, fixed = TRUE)) {
+
+      call <- strsplit(call, "::", fixed = TRUE)[[1L]]
+
+      stopifnot(length(call) == 2L)
+
+      ctor <- call[2L]
+
+      if (is.null(ctor_pkg)) {
+        ctor_pkg <- call[1L]
+      } else {
+        stopifnot(identical(ctor_pkg, call[1L]))
+      }
+
+    } else {
+
+      if (is.null(ctor_pkg)) {
+        ctor_pkg <- pkg_name(environment(fun))
+      }
+
+      if (not_null(ctor_pkg)) {
+        ctor <- call
+      }
+    }
+
+    if (is_string(ctor_pkg) && is_string(ctor)) {
+      try <- get0(ctor, asNamespace(ctor_pkg), mode = "function",
+                  inherits = FALSE)
+    }
+
+    if (is.null(try)) {
+      ctor <- fun
+      ctor_pkg <- NULL
+    }
+  }
+
+  if (is.null(ctor_pkg)) {
+
+    stopifnot(is.function(ctor))
+
+    return(
+      structure(ctor, class = "blockr_ctor")
+    )
+  }
+
+  stopifnot(is_string(ctor), is_string(ctor_pkg))
+
+  if (is.null(try)) {
+    try <- get0(ctor, asNamespace(ctor_pkg), mode = "function",
+                inherits = FALSE)
+  }
+
+  structure(try, fun = ctor, pkg = ctor_pkg, class = "blockr_ctor")
+}

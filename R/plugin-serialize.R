@@ -98,7 +98,7 @@ write_board_to_disk <- function(rv, session) {
 
     opts <- lapply(
       set_names(nm = list_board_options(rv$board)),
-      get_board_option_or_default,
+      get_board_option_or_null,
       session
     )
 
