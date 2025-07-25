@@ -62,12 +62,13 @@
       Blocks: "b" and "c"
       
       Options:
-       $ board_name : chr "Board"
-       $ n_rows     : int 50
-       $ page_size  : int 5
-       $ filter_rows: logi FALSE
-       $ dark_mode  : NULL
-       $ thematic   : NULL
+      <board_options[6]>
+        board_name: Board
+        n_rows: 50
+        page_size: 5
+        filter_rows: FALSE
+        thematic: NULL
+        dark_mode: NULL
 
 ---
 
@@ -123,10 +124,11 @@
       Blocks: "b"
       
       Options:
-       $ board_name : chr "Board"
-       $ n_rows     : int 50
-       $ page_size  : int 5
-       $ filter_rows: logi FALSE
-       $ dark_mode  : NULL
-       $ thematic   : NULL
+      <board_options[6]>
+        board_name: Board
+        n_rows: 50
+        page_size: 5
+        filter_rows: FALSE
+        thematic: NULL
+        dark_mode: NULL
 
