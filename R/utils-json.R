@@ -126,8 +126,8 @@ blockr_ser.board <- function(x, blocks = NULL, options = NULL, ...) {
   list(
     object = class(x),
     blocks = blockr_ser(board_blocks(x), blocks),
-    links = lapply(board_links(x), blockr_ser),
-    stacks = lapply(board_stacks(x), blockr_ser),
+    links = blockr_ser(board_links(x)),
+    stacks = blockr_ser(board_stacks(x)),
     options = blockr_ser(board_options(x), options),
     version = as.character(pkg_version())
   )
@@ -202,8 +202,8 @@ blockr_deser.blocks <- function(x, data, ...) {
 blockr_deser.board <- function(x, data, ...) {
   new_board(
     blocks = blockr_deser(data[["blocks"]]),
-    links = lapply(data[["links"]], blockr_deser),
-    stacks = lapply(data[["stacks"]], blockr_deser),
+    links = blockr_deser(data[["links"]]),
+    stacks = blockr_deser(data[["stacks"]]),
     options = blockr_deser(data[["options"]]),
     class = setdiff(class(x), "board")
   )

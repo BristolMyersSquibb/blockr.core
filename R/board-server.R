@@ -197,7 +197,10 @@ board_server.board <- function(id, x, plugins = list(), callbacks = list(),
         plugins = plugins
       )
 
-      cb_res <- vector("list", length(callbacks))
+      cb_res <- set_names(
+        vector("list", length(callbacks)),
+        names(callbacks)
+      )
 
       for (i in seq_along(callbacks)) {
         cb_res[[i]] <- do.call(callbacks[[i]], cb_args)
@@ -214,7 +217,7 @@ board_server.board <- function(id, x, plugins = list(), callbacks = list(),
         }
       )
 
-      c(rv_ro, dot_args)
+      c(rv_ro, dot_args, cb_res)
     }
   )
 }
