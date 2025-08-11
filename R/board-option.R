@@ -162,7 +162,7 @@ validate_board_option.default <- function(x) {
 }
 
 #' @export
-format.board_option <- function(x, session = getDefaultReactiveDomain(), ...) {
+format.board_option <- function(x, session = get_session(), ...) {
 
   id <- board_option_id(x)
   vl <- board_option_value(x)

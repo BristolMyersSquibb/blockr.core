@@ -115,7 +115,7 @@ stack_ui.stack <- function(id, x, edit_ui = NULL, ...) {
 #' @rdname stack_ui
 #' @export
 insert_stack_ui <- function(id, x, board, edit_ui = NULL,
-                            session = getDefaultReactiveDomain(), ...) {
+                            session = get_session(), ...) {
 
   UseMethod("insert_stack_ui", board)
 }
@@ -123,7 +123,7 @@ insert_stack_ui <- function(id, x, board, edit_ui = NULL,
 #' @rdname stack_ui
 #' @export
 insert_stack_ui.board <- function(id, x, board, edit_ui = NULL,
-                                  session = getDefaultReactiveDomain(), ...) {
+                                  session = get_session(), ...) {
 
   x <- as_stacks(x)
 
@@ -145,16 +145,13 @@ insert_stack_ui.board <- function(id, x, board, edit_ui = NULL,
 
 #' @rdname stack_ui
 #' @export
-remove_stack_ui <- function(id, board, session = getDefaultReactiveDomain(),
-                            ...) {
-
+remove_stack_ui <- function(id, board, session = get_session(), ...) {
   UseMethod("remove_stack_ui", board)
 }
 
 #' @rdname stack_ui
 #' @export
-remove_stack_ui.board <- function(id, board,
-                                  session = getDefaultReactiveDomain(), ...) {
+remove_stack_ui.board <- function(id, board, session = get_session(), ...) {
 
   for (x in id) {
 
@@ -177,7 +174,7 @@ remove_stack_ui.board <- function(id, board,
 #' @rdname stack_ui
 #' @export
 add_block_to_stack <- function(board, block_id, stack_id,
-                               session = getDefaultReactiveDomain(), ...) {
+                               session = get_session(), ...) {
 
   UseMethod("add_block_to_stack", board)
 }
@@ -185,8 +182,7 @@ add_block_to_stack <- function(board, block_id, stack_id,
 #' @rdname stack_ui
 #' @export
 add_block_to_stack.board <- function(board, block_id, stack_id,
-                                     session = getDefaultReactiveDomain(),
-                                     ...) {
+                                     session = get_session(), ...) {
 
   log_debug("adding block ", block_id, " to stack ", stack_id)
 
@@ -208,8 +204,7 @@ add_block_to_stack.board <- function(board, block_id, stack_id,
 #' @rdname stack_ui
 #' @export
 remove_block_from_stack <- function(board, block_id, board_id,
-                                    session = getDefaultReactiveDomain(),
-                                    ...) {
+                                    session = get_session(), ...) {
 
   UseMethod("remove_block_from_stack", board)
 }
@@ -217,8 +212,7 @@ remove_block_from_stack <- function(board, block_id, board_id,
 #' @rdname stack_ui
 #' @export
 remove_block_from_stack.board <- function(board, block_id, board_id,
-                                          session = getDefaultReactiveDomain(),
-                                          ...) {
+                                          session = get_session(), ...) {
 
   log_debug("removing block ", block_id, " from stacks")
 

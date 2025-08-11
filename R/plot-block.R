@@ -50,8 +50,7 @@ block_eval.plot_block <- function(x, expr, data, ...) {
 
 #' @noRd
 #' @export
-block_eval_trigger.plot_block <- function(x,
-  session = getDefaultReactiveDomain()) {
+block_eval_trigger.plot_block <- function(x, session = get_session()) {
 
   invisible(
     get_board_option_values(

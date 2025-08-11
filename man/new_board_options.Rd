@@ -111,12 +111,12 @@ board_option_values(x)
 
 board_option(opt, x)
 
-get_board_option_value(opt, session = getDefaultReactiveDomain())
+get_board_option_value(opt, session = get_session())
 
 get_board_option_or_default(
   opt,
   opts = default_board_options(),
-  session = getDefaultReactiveDomain()
+  session = get_session()
 )
 }
 \arguments{

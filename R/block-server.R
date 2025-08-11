@@ -325,13 +325,13 @@ state_check_observer <- function(id, x, dat, res, exp, rv, sess) {
   )
 }
 
-block_eval_trigger <- function(x, session = getDefaultReactiveDomain()) {
+block_eval_trigger <- function(x, session = get_session()) {
   UseMethod("block_eval_trigger", x)
 }
 
 #' @noRd
 #' @export
-block_eval_trigger.block <- function(x, session = getDefaultReactiveDomain()) {
+block_eval_trigger.block <- function(x, session = get_session()) {
   NULL
 }
 

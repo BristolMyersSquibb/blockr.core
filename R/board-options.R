@@ -204,8 +204,7 @@ board_ui.board_options <- function(id, x, ...) {
   do.call(tagList, lapply(x, board_option_ui, id))
 }
 
-board_option_to_userdata <- function(x, board, input,
-                                     session = getDefaultReactiveDomain()) {
+board_option_to_userdata <- function(x, board, input, session = get_session()) {
 
   stopifnot(is_board_option(x), is_board(board))
 
@@ -255,7 +254,7 @@ board_option_to_userdata <- function(x, board, input,
 
 board_options_to_userdata <- function(board, input,
                                       options = board_options(board),
-                                      session = getDefaultReactiveDomain()) {
+                                      session = get_session()) {
 
   stopifnot(is_board(board), is_board_options(options))
 
@@ -283,7 +282,7 @@ clear_board_options <- function(session) {
   invisible()
 }
 
-update_board_options <- function(new, session = getDefaultReactiveDomain()) {
+update_board_options <- function(new, session = get_session()) {
 
   new <- as_board_options(new)
 
@@ -309,7 +308,7 @@ update_board_options <- function(new, session = getDefaultReactiveDomain()) {
 #' @param session Shiny session
 #' @rdname new_board_options
 #' @export
-get_board_option_value <- function(opt, session = getDefaultReactiveDomain()) {
+get_board_option_value <- function(opt, session = get_session()) {
 
   env <- session$userData
 
@@ -331,7 +330,7 @@ get_board_option_value <- function(opt, session = getDefaultReactiveDomain()) {
 
 get_board_option_values <- function(...,
   if_not_found = c("error", "default", "null"),
-  session = getDefaultReactiveDomain()) {
+  session = get_session()) {
 
   fun <- switch(
     match.arg(if_not_found),
@@ -347,7 +346,7 @@ get_board_option_values <- function(...,
 #' @rdname new_board_options
 #' @export
 get_board_option_or_default <- function(opt, opts = default_board_options(),
-                                        session = getDefaultReactiveDomain()) {
+                                        session = get_session()) {
   tryCatch(
     get_board_option_value(opt, session),
     board_option_not_found = function(e) {
@@ -356,8 +355,7 @@ get_board_option_or_default <- function(opt, opts = default_board_options(),
   )
 }
 
-get_board_option_or_null <- function(opt,
-                                     session = getDefaultReactiveDomain()) {
+get_board_option_or_null <- function(opt, session = get_session()) {
   tryCatch(
     get_board_option_value(opt, session),
     board_option_not_found = function(e) NULL
