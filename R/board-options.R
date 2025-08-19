@@ -396,6 +396,8 @@ get_board_option_or_default <- function(opt,
   )
 }
 
+#' @rdname new_board_options
+#' @export
 get_board_option_or_null <- function(opt,
                                         session = getDefaultReactiveDomain()) {
   tryCatch(

@@ -13,6 +13,7 @@
 \alias{board_option}
 \alias{get_board_option_value}
 \alias{get_board_option_or_default}
+\alias{get_board_option_or_null}
 \title{Board options}
 \usage{
 board_options(x)
@@ -47,6 +48,8 @@ board_option(opt, x)
 get_board_option_value(opt, session = getDefaultReactiveDomain())
 
 get_board_option_or_default(opt, session = getDefaultReactiveDomain())
+
+get_board_option_or_null(opt, session = getDefaultReactiveDomain())
 }
 \arguments{
 \item{x}{Board options object}
