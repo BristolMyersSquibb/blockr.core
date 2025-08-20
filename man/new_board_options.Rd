@@ -36,6 +36,7 @@
 \alias{board_option}
 \alias{get_board_option_value}
 \alias{get_board_option_or_default}
+\alias{get_board_option_or_null}
 \title{Board options}
 \usage{
 board_options(x)
@@ -118,6 +119,8 @@ get_board_option_or_default(
   opts = default_board_options(),
   session = get_session()
 )
+
+get_board_option_or_null(opt, session = get_session())
 }
 \arguments{
 \item{x}{Board options object}
