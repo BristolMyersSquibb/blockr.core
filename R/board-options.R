@@ -368,6 +368,11 @@ harmonize_list_of_opts <- function(x) {
     as.list(x)
   } else if (is.list(x) && all(lgl_ply(x, is_board_option))) {
     x
+  } else if (is.list(x) && any(lgl_ply(x, is_board_options))) {
+    c(
+      x[lgl_ply(x, Negate(is_board_options))],
+      unlst(lapply(x[lgl_ply(x, is_board_options)], as.list))
+    )
   } else {
     list(as_board_option(x))
   }
