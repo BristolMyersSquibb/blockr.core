@@ -12,7 +12,7 @@ new_board_option <- function(id, default, ui,
                              transform = identity,
                              ctor = sys.parent(), pkg = NULL) {
 
-	res <- structure(
+  res <- structure(
     list(ui = ui, server = server, transform = transform),
     default = default,
     id = id,
@@ -190,6 +190,11 @@ format.board_option <- function(x, session = get_session(), ...) {
 print.board_option <- function(x, ...) {
   cat(format(x, ...), sep = "\n")
   invisible(x)
+}
+
+#' @export
+c.board_option <- function(...) {
+  as_board_options(list_to_list_of_opts(list(...)))
 }
 
 #' @rdname new_board_options

@@ -5,11 +5,7 @@
 #' user options is to be extended, the constructor is designed with sub-classing
 #' in mind. Consequently, the associated validator `validate_board_options()`
 #' is available as S3 generic. Inheritance checking is available as
-#' `is_board_options()` and coercion as `as_board_options()`. The currently set
-#' options for a board object can be retrieved with `board_options()` and option
-#' names are available as `list_board_options()`, which is short for
-#' `names(board_options(.))`. Finally, in order to extract the value of a
-#' specific option, `board_option()` can be used.
+#' `is_board_options()` and coercion as `as_board_options()`.
 #'
 #' @param ... Options passed as individual arguments
 #'
@@ -20,25 +16,21 @@
 #'  )
 #'
 #' is_board_options(opt)
-#' list_board_options(opt)
+#' names(opt)
 #'
-#' board_option("page_size", opt)
+#' opt[["page_size"]]
 #'
-#' @return All of `new_board_options()`, `as_board_options()` and
-#' `board_options()` return a `board_options` object, as does the validator
-#' `validate_board_options()`, which is typically called for side effects of
-#' throwing errors is validation does not pass. Inheritance checking as
-#' `is_board_options()` returns a scalar logical, while `list_board_options()`
-#' returns a character vector of option names. Finally, `board_option()` returns
-#' the current value for a specific board option, which in principle may be any
-#' R object, but typically we have values such as strings or scalar integers
-#' and logicals.
+#' @return All of `new_board_options()` and `as_board_options()` return a
+#' `board_options` object, as does the validator `validate_board_options()`,
+#' which is typically called for side effects of throwing errors is validation
+#' does not pass. Inheritance checking as `is_board_options()` returns a scalar
+#' logical, while `board_option_values()` returns a named list of option values.
 #'
 #' @export
 new_board_options <- function(...) {
 
-  res <- structure(
-    lapply(list(...), as_board_option),
+  res <- new_vctr(
+    list_to_list_of_opts(list(...)),
     class = "board_options"
   )
 
@@ -76,7 +68,7 @@ as_board_options <- function(x) {
 #' @rdname new_board_options
 #' @export
 as_board_options.board_options <- function(x) {
-  x
+  validate_board_options(x)
 }
 
 #' @rdname new_board_options
@@ -94,18 +86,12 @@ as_board_options.list <- function(x) {
 #' @rdname new_board_options
 #' @export
 as_board_options.board <- function(x) {
-  board_options(x)
+  validate_board_options(x[["options"]])
 }
 
 #' @rdname new_board_options
 #' @export
 validate_board_options <- function(x) {
-  UseMethod("validate_board_options", x)
-}
-
-#' @rdname new_board_options
-#' @export
-validate_board_options.board_options <- function(x) {
 
   if (!is_board_options(x)) {
     abort(
@@ -118,7 +104,7 @@ validate_board_options.board_options <- function(x) {
     validate_board_option(opt)
   }
 
-  ids <- chr_ply(x, board_option_id)
+  ids <- names(x)
 
   if (length(unique(ids)) != length(x)) {
     abort(
@@ -132,24 +118,16 @@ validate_board_options.board_options <- function(x) {
 
 #' @export
 as.list.board_options <- function(x, ...) {
-  unclass(x)
+
+  res <- unclass(x)
+
+  names(res) <- chr_ply(res, board_option_id)
+
+  res
 }
 
-#' @rdname new_board_options
 #' @export
-list_board_options <- function(x) {
-
-  if (is_board(x)) {
-    x <- board_options(x)
-  }
-
-  if (!is_board_options(x)) {
-    abort(
-      "Expecting a `board_options` object to be passed as `x`.",
-      class = "board_option_x_invalid"
-    )
-  }
-
+names.board_options <- function(x) {
   chr_ply(x, board_option_id)
 }
 
@@ -157,45 +135,12 @@ list_board_options <- function(x) {
 #' @export
 board_option_values <- function(x) {
 
-  if (is_board(x)) {
-    x <- board_options(x)
-  }
+  x <- as_board_options(x)
 
   set_names(
     lapply(x, board_option_value),
-    chr_ply(x, board_option_id)
+    names(x)
   )
-}
-
-#' @param opt Board option
-#' @rdname new_board_options
-#' @export
-board_option <- function(opt, x) {
-
-  x <- as_board_options(x)
-
-  if (!is_board_options(x)) {
-    abort(
-      "Expecting a `board_options` object to be passed as `x`.",
-      class = "board_option_x_invalid"
-    )
-  }
-
-  if (!is_string(opt)) {
-    abort(
-      "Expecting a string to be passed as `opt`.",
-      class = "board_option_opt_invalid"
-    )
-  }
-
-  if (!opt %in% list_board_options(x)) {
-    abort(
-      "Expecting `opt` to be a component of `x`.",
-      class = "board_option_opt_invalid"
-    )
-  }
-
-  x[[match(opt, chr_ply(x, board_option_id))]]
 }
 
 #' @rdname board_ui
@@ -253,7 +198,7 @@ board_option_to_userdata <- function(x, board, input, session = get_session()) {
 }
 
 board_options_to_userdata <- function(board, input,
-                                      options = board_options(board),
+                                      options = as_board_options(board),
                                       session = get_session()) {
 
   stopifnot(is_board(board), is_board_options(options))
@@ -305,6 +250,7 @@ update_board_options <- function(new, session = get_session()) {
   invisible()
 }
 
+#' @param opt Option name
 #' @param session Shiny session
 #' @rdname new_board_options
 #' @export
@@ -328,12 +274,11 @@ get_board_option_value <- function(opt, session = get_session()) {
   env$board_options[[opt]]()
 }
 
-get_board_option_values <- function(...,
-  if_not_found = c("error", "default", "null"),
-  session = get_session()) {
+get_board_option_values <- function(..., if_not_found = "error",
+                                    session = get_session()) {
 
   fun <- switch(
-    match.arg(if_not_found),
+    match.arg(if_not_found, c("error", "default", "null")),
     error = get_board_option_value,
     default = get_board_option_or_default,
     null = get_board_option_or_null
@@ -350,7 +295,7 @@ get_board_option_or_default <- function(opt, opts = default_board_options(),
   tryCatch(
     get_board_option_value(opt, session),
     board_option_not_found = function(e) {
-      board_option_value(board_option(opt, opts))
+      board_option_value(opts[[opt]])
     }
   )
 }
@@ -376,4 +321,58 @@ format.board_options <- function(x, ...) {
 print.board_options <- function(x, ...) {
   cat(format(x, ...), sep = "\n")
   invisible(x)
+}
+
+#' @export
+c.board_options <- function(...) {
+  as_board_options(list_to_list_of_opts(list(...)))
+}
+
+#' @export
+`[.board_options` <- function(x, i, ...) {
+
+  res <- opts_slice(x, vec_as_location(i, length(x), names(x)))
+
+  if (!length(res)) {
+    return(new_board_options())
+  }
+
+  res
+}
+
+#' @export
+`[<-.board_options` <- function(x, i, ..., value) {
+  validate_board_options(NextMethod())
+}
+
+#' @export
+`[[.board_options` <- function(x, i, ...) {
+  validate_board_option(
+    .subset2(x, vec_as_location2(i, length(x), names(x)))
+  )
+}
+
+#' @export
+`[[<-.board_options` <- function(x, i, ..., value) {
+  validate_board_options(NextMethod())
+}
+
+opts_slice <- function(...) {
+  validate_board_options(vec_slice(...))
+}
+
+harmonize_list_of_opts <- function(x) {
+  if (is_board_option(x)) {
+    list(x)
+  } else if (is_board_options(x)) {
+    as.list(x)
+  } else if (is.list(x) && all(lgl_ply(x, is_board_option))) {
+    x
+  } else {
+    list(as_board_option(x))
+  }
+}
+
+list_to_list_of_opts <- function(x) {
+  unlst(lapply(x, harmonize_list_of_opts))
 }

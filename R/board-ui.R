@@ -216,7 +216,7 @@ toolbar_ui.board <- function(id, x, plugins = list(), ...) {
       board_ui(id, toolbar_plugins, x),
       bslib::popover(
         bsicons::bs_icon("gear", size = "1.5em"),
-        board_ui(id, board_options(x)),
+        board_ui(id, as_board_options(x)),
         title = "Board options"
       )
     )

@@ -80,7 +80,7 @@ blockr_ser.board_options <- function(x, options = NULL, ...) {
     options <- board_option_values(options)
   }
 
-  expected <- list_board_options(x)
+  expected <- names(x)
 
   stopifnot(is.list(options), setequal(expected, names(options)))
 
@@ -128,7 +128,7 @@ blockr_ser.board <- function(x, blocks = NULL, options = NULL, ...) {
     blocks = blockr_ser(board_blocks(x), blocks),
     links = blockr_ser(board_links(x)),
     stacks = blockr_ser(board_stacks(x)),
-    options = blockr_ser(board_options(x), options),
+    options = blockr_ser(as_board_options(x), options),
     version = as.character(pkg_version())
   )
 }
