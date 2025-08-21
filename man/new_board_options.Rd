@@ -44,7 +44,8 @@ new_board_option(
   update_trigger = id,
   transform = identity,
   ctor = sys.parent(),
-  pkg = NULL
+  pkg = NULL,
+  ...
 )
 
 is_board_option(x)
@@ -85,7 +86,7 @@ new_dark_mode_option(value = blockr_option("dark_mode", NULL), ...)
 
 new_board_options(...)
 
-default_board_options()
+default_board_options(...)
 
 is_board_options(x)
 
@@ -128,9 +129,9 @@ get_board_option_or_null(opt, session = get_session())
 
 \item{ctor, pkg}{Constructor information (used for serialization)}
 
-\item{x}{Board options object}
-
 \item{...}{Options passed as individual arguments}
+
+\item{x}{Board options object}
 
 \item{value}{Option value}
 

@@ -20,7 +20,7 @@ is_string <- function(x) {
 #' @rdname assertions
 #' @export
 is_bool <- function(x) {
-  is_scalar(x) && (identical(x, TRUE) || identical(x, FALSE))
+  is_scalar(x) && (isTRUE(x) || isFALSE(x))
 }
 
 #' @rdname assertions

@@ -41,14 +41,14 @@ new_board_options <- function(...) {
 
 #' @rdname new_board_options
 #' @export
-default_board_options <- function() {
+default_board_options <- function(...) {
   new_board_options(
-    new_board_name_option(),
-    new_n_rows_option(),
-    new_page_size_option(),
-    new_filter_rows_option(),
-    new_thematic_option(),
-    new_dark_mode_option()
+    new_board_name_option(...),
+    new_n_rows_option(...),
+    new_page_size_option(...),
+    new_filter_rows_option(...),
+    new_thematic_option(...),
+    new_dark_mode_option(...)
   )
 }
 

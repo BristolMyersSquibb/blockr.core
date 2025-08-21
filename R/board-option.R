@@ -12,7 +12,7 @@ new_board_option <- function(id, default, ui,
                              server = function(board, session) {},
                              update_trigger = id,
                              transform = identity,
-                             ctor = sys.parent(), pkg = NULL) {
+                             ctor = sys.parent(), pkg = NULL, ...) {
 
   res <- structure(
     list(ui = ui, server = server, transform = transform),
@@ -20,7 +20,8 @@ new_board_option <- function(id, default, ui,
     id = id,
     trigger = update_trigger,
     ctor = resolve_ctor(ctor, pkg),
-    class = c(paste0(id, "_option"), "board_option")
+    class = c(paste0(id, "_option"), "board_option"),
+    ...
   )
 
   validate_board_option(res)
@@ -252,7 +253,7 @@ new_board_name_option <- function(value = "Board", ...) {
 #' @export
 validate_board_option.board_name_option <- function(x) {
 
-  val <- board_option_default(NextMethod())
+  val <- board_option_value(NextMethod())
 
   if (!is_string(val)) {
     abort(
@@ -300,7 +301,7 @@ new_n_rows_option <- function(value = blockr_option("n_rows", 50L), ...) {
 #' @export
 validate_board_option.n_rows_option <- function(x) {
 
-  val <- board_option_default(NextMethod())
+  val <- board_option_value(NextMethod())
 
   if (!is_count(val)) {
     abort(
@@ -347,7 +348,7 @@ new_page_size_option <- function(value = blockr_option("page_size", 5L), ...) {
 #' @export
 validate_board_option.page_size_option <- function(x) {
 
-  val <- board_option_default(NextMethod())
+  val <- board_option_value(NextMethod())
 
   if (!is_count(val)) {
     abort(
@@ -394,7 +395,7 @@ new_filter_rows_option <- function(value = blockr_option("filter_rows",
 #' @export
 validate_board_option.filter_rows_option <- function(x) {
 
-  val <- board_option_default(NextMethod())
+  val <- board_option_value(NextMethod())
 
   if (!is_bool(val)) {
     abort(
@@ -441,7 +442,7 @@ new_thematic_option <- function(value = blockr_option("thematic", NULL), ...) {
 #' @export
 validate_board_option.thematic_option <- function(x) {
 
-  val <- board_option_default(NextMethod())
+  val <- board_option_value(NextMethod())
 
   if (!(is.null(val) || is_bool(val))) {
     abort(
@@ -510,7 +511,7 @@ new_dark_mode_option <- function(value = blockr_option("dark_mode", NULL),
 #' @export
 validate_board_option.dark_mode_option <- function(x) {
 
-  val <- board_option_default(NextMethod())
+  val <- board_option_value(NextMethod())
 
   if (!(is.null(val) || (is_string(val) && val %in% c("light", "dark")))) {
     abort(
