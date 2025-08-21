@@ -104,7 +104,12 @@ block_server.block <- function(id, x, data = list(), block_id = id,
       data_eval_observer(block_id, x, dat, res, exp, lang, rv, session)
 
       observeEvent(
-        res(),
+        {
+          res()
+          get_board_option_or_null("n_rows", session = session)
+          get_board_option_or_null("page_size", session = session)
+          get_board_option_or_null("filter_rows", session = session)
+        },
         {
           output$result <- block_output(x, res(), session)
         },
