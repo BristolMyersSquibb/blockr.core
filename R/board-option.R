@@ -2,6 +2,7 @@
 #' @param default Default value
 #' @param ui Option UI
 #' @param server (Optional) option server
+#' @param update_trigger Shiny `input` entry/entries that trigger an update
 #' @param transform (Optional) transform function
 #' @param ctor,pkg Constructor information (used for serialization)
 
@@ -9,6 +10,7 @@
 #' @export
 new_board_option <- function(id, default, ui,
                              server = function(board, session) {},
+                             update_trigger = id,
                              transform = identity,
                              ctor = sys.parent(), pkg = NULL) {
 
@@ -16,6 +18,7 @@ new_board_option <- function(id, default, ui,
     list(ui = ui, server = server, transform = transform),
     default = default,
     id = id,
+    trigger = update_trigger,
     ctor = resolve_ctor(ctor, pkg),
     class = c(paste0(id, "_option"), "board_option")
   )
@@ -54,6 +57,13 @@ as_board_option.board_option <- function(x, ...) {
 board_option_id <- function(x) {
   stopifnot(is_board_option(x))
   attr(x, "id")
+}
+
+#' @rdname new_board_options
+#' @export
+board_option_trigger <- function(x) {
+  stopifnot(is_board_option(x))
+  attr(x, "trigger")
 }
 
 #' @rdname new_board_options
@@ -122,6 +132,18 @@ validate_board_option.default <- function(x) {
   if (!is_string(board_option_id(x))) {
     abort(
       "Expecting a board option ID to be string-valued.",
+      class = "board_option_component_invalid"
+    )
+  }
+
+  trigger <- board_option_trigger(x)
+
+  if (!is.character(trigger) || !length(trigger)) {
+    abort(
+      paste(
+        "Expecting a board option trigger to be a non-zero length character",
+        "vector."
+      ),
       class = "board_option_component_invalid"
     )
   }

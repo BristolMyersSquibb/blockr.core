@@ -157,16 +157,32 @@ board_option_to_userdata <- function(x, board, input, session = get_session()) {
   rv <- reactiveVal(board_option_value(x))
 
   res <- board_option_server(x, board, session)
+  trg <- board_option_trigger(x)
+  exp <- as.call(
+    c(
+      quote(`{`),
+      lapply(trg, function(v) substitute(input[[v]], list(v = v)))
+    )
+  )
+
   obs <- observeEvent(
-    input[[id]],
+    exp,
     {
-      new <- board_option_value(x, input[[id]])
+      if (is_scalar(trg)) {
+        new <- board_option_value(x, input[[trg]])
+      } else {
+        new <- board_option_value(
+          x,
+          lapply(set_names(nm = trg), function(v) input[[v]])
+        )
+      }
 
       if (!identical(new, rv())) {
         log_debug("setting option ", id)
         rv(new)
       }
-    }
+    },
+    event.quoted = TRUE
   )
 
   attr(rv, "observers") <- c(

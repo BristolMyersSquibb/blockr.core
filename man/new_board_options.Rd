@@ -7,6 +7,7 @@
 \alias{as_board_option}
 \alias{as_board_option.board_option}
 \alias{board_option_id}
+\alias{board_option_trigger}
 \alias{board_option_default}
 \alias{board_option_ui}
 \alias{board_option_server}
@@ -40,6 +41,7 @@ new_board_option(
   ui,
   server = function(board, session) {
  },
+  update_trigger = id,
   transform = identity,
   ctor = sys.parent(),
   pkg = NULL
@@ -54,6 +56,8 @@ as_board_option(x, ...)
 \method{as_board_option}{board_option}(x, ...)
 
 board_option_id(x)
+
+board_option_trigger(x)
 
 board_option_default(x)
 
@@ -117,6 +121,8 @@ get_board_option_or_null(opt, session = get_session())
 \item{ui}{Option UI}
 
 \item{server}{(Optional) option server}
+
+\item{update_trigger}{Shiny \code{input} entry/entries that trigger an update}
 
 \item{transform}{(Optional) transform function}
 
