@@ -33,6 +33,7 @@
 \alias{get_board_option_value}
 \alias{get_board_option_or_default}
 \alias{get_board_option_or_null}
+\alias{get_board_option_values}
 \title{Board options}
 \usage{
 new_board_option(
@@ -113,6 +114,13 @@ get_board_option_or_default(
 )
 
 get_board_option_or_null(opt, session = get_session())
+
+get_board_option_values(
+  ...,
+  opts = default_board_options(),
+  if_not_found = c("error", "default", "null"),
+  session = get_session()
+)
 }
 \arguments{
 \item{id}{Board option ID}
@@ -140,6 +148,8 @@ get_board_option_or_null(opt, session = get_session())
 \item{session}{Shiny session}
 
 \item{opts}{Board options}
+
+\item{if_not_found}{Behavior in case an option is not found}
 }
 \value{
 All of \code{new_board_options()} and \code{as_board_options()} return a

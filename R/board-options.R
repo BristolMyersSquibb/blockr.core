@@ -290,19 +290,6 @@ get_board_option_value <- function(opt, session = get_session()) {
   env$board_options[[opt]]()
 }
 
-get_board_option_values <- function(..., if_not_found = "error",
-                                    session = get_session()) {
-
-  fun <- switch(
-    match.arg(if_not_found, c("error", "default", "null")),
-    error = get_board_option_value,
-    default = get_board_option_or_default,
-    null = get_board_option_or_null
-  )
-
-  lapply(set_names(nm = c(...)), fun, session = session)
-}
-
 #' @param opts Board options
 #' @rdname new_board_options
 #' @export
@@ -323,6 +310,26 @@ get_board_option_or_null <- function(opt, session = get_session()) {
     get_board_option_value(opt, session),
     board_option_not_found = function(e) NULL
   )
+}
+
+#' @param if_not_found Behavior in case an option is not found
+#' @rdname new_board_options
+#' @export
+get_board_option_values <- function(..., opts = default_board_options(),
+                                    if_not_found = c("error", "default",
+                                                     "null"),
+                                    session = get_session()) {
+
+  fun <- switch(
+    match.arg(if_not_found),
+    error = get_board_option_value,
+    default = function(opt, session) {
+      get_board_option_or_default(opt, opts, session)
+    },
+    null = get_board_option_or_null
+  )
+
+  lapply(set_names(nm = c(...)), fun, session = session)
 }
 
 #' @export
