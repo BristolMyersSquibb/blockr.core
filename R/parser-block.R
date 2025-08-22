@@ -38,3 +38,7 @@ block_ui.parser_block <- function(id, x, ...) {
 is_file <- function(file) {
   stopifnot(is_string(file), file.exists(file))
 }
+
+#' @export
+#' @include utils-dt.R
+block_render_trigger.parser_block <- dt_render_trigger

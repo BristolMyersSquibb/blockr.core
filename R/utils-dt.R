@@ -47,3 +47,16 @@ dt_result <- function(result, session) {
     server = TRUE
   )
 }
+
+dt_render_trigger <- function(x, session = get_session()) {
+
+  invisible(
+    get_board_option_values(
+      "n_rows",
+      "page_size",
+      "filter_rows",
+      if_not_found = "null",
+      session = session
+    )
+  )
+}

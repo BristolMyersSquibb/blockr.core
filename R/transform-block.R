@@ -27,3 +27,7 @@ block_ui.transform_block <- function(id, x, ...) {
     DT::dataTableOutput(NS(id, "result"))
   )
 }
+
+#' @export
+#' @include utils-dt.R
+block_render_trigger.transform_block <- dt_render_trigger

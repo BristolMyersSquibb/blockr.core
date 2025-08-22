@@ -102,23 +102,7 @@ block_server.block <- function(id, x, data = list(), block_id = id,
       validate_block_observer(block_id, x, dat, res, rv, session)
       state_check_observer(block_id, x, dat, res, exp, rv, session)
       data_eval_observer(block_id, x, dat, res, exp, lang, rv, session)
-
-      observeEvent(
-        {
-          res()
-          get_board_option_values(
-            "n_rows",
-            "page_size",
-            "filter_rows",
-            if_not_found = "null",
-            session = session
-          )
-        },
-        {
-          output$result <- block_output(x, res(), session)
-        },
-        domain = session
-      )
+      output_render_observer(x, res, rv, session)
 
       call_plugin_server(
         edit_block,
@@ -209,30 +193,6 @@ reorder_dots_observer <- function(data, sess) {
     )
   }
 }
-
-new_condition <- function(x, ..., as_list = TRUE) {
-
-  id <- get_globals(...) + 1L
-  set_globals(id, ...)
-
-  if (inherits(x, "condition")) {
-    x <- conditionMessage(x)
-  }
-
-  res <- structure(x, id = id, class = "block_cnd")
-
-  if (!isTRUE(as_list)) {
-    return(res)
-  }
-
-  list(res)
-}
-
-empty_block_condition <- list(
-  error = character(),
-  warning = character(),
-  message = character()
-)
 
 validate_block_observer <- function(id, x, dat, res, rv, sess) {
 
@@ -334,11 +294,13 @@ state_check_observer <- function(id, x, dat, res, exp, rv, sess) {
   )
 }
 
+#' @param session Shiny session object
+#' @rdname block_server
+#' @export
 block_eval_trigger <- function(x, session = get_session()) {
   UseMethod("block_eval_trigger", x)
 }
 
-#' @noRd
 #' @export
 block_eval_trigger.block <- function(x, session = get_session()) {
   NULL
@@ -399,6 +361,53 @@ data_eval_observer <- function(id, x, dat, res, exp, lang, rv, sess) {
       res(out)
     },
     domain = sess
+  )
+}
+
+#' @rdname block_server
+#' @export
+block_render_trigger <- function(x, session = get_session()) {
+  UseMethod("block_render_trigger", x)
+}
+
+#' @export
+block_render_trigger.block <- function(x, session = get_session()) {
+  NULL
+}
+
+output_render_observer <- function(x, res, rv, session) {
+
+  observeEvent(
+    {
+      res()
+      block_render_trigger(x, session)
+    },
+    {
+      session$output$result <- tryCatch(
+        withCallingHandlers(
+          {
+            block_output(x, res(), session)
+          },
+          message = function(m) {
+            rv$eval_cond$message <- c(
+              rv$eval_cond$message,
+              new_condition(m, session = session)
+            )
+          },
+          warning = function(w) {
+            rv$eval_cond$warning <- c(
+              rv$eval_cond$warning,
+              new_condition(w, session = session)
+            )
+          }
+        ),
+        error = function(e) {
+          rv$eval_cond$error <- new_condition(e, session = session)
+          NULL
+        }
+      )
+    },
+    domain = session
   )
 }
 

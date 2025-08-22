@@ -26,3 +26,7 @@ block_ui.data_block <- function(id, x, ...) {
     DT::dataTableOutput(NS(id, "result"))
   )
 }
+
+#' @export
+#' @include utils-dt.R
+block_render_trigger.data_block <- dt_render_trigger
