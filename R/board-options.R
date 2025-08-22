@@ -402,5 +402,9 @@ harmonize_list_of_opts <- function(x) {
 }
 
 list_to_list_of_opts <- function(x) {
-  unlst(lapply(x, harmonize_list_of_opts))
+  if (length(x)) {
+    unlst(lapply(x, harmonize_list_of_opts))
+  } else {
+    list()
+  }
 }
