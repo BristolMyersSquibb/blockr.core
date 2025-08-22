@@ -379,8 +379,8 @@ output_render_observer <- function(x, res, rv, session) {
 
   observeEvent(
     {
-      res()
       block_render_trigger(x, session)
+      res()
     },
     {
       session$output$result <- tryCatch(
