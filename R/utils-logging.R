@@ -41,9 +41,7 @@ write_log <- function(..., level = "info") {
     exdent = 2L
   )
 
-  if (length(msg) > 2L) browser()
-
-  logger(paste0(pfx, msg), level = lvl)
+  logger(paste0(pfx, msg, collapse = "\n"), level = lvl)
 }
 
 get_mem_use <- function(prefix = "", suffix = "") {
