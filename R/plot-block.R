@@ -45,7 +45,9 @@ block_eval.plot_block <- function(x, expr, data, ...) {
     stop_on_error = 1L
   )
 
-  filter(Negate(inherits), res, "source")
+  show_condition(res)
+
+  filter(inherits, res, "recordedplot")
 }
 
 #' @noRd

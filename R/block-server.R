@@ -102,7 +102,7 @@ block_server.block <- function(id, x, data = list(), block_id = id,
       validate_block_observer(block_id, x, dat, res, rv, session)
       state_check_observer(block_id, x, dat, res, exp, rv, session)
       data_eval_observer(block_id, x, dat, res, exp, lang, rv, session)
-      output_render_observer(x, res, rv, session)
+      output_render_observer(x, res, session)
 
       call_plugin_server(
         edit_block,
@@ -375,7 +375,7 @@ block_render_trigger.block <- function(x, session = get_session()) {
   NULL
 }
 
-output_render_observer <- function(x, res, rv, session) {
+output_render_observer <- function(x, res, session) {
 
   observeEvent(
     {
@@ -383,29 +383,7 @@ output_render_observer <- function(x, res, rv, session) {
       res()
     },
     {
-      session$output$result <- tryCatch(
-        withCallingHandlers(
-          {
-            block_output(x, res(), session)
-          },
-          message = function(m) {
-            rv$eval_cond$message <- c(
-              rv$eval_cond$message,
-              new_condition(m, session = session)
-            )
-          },
-          warning = function(w) {
-            rv$eval_cond$warning <- c(
-              rv$eval_cond$warning,
-              new_condition(w, session = session)
-            )
-          }
-        ),
-        error = function(e) {
-          rv$eval_cond$error <- new_condition(e, session = session)
-          NULL
-        }
-      )
+      session$output$result <- block_output(x, res(), session)
     },
     domain = session
   )

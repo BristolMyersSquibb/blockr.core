@@ -26,18 +26,36 @@ fmt_cnd_msg <- function(x) {
   sub("\n$", "", conditionMessage(x))
 }
 
-#' @importFrom evaluate replay
+show_condition <- function(x) {
+  UseMethod("show_condition")
+}
+
+#' @noRd
 #' @export
-replay.message <- function(x) {
+show_condition.list <- function(x) {
+  invisible(lapply(x, show_condition))
+}
+
+#' @noRd
+#' @export
+show_condition.default <- function(x) {
+  invisible(NULL)
+}
+
+#' @noRd
+#' @export
+show_condition.message <- function(x) {
   message(fmt_cnd_msg(x))
 }
 
+#' @noRd
 #' @export
-replay.warning <- function(x) {
+show_condition.warning <- function(x) {
   warning(fmt_cnd_msg(x))
 }
 
+#' @noRd
 #' @export
-replay.error <- function(x) {
+show_condition.error <- function(x) {
   stop(fmt_cnd_msg(x))
 }
