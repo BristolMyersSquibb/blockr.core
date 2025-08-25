@@ -43,7 +43,9 @@ set_globals <- function(value, ...) {
 
 session_to_id <- function(name = NULL, session = get_session()) {
 
-  if (is.null(session)) {
+  if (is.null(name) && is.null(session)) {
+    return("default")
+  } else if (is.null(session)) {
     return(name)
   }
 

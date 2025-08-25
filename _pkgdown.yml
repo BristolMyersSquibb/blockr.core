@@ -91,3 +91,5 @@ reference:
   - export_code
   - chr_ply
   - set_names
+  - is_scalar
+  - get_session

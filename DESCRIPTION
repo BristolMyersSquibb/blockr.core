@@ -61,7 +61,6 @@ Suggests:
 Config/testthat/edition: 3
 VignetteBuilder: quarto
 Collate:
-    'aaa.R'
     'block-class.R'
     'block-server.R'
     'block-ui.R'
@@ -107,6 +106,7 @@ Collate:
     'utils-assertions.R'
     'utils-cnd.R'
     'utils-code.R'
+    'utils-globals.R'
     'utils-graph.R'
     'utils-json.R'
     'utils-logging.R'

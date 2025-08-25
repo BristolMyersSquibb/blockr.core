@@ -102,7 +102,7 @@ block_server.block <- function(id, x, data = list(), block_id = id,
       validate_block_observer(block_id, x, dat, res, rv, session)
       state_check_observer(block_id, x, dat, res, exp, rv, session)
       data_eval_observer(block_id, x, dat, res, exp, lang, rv, session)
-      output_render_observer(x, res, session)
+      output_render_observer(x, res, rv, session)
 
       call_plugin_server(
         edit_block,
@@ -207,29 +207,13 @@ validate_block_observer <- function(id, x, dat, res, rv, sess) {
         rv$data_cond <- empty_block_condition
         rv$state_set <- NULL
 
-        rv$data_valid <- tryCatch(
-          withCallingHandlers(
-            {
-              validate_data_inputs(x, dat())
-              TRUE
-            },
-            message = function(m) {
-              rv$data_cond$message <- c(
-                rv$data_cond$message,
-                new_condition(m, session = sess)
-              )
-            },
-            warning = function(w) {
-              rv$data_cond$warning <- c(
-                rv$data_cond$warning,
-                new_condition(w, session = sess)
-              )
-            }
-          ),
-          error = function(e) {
-            rv$data_cond$error <- new_condition(e, session = sess)
-            NULL
-          }
+        rv$data_valid <- capture_conditions(
+          {
+            validate_data_inputs(x, dat())
+            TRUE
+          },
+          rv$data_cond,
+          sess
         )
       },
       domain = sess
@@ -334,28 +318,10 @@ data_eval_observer <- function(id, x, dat, res, exp, lang, rv, sess) {
 
       rv$eval_cond <- empty_block_condition
 
-      out <- tryCatch(
-        withCallingHandlers(
-          {
-            block_eval(x, lang(), dat_eval())
-          },
-          message = function(m) {
-            rv$eval_cond$message <- c(
-              rv$eval_cond$message,
-              new_condition(m, session = sess)
-            )
-          },
-          warning = function(w) {
-            rv$eval_cond$warning <- c(
-              rv$eval_cond$warning,
-              new_condition(w, session = sess)
-            )
-          }
-        ),
-        error = function(e) {
-          rv$eval_cond$error <- new_condition(e, session = sess)
-          NULL
-        }
+      out <- capture_conditions(
+        block_eval(x, lang(), dat_eval()),
+        rv$eval_cond,
+        sess
       )
 
       res(out)
@@ -375,17 +341,23 @@ block_render_trigger.block <- function(x, session = get_session()) {
   NULL
 }
 
-output_render_observer <- function(x, res, session) {
+output_render_observer <- function(x, res, rv, sess) {
 
   observeEvent(
     {
-      block_render_trigger(x, session)
+      block_render_trigger(x, sess)
       res()
     },
     {
-      session$output$result <- block_output(x, res(), session)
+      capture_conditions(
+        {
+          sess$output$result <- block_output(x, res(), sess)
+        },
+        rv$eval_cond,
+        sess
+      )
     },
-    domain = session
+    domain = sess
   )
 }
 
