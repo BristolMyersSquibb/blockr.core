@@ -103,7 +103,7 @@ write_board_to_disk <- function(rv, session) {
     )
 
     json <- jsonlite::prettify(
-      to_json(rv$board, blocks, opts)
+      to_json(rv$board, blocks = blocks, options = opts)
     )
 
     writeLines(json, con)

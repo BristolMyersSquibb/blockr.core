@@ -76,8 +76,6 @@ blockr_ser.board_options <- function(x, options = NULL, ...) {
 
   if (is.null(options)) {
     options <- board_option_values(x)
-  } else if (is_board_options(options)) {
-    options <- board_option_values(options)
   }
 
   expected <- names(x)
