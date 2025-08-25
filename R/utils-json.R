@@ -292,6 +292,6 @@ from_json <- function(x) {
   }
 
   blockr_deser(
-    jsonlite::fromJSON(x, simplifyDataFrame = FALSE)
+    jsonlite::fromJSON(x, simplifyDataFrame = FALSE, simplifyMatrix = FALSE)
   )
 }
