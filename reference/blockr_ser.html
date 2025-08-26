@@ -76,6 +76,9 @@ to the constructor the original object can be re-created.</p>
 <span><span class="co"># S3 method for class 'board_options'</span></span>
 <span><span class="fu">blockr_ser</span><span class="op">(</span><span class="va">x</span>, options <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
+<span><span class="co"># S3 method for class 'board_option'</span></span>
+<span><span class="fu">blockr_ser</span><span class="op">(</span><span class="va">x</span>, option <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span><span class="op">)</span></span>
+<span></span>
 <span><span class="co"># S3 method for class 'board'</span></span>
 <span><span class="fu">blockr_ser</span><span class="op">(</span><span class="va">x</span>, blocks <span class="op">=</span> <span class="cn">NULL</span>, options <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
@@ -120,6 +123,9 @@ to the constructor the original object can be re-created.</p>
 <span><span class="co"># S3 method for class 'board_options'</span></span>
 <span><span class="fu">blockr_deser</span><span class="op">(</span><span class="va">x</span>, <span class="va">data</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
+<span><span class="co"># S3 method for class 'board_option'</span></span>
+<span><span class="fu">blockr_deser</span><span class="op">(</span><span class="va">x</span>, <span class="va">data</span>, <span class="va">...</span><span class="op">)</span></span>
+<span></span>
 <span><span class="fu">to_json</span><span class="op">(</span><span class="va">x</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">from_json</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span></code></pre></div>
@@ -146,7 +152,11 @@ to the constructor the original object can be re-created.</p>
 
 
 <dt id="arg-options">options<a class="anchor" aria-label="anchor" href="#arg-options"></a></dt>
-<dd><p>Board option values (<code>NULL</code> means default values)</p></dd>
+<dd><p>Board option values (<code>NULL</code> uses values provided by <code>x</code>)</p></dd>
+
+
+<dt id="arg-option">option<a class="anchor" aria-label="anchor" href="#arg-option"></a></dt>
+<dd><p>Board option value (<code>NULL</code> uses values provided by <code>x</code>)</p></dd>
 
 
 <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>

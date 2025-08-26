@@ -91,52 +91,26 @@ implementation may be provided for board sub-classes.</p>
 <span><span class="co"># S3 method for class 'stack'</span></span>
 <span><span class="fu">stack_ui</span><span class="op">(</span><span class="va">id</span>, <span class="va">x</span>, edit_ui <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">insert_stack_ui</span><span class="op">(</span></span>
-<span>  <span class="va">id</span>,</span>
-<span>  <span class="va">x</span>,</span>
-<span>  <span class="va">board</span>,</span>
-<span>  edit_ui <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  session <span class="op">=</span> <span class="fu">getDefaultReactiveDomain</span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  <span class="va">...</span></span>
-<span><span class="op">)</span></span>
+<span><span class="fu">insert_stack_ui</span><span class="op">(</span><span class="va">id</span>, <span class="va">x</span>, <span class="va">board</span>, edit_ui <span class="op">=</span> <span class="cn">NULL</span>, session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'board'</span></span>
-<span><span class="fu">insert_stack_ui</span><span class="op">(</span></span>
-<span>  <span class="va">id</span>,</span>
-<span>  <span class="va">x</span>,</span>
-<span>  <span class="va">board</span>,</span>
-<span>  edit_ui <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  session <span class="op">=</span> <span class="fu">getDefaultReactiveDomain</span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  <span class="va">...</span></span>
-<span><span class="op">)</span></span>
+<span><span class="fu">insert_stack_ui</span><span class="op">(</span><span class="va">id</span>, <span class="va">x</span>, <span class="va">board</span>, edit_ui <span class="op">=</span> <span class="cn">NULL</span>, session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">remove_stack_ui</span><span class="op">(</span><span class="va">id</span>, <span class="va">board</span>, session <span class="op">=</span> <span class="fu">getDefaultReactiveDomain</span><span class="op">(</span><span class="op">)</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">remove_stack_ui</span><span class="op">(</span><span class="va">id</span>, <span class="va">board</span>, session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'board'</span></span>
-<span><span class="fu">remove_stack_ui</span><span class="op">(</span><span class="va">id</span>, <span class="va">board</span>, session <span class="op">=</span> <span class="fu">getDefaultReactiveDomain</span><span class="op">(</span><span class="op">)</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">remove_stack_ui</span><span class="op">(</span><span class="va">id</span>, <span class="va">board</span>, session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">add_block_to_stack</span><span class="op">(</span></span>
-<span>  <span class="va">board</span>,</span>
-<span>  <span class="va">block_id</span>,</span>
-<span>  <span class="va">stack_id</span>,</span>
-<span>  session <span class="op">=</span> <span class="fu">getDefaultReactiveDomain</span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  <span class="va">...</span></span>
-<span><span class="op">)</span></span>
+<span><span class="fu">add_block_to_stack</span><span class="op">(</span><span class="va">board</span>, <span class="va">block_id</span>, <span class="va">stack_id</span>, session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'board'</span></span>
-<span><span class="fu">add_block_to_stack</span><span class="op">(</span></span>
-<span>  <span class="va">board</span>,</span>
-<span>  <span class="va">block_id</span>,</span>
-<span>  <span class="va">stack_id</span>,</span>
-<span>  session <span class="op">=</span> <span class="fu">getDefaultReactiveDomain</span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  <span class="va">...</span></span>
-<span><span class="op">)</span></span>
+<span><span class="fu">add_block_to_stack</span><span class="op">(</span><span class="va">board</span>, <span class="va">block_id</span>, <span class="va">stack_id</span>, session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">remove_block_from_stack</span><span class="op">(</span></span>
 <span>  <span class="va">board</span>,</span>
 <span>  <span class="va">block_id</span>,</span>
 <span>  <span class="va">board_id</span>,</span>
-<span>  session <span class="op">=</span> <span class="fu">getDefaultReactiveDomain</span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -145,7 +119,7 @@ implementation may be provided for board sub-classes.</p>
 <span>  <span class="va">board</span>,</span>
 <span>  <span class="va">block_id</span>,</span>
 <span>  <span class="va">board_id</span>,</span>
-<span>  session <span class="op">=</span> <span class="fu">getDefaultReactiveDomain</span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>

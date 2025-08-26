@@ -93,7 +93,11 @@ respectively.</p>
 <span></span>
 <span><span class="fu">expr_server</span><span class="op">(</span><span class="va">x</span>, <span class="va">data</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">block_eval</span><span class="op">(</span><span class="va">x</span>, <span class="va">expr</span>, <span class="va">data</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">block_eval</span><span class="op">(</span><span class="va">x</span>, <span class="va">expr</span>, <span class="va">data</span>, <span class="va">...</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">block_eval_trigger</span><span class="op">(</span><span class="va">x</span>, session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">block_render_trigger</span><span class="op">(</span><span class="va">x</span>, session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -134,6 +138,10 @@ respectively.</p>
 
 <dt id="arg-expr">expr<a class="anchor" aria-label="anchor" href="#arg-expr"></a></dt>
 <dd><p>Quoted expression to evaluate in the context of <code>data</code></p></dd>
+
+
+<dt id="arg-session">session<a class="anchor" aria-label="anchor" href="#arg-session"></a></dt>
+<dd><p>Shiny session object</p></dd>
 
 </dl></div>
     <div class="section level2">
