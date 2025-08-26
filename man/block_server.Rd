@@ -5,6 +5,8 @@
 \alias{block_server.block}
 \alias{expr_server}
 \alias{block_eval}
+\alias{block_eval_trigger}
+\alias{block_render_trigger}
 \title{Block server}
 \usage{
 block_server(id, x, data = list(), ...)
@@ -23,6 +25,10 @@ block_server(id, x, data = list(), ...)
 expr_server(x, data, ...)
 
 block_eval(x, expr, data, ...)
+
+block_eval_trigger(x, session = get_session())
+
+block_render_trigger(x, session = get_session())
 }
 \arguments{
 \item{id}{Namespace ID}
@@ -42,6 +48,8 @@ block_eval(x, expr, data, ...)
 \item{update}{Reactive value object to initiate board updates}
 
 \item{expr}{Quoted expression to evaluate in the context of \code{data}}
+
+\item{session}{Shiny session object}
 }
 \value{
 Both \code{block_server()} and \code{expr_server()} return shiny server module

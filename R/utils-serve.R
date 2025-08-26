@@ -97,9 +97,11 @@ serve.block <- function(x, id = "block", ..., data = list()) {
 #' @export
 serve.board <- function(x, id = rand_names(), plugins = board_plugins(), ...) {
 
+  opts <- as_board_options(x)
+
   ui <- bslib::page_fluid(
     theme = bslib::bs_theme(version = 5),
-    title = board_option("board_name", x),
+    title = board_option_value(opts[["board_name"]]),
     board_ui(id, x, plugins),
     htmltools::htmlDependency(
       "change-board-title",

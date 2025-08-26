@@ -45,13 +45,14 @@ block_eval.plot_block <- function(x, expr, data, ...) {
     stop_on_error = 1L
   )
 
-  filter(Negate(inherits), res, "source")
+  show_condition(res)
+
+  filter(inherits, res, "recordedplot")
 }
 
 #' @noRd
 #' @export
-block_eval_trigger.plot_block <- function(x,
-  session = getDefaultReactiveDomain()) {
+block_eval_trigger.plot_block <- function(x, session = get_session()) {
 
   invisible(
     get_board_option_values(

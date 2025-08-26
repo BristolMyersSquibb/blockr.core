@@ -35,7 +35,7 @@
 #'
 #' @export
 new_board <- function(blocks = list(), links = list(), stacks = list(),
-                      options = new_board_options(), ...,
+                      options = default_board_options(), ...,
                       class = character()) {
 
   blocks <- as_blocks(blocks)
@@ -484,20 +484,6 @@ available_stack_blocks <- function(x, stacks = board_stacks(x),
   Reduce(setdiff, lapply(stacks, as.character), blocks)
 }
 
-#' @rdname new_board_options
-#' @export
-board_options <- function(x) {
-
-  if (!inherits(x, "board")) {
-    abort(
-      "Can only extract board options from a board object.",
-      class = "board_options_board_invalid"
-    )
-  }
-
-  validate_board_options(x[["options"]])
-}
-
 #' @export
 block_inputs.board <- function(x) {
   lapply(set_names(board_blocks(x), board_block_ids(x)), block_inputs)
@@ -568,7 +554,7 @@ format.board <- function(x, ...) {
     out,
     "",
     "Options:",
-    format(board_options(x))
+    format(as_board_options(x))
   )
 }
 

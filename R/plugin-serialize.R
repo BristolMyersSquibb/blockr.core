@@ -97,13 +97,13 @@ write_board_to_disk <- function(rv, session) {
     )
 
     opts <- lapply(
-      set_names(nm = list_board_options(rv$board)),
-      get_board_option_or_default,
+      set_names(nm = names(as_board_options(rv$board))),
+      get_board_option_or_null,
       session
     )
 
     json <- jsonlite::prettify(
-      to_json(rv$board, blocks, opts)
+      to_json(rv$board, blocks = blocks, options = opts)
     )
 
     writeLines(json, con)

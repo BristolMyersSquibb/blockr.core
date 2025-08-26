@@ -44,12 +44,12 @@ Imports:
     generics,
     rlang,
     htmltools,
+    evaluate,
     shinyFiles
 Suggests:
     testthat (>= 3.0.0),
     memuse,
     withr,
-    evaluate,
     shinytest2,
     roxy.shinylive,
     knitr,
@@ -60,3 +60,58 @@ Suggests:
     thematic
 Config/testthat/edition: 3
 VignetteBuilder: quarto
+Collate:
+    'block-class.R'
+    'block-server.R'
+    'block-ui.R'
+    'blocks-class.R'
+    'board-class.R'
+    'board-option.R'
+    'board-options.R'
+    'board-plugins.R'
+    'board-server.R'
+    'board-ui.R'
+    'utils-dt.R'
+    'data-block.R'
+    'data-dataset.R'
+    'data-static.R'
+    'file-block.R'
+    'file-browser.R'
+    'file-upload.R'
+    'link-class.R'
+    'links-class.R'
+    'parser-block.R'
+    'parser-csv.R'
+    'pkg.R'
+    'plot-block.R'
+    'plot-scatter.R'
+    'plugin-block.R'
+    'plugin-blocks.R'
+    'plugin-code.R'
+    'plugin-links.R'
+    'plugin-notification.R'
+    'plugin-serialize.R'
+    'plugin-stack.R'
+    'plugin-stacks.R'
+    'registry.R'
+    'stack-class.R'
+    'stack-ui.R'
+    'stacks-class.R'
+    'transform-block.R'
+    'transform-fixed.R'
+    'transform-head.R'
+    'transform-merge.R'
+    'transform-rbind.R'
+    'transform-subset.R'
+    'utils-assertions.R'
+    'utils-cnd.R'
+    'utils-code.R'
+    'utils-globals.R'
+    'utils-graph.R'
+    'utils-json.R'
+    'utils-logging.R'
+    'utils-misc.R'
+    'utils-ply.R'
+    'utils-serve.R'
+    'utils-shiny.R'
+    'zzz.R'

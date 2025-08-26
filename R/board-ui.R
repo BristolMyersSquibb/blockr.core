@@ -190,8 +190,7 @@ update_ui <- function(x, session, ...) {
 #' @rdname board_ui
 #' @export
 update_ui.board <- function(x, session, ...) {
-  update_ui(board_options(x), session)
-  invisible(x)
+  invisible()
 }
 
 #' @rdname board_ui
@@ -215,7 +214,11 @@ toolbar_ui.board <- function(id, x, plugins = list(), ...) {
     tagList,
     list(
       board_ui(id, toolbar_plugins, x),
-      board_ui(id, board_options(x))
+      bslib::popover(
+        bsicons::bs_icon("gear", size = "1.5em"),
+        board_ui(id, as_board_options(x)),
+        title = "Board options"
+      )
     )
   )
 

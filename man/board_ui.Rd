@@ -2,7 +2,6 @@
 % Please edit documentation in R/board-options.R, R/board-ui.R
 \name{board_ui.board_options}
 \alias{board_ui.board_options}
-\alias{update_ui.board_options}
 \alias{board_ui}
 \alias{board_ui.board}
 \alias{board_ui.NULL}
@@ -17,8 +16,6 @@
 \title{Board UI}
 \usage{
 \method{board_ui}{board_options}(id, x, ...)
-
-\method{update_ui}{board_options}(x, session, ...)
 
 board_ui(id, x, ...)
 
@@ -49,11 +46,11 @@ toolbar_ui(id, x, plugins = list(), ...)
 
 \item{...}{Generic consistency}
 
-\item{session}{Shiny session}
-
 \item{plugins}{UI for board plugins}
 
 \item{blocks}{(Additional) blocks (or IDs) for which to generate the UI}
+
+\item{session}{Shiny session}
 }
 \value{
 A \code{board_ui()} implementation is expected to return \link[shiny:reexports]{shiny::tag} or

@@ -28,14 +28,20 @@ write_log <- function(..., level = "info") {
 
   logger <- get_logger()
 
-  msg <- paste0(
+  pfx <- paste0(
     "[", toupper(level), "]",
     if (isTRUE(blockr_option("log_time", TRUE))) get_timmestamp("[", "]"),
     if (isTRUE(blockr_option("log_mem", FALSE))) get_mem_use("[", "]"),
-    " ", ...
+    " "
   )
 
-  logger(msg, level = lvl)
+  msg <- strwrap(
+    strsplit(paste0(..., collapse = ""), "\n", fixed = TRUE)[[1L]],
+    width = getOption("width") - nchar(pfx),
+    exdent = 2L
+  )
+
+  logger(paste0(pfx, msg, collapse = "\n"), level = lvl)
 }
 
 get_mem_use <- function(prefix = "", suffix = "") {

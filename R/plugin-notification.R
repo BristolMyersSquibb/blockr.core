@@ -96,8 +96,7 @@ notify_user_ui <- function(id, board) {
   )
 }
 
-create_block_notifications <- function(notf, blk,
-                                       session = getDefaultReactiveDomain()) {
+create_block_notifications <- function(notf, blk, session = get_session()) {
 
   cur <- c()
 

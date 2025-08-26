@@ -20,49 +20,23 @@ stack_ui(id, x, ...)
 
 \method{stack_ui}{stack}(id, x, edit_ui = NULL, ...)
 
-insert_stack_ui(
-  id,
-  x,
-  board,
-  edit_ui = NULL,
-  session = getDefaultReactiveDomain(),
-  ...
-)
+insert_stack_ui(id, x, board, edit_ui = NULL, session = get_session(), ...)
 
-\method{insert_stack_ui}{board}(
-  id,
-  x,
-  board,
-  edit_ui = NULL,
-  session = getDefaultReactiveDomain(),
-  ...
-)
+\method{insert_stack_ui}{board}(id, x, board, edit_ui = NULL, session = get_session(), ...)
 
-remove_stack_ui(id, board, session = getDefaultReactiveDomain(), ...)
+remove_stack_ui(id, board, session = get_session(), ...)
 
-\method{remove_stack_ui}{board}(id, board, session = getDefaultReactiveDomain(), ...)
+\method{remove_stack_ui}{board}(id, board, session = get_session(), ...)
 
-add_block_to_stack(
-  board,
-  block_id,
-  stack_id,
-  session = getDefaultReactiveDomain(),
-  ...
-)
+add_block_to_stack(board, block_id, stack_id, session = get_session(), ...)
 
-\method{add_block_to_stack}{board}(
-  board,
-  block_id,
-  stack_id,
-  session = getDefaultReactiveDomain(),
-  ...
-)
+\method{add_block_to_stack}{board}(board, block_id, stack_id, session = get_session(), ...)
 
 remove_block_from_stack(
   board,
   block_id,
   board_id,
-  session = getDefaultReactiveDomain(),
+  session = get_session(),
   ...
 )
 
@@ -70,7 +44,7 @@ remove_block_from_stack(
   board,
   block_id,
   board_id,
-  session = getDefaultReactiveDomain(),
+  session = get_session(),
   ...
 )
 }

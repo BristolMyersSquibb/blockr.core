@@ -44,7 +44,7 @@ board_server.board <- function(id, x, plugins = list(), callbacks = list(),
 
       ns <- session$ns
 
-      board_options_to_userdata(x, input, session)
+      board_options_to_userdata(x, input, session = session)
 
       rv <- reactiveValues(
         blocks = list(),
@@ -163,6 +163,8 @@ board_server.board <- function(id, x, plugins = list(), callbacks = list(),
 
             log_trace("refreshing rv$board")
             rv$board <- board_refresh()
+
+            update_board_options(rv$board, session)
 
             log_trace("updating board ui")
             update_ui(rv$board, session)
