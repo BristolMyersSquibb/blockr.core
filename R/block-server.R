@@ -263,6 +263,7 @@ state_check_observer <- function(id, x, dat, res, exp, rv, cond, sess) {
                  "not yet initialized.")
         )
       } else {
+        cond$state$error <- list()
         rv$state_set <- TRUE
       }
     },
