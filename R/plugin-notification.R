@@ -68,11 +68,11 @@ update_block_notif <- function(blocks, state, session) {
     state(c(state(), tmp))
   }
 
-  to_rm <- setdiff(names(state), names(blocks))
+  to_rm <- setdiff(names(state()), names(blocks))
 
   if (length(to_rm)) {
     state(
-      tear_down_blocks_notif(state, to_rm, session)
+      tear_down_blocks_notif(state(), to_rm, session)
     )
   }
 
@@ -92,45 +92,35 @@ set_up_blocks_notif  <- function(blocks, todo = names(blocks),
 }
 
 set_up_block_notif <- function(conds, blk, session) {
+  lapply(set_names(nm = names(conds)), set_up_type_notif, conds, blk, session)
+}
 
-  types <- names(conds)
+set_up_type_notif <- function(typ, conds, blk, session) {
 
-  res <- list(
-    obs = set_names(vector("list", length(types)), types),
-    ids = set_names(vector("list", length(types)), types)
+  ids <- reactiveVal(character())
+
+  obs <- observeEvent(
+    conds[[typ]],
+    {
+      new_ids <- create_block_notif(conds[[typ]], blk, ids(),
+                                    session)
+
+      remove_block_notif(new_ids, ids(), session)
+
+      ids(new_ids)
+    }
   )
 
-  for (typ in types) {
-
-    res$ids[[typ]] <- reactiveVal(character())
-
-    res$obs[[typ]] <- observeEvent(
-      conds[[typ]],
-      {
-        new_ids <- create_block_notif(conds[[typ]], blk, res$ids[[typ]](),
-                                      session)
-
-        remove_block_notif(res$ids[[typ]](), new_ids, session)
-
-        res$ids[[typ]](new_ids)
-      }
-    )
-  }
-
-  res
+  list(ids = ids, obs = obs)
 }
 
 tear_down_blocks_notif <- function(state, blocks = names(state),
                                   session = get_session()) {
 
   for (blk in blocks) {
-
-    for (typ in names(state[[blk]]$ids)) {
-      remove_block_notif(character(), state[[blk]]$ids[[typ]], session)
-    }
-
-    for (typ in names(state[[blk]]$obs)) {
-      state[[blk]]$obs[[typ]]$destroy()
+    for (typ in names(state[[blk]])) {
+      remove_block_notif(character(), state[[blk]][[typ]]$ids(), session)
+      state[[blk]][[typ]]$obs$destroy()
     }
   }
 

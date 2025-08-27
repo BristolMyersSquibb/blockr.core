@@ -65,11 +65,11 @@ block_server.block <- function(id, x, data = list(), block_id = id,
       )
 
       cond <- reactiveValues(
-        data = empty_block_condition(),
-        state = empty_block_condition(),
-        eval = empty_block_condition(),
-        render = empty_block_condition(),
-        block = empty_block_condition()
+        data = NULL,
+        state = NULL,
+        eval = NULL,
+        render = NULL,
+        block = NULL
       )
 
       reorder_dots_observer(data, session)
