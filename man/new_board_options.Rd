@@ -20,6 +20,7 @@
 \alias{new_filter_rows_option}
 \alias{new_thematic_option}
 \alias{new_dark_mode_option}
+\alias{new_show_conditions_option}
 \alias{new_board_options}
 \alias{default_board_options}
 \alias{is_board_options}
@@ -84,6 +85,8 @@ new_filter_rows_option(value = blockr_option("filter_rows", FALSE), ...)
 new_thematic_option(value = blockr_option("thematic", NULL), ...)
 
 new_dark_mode_option(value = blockr_option("dark_mode", NULL), ...)
+
+new_show_conditions_option(value = blockr_option("show_conditions", TRUE), ...)
 
 new_board_options(...)
 

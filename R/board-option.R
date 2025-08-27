@@ -534,3 +534,63 @@ validate_board_option.dark_mode_option <- function(x) {
 
   invisible(x)
 }
+
+#' @rdname new_board_options
+#' @export
+new_show_conditions_option <- function(value = blockr_option("show_conditions",
+                                                             TRUE),
+                                       ...) {
+
+  if (isTRUE(value)) {
+    value <- c("warning", "error")
+  }
+
+  if (isFALSE(value)) {
+    value <- character()
+  }
+
+  new_board_option(
+    id = "show_conditions",
+    default = value,
+    ui = function(id) {
+      selectInput(
+        NS(id, "show_conditions"),
+        "Message types to display",
+        c("message", "warning", "error"),
+        value,
+        multiple = TRUE
+      )
+    },
+    server = function(board, session) {
+      observeEvent(
+        get_board_option_or_null("show_conditions", session),
+        {
+          updateSelectInput(
+            session,
+            "show_conditions",
+            selected = get_board_option_value("show_conditions", session)
+          )
+        }
+      )
+    },
+    ...
+  )
+}
+
+#' @export
+validate_board_option.show_conditions_option <- function(x) {
+
+  val <- board_option_value(NextMethod())
+
+  if (!(is.character(val) || all(val %in% c("message", "warning", "error")))) {
+    abort(
+      paste(
+        "Expecting `show_conditions` to be any of \"message\", \"warning\" or",
+        "\"error\"."
+      ),
+      class = "board_options_show_conditions_invalid"
+    )
+  }
+
+  invisible(x)
+}

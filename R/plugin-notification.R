@@ -35,53 +35,16 @@ notify_user_server <- function(id, board, ...) {
     id,
     function(input, output, session) {
 
-      onStop(
-        function() set_globals(list(), session = session)
-      )
-
-      if (length(get_globals(session = session))) {
-        warning("Existing notification IDs will be purged.")
-      }
-
-      set_globals(list(), session = session)
-
-      cnd <- reactive(
-        lst_xtr_reval(board$blocks, "server", "cond")
+      state <- reactiveVal(
+        set_up_blocks_notif(isolate(board$blocks), session = session)
       )
 
       observeEvent(
-        cnd(),
-        {
-          notf <- cnd()
-          ids <- get_globals(session = session)
-
-          for (blk in setdiff(names(ids), names(notf))) {
-
-            for (id in ids[[blk]]) {
-              removeNotification(id)
-            }
-
-            ids[[blk]] <- NULL
-            set_globals(ids, session = session)
-          }
-
-          for (blk in names(notf)) {
-
-            cur <- create_block_notifications(notf, blk)
-
-            for (id in setdiff(ids[[blk]], cur)) {
-              removeNotification(id)
-            }
-
-            ids[[blk]] <- cur
-            set_globals(ids, session = session)
-          }
-        }
+        names(board$blocks),
+        update_block_notif(board$blocks, state, session)
       )
 
-      reactive(
-        filter_all_zero_len(cnd())
-      )
+      invisible()
     }
   )
 }
@@ -96,29 +59,127 @@ notify_user_ui <- function(id, board) {
   )
 }
 
-create_block_notifications <- function(notf, blk, session = get_session()) {
+update_block_notif <- function(blocks, state, session) {
 
-  cur <- c()
+  do_add <- setdiff(names(blocks), names(state))
 
-  for (typ in names(notf[[blk]])) {
-    for (cnd in names(notf[[blk]][[typ]])) {
-      for (msg in notf[[blk]][[typ]][[cnd]]) {
+  if (length(do_add)) {
+    tmp <- set_up_blocks_notif(blocks, do_add, session)
+    state(c(state(), tmp))
+  }
 
-        id <- session_to_id(attr(msg, "id"), session)
+  to_rm <- setdiff(names(state), names(blocks))
 
-        showNotification(
-          HTML(paste0("Block ", blk, ": ", ansi_html(msg))),
-          duration = NULL,
-          id = id,
-          type = cnd
-        )
+  if (length(to_rm)) {
+    state(
+      tear_down_blocks_notif(state, to_rm, session)
+    )
+  }
 
-        cur <- c(cur, id)
+  invisible()
+}
+
+set_up_blocks_notif  <- function(blocks, todo = names(blocks),
+                                 session = get_session()) {
+
+  res <- set_names(vector("list", length(todo)), todo)
+
+  for (blk in todo) {
+    res[[blk]] <- set_up_block_notif(blocks[[blk]]$server$cond, blk, session)
+  }
+
+  res
+}
+
+set_up_block_notif <- function(conds, blk, session) {
+
+  types <- names(conds)
+
+  res <- list(
+    obs = set_names(vector("list", length(types)), types),
+    ids = set_names(vector("list", length(types)), types)
+  )
+
+  for (typ in types) {
+
+    res$ids[[typ]] <- reactiveVal(character())
+
+    res$obs[[typ]] <- observeEvent(
+      conds[[typ]],
+      {
+        new_ids <- create_block_notif(conds[[typ]], blk, res$ids[[typ]](),
+                                      session)
+
+        remove_block_notif(res$ids[[typ]](), new_ids, session)
+
+        res$ids[[typ]](new_ids)
       }
+    )
+  }
+
+  res
+}
+
+tear_down_blocks_notif <- function(state, blocks = names(state),
+                                  session = get_session()) {
+
+  for (blk in blocks) {
+
+    for (typ in names(state[[blk]]$ids)) {
+      remove_block_notif(character(), state[[blk]]$ids[[typ]], session)
+    }
+
+    for (typ in names(state[[blk]]$obs)) {
+      state[[blk]]$obs[[typ]]$destroy()
+    }
+  }
+
+  state[setdiff(names(state), blocks)]
+}
+
+create_block_notif <- function(x, blk, prev, session = get_session()) {
+
+  cur <- character()
+
+  if (all(lengths(x) == 0L)) {
+    return(cur)
+  }
+
+  cnds <- coal(
+    isolate(
+      get_board_option_or_null("show_conditions", session)
+    ),
+    c("message", "warning", "error")
+  )
+
+  for (cnd in intersect(names(x), cnds)) {
+    for (msg in x[[cnd]]) {
+
+      id <- paste(cnd, attr(msg, "id"), sep = "-")
+
+      if (id %in% prev) {
+        next
+      }
+
+      showNotification(
+        HTML(paste0("Block ", blk, ": ", ansi_html(msg))),
+        duration = NULL,
+        id = id,
+        type = cnd,
+        session = session
+      )
+
+      cur <- c(cur, id)
     }
   }
 
   cur
+}
+
+remove_block_notif <- function(new_ids, old_ids, session) {
+  for (id in setdiff(old_ids, new_ids)) {
+    removeNotification(id, session)
+  }
 }
 
 check_block_notifications_val <- function(val) {
@@ -126,22 +187,9 @@ check_block_notifications_val <- function(val) {
   observeEvent(
     TRUE,
     {
-      if (!is.reactive(val)) {
+      if (!is.null(val)) {
         abort(
-          "Expecting `notify_user` to return a reactive value.",
-          class = "notify_user_return_invalid"
-        )
-      }
-    },
-    once = TRUE
-  )
-
-  observeEvent(
-    val(),
-    {
-      if (!is.list(val())) {
-        abort(
-          "Expecting the `notify_user` return value to evaluate to a list.",
+          "Expecting `notify_user` to return `NULL`.",
           class = "notify_user_return_invalid"
         )
       }
