@@ -260,8 +260,7 @@ state_check_observer <- function(id, x, dat, res, exp, rv, cond, sess) {
       if (!all(ok)) {
         cond$state$error <- new_condition(
           paste0("State values ", paste_enum(names(ok)[!ok]), " are ",
-                 "not yet initialized."),
-          session = sess
+                 "not yet initialized.")
         )
       } else {
         rv$state_set <- TRUE

@@ -264,8 +264,14 @@ blockr_deser.board_option <- function(x, data, ...) {
 
   stopifnot(is.function(ctor))
 
+  payload <- data[["payload"]]
+
+  if (is.atomic(payload)) {
+    payload <- list(payload)
+  }
+
   args <- c(
-    data[["payload"]],
+    payload,
     list(
       ctor = ctr,
       pkg = pkg

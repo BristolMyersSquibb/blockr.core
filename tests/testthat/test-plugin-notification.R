@@ -1,57 +1,50 @@
 test_that("notify_user", {
 
-  reset_gobals_env()
-
   testServer(
     notify_user_server,
     {
-      expect_null(session$returned())
-      expect_identical(get_globals(session = session), list())
+      expect_null(session$returned)
+
+      expect_type(state(), "list")
+      expect_length(state(), 0L)
 
       board$blocks <- list(
         a = list(
           server = list(
-            cond = function() {
-              list(
-                data = list(),
-                state = list(),
-                eval = list(
-                  error = list(structure("some error", id = 1)),
-                  warning = character(),
-                  message = character()
-                )
-              )
-            }
-          )
-        )
-      )
-
-      expect_identical(
-        session$returned(),
-        list(
-          a = list(
-            eval = list(error = list(structure("some error", id = 1)))
+            cond = reactiveValues(
+              data = NULL,
+              eval = NULL
+            )
           )
         )
       )
 
       session$flushReact()
 
-      expect_identical(
-        get_globals(session = session),
-        list(a = session$ns(1))
+      expect_length(state(), 1L)
+      expect_named(state(), "a")
+
+      expect_identical(state()[["a"]][["data"]][["ids"]](), character())
+      expect_identical(state()[["a"]][["eval"]][["ids"]](), character())
+
+      board$blocks$a$server$cond$eval <- list(
+        error = new_condition("some error")
       )
-
-      board$blocks <- list()
-
-      expect_null(session$returned())
 
       session$flushReact()
 
-      expect_identical(
-        get_globals(session = session),
-        list(a = NULL)[0]
-      )
+      expect_identical(state()[["a"]][["data"]][["ids"]](), character())
+      expect_length(state()[["a"]][["eval"]][["ids"]](), 1L)
+      expect_true(grepl("^error-", state()[["a"]][["eval"]][["ids"]]()))
+
+      board$blocks$a$server$cond$eval <- list(error = list())
+
+      session$flushReact()
+
+      expect_identical(state()[["a"]][["data"]][["ids"]](), character())
+      expect_identical(state()[["a"]][["eval"]][["ids"]](), character())
+
+      expect_null(session$returned)
     },
     args = list(board = reactiveValues(blocks = list()))
   )
@@ -61,23 +54,11 @@ test_that("notify_user return validation", {
 
   with_mock_session(
     {
-      check_block_notifications_val(list(a = 1))
+      check_block_notifications_val(1)
       sink_msg(
         expect_warning(
           session$flushReact(),
-          "Expecting `notify_user` to return a reactive value"
-        )
-      )
-    }
-  )
-
-  with_mock_session(
-    {
-      check_block_notifications_val(reactiveVal(1))
-      sink_msg(
-        expect_warning(
-          session$flushReact(),
-          "Expecting the `notify_user` return value to evaluate to a list"
+          "Expecting `notify_user` to return `NULL`."
         )
       )
     }
