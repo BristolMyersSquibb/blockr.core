@@ -139,7 +139,7 @@ create_block_notif <- function(x, blk, prev, session = get_session()) {
     isolate(
       get_board_option_or_null("show_conditions", session)
     ),
-    c("message", "warning", "error")
+    blockr_option("show_conditions", c("warning", "error"))
   )
 
   for (cnd in intersect(names(x), cnds)) {

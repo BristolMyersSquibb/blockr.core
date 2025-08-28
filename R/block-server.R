@@ -111,24 +111,7 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         )
       )
 
-      if ("cond" %in% names(exp)) {
-        observe(
-          {
-            cond$block <- lapply(
-              reactiveValuesToList(exp[["cond"]]),
-              lapply,
-              new_condition,
-              as_list = FALSE
-            )
-          }
-        )
-      } else {
-        isolate(
-          {
-            cond$block <- empty_block_condition()
-          }
-        )
-      }
+      block_cond_observer(exp, cond)
 
       list(
         result = res,
@@ -207,7 +190,8 @@ validate_block_observer <- function(id, x, dat, res, rv, cond, sess) {
             TRUE
           },
           cond,
-          "data"
+          "data",
+          session = sess
         )
       },
       domain = sess
@@ -312,7 +296,8 @@ data_eval_observer <- function(id, x, dat, res, exp, lang, rv, cond, sess) {
       out <- capture_conditions(
         block_eval(x, lang(), dat_eval()),
         cond,
-        "eval"
+        "eval",
+        session = sess
       )
 
       res(out)
@@ -345,11 +330,57 @@ output_render_observer <- function(x, res, cond, sess) {
           sess$output$result <- block_output(x, res(), sess)
         },
         cond,
-        "render"
+        "render",
+        session = sess
       )
     },
     domain = sess
   )
+}
+
+block_cond_observer <- function(exp, cond) {
+
+  if ("cond" %in% names(exp)) {
+
+    conds <- reactive(
+      reactiveValuesToList(exp[["cond"]])
+    )
+
+    observeEvent(
+      conds(),
+      {
+        new_cnds <- conds()
+        cur_cnds <- cond$block
+
+        if (any(lengths(new_cnds))) {
+
+          new_cnds <- lapply(new_cnds, lapply, new_condition,
+                             as_list = FALSE)
+
+          if (!length(cur_cnds)) {
+
+            cond$block <- new_cnds
+
+          } else {
+
+            chk <- lgl_mply(
+              Negate(setequal),
+              lapply(new_cnds, chr_ply, attr, "id"),
+              lapply(cur_cnds, chr_ply, attr, "id")
+            )
+
+            if (any(chk)) {
+              cond$block <- new_cnds
+            }
+          }
+
+        } else if (length(cur_cnds) && !all(lengths(cur_cnds) == 0L)) {
+          cond$block <- empty_block_condition()
+        }
+      }
+    )
+  }
+
 }
 
 check_expr_val <- function(val, x) {

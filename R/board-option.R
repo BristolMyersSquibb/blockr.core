@@ -537,17 +537,9 @@ validate_board_option.dark_mode_option <- function(x) {
 
 #' @rdname new_board_options
 #' @export
-new_show_conditions_option <- function(value = blockr_option("show_conditions",
-                                                             TRUE),
-                                       ...) {
-
-  if (isTRUE(value)) {
-    value <- c("warning", "error")
-  }
-
-  if (isFALSE(value)) {
-    value <- character()
-  }
+new_show_conditions_option <- function(
+  value = blockr_option("show_conditions", c("warning", "error")),
+  ...) {
 
   new_board_option(
     id = "show_conditions",

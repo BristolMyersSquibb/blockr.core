@@ -4,11 +4,18 @@ new_condition <- function(x, as_list = TRUE) {
     x <- fmt_cnd_msg(x)
   }
 
-  res <- structure(
-    x,
-    id = digest::digest(x, "xxh3_64", serialize = FALSE),
-    class = "block_cnd"
-  )
+  if (inherits(x, "block_cnd")) {
+
+    res <- x
+
+  } else {
+
+    res <- structure(
+      x,
+      id = digest::digest(x, "xxh3_64", serialize = FALSE),
+      class = "block_cnd"
+    )
+  }
 
   if (!isTRUE(as_list)) {
     return(res)
@@ -79,34 +86,41 @@ replay.error <- function(x) {
   log_error(fmt_cnd_msg(x))
 }
 
-msg_handler <- function(cond) {
-  stopifnot(is.environment(cond))
+msg_handler <- function(cond, conds) {
+  stopifnot(is.environment(cond), is.character(conds))
   function(m) {
-    cond$message <- c(cond$message, new_condition(m))
+    if ("message" %in% conds) {
+      cond$message <- c(cond$message, new_condition(m))
+    }
     log_info(fmt_cnd_msg(m))
     tryInvokeRestart("muffleMessage")
   }
 }
 
-warn_handler <- function(cond) {
-  stopifnot(is.environment(cond))
+warn_handler <- function(cond, conds) {
+  stopifnot(is.environment(cond), is.character(conds))
   function(w) {
-    cond$warning <- c(cond$warning, new_condition(w))
+    if ("warning" %in% conds) {
+      cond$warning <- c(cond$warning, new_condition(w))
+    }
     log_warn(fmt_cnd_msg(w))
     tryInvokeRestart("muffleWarning")
   }
 }
 
-err_handler <- function(cond, err_val = NULL) {
-  stopifnot(is.environment(cond))
+err_handler <- function(cond, conds, err_val = NULL) {
+  stopifnot(is.environment(cond), is.character(conds))
   function(e) {
-    cond$error <- new_condition(e)
+    if ("error" %in% conds) {
+      cond$error <- new_condition(e)
+    }
     log_error(fmt_cnd_msg(e))
     err_val
   }
 }
 
-capture_conditions <- function(expr, rv, slot, error_val = NULL) {
+capture_conditions <- function(expr, rv, slot, error_val = NULL,
+                               session = get_session()) {
 
   stopifnot(
     is.reactivevalues(rv),
@@ -115,16 +129,43 @@ capture_conditions <- function(expr, rv, slot, error_val = NULL) {
 
   cond <- list2env(empty_block_condition())
 
+  cnds <- coal(
+    isolate(
+      get_board_option_or_null("show_conditions", session)
+    ),
+    blockr_option("show_conditions", c("warning", "error"))
+  )
+
   res <- tryCatch(
     withCallingHandlers(
       expr,
-      message = msg_handler(cond),
-      warning = warn_handler(cond)
+      message = msg_handler(cond, cnds),
+      warning = warn_handler(cond, cnds)
     ),
-    error = err_handler(cond, error_val)
+    error = err_handler(cond, cnds, error_val)
   )
 
-  rv[[slot]] <- as.list(cond)
+  cond <- as.list(cond)
+  curr <- rv[[slot]]
+
+  if (all(lengths(cond) == 0L) && !length(curr)) {
+    return(res)
+  }
+
+  if (length(curr)) {
+
+    chk <- lgl_mply(
+      setequal,
+      lapply(cond, chr_ply, attr, "id"),
+      lapply(curr, chr_ply, attr, "id")
+    )
+
+    if (all(chk)) {
+      return(res)
+    }
+  }
+
+  rv[[slot]] <- cond
 
   res
 }

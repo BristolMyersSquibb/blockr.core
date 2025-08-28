@@ -86,7 +86,10 @@ new_thematic_option(value = blockr_option("thematic", NULL), ...)
 
 new_dark_mode_option(value = blockr_option("dark_mode", NULL), ...)
 
-new_show_conditions_option(value = blockr_option("show_conditions", TRUE), ...)
+new_show_conditions_option(
+  value = blockr_option("show_conditions", c("warning", "error")),
+  ...
+)
 
 new_board_options(...)
 
