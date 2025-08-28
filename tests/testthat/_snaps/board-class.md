@@ -62,8 +62,9 @@
       Blocks: "b" and "c"
       
       Options:
-      <board_options[6]>
+      <board_options[7]>
         board_name: Board
+        show_conditions: warning, error
         n_rows: 50
         page_size: 5
         filter_rows: FALSE
@@ -124,8 +125,9 @@
       Blocks: "b"
       
       Options:
-      <board_options[6]>
+      <board_options[7]>
         board_name: Board
+        show_conditions: warning, error
         n_rows: 50
         page_size: 5
         filter_rows: FALSE

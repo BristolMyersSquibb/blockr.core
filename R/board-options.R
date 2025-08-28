@@ -44,6 +44,7 @@ new_board_options <- function(...) {
 default_board_options <- function(...) {
   new_board_options(
     new_board_name_option(...),
+    new_show_conditions_option(...),
     new_n_rows_option(...),
     new_page_size_option(...),
     new_filter_rows_option(...),

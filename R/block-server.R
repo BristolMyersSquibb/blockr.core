@@ -59,18 +59,17 @@ block_server.block <- function(id, x, data = list(), block_id = id,
     id,
     function(input, output, session) {
 
-      onStop(
-        function() set_globals(NULL, session = session)
-      )
-
-      set_globals(0L, session = session)
-
       rv <- reactiveValues(
         data_valid = if (block_has_data_validator(x)) NULL else TRUE,
-        data_cond = empty_block_condition,
-        state_set = NULL,
-        state_cond = empty_block_condition,
-        eval_cond = empty_block_condition
+        state_set = NULL
+      )
+
+      cond <- reactiveValues(
+        data = NULL,
+        state = NULL,
+        eval = NULL,
+        render = NULL,
+        block = NULL
       )
 
       reorder_dots_observer(data, session)
@@ -99,10 +98,10 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         }
       )
 
-      validate_block_observer(block_id, x, dat, res, rv, session)
-      state_check_observer(block_id, x, dat, res, exp, rv, session)
-      data_eval_observer(block_id, x, dat, res, exp, lang, rv, session)
-      output_render_observer(x, res, rv, session)
+      validate_block_observer(block_id, x, dat, res, rv, cond, session)
+      state_check_observer(block_id, x, dat, res, exp, rv, cond, session)
+      data_eval_observer(block_id, x, dat, res, exp, lang, rv, cond, session)
+      output_render_observer(x, res, cond, session)
 
       call_plugin_server(
         edit_block,
@@ -112,34 +111,13 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         )
       )
 
-      block_cond <- reactive(
-        {
-          if ("cond" %in% names(exp)) {
-            lapply(
-              reactiveValuesToList(exp[["cond"]]),
-              lapply,
-              new_condition,
-              session = session,
-              as_list = FALSE
-            )
-          } else {
-            empty_block_condition
-          }
-        }
-      )
+      block_cond_observer(exp, cond)
 
       list(
         result = res,
         expr = lang,
         state = exp$state,
-        cond = reactive(
-          list(
-            data = rv$data_cond,
-            state = rv$state_cond,
-            eval = rv$eval_cond,
-            block = block_cond()
-          )
-        )
+        cond = cond
       )
     }
   )
@@ -194,7 +172,7 @@ reorder_dots_observer <- function(data, sess) {
   }
 }
 
-validate_block_observer <- function(id, x, dat, res, rv, sess) {
+validate_block_observer <- function(id, x, dat, res, rv, cond, sess) {
 
   if (block_has_data_validator(x)) {
     observeEvent(
@@ -204,7 +182,6 @@ validate_block_observer <- function(id, x, dat, res, rv, sess) {
 
         res(NULL)
 
-        rv$data_cond <- empty_block_condition
         rv$state_set <- NULL
 
         rv$data_valid <- capture_conditions(
@@ -212,8 +189,9 @@ validate_block_observer <- function(id, x, dat, res, rv, sess) {
             validate_data_inputs(x, dat())
             TRUE
           },
-          rv$data_cond,
-          sess
+          cond,
+          "data",
+          session = sess
         )
       },
       domain = sess
@@ -221,7 +199,7 @@ validate_block_observer <- function(id, x, dat, res, rv, sess) {
   }
 }
 
-state_check_observer <- function(id, x, dat, res, exp, rv, sess) {
+state_check_observer <- function(id, x, dat, res, exp, rv, cond, sess) {
 
   state_check <- reactive(
     {
@@ -261,16 +239,15 @@ state_check_observer <- function(id, x, dat, res, exp, rv, sess) {
 
       ok <- state_check()
 
-      rv$state_cond <- empty_block_condition
       rv$state_set <- NULL
 
       if (!all(ok)) {
-        rv$state_cond$error <- new_condition(
+        cond$state$error <- new_condition(
           paste0("State values ", paste_enum(names(ok)[!ok]), " are ",
-                 "not yet initialized."),
-          session = sess
+                 "not yet initialized.")
         )
       } else {
+        cond$state$error <- list()
         rv$state_set <- TRUE
       }
     },
@@ -290,7 +267,7 @@ block_eval_trigger.block <- function(x, session = get_session()) {
   NULL
 }
 
-data_eval_observer <- function(id, x, dat, res, exp, lang, rv, sess) {
+data_eval_observer <- function(id, x, dat, res, exp, lang, rv, cond, sess) {
 
   dat_eval <- reactive(
     {
@@ -316,12 +293,11 @@ data_eval_observer <- function(id, x, dat, res, exp, lang, rv, sess) {
     {
       log_debug("evaluating block ", id)
 
-      rv$eval_cond <- empty_block_condition
-
       out <- capture_conditions(
         block_eval(x, lang(), dat_eval()),
-        rv$eval_cond,
-        sess
+        cond,
+        "eval",
+        session = sess
       )
 
       res(out)
@@ -341,7 +317,7 @@ block_render_trigger.block <- function(x, session = get_session()) {
   NULL
 }
 
-output_render_observer <- function(x, res, rv, sess) {
+output_render_observer <- function(x, res, cond, sess) {
 
   observeEvent(
     {
@@ -353,12 +329,58 @@ output_render_observer <- function(x, res, rv, sess) {
         {
           sess$output$result <- block_output(x, res(), sess)
         },
-        rv$eval_cond,
-        sess
+        cond,
+        "render",
+        session = sess
       )
     },
     domain = sess
   )
+}
+
+block_cond_observer <- function(exp, cond) {
+
+  if ("cond" %in% names(exp)) {
+
+    conds <- reactive(
+      reactiveValuesToList(exp[["cond"]])
+    )
+
+    observeEvent(
+      conds(),
+      {
+        new_cnds <- conds()
+        cur_cnds <- cond$block
+
+        if (any(lengths(new_cnds))) {
+
+          new_cnds <- lapply(new_cnds, lapply, new_condition,
+                             as_list = FALSE)
+
+          if (!length(cur_cnds)) {
+
+            cond$block <- new_cnds
+
+          } else {
+
+            chk <- lgl_mply(
+              Negate(setequal),
+              lapply(new_cnds, chr_ply, attr, "id"),
+              lapply(cur_cnds, chr_ply, attr, "id")
+            )
+
+            if (any(chk)) {
+              cond$block <- new_cnds
+            }
+          }
+
+        } else if (length(cur_cnds) && !all(lengths(cur_cnds) == 0L)) {
+          cond$block <- empty_block_condition()
+        }
+      }
+    )
+  }
+
 }
 
 check_expr_val <- function(val, x) {

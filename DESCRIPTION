@@ -45,7 +45,8 @@ Imports:
     rlang,
     htmltools,
     evaluate,
-    shinyFiles
+    shinyFiles,
+    digest
 Suggests:
     testthat (>= 3.0.0),
     memuse,
