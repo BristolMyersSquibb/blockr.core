@@ -115,7 +115,7 @@ set_up_type_notif <- function(typ, conds, blk, session) {
 }
 
 tear_down_blocks_notif <- function(state, blocks = names(state),
-                                  session = get_session()) {
+                                   session = get_session()) {
 
   for (blk in blocks) {
     for (typ in names(state[[blk]])) {
