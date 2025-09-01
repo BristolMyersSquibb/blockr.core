@@ -52,7 +52,6 @@ board_server.board <- function(id, x, plugins = list(), callbacks = list(),
         board = x,
         board_id = id,
         links = list(),
-        msgs = list(),
         stacks = list()
       )
 
@@ -180,15 +179,10 @@ board_server.board <- function(id, x, plugins = list(), callbacks = list(),
         )
       }
 
-      rv$msgs <- coal(
-        call_plugin_server(
-          "notify_user",
-          server_args = plugin_args,
-          plugins = plugins
-        ),
-        reactive(
-          filter_all_zero_len(lst_xtr_reval(rv$blocks, "server", "cond"))
-        )
+      call_plugin_server(
+        "notify_user",
+        server_args = plugin_args,
+        plugins = plugins
       )
 
       call_plugin_server(
