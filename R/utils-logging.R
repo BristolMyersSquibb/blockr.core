@@ -11,6 +11,8 @@
 #' @param ... Concatenated as `paste0(..., "\n")`
 #' @param level Logging level (possible values are "fatal", "error", "warn",
 #' "info", "debug" and "trace"
+#' @param pkg Package where the logging call originated from
+#' @param asis Flag to disable re-wrapping of text to terminal width
 #'
 #' @return Logging function `write_log()`, wrappers `log_*()` and loggers
 #' provided as `cnd_logger()`/cat_logger() all return `NULL` invisibly and are
@@ -18,7 +20,17 @@
 #' and `get_log_level()` return a scalar-valued ordered factor.
 #'
 #' @export
-write_log <- function(..., level = "info") {
+write_log <- function(..., level = "info", pkg = parent.frame(), asis = FALSE) {
+
+  if (is_count(pkg)) {
+    pkg <- parent.frame(pkg)
+  }
+
+  if (is.environment(pkg)) {
+    pkg <- pkg_name(pkg)
+  }
+
+  stopifnot(is_string(pkg))
 
   lvl <- as_log_level(level)
 
@@ -32,14 +44,15 @@ write_log <- function(..., level = "info") {
     "[", toupper(level), "]",
     if (isTRUE(blockr_option("log_time", TRUE))) get_timmestamp("[", "]"),
     if (isTRUE(blockr_option("log_mem", FALSE))) get_mem_use("[", "]"),
+    "[", pkg, "]",
     " "
   )
 
-  msg <- strwrap(
-    strsplit(paste0(..., collapse = ""), "\n", fixed = TRUE)[[1L]],
-    width = getOption("width") - nchar(pfx),
-    exdent = 2L
-  )
+  msg <- strsplit(paste0(..., collapse = ""), "\n", fixed = TRUE)[[1L]]
+
+  if (!isTRUE(asis)) {
+    msg <- strwrap(msg, width = getOption("width") - nchar(pfx), exdent = 2L)
+  }
 
   logger(paste0(pfx, msg, collapse = "\n"), level = lvl)
 }
@@ -63,27 +76,39 @@ get_timmestamp <- function(prefix = "", suffix = "") {
 
 #' @rdname write_log
 #' @export
-log_fatal <- function(...) write_log(..., level = "fatal")
+log_fatal <- function(..., pkg = parent.frame()) {
+  write_log(..., level = "fatal", pkg = pkg)
+}
 
 #' @rdname write_log
 #' @export
-log_error <- function(...) write_log(..., level = "error")
+log_error <- function(..., pkg = parent.frame()) {
+  write_log(..., level = "error", pkg = pkg)
+}
 
 #' @rdname write_log
 #' @export
-log_warn <- function(...) write_log(..., level = "warn")
+log_warn <- function(..., pkg = parent.frame()) {
+  write_log(..., level = "warn", pkg = pkg)
+}
 
 #' @rdname write_log
 #' @export
-log_info <- function(...) write_log(..., level = "info")
+log_info <- function(..., pkg = parent.frame()) {
+  write_log(..., level = "info", pkg = pkg)
+}
 
 #' @rdname write_log
 #' @export
-log_debug <- function(...) write_log(..., level = "debug")
+log_debug <- function(..., pkg = parent.frame()) {
+  write_log(..., level = "debug", pkg = pkg)
+}
 
 #' @rdname write_log
 #' @export
-log_trace <- function(...) write_log(..., level = "trace")
+log_trace <- function(..., pkg = parent.frame()) {
+  write_log(..., level = "trace", pkg = pkg)
+}
 
 #' @rdname write_log
 #' @export

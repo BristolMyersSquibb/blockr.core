@@ -14,19 +14,19 @@
 \alias{cat_logger}
 \title{Logging}
 \usage{
-write_log(..., level = "info")
+write_log(..., level = "info", pkg = parent.frame(), asis = FALSE)
 
-log_fatal(...)
+log_fatal(..., pkg = parent.frame())
 
-log_error(...)
+log_error(..., pkg = parent.frame())
 
-log_warn(...)
+log_warn(..., pkg = parent.frame())
 
-log_info(...)
+log_info(..., pkg = parent.frame())
 
-log_debug(...)
+log_debug(..., pkg = parent.frame())
 
-log_trace(...)
+log_trace(..., pkg = parent.frame())
 
 as_log_level(level)
 
@@ -41,6 +41,10 @@ cat_logger(msg, level)
 
 \item{level}{Logging level (possible values are "fatal", "error", "warn",
 "info", "debug" and "trace"}
+
+\item{pkg}{Package where the logging call originated from}
+
+\item{asis}{Flag to disable re-wrapping of text to terminal width}
 
 \item{msg}{Message (string)}
 }

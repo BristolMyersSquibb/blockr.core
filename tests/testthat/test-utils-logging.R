@@ -26,7 +26,7 @@ test_that("logging", {
     {
       expect_true(blockr_option("log_time", FALSE))
       expect_true(blockr_option("log_mem", FALSE))
-      expect_output(log_info("abc"), "\\]\\[.+B\\] ")
+      expect_output(log_info("abc"), "\\]\\[.+B\\]\\[blockr\\.core\\] ")
       expect_output(log_info("abc"), "\\]\\[.+\\]\\[")
     }
   )
