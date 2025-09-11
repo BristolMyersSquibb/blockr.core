@@ -85,7 +85,7 @@ attr(,"ctor_name")
 attr(,"package")
 [1] "blockr.core"
 attr(,"class")
-[1] "registry_entry"
+[1] "block_registry_entry"
 ```
 
 ```{r, eval=TRUE}

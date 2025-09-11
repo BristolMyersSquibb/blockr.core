@@ -28,8 +28,8 @@ block_registry <- new.env()
 #' vector-valued, while de-registration (or removal) is handled via
 #' `unregister_blocks()`. A listing of all available blocks can be created as
 #' `list_blocks()`, which will return registry IDs and `available_blocks()`,
-#' which provides a set of (named) `registry_entry` objects. Finally, block
-#' construction via a registry ID is available as `create_block()`.
+#' which provides a set of (named) `block_registry_entry` objects. Finally,
+#' block construction via a registry ID is available as `create_block()`.
 #'
 #' @param ctor Block constructor
 #' @param name,description Metadata describing the block
@@ -49,9 +49,9 @@ block_registry <- new.env()
 #' setequal(list_blocks(), blks)
 #'
 #' @return `register_block()` and `register_blocks()` are invoked for their side
-#' effects and return `registry_entry` object(s) invisibly, while
+#' effects and return `block_registry_entry` object(s) invisibly, while
 #' `unregister_blocks()` returns `NULL` (invisibly). Listing via `list_blocks()`
-#' returns a character vector and a list of `registry_entry` object(s) for
+#' returns a character vector and a list of `block_registry_entry` object(s) for
 #' `available_blocks()`. Finally, `create_block()` returns a newly instantiated
 #' `block` object.
 #'
@@ -112,10 +112,10 @@ register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
 }
 
 new_registry_entry <- function(ctor, ...) {
-  structure(ctor, ..., class = "registry_entry")
+  structure(ctor, ..., class = "block_registry_entry")
 }
 
-is_registry_entry <- function(x) inherits(x, "registry_entry")
+is_registry_entry <- function(x) inherits(x, "block_registry_entry")
 
 #' @rdname register_block
 #' @export

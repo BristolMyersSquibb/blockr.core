@@ -52,9 +52,9 @@ blocks are uncategorized.}
 }
 \value{
 \code{register_block()} and \code{register_blocks()} are invoked for their side
-effects and return \code{registry_entry} object(s) invisibly, while
+effects and return \code{block_registry_entry} object(s) invisibly, while
 \code{unregister_blocks()} returns \code{NULL} (invisibly). Listing via \code{list_blocks()}
-returns a character vector and a list of \code{registry_entry} object(s) for
+returns a character vector and a list of \code{block_registry_entry} object(s) for
 \code{available_blocks()}. Finally, \code{create_block()} returns a newly instantiated
 \code{block} object.
 }
@@ -86,8 +86,8 @@ with scalar-valued arguments and \code{register_blocks()}, where arguments may b
 vector-valued, while de-registration (or removal) is handled via
 \code{unregister_blocks()}. A listing of all available blocks can be created as
 \code{list_blocks()}, which will return registry IDs and \code{available_blocks()},
-which provides a set of (named) \code{registry_entry} objects. Finally, block
-construction via a registry ID is available as \code{create_block()}.
+which provides a set of (named) \code{block_registry_entry} objects. Finally,
+block construction via a registry ID is available as \code{create_block()}.
 }
 \examples{
 blks <- list_blocks()
