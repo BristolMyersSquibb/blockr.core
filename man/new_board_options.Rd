@@ -21,6 +21,8 @@
 \alias{new_thematic_option}
 \alias{new_dark_mode_option}
 \alias{new_show_conditions_option}
+\alias{need_llm_cfg_opts}
+\alias{new_llm_model_option}
 \alias{new_board_options}
 \alias{default_board_options}
 \alias{is_board_options}
@@ -91,6 +93,10 @@ new_show_conditions_option(
   ...
 )
 
+need_llm_cfg_opts(enable)
+
+new_llm_model_option(value = NA_character_, ...)
+
 new_board_options(...)
 
 default_board_options(...)
@@ -148,6 +154,8 @@ get_board_option_values(
 \item{x}{Board options object}
 
 \item{value}{Option value}
+
+\item{enable}{Enable (i.e. include) the llm model option}
 
 \item{opt}{Option name}
 
