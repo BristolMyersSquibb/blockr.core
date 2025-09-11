@@ -169,3 +169,15 @@ capture_conditions <- function(expr, rv, slot, error_val = NULL,
 
   res
 }
+
+abort <- function(..., class = character(), envir = parent.frame()) {
+  rlang::abort(glue::glue(..., .envir = envir), c(class, "blockr_error"))
+}
+
+warn <- function(..., class = character(), envir = parent.frame()) {
+  rlang::warn(glue::glue(..., .envir = envir), c(class, "blockr_warning"))
+}
+
+inform <- function(..., class = character(), envir = parent.frame()) {
+  rlang::inform(glue::glue(..., .envir = envir), c(class, "blockr_message"))
+}
