@@ -2,27 +2,32 @@
 % Please edit documentation in R/utils-misc.R
 \name{rand_names}
 \alias{rand_names}
+\alias{adjective_animal}
+\alias{sample_letters}
 \title{Random IDs}
 \usage{
 rand_names(
   old_names = character(0L),
   n = 1L,
-  length = 15L,
-  chars = letters,
-  prefix = "",
-  suffix = ""
+  max_tries = 100L,
+  id_fun = blockr_option("rand_id", NULL)
 )
+
+adjective_animal(n)
+
+sample_letters(n)
 }
 \arguments{
 \item{old_names}{Disallowed IDs}
 
 \item{n}{Number of IDs to generate}
 
-\item{length}{ID length}
+\item{max_tries}{Max number of attempts to create IDs that do not intersect
+with \code{old_names}}
 
-\item{chars}{Allowed characters}
-
-\item{prefix, suffix}{ID pre-/suffix}
+\item{id_fun}{A function with a single argument \code{n} that generates random
+IDs. A value of \code{NULL} defaults to \code{\link[ids:adjective_animal]{ids::adjective_animal()}} if available and
+\code{sample_letters} otherwise.}
 }
 \value{
 A character vector of length \code{n} where each entry contains \code{length}
@@ -33,13 +38,12 @@ guaranteed to be unique and not present among values passed as \code{old_names}.
 Randomly generated unique IDs are used throughout the package, created by
 \code{rand_names()}. If random strings are required that may not clash with a set
 of existing values, this can be guaranteed by passing them as \code{old_names}.
-The set of allowed characters can be controlled via \code{chars} and non-random
-pre- and suffixes may be specified as \code{prefix}/\code{suffix} arguments, while
-uniqueness is guaranteed including pre- and suffixes.
+A \code{\link[=blockr_option]{blockr_option()}} \code{rand_id} can be set to swap out the function responsible
+for ID generation.
 }
 \examples{
-rand_names(chars = c(letters, LETTERS, 0:9))
-rand_names(length = 5L)
-rand_names(n = 5L, prefix = "pre-", suffix = "-suf")
+rand_names()
+rand_names(n = 5L)
+rand_names(id_fun = sample_letters)
 
 }

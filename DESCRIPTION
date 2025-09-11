@@ -58,7 +58,8 @@ Suggests:
     quarto,
     scoutbaR,
     cli,
-    thematic
+    thematic,
+    ids
 Config/testthat/edition: 3
 VignetteBuilder: quarto
 Collate:

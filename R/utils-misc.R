@@ -3,54 +3,73 @@
 #' Randomly generated unique IDs are used throughout the package, created by
 #' `rand_names()`. If random strings are required that may not clash with a set
 #' of existing values, this can be guaranteed by passing them as `old_names`.
-#' The set of allowed characters can be controlled via `chars` and non-random
-#' pre- and suffixes may be specified as `prefix`/`suffix` arguments, while
-#' uniqueness is guaranteed including pre- and suffixes.
+#' A [blockr_option()] `rand_id` can be set to swap out the function responsible
+#' for ID generation.
 #'
 #' @param old_names Disallowed IDs
 #' @param n Number of IDs to generate
-#' @param length ID length
-#' @param chars Allowed characters
-#' @param prefix,suffix ID pre-/suffix
+#' @param max_tries Max number of attempts to create IDs that do not intersect
+#' with `old_names`
+#' @param id_fun A function with a single argument `n` that generates random
+#' IDs. A value of `NULL` defaults to [ids::adjective_animal()] if available and
+#' `sample_letters` otherwise.
 #'
 #' @examples
-#' rand_names(chars = c(letters, LETTERS, 0:9))
-#' rand_names(length = 5L)
-#' rand_names(n = 5L, prefix = "pre-", suffix = "-suf")
+#' rand_names()
+#' rand_names(n = 5L)
+#' rand_names(id_fun = sample_letters)
 #'
 #' @return A character vector of length `n` where each entry contains `length`
 #' characters (all among `chars` and start/end with `prefix`/`suffix`), is
 #' guaranteed to be unique and not present among values passed as `old_names`.
 #'
 #' @export
-rand_names <- function(old_names = character(0L), n = 1L, length = 15L,
-                       chars = letters, prefix = "", suffix = "") {
-  stopifnot(
-    is.null(old_names) || is.character(old_names),
-    is_count(n), is_count(length),
-    is.character(chars), length(chars) >= 1L,
-    is_string(prefix), is_string(suffix),
-    nchar(prefix) + nchar(suffix) < length
-  )
+rand_names <- function(old_names = character(0L), n = 1L, max_tries = 100L,
+                       id_fun = blockr_option("rand_id", NULL)) {
 
-  length <- length - (nchar(prefix) + nchar(suffix))
+  stopifnot(is.character(old_names), is_count(n), is_count(max_tries))
 
-  repeat {
-    res <- replicate(
-      n,
-      paste0(
-        prefix,
-        paste(sample(chars, length, replace = TRUE), collapse = ""),
-        suffix
-      )
-    )
-
-    if (length(res) == length(unique(res)) && !any(res %in% old_names)) {
-      break
+  if (is.null(id_fun)) {
+    if (is_pkg_avail("ids")) {
+      id_fun <- adjective_animal
+    } else {
+      id_fun <- sample_letters
     }
+  } else {
+    stopifnot(is.function(id_fun), identical(names(formals(id_fun)), "n"))
   }
 
-  res
+  new_names <- character(0L)
+  counter <- 0L
+
+  while (length(new_names) < n && counter < max_tries) {
+
+    counter <- counter + 1L
+
+    candidates <- unique(id_fun(n - length(new_names)))
+
+    collisions <- candidates %in% c(old_names, new_names)
+
+    new_names <- c(new_names, candidates[!collisions])
+  }
+
+  if (length(new_names) < n) {
+    stop("Failed to create ", n, " unique IDs within ", max_tries, " attempts.")
+  }
+
+  new_names
+}
+
+#' @rdname rand_names
+#' @export
+adjective_animal <- function(n) {
+  ids::adjective_animal(n, max_len = 8L)
+}
+
+#' @rdname rand_names
+#' @export
+sample_letters <- function(n) {
+  paste(sample(letters, 8, replace = TRUE), collapse = "")
 }
 
 reval <- function(x) x()
