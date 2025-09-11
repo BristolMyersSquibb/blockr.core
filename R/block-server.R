@@ -388,11 +388,9 @@ check_expr_val <- function(val, x) {
   observeEvent(
     val,
     {
-      cls <- class(x)[1L]
-
       if (!is.list(val)) {
         abort(
-          "The block server for {cls} is expected to return a list.",
+          "The block server for {class(x)[1L]} is expected to return a list.",
           class = "expr_server_return_type_invalid"
         )
       }
@@ -401,7 +399,7 @@ check_expr_val <- function(val, x) {
 
       if (!all(required %in% names(val))) {
         abort(
-          "The block server for {cls} is expected to return values ",
+          "The block server for {class(x)[1L]} is expected to return values ",
           "{setdiff(required, names(val))}.",
           class = "expr_server_return_component_missing"
         )
@@ -409,16 +407,16 @@ check_expr_val <- function(val, x) {
 
       if (!is.reactive(val[["expr"]])) {
         abort(
-          "The `expr` component of the return value for {cls} is expected to ",
-          "be a reactive.",
+          "The `expr` component of the return value for {class(x)[1L]} is ",
+          "expected to be a reactive.",
           class = "expr_server_return_type_invalid"
         )
       }
 
       if (!is.list(val[["state"]])) {
         abort(
-          "The `state` component of the return value for {cls} is expected ",
-          "to be a list.",
+          "The `state` component of the return value for {class(x)[1L]} is ",
+          "expected to be a list.",
           class = "expr_server_return_type_invalid"
         )
       }
@@ -427,8 +425,8 @@ check_expr_val <- function(val, x) {
 
         if (!is.reactivevalues(val[["cond"]])) {
           abort(
-            "The `cond` component of the return value for {cls} is expected ",
-            "to be a `reactiveValues` object.",
+            "The `cond` component of the return value for {class(x)[1L]} is ",
+            "expected to be a `reactiveValues` object.",
             class = "expr_server_return_type_invalid"
           )
         }
@@ -437,8 +435,8 @@ check_expr_val <- function(val, x) {
 
         if (!all(names(val[["cond"]]) %in% conds)) {
           abort(
-            "The `cond` component of the return value for {cls} is expected ",
-            "to contain components {conds}.",
+            "The `cond` component of the return value for {class(x)[1L]} is ",
+            "expected to contain components {conds}.",
             class = "expr_server_return_type_invalid"
           )
         }
@@ -450,8 +448,8 @@ check_expr_val <- function(val, x) {
 
       if (length(missing)) {
         abort(
-          "The `state` component of the return value for {cls} is expected to ",
-          "additionally return {missing}",
+          "The `state` component of the return value for {class(x)[1L]} is ",
+          "expected to additionally return {missing}",
           class = "expr_server_return_state_invalid"
         )
       }
