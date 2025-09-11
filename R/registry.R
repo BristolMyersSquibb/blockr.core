@@ -174,7 +174,7 @@ register_core_blocks <- function(which = blockr_option("blocks", "all")) {
 
   blocks <- paste0(
     c("dataset", "subset", "merge", "rbind", "scatter", "upload", "filebrowser",
-      "csv", "static", "head"),
+      "csv", "static", "head", "glue"),
     "_block"
   )
 
@@ -197,7 +197,8 @@ register_core_blocks <- function(which = blockr_option("blocks", "all")) {
       "new_filebrowser_block",
       "new_csv_block",
       "new_static_block",
-      "new_head_block"
+      "new_head_block",
+      "new_glue_block"
     )[blocks],
     name = c(
       "dataset block",
@@ -209,7 +210,8 @@ register_core_blocks <- function(which = blockr_option("blocks", "all")) {
       "file browser block",
       "csv parser block",
       "static data block",
-      "head/tail block"
+      "head/tail block",
+      "glue string block"
     )[blocks],
     description = c(
       "Choose a dataset from a package",
@@ -221,7 +223,8 @@ register_core_blocks <- function(which = blockr_option("blocks", "all")) {
       "Browse local files",
       "Read CSV file",
       "Static data",
-      "Data head/tail"
+      "Data head/tail",
+      "String interpolation using glue"
     )[blocks],
     category = c(
       "data",
@@ -233,7 +236,8 @@ register_core_blocks <- function(which = blockr_option("blocks", "all")) {
       "file",
       "parse",
       "data",
-      "transform"
+      "transform",
+      "text"
     )[blocks],
     package = pkg_name(),
     overwrite = TRUE

@@ -46,7 +46,8 @@ Imports:
     htmltools,
     evaluate,
     shinyFiles,
-    digest
+    digest,
+    glue
 Suggests:
     testthat (>= 3.0.0),
     memuse,
@@ -99,6 +100,8 @@ Collate:
     'stack-class.R'
     'stack-ui.R'
     'stacks-class.R'
+    'text-block.R'
+    'text-glue.R'
     'transform-block.R'
     'transform-fixed.R'
     'transform-head.R'

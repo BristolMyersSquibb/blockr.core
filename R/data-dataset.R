@@ -38,14 +38,14 @@ new_dataset_block <- function(dataset = character(), package = "datasets",
           observeEvent(input$dataset, dat(input$dataset))
 
           list(
-            expr = reactive({
+            expr = reactive(
               eval(
                 bquote(
                   as.call(c(as.symbol("::"), quote(.(pkg)), quote(.(dat)))),
                   list(pkg = as.name(package), dat = as.name(dat()))
                 )
               )
-            }),
+            ),
             state = list(
               dataset = dat,
               package = package
