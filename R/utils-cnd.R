@@ -170,14 +170,18 @@ capture_conditions <- function(expr, rv, slot, error_val = NULL,
   res
 }
 
+glue_plur <- function(..., envir = parent.frame()) {
+  cli::pluralize(..., .envir = envir)
+}
+
 abort <- function(..., class = character(), envir = parent.frame()) {
-  rlang::abort(cli::pluralize(..., .envir = envir), c(class, "blockr_error"))
+  rlang::abort(glue_plur(..., envir = envir), c(class, "blockr_error"))
 }
 
 warn <- function(..., class = character(), envir = parent.frame()) {
-  rlang::warn(cli::pluralize(..., .envir = envir), c(class, "blockr_warning"))
+  rlang::warn(glue_plur(..., envir = envir), c(class, "blockr_warning"))
 }
 
 inform <- function(..., class = character(), envir = parent.frame()) {
-  rlang::inform(cli::pluralize(..., .envir = envir), c(class, "blockr_message"))
+  rlang::inform(glue_plur(..., envir = envir), c(class, "blockr_message"))
 }
