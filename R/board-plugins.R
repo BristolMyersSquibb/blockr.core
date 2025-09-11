@@ -103,10 +103,8 @@ validate_plugin <- function(x) {
 
   if (!is_plugin(x)) {
     abort(
-      paste0(
-        "Expecting a plugin to inherit from `plugin` and one of ",
-        paste_enum(known_plugins()), "."
-      ),
+      "Expecting a plugin to inherit from `plugin` and any one of ",
+      "{known_plugins()}.",
       class = "plugin_inheritance_invalid"
     )
   }

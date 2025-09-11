@@ -538,11 +538,8 @@ validate_board_update <- function(x, rv) {
 
   if (!all(names(res) %in% expected)) {
     abort(
-      paste0(
-        "Expecting a board update to consist of components ",
-        paste_enum(expected), ". Please remove ",
-        paste_enum(setdiff(names(res), expected)), "."
-      ),
+      "Expecting a board update to consist of components {expected}. Please ",
+      "remove {setdiff(names(res), expected)}.",
       class = "board_update_components_invalid"
     )
   }
@@ -561,11 +558,8 @@ validate_board_update <- function(x, rv) {
     if (!length(names(cmp)) == length(cmp) || !all(names(cmp) %in% expected)) {
 
       abort(
-        paste0(
-          "Expecting a board update component to consist of components ",
-          paste_enum(expected), ". Please remove ",
-          paste_enum(setdiff(names(cmp), expected)), "."
-        ),
+        "Expecting a board update component to consist of components ",
+        "{expected}. Please remove {setdiff(names(cmp), expected)}.",
         class = "board_update_component_components_invalid"
       )
     }
@@ -600,10 +594,8 @@ validate_board_update_blocks <- function(x, rv) {
 
     if (!is_blocks(x$add)) {
       abort(
-        paste(
-          "Expecting the \"add\" block component of a board update",
-          "to be `NULL` or a `blocks` object."
-        ),
+        "Expecting the \"add\" block component of a board update to be ",
+        "`NULL` or a `blocks` object.",
         class = "board_update_blocks_add_invalid"
       )
     }
@@ -631,10 +623,8 @@ validate_board_update_blocks <- function(x, rv) {
 
     if (!is.character(x$rm)) {
       abort(
-        paste(
-          "Expecting the \"rm\" block component of a board update",
-          "value to be `NULL` or a character vector."
-        ),
+        "Expecting the \"rm\" block component of a board update value ",
+        "to be `NULL` or a character vector.",
         class = "board_update_blocks_rm_invalid"
       )
     }
@@ -651,10 +641,8 @@ validate_board_update_blocks <- function(x, rv) {
 
     if (!is_blocks(x$mod)) {
       abort(
-        paste(
-          "Expecting the \"mod\" block component of a board update",
-          "value to be `NULL` or a `blocks` object."
-        ),
+        "Expecting the \"mod\" block component of a board update",
+        "value to be `NULL` or a `blocks` object.",
         class = "board_update_blocks_mod_invalid"
       )
     }
@@ -686,10 +674,8 @@ validate_board_update_links <- function(x, rv) {
 
     if (!is_links(x$add)) {
       abort(
-        paste(
-          "Expecting the \"add\" link component of a board update",
-          "value to be `NULL` or a `links` object."
-        ),
+        "Expecting the \"add\" link component of a board update",
+        "value to be `NULL` or a `links` object.",
         class = "board_update_links_add_invalid"
       )
     }
@@ -717,10 +703,8 @@ validate_board_update_links <- function(x, rv) {
 
     if (!is.character(x$rm)) {
       abort(
-        paste(
-          "Expecting the \"rm\" link component of a board update",
-          "to be `NULL` or a character vector."
-        ),
+        "Expecting the \"rm\" link component of a board update",
+        "to be `NULL` or a character vector.",
         class = "board_update_links_rm_invalid"
       )
     }
@@ -737,10 +721,8 @@ validate_board_update_links <- function(x, rv) {
 
     if (!is_links(x$mod)) {
       abort(
-        paste(
-          "Expecting the \"mod\" link component of a board update",
-          "value to be `NULL` or a `links` object."
-        ),
+        "Expecting the \"mod\" link component of a board update",
+        "value to be `NULL` or a `links` object.",
         class = "board_update_links_mod_invalid"
       )
     }
@@ -772,10 +754,8 @@ validate_board_update_stacks <- function(x, rv) {
 
     if (!is_stacks(x$add)) {
       abort(
-        paste(
-          "Expecting the \"add\" stack component of a board update",
-          "to be `NULL` or a `stacks` object."
-        ),
+        "Expecting the \"add\" stack component of a board update",
+        "to be `NULL` or a `stacks` object.",
         class = "board_update_stacks_add_invalid"
       )
     }
@@ -803,10 +783,8 @@ validate_board_update_stacks <- function(x, rv) {
 
     if (!is.character(x$rm)) {
       abort(
-        paste(
-          "Expecting the \"rm\" stack component of a board update",
-          "to be `NULL` or a character vector."
-        ),
+        "Expecting the \"rm\" stack component of a board update",
+        "to be `NULL` or a character vector.",
         class = "board_update_stacks_rm_invalid"
       )
     }
@@ -823,10 +801,8 @@ validate_board_update_stacks <- function(x, rv) {
 
     if (!is_stacks(x$mod)) {
       abort(
-        paste(
-          "Expecting the \"mod\" stack component of a board update",
-          "value to be `NULL` or a `stacks` object."
-        ),
+        "Expecting the \"mod\" stack component of a board update",
+        "value to be `NULL` or a `stacks` object.",
         class = "board_update_stacks_mod_invalid"
       )
     }

@@ -141,10 +141,8 @@ validate_board_option.default <- function(x) {
 
   if (!is.character(trigger) || !length(trigger)) {
     abort(
-      paste(
-        "Expecting a board option trigger to be a non-zero length character",
-        "vector."
-      ),
+      "Expecting a board option trigger to be a non-zero length character",
+      "vector.",
       class = "board_option_component_invalid"
     )
   }
@@ -163,11 +161,7 @@ validate_board_option.default <- function(x) {
 
   if (!is.function(srv) || !identical(arg, c("board", "session"))) {
     abort(
-      paste0(
-        "Expecting a board option UI function to have arguments ",
-        paste_enum(arg),
-        "."
-      ),
+      "Expecting a board option UI function to have argument{?s} {arg}.",
       class = "board_option_component_invalid"
     )
   }
@@ -575,12 +569,11 @@ validate_board_option.show_conditions_option <- function(x) {
 
   val <- board_option_value(NextMethod())
 
-  if (!(is.character(val) || all(val %in% c("message", "warning", "error")))) {
+  opt <- c("message", "warning", "error")
+
+  if (!(is.character(val) || all(val %in% opt))) {
     abort(
-      paste(
-        "Expecting `show_conditions` to be any of \"message\", \"warning\" or",
-        "\"error\"."
-      ),
+      "Expecting `show_conditions` to be any of {opt}.",
       class = "board_options_show_conditions_invalid"
     )
   }

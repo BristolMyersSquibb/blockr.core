@@ -54,7 +54,10 @@ rand_names <- function(old_names = character(0L), n = 1L, max_tries = 100L,
   }
 
   if (length(new_names) < n) {
-    stop("Failed to create ", n, " unique IDs within ", max_tries, " attempts.")
+    abort(
+      "Failed to create {n} unique ID{?s} within {max_tries} attempt{?s}.",
+      class = "id_creation_unsuccessful"
+    )
   }
 
   new_names
@@ -146,7 +149,10 @@ coal <- function(..., fail_null = TRUE) {
   }
 
   if (isTRUE(fail_null)) {
-    stop("No non-NULL value encountered")
+    abort(
+      "No non-NULL value encountered",
+      class = "coal_null_return_disallowed"
+    )
   }
 
   NULL
@@ -228,8 +234,11 @@ blockr_option <- function(name, default) {
     return(res_opt)
   }
 
-  stop("Conflicting options set for ", name, ": check environment variable `",
-       env, "` and option `", opt, "`.")
+  abort(
+    "Conflicting options set for {name}: check environment variable {env} ",
+    "and option {opt}.",
+    class = "conflicing_blockr_option"
+  )
 }
 
 dot_args_names <- function(x) {
@@ -284,15 +293,6 @@ exprs_to_lang <- function(exprs) {
 
 starts_with <- function(x, prefix) {
   x[startsWith(x, prefix)]
-}
-
-ansi_html <- function(x, ...) {
-
-  if (requireNamespace("cli", quietly = TRUE)) {
-    return(cli::ansi_html(x, ...))
-  }
-
-  x
 }
 
 resolve_ctor <- function(ctor, ctor_pkg = NULL) {

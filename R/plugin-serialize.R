@@ -129,10 +129,8 @@ check_ser_deser_val <- function(val) {
     {
       if (!is_board(val())) {
         abort(
-          paste(
-            "Expecting the `preserve_board` return value to evaluate to a",
-            "`board` object."
-          ),
+          "Expecting the `preserve_board` return value to evaluate to a ",
+          "`board` object.",
           class = "preserve_board_return_invalid"
         )
       }

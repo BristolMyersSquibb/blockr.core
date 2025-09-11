@@ -388,14 +388,9 @@ check_expr_val <- function(val, x) {
   observeEvent(
     val,
     {
-      cls <- class(x)[1L]
-
       if (!is.list(val)) {
         abort(
-          paste(
-            "The block server for", cls,
-            "is expected to return a list."
-          ),
+          "The block server for {class(x)[1L]} is expected to return a list.",
           class = "expr_server_return_type_invalid"
         )
       }
@@ -404,30 +399,24 @@ check_expr_val <- function(val, x) {
 
       if (!all(required %in% names(val))) {
         abort(
-          paste0(
-            "The block server for ", cls, " is expected to return ",
-            "values ", paste_enum(setdiff(required, names(val))), "."
-          ),
+          "The block server for {class(x)[1L]} is expected to return values ",
+          "{setdiff(required, names(val))}.",
           class = "expr_server_return_component_missing"
         )
       }
 
       if (!is.reactive(val[["expr"]])) {
         abort(
-          paste(
-            "The `expr` component of the return value for", cls,
-            "is expected to be a reactive."
-          ),
+          "The `expr` component of the return value for {class(x)[1L]} is ",
+          "expected to be a reactive.",
           class = "expr_server_return_type_invalid"
         )
       }
 
       if (!is.list(val[["state"]])) {
         abort(
-          paste(
-            "The `state` component of the return value for", cls,
-            "is expected to be a list."
-          ),
+          "The `state` component of the return value for {class(x)[1L]} is ",
+          "expected to be a list.",
           class = "expr_server_return_type_invalid"
         )
       }
@@ -436,10 +425,8 @@ check_expr_val <- function(val, x) {
 
         if (!is.reactivevalues(val[["cond"]])) {
           abort(
-            paste(
-              "The `cond` component of the return value for", cls,
-              "is expected to be a `reactiveValues` object."
-            ),
+            "The `cond` component of the return value for {class(x)[1L]} is ",
+            "expected to be a `reactiveValues` object.",
             class = "expr_server_return_type_invalid"
           )
         }
@@ -448,11 +435,8 @@ check_expr_val <- function(val, x) {
 
         if (!all(names(val[["cond"]]) %in% conds)) {
           abort(
-            paste0(
-              "The `cond` component of the return value for ", cls,
-              " is expected to contain components ",
-              paste_enum(conds), "."
-            ),
+            "The `cond` component of the return value for {class(x)[1L]} is ",
+            "expected to contain components {conds}.",
             class = "expr_server_return_type_invalid"
           )
         }
@@ -464,11 +448,8 @@ check_expr_val <- function(val, x) {
 
       if (length(missing)) {
         abort(
-          paste0(
-            "The `state` component of the return value for ", cls,
-            " is expected to additionally return ",
-            paste_enum(missing)
-          ),
+          "The `state` component of the return value for {class(x)[1L]} is ",
+          "expected to additionally return {missing}",
           class = "expr_server_return_state_invalid"
         )
       }

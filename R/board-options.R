@@ -194,10 +194,8 @@ board_option_to_userdata <- function(x, board, input, session = get_session()) {
       list(res)
     } else {
       abort(
-        paste0(
-          "Expecting a `board_option` server function to return either a ",
-          "single or list of observers."
-        ),
+        "Expecting a `board_option` server function to return either a ",
+        "single or list of observers.",
         class = "invalid_board_option_server_return_value"
       )
     }
@@ -282,10 +280,7 @@ get_board_option_value <- function(opt, session = get_session()) {
   }
 
   if (!opt %in% names(env$board_options)) {
-    abort(
-      paste0("Could not find option `", opt, "`."),
-      class = "board_option_not_found"
-    )
+    abort("Could not find option {opt}.", class = "board_option_not_found")
   }
 
   env$board_options[[opt]]()

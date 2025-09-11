@@ -169,10 +169,7 @@ c.links <- function(...) {
 
   if (!setequal(new_ids, trg_ids)) {
     abort(
-      paste(
-        "Replacing IDs", paste_enum(trg_ids), "with", paste_enum(new_ids),
-        "is not allowed."
-      ),
+      "Replacing IDs {trg_ids} with {new_ids} is not allowed.",
       class = "links_assignment_name_invalid"
     )
   }
@@ -317,9 +314,7 @@ validate_links <- function(x) {
 
   if (!all(fields %in% fields(x))) {
     abort(
-      paste0(
-        "Expecting the links to contain at least fields ", paste_enum(fields)
-      ),
+      "Expecting the links to contain at least fields {fields}.",
       class = "links_fields_invalid"
     )
   }
@@ -340,10 +335,8 @@ validate_links <- function(x) {
 
   if (any(dup_inp)) {
     abort(
-      paste0(
-        "Block(s) ", paste_enum(names(dup_inp)[dup_inp]), " have ",
-        "multiple identical inputs."
-      ),
+      "Block{?s} {names(dup_inp)[dup_inp]} {?has/have} multiple identical ",
+      "inputs.",
       class = "links_block_inputs_invalid"
     )
   }

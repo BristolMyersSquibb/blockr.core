@@ -72,6 +72,7 @@ reference:
     - new_parser_block
     - new_transform_block
     - new_plot_block
+    - new_text_block
 - title: Utilities
 - subtitle: Serialization
   desc: Serialization and deserialization utilities.

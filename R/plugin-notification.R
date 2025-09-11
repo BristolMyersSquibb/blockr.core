@@ -152,7 +152,7 @@ create_block_notif <- function(x, blk, prev, session = get_session()) {
       }
 
       showNotification(
-        HTML(paste0("Block ", blk, ": ", ansi_html(msg))),
+        HTML(paste0("Block ", blk, ": ", cli::ansi_html(msg))),
         duration = NULL,
         id = id,
         type = cnd,
