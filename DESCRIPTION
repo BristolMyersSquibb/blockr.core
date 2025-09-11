@@ -46,8 +46,7 @@ Imports:
     htmltools,
     evaluate,
     shinyFiles,
-    digest,
-    ids
+    digest
 Suggests:
     testthat (>= 3.0.0),
     memuse,
@@ -59,7 +58,8 @@ Suggests:
     quarto,
     scoutbaR,
     cli,
-    thematic
+    thematic,
+    ids
 Config/testthat/edition: 3
 VignetteBuilder: quarto
 Collate:

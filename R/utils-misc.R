@@ -3,31 +3,41 @@
 #' Randomly generated unique IDs are used throughout the package, created by
 #' `rand_names()`. If random strings are required that may not clash with a set
 #' of existing values, this can be guaranteed by passing them as `old_names`.
-#' The set of allowed characters can be controlled via `chars` and non-random
-#' pre- and suffixes may be specified as `prefix`/`suffix` arguments, while
-#' uniqueness is guaranteed including pre- and suffixes.
+#' A [blockr_option()] `rand_id` can be set to swap out the function responsible
+#' for ID generation.
 #'
 #' @param old_names Disallowed IDs
 #' @param n Number of IDs to generate
-#' @param ...,max_len Passed to [ids::adjective_animal()]
 #' @param max_tries Max number of attempts to create IDs that do not intersect
 #' with `old_names`
+#' @param id_fun A function with a single argument `n` that generates random
+#' IDs. A value of `NULL` defaults to [ids::adjective_animal()] if available and
+#' `sample_letters` otherwise.
 #'
 #' @examples
 #' rand_names()
-#' rand_names(max_len = Inf)
-#' rand_names(n = 5L, style = "camel")
+#' rand_names(n = 5L)
+#' rand_names(id_fun = sample_letters)
 #'
 #' @return A character vector of length `n` where each entry contains `length`
 #' characters (all among `chars` and start/end with `prefix`/`suffix`), is
 #' guaranteed to be unique and not present among values passed as `old_names`.
 #'
 #' @export
-rand_names <- function(old_names = character(0L), n = 1L, ..., max_len = 8L,
-                       max_tries = 100L) {
+rand_names <- function(old_names = character(0L), n = 1L, max_tries = 100L,
+                       id_fun = blockr_option("rand_id", NULL)) {
 
-  stopifnot(is.character(old_names), is_count(n), is_count(max_len),
-            is_count(max_tries))
+  stopifnot(is.character(old_names), is_count(n), is_count(max_tries))
+
+  if (is.null(id_fun)) {
+    if (is_pkg_avail("ids")) {
+      id_fun <- adjective_animal
+    } else {
+      id_fun <- sample_letters
+    }
+  } else {
+    stopifnot(is.function(id_fun), identical(names(formals(id_fun)), "n"))
+  }
 
   new_names <- character(0L)
   counter <- 0L
@@ -40,11 +50,7 @@ rand_names <- function(old_names = character(0L), n = 1L, ..., max_len = 8L,
 
     counter <- counter + 1L
 
-    candidates <- ids::adjective_animal(
-      n - length(new_names),
-      ...,
-      max_len = max_len
-    )
+    candidates <- unique(id_fun(n - length(new_names)))
 
     collisions <- candidates %in% c(old_names, new_names)
 
@@ -52,6 +58,18 @@ rand_names <- function(old_names = character(0L), n = 1L, ..., max_len = 8L,
   }
 
   new_names
+}
+
+#' @rdname rand_names
+#' @export
+adjective_animal <- function(n) {
+  ids::adjective_animal(n, max_len = 8L)
+}
+
+#' @rdname rand_names
+#' @export
+sample_letters <- function(n) {
+  paste(sample(letters, 8, replace = TRUE), collapse = "")
 }
 
 reval <- function(x) x()
