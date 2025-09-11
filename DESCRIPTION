@@ -46,7 +46,8 @@ Imports:
     htmltools,
     evaluate,
     shinyFiles,
-    digest
+    digest,
+    ids
 Suggests:
     testthat (>= 3.0.0),
     memuse,

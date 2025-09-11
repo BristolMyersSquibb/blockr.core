@@ -7,10 +7,9 @@
 rand_names(
   old_names = character(0L),
   n = 1L,
-  length = 15L,
-  chars = letters,
-  prefix = "",
-  suffix = ""
+  ...,
+  max_len = 8L,
+  max_tries = 100L
 )
 }
 \arguments{
@@ -18,11 +17,10 @@ rand_names(
 
 \item{n}{Number of IDs to generate}
 
-\item{length}{ID length}
+\item{..., max_len}{Passed to \code{\link[ids:adjective_animal]{ids::adjective_animal()}}}
 
-\item{chars}{Allowed characters}
-
-\item{prefix, suffix}{ID pre-/suffix}
+\item{max_tries}{Max number of attempts to create IDs that do not intersect
+with \code{old_names}}
 }
 \value{
 A character vector of length \code{n} where each entry contains \code{length}
@@ -38,8 +36,8 @@ pre- and suffixes may be specified as \code{prefix}/\code{suffix} arguments, whi
 uniqueness is guaranteed including pre- and suffixes.
 }
 \examples{
-rand_names(chars = c(letters, LETTERS, 0:9))
-rand_names(length = 5L)
-rand_names(n = 5L, prefix = "pre-", suffix = "-suf")
+rand_names()
+rand_names(max_len = Inf)
+rand_names(n = 5L, style = "camel")
 
 }

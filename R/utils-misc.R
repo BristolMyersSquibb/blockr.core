@@ -9,48 +9,49 @@
 #'
 #' @param old_names Disallowed IDs
 #' @param n Number of IDs to generate
-#' @param length ID length
-#' @param chars Allowed characters
-#' @param prefix,suffix ID pre-/suffix
+#' @param ...,max_len Passed to [ids::adjective_animal()]
+#' @param max_tries Max number of attempts to create IDs that do not intersect
+#' with `old_names`
 #'
 #' @examples
-#' rand_names(chars = c(letters, LETTERS, 0:9))
-#' rand_names(length = 5L)
-#' rand_names(n = 5L, prefix = "pre-", suffix = "-suf")
+#' rand_names()
+#' rand_names(max_len = Inf)
+#' rand_names(n = 5L, style = "camel")
 #'
 #' @return A character vector of length `n` where each entry contains `length`
 #' characters (all among `chars` and start/end with `prefix`/`suffix`), is
 #' guaranteed to be unique and not present among values passed as `old_names`.
 #'
 #' @export
-rand_names <- function(old_names = character(0L), n = 1L, length = 15L,
-                       chars = letters, prefix = "", suffix = "") {
-  stopifnot(
-    is.null(old_names) || is.character(old_names),
-    is_count(n), is_count(length),
-    is.character(chars), length(chars) >= 1L,
-    is_string(prefix), is_string(suffix),
-    nchar(prefix) + nchar(suffix) < length
-  )
+rand_names <- function(old_names = character(0L), n = 1L, ..., max_len = 8L,
+                       max_tries = 100L) {
 
-  length <- length - (nchar(prefix) + nchar(suffix))
+  stopifnot(is.character(old_names), is_count(n), is_count(max_len),
+            is_count(max_tries))
 
-  repeat {
-    res <- replicate(
-      n,
-      paste0(
-        prefix,
-        paste(sample(chars, length, replace = TRUE), collapse = ""),
-        suffix
-      )
+  new_names <- character(0L)
+  counter <- 0L
+
+  while (length(new_names) < n) {
+
+    if (counter >= max_tries) {
+      stop("Exceeded the max number of attempts to create unique IDs.")
+    }
+
+    counter <- counter + 1L
+
+    candidates <- ids::adjective_animal(
+      n - length(new_names),
+      ...,
+      max_len = max_len
     )
 
-    if (length(res) == length(unique(res)) && !any(res %in% old_names)) {
-      break
-    }
+    collisions <- candidates %in% c(old_names, new_names)
+
+    new_names <- c(new_names, candidates[!collisions])
   }
 
-  res
+  new_names
 }
 
 reval <- function(x) x()
