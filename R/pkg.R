@@ -1,5 +1,6 @@
 #' @import vctrs shiny
 #' @keywords internal
+#' @importFrom cli qty
 NULL
 
 pkg_name <- function(env = parent.frame()) {

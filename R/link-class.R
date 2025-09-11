@@ -90,27 +90,21 @@ validate_link <- function(x) {
 
   if (!all(fields %in% names(x))) {
     abort(
-      paste0(
-        "Expecting a link to contain attributes ", paste_enum(fields), "."
-      ),
+      "Expecting a link to contain attributes {fields}.",
       class = "link_components_missing"
     )
   }
 
   if (!all(lgl_ply(x[fields], is_string))) {
     abort(
-      paste0(
-        "Expecting link attributes ", paste_enum(fields), " to be strings."
-      ),
+      "Expecting link attributes {fields} to be strings.",
       class = "link_components_invalid"
     )
   }
 
   if (anyNA(x[fields])) {
     abort(
-      paste0(
-        "Missing values for ", paste_enum(fields), " are not allowed."
-      ),
+      "Missing values for {fields} are not allowed.",
       class = "link_components_invalid"
     )
   }

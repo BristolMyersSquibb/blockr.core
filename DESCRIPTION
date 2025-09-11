@@ -47,6 +47,7 @@ Imports:
     evaluate,
     shinyFiles,
     digest,
+    cli,
     glue
 Suggests:
     testthat (>= 3.0.0),
@@ -58,7 +59,6 @@ Suggests:
     rmarkdown,
     quarto,
     scoutbaR,
-    cli,
     thematic,
     ids
 Config/testthat/edition: 3

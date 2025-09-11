@@ -274,10 +274,8 @@ is.element.stack <- function(el, set, ...) {
 #' @export
 `[<-.stack` <- function(x, i, ..., value) {
   abort(
-    paste(
-      "Subassignment of stack objects is not suported. Use set operations",
-      "instead."
-    ),
+    "Subassignment of stack objects is not suported. Use set operations ",
+    "instead.",
     class = "stack_subassignment_invalid"
   )
 }
@@ -285,10 +283,8 @@ is.element.stack <- function(el, set, ...) {
 #' @export
 `[[<-.stack` <- function(x, i, ..., value) {
   abort(
-    paste(
-      "Subassignment of stack objects is not suported. Use set operations",
-      "instead."
-    ),
+    "Subassignment of stack objects is not suported. Use set operations",
+    "instead.",
     class = "stack_subassignment_invalid"
   )
 }

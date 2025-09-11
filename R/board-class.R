@@ -109,11 +109,9 @@ validate_board_blocks_links <- function(blocks, links) {
 
     if (any(fail)) {
       abort(
-        paste0(
-          i, "-ary blocks are expected to have at most ", i, " incoming ",
-          "edge(s), which does not hold for block(s) ",
-          paste_enum(names(fail)[fail]), "."
-        ),
+        "{i}-ary blocks are expected to have at most {i} incoming edge{?s}, ",
+        "which does not hold for {qty(sum(fail))}block{?s} ",
+        "{names(fail)[fail]}.",
         class = "board_block_link_arity_mismatch"
       )
     }
@@ -127,10 +125,8 @@ validate_board_blocks_links <- function(blocks, links) {
 
     if (length(unknown)) {
       abort(
-        paste0(
-          "Block ", i, " expects inputs ", paste_enum(inputs[[i]]),
-          " but received ", paste_enum(unknown)
-        ),
+        "Block {i} expects input{?s} {inputs[[i]]} but received {unknown} ",
+        "instead.",
         class = "board_block_link_input_mismatch"
       )
     }
@@ -148,11 +144,8 @@ validate_board_blocks_stacks <- function(blocks, stacks) {
 
     if (!all(chk)) {
       abort(
-        paste0(
-          "Unknown block", if (sum(!chk) > 1L) "s" else "", " ",
-          paste_enum(stk[!chk]), " are assigned to stack ", names(stacks)[i],
-          "."
-        ),
+        "Unknown {qty(sum(!chk))}block{?s} {stk[!chk]} {?is/are} assigned to ",
+        "stack {names(stacks)[i]}.",
         class = "board_block_stack_name_mismatch"
       )
     }
@@ -189,7 +182,7 @@ validate_board.board <- function(x) {
 
   if (!all(cmps %in% names(x))) {
     abort(
-      "Expecting a board object to contain components ", paste_enum(cmps), ".",
+      "Expecting a board object to contain components {cmps}.",
       class = "board_list_components_invalid"
     )
   }

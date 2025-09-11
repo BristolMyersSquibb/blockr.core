@@ -34,5 +34,5 @@ new_static_block <- function(data, ...) {
 
 #' @export
 as.list.static_block <- function(x, ...) {
-  stop("Cannot serialize static blocks.")
+  abort("Cannot serialize static blocks.", class = "block_ser_not_possible")
 }

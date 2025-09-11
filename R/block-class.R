@@ -253,30 +253,24 @@ validate_block_server <- function(server) {
 
   if (!identical(args[1L], "id")) {
     abort(
-      paste(
-        "A block server function is expected to have an argument `id` in",
-        "first poistion."
-      ),
+      "A block server function is expected to have an argument `id` in ",
+      "first postion.",
       class = "block_server_arg_id_invalid"
     )
   }
 
   if ("..." %in% args) {
     abort(
-      paste(
-        "Variadic blocks are supported not by passing arguments as `...`",
-        "but using a special argument `...args`."
-      ),
+      "Variadic blocks are supported not by passing arguments as `...` ",
+      "but using a special argument `...args`.",
       class = "block_server_dots_invalid"
     )
   }
 
   if (any(grepl("^[1-9][0-9]*$", args))) {
     abort(
-      paste(
-        "Integer-valued argument names are reserved as poistional arguments",
-        "in `...args.`"
-      ),
+      "Integer-valued argument names are reserved as poistional arguments ",
+      "in `...args.`",
       class = "block_server_args_invalid"
     )
   }
@@ -327,10 +321,7 @@ validate_data_validator <- function(validator, server) {
 
     if (!identical(server_args, val_args)) {
       abort(
-        paste0(
-          "Server args ", paste_enum(server_args), " do not match validator ",
-          "args ", paste_enum(val_args), "."
-        ),
+        "Server args {server_args} do not match validator args {val_args}.",
         class = "block_validator_args_invalid"
       )
     }
@@ -388,10 +379,8 @@ validate_block <- function(x, ui_eval = FALSE) {
 
     if (!inherits(ui, "shiny.tag", "shiny.tag.list", agg = any)) {
       abort(
-        paste(
-          "A block UI function is expected to return a shiny UI object,",
-          "i.e. either a `shiny.tag` or a `shiny.tag.list`."
-        ),
+        "A block UI function is expected to return a shiny UI object, i.e. ",
+        "either a `shiny.tag` or a `shiny.tag.list`.",
         class = "block_ui_eval_invalid"
       )
     }
@@ -447,7 +436,10 @@ as_block.list <- function(x, ...) {
   res <- do.call(ctor, args)
 
   if (!identical(class(res), x[["object"]])) {
-    stop("Could not deserialize block.")
+    abort(
+      "Could not deserialize block.",
+      class = "block_deser_error"
+    )
   }
 
   res

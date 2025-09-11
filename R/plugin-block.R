@@ -192,7 +192,7 @@ edit_block_server <- function(id, block_id, board, update, ...) {
           } else {
 
             abort(
-              paste0("Unexpected postion `", position, "`."),
+              "Unexpected postion {position}.",
               class = "unexpected_position_value"
             )
           }
@@ -331,10 +331,8 @@ check_edit_block_val <- function(val) {
       known <- block_base_attrs()
       if (!all(names(val) %in% known)) {
         abort(
-          paste0(
-            "Not expecting `edit_block` to return components ",
-            paste_enum(setdiff(names(val), known)), "."
-          ),
+          "Not expecting `edit_block` to return components ",
+          "{setdiff(names(val), known)}.",
           class = "edit_block_return_invalid"
         )
       }

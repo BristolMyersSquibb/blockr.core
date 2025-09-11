@@ -90,7 +90,10 @@ register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
   }
 
   if (uid %in% list_blocks() && !isTRUE(overwrite)) {
-    stop("block ", uid, " already exists. Try removing or `overwrite = FALSE`")
+    abort(
+      "Block {uid} already exists. Try removing or `overwrite = FALSE`.",
+      class = "block_already_in_registry"
+    )
   }
 
   entry <- new_registry_entry(

@@ -220,10 +220,7 @@ c.stacks <- function(...) {
 
   if (!setequal(new_ids, trg_ids)) {
     abort(
-      paste0(
-        "Replacing IDs ", paste_enum(trg_ids), " with ", paste_enum(new_ids),
-        " is not allowed."
-      ),
+      "Replacing IDs {trg_ids} with {new_ids} is not allowed.",
       class = "stacks_assignment_name_invalid"
     )
   }

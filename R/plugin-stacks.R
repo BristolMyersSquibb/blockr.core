@@ -256,7 +256,10 @@ create_dt_stack_obs <- function(ids, upd, ...) {
 
         } else if (col != "name") {
 
-          stop("Unexpected input: column ", col)
+          abort(
+            "Unexpected input: column {col}.",
+            class = "unexpected_stack_col_input"
+          )
         }
 
         upd$edit <- list(row = row, col = col, val = new)
