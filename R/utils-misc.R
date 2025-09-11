@@ -42,11 +42,7 @@ rand_names <- function(old_names = character(0L), n = 1L, max_tries = 100L,
   new_names <- character(0L)
   counter <- 0L
 
-  while (length(new_names) < n) {
-
-    if (counter >= max_tries) {
-      stop("Exceeded the max number of attempts to create unique IDs.")
-    }
+  while (length(new_names) < n && counter < max_tries) {
 
     counter <- counter + 1L
 
@@ -55,6 +51,10 @@ rand_names <- function(old_names = character(0L), n = 1L, max_tries = 100L,
     collisions <- candidates %in% c(old_names, new_names)
 
     new_names <- c(new_names, candidates[!collisions])
+  }
+
+  if (length(new_names) < n) {
+    stop("Failed to create ", n, " unique IDs within ", max_tries, " attempts.")
   }
 
   new_names
