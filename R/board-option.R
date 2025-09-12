@@ -139,10 +139,10 @@ validate_board_option.default <- function(x) {
 
   trigger <- board_option_trigger(x)
 
-  if (!is.character(trigger) || !length(trigger)) {
+  if (!is.null(trigger) && (!is.character(trigger) || !length(trigger))) {
     abort(
       "Expecting a board option trigger to be a non-zero length character",
-      "vector.",
+      "vector or `NULL`.",
       class = "board_option_component_invalid"
     )
   }
@@ -161,7 +161,7 @@ validate_board_option.default <- function(x) {
 
   if (!is.function(srv) || !identical(arg, c("board", "session"))) {
     abort(
-      "Expecting a board option UI function to have argument{?s} {arg}.",
+      "Expecting a board option server function to have argument{?s} {arg}.",
       class = "board_option_component_invalid"
     )
   }
@@ -575,6 +575,153 @@ validate_board_option.show_conditions_option <- function(x) {
     abort(
       "Expecting `show_conditions` to be any of {opt}.",
       class = "board_options_show_conditions_invalid"
+    )
+  }
+
+  invisible(x)
+}
+
+default_chat <- function(system_prompt = NULL, params = NULL) {
+  ellmer::chat_openai(
+    system_prompt = system_prompt,
+    params = params
+  )
+}
+
+#' @param enable Enable (i.e. include) the llm model option
+#' @rdname new_board_options
+#' @export
+need_llm_cfg_opts <- local(
+  {
+    state <- FALSE
+    function(enable) {
+
+      if (missing(enable)) {
+        return(state)
+      }
+
+      stopifnot(is_bool(enable))
+
+      if (isTRUE(enable) && !is_pkg_avail("ellmer")) {
+        abort(
+          "The ellmer package is required for including LLM options.",
+          class = "ellmer_required_not_available"
+        )
+      }
+
+      state <<- enable
+
+      invisible(state)
+    }
+  }
+)
+
+#' @rdname new_board_options
+#' @export
+new_llm_model_option <- function(value = NA_character_, ...) {
+
+  options <- blockr_option("chat_function", default_chat)
+
+  if (!is.function(options) && length(options) == 1L) {
+
+    if (is_string(value) && identical(value, names(options))) {
+      value <- NA_character_
+    }
+
+    options <- options[[1L]]
+  }
+
+  if (is.na(value) && !is.function(options)) {
+    value <- names(options)[1L]
+  }
+
+  new_board_option(
+    id = "llm_model",
+    default = value,
+    ui = function(id) {
+      if (is.function(options)) {
+        return(NULL)
+      }
+      selectInput(
+        NS(id, "llm_model"),
+        "LLM Model",
+        names(options),
+        value
+      )
+    },
+    server = function(board, session) {
+      if (!is.function(options)) {
+        observeEvent(
+          get_board_option_or_null("llm_model", session),
+          {
+            opt <- get_board_option_value("llm_model", session)
+            nme <- attr(opt, "chat_name")
+
+            stopifnot(is_string(nme), nme %in% names(options))
+
+            updateSelectInput(session, "llm_model", selected = nme)
+          }
+        )
+      }
+    },
+    transform = function(x) {
+
+      if (is.function(options)) {
+        return(options)
+      }
+
+      structure(options[[x]], chat_name = x)
+    },
+    trigger = if (is.function(options)) NULL else "llm_model",
+    ...
+  )
+}
+
+#' @export
+validate_board_option.llm_model_option <- function(x) {
+
+  val <- board_option_value(NextMethod())
+  arg <- list(system_prompt = NULL, params = NULL)
+
+  if (!is.function(val) || !identical(arg, as.list(formals(val)))) {
+    abort(
+      "Expecting `llm_model` to be a function with arguments ",
+      "{paste0(names(arg), \" = \", arg)}.",
+      class = "board_options_llm_model_invalid"
+    )
+  }
+
+  nme <- attr(val, "chat_name")
+  opt <- blockr_option("chat_function", default_chat)
+
+  is_loo <- is.list(opt) &&
+    all(lgl_ply(opt, is.function)) &&
+    length(unique(names(opt))) == length(opt)
+
+  if (!(is.function(opt) || is_loo)) {
+    abort(
+      "Expecting the blockr option `chat_function` to be either a function ",
+      "or a list of functions with unique names.",
+      class = "board_options_llm_model_invalid"
+    )
+  }
+
+  is_fun <- is.function(opt) || (is.list(opt) && length(opt) == 1L)
+
+  if (is_fun && !is.null(nme)) {
+    abort(
+      "Expecting `llm_model` name contain no attribute `chat_name`.",
+      class = "board_options_llm_model_invalid"
+    )
+  }
+
+  nms <- names(opt)
+
+  if (is.list(opt) && length(opt) > 1L && !(is_string(nme) && nme %in% nms)) {
+    abort(
+      "Expecting `llm_model` name contain a string-valued attribute ",
+      "`chat_name` among options {nms}.",
+      class = "board_options_llm_model_invalid"
     )
   }
 

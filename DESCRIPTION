@@ -60,7 +60,8 @@ Suggests:
     quarto,
     scoutbaR,
     thematic,
-    ids
+    ids,
+    ellmer
 Config/testthat/edition: 3
 VignetteBuilder: quarto
 Collate:
