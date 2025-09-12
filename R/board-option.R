@@ -161,7 +161,7 @@ validate_board_option.default <- function(x) {
 
   if (!is.function(srv) || !identical(arg, c("board", "session"))) {
     abort(
-      "Expecting a board option UI function to have argument{?s} {arg}.",
+      "Expecting a board option server function to have argument{?s} {arg}.",
       class = "board_option_component_invalid"
     )
   }

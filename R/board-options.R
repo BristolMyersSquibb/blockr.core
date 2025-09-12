@@ -199,7 +199,7 @@ board_option_to_userdata <- function(x, board, input, session = get_session()) {
       res
     } else if (inherits(res, "Observer")) {
       list(res)
-    } else {
+    } else if (not_null(res)) {
       abort(
         "Expecting a `board_option` server function to return either a ",
         "single or list of observers.",
