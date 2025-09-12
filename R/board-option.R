@@ -581,22 +581,12 @@ validate_board_option.show_conditions_option <- function(x) {
   invisible(x)
 }
 
-default_chat <-  list(
-  `OpenAI GPT-4.1` = function(system_prompt = NULL, params = NULL) {
-    ellmer::chat_openai(
-      system_prompt = system_prompt,
-      params = params,
-      model = "gpt-4.1"
-    )
-  },
-  `OpenAI GPT-5` = function(system_prompt = NULL, params = NULL) {
-    ellmer::chat_openai(
-      system_prompt = system_prompt,
-      params = params,
-      model = "gpt-5"
-    )
-  }
-)
+default_chat <- function(system_prompt = NULL, params = NULL) {
+  ellmer::chat_openai(
+    system_prompt = system_prompt,
+    params = params
+  )
+}
 
 #' @param enable Enable (i.e. include) the llm model option
 #' @rdname new_board_options
