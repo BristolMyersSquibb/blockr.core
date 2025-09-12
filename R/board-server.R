@@ -44,7 +44,7 @@ board_server.board <- function(id, x, plugins = list(), callbacks = list(),
 
       ns <- session$ns
 
-      board_options_to_userdata(x, input, session = session)
+      board_options_to_userdata(x, session = session)
 
       rv <- reactiveValues(
         blocks = list(),

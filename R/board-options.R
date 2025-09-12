@@ -151,7 +151,7 @@ board_ui.board_options <- function(id, x, ...) {
   do.call(tagList, lapply(x, board_option_ui, id))
 }
 
-board_option_to_userdata <- function(x, board, input, session = get_session()) {
+board_option_to_userdata <- function(x, board, session = get_session()) {
 
   stopifnot(is_board_option(x), is_board(board))
 
@@ -166,7 +166,7 @@ board_option_to_userdata <- function(x, board, input, session = get_session()) {
     exp <- as.call(
       c(
         quote(`{`),
-        lapply(trg, function(v) substitute(input[[v]], list(v = v)))
+        lapply(trg, function(v) substitute(session$input[[v]], list(v = v)))
       )
     )
 
@@ -174,11 +174,11 @@ board_option_to_userdata <- function(x, board, input, session = get_session()) {
       exp,
       {
         if (is_scalar(trg)) {
-          new <- board_option_value(x, input[[trg]])
+          new <- board_option_value(x, session$input[[trg]])
         } else {
           new <- board_option_value(
             x,
-            lapply(set_names(nm = trg), function(v) input[[v]])
+            lapply(set_names(nm = trg), function(v) session$input[[v]])
           )
         }
 
@@ -219,14 +219,13 @@ board_option_to_userdata <- function(x, board, input, session = get_session()) {
   invisible()
 }
 
-board_options_to_userdata <- function(board, input,
-                                      options = as_board_options(board),
+board_options_to_userdata <- function(board, options = as_board_options(board),
                                       session = get_session()) {
 
   stopifnot(is_board(board), is_board_options(options))
 
   for (opt in options) {
-    board_option_to_userdata(opt, board, input, session)
+    board_option_to_userdata(opt, board, session)
   }
 
   invisible()
