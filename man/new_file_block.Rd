@@ -3,6 +3,7 @@
 \name{new_file_block}
 \alias{new_file_block}
 \alias{new_filebrowser_block}
+\alias{filebrowser_volumes}
 \alias{new_upload_block}
 \title{File block constructors}
 \usage{
@@ -10,9 +11,11 @@ new_file_block(server, ui, class, ctor = sys.parent(), ...)
 
 new_filebrowser_block(
   file_path = character(),
-  volumes = c(home = path.expand("~")),
+  volumes = filebrowser_volumes(),
   ...
 )
+
+filebrowser_volumes(default = c(home = path.expand("~")))
 
 new_upload_block(...)
 }
@@ -31,6 +34,9 @@ for internal use or when defining constructors for virtual classes)}
 \item{file_path}{File path}
 
 \item{volumes}{Parent namespace}
+
+\item{default}{Default volumes specification (use the blockr option
+"volumes" to override)}
 }
 \value{
 All blocks constructed via \code{new_file_block()} inherit from

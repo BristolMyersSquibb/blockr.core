@@ -13,7 +13,8 @@
 #' @rdname new_file_block
 #' @export
 new_filebrowser_block <- function(file_path = character(),
-                                  volumes = c(home = path.expand("~")), ...) {
+                                  volumes = filebrowser_volumes(),
+                                  ...) {
   new_file_block(
     function(id) {
       moduleServer(
@@ -58,4 +59,33 @@ new_filebrowser_block <- function(file_path = character(),
     class = "filebrowser_block",
     ...
   )
+}
+
+#' @param default Default volumes specification (use the blockr option
+#' "volumes" to override)
+#' @rdname new_file_block
+#' @export
+filebrowser_volumes <- function(default = c(home = path.expand("~"))) {
+
+  res <- blockr_option("volumes", default)
+
+  if (is_string(res) && grepl(":", res)) {
+    res <- strsplit(res, ":", fixed = TRUE)[[1L]]
+  }
+
+  if (is.null(names(res))) {
+    if (length(res) == 1L) {
+      names(res) <- "volume"
+    } else if (length(res) > 1L) {
+      names(res) <- paste0("volume", seq_along(res))
+    }
+  }
+
+  stopifnot(
+    is.character(res),
+    length(res) >= 1L,
+    length(unique(names(res))) == length(res)
+  )
+
+  res
 }
