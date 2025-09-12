@@ -694,9 +694,11 @@ validate_board_option.llm_model_option <- function(x) {
   nme <- attr(val, "chat_name")
   opt <- blockr_option("chat_function", default_chat)
 
-  if (!is.function(opt) && (is.list(options) &&
-    all(lgl_ply(options, is.function)) &&
-    length(unique(names(options))) == length(options))) {
+  is_loo <- is.list(opt) &&
+    all(lgl_ply(opt, is.function)) &&
+    length(unique(names(opt))) == length(opt)
+
+  if (!(is.function(opt) || is_loo)) {
     abort(
       "Expecting the blockr option `chat_function` to be either a function ",
       "or a list of functions with unique names.",
