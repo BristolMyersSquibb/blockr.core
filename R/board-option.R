@@ -618,20 +618,20 @@ need_llm_cfg_opts <- local(
 
 #' @rdname new_board_options
 #' @export
-new_llm_model_option <- function(value = NA_character_, ...) {
+new_llm_model_option <- function(value = NULL, ...) {
 
   options <- blockr_option("chat_function", default_chat)
 
   if (!is.function(options) && length(options) == 1L) {
 
     if (is_string(value) && identical(value, names(options))) {
-      value <- NA_character_
+      value <- NULL
     }
 
     options <- options[[1L]]
   }
 
-  if (is.na(value) && !is.function(options)) {
+  if (is.null(value) && !is.function(options)) {
     value <- names(options)[1L]
   }
 

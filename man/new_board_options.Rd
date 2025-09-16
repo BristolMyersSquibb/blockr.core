@@ -95,7 +95,7 @@ new_show_conditions_option(
 
 need_llm_cfg_opts(enable)
 
-new_llm_model_option(value = NA_character_, ...)
+new_llm_model_option(value = NULL, ...)
 
 new_board_options(...)
 

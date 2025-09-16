@@ -120,6 +120,12 @@ blockr_ser.board_option <- function(x, option = NULL, ...) {
 
 #' @rdname blockr_ser
 #' @export
+blockr_ser.llm_model_option <- function(x, option = NULL, ...) {
+  NextMethod(option = attr(option, "chat_name"))
+}
+
+#' @rdname blockr_ser
+#' @export
 blockr_ser.board <- function(x, blocks = NULL, options = NULL, ...) {
   list(
     object = class(x),

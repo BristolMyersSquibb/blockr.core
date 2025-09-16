@@ -6,6 +6,7 @@
 \alias{blockr_ser.blocks}
 \alias{blockr_ser.board_options}
 \alias{blockr_ser.board_option}
+\alias{blockr_ser.llm_model_option}
 \alias{blockr_ser.board}
 \alias{blockr_ser.link}
 \alias{blockr_ser.links}
@@ -35,6 +36,8 @@ blockr_ser(x, ...)
 \method{blockr_ser}{board_options}(x, options = NULL, ...)
 
 \method{blockr_ser}{board_option}(x, option = NULL, ...)
+
+\method{blockr_ser}{llm_model_option}(x, option = NULL, ...)
 
 \method{blockr_ser}{board}(x, blocks = NULL, options = NULL, ...)
 
