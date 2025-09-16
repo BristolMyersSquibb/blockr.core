@@ -22,7 +22,7 @@ is_plugin(x)
 
 as_plugin(x)
 
-board_plugins(which = NULL)
+board_plugins(x, which = NULL)
 
 plugins(...)
 
@@ -64,7 +64,7 @@ in most cases accompanied by a UI component and is optionally bundled with a
 validator function.
 }
 \examples{
-plg <- board_plugins()
+plg <- board_plugins(new_board())
 
 is_plugins(plg)
 names(plg)

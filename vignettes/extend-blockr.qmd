@@ -130,6 +130,7 @@ main_ui <- function(id, board) {
     ns("board"),
     board,
     plugins = board_plugins(
+      board,
       c(
         "preserve_board",
         "manage_blocks",
@@ -166,6 +167,7 @@ main_server <- function(id, board) {
         "board",
         board,
         plugins = board_plugins(
+          board,
           c(
             "preserve_board",
             "manage_blocks",
@@ -183,20 +185,20 @@ main_server <- function(id, board) {
 }
 ```
 
-Looking at the `board_plugins()` function:
+Looking at the `board_plugins.board()` function:
 
 ```{r, eval=FALSE}
-board_plugins <- function(which = NULL) {
+board_plugins.board <- function(x, which = NULL) {
 
   plugins <- plugins(
-    preserve_board(server = ser_deser_server, ui = ser_deser_ui),
-    manage_blocks(server = add_rm_block_server, ui = add_rm_block_ui),
-    manage_links(server = add_rm_link_server, ui = add_rm_link_ui),
-    manage_stacks(server = add_rm_stack_server, ui = add_rm_stack_ui),
-    notify_user(server = block_notification_server),
-    generate_code(server = gen_code_server, ui = gen_code_ui),
-    edit_block(server = edit_block_server, ui = edit_block_ui),
-    edit_stack(server = edit_stack_server, ui = edit_stack_ui)
+    preserve_board(),
+    manage_blocks(),
+    manage_links(),
+    manage_stacks(),
+    notify_user(),
+    generate_code(),
+    edit_block(),
+    edit_stack()
   )
 
   if (is.null(which)) {

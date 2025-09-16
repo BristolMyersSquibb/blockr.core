@@ -13,7 +13,7 @@
 #' @param class Plugin subclass
 #'
 #' @examples
-#' plg <- board_plugins()
+#' plg <- board_plugins(new_board())
 #'
 #' is_plugins(plg)
 #' names(plg)
@@ -278,7 +278,12 @@ call_plugin_ui <- function(plugin, ns, ..., plugins = NULL) {
 #' @param which (Optional) character vectors of plugins to include
 #' @rdname new_plugin
 #' @export
-board_plugins <- function(which = NULL) {
+board_plugins <- function(x, which = NULL) {
+  UseMethod("board_plugins")
+}
+
+#' @export
+board_plugins.board <- function(x, which = NULL) {
 
   plugins <- plugins(
     preserve_board(),

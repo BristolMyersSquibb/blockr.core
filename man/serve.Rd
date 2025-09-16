@@ -10,7 +10,7 @@ serve(x, ...)
 
 \method{serve}{block}(x, id = "block", ..., data = list())
 
-\method{serve}{board}(x, id = rand_names(), plugins = board_plugins(), ...)
+\method{serve}{board}(x, id = rand_names(), plugins = board_plugins(x), ...)
 }
 \arguments{
 \item{x}{Object}

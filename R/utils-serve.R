@@ -98,7 +98,8 @@ serve.block <- function(x, id = "block", ..., data = list()) {
 #' )
 #'
 #' @export
-serve.board <- function(x, id = rand_names(), plugins = board_plugins(), ...) {
+serve.board <- function(x, id = rand_names(), plugins = board_plugins(x),
+                        ...) {
 
   opts <- as_board_options(x)
 

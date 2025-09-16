@@ -43,11 +43,10 @@ preserve_board_server <- function(id, board, ...) {
 
       res <- reactiveVal()
 
-      observeEvent(input$restore, {
-        res(
-          from_json(input$restore$datapath)
-        )
-      })
+      observeEvent(
+        input$restore,
+        res(from_json(input$restore$datapath))
+      )
 
       res
     }
