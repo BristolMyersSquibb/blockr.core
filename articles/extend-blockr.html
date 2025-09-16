@@ -147,6 +147,7 @@
 <span>    <span class="fu">ns</span><span class="op">(</span><span class="st">"board"</span><span class="op">)</span>,</span>
 <span>    <span class="va">board</span>,</span>
 <span>    plugins <span class="op">=</span> <span class="fu"><a href="../reference/new_plugin.html">board_plugins</a></span><span class="op">(</span></span>
+<span>      <span class="va">board</span>,</span>
 <span>      <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
 <span>        <span class="st">"preserve_board"</span>,</span>
 <span>        <span class="st">"manage_blocks"</span>,</span>
@@ -177,6 +178,7 @@
 <span>        <span class="st">"board"</span>,</span>
 <span>        <span class="va">board</span>,</span>
 <span>        plugins <span class="op">=</span> <span class="fu"><a href="../reference/new_plugin.html">board_plugins</a></span><span class="op">(</span></span>
+<span>          <span class="va">board</span>,</span>
 <span>          <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
 <span>            <span class="st">"preserve_board"</span>,</span>
 <span>            <span class="st">"manage_blocks"</span>,</span>
@@ -193,20 +195,20 @@
 <span>  <span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
 </div>
-<p>Looking at the <code><a href="../reference/new_plugin.html">board_plugins()</a></code> function:</p>
+<p>Looking at the <code>board_plugins.board()</code> function:</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">board_plugins</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">which</span> <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span> <span class="op">{</span></span>
+<code class="sourceCode R"><span><span class="va">board_plugins.board</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span>, <span class="va">which</span> <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span> <span class="op">{</span></span>
 <span></span>
 <span>  <span class="va">plugins</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/new_plugin.html">plugins</a></span><span class="op">(</span></span>
-<span>    <span class="fu"><a href="../reference/preserve_board.html">preserve_board</a></span><span class="op">(</span>server <span class="op">=</span> <span class="va">ser_deser_server</span>, ui <span class="op">=</span> <span class="va">ser_deser_ui</span><span class="op">)</span>,</span>
-<span>    <span class="fu"><a href="../reference/manage_blocks.html">manage_blocks</a></span><span class="op">(</span>server <span class="op">=</span> <span class="va">add_rm_block_server</span>, ui <span class="op">=</span> <span class="va">add_rm_block_ui</span><span class="op">)</span>,</span>
-<span>    <span class="fu"><a href="../reference/manage_links.html">manage_links</a></span><span class="op">(</span>server <span class="op">=</span> <span class="va">add_rm_link_server</span>, ui <span class="op">=</span> <span class="va">add_rm_link_ui</span><span class="op">)</span>,</span>
-<span>    <span class="fu"><a href="../reference/manage_stacks.html">manage_stacks</a></span><span class="op">(</span>server <span class="op">=</span> <span class="va">add_rm_stack_server</span>, ui <span class="op">=</span> <span class="va">add_rm_stack_ui</span><span class="op">)</span>,</span>
-<span>    <span class="fu"><a href="../reference/notify_user.html">notify_user</a></span><span class="op">(</span>server <span class="op">=</span> <span class="va">block_notification_server</span><span class="op">)</span>,</span>
-<span>    <span class="fu"><a href="../reference/generate_code.html">generate_code</a></span><span class="op">(</span>server <span class="op">=</span> <span class="va">gen_code_server</span>, ui <span class="op">=</span> <span class="va">gen_code_ui</span><span class="op">)</span>,</span>
-<span>    <span class="fu"><a href="../reference/edit_block.html">edit_block</a></span><span class="op">(</span>server <span class="op">=</span> <span class="va">edit_block_server</span>, ui <span class="op">=</span> <span class="va">edit_block_ui</span><span class="op">)</span>,</span>
-<span>    <span class="fu"><a href="../reference/edit_stack.html">edit_stack</a></span><span class="op">(</span>server <span class="op">=</span> <span class="va">edit_stack_server</span>, ui <span class="op">=</span> <span class="va">edit_stack_ui</span><span class="op">)</span></span>
+<span>    <span class="fu"><a href="../reference/preserve_board.html">preserve_board</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>    <span class="fu"><a href="../reference/manage_blocks.html">manage_blocks</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>    <span class="fu"><a href="../reference/manage_links.html">manage_links</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>    <span class="fu"><a href="../reference/manage_stacks.html">manage_stacks</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>    <span class="fu"><a href="../reference/notify_user.html">notify_user</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>    <span class="fu"><a href="../reference/generate_code.html">generate_code</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>    <span class="fu"><a href="../reference/edit_block.html">edit_block</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>    <span class="fu"><a href="../reference/edit_stack.html">edit_stack</a></span><span class="op">(</span><span class="op">)</span></span>
 <span>  <span class="op">)</span></span>
 <span></span>
 <span>  <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">which</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>

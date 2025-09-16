@@ -82,7 +82,7 @@ validator function.</p>
 <span></span>
 <span><span class="fu">as_plugin</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">board_plugins</span><span class="op">(</span>which <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
+<span><span class="fu">board_plugins</span><span class="op">(</span><span class="va">x</span>, which <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">plugins</span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span>
 <span></span>
@@ -134,7 +134,7 @@ logicals and finally, the convenience function <code>board_plugins()</code> retu
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">plg</span> <span class="op">&lt;-</span> <span class="fu">board_plugins</span><span class="op">(</span><span class="op">)</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">plg</span> <span class="op">&lt;-</span> <span class="fu">board_plugins</span><span class="op">(</span><span class="fu"><a href="new_board.html">new_board</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu">is_plugins</span><span class="op">(</span><span class="va">plg</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
