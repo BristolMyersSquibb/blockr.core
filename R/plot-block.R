@@ -39,6 +39,10 @@ block_ui.plot_block <- function(id, x, ...) {
 #' @export
 block_eval.plot_block <- function(x, expr, data, ...) {
 
+  inherits_rec_plt <- function(x) {
+    inherits(x, "recordedplot")
+  }
+
   res <- evaluate::evaluate(
     expr,
     list2env(data),
@@ -47,7 +51,7 @@ block_eval.plot_block <- function(x, expr, data, ...) {
 
   show_condition(res)
 
-  filter(inherits, res, "recordedplot")
+  Filter(inherits_rec_plt, res)
 }
 
 #' @noRd
