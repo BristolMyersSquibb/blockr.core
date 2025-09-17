@@ -297,7 +297,7 @@ to_json <- function(x, ...) {
 #' @export
 from_json <- function(x) {
 
-  if (is_string(x) && file.exists(x)) {
+  if (!inherits(x, "json") && is_string(x) && file.exists(x)) {
     x <- readLines(x)
   } else if (is.character(x) && length(x) > 1L) {
     x <- paste0(x, collapse = "")

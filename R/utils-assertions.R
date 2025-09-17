@@ -60,6 +60,10 @@ is_number <- function(x) {
 #' @export
 not_null <- Negate(is.null)
 
+#' @rdname assertions
+#' @export
+has_length <- function(x) length(x) > 0
+
 is_zero_len <- function(x) {
   length(x) == 0L
 }

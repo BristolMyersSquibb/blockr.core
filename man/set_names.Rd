@@ -4,6 +4,9 @@
 \alias{set_names}
 \alias{paste_enum}
 \alias{coal}
+\alias{reval}
+\alias{reval_if}
+\alias{last}
 \alias{unlst}
 \title{Miscellaneous utilities}
 \usage{
@@ -12,6 +15,12 @@ set_names(object = nm, nm)
 paste_enum(x, sep = ", ", conj = " and ", quotes = "`")
 
 coal(..., fail_null = TRUE)
+
+reval(x)
+
+reval_if(x)
+
+last(x)
 
 unlst(x, recursive = FALSE, use_names = FALSE)
 }

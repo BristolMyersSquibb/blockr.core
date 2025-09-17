@@ -75,14 +75,6 @@ sample_letters <- function(n) {
   paste(sample(letters, 8, replace = TRUE), collapse = "")
 }
 
-reval <- function(x) x()
-
-reval_if <- function(x) if (is.function(x)) x() else x
-
-lst_xtr_reval <- function(x, ...) {
-  lapply(lst_xtr(x, ...), reval)
-}
-
 inherits <- function(x, ..., agg = NULL) {
 
   res <- lgl_ply(c(...), function(y) base::inherits(x, y))
@@ -157,6 +149,22 @@ coal <- function(..., fail_null = TRUE) {
 
   NULL
 }
+
+#' @rdname set_names
+#' @export
+reval <- function(x) x()
+
+#' @rdname set_names
+#' @export
+reval_if <- function(x) if (is.function(x)) x() else x
+
+lst_xtr_reval <- function(x, ...) {
+  lapply(lst_xtr(x, ...), reval)
+}
+
+#' @rdname set_names
+#' @export
+last <- function(x) x[[length(x)]]
 
 int_to_chr <- function(x) {
 

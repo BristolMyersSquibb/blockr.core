@@ -8,6 +8,7 @@
 \alias{is_count}
 \alias{is_number}
 \alias{not_null}
+\alias{has_length}
 \title{Assertions}
 \usage{
 is_scalar(x)
@@ -23,6 +24,8 @@ is_count(x, allow_zero = TRUE)
 is_number(x)
 
 not_null(...)
+
+has_length(x)
 }
 \arguments{
 \item{x}{Object to check}
