@@ -3,18 +3,34 @@
 #' @importFrom cli qty
 NULL
 
+#' @param env An environment that is resolved to a package name
+#' @rdname set_names
+#' @export
 pkg_name <- function(env = parent.frame()) {
   utils::packageName(env)
 }
 
-pkg_version <- function(pkg = pkg_name()) {
+#' @param pkg A string.valued package name or an environment passed to
+#' [pkg_name()]
+#' @rdname set_names
+#' @export
+pkg_version <- function(pkg = parent.frame()) {
+
+  if (is.environment(pkg)) {
+    pkg <- pkg_name(pkg)
+  }
+
   utils::packageVersion(pkg)
 }
 
-pkg_file <- function(...) {
-  system.file(..., package = pkg_name())
+#' @rdname set_names
+#' @export
+pkg_file <- function(..., pkg = parent.frame()) {
+  system.file(..., package = pkg_name(pkg))
 }
 
-is_pkg_avail <- function(pkg) {
-  requireNamespace(pkg, quietly = TRUE)
+#' @rdname set_names
+#' @export
+pkg_avail <- function(...) {
+  all(vapply(c(...), requireNamespace, logical(1L), quietly = TRUE))
 }

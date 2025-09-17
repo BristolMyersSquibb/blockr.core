@@ -421,7 +421,7 @@ new_thematic_option <- function(value = blockr_option("thematic", NULL), ...) {
     id = "thematic",
     default = value,
     ui = function(id) {
-      if (is_pkg_avail("thematic")) {
+      if (pkg_avail("thematic")) {
         bslib::input_switch(
           NS(id, "thematic"),
           "Enable thematic",
@@ -457,7 +457,7 @@ validate_board_option.thematic_option <- function(x) {
     )
   }
 
-  if (isTRUE(val) && !is_pkg_avail("thematic")) {
+  if (isTRUE(val) && !pkg_avail("thematic")) {
     abort(
       "Please install `thematic` to enable auto theming of plots.",
       class = "thematic_not_installed"
@@ -602,7 +602,7 @@ need_llm_cfg_opts <- local(
 
       stopifnot(is_bool(enable))
 
-      if (isTRUE(enable) && !is_pkg_avail("ellmer")) {
+      if (isTRUE(enable) && !pkg_avail("ellmer")) {
         abort(
           "The ellmer package is required for including LLM options.",
           class = "ellmer_required_not_available"

@@ -30,7 +30,7 @@ rand_names <- function(old_names = character(0L), n = 1L, max_tries = 100L,
   stopifnot(is.character(old_names), is_count(n), is_count(max_tries))
 
   if (is.null(id_fun)) {
-    if (is_pkg_avail("ids")) {
+    if (pkg_avail("ids")) {
       id_fun <- adjective_animal
     } else {
       id_fun <- sample_letters
