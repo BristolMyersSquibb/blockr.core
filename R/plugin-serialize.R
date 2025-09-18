@@ -41,7 +41,10 @@ preserve_board_server <- function(id, board, ...) {
 
       output$serialize <- downloadHandler(
         board_filename(board),
-        write_board_to_disk(board, session)
+        do.call(
+          write_board_to_disk,
+          c(list(board), dot_args, list(session = session))
+        )
       )
 
       res <- reactiveVal()
@@ -114,7 +117,12 @@ board_filename <- function(rv) {
 #' @param blocks Block state reactive values
 #' @rdname preserve_board
 #' @export
-serialize_board <- function(x, blocks, session = get_session()) {
+serialize_board <- function(x, blocks, ..., session = get_session()) {
+  UseMethod("serialize_board")
+}
+
+#' @export
+serialize_board.board <- function(x, blocks, ..., session = get_session()) {
 
   blocks <- lapply(
     lst_xtr(blocks, "server", "state"),
@@ -131,12 +139,21 @@ serialize_board <- function(x, blocks, session = get_session()) {
   to_json(x, blocks = blocks, options = opts)
 }
 
-write_board_to_disk <- function(rv, session) {
+write_board_to_disk <- function(rv, ..., session = get_session()) {
+
+  dot_args <- list(...)
 
   function(con) {
 
     json <- jsonlite::prettify(
-      serialize_board(rv$board, rv$blocks, session)
+      do.call(
+        serialize_board,
+        c(
+          list(rv$board, rv$blocks),
+          dot_args,
+          list(session = session)
+        )
+      )
     )
 
     writeLines(json, con)
