@@ -32,6 +32,9 @@ preserve_board <- function(server = preserve_board_server,
 #' @rdname preserve_board
 #' @export
 preserve_board_server <- function(id, board, ...) {
+
+  dot_args <- list(...)
+
   moduleServer(
     id,
     function(input, output, session) {
@@ -45,12 +48,35 @@ preserve_board_server <- function(id, board, ...) {
 
       observeEvent(
         input$restore,
-        res(from_json(input$restore$datapath))
+        do.call(
+          restore_board,
+          c(
+            list(board$board, input$restore$datapath, res),
+            dot_args,
+            list(session = session)
+          )
+        )
       )
 
       res
     }
   )
+}
+
+#' @param x The current `board` object
+#' @param json JSON serialized board to be restored
+#' @param result A [shiny::reactiveVal()] to hold the new board object
+#' @param session Shiny session
+#'
+#' @rdname preserve_board
+#' @export
+restore_board <- function(x, json, result, ..., session = get_session()) {
+  UseMethod("restore_board")
+}
+
+#' @export
+restore_board.board <- function(x, json, result, ..., session = get_session()) {
+  result(from_json(json))
 }
 
 #' @param board The initial `board` object
@@ -85,24 +111,32 @@ board_filename <- function(rv) {
   }
 }
 
+#' @param blocks Block state reactive values
+#' @rdname preserve_board
+#' @export
+serialize_board <- function(x, blocks, session = get_session()) {
+
+  blocks <- lapply(
+    lst_xtr(blocks, "server", "state"),
+    lapply,
+    reval_if
+  )
+
+  opts <- lapply(
+    set_names(nm = names(as_board_options(x))),
+    get_board_option_or_null,
+    session
+  )
+
+  to_json(x, blocks = blocks, options = opts)
+}
+
 write_board_to_disk <- function(rv, session) {
 
   function(con) {
 
-    blocks <- lapply(
-      lst_xtr(rv$blocks, "server", "state"),
-      lapply,
-      reval_if
-    )
-
-    opts <- lapply(
-      set_names(nm = names(as_board_options(rv$board))),
-      get_board_option_or_null,
-      session
-    )
-
     json <- jsonlite::prettify(
-      to_json(rv$board, blocks = blocks, options = opts)
+      serialize_board(rv$board, rv$blocks, session)
     )
 
     writeLines(json, con)

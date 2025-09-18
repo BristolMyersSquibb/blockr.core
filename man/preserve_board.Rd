@@ -3,14 +3,20 @@
 \name{preserve_board}
 \alias{preserve_board}
 \alias{preserve_board_server}
+\alias{restore_board}
 \alias{preserve_board_ui}
+\alias{serialize_board}
 \title{Serialization plugin module}
 \usage{
 preserve_board(server = preserve_board_server, ui = preserve_board_ui)
 
 preserve_board_server(id, board, ...)
 
+restore_board(x, json, result, ..., session = get_session())
+
 preserve_board_ui(id, board)
+
+serialize_board(x, blocks, session = get_session())
 }
 \arguments{
 \item{server, ui}{Server/UI for the plugin module}
@@ -20,6 +26,16 @@ preserve_board_ui(id, board)
 \item{board}{The initial \code{board} object}
 
 \item{...}{Extra arguments passed from parent scope}
+
+\item{x}{The current \code{board} object}
+
+\item{json}{JSON serialized board to be restored}
+
+\item{result}{A \code{\link[shiny:reactiveVal]{shiny::reactiveVal()}} to hold the new board object}
+
+\item{session}{Shiny session}
+
+\item{blocks}{Block state reactive values}
 }
 \value{
 A plugin container inheriting from \code{preserve_board} is returned by
