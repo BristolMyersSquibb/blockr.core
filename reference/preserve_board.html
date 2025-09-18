@@ -75,7 +75,11 @@ module.</p>
 <span></span>
 <span><span class="fu">preserve_board_server</span><span class="op">(</span><span class="va">id</span>, <span class="va">board</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">preserve_board_ui</span><span class="op">(</span><span class="va">id</span>, <span class="va">board</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">restore_board</span><span class="op">(</span><span class="va">x</span>, <span class="va">json</span>, <span class="va">result</span>, <span class="va">...</span>, session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">preserve_board_ui</span><span class="op">(</span><span class="va">id</span>, <span class="va">board</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">serialize_board</span><span class="op">(</span><span class="va">x</span>, <span class="va">blocks</span>, session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -96,6 +100,26 @@ module.</p>
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Extra arguments passed from parent scope</p></dd>
+
+
+<dt id="arg-x">x<a class="anchor" aria-label="anchor" href="#arg-x"></a></dt>
+<dd><p>The current <code>board</code> object</p></dd>
+
+
+<dt id="arg-json">json<a class="anchor" aria-label="anchor" href="#arg-json"></a></dt>
+<dd><p>JSON serialized board to be restored</p></dd>
+
+
+<dt id="arg-result">result<a class="anchor" aria-label="anchor" href="#arg-result"></a></dt>
+<dd><p>A <code><a href="https://rdrr.io/pkg/shiny/man/reactiveVal.html" class="external-link">shiny::reactiveVal()</a></code> to hold the new board object</p></dd>
+
+
+<dt id="arg-session">session<a class="anchor" aria-label="anchor" href="#arg-session"></a></dt>
+<dd><p>Shiny session</p></dd>
+
+
+<dt id="arg-blocks">blocks<a class="anchor" aria-label="anchor" href="#arg-blocks"></a></dt>
+<dd><p>Block state reactive values</p></dd>
 
 </dl></div>
     <div class="section level2">
