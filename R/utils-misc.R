@@ -367,6 +367,9 @@ resolve_ctor <- function(ctor, ctor_pkg = NULL) {
   structure(try, fun = ctor, pkg = ctor_pkg, class = "blockr_ctor")
 }
 
+#' @param replace,with Mapped to [base::gsub()]
+#' @rdname rand_names
+#' @export
 to_sentence_case <- function(x, replace = character(), with = character()) {
 
   to_case_collapse <- function(x) {
@@ -410,6 +413,8 @@ to_sentence_case <- function(x, replace = character(), with = character()) {
   chr_ply(strsplit(trimws(x), " ", fixed = TRUE), to_case_collapse)
 }
 
+#' @rdname rand_names
+#' @export
 id_to_sentence_case <- function(x) {
   to_sentence_case(x, c("([A-Z])", "_", "-", "\\."), c(" \\1", " ", " ", " "))
 }

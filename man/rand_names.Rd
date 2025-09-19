@@ -4,6 +4,8 @@
 \alias{rand_names}
 \alias{adjective_animal}
 \alias{sample_letters}
+\alias{to_sentence_case}
+\alias{id_to_sentence_case}
 \title{Random IDs}
 \usage{
 rand_names(
@@ -16,6 +18,10 @@ rand_names(
 adjective_animal(n)
 
 sample_letters(n)
+
+to_sentence_case(x, replace = character(), with = character())
+
+id_to_sentence_case(x)
 }
 \arguments{
 \item{old_names}{Disallowed IDs}
@@ -28,6 +34,8 @@ with \code{old_names}}
 \item{id_fun}{A function with a single argument \code{n} that generates random
 IDs. A value of \code{NULL} defaults to \code{\link[ids:adjective_animal]{ids::adjective_animal()}} if available and
 \code{sample_letters} otherwise.}
+
+\item{replace, with}{Mapped to \code{\link[base:grep]{base::gsub()}}}
 }
 \value{
 A character vector of length \code{n} where each entry contains \code{length}
