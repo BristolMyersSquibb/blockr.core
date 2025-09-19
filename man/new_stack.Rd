@@ -14,7 +14,7 @@
 \alias{as_stacks}
 \title{Stacks}
 \usage{
-new_stack(blocks = character(), name = NULL, ..., class = character())
+new_stack(blocks = character(), name = "Stack", ..., class = character())
 
 is_stack(x)
 

@@ -58,7 +58,7 @@
       Stacks[1]:
       
       bc<stack[2]>
-      Name: "Stack 1"
+      Name: "Stack"
       Blocks: "b" and "c"
       
       Options:
@@ -121,7 +121,7 @@
       Stacks[1]:
       
       bc<stack[1]>
-      Name: "Stack 1"
+      Name: "Stack"
       Blocks: "b"
       
       Options:
