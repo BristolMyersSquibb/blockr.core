@@ -25,7 +25,7 @@ test_that("llm model opt", {
   sess <- MockShinySession$new()
   sess$setInputs(llm_model = "chat1")
 
-  board_option_to_userdata(opt2, new_board(), sess)
+  board_option_to_userdata(opt2, session = sess)
 
   expect_s3_class(board_option_server(opt2, session = sess), "Observer")
 

@@ -44,8 +44,6 @@ board_server.board <- function(id, x, plugins = list(), callbacks = list(),
 
       ns <- session$ns
 
-      board_options_to_userdata(x, session = session)
-
       rv <- reactiveValues(
         blocks = list(),
         inputs = list(),
@@ -56,6 +54,16 @@ board_server.board <- function(id, x, plugins = list(), callbacks = list(),
       )
 
       rv_ro <- list(board = make_read_only(rv))
+
+      do.call(
+        board_options_to_userdata,
+        c(
+          list(as_board_options(x)),
+          rv_ro,
+          dot_args,
+          list(session = session)
+        )
+      )
 
       board_update <- reactiveVal()
 

@@ -112,7 +112,6 @@ Collate:
     'utils-assertions.R'
     'utils-cnd.R'
     'utils-code.R'
-    'utils-globals.R'
     'utils-graph.R'
     'utils-json.R'
     'utils-logging.R'

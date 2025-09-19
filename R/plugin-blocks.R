@@ -52,9 +52,8 @@ manage_blocks_server <- function(id, board, update, ...) {
             return()
           }
 
-          add <- as_blocks(
-            set_names(list(create_block(sel)), bid)
-          )
+          blk <- create_block(sel, name = id_to_sentence_case(bid))
+          add <- as_blocks(set_names(list(blk), bid))
 
           update(
             list(blocks = list(add = add))

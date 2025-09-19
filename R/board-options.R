@@ -151,14 +151,14 @@ board_ui.board_options <- function(id, x, ...) {
   do.call(tagList, lapply(x, board_option_ui, id))
 }
 
-board_option_to_userdata <- function(x, board, session = get_session()) {
+board_option_to_userdata <- function(x, ..., session = get_session()) {
 
-  stopifnot(is_board_option(x), is_board(board))
+  stopifnot(is_board_option(x))
 
   id <- board_option_id(x)
   rv <- reactiveVal(board_option_value(x))
 
-  res <- board_option_server(x, board, session)
+  res <- board_option_server(x, ..., session = session)
   trg <- board_option_trigger(x)
 
   if (not_null(trg)) {
@@ -182,12 +182,15 @@ board_option_to_userdata <- function(x, board, session = get_session()) {
           )
         }
 
-        if (!identical(new, rv())) {
+        cur <- rv()
+
+        if (!identical(new, cur)) {
           log_debug("setting option ", id)
           rv(new)
         }
       },
-      event.quoted = TRUE
+      event.quoted = TRUE,
+      ignoreInit = TRUE
     )
   } else {
     obs <- NULL
@@ -219,13 +222,12 @@ board_option_to_userdata <- function(x, board, session = get_session()) {
   invisible()
 }
 
-board_options_to_userdata <- function(board, options = as_board_options(board),
-                                      session = get_session()) {
+board_options_to_userdata <- function(options, ...) {
 
-  stopifnot(is_board(board), is_board_options(options))
+  stopifnot(is_board_options(options))
 
   for (opt in options) {
-    board_option_to_userdata(opt, board, session)
+    board_option_to_userdata(opt, ...)
   }
 
   invisible()
@@ -276,20 +278,43 @@ update_board_options <- function(new, session = get_session()) {
 #' @rdname new_board_options
 #' @export
 get_board_option_value <- function(opt, session = get_session()) {
+  rv <- get_board_opt_rv_from_userdata(opt, session)
+  rv()
+}
+
+get_board_opts_from_userdata <- function(session = get_session()) {
 
   env <- session$userData
 
-  stopifnot(is_string(opt), is.environment(env))
+  stopifnot(is.environment(env))
 
   if (!exists("board_options", envir = env, inherits = FALSE)) {
     assign("board_options", list(), envir = env, inherits = FALSE)
   }
 
-  if (!opt %in% names(env$board_options)) {
+  env$board_options
+}
+
+get_board_opt_rv_from_userdata <- function(opt, session = get_session()) {
+
+  stopifnot(is_string(opt))
+
+  opts <- get_board_opts_from_userdata(session)
+
+  if (!opt %in% names(opts)) {
     abort("Could not find option {opt}.", class = "board_option_not_found")
   }
 
-  env$board_options[[opt]]()
+  opts[[opt]]
+}
+
+#' @param val New value
+#' @rdname new_board_options
+#' @export
+set_board_option_value <- function(opt, val, session = get_session()) {
+  rv <- get_board_opt_rv_from_userdata(opt, session)
+  rv(val)
+  invisible(val)
 }
 
 #' @param opts Board options

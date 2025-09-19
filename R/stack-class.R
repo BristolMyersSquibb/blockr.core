@@ -43,26 +43,16 @@
 #' objects.
 #'
 #' @export
-new_stack <- function(blocks = character(), name = NULL, ...,
+new_stack <- function(blocks = character(), name = "Stack", ...,
                       class = character()) {
 
   if (is_blocks(blocks)) {
     blocks <- names(blocks)
   }
 
-  stack_counter <- get_globals("stack_counter", session = NULL)
-
-  if (is.null(name)) {
-    name <- paste0("Stack ", stack_counter)
-  }
-
-  res <- validate_stack(
+  validate_stack(
     structure(blocks, name = name, ..., class = c(class, "stack"))
   )
-
-  set_globals(stack_counter + 1L, "stack_counter", session = NULL)
-
-  res
 }
 
 #' @param x Stack object
