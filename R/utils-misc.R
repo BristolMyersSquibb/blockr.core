@@ -409,3 +409,7 @@ to_sentence_case <- function(x, replace = character(), with = character()) {
 
   chr_ply(strsplit(trimws(x), " ", fixed = TRUE), to_case_collapse)
 }
+
+id_to_sentence_case <- function(x) {
+  to_sentence_case(x, c("([A-Z])", "_", "-", "\\."), c(" \\1", " ", " ", " "))
+}

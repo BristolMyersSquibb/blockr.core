@@ -363,8 +363,6 @@ add_stack_observer <- function(input, rv, upd, sess) {
 
       if (length(avail)) {
 
-        new <- new_stack()
-
         if (length(input$new_stack_id) && nchar(input$new_stack_id)) {
 
           updateTextInput(
@@ -377,14 +375,23 @@ add_stack_observer <- function(input, rv, upd, sess) {
 
           if (input$new_stack_id %in% names(upd$curr)) {
             showNotification(
-              "Please choose a unique link ID.",
+              "Please choose a unique stack ID.",
               type = "warning"
             )
             return()
           }
 
-          new <- set_names(list(new), input$new_stack_id)
+          new_id <- input$new_stack_id
+
+        } else {
+
+          new_id <- rand_names(names(upd$curr))
         }
+
+        new <- set_names(
+          list(new_stack(name = id_to_sentence_case(new_id))),
+          new_id
+        )
 
         upd$curr <- c(upd$curr, new)
         upd$add <- c(upd$add, upd$curr[length(upd$curr)])
