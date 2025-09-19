@@ -63,7 +63,7 @@
       
       Options:
       <board_options[7]>
-        board_name: Board
+        board_name: NULL
         show_conditions: warning, error
         n_rows: 50
         page_size: 5
@@ -126,7 +126,7 @@
       
       Options:
       <board_options[7]>
-        board_name: Board
+        board_name: NULL
         show_conditions: warning, error
         n_rows: 50
         page_size: 5

@@ -34,6 +34,7 @@
 \alias{validate_board_options}
 \alias{board_option_values}
 \alias{get_board_option_value}
+\alias{set_board_option_value}
 \alias{get_board_option_or_default}
 \alias{get_board_option_or_null}
 \alias{get_board_option_values}
@@ -76,7 +77,7 @@ board_option_value(x, value = board_option_default(x))
 
 \method{validate_board_option}{default}(x)
 
-new_board_name_option(value = "Board", ...)
+new_board_name_option(value = NULL, ...)
 
 new_n_rows_option(value = blockr_option("n_rows", 50L), ...)
 
@@ -119,6 +120,8 @@ board_option_values(x)
 
 get_board_option_value(opt, session = get_session())
 
+set_board_option_value(opt, val, session = get_session())
+
 get_board_option_or_default(
   opt,
   opts = default_board_options(),
@@ -160,6 +163,8 @@ get_board_option_values(
 \item{opt}{Option name}
 
 \item{session}{Shiny session}
+
+\item{val}{New value}
 
 \item{opts}{Board options}
 

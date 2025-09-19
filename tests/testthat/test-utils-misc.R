@@ -68,3 +68,85 @@ test_that("exprs_to_lang", {
   expect_identical(eval_exprs(f), expected_eval)
   expect_identical(deparse_exprs(f), "local(3)")
 })
+
+test_that("sentence case", {
+
+  expect_identical(
+    to_sentence_case("tiny_aidi", "_", " "),
+    "Tiny aidi"
+  )
+
+  expect_identical(
+    to_sentence_case("key_sick_puma", "_", " "),
+    "Key sick puma"
+  )
+
+  expect_identical(
+    to_sentence_case("HAZY_PINK_RHEA", "_", " "),
+    "Hazy pink rhea"
+  )
+
+  expect_identical(
+    to_sentence_case(c("used_sad_olm", "bad_numb_rhea"), "_", " "),
+    c("Used sad olm", "Bad numb rhea")
+  )
+
+  expect_identical(
+    to_sentence_case("firmHare", "([A-Z])", " \\1"),
+    "Firm hare"
+  )
+
+  expect_identical(
+    to_sentence_case("thinCuteDove", "([A-Z])", " \\1"),
+    "Thin cute dove"
+  )
+
+  expect_identical(
+    to_sentence_case("FitFunFly", "([A-Z])", " \\1"),
+    "Fit fun fly"
+  )
+
+  expect_identical(
+    to_sentence_case(
+      c("thinCuteDove", "gold-busy-rail", "key_sick_puma", "left.tart.naga"),
+      c("([A-Z])", "_", "-", "\\."),
+      c(" \\1", " ", " ", " ")
+    ),
+    c("Thin cute dove", "Gold busy rail", "Key sick puma", "Left tart naga")
+  )
+
+  expect_identical(
+    to_sentence_case("313d964aca2"),
+    "313d964aca2"
+  )
+
+  expect_identical(
+    to_sentence_case("a13d964aca2"),
+    "A13d964aca2"
+  )
+
+  expect_identical(
+    to_sentence_case("d12c577e-f94a-4d8a-b6cf-eab63b854fcf"),
+    "D12c577e-f94a-4d8a-b6cf-eab63b854fcf"
+  )
+
+  expect_identical(
+    to_sentence_case("d12c577e-f94a-4d8a-b6cf-eab63b854fcf", "-", " "),
+    "D12c577e f94a 4d8a b6cf eab63b854fcf"
+  )
+
+  expect_identical(
+    to_sentence_case(""),
+    ""
+  )
+
+  expect_identical(
+    to_sentence_case(NA_character_),
+    ""
+  )
+
+  expect_identical(
+    to_sentence_case(NULL),
+    ""
+  )
+})
