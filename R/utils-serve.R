@@ -103,27 +103,19 @@ serve.board <- function(x, id = rand_names(), plugins = board_plugins(x),
 
   opts <- as_board_options(x)
 
+  if ("board_name" %in% names(opts)) {
+    title <- board_option_value(opts[["board_name"]])
+  } else {
+    title <- id
+  }
+
   ui <- bslib::page_fluid(
     theme = bslib::bs_theme(version = 5),
-    title = board_option_value(opts[["board_name"]]),
-    board_ui(id, x, plugins),
-    htmltools::htmlDependency(
-      "change-board-title",
-      pkg_version(),
-      src = pkg_file("assets", "js"),
-      script = "changeBoardTitle.js"
-    )
+    title = title,
+    board_ui(id, x, plugins)
   )
 
   server <- function(input, output, session) {
-
-    observeEvent(
-      get_board_option_value("board_name", session),
-      session$sendCustomMessage(
-        "change-board-title",
-        get_board_option_value("board_name", session)
-      )
-    )
 
     res <- board_server(id, x, plugins, ...)
 

@@ -157,11 +157,21 @@ validate_board_option.default <- function(x) {
   }
 
   srv <- board_option_server(x)
-  arg <- names(formals(srv))
 
-  if (!is.function(srv) || !identical(arg, c("board", "session"))) {
+  if (!is.function(srv)) {
     abort(
-      "Expecting a board option server function to have argument{?s} {arg}.",
+      "Expecting a board option server function to be a function.",
+      class = "board_option_component_invalid"
+    )
+  }
+
+  arg <- names(formals(srv))
+  len <- length(arg)
+  exp <- c("...", "session")
+
+  if (len < 2L || !identical(arg[seq.int(len - 1L, len)], exp)) {
+    abort(
+      "Expecting a board option server function signature to end with {exp}.",
       class = "board_option_component_invalid"
     )
   }
@@ -228,28 +238,48 @@ c.board_option <- function(...) {
 
 #' @rdname new_board_options
 #' @export
-new_board_name_option <- function(value = "Board", ...) {
+new_board_name_option <- function(value = NULL, ...) {
 
   new_board_option(
     id = "board_name",
     default = value,
     ui = function(id) {
-      textInput(
-        NS(id, "board_name"),
-        "Board name",
-        value
+      tagList(
+        htmltools::htmlDependency(
+          "change-board-title",
+          pkg_version(),
+          src = pkg_file("assets", "js"),
+          script = "changeBoardTitle.js"
+        ),
+        textInput(
+          NS(id, "board_name"),
+          "Board name",
+          value
+        )
       )
     },
-    server = function(board, session) {
-      observeEvent(
-        get_board_option_or_null("board_name", session),
-        {
-          updateTextInput(
-            session,
-            "board_name",
-            value = get_board_option_value("board_name", session)
+    server = function(board, ..., session) {
+      list(
+        if (is.null(value)) {
+          observeEvent(
+            TRUE,
+            {
+              val <- id_to_sentence_case(board$board_id)
+              set_board_option_value("board_name", val, session)
+              updateTextInput(session, "board_name", value = val)
+              session$sendCustomMessage("change-board-title", val)
+            },
+            once = TRUE
           )
-        }
+        },
+        observeEvent(
+          get_board_option_or_null("board_name", session),
+          {
+            val <- get_board_option_value("board_name", session)
+            updateTextInput(session, "board_name", value = val)
+            session$sendCustomMessage("change-board-title", val)
+          }
+        )
       )
     },
     ...
@@ -261,9 +291,9 @@ validate_board_option.board_name_option <- function(x) {
 
   val <- board_option_value(NextMethod())
 
-  if (!is_string(val)) {
+  if (!(is_string(val) || is.null(val))) {
     abort(
-      "Expecting `board_name` to be string-valued.",
+      "Expecting `board_name` to be `NULL` or string-valued.",
       class = "board_name_option_invalid"
     )
   }
@@ -287,7 +317,7 @@ new_n_rows_option <- function(value = blockr_option("n_rows", 50L), ...) {
         step = 1L
       )
     },
-    server = function(board, session) {
+    server = function(..., session) {
       observeEvent(
         get_board_option_or_null("n_rows", session),
         {
@@ -334,7 +364,7 @@ new_page_size_option <- function(value = blockr_option("page_size", 5L), ...) {
         value
       )
     },
-    server = function(board, session) {
+    server = function(..., session) {
       observeEvent(
         get_board_option_or_null("page_size", session),
         {
@@ -382,7 +412,7 @@ new_filter_rows_option <- function(value = blockr_option("filter_rows",
         value
       )
     },
-    server = function(board, session) {
+    server = function(..., session) {
       observeEvent(
         get_board_option_or_null("filter_rows", session),
         {
@@ -429,7 +459,7 @@ new_thematic_option <- function(value = blockr_option("thematic", NULL), ...) {
         )
       }
     },
-    server = function(board, session) {
+    server = function(..., session) {
       observeEvent(
         get_board_option_or_null("thematic", session),
         {
@@ -499,7 +529,7 @@ new_dark_mode_option <- function(value = blockr_option("dark_mode", NULL),
         )
       )
     },
-    server = function(board, session) {
+    server = function(..., session) {
       observeEvent(
         get_board_option_or_null("dark_mode", session),
         {
@@ -548,7 +578,7 @@ new_show_conditions_option <- function(value = blockr_option("show_conditions",
         multiple = TRUE
       )
     },
-    server = function(board, session) {
+    server = function(..., session) {
       observeEvent(
         get_board_option_or_null("show_conditions", session),
         {
@@ -649,7 +679,7 @@ new_llm_model_option <- function(value = NULL, ...) {
         value
       )
     },
-    server = function(board, session) {
+    server = function(..., session) {
       if (!is.function(options)) {
         observeEvent(
           get_board_option_or_null("llm_model", session),

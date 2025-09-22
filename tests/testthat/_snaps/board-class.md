@@ -58,12 +58,12 @@
       Stacks[1]:
       
       bc<stack[2]>
-      Name: "Stack 1"
+      Name: "Stack"
       Blocks: "b" and "c"
       
       Options:
       <board_options[7]>
-        board_name: Board
+        board_name: NULL
         show_conditions: warning, error
         n_rows: 50
         page_size: 5
@@ -121,12 +121,12 @@
       Stacks[1]:
       
       bc<stack[1]>
-      Name: "Stack 1"
+      Name: "Stack"
       Blocks: "b"
       
       Options:
       <board_options[7]>
-        board_name: Board
+        board_name: NULL
         show_conditions: warning, error
         n_rows: 50
         page_size: 5

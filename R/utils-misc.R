@@ -366,3 +366,56 @@ resolve_ctor <- function(ctor, ctor_pkg = NULL) {
 
   structure(try, fun = ctor, pkg = ctor_pkg, class = "blockr_ctor")
 }
+
+#' @param x Character vector to transform
+#' @param replace,with Mapped to [base::gsub()]
+#' @rdname rand_names
+#' @export
+to_sentence_case <- function(x, replace = character(), with = character()) {
+
+  to_case_collapse <- function(x) {
+
+    if (length(x) == 0L) {
+      return("")
+    }
+
+    first <- x[1L]
+    first <- paste0(toupper(substr(first, 1, 1)), tolower(substring(first, 2)))
+
+    if (length(x) == 1L) {
+      return(first)
+    }
+
+    paste(first, paste0(tolower(x[-1L]), collapse = " "))
+  }
+
+  if (is.null(x)) {
+    x <- ""
+  }
+
+  len_rep <- length(replace)
+  len_wit <- length(with)
+
+  stopifnot(
+    is.character(x), is.character(replace), is.character(with),
+    length(x) > 0, len_wit == length(replace) || len_wit == 1L
+  )
+
+  x <- replace(x, is.na(x), "")
+
+  if (len_wit == 1L) {
+    with <- rep(with, len_rep)
+  }
+
+  for (i in seq_len(len_rep)) {
+    x <- gsub(replace[i], with[i], x)
+  }
+
+  chr_ply(strsplit(trimws(x), " ", fixed = TRUE), to_case_collapse)
+}
+
+#' @rdname rand_names
+#' @export
+id_to_sentence_case <- function(x) {
+  to_sentence_case(x, c("([A-Z])", "_", "-", "\\."), c(" \\1", " ", " ", " "))
+}
