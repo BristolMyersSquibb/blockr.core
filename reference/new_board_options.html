@@ -107,7 +107,7 @@ is available as S3 generic. Inheritance checking is available as
 <span><span class="co"># Default S3 method</span></span>
 <span><span class="fu">validate_board_option</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">new_board_name_option</span><span class="op">(</span>value <span class="op">=</span> <span class="st">"Board"</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">new_board_name_option</span><span class="op">(</span>value <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">new_n_rows_option</span><span class="op">(</span>value <span class="op">=</span> <span class="fu"><a href="blockr_option.html">blockr_option</a></span><span class="op">(</span><span class="st">"n_rows"</span>, <span class="fl">50L</span><span class="op">)</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
@@ -153,6 +153,8 @@ is available as S3 generic. Inheritance checking is available as
 <span><span class="fu">board_option_values</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">get_board_option_value</span><span class="op">(</span><span class="va">opt</span>, session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">set_board_option_value</span><span class="op">(</span><span class="va">opt</span>, <span class="va">val</span>, session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">get_board_option_or_default</span><span class="op">(</span></span>
 <span>  <span class="va">opt</span>,</span>
@@ -224,6 +226,10 @@ is available as S3 generic. Inheritance checking is available as
 
 <dt id="arg-session">session<a class="anchor" aria-label="anchor" href="#arg-session"></a></dt>
 <dd><p>Shiny session</p></dd>
+
+
+<dt id="arg-val">val<a class="anchor" aria-label="anchor" href="#arg-val"></a></dt>
+<dd><p>New value</p></dd>
 
 
 <dt id="arg-opts">opts<a class="anchor" aria-label="anchor" href="#arg-opts"></a></dt>

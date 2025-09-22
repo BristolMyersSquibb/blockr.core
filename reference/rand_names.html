@@ -74,7 +74,11 @@ for ID generation.</p>
 <span></span>
 <span><span class="fu">adjective_animal</span><span class="op">(</span><span class="va">n</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">sample_letters</span><span class="op">(</span><span class="va">n</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">sample_letters</span><span class="op">(</span><span class="va">n</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">to_sentence_case</span><span class="op">(</span><span class="va">x</span>, replace <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="op">)</span>, with <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">id_to_sentence_case</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -98,6 +102,14 @@ with <code>old_names</code></p></dd>
 <dd><p>A function with a single argument <code>n</code> that generates random
 IDs. A value of <code>NULL</code> defaults to <code><a href="https://rdrr.io/pkg/ids/man/adjective_animal.html" class="external-link">ids::adjective_animal()</a></code> if available and
 <code>sample_letters</code> otherwise.</p></dd>
+
+
+<dt id="arg-x">x<a class="anchor" aria-label="anchor" href="#arg-x"></a></dt>
+<dd><p>Character vector to transform</p></dd>
+
+
+<dt id="arg-replace-with">replace, with<a class="anchor" aria-label="anchor" href="#arg-replace-with"></a></dt>
+<dd><p>Mapped to <code><a href="https://rdrr.io/r/base/grep.html" class="external-link">base::gsub()</a></code></p></dd>
 
 </dl></div>
     <div class="section level2">
