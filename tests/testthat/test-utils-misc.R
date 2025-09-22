@@ -69,6 +69,29 @@ test_that("exprs_to_lang", {
   expect_identical(deparse_exprs(f), "local(3)")
 })
 
+test_that("rand_names()", {
+
+  id <- rand_names(n = 1L)
+
+  expect_type(id, "character")
+  expect_length(id, 1L)
+
+  expect_identical(
+    rand_names(n = 1L, id_fun = function(n) rep("a", n)),
+    "a"
+  )
+
+  expect_error(
+    rand_names(n = 2L, max_tries = 5, id_fun = function(n) rep("a", n)),
+    class = "id_creation_unsuccessful"
+  )
+
+  expect_error(
+    rand_names("a", n = 1L, max_tries = 5, id_fun = function(n) rep("a", n)),
+    class = "id_creation_unsuccessful"
+  )
+})
+
 test_that("sentence case", {
 
   expect_identical(
@@ -107,15 +130,6 @@ test_that("sentence case", {
   )
 
   expect_identical(
-    to_sentence_case(
-      c("thinCuteDove", "gold-busy-rail", "key_sick_puma", "left.tart.naga"),
-      c("([A-Z])", "_", "-", "\\."),
-      c(" \\1", " ", " ", " ")
-    ),
-    c("Thin cute dove", "Gold busy rail", "Key sick puma", "Left tart naga")
-  )
-
-  expect_identical(
     to_sentence_case("313d964aca2"),
     "313d964aca2"
   )
@@ -148,5 +162,14 @@ test_that("sentence case", {
   expect_identical(
     to_sentence_case(NULL),
     ""
+  )
+
+  expect_identical(
+    id_to_sentence_case(
+      c("thinCuteDove", "gold-busy-rail", "key_sick_puma", "left.tart.naga"),
+      c("([A-Z])", "_", "-", "\\."),
+      c(" \\1", " ", " ", " ")
+    ),
+    c("Thin cute dove", "Gold busy rail", "Key sick puma", "Left tart naga")
   )
 })
