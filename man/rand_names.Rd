@@ -35,6 +35,8 @@ with \code{old_names}}
 IDs. A value of \code{NULL} defaults to \code{\link[ids:adjective_animal]{ids::adjective_animal()}} if available and
 \code{sample_letters} otherwise.}
 
+\item{x}{Character vector to transform}
+
 \item{replace, with}{Mapped to \code{\link[base:grep]{base::gsub()}}}
 }
 \value{

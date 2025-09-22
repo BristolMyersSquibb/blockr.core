@@ -367,6 +367,7 @@ resolve_ctor <- function(ctor, ctor_pkg = NULL) {
   structure(try, fun = ctor, pkg = ctor_pkg, class = "blockr_ctor")
 }
 
+#' @param x Character vector to transform
 #' @param replace,with Mapped to [base::gsub()]
 #' @rdname rand_names
 #' @export
