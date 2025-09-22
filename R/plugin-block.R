@@ -17,7 +17,7 @@
 #'
 #' @export
 edit_block <- function(server = edit_block_server, ui = edit_block_ui) {
-  new_plugin(server, ui, validator = expect_null, class = "edit_block")
+  new_plugin(server, ui, class = "edit_block")
 }
 
 #' @param id Namespace ID

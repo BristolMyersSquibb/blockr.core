@@ -20,8 +20,7 @@
 #'
 #' @export
 notify_user <- function(server = notify_user_server, ui = notify_user_ui) {
-  new_plugin(server, ui, validator = check_block_notifications_val,
-             class = "notify_user")
+  new_plugin(server, ui, class = "notify_user")
 }
 
 #' @param id Namespace ID
@@ -170,22 +169,4 @@ remove_block_notif <- function(new_ids, old_ids, session) {
   for (id in setdiff(old_ids, new_ids)) {
     removeNotification(id, session)
   }
-}
-
-check_block_notifications_val <- function(val) {
-
-  observeEvent(
-    TRUE,
-    {
-      if (!is.null(val)) {
-        abort(
-          "Expecting `notify_user` to return `NULL`.",
-          class = "notify_user_return_invalid"
-        )
-      }
-    },
-    once = TRUE
-  )
-
-  val
 }

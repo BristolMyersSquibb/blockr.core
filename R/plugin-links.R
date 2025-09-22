@@ -23,7 +23,7 @@
 #'
 #' @export
 manage_links <- function(server = manage_links_server, ui = manage_links_ui) {
-  new_plugin(server, ui, validator = expect_null, class = "manage_links")
+  new_plugin(server, ui, class = "manage_links")
 }
 
 #' @param id Namespace ID

@@ -31,7 +31,7 @@
 #' `plugins` object with all known plugins (or a selected subset thereof).
 #'
 #' @export
-new_plugin <- function(server, ui = NULL, validator = function(x, ...) x,
+new_plugin <- function(server, ui = NULL, validator = abort_not_null,
                        class = character()) {
 
   res <- structure(
@@ -49,6 +49,20 @@ new_plugin <- function(server, ui = NULL, validator = function(x, ...) x,
 is_plugin <- function(x) {
   inherits(x, "plugin") &&
     sum(inherits(x, known_plugins(), which = TRUE) != 0L) == 1L
+}
+
+#' @rdname new_plugin
+#' @export
+abort_not_null <- function(x) {
+
+  if (is.null(x)) {
+    return(invisible(x))
+  }
+
+  abort(
+    "Expected `NULL`, but got {class(x)} instead.",
+    class = "expect_not_null"
+  )
 }
 
 known_plugins <- function() {

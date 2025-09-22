@@ -18,8 +18,7 @@
 generate_code <- function(server = generate_code_server,
                           ui = generate_code_ui) {
 
-  new_plugin(server, ui, validator = check_gen_code_val,
-             class = "generate_code")
+  new_plugin(server, ui, class = "generate_code")
 }
 
 #' @param id Namespace ID

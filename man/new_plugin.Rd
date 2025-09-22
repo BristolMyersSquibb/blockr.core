@@ -3,6 +3,7 @@
 \name{new_plugin}
 \alias{new_plugin}
 \alias{is_plugin}
+\alias{abort_not_null}
 \alias{as_plugin}
 \alias{board_plugins}
 \alias{plugins}
@@ -11,14 +12,11 @@
 \alias{validate_plugins}
 \title{Board plugin}
 \usage{
-new_plugin(
-  server,
-  ui = NULL,
-  validator = function(x, ...) x,
-  class = character()
-)
+new_plugin(server, ui = NULL, validator = abort_not_null, class = character())
 
 is_plugin(x)
+
+abort_not_null(x)
 
 as_plugin(x)
 
