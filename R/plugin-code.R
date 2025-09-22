@@ -40,7 +40,11 @@ generate_code_server <- function(id, board, ...) {
       observeEvent(
         input$code_mod,
         {
-          output$code_out <- renderPrint(HTML(code()))
+          out <- code()
+
+          if (nchar(out) && pkg_avail("downlit")) {
+            out <- downlit::highlight(out, classes = downlit::classes_pandoc())
+          }
 
           id <- "code_out"
 
@@ -49,8 +53,8 @@ generate_code_server <- function(id, board, ...) {
               title = "Generated code",
               div(
                 class = "text-decoration-none position-relative",
-                if (nchar(code())) copy_to_clipboard(session, id),
-                verbatimTextOutput(session$ns(id))
+                if (nchar(out)) copy_to_clipboard(session, id),
+                pre(id = session$ns(id), HTML(out))
               ),
               easyClose = TRUE,
               footer = NULL,
@@ -94,7 +98,7 @@ copy_to_clipboard <- function(session, id) {
         "btn", "btn-outline-secondary", "btn-sm", "position-absolute",
         "top-0", "end-0", "m-2"
       ),
-      icon = icon("copy", c("fa-solid", "fa-2x")),
+      icon = icon("copy", "fa-solid"),
       onclick = paste0("copyCode(\"", session$ns(id), "\");")
     ),
     deps
