@@ -16,7 +16,7 @@
 #'
 #' @export
 edit_stack <- function(server = edit_stack_server, ui = edit_stack_ui) {
-  new_plugin(server, ui, validator = expect_null, class = "edit_stack")
+  new_plugin(server, ui, class = "edit_stack")
 }
 
 #' @param id Namespace ID

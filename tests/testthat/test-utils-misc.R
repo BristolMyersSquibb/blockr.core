@@ -166,9 +166,7 @@ test_that("sentence case", {
 
   expect_identical(
     id_to_sentence_case(
-      c("thinCuteDove", "gold-busy-rail", "key_sick_puma", "left.tart.naga"),
-      c("([A-Z])", "_", "-", "\\."),
-      c(" \\1", " ", " ", " ")
+      c("thinCuteDove", "gold-busy-rail", "key_sick_puma", "left.tart.naga")
     ),
     c("Thin cute dove", "Gold busy rail", "Key sick puma", "Left tart naga")
   )

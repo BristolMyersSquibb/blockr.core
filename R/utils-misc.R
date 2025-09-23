@@ -419,3 +419,18 @@ to_sentence_case <- function(x, replace = character(), with = character()) {
 id_to_sentence_case <- function(x) {
   to_sentence_case(x, c("([A-Z])", "_", "-", "\\."), c(" \\1", " ", " ", " "))
 }
+
+get_s3_method <- function(generic, object) {
+
+  for (cls in class(object)) {
+    res <- utils::getS3method(generic, cls, optional = TRUE)
+    if (is.function(res)) {
+      return(res)
+    }
+  }
+
+  abort(
+    "No function found for generic `{generic}()` and classes {class(object)}.",
+    class = "generic_method_not_found"
+  )
+}

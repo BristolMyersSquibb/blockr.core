@@ -18,8 +18,7 @@
 generate_code <- function(server = generate_code_server,
                           ui = generate_code_ui) {
 
-  new_plugin(server, ui, validator = check_gen_code_val,
-             class = "generate_code")
+  new_plugin(server, ui, class = "generate_code")
 }
 
 #' @param id Namespace ID
@@ -40,17 +39,39 @@ generate_code_server <- function(id, board, ...) {
       observeEvent(
         input$code_mod,
         {
-          output$code_out <- renderPrint(HTML(code()))
+          out <- paste0(code(), collapse = "\n")
+
+          cp <- nchar(out) > 0L
+
+          if (pkg_avail("styler")) {
+            out <- paste0(styler::style_text(out), collapse = "\n")
+          }
 
           id <- "code_out"
+
+          hl <- pkg_avail("downlit", "xml2")
+
+          if (hl) {
+            pre <- add_blank_targets(
+              downlit::highlight(
+                out,
+                classes = downlit::classes_chroma(),
+                pre_class = "chroma"
+              )
+            )
+          } else {
+            pre <- pre(out)
+          }
 
           showModal(
             modalDialog(
               title = "Generated code",
+              if (hl) highlight_deps(),
               div(
+                id = session$ns(id),
                 class = "text-decoration-none position-relative",
-                if (nchar(code())) copy_to_clipboard(session, id),
-                verbatimTextOutput(session$ns(id))
+                if (cp) copy_to_clipboard(session, id),
+                HTML(pre)
               ),
               easyClose = TRUE,
               footer = NULL,
@@ -94,27 +115,51 @@ copy_to_clipboard <- function(session, id) {
         "btn", "btn-outline-secondary", "btn-sm", "position-absolute",
         "top-0", "end-0", "m-2"
       ),
-      icon = icon("copy", c("fa-solid", "fa-2x")),
+      icon = icon("copy", "fa-solid"),
       onclick = paste0("copyCode(\"", session$ns(id), "\");")
     ),
     deps
   )
 }
 
-check_gen_code_val <- function(val) {
-
-  observeEvent(
-    TRUE,
-    {
-      if (!is.null(val)) {
-        abort(
-          "Expecting `generate_code` to return `NULL`.",
-          class = "generate_code_return_invalid"
-        )
-      }
-    },
-    once = TRUE
+highlight_deps <- function() {
+  htmltools::htmlDependency(
+    "chroma-highlighting",
+    pkg_version(),
+    src = pkg_file("assets", "css"),
+    stylesheet = "syntax-highlight.css"
   )
+}
 
-  invisible(val)
+add_blank_targets <- function(html) {
+
+  doc <- xml2::read_html(html)
+
+  links <- xml2::xml_find_all(doc, ".//pre//a")
+
+  for (link in links) {
+
+    xml2::xml_set_attr(link, "target", "_blank")
+
+    existing_rel <- xml2::xml_attr(link, "rel")
+
+    stopifnot(is_scalar(existing_rel))
+
+    if (is.na(existing_rel)) {
+      existing_rel <- character()
+    } else {
+      existing_rel <- strsplit(existing_rel, "\\s+")[[1]]
+    }
+
+    rel_parts <- paste(
+      unique(c(existing_rel, "noopener", "noreferrer")),
+      collapse = " "
+    )
+
+    xml2::xml_set_attr(link, "rel", rel_parts)
+  }
+
+  as.character(
+    xml2::xml_children(xml2::xml_find_all(doc, "body"))
+  )
 }

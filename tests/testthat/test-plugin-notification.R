@@ -49,18 +49,3 @@ test_that("notify_user", {
     args = list(board = reactiveValues(blocks = list()))
   )
 })
-
-test_that("notify_user return validation", {
-
-  with_mock_session(
-    {
-      check_block_notifications_val(1)
-      sink_msg(
-        expect_warning(
-          session$flushReact(),
-          "Expecting `notify_user` to return `NULL`."
-        )
-      )
-    }
-  )
-})

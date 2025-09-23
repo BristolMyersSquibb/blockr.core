@@ -25,7 +25,7 @@
 manage_stacks <- function(server = manage_stacks_server,
                           ui = manage_stacks_ui) {
 
-  new_plugin(server, ui, validator = expect_null, class = "manage_stacks")
+  new_plugin(server, ui, class = "manage_stacks")
 }
 
 #' @param id Namespace ID

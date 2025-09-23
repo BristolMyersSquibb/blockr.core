@@ -171,3 +171,14 @@ test_that("plugins", {
     class = "plugins_assignment_invalid"
   )
 })
+
+test_that("check default validator", {
+
+  expect_null(abort_not_null(NULL))
+  expect_invisible(abort_not_null(NULL))
+
+  expect_error(
+    abort_not_null(1),
+    class = "expect_not_null"
+  )
+})

@@ -2,9 +2,15 @@
 % Please edit documentation in R/utils-shiny.R
 \name{get_session}
 \alias{get_session}
+\alias{generate_plugin_args}
 \title{Shiny utilities}
 \usage{
 get_session()
+
+generate_plugin_args(board)
+}
+\arguments{
+\item{board}{A board object}
 }
 \value{
 Either \code{NULL} or a shiny session object.

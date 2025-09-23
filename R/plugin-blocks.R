@@ -22,7 +22,7 @@
 manage_blocks <- function(server = manage_blocks_server,
                           ui = manage_blocks_ui) {
 
-  new_plugin(server, ui, validator = expect_null, class = "manage_blocks")
+  new_plugin(server, ui, class = "manage_blocks")
 }
 
 #' @param id Namespace ID
