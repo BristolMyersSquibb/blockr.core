@@ -136,6 +136,8 @@ is_testing <- function() {
 #' @export
 generate_plugin_args <- function(board) {
 
+  session <- plugin_args <- NULL
+
   if (!is_testing() && !is_load_alled()) {
     warn(
       "`generate_plugin_args()` is intended only for a unit-testing context.",
