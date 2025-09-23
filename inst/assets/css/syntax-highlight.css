@@ -1,0 +1,7 @@
+[data-bs-theme="light"] {
+  @import "syntax-light";
+}
+
+[data-bs-theme="dark"] {
+  @import "syntax-dark";
+}

@@ -41,19 +41,31 @@ generate_code_server <- function(id, board, ...) {
         {
           out <- code()
 
-          if (nchar(out) && pkg_avail("downlit")) {
-            out <- downlit::highlight(out, classes = downlit::classes_pandoc())
-          }
-
           id <- "code_out"
+
+          hl <- pkg_avail("downlit", "xml2")
+
+          if (hl) {
+            pre <- add_blank_targets(
+              downlit::highlight(
+                out,
+                classes = downlit::classes_chroma(),
+                pre_class = "chroma"
+              )
+            )
+          } else {
+            pre <- pre(out)
+          }
 
           showModal(
             modalDialog(
               title = "Generated code",
+              if (hl) highlight_deps(),
               div(
+                id = session$ns(id),
                 class = "text-decoration-none position-relative",
                 if (nchar(out)) copy_to_clipboard(session, id),
-                pre(id = session$ns(id), HTML(out))
+                HTML(pre)
               ),
               easyClose = TRUE,
               footer = NULL,
@@ -101,5 +113,47 @@ copy_to_clipboard <- function(session, id) {
       onclick = paste0("copyCode(\"", session$ns(id), "\");")
     ),
     deps
+  )
+}
+
+highlight_deps <- function() {
+  htmltools::htmlDependency(
+    "chroma-highlighting",
+    pkg_version(),
+    src = pkg_file("assets", "css"),
+    stylesheet = paste0("syntax-", c("dark", "light", "highlight"), ".css")
+  )
+}
+
+add_blank_targets <- function(html) {
+
+  doc <- xml2::read_html(html)
+
+  links <- xml2::xml_find_all(doc, ".//pre//a")
+
+  for (link in links) {
+
+    xml2::xml_set_attr(link, "target", "_blank")
+
+    existing_rel <- xml2::xml_attr(link, "rel")
+
+    stopifnot(is_scalar(existing_rel))
+
+    if (is.na(existing_rel)) {
+      existing_rel <- character()
+    } else {
+      existing_rel <- strsplit(existing_rel, "\\s+")[[1]]
+    }
+
+    rel_parts <- paste(
+      unique(c(existing_rel, "noopener", "noreferrer")),
+      collapse = " "
+    )
+
+    xml2::xml_set_attr(link, "rel", rel_parts)
+  }
+
+  as.character(
+    xml2::xml_children(xml2::xml_find_all(doc, "body"))
   )
 }
