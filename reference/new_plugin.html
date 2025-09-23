@@ -71,14 +71,11 @@ validator function.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">new_plugin</span><span class="op">(</span></span>
-<span>  <span class="va">server</span>,</span>
-<span>  ui <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  validator <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span>, <span class="va">...</span><span class="op">)</span> <span class="va">x</span>,</span>
-<span>  class <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">new_plugin</span><span class="op">(</span><span class="va">server</span>, ui <span class="op">=</span> <span class="cn">NULL</span>, validator <span class="op">=</span> <span class="va">abort_not_null</span>, class <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">is_plugin</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">abort_not_null</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">as_plugin</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span></span>
