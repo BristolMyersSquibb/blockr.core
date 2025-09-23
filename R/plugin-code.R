@@ -121,7 +121,7 @@ highlight_deps <- function() {
     "chroma-highlighting",
     pkg_version(),
     src = pkg_file("assets", "css"),
-    stylesheet = paste0("syntax-", c("dark", "light", "highlight"), ".css")
+    stylesheet = "syntax-highlight.css"
   )
 }
 
