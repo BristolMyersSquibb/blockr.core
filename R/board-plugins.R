@@ -457,7 +457,10 @@ names.plugins <- function(x) {
     return(x)
   }
 
-  blockr_abort("Cannot modify plugin names.", class = "plugin_names_assign_invalid")
+  blockr_abort(
+    "Cannot modify plugin names.",
+    class = "plugin_names_assign_invalid"
+  )
 }
 
 #' @export
@@ -504,7 +507,10 @@ c.plugins <- function(...) {
 
 #' @export
 `[<-.plugins` <- function(x, i, ..., value) {
-  blockr_abort("Cannot assign into `plugins`.", class = "plugins_assignment_invalid")
+  blockr_abort(
+    "Cannot assign into `plugins`.",
+    class = "plugins_assignment_invalid"
+  )
 }
 
 #' @export
@@ -522,5 +528,8 @@ c.plugins <- function(...) {
 
 #' @export
 `[[<-.plugins` <- function(x, i, ..., value) {
-  blockr_abort("Cannot assign into `plugins`.", class = "plugins_assignment_invalid")
+  blockr_abort(
+    "Cannot assign into `plugins`.",
+    class = "plugins_assignment_invalid"
+  )
 }

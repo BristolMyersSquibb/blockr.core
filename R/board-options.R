@@ -302,7 +302,10 @@ get_board_opt_rv_from_userdata <- function(opt, session = get_session()) {
   opts <- get_board_opts_from_userdata(session)
 
   if (!opt %in% names(opts)) {
-    blockr_abort("Could not find option {opt}.", class = "board_option_not_found")
+    blockr_abort(
+      "Could not find option {opt}.",
+      class = "board_option_not_found"
+    )
   }
 
   opts[[opt]]
