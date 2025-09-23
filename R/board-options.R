@@ -96,7 +96,7 @@ as_board_options.board <- function(x) {
 validate_board_options <- function(x) {
 
   if (!is_board_options(x)) {
-    abort(
+    blockr_abort(
       "Expecting board options to inherit from `board_options`.",
       class = "board_options_inheritance_invalid"
     )
@@ -109,7 +109,7 @@ validate_board_options <- function(x) {
   ids <- names(x)
 
   if (length(unique(ids)) != length(x)) {
-    abort(
+    blockr_abort(
       "Non-unique board options IDs are being used.",
       class = "board_options_duplicated_ids"
     )
@@ -203,7 +203,7 @@ board_option_to_userdata <- function(x, ..., session = get_session()) {
     } else if (inherits(res, "Observer")) {
       list(res)
     } else if (not_null(res)) {
-      abort(
+      blockr_abort(
         "Expecting a `board_option` server function to return either a ",
         "single or list of observers.",
         class = "invalid_board_option_server_return_value"
@@ -302,7 +302,7 @@ get_board_opt_rv_from_userdata <- function(opt, session = get_session()) {
   opts <- get_board_opts_from_userdata(session)
 
   if (!opt %in% names(opts)) {
-    abort("Could not find option {opt}.", class = "board_option_not_found")
+    blockr_abort("Could not find option {opt}.", class = "board_option_not_found")
   }
 
   opts[[opt]]

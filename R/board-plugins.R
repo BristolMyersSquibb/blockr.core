@@ -59,7 +59,7 @@ abort_not_null <- function(x) {
     return(invisible(x))
   }
 
-  abort(
+  blockr_abort(
     "Expected `NULL`, but got {class(x)} instead.",
     class = "expect_not_null"
   )
@@ -86,7 +86,7 @@ as_plugin.list <- function(x) do.call(new_plugin, x)
 as_plugin.plugins <- function(x) {
 
   if (length(x) != 1L) {
-    abort(
+    blockr_abort(
       "Cannot cast length != 1 \"plugins\" to \"plugin\".",
       class = "plugins_as_plugin_invalid"
     )
@@ -116,7 +116,7 @@ plugin_id <- function(x) class(x)[1L]
 validate_plugin <- function(x) {
 
   if (!is_plugin(x)) {
-    abort(
+    blockr_abort(
       "Expecting a plugin to inherit from `plugin` and any one of ",
       "{known_plugins()}.",
       class = "plugin_inheritance_invalid"
@@ -124,14 +124,14 @@ validate_plugin <- function(x) {
   }
 
   if (!is.list(x)) {
-    abort(
+    blockr_abort(
       "Expecting a plugin to behave list-like.",
       class = "plugin_type_invalid"
     )
   }
 
   if (!setequal(names(x), c("server", "ui"))) {
-    abort(
+    blockr_abort(
       "Expecting a plugin to contain components \"server\" and \"ui\".",
       class = "plugin_components_invalid"
     )
@@ -140,7 +140,7 @@ validate_plugin <- function(x) {
   srv <- plugin_server(x)
 
   if (!is.null(srv) && !is.function(srv)) {
-    abort(
+    blockr_abort(
       "Expecting a plugin server to be a function.",
       class = "plugin_server_invalid"
     )
@@ -149,14 +149,14 @@ validate_plugin <- function(x) {
   ui <- plugin_ui(x)
 
   if (!is.null(ui) && !is.function(ui)) {
-    abort(
+    blockr_abort(
       "Expecting a plugin ui to be `NULL` or a function.",
       class = "plugin_ui_invalid"
     )
   }
 
   if (!is.function(plugin_validator(x))) {
-    abort(
+    blockr_abort(
       "Expecting a plugin validator to be a function.",
       class = "plugin_validator_invalid"
     )
@@ -320,7 +320,7 @@ board_plugins.board <- function(x, which = NULL) {
 validate_callbacks <- function(x) {
 
   if (!is.list(x)) {
-    abort(
+    blockr_abort(
       "Expecting a list of callbacks.",
       class = "invalid_callbacks"
     )
@@ -328,7 +328,7 @@ validate_callbacks <- function(x) {
 
   for (f in x) {
     if (!is.function(f)) {
-      abort(
+      blockr_abort(
         "Expecting callbacks to be passed as functions.",
         class = "invalid_callbacks"
       )
@@ -336,7 +336,7 @@ validate_callbacks <- function(x) {
   }
 
   if (!is.null(names(x)) && length(unique(names(x))) != length(x)) {
-    abort(
+    blockr_abort(
       "Callbacks must either be unnamed or named with unique names.",
       class = "invalid_callbacks"
     )
@@ -396,28 +396,28 @@ anyDuplicated.plugins <- function(x, incomparables = FALSE, ...) {
 validate_plugins <- function(x) {
 
   if (!is_plugins(x)) {
-    abort(
+    blockr_abort(
       "Expecting a board plugins object to inherit from \"plugins\".",
       class = "plugins_inheritance_invalid"
     )
   }
 
   if (!is.list(x)) {
-    abort(
+    blockr_abort(
       "Expecting a board plugins object behave list-like.",
       class = "plugins_type_invalid"
     )
   }
 
   if (!all(lgl_ply(x, is_plugin))) {
-    abort(
+    blockr_abort(
       "Expecting a board plugins to contain a set of plugins.",
       class = "plugins_contains_invalid"
     )
   }
 
   if (anyDuplicated(x) != 0L) {
-    abort(
+    blockr_abort(
       "Duplicate board plugins are not allowed.",
       class = "plugins_duplicate_invalid"
     )
@@ -457,7 +457,7 @@ names.plugins <- function(x) {
     return(x)
   }
 
-  abort("Cannot modify plugin names.", class = "plugin_names_assign_invalid")
+  blockr_abort("Cannot modify plugin names.", class = "plugin_names_assign_invalid")
 }
 
 #' @export
@@ -504,7 +504,7 @@ c.plugins <- function(...) {
 
 #' @export
 `[<-.plugins` <- function(x, i, ..., value) {
-  abort("Cannot assign into `plugins`.", class = "plugins_assignment_invalid")
+  blockr_abort("Cannot assign into `plugins`.", class = "plugins_assignment_invalid")
 }
 
 #' @export
@@ -522,5 +522,5 @@ c.plugins <- function(...) {
 
 #' @export
 `[[<-.plugins` <- function(x, i, ..., value) {
-  abort("Cannot assign into `plugins`.", class = "plugins_assignment_invalid")
+  blockr_abort("Cannot assign into `plugins`.", class = "plugins_assignment_invalid")
 }

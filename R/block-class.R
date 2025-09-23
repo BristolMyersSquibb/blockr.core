@@ -243,7 +243,7 @@ new_block <- function(server, ui, class, ctor, ctor_pkg, dat_valid = NULL,
 validate_block_server <- function(server) {
 
   if (!is.function(server)) {
-    abort(
+    blockr_abort(
       "A block server component is expected to be a function.",
       class = "block_server_function_invalid"
     )
@@ -252,7 +252,7 @@ validate_block_server <- function(server) {
   args <- names(formals(server))
 
   if (!identical(args[1L], "id")) {
-    abort(
+    blockr_abort(
       "A block server function is expected to have an argument `id` in ",
       "first postion.",
       class = "block_server_arg_id_invalid"
@@ -260,7 +260,7 @@ validate_block_server <- function(server) {
   }
 
   if ("..." %in% args) {
-    abort(
+    blockr_abort(
       "Variadic blocks are supported not by passing arguments as `...` ",
       "but using a special argument `...args`.",
       class = "block_server_dots_invalid"
@@ -268,7 +268,7 @@ validate_block_server <- function(server) {
   }
 
   if (any(grepl("^[1-9][0-9]*$", args))) {
-    abort(
+    blockr_abort(
       "Integer-valued argument names are reserved as poistional arguments ",
       "in `...args.`",
       class = "block_server_args_invalid"
@@ -281,14 +281,14 @@ validate_block_server <- function(server) {
 validate_block_ui <- function(ui) {
 
   if (!is.function(ui)) {
-    abort(
+    blockr_abort(
       "A block UI component is expected to be a function.",
       class = "block_ui_function_invalid"
     )
   }
 
   if (!identical(names(formals(ui)), "id")) {
-    abort(
+    blockr_abort(
       "A block UI function is expected to have a single argument `id`.",
       class = "block_ui_arg_id_invalid"
     )
@@ -302,7 +302,7 @@ validate_data_validator <- function(validator, server) {
   server_args <- setdiff(names(formals(server)), "id")
 
   if (!length(server_args) && not_null(validator)) {
-    abort(
+    blockr_abort(
       "A nullary server function cannot accopmany a data input validator.",
       class = "block_validator_nullary_invalid"
     )
@@ -311,7 +311,7 @@ validate_data_validator <- function(validator, server) {
   if (not_null(validator)) {
 
     if (!is.function(validator)) {
-      abort(
+      blockr_abort(
         "Data input validator is expected to be a function.",
         class = "block_validator_function_invalid"
       )
@@ -320,7 +320,7 @@ validate_data_validator <- function(validator, server) {
     val_args <- names(formals(validator))
 
     if (!identical(server_args, val_args)) {
-      abort(
+      blockr_abort(
         "Server args {server_args} do not match validator args {val_args}.",
         class = "block_validator_args_invalid"
       )
@@ -333,35 +333,35 @@ validate_data_validator <- function(validator, server) {
 validate_block <- function(x, ui_eval = FALSE) {
 
   if (!is_block(x)) {
-    abort(
+    blockr_abort(
       "Expecting blocks to inherit from \"block\".",
       class = "block_class_invalid"
     )
   }
 
   if (class(x)[1L] == "block") {
-    abort(
+    blockr_abort(
       "Expecting blocks to have at least one sub-class.",
       class = "block_class_invalid"
     )
   }
 
   if (!is.list(x)) {
-    abort(
+    blockr_abort(
       "Expecting blocks to behave list-like.",
       class = "block_list_like_invalid"
     )
   }
 
   if (!is.function(try(block_ctor(x), silent = TRUE))) {
-    abort(
+    blockr_abort(
       "Cannot reconstruct blocks without constructors.",
       class = "block_no_ctor"
     )
   }
 
   if (!is_string(block_name(x))) {
-    abort(
+    blockr_abort(
       "Expecting a string-valued block name.",
       class = "block_name_invalid"
     )
@@ -378,7 +378,7 @@ validate_block <- function(x, ui_eval = FALSE) {
     ui <- expr_ui("block", x)
 
     if (!inherits(ui, "shiny.tag", "shiny.tag.list", agg = any)) {
-      abort(
+      blockr_abort(
         "A block UI function is expected to return a shiny UI object, i.e. ",
         "either a `shiny.tag` or a `shiny.tag.list`.",
         class = "block_ui_eval_invalid"
@@ -436,7 +436,7 @@ as_block.list <- function(x, ...) {
   res <- do.call(ctor, args)
 
   if (!identical(class(res), x[["object"]])) {
-    abort(
+    blockr_abort(
       "Could not deserialize block.",
       class = "block_deser_error"
     )

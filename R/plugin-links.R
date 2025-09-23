@@ -284,7 +284,7 @@ create_dt_link_obs <- function(ids, upd, ...) {
 
         } else if (col != "input") {
 
-          abort(
+          blockr_abort(
             "Unexpected input: column {col}.",
             class = "unexpected_link_col_input"
           )

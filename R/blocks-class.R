@@ -77,7 +77,7 @@ as.list.blocks <- function(x, ...) {
   if (is.null(value)) {
     value <- rep("", length(x))
   } else if (anyDuplicated(value) != 0L) {
-    abort(
+    blockr_abort(
       "IDs are required to be unique.",
       class = "blocks_names_unique_invalid"
     )
@@ -157,7 +157,7 @@ c.blocks <- function(...) {
   new_ids <- names(value)
 
   if (!setequal(new_ids, trg_ids)) {
-    abort(
+    blockr_abort(
       paste0(
         "Replacing IDs ", paste_enum(trg_ids), " with ", paste_enum(new_ids),
         " is not allowed."
@@ -189,14 +189,14 @@ blocks_assign <- function(...) {
 validate_blocks <- function(x) {
 
   if (!is_blocks(x)) {
-    abort(
+    blockr_abort(
       "Expecting blocks to inherit from \"blocks\".",
       class = "blocks_class_invalid"
     )
   }
 
   if (!is.list(x) || !all(lgl_ply(x, is_block))) {
-    abort(
+    blockr_abort(
       "Expecting the board to contain a set of blocks.",
       class = "blocks_contains_invalid"
     )
@@ -205,14 +205,14 @@ validate_blocks <- function(x) {
   ids <- names(x)
 
   if (length(ids) != length(x) || any(is.na(ids) | !nchar(ids))) {
-    abort(
+    blockr_abort(
       "Block IDs are required to be nonempty strings.",
       class = "blocks_names_invalid"
     )
   }
 
   if (anyDuplicated(ids) != 0) {
-    abort(
+    blockr_abort(
       "Block IDs are required to be unique.",
       class = "blocks_names_invalid"
     )

@@ -69,14 +69,14 @@ new_link <- function(from = "", to = "", input = "", ..., class = character()) {
 validate_link <- function(x) {
 
   if (!is_link(x)) {
-    abort(
+    blockr_abort(
       "Expecting a link to inherit from \"link\".",
       class = "link_class_invalid"
     )
   }
 
   if (!is.list(x)) {
-    abort(
+    blockr_abort(
       "Expecting a link to be represented by a list.",
       class = "link_list_like_invalid"
     )
@@ -89,28 +89,28 @@ validate_link <- function(x) {
   fields <- c("from", "to", "input")
 
   if (!all(fields %in% names(x))) {
-    abort(
+    blockr_abort(
       "Expecting a link to contain attributes {fields}.",
       class = "link_components_missing"
     )
   }
 
   if (!all(lgl_ply(x[fields], is_string))) {
-    abort(
+    blockr_abort(
       "Expecting link attributes {fields} to be strings.",
       class = "link_components_invalid"
     )
   }
 
   if (anyNA(x[fields])) {
-    abort(
+    blockr_abort(
       "Missing values for {fields} are not allowed.",
       class = "link_components_invalid"
     )
   }
 
   if (x[["from"]] == x[["to"]] && x[["to"]] != "") {
-    abort(
+    blockr_abort(
       "Self-referencing links are not allowed.",
       class = "link_self_referencing"
     )

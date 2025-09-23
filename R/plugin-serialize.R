@@ -165,7 +165,7 @@ check_ser_deser_val <- function(val) {
     TRUE,
     {
       if (!is.reactive(val)) {
-        abort(
+        blockr_abort(
           "Expecting `preserve_board` to return a reactive value.",
           class = "preserve_board_return_invalid"
         )
@@ -178,7 +178,7 @@ check_ser_deser_val <- function(val) {
     val(),
     {
       if (!is_board(val())) {
-        abort(
+        blockr_abort(
           "Expecting the `preserve_board` return value to evaluate to a ",
           "`board` object.",
           class = "preserve_board_return_invalid"

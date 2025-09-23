@@ -53,7 +53,7 @@ topo_sort <- function(x) {
     function(node, adj, stack) {
 
       if (on_stack[node]) {
-        abort(
+        blockr_abort(
           "The graph contains a cycle and is not a DAG.",
           class = "graph_has_cycle"
         )

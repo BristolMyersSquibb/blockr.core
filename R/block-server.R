@@ -389,7 +389,7 @@ check_expr_val <- function(val, x) {
     val,
     {
       if (!is.list(val)) {
-        abort(
+        blockr_abort(
           "The block server for {class(x)[1L]} is expected to return a list.",
           class = "expr_server_return_type_invalid"
         )
@@ -398,7 +398,7 @@ check_expr_val <- function(val, x) {
       required <- c("expr", "state")
 
       if (!all(required %in% names(val))) {
-        abort(
+        blockr_abort(
           "The block server for {class(x)[1L]} is expected to return values ",
           "{setdiff(required, names(val))}.",
           class = "expr_server_return_component_missing"
@@ -406,7 +406,7 @@ check_expr_val <- function(val, x) {
       }
 
       if (!is.reactive(val[["expr"]])) {
-        abort(
+        blockr_abort(
           "The `expr` component of the return value for {class(x)[1L]} is ",
           "expected to be a reactive.",
           class = "expr_server_return_type_invalid"
@@ -414,7 +414,7 @@ check_expr_val <- function(val, x) {
       }
 
       if (!is.list(val[["state"]])) {
-        abort(
+        blockr_abort(
           "The `state` component of the return value for {class(x)[1L]} is ",
           "expected to be a list.",
           class = "expr_server_return_type_invalid"
@@ -424,7 +424,7 @@ check_expr_val <- function(val, x) {
       if ("cond" %in% names(val)) {
 
         if (!is.reactivevalues(val[["cond"]])) {
-          abort(
+          blockr_abort(
             "The `cond` component of the return value for {class(x)[1L]} is ",
             "expected to be a `reactiveValues` object.",
             class = "expr_server_return_type_invalid"
@@ -434,7 +434,7 @@ check_expr_val <- function(val, x) {
         conds <- c("message", "warning", "error")
 
         if (!all(names(val[["cond"]]) %in% conds)) {
-          abort(
+          blockr_abort(
             "The `cond` component of the return value for {class(x)[1L]} is ",
             "expected to contain components {conds}.",
             class = "expr_server_return_type_invalid"
@@ -447,7 +447,7 @@ check_expr_val <- function(val, x) {
       missing <- setdiff(expected, current)
 
       if (length(missing)) {
-        abort(
+        blockr_abort(
           "The `state` component of the return value for {class(x)[1L]} is ",
           "expected to additionally return {missing}",
           class = "expr_server_return_state_invalid"

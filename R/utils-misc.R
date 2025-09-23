@@ -54,7 +54,7 @@ rand_names <- function(old_names = character(0L), n = 1L, max_tries = 100L,
   }
 
   if (length(new_names) < n) {
-    abort(
+    blockr_abort(
       "Failed to create {n} unique ID{?s} within {max_tries} attempt{?s}.",
       class = "id_creation_unsuccessful"
     )
@@ -141,7 +141,7 @@ coal <- function(..., fail_null = TRUE) {
   }
 
   if (isTRUE(fail_null)) {
-    abort(
+    blockr_abort(
       "No non-NULL value encountered",
       class = "coal_null_return_disallowed"
     )
@@ -242,7 +242,7 @@ blockr_option <- function(name, default) {
     return(res_opt)
   }
 
-  abort(
+  blockr_abort(
     "Conflicting options set for {name}: check environment variable {env} ",
     "and option {opt}.",
     class = "conflicing_blockr_option"
@@ -429,7 +429,7 @@ get_s3_method <- function(generic, object) {
     }
   }
 
-  abort(
+  blockr_abort(
     "No function found for generic `{generic}()` and classes {class(object)}.",
     class = "generic_method_not_found"
   )

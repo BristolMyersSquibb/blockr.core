@@ -41,21 +41,21 @@ is_stacks <- function(x) {
 validate_stacks <- function(x) {
 
   if (!is_stacks(x)) {
-    abort(
+    blockr_abort(
       "Expecting stacks to inherit from \"stacks\".",
       class = "stacks_class_invalid"
     )
   }
 
   if (!is.list(x)) {
-    abort(
+    blockr_abort(
       "Expecting a `stacks` object to behave list-like.",
       class = "stacks_type_invalid"
     )
   }
 
   if (!all(lgl_ply(x, is_stack))) {
-    abort(
+    blockr_abort(
       "Expecting a `stacks` object to contain a set of stacks.",
       class = "stacks_contains_invalid"
     )
@@ -64,21 +64,21 @@ validate_stacks <- function(x) {
   ids <- names(x)
 
   if (length(ids) != length(x) || any(is.na(ids) | !nchar(ids))) {
-    abort(
+    blockr_abort(
       "Stack IDs are required to be nonempty strings.",
       class = "stacks_names_invalid"
     )
   }
 
   if (anyDuplicated(ids) != 0) {
-    abort(
+    blockr_abort(
       "Stack IDs are required to be unique.",
       class = "stacks_names_invalid"
     )
   }
 
   if (!stack_blocks_unique(x)) {
-    abort(
+    blockr_abort(
       "Blocks cannot be in mutliple stacks at the same time.",
       class = "stacks_blocks_invalid"
     )
@@ -160,7 +160,7 @@ as.list.stacks <- function(x, ...) {
   if (is.null(value)) {
     value <- rep("", length(x))
   } else if (anyDuplicated(value) != 0L) {
-    abort(
+    blockr_abort(
       "IDs are required to be unique.",
       class = "stacks_names_unique_invalid"
     )
@@ -219,7 +219,7 @@ c.stacks <- function(...) {
   new_ids <- names(value)
 
   if (!setequal(new_ids, trg_ids)) {
-    abort(
+    blockr_abort(
       "Replacing IDs {trg_ids} with {new_ids} is not allowed.",
       class = "stacks_assignment_name_invalid"
     )

@@ -98,28 +98,28 @@ validate_stack <- function(x) {
 validate_stack.stack <- function(x) {
 
   if (!is_stack(x)) {
-    abort(
+    blockr_abort(
       "Expecting a stack to inherit from `stack`.",
       class = "stack_class_invalid"
     )
   }
 
   if (!is_string(attr(x, "name"))) {
-    abort(
+    blockr_abort(
       "Expecting the stack name to be a string.",
       class = "stack_name_invalid"
     )
   }
 
   if (!is.character(x)) {
-    abort(
+    blockr_abort(
       "Expecting stack blocks to be character-like.",
       class = "stack_type_invalid"
     )
   }
 
   if (anyNA(x) || !all(nzchar(x))) {
-    abort(
+    blockr_abort(
       "Expecting the stack blocks to be strings.",
       class = "stack_blocks_invalid"
     )
@@ -128,14 +128,14 @@ validate_stack.stack <- function(x) {
   nme <- names(x)
 
   if (!is.null(nme) || any(nzchar(nme))) {
-    warn(
+    blockr_warn(
       "Names are ignored in stack objects.",
       class = "named_stack_obejct_warn"
     )
   }
 
   if (anyDuplicated(x) != 0L) {
-    abort(
+    blockr_abort(
       "Stack blocks have to be unique.",
       class = "stack_block_duplicates"
     )
@@ -146,7 +146,7 @@ validate_stack.stack <- function(x) {
 
 #' @export
 validate_stack.default <- function(x) {
-  abort(
+  blockr_abort(
     "Expecting a stack to inherit from `stack`.",
     class = "stack_class_invalid"
   )
@@ -263,7 +263,7 @@ is.element.stack <- function(el, set, ...) {
 
 #' @export
 `[<-.stack` <- function(x, i, ..., value) {
-  abort(
+  blockr_abort(
     "Subassignment of stack objects is not suported. Use set operations ",
     "instead.",
     class = "stack_subassignment_invalid"
@@ -272,7 +272,7 @@ is.element.stack <- function(el, set, ...) {
 
 #' @export
 `[[<-.stack` <- function(x, i, ..., value) {
-  abort(
+  blockr_abort(
     "Subassignment of stack objects is not suported. Use set operations",
     "instead.",
     class = "stack_subassignment_invalid"

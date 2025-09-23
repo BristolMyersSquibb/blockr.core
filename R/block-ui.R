@@ -51,7 +51,7 @@ expr_ui <- function(id, x, ...) {
 expr_ui.block <- function(id, x, ...) {
 
   if (...length()) {
-    abort(
+    blockr_abort(
       paste(
         "Unknown arguments", paste_enum(...names()), "in call to `expr_ui()`."
       ),

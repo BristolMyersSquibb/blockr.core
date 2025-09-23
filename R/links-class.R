@@ -109,7 +109,7 @@ names.links <- function(x) {
   if (is.null(value)) {
     value <- rep("", length(x))
   } else if (anyDuplicated(value) != 0L) {
-    abort(
+    blockr_abort(
       "IDs are required to be unique.",
       class = "links_names_unique_invalid"
     )
@@ -168,7 +168,7 @@ c.links <- function(...) {
   new_ids <- names(value)
 
   if (!setequal(new_ids, trg_ids)) {
-    abort(
+    blockr_abort(
       "Replacing IDs {trg_ids} with {new_ids} is not allowed.",
       class = "links_assignment_name_invalid"
     )
@@ -297,14 +297,14 @@ validate_links <- function(x) {
   }
 
   if (!is_links(x)) {
-    abort(
+    blockr_abort(
       "Expecting a board links objects to inherit from \"links\".",
       class = "links_class_invalid"
     )
   }
 
   if (!is.list(x)) {
-    abort(
+    blockr_abort(
       "Expecting a board links objects behave list-like.",
       class = "links_list_like_invalid"
     )
@@ -313,7 +313,7 @@ validate_links <- function(x) {
   fields <- c("id", "from", "to", "input")
 
   if (!all(fields %in% fields(x))) {
-    abort(
+    blockr_abort(
       "Expecting the links to contain at least fields {fields}.",
       class = "links_fields_invalid"
     )
@@ -324,7 +324,7 @@ validate_links <- function(x) {
   }
 
   if (any_dup(field(x, "id")) != 0L) {
-    abort(
+    blockr_abort(
       "Links IDs are required to be unique.",
       class = "links_names_unique_invalid"
     )
@@ -334,7 +334,7 @@ validate_links <- function(x) {
   dup_inp <- lgl_ply(dup_inp, Negate(identical), 0L, use_names = TRUE)
 
   if (any(dup_inp)) {
-    abort(
+    blockr_abort(
       "Block{?s} {names(dup_inp)[dup_inp]} {?has/have} multiple identical ",
       "inputs.",
       class = "links_block_inputs_invalid"
@@ -342,7 +342,7 @@ validate_links <- function(x) {
   }
 
   if (!is_acyclic(x)) {
-    abort("Links form a cycle.", class = "links_acyclic_invalid")
+    blockr_abort("Links form a cycle.", class = "links_acyclic_invalid")
   }
 
   x

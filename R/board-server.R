@@ -527,7 +527,7 @@ add_blocks_to_stacks <- function(rv, add, session) {
 validate_board_update <- function(x, rv) {
 
   if (!is.reactive(x)) {
-    abort(
+    blockr_abort(
       "Expecting a board update to be passed as a reactive object.",
       class = "board_update_object_invalid"
     )
@@ -538,14 +538,14 @@ validate_board_update <- function(x, rv) {
   expected <- c("blocks", "links", "stacks")
 
   if (!is.list(res)) {
-    abort(
+    blockr_abort(
       "Expecting a board update to be specified as a list.",
       class = "board_update_type_invalid"
     )
   }
 
   if (!all(names(res) %in% expected)) {
-    abort(
+    blockr_abort(
       "Expecting a board update to consist of components {expected}. Please ",
       "remove {setdiff(names(res), expected)}.",
       class = "board_update_components_invalid"
@@ -557,7 +557,7 @@ validate_board_update <- function(x, rv) {
   for (cmp in res) {
 
     if (!is.list(cmp)) {
-      abort(
+      blockr_abort(
         "Expecting a board update component to be specified as a list.",
         class = "board_update_component_type_invalid"
       )
@@ -565,7 +565,7 @@ validate_board_update <- function(x, rv) {
 
     if (!length(names(cmp)) == length(cmp) || !all(names(cmp) %in% expected)) {
 
-      abort(
+      blockr_abort(
         "Expecting a board update component to consist of components ",
         "{expected}. Please remove {setdiff(names(cmp), expected)}.",
         class = "board_update_component_components_invalid"
@@ -601,7 +601,7 @@ validate_board_update_blocks <- function(x, rv) {
   if ("add" %in% names(x) && !is.null(x$add)) {
 
     if (!is_blocks(x$add)) {
-      abort(
+      blockr_abort(
         "Expecting the \"add\" block component of a board update to be ",
         "`NULL` or a `blocks` object.",
         class = "board_update_blocks_add_invalid"
@@ -609,7 +609,7 @@ validate_board_update_blocks <- function(x, rv) {
     }
 
     if (any(names(x$add) %in% cur_ids)) {
-      abort(
+      blockr_abort(
         "Expecting the newly added block to have a unique ID.",
         class = "board_update_blocks_add_invalid"
       )
@@ -619,7 +619,7 @@ validate_board_update_blocks <- function(x, rv) {
 
     if ("mod" %in% names(x) && !is.null(x$mod)) {
       if (length(intersect(names(x$add), names(x$mod)))) {
-        abort(
+        blockr_abort(
           "Cannot add and modify the same IDs simulatneously.",
           class = "board_update_blocks_add_mod_clash"
         )
@@ -630,7 +630,7 @@ validate_board_update_blocks <- function(x, rv) {
   if ("rm" %in% names(x) && !is.null(x$rm)) {
 
     if (!is.character(x$rm)) {
-      abort(
+      blockr_abort(
         "Expecting the \"rm\" block component of a board update value ",
         "to be `NULL` or a character vector.",
         class = "board_update_blocks_rm_invalid"
@@ -638,7 +638,7 @@ validate_board_update_blocks <- function(x, rv) {
     }
 
     if (!all(x$rm %in% all_ids)) {
-      abort(
+      blockr_abort(
         "Expecting the removed block to be specified by a known ID.",
         class = "board_update_blocks_rm_invalid"
       )
@@ -648,7 +648,7 @@ validate_board_update_blocks <- function(x, rv) {
   if ("mod" %in% names(x)) {
 
     if (!is_blocks(x$mod)) {
-      abort(
+      blockr_abort(
         "Expecting the \"mod\" block component of a board update",
         "value to be `NULL` or a `blocks` object.",
         class = "board_update_blocks_mod_invalid"
@@ -656,7 +656,7 @@ validate_board_update_blocks <- function(x, rv) {
     }
 
     if (!all(names(x$mod) %in% cur_ids)) {
-      abort(
+      blockr_abort(
         "Expecting the modified blocks to be specified by known IDs.",
         class = "board_update_blocks_mod_invalid"
       )
@@ -681,7 +681,7 @@ validate_board_update_links <- function(x, rv) {
   if ("add" %in% names(x) && !is.null(x$add)) {
 
     if (!is_links(x$add)) {
-      abort(
+      blockr_abort(
         "Expecting the \"add\" link component of a board update",
         "value to be `NULL` or a `links` object.",
         class = "board_update_links_add_invalid"
@@ -689,7 +689,7 @@ validate_board_update_links <- function(x, rv) {
     }
 
     if (any(names(x$add) %in% cur_ids)) {
-      abort(
+      blockr_abort(
         "Expecting the newly added links to have a unique ID.",
         class = "board_update_links_add_invalid"
       )
@@ -699,7 +699,7 @@ validate_board_update_links <- function(x, rv) {
 
     if ("mod" %in% names(x) && !is.null(x$mod)) {
       if (length(intersect(names(x$add), names(x$mod)))) {
-        abort(
+        blockr_abort(
           "Cannot add and modify the same IDs simulatneously.",
           class = "board_update_links_add_mod_clash"
         )
@@ -710,7 +710,7 @@ validate_board_update_links <- function(x, rv) {
   if ("rm" %in% names(x) && !is.null(x$rm)) {
 
     if (!is.character(x$rm)) {
-      abort(
+      blockr_abort(
         "Expecting the \"rm\" link component of a board update",
         "to be `NULL` or a character vector.",
         class = "board_update_links_rm_invalid"
@@ -718,7 +718,7 @@ validate_board_update_links <- function(x, rv) {
     }
 
     if (!all(x$rm %in% all_ids)) {
-      abort(
+      blockr_abort(
         "Expecting all link IDs to be removed to be known.",
         class = "board_update_links_rm_invalid"
       )
@@ -728,7 +728,7 @@ validate_board_update_links <- function(x, rv) {
   if ("mod" %in% names(x) && !is.null(x$mod)) {
 
     if (!is_links(x$mod)) {
-      abort(
+      blockr_abort(
         "Expecting the \"mod\" link component of a board update",
         "value to be `NULL` or a `links` object.",
         class = "board_update_links_mod_invalid"
@@ -736,7 +736,7 @@ validate_board_update_links <- function(x, rv) {
     }
 
     if (!all(names(x$mod) %in% cur_ids)) {
-      abort(
+      blockr_abort(
         "Expecting the modified links to be specified by known IDs.",
         class = "board_update_links_mod_invalid"
       )
@@ -761,7 +761,7 @@ validate_board_update_stacks <- function(x, rv) {
   if ("add" %in% names(x) && !is.null(x$add)) {
 
     if (!is_stacks(x$add)) {
-      abort(
+      blockr_abort(
         "Expecting the \"add\" stack component of a board update",
         "to be `NULL` or a `stacks` object.",
         class = "board_update_stacks_add_invalid"
@@ -769,7 +769,7 @@ validate_board_update_stacks <- function(x, rv) {
     }
 
     if (any(names(x$add) %in% cur_ids)) {
-      abort(
+      blockr_abort(
         "Expecting the newly added stacks to have a unique ID.",
         class = "board_update_stacks_add_invalid"
       )
@@ -779,7 +779,7 @@ validate_board_update_stacks <- function(x, rv) {
 
     if ("mod" %in% names(x) && !is.null(x$mod)) {
       if (length(intersect(names(x$add), names(x$mod)))) {
-        abort(
+        blockr_abort(
           "Cannot add and modify the same IDs simulatneously.",
           class = "board_update_stacks_add_mod_clash"
         )
@@ -790,7 +790,7 @@ validate_board_update_stacks <- function(x, rv) {
   if ("rm" %in% names(x) && !is.null(x$rm)) {
 
     if (!is.character(x$rm)) {
-      abort(
+      blockr_abort(
         "Expecting the \"rm\" stack component of a board update",
         "to be `NULL` or a character vector.",
         class = "board_update_stacks_rm_invalid"
@@ -798,7 +798,7 @@ validate_board_update_stacks <- function(x, rv) {
     }
 
     if (!all(x$rm %in% all_ids)) {
-      abort(
+      blockr_abort(
         "Expecting all stack IDs to be removed to be known.",
         class = "board_update_stacks_rm_invalid"
       )
@@ -808,7 +808,7 @@ validate_board_update_stacks <- function(x, rv) {
   if ("mod" %in% names(x) && !is.null(x$mod)) {
 
     if (!is_stacks(x$mod)) {
-      abort(
+      blockr_abort(
         "Expecting the \"mod\" stack component of a board update",
         "value to be `NULL` or a `stacks` object.",
         class = "board_update_stacks_mod_invalid"
@@ -816,7 +816,7 @@ validate_board_update_stacks <- function(x, rv) {
     }
 
     if (!all(names(x$mod) %in% cur_ids)) {
-      abort(
+      blockr_abort(
         "Expecting the modified stacks to be specified by known IDs.",
         class = "board_update_stacks_mod_invalid"
       )

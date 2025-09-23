@@ -118,7 +118,7 @@ is_load_alled <- function(pkg = pkg_name()) {
   ns <- .getNamespace(pkg)
 
   if (is.null(ns)) {
-    abort(
+    blockr_abort(
       "Namespace not found for package {pkg}.",
       class = "namespace_not_found"
     )
@@ -139,14 +139,14 @@ generate_plugin_args <- function(board) {
   session <- plugin_args <- NULL
 
   if (!is_testing() && !is_load_alled()) {
-    warn(
+    blockr_warn(
       "`generate_plugin_args()` is intended only for a unit-testing context.",
       class = "generate_plugin_args_not_testing"
     )
   }
 
   withr::local_envvar(BLOCKR_LOG_LEVEL = "")
-  withr::local_options(blockr.log_level = "warn")
+  withr::local_options(blockr.log_level = "blockr_warn")
 
   res_plugin_args <- list()
 

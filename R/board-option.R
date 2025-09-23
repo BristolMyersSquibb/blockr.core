@@ -124,14 +124,14 @@ board_option_value <- function(x, value = board_option_default(x)) {
 validate_board_option.default <- function(x) {
 
   if (!is_board_option(x)) {
-    abort(
+    blockr_abort(
       "Expecting a board option to inherit from `board_option`.",
       class = "board_option_inheritance_invalid"
     )
   }
 
   if (!is_string(board_option_id(x))) {
-    abort(
+    blockr_abort(
       "Expecting a board option ID to be string-valued.",
       class = "board_option_component_invalid"
     )
@@ -140,7 +140,7 @@ validate_board_option.default <- function(x) {
   trigger <- board_option_trigger(x)
 
   if (!is.null(trigger) && (!is.character(trigger) || !length(trigger))) {
-    abort(
+    blockr_abort(
       "Expecting a board option trigger to be a non-zero length character",
       "vector or `NULL`.",
       class = "board_option_component_invalid"
@@ -150,7 +150,7 @@ validate_board_option.default <- function(x) {
   ui <- board_option_ui(x)
 
   if (!is.function(ui) || !identical(names(formals(ui)), "id")) {
-    abort(
+    blockr_abort(
       "Expecting a board option UI function to have a single argument `id`.",
       class = "board_option_component_invalid"
     )
@@ -159,7 +159,7 @@ validate_board_option.default <- function(x) {
   srv <- board_option_server(x)
 
   if (!is.function(srv)) {
-    abort(
+    blockr_abort(
       "Expecting a board option server function to be a function.",
       class = "board_option_component_invalid"
     )
@@ -170,7 +170,7 @@ validate_board_option.default <- function(x) {
   exp <- c("...", "session")
 
   if (len < 2L || !identical(arg[seq.int(len - 1L, len)], exp)) {
-    abort(
+    blockr_abort(
       "Expecting a board option server function signature to end with {exp}.",
       class = "board_option_component_invalid"
     )
@@ -179,7 +179,7 @@ validate_board_option.default <- function(x) {
   tfm <- board_option_transform(x)
 
   if (!is.function(tfm) || !identical(names(formals(tfm)), "x")) {
-    abort(
+    blockr_abort(
       "Expecting a board option transform to have a single argument `x`.",
       class = "board_option_component_invalid"
     )
@@ -292,7 +292,7 @@ validate_board_option.board_name_option <- function(x) {
   val <- board_option_value(NextMethod())
 
   if (!(is_string(val) || is.null(val))) {
-    abort(
+    blockr_abort(
       "Expecting `board_name` to be `NULL` or string-valued.",
       class = "board_name_option_invalid"
     )
@@ -340,7 +340,7 @@ validate_board_option.n_rows_option <- function(x) {
   val <- board_option_value(NextMethod())
 
   if (!is_count(val)) {
-    abort(
+    blockr_abort(
       "Expecting `n_rows` to represent a count.",
       class = "board_options_n_rows_invalid"
     )
@@ -387,7 +387,7 @@ validate_board_option.page_size_option <- function(x) {
   val <- board_option_value(NextMethod())
 
   if (!is_count(val)) {
-    abort(
+    blockr_abort(
       "Expecting `page_size` to represent a count.",
       class = "board_options_page_size_invalid"
     )
@@ -434,7 +434,7 @@ validate_board_option.filter_rows_option <- function(x) {
   val <- board_option_value(NextMethod())
 
   if (!is_bool(val)) {
-    abort(
+    blockr_abort(
       "Expecting `filter_rows` to represent a boolean.",
       class = "board_options_filter_rows_invalid"
     )
@@ -481,14 +481,14 @@ validate_board_option.thematic_option <- function(x) {
   val <- board_option_value(NextMethod())
 
   if (!(is.null(val) || is_bool(val))) {
-    abort(
+    blockr_abort(
       "Expecting `thematic` to be `NULL` or a boolean.",
       class = "board_options_thematic_invalid"
     )
   }
 
   if (isTRUE(val) && !pkg_avail("thematic")) {
-    abort(
+    blockr_abort(
       "Please install `thematic` to enable auto theming of plots.",
       class = "thematic_not_installed"
     )
@@ -550,7 +550,7 @@ validate_board_option.dark_mode_option <- function(x) {
   val <- board_option_value(NextMethod())
 
   if (!(is.null(val) || (is_string(val) && val %in% c("light", "dark")))) {
-    abort(
+    blockr_abort(
       "Expecting `dark_mode` to be either `NULL`, \"light\" or \"dark\".",
       class = "board_options_dark_mode_invalid"
     )
@@ -602,7 +602,7 @@ validate_board_option.show_conditions_option <- function(x) {
   opt <- c("message", "warning", "error")
 
   if (!(is.character(val) || all(val %in% opt))) {
-    abort(
+    blockr_abort(
       "Expecting `show_conditions` to be any of {opt}.",
       class = "board_options_show_conditions_invalid"
     )
@@ -633,7 +633,7 @@ need_llm_cfg_opts <- local(
       stopifnot(is_bool(enable))
 
       if (isTRUE(enable) && !pkg_avail("ellmer")) {
-        abort(
+        blockr_abort(
           "The ellmer package is required for including LLM options.",
           class = "ellmer_required_not_available"
         )
@@ -714,7 +714,7 @@ validate_board_option.llm_model_option <- function(x) {
   arg <- list(system_prompt = NULL, params = NULL)
 
   if (!is.function(val) || !identical(arg, as.list(formals(val)))) {
-    abort(
+    blockr_abort(
       "Expecting `llm_model` to be a function with arguments ",
       "{paste0(names(arg), \" = \", arg)}.",
       class = "board_options_llm_model_invalid"
@@ -729,7 +729,7 @@ validate_board_option.llm_model_option <- function(x) {
     length(unique(names(opt))) == length(opt)
 
   if (!(is.function(opt) || is_loo)) {
-    abort(
+    blockr_abort(
       "Expecting the blockr option `chat_function` to be either a function ",
       "or a list of functions with unique names.",
       class = "board_options_llm_model_invalid"
@@ -739,7 +739,7 @@ validate_board_option.llm_model_option <- function(x) {
   is_fun <- is.function(opt) || (is.list(opt) && length(opt) == 1L)
 
   if (is_fun && !is.null(nme)) {
-    abort(
+    blockr_abort(
       "Expecting `llm_model` name contain no attribute `chat_name`.",
       class = "board_options_llm_model_invalid"
     )
@@ -748,7 +748,7 @@ validate_board_option.llm_model_option <- function(x) {
   nms <- names(opt)
 
   if (is.list(opt) && length(opt) > 1L && !(is_string(nme) && nme %in% nms)) {
-    abort(
+    blockr_abort(
       "Expecting `llm_model` name contain a string-valued attribute ",
       "`chat_name` among options {nms}.",
       class = "board_options_llm_model_invalid"

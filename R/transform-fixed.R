@@ -15,7 +15,7 @@ new_fixed_block <- function(expr, ...) {
   }
 
   if (!is.language(expr)) {
-    abort(
+    blockr_abort(
       "Expecting `expr` to be of type \"language\".",
       class = "invalid_block_input"
     )

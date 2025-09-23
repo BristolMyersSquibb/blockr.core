@@ -95,7 +95,7 @@ validate_board_blocks_links <- function(blocks, links) {
   ids <- names(blocks)
 
   if (!all(links$from %in% ids) || !all(links$to %in% ids)) {
-    abort(
+    blockr_abort(
       "Expecting all links to refer to known block IDs.",
       class = "board_block_link_name_mismatch"
     )
@@ -108,7 +108,7 @@ validate_board_blocks_links <- function(blocks, links) {
     fail <- table(factor(links$to, levels = ids[arity == i])) > i
 
     if (any(fail)) {
-      abort(
+      blockr_abort(
         "{i}-ary blocks are expected to have at most {i} incoming edge{?s}, ",
         "which does not hold for {qty(sum(fail))}block{?s} ",
         "{names(fail)[fail]}.",
@@ -124,7 +124,7 @@ validate_board_blocks_links <- function(blocks, links) {
     unknown <- setdiff(links$input[links$to == i], inputs[[i]])
 
     if (length(unknown)) {
-      abort(
+      blockr_abort(
         "Block {i} expects input{?s} {inputs[[i]]} but received {unknown} ",
         "instead.",
         class = "board_block_link_input_mismatch"
@@ -143,7 +143,7 @@ validate_board_blocks_stacks <- function(blocks, stacks) {
     chk <- is.element(stk, names(blocks))
 
     if (!all(chk)) {
-      abort(
+      blockr_abort(
         "Unknown {qty(sum(!chk))}block{?s} {stk[!chk]} {?is/are} assigned to ",
         "stack {names(stacks)[i]}.",
         class = "board_block_stack_name_mismatch"
@@ -165,14 +165,14 @@ validate_board <- function(x) {
 validate_board.board <- function(x) {
 
   if (!is_board(x)) {
-    abort(
+    blockr_abort(
       "Expecting a board object to inherit from \"baord\".",
       class = "board_inheritance_invalid"
     )
   }
 
   if (!is.list(x)) {
-    abort(
+    blockr_abort(
       "Expecting a board object to be list-like.",
       class = "board_list_like_invalid"
     )
@@ -181,7 +181,7 @@ validate_board.board <- function(x) {
   cmps <- c("blocks", "links")
 
   if (!all(cmps %in% names(x))) {
-    abort(
+    blockr_abort(
       "Expecting a board object to contain components {cmps}.",
       class = "board_list_components_invalid"
     )
@@ -198,7 +198,7 @@ validate_board.board <- function(x) {
 #' @export
 validate_board.default <- function(x) {
 
-  abort(
+  blockr_abort(
     "Expecting a board object to inherit from \"baord\".",
     class = "board_inheritance_invalid"
   )

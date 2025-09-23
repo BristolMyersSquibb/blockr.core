@@ -191,7 +191,7 @@ edit_block_server <- function(id, block_id, board, update, ...) {
 
           } else {
 
-            abort(
+            blockr_abort(
               "Unexpected postion {position}.",
               class = "unexpected_position_value"
             )
@@ -316,7 +316,7 @@ check_edit_block_val <- function(val) {
     TRUE,
     {
       if (!is.list(val)) {
-        abort(
+        blockr_abort(
           "Expecting `edit_block` to return a list.",
           class = "edit_block_return_invalid"
         )
@@ -330,7 +330,7 @@ check_edit_block_val <- function(val) {
     {
       known <- block_base_attrs()
       if (!all(names(val) %in% known)) {
-        abort(
+        blockr_abort(
           "Not expecting `edit_block` to return components ",
           "{setdiff(names(val), known)}.",
           class = "edit_block_return_invalid"
