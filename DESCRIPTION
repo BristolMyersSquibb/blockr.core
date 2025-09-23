@@ -63,7 +63,8 @@ Suggests:
     ids,
     ellmer,
     downlit,
-    xml2
+    xml2,
+    styler
 Config/testthat/edition: 3
 VignetteBuilder: quarto
 Collate:

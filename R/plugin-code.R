@@ -39,7 +39,13 @@ generate_code_server <- function(id, board, ...) {
       observeEvent(
         input$code_mod,
         {
-          out <- code()
+          out <- paste0(code(), collapse = "\n")
+
+          cp <- nchar(out) > 0L
+
+          if (pkg_avail("styler")) {
+            out <- paste0(styler::style_text(out), collapse = "\n")
+          }
 
           id <- "code_out"
 
@@ -64,7 +70,7 @@ generate_code_server <- function(id, board, ...) {
               div(
                 id = session$ns(id),
                 class = "text-decoration-none position-relative",
-                if (nchar(out)) copy_to_clipboard(session, id),
+                if (cp) copy_to_clipboard(session, id),
                 HTML(pre)
               ),
               easyClose = TRUE,
