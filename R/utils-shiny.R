@@ -112,3 +112,50 @@ destroy_observers <- function(ns_prefix, session = get_session()) {
 get_session <- function() {
   getDefaultReactiveDomain()
 }
+
+is_load_alled <- function(pkg = pkg_name()) {
+
+  ns <- .getNamespace(pkg)
+
+  if (is.null(ns)) {
+    abort(
+      "Namespace not found for package {pkg}.",
+      class = "namespace_not_found"
+    )
+  }
+
+  ".__DEVTOOLS__" %in% ls(envir = ns, all.names = TRUE)
+}
+
+is_testing <- function() {
+  identical(Sys.getenv("TESTTHAT"), "true")
+}
+
+#' @param board A board object
+#' @rdname get_session
+#' @export
+generate_plugin_args <- function(board) {
+
+  if (!is_testing() && !is_load_alled()) {
+    warn(
+      "`generate_plugin_args()` is intended only for a unit-testing context.",
+      class = "generate_plugin_args_not_testing"
+    )
+  }
+
+  withr::local_envvar(BLOCKR_LOG_LEVEL = "")
+  withr::local_options(blockr.log_level = "warn")
+
+  res_plugin_args <- list()
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+      res_plugin_args <<- plugin_args
+    },
+    args = list(x = board)
+  )
+
+  res_plugin_args
+}

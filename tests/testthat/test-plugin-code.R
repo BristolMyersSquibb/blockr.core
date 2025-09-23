@@ -14,36 +14,14 @@ test_that("generate code", {
   )
 
   testServer(
-    get_s3_method("board_server", board),
+    generate_code_server,
     {
-      code_gen <- session$makeScope("generate_code")
-      code_gen$setInputs(code_mod = 1)
-
-      session$flushReact()
-
-      res <- code_gen$output$code_out
+      res <- code()
 
       expect_type(res, "character")
       expect_length(res, 1L)
     },
-    args = list(
-      x = board,
-      plugins = list(generate_code())
-    )
-  )
-})
-
-test_that("gen_code return validation", {
-  with_mock_session(
-    {
-      check_gen_code_val(list(a = 1))
-      sink_msg(
-        expect_warning(
-          session$flushReact(),
-          "Expecting `generate_code` to return `NULL`"
-        )
-      )
-    }
+    args = generate_plugin_args(board)
   )
 })
 

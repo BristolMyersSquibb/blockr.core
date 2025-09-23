@@ -103,21 +103,3 @@ copy_to_clipboard <- function(session, id) {
     deps
   )
 }
-
-check_gen_code_val <- function(val) {
-
-  observeEvent(
-    TRUE,
-    {
-      if (!is.null(val)) {
-        abort(
-          "Expecting `generate_code` to return `NULL`.",
-          class = "generate_code_return_invalid"
-        )
-      }
-    },
-    once = TRUE
-  )
-
-  invisible(val)
-}
