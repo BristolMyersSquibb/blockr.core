@@ -1,10 +1,9 @@
 #' Serialization utilities
 #'
-#' Object serialization is available via `to_json()`, while de-serialization
-#' is available as `from_json()`. Blocks are serialized by writing out
-#' information on the constructor used to create the object, combining this
-#' with block state information, which constitutes values such that when passed
-#' to the constructor the original object can be re-created.
+#' Blocks are serialized by writing out information on the constructor used to
+#' create the object, combining this with block state information, which
+#' constitutes values such that when passed to the constructor the original
+#' object can be re-created.
 #'
 #' Helper functions `blockr_ser()` and `blockr_deser()` are implemented as
 #' generics and perform most of the heavy lifting for (de-)serialization:
@@ -19,18 +18,14 @@
 #' blk <- new_dataset_block("iris")
 #'
 #' blockr_ser(blk)
-#' to_json(blk)
 #'
 #' all.equal(blk, blockr_deser(blockr_ser(blk)), check.environment = FALSE)
-#' all.equal(blk, from_json(to_json(blk)), check.environment = FALSE)
 #'
 #' @return Serialization helper function `blockr_ser()` returns lists, which
 #' for most objects contain slots `object` and `payload`, where `object`
 #' contains a class vector which is used by `blockr_deser()` to instantiate an
 #' empty object of that class and use S3 dispatch to identify the correct method
 #' that, given the content in `payload`, can re-create the original object.
-#' These are wrapped by `to_json()`, which returns JSON and `from_json()` which
-#' can consume JSON and returns the original object.
 #'
 #' @export
 blockr_ser <- function(x, ...) {
@@ -285,25 +280,4 @@ blockr_deser.board_option <- function(x, data, ...) {
   )
 
   do.call(ctor, args)
-}
-
-#' @rdname blockr_ser
-#' @export
-to_json <- function(x, ...) {
-  jsonlite::toJSON(blockr_ser(x, ...), auto_unbox = TRUE, null = "null")
-}
-
-#' @rdname blockr_ser
-#' @export
-from_json <- function(x) {
-
-  if (!inherits(x, "json") && is_string(x) && file.exists(x)) {
-    x <- readLines(x)
-  } else if (is.character(x) && length(x) > 1L) {
-    x <- paste0(x, collapse = "")
-  }
-
-  blockr_deser(
-    jsonlite::fromJSON(x, simplifyDataFrame = FALSE, simplifyMatrix = FALSE)
-  )
 }

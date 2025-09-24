@@ -79,7 +79,15 @@ restore_board <- function(x, json, result, ..., session = get_session()) {
 
 #' @export
 restore_board.board <- function(x, json, result, ..., session = get_session()) {
-  result(from_json(json))
+  result(
+    blockr_deser(
+      jsonlite::fromJSON(
+        json,
+        simplifyDataFrame = FALSE,
+        simplifyMatrix = FALSE
+      )
+    )
+  )
 }
 
 #' @param board The initial `board` object
@@ -136,7 +144,7 @@ serialize_board.board <- function(x, blocks, ..., session = get_session()) {
     session
   )
 
-  to_json(x, blocks = blocks, options = opts)
+  blockr_ser(x, blocks = blocks, options = opts)
 }
 
 write_board_to_disk <- function(rv, ..., session = get_session()) {
@@ -145,7 +153,7 @@ write_board_to_disk <- function(rv, ..., session = get_session()) {
 
   function(con) {
 
-    json <- jsonlite::prettify(
+    json <- jsonlite::toJSON(
       do.call(
         serialize_board,
         c(
@@ -153,7 +161,9 @@ write_board_to_disk <- function(rv, ..., session = get_session()) {
           dot_args,
           list(session = session)
         )
-      )
+      ),
+      auto_unbox = TRUE,
+      null = "null"
     )
 
     writeLines(json, con)

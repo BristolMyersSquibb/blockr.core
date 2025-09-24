@@ -23,5 +23,6 @@ blockr_inform(..., class = character(), envir = parent.frame())
 Called for side-effect of signaling conditions.
 }
 \description{
-Wrappers for \code{\link[rlang:abort]{rlang::abort()}}, \code{\link[rlang:abort]{rlang::warn()}} and \code{\link[rlang:abort]{rlang::inform()}}.
+Wrappers for \code{\link[rlang:abort]{rlang::abort()}}, \code{\link[rlang:abort]{rlang::warn()}} and \code{\link[rlang:abort]{rlang::inform()}}. In
+addition to \code{class}, conditions inherit from "blockr_error".
 }

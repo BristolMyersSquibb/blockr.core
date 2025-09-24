@@ -1,18 +1,18 @@
 test_that("serialization", {
 
   orig <- new_dataset_block("iris", "datasets")
-  json <- to_json(orig)
+  json <- blockr_ser(orig)
 
-  expect_equal(orig, from_json(json), ignore_function_env = TRUE)
+  expect_equal(orig, blockr_deser(json), ignore_function_env = TRUE)
 
-  json <- to_json(
+  json <- blockr_ser(
     new_dataset_block(),
     list(dataset = "iris", package = "datasets")
   )
 
   expect_equal(
     new_dataset_block("iris", "datasets"),
-    from_json(json),
+    blockr_deser(json),
     ignore_function_env = TRUE
   )
 
@@ -23,7 +23,7 @@ test_that("serialization", {
 
   expect_equal(
     orig,
-    from_json(to_json(orig)),
+    blockr_deser(blockr_ser(orig)),
     ignore_function_env = TRUE
   )
 
@@ -31,18 +31,18 @@ test_that("serialization", {
     a = new_dataset_block("iris", "datasets")
   )
 
-  json <- to_json(
+  json <- blockr_ser(
     blocks(a = new_dataset_block()),
     list(
       a = list(dataset = "iris", package = "datasets")
     )
   )
 
-  expect_equal(orig, from_json(json), ignore_function_env = TRUE)
+  expect_equal(orig, blockr_deser(json), ignore_function_env = TRUE)
 
   orig <- links(from = "a", to = "b")
 
-  expect_equal(orig, from_json(to_json(orig)))
+  expect_equal(orig, blockr_deser(blockr_ser(orig)))
 
   orig <- new_board(
     blocks = c(
@@ -54,7 +54,7 @@ test_that("serialization", {
 
   expect_equal(
     orig,
-    from_json(to_json(orig)),
+    blockr_deser(blockr_ser(orig)),
     ignore_function_env = TRUE
   )
 })
