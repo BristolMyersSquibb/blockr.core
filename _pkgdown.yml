@@ -94,3 +94,4 @@ reference:
   - set_names
   - is_scalar
   - get_session
+  - blockr_abort
