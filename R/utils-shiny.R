@@ -146,7 +146,7 @@ generate_plugin_args <- function(board) {
   }
 
   withr::local_envvar(BLOCKR_LOG_LEVEL = "")
-  withr::local_options(blockr.log_level = "blockr_warn")
+  withr::local_options(blockr.log_level = "warn")
 
   res_plugin_args <- list()
 
