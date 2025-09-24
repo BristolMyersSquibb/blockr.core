@@ -51,14 +51,21 @@ preserve_board_server <- function(id, board, ...) {
 
       observeEvent(
         input$restore,
-        do.call(
-          restore_board,
-          c(
-            list(board$board, input$restore$datapath, res),
-            dot_args,
-            list(session = session)
+        {
+          board_ser <- jsonlite::fromJSON(
+            input$restore$datapath,
+            simplifyDataFrame = FALSE,
+            simplifyMatrix = FALSE
           )
-        )
+          do.call(
+            restore_board,
+            c(
+              list(board$board, board_ser, res),
+              dot_args,
+              list(session = session)
+            )
+          )
+        }
       )
 
       res
@@ -67,27 +74,19 @@ preserve_board_server <- function(id, board, ...) {
 }
 
 #' @param x The current `board` object
-#' @param json JSON serialized board to be restored
+#' @param new Serialized (list-based) representation of the new board
 #' @param result A [shiny::reactiveVal()] to hold the new board object
 #' @param session Shiny session
 #'
 #' @rdname preserve_board
 #' @export
-restore_board <- function(x, json, result, ..., session = get_session()) {
+restore_board <- function(x, new, result, ..., session = get_session()) {
   UseMethod("restore_board")
 }
 
 #' @export
-restore_board.board <- function(x, json, result, ..., session = get_session()) {
-  result(
-    blockr_deser(
-      jsonlite::fromJSON(
-        json,
-        simplifyDataFrame = FALSE,
-        simplifyMatrix = FALSE
-      )
-    )
-  )
+restore_board.board <- function(x, new, result, ..., session = get_session()) {
+  result(blockr_deser(new))
 }
 
 #' @param board The initial `board` object

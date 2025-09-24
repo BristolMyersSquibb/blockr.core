@@ -12,7 +12,7 @@ preserve_board(server = preserve_board_server, ui = preserve_board_ui)
 
 preserve_board_server(id, board, ...)
 
-restore_board(x, json, result, ..., session = get_session())
+restore_board(x, new, result, ..., session = get_session())
 
 preserve_board_ui(id, board)
 
@@ -29,7 +29,7 @@ serialize_board(x, blocks, ..., session = get_session())
 
 \item{x}{The current \code{board} object}
 
-\item{json}{JSON serialized board to be restored}
+\item{new}{Serialized (list-based) representation of the new board}
 
 \item{result}{A \code{\link[shiny:reactiveVal]{shiny::reactiveVal()}} to hold the new board object}
 
