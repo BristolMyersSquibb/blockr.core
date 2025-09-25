@@ -530,24 +530,18 @@ refresh_board <- function(new, old, session) {
   removed <- setdiff(names(new_opts), names(old_opts))
 
   if (length(removed)) {
-    blockr_inform(
-      "Ignoring option{?s} {removed} during restore.",
-      class = "remove_option_msg"
-    )
+    notify("Ignoring option{?s} {removed} during restore.", duration = NULL)
   }
 
-  constant <- setdiff(names(old_opts), names(new_opts))
+  reset <- setdiff(names(old_opts), names(new_opts))
 
-  if (length(constant)) {
-    blockr_inform(
-      "Keeping option{?s} {constant} with previous values.",
-      class = "constant_option_msg"
-    )
+  if (length(reset)) {
+    notify("Resetting option{?s} {reset} to initial values.", duration = NULL)
   }
 
   board_options(new) <- c(
     new_opts[setdiff(names(new_opts), removed)],
-    old_opts[constant]
+    old_opts[reset]
   )
 
   update_board_options(new, session)

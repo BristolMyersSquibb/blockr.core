@@ -14,7 +14,13 @@
 \alias{cat_logger}
 \title{Logging}
 \usage{
-write_log(..., level = "info", envir = parent.frame(), asis = FALSE)
+write_log(
+  ...,
+  level = "info",
+  envir = parent.frame(),
+  asis = FALSE,
+  use_glue = TRUE
+)
 
 log_fatal(..., envir = parent.frame())
 
@@ -45,6 +51,8 @@ cat_logger(msg, level)
 \item{envir}{Environment where the logging call originated from}
 
 \item{asis}{Flag to disable re-wrapping of text to terminal width}
+
+\item{use_glue}{Flag to disable use of glue}
 
 \item{msg}{Message (string)}
 }

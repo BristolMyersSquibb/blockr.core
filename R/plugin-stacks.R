@@ -374,9 +374,10 @@ add_stack_observer <- function(input, rv, upd, sess) {
           )
 
           if (input$new_stack_id %in% names(upd$curr)) {
-            showNotification(
+            notify(
               "Please choose a unique stack ID.",
-              type = "warning"
+              type = "warning",
+              session = sess
             )
             return()
           }
@@ -398,9 +399,10 @@ add_stack_observer <- function(input, rv, upd, sess) {
 
       } else {
 
-        showNotification(
+        notify(
           "No new stacks can be added. Remove a row first.",
-          type = "warning"
+          type = "warning",
+          session = sess
         )
       }
     }
@@ -426,7 +428,7 @@ rm_stack_observer <- function(input, rv, upd, sess) {
 
       } else {
 
-        showNotification("No row selected", type = "warning", session = sess)
+        notify("No row selected", type = "warning", session = sess)
       }
     }
   )
@@ -454,9 +456,10 @@ modify_stack_observer <- function(input, rv, upd, sess, proxy, res) {
     {
       if (!length(upd$add) && !length(upd$rm) && !length(upd$mod)) {
 
-        showNotification(
+        notify(
           "No changes specified.",
-          type = "warning"
+          type = "warning",
+          session = sess
         )
 
         return()
@@ -465,12 +468,12 @@ modify_stack_observer <- function(input, rv, upd, sess, proxy, res) {
       new <- tryCatch(
         modify_board_stacks(rv$board, upd$add, upd$rm, upd$mod),
         warning = function(e) {
-          showNotification(conditionMessage(e), duration = NULL,
-                           type = "warning")
+          notify(conditionMessage(e), duration = NULL, type = "warning",
+                 session = sess)
         },
         error = function(e) {
-          showNotification(conditionMessage(e), duration = NULL,
-                           type = "error")
+          notify(conditionMessage(e), duration = NULL, type = "error",
+                 session = sess)
         }
       )
 

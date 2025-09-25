@@ -99,7 +99,7 @@ edit_block_server <- function(id, block_id, board, update, ...) {
                 stack_checkbox = is_block_in_stacks(block_id, board$board)
               )
             } else {
-              showNotification(
+              notify(
                 "All block inputs are used. Remove incoming link first.",
                 type = "warning",
                 session = session
@@ -128,9 +128,10 @@ edit_block_server <- function(id, block_id, board, update, ...) {
 
           if (!is_string(sel) || !sel %in% list_blocks()) {
 
-            showNotification(
+            notify(
               "Please choose a valid block type.",
-              type = "warning"
+              type = "warning",
+              session = session
             )
 
             return()
@@ -473,7 +474,7 @@ validate_link_addition <- function(id, input, block, board, session) {
 
   if (nchar(id) == 0L || !is_string(id)) {
 
-    showNotification(
+    notify(
       "Please choose a valid link ID.",
       type = "warning",
       session = session
@@ -484,7 +485,7 @@ validate_link_addition <- function(id, input, block, board, session) {
 
   if (id %in% board_link_ids(board)) {
 
-    showNotification(
+    notify(
       "Please choose a unique link ID.",
       type = "warning",
       session = session
@@ -501,9 +502,10 @@ validate_link_addition <- function(id, input, block, board, session) {
 
   if (!is_string(input) || !input %in% inps) {
 
-    showNotification(
+    notify(
       "Please choose a valid block data input.",
-      type = "warning"
+      type = "warning",
+      session = session
     )
 
     return(FALSE)
