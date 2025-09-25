@@ -161,7 +161,6 @@ write_board_to_disk <- function(rv, ..., session = get_session()) {
           list(session = session)
         )
       ),
-      auto_unbox = TRUE,
       null = "null"
     )
 
