@@ -280,14 +280,16 @@ is_acyclic.board <- function(x) {
 #' board_stacks(brd)
 #' board_stack_ids(brd)
 #'
+#' board_options(brd)
+#'
 #' @return Functions for retrieving, as well as updating components
-#' (`board_blocks()`/`board_links()`/`board_stacks()` and
-#' `board_blocks<-()`/`board_links<-()`/`board_stacks<-()`) return corresponding
-#' objects (i.e. `blocks`, `links` and `stacks`), while ID getters
-#' (`board_block_ids()`, `board_link_ids()` and `board_stack_ids()`) return
-#' character vectors, as does `available_stack_blocks()`. Convenience functions
-#' `rm_blocks()`, `modify_board_links()` and `modify_board_stacks()` return an
-#' updated `board` object.
+#' (`board_blocks()`/`board_links()`/`board_stacks()`/`board_options()` and
+#' `board_blocks<-()`/`board_links<-()`/`board_stacks<-()`/`board_options<-()`)
+#' return corresponding objects (i.e. `blocks`, `links` and `stacks`), while ID
+#' getters (`board_block_ids()`, `board_link_ids()` and `board_stack_ids()`)
+#' return character vectors, as does `available_stack_blocks()`. Convenience
+#' functions `rm_blocks()`, `modify_board_links()` and `modify_board_stacks()`
+#' return an updated `board` object.
 #'
 #' @export
 board_blocks <- function(x) {
@@ -466,6 +468,21 @@ modify_board_stacks.board <- function(x, add = NULL, rm = NULL, mod = NULL) {
   board_stacks(x) <- c(stacks, add)
 
   x
+}
+
+#' @rdname board_blocks
+#' @export
+board_options <- function(x) {
+  stopifnot(is_board(x))
+  validate_options(x[["options"]])
+}
+
+#' @rdname board_blocks
+#' @export
+`board_options<-` <- function(x, value) {
+  stopifnot(is_board(x))
+  x[["options"]] <- value
+  validate_board(x)
 }
 
 #' @param blocks,stacks Sets of blocks/stacks

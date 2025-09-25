@@ -13,6 +13,8 @@
 \alias{board_stacks<-}
 \alias{board_stack_ids}
 \alias{modify_board_stacks}
+\alias{board_options}
+\alias{board_options<-}
 \alias{available_stack_blocks}
 \title{Board utils}
 \usage{
@@ -40,6 +42,10 @@ board_stack_ids(x)
 
 modify_board_stacks(x, add = NULL, rm = NULL, mod = NULL)
 
+board_options(x)
+
+board_options(x) <- value
+
 available_stack_blocks(
   x,
   stacks = board_stacks(x),
@@ -61,13 +67,13 @@ available_stack_blocks(
 }
 \value{
 Functions for retrieving, as well as updating components
-(\code{board_blocks()}/\code{board_links()}/\code{board_stacks()} and
-\verb{board_blocks<-()}/\verb{board_links<-()}/\verb{board_stacks<-()}) return corresponding
-objects (i.e. \code{blocks}, \code{links} and \code{stacks}), while ID getters
-(\code{board_block_ids()}, \code{board_link_ids()} and \code{board_stack_ids()}) return
-character vectors, as does \code{available_stack_blocks()}. Convenience functions
-\code{rm_blocks()}, \code{modify_board_links()} and \code{modify_board_stacks()} return an
-updated \code{board} object.
+(\code{board_blocks()}/\code{board_links()}/\code{board_stacks()}/\code{board_options()} and
+\verb{board_blocks<-()}/\verb{board_links<-()}/\verb{board_stacks<-()}/\verb{board_options<-()})
+return corresponding objects (i.e. \code{blocks}, \code{links} and \code{stacks}), while ID
+getters (\code{board_block_ids()}, \code{board_link_ids()} and \code{board_stack_ids()})
+return character vectors, as does \code{available_stack_blocks()}. Convenience
+functions \code{rm_blocks()}, \code{modify_board_links()} and \code{modify_board_stacks()}
+return an updated \code{board} object.
 }
 \description{
 A set of utility functions is available for querying and manipulating board
@@ -128,5 +134,7 @@ board_link_ids(brd)
 
 board_stacks(brd)
 board_stack_ids(brd)
+
+board_options(brd)
 
 }

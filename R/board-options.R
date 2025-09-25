@@ -233,23 +233,6 @@ board_options_to_userdata <- function(options, ...) {
   invisible()
 }
 
-clear_board_options <- function(session) {
-
-  env <- session$userData
-
-  if (exists("board_options", envir = env, inherits = FALSE)) {
-    for (opt in env$board_options) {
-      for (obs in attr(opt, "observer")) {
-        obs$destroy()
-      }
-    }
-  }
-
-  assign("board_options", list(), envir = env, inherits = FALSE)
-
-  invisible()
-}
-
 update_board_options <- function(new, session = get_session()) {
 
   new <- as_board_options(new)
