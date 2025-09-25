@@ -191,38 +191,14 @@ validate_board_option.default <- function(x) {
 #' @export
 format.board_option <- function(x, session = get_session(), ...) {
 
-  format_val <- function(x, n = 3L) {
-
-    if (length(x) > 1) {
-
-      res <- paste(chr_ply(utils::head(x, n = n), format), collapse = ", ")
-
-      if (length(x) > n) {
-        res <- paste0(res, ", ...")
-      }
-
-      return(res)
-    }
-
-    format(x)
-  }
-
   id <- board_option_id(x)
-  vl <- board_option_value(x)
-
-  paste0(
-    id, ": ",
-    if (is.null(session)) {
-      format_val(vl, 5L)
-    } else {
-      curr <- get_board_option_or_null(id, session)
-      if (is.null(curr)) {
-        format_val(vl, 5L)
-      } else {
-        paste0(format_val(curr, 3L), " (", format_val(vl, 3L), ")")
-      }
-    }
+  vl <- coal(
+    get_board_option_or_null(id, session),
+    board_option_value(x),
+    fail_null = FALSE
   )
+
+  paste0(id, ": ", format_head(vl, 5L))
 }
 
 #' @export
@@ -705,6 +681,24 @@ new_llm_model_option <- function(value = NULL, ...) {
     trigger = if (is.function(options)) NULL else "llm_model",
     ...
   )
+}
+
+#' @export
+format.llm_model_option <- function(x, session = get_session(), ...) {
+
+  opts <- blockr_option("chat_function", default_chat)
+
+  if (is.function(opts)) {
+    opts <- ""
+  } else {
+    opts <- paste0(" (", format_head(names(opts), 3L), ")")
+  }
+
+  id <- board_option_id(x)
+  vl <- coal(get_board_option_or_null(id, session), board_option_value(x))
+  nm <- coal(attr(vl, "chat_name"), "Default chat function")
+
+  paste0(id, ": ", nm, opts)
 }
 
 #' @export

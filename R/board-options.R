@@ -233,23 +233,6 @@ board_options_to_userdata <- function(options, ...) {
   invisible()
 }
 
-clear_board_options <- function(session) {
-
-  env <- session$userData
-
-  if (exists("board_options", envir = env, inherits = FALSE)) {
-    for (opt in env$board_options) {
-      for (obs in attr(opt, "observer")) {
-        obs$destroy()
-      }
-    }
-  }
-
-  assign("board_options", list(), envir = env, inherits = FALSE)
-
-  invisible()
-}
-
 update_board_options <- function(new, session = get_session()) {
 
   new <- as_board_options(new)
@@ -336,6 +319,11 @@ get_board_option_or_default <- function(opt, opts = default_board_options(),
 #' @rdname new_board_options
 #' @export
 get_board_option_or_null <- function(opt, session = get_session()) {
+
+  if (is.null(session)) {
+    return(NULL)
+  }
+
   tryCatch(
     get_board_option_value(opt, session),
     board_option_not_found = function(e) NULL

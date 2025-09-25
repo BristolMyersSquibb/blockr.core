@@ -80,9 +80,10 @@ manage_blocks_server <- function(id, board, update, ...) {
 
           if (!length(sel)) {
 
-            showNotification(
+            notify(
               "Please choose at least one block.",
-              type = "warning"
+              type = "warning",
+              session = session
             )
 
             return()
@@ -90,9 +91,10 @@ manage_blocks_server <- function(id, board, update, ...) {
 
           if (!all(sel %in% board_block_ids(board$board))) {
 
-            showNotification(
+            notify(
               "Please choose valid block IDs.",
-              type = "warning"
+              type = "warning",
+              session = session
             )
 
             return()
@@ -181,7 +183,7 @@ validate_block_addition <- function(block, id, board, session) {
 
   if (nchar(id) == 0L || !is_string(id)) {
 
-    showNotification(
+    notify(
       "Please choose a valid block ID.",
       type = "warning",
       session = session
@@ -192,7 +194,7 @@ validate_block_addition <- function(block, id, board, session) {
 
   if (id %in% board_block_ids(board)) {
 
-    showNotification(
+    notify(
       "Please choose a unique block ID.",
       type = "warning",
       session = session
@@ -203,7 +205,7 @@ validate_block_addition <- function(block, id, board, session) {
 
   if (!is_string(block) || !block %in% list_blocks()) {
 
-    showNotification(
+    notify(
       "Please choose a valid block type.",
       type = "warning",
       session = session

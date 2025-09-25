@@ -169,9 +169,7 @@ board_server.board <- function(id, x, plugins = list(), callbacks = list(),
             remove_block_ui(ns(NULL), rv$board)
 
             log_trace("refreshing rv$board")
-            rv$board <- board_refresh()
-
-            update_board_options(rv$board, session)
+            rv$board <- refresh_board(board_refresh(), rv$board, session)
 
             log_trace("updating board ui")
             update_ui(rv$board, session)
@@ -522,6 +520,33 @@ add_blocks_to_stacks <- function(rv, add, session) {
   }
 
   rv
+}
+
+refresh_board <- function(new, old, session) {
+
+  new_opts <- board_options(new)
+  old_opts <- board_options(old)
+
+  removed <- setdiff(names(new_opts), names(old_opts))
+
+  if (length(removed)) {
+    notify("Ignoring option{?s} {removed} during restore.", duration = NULL)
+  }
+
+  reset <- setdiff(names(old_opts), names(new_opts))
+
+  if (length(reset)) {
+    notify("Resetting option{?s} {reset} to initial values.", duration = NULL)
+  }
+
+  board_options(new) <- c(
+    new_opts[setdiff(names(new_opts), removed)],
+    old_opts[reset]
+  )
+
+  update_board_options(new, session)
+
+  new
 }
 
 validate_board_update <- function(x, rv) {

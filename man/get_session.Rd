@@ -3,21 +3,66 @@
 \name{get_session}
 \alias{get_session}
 \alias{generate_plugin_args}
+\alias{notify}
 \title{Shiny utilities}
 \usage{
 get_session()
 
 generate_plugin_args(board)
+
+notify(
+  ...,
+  envir = parent.frame(),
+  action = NULL,
+  duration = 5,
+  close_button = TRUE,
+  id = NULL,
+  type = c("message", "warning", "error"),
+  session = get_session()
+)
 }
 \arguments{
 \item{board}{A board object}
+
+\item{...}{Concatenated as \code{paste0(..., "\\n")}}
+
+\item{envir}{Environment where the logging call originated from}
+
+\item{action}{Message content that represents an action. For example, this
+could be a link that the user can click on. This is separate from \code{ui}
+so customized layouts can handle the main notification content separately
+from action content.}
+
+\item{duration}{Number of seconds to display the message before it
+disappears. Use \code{NULL} to make the message not automatically
+disappear.}
+
+\item{close_button}{Passed as \code{closeButton} to \code{\link[shiny:showNotification]{shiny::showNotification()}}}
+
+\item{id}{A unique identifier for the notification.
+
+\code{id} is optional for \code{showNotification()}: Shiny will automatically create
+one if needed. If you do supply it, Shiny will update an existing
+notification if it exists, otherwise it will create a new one.
+
+\code{id} is required for \code{removeNotification()}.}
+
+\item{type}{A string which controls the color of the notification. One of
+"default" (gray), "message" (blue), "warning" (yellow), or "error" (red).}
+
+\item{session}{Session object to send notification to.}
 }
 \value{
-Either \code{NULL} or a shiny session object.
+Either \code{NULL} or a shiny session object for \code{get_session()}, a list
+of arguments for plugin server functions in the case of
+\code{generate_plugin_args()} and \code{notify()} is called for the side-effect of
+displaying a browser notification (and returns \code{NULL} invisibly).
 }
 \description{
 Utility functions for shiny:
 \itemize{
 \item \code{get_session}: See \code{\link[shiny:domains]{shiny::getDefaultReactiveDomain()}}.
+\item \code{generate_plugin_args}: Meant for unit testing plugins.
+\item \code{notify}: Glue-capable wrapper for \code{\link[shiny:showNotification]{shiny::showNotification()}}.
 }
 }

@@ -420,9 +420,10 @@ add_link_observer <- function(input, rv, upd, sess) {
           )
 
           if (input$new_link_id %in% names(upd$curr)) {
-            showNotification(
+            notify(
               "Please choose a unique link ID.",
-              type = "warning"
+              type = "warning",
+              session = sess
             )
             return()
           }
@@ -435,9 +436,10 @@ add_link_observer <- function(input, rv, upd, sess) {
 
       } else {
 
-        showNotification(
+        notify(
           "No new links can be added. Remove a row first.",
-          type = "warning"
+          type = "warning",
+          session = sess
         )
       }
     }
@@ -462,7 +464,7 @@ rm_link_observer <- function(input, rv, upd, sess) {
 
       } else {
 
-        showNotification("No row selected", type = "warning", session = sess)
+        notify("No row selected", type = "warning", session = sess)
       }
     }
   )
@@ -489,9 +491,10 @@ modify_link_observer <- function(input, rv, upd, session, proxy, res) {
     {
       if (!length(upd$add) && !length(upd$rm)) {
 
-        showNotification(
+        notify(
           "No changes specified.",
-          type = "warning"
+          type = "warning",
+          session = session
         )
 
         return()
@@ -500,12 +503,12 @@ modify_link_observer <- function(input, rv, upd, session, proxy, res) {
       new <- tryCatch(
         modify_board_links(rv$board, upd$add, upd$rm),
         warning = function(e) {
-          showNotification(conditionMessage(e), duration = NULL,
-                           type = "warning")
+          notify(conditionMessage(e), duration = NULL, type = "warning",
+                 session = session)
         },
         error = function(e) {
-          showNotification(conditionMessage(e), duration = NULL,
-                           type = "error")
+          notify(conditionMessage(e), duration = NULL, type = "error",
+                 session = session)
         }
       )
 
