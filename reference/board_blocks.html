@@ -83,6 +83,10 @@ modifying board options are documented in <code><a href="new_board_options.html"
 <span></span>
 <span><span class="fu">modify_board_stacks</span><span class="op">(</span><span class="va">x</span>, add <span class="op">=</span> <span class="cn">NULL</span>, rm <span class="op">=</span> <span class="cn">NULL</span>, mod <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
 <span></span>
+<span><span class="fu">board_options</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">board_options</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="va">value</span></span>
+<span></span>
 <span><span class="fu">available_stack_blocks</span><span class="op">(</span></span>
 <span>  <span class="va">x</span>,</span>
 <span>  stacks <span class="op">=</span> <span class="fu">board_stacks</span><span class="op">(</span><span class="va">x</span><span class="op">)</span>,</span>
@@ -121,13 +125,13 @@ modifying board options are documented in <code><a href="new_board_options.html"
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>Functions for retrieving, as well as updating components
-(<code>board_blocks()</code>/<code>board_links()</code>/<code>board_stacks()</code> and
-<code>board_blocks&lt;-()</code>/<code>board_links&lt;-()</code>/<code>board_stacks&lt;-()</code>) return corresponding
-objects (i.e. <code>blocks</code>, <code>links</code> and <code>stacks</code>), while ID getters
-(<code>board_block_ids()</code>, <code>board_link_ids()</code> and <code>board_stack_ids()</code>) return
-character vectors, as does <code>available_stack_blocks()</code>. Convenience functions
-<code>rm_blocks()</code>, <code>modify_board_links()</code> and <code>modify_board_stacks()</code> return an
-updated <code>board</code> object.</p>
+(<code>board_blocks()</code>/<code>board_links()</code>/<code>board_stacks()</code>/<code>board_options()</code> and
+<code>board_blocks&lt;-()</code>/<code>board_links&lt;-()</code>/<code>board_stacks&lt;-()</code>/<code>board_options&lt;-()</code>)
+return corresponding objects (i.e. <code>blocks</code>, <code>links</code> and <code>stacks</code>), while ID
+getters (<code>board_block_ids()</code>, <code>board_link_ids()</code> and <code>board_stack_ids()</code>)
+return character vectors, as does <code>available_stack_blocks()</code>. Convenience
+functions <code>rm_blocks()</code>, <code>modify_board_links()</code> and <code>modify_board_stacks()</code>
+return an updated <code>board</code> object.</p>
     </div>
     <div class="section level2">
     <h2 id="blocks">Blocks<a class="anchor" aria-label="anchor" href="#blocks"></a></h2>
@@ -214,6 +218,8 @@ are of interest, this is available as <code>available_stack_blocks()</code>.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;stacks[0]&gt;</span>
 <span class="r-in"><span><span class="fu">board_stack_ids</span><span class="op">(</span><span class="va">brd</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> character(0)</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="fu">board_options</span><span class="op">(</span><span class="va">brd</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>
