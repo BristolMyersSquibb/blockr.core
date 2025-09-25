@@ -194,7 +194,8 @@ format.board_option <- function(x, session = get_session(), ...) {
   id <- board_option_id(x)
   vl <- coal(
     get_board_option_or_null(id, session),
-    board_option_value(x)
+    board_option_value(x),
+    fail_null = FALSE
   )
 
   paste0(id, ": ", format_head(vl, 5L))

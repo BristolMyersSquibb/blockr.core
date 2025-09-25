@@ -474,15 +474,15 @@ modify_board_stacks.board <- function(x, add = NULL, rm = NULL, mod = NULL) {
 #' @export
 board_options <- function(x) {
   stopifnot(is_board(x))
-  validate_options(x[["options"]])
+  validate_board_options(x[["options"]])
 }
 
 #' @rdname board_blocks
 #' @export
 `board_options<-` <- function(x, value) {
   stopifnot(is_board(x))
-  x[["options"]] <- value
-  validate_board(x)
+  x[["options"]] <- validate_board_options(value)
+  x
 }
 
 #' @param blocks,stacks Sets of blocks/stacks

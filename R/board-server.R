@@ -169,7 +169,7 @@ board_server.board <- function(id, x, plugins = list(), callbacks = list(),
             remove_block_ui(ns(NULL), rv$board)
 
             log_trace("refreshing rv$board")
-            rv$board <- refresh_board(board_refresh(), rv$board)
+            rv$board <- refresh_board(board_refresh(), rv$board, session)
 
             log_trace("updating board ui")
             update_ui(rv$board, session)
