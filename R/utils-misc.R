@@ -434,3 +434,19 @@ get_s3_method <- function(generic, object) {
     class = "generic_method_not_found"
   )
 }
+
+format_head <- function(x, n = 3L) {
+
+  if (length(x) > 1) {
+
+    res <- paste(chr_ply(utils::head(x, n = n), format), collapse = ", ")
+
+    if (length(x) > n) {
+      res <- paste0(res, ", ...")
+    }
+
+    return(res)
+  }
+
+  format(x)
+}

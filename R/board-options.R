@@ -319,6 +319,11 @@ get_board_option_or_default <- function(opt, opts = default_board_options(),
 #' @rdname new_board_options
 #' @export
 get_board_option_or_null <- function(opt, session = get_session()) {
+
+  if (is.null(session)) {
+    return(NULL)
+  }
+
   tryCatch(
     get_board_option_value(opt, session),
     board_option_not_found = function(e) NULL
