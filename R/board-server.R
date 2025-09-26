@@ -25,8 +25,8 @@ board_server <- function(id, x, ...) {
 #' for their side-effects)
 #' @rdname board_server
 #' @export
-board_server.board <- function(id, x, plugins = list(), callbacks = list(),
-                               ...) {
+board_server.board <- function(id, x, plugins = board_plugins(x),
+                               callbacks = list(), ...) {
 
   plugins <- as_plugins(plugins)
 

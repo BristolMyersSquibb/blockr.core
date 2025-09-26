@@ -7,7 +7,7 @@
 \usage{
 board_server(id, x, ...)
 
-\method{board_server}{board}(id, x, plugins = list(), callbacks = list(), ...)
+\method{board_server}{board}(id, x, plugins = board_plugins(x), callbacks = list(), ...)
 }
 \arguments{
 \item{id}{Parent namespace}

@@ -19,7 +19,7 @@
 
 board_ui(id, x, ...)
 
-\method{board_ui}{board}(id, x, plugins = list(), ...)
+\method{board_ui}{board}(id, x, plugins = board_plugins(x), ...)
 
 \method{board_ui}{`NULL`}(id, x, ...)
 

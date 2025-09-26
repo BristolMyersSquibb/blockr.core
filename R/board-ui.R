@@ -38,7 +38,7 @@ board_ui <- function(id, x, ...) {
 #' @param plugins UI for board plugins
 #' @rdname board_ui
 #' @export
-board_ui.board <- function(id, x, plugins = list(), ...) {
+board_ui.board <- function(id, x, plugins = board_plugins(x), ...) {
 
   plugin_if_exists <- function(nme) {
     if (nme %in% names(plugins)) plugins[[nme]]
