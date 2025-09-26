@@ -20,7 +20,7 @@ abort_not_null(x)
 
 as_plugin(x)
 
-board_plugins(x, which = NULL)
+board_plugins(x, ...)
 
 plugins(...)
 
@@ -38,8 +38,6 @@ validate_plugins(x)
 \item{class}{Plugin subclass}
 
 \item{x}{Plugin object}
-
-\item{which}{(Optional) character vectors of plugins to include}
 
 \item{...}{Plugin objects}
 }

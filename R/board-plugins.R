@@ -289,15 +289,15 @@ call_plugin_ui <- function(plugin, ns, ..., plugins = NULL) {
   ui(ns(id), ...)
 }
 
-#' @param which (Optional) character vectors of plugins to include
+#' @param ... Generic consistency
 #' @rdname new_plugin
 #' @export
-board_plugins <- function(x, which = NULL) {
+board_plugins <- function(x, ...) {
   UseMethod("board_plugins")
 }
 
 #' @export
-board_plugins.board <- function(x, which = NULL) {
+board_plugins.board <- function(x, which = NULL, ...) {
 
   plugins <- plugins(
     preserve_board(),
