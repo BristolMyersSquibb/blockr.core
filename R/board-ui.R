@@ -40,13 +40,17 @@ board_ui <- function(id, x, ...) {
 #' @export
 board_ui.board <- function(id, x, plugins = list(), ...) {
 
+  plugin_if_exists <- function(nme) {
+    if (nme %in% names(plugins)) plugins[[nme]]
+  }
+
   tagList(
     toolbar_ui(id, x, plugins),
     board_ui(id, plugins[["notify_user"]], x),
     div(
       id = paste0(id, "_board"),
-      stack_ui(id, x, edit_ui = plugins[["edit_stack"]]),
-      block_ui(id, x, edit_ui = plugins[["edit_block"]])
+      stack_ui(id, x, edit_ui = plugin_if_exists("edit_stack")),
+      block_ui(id, x, edit_ui = plugin_if_exists("edit_block"))
     )
   )
 }
