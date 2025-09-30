@@ -127,15 +127,19 @@ block_ui.board <- function(id, x, blocks = NULL, edit_ui = NULL, ...) {
 }
 
 #' @param blocks (Additional) blocks (or IDs) for which to generate the UI
+#' @param session Shiny session
 #' @rdname board_ui
 #' @export
-insert_block_ui <- function(id, x, blocks = NULL, ...) {
+insert_block_ui <- function(id, x, blocks = NULL, ...,
+                            session = get_session()) {
+
   UseMethod("insert_block_ui", x)
 }
 
 #' @rdname board_ui
 #' @export
-insert_block_ui.board <- function(id, x, blocks = NULL, ...) {
+insert_block_ui.board <- function(id, x, blocks = NULL, ...,
+                                  session = get_session()) {
 
   stopifnot(is_string(id))
 
@@ -151,13 +155,16 @@ insert_block_ui.board <- function(id, x, blocks = NULL, ...) {
 
 #' @rdname board_ui
 #' @export
-remove_block_ui <- function(id, x, blocks = NULL, ...) {
+remove_block_ui <- function(id, x, blocks = NULL, ...,
+                            session = get_session()) {
+
   UseMethod("remove_block_ui", x)
 }
 
 #' @rdname board_ui
 #' @export
-remove_block_ui.board <- function(id, x, blocks = NULL, ...) {
+remove_block_ui.board <- function(id, x, blocks = NULL, ...,
+                                  session = get_session()) {
 
   if (is.null(blocks)) {
 
@@ -184,17 +191,16 @@ remove_block_ui.board <- function(id, x, blocks = NULL, ...) {
   invisible(x)
 }
 
-#' @param session Shiny session
 #' @rdname board_ui
 #' @export
-update_ui <- function(x, session, ...) {
+update_ui <- function(x, ..., session = get_session()) {
   UseMethod("update_ui", x)
 }
 
 #' @rdname board_ui
 #' @export
-update_ui.board <- function(x, session, ...) {
-  invisible()
+update_ui.board <- function(x, ..., session = get_session()) {
+  invisible(x)
 }
 
 #' @rdname board_ui
