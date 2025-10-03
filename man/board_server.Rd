@@ -7,7 +7,14 @@
 \usage{
 board_server(id, x, ...)
 
-\method{board_server}{board}(id, x, plugins = board_plugins(x), callbacks = list(), ...)
+\method{board_server}{board}(
+  id,
+  x,
+  plugins = board_plugins(x),
+  callbacks = list(),
+  callback_location = c("end", "start"),
+  ...
+)
 }
 \arguments{
 \item{id}{Parent namespace}
@@ -20,6 +27,9 @@ board_server(id, x, ...)
 
 \item{callbacks}{Single (or list of) callback function(s), called only
 for their side-effects)}
+
+\item{callback_location}{Location of callback invocation (before or after
+plugins)}
 }
 \value{
 A \code{board_server()} implementation (such as the default for the

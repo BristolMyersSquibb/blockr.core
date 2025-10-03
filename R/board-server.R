@@ -23,10 +23,14 @@ board_server <- function(id, x, ...) {
 #' @param plugins Board plugins as modules
 #' @param callbacks Single (or list of) callback function(s), called only
 #' for their side-effects)
+#' @param callback_location Location of callback invocation (before or after
+#' plugins)
 #' @rdname board_server
 #' @export
 board_server.board <- function(id, x, plugins = board_plugins(x),
-                               callbacks = list(), ...) {
+                               callbacks = list(),
+                               callback_location = c("end", "start"),
+                               ...) {
 
   plugins <- as_plugins(plugins)
 
@@ -37,6 +41,8 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
   validate_callbacks(callbacks)
 
   dot_args <- list(...)
+
+  callback_location <- match.arg(callback_location)
 
   moduleServer(
     id,
@@ -67,12 +73,44 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
       board_update <- reactiveVal()
 
-      plugin_args <- c(rv_ro, list(update = board_update), dot_args)
-      cb_args <- c(rv_ro, list(update = board_update, session = session),
-                   dot_args)
+      cb_res <- set_names(
+        vector("list", length(callbacks)),
+        names(callbacks)
+      )
+
+      cb_args <- c(
+        rv_ro,
+        list(update = board_update),
+        dot_args,
+        list(session = session)
+      )
+
+      plugin_args <- c(
+        rv_ro,
+        list(update = board_update),
+        dot_args
+      )
+
+      if (identical(callback_location, "start")) {
+
+        for (i in seq_along(callbacks)) {
+          cb_res[[i]] <- do.call(callbacks[[i]], cb_args)
+        }
+
+        plugin_args <- c(
+          plugin_args,
+          cb_res
+        )
+      }
 
       edit_block <- get_plugin("edit_block", plugins)
       edit_stack <- get_plugin("edit_stack", plugins)
+
+      plugin_args <- c(
+        rv_ro,
+        list(update = board_update),
+        dot_args
+      )
 
       observeEvent(
         TRUE,
@@ -197,13 +235,10 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         plugins = plugins
       )
 
-      cb_res <- set_names(
-        vector("list", length(callbacks)),
-        names(callbacks)
-      )
-
-      for (i in seq_along(callbacks)) {
-        cb_res[[i]] <- do.call(callbacks[[i]], cb_args)
+      if (identical(callback_location, "end")) {
+        for (i in seq_along(callbacks)) {
+          cb_res[[i]] <- do.call(callbacks[[i]], cb_args)
+        }
       }
 
       observeEvent(
