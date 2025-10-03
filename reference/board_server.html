@@ -74,7 +74,14 @@ additional observers.</p>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">board_server</span><span class="op">(</span><span class="va">id</span>, <span class="va">x</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'board'</span></span>
-<span><span class="fu">board_server</span><span class="op">(</span><span class="va">id</span>, <span class="va">x</span>, plugins <span class="op">=</span> <span class="fu"><a href="new_plugin.html">board_plugins</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span>, callbacks <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">board_server</span><span class="op">(</span></span>
+<span>  <span class="va">id</span>,</span>
+<span>  <span class="va">x</span>,</span>
+<span>  plugins <span class="op">=</span> <span class="fu"><a href="new_plugin.html">board_plugins</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span>,</span>
+<span>  callbacks <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  callback_location <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"end"</span>, <span class="st">"start"</span><span class="op">)</span>,</span>
+<span>  <span class="va">...</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -100,6 +107,11 @@ additional observers.</p>
 <dt id="arg-callbacks">callbacks<a class="anchor" aria-label="anchor" href="#arg-callbacks"></a></dt>
 <dd><p>Single (or list of) callback function(s), called only
 for their side-effects)</p></dd>
+
+
+<dt id="arg-callback-location">callback_location<a class="anchor" aria-label="anchor" href="#arg-callback-location"></a></dt>
+<dd><p>Location of callback invocation (before or after
+plugins)</p></dd>
 
 </dl></div>
     <div class="section level2">
