@@ -42,6 +42,8 @@ list_outputs <- function(session = get_session()) {
 
 destroy_output <- function(id, session = get_session()) {
 
+  log_trace("destroying output {id}")
+
   session$defineOutput(id, NULL, NULL)
   session$.__enclos_env__$private$.outputs[[id]] <- NULL
   session$.__enclos_env__$private$.outputOptions[[id]] <- NULL
@@ -60,6 +62,8 @@ destroy_inputs <- function(ns_prefix, session = get_session()) {
 
 destroy_input <- function(id, session = get_session()) {
 
+  log_trace("destroying input {id}")
+
   session$manageInputs(
     set_names(list(NULL), id),
     now = TRUE
@@ -74,6 +78,8 @@ destroy_input <- function(id, session = get_session()) {
 }
 
 invalidate_inputs <- function(session = get_session()) {
+
+  log_trace("invalidating inputs of domain {session$ns(NULL)}")
 
   input <- .subset2(session$input, "impl")
 
@@ -90,6 +96,11 @@ destroy_observers <- function(ns_prefix, session = get_session()) {
   for (i in starts_with(names(obs), ns_prefix)) {
 
     for (x in obs[[i]]) {
+
+      log_trace(
+        "destroying observer {x$.reactId} of domain {x$.domain$ns(NULL)}"
+      )
+
       x$destroy()
     }
 

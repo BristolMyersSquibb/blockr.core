@@ -145,9 +145,15 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
       observeEvent(
         board_update(),
         {
+          log_debug("starting board update")
+
           upd <- validate_board_update(board_update, rv)
 
+          log_debug("board update validated")
+
           if (length(upd$blocks$add)) {
+
+            log_debug("adding block{?s} {names(upd$blocks$add)}")
 
             insert_block_ui(ns(NULL), rv$board, upd$blocks$add,
                             edit_ui = edit_block)
@@ -162,8 +168,12 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
           }
 
           if (length(upd$blocks$mod)) {
+
+            log_debug("modifying block{?s} {names(upd$blocks$mod)}")
+
             blks <- board_blocks(rv$board)
             blks[names(upd$blocks$mod)] <- upd$blocks$mod
+
             board_blocks(rv$board) <- blks
           }
 
@@ -174,11 +184,31 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
           if (length(upd$links$add) || length(upd$links$rm)) {
 
+            if (length(upd$links$add)) {
+              log_debug("adding link{?s} {names(upd$links$add)}")
+            }
+
+            if (length(upd$links$rm)) {
+              log_debug("removing link{?s} {names(upd$links$rm)}")
+            }
+
             rm <- board_links(rv$board)[upd$links$rm]
             rv <- update_block_links(rv, upd$links$add, rm)
 
             rv$board <- modify_board_links(rv$board, upd$links$add,
                                            upd$links$rm)
+          }
+
+          if (length(upd$stacks$rm)) {
+            log_debug("removing stack{?s} {names(upd$stacks$rm)}")
+          }
+
+          if (length(upd$stacks$add)) {
+            log_debug("adding stack{?s} {names(upd$stacks$add)}")
+          }
+
+          if (length(upd$stacks$rm)) {
+            log_debug("modifying stack{?s} {names(upd$stacks$mod)}")
           }
 
           rv <- update_stack_blocks(rv, upd$stacks, edit_stack, plugin_args,
@@ -188,11 +218,14 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
                                           upd$stacks$rm, upd$stacks$mod)
 
           if (length(upd$blocks$rm)) {
+            log_debug("removing block{?s} {names(upd$blocks$rm)}")
             rv <- destroy_rm_blocks(upd$blocks$rm, rv, session)
             remove_block_ui(ns(NULL), rv$board, upd$blocks$rm)
           }
 
           board_update(NULL)
+
+          log_debug("board update completed")
         }
       )
 
@@ -207,22 +240,22 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         observeEvent(
           board_refresh(),
           {
-            log_trace("removing existing ui components")
+            log_debug("removing existing ui components")
             remove_block_ui(ns(NULL), rv$board)
 
-            log_trace("refreshing rv$board")
+            log_debug("refreshing rv$board")
             rv$board <- refresh_board(board_refresh(), rv$board, session)
 
-            log_trace("updating board ui")
+            log_debug("updating board ui")
             update_ui(rv$board, session)
 
-            log_trace("inserting new ui components")
+            log_debug("inserting new ui components")
             insert_block_ui(ns(NULL), rv$board, edit_ui = edit_block)
 
-            log_trace("setting up block observers")
+            log_debug("setting up block observers")
             rv <- setup_board(rv, edit_block, edit_stack, plugin_args, session)
 
-            log_trace("completed board refresh")
+            log_debug("completed board refresh")
           }
         )
       }

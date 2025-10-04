@@ -25,7 +25,11 @@
               dom <- ""
             }
 
-            obs[[dom]] <- c(obs[[dom]], returnValue())
+            cur <- returnValue()
+
+            log_trace("capturing observer {cur$.reactId} of domain {dom}")
+
+            obs[[dom]] <- c(obs[[dom]], cur)
 
             assign("observers", obs, envir = domain$userData)
           }
