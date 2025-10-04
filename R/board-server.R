@@ -97,6 +97,10 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
           cb_res[[i]] <- do.call(callbacks[[i]], cb_args)
         }
 
+        if (length(cb_res) == 1L) {
+          cb_res <- cb_res[[1L]]
+        }
+
         plugin_args <- c(
           plugin_args,
           cb_res
