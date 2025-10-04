@@ -43,7 +43,11 @@ dt_result <- function(result, session) {
       as.data.frame(utils::head(result, rows)),
       selection = "none",
       options = opts
-    ),
+    ) |>
+      DT::formatStyle(
+        columns = names(result),
+        whiteSpace = "pre-wrap"
+      ),
     server = TRUE
   )
 }
