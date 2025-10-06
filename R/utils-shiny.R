@@ -91,7 +91,16 @@ invalidate_inputs <- function(session = get_session()) {
 
 destroy_observers <- function(ns_prefix, session = get_session()) {
 
-  obs <- get("observers", envir = session$userData)
+  if (isFALSE(blockr_option("observe_hook_disabled", NULL))) {
+    return(invisible())
+  }
+
+  obs <- get0("observers", envir = session$userData)
+
+  if (is.null(obs)) {
+    log_debug("cannot destroy uncaptured observers")
+    return(invisible())
+  }
 
   for (i in starts_with(names(obs), ns_prefix)) {
 
@@ -110,6 +119,81 @@ destroy_observers <- function(ns_prefix, session = get_session()) {
   assign("observers", obs, envir = session$userData)
 
   invisible()
+}
+
+trace_observe <- function() {
+
+  if (isFALSE(blockr_option("observe_hook_disabled", NULL))) {
+    return(invisible())
+  }
+
+  if (is_observe_traced()) {
+    return(invisible())
+  }
+
+  log_trace("hooking observer capturing")
+
+  suppressMessages(
+    trace(
+      shiny::observe,
+      exit = quote(
+        {
+          if (!is.null(domain)) {
+
+            obs <- get0(
+              "observers",
+              envir = domain$userData,
+              inherits = FALSE
+            )
+
+            if (is.null(obs)) {
+              obs <- list()
+            }
+
+            dom <- domain$ns(NULL)
+
+            if (!length(dom)) {
+              dom <- ""
+            }
+
+            cur <- returnValue()
+
+            log_trace(
+              "capturing observer {cur$.reactId} of domain {dom}"
+            )
+
+            obs[[dom]] <- c(obs[[dom]], cur)
+
+            assign("observers", obs, envir = domain$userData)
+          }
+        }
+      ),
+      print = FALSE
+    )
+  )
+
+  invisible()
+}
+
+untrace_observe <- function() {
+
+  if (isFALSE(blockr_option("observe_hook_disabled", NULL))) {
+    return(invisible())
+  }
+
+  if (!is_observe_traced()) {
+    return(invisible())
+  }
+
+  log_trace("removing observer capture hook")
+
+  suppressMessages(untrace(shiny::observe))
+
+  invisible()
+}
+
+is_observe_traced <- function() {
+  inherits(shiny::observe, "functionWithTrace")
 }
 
 #' Shiny utilities
@@ -212,4 +296,33 @@ notify <- function(..., envir = parent.frame(), action = NULL, duration = 5,
   )
 
   invisible(NULL)
+}
+
+#' @param id Module ID
+#' @param what Module components to destroy
+#'
+#' @rdname get_session
+#' @export
+destroy_module <- function(id, what = c("inputs", "outputs", "observers"),
+                           session = get_session()) {
+
+  what <- match.arg(what, several.ok = TRUE)
+
+  log_debug("destroying module {id}, component{?s} {what}")
+
+  ns <- session$ns(id)
+
+  if ("inputs" %in% what) {
+    destroy_inputs(id, session)
+  }
+
+  if ("outputs" %in% what) {
+    destroy_outputs(ns, session)
+  }
+
+  if ("observers" %in% what) {
+    destroy_observers(ns, session)
+  }
+
+  invisible(ns)
 }

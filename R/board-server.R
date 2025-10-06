@@ -219,8 +219,8 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
           if (length(upd$blocks$rm)) {
             log_debug("removing block{?s} {names(upd$blocks$rm)}")
-            rv <- destroy_rm_blocks(upd$blocks$rm, rv, session)
             remove_block_ui(ns(NULL), rv$board, upd$blocks$rm)
+            rv <- destroy_rm_blocks(upd$blocks$rm, rv, session)
           }
 
           board_update(NULL)
@@ -393,14 +393,7 @@ destroy_rm_blocks <- function(ids, rv, sess) {
   )
 
   for (id in ids) {
-
-    blk_id <- paste0("block_", id)
-    blk_ns <- sess$ns(blk_id)
-
-    destroy_inputs(blk_id, sess)
-    destroy_outputs(blk_ns, sess)
-    destroy_observers(blk_ns, sess)
-
+    destroy_module(paste0("block_", id), session = sess)
     remove_block_from_stack(rv$board, id, rv$board_id, sess)
   }
 
@@ -493,13 +486,7 @@ destroy_stacks <- function(ids, rv, sess) {
   stopifnot(all(lengths(rv$stacks[ids]) == 0L))
 
   for (id in ids) {
-
-    stk_id <- paste0("stack_", id)
-    stk_ns <- sess$ns(stk_id)
-
-    destroy_inputs(stk_id, sess)
-    destroy_outputs(stk_ns, sess)
-    destroy_observers(stk_ns, sess)
+    destroy_module(paste0("stack_", id), session = sess)
   }
 
   rv$stacks[ids] <- NULL

@@ -23,6 +23,10 @@
 #'
 #' @export
 serve <- function(x, ...) {
+
+  trace_observe()
+  on.exit(untrace_observe())
+
   UseMethod("serve")
 }
 

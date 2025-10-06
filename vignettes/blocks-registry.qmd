@@ -117,7 +117,7 @@ new_dummy_block <- function(text = "Hello World", ...) {
       })
     },
     function(id) {
-      tagList()
+      shiny::tagList()
     },
     class = "dummy_block",
     ...
@@ -256,7 +256,7 @@ url <- roxy.shinylive::create_shinylive_url(code, header = FALSE)
 ```
 
 ```{r shinylive_iframe, echo = FALSE, eval = TRUE}
-tags$iframe(
+htmltools::tags$iframe(
   class = "border border-5 rounded shadow-lg",
   src = url,
   style = "zoom: 0.75;",
