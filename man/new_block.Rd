@@ -202,7 +202,7 @@ new_identity_block <- function() {
       )
     },
     function(id) {
-      tagList()
+      htmltools::tagList()
     },
     class = "identity_block"
   )
