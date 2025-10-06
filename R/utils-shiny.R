@@ -138,7 +138,7 @@ trace_observe <- function() {
       shiny::observe,
       exit = quote(
         {
-          if (!is.null(domain)) {
+          if (!is.null(domain)) { # nocov start
 
             obs <- get0(
               "observers",
@@ -165,7 +165,7 @@ trace_observe <- function() {
             obs[[dom]] <- c(obs[[dom]], cur)
 
             assign("observers", obs, envir = domain$userData)
-          }
+          } # nocov end
         }
       ),
       print = FALSE
