@@ -105,6 +105,8 @@ serve.block <- function(x, id = "block", ..., data = list()) {
 serve.board <- function(x, id = rand_names(), plugins = board_plugins(x),
                         ...) {
 
+  args <- list(...)
+
   update_board_in_board_env(x)
 
   ui <- function() {
@@ -130,7 +132,13 @@ serve.board <- function(x, id = rand_names(), plugins = board_plugins(x),
 
   server <- function(input, output, session) {
 
-    res <- board_server(id, get_board_form_board_env(), plugins)
+    res <- do.call(
+      board_server,
+      c(
+        list(id, get_board_form_board_env(), plugins),
+        args
+      )
+    )
 
     exportTestValues(
       result = lapply(
@@ -145,7 +153,7 @@ serve.board <- function(x, id = rand_names(), plugins = board_plugins(x),
     invisible()
   }
 
-  shinyApp(ui, server, ...)
+  shinyApp(ui, server)
 }
 
 board_env <- new.env()
