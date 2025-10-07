@@ -107,9 +107,7 @@ serve.board <- function(x, id = rand_names(), plugins = board_plugins(x),
 
   update_board_in_board_env(x)
 
-  ui_fun <- function(value) {
-
-    stopifnot(missing(value))
+  ui <- function() {
 
     x <- get_board_form_board_env()
 
@@ -130,19 +128,9 @@ serve.board <- function(x, id = rand_names(), plugins = board_plugins(x),
     )
   }
 
-  makeActiveBinding("ui", ui_fun, environment())
-
-  dots <- list(...)
-
   server <- function(input, output, session) {
 
-    res <- do.call(
-      board_server,
-      c(
-        list(id, get_board_form_board_env(), plugins),
-        dots
-      )
-    )
+    res <- board_server(id, get_board_form_board_env(), plugins)
 
     exportTestValues(
       result = lapply(
@@ -157,7 +145,7 @@ serve.board <- function(x, id = rand_names(), plugins = board_plugins(x),
     invisible()
   }
 
-  shinyApp(ui, server)
+  shinyApp(ui, server, ...)
 }
 
 board_env <- new.env()
