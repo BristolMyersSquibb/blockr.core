@@ -121,6 +121,30 @@ destroy_observers <- function(ns_prefix, session = get_session()) {
   invisible()
 }
 
+destroy_module <- function(id, what = c("inputs", "outputs", "observers"),
+                           session = get_session()) {
+
+  what <- match.arg(what, several.ok = TRUE)
+
+  log_debug("destroying module {id}, component{?s} {what}")
+
+  ns <- session$ns(id)
+
+  if ("inputs" %in% what) {
+    destroy_inputs(id, session)
+  }
+
+  if ("outputs" %in% what) {
+    destroy_outputs(ns, session)
+  }
+
+  if ("observers" %in% what) {
+    destroy_observers(ns, session)
+  }
+
+  invisible(ns)
+}
+
 trace_observe <- function() {
 
   if (isFALSE(blockr_option("observe_hook_disabled", NULL))) {
@@ -232,11 +256,15 @@ is_testing <- function() {
 }
 
 #' @param board A board object
+#' @param mode Edit plugins, such as `manage_blocks` get an additional argument
+#' `update` over read plugins such as `preserve_board`.
 #' @rdname get_session
 #' @export
-generate_plugin_args <- function(board) {
+generate_plugin_args <- function(board, mode = c("edit", "read")) {
 
-  session <- plugin_args <- NULL
+  session <- edit_plugin_args <- read_plugin_args <- NULL
+
+  mode <- match.arg(mode)
 
   if (!is_testing() && !is_load_alled()) {
     blockr_warn(
@@ -254,7 +282,11 @@ generate_plugin_args <- function(board) {
     get_s3_method("board_server", board),
     {
       session$flushReact()
-      res_plugin_args <<- plugin_args
+      res_plugin_args <<- switch(
+        mode,
+        edit = edit_plugin_args,
+        read = read_plugin_args
+      )
     },
     args = list(x = board)
   )
@@ -296,33 +328,4 @@ notify <- function(..., envir = parent.frame(), action = NULL, duration = 5,
   )
 
   invisible(NULL)
-}
-
-#' @param id Module ID
-#' @param what Module components to destroy
-#'
-#' @rdname get_session
-#' @export
-destroy_module <- function(id, what = c("inputs", "outputs", "observers"),
-                           session = get_session()) {
-
-  what <- match.arg(what, several.ok = TRUE)
-
-  log_debug("destroying module {id}, component{?s} {what}")
-
-  ns <- session$ns(id)
-
-  if ("inputs" %in% what) {
-    destroy_inputs(id, session)
-  }
-
-  if ("outputs" %in% what) {
-    destroy_outputs(ns, session)
-  }
-
-  if ("observers" %in% what) {
-    destroy_observers(ns, session)
-  }
-
-  invisible(ns)
 }

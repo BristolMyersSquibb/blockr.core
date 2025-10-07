@@ -4,12 +4,11 @@
 \alias{get_session}
 \alias{generate_plugin_args}
 \alias{notify}
-\alias{destroy_module}
 \title{Shiny utilities}
 \usage{
 get_session()
 
-generate_plugin_args(board)
+generate_plugin_args(board, mode = c("edit", "read"))
 
 notify(
   ...,
@@ -21,15 +20,12 @@ notify(
   type = c("message", "warning", "error"),
   session = get_session()
 )
-
-destroy_module(
-  id,
-  what = c("inputs", "outputs", "observers"),
-  session = get_session()
-)
 }
 \arguments{
 \item{board}{A board object}
+
+\item{mode}{Edit plugins, such as \code{manage_blocks} get an additional argument
+\code{update} over read plugins such as \code{preserve_board}.}
 
 \item{...}{Concatenated as \code{paste0(..., "\\n")}}
 
@@ -46,14 +42,18 @@ disappear.}
 
 \item{close_button}{Passed as \code{closeButton} to \code{\link[shiny:showNotification]{shiny::showNotification()}}}
 
-\item{id}{Module ID}
+\item{id}{A unique identifier for the notification.
+
+\code{id} is optional for \code{showNotification()}: Shiny will automatically create
+one if needed. If you do supply it, Shiny will update an existing
+notification if it exists, otherwise it will create a new one.
+
+\code{id} is required for \code{removeNotification()}.}
 
 \item{type}{A string which controls the color of the notification. One of
 "default" (gray), "message" (blue), "warning" (yellow), or "error" (red).}
 
 \item{session}{Session object to send notification to.}
-
-\item{what}{Module components to destroy}
 }
 \value{
 Either \code{NULL} or a shiny session object for \code{get_session()}, a list

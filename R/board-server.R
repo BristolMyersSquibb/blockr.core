@@ -85,12 +85,6 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         list(session = session)
       )
 
-      plugin_args <- c(
-        rv_ro,
-        list(update = board_update),
-        dot_args
-      )
-
       if (identical(callback_location, "start")) {
 
         for (i in seq_along(callbacks)) {
@@ -101,36 +95,39 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
           cb_res <- cb_res[[1L]]
         }
 
-        plugin_args <- c(
-          plugin_args,
-          cb_res
-        )
+        dot_args <- c(dot_args, cb_res)
       }
 
       edit_block <- get_plugin("edit_block", plugins)
       edit_stack <- get_plugin("edit_stack", plugins)
 
+      edit_plugin_args <- c(
+        rv_ro,
+        list(update = board_update),
+        dot_args
+      )
+
       observeEvent(
         TRUE,
-        setup_board(rv, edit_block, edit_stack, plugin_args, session),
+        setup_board(rv, edit_block, edit_stack, edit_plugin_args, session),
         once = TRUE
       )
 
       call_plugin_server(
         "manage_blocks",
-        server_args = plugin_args,
+        server_args = edit_plugin_args,
         plugins = plugins
       )
 
       call_plugin_server(
         "manage_links",
-        server_args = plugin_args,
+        server_args = edit_plugin_args,
         plugins = plugins
       )
 
       call_plugin_server(
         "manage_stacks",
-        server_args = plugin_args,
+        server_args = edit_plugin_args,
         plugins = plugins
       )
 
@@ -154,7 +151,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
             for (blk in names(upd$blocks$add)) {
               setup_block(
-                upd$blocks$add[[blk]], blk, rv, edit_block, plugin_args
+                upd$blocks$add[[blk]], blk, rv, edit_block, edit_plugin_args
               )
             }
           }
@@ -203,7 +200,9 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
             log_debug("modifying stack{?s} {names(upd$stacks$mod)}")
           }
 
-          update_stack_blocks(rv, upd$stacks, edit_stack, plugin_args, session)
+          update_stack_blocks(
+            rv, upd$stacks, edit_stack, edit_plugin_args, session
+          )
 
           rv$board <- modify_board_stacks(rv$board, upd$stacks$add,
                                           upd$stacks$rm, upd$stacks$mod)
@@ -220,9 +219,11 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         }
       )
 
+      read_plugin_args <- c(rv_ro, dot_args)
+
       board_refresh <- call_plugin_server(
         "preserve_board",
-        server_args = plugin_args,
+        server_args = read_plugin_args,
         plugins = plugins
       )
 
@@ -243,20 +244,23 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
       call_plugin_server(
         "notify_user",
-        server_args = plugin_args,
+        server_args = read_plugin_args,
         plugins = plugins
       )
 
       call_plugin_server(
         "generate_code",
-        server_args = plugin_args,
+        server_args = read_plugin_args,
         plugins = plugins
       )
 
       if (identical(callback_location, "end")) {
+
         for (i in seq_along(callbacks)) {
           cb_res[[i]] <- do.call(callbacks[[i]], cb_args)
         }
+
+        dot_args <- c(dot_args, cb_res)
       }
 
       observeEvent(
@@ -270,7 +274,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         }
       )
 
-      c(rv_ro, dot_args, cb_res)
+      c(rv_ro, dot_args)
     }
   )
 }
