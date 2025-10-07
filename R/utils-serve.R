@@ -105,23 +105,44 @@ serve.block <- function(x, id = "block", ..., data = list()) {
 serve.board <- function(x, id = rand_names(), plugins = board_plugins(x),
                         ...) {
 
-  opts <- as_board_options(x)
+  update_board_in_board_env(x)
 
-  if ("board_name" %in% names(opts)) {
-    title <- board_option_value(opts[["board_name"]])
-  } else {
-    title <- id
+  ui_fun <- function(value) {
+
+    stopifnot(missing(value))
+
+    x <- get_board_form_board_env()
+
+    opts <- as_board_options(x)
+
+    if ("board_name" %in% names(opts)) {
+      title <- board_option_value(opts[["board_name"]])
+    } else {
+      title <- id
+    }
+
+    log_debug("building ui for board {title}")
+
+    bslib::page_fluid(
+      theme = bslib::bs_theme(version = 5),
+      title = title,
+      board_ui(id, x, plugins)
+    )
   }
 
-  ui <- bslib::page_fluid(
-    theme = bslib::bs_theme(version = 5),
-    title = title,
-    board_ui(id, x, plugins)
-  )
+  makeActiveBinding("ui", ui_fun, environment())
+
+  dots <- list(...)
 
   server <- function(input, output, session) {
 
-    res <- board_server(id, x, plugins, ...)
+    res <- do.call(
+      board_server,
+      c(
+        list(id, get_board_form_board_env(), plugins),
+        dots
+      )
+    )
 
     exportTestValues(
       result = lapply(
@@ -137,4 +158,18 @@ serve.board <- function(x, id = rand_names(), plugins = board_plugins(x),
   }
 
   shinyApp(ui, server)
+}
+
+board_env <- new.env()
+
+update_board_in_board_env <- function(board) {
+  stopifnot(is_board(board))
+  assign("board", board, envir = board_env)
+  invisible(board)
+}
+
+get_board_form_board_env <- function() {
+  res <- get("board", envir = board_env, inherits = FALSE)
+  stopifnot(is_board(res))
+  res
 }

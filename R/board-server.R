@@ -231,22 +231,12 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         observeEvent(
           board_refresh(),
           {
-            log_debug("removing existing ui components")
-            remove_block_ui(ns(NULL), rv$board)
-
-            log_debug("refreshing rv$board")
-            rv$board <- refresh_board(board_refresh(), rv$board, session)
-
-            log_debug("updating board ui")
-            update_ui(rv$board, session)
-
-            log_debug("inserting new ui components")
-            insert_block_ui(ns(NULL), rv$board, edit_ui = edit_block)
-
-            log_debug("refreshing board server")
-            setup_board(rv, edit_block, edit_stack, plugin_args, session)
-
-            log_debug("completed board refresh")
+            log_debug("refreshing board")
+            update_board_in_board_env(
+              refresh_board(board_refresh(), rv$board, session)
+            )
+            log_debug("reloading session")
+            session$reload()
           }
         )
       }
