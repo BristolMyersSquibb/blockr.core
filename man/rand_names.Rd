@@ -4,6 +4,7 @@
 \alias{rand_names}
 \alias{adjective_animal}
 \alias{sample_letters}
+\alias{resolve_ctor}
 \alias{to_sentence_case}
 \alias{id_to_sentence_case}
 \title{Random IDs}
@@ -18,6 +19,8 @@ rand_names(
 adjective_animal(n)
 
 sample_letters(n)
+
+resolve_ctor(ctor, ctor_pkg = NULL)
 
 to_sentence_case(x, replace = character(), with = character())
 
@@ -34,6 +37,12 @@ with \code{old_names}}
 \item{id_fun}{A function with a single argument \code{n} that generates random
 IDs. A value of \code{NULL} defaults to \code{\link[ids:adjective_animal]{ids::adjective_animal()}} if available and
 \code{sample_letters} otherwise.}
+
+\item{ctor}{Function (either a string, a function or number used to index
+the call stack}
+
+\item{ctor_pkg}{The package where \code{ctor} is defined (either a string or
+\code{NULL} which will use the function environment)}
 
 \item{x}{Character vector to transform}
 

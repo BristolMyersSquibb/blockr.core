@@ -83,22 +83,15 @@ blockr_ser.board_options <- function(x, options = NULL, ...) {
   )
 }
 
-#' @param option Board option value (`NULL` uses values provided by `x`)
 #' @rdname blockr_ser
 #' @export
-blockr_ser.board_option <- function(x, option = NULL, ...) {
+blockr_ser.blockr_ctor <- function(x, ...) {
 
-  if (is.null(option)) {
-    option <- board_option_value(x)
-  }
-
-  ctor <- attr(x, "ctor")
-
-  fun <- attr(ctor, "fun")
-  pkg <- attr(ctor, "pkg")
+  fun <- attr(x, "fun")
+  pkg <- attr(x, "pkg")
 
   if (is.null(fun)) {
-    fun <- serialize(ctor, NULL)
+    fun <- serialize(x, NULL)
     ver <- NULL
   } else {
     ver <- as.character(pkg_version(pkg))
@@ -106,10 +99,20 @@ blockr_ser.board_option <- function(x, option = NULL, ...) {
 
   list(
     object = class(x),
-    payload = option,
     constructor = fun,
     package = pkg,
     version = ver
+  )
+}
+
+#' @param option Board option value (`NULL` uses values provided by `x`)
+#' @rdname blockr_ser
+#' @export
+blockr_ser.board_option <- function(x, option = NULL, ...) {
+  list(
+    object = class(x),
+    payload = coal(option, board_option_value(x), list()),
+    constructor = blockr_ser(attr(x, "ctor"))
   )
 }
 
@@ -246,26 +249,32 @@ blockr_deser.board_options <- function(x, data, ...) {
 
 #' @rdname blockr_ser
 #' @export
-blockr_deser.board_option <- function(x, data, ...) {
+blockr_deser.blockr_ctor <- function(x, data, ...) {
 
   stopifnot(
-    all(c("constructor", "payload", "package", "object") %in% names(data))
+    all(c("constructor", "package") %in% names(data))
   )
 
   pkg <- data[["package"]]
   ctr <- data[["constructor"]]
 
   if (is.null(pkg)) {
-    ctor <- unserialize(jsonlite::base64_dec(ctr))
-    pkg <- list(NULL)
-    ctr <- ctor
+    new_blockr_ctor(unserialize(jsonlite::base64_dec(ctr)))
   } else {
-    ctor <- get(ctr, asNamespace(pkg), mode = "function")
+    new_blockr_ctor(NULL, ctr, pkg)
   }
+}
 
-  stopifnot(is.function(ctor))
+#' @rdname blockr_ser
+#' @export
+blockr_deser.board_option <- function(x, data, ...) {
+
+  stopifnot(
+    all(c("constructor", "payload") %in% names(data))
+  )
 
   payload <- data[["payload"]]
+  ctor <- blockr_deser(data[["constructor"]])
 
   if (is.atomic(payload)) {
     payload <- list(payload)
@@ -274,8 +283,8 @@ blockr_deser.board_option <- function(x, data, ...) {
   args <- c(
     payload,
     list(
-      ctor = ctr,
-      pkg = pkg
+      ctor = coal(attr(ctor, "fun"), ctor),
+      pkg = attr(ctor, "pkg")
     )
   )
 
