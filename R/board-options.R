@@ -161,6 +161,22 @@ board_option_to_userdata <- function(x, ..., session = get_session()) {
   res <- board_option_server(x, ..., session = session)
   trg <- board_option_trigger(x)
 
+  if (inherits(res, "Observer")) {
+    res <- list(res)
+  } else if (is.null(res)) {
+    res <- list()
+  }
+
+  res <- Filter(not_null, res)
+
+  if (!is.list(res) || any(lgl_ply(res, Negate(inherits), "Observer"))) {
+    blockr_abort(
+      "Expecting a `board_option` server function to return either a ",
+      "single or list of observers.",
+      class = "invalid_board_option_server_return_value"
+    )
+  }
+
   if (not_null(trg)) {
 
     exp <- as.call(
@@ -170,46 +186,35 @@ board_option_to_userdata <- function(x, ..., session = get_session()) {
       )
     )
 
-    obs <- observeEvent(
-      exp,
-      {
-        if (is_scalar(trg)) {
-          new <- board_option_value(x, session$input[[trg]])
-        } else {
-          new <- board_option_value(
-            x,
-            lapply(set_names(nm = trg), function(v) session$input[[v]])
-          )
-        }
+    obs <- list(
+      observeEvent(
+        exp,
+        {
+          if (is_scalar(trg)) {
+            new <- board_option_value(x, session$input[[trg]])
+          } else {
+            new <- board_option_value(
+              x,
+              lapply(set_names(nm = trg), function(v) session$input[[v]])
+            )
+          }
 
-        cur <- rv()
+          cur <- rv()
 
-        if (!identical(new, cur)) {
-          log_debug("setting option ", id)
-          rv(new)
-        }
-      },
-      event.quoted = TRUE,
-      ignoreInit = TRUE
+          if (!identical(new, cur)) {
+            log_debug("setting option ", id)
+            rv(new)
+          }
+        },
+        event.quoted = TRUE,
+        ignoreInit = TRUE
+      )
     )
   } else {
-    obs <- NULL
+    obs <- list()
   }
 
-  attr(rv, "observers") <- c(
-    if (not_null(obs)) list(obs),
-    if (is.list(res) && all(lgl_ply(res, inherits, "Observer"))) {
-      res
-    } else if (inherits(res, "Observer")) {
-      list(res)
-    } else if (not_null(res)) {
-      blockr_abort(
-        "Expecting a `board_option` server function to return either a ",
-        "single or list of observers.",
-        class = "invalid_board_option_server_return_value"
-      )
-    }
-  )
+  attr(rv, "observers") <- c(obs, res)
 
   env <- session$userData
 
