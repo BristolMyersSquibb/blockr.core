@@ -232,7 +232,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
           board_refresh(),
           {
             log_debug("refreshing board")
-            update_board_in_board_env(
+            update_serve_obj(
               refresh_board(board_refresh(), rv$board, session)
             )
             log_debug("reloading session")

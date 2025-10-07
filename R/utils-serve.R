@@ -24,6 +24,8 @@
 #' @export
 serve <- function(x, ...) {
 
+  update_serve_obj(x)
+
   trace_observe()
   on.exit(untrace_observe())
 
@@ -107,26 +109,13 @@ serve.board <- function(x, id = rand_names(), plugins = board_plugins(x),
 
   args <- list(...)
 
-  update_board_in_board_env(x)
-
   ui <- function() {
 
-    x <- get_board_form_board_env()
-
-    opts <- as_board_options(x)
-
-    if ("board_name" %in% names(opts)) {
-      title <- board_option_value(opts[["board_name"]])
-    } else {
-      title <- id
-    }
-
-    log_debug("building ui for board {title}")
+    log_debug("building ui for board {id}")
 
     bslib::page_fluid(
       theme = bslib::bs_theme(version = 5),
-      title = title,
-      board_ui(id, x, plugins)
+      board_ui(id, get_serve_obj(), plugins)
     )
   }
 
@@ -135,7 +124,7 @@ serve.board <- function(x, id = rand_names(), plugins = board_plugins(x),
     res <- do.call(
       board_server,
       c(
-        list(id, get_board_form_board_env(), plugins),
+        list(id, get_serve_obj(), plugins),
         args
       )
     )
@@ -156,16 +145,15 @@ serve.board <- function(x, id = rand_names(), plugins = board_plugins(x),
   shinyApp(ui, server)
 }
 
-board_env <- new.env()
+serve_obj <- new.env()
 
-update_board_in_board_env <- function(board) {
-  stopifnot(is_board(board))
-  assign("board", board, envir = board_env)
-  invisible(board)
+update_serve_obj <- function(x) {
+  assign("x", x, envir = serve_obj)
+  invisible(x)
 }
 
-get_board_form_board_env <- function() {
-  res <- get("board", envir = board_env, inherits = FALSE)
-  stopifnot(is_board(res))
-  res
+#' @rdname serve
+#' @export
+get_serve_obj <- function() {
+  get("x", envir = serve_obj, inherits = FALSE)
 }
