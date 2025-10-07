@@ -325,10 +325,8 @@ output_render_observer <- function(x, res, cond, sess) {
       res()
     },
     {
-      capture_conditions(
-        {
-          sess$output$result <- block_output(x, res(), sess)
-        },
+      sess$output$result <- capture_conditions(
+        block_output(x, res(), sess),
         cond,
         "render",
         session = sess

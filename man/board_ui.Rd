@@ -23,17 +23,17 @@ board_ui(id, x, ...)
 
 \method{board_ui}{`NULL`}(id, x, ...)
 
-insert_block_ui(id, x, blocks = NULL, ...)
+insert_block_ui(id, x, blocks = NULL, ..., session = get_session())
 
-\method{insert_block_ui}{board}(id, x, blocks = NULL, ...)
+\method{insert_block_ui}{board}(id, x, blocks = NULL, ..., session = get_session())
 
-remove_block_ui(id, x, blocks = NULL, ...)
+remove_block_ui(id, x, blocks = NULL, ..., session = get_session())
 
-\method{remove_block_ui}{board}(id, x, blocks = NULL, ...)
+\method{remove_block_ui}{board}(id, x, blocks = NULL, ..., session = get_session())
 
-update_ui(x, session, ...)
+update_ui(x, ..., session = get_session())
 
-\method{update_ui}{board}(x, session, ...)
+\method{update_ui}{board}(x, ..., session = get_session())
 
 toolbar_ui(id, x, plugins = list(), ...)
 

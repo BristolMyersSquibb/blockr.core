@@ -4,6 +4,7 @@
 \alias{serve}
 \alias{serve.block}
 \alias{serve.board}
+\alias{get_serve_obj}
 \title{Serve object}
 \usage{
 serve(x, ...)
@@ -11,6 +12,8 @@ serve(x, ...)
 \method{serve}{block}(x, id = "block", ..., data = list())
 
 \method{serve}{board}(x, id = rand_names(), plugins = board_plugins(x), ...)
+
+get_serve_obj()
 }
 \arguments{
 \item{x}{Object}

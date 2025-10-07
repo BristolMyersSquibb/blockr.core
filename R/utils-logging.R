@@ -128,16 +128,28 @@ as_log_level <- function(level) {
   ordered(match.arg(level, log_levels), log_levels)
 }
 
+#' @rdname write_log
+#' @export
 fatal_log_level <- as_log_level("fatal")
 
+#' @rdname write_log
+#' @export
 error_log_level <- as_log_level("error")
 
+#' @rdname write_log
+#' @export
 warn_log_level <- as_log_level("warn")
 
+#' @rdname write_log
+#' @export
 info_log_level <- as_log_level("info")
 
+#' @rdname write_log
+#' @export
 debug_log_level <- as_log_level("debug")
 
+#' @rdname write_log
+#' @export
 trace_log_level <- as_log_level("trace")
 
 #' @rdname write_log

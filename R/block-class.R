@@ -136,7 +136,7 @@
 #'       )
 #'     },
 #'     function(id) {
-#'       tagList()
+#'       htmltools::tagList()
 #'     },
 #'     class = "identity_block"
 #'   )

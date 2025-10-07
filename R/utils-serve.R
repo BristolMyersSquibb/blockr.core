@@ -23,6 +23,12 @@
 #'
 #' @export
 serve <- function(x, ...) {
+
+  update_serve_obj(x)
+
+  trace_observe()
+  on.exit(untrace_observe())
+
   UseMethod("serve")
 }
 
@@ -101,23 +107,27 @@ serve.block <- function(x, id = "block", ..., data = list()) {
 serve.board <- function(x, id = rand_names(), plugins = board_plugins(x),
                         ...) {
 
-  opts <- as_board_options(x)
+  args <- list(...)
 
-  if ("board_name" %in% names(opts)) {
-    title <- board_option_value(opts[["board_name"]])
-  } else {
-    title <- id
+  ui <- function() {
+
+    log_debug("building ui for board {id}")
+
+    bslib::page_fluid(
+      theme = bslib::bs_theme(version = 5),
+      board_ui(id, get_serve_obj(), plugins)
+    )
   }
-
-  ui <- bslib::page_fluid(
-    theme = bslib::bs_theme(version = 5),
-    title = title,
-    board_ui(id, x, plugins)
-  )
 
   server <- function(input, output, session) {
 
-    res <- board_server(id, x, plugins, ...)
+    res <- do.call(
+      board_server,
+      c(
+        list(id, get_serve_obj(), plugins),
+        args
+      )
+    )
 
     exportTestValues(
       result = lapply(
@@ -133,4 +143,17 @@ serve.board <- function(x, id = rand_names(), plugins = board_plugins(x),
   }
 
   shinyApp(ui, server)
+}
+
+serve_obj <- new.env()
+
+update_serve_obj <- function(x) {
+  assign("x", x, envir = serve_obj)
+  invisible(x)
+}
+
+#' @rdname serve
+#' @export
+get_serve_obj <- function() {
+  get("x", envir = serve_obj, inherits = FALSE)
 }

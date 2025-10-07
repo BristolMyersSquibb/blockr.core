@@ -60,7 +60,7 @@ test_that("ser/deser board", {
     },
     args = list(
       x = test_board,
-      plugins = list(preserve_board())
+      plugins = preserve_board()
     )
   )
 
@@ -70,7 +70,7 @@ test_that("ser/deser board", {
       ser_deser <- session$makeScope("preserve_board")
       ser_deser$setInputs(restore = list(datapath = temp))
 
-      brd <- rv$board
+      brd <- board_refresh()
 
       expect_length(board_blocks(brd), length(board_blocks(test_board)))
       expect_length(board_links(brd), length(board_links(test_board)))
@@ -80,7 +80,7 @@ test_that("ser/deser board", {
     },
     args = list(
       x = new_board(),
-      plugins = list(preserve_board())
+      plugins = preserve_board()
     )
   )
 })
