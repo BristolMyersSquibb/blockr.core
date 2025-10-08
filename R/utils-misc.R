@@ -366,11 +366,19 @@ new_blockr_ctor <- function(fun, nme = NULL, pkg = NULL) {
 
   if (is.null(nme) && is.null(pkg)) {
 
-    stopifnot(is.function(fun))
+    if (is.function(fun)) {
+      return(structure(fun, class = "blockr_ctor"))
+    }
 
-    return(
-      structure(fun, class = "blockr_ctor")
-    )
+    stopifnot(is_string(fun))
+
+    fun <- strsplit(fun, "::", fixed = TRUE)[[1L]]
+
+    stopifnot(length(fun) == 2L)
+
+    nme <- fun[2L]
+    pkg <- fun[1L]
+    fun <- NULL
   }
 
   stopifnot(is_string(nme), is_string(pkg))
@@ -381,6 +389,34 @@ new_blockr_ctor <- function(fun, nme = NULL, pkg = NULL) {
   }
 
   structure(fun, fun = nme, pkg = pkg, class = "blockr_ctor")
+}
+
+#' @rdname rand_names
+#' @export
+is_blockr_ctor <- function(x) {
+  inherits(x, "blockr_ctor")
+}
+
+#' @rdname rand_names
+#' @export
+ctor_name <- function(x) {
+  stopifnot(is_blockr_ctor(x))
+  attr(x, "fun")
+}
+
+#' @rdname rand_names
+#' @export
+ctor_pkg <- function(x) {
+  stopifnot(is_blockr_ctor(x))
+  attr(x, "pkg")
+}
+
+#' @rdname rand_names
+#' @export
+ctor_fun <- function(x) {
+  stopifnot(is_blockr_ctor(x))
+  attributes(x) <- NULL
+  x
 }
 
 #' @param x Character vector to transform

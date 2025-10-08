@@ -109,10 +109,41 @@ blockr_ser.blockr_ctor <- function(x, ...) {
 #' @rdname blockr_ser
 #' @export
 blockr_ser.board_option <- function(x, option = NULL, ...) {
+
+  val <- coal(option, board_option_value(x), list())
+
+  if (is.atomic(val)) {
+    val <- list(val)
+  }
+
+  ctor <- board_option_ctor(x)
+  name <- setdiff(names(formals(ctor)), "...")
+
+  if (length(val) && length(name) != length(val)) {
+    blockr_abort(
+      "Cannot match option values to constructor arguments for option ",
+      "{board_option_id(x)}.",
+      class = "option_value_arg_number_mismatch"
+    )
+  }
+
+  if (length(val) && length(name) > 1L) {
+    blockr_warn(
+      "Uncertainty matching option values to constructor arguments for ",
+      "option {board_option_id(x)}. Consider providing a specific ",
+      "`blockr_ser()` method.",
+      class = "option_value_arg_ambiguity"
+    )
+  }
+
+  if (length(val)) {
+    names(val) <- name
+  }
+
   list(
     object = class(x),
-    payload = coal(option, board_option_value(x), list()),
-    constructor = blockr_ser(attr(x, "ctor"))
+    payload = c(val, list(category = board_option_category(x))),
+    constructor = blockr_ser(ctor)
   )
 }
 
@@ -273,20 +304,15 @@ blockr_deser.board_option <- function(x, data, ...) {
     all(c("constructor", "payload") %in% names(data))
   )
 
-  payload <- data[["payload"]]
   ctor <- blockr_deser(data[["constructor"]])
 
-  if (is.atomic(payload)) {
-    payload <- list(payload)
-  }
-
   args <- c(
-    payload,
+    data[["payload"]],
     list(
-      ctor = coal(attr(ctor, "fun"), ctor),
-      pkg = attr(ctor, "pkg")
+      ctor = coal(ctor_name(ctor), ctor_fun(ctor)),
+      pkg = ctor_pkg(ctor)
     )
   )
 
-  do.call(ctor, args)
+  do.call(ctor_fun(ctor), args)
 }

@@ -4,6 +4,7 @@
 #' @param server (Optional) option server
 #' @param update_trigger Shiny `input` entry/entries that trigger an update
 #' @param transform (Optional) transform function
+#' @param category (Optional) string-valued category
 #' @param ctor,pkg Constructor information (used for serialization)
 
 #' @rdname new_board_options
@@ -12,16 +13,17 @@ new_board_option <- function(id, default, ui,
                              server = function(board, session) {},
                              update_trigger = id,
                              transform = identity,
-                             ctor = sys.parent(), pkg = NULL, ...) {
+                             category = NULL, ctor = sys.parent(),
+                             pkg = NULL) {
 
   res <- structure(
     list(ui = ui, server = server, transform = transform),
     default = default,
     id = id,
     trigger = update_trigger,
+    category = category,
     ctor = resolve_ctor(ctor, pkg),
-    class = c(paste0(id, "_option"), "board_option"),
-    ...
+    class = c(paste0(id, "_option"), "board_option")
   )
 
   validate_board_option(res)
@@ -76,6 +78,13 @@ board_option_default <- function(x) {
 
 #' @rdname new_board_options
 #' @export
+board_option_category <- function(x) {
+  stopifnot(is_board_option(x))
+  attr(x, "category")
+}
+
+#' @rdname new_board_options
+#' @export
 board_option_ui <- function(x, id = NULL) {
 
   stopifnot(is_board_option(x))
@@ -117,6 +126,13 @@ board_option_transform <- function(x) {
 board_option_value <- function(x, value = board_option_default(x)) {
   trans <- board_option_transform(x)
   trans(value)
+}
+
+#' @rdname new_board_options
+#' @export
+board_option_ctor <- function(x) {
+  stopifnot(is_board_option(x))
+  attr(x, "ctor")
 }
 
 #' @rdname new_board_options
@@ -678,7 +694,7 @@ new_llm_model_option <- function(value = NULL, ...) {
 
       structure(options[[x]], chat_name = x)
     },
-    trigger = if (is.function(options)) NULL else "llm_model",
+    update_trigger = if (is.function(options)) NULL else "llm_model",
     ...
   )
 }

@@ -5,6 +5,10 @@
 \alias{adjective_animal}
 \alias{sample_letters}
 \alias{resolve_ctor}
+\alias{is_blockr_ctor}
+\alias{ctor_name}
+\alias{ctor_pkg}
+\alias{ctor_fun}
 \alias{to_sentence_case}
 \alias{id_to_sentence_case}
 \title{Random IDs}
@@ -21,6 +25,14 @@ adjective_animal(n)
 sample_letters(n)
 
 resolve_ctor(ctor, ctor_pkg = NULL)
+
+is_blockr_ctor(x)
+
+ctor_name(x)
+
+ctor_pkg(x)
+
+ctor_fun(x)
 
 to_sentence_case(x, replace = character(), with = character())
 
