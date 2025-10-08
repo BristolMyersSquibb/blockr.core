@@ -119,24 +119,37 @@ blockr_ser.board_option <- function(x, option = NULL, ...) {
   ctor <- board_option_ctor(x)
   name <- setdiff(names(formals(ctor)), "...")
 
-  if (length(val) && length(name) != length(val)) {
+  if (is.null(names(val))) {
+
+    if (length(val) && length(name) != length(val)) {
+      blockr_abort(
+        "Cannot match option values to constructor arguments for option ",
+        "{board_option_id(x)}.",
+        class = "option_value_arg_number_mismatch"
+      )
+    }
+
+    if (length(val) && length(name) > 1L) {
+      log_warn(
+        "Uncertainty matching option values to constructor arguments for ",
+        "option {board_option_id(x)}. Consider providing a specific ",
+        "`blockr_ser()` method."
+      )
+    }
+
+    if (length(val)) {
+      names(val) <- name
+    }
+  }
+
+  unknown <- setdiff(names(val), name)
+
+  if (length(unknown)) {
     blockr_abort(
-      "Cannot match option values to constructor arguments for option ",
+      "Unrecognized option argument{?s} {unknown} for option ",
       "{board_option_id(x)}.",
-      class = "option_value_arg_number_mismatch"
+      class = "option_value_arg_name_mismatch"
     )
-  }
-
-  if (length(val) && length(name) > 1L) {
-    log_warn(
-      "Uncertainty matching option values to constructor arguments for ",
-      "option {board_option_id(x)}. Consider providing a specific ",
-      "`blockr_ser()` method."
-    )
-  }
-
-  if (length(val)) {
-    names(val) <- name
   }
 
   list(
