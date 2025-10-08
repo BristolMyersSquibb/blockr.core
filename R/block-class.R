@@ -153,8 +153,9 @@
 #' inherits from `blocks` or not.
 #'
 #' @export
-new_block <- function(server, ui, class, ctor, ctor_pkg, dat_valid = NULL,
-                      allow_empty_state = FALSE, name = NULL, ...) {
+new_block <- function(server, ui, class, ctor = sys.parent(), ctor_pkg = NULL,
+                      dat_valid = NULL, allow_empty_state = FALSE, name = NULL,
+                      ...) {
 
   stopifnot(is.character(class), length(class) > 0L)
 
@@ -162,59 +163,6 @@ new_block <- function(server, ui, class, ctor, ctor_pkg, dat_valid = NULL,
     ui <- function(id) {
       tagList()
     }
-  }
-
-  if (missing(ctor)) {
-    ctor <- sys.parent()
-  }
-
-  if (is.numeric(ctor)) {
-
-    fun <- sys.function(ctor)
-    call <- deparse(sys.call(ctor)[[1L]])
-
-    if (grepl("::", call, fixed = TRUE)) {
-
-      call <- strsplit(call, "::", fixed = TRUE)[[1L]]
-
-      stopifnot(length(call) == 2L)
-
-      ctor <- call[2L]
-
-      if (missing(ctor_pkg)) {
-        ctor_pkg <- call[1L]
-      } else {
-        stopifnot(identical(ctor_pkg, call[1L]))
-      }
-
-    } else {
-
-      if (missing(ctor_pkg)) {
-        ctor_pkg <- pkg_name(environment(fun))
-      }
-
-      if (not_null(ctor_pkg)) {
-        ctor <- call
-      }
-    }
-
-    if (is_string(ctor_pkg) && is_string(ctor)) {
-      try <- get0(ctor, asNamespace(ctor_pkg), mode = "function",
-                  inherits = FALSE)
-    } else {
-      try <- NULL
-    }
-
-    if (is.null(try)) {
-      ctor <- fun
-      ctor_pkg <- NULL
-    }
-  }
-
-  if (is.null(ctor_pkg)) {
-    stopifnot(is.function(ctor))
-  } else {
-    stopifnot(is_string(ctor), is_string(ctor_pkg))
   }
 
   if (is.null(name)) {
@@ -230,8 +178,7 @@ new_block <- function(server, ui, class, ctor, ctor_pkg, dat_valid = NULL,
         dat_valid = dat_valid
       ),
       ...,
-      ctor = ctor,
-      ctor_pkg = ctor_pkg,
+      ctor = resolve_ctor(ctor, ctor_pkg),
       name = name,
       allow_empty_state = allow_empty_state,
       class = c(class, "block")
@@ -353,10 +300,12 @@ validate_block <- function(x, ui_eval = FALSE) {
     )
   }
 
-  if (!is.function(try(block_ctor(x), silent = TRUE))) {
+  ctor <- block_ctor(x)
+
+  if (!is_blockr_ctor(ctor)) {
     blockr_abort(
-      "Cannot reconstruct blocks without constructors.",
-      class = "block_no_ctor"
+      "Expecting a block constructor to inherit from `blockr_ctor`.",
+      class = "block_ctor_invalid"
     )
   }
 
@@ -405,92 +354,6 @@ as_block <- function(x, ...) {
 #' @export
 as_block.block <- function(x, ...) {
   validate_block(x)
-}
-
-#' @export
-as_block.list <- function(x, ...) {
-
-  stopifnot(
-    all(c("constructor", "payload", "package", "object") %in% names(x))
-  )
-
-  pkg <- x[["package"]]
-  ctr <- x[["constructor"]]
-
-  if (is.null(pkg)) {
-    ctor <- unserialize(jsonlite::base64_dec(ctr))
-    pkg <- list(NULL)
-    ctr <- ctor
-  } else {
-    ctor <- get(ctr, asNamespace(pkg), mode = "function")
-  }
-
-  stopifnot(is.function(ctor))
-
-  args <- c(
-    x[["payload"]],
-    ctor = ctr,
-    ctor_pkg = pkg
-  )
-
-  res <- do.call(ctor, args)
-
-  if (!identical(class(res), x[["object"]])) {
-    blockr_abort(
-      "Could not deserialize block.",
-      class = "block_deser_error"
-    )
-  }
-
-  res
-}
-
-#' @export
-as.list.block <- function(x, state = NULL, ...) {
-
-  pkg <- attr(x, "ctor_pkg")
-
-  if (is.null(state)) {
-    state <- initial_block_state(x)
-  }
-
-  attrs <- attributes(x)
-
-  state <- c(
-    state,
-    attrs[
-      setdiff(
-        names(attrs),
-        c("names", "ctor", "ctor_pkg", "class", "allow_empty_state")
-      )
-    ]
-  )
-
-  ctor <- attr(x, "ctor")
-
-  if (is.function(ctor)) {
-
-    stopifnot(is.null(pkg))
-
-    ctor <- serialize(ctor, NULL)
-
-    pkg <- NULL
-    ver <- NULL
-
-  } else {
-
-    stopifnot(is_string(ctor), not_null(pkg))
-
-    ver <- as.character(pkg_version(pkg))
-  }
-
-  list(
-    object = class(x),
-    payload = state,
-    constructor = ctor,
-    package = pkg,
-    version = ver
-  )
 }
 
 #' @export
@@ -575,18 +438,8 @@ block_name <- function(x) {
 }
 
 block_ctor <- function(x) {
-
   stopifnot(is_block(x))
-
-  fun <- attr(x, "ctor")
-
-  if (is.function(fun)) {
-    return(fun)
-  }
-
-  pkg <- attr(x, "ctor_pkg")
-
-  get(fun, envir = asNamespace(pkg), mode = "function", inherits = FALSE)
+  attr(x, "ctor")
 }
 
 block_expr_server <- function(x) {
@@ -713,11 +566,14 @@ format.block <- function(x, ...) {
     out <- c(out, "Stateless block")
   }
 
-  if (!is.null(attr(x, "ctor_pkg"))) {
-    ctor <- paste0(attr(x, "ctor_pkg"), "::", attr(x, "ctor"), "()")
-  } else {
+  ctor <- block_ctor(x)
+
+  if (is.null(ctor_name(ctor))) {
     ctor <- "<local function>"
+  } else {
+    ctor <- paste0(ctor_pkg(ctor), "::", ctor_name(ctor), "()")
   }
+
   c(out, paste("Constructor:", ctor))
 }
 

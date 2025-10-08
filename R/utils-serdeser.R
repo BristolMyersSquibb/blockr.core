@@ -36,7 +36,30 @@ blockr_ser <- function(x, ...) {
 #' @rdname blockr_ser
 #' @export
 blockr_ser.block <- function(x, state = NULL, ...) {
-  as.list(x, state)
+
+  if (is.null(state)) {
+    state <- initial_block_state(x)
+  }
+
+  attrs <- attributes(x)
+
+  state <- c(
+    state,
+    attrs[
+      setdiff(
+        names(attrs),
+        c("names", "ctor", "class", "allow_empty_state")
+      )
+    ]
+  )
+
+  ctor <- block_ctor(x)
+
+  list(
+    object = class(x),
+    payload = state,
+    constructor = blockr_ser(ctor)
+  )
 }
 
 #' @param blocks Block states (`NULL` defaults to values from ctor scope)
@@ -223,15 +246,47 @@ blockr_deser <- function(x, ...) {
 #' @rdname blockr_ser
 #' @export
 blockr_deser.list <- function(x, ...) {
+
   stopifnot("object" %in% names(x))
-  blockr_deser(structure(list(), class = x[["object"]]), data = x)
+
+  cls <- x[["object"]]
+
+  res <- blockr_deser(
+    structure(list(), class = cls),
+    data = x
+  )
+
+  if (!identical(class(res), cls)) {
+    blockr_abort(
+      "Could not deserialize object: expected class{?es} {cls}, but ",
+      "received {class(res)}.",
+      class = "block_deser_class_error"
+    )
+  }
+
+  res
 }
 
 #' @param data List valued data (converted from JSON)
 #' @rdname blockr_ser
 #' @export
 blockr_deser.block <- function(x, data, ...) {
-  as_block(data)
+
+  stopifnot(
+    all(c("constructor", "payload") %in% names(data))
+  )
+
+  ctor <- blockr_deser(data[["constructor"]])
+
+  args <- c(
+    data[["payload"]],
+    list(
+      ctor = coal(ctor_name(ctor), ctor_fun(ctor)),
+      ctor_pkg = ctor_pkg(ctor)
+    )
+  )
+
+  do.call(ctor_fun(ctor), args)
 }
 
 #' @rdname blockr_ser
