@@ -128,11 +128,10 @@ blockr_ser.board_option <- function(x, option = NULL, ...) {
   }
 
   if (length(val) && length(name) > 1L) {
-    blockr_warn(
+    log_warn(
       "Uncertainty matching option values to constructor arguments for ",
       "option {board_option_id(x)}. Consider providing a specific ",
-      "`blockr_ser()` method.",
-      class = "option_value_arg_ambiguity"
+      "`blockr_ser()` method."
     )
   }
 

@@ -13,10 +13,7 @@
 #'
 #' Dynamic UI updates are handled by functions `insert_block_ui()` and
 #' `remove_block_ui()` for adding and removing block-level UI elements to and
-#' from `board` UI, whenever blocks are added or removed. The lightly more
-#' nondescript updated function `update_ui()` is intended for board-level UI
-#' updates, which is currently only needed when restoring from a saved state and
-#' board option UI needs to be adjusted accordingly. All these update functions
+#' from `board` UI, whenever blocks are added or removed. These update functions
 #' are provided as S3 generics with implementations for `board` and can be
 #' extended if so desired.
 #'
@@ -26,8 +23,8 @@
 #'
 #' @return A `board_ui()` implementation is expected to return [shiny::tag] or
 #' [shiny::tagList()] objects, as does `toolbar_ui()`, while updater functions
-#' (`insert_block_ui()`, `remove_block_ui()` and `update_ui()`) are called for
-#' their side effects (which includes UI updates such as [shiny::insertUI()],
+#' (`insert_block_ui()` and `remove_block_ui()`) are called for their side
+#' effects (which includes UI updates such as [shiny::insertUI()],
 #' [shiny::removeUI()]) and return the board object passed as `x` invisibly.
 #'
 #' @export
@@ -188,18 +185,6 @@ remove_block_ui.board <- function(id, x, blocks = NULL, ...,
     }
   }
 
-  invisible(x)
-}
-
-#' @rdname board_ui
-#' @export
-update_ui <- function(x, ..., session = get_session()) {
-  UseMethod("update_ui", x)
-}
-
-#' @rdname board_ui
-#' @export
-update_ui.board <- function(x, ..., session = get_session()) {
   invisible(x)
 }
 
