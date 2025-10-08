@@ -260,7 +260,7 @@ is_testing <- function() {
 #' `update` over read plugins such as `preserve_board`.
 #' @rdname get_session
 #' @export
-generate_plugin_args <- function(board, mode = c("edit", "read")) {
+generate_plugin_args <- function(board, ..., mode = c("edit", "read")) {
 
   session <- edit_plugin_args <- read_plugin_args <- NULL
 
@@ -288,7 +288,7 @@ generate_plugin_args <- function(board, mode = c("edit", "read")) {
         read = read_plugin_args
       )
     },
-    args = list(x = board)
+    args = list(x = board, ...)
   )
 
   res_plugin_args
