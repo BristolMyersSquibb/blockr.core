@@ -76,9 +76,9 @@ is available as S3 generic. Inheritance checking is available as
 <span> <span class="op">}</span>,</span>
 <span>  update_trigger <span class="op">=</span> <span class="va">id</span>,</span>
 <span>  transform <span class="op">=</span> <span class="va">identity</span>,</span>
+<span>  category <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  ctor <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sys.parent.html" class="external-link">sys.parent</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  pkg <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  <span class="va">...</span></span>
+<span>  pkg <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">is_board_option</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
@@ -96,6 +96,8 @@ is available as S3 generic. Inheritance checking is available as
 <span></span>
 <span><span class="fu">board_option_default</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span></span>
+<span><span class="fu">board_option_category</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
+<span></span>
 <span><span class="fu">board_option_ui</span><span class="op">(</span><span class="va">x</span>, id <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">board_option_server</span><span class="op">(</span><span class="va">x</span>, <span class="va">...</span><span class="op">)</span></span>
@@ -103,6 +105,8 @@ is available as S3 generic. Inheritance checking is available as
 <span><span class="fu">board_option_transform</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">board_option_value</span><span class="op">(</span><span class="va">x</span>, value <span class="op">=</span> <span class="fu">board_option_default</span><span class="op">(</span><span class="va">x</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">board_option_ctor</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Default S3 method</span></span>
 <span><span class="fu">validate_board_option</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
@@ -200,16 +204,20 @@ is available as S3 generic. Inheritance checking is available as
 <dd><p>(Optional) transform function</p></dd>
 
 
+<dt id="arg-category">category<a class="anchor" aria-label="anchor" href="#arg-category"></a></dt>
+<dd><p>(Optional) string-valued category</p></dd>
+
+
 <dt id="arg-ctor-pkg">ctor, pkg<a class="anchor" aria-label="anchor" href="#arg-ctor-pkg"></a></dt>
 <dd><p>Constructor information (used for serialization)</p></dd>
 
 
-<dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
-<dd><p>Options passed as individual arguments</p></dd>
-
-
 <dt id="arg-x">x<a class="anchor" aria-label="anchor" href="#arg-x"></a></dt>
 <dd><p>Board options object</p></dd>
+
+
+<dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
+<dd><p>Options passed as individual arguments</p></dd>
 
 
 <dt id="arg-value">value<a class="anchor" aria-label="anchor" href="#arg-value"></a></dt>

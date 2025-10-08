@@ -67,7 +67,7 @@ notify: Glue-capable wrapper for shiny::showNotification().
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">get_session</span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">generate_plugin_args</span><span class="op">(</span><span class="va">board</span><span class="op">)</span></span>
+<span><span class="fu">generate_plugin_args</span><span class="op">(</span><span class="va">board</span>, <span class="va">...</span>, mode <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"edit"</span>, <span class="st">"read"</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">notify</span><span class="op">(</span></span>
 <span>  <span class="va">...</span>,</span>
@@ -77,12 +77,6 @@ notify: Glue-capable wrapper for shiny::showNotification().
 <span>  close_button <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  id <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"message"</span>, <span class="st">"warning"</span>, <span class="st">"error"</span><span class="op">)</span>,</span>
-<span>  session <span class="op">=</span> <span class="fu">get_session</span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu">destroy_module</span><span class="op">(</span></span>
-<span>  <span class="va">id</span>,</span>
-<span>  what <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"inputs"</span>, <span class="st">"outputs"</span>, <span class="st">"observers"</span><span class="op">)</span>,</span>
 <span>  session <span class="op">=</span> <span class="fu">get_session</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -97,6 +91,11 @@ notify: Glue-capable wrapper for shiny::showNotification().
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Concatenated as <code>paste0(..., "\n")</code></p></dd>
+
+
+<dt id="arg-mode">mode<a class="anchor" aria-label="anchor" href="#arg-mode"></a></dt>
+<dd><p>Edit plugins, such as <code>manage_blocks</code> get an additional argument
+<code>update</code> over read plugins such as <code>preserve_board</code>.</p></dd>
 
 
 <dt id="arg-envir">envir<a class="anchor" aria-label="anchor" href="#arg-envir"></a></dt>
@@ -121,7 +120,11 @@ disappear.</p></dd>
 
 
 <dt id="arg-id">id<a class="anchor" aria-label="anchor" href="#arg-id"></a></dt>
-<dd><p>Module ID</p></dd>
+<dd><p>A unique identifier for the notification.</p>
+<p><code>id</code> is optional for <code>showNotification()</code>: Shiny will automatically create
+one if needed. If you do supply it, Shiny will update an existing
+notification if it exists, otherwise it will create a new one.</p>
+<p><code>id</code> is required for <code>removeNotification()</code>.</p></dd>
 
 
 <dt id="arg-type">type<a class="anchor" aria-label="anchor" href="#arg-type"></a></dt>
@@ -131,10 +134,6 @@ disappear.</p></dd>
 
 <dt id="arg-session">session<a class="anchor" aria-label="anchor" href="#arg-session"></a></dt>
 <dd><p>Session object to send notification to.</p></dd>
-
-
-<dt id="arg-what">what<a class="anchor" aria-label="anchor" href="#arg-what"></a></dt>
-<dd><p>Module components to destroy</p></dd>
 
 </dl></div>
     <div class="section level2">

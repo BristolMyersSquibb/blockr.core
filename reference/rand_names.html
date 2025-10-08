@@ -76,6 +76,16 @@ for ID generation.</p>
 <span></span>
 <span><span class="fu">sample_letters</span><span class="op">(</span><span class="va">n</span><span class="op">)</span></span>
 <span></span>
+<span><span class="fu">resolve_ctor</span><span class="op">(</span><span class="va">ctor</span>, ctor_pkg <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">is_blockr_ctor</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">ctor_name</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">ctor_pkg</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">ctor_fun</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
+<span></span>
 <span><span class="fu">to_sentence_case</span><span class="op">(</span><span class="va">x</span>, replace <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="op">)</span>, with <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">id_to_sentence_case</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span></code></pre></div>
@@ -102,6 +112,16 @@ with <code>old_names</code></p></dd>
 <dd><p>A function with a single argument <code>n</code> that generates random
 IDs. A value of <code>NULL</code> defaults to <code><a href="https://rdrr.io/pkg/ids/man/adjective_animal.html" class="external-link">ids::adjective_animal()</a></code> if available and
 <code>sample_letters</code> otherwise.</p></dd>
+
+
+<dt id="arg-ctor">ctor<a class="anchor" aria-label="anchor" href="#arg-ctor"></a></dt>
+<dd><p>Function (either a string, a function or number used to index
+the call stack</p></dd>
+
+
+<dt id="arg-ctor-pkg">ctor_pkg<a class="anchor" aria-label="anchor" href="#arg-ctor-pkg"></a></dt>
+<dd><p>The package where <code>ctor</code> is defined (either a string or
+<code>NULL</code> which will use the function environment)</p></dd>
 
 
 <dt id="arg-x">x<a class="anchor" aria-label="anchor" href="#arg-x"></a></dt>

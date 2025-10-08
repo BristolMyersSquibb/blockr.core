@@ -101,11 +101,6 @@ toolbar UI component from several plugin UI components.</p>
 <span><span class="co"># S3 method for class 'board'</span></span>
 <span><span class="fu">remove_block_ui</span><span class="op">(</span><span class="va">id</span>, <span class="va">x</span>, blocks <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span>, session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">update_ui</span><span class="op">(</span><span class="va">x</span>, <span class="va">...</span>, session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># S3 method for class 'board'</span></span>
-<span><span class="fu">update_ui</span><span class="op">(</span><span class="va">x</span>, <span class="va">...</span>, session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
 <span><span class="fu">toolbar_ui</span><span class="op">(</span><span class="va">id</span>, <span class="va">x</span>, plugins <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'board'</span></span>
@@ -144,18 +139,15 @@ toolbar UI component from several plugin UI components.</p>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A <code>board_ui()</code> implementation is expected to return <a href="https://rdrr.io/pkg/shiny/man/reexports.html" class="external-link">shiny::tag</a> or
 <code><a href="https://rdrr.io/pkg/shiny/man/reexports.html" class="external-link">shiny::tagList()</a></code> objects, as does <code>toolbar_ui()</code>, while updater functions
-(<code>insert_block_ui()</code>, <code>remove_block_ui()</code> and <code>update_ui()</code>) are called for
-their side effects (which includes UI updates such as <code><a href="https://rdrr.io/pkg/shiny/man/insertUI.html" class="external-link">shiny::insertUI()</a></code>,
+(<code>insert_block_ui()</code> and <code>remove_block_ui()</code>) are called for their side
+effects (which includes UI updates such as <code><a href="https://rdrr.io/pkg/shiny/man/insertUI.html" class="external-link">shiny::insertUI()</a></code>,
 <code><a href="https://rdrr.io/pkg/shiny/man/insertUI.html" class="external-link">shiny::removeUI()</a></code>) and return the board object passed as <code>x</code> invisibly.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>Dynamic UI updates are handled by functions <code>insert_block_ui()</code> and
 <code>remove_block_ui()</code> for adding and removing block-level UI elements to and
-from <code>board</code> UI, whenever blocks are added or removed. The lightly more
-nondescript updated function <code>update_ui()</code> is intended for board-level UI
-updates, which is currently only needed when restoring from a saved state and
-board option UI needs to be adjusted accordingly. All these update functions
+from <code>board</code> UI, whenever blocks are added or removed. These update functions
 are provided as S3 generics with implementations for <code>board</code> and can be
 extended if so desired.</p>
     </div>
