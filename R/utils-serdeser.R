@@ -162,7 +162,12 @@ blockr_ser.board_option <- function(x, option = NULL, ...) {
 #' @rdname blockr_ser
 #' @export
 blockr_ser.llm_model_option <- function(x, option = NULL, ...) {
-  NextMethod(option = attr(option, "chat_name"))
+  NextMethod(
+    option = coal(
+      attr(coal(option, board_option_value(x)), "chat_name"),
+      list()
+    )
+  )
 }
 
 #' @rdname blockr_ser
