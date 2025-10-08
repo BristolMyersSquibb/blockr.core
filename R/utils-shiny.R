@@ -155,7 +155,7 @@ trace_observe <- function() {
     return(invisible())
   }
 
-  log_trace("hooking observer capturing")
+  log_debug("hooking observer capturing")
 
   suppressMessages(
     trace(
@@ -209,7 +209,7 @@ untrace_observe <- function() {
     return(invisible())
   }
 
-  log_trace("removing observer capture hook")
+  log_debug("removing observer capture hook")
 
   suppressMessages(untrace(shiny::observe))
 
