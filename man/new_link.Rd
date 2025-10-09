@@ -20,7 +20,7 @@ links(...)
 
 is_links(x)
 
-as_links(x)
+as_links(x, ...)
 
 validate_links(x)
 }
