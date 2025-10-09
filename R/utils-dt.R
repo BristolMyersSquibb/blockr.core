@@ -39,11 +39,18 @@ dt_result <- function(result, session) {
   )
 
   DT::renderDT(
-    DT::datatable(
-      as.data.frame(utils::head(result, rows)),
-      selection = "none",
-      options = opts
-    ),
+    {
+      dat <- as.data.frame(utils::head(result, rows))
+      DT::formatStyle(
+        DT::datatable(
+          dat,
+          selection = "none",
+          options = opts
+        ),
+        columns = names(dat),
+        whiteSpace = "pre-wrap"
+      )
+    },
     server = TRUE
   )
 }
