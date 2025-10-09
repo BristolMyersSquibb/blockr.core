@@ -9,8 +9,6 @@
 \alias{insert_block_ui.board}
 \alias{remove_block_ui}
 \alias{remove_block_ui.board}
-\alias{update_ui}
-\alias{update_ui.board}
 \alias{toolbar_ui}
 \alias{toolbar_ui.board}
 \title{Board UI}
@@ -30,10 +28,6 @@ insert_block_ui(id, x, blocks = NULL, ..., session = get_session())
 remove_block_ui(id, x, blocks = NULL, ..., session = get_session())
 
 \method{remove_block_ui}{board}(id, x, blocks = NULL, ..., session = get_session())
-
-update_ui(x, ..., session = get_session())
-
-\method{update_ui}{board}(x, ..., session = get_session())
 
 toolbar_ui(id, x, plugins = list(), ...)
 
@@ -55,8 +49,8 @@ toolbar_ui(id, x, plugins = list(), ...)
 \value{
 A \code{board_ui()} implementation is expected to return \link[shiny:reexports]{shiny::tag} or
 \code{\link[shiny:reexports]{shiny::tagList()}} objects, as does \code{toolbar_ui()}, while updater functions
-(\code{insert_block_ui()}, \code{remove_block_ui()} and \code{update_ui()}) are called for
-their side effects (which includes UI updates such as \code{\link[shiny:insertUI]{shiny::insertUI()}},
+(\code{insert_block_ui()} and \code{remove_block_ui()}) are called for their side
+effects (which includes UI updates such as \code{\link[shiny:insertUI]{shiny::insertUI()}},
 \code{\link[shiny:insertUI]{shiny::removeUI()}}) and return the board object passed as \code{x} invisibly.
 }
 \description{
@@ -74,10 +68,7 @@ toolbar UI component from several plugin UI components.
 \details{
 Dynamic UI updates are handled by functions \code{insert_block_ui()} and
 \code{remove_block_ui()} for adding and removing block-level UI elements to and
-from \code{board} UI, whenever blocks are added or removed. The lightly more
-nondescript updated function \code{update_ui()} is intended for board-level UI
-updates, which is currently only needed when restoring from a saved state and
-board option UI needs to be adjusted accordingly. All these update functions
+from \code{board} UI, whenever blocks are added or removed. These update functions
 are provided as S3 generics with implementations for \code{board} and can be
 extended if so desired.
 }

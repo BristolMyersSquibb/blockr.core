@@ -9,10 +9,12 @@
 \alias{board_option_id}
 \alias{board_option_trigger}
 \alias{board_option_default}
+\alias{board_option_category}
 \alias{board_option_ui}
 \alias{board_option_server}
 \alias{board_option_transform}
 \alias{board_option_value}
+\alias{board_option_ctor}
 \alias{validate_board_option.default}
 \alias{new_board_name_option}
 \alias{new_n_rows_option}
@@ -48,9 +50,9 @@ new_board_option(
  },
   update_trigger = id,
   transform = identity,
+  category = NULL,
   ctor = sys.parent(),
-  pkg = NULL,
-  ...
+  pkg = NULL
 )
 
 is_board_option(x)
@@ -67,6 +69,8 @@ board_option_trigger(x)
 
 board_option_default(x)
 
+board_option_category(x)
+
 board_option_ui(x, id = NULL)
 
 board_option_server(x, ...)
@@ -74,6 +78,8 @@ board_option_server(x, ...)
 board_option_transform(x)
 
 board_option_value(x, value = board_option_default(x))
+
+board_option_ctor(x)
 
 \method{validate_board_option}{default}(x)
 
@@ -150,11 +156,13 @@ get_board_option_values(
 
 \item{transform}{(Optional) transform function}
 
+\item{category}{(Optional) string-valued category}
+
 \item{ctor, pkg}{Constructor information (used for serialization)}
 
-\item{...}{Options passed as individual arguments}
-
 \item{x}{Board options object}
+
+\item{...}{Options passed as individual arguments}
 
 \item{value}{Option value}
 

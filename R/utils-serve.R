@@ -23,12 +23,7 @@
 #'
 #' @export
 serve <- function(x, ...) {
-
   update_serve_obj(x)
-
-  trace_observe()
-  on.exit(untrace_observe())
-
   UseMethod("serve")
 }
 
@@ -120,6 +115,9 @@ serve.board <- function(x, id = rand_names(), plugins = board_plugins(x),
   }
 
   server <- function(input, output, session) {
+
+    trace_observe()
+    onStop(untrace_observe, session)
 
     res <- do.call(
       board_server,

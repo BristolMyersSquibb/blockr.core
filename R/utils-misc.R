@@ -303,13 +303,20 @@ starts_with <- function(x, prefix) {
   x[startsWith(x, prefix)]
 }
 
+#' @param ctor Function (either a string, a function or number used to index
+#' the call stack
+#' @param ctor_pkg The package where `ctor` is defined (either a string or
+#' `NULL` which will use the function environment)
+#'
+#' @rdname rand_names
+#' @export
 resolve_ctor <- function(ctor, ctor_pkg = NULL) {
 
   try <- NULL
 
   if (is.numeric(ctor)) {
 
-    fun <- sys.function(ctor)
+    func <- sys.function(ctor)
     call <- deparse(sys.call(ctor)[[1L]])
 
     if (grepl("::", call, fixed = TRUE)) {
@@ -329,7 +336,7 @@ resolve_ctor <- function(ctor, ctor_pkg = NULL) {
     } else {
 
       if (is.null(ctor_pkg)) {
-        ctor_pkg <- pkg_name(environment(fun))
+        ctor_pkg <- pkg_name(environment(func))
       }
 
       if (not_null(ctor_pkg)) {
@@ -343,28 +350,73 @@ resolve_ctor <- function(ctor, ctor_pkg = NULL) {
     }
 
     if (is.null(try)) {
-      ctor <- fun
+      ctor <- func
       ctor_pkg <- NULL
     }
   }
 
   if (is.null(ctor_pkg)) {
-
-    stopifnot(is.function(ctor))
-
-    return(
-      structure(ctor, class = "blockr_ctor")
-    )
+    return(new_blockr_ctor(ctor))
   }
 
-  stopifnot(is_string(ctor), is_string(ctor_pkg))
+  new_blockr_ctor(try, ctor, ctor_pkg)
+}
 
-  if (is.null(try)) {
-    try <- get0(ctor, asNamespace(ctor_pkg), mode = "function",
+new_blockr_ctor <- function(fun, nme = NULL, pkg = NULL) {
+
+  if (is.null(nme) && is.null(pkg)) {
+
+    if (is.function(fun)) {
+      return(structure(fun, class = "blockr_ctor"))
+    }
+
+    stopifnot(is_string(fun))
+
+    fun <- strsplit(fun, "::", fixed = TRUE)[[1L]]
+
+    stopifnot(length(fun) == 2L)
+
+    nme <- fun[2L]
+    pkg <- fun[1L]
+    fun <- NULL
+  }
+
+  stopifnot(is_string(nme), is_string(pkg))
+
+  if (is.null(fun)) {
+    fun <- get0(nme, asNamespace(pkg), mode = "function",
                 inherits = FALSE)
   }
 
-  structure(try, fun = ctor, pkg = ctor_pkg, class = "blockr_ctor")
+  structure(fun, fun = nme, pkg = pkg, class = "blockr_ctor")
+}
+
+#' @rdname rand_names
+#' @export
+is_blockr_ctor <- function(x) {
+  inherits(x, "blockr_ctor")
+}
+
+#' @rdname rand_names
+#' @export
+ctor_name <- function(x) {
+  stopifnot(is_blockr_ctor(x))
+  attr(x, "fun")
+}
+
+#' @rdname rand_names
+#' @export
+ctor_pkg <- function(x) {
+  stopifnot(is_blockr_ctor(x))
+  attr(x, "pkg")
+}
+
+#' @rdname rand_names
+#' @export
+ctor_fun <- function(x) {
+  stopifnot(is_blockr_ctor(x))
+  attributes(x) <- NULL
+  x
 }
 
 #' @param x Character vector to transform

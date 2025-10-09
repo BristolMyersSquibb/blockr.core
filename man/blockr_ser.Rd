@@ -5,6 +5,7 @@
 \alias{blockr_ser.block}
 \alias{blockr_ser.blocks}
 \alias{blockr_ser.board_options}
+\alias{blockr_ser.blockr_ctor}
 \alias{blockr_ser.board_option}
 \alias{blockr_ser.llm_model_option}
 \alias{blockr_ser.board}
@@ -22,6 +23,7 @@
 \alias{blockr_deser.stack}
 \alias{blockr_deser.stacks}
 \alias{blockr_deser.board_options}
+\alias{blockr_deser.blockr_ctor}
 \alias{blockr_deser.board_option}
 \title{Serialization utilities}
 \usage{
@@ -32,6 +34,8 @@ blockr_ser(x, ...)
 \method{blockr_ser}{blocks}(x, blocks = NULL, ...)
 
 \method{blockr_ser}{board_options}(x, options = NULL, ...)
+
+\method{blockr_ser}{blockr_ctor}(x, ...)
 
 \method{blockr_ser}{board_option}(x, option = NULL, ...)
 
@@ -66,6 +70,8 @@ blockr_deser(x, ...)
 \method{blockr_deser}{stacks}(x, data, ...)
 
 \method{blockr_deser}{board_options}(x, data, ...)
+
+\method{blockr_deser}{blockr_ctor}(x, data, ...)
 
 \method{blockr_deser}{board_option}(x, data, ...)
 }
