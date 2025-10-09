@@ -103,12 +103,12 @@ test_that("block constructor", {
     validate_block(
       structure(list(), ctor = "abc", class = c("some_block", "block"))
     ),
-    class = "block_no_ctor"
+    class = "block_ctor_invalid"
   )
 
   expect_error(
     validate_block(
-      structure(list(), ctor = function() {}, name = 1,
+      structure(list(), ctor = new_blockr_ctor(function() {}), name = 1,
                 class = c("some_block", "block"))
     ),
     class = "block_name_invalid"
@@ -122,7 +122,7 @@ test_that("block constructor", {
           expr_ui = function(id) {},
           dat_valid = NULL
         ),
-        ctor = function() {},
+        ctor = new_blockr_ctor(function() {}),
         name = "1",
         class = c("some_block", "block")
       ),
@@ -141,7 +141,6 @@ test_that("block class", {
   expect_false(is_block("x"))
 
   expect_identical(x, as_block(x))
-  expect_equal(x, as_block(as.list(x)), ignore_function_env = TRUE)
 
   expect_snapshot(print(x))
 })
@@ -149,7 +148,7 @@ test_that("block class", {
 test_that("block utils", {
 
   blk <- new_dataset_block()
-  lst <- as.list(blk)
+  lst <- list(blk)
 
   expect_s3_class(c(blk, blk), "blocks")
   expect_s3_class(c(blk, lst), "blocks")

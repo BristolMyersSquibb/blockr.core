@@ -150,6 +150,11 @@ as_stacks.stack <- function(x, ...) {
 }
 
 #' @export
+as_stacks.board <- function(x, ...) {
+  board_stacks(x)
+}
+
+#' @export
 as.list.stacks <- function(x, ...) {
   vec_data(x)
 }

@@ -88,7 +88,7 @@ as_board_options.list <- function(x) {
 #' @rdname new_board_options
 #' @export
 as_board_options.board <- function(x) {
-  validate_board_options(x[["options"]])
+  board_options(x)
 }
 
 #' @rdname new_board_options

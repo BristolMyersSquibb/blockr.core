@@ -208,34 +208,39 @@ c.links <- function(...) {
 
 #' @rdname new_link
 #' @export
-as_links <- function(x) {
+as_links <- function(x, ...) {
   UseMethod("as_links")
 }
 
 #' @export
-as_links.links <- function(x) {
+as_links.links <- function(x, ...) {
   validate_links(x)
 }
 
 #' @export
-as_links.link <- function(x) {
+as_links.link <- function(x, ...) {
   as_links(as.list(x))
 }
 
 #' @export
-as_links.list <- function(x) {
+as_links.list <- function(x, ...) {
   do.call(links, x)
 }
 
 #' @export
-as_links.NULL <- function(x) {
+as_links.NULL <- function(x, ...) {
   links()
 }
 
 #' @method as_links data.frame
 #' @export
-as_links.data.frame <- function(x) {
+as_links.data.frame <- function(x, ...) {
   as_links(as.list(x))
+}
+
+#' @export
+as_links.board <- function(x, ...) {
+  board_links(x)
 }
 
 #' @method as.data.frame links

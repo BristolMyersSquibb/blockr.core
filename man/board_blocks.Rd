@@ -15,6 +15,7 @@
 \alias{modify_board_stacks}
 \alias{board_options}
 \alias{board_options<-}
+\alias{board_option_ids}
 \alias{available_stack_blocks}
 \title{Board utils}
 \usage{
@@ -46,6 +47,8 @@ board_options(x)
 
 board_options(x) <- value
 
+board_option_ids(x)
+
 available_stack_blocks(
   x,
   stacks = board_stacks(x),
@@ -69,11 +72,12 @@ available_stack_blocks(
 Functions for retrieving, as well as updating components
 (\code{board_blocks()}/\code{board_links()}/\code{board_stacks()}/\code{board_options()} and
 \verb{board_blocks<-()}/\verb{board_links<-()}/\verb{board_stacks<-()}/\verb{board_options<-()})
-return corresponding objects (i.e. \code{blocks}, \code{links} and \code{stacks}), while ID
-getters (\code{board_block_ids()}, \code{board_link_ids()} and \code{board_stack_ids()})
-return character vectors, as does \code{available_stack_blocks()}. Convenience
-functions \code{rm_blocks()}, \code{modify_board_links()} and \code{modify_board_stacks()}
-return an updated \code{board} object.
+return corresponding objects (i.e. \code{blocks}, \code{links}, \code{stacks} and
+\code{board_options}), while ID getters (\code{board_block_ids()}, \code{board_link_ids()},
+\code{board_stack_ids()} and \code{board_option_ids()}) return character vectors, as
+does \code{available_stack_blocks()}. Convenience functions \code{rm_blocks()},
+\code{modify_board_links()} and \code{modify_board_stacks()} return an updated \code{board}
+object.
 }
 \description{
 A set of utility functions is available for querying and manipulating board
@@ -115,6 +119,14 @@ stacks is available as \code{modify_board_stacks()}, which can add, remove and
 modify stacks depending on arguments passed as \code{add}, \code{rm} and \code{mod}. If
 block IDs that are not already associated with a stack (i.e. "free" blocks)
 are of interest, this is available as \code{available_stack_blocks()}.
+}
+
+\section{Options}{
+
+Board options can be retrieved using \code{board_options()} and updated with the
+corresponding replacement function \verb{board_options<-()}.  If only the option
+IDs are of interest, this is available as \code{board_option_ids()}, which calls
+\code{\link[=board_option_id]{board_option_id()}} on each board option.
 }
 
 \examples{

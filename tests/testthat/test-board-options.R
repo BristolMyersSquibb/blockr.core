@@ -34,4 +34,104 @@ test_that("board opts", {
   expect_s3_class(opts3, "board_options")
   expect_length(opts3, 4L)
   expect_named(opts3, c("board_name", "n_rows", "page_size", "filter_rows"))
+
+  chat_fun <- function(system_prompt = NULL, params = NULL) {}
+
+  expect_warning(
+    withr::with_options(
+      list(blockr.chat_function = chat_fun),
+      new_llm_model_option("foo")
+    ),
+    class = "single_llm_model"
+  )
+
+  expect_error(
+    withr::with_options(
+      list(blockr.chat_function = list(foo = chat_fun, bar = chat_fun)),
+      new_llm_model_option("baz")
+    ),
+    class = "invalid_llm_model_option_value"
+  )
+
+  expect_error(
+    withr::with_options(
+      list(blockr.chat_function = list(foo = chat_fun, bar = chat_fun)),
+      new_llm_model_option("baz")
+    ),
+    class = "invalid_llm_model_option_value"
+  )
+
+  expect_error(
+    withr::with_options(
+      list(blockr.chat_function = chat_fun),
+      new_llm_model_option(chat_fun)
+    ),
+    class = "invalid_llm_model_option_value"
+  )
+})
+
+test_that("opt ser/deser", {
+
+  prev <- need_llm_cfg_opts(TRUE)
+  withr::defer(need_llm_cfg_opts(prev))
+
+  for (opt in default_board_options()) {
+    expect_identical(
+      opt,
+      blockr_deser(blockr_ser(opt)),
+      ignore_function_env = TRUE
+    )
+  }
+
+  opts <- list(
+    new_board_name_option("foo"),
+    new_thematic_option(TRUE),
+    new_dark_mode_option("dark"),
+    new_show_conditions_option(character()),
+    new_show_conditions_option("error"),
+    new_show_conditions_option(c("warning", "error", "message"))
+  )
+
+  for (opt in opts) {
+    expect_identical(
+      opt,
+      blockr_deser(blockr_ser(opt)),
+      ignore_function_env = TRUE
+    )
+  }
+
+  chat_fun <- function(system_prompt = NULL, params = NULL) {}
+
+  withr::with_options(
+    list(blockr.chat_function = chat_fun),
+    {
+      expect_identical(
+        new_llm_model_option(),
+        blockr_deser(blockr_ser(new_llm_model_option())),
+        ignore_function_env = TRUE
+      )
+    }
+  )
+
+  withr::with_options(
+    list(blockr.chat_function = list(foo = chat_fun, bar = chat_fun)),
+    {
+      expect_identical(
+        new_llm_model_option(),
+        blockr_deser(blockr_ser(new_llm_model_option())),
+        ignore_function_env = TRUE
+      )
+    }
+  )
+
+  withr::with_options(
+    list(blockr.chat_function = list(foo = chat_fun, bar = chat_fun)),
+    {
+      expect_identical(
+        new_llm_model_option("bar"),
+        blockr_deser(blockr_ser(new_llm_model_option("bar"))),
+        ignore_function_env = TRUE
+      )
+    }
+  )
 })

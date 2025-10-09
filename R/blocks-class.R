@@ -67,6 +67,11 @@ as_blocks.block <- function(x, ...) {
 }
 
 #' @export
+as_blocks.board <- function(x, ...) {
+  board_blocks(x)
+}
+
+#' @export
 as.list.blocks <- function(x, ...) {
   vec_data(x)
 }
