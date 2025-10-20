@@ -285,11 +285,12 @@ is_acyclic.board <- function(x) {
 #' @return Functions for retrieving, as well as updating components
 #' (`board_blocks()`/`board_links()`/`board_stacks()`/`board_options()` and
 #' `board_blocks<-()`/`board_links<-()`/`board_stacks<-()`/`board_options<-()`)
-#' return corresponding objects (i.e. `blocks`, `links` and `stacks`), while ID
-#' getters (`board_block_ids()`, `board_link_ids()` and `board_stack_ids()`)
-#' return character vectors, as does `available_stack_blocks()`. Convenience
-#' functions `rm_blocks()`, `modify_board_links()` and `modify_board_stacks()`
-#' return an updated `board` object.
+#' return corresponding objects (i.e. `blocks`, `links`, `stacks` and
+#' `board_options`), while ID getters (`board_block_ids()`, `board_link_ids()`,
+#' `board_stack_ids()` and `board_option_ids()`) return character vectors, as
+#' does `available_stack_blocks()`. Convenience functions `rm_blocks()`,
+#' `modify_board_links()` and `modify_board_stacks()` return an updated `board`
+#' object.
 #'
 #' @export
 board_blocks <- function(x) {
@@ -470,6 +471,12 @@ modify_board_stacks.board <- function(x, add = NULL, rm = NULL, mod = NULL) {
   x
 }
 
+#' @section Options:
+#' Board options can be retrieved using `board_options()` and updated with the
+#' corresponding replacement function `board_options<-()`.  If only the option
+#' IDs are of interest, this is available as `board_option_ids()`, which calls
+#' [board_option_id()] on each board option.
+#'
 #' @rdname board_blocks
 #' @export
 board_options <- function(x) {
@@ -483,6 +490,13 @@ board_options <- function(x) {
   stopifnot(is_board(x))
   x[["options"]] <- validate_board_options(value)
   x
+}
+
+#' @rdname board_blocks
+#' @export
+board_option_ids <- function(x) {
+  stopifnot(is_board(x))
+  chr_ply(board_options(x), board_option_id)
 }
 
 #' @param blocks,stacks Sets of blocks/stacks

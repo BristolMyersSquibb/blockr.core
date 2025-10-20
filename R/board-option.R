@@ -631,9 +631,10 @@ need_llm_cfg_opts <- local(
         )
       }
 
+      prev <- state
       state <<- enable
 
-      invisible(state)
+      invisible(prev)
     }
   }
 )
@@ -642,7 +643,15 @@ need_llm_cfg_opts <- local(
 #' @export
 new_llm_model_option <- function(value = NULL, ...) {
 
-  options <- blockr_option("chat_function", default_chat)
+  if (!(is.null(value) || is_string(value))) {
+    blockr_abort(
+      "Expecting an LLM model option to be specified by a string (or be ",
+      "`NULL`).",
+      class = "invalid_llm_model_option_value"
+    )
+  }
+
+  options <- get_chat_fun_opts()
 
   if (!is.function(options) && length(options) == 1L) {
 
@@ -655,6 +664,23 @@ new_llm_model_option <- function(value = NULL, ...) {
 
   if (is.null(value) && !is.function(options)) {
     value <- names(options)[1L]
+  }
+
+  if (is.function(options) && !is.null(value)) {
+
+    blockr_warn(
+      "Ignoring value {value} for option `llm_model_option`.",
+      class = "single_llm_model"
+    )
+
+    value <- NULL
+  }
+
+  if (is.list(options) && is_string(value) && !value %in% names(options)) {
+    blockr_abort(
+      "Cannot choose {value} among option{?s} {names(options)}.",
+      class = "invalid_llm_model_option_value"
+    )
   }
 
   new_board_option(
@@ -699,10 +725,29 @@ new_llm_model_option <- function(value = NULL, ...) {
   )
 }
 
+get_chat_fun_opts <- function() {
+
+  opt <- blockr_option("chat_function", default_chat)
+
+  is_loo <- is.list(opt) &&
+    all(lgl_ply(opt, is.function)) &&
+    length(unique(names(opt))) == length(opt)
+
+  if (!(is.function(opt) || is_loo)) {
+    blockr_abort(
+      "Expecting the blockr option `chat_function` to be either a function ",
+      "or a list of functions with unique names.",
+      class = "board_options_llm_model_invalid"
+    )
+  }
+
+  opt
+}
+
 #' @export
 format.llm_model_option <- function(x, session = get_session(), ...) {
 
-  opts <- blockr_option("chat_function", default_chat)
+  opts <- get_chat_fun_opts()
 
   if (is.function(opts)) {
     opts <- ""
@@ -732,19 +777,7 @@ validate_board_option.llm_model_option <- function(x) {
   }
 
   nme <- attr(val, "chat_name")
-  opt <- blockr_option("chat_function", default_chat)
-
-  is_loo <- is.list(opt) &&
-    all(lgl_ply(opt, is.function)) &&
-    length(unique(names(opt))) == length(opt)
-
-  if (!(is.function(opt) || is_loo)) {
-    blockr_abort(
-      "Expecting the blockr option `chat_function` to be either a function ",
-      "or a list of functions with unique names.",
-      class = "board_options_llm_model_invalid"
-    )
-  }
+  opt <- get_chat_fun_opts()
 
   is_fun <- is.function(opt) || (is.list(opt) && length(opt) == 1L)
 
