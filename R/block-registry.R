@@ -173,7 +173,7 @@ create_block <- function(id, ...) {
   ctor(..., ctor = attr(ctor, "ctor_name"), ctor_pkg = attr(ctor, "package"))
 }
 
-register_core_blocks <- function(which = blockr_option("blocks", "all")) {
+register_core_blocks <- function(which = blockr_option("core_blocks", "all")) {
 
   blocks <- paste0(
     c("dataset", "subset", "merge", "rbind", "scatter", "upload", "filebrowser",
