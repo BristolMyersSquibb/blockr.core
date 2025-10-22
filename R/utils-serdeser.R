@@ -263,8 +263,8 @@ blockr_deser.list <- function(x, ...) {
 
   if (!identical(class(res), cls)) {
     blockr_abort(
-      "Could not deserialize object: expected class{?es} {cls}, but ",
-      "received {class(res)}.",
+      "Could not deserialize object: expected {qty(cls)} class{?es} {cls}, ",
+      "but received {qty(res)} {class(res)}.",
       class = "block_deser_class_error"
     )
   }
