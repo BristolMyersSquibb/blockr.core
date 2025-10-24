@@ -144,6 +144,8 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
       observeEvent(
         board_update(),
         {
+          upd <- board_update()
+
           if (length(upd$blocks$add)) {
 
             log_debug("adding block{?s} {names(upd$blocks$add)}")
