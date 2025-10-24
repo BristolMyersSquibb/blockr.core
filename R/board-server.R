@@ -135,11 +135,15 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         board_update(),
         {
           log_debug("starting board update")
-
-          upd <- validate_board_update(board_update, rv)
-
+          validate_board_update(board_update, rv)
           log_debug("board update validated")
+        },
+        priority = Inf
+      )
 
+      observeEvent(
+        board_update(),
+        {
           if (length(upd$blocks$add)) {
 
             log_debug("adding block{?s} {names(upd$blocks$add)}")
@@ -216,7 +220,8 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
           board_update(NULL)
 
           log_debug("board update completed")
-        }
+        },
+        priority = -Inf
       )
 
       read_plugin_args <- c(rv_ro, dot_args)
