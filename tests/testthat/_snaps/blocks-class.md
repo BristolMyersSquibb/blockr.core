@@ -7,7 +7,7 @@
       
       a
        <dataset_block<data_block<block>>>
-       Name: "Dataset block"
+       Name: "Dataset"
        No data inputs
        Initial block state:
         $ dataset: chr(0)
@@ -16,7 +16,7 @@
       
       b
        <subset_block<transform_block<block>>>
-       Name: "Subset block"
+       Name: "Subset"
        Data inputs: "data"
        Initial block state:
         $ subset: chr ""

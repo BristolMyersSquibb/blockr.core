@@ -154,8 +154,8 @@
 #'
 #' @export
 new_block <- function(server, ui, class, ctor = sys.parent(), ctor_pkg = NULL,
-                      dat_valid = NULL, allow_empty_state = FALSE, name = NULL,
-                      ...) {
+                      dat_valid = NULL, allow_empty_state = FALSE,
+                      name = default_block_name, ...) {
 
   stopifnot(is.character(class), length(class) > 0L)
 
@@ -166,9 +166,16 @@ new_block <- function(server, ui, class, ctor = sys.parent(), ctor_pkg = NULL,
   }
 
   if (is.null(name)) {
-    name <- gsub("_", " ", sub("_block$", "", class[1L]))
-    name <- paste0(toupper(substr(name, 1L, 1L)), substring(name, 2L))
+    name <- default_block_name
   }
+
+  class <- c(class, "block")
+
+  if (is.function(name)) {
+    name <- name(class)
+  }
+
+  stopifnot(is_string(name))
 
   validate_block(
     new_vctr(
@@ -181,10 +188,17 @@ new_block <- function(server, ui, class, ctor = sys.parent(), ctor_pkg = NULL,
       ctor = resolve_ctor(ctor, ctor_pkg),
       name = name,
       allow_empty_state = allow_empty_state,
-      class = c(class, "block")
+      class = class
     ),
     ui_eval = TRUE
   )
+}
+
+#' @rdname new_block
+#' @export
+default_block_name <- function(class) {
+  res <- gsub("_", " ", sub("_block$", "", class[1L]))
+  paste0(toupper(substr(res, 1L, 1L)), substring(res, 2L))
 }
 
 validate_block_server <- function(server) {

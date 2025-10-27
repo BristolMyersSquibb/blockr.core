@@ -8,7 +8,7 @@
       Blocks[5]:
       
       d<merge_block<transform_block<block>>>
-      Name: "Merge block"
+      Name: "Merge"
       Data inputs: "x" and "y"
       Initial block state:
        $ by   : chr(0)
@@ -17,7 +17,7 @@
       Constructor: blockr.core::new_merge_block()
       
       a<dataset_block<data_block<block>>>
-      Name: "Dataset block"
+      Name: "Dataset"
       No data inputs
       Initial block state:
        $ dataset: chr(0)
@@ -25,7 +25,7 @@
       Constructor: blockr.core::new_dataset_block()
       
       c<subset_block<transform_block<block>>>
-      Name: "Subset block"
+      Name: "Subset"
       Data inputs: "data"
       Initial block state:
        $ subset: chr ""
@@ -33,7 +33,7 @@
       Constructor: blockr.core::new_subset_block()
       
       e<subset_block<transform_block<block>>>
-      Name: "Subset block"
+      Name: "Subset"
       Data inputs: "data"
       Initial block state:
        $ subset: chr ""
@@ -41,7 +41,7 @@
       Constructor: blockr.core::new_subset_block()
       
       b<dataset_block<data_block<block>>>
-      Name: "Dataset block"
+      Name: "Dataset"
       No data inputs
       Initial block state:
        $ dataset: chr(0)
@@ -81,7 +81,7 @@
       Blocks[4]:
       
       d<merge_block<transform_block<block>>>
-      Name: "Merge block"
+      Name: "Merge"
       Data inputs: "x" and "y"
       Initial block state:
        $ by   : chr(0)
@@ -90,7 +90,7 @@
       Constructor: blockr.core::new_merge_block()
       
       a<dataset_block<data_block<block>>>
-      Name: "Dataset block"
+      Name: "Dataset"
       No data inputs
       Initial block state:
        $ dataset: chr(0)
@@ -98,7 +98,7 @@
       Constructor: blockr.core::new_dataset_block()
       
       c<subset_block<transform_block<block>>>
-      Name: "Subset block"
+      Name: "Subset"
       Data inputs: "data"
       Initial block state:
        $ subset: chr ""
@@ -106,7 +106,7 @@
       Constructor: blockr.core::new_subset_block()
       
       b<dataset_block<data_block<block>>>
-      Name: "Dataset block"
+      Name: "Dataset"
       No data inputs
       Initial block state:
        $ dataset: chr(0)

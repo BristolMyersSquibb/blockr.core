@@ -4,7 +4,7 @@
       print(x)
     Output
       <dataset_block<data_block<block>>>
-      Name: "Dataset block"
+      Name: "Dataset"
       No data inputs
       Initial block state:
        $ dataset: chr(0)
@@ -17,7 +17,7 @@
       blk()
     Output
       <dummy_block<data_block<block>>>
-      Name: "Dummy block"
+      Name: "Dummy"
       No data inputs
       Initial block state:
        $ text: chr "Hello World"

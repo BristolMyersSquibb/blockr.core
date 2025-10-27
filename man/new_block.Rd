@@ -2,6 +2,7 @@
 % Please edit documentation in R/block-class.R, R/blocks-class.R
 \name{new_block}
 \alias{new_block}
+\alias{default_block_name}
 \alias{is_block}
 \alias{as_block}
 \alias{blocks}
@@ -17,9 +18,11 @@ new_block(
   ctor_pkg = NULL,
   dat_valid = NULL,
   allow_empty_state = FALSE,
-  name = NULL,
+  name = default_block_name,
   ...
 )
+
+default_block_name(class)
 
 is_block(x)
 
