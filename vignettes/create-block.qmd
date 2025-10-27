@@ -133,7 +133,7 @@ We can finish our block template:
 
 ```{r eval = FALSE}
 example_constructor <- function(ui_state = character(), ...) {
-  ui <- function(id) { #nolint
+  ui <- function(id) {
     tagList(textInput(NS(id, "ui_state")))
   }
 

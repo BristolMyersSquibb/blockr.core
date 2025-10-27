@@ -335,8 +335,10 @@ rm_blocks.board <- function(x, rm) {
 
   if (any(rm %in% c(links$from, links$to))) {
 
-    blk <- intersect(rm, c(links$from, links$to)) # nolint
-    lnk <- names(links[links$from %in% rm | links$to %in% rm]) # nolint
+    # nolint start: object_usage_linter.
+    blk <- intersect(rm, c(links$from, links$to))
+    lnk <- names(links[links$from %in% rm | links$to %in% rm])
+    # nolint end
 
     blockr_abort(
       "Cannot remove {qty(blk)} block{?s} {blk} which participate in ",
@@ -350,8 +352,10 @@ rm_blocks.board <- function(x, rm) {
 
   if (any(rm %in% unlst(stck_blks))) {
 
-    blk <- intersect(rm, unlst(stck_blks)) # nolint
-    stk <- lengths(lapply(stck_blks, intersect, rm)) # nolint
+    # nolint start: object_usage_linter.
+    blk <- intersect(rm, unlst(stck_blks))
+    stk <- lengths(lapply(stck_blks, intersect, rm))
+    # nolint end
 
     blockr_abort(
       "Cannot remove {qty(blk)} block{?s} {blk} which participate in ",

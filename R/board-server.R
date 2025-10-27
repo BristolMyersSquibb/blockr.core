@@ -40,7 +40,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
   validate_callbacks(callbacks)
 
-  dot_args <- list(...) # nolint: object_usage_linter
+  dot_args <- list(...) # nolint: object_usage_linter.
 
   callback_location <- match.arg(callback_location)
 
