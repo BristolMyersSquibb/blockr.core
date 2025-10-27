@@ -162,8 +162,6 @@ lst_xtr_reval <- function(x, ...) {
   lapply(lst_xtr(x, ...), reval)
 }
 
-#' @rdname set_names
-#' @export
 last <- function(x) x[[length(x)]]
 
 int_to_chr <- function(x) {

@@ -6,7 +6,6 @@
 \alias{coal}
 \alias{reval}
 \alias{reval_if}
-\alias{last}
 \alias{unlst}
 \alias{pkg_name}
 \alias{pkg_version}
@@ -23,8 +22,6 @@ coal(..., fail_null = TRUE)
 reval(x)
 
 reval_if(x)
-
-last(x)
 
 unlst(x, recursive = FALSE, use_names = FALSE)
 
