@@ -166,7 +166,7 @@ new_block <- function(server, ui, class, ctor = sys.parent(), ctor_pkg = NULL,
   }
 
   if (is.null(name)) {
-    name <- gsub("_", " ", class[1L])
+    name <- gsub("_", " ", sub("_block$", "", class[1L]))
     name <- paste0(toupper(substr(name, 1L, 1L)), substring(name, 2L))
   }
 
