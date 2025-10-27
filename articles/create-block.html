@@ -209,7 +209,7 @@
 <p>We can finish our block template:</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>example_constructor <span class="ot">&lt;-</span> <span class="cf">function</span>(<span class="at">ui_state =</span> <span class="fu">character</span>(), ...) {</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  ui <span class="ot">&lt;-</span> <span class="cf">function</span>(id) { <span class="co">#nolint</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  ui <span class="ot">&lt;-</span> <span class="cf">function</span>(id) {</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">tagList</span>(<span class="fu">textInput</span>(<span class="fu">NS</span>(id, <span class="st">"ui_state"</span>)))</span>
 <span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  }</span>
 <span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
