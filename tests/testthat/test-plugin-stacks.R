@@ -174,13 +174,9 @@ test_that("add/rm stacks return validation", {
         )
       )
 
-      res <- validate_board_update(val, rv)
-
-      expect_s3_class(res$stacks$add, "stacks")
-      expect_length(res$stacks$add, 1L)
-
-      expect_type(res$stacks$rm, "character")
-      expect_length(res$stacks$rm, 1L)
+      expect_null(
+        validate_board_update(val, rv)
+      )
     }
   )
 

@@ -74,7 +74,7 @@
 ---
 
     Code
-      print(rm_blocks(board, "c"))
+      print(rm_blocks(board, "e"))
     Output
       <board>
       
@@ -97,7 +97,7 @@
        $ package: chr "datasets"
       Constructor: blockr.core::new_dataset_block()
       
-      e<subset_block<transform_block<block>>>
+      c<subset_block<transform_block<block>>>
       Name: "Subset block"
       Data inputs: "data"
       Initial block state:
@@ -113,16 +113,17 @@
        $ package: chr "datasets"
       Constructor: blockr.core::new_dataset_block()
       
-      Links[2]:
+      Links[3]:
       
       ad: a -> d (x)
-      de: d -> e (data)
+      cd: c -> d (y)
+      bc: b -> c (data)
       
       Stacks[1]:
       
-      bc<stack[1]>
+      bc<stack[2]>
       Name: "Stack"
-      Blocks: "b"
+      Blocks: "b" and "c"
       
       Options:
       <board_options[7]>

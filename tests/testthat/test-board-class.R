@@ -73,5 +73,31 @@ test_that("block constructor", {
     class = "board_block_stack_name_mismatch"
   )
 
-  expect_snapshot(print(rm_blocks(board, "c")))
+  expect_error(
+    rm_blocks(board, "e"),
+    class = "invalid_removal_of_used_block"
+  )
+
+  lnks <- board_links(board)
+  board_links(board) <- lnks[setdiff(names(lnks), "de")]
+
+  expect_snapshot(print(rm_blocks(board, "e")))
+
+  upd <- reactiveVal(list(blocks = list(rm = "b")))
+
+  isolate(preprocess_board_update(upd, board))
+
+  upd <- isolate(upd())
+
+  expect_type(upd, "list")
+
+  expect_named(upd, c("blocks", "links", "stacks"), ignore.order = TRUE)
+
+  expect_length(upd$links, 1L)
+  expect_named(upd$links, "rm")
+  expect_identical(upd$links$rm, "bc")
+
+  expect_length(upd$stacks, 1L)
+  expect_named(upd$stacks, "mod")
+  expect_identical(stack_blocks(upd$stacks$mod[[1L]]), "c")
 })

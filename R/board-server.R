@@ -137,6 +137,9 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
           log_debug("starting board update")
           validate_board_update(board_update, rv)
           log_debug("board update validated")
+
+          log_debug("preprocessing board update")
+          preprocess_board_update(board_update, rv$board)
         },
         priority = Inf
       )
@@ -694,7 +697,7 @@ validate_board_update <- function(x, rv) {
     validate_board_update_stacks(res$stacks, rv)
   }
 
-  res
+  invisible()
 }
 
 validate_board_update_blocks <- function(x, rv) {
@@ -932,6 +935,57 @@ validate_board_update_stacks <- function(x, rv) {
     }
 
     validate_stacks(x$mod)
+  }
+
+  invisible()
+}
+
+preprocess_board_update <- function(update, board) {
+
+  upd <- update()
+
+  if ("blocks" %in% names(upd) && "rm" %in% names(upd$blocks)) {
+
+    rm <- upd$blocks$rm
+
+    links <- board_links(board)
+
+    miss_lnk <- setdiff(
+      names(links[links$from %in% rm | links$to %in% rm]),
+      upd$links$rm
+    )
+
+    stacks <- board_stacks(board)
+
+    stacks <- c(
+      upd$stacks$mod,
+      stacks[setdiff(names(stacks), names(upd$stacks$mod))]
+    )
+
+    upd_stk <- lapply(
+      stacks[lengths(lapply(stacks, intersect, rm)) > 0L],
+      setdiff,
+      rm
+    )
+
+  } else {
+
+    miss_lnk <- NULL
+    upd_stk <- NULL
+  }
+
+  if (length(miss_lnk)) {
+    log_debug("adding link removal{?s} for {miss_lnk}")
+    upd$links$rm <- c(upd$links$rm, miss_lnk)
+  }
+
+  if (length(upd_stk)) {
+    log_debug("adding stack update{?s} for {names(upd_stk)}")
+    upd$stacks$mod <- c(upd$stacks$mod, upd_stk)
+  }
+
+  if (length(miss_lnk) || length(upd_stk)) {
+    update(upd)
   }
 
   invisible()

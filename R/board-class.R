@@ -332,10 +332,33 @@ rm_blocks.board <- function(x, rm) {
   stopifnot(is.character(rm), all(rm %in% names(blocks)))
 
   links <- board_links(x)
-  board_links(x) <- links[!links$from %in% rm & !links$to %in% rm]
+
+  if (any(rm %in% c(links$from, links$to))) {
+
+    blk <- intersect(rm, c(links$from, links$to)) # nolint
+    lnk <- names(links[links$from %in% rm | links$to %in% rm]) # nolint
+
+    blockr_abort(
+      "Cannot remove {qty(blk)} block{?s} {blk} which participate in ",
+      "{qty(lnk)} link{?s} {lnk}.",
+      class = "invalid_removal_of_used_block"
+    )
+  }
 
   stacks <- board_stacks(x)
-  board_stacks(x) <- as_stacks(lapply(stacks, setdiff, rm))
+  stck_blks <- lapply(stacks, stack_blocks)
+
+  if (any(rm %in% unlst(stck_blks))) {
+
+    blk <- intersect(rm, unlst(stck_blks)) # nolint
+    stk <- lengths(lapply(stck_blks, intersect, rm)) # nolint
+
+    blockr_abort(
+      "Cannot remove {qty(blk)} block{?s} {blk} which participate in ",
+      "{qty(stk)} stack{?s} {stk}.",
+      class = "invalid_removal_of_used_block"
+    )
+  }
 
   board_blocks(x) <- blocks[!names(blocks) %in% rm]
 
