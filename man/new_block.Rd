@@ -18,7 +18,7 @@ new_block(
   ctor_pkg = NULL,
   dat_valid = NULL,
   allow_empty_state = FALSE,
-  name = default_block_name,
+  block_name = default_block_name,
   ...
 )
 
@@ -52,7 +52,7 @@ constructor name or \code{NULL}}
 \item{allow_empty_state}{Either \code{TRUE}, \code{FALSE} or a character vector of
 \code{state} values that may be empty while still moving forward with block eval}
 
-\item{name}{Block name}
+\item{block_name}{Block name}
 
 \item{...}{Further (metadata) attributes}
 

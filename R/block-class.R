@@ -116,7 +116,7 @@
 #' @param ctor_pkg String-valued package name when passing a string-valued
 #'   constructor name or `NULL`
 #' @param dat_valid (Optional) input data validator
-#' @param name Block name
+#' @param block_name Block name
 #' @param allow_empty_state Either `TRUE`, `FALSE` or a character vector of
 #' `state` values that may be empty while still moving forward with block eval
 #' @param ... Further (metadata) attributes
@@ -155,7 +155,7 @@
 #' @export
 new_block <- function(server, ui, class, ctor = sys.parent(), ctor_pkg = NULL,
                       dat_valid = NULL, allow_empty_state = FALSE,
-                      name = default_block_name, ...) {
+                      block_name = default_block_name, ...) {
 
   stopifnot(is.character(class), length(class) > 0L)
 
@@ -165,17 +165,17 @@ new_block <- function(server, ui, class, ctor = sys.parent(), ctor_pkg = NULL,
     }
   }
 
-  if (is.null(name)) {
-    name <- default_block_name
+  if (is.null(block_name)) {
+    block_name <- default_block_name
   }
 
   class <- c(class, "block")
 
-  if (is.function(name)) {
-    name <- name(class)
+  if (is.function(block_name)) {
+    block_name <- block_name(class)
   }
 
-  stopifnot(is_string(name))
+  stopifnot(is_string(block_name))
 
   validate_block(
     new_vctr(
@@ -186,7 +186,7 @@ new_block <- function(server, ui, class, ctor = sys.parent(), ctor_pkg = NULL,
       ),
       ...,
       ctor = resolve_ctor(ctor, ctor_pkg),
-      name = name,
+      name = block_name,
       allow_empty_state = allow_empty_state,
       class = class
     ),
