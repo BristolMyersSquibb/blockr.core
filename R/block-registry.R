@@ -37,6 +37,7 @@ block_registry <- new.env()
 #' @param uid Unique ID for a registry entry
 #' @param category Useful to sort blocks by topics. If not specified,
 #'   blocks are uncategorized.
+#' @param icon Icon
 #' @param package Package where constructor is defined (or `NULL`)
 #' @param overwrite Overwrite existing entry
 #'
@@ -57,8 +58,23 @@ block_registry <- new.env()
 #'
 #' @export
 register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
-                           category = "uncategorized", package = NULL,
-                           overwrite = FALSE) {
+                           category = "uncategorized", icon = "question-square",
+                           package = NULL, overwrite = FALSE) {
+
+  stopifnot(is_string(icon))
+
+  if (grepl("-fill$", icon)) {
+    blockr_warn(
+      "Using block icons with 'fill' style, such as {icon} is discouraged.",
+      class = "block_icon_fill_discouraged",
+      frequency = "once",
+      frequency_id = "block_icon_fill_discouraged"
+    )
+  }
+
+  if (!icon %in% bsicon_icons()) {
+    blockr_abort("Unknown icon {icon}.", class = "block_icon_invalid")
+  }
 
   if (is.function(ctor)) {
     package <- pkg_name(environment(ctor))
@@ -102,6 +118,7 @@ register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
     description = description,
     classes = classes,
     category = category,
+    icon = icon,
     ctor_name = ctor_name,
     package = package
   )
@@ -109,6 +126,10 @@ register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
   assign(uid, entry, envir = block_registry)
 
   invisible(entry)
+}
+
+bsicon_icons <- function() {
+  get("icon_info", envir = asNamespace("bsicons"), mode = "list")$name
 }
 
 new_registry_entry <- function(ctor, ...) {
@@ -163,6 +184,29 @@ get_registry_entry <- function(uid) {
 #' @export
 available_blocks <- function() {
   lapply(set_names(nm = list_blocks()), get_registry_entry)
+}
+
+#' @param blocks Character vector of registry IDs
+#' @param fields Metadata fields
+#'
+#' @rdname register_block
+#' @export
+block_metadata <- function(blocks = list_blocks(), fields = "all") {
+
+  all_fields <- c("name", "description", "category", "icon")
+
+  if (identical(fields, "all")) {
+    fields <- all_fields
+  }
+
+  fields <- match.arg(fields, all_fields, several.ok = TRUE)
+
+  res <- lapply(blocks, get_registry_entry)
+
+  cbind(
+    id = blocks,
+    do.call(rbind, lapply(lapply(res, attributes), `[`, fields))
+  )
 }
 
 #' @param id Block ID as reported by `list_blocks()`
