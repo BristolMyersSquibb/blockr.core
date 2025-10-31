@@ -43,16 +43,32 @@
 #' objects.
 #'
 #' @export
-new_stack <- function(blocks = character(), name = "Stack", ...,
+new_stack <- function(blocks = character(), name = default_stack_name, ...,
                       class = character()) {
 
   if (is_blocks(blocks)) {
     blocks <- names(blocks)
   }
 
+  if (is.null(name)) {
+    name <- default_stack_name
+  }
+
+  if (is.function(name)) {
+    name <- name()
+  }
+
+  stopifnot(is_string(name))
+
   validate_stack(
     structure(blocks, name = name, ..., class = c(class, "stack"))
   )
+}
+
+#' @rdname new_stack
+#' @export
+default_stack_name <- function() {
+  "Stack"
 }
 
 #' @param x Stack object

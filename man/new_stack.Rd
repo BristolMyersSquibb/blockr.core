@@ -2,6 +2,7 @@
 % Please edit documentation in R/stack-class.R, R/stacks-class.R
 \name{new_stack}
 \alias{new_stack}
+\alias{default_stack_name}
 \alias{is_stack}
 \alias{stack_blocks}
 \alias{stack_blocks<-}
@@ -14,7 +15,14 @@
 \alias{as_stacks}
 \title{Stacks}
 \usage{
-new_stack(blocks = character(), name = "Stack", ..., class = character())
+new_stack(
+  blocks = character(),
+  name = default_stack_name,
+  ...,
+  class = character()
+)
+
+default_stack_name()
 
 is_stack(x)
 
