@@ -41,15 +41,23 @@ dt_result <- function(result, session) {
   DT::renderDT(
     {
       dat <- as.data.frame(utils::head(result, rows))
-      DT::formatStyle(
-        DT::datatable(
-          dat,
-          selection = "none",
-          options = opts
-        ),
-        columns = names(dat),
-        whiteSpace = "pre-wrap"
+      dt <- DT::datatable(
+        dat,
+        selection = "none",
+        options = opts
       )
+
+      # Skip formatStyle for empty dataframes (0 columns)
+      # formatStyle with columns=character(0) breaks DT in DAG boards
+      if (ncol(dat) > 0) {
+        DT::formatStyle(
+          dt,
+          columns = names(dat),
+          whiteSpace = "pre-wrap"
+        )
+      } else {
+        dt
+      }
     },
     server = TRUE
   )
