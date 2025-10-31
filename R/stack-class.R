@@ -50,6 +50,10 @@ new_stack <- function(blocks = character(), name = default_stack_name, ...,
     blocks <- names(blocks)
   }
 
+  if (!length(blocks)) {
+    blocks <- character()
+  }
+
   if (is.null(name)) {
     name <- default_stack_name
   }
