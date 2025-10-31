@@ -205,7 +205,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
             log_debug("adding stack{?s} {names(upd$stacks$add)}")
           }
 
-          if (length(upd$stacks$rm)) {
+          if (length(upd$stacks$mod)) {
             log_debug("modifying stack{?s} {names(upd$stacks$mod)}")
           }
 
