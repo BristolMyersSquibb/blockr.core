@@ -8,16 +8,30 @@
 \usage{
 blockr_abort(..., class = character(), envir = parent.frame())
 
-blockr_warn(..., class = character(), envir = parent.frame())
+blockr_warn(
+  ...,
+  class = character(),
+  envir = parent.frame(),
+  frequency = "always",
+  frequency_id = NULL
+)
 
-blockr_inform(..., class = character(), envir = parent.frame())
+blockr_inform(
+  ...,
+  class = character(),
+  envir = parent.frame(),
+  frequency = "always",
+  frequency_id = NULL
+)
 }
 \arguments{
-\item{...}{Forwarded to \link[cli:pluralize]{cli::pluralize}}
+\item{...}{Forwarded to \code{\link[cli:pluralize]{cli::pluralize()}}}
 
 \item{class}{Condition class}
 
-\item{envir}{Forwarded to \link[cli:pluralize]{cli::pluralize}}
+\item{envir}{Forwarded to \code{\link[cli:pluralize]{cli::pluralize()}}}
+
+\item{frequency, frequency_id}{Forwarded to \code{\link[rlang:abort]{rlang::warn()}}}
 }
 \value{
 Called for side-effect of signaling conditions.

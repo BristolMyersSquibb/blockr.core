@@ -6,6 +6,7 @@
 \alias{unregister_blocks}
 \alias{register_blocks}
 \alias{available_blocks}
+\alias{block_metadata}
 \alias{create_block}
 \title{Block registry}
 \usage{
@@ -16,6 +17,7 @@ register_block(
   classes = NULL,
   uid = NULL,
   category = "uncategorized",
+  icon = "question-square",
   package = NULL,
   overwrite = FALSE
 )
@@ -27,6 +29,8 @@ unregister_blocks(uid = list_blocks())
 register_blocks(...)
 
 available_blocks()
+
+block_metadata(blocks = list_blocks(), fields = "all")
 
 create_block(id, ...)
 }
@@ -42,11 +46,17 @@ create_block(id, ...)
 \item{category}{Useful to sort blocks by topics. If not specified,
 blocks are uncategorized.}
 
+\item{icon}{Icon}
+
 \item{package}{Package where constructor is defined (or \code{NULL})}
 
 \item{overwrite}{Overwrite existing entry}
 
 \item{...}{Forwarded to \code{register_block()}}
+
+\item{blocks}{Character vector of registry IDs}
+
+\item{fields}{Metadata fields}
 
 \item{id}{Block ID as reported by \code{list_blocks()}}
 }
