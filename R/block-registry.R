@@ -286,6 +286,19 @@ register_core_blocks <- function(which = blockr_option("core_blocks", "all")) {
       "transform",
       "text"
     )[blocks],
+    icon = c(
+      "database",              # dataset block
+      "funnel",                # subset block
+      "union",                 # merge block
+      "chevron-bar-expand",    # rbind block
+      "scatter",               # scatter plot block
+      "upload",                # data upload block
+      "folder2-open",          # file browser block
+      "filetype-csv",          # csv parser block
+      "file-earmark-text",     # static data block
+      "eye",                   # head/tail block
+      "braces"                 # glue string block
+    )[blocks],
     package = pkg_name(),
     overwrite = TRUE
   )
