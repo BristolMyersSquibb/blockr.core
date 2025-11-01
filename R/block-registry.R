@@ -44,7 +44,8 @@ block_registry <- new.env()
 #' @examples
 #' blks <- list_blocks()
 #' register_block("new_dataset_block", "Test", "Registry test",
-#'                uid = "test_block", package = "blockr.core")
+#'   uid = "test_block", package = "blockr.core"
+#' )
 #' new <- setdiff(list_blocks(), blks)
 #' unregister_blocks(new)
 #' setequal(list_blocks(), blks)
@@ -60,7 +61,6 @@ block_registry <- new.env()
 register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
                            category = "uncategorized", icon = "question-square",
                            package = NULL, overwrite = FALSE) {
-
   stopifnot(is_string(icon))
 
   if (grepl("-fill$", icon)) {
@@ -91,7 +91,6 @@ register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
   }
 
   if (is.null(classes)) {
-
     if (is.null(ctor_name)) {
       obj <- ctor(ctor = ctor, ctor_pkg = NULL)
     } else {
@@ -155,9 +154,7 @@ unregister_blocks <- function(uid = list_blocks()) {
 #' @rdname register_block
 #' @export
 register_blocks <- function(...) {
-
   arg_processor <- function(ctor, ...) {
-
     wrap_list <- function(x) {
       if (length(x) > 1L) list(x) else x
     }
@@ -192,7 +189,6 @@ available_blocks <- function() {
 #' @rdname register_block
 #' @export
 block_metadata <- function(blocks = list_blocks(), fields = "all") {
-
   all_fields <- c("name", "description", "category", "icon")
 
   if (identical(fields, "all")) {
@@ -218,10 +214,11 @@ create_block <- function(id, ...) {
 }
 
 register_core_blocks <- function(which = blockr_option("core_blocks", "all")) {
-
   blocks <- paste0(
-    c("dataset", "subset", "merge", "rbind", "scatter", "upload", "filebrowser",
-      "csv", "static", "head", "glue"),
+    c(
+      "dataset", "subset", "merge", "rbind", "scatter", "upload", "filebrowser",
+      "csv", "static", "head", "glue"
+    ),
     "_block"
   )
 
@@ -287,17 +284,17 @@ register_core_blocks <- function(which = blockr_option("core_blocks", "all")) {
       "text"
     )[blocks],
     icon = c(
-      "database",              # dataset block
-      "funnel",                # subset block
-      "union",                 # merge block
-      "chevron-bar-expand",    # rbind block
-      "scatter",               # scatter plot block
-      "upload",                # data upload block
-      "folder2-open",          # file browser block
-      "filetype-csv",          # csv parser block
-      "file-earmark-text",     # static data block
-      "eye",                   # head/tail block
-      "braces"                 # glue string block
+      "database", # dataset block
+      "funnel", # subset block
+      "union", # merge block
+      "chevron-bar-expand", # rbind block
+      "dice-5", # scatter plot block
+      "upload", # data upload block
+      "folder2-open", # file browser block
+      "filetype-csv", # csv parser block
+      "file-earmark-text", # static data block
+      "eye", # head/tail block
+      "braces" # glue string block
     )[blocks],
     package = pkg_name(),
     overwrite = TRUE
