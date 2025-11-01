@@ -959,7 +959,7 @@ preprocess_board_update <- function(update, board) {
 
     stacks <- c(
       upd$stacks$mod,
-      stacks[setdiff(names(stacks), names(upd$stacks$mod))]
+      stacks[setdiff(names(stacks), c(names(upd$stacks$mod), upd$stacks$rm))]
     )
 
     upd_stk <- lapply(
