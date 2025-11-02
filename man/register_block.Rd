@@ -2,6 +2,7 @@
 % Please edit documentation in R/block-registry.R
 \name{register_block}
 \alias{register_block}
+\alias{default_icon}
 \alias{suggested_categories}
 \alias{list_blocks}
 \alias{unregister_blocks}
@@ -18,10 +19,12 @@ register_block(
   classes = NULL,
   uid = NULL,
   category = "uncategorized",
-  icon = "question-square",
+  icon = default_icon(category),
   package = NULL,
   overwrite = FALSE
 )
+
+default_icon(category)
 
 suggested_categories()
 

@@ -59,10 +59,21 @@ block_registry <- new.env()
 #'
 #' @export
 register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
-                           category = "uncategorized", icon = "question-square",
-                           package = NULL, overwrite = FALSE) {
+                           category = "uncategorized",
+                           icon = default_icon(category), package = NULL,
+                           overwrite = FALSE) {
 
   stopifnot(is_string(icon), is_string(category))
+
+  if (!category %in% names(suggested_categories())) {
+    blockr_warn(
+      "Block category {category} is not among suggested categories ",
+      "{names(suggested_categories())}. Consider choosing a different one.",
+      class = "block_category_discouraged",
+      frequency = "once",
+      frequency_id = paste0("block_category_", category, "_discouraged")
+    )
+  }
 
   if (grepl("-fill$", icon)) {
     blockr_warn(
@@ -75,16 +86,6 @@ register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
 
   if (!icon %in% bsicon_icons()) {
     blockr_abort("Unknown icon {icon}.", class = "block_icon_invalid")
-  }
-
-  if (!category %in% names(suggested_categories())) {
-    blockr_warn(
-      "Block category {category} is not among suggested categories ",
-      "{names(suggested_categories())}. Consider choosing a different one.",
-      class = "block_category_discouraged",
-      frequency = "once",
-      frequency_id = paste0("block_category_", category, "_discouraged")
-    )
   }
 
   if (is.function(ctor)) {
@@ -136,6 +137,26 @@ register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
   assign(uid, entry, envir = block_registry)
 
   invisible(entry)
+}
+
+#' @rdname register_block
+#' @export
+default_icon <- function(category) {
+
+  stopifnot(is_string(category))
+
+  switch(
+    category,
+    input = ,
+    transform = ,
+    structured = ,
+    plot = ,
+    table = ,
+    model = ,
+    output = ,
+    utility = ,
+    "question-square"
+  )
 }
 
 bsicon_icons <- function() {
