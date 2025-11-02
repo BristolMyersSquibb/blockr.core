@@ -81,6 +81,7 @@ specific arguments.</p>
 <span>  classes <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  uid <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  category <span class="op">=</span> <span class="st">"uncategorized"</span>,</span>
+<span>  icon <span class="op">=</span> <span class="st">"question-square"</span>,</span>
 <span>  package <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  overwrite <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
@@ -92,6 +93,8 @@ specific arguments.</p>
 <span><span class="fu">register_blocks</span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">available_blocks</span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">block_metadata</span><span class="op">(</span>blocks <span class="op">=</span> <span class="fu">list_blocks</span><span class="op">(</span><span class="op">)</span>, fields <span class="op">=</span> <span class="st">"all"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">create_block</span><span class="op">(</span><span class="va">id</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -121,6 +124,10 @@ specific arguments.</p>
 blocks are uncategorized.</p></dd>
 
 
+<dt id="arg-icon">icon<a class="anchor" aria-label="anchor" href="#arg-icon"></a></dt>
+<dd><p>Icon</p></dd>
+
+
 <dt id="arg-package">package<a class="anchor" aria-label="anchor" href="#arg-package"></a></dt>
 <dd><p>Package where constructor is defined (or <code>NULL</code>)</p></dd>
 
@@ -131,6 +138,14 @@ blocks are uncategorized.</p></dd>
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Forwarded to <code>register_block()</code></p></dd>
+
+
+<dt id="arg-blocks">blocks<a class="anchor" aria-label="anchor" href="#arg-blocks"></a></dt>
+<dd><p>Character vector of registry IDs</p></dd>
+
+
+<dt id="arg-fields">fields<a class="anchor" aria-label="anchor" href="#arg-fields"></a></dt>
+<dd><p>Metadata fields</p></dd>
 
 
 <dt id="arg-id">id<a class="anchor" aria-label="anchor" href="#arg-id"></a></dt>
