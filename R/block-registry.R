@@ -289,16 +289,28 @@ block_metadata <- function(blocks = list_blocks(), fields = "all") {
 
   fields <- match.arg(fields, all_fields, several.ok = TRUE)
 
-  res <- lapply(blocks, get_registry_entry)
+  reg <- lapply(blocks, get_registry_entry)
+  fld <- setdiff(fields, "package")
 
-  cbind(
-    id = blocks,
-    do.call(
-      rbind,
-      lapply(lapply(res, attributes), `[`, setdiff(fields, "package"))
-    ),
-    package = chr_ply(lapply(res, attr, "package"), coal, "local")
+  res <- lapply(
+    set_names(nm = fld),
+    function(f) chr_ply(reg, attr, f)
   )
+
+  if ("package" %in% fields) {
+    res <- c(
+      res,
+      list(package = chr_ply(lapply(reg, attr, "package"), coal, "local"))
+    )
+  }
+
+  if (length(fields) == 1L && length(blocks) == 1L) {
+    return(res[[1L]])
+  } else if (length(fields) == 1L) {
+    return(set_names(res[[1L]], blocks))
+  }
+
+  as.data.frame(c(list(id = blocks), res))
 }
 
 #' @param id Block ID as reported by `list_blocks()`
