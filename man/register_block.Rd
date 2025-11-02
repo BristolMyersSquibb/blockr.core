@@ -5,6 +5,7 @@
 \alias{default_icon}
 \alias{suggested_categories}
 \alias{list_blocks}
+\alias{registry_id_from_block}
 \alias{unregister_blocks}
 \alias{register_blocks}
 \alias{available_blocks}
@@ -29,6 +30,8 @@ default_icon(category)
 suggested_categories()
 
 list_blocks()
+
+registry_id_from_block(block)
 
 unregister_blocks(uid = list_blocks())
 
@@ -57,6 +60,8 @@ blocks are uncategorized.}
 \item{package}{Package where constructor is defined (or \code{NULL})}
 
 \item{overwrite}{Overwrite existing entry}
+
+\item{block}{Block object}
 
 \item{...}{Forwarded to \code{register_block()}}
 

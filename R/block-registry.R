@@ -216,6 +216,24 @@ list_blocks <- function() {
   ls(envir = block_registry)
 }
 
+#' @param block Block object
+#' @rdname register_block
+#' @export
+registry_id_from_block <- function(block) {
+
+  stopifnot(is_block(block))
+
+  ids <- list_blocks()
+
+  reg <- lapply(set_names(nm = ids), get_registry_entry)
+  cls <- lapply(reg, attr, "classes")
+  hit <- lgl_ply(cls, identical, class(block))
+
+  stopifnot(sum(hit) == 1L)
+
+  ids[hit]
+}
+
 #' @rdname register_block
 #' @export
 unregister_blocks <- function(uid = list_blocks()) {
@@ -362,17 +380,17 @@ register_core_blocks <- function(which = blockr_option("core_blocks", "all")) {
       "utility"
     )[blocks],
     icon = c(
-      "database", # dataset block
-      "funnel", # subset block
-      "union", # merge block
-      "chevron-bar-expand", # rbind block
-      "dice-5", # scatter plot block
-      "upload", # data upload block
-      "folder2-open", # file browser block
-      "filetype-csv", # csv parser block
-      "file-earmark-text", # static data block
-      "eye", # head/tail block
-      "braces" # glue string block
+      "database",
+      "funnel",
+      "union",
+      "chevron-bar-expand",
+      "dice-5",
+      "upload",
+      "folder2-open",
+      "filetype-csv",
+      "file-earmark-text",
+      "eye",
+      "braces"
     )[blocks],
     package = pkg_name(),
     overwrite = TRUE
