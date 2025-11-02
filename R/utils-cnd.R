@@ -179,9 +179,9 @@ glue_plur <- function(..., envir = parent.frame()) {
 #' Wrappers for [rlang::abort()], [rlang::warn()] and [rlang::inform()]. In
 #' addition to `class`, conditions inherit from "blockr_error".
 #'
-#' @param ... Forwarded to [cli::pluralize]
+#' @param ... Forwarded to [cli::pluralize()]
 #' @param class Condition class
-#' @param envir Forwarded to [cli::pluralize]
+#' @param envir Forwarded to [cli::pluralize()]
 #'
 #' @return Called for side-effect of signaling conditions.
 #'
@@ -190,14 +190,29 @@ blockr_abort <- function(..., class = character(), envir = parent.frame()) {
   rlang::abort(glue_plur(..., envir = envir), c(class, "blockr_error"))
 }
 
+#' @param frequency,frequency_id Forwarded to [rlang::warn()]
 #' @rdname blockr_abort
 #' @export
-blockr_warn <- function(..., class = character(), envir = parent.frame()) {
-  rlang::warn(glue_plur(..., envir = envir), c(class, "blockr_warning"))
+blockr_warn <- function(..., class = character(), envir = parent.frame(),
+                        frequency = "always", frequency_id = NULL) {
+
+  rlang::warn(
+    glue_plur(..., envir = envir),
+    c(class, "blockr_warning"),
+    .frequency = frequency,
+    .frequency_id = frequency_id
+  )
 }
 
 #' @rdname blockr_abort
 #' @export
-blockr_inform <- function(..., class = character(), envir = parent.frame()) {
-  rlang::inform(glue_plur(..., envir = envir), c(class, "blockr_message"))
+blockr_inform <- function(..., class = character(), envir = parent.frame(),
+                          frequency = "always", frequency_id = NULL) {
+
+  rlang::inform(
+    glue_plur(..., envir = envir),
+    c(class, "blockr_message"),
+    .frequency = frequency,
+    .frequency_id = frequency_id
+  )
 }
