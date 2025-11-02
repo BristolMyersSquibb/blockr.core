@@ -145,16 +145,15 @@ default_icon <- function(category) {
 
   stopifnot(is_string(category))
 
-  switch(
-    category,
-    input = ,
-    transform = ,
-    structured = ,
-    plot = ,
-    table = ,
-    model = ,
-    output = ,
-    utility = ,
+  switch(category,
+    input = "upload",
+    transform = "magic",
+    structured = "asterisk",
+    plot = "file-bar-graph",
+    table = "table",
+    model = "gear",
+    output = "save",
+    utility = "tools",
     "question-square"
   )
 }
