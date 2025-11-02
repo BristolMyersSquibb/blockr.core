@@ -44,8 +44,8 @@ block_registry <- new.env()
 #' @examples
 #' blks <- list_blocks()
 #' register_block("new_dataset_block", "Test", "Registry test",
-#'   uid = "test_block", package = "blockr.core"
-#' )
+#'                uid = "test_block", package = "blockr.core")
+#'
 #' new <- setdiff(list_blocks(), blks)
 #' unregister_blocks(new)
 #' setequal(list_blocks(), blks)
@@ -59,22 +59,36 @@ block_registry <- new.env()
 #'
 #' @export
 register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
-                           category = "uncategorized", icon = "question-square",
-                           package = NULL, overwrite = FALSE) {
-  stopifnot(is_string(icon))
+                           category = "uncategorized",
+                           icon = default_icon(category), package = NULL,
+                           overwrite = FALSE) {
+
+  stopifnot(is_string(icon), is_string(category))
+
+  if (!category %in% names(suggested_categories())) {
+    blockr_warn(
+      "Block category {category} is not among suggested categories ",
+      "{names(suggested_categories())}. Consider choosing a different one.",
+      class = "block_category_discouraged",
+      frequency = "once",
+      frequency_id = paste0("block_category_", category, "_discouraged")
+    )
+  }
 
   if (grepl("-fill$", icon)) {
     blockr_warn(
       "Using block icons with 'fill' style, such as {icon} is discouraged.",
       class = "block_icon_fill_discouraged",
       frequency = "once",
-      frequency_id = "block_icon_fill_discouraged"
+      frequency_id = paste0("block_icon_", icon, "_discouraged")
     )
   }
 
   if (!icon %in% bsicon_icons()) {
     blockr_abort("Unknown icon {icon}.", class = "block_icon_invalid")
   }
+
+  icon <- as.character(bsicons::bs_icon(icon))
 
   if (is.function(ctor)) {
     package <- pkg_name(environment(ctor))
@@ -127,8 +141,67 @@ register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
   invisible(entry)
 }
 
+#' @rdname register_block
+#' @export
+default_icon <- function(category) {
+
+  stopifnot(is_string(category))
+
+  switch(category,
+    input = "upload",
+    transform = "magic",
+    structured = "asterisk",
+    plot = "file-bar-graph",
+    table = "table",
+    model = "gear",
+    output = "save",
+    utility = "tools",
+    "question-square"
+  )
+}
+
 bsicon_icons <- function() {
   get("icon_info", envir = asNamespace("bsicons"), mode = "list")$name
+}
+
+#' @rdname register_block
+#' @export
+suggested_categories <- function() {
+  c(
+    input = paste(
+      "Data loading and import blocks, e.g. dataset selection, file uploads,",
+      "API connections, database queries."
+    ),
+    transform = paste(
+      "Data manipulation and transformation (incl. joins, binds), e.g. filter,",
+      "select, mutate, arrange, summarize, join, bind_rows."
+    ),
+    structured = paste(
+      "Processing of specialized structured data formats such as time series",
+      "or spatial data, hierarchical structures and graph/network data"
+    ),
+    plot = paste(
+      "Visualization and plotting blocks, e.g. ggplotz visualizations, scatter",
+      "plots, bar charts, histograms."
+    ),
+    table = paste(
+      "Tabular output and display blocks, e.g. data tables, formatted tables,",
+      "interactive tables, table viewers."
+    ),
+    model = paste(
+      "Statistical modeling and Al/ML blocks, e.g. linear models, GLMs,",
+      "neural networks, LLMs, predictions, classifiers."
+    ),
+    output = paste(
+      "Data export and output blocks, e.g. save to file, export tables,",
+      "generate reports."
+    ),
+    utility = paste(
+      "Utility and tool blocks, e.g. parse, format, text manipulation,",
+      "helpers."
+    ),
+    uncategorized = "Blocks without assigned category."
+  )
 }
 
 new_registry_entry <- function(ctor, ...) {
@@ -189,7 +262,8 @@ available_blocks <- function() {
 #' @rdname register_block
 #' @export
 block_metadata <- function(blocks = list_blocks(), fields = "all") {
-  all_fields <- c("name", "description", "category", "icon")
+
+  all_fields <- c("name", "description", "category", "icon", "package")
 
   if (identical(fields, "all")) {
     fields <- all_fields
@@ -201,7 +275,11 @@ block_metadata <- function(blocks = list_blocks(), fields = "all") {
 
   cbind(
     id = blocks,
-    do.call(rbind, lapply(lapply(res, attributes), `[`, fields))
+    do.call(
+      rbind,
+      lapply(lapply(res, attributes), `[`, setdiff(fields, "package"))
+    ),
+    package = chr_ply(lapply(res, attr, "package"), coal, "local")
   )
 }
 
@@ -271,17 +349,17 @@ register_core_blocks <- function(which = blockr_option("core_blocks", "all")) {
       "String interpolation using glue"
     )[blocks],
     category = c(
-      "data",
+      "input",
       "transform",
       "transform",
       "transform",
       "plot",
-      "file",
-      "file",
-      "parse",
-      "data",
+      "input",
+      "input",
+      "utility",
+      "input",
       "transform",
-      "text"
+      "utility"
     )[blocks],
     icon = c(
       "database", # dataset block

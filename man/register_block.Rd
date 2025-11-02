@@ -2,6 +2,8 @@
 % Please edit documentation in R/block-registry.R
 \name{register_block}
 \alias{register_block}
+\alias{default_icon}
+\alias{suggested_categories}
 \alias{list_blocks}
 \alias{unregister_blocks}
 \alias{register_blocks}
@@ -17,10 +19,14 @@ register_block(
   classes = NULL,
   uid = NULL,
   category = "uncategorized",
-  icon = "question-square",
+  icon = default_icon(category),
   package = NULL,
   overwrite = FALSE
 )
+
+default_icon(category)
+
+suggested_categories()
 
 list_blocks()
 
@@ -103,6 +109,7 @@ block construction via a registry ID is available as \code{create_block()}.
 blks <- list_blocks()
 register_block("new_dataset_block", "Test", "Registry test",
                uid = "test_block", package = "blockr.core")
+
 new <- setdiff(list_blocks(), blks)
 unregister_blocks(new)
 setequal(list_blocks(), blks)
