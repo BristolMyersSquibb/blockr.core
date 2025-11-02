@@ -88,6 +88,8 @@ register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
     blockr_abort("Unknown icon {icon}.", class = "block_icon_invalid")
   }
 
+  icon <- as.character(bsicons::bs_icon(icon))
+
   if (is.function(ctor)) {
     package <- pkg_name(environment(ctor))
   }
@@ -261,7 +263,8 @@ available_blocks <- function() {
 #' @rdname register_block
 #' @export
 block_metadata <- function(blocks = list_blocks(), fields = "all") {
-  all_fields <- c("name", "description", "category", "icon")
+
+  all_fields <- c("name", "description", "category", "icon", "package")
 
   if (identical(fields, "all")) {
     fields <- all_fields
@@ -273,7 +276,11 @@ block_metadata <- function(blocks = list_blocks(), fields = "all") {
 
   cbind(
     id = blocks,
-    do.call(rbind, lapply(lapply(res, attributes), `[`, fields))
+    do.call(
+      rbind,
+      lapply(lapply(res, attributes), `[`, setdiff(fields, "package"))
+    ),
+    package = chr_ply(lapply(res, attr, "package"), coal, "local")
   )
 }
 
