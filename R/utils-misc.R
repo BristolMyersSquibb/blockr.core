@@ -129,25 +129,26 @@ paste_enum <- function(x, sep = ", ", conj = " and ", quotes = "`") {
 }
 
 #' @param ... Set of objects to iterate over
-#' @param fail_null Error if no non-null objects are present
+#' @param fail_all Error if no non-null objects are present
+#' @param test_fun Function to test each element with
 #'
 #' @rdname set_names
 #' @export
-coal <- function(..., fail_null = TRUE) {
+coal <- function(..., fail_all = TRUE, test_fun = is.null) {
 
   for (i in seq_len(...length())) {
     x <- ...elt(i)
-    if (is.null(x)) next else return(x)
+    if (test_fun(x)) next else return(x)
   }
 
-  if (isTRUE(fail_null)) {
+  if (isTRUE(fail_all)) {
     blockr_abort(
-      "No non-NULL value encountered",
+      "No value encountered that does not fail `test_fun`.",
       class = "coal_null_return_disallowed"
     )
   }
 
-  NULL
+  x
 }
 
 #' @rdname set_names

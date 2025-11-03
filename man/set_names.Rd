@@ -17,7 +17,7 @@ set_names(object = nm, nm)
 
 paste_enum(x, sep = ", ", conj = " and ", quotes = "`")
 
-coal(..., fail_null = TRUE)
+coal(..., fail_all = TRUE, test_fun = is.null)
 
 reval(x)
 
@@ -44,7 +44,9 @@ pkg_avail(...)
 
 \item{...}{Set of objects to iterate over}
 
-\item{fail_null}{Error if no non-null objects are present}
+\item{fail_all}{Error if no non-null objects are present}
+
+\item{test_fun}{Function to test each element with}
 
 \item{recursive, use_names}{See \code{\link[base:unlist]{base::unlist()}}}
 
