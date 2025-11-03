@@ -60,7 +60,7 @@ dependent packages can make use of this functionality.</p>
 <span></span>
 <span><span class="fu">paste_enum</span><span class="op">(</span><span class="va">x</span>, sep <span class="op">=</span> <span class="st">", "</span>, conj <span class="op">=</span> <span class="st">" and "</span>, quotes <span class="op">=</span> <span class="st">"`"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">coal</span><span class="op">(</span><span class="va">...</span>, fail_null <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="fu">coal</span><span class="op">(</span><span class="va">...</span>, fail_all <span class="op">=</span> <span class="cn">TRUE</span>, test_fun <span class="op">=</span> <span class="va">is.null</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">reval</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span></span>
@@ -101,8 +101,12 @@ dependent packages can make use of this functionality.</p>
 <dd><p>Set of objects to iterate over</p></dd>
 
 
-<dt id="arg-fail-null">fail_null<a class="anchor" aria-label="anchor" href="#arg-fail-null"></a></dt>
+<dt id="arg-fail-all">fail_all<a class="anchor" aria-label="anchor" href="#arg-fail-all"></a></dt>
 <dd><p>Error if no non-null objects are present</p></dd>
+
+
+<dt id="arg-test-fun">test_fun<a class="anchor" aria-label="anchor" href="#arg-test-fun"></a></dt>
+<dd><p>Function to test each element with</p></dd>
 
 
 <dt id="arg-recursive-use-names">recursive, use_names<a class="anchor" aria-label="anchor" href="#arg-recursive-use-names"></a></dt>
