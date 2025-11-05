@@ -229,6 +229,10 @@ registry_id_from_block <- function(block) {
   cls <- lapply(reg, attr, "classes")
   hit <- lgl_ply(cls, identical, class(block))
 
+  if (sum(hit) == 0L) {
+    return(character())
+  }
+
   stopifnot(sum(hit) == 1L)
 
   ids[hit]
