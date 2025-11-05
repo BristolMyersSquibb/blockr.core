@@ -3,6 +3,7 @@
 \name{register_block}
 \alias{register_block}
 \alias{default_icon}
+\alias{default_category}
 \alias{suggested_categories}
 \alias{list_blocks}
 \alias{registry_id_from_block}
@@ -19,13 +20,15 @@ register_block(
   description,
   classes = NULL,
   uid = NULL,
-  category = "uncategorized",
-  icon = default_icon(category),
+  category = NULL,
+  icon = NULL,
   package = NULL,
   overwrite = FALSE
 )
 
 default_icon(category)
+
+default_category()
 
 suggested_categories()
 

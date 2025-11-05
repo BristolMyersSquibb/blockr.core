@@ -59,11 +59,14 @@ block_registry <- new.env()
 #'
 #' @export
 register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
-                           category = "uncategorized",
-                           icon = default_icon(category), package = NULL,
+                           category = NULL, icon = NULL, package = NULL,
                            overwrite = FALSE) {
 
-  stopifnot(is_string(icon), is_string(category))
+  if (is.null(category)) {
+    category <- default_category()
+  }
+
+  stopifnot(is_string(category))
 
   if (!category %in% names(suggested_categories())) {
     blockr_warn(
@@ -75,20 +78,29 @@ register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
     )
   }
 
-  if (grepl("-fill$", icon)) {
-    blockr_warn(
-      "Using block icons with 'fill' style, such as {icon} is discouraged.",
-      class = "block_icon_fill_discouraged",
-      frequency = "once",
-      frequency_id = paste0("block_icon_", icon, "_discouraged")
-    )
-  }
+  if (is.null(icon)) {
 
-  if (!icon %in% bsicon_icons()) {
-    blockr_abort("Unknown icon {icon}.", class = "block_icon_invalid")
-  }
+    icon <- default_icon(category)
 
-  icon <- as.character(bsicons::bs_icon(icon))
+  } else {
+
+    stopifnot(is_string(icon))
+
+    if (grepl("-fill$", icon)) {
+      blockr_warn(
+        "Using block icons with 'fill' style, such as {icon} is discouraged.",
+        class = "block_icon_fill_discouraged",
+        frequency = "once",
+        frequency_id = paste0("block_icon_", icon, "_discouraged")
+      )
+    }
+
+    if (!icon %in% bsicon_icons()) {
+      blockr_abort("Unknown icon {icon}.", class = "block_icon_invalid")
+    }
+
+    icon <- as.character(bsicons::bs_icon(icon))
+  }
 
   if (is.function(ctor)) {
     package <- pkg_name(environment(ctor))
@@ -147,7 +159,8 @@ default_icon <- function(category) {
 
   stopifnot(is_string(category))
 
-  switch(category,
+  res <- switch(
+    category,
     input = "upload",
     transform = "magic",
     structured = "asterisk",
@@ -158,7 +171,13 @@ default_icon <- function(category) {
     utility = "tools",
     "question-square"
   )
+
+  as.character(bsicons::bs_icon(res))
 }
+
+#' @rdname register_block
+#' @export
+default_category <- function() "uncategorized"
 
 bsicon_icons <- function() {
   get("icon_info", envir = asNamespace("bsicons"), mode = "list")$name
