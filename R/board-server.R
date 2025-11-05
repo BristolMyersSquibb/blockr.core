@@ -153,8 +153,14 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
             log_debug("adding block{?s} {names(upd$blocks$add)}")
 
-            insert_block_ui(ns(NULL), rv$board, upd$blocks$add,
-                            edit_ui = edit_block)
+            do.call(
+              insert_block_ui,
+              c(
+                list(ns(NULL), rv$board, upd$blocks$add),
+                dot_args,
+                list(edit_ui = edit_block, session = session)
+              )
+            )
 
             board_blocks(rv$board) <- c(board_blocks(rv$board), upd$blocks$add)
 
@@ -217,8 +223,18 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
                                           upd$stacks$rm, upd$stacks$mod)
 
           if (length(upd$blocks$rm)) {
+
             log_debug("removing block{?s} {names(upd$blocks$rm)}")
-            remove_block_ui(ns(NULL), rv$board, upd$blocks$rm)
+
+            do.call(
+              remove_block_ui,
+              c(
+                list(ns(NULL), rv$board, upd$blocks$add),
+                dot_args,
+                list(edit_ui = edit_block, session = session)
+              )
+            )
+
             destroy_rm_blocks(upd$blocks$rm, rv, session)
           }
 
