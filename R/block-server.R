@@ -103,7 +103,7 @@ block_server.block <- function(id, x, data = list(), block_id = id,
       data_eval_observer(block_id, x, dat, res, exp, lang, rv, cond, session)
       output_render_observer(x, res, cond, session)
 
-      call_plugin_server(
+      eb_res <- call_plugin_server(
         edit_block,
         server_args = c(
           list(block_id = block_id, board = board, update = update),
@@ -113,11 +113,14 @@ block_server.block <- function(id, x, data = list(), block_id = id,
 
       block_cond_observer(exp, cond)
 
-      list(
-        result = res,
-        expr = lang,
-        state = exp$state,
-        cond = cond
+      c(
+        list(
+          result = res,
+          expr = lang,
+          state = exp$state,
+          cond = cond
+        ),
+        eb_res
       )
     }
   )

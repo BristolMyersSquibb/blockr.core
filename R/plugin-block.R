@@ -8,7 +8,7 @@
 #' implementation provides UI for removing, as well as inserting blocks before
 #' or after the current one.
 #'
-#' @param server,ui Server/UI for the plugin module
+#' @inheritParams new_plugin
 #'
 #' @return A plugin container inheriting from `edit_block` is returned by
 #' `edit_block()`, while the UI component (e.g. `edit_block_ui()`) is
@@ -16,8 +16,9 @@
 #' component (i.e. `edit_block_server()`) is expected to return `NULL`.
 #'
 #' @export
-edit_block <- function(server = edit_block_server, ui = edit_block_ui) {
-  new_plugin(server, ui, class = "edit_block")
+edit_block <- function(server = edit_block_server, ui = edit_block_ui,
+                       validator = abort_not_null) {
+  new_plugin(server, ui, validator, class = "edit_block")
 }
 
 #' @param id Namespace ID

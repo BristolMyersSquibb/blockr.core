@@ -105,12 +105,20 @@ as.list.plugin <- function(x, ...) {
   )
 }
 
+#' @rdname new_plugin
+#' @export
 plugin_server <- function(x) x[["server"]]
 
+#' @rdname new_plugin
+#' @export
 plugin_ui <- function(x) x[["ui"]]
 
+#' @rdname new_plugin
+#' @export
 plugin_validator <- function(x) attr(x, "validator")
 
+#' @rdname new_plugin
+#' @export
 plugin_id <- function(x) class(x)[1L]
 
 validate_plugin <- function(x) {
@@ -264,7 +272,7 @@ call_plugin_server <- function(plugin, server_args, plugins = NULL,
   }
 
   if (is_plugin(plugin)) {
-    id <- class(plugin)[1L]
+    id <- plugin_id(plugin)
   } else {
     id <- plugin
   }
@@ -281,7 +289,7 @@ call_plugin_ui <- function(plugin, ns, ..., plugins = NULL) {
   }
 
   if (is_plugin(plugin)) {
-    id <- class(plugin)[1L]
+    id <- plugin_id(plugin)
   } else {
     id <- plugin
   }
