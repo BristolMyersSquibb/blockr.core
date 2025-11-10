@@ -1,0 +1,471 @@
+# 2. Create a block
+
+``` r
+library(blockr.core)
+```
+
+## Creating blocks
+
+**Note:** If you are not already familiar with [Shiny
+modules](https://shiny.posit.co/r/articles/improve/modules/), it is
+recommended you familiarize yourself with them before continuing with
+this section.
+
+`blockr.core` is built on top of Shiny. At it’s heart, a **block** is
+nothing more than a specialized Shiny **module** that returns two
+additional values:
+
+- **An expression** (called “expr”), a reactive expression defining a
+  blocks computation. This allows R code to be exported and data
+  analyses to be recreated, outside of blockr and a reactive context.
+- **A state object** (called “state”), a list of reactive values
+  tracking user inputs. This allows blocks to separate user-defined
+  state from inputs specified by blocks.
+
+``` mermaid
+flowchart LR
+  subgraph block[Block]
+    subgraph ctor[constructor]
+      block_ui[UI]
+      subgraph block_server[server]
+        blk_state[State]
+        blk_expr[Expression]
+      end
+    end
+  end
+```
+
+While blocks *return* the “expr” and “state” values, blocks *consist* of
+three elements:
+
+1.  A **UI function** to define the user interface.
+2.  A **Server function** to handle reactive logic that returns an
+    expression and state object.
+3.  A **Constructor function** wraps the UI and server to initialize the
+    block state.
+
+Now, let’s go through each element, building up a block template as we
+go.
+
+### UI function
+
+A UI function in blockr is the same as a UI function in a Shiny module.
+This means that:
+
+- The UI function signature is expected to contain a single `id`
+  argument, which can be used with
+  [`shiny::NS()`](https://rdrr.io/pkg/shiny/man/NS.html) to construct
+  namespaced IDs.
+- A call to appropriate shiny UI functions is expected that return
+  `shiny.tag` or `shiny.tag.list` objects, typically via the use of
+  [`shiny::tagList()`](https://rstudio.github.io/htmltools/reference/tagList.html)
+  in the UI to list separate UI elements.
+
+Let’s start to build our block template:
+
+``` r
+ui <- function(id) {
+  tagList(
+    # Wrap widgets in `tagList()`
+    textInput(
+      NS(id, "my_input") # Use `shiny::NS()` to construct namespaces
+    )
+  )
+}
+```
+
+### Server function
+
+As inputs, a server function takes an id and any additional inputs from
+other blocks (e.g., data). For example, for the blocks shipped with
+blockr.core, this would result in zero inputs for a **data** block, one
+for a **transform** block such as a select block, two for a **join**
+block and the special argument `...args` for **variadic** blocks, such
+as an `rbind` block.
+
+``` mermaid
+flowchart TB
+  data_blk[data block 1]
+  data_blk_2[data block 2]
+  data_blk_3[data block 3]
+  data_blk_4[data block 4]
+  select_blk[select block]
+  join_blk[join block]
+  rbind_blk[rbind block]
+  data_blk --> |data| select_blk
+  data_blk_2 -->|data1| join_blk
+  data_blk_3 --> |data2| join_blk
+
+  data_blk --> |1| rbind_blk
+  select_blk --> |2| rbind_blk
+  data_blk_4 --> |3| rbind_blk
+  join_blk --> |4| rbind_blk
+```
+
+A server function should return as output a `moduleServer()` call,
+defining:
+
+- **expr**: A quoted reactive expression representing the block’s
+  computation. Data names should match between expression and the
+  top-level server function arguments.
+- **state**: A list of reactive values tracking user selections. The set
+  of returned values from the **state** should match (both in count and
+  names) that of the constructor signature.
+
+``` r
+server <- function(id, data) {
+  moduleServer(id, function(input, output, session) {
+    # Reactive logic goes here
+
+    # Return a list with "expr" and "state"
+    list(
+      expr = reactive(quote(identity(data))),
+      state = list(
+        input_one = reactive(input_one()),
+        input_two = reactive(input_two())
+      )
+    )
+  })
+}
+```
+
+Many options exist to build expressions, such as using tools offered by
+the `rlang` package or by passing a string to
+[`base::parse()`](https://rdrr.io/r/base/parse.html). As a block
+developer you are free to choose the tools that your prefer, as long as
+the evaluated expression returns non-reactive R code which can be
+executed outside of blockr.
+
+The state is needed for **serialization** and **deserialization** to
+respectively save and restore the state of a blockr application.
+
+### Constructor function
+
+The **constructor** function wraps the UI and server functions and
+initializes the block. Note that both `server` and `ui` are
+[closures](https://adv-r.hadley.nz/environments.html#function-environments)
+and therefore may refer to names bound in the constructor scope
+(e.g. `dataset` and `choices`).
+
+It should expose as arguments anything the user might set via the UI to
+control the block **state**. In other words, any inputs in the UI
+function, should have a corresponding argument in the constructor
+function. On the other hand, inputs from other blocks should not be
+exposed as arguments, as these are dynamically provided in the server
+function.
+
+The return value should be a call to
+[`new_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block.md)
+(or if applicable a call to the more specific *virtual* constructors
+[`new_data_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_data_block.md),
+[`new_transform_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_transform_block.md),
+etc.).
+
+We can finish our block template:
+
+``` r
+example_constructor <- function(ui_state = character(), ...) {
+  ui <- function(id) {
+    tagList(textInput(NS(id, "ui_state")))
+  }
+
+  server <- function(id, data) {
+    moduleServer(id, function(input, output, session) {
+      # Reactive logic goes here
+
+      # Return a list with "expr" and "state"
+      list(
+        expr = reactive(quote(identity(data))),
+        state = list(
+          # name must match what is defined in the constructor signature
+          ui_state = <STATE_VALUE>
+        )
+      )
+    })
+  }
+
+  # Return call to `new_block()`
+  new_block(
+    server = server,
+    ui = ui,
+    class = "my_block",
+    ...
+  )
+}
+```
+
+The `...` is forwarded to `new_block` or any `new_*_block`.
+
+### Example
+
+Putting this all together, we can create a
+[`utils::head()`](https://rdrr.io/r/utils/head.html) block, such as the
+one offered as
+[`new_head_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_transform_block.md):
+
+``` r
+new_head_block <- function(n = 6L, ...) {
+  new_transform_block(
+    function(id, data) {
+      moduleServer(
+        id,
+        function(input, output, session) {
+          n_rows <- reactiveVal(n)
+
+          observeEvent(input$n, n_rows(input$n))
+
+          observeEvent(
+            nrow(data()),
+            updateNumericInput(
+              inputId = "n",
+              value = n_rows(),
+              min = 1L,
+              max = nrow(data())
+            )
+          )
+
+          list(
+            expr = reactive(
+              bquote(utils::head(data, n = .(n)), list(n = n_rows()))
+            ),
+            state = list(
+              n = n_rows
+            )
+          )
+        }
+      )
+    },
+    function(id) {
+      tagList(
+        numericInput(
+          inputId = NS(id, "n"),
+          label = "Number of rows",
+          value = n,
+          min = 1L
+        )
+      )
+    },
+    dat_val = function(data) {
+      stopifnot(is.data.frame(data) || is.matrix(data))
+    },
+    class = "head_block",
+    ...
+  )
+}
+```
+
+Here, the state return value is a list of length 1, containing the
+current value for the only constructor argument. The current value for
+`n` is represented by a
+[`shiny::reactiveVal()`](https://rdrr.io/pkg/shiny/man/reactiveVal.html),
+`n_rows()`, which is initialized with the values `n` in the constructor
+scope and updated on every change to `input$n`. Furthermore the `max`
+value for the
+[`shiny::numericInput()`](https://rdrr.io/pkg/shiny/man/numericInput.html)
+field is updated on every change to the number of data rows.
+
+A final `block` constructor argument of note might be `dat_val`, which
+is an optional function that can be passed which signals to the
+framework, if data passed to a block, can actually be processed by the
+block.
+
+An app containing such a head block can be spun up as
+
+``` r
+serve(new_head_block(n = 10L), list(data = mtcars))
+```
+
+For an example with multiple data inputs, refer to examples such as
+[`new_merge_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_transform_block.md).
+Such a binary block (with arguments `x` and `y`) can be explored in a
+standalone app (with nonsensical inputs) as
+
+``` r
+serve(
+  new_merge_block(by = "Time"),
+  data = list(x = datasets::BOD, y = datasets::ChickWeight)
+)
+```
+
+The `data` argument to
+[`serve()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
+expects a list with names components that match the server function
+signature, i.e. `data` for
+[`new_head_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_transform_block.md)
+and `x`, `y` for
+[`new_merge_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_transform_block.md).
+Such names can be chosen freely by the block implementer (with the
+exception of integer-valued names, such as `` `1` ``, `` `2` ``, etc.
+which are reserved as positional arguments in `...args`).
+
+### More complex examples
+
+The above example showed how to embed a typical R function into a block.
+However, `blockr.core` can do much more. What about creating an entire
+block around an existing complex Shiny module?
+
+In the following, we expose how you could wrap a block around
+`esquisse`, a [package](https://dreamrs.github.io/esquisse/index.html)
+to build ggplot without coding. `esquisse` exports standalone
+[modules](https://dreamrs.github.io/esquisse/articles/shiny-usage.html#use-esquisse-as-a-shiny-module)
+you can embed in any existing shiny app. Specifically, we consider
+`esquisse_server()` and `esquisse_ui()`. `esquisse_server()` needs some
+rectangular data as input and returns a list of 3 elements: modified
+data, code plot and filters code:
+
+``` r
+results <- esquisse::esquisse_server(
+  id = "esquisse",
+  data_rv = data
+)
+
+results$data
+results$code_filters
+results$code_plot
+```
+
+When filters are applied with `esquisse`, the returned data are
+filtered, otherwise the module returns the unchanged input data. Based
+on what we already know about constructing block, we can write the
+following code for the constructor server function. This block will have
+1 input materialized as the `data` parameter (data coming from the
+upstream block):
+
+``` r
+esquisse_block_server <- function(id, data) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      results <- esquisse::esquisse_server(
+        id = "esquisse",
+        data_rv = data
+      )
+      list(
+        expr = reactive({
+          bquote(
+            list(
+              dat = as.data.frame(.(dat)),
+              filters = .(filters)
+            ),
+            list(
+              filters = results$code_plot,
+              dat = results$data
+            )
+          )
+        }),
+        state = list()
+      )
+    }
+  )
+}
+```
+
+In the server module, we first call `esquisse_server()`. Then, the most
+technical part is to construct the returned value. We decide that the
+block is **stateless**, as in any case `esquisse` doesn’t handle
+starting the module in a specific state, so that would be useless to
+save something. The **expression** is composed of 2 elements, the data
+and plot code. By default, if we assume our `esquisse` block to be a
+`transform_block,` `blockr.core` uses `block_output.transform_block` to
+display the block output:
+
+``` r
+block_output.transform_block <- function(x, result, session) {
+  session$output$result <- dt_result(result$dat, session)
+}
+```
+
+This S3 [method](https://adv-r.hadley.nz/s3.html#s3-methods) can only
+handle rectangular data and not a list as we specified in
+`esquisse_block_server()`. We therefore have to create a new class and
+constructor for our `esquisse` block, we call it `complex_block` and
+`new_complex_block()`, respectively:
+
+``` r
+new_complex_block <- function(server, ui, class, ctor = sys.parent(), ...) {
+  new_block(server, ui, c(class, "complex_block"), ctor, ...)
+}
+```
+
+As you may notice, `new_complex_block()` is very similar to
+`new_transform_block`, the only difference being the class name. We
+subsequently define a new S3 method for
+[`block_output()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_ui.md),
+which is able to process our `list` result (don’t forget the `@export`
+roxygen tag):
+
+``` r
+#' @export
+block_output.complex_block <- function(x, result, session) {
+  session$output$filters <- renderPrint(result$filters)
+  # result must come at the end of the output list if you have multiple outputs
+  session$output$result <- dt_result(result$dat, session)
+}
+```
+
+We also provide the UI counter part. Here you could go for more fancy
+layout but for sake of simplicity, we design a minimalistic UI:
+
+``` r
+#' @export
+block_ui.complex_block <- function(id, x, ...) {
+  tagList(
+    h1("Transformed data from {esquisse}"),
+    DT::dataTableOutput(NS(id, "result")),
+    verbatimTextOutput(NS(id, "filters"))
+  )
+}
+```
+
+The UI function of our constructor is simple, even though you would be
+totally free to customize it further:
+
+``` r
+esquisse_block_ui <- function(id) {
+  tagList(
+    esquisse::esquisse_ui(
+      id = NS(id, "esquisse"), 
+      header = FALSE # dont display gadget title
+    )
+  )
+}
+```
+
+Finally our new `esquisse` block constructor given by:
+
+``` r
+new_esquisse_block <- function(...) {
+  new_complex_block(
+    server = esquisse_block_server,
+    ui = esquisse_block_ui,
+    class = "esquisse_block",
+    dat_valid = NULL,
+    allow_empty_state = TRUE,
+    ...
+  )
+}
+```
+
+To test our new block we call:
+
+``` r
+serve(
+  new_board(
+    blocks = list(
+      a = new_dataset_block(iris),
+      b = new_esquisse_block()
+    ),
+    links = list(
+      new_link("a", "b", "data")
+    )
+  )
+)
+```
+
+As closing remark, since the `esquisse` block is stateless, save and
+restore won’t work for this block.
+
+> **Note**
+>
+> The demo below runs with shinylive. Not all feature may work as
+> expected due to compatibility issues with webR.

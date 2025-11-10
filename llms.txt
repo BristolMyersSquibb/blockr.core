@@ -1,0 +1,441 @@
+# blockr.core
+
+## Overview
+
+blockr is a framework for **data analysis**, using a **web-based** point
+and click user interface. Use blockr to create web apps that perform
+**visual programming**, leveraging the power of **R**.
+
+## Installation
+
+You can install the development version of blockr.core from
+[GitHub](https://github.com/) with:
+
+``` r
+pak::pak("BristolMyersSquibb/blockr.core")
+```
+
+## What is blockr.core?
+
+`blockr.core` is the entry point to blockr, providing the core
+functionality needed to get started. It can be run as a stand-alone app,
+but is designed with extensibility in mind. A rich **API** is provided
+to connect your own blocks and override the default behaviors (e.g., you
+can add your own GUI layer or serialization).
+
+## What is a block?
+
+A **block** is a fundamental unit of a data analysis workflow. A single
+block performs a single **task**, such as loading or filtering or
+visualization. Blocks can be joined together using a **DAG** (direct
+acyclic graph) to create powerful data **workflows**.
+
+## Who is it for?
+
+blockr targets two main user groups:
+
+- **non developers** are empowered to create insightful data workflows
+  using pre-built blocks that can be **easily** connected, all without
+  writing a single line of code.
+- **developers** are provided with a set of tools to create new blocks
+  and extend blockr, thereby enhancing the entire framework and
+  fostering **collaboration** within teams and organisations.
+
+## Key features
+
+1.  **User-Friendly Interface**: Build data pipelines with intuitive
+    interface, like with
+    [blockr.ui](https://cynkra.github.io/blockr.ui/).
+2.  **Flexibility**: Easily add, remove, or rearrange blocks in your
+    pipeline.
+3.  **Extensibility**: Developers can create custom blocks to extend
+    functionality
+    ([blockr.dplyr](https://github.com/cynkra/blockr.dplyr),
+    [blockr.ai](https://github.com/cynkra/blockr.ai),
+    [blockr.io](https://github.com/cynkra/blockr.io),
+    [blockr.sdtm](https://github.com/cynkra/blockr.sdtm), …)
+4.  **Reproducibility**: Pipelines created with `blockr.core` are easily
+    shareable and reproducible, with exportable code.
+5.  **Interactivity**: Real-time feedback as you build and modify your
+    pipeline.
+
+![blockr.ui example](reference/figures/blockr-ui.png)
+
+blockr.ui example
+
+## Getting started
+
+To get started, we invite you to read this
+[vignette](https://bristolmyerssquibb.github.io/blockr.core/articles/get-started.html).
+
+## Extending blockr
+
+We started to build blockr extensions to enrich blockr.core’s
+capabilities:
+
+- [blockr.dplyr](https://github.com/cynkra/blockr.dplyr): an entry point
+  to the `dplyr` ecosystem.
+- [blockr.ai](https://github.com/cynkra/blockr.ai): LLM-powered blocks.
+- [blockr.io](https://github.com/cynkra/blockr.io): handle different
+  data input format (xpt, csv, …) and output for export.
+- [blockr.sdtm](https://github.com/cynkra/blockr.sdtm): pharmaverse
+  datasets blocks.
+
+If you wish to learn to develop your own blocks, have a look at this
+[vignette](https://bristolmyerssquibb.github.io/blockr.core/articles/create-block.html).
+
+# Package index
+
+## Board objects
+
+### Blocks
+
+Data analysis pipelines are decomposed into steps, each represented by a
+block.
+
+- [`new_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block.md)
+  [`default_block_name()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block.md)
+  [`is_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block.md)
+  [`as_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block.md)
+  [`blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block.md)
+  [`is_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block.md)
+  [`as_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block.md)
+  : Blocks
+- [`block_name()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md)
+  [`` `block_name<-`() ``](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md)
+  [`validate_data_inputs()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md)
+  [`block_inputs()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md)
+  [`block_arity()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md)
+  : Block utilities
+- [`block_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_server.md)
+  [`expr_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_server.md)
+  [`block_eval()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_server.md)
+  [`block_eval_trigger()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_server.md)
+  [`block_render_trigger()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_server.md)
+  : Block server
+- [`block_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_ui.md)
+  [`expr_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_ui.md)
+  [`block_output()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_ui.md)
+  : Block UI
+- [`register_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
+  [`default_icon()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
+  [`default_category()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
+  [`suggested_categories()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
+  [`list_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
+  [`registry_id_from_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
+  [`unregister_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
+  [`register_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
+  [`available_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
+  [`block_metadata()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
+  [`create_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
+  : Block registry
+
+### Links
+
+Utilities for creating an working with links
+
+- [`new_link()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_link.md)
+  [`is_link()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_link.md)
+  [`as_link()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_link.md)
+  [`links()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_link.md)
+  [`is_links()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_link.md)
+  [`as_links()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_link.md)
+  [`validate_links()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_link.md)
+  : Board links
+
+### Stacks
+
+Utilities for creating an working with stacks
+
+- [`new_stack()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
+  [`default_stack_name()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
+  [`is_stack()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
+  [`stack_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
+  [`` `stack_blocks<-`() ``](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
+  [`stack_name()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
+  [`` `stack_name<-`() ``](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
+  [`validate_stack()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
+  [`as_stack()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
+  [`stacks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
+  [`is_stacks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
+  [`as_stacks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
+  : Stacks
+- [`stack_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/stack_ui.md)
+  [`insert_stack_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/stack_ui.md)
+  [`remove_stack_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/stack_ui.md)
+  [`add_block_to_stack()`](https://bristolmyerssquibb.github.io/blockr.core/reference/stack_ui.md)
+  [`remove_block_from_stack()`](https://bristolmyerssquibb.github.io/blockr.core/reference/stack_ui.md)
+  : Stack UI
+
+### Board
+
+Utilities for creating an working with boards
+
+- [`new_board()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board.md)
+  [`validate_board()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board.md)
+  [`is_board()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board.md)
+  : Board
+- [`board_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
+  [`` `board_blocks<-`() ``](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
+  [`board_block_ids()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
+  [`rm_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
+  [`board_links()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
+  [`` `board_links<-`() ``](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
+  [`board_link_ids()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
+  [`modify_board_links()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
+  [`board_stacks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
+  [`` `board_stacks<-`() ``](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
+  [`board_stack_ids()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
+  [`modify_board_stacks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
+  [`board_options()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
+  [`` `board_options<-`() ``](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
+  [`board_option_ids()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
+  [`available_stack_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
+  : Board utils
+- [`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)
+  : Board server
+- [`board_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_ui.md)
+  [`insert_block_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_ui.md)
+  [`remove_block_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_ui.md)
+  [`toolbar_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_ui.md)
+  : Board UI
+- [`new_board_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`is_board_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`validate_board_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`as_board_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`board_option_id()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`board_option_trigger()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`board_option_default()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`board_option_category()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`board_option_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`board_option_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`board_option_transform()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`board_option_value()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`board_option_ctor()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`new_board_name_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`new_n_rows_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`new_page_size_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`new_filter_rows_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`new_thematic_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`new_dark_mode_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`new_show_conditions_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`need_llm_cfg_opts()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`new_llm_model_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`new_board_options()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`default_board_options()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`is_board_options()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`as_board_options()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`validate_board_options()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`board_option_values()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`get_board_option_value()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`set_board_option_value()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`get_board_option_or_default()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`get_board_option_or_null()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`get_board_option_values()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  : Board options
+
+## Board plugins
+
+### Utilities
+
+Tools for creating and working with board plugins.
+
+- [`new_plugin()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_plugin.md)
+  [`is_plugin()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_plugin.md)
+  [`abort_not_null()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_plugin.md)
+  [`as_plugin()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_plugin.md)
+  [`plugin_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_plugin.md)
+  [`plugin_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_plugin.md)
+  [`plugin_validator()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_plugin.md)
+  [`plugin_id()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_plugin.md)
+  [`board_plugins()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_plugin.md)
+  [`plugins()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_plugin.md)
+  [`is_plugins()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_plugin.md)
+  [`as_plugins()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_plugin.md)
+  [`validate_plugins()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_plugin.md)
+  : Board plugin
+
+### Instances
+
+Plugin implementations provided by the core.
+
+- [`manage_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/manage_blocks.md)
+  [`manage_blocks_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/manage_blocks.md)
+  [`manage_blocks_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/manage_blocks.md)
+  : Plugin module for managing board blocks
+- [`manage_links()`](https://bristolmyerssquibb.github.io/blockr.core/reference/manage_links.md)
+  [`manage_links_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/manage_links.md)
+  [`manage_links_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/manage_links.md)
+  : Plugin module for managing board links
+- [`manage_stacks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/manage_stacks.md)
+  [`manage_stacks_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/manage_stacks.md)
+  [`manage_stacks_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/manage_stacks.md)
+  : Plugin module for managing board stacks
+- [`edit_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/edit_block.md)
+  [`edit_block_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/edit_block.md)
+  [`edit_block_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/edit_block.md)
+  [`block_summary()`](https://bristolmyerssquibb.github.io/blockr.core/reference/edit_block.md)
+  : Plugin module for editing board blocks
+- [`edit_stack()`](https://bristolmyerssquibb.github.io/blockr.core/reference/edit_stack.md)
+  [`edit_stack_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/edit_stack.md)
+  [`edit_stack_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/edit_stack.md)
+  : Plugin module for editing board stacks
+- [`generate_code()`](https://bristolmyerssquibb.github.io/blockr.core/reference/generate_code.md)
+  [`generate_code_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/generate_code.md)
+  [`generate_code_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/generate_code.md)
+  : Code generation plugin module
+- [`notify_user()`](https://bristolmyerssquibb.github.io/blockr.core/reference/notify_user.md)
+  [`notify_user_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/notify_user.md)
+  [`notify_user_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/notify_user.md)
+  : User notification plugin module
+- [`preserve_board()`](https://bristolmyerssquibb.github.io/blockr.core/reference/preserve_board.md)
+  [`preserve_board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/preserve_board.md)
+  [`restore_board()`](https://bristolmyerssquibb.github.io/blockr.core/reference/preserve_board.md)
+  [`preserve_board_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/preserve_board.md)
+  [`serialize_board()`](https://bristolmyerssquibb.github.io/blockr.core/reference/preserve_board.md)
+  : Serialization plugin module
+
+## Block classes
+
+- [`new_data_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_data_block.md)
+  [`new_dataset_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_data_block.md)
+  [`new_static_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_data_block.md)
+  : Data block constructors
+- [`new_file_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_file_block.md)
+  [`new_filebrowser_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_file_block.md)
+  [`filebrowser_volumes()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_file_block.md)
+  [`new_upload_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_file_block.md)
+  : File block constructors
+- [`new_parser_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_parser_block.md)
+  [`new_csv_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_parser_block.md)
+  : Parser block constructors
+- [`new_transform_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_transform_block.md)
+  [`new_fixed_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_transform_block.md)
+  [`new_head_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_transform_block.md)
+  [`new_merge_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_transform_block.md)
+  [`new_rbind_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_transform_block.md)
+  [`new_subset_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_transform_block.md)
+  : Transform block constructors
+- [`new_plot_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_plot_block.md)
+  [`new_scatter_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_plot_block.md)
+  : Plot block constructors
+- [`new_text_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_text_block.md)
+  [`new_glue_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_text_block.md)
+  : Text block constructors
+
+## Utilities
+
+### Serialization
+
+Serialization and deserialization utilities.
+
+- [`blockr_ser()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_ser.md)
+  [`blockr_deser()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_ser.md)
+  : Serialization utilities
+
+### Logging
+
+Tools for logging.
+
+- [`write_log()`](https://bristolmyerssquibb.github.io/blockr.core/reference/write_log.md)
+  [`log_fatal()`](https://bristolmyerssquibb.github.io/blockr.core/reference/write_log.md)
+  [`log_error()`](https://bristolmyerssquibb.github.io/blockr.core/reference/write_log.md)
+  [`log_warn()`](https://bristolmyerssquibb.github.io/blockr.core/reference/write_log.md)
+  [`log_info()`](https://bristolmyerssquibb.github.io/blockr.core/reference/write_log.md)
+  [`log_debug()`](https://bristolmyerssquibb.github.io/blockr.core/reference/write_log.md)
+  [`log_trace()`](https://bristolmyerssquibb.github.io/blockr.core/reference/write_log.md)
+  [`as_log_level()`](https://bristolmyerssquibb.github.io/blockr.core/reference/write_log.md)
+  [`fatal_log_level`](https://bristolmyerssquibb.github.io/blockr.core/reference/write_log.md)
+  [`error_log_level`](https://bristolmyerssquibb.github.io/blockr.core/reference/write_log.md)
+  [`warn_log_level`](https://bristolmyerssquibb.github.io/blockr.core/reference/write_log.md)
+  [`info_log_level`](https://bristolmyerssquibb.github.io/blockr.core/reference/write_log.md)
+  [`debug_log_level`](https://bristolmyerssquibb.github.io/blockr.core/reference/write_log.md)
+  [`trace_log_level`](https://bristolmyerssquibb.github.io/blockr.core/reference/write_log.md)
+  [`get_log_level()`](https://bristolmyerssquibb.github.io/blockr.core/reference/write_log.md)
+  [`cnd_logger()`](https://bristolmyerssquibb.github.io/blockr.core/reference/write_log.md)
+  [`cat_logger()`](https://bristolmyerssquibb.github.io/blockr.core/reference/write_log.md)
+  : Logging
+
+### Miscellaneous
+
+Various tools and utilities.
+
+- [`topo_sort()`](https://bristolmyerssquibb.github.io/blockr.core/reference/topo_sort.md)
+  [`is_acyclic()`](https://bristolmyerssquibb.github.io/blockr.core/reference/topo_sort.md)
+  : Graph utils
+- [`rand_names()`](https://bristolmyerssquibb.github.io/blockr.core/reference/rand_names.md)
+  [`adjective_animal()`](https://bristolmyerssquibb.github.io/blockr.core/reference/rand_names.md)
+  [`sample_letters()`](https://bristolmyerssquibb.github.io/blockr.core/reference/rand_names.md)
+  [`resolve_ctor()`](https://bristolmyerssquibb.github.io/blockr.core/reference/rand_names.md)
+  [`is_blockr_ctor()`](https://bristolmyerssquibb.github.io/blockr.core/reference/rand_names.md)
+  [`ctor_name()`](https://bristolmyerssquibb.github.io/blockr.core/reference/rand_names.md)
+  [`ctor_pkg()`](https://bristolmyerssquibb.github.io/blockr.core/reference/rand_names.md)
+  [`ctor_fun()`](https://bristolmyerssquibb.github.io/blockr.core/reference/rand_names.md)
+  [`to_sentence_case()`](https://bristolmyerssquibb.github.io/blockr.core/reference/rand_names.md)
+  [`id_to_sentence_case()`](https://bristolmyerssquibb.github.io/blockr.core/reference/rand_names.md)
+  : Random IDs
+- [`blockr_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_option.md)
+  : Blockr Options
+- [`serve()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
+  [`get_serve_obj()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
+  : Serve object
+- [`export_code()`](https://bristolmyerssquibb.github.io/blockr.core/reference/export_code.md)
+  : Utilities for code export
+- [`chr_ply()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
+  [`lgl_ply()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
+  [`int_ply()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
+  [`dbl_ply()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
+  [`chr_mply()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
+  [`lgl_mply()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
+  [`int_mply()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
+  [`dbl_mply()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
+  [`chr_xtr()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
+  [`lgl_xtr()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
+  [`int_xtr()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
+  [`dbl_xtr()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
+  [`lst_xtr()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
+  [`map()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
+  : Functional programming utilities
+- [`set_names()`](https://bristolmyerssquibb.github.io/blockr.core/reference/set_names.md)
+  [`paste_enum()`](https://bristolmyerssquibb.github.io/blockr.core/reference/set_names.md)
+  [`coal()`](https://bristolmyerssquibb.github.io/blockr.core/reference/set_names.md)
+  [`reval()`](https://bristolmyerssquibb.github.io/blockr.core/reference/set_names.md)
+  [`reval_if()`](https://bristolmyerssquibb.github.io/blockr.core/reference/set_names.md)
+  [`unlst()`](https://bristolmyerssquibb.github.io/blockr.core/reference/set_names.md)
+  [`pkg_name()`](https://bristolmyerssquibb.github.io/blockr.core/reference/set_names.md)
+  [`pkg_version()`](https://bristolmyerssquibb.github.io/blockr.core/reference/set_names.md)
+  [`pkg_file()`](https://bristolmyerssquibb.github.io/blockr.core/reference/set_names.md)
+  [`pkg_avail()`](https://bristolmyerssquibb.github.io/blockr.core/reference/set_names.md)
+  : Miscellaneous utilities
+- [`is_scalar()`](https://bristolmyerssquibb.github.io/blockr.core/reference/assertions.md)
+  [`is_string()`](https://bristolmyerssquibb.github.io/blockr.core/reference/assertions.md)
+  [`is_bool()`](https://bristolmyerssquibb.github.io/blockr.core/reference/assertions.md)
+  [`is_intish()`](https://bristolmyerssquibb.github.io/blockr.core/reference/assertions.md)
+  [`is_count()`](https://bristolmyerssquibb.github.io/blockr.core/reference/assertions.md)
+  [`is_number()`](https://bristolmyerssquibb.github.io/blockr.core/reference/assertions.md)
+  [`not_null()`](https://bristolmyerssquibb.github.io/blockr.core/reference/assertions.md)
+  [`has_length()`](https://bristolmyerssquibb.github.io/blockr.core/reference/assertions.md)
+  : Assertions
+- [`get_session()`](https://bristolmyerssquibb.github.io/blockr.core/reference/get_session.md)
+  [`generate_plugin_args()`](https://bristolmyerssquibb.github.io/blockr.core/reference/get_session.md)
+  [`notify()`](https://bristolmyerssquibb.github.io/blockr.core/reference/get_session.md)
+  : Shiny utilities
+- [`blockr_abort()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_abort.md)
+  [`blockr_warn()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_abort.md)
+  [`blockr_inform()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_abort.md)
+  : Blockr conditions
+
+# Articles
+
+### All vignettes
+
+- [3. Browse for
+  blocks](https://bristolmyerssquibb.github.io/blockr.core/articles/blocks-registry.md):
+- [2. Create a
+  block](https://bristolmyerssquibb.github.io/blockr.core/articles/create-block.md):
+- [4. Extend
+  blockr](https://bristolmyerssquibb.github.io/blockr.core/articles/extend-blockr.md):
+- [1. Getting
+  started](https://bristolmyerssquibb.github.io/blockr.core/articles/get-started.md):
+- [5. Testing
+  blocks](https://bristolmyerssquibb.github.io/blockr.core/articles/testing-blocks.md):

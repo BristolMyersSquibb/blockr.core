@@ -1,5 +1,5 @@
 pandoc: 3.1.11
-pkgdown: 2.1.3
+pkgdown: 2.2.0
 pkgdown_sha: ~
 articles:
   blocks-registry: blocks-registry.html
@@ -7,7 +7,7 @@ articles:
   extend-blockr: extend-blockr.html
   get-started: get-started.html
   testing-blocks: testing-blocks.html
-last_built: 2025-11-05T16:00Z
+last_built: 2025-11-10T14:01Z
 urls:
   reference: https://bristolmyerssquibb.github.io/blockr.core/reference
   article: https://bristolmyerssquibb.github.io/blockr.core/articles
