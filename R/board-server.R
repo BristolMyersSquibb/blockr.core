@@ -229,7 +229,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
             do.call(
               remove_block_ui,
               c(
-                list(ns(NULL), rv$board, upd$blocks$add),
+                list(ns(NULL), rv$board, upd$blocks$rm),
                 dot_args,
                 list(edit_ui = edit_block, session = session)
               )
