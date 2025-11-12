@@ -297,9 +297,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
             board_refresh(),
             {
               log_debug("refreshing board")
-              update_serve_obj(
-                refresh_board(board_refresh(), rv$board, session)
-              )
+              update_serve_obj(board_refresh())
               log_debug("reloading session")
               session$reload()
             }
@@ -335,16 +333,18 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         dot_args <- c(dot_args, cb_res)
       }
 
-      observeEvent(
-        get_board_option_values("thematic", "dark_mode"),
-        {
-          if (isTRUE(get_board_option_value("thematic"))) {
-            do.call(thematic::thematic_shiny, bs_theme_colors(session))
-          } else if (isFALSE(get_board_option_value("thematic"))) {
-            thematic::thematic_off()
+      if (all(c("thematic", "dark_mode") %in% names(options))) {
+        observeEvent(
+          get_board_option_values("thematic", "dark_mode"),
+          {
+            if (isTRUE(get_board_option_value("thematic"))) {
+              do.call(thematic::thematic_shiny, bs_theme_colors(session))
+            } else if (isFALSE(get_board_option_value("thematic"))) {
+              thematic::thematic_off()
+            }
           }
-        }
-      )
+        )
+      }
 
       c(rv_ro, dot_args)
     }
