@@ -124,12 +124,15 @@ board_filename <- function(rv) {
 #' @param blocks Block state reactive values
 #' @rdname preserve_board
 #' @export
-serialize_board <- function(x, blocks, ..., session = get_session()) {
+serialize_board <- function(x, blocks, id = NULL, ...,
+                            session = get_session()) {
+
   UseMethod("serialize_board")
 }
 
 #' @export
-serialize_board.board <- function(x, blocks, ..., session = get_session()) {
+serialize_board.board <- function(x, blocks, id = NULL, ...,
+                                  session = get_session()) {
 
   blocks <- lapply(
     lst_xtr(blocks, "server", "state"),
@@ -143,7 +146,7 @@ serialize_board.board <- function(x, blocks, ..., session = get_session()) {
     session
   )
 
-  blockr_ser(x, blocks = blocks, options = opts)
+  blockr_ser(x, board_id = id, blocks = blocks, options = opts)
 }
 
 write_board_to_disk <- function(rv, ..., session = get_session()) {
@@ -156,7 +159,7 @@ write_board_to_disk <- function(rv, ..., session = get_session()) {
       do.call(
         serialize_board,
         c(
-          list(rv$board, rv$blocks),
+          list(rv$board, rv$blocks, rv$board_id),
           dot_args,
           list(session = session)
         )

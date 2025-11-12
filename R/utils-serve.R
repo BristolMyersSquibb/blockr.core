@@ -102,29 +102,48 @@ serve.block <- function(x, id = "block", ..., data = list()) {
 serve.board <- function(x, id = rand_names(), plugins = board_plugins(x),
                         ...) {
 
-  args <- list(...)
 
-  ui <- function() {
+  stopifnot(is_string(id), is_plugins(plugins))
+
+  shinyApp(
+    serve_board_ui(id, plugins),
+    serve_board_srv(id, plugins, ...)
+  )
+}
+
+serve_board_ui <- function(id, plugins) {
+
+  function() {
+
+    x <- get_serve_obj()
+    id <- coal(attr(x, "id"), id)
 
     log_debug("building ui for board {id}")
 
     bslib::page_fluid(
       theme = bslib::bs_theme(version = 5),
-      board_ui(id, get_serve_obj(), plugins)
+      board_ui(id, x, plugins)
     )
   }
+}
 
-  server <- function(input, output, session) {
+serve_board_srv <- function(id, plugins, ...) {
 
-    trace_observe()
-    onStop(untrace_observe, session)
+  args <- list(...)
+
+  function(input, output, session) {
+
+    onStop(
+      revert(trace_observe(), enable_v2_restore()),
+      session
+    )
+
+    x <- get_serve_obj()
+    id <- coal(attr(x, "id"), id)
 
     res <- do.call(
       board_server,
-      c(
-        list(id, get_serve_obj(), plugins),
-        args
-      )
+      c(list(id, x, plugins), args)
     )
 
     exportTestValues(
@@ -139,8 +158,6 @@ serve.board <- function(x, id = rand_names(), plugins = board_plugins(x),
 
     invisible()
   }
-
-  shinyApp(ui, server)
 }
 
 serve_obj <- new.env()
@@ -154,4 +171,31 @@ update_serve_obj <- function(x) {
 #' @export
 get_serve_obj <- function() {
   get("x", envir = serve_obj, inherits = FALSE)
+}
+
+revert <- function(...) {
+  funs <- list(...)
+  function() {
+    invisible(
+      map(do.call, what = funs, MoreArgs = list(args = list()))
+    )
+  }
+}
+
+#' @rdname serve
+#' @export
+enable_v2_restore <- function() {
+
+  log_debug("setting v2 restore")
+
+  cur_opt <- options(blockr.board_restore = "v2")
+  cur_env <- Sys.getenv("BLOCKR_BOARD_RESTORE")
+
+  Sys.unsetenv("BLOCKR_BOARD_RESTORE")
+
+  function() {
+    log_debug("resetting restore version")
+    options(cur_opt)
+    Sys.setenv(BLOCKR_BOARD_RESTORE = cur_env)
+  }
 }

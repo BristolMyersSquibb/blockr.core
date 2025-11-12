@@ -16,6 +16,7 @@
 #' @param options Board-level user settings
 #' @param ... Further (metadata) attributes
 #' @param class Board sub-class
+#' @param ctor,pkg Constructor information (used for serialization)
 #'
 #' @examples
 #' brd <- new_board(
@@ -36,7 +37,7 @@
 #' @export
 new_board <- function(blocks = list(), links = list(), stacks = list(),
                       options = default_board_options(), ...,
-                      class = character()) {
+                      ctor = 1L, pkg = NULL, class = character()) {
 
   blocks <- as_blocks(blocks)
   links <- as_links(links)
@@ -45,6 +46,10 @@ new_board <- function(blocks = list(), links = list(), stacks = list(),
 
   links <- complete_unary_inputs(links, blocks)
   links <- complete_variadic_inputs(links, blocks)
+
+  if (is.numeric(ctor)) {
+    ctor <- -ctor
+  }
 
   validate_board(
     structure(
@@ -55,6 +60,7 @@ new_board <- function(blocks = list(), links = list(), stacks = list(),
         options = options,
         ...
       ),
+      ctor = resolve_ctor(ctor, pkg),
       class = c(class, "board")
     )
   )
@@ -542,6 +548,13 @@ available_stack_blocks <- function(x, stacks = board_stacks(x),
 #' @export
 block_inputs.board <- function(x) {
   lapply(set_names(board_blocks(x), board_block_ids(x)), block_inputs)
+}
+
+#' @rdname new_board_options
+#' @export
+board_ctor <- function(x) {
+  stopifnot(is_board(x))
+  attr(x, "ctor")
 }
 
 #' @export

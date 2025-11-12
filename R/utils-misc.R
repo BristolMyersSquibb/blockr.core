@@ -315,8 +315,13 @@ resolve_ctor <- function(ctor, ctor_pkg = NULL) {
 
   if (is.numeric(ctor)) {
 
-    func <- sys.function(ctor)
-    call <- deparse(sys.call(ctor)[[1L]])
+    if (ctor < 0L) {
+      func <- rlang::caller_fn(-ctor)
+      call <- as.character(rlang::caller_call(-ctor)[[1L]])
+    } else {
+      func <- sys.function(ctor)
+      call <- deparse(sys.call(ctor)[[1L]])
+    }
 
     if (grepl("::", call, fixed = TRUE)) {
 

@@ -5,6 +5,7 @@
 \alias{serve.block}
 \alias{serve.board}
 \alias{get_serve_obj}
+\alias{enable_v2_restore}
 \title{Serve object}
 \usage{
 serve(x, ...)
@@ -14,6 +15,8 @@ serve(x, ...)
 \method{serve}{board}(x, id = rand_names(), plugins = board_plugins(x), ...)
 
 get_serve_obj()
+
+enable_v2_restore()
 }
 \arguments{
 \item{x}{Object}
