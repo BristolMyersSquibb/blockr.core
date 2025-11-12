@@ -21,6 +21,8 @@ board_server <- function(id, x, ...) {
 }
 
 #' @param plugins Board plugins as modules
+#' @param options Board options (`NULL` defaults to the union of board, block
+#' and registry sourced options)
 #' @param callbacks Single (or list of) callback function(s), called only
 #' for their side-effects)
 #' @param callback_location Location of callback invocation (before or after
@@ -28,6 +30,7 @@ board_server <- function(id, x, ...) {
 #' @rdname board_server
 #' @export
 board_server.board <- function(id, x, plugins = board_plugins(x),
+                               options = NULL,
                                callbacks = list(),
                                callback_location = c("end", "start"),
                                ...) {
@@ -43,6 +46,16 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
   dot_args <- list(...) # nolint: object_usage_linter.
 
   callback_location <- match.arg(callback_location)
+
+  if (is.null(options)) {
+    options <- combine_board_options(
+      board_options(x),
+      lapply(board_blocks(x), board_options),
+      lapply(available_blocks(), board_options)
+    )
+  }
+
+  stopifnot(is_board_options(options))
 
   moduleServer(
     id,
@@ -64,7 +77,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
       do.call(
         board_options_to_userdata,
         c(
-          list(as_board_options(x)),
+          list(options),
           rv_ro,
           dot_args,
           list(session = session)

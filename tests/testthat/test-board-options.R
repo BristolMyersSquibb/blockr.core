@@ -72,10 +72,17 @@ test_that("board opts", {
 
 test_that("opt ser/deser", {
 
-  prev <- need_llm_cfg_opts(TRUE)
-  withr::defer(need_llm_cfg_opts(prev))
-
   for (opt in default_board_options()) {
+    expect_identical(
+      opt,
+      blockr_deser(blockr_ser(opt)),
+      ignore_function_env = TRUE
+    )
+  }
+
+  reg_opts <- combine_board_options(lapply(available_blocks(), board_options))
+
+  for (opt in reg_opts) {
     expect_identical(
       opt,
       blockr_deser(blockr_ser(opt)),

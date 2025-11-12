@@ -507,7 +507,11 @@ modify_board_stacks.board <- function(x, add = NULL, rm = NULL, mod = NULL) {
 #' @rdname board_blocks
 #' @export
 board_options <- function(x) {
-  stopifnot(is_board(x))
+  UseMethod("board_options")
+}
+
+#' @export
+board_options.board <- function(x) {
   validate_board_options(x[["options"]])
 }
 
