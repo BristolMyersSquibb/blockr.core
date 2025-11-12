@@ -33,9 +33,10 @@ block_render_trigger.transform_block <- dt_render_trigger
 
 #' @export
 board_options.transform_block <- function(x, ...) {
-  new_board_options(
+  combine_board_options(
     new_n_rows_option(...),
     new_page_size_option(...),
-    new_filter_rows_option(...)
+    new_filter_rows_option(...),
+    NextMethod()
   )
 }
