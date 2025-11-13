@@ -77,6 +77,7 @@ serve.block <- function(x, id = "block", ..., data = list()) {
 
 #' @param id Board namespace ID
 #' @param plugins Board plugins
+#' @param options Board options
 #'
 #' @rdname serve
 #'
@@ -99,19 +100,72 @@ serve.block <- function(x, id = "block", ..., data = list()) {
 #' )
 #'
 #' @export
-serve.board <- function(x, id = rand_names(), plugins = board_plugins(x),
-                        ...) {
+serve.board <- function(x, id = rand_names(), plugins = blockr_app_plugins,
+                        options = blockr_app_options, ...) {
 
 
-  stopifnot(is_string(id), is_plugins(plugins))
+  stopifnot(is_string(id), is.function(plugins), is.function(options))
 
   shinyApp(
-    serve_board_ui(id, plugins),
-    serve_board_srv(id, plugins, ...)
+    serve_board_ui(id, plugins, options),
+    serve_board_srv(id, plugins, options, ...)
   )
 }
 
-serve_board_ui <- function(id, plugins) {
+#' @rdname serve
+#' @export
+blockr_app_plugins <- function(x) {
+  UseMethod("blockr_app_plugins")
+}
+
+#' @export
+blockr_app_plugins.board <- function(x) {
+  board_plugins(x)
+}
+
+#' @rdname serve
+#' @export
+blockr_app_options <- function(x) {
+  UseMethod("blockr_app_options")
+}
+
+#' @export
+blockr_app_options.board <- function(x, ...) {
+  combine_board_options(
+    board_options(x),
+    lapply(board_blocks(x), board_options),
+    lapply(available_blocks(), board_options)
+  )
+}
+
+#' @rdname serve
+#' @export
+blockr_app_ui <- function(id, x, ...) {
+  UseMethod("blockr_app_ui", x)
+}
+
+#' @export
+blockr_app_ui.board <- function(id, x, ...) {
+  bslib::page_fluid(
+    theme = bslib::bs_theme(version = 5),
+    board_ui(id, x, ...)
+  )
+}
+
+#' @rdname serve
+#' @export
+blockr_app_server <- function(id, x, ...) {
+  UseMethod("blockr_app_server", x)
+}
+
+#' @export
+blockr_app_server.board <- function(id, x, ...) {
+  board_server(id, x, ...)
+}
+
+serve_board_ui <- function(id, plugins, options, ...) {
+
+  args <- list(...)
 
   function() {
 
@@ -120,14 +174,14 @@ serve_board_ui <- function(id, plugins) {
 
     log_debug("building ui for board {id}")
 
-    bslib::page_fluid(
-      theme = bslib::bs_theme(version = 5),
-      board_ui(id, x, plugins)
+    do.call(
+      blockr_app_ui,
+      c(list(id, x, plugins = plugins(x), options = options(x)), args)
     )
   }
 }
 
-serve_board_srv <- function(id, plugins, ...) {
+serve_board_srv <- function(id, plugins, options, ...) {
 
   args <- list(...)
 
@@ -142,8 +196,8 @@ serve_board_srv <- function(id, plugins, ...) {
     id <- coal(attr(x, "id"), id)
 
     res <- do.call(
-      board_server,
-      c(list(id, x, plugins), args)
+      blockr_app_server,
+      c(list(id, x, plugins = plugins(x), options = options(x)), args)
     )
 
     exportTestValues(
