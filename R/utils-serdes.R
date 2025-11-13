@@ -388,8 +388,14 @@ blockr_deser.blockr_ctor <- function(x, data, ...) {
 
   if (is.null(pkg)) {
     new_blockr_ctor(unserialize(jsonlite::base64_dec(ctr)))
-  } else {
+  } else if (pkg_avail(pkg)) {
     new_blockr_ctor(NULL, ctr, pkg)
+  } else {
+    blockr_abort(
+      "Cannot deserialize object that depends on not installed ",
+      "package {pkg}",
+      class = "blockr_deser_missing_pkg"
+    )
   }
 }
 

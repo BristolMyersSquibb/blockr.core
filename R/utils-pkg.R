@@ -32,5 +32,7 @@ pkg_file <- function(..., pkg = parent.frame()) {
 #' @rdname set_names
 #' @export
 pkg_avail <- function(...) {
-  all(vapply(c(...), requireNamespace, logical(1L), quietly = TRUE))
+  pkgs <- c(...)
+  log_trace("checking availability of package{?s} {pkgs}")
+  all(lgl_ply(pkgs, requireNamespace, quietly = TRUE))
 }

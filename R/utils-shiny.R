@@ -182,7 +182,7 @@ trace_observe <- function() {
 
             cur <- returnValue()
 
-            log_trace(
+            blockr.core::log_trace(
               "capturing observer {cur$.reactId} of domain {dom}"
             )
 
