@@ -253,3 +253,14 @@ enable_v2_restore <- function() {
     Sys.setenv(BLOCKR_BOARD_RESTORE = cur_env)
   }
 }
+
+#' @export
+serve.character <- function(x, ...) {
+
+  stopifnot(is_string(x), file.exists(x))
+
+  serve(
+    blockr_deser(read_json(x)),
+    ...
+  )
+}

@@ -323,9 +323,14 @@ resolve_ctor <- function(ctor, ctor_pkg = NULL) {
       call <- deparse(sys.call(ctor)[[1L]])
     }
 
-    if (grepl("::", call, fixed = TRUE)) {
+    if (any(grepl("::", call, fixed = TRUE))) {
 
-      call <- strsplit(call, "::", fixed = TRUE)[[1L]]
+      if (length(call) == 1L) {
+        call <- strsplit(call, "::", fixed = TRUE)[[1L]]
+      } else {
+        stopifnot(length(call) == 3L)
+        call <- call[-1L]
+      }
 
       stopifnot(length(call) == 2L)
 
