@@ -12,7 +12,7 @@ new_board(
   stacks = list(),
   options = default_board_options(),
   ...,
-  ctor = 1L,
+  ctor = NULL,
   pkg = NULL,
   class = character()
 )

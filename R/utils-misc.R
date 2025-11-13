@@ -366,6 +366,26 @@ resolve_ctor <- function(ctor, ctor_pkg = NULL) {
   new_blockr_ctor(try, ctor, ctor_pkg)
 }
 
+#' @rdname rand_names
+#' @export
+forward_ctor <- function(x) {
+
+  x <- coal(x, 0L)
+
+  if (is.numeric(x)) {
+
+    stopifnot(is_scalar(x), is_intish(x))
+
+    if (x > 0L) {
+      x <- -x
+    }
+
+    x <- x - 1L
+  }
+
+  x
+}
+
 new_blockr_ctor <- function(fun, nme = NULL, pkg = NULL) {
 
   if (is.null(nme) && is.null(pkg)) {

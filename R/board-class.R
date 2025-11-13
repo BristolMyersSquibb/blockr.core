@@ -37,7 +37,7 @@
 #' @export
 new_board <- function(blocks = list(), links = list(), stacks = list(),
                       options = default_board_options(), ...,
-                      ctor = 1L, pkg = NULL, class = character()) {
+                      ctor = NULL, pkg = NULL, class = character()) {
 
   blocks <- as_blocks(blocks)
   links <- as_links(links)
@@ -46,10 +46,6 @@ new_board <- function(blocks = list(), links = list(), stacks = list(),
 
   links <- complete_unary_inputs(links, blocks)
   links <- complete_variadic_inputs(links, blocks)
-
-  if (is.numeric(ctor)) {
-    ctor <- -ctor
-  }
 
   validate_board(
     structure(
@@ -60,7 +56,7 @@ new_board <- function(blocks = list(), links = list(), stacks = list(),
         options = options,
         ...
       ),
-      ctor = resolve_ctor(ctor, pkg),
+      ctor = resolve_ctor(forward_ctor(ctor), pkg),
       class = c(class, "board")
     )
   )
