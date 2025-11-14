@@ -140,7 +140,7 @@ blockr_ser.board_option <- function(x, option = NULL, ...) {
   }
 
   ctor <- board_option_ctor(x)
-  name <- setdiff(names(formals(ctor)), "...")
+  name <- setdiff(names(formals(ctor)), c("...", "category"))
 
   if (is.null(names(val))) {
 

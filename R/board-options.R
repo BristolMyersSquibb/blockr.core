@@ -45,10 +45,6 @@ default_board_options <- function(...) {
   new_board_options(
     new_board_name_option(...),
     new_show_conditions_option(...),
-    if (need_llm_cfg_opts()) new_llm_model_option(...),
-    new_n_rows_option(...),
-    new_page_size_option(...),
-    new_filter_rows_option(...),
     new_thematic_option(...),
     new_dark_mode_option(...)
   )
@@ -433,4 +429,15 @@ list_to_list_of_opts <- function(x) {
   } else {
     list()
   }
+}
+
+#' @rdname new_board_options
+#' @export
+combine_board_options <- function(...) {
+
+  opts <- list_to_list_of_opts(list(...))
+
+  as_board_options(
+    opts[!duplicated(chr_ply(opts, board_option_id))]
+  )
 }

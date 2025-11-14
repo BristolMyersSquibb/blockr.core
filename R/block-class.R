@@ -596,3 +596,8 @@ print.block <- function(x, ...) {
   cat(format(x, ...), sep = "\n")
   invisible(x)
 }
+
+#' @export
+board_options.block <- function(x, ...) {
+  new_board_options()
+}

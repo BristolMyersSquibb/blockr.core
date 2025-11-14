@@ -62,12 +62,9 @@
       Blocks: "b" and "c"
       
       Options:
-      <board_options[7]>
+      <board_options[4]>
         board_name: NULL
         show_conditions: warning, error
-        n_rows: 50
-        page_size: 5
-        filter_rows: FALSE
         thematic: NULL
         dark_mode: NULL
 
@@ -126,12 +123,9 @@
       Blocks: "b" and "c"
       
       Options:
-      <board_options[7]>
+      <board_options[4]>
         board_name: NULL
         show_conditions: warning, error
-        n_rows: 50
-        page_size: 5
-        filter_rows: FALSE
         thematic: NULL
         dark_mode: NULL
 

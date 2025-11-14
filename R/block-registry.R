@@ -229,6 +229,11 @@ new_registry_entry <- function(ctor, ...) {
 
 is_registry_entry <- function(x) inherits(x, "block_registry_entry")
 
+#' @export
+board_options.block_registry_entry <- function(x, ...) {
+  board_options(structure(list(), class = attr(x, "classes")), ...)
+}
+
 #' @rdname register_block
 #' @export
 list_blocks <- function() {
