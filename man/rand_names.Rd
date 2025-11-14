@@ -5,6 +5,7 @@
 \alias{adjective_animal}
 \alias{sample_letters}
 \alias{resolve_ctor}
+\alias{forward_ctor}
 \alias{is_blockr_ctor}
 \alias{ctor_name}
 \alias{ctor_pkg}
@@ -25,6 +26,8 @@ adjective_animal(n)
 sample_letters(n)
 
 resolve_ctor(ctor, ctor_pkg = NULL)
+
+forward_ctor(x)
 
 is_blockr_ctor(x)
 

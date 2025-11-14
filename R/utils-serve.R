@@ -77,6 +77,7 @@ serve.block <- function(x, id = "block", ..., data = list()) {
 
 #' @param id Board namespace ID
 #' @param plugins Board plugins
+#' @param options Board options
 #'
 #' @rdname serve
 #'
@@ -99,32 +100,104 @@ serve.block <- function(x, id = "block", ..., data = list()) {
 #' )
 #'
 #' @export
-serve.board <- function(x, id = rand_names(), plugins = board_plugins(x),
-                        ...) {
+serve.board <- function(x, id = rand_names(), plugins = blockr_app_plugins,
+                        options = blockr_app_options, ...) {
+
+
+  stopifnot(is_string(id), is.function(plugins), is.function(options))
+
+  shinyApp(
+    serve_board_ui(id, plugins, options),
+    serve_board_srv(id, plugins, options, ...)
+  )
+}
+
+#' @rdname serve
+#' @export
+blockr_app_plugins <- function(x) {
+  UseMethod("blockr_app_plugins")
+}
+
+#' @export
+blockr_app_plugins.board <- function(x) {
+  board_plugins(x)
+}
+
+#' @rdname serve
+#' @export
+blockr_app_options <- function(x) {
+  UseMethod("blockr_app_options")
+}
+
+#' @export
+blockr_app_options.board <- function(x, ...) {
+  combine_board_options(
+    board_options(x),
+    lapply(board_blocks(x), board_options),
+    lapply(available_blocks(), board_options)
+  )
+}
+
+#' @rdname serve
+#' @export
+blockr_app_ui <- function(id, x, ...) {
+  UseMethod("blockr_app_ui", x)
+}
+
+#' @export
+blockr_app_ui.board <- function(id, x, ...) {
+  bslib::page_fluid(
+    theme = bslib::bs_theme(version = 5),
+    board_ui(id, x, ...)
+  )
+}
+
+#' @rdname serve
+#' @export
+blockr_app_server <- function(id, x, ...) {
+  UseMethod("blockr_app_server", x)
+}
+
+#' @export
+blockr_app_server.board <- function(id, x, ...) {
+  board_server(id, x, ...)
+}
+
+serve_board_ui <- function(id, plugins, options, ...) {
 
   args <- list(...)
 
-  ui <- function() {
+  function() {
+
+    x <- get_serve_obj()
+    id <- coal(attr(x, "id"), id)
 
     log_debug("building ui for board {id}")
 
-    bslib::page_fluid(
-      theme = bslib::bs_theme(version = 5),
-      board_ui(id, get_serve_obj(), plugins)
+    do.call(
+      blockr_app_ui,
+      c(list(id, x, plugins = plugins(x), options = options(x)), args)
     )
   }
+}
 
-  server <- function(input, output, session) {
+serve_board_srv <- function(id, plugins, options, ...) {
 
-    trace_observe()
-    onStop(untrace_observe, session)
+  args <- list(...)
+
+  function(input, output, session) {
+
+    onStop(
+      revert(trace_observe(), enable_v2_restore()),
+      session
+    )
+
+    x <- get_serve_obj()
+    id <- coal(attr(x, "id"), id)
 
     res <- do.call(
-      board_server,
-      c(
-        list(id, get_serve_obj(), plugins),
-        args
-      )
+      blockr_app_server,
+      c(list(id, x, plugins = plugins(x), options = options(x)), args)
     )
 
     exportTestValues(
@@ -139,8 +212,6 @@ serve.board <- function(x, id = rand_names(), plugins = board_plugins(x),
 
     invisible()
   }
-
-  shinyApp(ui, server)
 }
 
 serve_obj <- new.env()
@@ -154,4 +225,42 @@ update_serve_obj <- function(x) {
 #' @export
 get_serve_obj <- function() {
   get("x", envir = serve_obj, inherits = FALSE)
+}
+
+revert <- function(...) {
+  funs <- list(...)
+  function() {
+    invisible(
+      map(do.call, what = funs, MoreArgs = list(args = list()))
+    )
+  }
+}
+
+#' @rdname serve
+#' @export
+enable_v2_restore <- function() {
+
+  log_debug("setting v2 restore")
+
+  cur_opt <- options(blockr.board_restore = "v2")
+  cur_env <- Sys.getenv("BLOCKR_BOARD_RESTORE")
+
+  Sys.unsetenv("BLOCKR_BOARD_RESTORE")
+
+  function() {
+    log_debug("resetting restore version")
+    options(cur_opt)
+    Sys.setenv(BLOCKR_BOARD_RESTORE = cur_env)
+  }
+}
+
+#' @export
+serve.character <- function(x, ...) {
+
+  stopifnot(is_string(x), file.exists(x))
+
+  serve(
+    blockr_deser(read_json(x)),
+    ...
+  )
 }

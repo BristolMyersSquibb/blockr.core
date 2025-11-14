@@ -193,16 +193,21 @@ blockr_ser.llm_model_option <- function(x, option = NULL, ...) {
   )
 }
 
+#' @param board_id Board ID
 #' @rdname blockr_ser
 #' @export
-blockr_ser.board <- function(x, blocks = NULL, options = NULL, ...) {
+blockr_ser.board <- function(x, board_id = NULL, ...) {
+
+  stopifnot(is.null(board_id) || is_string(board_id))
+
   list(
     object = class(x),
-    blocks = blockr_ser(board_blocks(x), blocks),
-    links = blockr_ser(board_links(x)),
-    stacks = blockr_ser(board_stacks(x)),
-    options = blockr_ser(as_board_options(x), options),
-    version = as.character(pkg_version())
+    payload = Map(
+      blockr_ser, x, list(...)[names(x)]
+    ),
+    constructor = blockr_ser(board_ctor(x)),
+    version = as.character(pkg_version()),
+    id = board_id
   )
 }
 
@@ -305,6 +310,26 @@ blockr_deser.blocks <- function(x, data, ...) {
 #' @rdname blockr_ser
 #' @export
 blockr_deser.board <- function(x, data, ...) {
+
+  if (all(c("constructor", "payload") %in% names(data))) {
+
+    ctor <- blockr_deser(data[["constructor"]])
+
+    args <- c(
+      lapply(data[["payload"]], blockr_deser),
+      list(
+        ctor = coal(ctor_name(ctor), ctor_fun(ctor)),
+        pkg = ctor_pkg(ctor)
+      )
+    )
+
+    res <- do.call(ctor_fun(ctor), args)
+
+    attr(res, "id") <- data[["id"]]
+
+    return(res)
+  }
+
   new_board(
     blocks = blockr_deser(data[["blocks"]]),
     links = blockr_deser(data[["links"]]),

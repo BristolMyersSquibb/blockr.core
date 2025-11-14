@@ -16,7 +16,7 @@ restore_board(x, new, result, ..., session = get_session())
 
 preserve_board_ui(id, board)
 
-serialize_board(x, blocks, ..., session = get_session())
+serialize_board(x, blocks, id = NULL, ..., session = get_session())
 }
 \arguments{
 \item{server, ui}{Server/UI for the plugin module}

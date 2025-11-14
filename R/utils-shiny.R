@@ -196,7 +196,7 @@ trace_observe <- function() {
     )
   )
 
-  invisible()
+  invisible(untrace_observe)
 }
 
 untrace_observe <- function() {

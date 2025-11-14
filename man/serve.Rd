@@ -4,16 +4,37 @@
 \alias{serve}
 \alias{serve.block}
 \alias{serve.board}
+\alias{blockr_app_plugins}
+\alias{blockr_app_options}
+\alias{blockr_app_ui}
+\alias{blockr_app_server}
 \alias{get_serve_obj}
+\alias{enable_v2_restore}
 \title{Serve object}
 \usage{
 serve(x, ...)
 
 \method{serve}{block}(x, id = "block", ..., data = list())
 
-\method{serve}{board}(x, id = rand_names(), plugins = board_plugins(x), ...)
+\method{serve}{board}(
+  x,
+  id = rand_names(),
+  plugins = blockr_app_plugins,
+  options = blockr_app_options,
+  ...
+)
+
+blockr_app_plugins(x)
+
+blockr_app_options(x)
+
+blockr_app_ui(id, x, ...)
+
+blockr_app_server(id, x, ...)
 
 get_serve_obj()
+
+enable_v2_restore()
 }
 \arguments{
 \item{x}{Object}
@@ -25,6 +46,8 @@ get_serve_obj()
 \item{data}{Data inputs}
 
 \item{plugins}{Board plugins}
+
+\item{options}{Board options}
 }
 \value{
 The generic \code{serve()} is expected to return the result of a call to

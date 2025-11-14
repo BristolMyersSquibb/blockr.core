@@ -30,7 +30,7 @@ board_server <- function(id, x, ...) {
 #' @rdname board_server
 #' @export
 board_server.board <- function(id, x, plugins = board_plugins(x),
-                               options = NULL,
+                               options = board_options(x),
                                callbacks = list(),
                                callback_location = c("end", "start"),
                                ...) {
@@ -46,14 +46,6 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
   dot_args <- list(...) # nolint: object_usage_linter.
 
   callback_location <- match.arg(callback_location)
-
-  if (is.null(options)) {
-    options <- combine_board_options(
-      board_options(x),
-      lapply(board_blocks(x), board_options),
-      lapply(available_blocks(), board_options)
-    )
-  }
 
   stopifnot(is_board_options(options))
 
