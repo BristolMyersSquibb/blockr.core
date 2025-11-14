@@ -991,10 +991,12 @@ preprocess_board_update <- function(update, board) {
       stacks[setdiff(names(stacks), c(names(upd$stacks$mod), upd$stacks$rm))]
     )
 
-    upd_stk <- lapply(
-      stacks[lengths(lapply(stacks, intersect, rm)) > 0L],
-      setdiff,
-      rm
+    upd_stk <- as_stacks(
+      lapply(
+        stacks[lengths(lapply(stacks, intersect, rm)) > 0L],
+        setdiff,
+        rm
+      )
     )
 
   } else {
@@ -1005,12 +1007,12 @@ preprocess_board_update <- function(update, board) {
 
   if (length(miss_lnk)) {
     log_debug("adding link removal{?s} for {miss_lnk}")
-    upd$links$rm <- c(upd$links$rm, miss_lnk)
+    upd$links$rm <- c(miss_lnk, upd$links$rm)
   }
 
   if (length(upd_stk)) {
     log_debug("adding stack update{?s} for {names(upd_stk)}")
-    upd$stacks$mod <- c(upd$stacks$mod, upd_stk)
+    upd$stacks$mod <- c(upd_stk, upd$stacks$mod)
   }
 
   if (length(miss_lnk) || length(upd_stk)) {
