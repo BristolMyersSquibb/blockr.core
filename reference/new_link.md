@@ -17,7 +17,15 @@ in that cycles are detected and disallowed.
 ## Usage
 
 ``` r
-new_link(from = "", to = "", input = "", ..., class = character())
+new_link(
+  from = "",
+  to = "",
+  input = "",
+  ...,
+  ctor = "new_link",
+  pkg = pkg_name(),
+  class = character()
+)
 
 is_link(x)
 
@@ -45,6 +53,10 @@ validate_links(x)
 - ...:
 
   Extensibility
+
+- ctor, pkg:
+
+  Constructor information (used for serialization)
 
 - class:
 

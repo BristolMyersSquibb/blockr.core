@@ -20,6 +20,8 @@ new_stack(
   blocks = character(),
   name = default_stack_name,
   ...,
+  ctor = "new_stack",
+  pkg = pkg_name(),
   class = character()
 )
 
@@ -59,6 +61,10 @@ as_stacks(x, ...)
 - ...:
 
   Extensibility
+
+- ctor, pkg:
+
+  Constructor information (used for serialization)
 
 - class:
 

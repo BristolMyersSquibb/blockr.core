@@ -11,6 +11,8 @@ checking is available as `is_board_options()` and coercion as
 ## Usage
 
 ``` r
+board_ctor(x)
+
 new_board_option(
   id,
   default,
@@ -144,6 +146,10 @@ combine_board_options(...)
 
 ## Arguments
 
+- x:
+
+  Board options object
+
 - id:
 
   Board option ID
@@ -175,10 +181,6 @@ combine_board_options(...)
 - ctor, pkg:
 
   Constructor information (used for serialization)
-
-- x:
-
-  Board options object
 
 - ...:
 

@@ -113,7 +113,8 @@ Utilities for creating an working with boards
   [`remove_block_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_ui.md)
   [`toolbar_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_ui.md)
   : Board UI
-- [`new_board_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+- [`board_ctor()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`new_board_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
   [`is_board_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
   [`validate_board_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
   [`as_board_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
@@ -282,6 +283,7 @@ Various tools and utilities.
   [`adjective_animal()`](https://bristolmyerssquibb.github.io/blockr.core/reference/rand_names.md)
   [`sample_letters()`](https://bristolmyerssquibb.github.io/blockr.core/reference/rand_names.md)
   [`resolve_ctor()`](https://bristolmyerssquibb.github.io/blockr.core/reference/rand_names.md)
+  [`forward_ctor()`](https://bristolmyerssquibb.github.io/blockr.core/reference/rand_names.md)
   [`is_blockr_ctor()`](https://bristolmyerssquibb.github.io/blockr.core/reference/rand_names.md)
   [`ctor_name()`](https://bristolmyerssquibb.github.io/blockr.core/reference/rand_names.md)
   [`ctor_pkg()`](https://bristolmyerssquibb.github.io/blockr.core/reference/rand_names.md)
@@ -292,7 +294,12 @@ Various tools and utilities.
 - [`blockr_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_option.md)
   : Blockr Options
 - [`serve()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
+  [`blockr_app_plugins()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
+  [`blockr_app_options()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
+  [`blockr_app_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
+  [`blockr_app_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   [`get_serve_obj()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
+  [`enable_v2_restore()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   : Serve object
 - [`export_code()`](https://bristolmyerssquibb.github.io/blockr.core/reference/export_code.md)
   : Utilities for code export

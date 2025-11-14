@@ -19,7 +19,7 @@ board_server(
   id,
   x,
   plugins = board_plugins(x),
-  options = NULL,
+  options = board_options(x),
   callbacks = list(),
   callback_location = c("end", "start"),
   ...
