@@ -27,6 +27,22 @@ new_dataset_block <- function(dataset = character(), package = "datasets",
     options[lgl_ply(options, is_dataset_eligible, package)]
   }
 
+  list_packages_with_datasets <- function() {
+    # Get all installed packages
+    pkgs <- rownames(installed.packages())
+
+    # Common packages known to have datasets
+    common_pkgs <- c("datasets", "ggplot2", "dplyr", "tidyr", "MASS",
+                     "boot", "lattice", "survival", "nycflights13",
+                     "cards", "gapminder")
+
+    # Filter to packages that exist and are likely to have data
+    available <- common_pkgs[common_pkgs %in% pkgs]
+
+    # Add datasets first, then sort the rest
+    c("datasets", sort(setdiff(available, "datasets")))
+  }
+
   new_data_block(
     function(id) {
       moduleServer(
@@ -34,32 +50,79 @@ new_dataset_block <- function(dataset = character(), package = "datasets",
         function(input, output, session) {
 
           dat <- reactiveVal(dataset)
+          pkg <- reactiveVal(package)
+          r_initialized <- reactiveVal(FALSE)
 
-          observeEvent(input$dataset, dat(input$dataset))
+          # Restore initial selection once on startup
+          observe({
+            if (!r_initialized()) {
+              updateSelectInput(
+                session,
+                "package",
+                selected = pkg()
+              )
+              updateSelectInput(
+                session,
+                "dataset",
+                choices = list_datasets(pkg()),
+                selected = dat()
+              )
+              r_initialized(TRUE)
+            }
+          })
+
+          # Update package and refresh dataset choices
+          observeEvent(input$package, {
+            if (r_initialized()) {
+              pkg(input$package)
+              new_choices <- list_datasets(pkg())
+              updateSelectInput(
+                session,
+                "dataset",
+                choices = new_choices,
+                selected = if (dat() %in% new_choices) dat() else new_choices[1]
+              )
+            }
+          })
+
+          # Update reactive value when input changes (only after initialization)
+          observeEvent(input$dataset, {
+            if (r_initialized()) {
+              dat(input$dataset)
+            }
+          })
 
           list(
             expr = reactive(
               eval(
                 bquote(
                   as.call(c(as.symbol("::"), quote(.(pkg)), quote(.(dat)))),
-                  list(pkg = as.name(package), dat = as.name(dat()))
+                  list(pkg = as.name(pkg()), dat = as.name(dat()))
                 )
               )
             ),
             state = list(
               dataset = dat,
-              package = package
+              package = pkg
             )
           )
         }
       )
     },
     function(id) {
-      selectInput(
-        inputId = NS(id, "dataset"),
-        label = "Dataset",
-        choices = list_datasets(package),
-        selected = dataset
+      tagList(
+        selectInput(
+          inputId = NS(id, "package"),
+          label = "Package",
+          choices = list_packages_with_datasets(),
+          selected = package
+        ),
+        selectInput(
+          inputId = NS(id, "dataset"),
+          label = "Dataset",
+          choices = list_datasets(package),
+          selected = dataset
+        )
       )
     },
     class = "dataset_block",
