@@ -24,6 +24,8 @@ sample_letters(n)
 
 resolve_ctor(ctor, ctor_pkg = NULL)
 
+forward_ctor(x)
+
 is_blockr_ctor(x)
 
 ctor_name(x)

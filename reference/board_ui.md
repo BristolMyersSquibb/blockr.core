@@ -25,7 +25,7 @@ board_ui(id, x, ...)
 board_ui(id, x, ...)
 
 # S3 method for class 'board'
-board_ui(id, x, plugins = board_plugins(x), ...)
+board_ui(id, x, plugins = board_plugins(x), options = NULL, ...)
 
 # S3 method for class '`NULL`'
 board_ui(id, x, ...)
@@ -43,7 +43,7 @@ remove_block_ui(id, x, blocks = NULL, ..., session = get_session())
 toolbar_ui(id, x, plugins = list(), ...)
 
 # S3 method for class 'board'
-toolbar_ui(id, x, plugins = list(), ...)
+toolbar_ui(id, x, plugins = list(), options = NULL, ...)
 ```
 
 ## Arguments
@@ -63,6 +63,11 @@ toolbar_ui(id, x, plugins = list(), ...)
 - plugins:
 
   UI for board plugins
+
+- options:
+
+  Board options (`NULL` defaults to the union of board, block and
+  registry sourced options)
 
 - blocks:
 

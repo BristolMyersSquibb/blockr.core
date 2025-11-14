@@ -13,9 +13,25 @@ serve(x, ...)
 serve(x, id = "block", ..., data = list())
 
 # S3 method for class 'board'
-serve(x, id = rand_names(), plugins = board_plugins(x), ...)
+serve(
+  x,
+  id = rand_names(),
+  plugins = blockr_app_plugins,
+  options = blockr_app_options,
+  ...
+)
+
+blockr_app_plugins(x)
+
+blockr_app_options(x)
+
+blockr_app_ui(id, x, ...)
+
+blockr_app_server(id, x, ...)
 
 get_serve_obj()
+
+enable_v2_restore()
 ```
 
 ## Arguments
@@ -39,6 +55,10 @@ get_serve_obj()
 - plugins:
 
   Board plugins
+
+- options:
+
+  Board options
 
 ## Value
 

@@ -78,6 +78,7 @@ additional observers.</p>
 <span>  <span class="va">id</span>,</span>
 <span>  <span class="va">x</span>,</span>
 <span>  plugins <span class="op">=</span> <span class="fu"><a href="new_plugin.html">board_plugins</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span>,</span>
+<span>  options <span class="op">=</span> <span class="fu"><a href="board_blocks.html">board_options</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span>,</span>
 <span>  callbacks <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  callback_location <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"end"</span>, <span class="st">"start"</span><span class="op">)</span>,</span>
 <span>  <span class="va">...</span></span>
@@ -102,6 +103,11 @@ additional observers.</p>
 
 <dt id="arg-plugins">plugins<a class="anchor" aria-label="anchor" href="#arg-plugins"></a></dt>
 <dd><p>Board plugins as modules</p></dd>
+
+
+<dt id="arg-options">options<a class="anchor" aria-label="anchor" href="#arg-options"></a></dt>
+<dd><p>Board options (<code>NULL</code> defaults to the union of board, block
+and registry sourced options)</p></dd>
 
 
 <dt id="arg-callbacks">callbacks<a class="anchor" aria-label="anchor" href="#arg-callbacks"></a></dt>

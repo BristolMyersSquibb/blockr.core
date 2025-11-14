@@ -19,6 +19,7 @@ board_server(
   id,
   x,
   plugins = board_plugins(x),
+  options = board_options(x),
   callbacks = list(),
   callback_location = c("end", "start"),
   ...
@@ -42,6 +43,11 @@ board_server(
 - plugins:
 
   Board plugins as modules
+
+- options:
+
+  Board options (`NULL` defaults to the union of board, block and
+  registry sourced options)
 
 - callbacks:
 

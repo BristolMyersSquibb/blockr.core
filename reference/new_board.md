@@ -20,6 +20,8 @@ new_board(
   stacks = list(),
   options = default_board_options(),
   ...,
+  ctor = NULL,
+  pkg = NULL,
   class = character()
 )
 
@@ -49,6 +51,10 @@ is_board(x)
 - ...:
 
   Further (metadata) attributes
+
+- ctor, pkg:
+
+  Constructor information (used for serialization)
 
 - class:
 

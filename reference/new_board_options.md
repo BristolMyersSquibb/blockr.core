@@ -11,6 +11,8 @@ checking is available as `is_board_options()` and coercion as
 ## Usage
 
 ``` r
+board_ctor(x)
+
 new_board_option(
   id,
   default,
@@ -54,26 +56,47 @@ board_option_ctor(x)
 # Default S3 method
 validate_board_option(x)
 
-new_board_name_option(value = NULL, ...)
+new_board_name_option(value = NULL, category = "Board options", ...)
 
-new_n_rows_option(value = blockr_option("n_rows", 50L), ...)
+new_n_rows_option(
+  value = blockr_option("n_rows", 50L),
+  category = "Table options",
+  ...
+)
 
-new_page_size_option(value = blockr_option("page_size", 5L), ...)
+new_page_size_option(
+  value = blockr_option("page_size", 5L),
+  category = "Table options",
+  ...
+)
 
-new_filter_rows_option(value = blockr_option("filter_rows", FALSE), ...)
+new_filter_rows_option(
+  value = blockr_option("filter_rows", FALSE),
+  category = "Table options",
+  ...
+)
 
-new_thematic_option(value = blockr_option("thematic", NULL), ...)
+new_thematic_option(
+  value = blockr_option("thematic", NULL),
+  category = "Theme options",
+  ...
+)
 
-new_dark_mode_option(value = blockr_option("dark_mode", NULL), ...)
+new_dark_mode_option(
+  value = blockr_option("dark_mode", NULL),
+  category = "Theme options",
+  ...
+)
 
 new_show_conditions_option(
   value = blockr_option("show_conditions", c("warning", "error")),
+  category = "Board options",
   ...
 )
 
 need_llm_cfg_opts(enable)
 
-new_llm_model_option(value = NULL, ...)
+new_llm_model_option(value = NULL, category = "Board options", ...)
 
 new_board_options(...)
 
@@ -117,9 +140,15 @@ get_board_option_values(
   if_not_found = c("error", "default", "null"),
   session = get_session()
 )
+
+combine_board_options(...)
 ```
 
 ## Arguments
+
+- x:
+
+  Board options object
 
 - id:
 
@@ -152,10 +181,6 @@ get_board_option_values(
 - ctor, pkg:
 
   Constructor information (used for serialization)
-
-- x:
-
-  Board options object
 
 - ...:
 
