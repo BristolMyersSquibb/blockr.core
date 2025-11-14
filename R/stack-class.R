@@ -17,6 +17,7 @@
 #' @param blocks Set of blocks
 #' @param name Stack name
 #' @param ... Extensibility
+#' @param ctor,pkg Constructor information (used for serialization)
 #' @param class (Optional) stack sub-class
 #'
 #' @examples
@@ -44,6 +45,7 @@
 #'
 #' @export
 new_stack <- function(blocks = character(), name = default_stack_name, ...,
+                      ctor = "new_stack", pkg = pkg_name(),
                       class = character()) {
 
   if (is_blocks(blocks)) {
@@ -65,7 +67,13 @@ new_stack <- function(blocks = character(), name = default_stack_name, ...,
   stopifnot(is_string(name))
 
   validate_stack(
-    structure(blocks, name = name, ..., class = c(class, "stack"))
+    structure(
+      blocks,
+      name = name,
+      ...,
+      ctor = new_blockr_ctor(NULL, ctor, pkg),
+      class = c(class, "stack")
+    )
   )
 }
 

@@ -19,6 +19,7 @@
 #' @param from,to Block ID(s)
 #' @param input Block argument
 #' @param ... Extensibility
+#' @param ctor,pkg Constructor information (used for serialization)
 #' @param class (Optional) link sub-class
 #'
 #' @examples
@@ -50,7 +51,8 @@
 #' an error.
 #'
 #' @export
-new_link <- function(from = "", to = "", input = "", ..., class = character()) {
+new_link <- function(from = "", to = "", input = "", ...,
+                     ctor = "new_link", pkg = pkg_name(), class = character()) {
 
   stopifnot(length(from) == length(to))
 
@@ -61,6 +63,7 @@ new_link <- function(from = "", to = "", input = "", ..., class = character()) {
   validate_link(
     new_vctr(
       list(from = from, to = to, input = input, ...),
+      ctor = new_blockr_ctor(NULL, ctor, pkg),
       class = c(class, "link")
     )
   )

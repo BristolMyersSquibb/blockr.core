@@ -216,7 +216,8 @@ blockr_ser.board <- function(x, board_id = NULL, ...) {
 blockr_ser.link <- function(x, ...) {
   list(
     object = class(x),
-    payload = as.list(x)
+    payload = as.list(x),
+    constructor = blockr_ser(attr(x, "ctor"))
   )
 }
 
@@ -234,7 +235,8 @@ blockr_ser.links <- function(x, ...) {
 blockr_ser.stack <- function(x, ...) {
   list(
     object = class(x),
-    payload = as.list(x)
+    payload = as.list(x),
+    constructor = blockr_ser(attr(x, "ctor"))
   )
 }
 
@@ -342,6 +344,12 @@ blockr_deser.board <- function(x, data, ...) {
 #' @rdname blockr_ser
 #' @export
 blockr_deser.link <- function(x, data, ...) {
+
+  if (all(c("constructor", "payload") %in% names(data))) {
+    ctor <- blockr_deser(data[["constructor"]])
+    return(do.call(ctor, data[["payload"]]))
+  }
+
   as_link(data[["payload"]])
 }
 
@@ -356,6 +364,12 @@ blockr_deser.links <- function(x, data, ...) {
 #' @rdname blockr_ser
 #' @export
 blockr_deser.stack <- function(x, data, ...) {
+
+  if (all(c("constructor", "payload") %in% names(data))) {
+    ctor <- blockr_deser(data[["constructor"]])
+    return(do.call(ctor, data[["payload"]]))
+  }
+
   as_stack(data[["payload"]])
 }
 
