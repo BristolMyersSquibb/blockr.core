@@ -15,8 +15,8 @@
 #' @param stacks Set of stacks
 #' @param options Board-level user settings
 #' @param ... Further (metadata) attributes
-#' @param class Board sub-class
 #' @param ctor,pkg Constructor information (used for serialization)
+#' @param class Board sub-class
 #'
 #' @examples
 #' brd <- new_board(

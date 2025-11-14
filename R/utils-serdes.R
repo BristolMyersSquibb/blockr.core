@@ -216,7 +216,8 @@ blockr_ser.board <- function(x, board_id = NULL, ...) {
 blockr_ser.link <- function(x, ...) {
   list(
     object = class(x),
-    payload = as.list(x)
+    payload = as.list(x),
+    constructor = blockr_ser(attr(x, "ctor"))
   )
 }
 
@@ -234,7 +235,8 @@ blockr_ser.links <- function(x, ...) {
 blockr_ser.stack <- function(x, ...) {
   list(
     object = class(x),
-    payload = as.list(x)
+    payload = as.list(x),
+    constructor = blockr_ser(attr(x, "ctor"))
   )
 }
 
@@ -342,6 +344,12 @@ blockr_deser.board <- function(x, data, ...) {
 #' @rdname blockr_ser
 #' @export
 blockr_deser.link <- function(x, data, ...) {
+
+  if (all(c("constructor", "payload") %in% names(data))) {
+    ctor <- blockr_deser(data[["constructor"]])
+    return(do.call(ctor, data[["payload"]]))
+  }
+
   as_link(data[["payload"]])
 }
 
@@ -356,6 +364,12 @@ blockr_deser.links <- function(x, data, ...) {
 #' @rdname blockr_ser
 #' @export
 blockr_deser.stack <- function(x, data, ...) {
+
+  if (all(c("constructor", "payload") %in% names(data))) {
+    ctor <- blockr_deser(data[["constructor"]])
+    return(do.call(ctor, data[["payload"]]))
+  }
+
   as_stack(data[["payload"]])
 }
 
@@ -388,8 +402,14 @@ blockr_deser.blockr_ctor <- function(x, data, ...) {
 
   if (is.null(pkg)) {
     new_blockr_ctor(unserialize(jsonlite::base64_dec(ctr)))
-  } else {
+  } else if (pkg_avail(pkg)) {
     new_blockr_ctor(NULL, ctr, pkg)
+  } else {
+    blockr_abort(
+      "Cannot deserialize object that depends on not installed ",
+      "package {pkg}",
+      class = "blockr_deser_missing_pkg"
+    )
   }
 }
 
