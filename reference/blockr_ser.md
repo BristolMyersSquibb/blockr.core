@@ -29,7 +29,7 @@ blockr_ser(x, option = NULL, ...)
 blockr_ser(x, option = NULL, ...)
 
 # S3 method for class 'board'
-blockr_ser(x, board_id = NULL, ...)
+blockr_ser(x, blocks = NULL, options = NULL, ...)
 
 # S3 method for class 'link'
 blockr_ser(x, ...)
@@ -104,10 +104,6 @@ blockr_deser(x, data, ...)
 - option:
 
   Board option value (`NULL` uses values provided by `x`)
-
-- board_id:
-
-  Board ID
 
 - data:
 
