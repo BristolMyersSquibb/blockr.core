@@ -9,14 +9,14 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    name: ${{ matrix.config.pkg }}
+    name: ${{ matrix.pkg }}
 
     strategy:
       fail-fast: false
       matrix:
         pkg: [
-          blockr.dock,
-          blockr.dag
+          BristolMyersSquibb/blockr.dock,
+          BristolMyersSquibb/blockr.dag
         ]
 
     env:
@@ -30,7 +30,7 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          repository: cynkra/${{ matrix.config.pkg }}
+          repository: ${{ matrix.pkg }}
           token: ${{ secrets.BLOCKR_PAT }}
           path: dep
 
