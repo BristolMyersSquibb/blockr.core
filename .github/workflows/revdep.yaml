@@ -14,8 +14,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        config:
-          - {pkg: 'blockr.ai'}
+        pkg: [
+          blockr.dock,
+          blockr.dag
+        ]
 
     env:
       GITHUB_PAT: ${{ secrets.BLOCKR_PAT }}
