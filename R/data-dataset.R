@@ -29,14 +29,20 @@ new_dataset_block <- function(dataset = character(), package = "datasets",
 
   list_packages_with_datasets <- function() {
     has_datasets <- function(pkg) {
-      result <- utils::data(package = pkg)$results
+      # Use throwaway environment to avoid polluting namespace
+      result <- utils::data(package = pkg, envir = new.env())$results
       !is.null(result) && nrow(result) > 0
     }
 
     all_pkgs <- rownames(installed.packages())
     pkgs_with_data <- all_pkgs[lgl_ply(all_pkgs, has_datasets)]
 
-    c("datasets", sort(setdiff(pkgs_with_data, "datasets")))
+    # Put 'datasets' first if it exists, otherwise just return sorted list
+    if ("datasets" %in% pkgs_with_data) {
+      c("datasets", sort(setdiff(pkgs_with_data, "datasets")))
+    } else {
+      sort(pkgs_with_data)
+    }
   }
 
   new_data_block(
