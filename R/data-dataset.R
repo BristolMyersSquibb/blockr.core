@@ -28,19 +28,15 @@ new_dataset_block <- function(dataset = character(), package = "datasets",
   }
 
   list_packages_with_datasets <- function() {
-    # Get all installed packages
-    pkgs <- rownames(installed.packages())
+    has_datasets <- function(pkg) {
+      result <- utils::data(package = pkg)$results
+      !is.null(result) && nrow(result) > 0
+    }
 
-    # Common packages known to have datasets
-    common_pkgs <- c("datasets", "ggplot2", "dplyr", "tidyr", "MASS",
-                     "boot", "lattice", "survival", "nycflights13",
-                     "cards", "gapminder")
+    all_pkgs <- rownames(installed.packages())
+    pkgs_with_data <- all_pkgs[lgl_ply(all_pkgs, has_datasets)]
 
-    # Filter to packages that exist and are likely to have data
-    available <- common_pkgs[common_pkgs %in% pkgs]
-
-    # Add datasets first, then sort the rest
-    c("datasets", sort(setdiff(available, "datasets")))
+    c("datasets", sort(setdiff(pkgs_with_data, "datasets")))
   }
 
   new_data_block(
