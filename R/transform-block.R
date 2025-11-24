@@ -18,7 +18,7 @@ new_transform_block <- function(server, ui, class, ctor = sys.parent(), ...) {
 
 #' @export
 block_output.transform_block <- function(x, result, session) {
-  dt_result(result, session)
+  dt_result(result, x, session)
 }
 
 #' @export

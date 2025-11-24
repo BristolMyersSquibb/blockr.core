@@ -1,4 +1,4 @@
-dt_result <- function(result, session) {
+dt_result <- function(result, block, session) {
 
   info_string <- function(total) {
     paste0(
@@ -12,8 +12,10 @@ dt_result <- function(result, session) {
     if (is.na(dat_row)) rows > page else min(dat_row, rows) > page
   }
 
-  rows <- get_board_option_or_default("n_rows", session = session)
-  page <- get_board_option_or_default("page_size", session = session)
+  default_opts <- board_options(block)
+
+  rows <- get_board_option_or_default("n_rows", default_opts, session)
+  page <- get_board_option_or_default("page_size", default_opts, session)
 
   dom <- "rti"
 
@@ -21,7 +23,7 @@ dt_result <- function(result, session) {
     dom <- paste0(dom, "p")
   }
 
-  if (get_board_option_or_default("filter_rows", session = session)) {
+  if (get_board_option_or_default("filter_rows", default_opts, session)) {
     dom <- paste0("f", dom)
   }
 

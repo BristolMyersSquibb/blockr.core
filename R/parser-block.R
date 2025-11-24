@@ -25,7 +25,7 @@ new_parser_block <- function(server, ui, class, ctor = sys.parent(),
 
 #' @export
 block_output.parser_block <- function(x, result, session) {
-  dt_result(result, session)
+  dt_result(result, x, session)
 }
 
 #' @export
