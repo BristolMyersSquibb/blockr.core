@@ -102,10 +102,6 @@ register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
     icon <- as.character(bsicons::bs_icon(icon))
   }
 
-  if (is.function(ctor)) {
-    package <- pkg_name(environment(ctor))
-  }
-
   ctor_name <- NULL
 
   if (is_string(ctor)) {
@@ -114,6 +110,7 @@ register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
     ctor <- get(ctor, asNamespace(package), mode = "function")
   } else {
     stopifnot(is.function(ctor), is.null(package))
+    package <- pkg_name(environment(ctor))
   }
 
   if (is.null(classes)) {
