@@ -621,37 +621,6 @@ default_chat <- function(system_prompt = NULL, params = NULL) {
   )
 }
 
-#' @param enable Enable (i.e. include) the llm model option
-#' @rdname new_board_options
-#' @export
-need_llm_cfg_opts <- local(
-  {
-    state <- FALSE
-    function(enable) {
-
-      .Deprecated("board_options", old = "need_llm_cfg_opts")
-
-      if (missing(enable)) {
-        return(state)
-      }
-
-      stopifnot(is_bool(enable))
-
-      if (isTRUE(enable) && !pkg_avail("ellmer")) {
-        blockr_abort(
-          "The ellmer package is required for including LLM options.",
-          class = "ellmer_required_not_available"
-        )
-      }
-
-      prev <- state
-      state <<- enable
-
-      invisible(prev)
-    }
-  }
-)
-
 #' @rdname new_board_options
 #' @export
 new_llm_model_option <- function(value = NULL, category = "Board options",

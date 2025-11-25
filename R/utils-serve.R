@@ -187,10 +187,7 @@ serve_board_srv <- function(id, plugins, options, ...) {
 
   function(input, output, session) {
 
-    onStop(
-      revert(trace_observe(), enable_v2_restore()),
-      session
-    )
+    onStop(revert(trace_observe()), session)
 
     x <- get_serve_obj()
     id <- coal(attr(x, "id"), id)
@@ -233,24 +230,6 @@ revert <- function(...) {
     invisible(
       map(do.call, what = funs, MoreArgs = list(args = list()))
     )
-  }
-}
-
-#' @rdname serve
-#' @export
-enable_v2_restore <- function() {
-
-  log_debug("setting v2 restore")
-
-  cur_opt <- options(blockr.board_restore = "v2")
-  cur_env <- Sys.getenv("BLOCKR_BOARD_RESTORE")
-
-  Sys.unsetenv("BLOCKR_BOARD_RESTORE")
-
-  function() {
-    log_debug("resetting restore version")
-    options(cur_opt)
-    Sys.setenv(BLOCKR_BOARD_RESTORE = cur_env)
   }
 }
 

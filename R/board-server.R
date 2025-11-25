@@ -259,49 +259,15 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
       )
 
       if (not_null(board_refresh)) {
-
-        vers <- blockr_option("board_restore", "v1")
-
-        if (identical(vers, "v1")) {
-
-          observeEvent(
-            board_refresh(),
-            {
-              log_debug("removing existing ui components")
-              remove_block_ui(ns(NULL), rv$board)
-
-              log_debug("refreshing rv$board")
-              rv$board <- refresh_board(board_refresh(), rv$board, session)
-
-              log_debug("inserting new ui components")
-              insert_block_ui(ns(NULL), rv$board, edit_ui = edit_block)
-
-              log_debug("refreshing board server")
-              setup_board(rv, edit_block, edit_stack, edit_plugin_args, session)
-
-              log_debug("completed board refresh")
-            }
-          )
-
-        } else if (identical(vers, "v2")) {
-
-          observeEvent(
-            board_refresh(),
-            {
-              log_debug("refreshing board")
-              update_serve_obj(board_refresh())
-              log_debug("reloading session")
-              session$reload()
-            }
-          )
-
-        } else {
-
-          blockr_abort(
-            "Unexpected restore version {vers}.",
-            class = "invalid_restore_version"
-          )
-        }
+        observeEvent(
+          board_refresh(),
+          {
+            log_debug("refreshing board")
+            update_serve_obj(board_refresh())
+            log_debug("reloading session")
+            session$reload()
+          }
+        )
       }
 
       call_plugin_server(

@@ -25,7 +25,6 @@
 \alias{new_thematic_option}
 \alias{new_dark_mode_option}
 \alias{new_show_conditions_option}
-\alias{need_llm_cfg_opts}
 \alias{new_llm_model_option}
 \alias{new_board_options}
 \alias{default_board_options}
@@ -126,8 +125,6 @@ new_show_conditions_option(
   ...
 )
 
-need_llm_cfg_opts(enable)
-
 new_llm_model_option(value = NULL, category = "Board options", ...)
 
 new_board_options(...)
@@ -193,8 +190,6 @@ combine_board_options(...)
 \item{...}{Options passed as individual arguments}
 
 \item{value}{Option value}
-
-\item{enable}{Enable (i.e. include) the llm model option}
 
 \item{opt}{Option name}
 

@@ -9,7 +9,6 @@
 \alias{blockr_app_ui}
 \alias{blockr_app_server}
 \alias{get_serve_obj}
-\alias{enable_v2_restore}
 \title{Serve object}
 \usage{
 serve(x, ...)
@@ -33,8 +32,6 @@ blockr_app_ui(id, x, ...)
 blockr_app_server(id, x, ...)
 
 get_serve_obj()
-
-enable_v2_restore()
 }
 \arguments{
 \item{x}{Object}
