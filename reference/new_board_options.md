@@ -17,7 +17,7 @@ new_board_option(
   id,
   default,
   ui,
-  server = function(board, session) {
+  server = function(board, ..., session) {
  },
   update_trigger = id,
   transform = identity,
@@ -93,8 +93,6 @@ new_show_conditions_option(
   category = "Board options",
   ...
 )
-
-need_llm_cfg_opts(enable)
 
 new_llm_model_option(value = NULL, category = "Board options", ...)
 
@@ -189,10 +187,6 @@ combine_board_options(...)
 - value:
 
   Option value
-
-- enable:
-
-  Enable (i.e. include) the llm model option
 
 - opt:
 

@@ -134,7 +134,6 @@ Utilities for creating an working with boards
   [`new_thematic_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
   [`new_dark_mode_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
   [`new_show_conditions_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
-  [`need_llm_cfg_opts()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
   [`new_llm_model_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
   [`new_board_options()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
   [`default_board_options()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
@@ -299,7 +298,6 @@ Various tools and utilities.
   [`blockr_app_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   [`blockr_app_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   [`get_serve_obj()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
-  [`enable_v2_restore()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   : Serve object
 - [`export_code()`](https://bristolmyerssquibb.github.io/blockr.core/reference/export_code.md)
   : Utilities for code export
