@@ -50,7 +50,7 @@ new_board_option(
   id,
   default,
   ui,
-  server = function(board, session) {
+  server = function(board, ..., session) {
  },
   update_trigger = id,
   transform = identity,

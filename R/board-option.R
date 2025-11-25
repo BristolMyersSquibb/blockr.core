@@ -10,7 +10,7 @@
 #' @rdname new_board_options
 #' @export
 new_board_option <- function(id, default, ui,
-                             server = function(board, session) {},
+                             server = function(board, ..., session) {},
                              update_trigger = id,
                              transform = identity,
                              category = NULL, ctor = sys.parent(),
@@ -149,7 +149,7 @@ validate_board_option.default <- function(x) {
   if (!is_string(board_option_id(x))) {
     blockr_abort(
       "Expecting a board option ID to be string-valued.",
-      class = "board_option_component_invalid"
+      class = "board_option_component_id_invalid"
     )
   }
 
@@ -159,7 +159,7 @@ validate_board_option.default <- function(x) {
     blockr_abort(
       "Expecting a board option trigger to be a non-zero length character",
       "vector or `NULL`.",
-      class = "board_option_component_invalid"
+      class = "board_option_component_trigger_invalid"
     )
   }
 
@@ -168,7 +168,7 @@ validate_board_option.default <- function(x) {
   if (!is.function(ui) || !identical(names(formals(ui)), "id")) {
     blockr_abort(
       "Expecting a board option UI function to have a single argument `id`.",
-      class = "board_option_component_invalid"
+      class = "board_option_component_ui_invalid"
     )
   }
 
@@ -177,7 +177,7 @@ validate_board_option.default <- function(x) {
   if (!is.function(srv)) {
     blockr_abort(
       "Expecting a board option server function to be a function.",
-      class = "board_option_component_invalid"
+      class = "board_option_component_server_invalid"
     )
   }
 
@@ -188,7 +188,7 @@ validate_board_option.default <- function(x) {
   if (len < 2L || !identical(arg[seq.int(len - 1L, len)], exp)) {
     blockr_abort(
       "Expecting a board option server function signature to end with {exp}.",
-      class = "board_option_component_invalid"
+      class = "board_option_component_server_invalid"
     )
   }
 
@@ -197,7 +197,7 @@ validate_board_option.default <- function(x) {
   if (!is.function(tfm) || !identical(names(formals(tfm)), "x")) {
     blockr_abort(
       "Expecting a board option transform to have a single argument `x`.",
-      class = "board_option_component_invalid"
+      class = "board_option_component_transform_invalid"
     )
   }
 
@@ -615,10 +615,7 @@ validate_board_option.show_conditions_option <- function(x) {
 }
 
 default_chat <- function(system_prompt = NULL, params = NULL) {
-  ellmer::chat_openai(
-    system_prompt = system_prompt,
-    params = params
-  )
+  ellmer::chat_openai(system_prompt = system_prompt, params = params)
 }
 
 #' @rdname new_board_options
