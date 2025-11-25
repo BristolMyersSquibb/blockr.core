@@ -600,33 +600,6 @@ add_blocks_to_stacks <- function(rv, add, session) {
   invisible()
 }
 
-refresh_board <- function(new, old, session) {
-
-  new_opts <- board_options(new)
-  old_opts <- board_options(old)
-
-  removed <- setdiff(names(new_opts), names(old_opts))
-
-  if (length(removed)) {
-    notify("Ignoring option{?s} {removed} during restore.", duration = NULL)
-  }
-
-  reset <- setdiff(names(old_opts), names(new_opts))
-
-  if (length(reset)) {
-    notify("Resetting option{?s} {reset} to initial values.", duration = NULL)
-  }
-
-  board_options(new) <- c(
-    new_opts[setdiff(names(new_opts), removed)],
-    old_opts[reset]
-  )
-
-  update_board_options(new, session)
-
-  new
-}
-
 validate_board_update <- function(x, rv) {
 
   if (!is.reactive(x)) {

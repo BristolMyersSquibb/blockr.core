@@ -234,29 +234,6 @@ board_options_to_userdata <- function(options, ...) {
   invisible()
 }
 
-update_board_options <- function(new, session = get_session()) {
-
-  new <- as_board_options(new)
-
-  val <- set_names(
-    lapply(new, board_option_value),
-    chr_ply(new, board_option_id)
-  )
-
-  env <- session$userData
-
-  stopifnot(
-    exists("board_options", envir = env, inherits = FALSE),
-    all(names(val) %in% names(env$board_options))
-  )
-
-  for (i in names(val)) {
-    env$board_options[[i]](val[[i]])
-  }
-
-  invisible()
-}
-
 #' @param opt Option name
 #' @param session Shiny session
 #' @rdname new_board_options
