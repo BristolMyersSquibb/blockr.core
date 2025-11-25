@@ -58,6 +58,14 @@
 <li>Add <code><a href="../reference/new_transform_block.html">new_fixed_block()</a></code> for applying a fixed (i.e. non-paramtetrized) transformation to data input.</li>
 <li>Board server callbacks are invoked with an additional argument <code>session</code>.</li>
 <li>Export assertion utilities such as <code><a href="../reference/assertions.html">is_string()</a></code>, <code><a href="../reference/assertions.html">is_count()</a></code>, etc.</li>
+<li>Improved ser/des, which now includes package/constructor information for all board, blocks, stacks and options. The corresponsing infra</li>
+<li>Board options now contain UI/server components to provide more options for customization. Also blocks can require certain options to be available.</li>
+<li>Introduces <code><a href="../reference/block_server.html">block_render_trigger()</a></code> to control per block class when to re-render the block output.</li>
+<li>Rework of block notifications to provide a <code><a href="https://rdrr.io/pkg/shiny/man/reactiveValues.html" class="external-link">reactiveValues()</a></code> object containing notification types a separate components.</li>
+<li>Auto-ID generation can now be customized with a default provided by the ids package (if available).</li>
+<li>Use the glue package for logging/block notifications; add a glue-based text block.</li>
+<li>New board restore mechanism based on <code>session$reload()</code>.</li>
+<li>Improvements to the registry: block icons and a fixed set of categories.</li>
 </ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.0" id="blockrcore-010">blockr.core 0.1.0<a class="anchor" aria-label="anchor" href="#blockrcore-010"></a></h2><p class="text-muted">CRAN release: 2025-05-20</p>
