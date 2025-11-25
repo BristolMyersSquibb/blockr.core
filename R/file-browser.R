@@ -69,7 +69,7 @@ filebrowser_volumes <- function(default = c(home = path.expand("~"))) {
 
   res <- blockr_option("volumes", default)
 
-  if (is_string(res) && grepl(":", res)) {
+  if (is_string(res) && grepl(":", res, fixed = TRUE)) {
     res <- strsplit(res, ":", fixed = TRUE)[[1L]]
   }
 

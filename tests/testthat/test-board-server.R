@@ -222,3 +222,19 @@ test_that("update validation", {
     }
   )
 })
+
+test_that("board server utils", {
+
+  expect_identical(
+    bs_theme_colors(MockShinySession$new()),
+    list(bg = "auto", fg = "auto", accent = "auto")
+  )
+
+  expect_named(
+    withr::with_options(
+      list(bslib_theme = bslib::bs_theme()),
+      bs_theme_colors(MockShinySession$new())
+    ),
+    c("bg", "fg", "accent")
+  )
+})

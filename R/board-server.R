@@ -293,11 +293,15 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
       if (all(c("thematic", "dark_mode") %in% names(options))) {
         observeEvent(
-          get_board_option_values("thematic", "dark_mode"),
+          get_board_option_values(
+            c("thematic", "dark_mode"),
+            opts = options,
+            if_not_found = "null"
+          ),
           {
-            if (isTRUE(get_board_option_value("thematic"))) {
+            if (isTRUE(get_board_option_or_null("thematic"))) {
               do.call(thematic::thematic_shiny, bs_theme_colors(session))
-            } else if (isFALSE(get_board_option_value("thematic"))) {
+            } else if (isFALSE(get_board_option_or_null("thematic"))) {
               thematic::thematic_off()
             }
           }
@@ -327,7 +331,7 @@ bs_theme_colors <- function(session) {
 
     vars <- c("body-bg", "body-color", "link-color")
 
-    if (identical(get_board_option_value("dark_mode"), "dark")) {
+    if (identical(get_board_option_or_null("dark_mode"), "dark")) {
       vars <- paste0(vars, "-dark")
     }
   }

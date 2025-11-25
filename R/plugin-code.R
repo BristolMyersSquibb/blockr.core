@@ -132,6 +132,8 @@ highlight_deps <- function() {
 
 add_blank_targets <- function(html) {
 
+  log_debug("adding blank targets to syntax highlighted code")
+
   doc <- xml2::read_html(html)
 
   links <- xml2::xml_find_all(doc, ".//pre//a")
