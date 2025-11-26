@@ -140,11 +140,14 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         board_update(),
         {
           log_debug("starting board update")
-          validate_board_update(board_update, rv)
+          validate_board_update(board_update, rv$board)
           log_debug("board update validated")
 
           log_debug("preprocessing board update")
-          preprocess_board_update(board_update, rv$board)
+          if (!preprocess_board_update(board_update, rv$board)) {
+            log_debug("validating board links against board")
+            validate_board_update_links_board(board_update, rv$board)
+          }
         },
         priority = Inf
       )
@@ -600,7 +603,7 @@ add_blocks_to_stacks <- function(rv, add, session) {
   invisible()
 }
 
-validate_board_update <- function(x, rv) {
+validate_board_update <- function(x, board) {
 
   if (!is.reactive(x)) {
     blockr_abort(
@@ -650,23 +653,23 @@ validate_board_update <- function(x, rv) {
   }
 
   if ("blocks" %in% names(res)) {
-    validate_board_update_blocks(res$blocks, rv)
+    validate_board_update_blocks(res$blocks, board)
   }
 
   if ("links" %in% names(res)) {
-    validate_board_update_links(res$links, rv)
+    validate_board_update_links(res$links, board)
   }
 
   if ("stacks" %in% names(res)) {
-    validate_board_update_stacks(res$stacks, rv)
+    validate_board_update_stacks(res$stacks, board)
   }
 
   invisible()
 }
 
-validate_board_update_blocks <- function(x, rv) {
+validate_board_update_blocks <- function(x, board) {
 
-  all_ids <- board_block_ids(rv$board)
+  all_ids <- board_block_ids(board)
 
   if ("rm" %in% names(x) && is.character(x$rm)) {
     cur_ids <- setdiff(all_ids, x$rm)
@@ -744,9 +747,9 @@ validate_board_update_blocks <- function(x, rv) {
   invisible()
 }
 
-validate_board_update_links <- function(x, rv) {
+validate_board_update_links <- function(x, board) {
 
-  all_ids <- board_link_ids(rv$board)
+  all_ids <- board_link_ids(board)
 
   if ("rm" %in% names(x) && is.character(x$rm)) {
     cur_ids <- setdiff(all_ids, x$rm)
@@ -824,9 +827,44 @@ validate_board_update_links <- function(x, rv) {
   invisible()
 }
 
-validate_board_update_stacks <- function(x, rv) {
+validate_board_update_links_board <- function(x, board) {
 
-  all_ids <- board_stack_ids(rv$board)
+  upd <- x()
+
+  if ("links" %in% names(upd)) {
+    lnk <- upd$links
+  } else {
+    return(invisible())
+  }
+
+  all_ids <- board_link_ids(board)
+
+  if ("rm" %in% names(lnk) && is.character(lnk$rm)) {
+    cur_ids <- setdiff(all_ids, lnk$rm)
+  } else {
+    cur_ids <- all_ids
+  }
+
+  if ("add" %in% names(lnk) && !is.null(lnk$add)) {
+    validate_board_blocks_links(
+      board_blocks(board),
+      c(board_links(board)[cur_ids], lnk$add)
+    )
+  }
+
+  if ("mod" %in% names(lnk) && !is.null(lnk$mod)) {
+    validate_board_blocks_links(
+      board_blocks(board),
+      c(board_links(board)[setdiff(cur_ids, names(lnk$mod))], lnk$mod)
+    )
+  }
+
+  invisible()
+}
+
+validate_board_update_stacks <- function(x, board) {
+
+  all_ids <- board_stack_ids(board)
 
   if ("rm" %in% names(x) && is.character(x$rm)) {
     cur_ids <- setdiff(all_ids, x$rm)
@@ -852,6 +890,11 @@ validate_board_update_stacks <- function(x, rv) {
     }
 
     validate_stacks(x$add)
+
+    validate_board_blocks_stacks(
+      board_blocks(board),
+      c(board_stacks(board)[cur_ids], x$add)
+    )
 
     if ("mod" %in% names(x) && !is.null(x$mod)) {
       if (length(intersect(names(x$add), names(x$mod)))) {
@@ -899,6 +942,11 @@ validate_board_update_stacks <- function(x, rv) {
     }
 
     validate_stacks(x$mod)
+
+    validate_board_blocks_stacks(
+      board_blocks(board),
+      c(board_stacks(board)[setdiff(cur_ids, names(x$mod))], x$mod)
+    )
   }
 
   invisible()
@@ -914,7 +962,7 @@ preprocess_board_update <- function(update, board) {
 
     links <- board_links(board)
 
-    miss_lnk <- setdiff(
+    mis_lnk <- setdiff(
       names(links[links$from %in% rm | links$to %in% rm]),
       upd$links$rm
     )
@@ -936,13 +984,37 @@ preprocess_board_update <- function(update, board) {
 
   } else {
 
-    miss_lnk <- NULL
+    mis_lnk <- NULL
     upd_stk <- NULL
   }
 
-  if (length(miss_lnk)) {
-    log_debug("adding link removal{?s} for {miss_lnk}")
-    upd$links$rm <- c(miss_lnk, upd$links$rm)
+  add_lnk <- NULL
+
+  if ("links" %in% names(upd) && "add" %in% names(upd$links)) {
+
+    tmp <- complete_unary_inputs(upd$links$add, board_blocks(board))
+    tmp <- complete_variadic_inputs(tmp, board_blocks(board))
+
+    if (!identical(tmp$input, upd$links$add$input)) {
+      add_lnk <- tmp
+    }
+  }
+
+  upd_lnk <- NULL
+
+  if ("links" %in% names(upd) && "mod" %in% names(upd$links)) {
+
+    tmp <- complete_unary_inputs(upd$links$mod, board_blocks(board))
+    tmp <- complete_variadic_inputs(tmp, board_blocks(board))
+
+    if (!identical(tmp$input, upd$links$mod$input)) {
+      upd_lnk <- tmp
+    }
+  }
+
+  if (length(mis_lnk)) {
+    log_debug("adding link removal{?s} for {mis_lnk}")
+    upd$links$rm <- c(mis_lnk, upd$links$rm)
   }
 
   if (length(upd_stk)) {
@@ -950,9 +1022,26 @@ preprocess_board_update <- function(update, board) {
     upd$stacks$mod <- c(upd_stk, upd$stacks$mod)
   }
 
-  if (length(miss_lnk) || length(upd_stk)) {
-    update(upd)
+  if (length(add_lnk)) {
+    log_debug("adding link input update{?s} for {names(add_lnk)}")
+    upd$links$add <- c(
+      add_lnk,
+      upd$links$add[setdiff(names(upd$links$add), names(add_lnk))]
+    )
   }
 
-  invisible()
+  if (length(upd_lnk)) {
+    log_debug("adding link input update{?s} for {names(upd_lnk)}")
+    upd$links$mod <- c(
+      upd_lnk,
+      upd$links$mod[setdiff(names(upd$links$mod), names(upd_lnk))]
+    )
+  }
+
+  if (length(mis_lnk) + length(upd_stk) + length(add_lnk) + length(upd_lnk)) {
+    update(upd)
+    return(TRUE)
+  }
+
+  FALSE
 }
