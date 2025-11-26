@@ -45,6 +45,9 @@ test_that("block server", {
     },
     args = list(x = idt, data = list(data = function() iris))
   )
+})
+
+test_that("block conditions", {
 
   new_conds_block <- function() {
     new_transform_block(

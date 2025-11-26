@@ -24,6 +24,14 @@ new_condition <- function(x, as_list = TRUE) {
   list(res)
 }
 
+is_block_cnd <- function(x) {
+  inherits(x, "block_cnd")
+}
+
+is_list_of_block_cnds <- function(x) {
+  is.list(x) && all(lgl_ply(x, is_block_cnd))
+}
+
 empty_block_condition <- function() {
   list(
     error = list(),
