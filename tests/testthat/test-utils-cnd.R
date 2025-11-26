@@ -2,57 +2,52 @@ test_that("conditions", {
 
   with_mock_session(
     {
-      vals <- reactiveValues(test = character())
+      vals <- reactiveValues(test = NULL)
 
       res <- withr::with_options(
         list(blockr.show_conditions = c("warning", "error")),
-        isolate(
-          capture_conditions(
-            {
-              message("hello")
-              warning("test1")
-              warning("test2")
-              stop("bye")
-            },
-            rv = vals,
-            slot = "test",
-            error_val = NULL
-          )
+        capture_conditions(
+          {
+            message("hello")
+            warning("test1")
+            warning("test2")
+            stop("bye")
+          },
+          rv = vals,
+          slot = "test",
+          error_val = NULL
         )
       )
 
       expect_null(res)
 
-      cnds <- isolate(vals$test)
+      cnds <- vals$test
 
-      expect_named(cnds, c("message", "warning", "error"))
+      expect_named(cnds, c("warning", "error"), ignore.order = TRUE)
 
-      expect_length(cnds$message, 0L)
       expect_length(cnds$warning, 2L)
       expect_length(cnds$error, 1L)
 
       res <- withr::with_options(
         list(blockr.show_conditions = c("message", "warning", "error")),
-        isolate(
-          capture_conditions(
-            {
-              message("hello")
-              warning("test1")
-              warning("test2")
-              stop("bye")
-            },
-            rv = vals,
-            slot = "test",
-            error_val = NULL
-          )
+        capture_conditions(
+          {
+            message("hello")
+            warning("test1")
+            warning("test2")
+            stop("bye")
+          },
+          rv = vals,
+          slot = "test",
+          error_val = NULL
         )
       )
 
       expect_null(res)
 
-      cnds <- isolate(vals$test)
+      cnds <- vals$test
 
-      expect_named(cnds, c("message", "warning", "error"))
+      expect_named(cnds, c("message", "warning", "error"), ignore.order = TRUE)
 
       expect_length(cnds$message, 1L)
       expect_length(cnds$warning, 2L)

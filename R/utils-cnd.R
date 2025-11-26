@@ -127,14 +127,18 @@ capture_conditions <- function(expr, rv, slot, error_val = NULL,
     is_string(slot), slot %in% names(rv)
   )
 
-  cond <- list2env(empty_block_condition())
-
   cnds <- coal(
     isolate(
       get_board_option_or_null("show_conditions", session)
     ),
-    blockr_option("show_conditions", c("warning", "error"))
+    match.arg(
+      blockr_option("show_conditions", c("warning", "error")),
+      c("message", "warning", "error"),
+      several.ok = TRUE
+    )
   )
+
+  cond <- list2env(empty_block_condition()[cnds])
 
   res <- tryCatch(
     withCallingHandlers(
@@ -146,26 +150,26 @@ capture_conditions <- function(expr, rv, slot, error_val = NULL,
   )
 
   cond <- as.list(cond)
-  curr <- rv[[slot]]
+  curr <- set_names(
+    coal(rv[[slot]], empty_block_condition())[cnds],
+    cnds
+  )
 
-  if (all(lengths(cond) == 0L) && !length(curr)) {
-    return(res)
-  }
-
-  if (length(curr)) {
+  if (any(lengths(cond))) {
 
     chk <- lgl_mply(
-      setequal,
+      Negate(setequal),
       lapply(cond, chr_ply, attr, "id"),
       lapply(curr, chr_ply, attr, "id")
     )
 
-    if (all(chk)) {
-      return(res)
+    if (any(chk)) {
+      rv[[slot]] <- cond
     }
-  }
 
-  rv[[slot]] <- cond
+  } else if (any(lengths(curr) > 0L)) {
+    rv[[slot]] <- empty_block_condition()[cnds]
+  }
 
   res
 }

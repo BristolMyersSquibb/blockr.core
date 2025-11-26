@@ -111,7 +111,7 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         )
       )
 
-      block_cond_observer(exp, cond)
+      block_cond_observer(exp, cond, session)
 
       c(
         list(
@@ -339,44 +339,53 @@ output_render_observer <- function(x, res, cond, sess) {
   )
 }
 
-block_cond_observer <- function(exp, cond) {
+block_cond_observer <- function(exp, cond, sess) {
 
   if ("cond" %in% names(exp)) {
 
     conds <- reactive(
-      reactiveValuesToList(exp[["cond"]])
+      {
+        include <- coal(
+          get_board_option_or_null("show_conditions", sess),
+          match.arg(
+            blockr_option("show_conditions", c("warning", "error")),
+            c("message", "warning", "error"),
+            several.ok = TRUE
+          )
+        )
+        set_names(
+          lapply(reactiveValuesToList(exp[["cond"]])[include], coal, list()),
+          include
+        )
+      }
     )
 
     observeEvent(
       conds(),
       {
         new_cnds <- conds()
-        cur_cnds <- cond$block
+        cur_cnds <- set_names(
+          coal(cond$block, empty_block_condition())[names(new_cnds)],
+          names(new_cnds)
+        )
 
         if (any(lengths(new_cnds))) {
 
           new_cnds <- lapply(new_cnds, lapply, new_condition,
                              as_list = FALSE)
 
-          if (!length(cur_cnds)) {
+          chk <- lgl_mply(
+            Negate(setequal),
+            lapply(new_cnds, chr_ply, attr, "id"),
+            lapply(cur_cnds, chr_ply, attr, "id")
+          )
 
+          if (any(chk)) {
             cond$block <- new_cnds
-
-          } else {
-
-            chk <- lgl_mply(
-              Negate(setequal),
-              lapply(new_cnds, chr_ply, attr, "id"),
-              lapply(cur_cnds, chr_ply, attr, "id")
-            )
-
-            if (any(chk)) {
-              cond$block <- new_cnds
-            }
           }
 
-        } else if (length(cur_cnds) && !all(lengths(cur_cnds) == 0L)) {
-          cond$block <- empty_block_condition()
+        } else if (any(lengths(cur_cnds) > 0L)) {
+          cond$block <- empty_block_condition()[names(new_cnds)]
         }
       }
     )
