@@ -146,7 +146,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
           log_debug("preprocessing board update")
           if (!preprocess_board_update(board_update, rv$board)) {
             log_debug("validating board links against board")
-            validate_board_update_links_board(board_update, rv$board)
+            validate_update_links_board(board_update, rv$board)
           }
         },
         priority = Inf
@@ -827,7 +827,7 @@ validate_board_update_links <- function(x, board) {
   invisible()
 }
 
-validate_board_update_links_board <- function(x, board) {
+validate_update_links_board <- function(x, board) {
 
   upd <- x()
 

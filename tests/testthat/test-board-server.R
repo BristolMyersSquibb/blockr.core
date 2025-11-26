@@ -344,7 +344,7 @@ test_that("update validation", {
       )
 
       expect_error(
-        validate_board_update_links_board(
+        validate_update_links_board(
           reactiveVal(
             list(
               links = list(
@@ -363,7 +363,7 @@ test_that("update validation", {
       )
 
       expect_error(
-        validate_board_update_links_board(
+        validate_update_links_board(
           reactiveVal(
             list(
               links = list(
