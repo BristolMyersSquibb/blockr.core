@@ -201,7 +201,7 @@ test_that("add/rm stacks return validation", {
           reactiveVal(list(stacks = list(add = "a"))),
           new_board()
         ),
-        class = "board_update_stacks_add_invalid"
+        class = "board_update_add_component_invalid"
       )
 
       expect_error(
@@ -222,7 +222,7 @@ test_that("add/rm stacks return validation", {
           reactiveVal(list(stacks = list(rm = 1))),
           new_board()
         ),
-        class = "board_update_stacks_rm_invalid"
+        class = "board_update_rm_component_invalid"
       )
 
       expect_error(

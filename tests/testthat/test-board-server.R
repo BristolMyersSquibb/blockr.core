@@ -250,7 +250,7 @@ test_that("update validation", {
           ),
           new_board(blocks(a = new_dataset_block()))
         ),
-        class = "board_update_blocks_mod_invalid"
+        class = "board_update_mod_component_invalid"
       )
 
       expect_error(
@@ -321,7 +321,7 @@ test_that("update validation", {
             )
           )
         ),
-        class = "board_update_links_mod_invalid"
+        class = "board_update_mod_component_invalid"
       )
 
       expect_error(
@@ -418,7 +418,7 @@ test_that("update validation", {
             blocks(a = new_dataset_block())
           )
         ),
-        class = "board_update_stacks_mod_invalid"
+        class = "board_update_mod_component_invalid"
       )
 
       expect_error(

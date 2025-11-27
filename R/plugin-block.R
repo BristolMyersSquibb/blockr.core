@@ -312,39 +312,6 @@ block_summary.block <- function(x, data) {
   paste0("&lt;", type, dims, "&gt;")
 }
 
-check_edit_block_val <- function(val) {
-
-  observeEvent(
-    TRUE,
-    {
-      if (!is.list(val)) {
-        blockr_abort(
-          "Expecting `edit_block` to return a list.",
-          class = "edit_block_return_invalid"
-        )
-      }
-    },
-    once = TRUE
-  )
-
-  observeEvent(
-    TRUE,
-    {
-      known <- block_base_attrs()
-      if (!all(names(val) %in% known)) {
-        blockr_abort(
-          "Not expecting `edit_block` to return components ",
-          "{setdiff(names(val), known)}.",
-          class = "edit_block_return_invalid"
-        )
-      }
-    },
-    once = TRUE
-  )
-
-  val
-}
-
 type_desc <- function(x) {
   if (is.object(x)) {
     class(x)[[1]]

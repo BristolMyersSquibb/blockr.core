@@ -107,7 +107,7 @@ test_that("add/rm blocks return validation", {
           reactiveVal(list(blocks = list(add = "a"))),
           new_board()
         ),
-        class = "board_update_blocks_add_invalid"
+        class = "board_update_add_component_invalid"
       )
 
       expect_error(
@@ -125,7 +125,7 @@ test_that("add/rm blocks return validation", {
           reactiveVal(list(blocks = list(rm = 1))),
           new_board()
         ),
-        class = "board_update_blocks_rm_invalid"
+        class = "board_update_rm_component_invalid"
       )
 
       expect_error(

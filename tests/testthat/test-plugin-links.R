@@ -201,7 +201,7 @@ test_that("add/rm links return validation", {
           reactiveVal(list(links = list(add = "a"))),
           new_board()
         ),
-        class = "board_update_links_add_invalid"
+        class = "board_update_add_component_invalid"
       )
 
       expect_error(
@@ -222,7 +222,7 @@ test_that("add/rm links return validation", {
           reactiveVal(list(links = list(rm = 1))),
           new_board()
         ),
-        class = "board_update_links_rm_invalid"
+        class = "board_update_rm_component_invalid"
       )
 
       expect_error(
