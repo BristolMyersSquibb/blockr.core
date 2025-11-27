@@ -225,7 +225,7 @@ test_that("misc", {
     "b",
     withr::with_options(
       list(blockr.test_opt = "b"),
-        withr::with_envvar(
+      withr::with_envvar(
         list(BLOCKR_TEST_OPT = "b"),
         blockr_option("test_opt", "a")
       )
@@ -235,7 +235,7 @@ test_that("misc", {
   expect_error(
     withr::with_options(
       list(blockr.test_opt = "b"),
-        withr::with_envvar(
+      withr::with_envvar(
         list(BLOCKR_TEST_OPT = "c"),
         blockr_option("test_opt", "a")
       )
