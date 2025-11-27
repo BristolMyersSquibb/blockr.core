@@ -166,13 +166,6 @@ validate_board <- function(x) {
 #' @export
 validate_board.board <- function(x) {
 
-  if (!is_board(x)) {
-    blockr_abort(
-      "Expecting a board object to inherit from \"baord\".",
-      class = "board_inheritance_invalid"
-    )
-  }
-
   if (!is.list(x)) {
     blockr_abort(
       "Expecting a board object to be list-like.",
