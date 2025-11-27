@@ -154,3 +154,76 @@ test_that("block conditions", {
     )
   )
 })
+
+test_that("block expr validation", {
+
+  blk <- new_dataset_block()
+
+  expect_error(
+    check_expr_val(NULL, blk),
+    class = "expr_server_return_type_invalid"
+  )
+
+  expect_error(
+    check_expr_val(list(), blk),
+    class = "expr_server_return_required_component_missing"
+  )
+
+  expect_error(
+    check_expr_val(list(expr = "a", state = "b"), blk),
+    class = "expr_server_return_expr_invalid"
+  )
+
+  expect_error(
+    check_expr_val(list(expr = reactiveVal(), state = "b"), blk),
+    class = "expr_server_return_state_invalid"
+  )
+
+  expect_error(
+    check_expr_val(list(expr = reactiveVal(), state = reactiveVal()), blk),
+    class = "expr_server_return_state_invalid"
+  )
+
+  expect_error(
+    check_expr_val(
+      list(
+        expr = reactiveVal(),
+        state = list(dataset = reactiveVal("a"), package = reactiveVal("b")),
+        cond = NULL
+      ),
+      blk
+    ),
+    class = "expr_server_return_cond_invalid"
+  )
+
+  expect_error(
+    with_mock_session(
+      check_expr_val(
+        list(
+          expr = reactiveVal(),
+          state = list(dataset = reactiveVal("a"), package = reactiveVal("b")),
+          cond = reactiveValues(foo = "abc")
+        ),
+        blk
+      )
+    ),
+    class = "expr_server_return_cond_invalid"
+  )
+
+  with_mock_session(
+    {
+      check_expr_val(
+        list(
+          expr = reactiveVal(),
+          state = list(
+            dataset = reactiveVal("a"),
+            package = reactiveVal("b")
+          ),
+          cond = reactiveValues(message = 123)
+        ),
+        blk
+      )
+      sink_msg(expect_warning(session$flushReact()))
+    }
+  )
+})
