@@ -163,18 +163,6 @@ lst_xtr_reval <- function(x, ...) {
   lapply(lst_xtr(x, ...), reval)
 }
 
-last <- function(x) x[[length(x)]]
-
-int_to_chr <- function(x) {
-
-  stopifnot(is_intish(x))
-
-  chr_ply(
-    lapply(strsplit(as.character(x), ""), as.integer),
-    function(i) paste0(letters[i + 1L], collapse = "")
-  )
-}
-
 #' @param recursive,use_names See [base::unlist()]
 #' @rdname set_names
 #' @export
@@ -263,10 +251,6 @@ dot_args_names <- function(x) {
   }
 
   res
-}
-
-dot_args_to_list <- function(x) {
-  set_names(reactiveValuesToList(x), dot_args_names(x))
 }
 
 # https://github.com/rstudio/shiny/issues/3768

@@ -71,10 +71,11 @@ test_that("exprs_to_lang", {
 
 test_that("rand_names()", {
 
-  id <- rand_names(n = 1L)
+  id_1 <- rand_names(n = 1L)
 
-  expect_type(id, "character")
-  expect_length(id, 1L)
+  expect_type(id_1, "character")
+  expect_length(id_1, 1L)
+  expect_true(grepl("_", id_1, fixed = TRUE))
 
   expect_identical(
     rand_names(n = 1L, id_fun = function(n) rep("a", n)),
@@ -90,6 +91,22 @@ test_that("rand_names()", {
     rand_names("a", n = 1L, max_tries = 5, id_fun = function(n) rep("a", n)),
     class = "id_creation_unsuccessful"
   )
+
+  id_2 <- with_mocked_bindings(
+    rand_names(),
+    pkg_avail = function(x) {
+      if (identical(x, "ids")) {
+        FALSE
+      } else {
+        requireNamespace(x, quietly = TRUE)
+      }
+    }
+  )
+
+  expect_identical(nchar(id_2), 8L)
+  expect_type(id_2, "character")
+  expect_length(id_2, 1L)
+  expect_false(grepl("_", id_2, fixed = TRUE))
 })
 
 test_that("sentence case", {
@@ -169,5 +186,73 @@ test_that("sentence case", {
       c("thinCuteDove", "gold-busy-rail", "key_sick_puma", "left.tart.naga")
     ),
     c("Thin cute dove", "Gold busy rail", "Key sick puma", "Left tart naga")
+  )
+})
+
+test_that("misc", {
+
+  expect_identical(paste_enum(character()), character())
+
+  expect_error(
+    coal(NULL),
+    class = "coal_null_return_disallowed"
+  )
+
+  res_1 <- withr::with_options(
+    list(blockr.test_opt = "b"),
+    blockr_option("test_opt", "a")
+  )
+
+  expect_identical("a", blockr_option("test_opt", "a"))
+
+  expect_identical(
+    "b",
+    withr::with_options(
+      list(blockr.test_opt = "b"),
+      blockr_option("test_opt", "a")
+    )
+  )
+
+  expect_identical(
+    "b",
+    withr::with_envvar(
+      list(BLOCKR_TEST_OPT = "b"),
+      blockr_option("test_opt", "a")
+    )
+  )
+
+  expect_identical(
+    "b",
+    withr::with_options(
+      list(blockr.test_opt = "b"),
+        withr::with_envvar(
+        list(BLOCKR_TEST_OPT = "b"),
+        blockr_option("test_opt", "a")
+      )
+    )
+  )
+
+  expect_error(
+    withr::with_options(
+      list(blockr.test_opt = "b"),
+        withr::with_envvar(
+        list(BLOCKR_TEST_OPT = "c"),
+        blockr_option("test_opt", "a")
+      )
+    ),
+    class = "conflicing_blockr_option"
+  )
+
+  expect_s3_class(
+    new_blockr_ctor("blockr.core::new_dataset_block"),
+    "blockr_ctor"
+  )
+
+  expect_identical(forward_ctor(1L), -2L)
+
+  # test for namespaced ctor in `resolve_ctor()`
+  expect_s3_class(
+    blockr.core::new_dataset_block(),
+    "block"
   )
 })
