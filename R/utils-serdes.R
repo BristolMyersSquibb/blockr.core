@@ -169,7 +169,7 @@ blockr_ser.board_option <- function(x, option = NULL, ...) {
 
   if (length(unknown)) {
     blockr_abort(
-      "Unrecognized option argument{?s} {unknown} for option ",
+      "Unrecognized option {qty(unknown)} argument{?s} {unknown} for option ",
       "{board_option_id(x)}.",
       class = "option_value_arg_name_mismatch"
     )
@@ -313,44 +313,39 @@ blockr_deser.blocks <- function(x, data, ...) {
 #' @export
 blockr_deser.board <- function(x, data, ...) {
 
-  if (all(c("constructor", "payload") %in% names(data))) {
-
-    ctor <- blockr_deser(data[["constructor"]])
-
-    args <- c(
-      lapply(data[["payload"]], blockr_deser),
-      list(
-        ctor = coal(ctor_name(ctor), ctor_fun(ctor)),
-        pkg = ctor_pkg(ctor)
-      )
-    )
-
-    res <- do.call(ctor_fun(ctor), args)
-
-    attr(res, "id") <- data[["id"]]
-
-    return(res)
-  }
-
-  new_board(
-    blocks = blockr_deser(data[["blocks"]]),
-    links = blockr_deser(data[["links"]]),
-    stacks = blockr_deser(data[["stacks"]]),
-    options = blockr_deser(data[["options"]]),
-    class = setdiff(class(x), "board")
+  stopifnot(
+    all(c("constructor", "payload") %in% names(data))
   )
+
+  ctor <- blockr_deser(data[["constructor"]])
+
+  args <- c(
+    lapply(data[["payload"]], blockr_deser),
+    list(
+      ctor = coal(ctor_name(ctor), ctor_fun(ctor)),
+      pkg = ctor_pkg(ctor)
+    )
+  )
+
+  res <- do.call(ctor_fun(ctor), args)
+
+  attr(res, "id") <- data[["id"]]
+
+  res
 }
 
 #' @rdname blockr_ser
 #' @export
 blockr_deser.link <- function(x, data, ...) {
 
-  if (all(c("constructor", "payload") %in% names(data))) {
-    ctor <- blockr_deser(data[["constructor"]])
-    return(do.call(ctor, data[["payload"]]))
-  }
+  stopifnot(
+    all(c("constructor", "payload") %in% names(data))
+  )
 
-  as_link(data[["payload"]])
+  do.call(
+    blockr_deser(data[["constructor"]]),
+    data[["payload"]]
+  )
 }
 
 #' @rdname blockr_ser
@@ -365,12 +360,14 @@ blockr_deser.links <- function(x, data, ...) {
 #' @export
 blockr_deser.stack <- function(x, data, ...) {
 
-  if (all(c("constructor", "payload") %in% names(data))) {
-    ctor <- blockr_deser(data[["constructor"]])
-    return(do.call(ctor, data[["payload"]]))
-  }
+  stopifnot(
+    all(c("constructor", "payload") %in% names(data))
+  )
 
-  as_stack(data[["payload"]])
+  do.call(
+    blockr_deser(data[["constructor"]]),
+    data[["payload"]]
+  )
 }
 
 #' @rdname blockr_ser
@@ -401,7 +398,7 @@ blockr_deser.blockr_ctor <- function(x, data, ...) {
   ctr <- data[["constructor"]]
 
   if (is.null(pkg)) {
-    new_blockr_ctor(unserialize(jsonlite::base64_dec(ctr)))
+    new_blockr_ctor(unserialize(ctr))
   } else if (pkg_avail(pkg)) {
     new_blockr_ctor(NULL, ctr, pkg)
   } else {

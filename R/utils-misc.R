@@ -412,12 +412,16 @@ new_blockr_ctor <- function(fun, nme = NULL, pkg = NULL) {
 
   stopifnot(is_string(nme), is_string(pkg))
 
-  if (is.null(fun)) {
-    fun <- get0(nme, asNamespace(pkg), mode = "function",
-                inherits = FALSE)
-  }
+  structure(
+    coal(fun, get_ctor_from_pkg(nme, pkg)),
+    fun = nme,
+    pkg = pkg,
+    class = "blockr_ctor"
+  )
+}
 
-  structure(fun, fun = nme, pkg = pkg, class = "blockr_ctor")
+get_ctor_from_pkg <- function(name, package) {
+  get0(name, asNamespace(package), mode = "function", inherits = FALSE)
 }
 
 #' @rdname rand_names
