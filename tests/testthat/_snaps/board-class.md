@@ -1,4 +1,4 @@
-# block constructor
+# board constructor
 
     Code
       print(board)
