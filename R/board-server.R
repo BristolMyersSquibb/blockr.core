@@ -829,34 +829,64 @@ validate_board_update_links <- function(x, board) {
 
 validate_update_links_board <- function(x, board) {
 
+  has_comp <- function(comp, x) {
+    comp %in% names(x) && !is.null(x[[comp]])
+  }
+
+  has_comps <- function(comps, x, fun = `||`) {
+    Reduce(fun, lgl_ply(comps, has_comp, x))
+  }
+
   upd <- x()
 
-  if ("links" %in% names(upd)) {
+  if (has_comp("links", upd)) {
     lnk <- upd$links
   } else {
     return(invisible())
   }
 
-  all_ids <- board_link_ids(board)
+  if (has_comps(c("add", "mod"), lnk)) {
 
-  if ("rm" %in% names(lnk) && is.character(lnk$rm)) {
-    cur_ids <- setdiff(all_ids, lnk$rm)
-  } else {
-    cur_ids <- all_ids
-  }
+    all_blks <- board_blocks(board)
 
-  if ("add" %in% names(lnk) && !is.null(lnk$add)) {
-    validate_board_blocks_links(
-      board_blocks(board),
-      c(board_links(board)[cur_ids], lnk$add)
-    )
-  }
+    if (has_comp("blocks", upd)) {
 
-  if ("mod" %in% names(lnk) && !is.null(lnk$mod)) {
-    validate_board_blocks_links(
-      board_blocks(board),
-      c(board_links(board)[setdiff(cur_ids, names(lnk$mod))], lnk$mod)
-    )
+      blk <- upd$blocks
+
+      if (has_comp("rm", blk)) {
+        all_blks <- all_blks[setdiff(names(all_blks), blk$rm)]
+      }
+
+      if (has_comp("add", blk)) {
+        all_blks <- c(all_blks, blk$add)
+      }
+
+      if (has_comp("mod", blk)) {
+        all_blks <- c(
+          all_blks[setdiff(names(all_blks), names(blk$mod))],
+          blk$mod
+        )
+      }
+    }
+
+    all_lnks <- board_links(board)
+
+    if (has_comp("rm", lnk)) {
+      all_lnks <- all_lnks[setdiff(names(all_lnks), lnk$rm)]
+    }
+
+    if (has_comp("add", lnk)) {
+      all_lnks <- c(all_lnks, lnk$add)
+    }
+
+    if (has_comp("mod", lnk)) {
+      all_lnks <- c(
+        all_lnks[setdiff(names(all_lnks), names(lnk$mod))],
+        lnk$mod
+      )
+    }
+
+    validate_board_blocks_links(all_blks, all_lnks)
   }
 
   invisible()
