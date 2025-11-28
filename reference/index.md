@@ -291,6 +291,7 @@ Various tools and utilities.
   [`id_to_sentence_case()`](https://bristolmyerssquibb.github.io/blockr.core/reference/rand_names.md)
   : Random IDs
 - [`blockr_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_option.md)
+  [`set_blockr_options()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_option.md)
   : Blockr Options
 - [`serve()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   [`blockr_app_plugins()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)

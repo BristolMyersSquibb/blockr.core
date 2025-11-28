@@ -13,6 +13,8 @@ given `name`, `default` is returned.
 
 ``` r
 blockr_option(name, default)
+
+set_blockr_options(...)
 ```
 
 ## Arguments
@@ -24,6 +26,10 @@ blockr_option(name, default)
 - default:
 
   Default value
+
+- ...:
+
+  Option key value pairs as named arguments
 
 ## Value
 
