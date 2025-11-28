@@ -29,7 +29,7 @@ blockr_app_ui(id, x, ...)
 
 blockr_app_server(id, x, ...)
 
-get_serve_obj()
+get_serve_obj(id = NULL)
 ```
 
 ## Arguments
