@@ -169,7 +169,7 @@ serve_board_ui <- function(id, plugins, options, ...) {
 
   function() {
 
-    x <- get_serve_obj()
+    x <- get_serve_obj("reload")
     id <- coal(attr(x, "id"), id)
 
     log_debug("building ui for board {id}")
@@ -189,7 +189,7 @@ serve_board_srv <- function(id, plugins, options, ...) {
 
     onStop(revert(trace_observe()), session)
 
-    x <- get_serve_obj()
+    x <- get_serve_obj("reload")
     id <- coal(attr(x, "id"), id)
 
     res <- do.call(
@@ -213,15 +213,32 @@ serve_board_srv <- function(id, plugins, options, ...) {
 
 serve_obj <- new.env()
 
-update_serve_obj <- function(x) {
-  assign("x", x, envir = serve_obj)
+update_serve_obj <- function(x, id = "initial") {
+  assign(id, x, envir = serve_obj)
   invisible(x)
+}
+
+is_reloading <- function(id = "reload") {
+  exists(id, envir = serve_obj, inherits = FALSE)
+}
+
+finalize_reload <- function(id = "reload") {
+
+  if (is_reloading(id)) {
+    rm(list = id, envir = serve_obj, inherits = FALSE)
+    return(invisible(TRUE))
+  }
+
+  invisible(FALSE)
 }
 
 #' @rdname serve
 #' @export
-get_serve_obj <- function() {
-  get("x", envir = serve_obj, inherits = FALSE)
+get_serve_obj <- function(id = NULL) {
+  coal(
+    get0(coal(id, "initial"), envir = serve_obj, inherits = FALSE),
+    get("initial", envir = serve_obj, inherits = FALSE)
+  )
 }
 
 revert <- function(...) {

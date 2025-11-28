@@ -35,6 +35,8 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
                                callback_location = c("end", "start"),
                                ...) {
 
+  finalize_reload("reload")
+
   plugins <- as_plugins(plugins)
 
   if (is.function(callbacks)) {
@@ -265,8 +267,20 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         observeEvent(
           board_refresh(),
           {
+            while (is_reloading("reload")) {
+              notify(
+                "Reload in progress.",
+                duration = NULL,
+                id = session$token
+              )
+              Sys.sleep(5)
+            }
+
+            removeNotification(session$token)
+
             log_debug("refreshing board")
-            update_serve_obj(board_refresh())
+            update_serve_obj(board_refresh(), "reload")
+
             log_debug("reloading session")
             session$reload()
           }
