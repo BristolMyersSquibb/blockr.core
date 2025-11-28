@@ -243,6 +243,46 @@ test_that("misc", {
     class = "conflicing_blockr_option"
   )
 
+  withr::defer(
+    {
+      Sys.unsetenv("BLOCKR_TEST_OPT")
+      options(`blockr.test_opt` = NULL)
+    }
+  )
+
+  expect_null(set_blockr_options())
+
+  withr::with_options(
+    list(blockr.test_opt = NULL),
+    expect_identical(
+      set_blockr_options(test_opt = "a"),
+      list(blockr.test_opt = NULL)
+    )
+  )
+
+  withr::with_options(
+    list(blockr.test_opt = "a"),
+    expect_identical(
+      set_blockr_options(test_opt = "b"),
+      list(blockr.test_opt = "a")
+    )
+  )
+
+  withr::with_envvar(
+    list(BLOCKR_TEST_OPT = "b"),
+    withr::with_options(
+      list(blockr.test_opt = "a"),
+      {
+        expect_identical(
+          set_blockr_options(test_opt = "c"),
+          list(blockr.test_opt = "a")
+        )
+        expect_identical(blockr_option("test_opt"), "c")
+        expect_identical(Sys.getenv("BLOCKR_TEST_OPT"), "")
+      }
+    )
+  )
+
   expect_s3_class(
     new_blockr_ctor("blockr.core::new_dataset_block"),
     "blockr_ctor"

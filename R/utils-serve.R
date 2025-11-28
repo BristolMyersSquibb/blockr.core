@@ -225,7 +225,7 @@ get_serve_obj <- function() {
 }
 
 revert <- function(...) {
-  funs <- list(...)
+  funs <- Filter(is.function, list(...))
   function() {
     invisible(
       map(do.call, what = funs, MoreArgs = list(args = list()))

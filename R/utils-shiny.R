@@ -91,15 +91,15 @@ invalidate_inputs <- function(session = get_session()) {
 
 destroy_observers <- function(ns_prefix, session = get_session()) {
 
-  if (isFALSE(blockr_option("observe_hook_disabled", NULL))) {
-    return(invisible())
+  if (isTRUE(blockr_option("observe_hook_disabled", FALSE))) {
+    return(invisible(FALSE))
   }
 
   obs <- get0("observers", envir = session$userData)
 
   if (is.null(obs)) {
     log_debug("cannot destroy uncaptured observers")
-    return(invisible())
+    return(invisible(FALSE))
   }
 
   for (i in starts_with(names(obs), ns_prefix)) {
@@ -118,7 +118,7 @@ destroy_observers <- function(ns_prefix, session = get_session()) {
 
   assign("observers", obs, envir = session$userData)
 
-  invisible()
+  invisible(TRUE)
 }
 
 destroy_module <- function(id, what = c("inputs", "outputs", "observers"),
@@ -147,12 +147,12 @@ destroy_module <- function(id, what = c("inputs", "outputs", "observers"),
 
 trace_observe <- function() {
 
-  if (isFALSE(blockr_option("observe_hook_disabled", NULL))) {
-    return(invisible())
+  if (isTRUE(blockr_option("observe_hook_disabled", FALSE))) {
+    return(invisible(FALSE))
   }
 
   if (is_observe_traced()) {
-    return(invisible())
+    return(invisible(FALSE))
   }
 
   log_debug("hooking observer capturing")
@@ -201,19 +201,19 @@ trace_observe <- function() {
 
 untrace_observe <- function() {
 
-  if (isFALSE(blockr_option("observe_hook_disabled", NULL))) {
-    return(invisible())
+  if (isTRUE(blockr_option("observe_hook_disabled", FALSE))) {
+    return(invisible(FALSE))
   }
 
   if (!is_observe_traced()) {
-    return(invisible())
+    return(invisible(FALSE))
   }
 
   log_debug("removing observer capture hook")
 
   suppressMessages(untrace(shiny::observe))
 
-  invisible()
+  invisible(TRUE)
 }
 
 is_observe_traced <- function() {

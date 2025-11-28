@@ -236,6 +236,36 @@ blockr_option <- function(name, default) {
   )
 }
 
+#' @param ... Option key value pairs as named arguments
+#' @rdname blockr_option
+#' @export
+set_blockr_options <- function(...) {
+
+  if (...length() == 0L) {
+    return(invisible())
+  }
+
+  vals <- list(...)
+  name <- names(vals)
+
+  stopifnot(
+    length(vals) == length(name),
+    all(nzchar(name)),
+    anyDuplicated(name) == 0L
+  )
+
+  env <- toupper(paste0("blockr_", name))
+  evl <- nzchar(Sys.getenv(env))
+
+  if (any(evl)) {
+    Sys.unsetenv(env[evl])
+  }
+
+  names(vals) <- tolower(paste0("blockr.", name))
+
+  do.call(options, vals)
+}
+
 dot_args_names <- function(x) {
 
   res <- names(x)
