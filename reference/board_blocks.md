@@ -14,7 +14,7 @@ board_blocks(x) <- value
 
 board_block_ids(x)
 
-rm_blocks(x, rm)
+rm_blocks(x, rm, ..., session = get_session())
 
 board_links(x)
 
@@ -22,7 +22,14 @@ board_links(x) <- value
 
 board_link_ids(x)
 
-modify_board_links(x, add = NULL, rm = NULL, mod = NULL)
+modify_board_links(
+  x,
+  add = NULL,
+  rm = NULL,
+  mod = NULL,
+  ...,
+  session = get_session()
+)
 
 board_stacks(x)
 
@@ -30,7 +37,14 @@ board_stacks(x) <- value
 
 board_stack_ids(x)
 
-modify_board_stacks(x, add = NULL, rm = NULL, mod = NULL)
+modify_board_stacks(
+  x,
+  add = NULL,
+  rm = NULL,
+  mod = NULL,
+  ...,
+  session = get_session()
+)
 
 board_options(x)
 
@@ -58,6 +72,14 @@ available_stack_blocks(
 - rm:
 
   Block/link/stack IDs to remove
+
+- ...:
+
+  Further arguments they may be passed from the board server context
+
+- session:
+
+  Shiny session object
 
 - add:
 

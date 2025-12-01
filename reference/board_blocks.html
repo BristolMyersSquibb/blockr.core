@@ -65,7 +65,7 @@ modifying board options are documented in <code><a href="new_board_options.html"
 <span></span>
 <span><span class="fu">board_block_ids</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">rm_blocks</span><span class="op">(</span><span class="va">x</span>, <span class="va">rm</span><span class="op">)</span></span>
+<span><span class="fu">rm_blocks</span><span class="op">(</span><span class="va">x</span>, <span class="va">rm</span>, <span class="va">...</span>, session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">board_links</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span></span>
@@ -73,7 +73,14 @@ modifying board options are documented in <code><a href="new_board_options.html"
 <span></span>
 <span><span class="fu">board_link_ids</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">modify_board_links</span><span class="op">(</span><span class="va">x</span>, add <span class="op">=</span> <span class="cn">NULL</span>, rm <span class="op">=</span> <span class="cn">NULL</span>, mod <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
+<span><span class="fu">modify_board_links</span><span class="op">(</span></span>
+<span>  <span class="va">x</span>,</span>
+<span>  add <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  rm <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  mod <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  <span class="va">...</span>,</span>
+<span>  session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">board_stacks</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span></span>
@@ -81,7 +88,14 @@ modifying board options are documented in <code><a href="new_board_options.html"
 <span></span>
 <span><span class="fu">board_stack_ids</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">modify_board_stacks</span><span class="op">(</span><span class="va">x</span>, add <span class="op">=</span> <span class="cn">NULL</span>, rm <span class="op">=</span> <span class="cn">NULL</span>, mod <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
+<span><span class="fu">modify_board_stacks</span><span class="op">(</span></span>
+<span>  <span class="va">x</span>,</span>
+<span>  add <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  rm <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  mod <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  <span class="va">...</span>,</span>
+<span>  session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">board_options</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span></span>
@@ -110,6 +124,14 @@ modifying board options are documented in <code><a href="new_board_options.html"
 
 <dt id="arg-rm">rm<a class="anchor" aria-label="anchor" href="#arg-rm"></a></dt>
 <dd><p>Block/link/stack IDs to remove</p></dd>
+
+
+<dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
+<dd><p>Further arguments they may be passed from the board server context</p></dd>
+
+
+<dt id="arg-session">session<a class="anchor" aria-label="anchor" href="#arg-session"></a></dt>
+<dd><p>Shiny session object</p></dd>
 
 
 <dt id="arg-add">add<a class="anchor" aria-label="anchor" href="#arg-add"></a></dt>
