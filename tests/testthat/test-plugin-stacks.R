@@ -164,18 +164,16 @@ test_that("add/rm stacks return validation", {
         list(stacks = list(add = stacks(a = "a"), rm = "ab"))
       )
 
-      rv <- list(
-        board = new_board(
-          blocks = c(
-            a = new_dataset_block("iris"),
-            b = new_subset_block()
-          ),
-          stacks = stacks(ab = c("a", "b"))
-        )
+      brd <- new_board(
+        blocks = c(
+          a = new_dataset_block("iris"),
+          b = new_subset_block()
+        ),
+        stacks = stacks(ab = c("a", "b"))
       )
 
       expect_null(
-        validate_board_update(val, rv)
+        validate_board_update(val, brd)
       )
     }
   )
@@ -185,7 +183,7 @@ test_that("add/rm stacks return validation", {
       expect_error(
         validate_board_update(
           reactiveVal(list(stacks = "a")),
-          list()
+          new_board()
         ),
         class = "board_update_component_type_invalid"
       )
@@ -193,7 +191,7 @@ test_that("add/rm stacks return validation", {
       expect_error(
         validate_board_update(
           reactiveVal(list(stacks = list(abc = NULL))),
-          list()
+          new_board()
         ),
         class = "board_update_component_components_invalid"
       )
@@ -201,9 +199,9 @@ test_that("add/rm stacks return validation", {
       expect_error(
         validate_board_update(
           reactiveVal(list(stacks = list(add = "a"))),
-          list(board = new_board())
+          new_board()
         ),
-        class = "board_update_stacks_add_invalid"
+        class = "board_update_add_component_invalid"
       )
 
       expect_error(
@@ -211,11 +209,9 @@ test_that("add/rm stacks return validation", {
           reactiveVal(
             list(stacks = list(add = stacks(a = new_stack())))
           ),
-          list(
-            board = new_board(
-              blocks = c(a = new_dataset_block()),
-              stacks = stacks(a = "a")
-            )
+          new_board(
+            blocks = c(a = new_dataset_block()),
+            stacks = stacks(a = "a")
           )
         ),
         class = "board_update_stacks_add_invalid"
@@ -224,15 +220,15 @@ test_that("add/rm stacks return validation", {
       expect_error(
         validate_board_update(
           reactiveVal(list(stacks = list(rm = 1))),
-          list(board = new_board())
+          new_board()
         ),
-        class = "board_update_stacks_rm_invalid"
+        class = "board_update_rm_component_invalid"
       )
 
       expect_error(
         validate_board_update(
           reactiveVal(list(stacks = list(rm = "a"))),
-          list(board = new_board())
+          new_board()
         ),
         class = "board_update_stacks_rm_invalid"
       )

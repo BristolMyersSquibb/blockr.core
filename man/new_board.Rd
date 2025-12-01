@@ -12,6 +12,8 @@ new_board(
   stacks = list(),
   options = default_board_options(),
   ...,
+  ctor = NULL,
+  pkg = NULL,
   class = character()
 )
 
@@ -29,6 +31,8 @@ is_board(x)
 \item{options}{Board-level user settings}
 
 \item{...}{Further (metadata) attributes}
+
+\item{ctor, pkg}{Constructor information (used for serialization)}
 
 \item{class}{Board sub-class}
 

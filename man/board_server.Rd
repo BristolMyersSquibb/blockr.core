@@ -11,6 +11,7 @@ board_server(id, x, ...)
   id,
   x,
   plugins = board_plugins(x),
+  options = board_options(x),
   callbacks = list(),
   callback_location = c("end", "start"),
   ...
@@ -24,6 +25,9 @@ board_server(id, x, ...)
 \item{...}{Generic consistency}
 
 \item{plugins}{Board plugins as modules}
+
+\item{options}{Board options (\code{NULL} defaults to the union of board, block
+and registry sourced options)}
 
 \item{callbacks}{Single (or list of) callback function(s), called only
 for their side-effects)}

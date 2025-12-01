@@ -33,16 +33,19 @@ board_ui <- function(id, x, ...) {
 }
 
 #' @param plugins UI for board plugins
+#' @param options Board options (`NULL` defaults to the union of board, block
+#' and registry sourced options)
 #' @rdname board_ui
 #' @export
-board_ui.board <- function(id, x, plugins = board_plugins(x), ...) {
+board_ui.board <- function(id, x, plugins = board_plugins(x), options = NULL,
+                           ...) {
 
   plugin_if_exists <- function(nme) {
     if (nme %in% names(plugins)) plugins[[nme]]
   }
 
   tagList(
-    toolbar_ui(id, x, plugins),
+    toolbar_ui(id, x, plugins, options),
     board_ui(id, plugins[["notify_user"]], x),
     div(
       id = paste0(id, "_board"),
@@ -196,7 +199,7 @@ toolbar_ui <- function(id, x, plugins = list(), ...) {
 
 #' @rdname board_ui
 #' @export
-toolbar_ui.board <- function(id, x, plugins = list(), ...) {
+toolbar_ui.board <- function(id, x, plugins = list(), options = NULL, ...) {
 
   plugins <- as_plugins(plugins)
 
@@ -205,13 +208,23 @@ toolbar_ui.board <- function(id, x, plugins = list(), ...) {
 
   toolbar_plugins <- plugins[intersect(toolbar_plugins, names(plugins))]
 
+  if (is.null(options)) {
+    options <- combine_board_options(
+      board_options(x),
+      lapply(board_blocks(x), board_options),
+      lapply(available_blocks(), board_options)
+    )
+  }
+
+  stopifnot(is_board_options(options))
+
   toolbar_ui <- do.call(
     tagList,
     list(
       board_ui(id, toolbar_plugins, x),
       bslib::popover(
         bsicons::bs_icon("gear", size = "1.5em"),
-        board_ui(id, as_board_options(x)),
+        board_ui(id, options),
         title = "Board options"
       )
     )

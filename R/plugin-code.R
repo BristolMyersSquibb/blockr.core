@@ -52,13 +52,12 @@ generate_code_server <- function(id, board, ...) {
           hl <- pkg_avail("downlit", "xml2")
 
           if (hl) {
-            pre <- add_blank_targets(
-              downlit::highlight(
-                out,
-                classes = downlit::classes_chroma(),
-                pre_class = "chroma"
-              )
+            pre <- downlit::highlight(
+              out,
+              classes = downlit::classes_chroma(),
+              pre_class = "chroma"
             )
+            pre <- HTML(add_blank_targets(pre))
           } else {
             pre <- pre(out)
           }
@@ -71,7 +70,7 @@ generate_code_server <- function(id, board, ...) {
                 id = session$ns(id),
                 class = "text-decoration-none position-relative",
                 if (cp) copy_to_clipboard(session, id),
-                HTML(pre)
+                pre
               ),
               easyClose = TRUE,
               footer = NULL,
@@ -132,6 +131,8 @@ highlight_deps <- function() {
 }
 
 add_blank_targets <- function(html) {
+
+  log_debug("adding blank targets to syntax highlighted code")
 
   doc <- xml2::read_html(html)
 

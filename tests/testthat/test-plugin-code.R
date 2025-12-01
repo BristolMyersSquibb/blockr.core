@@ -3,7 +3,7 @@ test_that("generate code", {
   board <- new_board(
     blocks = c(
       a = new_dataset_block("BOD"),
-      b = new_dataset_block("BOD"),
+      b = new_dataset_block("ChickWeight"),
       c = new_merge_block(by = "Time")
     ),
     links = links(
@@ -20,6 +20,8 @@ test_that("generate code", {
 
       expect_type(res, "character")
       expect_length(res, 1L)
+
+      session$setInputs(code_mod = 1)
     },
     args = generate_plugin_args(board)
   )

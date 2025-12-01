@@ -40,7 +40,7 @@ new_fixed_block <- function(expr, ...) {
 }
 
 #' @export
-as.list.fixed_block <- function(x, state = NULL, ...) {
+blockr_ser.fixed_block <- function(x, ...) {
   res <- NextMethod()
   res$payload$expr <- paste(deparse(res$payload$expr), collapse = "\n")
   res

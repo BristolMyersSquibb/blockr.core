@@ -17,7 +17,7 @@
 
 board_ui(id, x, ...)
 
-\method{board_ui}{board}(id, x, plugins = board_plugins(x), ...)
+\method{board_ui}{board}(id, x, plugins = board_plugins(x), options = NULL, ...)
 
 \method{board_ui}{`NULL`}(id, x, ...)
 
@@ -31,7 +31,7 @@ remove_block_ui(id, x, blocks = NULL, ..., session = get_session())
 
 toolbar_ui(id, x, plugins = list(), ...)
 
-\method{toolbar_ui}{board}(id, x, plugins = list(), ...)
+\method{toolbar_ui}{board}(id, x, plugins = list(), options = NULL, ...)
 }
 \arguments{
 \item{id}{Namespace ID}
@@ -41,6 +41,9 @@ toolbar_ui(id, x, plugins = list(), ...)
 \item{...}{Generic consistency}
 
 \item{plugins}{UI for board plugins}
+
+\item{options}{Board options (\code{NULL} defaults to the union of board, block
+and registry sourced options)}
 
 \item{blocks}{(Additional) blocks (or IDs) for which to generate the UI}
 

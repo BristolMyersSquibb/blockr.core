@@ -140,7 +140,7 @@ blockr_ser.board_option <- function(x, option = NULL, ...) {
   }
 
   ctor <- board_option_ctor(x)
-  name <- setdiff(names(formals(ctor)), "...")
+  name <- setdiff(names(formals(ctor)), c("...", "category"))
 
   if (is.null(names(val))) {
 
@@ -169,7 +169,7 @@ blockr_ser.board_option <- function(x, option = NULL, ...) {
 
   if (length(unknown)) {
     blockr_abort(
-      "Unrecognized option argument{?s} {unknown} for option ",
+      "Unrecognized option {qty(unknown)} argument{?s} {unknown} for option ",
       "{board_option_id(x)}.",
       class = "option_value_arg_name_mismatch"
     )
@@ -193,16 +193,21 @@ blockr_ser.llm_model_option <- function(x, option = NULL, ...) {
   )
 }
 
+#' @param board_id Board ID
 #' @rdname blockr_ser
 #' @export
-blockr_ser.board <- function(x, blocks = NULL, options = NULL, ...) {
+blockr_ser.board <- function(x, board_id = NULL, ...) {
+
+  stopifnot(is.null(board_id) || is_string(board_id))
+
   list(
     object = class(x),
-    blocks = blockr_ser(board_blocks(x), blocks),
-    links = blockr_ser(board_links(x)),
-    stacks = blockr_ser(board_stacks(x)),
-    options = blockr_ser(as_board_options(x), options),
-    version = as.character(pkg_version())
+    payload = Map(
+      blockr_ser, x, list(...)[names(x)]
+    ),
+    constructor = blockr_ser(board_ctor(x)),
+    version = as.character(pkg_version()),
+    id = board_id
   )
 }
 
@@ -211,7 +216,8 @@ blockr_ser.board <- function(x, blocks = NULL, options = NULL, ...) {
 blockr_ser.link <- function(x, ...) {
   list(
     object = class(x),
-    payload = as.list(x)
+    payload = as.list(x),
+    constructor = blockr_ser(attr(x, "ctor"))
   )
 }
 
@@ -229,7 +235,8 @@ blockr_ser.links <- function(x, ...) {
 blockr_ser.stack <- function(x, ...) {
   list(
     object = class(x),
-    payload = as.list(x)
+    payload = as.list(x),
+    constructor = blockr_ser(attr(x, "ctor"))
   )
 }
 
@@ -305,19 +312,40 @@ blockr_deser.blocks <- function(x, data, ...) {
 #' @rdname blockr_ser
 #' @export
 blockr_deser.board <- function(x, data, ...) {
-  new_board(
-    blocks = blockr_deser(data[["blocks"]]),
-    links = blockr_deser(data[["links"]]),
-    stacks = blockr_deser(data[["stacks"]]),
-    options = blockr_deser(data[["options"]]),
-    class = setdiff(class(x), "board")
+
+  stopifnot(
+    all(c("constructor", "payload") %in% names(data))
   )
+
+  ctor <- blockr_deser(data[["constructor"]])
+
+  args <- c(
+    lapply(data[["payload"]], blockr_deser),
+    list(
+      ctor = coal(ctor_name(ctor), ctor_fun(ctor)),
+      pkg = ctor_pkg(ctor)
+    )
+  )
+
+  res <- do.call(ctor_fun(ctor), args)
+
+  attr(res, "id") <- data[["id"]]
+
+  res
 }
 
 #' @rdname blockr_ser
 #' @export
 blockr_deser.link <- function(x, data, ...) {
-  as_link(data[["payload"]])
+
+  stopifnot(
+    all(c("constructor", "payload") %in% names(data))
+  )
+
+  do.call(
+    blockr_deser(data[["constructor"]]),
+    data[["payload"]]
+  )
 }
 
 #' @rdname blockr_ser
@@ -331,7 +359,15 @@ blockr_deser.links <- function(x, data, ...) {
 #' @rdname blockr_ser
 #' @export
 blockr_deser.stack <- function(x, data, ...) {
-  as_stack(data[["payload"]])
+
+  stopifnot(
+    all(c("constructor", "payload") %in% names(data))
+  )
+
+  do.call(
+    blockr_deser(data[["constructor"]]),
+    data[["payload"]]
+  )
 }
 
 #' @rdname blockr_ser
@@ -362,9 +398,15 @@ blockr_deser.blockr_ctor <- function(x, data, ...) {
   ctr <- data[["constructor"]]
 
   if (is.null(pkg)) {
-    new_blockr_ctor(unserialize(jsonlite::base64_dec(ctr)))
-  } else {
+    new_blockr_ctor(unserialize(ctr))
+  } else if (pkg_avail(pkg)) {
     new_blockr_ctor(NULL, ctr, pkg)
+  } else {
+    blockr_abort(
+      "Cannot deserialize object that depends on not installed ",
+      "package {pkg}",
+      class = "blockr_deser_missing_pkg"
+    )
   }
 }
 

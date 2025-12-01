@@ -19,6 +19,8 @@ new_stack(
   blocks = character(),
   name = default_stack_name,
   ...,
+  ctor = "new_stack",
+  pkg = pkg_name(),
   class = character()
 )
 
@@ -50,6 +52,8 @@ as_stacks(x, ...)
 \item{name}{Stack name}
 
 \item{...}{Extensibility}
+
+\item{ctor, pkg}{Constructor information (used for serialization)}
 
 \item{class}{(Optional) stack sub-class}
 

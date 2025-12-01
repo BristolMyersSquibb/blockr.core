@@ -163,18 +163,6 @@ lst_xtr_reval <- function(x, ...) {
   lapply(lst_xtr(x, ...), reval)
 }
 
-last <- function(x) x[[length(x)]]
-
-int_to_chr <- function(x) {
-
-  stopifnot(is_intish(x))
-
-  chr_ply(
-    lapply(strsplit(as.character(x), ""), as.integer),
-    function(i) paste0(letters[i + 1L], collapse = "")
-  )
-}
-
 #' @param recursive,use_names See [base::unlist()]
 #' @rdname set_names
 #' @export
@@ -248,6 +236,36 @@ blockr_option <- function(name, default) {
   )
 }
 
+#' @param ... Option key value pairs as named arguments
+#' @rdname blockr_option
+#' @export
+set_blockr_options <- function(...) {
+
+  if (...length() == 0L) {
+    return(invisible())
+  }
+
+  vals <- list(...)
+  name <- names(vals)
+
+  stopifnot(
+    length(vals) == length(name),
+    all(nzchar(name)),
+    anyDuplicated(name) == 0L
+  )
+
+  env <- toupper(paste0("blockr_", name))
+  evl <- nzchar(Sys.getenv(env))
+
+  if (any(evl)) {
+    Sys.unsetenv(env[evl])
+  }
+
+  names(vals) <- tolower(paste0("blockr.", name))
+
+  do.call(options, vals)
+}
+
 dot_args_names <- function(x) {
 
   res <- names(x)
@@ -263,10 +281,6 @@ dot_args_names <- function(x) {
   }
 
   res
-}
-
-dot_args_to_list <- function(x) {
-  set_names(reactiveValuesToList(x), dot_args_names(x))
 }
 
 # https://github.com/rstudio/shiny/issues/3768
@@ -315,12 +329,22 @@ resolve_ctor <- function(ctor, ctor_pkg = NULL) {
 
   if (is.numeric(ctor)) {
 
-    func <- sys.function(ctor)
-    call <- deparse(sys.call(ctor)[[1L]])
+    if (ctor < 0L) {
+      func <- rlang::caller_fn(-ctor)
+      call <- as.character(rlang::caller_call(-ctor)[[1L]])
+    } else {
+      func <- sys.function(ctor)
+      call <- deparse(sys.call(ctor)[[1L]])
+    }
 
-    if (grepl("::", call, fixed = TRUE)) {
+    if (any(grepl("::", call, fixed = TRUE))) {
 
-      call <- strsplit(call, "::", fixed = TRUE)[[1L]]
+      if (length(call) == 1L) {
+        call <- strsplit(call, "::", fixed = TRUE)[[1L]]
+      } else {
+        stopifnot(length(call) == 3L)
+        call <- call[-1L]
+      }
 
       stopifnot(length(call) == 2L)
 
@@ -361,6 +385,26 @@ resolve_ctor <- function(ctor, ctor_pkg = NULL) {
   new_blockr_ctor(try, ctor, ctor_pkg)
 }
 
+#' @rdname rand_names
+#' @export
+forward_ctor <- function(x) {
+
+  x <- coal(x, 0L)
+
+  if (is.numeric(x)) {
+
+    stopifnot(is_scalar(x), is_intish(x))
+
+    if (x > 0L) {
+      x <- -x
+    }
+
+    x <- x - 1L
+  }
+
+  x
+}
+
 new_blockr_ctor <- function(fun, nme = NULL, pkg = NULL) {
 
   if (is.null(nme) && is.null(pkg)) {
@@ -382,12 +426,16 @@ new_blockr_ctor <- function(fun, nme = NULL, pkg = NULL) {
 
   stopifnot(is_string(nme), is_string(pkg))
 
-  if (is.null(fun)) {
-    fun <- get0(nme, asNamespace(pkg), mode = "function",
-                inherits = FALSE)
-  }
+  structure(
+    coal(fun, get_ctor_from_pkg(nme, pkg)),
+    fun = nme,
+    pkg = pkg,
+    class = "blockr_ctor"
+  )
+}
 
-  structure(fun, fun = nme, pkg = pkg, class = "blockr_ctor")
+get_ctor_from_pkg <- function(name, package) {
+  get0(name, asNamespace(package), mode = "function", inherits = FALSE)
 }
 
 #' @rdname rand_names

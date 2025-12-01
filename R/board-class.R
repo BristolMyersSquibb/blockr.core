@@ -15,6 +15,7 @@
 #' @param stacks Set of stacks
 #' @param options Board-level user settings
 #' @param ... Further (metadata) attributes
+#' @param ctor,pkg Constructor information (used for serialization)
 #' @param class Board sub-class
 #'
 #' @examples
@@ -36,7 +37,7 @@
 #' @export
 new_board <- function(blocks = list(), links = list(), stacks = list(),
                       options = default_board_options(), ...,
-                      class = character()) {
+                      ctor = NULL, pkg = NULL, class = character()) {
 
   blocks <- as_blocks(blocks)
   links <- as_links(links)
@@ -55,6 +56,7 @@ new_board <- function(blocks = list(), links = list(), stacks = list(),
         options = options,
         ...
       ),
+      ctor = resolve_ctor(forward_ctor(ctor), pkg),
       class = c(class, "board")
     )
   )
@@ -163,13 +165,6 @@ validate_board <- function(x) {
 
 #' @export
 validate_board.board <- function(x) {
-
-  if (!is_board(x)) {
-    blockr_abort(
-      "Expecting a board object to inherit from \"baord\".",
-      class = "board_inheritance_invalid"
-    )
-  }
 
   if (!is.list(x)) {
     blockr_abort(
@@ -507,7 +502,11 @@ modify_board_stacks.board <- function(x, add = NULL, rm = NULL, mod = NULL) {
 #' @rdname board_blocks
 #' @export
 board_options <- function(x) {
-  stopifnot(is_board(x))
+  UseMethod("board_options")
+}
+
+#' @export
+board_options.board <- function(x) {
   validate_board_options(x[["options"]])
 }
 
@@ -538,6 +537,13 @@ available_stack_blocks <- function(x, stacks = board_stacks(x),
 #' @export
 block_inputs.board <- function(x) {
   lapply(set_names(board_blocks(x), board_block_ids(x)), block_inputs)
+}
+
+#' @rdname new_board_options
+#' @export
+board_ctor <- function(x) {
+  stopifnot(is_board(x))
+  attr(x, "ctor")
 }
 
 #' @export

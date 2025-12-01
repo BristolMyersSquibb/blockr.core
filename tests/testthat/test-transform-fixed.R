@@ -21,4 +21,10 @@ test_that("fixed block constructor", {
       data = list(data = function() datasets::mtcars)
     )
   )
+
+  expect_identical(
+    blk,
+    blockr_deser(blockr_ser(blk)),
+    ignore_function_env = TRUE
+  )
 })

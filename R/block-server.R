@@ -103,7 +103,7 @@ block_server.block <- function(id, x, data = list(), block_id = id,
       data_eval_observer(block_id, x, dat, res, exp, lang, rv, cond, session)
       output_render_observer(x, res, cond, session)
 
-      call_plugin_server(
+      eb_res <- call_plugin_server(
         edit_block,
         server_args = c(
           list(block_id = block_id, board = board, update = update),
@@ -111,13 +111,16 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         )
       )
 
-      block_cond_observer(exp, cond)
+      block_cond_observer(exp, cond, session)
 
-      list(
-        result = res,
-        expr = lang,
-        state = exp$state,
-        cond = cond
+      c(
+        list(
+          result = res,
+          expr = lang,
+          state = exp$state,
+          cond = cond
+        ),
+        eb_res
       )
     }
   )
@@ -336,44 +339,53 @@ output_render_observer <- function(x, res, cond, sess) {
   )
 }
 
-block_cond_observer <- function(exp, cond) {
+block_cond_observer <- function(exp, cond, sess) {
 
   if ("cond" %in% names(exp)) {
 
     conds <- reactive(
-      reactiveValuesToList(exp[["cond"]])
+      {
+        include <- coal(
+          get_board_option_or_null("show_conditions", sess),
+          match.arg(
+            blockr_option("show_conditions", c("warning", "error")),
+            c("message", "warning", "error"),
+            several.ok = TRUE
+          )
+        )
+        set_names(
+          lapply(reactiveValuesToList(exp[["cond"]])[include], coal, list()),
+          include
+        )
+      }
     )
 
     observeEvent(
       conds(),
       {
         new_cnds <- conds()
-        cur_cnds <- cond$block
+        cur_cnds <- set_names(
+          coal(cond$block, empty_block_condition())[names(new_cnds)],
+          names(new_cnds)
+        )
 
         if (any(lengths(new_cnds))) {
 
           new_cnds <- lapply(new_cnds, lapply, new_condition,
                              as_list = FALSE)
 
-          if (!length(cur_cnds)) {
+          chk <- lgl_mply(
+            Negate(setequal),
+            lapply(new_cnds, chr_ply, attr, "id"),
+            lapply(cur_cnds, chr_ply, attr, "id")
+          )
 
+          if (any(chk)) {
             cond$block <- new_cnds
-
-          } else {
-
-            chk <- lgl_mply(
-              Negate(setequal),
-              lapply(new_cnds, chr_ply, attr, "id"),
-              lapply(cur_cnds, chr_ply, attr, "id")
-            )
-
-            if (any(chk)) {
-              cond$block <- new_cnds
-            }
           }
 
-        } else if (length(cur_cnds) && !all(lengths(cur_cnds) == 0L)) {
-          cond$block <- empty_block_condition()
+        } else if (any(lengths(cur_cnds) > 0L)) {
+          cond$block <- empty_block_condition()[names(new_cnds)]
         }
       }
     )
@@ -383,77 +395,95 @@ block_cond_observer <- function(exp, cond) {
 
 check_expr_val <- function(val, x) {
 
-  observeEvent(
-    val,
-    {
-      if (!is.list(val)) {
-        blockr_abort(
-          "The block server for {class(x)[1L]} is expected to return a list.",
-          class = "expr_server_return_type_invalid"
+  if (!is.list(val)) {
+    blockr_abort(
+      "The block server for {class(x)[1L]} is expected to return a list.",
+      class = "expr_server_return_type_invalid"
+    )
+  }
+
+  required <- c("expr", "state")
+
+  if (!all(required %in% names(val))) {
+    blockr_abort(
+      "The block server for {class(x)[1L]} is expected to return values ",
+      "{setdiff(required, names(val))}.",
+      class = "expr_server_return_required_component_missing"
+    )
+  }
+
+  if (!is.reactive(val[["expr"]])) {
+    blockr_abort(
+      "The `expr` component of the return value for {class(x)[1L]} is ",
+      "expected to be a reactive.",
+      class = "expr_server_return_expr_invalid"
+    )
+  }
+
+  if (!is.list(val[["state"]])) {
+    blockr_abort(
+      "The `state` component of the return value for {class(x)[1L]} is ",
+      "expected to be a list.",
+      class = "expr_server_return_state_invalid"
+    )
+  }
+
+  expected <- block_ctor_inputs(x)
+  current <- names(val[["state"]])
+  missing <- setdiff(expected, current)
+
+  if (length(missing)) {
+    blockr_abort(
+      "The `state` component of the return value for {class(x)[1L]} is ",
+      "expected to additionally return {missing}.",
+      class = "expr_server_return_state_invalid"
+    )
+  }
+
+  if ("cond" %in% names(val)) {
+
+    if (!is.reactivevalues(val[["cond"]])) {
+      blockr_abort(
+        "The `cond` component of the return value for {class(x)[1L]} is ",
+        "expected to be a `reactiveValues` object.",
+        class = "expr_server_return_cond_invalid"
+      )
+    }
+
+    conds <- c("message", "warning", "error")
+
+    if (!all(names(val[["cond"]]) %in% conds)) {
+      blockr_abort(
+        "The `cond` component of the return value for {class(x)[1L]} ",
+        "is expected to contain any of components {conds}.",
+        class = "expr_server_return_cond_invalid"
+      )
+    }
+
+    lapply(
+      conds,
+      function(cnd, cnds) {
+        observeEvent(
+          req(length(cnds[[cnd]]) > 0L),
+          {
+            for (y in cnds[[cnd]]) {
+              if (!(is.character(y) || is_list_of_block_cnds(y))) {
+                blockr_abort(
+                  "The `cond` component of the return value for ",
+                  "{class(x)[1L]} is expected to contain a nested list of ",
+                  "character vectors or list of objects inheriting from ",
+                  "`block_cnd`.",
+                  class = "expr_server_return_cond_invalid"
+                )
+              }
+            }
+          },
+          once = TRUE
         )
-      }
-
-      required <- c("expr", "state")
-
-      if (!all(required %in% names(val))) {
-        blockr_abort(
-          "The block server for {class(x)[1L]} is expected to return values ",
-          "{setdiff(required, names(val))}.",
-          class = "expr_server_return_component_missing"
-        )
-      }
-
-      if (!is.reactive(val[["expr"]])) {
-        blockr_abort(
-          "The `expr` component of the return value for {class(x)[1L]} is ",
-          "expected to be a reactive.",
-          class = "expr_server_return_type_invalid"
-        )
-      }
-
-      if (!is.list(val[["state"]])) {
-        blockr_abort(
-          "The `state` component of the return value for {class(x)[1L]} is ",
-          "expected to be a list.",
-          class = "expr_server_return_type_invalid"
-        )
-      }
-
-      if ("cond" %in% names(val)) {
-
-        if (!is.reactivevalues(val[["cond"]])) {
-          blockr_abort(
-            "The `cond` component of the return value for {class(x)[1L]} is ",
-            "expected to be a `reactiveValues` object.",
-            class = "expr_server_return_type_invalid"
-          )
-        }
-
-        conds <- c("message", "warning", "error")
-
-        if (!all(names(val[["cond"]]) %in% conds)) {
-          blockr_abort(
-            "The `cond` component of the return value for {class(x)[1L]} is ",
-            "expected to contain components {conds}.",
-            class = "expr_server_return_type_invalid"
-          )
-        }
-      }
-
-      expected <- block_ctor_inputs(x)
-      current <- names(val[["state"]])
-      missing <- setdiff(expected, current)
-
-      if (length(missing)) {
-        blockr_abort(
-          "The `state` component of the return value for {class(x)[1L]} is ",
-          "expected to additionally return {missing}",
-          class = "expr_server_return_state_invalid"
-        )
-      }
-    },
-    once = TRUE
-  )
+      },
+      val[["cond"]]
+    )
+  }
 
   val
 }

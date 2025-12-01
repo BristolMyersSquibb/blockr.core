@@ -17,7 +17,7 @@ new_data_block <- function(server, ui, class, ctor = sys.parent(), ...) {
 
 #' @export
 block_output.data_block <- function(x, result, session) {
-  dt_result(result, session)
+  dt_result(result, x, session)
 }
 
 #' @export
@@ -30,3 +30,13 @@ block_ui.data_block <- function(id, x, ...) {
 #' @export
 #' @include utils-dt.R
 block_render_trigger.data_block <- dt_render_trigger
+
+#' @export
+board_options.data_block <- function(x, ...) {
+  combine_board_options(
+    new_n_rows_option(...),
+    new_page_size_option(...),
+    new_filter_rows_option(...),
+    NextMethod()
+  )
+}

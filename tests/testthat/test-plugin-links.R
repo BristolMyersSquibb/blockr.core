@@ -164,18 +164,16 @@ test_that("add/rm links return validation", {
         list(links = list(add = links(from = "a", to = "b"), rm = "ab"))
       )
 
-      rv <- list(
-        board = new_board(
-          blocks = c(
-            a = new_dataset_block("iris"),
-            b = new_subset_block()
-          ),
-          links = links(ab = new_link(from = "a", to = "b"))
-        )
+      brd <- new_board(
+        blocks = c(
+          a = new_dataset_block("iris"),
+          b = new_subset_block()
+        ),
+        links = links(ab = new_link(from = "a", to = "b"))
       )
 
       expect_null(
-        validate_board_update(val, rv)
+        validate_board_update(val, brd)
       )
     }
   )
@@ -185,7 +183,7 @@ test_that("add/rm links return validation", {
       expect_error(
         validate_board_update(
           reactiveVal(list(links = "a")),
-          list()
+          new_board()
         ),
         class = "board_update_component_type_invalid"
       )
@@ -193,7 +191,7 @@ test_that("add/rm links return validation", {
       expect_error(
         validate_board_update(
           reactiveVal(list(links = list(abc = NULL))),
-          list()
+          new_board()
         ),
         class = "board_update_component_components_invalid"
       )
@@ -201,9 +199,9 @@ test_that("add/rm links return validation", {
       expect_error(
         validate_board_update(
           reactiveVal(list(links = list(add = "a"))),
-          list(board = new_board())
+          new_board()
         ),
-        class = "board_update_links_add_invalid"
+        class = "board_update_add_component_invalid"
       )
 
       expect_error(
@@ -211,11 +209,9 @@ test_that("add/rm links return validation", {
           reactiveVal(
             list(links = list(add = links(a = new_link())))
           ),
-          list(
-            board = new_board(
-              blocks = c(a = new_dataset_block(), b = new_subset_block()),
-              links = links(a = new_link("a", "b"))
-            )
+          new_board(
+            blocks = c(a = new_dataset_block(), b = new_subset_block()),
+            links = links(a = new_link("a", "b"))
           )
         ),
         class = "board_update_links_add_invalid"
@@ -224,15 +220,15 @@ test_that("add/rm links return validation", {
       expect_error(
         validate_board_update(
           reactiveVal(list(links = list(rm = 1))),
-          list(board = new_board())
+          new_board()
         ),
-        class = "board_update_links_rm_invalid"
+        class = "board_update_rm_component_invalid"
       )
 
       expect_error(
         validate_board_update(
           reactiveVal(list(links = list(rm = "a"))),
-          list(board = new_board())
+          new_board()
         ),
         class = "board_update_links_rm_invalid"
       )

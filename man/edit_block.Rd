@@ -8,7 +8,11 @@
 \alias{block_summary.block}
 \title{Plugin module for editing board blocks}
 \usage{
-edit_block(server = edit_block_server, ui = edit_block_ui)
+edit_block(
+  server = edit_block_server,
+  ui = edit_block_ui,
+  validator = abort_not_null
+)
 
 edit_block_server(id, block_id, board, update, ...)
 
@@ -20,6 +24,8 @@ block_summary(x, data)
 }
 \arguments{
 \item{server, ui}{Server/UI for the plugin module}
+
+\item{validator}{Validator function that validates server return values}
 
 \item{id}{Namespace ID}
 

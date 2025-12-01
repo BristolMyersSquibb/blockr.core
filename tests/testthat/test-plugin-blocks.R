@@ -89,7 +89,7 @@ test_that("add/rm blocks return validation", {
       expect_error(
         validate_board_update(
           reactiveVal(list(blocks = "a")),
-          list()
+          new_board()
         ),
         class = "board_update_component_type_invalid"
       )
@@ -97,7 +97,7 @@ test_that("add/rm blocks return validation", {
       expect_error(
         validate_board_update(
           reactiveVal(list(blocks = list(abc = NULL))),
-          list()
+          new_board()
         ),
         class = "board_update_component_components_invalid"
       )
@@ -105,9 +105,9 @@ test_that("add/rm blocks return validation", {
       expect_error(
         validate_board_update(
           reactiveVal(list(blocks = list(add = "a"))),
-          list(board = new_board())
+          new_board()
         ),
-        class = "board_update_blocks_add_invalid"
+        class = "board_update_add_component_invalid"
       )
 
       expect_error(
@@ -115,7 +115,7 @@ test_that("add/rm blocks return validation", {
           reactiveVal(
             list(blocks = list(add = blocks(a = new_dataset_block())))
           ),
-          list(board = new_board(blocks = blocks(a = new_dataset_block())))
+          new_board(blocks = blocks(a = new_dataset_block()))
         ),
         class = "board_update_blocks_add_invalid"
       )
@@ -123,15 +123,15 @@ test_that("add/rm blocks return validation", {
       expect_error(
         validate_board_update(
           reactiveVal(list(blocks = list(rm = 1))),
-          list(board = new_board())
+          new_board()
         ),
-        class = "board_update_blocks_rm_invalid"
+        class = "board_update_rm_component_invalid"
       )
 
       expect_error(
         validate_board_update(
           reactiveVal(list(blocks = list(rm = "a"))),
-          list(board = new_board())
+          new_board()
         ),
         class = "board_update_blocks_rm_invalid"
       )

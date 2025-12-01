@@ -5,6 +5,10 @@
 \alias{is_plugin}
 \alias{abort_not_null}
 \alias{as_plugin}
+\alias{plugin_server}
+\alias{plugin_ui}
+\alias{plugin_validator}
+\alias{plugin_id}
 \alias{board_plugins}
 \alias{plugins}
 \alias{is_plugins}
@@ -19,6 +23,14 @@ is_plugin(x)
 abort_not_null(x)
 
 as_plugin(x)
+
+plugin_server(x)
+
+plugin_ui(x)
+
+plugin_validator(x)
+
+plugin_id(x)
 
 board_plugins(x, ...)
 

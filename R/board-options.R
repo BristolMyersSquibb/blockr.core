@@ -45,10 +45,6 @@ default_board_options <- function(...) {
   new_board_options(
     new_board_name_option(...),
     new_show_conditions_option(...),
-    if (need_llm_cfg_opts()) new_llm_model_option(...),
-    new_n_rows_option(...),
-    new_page_size_option(...),
-    new_filter_rows_option(...),
     new_thematic_option(...),
     new_dark_mode_option(...)
   )
@@ -238,29 +234,6 @@ board_options_to_userdata <- function(options, ...) {
   invisible()
 }
 
-update_board_options <- function(new, session = get_session()) {
-
-  new <- as_board_options(new)
-
-  val <- set_names(
-    lapply(new, board_option_value),
-    chr_ply(new, board_option_id)
-  )
-
-  env <- session$userData
-
-  stopifnot(
-    exists("board_options", envir = env, inherits = FALSE),
-    all(names(val) %in% names(env$board_options))
-  )
-
-  for (i in names(val)) {
-    env$board_options[[i]](val[[i]])
-  }
-
-  invisible()
-}
-
 #' @param opt Option name
 #' @param session Shiny session
 #' @rdname new_board_options
@@ -433,4 +406,15 @@ list_to_list_of_opts <- function(x) {
   } else {
     list()
   }
+}
+
+#' @rdname new_board_options
+#' @export
+combine_board_options <- function(...) {
+
+  opts <- list_to_list_of_opts(list(...))
+
+  as_board_options(
+    opts[!duplicated(chr_ply(opts, board_option_id))]
+  )
 }

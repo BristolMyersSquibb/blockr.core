@@ -9,13 +9,15 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    name: ${{ matrix.config.pkg }}
+    name: ${{ matrix.pkg }}
 
     strategy:
       fail-fast: false
       matrix:
-        config:
-          - {pkg: 'blockr.ai'}
+        pkg: [
+          BristolMyersSquibb/blockr.dock,
+          BristolMyersSquibb/blockr.dag
+        ]
 
     env:
       GITHUB_PAT: ${{ secrets.BLOCKR_PAT }}
@@ -28,7 +30,7 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          repository: cynkra/${{ matrix.config.pkg }}
+          repository: ${{ matrix.pkg }}
           token: ${{ secrets.BLOCKR_PAT }}
           path: dep
 
@@ -48,5 +50,4 @@ jobs:
       - uses: r-lib/actions/check-r-package@v2
         with:
           working-directory: dep
-          upload-snapshots: true
           build_args: 'c("--no-manual","--compact-vignettes=gs+qpdf")'

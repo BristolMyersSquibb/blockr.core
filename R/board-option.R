@@ -10,7 +10,7 @@
 #' @rdname new_board_options
 #' @export
 new_board_option <- function(id, default, ui,
-                             server = function(board, session) {},
+                             server = function(board, ..., session) {},
                              update_trigger = id,
                              transform = identity,
                              category = NULL, ctor = sys.parent(),
@@ -149,7 +149,7 @@ validate_board_option.default <- function(x) {
   if (!is_string(board_option_id(x))) {
     blockr_abort(
       "Expecting a board option ID to be string-valued.",
-      class = "board_option_component_invalid"
+      class = "board_option_component_id_invalid"
     )
   }
 
@@ -159,7 +159,7 @@ validate_board_option.default <- function(x) {
     blockr_abort(
       "Expecting a board option trigger to be a non-zero length character",
       "vector or `NULL`.",
-      class = "board_option_component_invalid"
+      class = "board_option_component_trigger_invalid"
     )
   }
 
@@ -168,7 +168,7 @@ validate_board_option.default <- function(x) {
   if (!is.function(ui) || !identical(names(formals(ui)), "id")) {
     blockr_abort(
       "Expecting a board option UI function to have a single argument `id`.",
-      class = "board_option_component_invalid"
+      class = "board_option_component_ui_invalid"
     )
   }
 
@@ -177,7 +177,7 @@ validate_board_option.default <- function(x) {
   if (!is.function(srv)) {
     blockr_abort(
       "Expecting a board option server function to be a function.",
-      class = "board_option_component_invalid"
+      class = "board_option_component_server_invalid"
     )
   }
 
@@ -188,7 +188,7 @@ validate_board_option.default <- function(x) {
   if (len < 2L || !identical(arg[seq.int(len - 1L, len)], exp)) {
     blockr_abort(
       "Expecting a board option server function signature to end with {exp}.",
-      class = "board_option_component_invalid"
+      class = "board_option_component_server_invalid"
     )
   }
 
@@ -197,7 +197,7 @@ validate_board_option.default <- function(x) {
   if (!is.function(tfm) || !identical(names(formals(tfm)), "x")) {
     blockr_abort(
       "Expecting a board option transform to have a single argument `x`.",
-      class = "board_option_component_invalid"
+      class = "board_option_component_transform_invalid"
     )
   }
 
@@ -230,7 +230,8 @@ c.board_option <- function(...) {
 
 #' @rdname new_board_options
 #' @export
-new_board_name_option <- function(value = NULL, ...) {
+new_board_name_option <- function(value = NULL, category = "Board options",
+                                  ...) {
 
   new_board_option(
     id = "board_name",
@@ -274,6 +275,7 @@ new_board_name_option <- function(value = NULL, ...) {
         )
       )
     },
+    category = category,
     ...
   )
 }
@@ -295,7 +297,8 @@ validate_board_option.board_name_option <- function(x) {
 
 #' @rdname new_board_options
 #' @export
-new_n_rows_option <- function(value = blockr_option("n_rows", 50L), ...) {
+new_n_rows_option <- function(value = blockr_option("n_rows", 50L),
+                              category = "Table options", ...) {
 
   new_board_option(
     id = "n_rows",
@@ -322,6 +325,7 @@ new_n_rows_option <- function(value = blockr_option("n_rows", 50L), ...) {
       )
     },
     transform = function(x) as.integer(x),
+    category = category,
     ...
   )
 }
@@ -343,7 +347,8 @@ validate_board_option.n_rows_option <- function(x) {
 
 #' @rdname new_board_options
 #' @export
-new_page_size_option <- function(value = blockr_option("page_size", 5L), ...) {
+new_page_size_option <- function(value = blockr_option("page_size", 5L),
+                                 category = "Table options", ...) {
 
   new_board_option(
     id = "page_size",
@@ -369,6 +374,7 @@ new_page_size_option <- function(value = blockr_option("page_size", 5L), ...) {
       )
     },
     transform = function(x) as.integer(x),
+    category = category,
     ...
   )
 }
@@ -392,7 +398,7 @@ validate_board_option.page_size_option <- function(x) {
 #' @export
 new_filter_rows_option <- function(value = blockr_option("filter_rows",
                                                          FALSE),
-                                   ...) {
+                                   category = "Table options", ...) {
 
   new_board_option(
     id = "filter_rows",
@@ -416,6 +422,7 @@ new_filter_rows_option <- function(value = blockr_option("filter_rows",
         }
       )
     },
+    category = category,
     ...
   )
 }
@@ -437,7 +444,8 @@ validate_board_option.filter_rows_option <- function(x) {
 
 #' @rdname new_board_options
 #' @export
-new_thematic_option <- function(value = blockr_option("thematic", NULL), ...) {
+new_thematic_option <- function(value = blockr_option("thematic", NULL),
+                                category = "Theme options", ...) {
 
   new_board_option(
     id = "thematic",
@@ -463,6 +471,7 @@ new_thematic_option <- function(value = blockr_option("thematic", NULL), ...) {
         }
       )
     },
+    category = category,
     ...
   )
 }
@@ -492,7 +501,7 @@ validate_board_option.thematic_option <- function(x) {
 #' @rdname new_board_options
 #' @export
 new_dark_mode_option <- function(value = blockr_option("dark_mode", NULL),
-                                 ...) {
+                                 category = "Theme options", ...) {
 
   if (isTRUE(value)) {
     value <- "dark"
@@ -532,6 +541,7 @@ new_dark_mode_option <- function(value = blockr_option("dark_mode", NULL),
         }
       )
     },
+    category = category,
     ...
   )
 }
@@ -556,7 +566,7 @@ validate_board_option.dark_mode_option <- function(x) {
 new_show_conditions_option <- function(value = blockr_option("show_conditions",
                                                              c("warning",
                                                                "error")),
-                                       ...) {
+                                       category = "Board options", ...) {
 
   new_board_option(
     id = "show_conditions",
@@ -582,6 +592,7 @@ new_show_conditions_option <- function(value = blockr_option("show_conditions",
         }
       )
     },
+    category = category,
     ...
   )
 }
@@ -604,44 +615,13 @@ validate_board_option.show_conditions_option <- function(x) {
 }
 
 default_chat <- function(system_prompt = NULL, params = NULL) {
-  ellmer::chat_openai(
-    system_prompt = system_prompt,
-    params = params
-  )
+  ellmer::chat_openai(system_prompt = system_prompt, params = params)
 }
 
-#' @param enable Enable (i.e. include) the llm model option
 #' @rdname new_board_options
 #' @export
-need_llm_cfg_opts <- local(
-  {
-    state <- FALSE
-    function(enable) {
-
-      if (missing(enable)) {
-        return(state)
-      }
-
-      stopifnot(is_bool(enable))
-
-      if (isTRUE(enable) && !pkg_avail("ellmer")) {
-        blockr_abort(
-          "The ellmer package is required for including LLM options.",
-          class = "ellmer_required_not_available"
-        )
-      }
-
-      prev <- state
-      state <<- enable
-
-      invisible(prev)
-    }
-  }
-)
-
-#' @rdname new_board_options
-#' @export
-new_llm_model_option <- function(value = NULL, ...) {
+new_llm_model_option <- function(value = NULL, category = "Board options",
+                                 ...) {
 
   if (!(is.null(value) || is_string(value))) {
     blockr_abort(
@@ -721,6 +701,7 @@ new_llm_model_option <- function(value = NULL, ...) {
       structure(options[[x]], chat_name = x)
     },
     update_trigger = if (is.function(options)) NULL else "llm_model",
+    category = category,
     ...
   )
 }

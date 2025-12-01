@@ -2,14 +2,19 @@
 % Please edit documentation in R/utils-misc.R
 \name{blockr_option}
 \alias{blockr_option}
+\alias{set_blockr_options}
 \title{Blockr Options}
 \usage{
 blockr_option(name, default)
+
+set_blockr_options(...)
 }
 \arguments{
 \item{name}{Option name}
 
 \item{default}{Default value}
+
+\item{...}{Option key value pairs as named arguments}
 }
 \value{
 The value set as option \code{name} or \code{default} if not set. In case of

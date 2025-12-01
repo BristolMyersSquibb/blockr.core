@@ -17,6 +17,20 @@
   transformation to data input.
 * Board server callbacks are invoked with an additional argument `session`.
 * Export assertion utilities such as `is_string()`, `is_count()`, etc.
+* Improved ser/des, which now includes package/constructor information for all
+  board, blocks, stacks and options. The corresponsing infra
+* Board options now contain UI/server components to provide more options for
+  customization. Also blocks can require certain options to be available.
+* Introduces `block_render_trigger()` to control per block class when to
+  re-render the block output.
+* Rework of block notifications to provide a `reactiveValues()` object
+  containing notification types a separate components.
+* Auto-ID generation can now be customized with a default provided by the ids
+  package (if available).
+* Use the glue package for logging/block notifications; add a glue-based text
+  block.
+* New board restore mechanism based on `session$reload()`.
+* Improvements to the registry: block icons and a fixed set of categories.
 
 # blockr.core 0.1.0
 

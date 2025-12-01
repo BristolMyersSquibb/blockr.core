@@ -18,7 +18,7 @@ new_transform_block <- function(server, ui, class, ctor = sys.parent(), ...) {
 
 #' @export
 block_output.transform_block <- function(x, result, session) {
-  dt_result(result, session)
+  dt_result(result, x, session)
 }
 
 #' @export
@@ -29,5 +29,14 @@ block_ui.transform_block <- function(id, x, ...) {
 }
 
 #' @export
-#' @include utils-dt.R
 block_render_trigger.transform_block <- dt_render_trigger
+
+#' @export
+board_options.transform_block <- function(x, ...) {
+  combine_board_options(
+    new_n_rows_option(...),
+    new_page_size_option(...),
+    new_filter_rows_option(...),
+    NextMethod()
+  )
+}
