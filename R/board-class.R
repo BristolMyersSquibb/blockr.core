@@ -309,14 +309,17 @@ board_block_ids <- function(x) {
 }
 
 #' @param rm Block/link/stack IDs to remove
+#' @param ... Further arguments they may be passed from the board server context
+#' @param session Shiny session object
+#'
 #' @rdname board_blocks
 #' @export
-rm_blocks <- function(x, rm) {
+rm_blocks <- function(x, rm, ..., session = get_session()) {
   UseMethod("rm_blocks", x)
 }
 
 #' @export
-rm_blocks.board <- function(x, rm) {
+rm_blocks.board <- function(x, rm, ..., session = get_session()) {
 
   if (is_blocks(rm)) {
     rm <- names(rm)
@@ -398,16 +401,19 @@ board_link_ids <- function(x) {
 #' @param mod Link/stacks to modify
 #' @rdname board_blocks
 #' @export
-modify_board_links <- function(x, add = NULL, rm = NULL, mod = NULL) {
-  UseMethod("modify_board_links", x)
-}
-
-#' @export
-modify_board_links.board <- function(x, add = NULL, rm = NULL, mod = NULL) {
+modify_board_links <- function(x, add = NULL, rm = NULL, mod = NULL, ...,
+                               session = get_session()) {
 
   if (!length(add) && !length(rm) && !length(mod)) {
     return(x)
   }
+
+  UseMethod("modify_board_links", x)
+}
+
+#' @export
+modify_board_links.board <- function(x, add = NULL, rm = NULL, mod = NULL,
+                                     ..., session = get_session()) {
 
   links <- board_links(x)
 
@@ -462,16 +468,19 @@ board_stack_ids <- function(x) {
 
 #' @rdname board_blocks
 #' @export
-modify_board_stacks <- function(x, add = NULL, rm = NULL, mod = NULL) {
-  UseMethod("modify_board_stacks", x)
-}
-
-#' @export
-modify_board_stacks.board <- function(x, add = NULL, rm = NULL, mod = NULL) {
+modify_board_stacks <- function(x, add = NULL, rm = NULL, mod = NULL, ...,
+                                session = get_session()) {
 
   if (!length(add) && !length(rm) && !length(mod)) {
     return(x)
   }
+
+  UseMethod("modify_board_stacks", x)
+}
+
+#' @export
+modify_board_stacks.board <- function(x, add = NULL, rm = NULL, mod = NULL,
+                                      ..., session = get_session()) {
 
   stacks <- board_stacks(x)
 

@@ -209,8 +209,14 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
             rm <- board_links(rv$board)[upd$links$rm]
             update_block_links(rv, upd$links$add, rm)
 
-            rv$board <- modify_board_links(rv$board, upd$links$add,
-                                           upd$links$rm)
+            rv$board <- do.call(
+              modify_board_links,
+              c(
+                list(rv$board, upd$links$add, upd$links$rm),
+                dot_args,
+                list(session = session)
+              )
+            )
           }
 
           if (length(upd$stacks$rm)) {
@@ -229,8 +235,14 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
             rv, upd$stacks, edit_stack, edit_plugin_args, session
           )
 
-          rv$board <- modify_board_stacks(rv$board, upd$stacks$add,
-                                          upd$stacks$rm, upd$stacks$mod)
+          rv$board <- do.call(
+            modify_board_stacks,
+            c(
+              list(rv$board, upd$stacks$add, upd$stacks$rm, upd$stacks$mod),
+              dot_args,
+              list(session = session)
+            )
+          )
 
           if (length(upd$blocks$rm)) {
 
@@ -245,7 +257,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
               )
             )
 
-            destroy_rm_blocks(upd$blocks$rm, rv, session)
+            destroy_rm_blocks(upd$blocks$rm, rv, session, dot_args)
           }
 
           board_update(NULL)
@@ -419,7 +431,7 @@ setup_block <- function(blk, id, rv, mod, args) {
   invisible()
 }
 
-destroy_rm_blocks <- function(ids, rv, sess) {
+destroy_rm_blocks <- function(ids, rv, sess, args) {
 
   links <- board_links(rv$board)
 
@@ -436,7 +448,10 @@ destroy_rm_blocks <- function(ids, rv, sess) {
   rv$inputs <- rv$inputs[!names(rv$inputs) %in% ids]
   rv$blocks <- rv$blocks[!names(rv$blocks) %in% ids]
 
-  rv$board <- rm_blocks(rv$board, ids)
+  rv$board <- do.call(
+    rm_blocks,
+    c(list(rv$board, ids), args, list(session = sess))
+  )
 
   invisible()
 }
