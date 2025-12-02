@@ -138,15 +138,22 @@ expr_server.block <- function(x, data, ...) {
 }
 
 #' @param expr Quoted expression to evaluate in the context of `data`
+#' @param env Environment in which to evaluate `expr`
 #' @rdname block_server
 #' @export
-block_eval <- function(x, expr, data, ...) {
+block_eval <- function(x, expr, env, ...) {
   UseMethod("block_eval")
 }
 
 #' @export
-block_eval.block <- function(x, expr, data, ...) {
-  eval(expr, data)
+block_eval.block <- function(x, expr, env, ...) {
+  eval(expr, env)
+}
+
+#' @rdname block_server
+#' @export
+eval_env <- function(data) {
+  list2env(data, parent = baseenv())
 }
 
 reorder_dots_observer <- function(data, sess) {
@@ -297,7 +304,7 @@ data_eval_observer <- function(id, x, dat, res, exp, lang, rv, cond, sess) {
       log_debug("evaluating block ", id)
 
       out <- capture_conditions(
-        block_eval(x, lang(), dat_eval()),
+        block_eval(x, lang(), eval_env(dat_eval())),
         cond,
         "eval",
         session = sess

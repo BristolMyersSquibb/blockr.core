@@ -37,17 +37,13 @@ block_ui.plot_block <- function(id, x, ...) {
 }
 
 #' @export
-block_eval.plot_block <- function(x, expr, data, ...) {
+block_eval.plot_block <- function(x, expr, env, ...) {
 
   inherits_rec_plt <- function(x) {
     inherits(x, "recordedplot")
   }
 
-  res <- evaluate::evaluate(
-    expr,
-    list2env(data),
-    stop_on_error = 1L
-  )
+  res <- evaluate::evaluate(expr, env, stop_on_error = 1L)
 
   show_condition(res)
 

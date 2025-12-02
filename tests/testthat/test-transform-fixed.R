@@ -1,6 +1,6 @@
 test_that("fixed block constructor", {
 
-  blk <- new_fixed_block(quote(head(data)))
+  blk <- new_fixed_block(quote(utils::head(data)))
 
   expect_s3_class(blk, "fixed_block")
 

@@ -5,6 +5,7 @@
 \alias{block_server.block}
 \alias{expr_server}
 \alias{block_eval}
+\alias{eval_env}
 \alias{block_eval_trigger}
 \alias{block_render_trigger}
 \title{Block server}
@@ -24,7 +25,9 @@ block_server(id, x, data = list(), ...)
 
 expr_server(x, data, ...)
 
-block_eval(x, expr, data, ...)
+block_eval(x, expr, env, ...)
+
+eval_env(data)
 
 block_eval_trigger(x, session = get_session())
 
@@ -48,6 +51,8 @@ block_render_trigger(x, session = get_session())
 \item{update}{Reactive value object to initiate board updates}
 
 \item{expr}{Quoted expression to evaluate in the context of \code{data}}
+
+\item{env}{Environment in which to evaluate \code{expr}}
 
 \item{session}{Shiny session object}
 }
