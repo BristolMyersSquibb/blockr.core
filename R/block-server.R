@@ -153,7 +153,7 @@ block_eval.block <- function(x, expr, env, ...) {
 #' @rdname block_server
 #' @export
 eval_env <- function(data) {
-  list2env(data, parent = baseenv())
+  list2env(data, parent = blockr_option("eval_parent_env", baseenv()))
 }
 
 reorder_dots_observer <- function(data, sess) {
