@@ -30,7 +30,9 @@ block_server(
 
 expr_server(x, data, ...)
 
-block_eval(x, expr, data, ...)
+block_eval(x, expr, env, ...)
+
+eval_env(data)
 
 block_eval_trigger(x, session = get_session())
 
@@ -75,6 +77,10 @@ block_render_trigger(x, session = get_session())
 - expr:
 
   Quoted expression to evaluate in the context of `data`
+
+- env:
+
+  Environment in which to evaluate `expr`
 
 - session:
 

@@ -24,6 +24,7 @@ block.
 - [`block_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_server.md)
   [`expr_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_server.md)
   [`block_eval()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_server.md)
+  [`eval_env()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_server.md)
   [`block_eval_trigger()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_server.md)
   [`block_render_trigger()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_server.md)
   : Block server
