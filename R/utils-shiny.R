@@ -237,63 +237,6 @@ get_session <- function() {
   getDefaultReactiveDomain()
 }
 
-is_load_alled <- function(pkg = pkg_name()) {
-
-  ns <- .getNamespace(pkg)
-
-  if (is.null(ns)) {
-    blockr_abort(
-      "Namespace not found for package {pkg}.",
-      class = "namespace_not_found"
-    )
-  }
-
-  ".__DEVTOOLS__" %in% ls(envir = ns, all.names = TRUE)
-}
-
-is_testing <- function() {
-  identical(Sys.getenv("TESTTHAT"), "true")
-}
-
-#' @param board A board object
-#' @param mode Edit plugins, such as `manage_blocks` get an additional argument
-#' `update` over read plugins such as `preserve_board`.
-#' @rdname get_session
-#' @export
-generate_plugin_args <- function(board, ..., mode = c("edit", "read")) {
-
-  session <- edit_plugin_args <- read_plugin_args <- NULL
-
-  mode <- match.arg(mode)
-
-  if (!is_testing() && !is_load_alled()) {
-    blockr_warn(
-      "`generate_plugin_args()` is intended only for a unit-testing context.",
-      class = "generate_plugin_args_not_testing"
-    )
-  }
-
-  withr::local_envvar(BLOCKR_LOG_LEVEL = "")
-  withr::local_options(blockr.log_level = "warn")
-
-  res_plugin_args <- list()
-
-  testServer(
-    get_s3_method("board_server", board),
-    {
-      session$flushReact()
-      res_plugin_args <<- switch(
-        mode,
-        edit = edit_plugin_args,
-        read = read_plugin_args
-      )
-    },
-    args = list(x = board, ...)
-  )
-
-  res_plugin_args
-}
-
 #' @param close_button Passed as `closeButton` to [shiny::showNotification()]
 #'
 #' @inheritParams write_log

@@ -2,13 +2,10 @@
 % Please edit documentation in R/utils-shiny.R
 \name{get_session}
 \alias{get_session}
-\alias{generate_plugin_args}
 \alias{notify}
 \title{Shiny utilities}
 \usage{
 get_session()
-
-generate_plugin_args(board, ..., mode = c("edit", "read"))
 
 notify(
   ...,
@@ -22,12 +19,7 @@ notify(
 )
 }
 \arguments{
-\item{board}{A board object}
-
 \item{...}{Concatenated as \code{paste0(..., "\\n")}}
-
-\item{mode}{Edit plugins, such as \code{manage_blocks} get an additional argument
-\code{update} over read plugins such as \code{preserve_board}.}
 
 \item{envir}{Environment where the logging call originated from}
 
