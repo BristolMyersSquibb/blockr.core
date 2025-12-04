@@ -1,30 +1,3 @@
-is_load_alled <- function(pkg = pkg_name()) {
-
-  ns <- .getNamespace(pkg)
-
-  if (is.null(ns)) {
-    blockr_abort(
-      "Namespace not found for package {pkg}.",
-      class = "namespace_not_found"
-    )
-  }
-
-  ".__DEVTOOLS__" %in% ls(envir = ns, all.names = TRUE)
-}
-
-is_testing <- function() {
-  identical(Sys.getenv("TESTTHAT"), "true")
-}
-
-for_testing_only <- function() {
-  if (!is_testing() && !is_load_alled()) {
-    blockr_warn(
-      "`generate_plugin_args()` is intended only for a unit-testing context.",
-      class = "generate_plugin_args_not_testing"
-    )
-  }
-}
-
 #' Testing utilities
 #'
 #' Several utilities for unit testing, mainly with [shiny::testServer()] that
@@ -45,8 +18,6 @@ for_testing_only <- function() {
 #' @rdname testing
 #' @export
 generate_plugin_args <- function(board, ..., mode = c("edit", "read")) {
-
-  for_testing_only()
 
   withr::local_envvar(BLOCKR_LOG_LEVEL = "")
   withr::local_options(blockr.log_level = "warn")
@@ -111,9 +82,6 @@ with_mock_session <- function(expr, session = MockShinySession$new()) {
 #' @rdname testing
 #' @export
 with_mock_context <- function(session, expr) {
-
-  for_testing_only()
-
   isolate(
     withReactiveDomain(
       session,
