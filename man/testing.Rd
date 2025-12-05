@@ -5,6 +5,7 @@
 \alias{sink_msg}
 \alias{with_mock_session}
 \alias{with_mock_context}
+\alias{get_s3_method}
 \title{Testing utilities}
 \usage{
 generate_plugin_args(board, ..., mode = c("edit", "read"))
@@ -14,6 +15,8 @@ sink_msg(...)
 with_mock_session(expr, session = MockShinySession$new())
 
 with_mock_context(session, expr)
+
+get_s3_method(generic, object)
 }
 \arguments{
 \item{board}{A board object}
@@ -26,6 +29,10 @@ with_mock_context(session, expr)
 \item{expr}{Expression}
 
 \item{session}{Shiny session object}
+
+\item{generic}{Generic function name (passed as string)}
+
+\item{object}{S3 Object}
 }
 \value{
 For testing plugins, \code{generate_plugin_args()} returns objects that
@@ -33,7 +40,9 @@ mimic how plugins are called in the board server, \code{sink_msg()} is called
 mainly for the side-effect of muting shiny messages (and returns them
 invisibly), \code{with_mock_session()} returns \code{NULL} (invisibly) and
 \code{with_mock_context()} returns the result of a call to
-\code{\link[shiny:domains]{shiny::withReactiveDomain()}}.
+\code{\link[shiny:domains]{shiny::withReactiveDomain()}}. Finally, \code{get_s3_method()} returns a
+class-specific implementation of the specified generic (and throws an error
+if none is found).
 }
 \description{
 Several utilities for unit testing, mainly with \code{\link[shiny:testServer]{shiny::testServer()}} that

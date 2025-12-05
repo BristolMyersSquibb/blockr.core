@@ -13,7 +13,9 @@
 #' mainly for the side-effect of muting shiny messages (and returns them
 #' invisibly), `with_mock_session()` returns `NULL` (invisibly) and
 #' `with_mock_context()` returns the result of a call to
-#' [shiny::withReactiveDomain()].
+#' [shiny::withReactiveDomain()]. Finally, `get_s3_method()` returns a
+#' class-specific implementation of the specified generic (and throws an error
+#' if none is found).
 #'
 #' @rdname testing
 #' @export
@@ -98,3 +100,21 @@ with_mock_context <- function(session, expr) {
   )
 }
 
+#' @param generic Generic function name (passed as string)
+#' @param object S3 Object
+#' @rdname testing
+#' @export
+get_s3_method <- function(generic, object) {
+
+  for (cls in class(object)) {
+    res <- utils::getS3method(generic, cls, optional = TRUE)
+    if (is.function(res)) {
+      return(res)
+    }
+  }
+
+  blockr_abort(
+    "No function found for generic `{generic}()` and classes {class(object)}.",
+    class = "generic_method_not_found"
+  )
+}
