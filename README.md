@@ -56,29 +56,19 @@ blockr targets two main user groups:
 
 1.  **User-Friendly Interface**: Build data pipelines with intuitive
     interface, like with
-    [blockr.ui](https://cynkra.github.io/blockr.ui/).
+    [blockr.dock](https://BristolMyersSquibb.github.io/blockr.dock/).
 2.  **Flexibility**: Easily add, remove, or rearrange blocks in your
     pipeline.
 3.  **Extensibility**: Developers can create custom blocks to extend
     functionality
-    ([blockr.dplyr](https://github.com/cynkra/blockr.dplyr),
-    [blockr.ai](https://github.com/cynkra/blockr.ai),
-    [blockr.io](https://github.com/cynkra/blockr.io),
-    [blockr.sdtm](https://github.com/cynkra/blockr.sdtm), …)
+    ([blockr.dplyr](https://github.com/BristolMyersSquibb/blockr.dplyr),
+    [blockr.ai](https://github.com/BristolMyersSquibb/blockr.ai),
+    [blockr.io](https://github.com/BristolMyersSquibb/blockr.io),
+    [blockr.sdtm](https://github.com/BristolMyersSquibb/blockr.sdtm), …)
 4.  **Reproducibility**: Pipelines created with `blockr.core` are easily
     shareable and reproducible, with exportable code.
 5.  **Interactivity**: Real-time feedback as you build and modify your
     pipeline.
-
-<div class="figure" style="text-align: center">
-
-<img src="man/figures/blockr-ui.png" alt="blockr.ui example" width="100%" />
-<p class="caption">
-
-blockr.ui example
-</p>
-
-</div>
 
 ## Getting started
 
@@ -90,13 +80,14 @@ To get started, we invite you to read this
 We started to build blockr extensions to enrich blockr.core’s
 capabilities:
 
-- [blockr.dplyr](https://github.com/cynkra/blockr.dplyr): an entry point
-  to the `dplyr` ecosystem.
-- [blockr.ai](https://github.com/cynkra/blockr.ai): LLM-powered blocks.
-- [blockr.io](https://github.com/cynkra/blockr.io): handle different
-  data input format (xpt, csv, …) and output for export.
-- [blockr.sdtm](https://github.com/cynkra/blockr.sdtm): pharmaverse
-  datasets blocks.
+- [blockr.dplyr](https://github.com/BristolMyersSquibb/blockr.dplyr): an
+  entry point to the `dplyr` ecosystem.
+- [blockr.ai](https://github.com/BristolMyersSquibb/blockr.ai):
+  LLM-powered blocks.
+- [blockr.io](https://github.com/BristolMyersSquibb/blockr.io): handle
+  different data input format (xpt, csv, …) and output for export.
+- [blockr.sdtm](https://github.com/BristolMyersSquibb/blockr.sdtm):
+  pharmaverse datasets blocks.
 
 If you wish to learn to develop your own blocks, have a look at this
 [vignette](https://bristolmyerssquibb.github.io/blockr.core/articles/create-block.html).
