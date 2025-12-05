@@ -95,4 +95,4 @@ reference:
   - is_scalar
   - get_session
   - blockr_abort
-  - testing
+  - generate_plugin_args
