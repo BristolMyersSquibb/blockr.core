@@ -257,68 +257,6 @@
 <span><span class="co">#&gt; [10] "subset_block"      "upload_block"</span></span></code></pre></div>
 </div>
 <p>where <strong>uid</strong> is/are the block(s) class(s) passed in the constructor.</p>
-</section><section class="level2"><h2 id="create-your-own-registry-ui">Create your own registry UI<a class="anchor" aria-label="anchor" href="#create-your-own-registry-ui"></a>
-</h2>
-<p>Within <code>blockr.core</code>, the registry is used to create a dropdown of possible blocks when the user wants to add a block:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">selectInput</span><span class="op">(</span></span>
-<span>  <span class="fu">ns</span><span class="op">(</span><span class="st">"registry_select"</span><span class="op">)</span>,</span>
-<span>  <span class="st">"Select block from registry"</span>,</span>
-<span>  choices <span class="op">=</span> <span class="fu"><a href="../reference/register_block.html">list_blocks</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p>In the <code>blockr.ui</code> <a href="https://cynkra.github.io/blockr.ui/" class="external-link">package</a>, we designed a more sophisticated UI for the registry. We leverage our <code>scoutbaR</code> <a href="https://cynkra.github.io/scoutbaR/" class="external-link">package</a> that provides a React-powered contextual menu with search and nicer metadata display. Block <strong>categories</strong> are first extracted to create the widget <strong>sections</strong> with <code><a href="https://rdrr.io/pkg/scoutbaR/man/scout_section.html" class="external-link">scout_section()</a></code> and passing the right <code>label</code>. Within each section (ie block category) we create one <code><a href="https://rdrr.io/pkg/scoutbaR/man/scout_action.html" class="external-link">scout_action()</a></code> per block. Each <code><a href="https://rdrr.io/pkg/scoutbaR/man/scout_action.html" class="external-link">scout_action()</a></code> display the block icon for better user experience, the block name and its description.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># pak::pak("scoutbaR")</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">scoutbaR</span><span class="op">)</span></span>
-<span><span class="va">blk_icon</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">category</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="kw"><a href="https://rdrr.io/r/base/switch.html" class="external-link">switch</a></span><span class="op">(</span></span>
-<span>    <span class="va">category</span>,</span>
-<span>    <span class="st">"data"</span> <span class="op">=</span> <span class="st">"table"</span>,</span>
-<span>    <span class="st">"file"</span> <span class="op">=</span> <span class="st">"file-import"</span>,</span>
-<span>    <span class="st">"parse"</span> <span class="op">=</span> <span class="st">"cogs"</span>,</span>
-<span>    <span class="st">"plot"</span> <span class="op">=</span> <span class="st">"chart-line"</span>,</span>
-<span>    <span class="st">"transform"</span> <span class="op">=</span> <span class="st">"wand-magic-sparkles"</span>,</span>
-<span>    <span class="st">"table"</span> <span class="op">=</span> <span class="st">"table"</span></span>
-<span>  <span class="op">)</span></span>
-<span><span class="op">}</span></span>
-<span></span>
-<span><span class="va">blk_choices</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">blk_cats</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="fu"><a href="../reference/chr_ply.html">chr_ply</a></span><span class="op">(</span><span class="fu"><a href="../reference/register_block.html">available_blocks</a></span><span class="op">(</span><span class="op">)</span>, \<span class="op">(</span><span class="va">b</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">b</span>, <span class="st">"category"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span>  <span class="op">)</span></span>
-<span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">blk_cats</span>, \<span class="op">(</span><span class="va">cat</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/pkg/scoutbaR/man/scout_section.html" class="external-link">scout_section</a></span><span class="op">(</span></span>
-<span>      label <span class="op">=</span> <span class="va">cat</span>,</span>
-<span>      .list <span class="op">=</span> <span class="fu">dropNulls</span><span class="op">(</span></span>
-<span>        <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span></span>
-<span>          <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="../reference/register_block.html">available_blocks</a></span><span class="op">(</span><span class="op">)</span>, \<span class="op">(</span><span class="va">choice</span><span class="op">)</span> <span class="op">{</span></span>
-<span>            <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">choice</span>, <span class="st">"category"</span><span class="op">)</span> <span class="op">==</span> <span class="va">cat</span><span class="op">)</span> <span class="op">{</span></span>
-<span>              <span class="fu"><a href="https://rdrr.io/pkg/scoutbaR/man/scout_action.html" class="external-link">scout_action</a></span><span class="op">(</span></span>
-<span>                id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">choice</span>, <span class="st">"classes"</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
-<span>                label <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">choice</span>, <span class="st">"name"</span><span class="op">)</span>,</span>
-<span>                description <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">choice</span>, <span class="st">"description"</span><span class="op">)</span>,</span>
-<span>                icon <span class="op">=</span> <span class="fu">blk_icon</span><span class="op">(</span><span class="va">cat</span><span class="op">)</span></span>
-<span>              <span class="op">)</span></span>
-<span>            <span class="op">}</span></span>
-<span>          <span class="op">}</span><span class="op">)</span></span>
-<span>        <span class="op">)</span></span>
-<span>      <span class="op">)</span></span>
-<span>    <span class="op">)</span></span>
-<span>  <span class="op">}</span><span class="op">)</span></span>
-<span><span class="op">}</span></span></code></pre></div>
-<p>A demo is available below, where you can click on <code>New block</code> or press <code>cmd/ctrl + K</code> to trigger the contextual menu.</p>
-<div>
-<blockquote>
-<p><strong>Note</strong></p>
-<p>The demo below runs with shinylive. Not all feature may work as expected due to compatibility issues with webR.</p>
-</blockquote>
-</div>
-<div class="cell">
-<div class="cell-output-display">
-<iframe class="border border-5 rounded shadow-lg" src="https://shinylive.io/r/app/#h=0&amp;code=NobwRAdghgtgpmAXGKAHVA6ASmANGAYwHsIAXOMpMAdzgCMAnRRASwgGdSoAbbgCgA6YOtyIEA1gwwBXFkNwACBnFRF2CgLwKhAC1KlU7RAHpjBAJ4RJUDAHMWpHdLoYWRYyLGSMtOlmNCAJQCEL5MrBxcvILCohJSACao3OYM8koqapraYHoGRqYWVgw29o7Oru6e8T70-kEhYcxsnDz8QtXe7AmkMOnKqupauvqGJmaW1nYOTi5uHnHevvVgwaH04S1R7bFeUm79mUM5eWOFkyXT5XNVi1LLAash3CyMUAzmfJ1Ssmsvbx8vncMEkUgw-q8SoDvhhur0IQDPjC3GsGNIIAB9BJwGBEDFoVB8QJgAC+AF0gA" style="zoom: 0.75;" width="100%" height="1100px"></iframe>
-</div>
-</div>
 </section><script id="quarto-html-after-body" type="application/javascript">
   window.document.addEventListener("DOMContentLoaded", function (event) {
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);

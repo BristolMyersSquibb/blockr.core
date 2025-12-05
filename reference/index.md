@@ -339,10 +339,15 @@ Various tools and utilities.
   [`has_length()`](https://bristolmyerssquibb.github.io/blockr.core/reference/assertions.md)
   : Assertions
 - [`get_session()`](https://bristolmyerssquibb.github.io/blockr.core/reference/get_session.md)
-  [`generate_plugin_args()`](https://bristolmyerssquibb.github.io/blockr.core/reference/get_session.md)
   [`notify()`](https://bristolmyerssquibb.github.io/blockr.core/reference/get_session.md)
   : Shiny utilities
 - [`blockr_abort()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_abort.md)
   [`blockr_warn()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_abort.md)
   [`blockr_inform()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_abort.md)
   : Blockr conditions
+- [`generate_plugin_args()`](https://bristolmyerssquibb.github.io/blockr.core/reference/testing.md)
+  [`sink_msg()`](https://bristolmyerssquibb.github.io/blockr.core/reference/testing.md)
+  [`with_mock_session()`](https://bristolmyerssquibb.github.io/blockr.core/reference/testing.md)
+  [`with_mock_context()`](https://bristolmyerssquibb.github.io/blockr.core/reference/testing.md)
+  [`get_s3_method()`](https://bristolmyerssquibb.github.io/blockr.core/reference/testing.md)
+  : Testing utilities

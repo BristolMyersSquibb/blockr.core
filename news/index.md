@@ -37,7 +37,7 @@
   [`is_count()`](https://bristolmyerssquibb.github.io/blockr.core/reference/assertions.md),
   etc.
 - Improved ser/des, which now includes package/constructor information
-  for all board, blocks, stacks and options. The corresponsing infra
+  for all board, blocks, stacks and options. The corresponding infra
 - Board options now contain UI/server components to provide more options
   for customization. Also blocks can require certain options to be
   available.

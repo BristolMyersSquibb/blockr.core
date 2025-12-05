@@ -76,7 +76,8 @@ the message level is greater or equal to the currently set value.</p>
 <span>  level <span class="op">=</span> <span class="st">"info"</span>,</span>
 <span>  envir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sys.parent.html" class="external-link">parent.frame</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  asis <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  use_glue <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  use_glue <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  pkg <span class="op">=</span> <span class="fu"><a href="set_names.html">pkg_name</a></span><span class="op">(</span><span class="va">envir</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">log_fatal</span><span class="op">(</span><span class="va">...</span>, envir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sys.parent.html" class="external-link">parent.frame</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
@@ -144,6 +145,10 @@ the message level is greater or equal to the currently set value.</p>
 
 <dt id="arg-use-glue">use_glue<a class="anchor" aria-label="anchor" href="#arg-use-glue"></a></dt>
 <dd><p>Flag to disable use of glue</p></dd>
+
+
+<dt id="arg-pkg">pkg<a class="anchor" aria-label="anchor" href="#arg-pkg"></a></dt>
+<dd><p>Package name</p></dd>
 
 
 <dt id="arg-msg">msg<a class="anchor" aria-label="anchor" href="#arg-msg"></a></dt>

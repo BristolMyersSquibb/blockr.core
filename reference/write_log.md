@@ -17,7 +17,8 @@ write_log(
   level = "info",
   envir = parent.frame(),
   asis = FALSE,
-  use_glue = TRUE
+  use_glue = TRUE,
+  pkg = pkg_name(envir)
 )
 
 log_fatal(..., envir = parent.frame())
@@ -89,6 +90,10 @@ An object of class `ordered` (inherits from `factor`) of length 1.
 - use_glue:
 
   Flag to disable use of glue
+
+- pkg:
+
+  Package name
 
 - msg:
 

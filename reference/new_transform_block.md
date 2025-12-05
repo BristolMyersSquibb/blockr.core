@@ -96,7 +96,7 @@ by [`utils::head()`](https://rdrr.io/r/utils/head.html) and
 Joining together two `data.frame`s, based on a set of index columns,
 using [`base::merge()`](https://rdrr.io/r/base/merge.html) is available
 as `merge_block`. Depending on values passed as `all_x`/`all_y` the
-result will correspond to an "inner", "outer", "lfet" or "right" join.
+result will correspond to an "inner", "outer", "left" or "right" join.
 See [`base::merge()`](https://rdrr.io/r/base/merge.html) for details.
 This block class serves as an example for a transform block that takes
 exactly two data inputs `x` and `y` to produce a single `data.frame` as

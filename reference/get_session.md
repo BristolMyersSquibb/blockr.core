@@ -15,8 +15,6 @@ Utility functions for shiny:
 ``` r
 get_session()
 
-generate_plugin_args(board, ..., mode = c("edit", "read"))
-
 notify(
   ...,
   envir = parent.frame(),
@@ -31,18 +29,9 @@ notify(
 
 ## Arguments
 
-- board:
-
-  A board object
-
 - ...:
 
   Concatenated as `paste0(..., "\n")`
-
-- mode:
-
-  Edit plugins, such as `manage_blocks` get an additional argument
-  `update` over read plugins such as `preserve_board`.
 
 - envir:
 
@@ -90,5 +79,6 @@ notify(
 
 Either `NULL` or a shiny session object for `get_session()`, a list of
 arguments for plugin server functions in the case of
-`generate_plugin_args()` and `notify()` is called for the side-effect of
-displaying a browser notification (and returns `NULL` invisibly).
+[`generate_plugin_args()`](https://bristolmyerssquibb.github.io/blockr.core/reference/testing.md)
+and `notify()` is called for the side-effect of displaying a browser
+notification (and returns `NULL` invisibly).
