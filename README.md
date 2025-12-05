@@ -56,7 +56,7 @@ blockr targets two main user groups:
 
 1.  **User-Friendly Interface**: Build data pipelines with intuitive
     interface, like with
-    [blockr.dock](https://BristolMyersSquibb.github.io/blockr.dock/).
+    [blockr.dock](https://github.com/BristolMyersSquibb/blockr.dock).
 2.  **Flexibility**: Easily add, remove, or rearrange blocks in your
     pipeline.
 3.  **Extensibility**: Developers can create custom blocks to extend
