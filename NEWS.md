@@ -18,7 +18,7 @@
 * Board server callbacks are invoked with an additional argument `session`.
 * Export assertion utilities such as `is_string()`, `is_count()`, etc.
 * Improved ser/des, which now includes package/constructor information for all
-  board, blocks, stacks and options. The corresponsing infra
+  board, blocks, stacks and options. The corresponding infra
 * Board options now contain UI/server components to provide more options for
   customization. Also blocks can require certain options to be available.
 * Introduces `block_render_trigger()` to control per block class when to

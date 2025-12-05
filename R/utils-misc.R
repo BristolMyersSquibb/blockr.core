@@ -88,7 +88,7 @@ inherits <- function(x, ..., agg = NULL) {
 
 #' Miscellaneous utilities
 #'
-#' Several internal utility functions are exported for convencience in case
+#' Several internal utility functions are exported for convenience in case
 #' dependent packages can make use of this functionality.
 #'
 #' @param object,nm See [stats::setNames()]
