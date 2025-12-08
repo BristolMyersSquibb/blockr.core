@@ -77,7 +77,7 @@ a single \code{data.frame} as output.
 
 Joining together two \code{data.frame}s, based on a set of index columns, using
 \code{\link[base:merge]{base::merge()}} is available as \code{merge_block}. Depending on values passed
-as \code{all_x}/\code{all_y} the result will correspond to an "inner", "outer", "lfet"
+as \code{all_x}/\code{all_y} the result will correspond to an "inner", "outer", "left"
 or "right" join. See \code{\link[base:merge]{base::merge()}} for details. This block class serves
 as an example for a transform block that takes exactly two data inputs \code{x}
 and \code{y} to produce a single \code{data.frame} as output.

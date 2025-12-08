@@ -306,6 +306,8 @@ available_blocks <- function() {
 #' @export
 block_metadata <- function(blocks = list_blocks(), fields = "all") {
 
+  stopifnot(is.character(blocks), is.character(fields))
+
   all_fields <- c("name", "description", "category", "icon", "package")
 
   if (identical(fields, "all")) {

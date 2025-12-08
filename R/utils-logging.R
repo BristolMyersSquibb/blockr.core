@@ -14,6 +14,7 @@
 #' @param envir Environment where the logging call originated from
 #' @param asis Flag to disable re-wrapping of text to terminal width
 #' @param use_glue Flag to disable use of glue
+#' @param pkg Package name
 #'
 #' @return Logging function `write_log()`, wrappers `log_*()` and loggers
 #' provided as `cnd_logger()`/cat_logger() all return `NULL` invisibly and are
@@ -22,11 +23,10 @@
 #'
 #' @export
 write_log <- function(..., level = "info", envir = parent.frame(),
-                      asis = FALSE, use_glue = TRUE) {
+                      asis = FALSE, use_glue = TRUE, pkg = pkg_name(envir)) {
 
-  stopifnot(is.environment(envir))
+  stopifnot(is.environment(envir), is_string(pkg))
 
-  pkg <- pkg_name(envir)
   lvl <- as_log_level(level)
 
   if (lvl > get_log_level()) {

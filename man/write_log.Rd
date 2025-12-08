@@ -39,7 +39,8 @@ write_log(
   level = "info",
   envir = parent.frame(),
   asis = FALSE,
-  use_glue = TRUE
+  use_glue = TRUE,
+  pkg = pkg_name(envir)
 )
 
 log_fatal(..., envir = parent.frame())
@@ -85,6 +86,8 @@ cat_logger(msg, level)
 \item{asis}{Flag to disable re-wrapping of text to terminal width}
 
 \item{use_glue}{Flag to disable use of glue}
+
+\item{pkg}{Package name}
 
 \item{msg}{Message (string)}
 }

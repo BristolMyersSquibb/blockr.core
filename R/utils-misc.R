@@ -88,7 +88,7 @@ inherits <- function(x, ..., agg = NULL) {
 
 #' Miscellaneous utilities
 #'
-#' Several internal utility functions are exported for convencience in case
+#' Several internal utility functions are exported for convenience in case
 #' dependent packages can make use of this functionality.
 #'
 #' @param object,nm See [stats::setNames()]
@@ -517,21 +517,6 @@ to_sentence_case <- function(x, replace = character(), with = character()) {
 #' @export
 id_to_sentence_case <- function(x) {
   to_sentence_case(x, c("([A-Z])", "_", "-", "\\."), c(" \\1", " ", " ", " "))
-}
-
-get_s3_method <- function(generic, object) {
-
-  for (cls in class(object)) {
-    res <- utils::getS3method(generic, cls, optional = TRUE)
-    if (is.function(res)) {
-      return(res)
-    }
-  }
-
-  blockr_abort(
-    "No function found for generic `{generic}()` and classes {class(object)}.",
-    class = "generic_method_not_found"
-  )
 }
 
 format_head <- function(x, n = 3L) {

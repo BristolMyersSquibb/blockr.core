@@ -61,7 +61,7 @@ string, \code{coal()} the first non-null object and \code{unlst()} performs the 
 action as \code{\link[base:unlist]{base::unlist()}} but with differing defaults.
 }
 \description{
-Several internal utility functions are exported for convencience in case
+Several internal utility functions are exported for convenience in case
 dependent packages can make use of this functionality.
 }
 \keyword{internal}

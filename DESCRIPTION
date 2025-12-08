@@ -122,4 +122,5 @@ Collate:
     'utils-serdes.R'
     'utils-serve.R'
     'utils-shiny.R'
+    'utils-tests.R'
     'zzz-onload.R'

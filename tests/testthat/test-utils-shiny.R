@@ -47,23 +47,4 @@ test_that("shiny utils", {
   expect_type(trace_observe(), "closure")
   expect_false(trace_observe())
   expect_true(untrace_observe())
-
-  res <- is_load_alled()
-
-  expect_type(res, "logical")
-  expect_length(res, 1L)
-
-  expect_error(
-    is_load_alled("some_imaginary_pacakge_name"),
-    class = "namespace_not_found"
-  )
-
-  with_mocked_bindings(
-    expect_warning(
-      generate_plugin_args(new_board()),
-      class = "generate_plugin_args_not_testing"
-    ),
-    is_testing = function() FALSE,
-    is_load_alled = function() FALSE
-  )
 })
