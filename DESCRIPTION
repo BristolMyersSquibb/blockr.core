@@ -114,6 +114,7 @@ Collate:
     'utils-assertions.R'
     'utils-cnd.R'
     'utils-code.R'
+    'utils-expr.R'
     'utils-graph.R'
     'utils-logging.R'
     'utils-misc.R'
