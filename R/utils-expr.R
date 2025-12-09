@@ -24,48 +24,24 @@ bbquote <- function(expr, where = parent.frame(), splice = FALSE) {
     }
   }
 
-  make_splice_markers <- function(var) {
-    set_names(
-      list(call("..", as.name(var))),
-      paste0("BBQUOTE_SPLICE_MARKER_", var, "_END")
-    )
-  }
-
-  restore_splice_markers <- function(e) {
+  process_splices <- function(e) {
 
     if (!is.call(e)) {
       return(e)
     }
 
     e_list <- as.list(e)
-    names_e <- names(e_list)
+    names_e <- coal(names(e_list), rep("", length(e_list)))
 
     for (i in seq_along(e_list)) {
-
-      if (!is.null(names_e) && length(names_e) >= i && !is.na(names_e[i])) {
-
-        hit <- grepl("^BBQUOTE_SPLICE_MARKER_.*_END$", names_e[i])
-
-        if (hit) {
-          e_list[[i]] <- e_list[[i]]
-          names_e[i] <- ""
-        } else {
-          e_list[[i]] <- restore_splice_markers(e_list[[i]])
-        }
-
+      if (nchar(names_e[i]) && is_dots(e_list[[i]])) {
+        names_e[i] <- ""
       } else {
-        e_list[[i]] <- restore_splice_markers(e_list[[i]])
+        e_list[[i]] <- process_splices(e_list[[i]])
       }
     }
 
-    # Clean up marker names
-    if (!is.null(names_e)) {
-      names(e_list) <- ifelse(
-        grepl("^BBQUOTE_SPLICE_MARKER_.*_END$", names_e),
-        "",
-        names_e
-      )
-    }
+    names(e_list) <- names_e
 
     as.call(e_list)
   }
@@ -116,14 +92,14 @@ bbquote <- function(expr, where = parent.frame(), splice = FALSE) {
     } else {
 
       if (var %in% spl_vars) {
-        subst_list[[var]] <- make_splice_markers(var)
+        subst_list[[var]] <- set_names(list(call("..", as.name(var))), var)
       } else {
         subst_list[[var]] <- call(".", as.name(var))
       }
     }
   }
 
-  restore_splice_markers(
+  process_splices(
     eval(call("bquote", expr_sub, subst_list, splice = splice))
   )
 }

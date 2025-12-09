@@ -13,7 +13,7 @@ test_that("bbquote", {
   expr1 <- quote(func(..(a), ..(b)))
 
   expect_identical(
-    bbquote(expr1, list(), splice = TRUE),
+    bbquote(expr1, list()),
     expr1
   )
 
@@ -38,10 +38,20 @@ test_that("bbquote", {
     "plot(x = 1:10, y = 1:10, main = .(title))"
   )
 
-  expr5 <- bbquote(expr4, list(title = "My Plot"), splice = TRUE)
+  expr5 <- bbquote(expr4, list(title = "My Plot"))
 
   expect_identical(
     deparse(expr5),
     "plot(x = 1:10, y = 1:10, main = \"My Plot\")"
+  )
+
+  expect_identical(
+    bbquote(func(a = 1L, ..(a)), list()),
+    quote(func(a = 1L, ..(a)))
+  )
+
+  expect_identical(
+    bbquote(func(a = 1L, ..(a)), list(a = c("a", "b")), splice = TRUE),
+    quote(func(a = 1L, "a", "b"))
   )
 })
