@@ -440,7 +440,7 @@ check_expr_val <- function(val, x) {
     blockr_abort(
       "The `state` component of the return value for {class(x)[1L]} is ",
       "expected to be a list.",
-      class = "expr_server_return_state_invalid"
+      class = "expr_server_return_state_type_invalid"
     )
   }
 
@@ -452,7 +452,7 @@ check_expr_val <- function(val, x) {
     blockr_abort(
       "The `state` component of the return value for {class(x)[1L]} is ",
       "expected to additionally return {missing}.",
-      class = "expr_server_return_state_invalid"
+      class = "expr_server_return_state_missing_component"
     )
   }
 
@@ -462,7 +462,7 @@ check_expr_val <- function(val, x) {
     blockr_abort(
       "The `state` component of the return value for {class(x)[1L]} is ",
       "is not allowed to return components {disallowed}.",
-      class = "expr_server_return_state_invalid"
+      class = "expr_server_return_state_invalid_component"
     )
   }
 

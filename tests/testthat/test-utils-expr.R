@@ -95,4 +95,14 @@ test_that("bbquote", {
     eval(bbquote(1L + 2L, list(a = 3L))),
     3L
   )
+
+  expect_identical(bquote(), bbquote())
+
+  expect_identical(
+    bbquote(func(.(a), .(a)), list2env(list(a = "a"), parent = emptyenv())),
+    quote(func("a", "a"))
+  )
+
+  expect_error(.("a"), class = "dot_should_not_be_called")
+  expect_error(..("a"), class = "dots_should_not_be_called")
 })
