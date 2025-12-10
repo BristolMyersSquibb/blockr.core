@@ -212,7 +212,15 @@ test_that("cove generation utils", {
   )
 
   expect_warning(
-    expect_true(has_assignment(quote(function() { x <<- 5 }))),
+    expect_true(
+      has_assignment(
+        quote(
+          function() {
+            x <<- 5
+          }
+        )
+      )
+    ),
     class = "code_generation_discouraged_assignments"
   )
 
