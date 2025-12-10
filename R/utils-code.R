@@ -62,6 +62,10 @@ assignment <- function(name, value) {
 }
 
 has_assignment <- function(expr) {
+  check_assignment_recursive(expr, local_scope = FALSE)
+}
+
+check_assignment_recursive <- function(expr, local_scope) {
 
   if (is.atomic(expr) || is.name(expr)) {
     return(FALSE)
@@ -71,29 +75,65 @@ has_assignment <- function(expr) {
 
     fn <- as.character(expr[[1]])
 
-    if (fn == "<-") {
+    if (fn == "<-" && !local_scope) {
       return(TRUE)
-    } else if (fn %in% c("<<-", "assign")) {
+    }
+
+    if (fn %in% c("<<-", "assign")) {
+
       blockr_warn(
         "Using the global assignment operator `<<-` or calling ",
         "assign() is discouraged, as it can lead to unreliable ",
         "code generation.",
         class = "code_generation_discouraged_assignments"
       )
+
       return(TRUE)
     }
 
+    if (fn == "function" || fn == "\\") {
+
+      if (length(expr) >= 3) {
+        return(
+          check_assignment_recursive(expr[[3L]], local_scope = TRUE)
+        )
+      }
+
+      return(FALSE)
+    }
+
+    if (fn == "local") {
+
+      if (length(expr) >= 2) {
+        return(
+          check_assignment_recursive(expr[[2]], local_scope = TRUE)
+        )
+      }
+
+      return(FALSE)
+    }
+
+    if (fn == "{") {
+
+      for (i in seq_along(expr)[-1]) {
+        if (check_assignment_recursive(expr[[i]], local_scope)) {
+          return(TRUE)
+        }
+      }
+
+      return(FALSE)
+    }
+
     for (i in seq_along(expr)[-1]) {
-      if (has_assignment(expr[[i]])) {
+      if (check_assignment_recursive(expr[[i]], local_scope)) {
         return(TRUE)
       }
     }
   }
 
   if (is.pairlist(expr)) {
-
     for (i in seq_along(expr)) {
-      if (has_assignment(expr[[i]])) {
+      if (check_assignment_recursive(expr[[i]], local_scope)) {
         return(TRUE)
       }
     }
@@ -101,4 +141,3 @@ has_assignment <- function(expr) {
 
   FALSE
 }
-
