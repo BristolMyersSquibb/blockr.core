@@ -13,6 +13,10 @@ new_rbind_block <- function(...) {
         id,
         function(input, output, session) {
 
+          as_dot_call <- function(x) {
+            call(".", as.name(x))
+          }
+
           arg_names <- reactive(
             set_names(names(...args), dot_args_names(...args))
           )
@@ -21,7 +25,7 @@ new_rbind_block <- function(...) {
             expr = reactive(
               bquote(
                 rbind(..(dat)),
-                list(dat = lapply(arg_names(), as.name)),
+                list(dat = lapply(arg_names(), as_dot_call)),
                 splice = TRUE
               )
             ),
@@ -34,6 +38,7 @@ new_rbind_block <- function(...) {
       stopifnot(length(...args) >= 1L)
     },
     allow_empty_state = TRUE,
+    expr_type = "bquoted",
     class = "rbind_block",
     ...
   )

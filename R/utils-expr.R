@@ -4,7 +4,7 @@
 #' context of arguments supplied by the user via UI elements and in a second
 #' step in the context of input data. The function [base::bquote()] does not
 #' allow for terms wrapped in `.()` or `..()` to be missing and this makes it
-#' incompatible with this requirement. A drop-in replacement, provided as
+#' incompatible with this 2-step approach. A drop-in replacement, provided as
 #' `bbquote()` addresses this shortcoming.
 #'
 #' A block like `new_head_block()` is expected to return an expression of the
@@ -95,7 +95,7 @@ bbquote <- function(expr, where = parent.frame(), splice = FALSE) {
   if (missing(expr)) {
     return(bquote())
   }
-  
+
   if (is.name(expr_sub)) {
 
     expr_val <- tryCatch(
@@ -107,7 +107,7 @@ bbquote <- function(expr, where = parent.frame(), splice = FALSE) {
       expr_sub <- expr_val
     }
   }
-  
+
   dot_vars_list <- find_dots(expr_sub)
 
   if (length(dot_vars_list) > 0) {
@@ -117,16 +117,16 @@ bbquote <- function(expr, where = parent.frame(), splice = FALSE) {
   } else {
     dot_vars <- character(0)
     spl_vars <- character(0)
-}
-  
+  }
+
   if (is.list(where)) {
     available <- names(where)
   } else {
     available <- ls(envir = where, all.names = TRUE)
   }
-  
+
   subst_list <- list()
-  
+
   for (var in dot_vars) {
 
     if (var %in% available) {

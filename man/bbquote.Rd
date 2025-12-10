@@ -31,7 +31,7 @@ Block expressions in blockr are evaluated in a 2-step manner: first in the
 context of arguments supplied by the user via UI elements and in a second
 step in the context of input data. The function \code{\link[base:bquote]{base::bquote()}} does not
 allow for terms wrapped in \code{.()} or \code{..()} to be missing and this makes it
-incompatible with this requirement. A drop-in replacement, provided as
+incompatible with this 2-step approach. A drop-in replacement, provided as
 \code{bbquote()} addresses this shortcoming.
 }
 \details{
