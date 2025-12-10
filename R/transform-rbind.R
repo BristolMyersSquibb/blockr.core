@@ -13,10 +13,6 @@ new_rbind_block <- function(...) {
         id,
         function(input, output, session) {
 
-          as_dot_call <- function(x) {
-            call(".", as.name(x))
-          }
-
           arg_names <- reactive(
             set_names(names(...args), dot_args_names(...args))
           )

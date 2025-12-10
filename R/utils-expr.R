@@ -140,9 +140,9 @@ bbquote <- function(expr, where = parent.frame(), splice = FALSE) {
     } else {
 
       if (var %in% spl_vars) {
-        subst_list[[var]] <- set_names(list(call("..", as.name(var))), var)
+        subst_list[[var]] <- set_names(list(as_dots_call(var)), var)
       } else {
-        subst_list[[var]] <- call(".", as.name(var))
+        subst_list[[var]] <- as_dot_call(var)
       }
     }
   }
@@ -150,6 +150,14 @@ bbquote <- function(expr, where = parent.frame(), splice = FALSE) {
   process_splices(
     eval(call("bquote", expr_sub, subst_list, splice = splice))
   )
+}
+
+as_dot_call <- function(x) {
+  call(".", as.name(x))
+}
+
+as_dots_call <- function(x) {
+  call("..", as.name(x))
 }
 
 #' @param x Object
@@ -167,6 +175,6 @@ bbquote <- function(expr, where = parent.frame(), splice = FALSE) {
 .. <- function(x) {
   blockr_abort(
     "Function `..()` is not intended to be called.",
-    class = "dot_dot_should_not_be_called"
+    class = "dots_should_not_be_called"
   )
 }
