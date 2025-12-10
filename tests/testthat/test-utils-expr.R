@@ -54,4 +54,45 @@ test_that("bbquote", {
     bbquote(func(a = 1L, ..(a)), list(a = c("a", "b")), splice = TRUE),
     quote(func(a = 1L, "a", "b"))
   )
+
+  expect_identical(
+    bbquote(func(a = 1L, .(a)), list(a = "a")),
+    quote(func(a = 1L, "a"))
+  )
+
+  expect_identical(
+    eval(
+      bbquote(
+        {
+          b <- 1L
+          .(a) + b
+        },
+        list(a = 2L)
+      )
+    ),
+    3L
+  )
+
+  expect_identical(
+    eval(
+      bbquote(
+        {
+          a <- 1L
+          .(a) + a
+        },
+        list(a = 2L)
+      )
+    ),
+    3L
+  )
+
+  expect_identical(
+    eval(bbquote(1L + 2L, list())),
+    3L
+  )
+
+  expect_identical(
+    eval(bbquote(1L + 2L, list(a = 3L))),
+    3L
+  )
 })

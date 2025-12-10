@@ -9,6 +9,11 @@
 #' @rdname new_transform_block
 #' @export
 new_subset_block <- function(subset = "", select = "", ...) {
+
+  pasrse_first <- function(x) {
+    parse(text = x)[[1L]]
+  }
+
   new_transform_block(
     function(id, data) {
       moduleServer(
@@ -27,7 +32,31 @@ new_subset_block <- function(subset = "", select = "", ...) {
           )
 
           list(
-            expr = reactive(subset_expr(sub(), sel())),
+            expr = reactive(
+              {
+                su <- sub()
+                se <- sel()
+
+                if (nzchar(su) && nzchar(se)) {
+                  bbquote(
+                    subset(.(data), .(su), .(se)),
+                    list(su = pasrse_first(su), se = pasrse_first(se))
+                  )
+                } else if (nzchar(se)) {
+                  bbquote(
+                    subset(.(data), select = .(se)),
+                    list(se = pasrse_first(se))
+                  )
+                } else if (nzchar(su)) {
+                  bbquote(
+                    subset(.(data), .(su)),
+                    list(su = pasrse_first(su))
+                  )
+                } else {
+                  quote(subset(.(data)))
+                }
+              }
+            ),
             state = list(subset = sub, select = sel)
           )
         }
@@ -57,33 +86,8 @@ new_subset_block <- function(subset = "", select = "", ...) {
       stopifnot(is.data.frame(data))
     },
     allow_empty_state = TRUE,
+    expr_type = "bquoted",
     class = "subset_block",
     ...
   )
-}
-
-subset_expr <- function(sub, sel) {
-
-  pasrse_first <- function(x) {
-    parse(text = x)[[1L]]
-  }
-
-  if (nzchar(sub) && nzchar(sel)) {
-    bquote(
-      subset(data, .(sub), .(sel)),
-      list(sub = pasrse_first(sub), sel = pasrse_first(sel))
-    )
-  } else if (nzchar(sel)) {
-    bquote(
-      subset(data, select = .(sel)),
-      list(sel = pasrse_first(sel))
-    )
-  } else if (nzchar(sub)) {
-    bquote(
-      subset(data, .(sub)),
-      list(sub = pasrse_first(sub))
-    )
-  } else {
-    quote(subset(data))
-  }
 }

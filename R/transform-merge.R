@@ -54,8 +54,9 @@ new_merge_block <- function(by = character(), all_x = FALSE, all_y = FALSE,
 
           list(
             expr = reactive(
-              bquote(
-                merge(x, y, by = .(cols), all.x = .(allx), all.y = .(ally)),
+              bbquote(
+                merge(.(x), .(y), by = .(cols), all.x = .(allx),
+                      all.y = .(ally)),
                 list(cols = sels(), allx = allx(), ally = ally())
               )
             ),
@@ -87,6 +88,7 @@ new_merge_block <- function(by = character(), all_x = FALSE, all_y = FALSE,
     dat_valid = function(x, y) {
       stopifnot(is.data.frame(x), is.data.frame(y))
     },
+    expr_type = "bquoted",
     class = "merge_block",
     ...
   )

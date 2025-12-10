@@ -304,7 +304,7 @@ data_eval_observer <- function(id, x, dat, res, exp, lang, rv, cond, sess) {
       log_debug("evaluating block ", id)
 
       out <- capture_conditions(
-        block_eval(x, lang(), eval_env(dat_eval())),
+        eval_impl(x, lang(), dat_eval()),
         cond,
         "eval",
         session = sess
@@ -314,6 +314,15 @@ data_eval_observer <- function(id, x, dat, res, exp, lang, rv, cond, sess) {
     },
     domain = sess
   )
+}
+
+eval_impl <- function(x, expr, dat) {
+
+  if (identical(block_expr_type(x), "bquoted")) {
+    expr <- do.call(bquote, list(expr, dat, splice = is.na(block_arity(x))))
+  }
+
+  block_eval(x, expr, eval_env(dat))
 }
 
 #' @rdname block_server
@@ -443,6 +452,16 @@ check_expr_val <- function(val, x) {
     blockr_abort(
       "The `state` component of the return value for {class(x)[1L]} is ",
       "expected to additionally return {missing}.",
+      class = "expr_server_return_state_invalid"
+    )
+  }
+
+  disallowed <- intersect(current, static_block_arguments())
+
+  if (length(disallowed)) {
+    blockr_abort(
+      "The `state` component of the return value for {class(x)[1L]} is ",
+      "is not allowed to return components {disallowed}.",
       class = "expr_server_return_state_invalid"
     )
   }
