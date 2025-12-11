@@ -5,7 +5,9 @@
 \alias{serve.block}
 \alias{serve.board}
 \alias{blockr_app_plugins}
+\alias{custom_plugins}
 \alias{blockr_app_options}
+\alias{custom_options}
 \alias{blockr_app_ui}
 \alias{blockr_app_server}
 \alias{get_serve_obj}
@@ -25,7 +27,11 @@ serve(x, ...)
 
 blockr_app_plugins(x)
 
+custom_plugins(x)
+
 blockr_app_options(x)
+
+custom_options(x)
 
 blockr_app_ui(id, x, ...)
 
