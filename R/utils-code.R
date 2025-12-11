@@ -38,7 +38,7 @@ export_code <- function(expressions, board) {
 export_wrapped_code <- function(expressions, board) {
 
   exprs <- do.call(
-    map,
+    Map,
     c(
       list(wrap_expr),
       export_code(expressions, board)
