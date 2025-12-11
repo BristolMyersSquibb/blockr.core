@@ -45,12 +45,7 @@ blockr_ser.block <- function(x, state = NULL, ...) {
 
   state <- c(
     state,
-    attrs[
-      setdiff(
-        names(attrs),
-        c("names", "ctor", "class", "allow_empty_state")
-      )
-    ]
+    attrs[setdiff(names(attrs), c("names", internal_block_attributes()))]
   )
 
   ctor <- block_ctor(x)

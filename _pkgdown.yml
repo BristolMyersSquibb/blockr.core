@@ -96,3 +96,4 @@ reference:
   - get_session
   - blockr_abort
   - generate_plugin_args
+  - bbquote

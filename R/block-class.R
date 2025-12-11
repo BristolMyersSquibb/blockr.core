@@ -119,6 +119,7 @@
 #' @param block_name Block name
 #' @param allow_empty_state Either `TRUE`, `FALSE` or a character vector of
 #' `state` values that may be empty while still moving forward with block eval
+#' @param expr_type Expression type (experimental)
 #' @param ... Further (metadata) attributes
 #'
 #' @examples
@@ -155,9 +156,12 @@
 #' @export
 new_block <- function(server, ui, class, ctor = sys.parent(), ctor_pkg = NULL,
                       dat_valid = NULL, allow_empty_state = FALSE,
-                      block_name = default_block_name, ...) {
+                      block_name = default_block_name,
+                      expr_type = c("quoted", "bquoted"), ...) {
 
   stopifnot(is.character(class), length(class) > 0L)
+
+  expr_type <- match.arg(expr_type)
 
   if (missing(ui)) {
     ui <- function(id) {
@@ -188,9 +192,30 @@ new_block <- function(server, ui, class, ctor = sys.parent(), ctor_pkg = NULL,
       ctor = resolve_ctor(ctor, ctor_pkg),
       name = block_name,
       allow_empty_state = allow_empty_state,
+      expr_type = expr_type,
       class = class
     ),
     ui_eval = TRUE
+  )
+}
+
+static_block_arguments <- function() {
+  c(
+    "server",
+    "ui",
+    "class",
+    "dat_valid",
+    "allow_empty_state",
+    "expr_type"
+  )
+}
+
+internal_block_attributes <- function() {
+  c(
+    "ctor",
+    "class",
+    "allow_empty_state",
+    "expr_type"
   )
 }
 
@@ -600,4 +625,9 @@ print.block <- function(x, ...) {
 #' @export
 board_options.block <- function(x, ...) {
   new_board_options()
+}
+
+block_expr_type <- function(x) {
+  stopifnot(is_block(x))
+  attr(x, "expr_type")
 }
