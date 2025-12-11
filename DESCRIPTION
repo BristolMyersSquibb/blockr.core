@@ -61,10 +61,7 @@ Suggests:
     scoutbaR,
     thematic,
     ids,
-    ellmer,
-    downlit,
-    xml2,
-    styler
+    ellmer
 Config/testthat/edition: 3
 VignetteBuilder: quarto
 Collate:

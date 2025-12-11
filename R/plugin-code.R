@@ -33,51 +33,27 @@ generate_code_server <- function(id, board, ...) {
     function(input, output, session) {
 
       code <- reactive(
-        export_code(lst_xtr_reval(board$blocks, "server", "expr"), board$board)
+        export_wrapped_code(
+          lst_xtr_reval(board$blocks, "server", "expr"),
+          board$board
+        )
       )
 
       observeEvent(
         input$code_mod,
-        {
-          out <- paste0(code(), collapse = "\n")
-
-          cp <- nchar(out) > 0L
-
-          if (pkg_avail("styler")) {
-            out <- paste0(styler::style_text(out), collapse = "\n")
-          }
-
-          id <- "code_out"
-
-          hl <- pkg_avail("downlit", "xml2")
-
-          if (hl) {
-            pre <- downlit::highlight(
-              out,
-              classes = downlit::classes_chroma(),
-              pre_class = "chroma"
-            )
-            pre <- HTML(add_blank_targets(pre))
-          } else {
-            pre <- pre(out)
-          }
-
-          showModal(
-            modalDialog(
-              title = "Generated code",
-              if (hl) highlight_deps(),
-              div(
-                id = session$ns(id),
-                class = "text-decoration-none position-relative",
-                if (cp) copy_to_clipboard(session, id),
-                pre
-              ),
-              easyClose = TRUE,
-              footer = NULL,
-              size = "l"
-            )
+        showModal(
+          modalDialog(
+            title = "Generated code",
+            div(
+              id = session$ns("code_out"),
+              class = "text-decoration-none position-relative",
+              pre(paste0(code(), collapse = "\n"))
+            ),
+            easyClose = TRUE,
+            footer = NULL,
+            size = "l"
           )
-        }
+        )
       )
 
       NULL
@@ -94,73 +70,5 @@ generate_code_ui <- function(id, board) {
       "Show code",
       icon = icon("code")
     )
-  )
-}
-
-copy_to_clipboard <- function(session, id) {
-
-  deps <- htmltools::htmlDependency(
-    "copy-to-clipboard",
-    pkg_version(),
-    src = pkg_file("assets", "js"),
-    script = "copyToClipboard.js"
-  )
-
-  tagList(
-    actionButton(
-      session$ns("copy_code"),
-      "",
-      class = paste(
-        "btn", "btn-outline-secondary", "btn-sm", "position-absolute",
-        "top-0", "end-0", "m-2"
-      ),
-      icon = icon("copy", "fa-solid"),
-      onclick = paste0("copyCode(\"", session$ns(id), "\");")
-    ),
-    deps
-  )
-}
-
-highlight_deps <- function() {
-  htmltools::htmlDependency(
-    "chroma-highlighting",
-    pkg_version(),
-    src = pkg_file("assets", "css"),
-    stylesheet = "syntax-highlight.css"
-  )
-}
-
-add_blank_targets <- function(html) {
-
-  log_debug("adding blank targets to syntax highlighted code")
-
-  doc <- xml2::read_html(html)
-
-  links <- xml2::xml_find_all(doc, ".//pre//a")
-
-  for (link in links) {
-
-    xml2::xml_set_attr(link, "target", "_blank")
-
-    existing_rel <- xml2::xml_attr(link, "rel")
-
-    stopifnot(is_scalar(existing_rel))
-
-    if (is.na(existing_rel)) {
-      existing_rel <- character()
-    } else {
-      existing_rel <- strsplit(existing_rel, "\\s+")[[1]]
-    }
-
-    rel_parts <- paste(
-      unique(c(existing_rel, "noopener", "noreferrer")),
-      collapse = " "
-    )
-
-    xml2::xml_set_attr(link, "rel", rel_parts)
-  }
-
-  as.character(
-    xml2::xml_children(xml2::xml_find_all(doc, "body"))
   )
 }
