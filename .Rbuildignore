@@ -10,3 +10,5 @@ _\.new\.png$
 ^cran-comments\.md$
 ^CRAN-SUBMISSION$
 ^vignettes/\.quarto$
+^doc$
+^Meta$
