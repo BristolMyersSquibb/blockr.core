@@ -6,3 +6,5 @@ CRAN-SUBMISSION
 /.quarto/
 docs
 inst/doc
+/doc/
+/Meta/

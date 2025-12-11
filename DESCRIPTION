@@ -1,6 +1,6 @@
 Package: blockr.core
 Title: Graphical Web-Framework for Data Manipulation and Visualization
-Version: 0.1.1
+Version: 0.1.2
 Authors@R: 
     c(person(given = "Nicolas",
              family = "Bennett",
