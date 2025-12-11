@@ -125,6 +125,29 @@ blockr_app_plugins.board <- function(x) {
 
 #' @rdname serve
 #' @export
+custom_plugins <- function(x) {
+
+  custom <- as_plugins(x)
+
+  function(x) {
+
+    default <- blockr_app_plugins(x)
+
+    hit <- match(names(custom), names(default), nomatch = NA_integer_)
+
+    if (all(is.na(hit))) {
+      return(default)
+    }
+
+    keep <- custom[!is.na(hit)]
+    remv <- hit[!is.na(hit)]
+
+    c(default[-remv], keep)
+  }
+}
+
+#' @rdname serve
+#' @export
 blockr_app_options <- function(x) {
   UseMethod("blockr_app_options")
 }
@@ -136,6 +159,23 @@ blockr_app_options.board <- function(x, ...) {
     lapply(board_blocks(x), board_options),
     lapply(available_blocks(), board_options)
   )
+}
+
+#' @rdname serve
+#' @export
+custom_options <- function(x) {
+
+  custom <- as_board_options(x)
+
+  function(x) {
+
+    default <- blockr_app_options(x)
+
+    combine_board_options(
+      custom,
+      default
+    )
+  }
 }
 
 #' @rdname serve
