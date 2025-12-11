@@ -162,7 +162,7 @@ blockr_ser(blk)
 #> [1] "blockr.core"
 #> 
 #> $constructor$version
-#> [1] "0.1.1"
+#> [1] "0.1.2"
 #> 
 #> 
 

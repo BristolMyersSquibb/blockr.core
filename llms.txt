@@ -379,7 +379,9 @@ Various tools and utilities.
   : Blockr Options
 - [`serve()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   [`blockr_app_plugins()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
+  [`custom_plugins()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   [`blockr_app_options()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
+  [`custom_options()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   [`blockr_app_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   [`blockr_app_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   [`get_serve_obj()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)

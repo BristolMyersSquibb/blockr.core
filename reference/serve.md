@@ -23,7 +23,11 @@ serve(
 
 blockr_app_plugins(x)
 
+custom_plugins(x)
+
 blockr_app_options(x)
+
+custom_options(x)
 
 blockr_app_ui(id, x, ...)
 

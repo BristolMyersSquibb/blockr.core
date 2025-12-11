@@ -21,12 +21,12 @@ Source:
 
 Bennett N, Granjon D, Sax C (2025). *blockr.core: Graphical
 Web-Framework for Data Manipulation and Visualization*. R package
-version 0.1.1, <https://bristolmyerssquibb.github.io/blockr.core/>.
+version 0.1.2, <https://bristolmyerssquibb.github.io/blockr.core/>.
 
     @Manual{,
       title = {blockr.core: Graphical Web-Framework for Data Manipulation and Visualization},
       author = {Nicolas Bennett and David Granjon and Christoph Sax},
       year = {2025},
-      note = {R package version 0.1.1},
+      note = {R package version 0.1.2},
       url = {https://bristolmyerssquibb.github.io/blockr.core/},
     }
