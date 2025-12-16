@@ -238,13 +238,7 @@ serve_board_srv <- function(id, plugins, options, ...) {
     )
 
     exportTestValues(
-      result = lapply(
-        lapply(
-          lapply(lst_xtr(res[[1L]]$blocks, "server", "result"), safely_export),
-          reval
-        ),
-        reval
-      )
+      blockr_test_exports(x, res)
     )
 
     invisible()
@@ -298,5 +292,24 @@ serve.character <- function(x, ...) {
   serve(
     blockr_deser(read_json(x)),
     ...
+  )
+}
+
+#' @rdname serve
+#' @export
+blockr_test_exports <- function(x, dat, ...) {
+  UseMethod("blockr_app_ui", x)
+}
+
+#' @export
+blockr_test_exports.board <- function(x, dat, ...) {
+  list(
+    result = lapply(
+      lapply(
+        lapply(lst_xtr(dat[[1L]]$blocks, "server", "result"), export_safely),
+        reval
+      ),
+      reval
+    )
   )
 }

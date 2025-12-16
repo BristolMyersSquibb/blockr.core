@@ -283,16 +283,6 @@ dot_args_names <- function(x) {
   res
 }
 
-# https://github.com/rstudio/shiny/issues/3768
-safely_export <- function(r) {
-  r_quo <- rlang::enquo(r)
-  rlang::inject({
-    reactive({
-      tryCatch(!!r_quo, error = function(e) e)
-    })
-  })
-}
-
 exprs_to_lang <- function(exprs) {
 
   if (rlang::is_syntactic_literal(exprs)) {

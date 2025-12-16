@@ -11,6 +11,7 @@
 \alias{blockr_app_ui}
 \alias{blockr_app_server}
 \alias{get_serve_obj}
+\alias{blockr_test_exports}
 \title{Serve object}
 \usage{
 serve(x, ...)
@@ -38,6 +39,8 @@ blockr_app_ui(id, x, ...)
 blockr_app_server(id, x, ...)
 
 get_serve_obj(id = NULL)
+
+blockr_test_exports(x, dat, ...)
 }
 \arguments{
 \item{x}{Object}
