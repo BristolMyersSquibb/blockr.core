@@ -2,7 +2,8 @@ test_that("merge app", {
 
   skip_on_cran()
 
-  app_path <- pkg_file("examples", "block", "merge", "app.R")
+  app_path <- system.file("examples", "block", "merge", "app.R",
+                          package = "blockr.core")
 
   app <- shinytest2::AppDriver$new(
     app_path,
@@ -35,7 +36,8 @@ test_that("rbind app", {
 
   skip_on_cran()
 
-  app_path <- pkg_file("examples", "block", "rbind", "app.R")
+  app_path <- system.file("examples", "block", "rbind", "app.R",
+                          package = "blockr.core")
 
   app <- shinytest2::AppDriver$new(
     app_path,
@@ -53,7 +55,8 @@ test_that("board app", {
 
   skip_on_cran()
 
-  app_path <- pkg_file("examples", "board", "empty", "app.R")
+  app_path <- system.file("examples", "board", "empty", "app.R",
+                          package = "blockr.core")
 
   app <- shinytest2::AppDriver$new(
     app_path,
@@ -128,7 +131,8 @@ test_that("board stacks", {
 
   skip_on_cran()
 
-  app_path <- pkg_file("examples", "board", "stack", "app.R")
+  app_path <- system.file("examples", "board", "stack", "app.R",
+                          package = "blockr.core")
 
   app <- shinytest2::AppDriver$new(
     app_path,

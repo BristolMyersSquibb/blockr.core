@@ -40,7 +40,7 @@ blockr_app_server(id, x, ...)
 
 get_serve_obj(id = NULL)
 
-blockr_test_exports(x, dat, ...)
+blockr_test_exports(x, rv, ...)
 }
 \arguments{
 \item{x}{Object}
@@ -54,6 +54,8 @@ blockr_test_exports(x, dat, ...)
 \item{plugins}{Board plugins}
 
 \item{options}{Board options}
+
+\item{rv}{Board \code{\link[shiny:reactiveValues]{shiny::reactiveValues()}}}
 }
 \value{
 The generic \code{serve()} is expected to return the result of a call to
