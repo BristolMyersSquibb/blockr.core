@@ -66,7 +66,7 @@ serve.block <- function(x, id = "block", ..., data = list()) {
     res <- block_server(id, x, Map(init_data, data, names(data) == "...args"))
 
     exportTestValues(
-      result = safely_export(res$result())()
+      result = export_safely(res$result())()
     )
 
     invisible()
