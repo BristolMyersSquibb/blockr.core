@@ -306,7 +306,8 @@ blockr_test_exports.board <- function(x, rv, ...) {
     result = lapply(
       lapply(
         lapply(lst_xtr(rv[[1L]]$blocks, "server", "result"), export_safely),
-        reval),
+        reval
+      ),
       reval
     )
   )
