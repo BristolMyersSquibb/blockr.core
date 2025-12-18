@@ -6,6 +6,7 @@
 \alias{with_mock_session}
 \alias{with_mock_context}
 \alias{get_s3_method}
+\alias{export_safely}
 \title{Testing utilities}
 \usage{
 generate_plugin_args(board, ..., mode = c("edit", "read"))
@@ -17,6 +18,8 @@ with_mock_session(expr, session = MockShinySession$new())
 with_mock_context(session, expr)
 
 get_s3_method(generic, object)
+
+export_safely(x)
 }
 \arguments{
 \item{board}{A board object}
@@ -33,6 +36,8 @@ get_s3_method(generic, object)
 \item{generic}{Generic function name (passed as string)}
 
 \item{object}{S3 Object}
+
+\item{x}{Reactive object to use in \code{\link[shiny:exportTestValues]{shiny::exportTestValues()}}}
 }
 \value{
 For testing plugins, \code{generate_plugin_args()} returns objects that

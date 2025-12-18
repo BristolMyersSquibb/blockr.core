@@ -66,7 +66,7 @@ serve.block <- function(x, id = "block", ..., data = list()) {
     res <- block_server(id, x, Map(init_data, data, names(data) == "...args"))
 
     exportTestValues(
-      result = safely_export(res$result())()
+      result = export_safely(res$result())()
     )
 
     invisible()
@@ -237,15 +237,7 @@ serve_board_srv <- function(id, plugins, options, ...) {
       c(list(id, x, plugins = plugins(x), options = options(x)), args)
     )
 
-    exportTestValues(
-      result = lapply(
-        lapply(
-          lapply(lst_xtr(res[[1L]]$blocks, "server", "result"), safely_export),
-          reval
-        ),
-        reval
-      )
-    )
+    blockr_test_exports(x, res)
 
     invisible()
   }
@@ -298,5 +290,25 @@ serve.character <- function(x, ...) {
   serve(
     blockr_deser(read_json(x)),
     ...
+  )
+}
+
+#' @param rv Board [shiny::reactiveValues()]
+#' @rdname serve
+#' @export
+blockr_test_exports <- function(x, rv, ...) {
+  UseMethod("blockr_test_exports", x)
+}
+
+#' @export
+blockr_test_exports.board <- function(x, rv, ...) {
+  exportTestValues(
+    result = lapply(
+      lapply(
+        lapply(lst_xtr(rv[[1L]]$blocks, "server", "result"), export_safely),
+        reval
+      ),
+      reval
+    )
   )
 }
