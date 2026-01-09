@@ -20,6 +20,7 @@ new_block(
   allow_empty_state = FALSE,
   block_name = default_block_name,
   expr_type = c("quoted", "bquoted"),
+  external_ctrl = FALSE,
   ...
 )
 
@@ -56,6 +57,8 @@ constructor name or \code{NULL}}
 \item{block_name}{Block name}
 
 \item{expr_type}{Expression type (experimental)}
+
+\item{external_ctrl}{Set up external control (experimental)}
 
 \item{...}{Further (metadata) attributes}
 

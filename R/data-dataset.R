@@ -33,22 +33,17 @@ new_dataset_block <- function(dataset = character(), package = "datasets",
         id,
         function(input, output, session) {
 
-          dat <- reactiveVal(dataset)
+          observeEvent(
+            input$dataset,
+            dataset(input$dataset)
+          )
 
-          observeEvent(input$dataset, dat(input$dataset))
-
-          list(
-            expr = reactive(
-              eval(
-                bquote(
-                  as.call(c(as.symbol("::"), quote(.(pkg)), quote(.(dat)))),
-                  list(pkg = as.name(package), dat = as.name(dat()))
-                )
+          reactive(
+            eval(
+              bquote(
+                as.call(c(as.symbol("::"), quote(.(pkg)), quote(.(dat)))),
+                list(pkg = as.name(package), dat = as.name(dataset()))
               )
-            ),
-            state = list(
-              dataset = dat,
-              package = package
             )
           )
         }
@@ -63,6 +58,7 @@ new_dataset_block <- function(dataset = character(), package = "datasets",
       )
     },
     class = "dataset_block",
+    external_ctrl = "dataset",
     ...
   )
 }

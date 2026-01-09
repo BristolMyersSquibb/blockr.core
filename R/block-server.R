@@ -134,7 +134,40 @@ expr_server <- function(x, data, ...) {
 
 #' @export
 expr_server.block <- function(x, data, ...) {
-  do.call(block_expr_server(x), c(list(id = "expr"), data))
+
+  has_external_ctrl <- block_supports_external_ctrl(x)
+
+  srv_fun <- block_expr_server(x)
+  srv_env <- environment(srv_fun)
+
+  if (has_external_ctrl) {
+    srv_env <- rlang::env_clone(srv_env)
+    ctrl <- block_ctrl(x)
+    on.exit(`environment<-`(srv_fun, srv_env))
+    environment(srv_fun) <- list2env(ctrl, srv_env)
+  }
+
+  res <- do.call(
+    srv_fun,
+    c(list(id = "expr"), data)
+  )
+
+  if (has_external_ctrl && is.reactive(res)) {
+    res <- list(expr = res)
+  }
+
+  if (has_external_ctrl && !"state" %in% names(res)) {
+
+    miss <- setdiff(block_ctor_inputs(x), names(ctrl))
+
+    if (length(miss)) {
+      ctrl <- c(ctrl, mget(miss, srv_env))
+    }
+
+    res <- c(res, list(state = ctrl))
+  }
+
+  res
 }
 
 #' @param expr Quoted expression to evaluate in the context of `data`

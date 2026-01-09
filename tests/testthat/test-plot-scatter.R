@@ -4,8 +4,8 @@ test_that("scetter plot block constructor", {
 
   expect_s3_class(blk, "scatter_block")
 
-  testServer(
-    block_expr_server(blk),
+  block_expr_test_server(
+    blk,
     {
       expect_identical(x_col(), character())
       expect_identical(y_col(), character())
