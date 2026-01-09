@@ -18,6 +18,7 @@ block_server(id, x, data = list(), ...)
   data = list(),
   block_id = id,
   edit_block = NULL,
+  ctrl_block = NULL,
   board = reactiveValues(),
   update = reactiveVal(),
   ...
@@ -44,7 +45,7 @@ block_render_trigger(x, session = get_session())
 
 \item{block_id}{Block ID}
 
-\item{edit_block}{Block edit plugin}
+\item{edit_block, ctrl_block}{Block plugins}
 
 \item{board}{Reactive values object containing board information}
 

@@ -34,8 +34,18 @@ new_dataset_block <- function(dataset = character(), package = "datasets",
         function(input, output, session) {
 
           observeEvent(
-            input$dataset,
+            req(input$dataset),
             dataset(input$dataset)
+          )
+
+          observeEvent(
+            req(dataset()),
+            updateSelectInput(
+              session,
+              "dataset",
+              choices = list_datasets(package),
+              selected = dataset()
+            )
           )
 
           reactive(

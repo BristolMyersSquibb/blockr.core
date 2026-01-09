@@ -39,18 +39,18 @@ board_ui <- function(id, x, ...) {
 #' @export
 board_ui.board <- function(id, x, plugins = board_plugins(x), options = NULL,
                            ...) {
-
-  plugin_if_exists <- function(nme) {
-    if (nme %in% names(plugins)) plugins[[nme]]
-  }
-
   tagList(
     toolbar_ui(id, x, plugins, options),
     board_ui(id, plugins[["notify_user"]], x),
     div(
       id = paste0(id, "_board"),
-      stack_ui(id, x, edit_ui = plugin_if_exists("edit_stack")),
-      block_ui(id, x, edit_ui = plugin_if_exists("edit_block"))
+      stack_ui(id, x, edit_ui = get_plugin("edit_stack", plugins)),
+      block_ui(
+        id,
+        x,
+        edit_ui = get_plugin("edit_block", plugins),
+        ctrl_ui = get_plugin("ctrl_block", plugins)
+      )
     )
   )
 }
@@ -68,15 +68,22 @@ board_ui.NULL <- function(id, x, ...) NULL
 #' are displayed by providing a board-specific `block_ui()` method.
 #'
 #' @param blocks (Additional) blocks (or IDs) for which to generate the UI
-#' @param edit_ui Block edit plugin
+#' @param edit_ui,ctrl_ui Block plugin UI
 #'
 #' @rdname block_ui
 #' @export
-block_ui.board <- function(id, x, blocks = NULL, edit_ui = NULL, ...) {
+block_ui.board <- function(id, x, blocks = NULL, edit_ui = NULL, ctrl_ui = NULL,
+                           ...) {
 
-  block_card <- function(x, block_id, board_ns, card_elems) {
+  block_card <- function(x, block_id, board_ns, card_elems, ctrl) {
 
     blk_id <- board_ns(paste0("block_", block_id))
+
+    if (block_supports_external_ctrl(x) && !is.null(ctrl)) {
+      ctrl_ui <- ctrl(NS(blk_id, "ctrl_block"), x)
+    } else {
+      ctrl_ui <- NULL
+    }
 
     bslib::card(
       id = paste0(block_id, "_block"),
@@ -84,6 +91,7 @@ block_ui.board <- function(id, x, blocks = NULL, edit_ui = NULL, ...) {
         x,
         NS(blk_id, "edit_block"),
         bslib::card_body(
+          ctrl_ui,
           expr_ui(blk_id, x),
           block_ui(blk_id, x)
         )
@@ -112,9 +120,14 @@ block_ui.board <- function(id, x, blocks = NULL, edit_ui = NULL, ...) {
     edit_ui <- get_plugin_ui(edit_ui)
   }
 
+  if (!is.null(ctrl_ui)) {
+    ctrl_ui <- get_plugin_ui(ctrl_ui)
+  }
+
   args <- list(
     board_ns = NS(id),
-    card_elems = edit_ui
+    card_elems = edit_ui,
+    ctrl = ctrl_ui
   )
 
   do.call(

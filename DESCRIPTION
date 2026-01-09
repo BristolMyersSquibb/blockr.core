@@ -92,6 +92,7 @@ Collate:
     'plugin-block.R'
     'plugin-blocks.R'
     'plugin-code.R'
+    'plugin-control.R'
     'plugin-links.R'
     'plugin-notification.R'
     'plugin-serdes.R'

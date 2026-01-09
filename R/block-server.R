@@ -44,13 +44,14 @@ block_server <- function(id, x, data = list(), ...) {
 }
 
 #' @param block_id Block ID
-#' @param edit_block Block edit plugin
+#' @param edit_block,ctrl_block Block plugins
 #' @param board Reactive values object containing board information
 #' @param update Reactive value object to initiate board updates
 #' @rdname block_server
 #' @export
 block_server.block <- function(id, x, data = list(), block_id = id,
-                               edit_block = NULL, board = reactiveValues(),
+                               edit_block = NULL, ctrl_block = NULL,
+                               board = reactiveValues(),
                                update = reactiveVal(), ...) {
 
   dot_args <- list(...)
@@ -85,6 +86,8 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         exprs_to_lang(exp$expr())
       )
 
+      state <- exp$state
+
       dat <- reactive(
         {
           res <- lapply(data[names(data) != "...args"], reval)
@@ -99,8 +102,37 @@ block_server.block <- function(id, x, data = list(), block_id = id,
       )
 
       validate_block_observer(block_id, x, dat, res, rv, cond, session)
-      state_check_observer(block_id, x, dat, res, exp, rv, cond, session)
-      data_eval_observer(block_id, x, dat, res, exp, lang, rv, cond, session)
+      state_check_observer(block_id, x, dat, res, state, rv, cond, session)
+
+      dat_eval <- reactive(
+        {
+          req(rv$state_set)
+          lapply(state, reval_if)
+          try(lang(), silent = TRUE)
+
+          res <- dat()
+
+          if ("...args" %in% names(res)) {
+            res <- c(res[names(res) != "...args"], res[["...args"]])
+          }
+
+          block_eval_trigger(x, session)
+
+          res
+        },
+        domain = session
+      )
+
+      cb_res <- coal(
+        call_plugin_server(
+          ctrl_block,
+          list(x = x, vars = state, dat = dat_eval)
+        ),
+        TRUE
+      )
+
+      data_eval_observer(block_id, x, dat_eval, cb_res, res, state, lang, rv,
+                         cond, session)
       output_render_observer(x, res, cond, session)
 
       eb_res <- call_plugin_server(
@@ -111,13 +143,31 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         )
       )
 
-      block_cond_observer(exp, cond, session)
+      if ("cond" %in% names(exp)) {
+
+        blk_cnd <- reactive(
+          {
+            include <- coal(
+              get_board_option_or_null("show_conditions", session),
+              match.arg(
+                blockr_option("show_conditions", c("warning", "error")),
+                c("message", "warning", "error"),
+                several.ok = TRUE
+              )
+            )
+            res <- reactiveValuesToList(exp[["cond"]])[include]
+            set_names(lapply(res, coal, list()), include)
+          }
+        )
+
+        block_cond_observer(blk_cnd, cond, session)
+      }
 
       c(
         list(
           result = res,
           expr = lang,
-          state = exp$state,
+          state = state,
           cond = cond
         ),
         eb_res
@@ -189,6 +239,18 @@ eval_env <- function(data) {
   list2env(data, parent = baseenv())
 }
 
+#' @param session Shiny session object
+#' @rdname block_server
+#' @export
+block_eval_trigger <- function(x, session = get_session()) {
+  UseMethod("block_eval_trigger", x)
+}
+
+#' @export
+block_eval_trigger.block <- function(x, session = get_session()) {
+  NULL
+}
+
 reorder_dots_observer <- function(data, sess) {
 
   if ("...args" %in% names(data)) {
@@ -242,7 +304,7 @@ validate_block_observer <- function(id, x, dat, res, rv, cond, sess) {
   }
 }
 
-state_check_observer <- function(id, x, dat, res, exp, rv, cond, sess) {
+state_check_observer <- function(id, x, dat, res, state, rv, cond, sess) {
 
   state_check <- reactive(
     {
@@ -254,18 +316,18 @@ state_check_observer <- function(id, x, dat, res, exp, rv, cond, sess) {
 
       allow_empty <- block_allow_empty_state(x)
 
-      if (isTRUE(allow_empty) || !length(exp$state)) {
+      if (isTRUE(allow_empty) || !length(state)) {
         return(TRUE)
       }
 
       if (isFALSE(allow_empty)) {
         check <- TRUE
       } else {
-        check <- setdiff(names(exp$state), allow_empty)
+        check <- setdiff(names(state), allow_empty)
       }
 
       lgl_ply(
-        lapply(exp$state[check], reval_if),
+        lapply(state[check], reval_if),
         Negate(is_empty),
         use_names = TRUE
       )
@@ -298,46 +360,16 @@ state_check_observer <- function(id, x, dat, res, exp, rv, cond, sess) {
   )
 }
 
-#' @param session Shiny session object
-#' @rdname block_server
-#' @export
-block_eval_trigger <- function(x, session = get_session()) {
-  UseMethod("block_eval_trigger", x)
-}
-
-#' @export
-block_eval_trigger.block <- function(x, session = get_session()) {
-  NULL
-}
-
-data_eval_observer <- function(id, x, dat, res, exp, lang, rv, cond, sess) {
-
-  dat_eval <- reactive(
-    {
-      req(rv$state_set)
-      lapply(exp$state, reval_if)
-      try(lang(), silent = TRUE)
-
-      res <- dat()
-
-      if ("...args" %in% names(res)) {
-        res <- c(res[names(res) != "...args"], res[["...args"]])
-      }
-
-      block_eval_trigger(x, sess)
-
-      res
-    },
-    domain = sess
-  )
+data_eval_observer <- function(id, x, dat, gate, res, state, lang, rv, cond,
+                               sess) {
 
   observeEvent(
-    dat_eval(),
+    req(reval_if(gate), dat()),
     {
       log_debug("evaluating block ", id)
 
       out <- capture_conditions(
-        eval_impl(x, lang(), dat_eval()),
+        eval_impl(x, lang(), dat()),
         cond,
         "eval",
         session = sess
@@ -388,58 +420,37 @@ output_render_observer <- function(x, res, cond, sess) {
   )
 }
 
-block_cond_observer <- function(exp, cond, sess) {
+block_cond_observer <- function(blk, cond, sess) {
 
-  if ("cond" %in% names(exp)) {
+  observeEvent(
+    blk(),
+    {
+      new_cnds <- blk()
+      cur_cnds <- set_names(
+        coal(cond$block, empty_block_condition())[names(new_cnds)],
+        names(new_cnds)
+      )
 
-    conds <- reactive(
-      {
-        include <- coal(
-          get_board_option_or_null("show_conditions", sess),
-          match.arg(
-            blockr_option("show_conditions", c("warning", "error")),
-            c("message", "warning", "error"),
-            several.ok = TRUE
-          )
-        )
-        set_names(
-          lapply(reactiveValuesToList(exp[["cond"]])[include], coal, list()),
-          include
-        )
-      }
-    )
+      if (any(lengths(new_cnds))) {
 
-    observeEvent(
-      conds(),
-      {
-        new_cnds <- conds()
-        cur_cnds <- set_names(
-          coal(cond$block, empty_block_condition())[names(new_cnds)],
-          names(new_cnds)
+        new_cnds <- lapply(new_cnds, lapply, new_condition,
+                           as_list = FALSE)
+
+        chk <- lgl_mply(
+          Negate(setequal),
+          lapply(new_cnds, chr_ply, attr, "id"),
+          lapply(cur_cnds, chr_ply, attr, "id")
         )
 
-        if (any(lengths(new_cnds))) {
-
-          new_cnds <- lapply(new_cnds, lapply, new_condition,
-                             as_list = FALSE)
-
-          chk <- lgl_mply(
-            Negate(setequal),
-            lapply(new_cnds, chr_ply, attr, "id"),
-            lapply(cur_cnds, chr_ply, attr, "id")
-          )
-
-          if (any(chk)) {
-            cond$block <- new_cnds
-          }
-
-        } else if (any(lengths(cur_cnds) > 0L)) {
-          cond$block <- empty_block_condition()[names(new_cnds)]
+        if (any(chk)) {
+          cond$block <- new_cnds
         }
-      }
-    )
-  }
 
+      } else if (any(lengths(cur_cnds) > 0L)) {
+        cond$block <- empty_block_condition()[names(new_cnds)]
+      }
+    }
+  )
 }
 
 check_expr_val <- function(val, x) {
