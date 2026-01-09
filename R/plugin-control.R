@@ -24,10 +24,11 @@ ctrl_block <- function(server = ctrl_block_server, ui = ctrl_block_ui) {
 #' @param x Block object
 #' @param vars Reactive state values
 #' @param dat Reactive input data
+#' @param expr Reactive block expression
 #'
 #' @rdname ctrl_block
 #' @export
-ctrl_block_server <- function(id, x, vars, dat) {
+ctrl_block_server <- function(id, x, vars, dat, expr) {
   moduleServer(
     id,
     function(input, output, session) {

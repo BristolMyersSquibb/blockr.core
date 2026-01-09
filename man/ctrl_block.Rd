@@ -8,7 +8,7 @@
 \usage{
 ctrl_block(server = ctrl_block_server, ui = ctrl_block_ui)
 
-ctrl_block_server(id, x, vars, dat)
+ctrl_block_server(id, x, vars, dat, expr)
 
 ctrl_block_ui(id, x)
 }
@@ -23,7 +23,7 @@ ctrl_block_ui(id, x)
 
 \item{dat}{Reactive input data}
 
-\item{...}{Extra arguments passed from parent scope}
+\item{expr}{Reactive block expression}
 }
 \value{
 A plugin container inheriting from \code{ctrl_block} is returned by
