@@ -17,6 +17,7 @@
 \alias{board_options<-}
 \alias{board_option_ids}
 \alias{available_stack_blocks}
+\alias{clear_board}
 \title{Board utils}
 \usage{
 board_blocks(x)
@@ -68,6 +69,8 @@ available_stack_blocks(
   stacks = board_stacks(x),
   blocks = board_stack_ids(x)
 )
+
+clear_board(x)
 }
 \arguments{
 \item{x}{Board}

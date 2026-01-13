@@ -169,4 +169,15 @@ test_that("board constructor", {
   board_options(board) <- opts[-1L]
 
   expect_length(board_options(board), length(opts) - 1L)
+
+  empty <- clear_board(board)
+
+  expect_length(board_blocks(empty), 0L)
+  expect_length(board_links(empty), 0L)
+  expect_length(board_stacks(empty), 0L)
+
+  expect_identical(
+    board_options(board),
+    board_options(empty)
+  )
 })
