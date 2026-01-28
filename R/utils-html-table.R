@@ -55,9 +55,12 @@ html_table_result <- function(result, block, session) {
   # Initialize state once per namespace
   if (is.null(session$userData[[key]])) {
     sort_state <- reactiveVal(list(col = NULL, dir = "none"))
+    page_state <- reactiveVal(1L)
 
     session$userData[[key]] <- list(
-      sort_state = sort_state
+      sort_state = sort_state,
+      page_state = page_state,
+      total_rows = 0L
     )
 
     # Observer for sort input from header clicks
@@ -65,16 +68,43 @@ html_table_result <- function(result, block, session) {
       sort_input <- session$input$blockr_table_sort
       if (!is.null(sort_input)) {
         sort_state(list(col = sort_input$col, dir = sort_input$dir))
+        page_state(1L)  # Reset page when sort changes
+      }
+    })
+
+    # Observer for page navigation
+    observeEvent(session$input$blockr_table_page, {
+      direction <- session$input$blockr_table_page
+      current <- page_state()
+      total_rows <- session$userData[[key]]$total_rows
+      max_page <- max(1L, ceiling(total_rows / page_size))
+
+      if (direction == "prev" && current > 1L) {
+        page_state(current - 1L)
+      } else if (direction == "next" && current < max_page) {
+        page_state(current + 1L)
       }
     })
   }
 
   sort_state <- session$userData[[key]]$sort_state
+  page_state <- session$userData[[key]]$page_state
 
   renderUI({
     tryCatch({
       current_sort <- sort_state()
+      page <- page_state()
+
+      # Update stored total_rows for observer to use
       total_rows <- if (is.null(result)) 0L else nrow(result)
+      session$userData[[key]]$total_rows <- total_rows
+
+      # Clamp page if data changed
+      max_page <- max(1L, ceiling(total_rows / page_size))
+      if (page > max_page) {
+        page <- max_page
+        page_state(max_page)
+      }
 
       # Apply sorting
       sorted_result <- apply_table_sort(
@@ -83,10 +113,11 @@ html_table_result <- function(result, block, session) {
         current_sort$dir
       )
 
-      # Show first page only (no pagination yet)
-      end_row <- min(page_size, total_rows)
-      dat <- if (end_row > 0) {
-        as.data.frame(dplyr::slice(sorted_result, 1:end_row))
+      # Slice data for current page
+      start_row <- (page - 1L) * page_size + 1L
+      end_row <- min(page * page_size, total_rows)
+      dat <- if (total_rows > 0 && end_row >= start_row) {
+        as.data.frame(dplyr::slice(sorted_result, start_row:end_row))
       } else {
         as.data.frame(sorted_result)
       }
@@ -96,6 +127,7 @@ html_table_result <- function(result, block, session) {
         total_rows,
         sort_state = current_sort,
         ns = ns,
+        page = page,
         page_size = page_size
       )
     }, error = function(e) {
@@ -116,13 +148,14 @@ html_table_result <- function(result, block, session) {
 #' @param total_rows Total number of rows in original data
 #' @param sort_state List with col (column name) and dir ("asc", "desc", or "none")
 #' @param ns Shiny namespace function
+#' @param page Current page number (default 1)
 #' @param page_size Number of rows per page (default 5)
 #'
 #' @return A shiny tagList containing the table HTML
 #'
 #' @keywords internal
 build_html_table <- function(dat, total_rows, sort_state = NULL, ns = NULL,
-                             page_size = 5L) {
+                             page = 1L, page_size = 5L) {
   n_showing <- nrow(dat)
   n_cols <- ncol(dat)
 
@@ -130,6 +163,7 @@ build_html_table <- function(dat, total_rows, sort_state = NULL, ns = NULL,
   sort_dir <- sort_state$dir
 
   sort_input_id <- if (!is.null(ns)) ns("blockr_table_sort") else "blockr_table_sort"
+  page_input_id <- if (!is.null(ns)) ns("blockr_table_page") else "blockr_table_page"
 
   # Handle empty data frame
   if (n_cols == 0) {
@@ -138,13 +172,15 @@ build_html_table <- function(dat, total_rows, sort_state = NULL, ns = NULL,
         tags$div(
           class = "blockr-table-container",
           `data-sort-input` = sort_input_id,
+          `data-page-input` = page_input_id,
           tags$div(
             class = "blockr-table-footer",
             tags$span(class = "blockr-table-range", "Empty data frame (0 columns)")
           )
         ),
         table_preview_css(),
-        table_sort_js()
+        table_sort_js(),
+        table_pagination_js()
       )
     )
   }
@@ -209,10 +245,11 @@ build_html_table <- function(dat, total_rows, sort_state = NULL, ns = NULL,
 
   # Build body rows
   body_rows <- vector("list", n_showing)
+  start_row_num <- (page - 1L) * page_size
 
   for (i in seq_len(n_showing)) {
     row_cells <- vector("list", n_cols + 1L)
-    row_cells[[1L]] <- tags$td(class = "blockr-row-number", i)
+    row_cells[[1L]] <- tags$td(class = "blockr-row-number", start_row_num + i)
 
     for (j in seq_along(col_names)) {
       is_na <- col_na[[j]][i]
@@ -236,23 +273,42 @@ build_html_table <- function(dat, total_rows, sort_state = NULL, ns = NULL,
     body_rows[[i]] <- do.call(tags$tr, row_cells)
   }
 
-  # Build footer
-  end_row <- min(page_size, total_rows)
+  # Build pagination info
+  max_page <- max(1L, ceiling(total_rows / page_size))
+  start_row <- (page - 1L) * page_size + 1L
+  end_row <- min(page * page_size, total_rows)
+
   range_text <- if (total_rows == 0) {
     "No rows"
   } else {
-    sprintf("1\u2013%d of %d", end_row, total_rows)
+    sprintf("%d\u2013%d of %d", start_row, end_row, total_rows)
   }
 
   footer <- tags$div(
     class = "blockr-table-footer",
-    tags$span(class = "blockr-table-range", range_text)
+    tags$span(class = "blockr-table-range", range_text),
+    tags$div(
+      class = "blockr-table-nav",
+      tags$button(
+        class = if (page == 1L) "blockr-nav-btn disabled" else "blockr-nav-btn",
+        disabled = if (page == 1L) "disabled" else NULL,
+        `data-direction` = "prev",
+        HTML("&#x2039;")
+      ),
+      tags$button(
+        class = if (page >= max_page) "blockr-nav-btn disabled" else "blockr-nav-btn",
+        disabled = if (page >= max_page) "disabled" else NULL,
+        `data-direction` = "next",
+        HTML("&#x203A;")
+      )
+    )
   )
 
   tagList(
     tags$div(
       class = "blockr-table-container",
       `data-sort-input` = sort_input_id,
+      `data-page-input` = page_input_id,
       tags$div(
         class = "blockr-table-wrapper",
         tags$table(
@@ -266,7 +322,8 @@ build_html_table <- function(dat, total_rows, sort_state = NULL, ns = NULL,
       footer
     ),
     table_preview_css(),
-    table_sort_js()
+    table_sort_js(),
+    table_pagination_js()
   )
 }
 
@@ -446,6 +503,32 @@ table_preview_css <- function() {
       color: #6B7280;
     }
 
+    .blockr-table-nav {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .blockr-nav-btn {
+      padding: 4px;
+      border: none;
+      background: transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      color: #4B5563;
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .blockr-nav-btn:hover:not(.disabled) {
+      background-color: #F3F4F6;
+    }
+
+    .blockr-nav-btn.disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
     .blockr-table th.blockr-sortable {
       cursor: pointer;
       user-select: none;
@@ -512,6 +595,33 @@ table_sort_js <- function() {
                      currentDir === 'asc' ? 'desc' :
                      currentDir === 'desc' ? 'na' : 'none';
         Shiny.setInputValue(inputId, {col: col, dir: newDir}, {priority: 'event'});
+      });
+    }
+  "))
+}
+
+#' Table Pagination JavaScript
+#'
+#' Returns JavaScript for handling pagination button clicks.
+#' Reads the input ID from the parent container's data-page-input attribute.
+#'
+#' @return A shiny tags$script element
+#'
+#' @keywords internal
+table_pagination_js <- function() {
+  tags$script(HTML("
+    if (!window.blockrPaginationInit) {
+      window.blockrPaginationInit = true;
+      document.addEventListener('click', function(e) {
+        var btn = e.target.closest('.blockr-nav-btn');
+        if (!btn || btn.classList.contains('disabled')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        var container = btn.closest('.blockr-table-container');
+        var inputId = container ? container.dataset.pageInput : null;
+        if (!inputId) return;
+        var direction = btn.dataset.direction;
+        Shiny.setInputValue(inputId, direction, {priority: 'event'});
       });
     }
   "))
