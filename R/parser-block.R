@@ -25,13 +25,13 @@ new_parser_block <- function(server, ui, class, ctor = sys.parent(),
 
 #' @export
 block_output.parser_block <- function(x, result, session) {
-  dt_result(result, x, session)
+  html_table_result(result, x, session)
 }
 
 #' @export
 block_ui.parser_block <- function(id, x, ...) {
   tagList(
-    DT::dataTableOutput(NS(id, "result"))
+    uiOutput(NS(id, "result"))
   )
 }
 
@@ -40,8 +40,8 @@ is_file <- function(file) {
 }
 
 #' @export
-#' @include utils-dt.R
-block_render_trigger.parser_block <- dt_render_trigger
+#' @include utils-html-table.R
+block_render_trigger.parser_block <- html_table_render_trigger
 
 #' @export
 board_options.parser_block <- function(x, ...) {

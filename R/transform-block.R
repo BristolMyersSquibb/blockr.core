@@ -18,18 +18,18 @@ new_transform_block <- function(server, ui, class, ctor = sys.parent(), ...) {
 
 #' @export
 block_output.transform_block <- function(x, result, session) {
-  dt_result(result, x, session)
+  html_table_result(result, x, session)
 }
 
 #' @export
 block_ui.transform_block <- function(id, x, ...) {
   tagList(
-    DT::dataTableOutput(NS(id, "result"))
+    uiOutput(NS(id, "result"))
   )
 }
 
 #' @export
-block_render_trigger.transform_block <- dt_render_trigger
+block_render_trigger.transform_block <- html_table_render_trigger
 
 #' @export
 board_options.transform_block <- function(x, ...) {
