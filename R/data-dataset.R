@@ -40,12 +40,16 @@ new_dataset_block <- function(dataset = character(), package = "datasets",
 
           observeEvent(
             req(dataset()),
-            updateSelectInput(
-              session,
-              "dataset",
-              choices = list_datasets(package),
-              selected = dataset()
-            )
+            {
+              if (!identical(dataset(), input$dataset)) {
+                updateSelectInput(
+                  session,
+                  "dataset",
+                  choices = list_datasets(package),
+                  selected = dataset()
+                )
+              }
+            }
           )
 
           reactive(
