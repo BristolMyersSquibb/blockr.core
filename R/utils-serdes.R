@@ -285,8 +285,15 @@ blockr_deser.block <- function(x, data, ...) {
 
   ctor <- blockr_deser(data[["constructor"]])
 
+  payload <- data[["payload"]]
+
+  if ("name" %in% names(payload)) {
+    payload[["block_name"]] <- payload[["name"]]
+    payload[["name"]] <- NULL
+  }
+
   args <- c(
-    data[["payload"]],
+    payload,
     list(
       ctor = coal(ctor_name(ctor), ctor_fun(ctor)),
       ctor_pkg = ctor_pkg(ctor)
