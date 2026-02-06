@@ -6,6 +6,7 @@
 \alias{validate_data_inputs}
 \alias{block_inputs}
 \alias{block_arity}
+\alias{block_metadata}
 \title{Block utilities}
 \usage{
 block_name(x)
@@ -17,6 +18,8 @@ validate_data_inputs(x, data)
 block_inputs(x)
 
 block_arity(x)
+
+block_metadata(x)
 }
 \arguments{
 \item{x}{An object inheriting from \code{"block"}}

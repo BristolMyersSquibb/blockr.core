@@ -10,7 +10,7 @@
 \alias{unregister_blocks}
 \alias{register_blocks}
 \alias{available_blocks}
-\alias{block_metadata}
+\alias{registry_metadata}
 \alias{create_block}
 \title{Block registry}
 \usage{
@@ -43,7 +43,7 @@ register_blocks(...)
 
 available_blocks()
 
-block_metadata(blocks = list_blocks(), fields = "all")
+registry_metadata(blocks = list_blocks(), fields = "all")
 
 create_block(id, ...)
 }

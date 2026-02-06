@@ -692,3 +692,9 @@ block_ctrl <- function(x) {
 
   lapply(vals, reactiveVal)
 }
+
+#' @rdname block_name
+#' @export
+block_metadata <- function(x) {
+  attr(x, "block_metadata")
+}

@@ -330,7 +330,7 @@ registry_metadata_fields <- c(
 #'
 #' @rdname register_block
 #' @export
-block_metadata <- function(blocks = list_blocks(), fields = "all") {
+registry_metadata <- function(blocks = list_blocks(), fields = "all") {
 
   stopifnot(is.character(blocks), is.character(fields))
 
@@ -380,7 +380,7 @@ register_core_blocks <- function(which = blockr_option("core_blocks", "all")) {
   blocks <- paste0(
     c(
       "dataset", "subset", "merge", "rbind", "scatter", "upload", "filebrowser",
-      "csv", "static", "head", "glue"
+      "csv", "head", "glue"
     ),
     "_block"
   )
@@ -403,7 +403,6 @@ register_core_blocks <- function(which = blockr_option("core_blocks", "all")) {
       "new_upload_block",
       "new_filebrowser_block",
       "new_csv_block",
-      "new_static_block",
       "new_head_block",
       "new_glue_block"
     )[blocks],
@@ -416,7 +415,6 @@ register_core_blocks <- function(which = blockr_option("core_blocks", "all")) {
       "data upload block",
       "file browser block",
       "csv parser block",
-      "static data block",
       "head/tail block",
       "glue string block"
     )[blocks],
@@ -429,7 +427,6 @@ register_core_blocks <- function(which = blockr_option("core_blocks", "all")) {
       "Upload data",
       "Browse local files",
       "Read CSV file",
-      "Static data",
       "Data head/tail",
       "String interpolation using glue"
     )[blocks],
@@ -442,7 +439,6 @@ register_core_blocks <- function(which = blockr_option("core_blocks", "all")) {
       "input",
       "input",
       "utility",
-      "input",
       "transform",
       "utility"
     )[blocks],
@@ -455,9 +451,20 @@ register_core_blocks <- function(which = blockr_option("core_blocks", "all")) {
       "upload",
       "folder2-open",
       "filetype-csv",
-      "file-earmark-text",
       "eye",
       "braces"
+    )[blocks],
+    arguments = list(
+      c(dataset = "Selects the dataset to use."),
+      character(),
+      character(),
+      character(),
+      character(),
+      character(),
+      character(),
+      character(),
+      character(),
+      character()
     )[blocks],
     package = pkg_name(),
     overwrite = TRUE

@@ -20,7 +20,7 @@ test_that("registry", {
 
   is_cand <- lgl_ply(
     candidates,
-      function(x) {
+    function(x) {
 
       res <- try(do.call(x, list(block_metadata = list())), silent = TRUE)
 
@@ -89,7 +89,7 @@ test_that("registry", {
 
 test_that("registry metadata", {
 
-  meta <- block_metadata()
+  meta <- registry_metadata()
 
   expect_s3_class(meta, "data.frame")
   expect_identical(nrow(meta), length(list_blocks()))
@@ -99,12 +99,12 @@ test_that("registry metadata", {
     c("id", "name", "description", "category", "icon", "arguments", "package")
   )
 
-  meta <- block_metadata(list_blocks()[1L], "name")
+  meta <- registry_metadata(list_blocks()[1L], "name")
 
   expect_type(meta, "character")
   expect_length(meta, 1L)
 
-  meta <- block_metadata(fields = "name")
+  meta <- registry_metadata(fields = "name")
 
   expect_type(meta, "character")
   expect_length(meta, length(list_blocks()))
