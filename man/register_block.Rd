@@ -22,6 +22,7 @@ register_block(
   uid = NULL,
   category = NULL,
   icon = NULL,
+  arguments = NULL,
   package = NULL,
   overwrite = FALSE
 )
@@ -59,6 +60,8 @@ create_block(id, ...)
 blocks are uncategorized.}
 
 \item{icon}{Icon}
+
+\item{arguments}{Block argument description}
 
 \item{package}{Package where constructor is defined (or \code{NULL})}
 

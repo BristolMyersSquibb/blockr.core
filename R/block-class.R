@@ -121,6 +121,7 @@
 #' `state` values that may be empty while still moving forward with block eval
 #' @param expr_type Expression type (experimental)
 #' @param external_ctrl Set up external control (experimental)
+#' @param block_metadata Block metadata
 #' @param ... Further (metadata) attributes
 #'
 #' @examples
@@ -159,7 +160,7 @@ new_block <- function(server, ui, class, ctor = sys.parent(), ctor_pkg = NULL,
                       dat_valid = NULL, allow_empty_state = FALSE,
                       block_name = default_block_name,
                       expr_type = c("quoted", "bquoted"),
-                      external_ctrl = FALSE, ...) {
+                      external_ctrl = FALSE, block_metadata = NULL, ...) {
 
   stopifnot(
     is.character(class), length(class) > 0L,
@@ -186,6 +187,24 @@ new_block <- function(server, ui, class, ctor = sys.parent(), ctor_pkg = NULL,
 
   stopifnot(is_string(block_name))
 
+  if (is.null(block_metadata) || isFALSE(block_metadata)) {
+
+    uid <- registry_id_from_block(class)
+
+    if (length(uid)) {
+      block_metadata <- lapply(
+        set_names(nm = registry_metadata_fields),
+        get_attr,
+        get_registry_entry(uid)
+      )
+    } else if (!isFALSE(block_metadata)) {
+      blockr_warn(
+        "No block metadata available for block {class[1L]}.",
+        class = "missing_block_metadata"
+      )
+    }
+  }
+
   validate_block(
     new_vctr(
       list(
@@ -199,6 +218,7 @@ new_block <- function(server, ui, class, ctor = sys.parent(), ctor_pkg = NULL,
       allow_empty_state = allow_empty_state,
       expr_type = expr_type,
       external_ctrl = external_ctrl,
+      block_metadata = block_metadata,
       class = class
     ),
     ui_eval = TRUE
@@ -213,7 +233,8 @@ static_block_arguments <- function() {
     "dat_valid",
     "allow_empty_state",
     "expr_type",
-    "external_ctrl"
+    "external_ctrl",
+    "block_metadata"
   )
 }
 
@@ -223,7 +244,8 @@ internal_block_attributes <- function() {
     "class",
     "allow_empty_state",
     "expr_type",
-    "external_ctrl"
+    "external_ctrl",
+    "block_metadata"
   )
 }
 

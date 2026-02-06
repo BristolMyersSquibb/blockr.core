@@ -16,7 +16,8 @@ test_that("block constructor", {
       function(id) {
         tagList()
       },
-      class = "identity_block"
+      class = "identity_block",
+      block_metadata = list()
     )
   }
 
@@ -169,6 +170,7 @@ test_that("Without package blocks can print", {
         tagList()
       },
       class = "dummy_block",
+      block_metadata = list(),
       ...
     )
   }

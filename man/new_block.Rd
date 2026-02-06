@@ -21,6 +21,7 @@ new_block(
   block_name = default_block_name,
   expr_type = c("quoted", "bquoted"),
   external_ctrl = FALSE,
+  block_metadata = NULL,
   ...
 )
 
@@ -59,6 +60,8 @@ constructor name or \code{NULL}}
 \item{expr_type}{Expression type (experimental)}
 
 \item{external_ctrl}{Set up external control (experimental)}
+
+\item{block_metadata}{Block metadata}
 
 \item{...}{Further (metadata) attributes}
 

@@ -35,6 +35,8 @@ new_fixed_block <- function(expr, ...) {
     },
     class = "fixed_block",
     allow_empty_state = TRUE,
+    external_ctrl = FALSE,
+    block_metadata = list(),
     ...
   )
 }
