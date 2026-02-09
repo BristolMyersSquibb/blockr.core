@@ -9,6 +9,11 @@
 #' @param by Column(s) tp join on
 #' @param all_x,all_y Join type, see [base::merge()]
 #'
+#' @block Merge block
+#' @blockDescr Joining of datasets
+#' @blockCategory transform
+#' @blockIcon union
+#'
 #' @rdname new_transform_block
 #' @export
 new_merge_block <- function(by = character(), all_x = FALSE, all_y = FALSE,

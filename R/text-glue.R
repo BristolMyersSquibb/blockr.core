@@ -4,6 +4,11 @@
 #'
 #' @param text String evaluated using [glue::glue()]
 #'
+#' @block Glue string block
+#' @blockDescr String interpolation using glue
+#' @blockCategory utility
+#' @blockIcon braces
+#'
 #' @rdname new_text_block
 #' @export
 new_glue_block <- function(text = character(), ...) {

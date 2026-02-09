@@ -7,6 +7,11 @@
 #' currently not allowed as the full data would have to be included during
 #' serialization.
 #'
+#' @block Data upload block
+#' @blockDescr Upload data
+#' @blockCategory input
+#' @blockIcon upload
+#'
 #' @rdname new_file_block
 #' @export
 new_upload_block <- function(...) {

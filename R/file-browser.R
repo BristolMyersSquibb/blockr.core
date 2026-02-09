@@ -10,6 +10,11 @@
 #' @param file_path File path
 #' @param volumes Parent namespace
 #'
+#' @block File browser block
+#' @blockDescr Browse local files
+#' @blockCategory input
+#' @blockIcon folder2-open
+#'
 #' @rdname new_file_block
 #' @export
 new_filebrowser_block <- function(file_path = character(),
