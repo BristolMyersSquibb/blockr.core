@@ -4,6 +4,11 @@
 #' an example for a variadic block via the "special" `...args` block data
 #' argument.
 #'
+#' @block Rbind block
+#' @blockDescr Row-binding of datasets
+#' @blockCategory transform
+#' @blockIcon chevron-bar-expand
+#'
 #' @rdname new_transform_block
 #' @export
 new_rbind_block <- function(...) {

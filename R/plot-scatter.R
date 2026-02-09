@@ -8,6 +8,11 @@
 #'
 #' @param x,y Columns to place on respective axes
 #'
+#' @block Scatter plot block
+#' @blockDescr Scatter plotting
+#' @blockCategory plot
+#' @blockIcon dice-5
+#'
 #' @rdname new_plot_block
 #' @export
 new_scatter_block <- function(x = character(), y = character(), ...) {

@@ -6,6 +6,11 @@
 #'
 #' @param subset,select Expressions (passed as strings)
 #'
+#' @block Subset block
+#' @blockDescr Row and column subsetting
+#' @blockCategory transform
+#' @blockIcon funnel
+#'
 #' @rdname new_transform_block
 #' @export
 new_subset_block <- function(subset = "", select = "", ...) {

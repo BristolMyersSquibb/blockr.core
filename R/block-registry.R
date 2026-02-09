@@ -376,97 +376,42 @@ create_block <- function(id, ...) {
   ctor(..., ctor = attr(ctor, "ctor_name"), ctor_pkg = attr(ctor, "package"))
 }
 
-register_core_blocks <- function(which = blockr_option("core_blocks", "all")) {
-  blocks <- paste0(
-    c(
-      "dataset", "subset", "merge", "rbind", "scatter", "upload", "filebrowser",
-      "csv", "head", "glue"
-    ),
-    "_block"
-  )
+#' @param path Path to YAML block registry file under `inst/`, resolved via
+#'   [base::system.file()].
+#' @rdname register_block
+#' @export
+register_package_blocks <- function(path = "registry/blocks.yml",
+                                    which = "all", package = pkg_name(),
+                                    overwrite = TRUE) {
+  file <- system.file(path, package = package, mustWork = TRUE)
+  data <- yaml::read_yaml(file)
 
   if (identical(which, "all")) {
-    which <- blocks
+    which <- names(data)
   } else {
-    stopifnot(all(which %in% blocks), anyDuplicated(which) == 0L)
+    stopifnot(all(which %in% names(data)), anyDuplicated(which) == 0L)
   }
 
-  blocks <- match(which, blocks)
+  data <- data[which]
 
   register_blocks(
-    c(
-      "new_dataset_block",
-      "new_subset_block",
-      "new_merge_block",
-      "new_rbind_block",
-      "new_scatter_block",
-      "new_upload_block",
-      "new_filebrowser_block",
-      "new_csv_block",
-      "new_head_block",
-      "new_glue_block"
-    )[blocks],
-    name = c(
-      "dataset block",
-      "subset block",
-      "merge block",
-      "rbind block",
-      "scatter plot block",
-      "data upload block",
-      "file browser block",
-      "csv parser block",
-      "head/tail block",
-      "glue string block"
-    )[blocks],
-    description = c(
-      "Choose a dataset from a package",
-      "Row and column subsetting",
-      "Joining or datasets",
-      "Row-binding of datasets",
-      "Scatter plotting",
-      "Upload data",
-      "Browse local files",
-      "Read CSV file",
-      "Data head/tail",
-      "String interpolation using glue"
-    )[blocks],
-    category = c(
-      "input",
-      "transform",
-      "transform",
-      "transform",
-      "plot",
-      "input",
-      "input",
-      "utility",
-      "transform",
-      "utility"
-    )[blocks],
-    icon = c(
-      "database",
-      "funnel",
-      "union",
-      "chevron-bar-expand",
-      "dice-5",
-      "upload",
-      "folder2-open",
-      "filetype-csv",
-      "eye",
-      "braces"
-    )[blocks],
-    arguments = list(
-      c(dataset = "Selects the dataset to use."),
-      character(),
-      character(),
-      character(),
-      character(),
-      character(),
-      character(),
-      character(),
-      character(),
-      character()
-    )[blocks],
-    package = pkg_name(),
-    overwrite = TRUE
+    names(data),
+    name = chr_xtr(data, "name"),
+    description = chr_xtr(data, "description"),
+    category = chr_xtr(data, "category"),
+    icon = lapply(data, `[[`, "icon"),
+    arguments = lapply(data, function(x) {
+      args <- x[["arguments"]]
+      if (is.null(args) || length(args) == 0L) character() else unlist(args)
+    }),
+    package = package,
+    overwrite = overwrite
   )
+}
+
+register_core_blocks <- function(which = blockr_option("core_blocks", "all")) {
+  if (!identical(which, "all")) {
+    which <- paste0("new_", which)
+  }
+  register_package_blocks(which = which)
 }

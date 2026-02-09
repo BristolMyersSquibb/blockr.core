@@ -4,6 +4,11 @@
 #'
 #' @param sep,quote Forwarded to [utils::read.table()]
 #'
+#' @block CSV parser block
+#' @blockDescr Read CSV file
+#' @blockCategory utility
+#' @blockIcon filetype-csv
+#'
 #' @rdname new_parser_block
 #' @export
 new_csv_block <- function(sep = ",", quote = "\"", ...) {

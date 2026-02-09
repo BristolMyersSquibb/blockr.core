@@ -7,6 +7,11 @@
 #' @param n Number of rows
 #' @param direction Either "head" or "tail"
 #'
+#' @block Head/tail block
+#' @blockDescr Data head/tail
+#' @blockCategory transform
+#' @blockIcon eye
+#'
 #' @rdname new_transform_block
 #' @export
 new_head_block <- function(n = 6L, direction = c("head", "tail"), ...) {

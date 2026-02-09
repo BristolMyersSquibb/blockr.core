@@ -12,6 +12,7 @@
 \alias{available_blocks}
 \alias{registry_metadata}
 \alias{create_block}
+\alias{register_package_blocks}
 \title{Block registry}
 \usage{
 register_block(
@@ -46,6 +47,13 @@ available_blocks()
 registry_metadata(blocks = list_blocks(), fields = "all")
 
 create_block(id, ...)
+
+register_package_blocks(
+  path = "registry/blocks.yml",
+  which = "all",
+  package = pkg_name(),
+  overwrite = TRUE
+)
 }
 \arguments{
 \item{ctor}{Block constructor}
@@ -76,6 +84,9 @@ blocks are uncategorized.}
 \item{fields}{Metadata fields}
 
 \item{id}{Block ID as reported by \code{list_blocks()}}
+
+\item{path}{Path to YAML block registry file under \verb{inst/}, resolved via
+\code{\link[base:system.file]{base::system.file()}}.}
 }
 \value{
 \code{register_block()} and \code{register_blocks()} are invoked for their side
