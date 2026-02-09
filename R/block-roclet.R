@@ -1,4 +1,4 @@
-#' Block registration roclet
+#' Block roclet
 #'
 #' A custom roxygen2 roclet that processes `@block` tags and generates a YAML
 #' registry file (`inst/registry/blocks.yml`) containing block metadata for use
@@ -6,21 +6,25 @@
 #'
 #' @section Custom tags:
 #' The following tags are recognized:
-#' - `@block <name>` - Human-readable block name (required; triggers registration)
+#' - `@block <name>` - Human-readable block name (required; triggers
+#'   registration)
 #' - `@blockDescr <text>` - Block description (required)
-#' - `@blockCategory <category>` - Category (required; one of the suggested categories)
-#' - `@blockIcon <icon>` - Bootstrap icon name (optional; defaults to category icon)
-#' - `@blockParam <name> <description>` - Block parameter description (optional; repeatable)
-#' - `@blockCtor <name>` - Explicit constructor name (optional; defaults to object name)
+#' - `@blockCategory <category>` - Category (required; one of the
+#'   suggested categories)
+#' - `@blockIcon <icon>` - Bootstrap icon name (optional; defaults to
+#'   category icon)
+#' - `@blockParam <name> <description>` - Block parameter description
+#'   (optional; repeatable)
+#' - `@blockCtor <name>` - Explicit constructor name (optional; defaults
+#'   to object name)
 #'
 #' @return A `block_registration_roclet` object.
 #'
+#' @name block-roclet
 #' @export
 block_registration_roclet <- function() {
   roxygen2::roclet("block_registration")
 }
-
-# Tag parsers ----------------------------------------------------------------
 
 #' @exportS3Method roxygen2::roxy_tag_parse
 roxy_tag_parse.roxy_tag_block <- function(x) {
@@ -52,10 +56,9 @@ roxy_tag_parse.roxy_tag_blockCtor <- function(x) {
   roxygen2::tag_value(x)
 }
 
-# Roclet methods -------------------------------------------------------------
-
 #' @exportS3Method roxygen2::roclet_process
-roclet_process.roclet_block_registration <- function(x, blocks, env, base_path) {
+roclet_process.roclet_block_registration <- function(x, blocks, env,
+                                                     base_path) {
   results <- list()
 
   for (block in blocks) {
@@ -64,33 +67,36 @@ roclet_process.roclet_block_registration <- function(x, blocks, env, base_path) 
       next
     }
 
-    # Get constructor name
     ctor_tag <- roxygen2::block_get_tag(block, "blockCtor")
     if (!is.null(ctor_tag)) {
       ctor_name <- ctor_tag$val
     } else {
-      # Try to get from block object
       ctor_name <- block$object$alias %||% block$object$topic
       if (is.null(ctor_name)) {
-        # Fall back to parsing the call
         if (!is.null(block$call)) {
           ctor_name <- as.character(block$call[[2L]])
         }
       }
     }
 
-    if (is.null(ctor_name) || !is.character(ctor_name) || length(ctor_name) != 1L) {
+    if (is.null(ctor_name) || !is.character(ctor_name) ||
+          length(ctor_name) != 1L) {
       cli::cli_abort(
-        "Could not determine constructor name for block at {block_tag$file}:{block_tag$line}",
+        c(
+          "Could not determine constructor name for block at ",
+          "{block_tag$file}:{block_tag$line}"
+        ),
         class = "block_roclet_no_ctor"
       )
     }
 
-    # Validate required tags
     descr_tag <- roxygen2::block_get_tag(block, "blockDescr")
     if (is.null(descr_tag)) {
       cli::cli_abort(
-        "Block at {block_tag$file}:{block_tag$line} has @block but is missing @blockDescr",
+        c(
+          "Block at {block_tag$file}:{block_tag$line} has @block but ",
+          "is missing @blockDescr"
+        ),
         class = "block_roclet_missing_descr"
       )
     }
@@ -98,25 +104,25 @@ roclet_process.roclet_block_registration <- function(x, blocks, env, base_path) 
     category_tag <- roxygen2::block_get_tag(block, "blockCategory")
     if (is.null(category_tag)) {
       cli::cli_abort(
-        "Block at {block_tag$file}:{block_tag$line} has @block but is missing @blockCategory",
+        c(
+          "Block at {block_tag$file}:{block_tag$line} has @block but ",
+          "is missing @blockCategory"
+        ),
         class = "block_roclet_missing_category"
       )
     }
 
-    # Collect metadata
     metadata <- list(
       name = block_tag$val,
       description = descr_tag$val,
       category = category_tag$val
     )
 
-    # Optional icon
     icon_tag <- roxygen2::block_get_tag(block, "blockIcon")
     if (!is.null(icon_tag)) {
       metadata$icon <- icon_tag$val
     }
 
-    # Optional parameters
     param_tags <- roxygen2::block_get_tags(block, "blockParam")
     if (length(param_tags) > 0L) {
       args <- chr_ply(param_tags, function(t) t$val$name %||% "")
@@ -133,19 +139,17 @@ roclet_process.roclet_block_registration <- function(x, blocks, env, base_path) 
 }
 
 #' @exportS3Method roxygen2::roclet_output
-roclet_output.roclet_block_registration <- function(x, results, base_path, ...) {
+roclet_output.roclet_block_registration <- function(x, results, base_path,
+                                                    ...) {
   if (length(results) == 0L) {
     return(invisible())
   }
 
-  # Ensure inst/registry directory exists
   registry_dir <- file.path(base_path, "inst", "registry")
   dir.create(registry_dir, recursive = TRUE, showWarnings = FALSE)
 
-  # Write YAML
   yaml_path <- file.path(registry_dir, "blocks.yml")
 
-  # Prepend comment
   yaml_lines <- c(
     "# Generated by block_registration roclet: do not edit by hand",
     "",
@@ -166,7 +170,8 @@ roclet_clean.roclet_block_registration <- function(x, base_path) {
   }
 
   first_line <- readLines(yaml_path, n = 1L, warn = FALSE)
-  if (grepl("Generated by block_registration roclet", first_line, fixed = TRUE)) {
+  if (grepl("Generated by block_registration roclet", first_line,
+            fixed = TRUE)) {
     unlink(yaml_path)
   }
 
