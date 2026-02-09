@@ -19,12 +19,17 @@ with \code{\link[=register_package_blocks]{register_package_blocks()}}.
 
 The following tags are recognized:
 \itemize{
-\item \verb{@block <name>} - Human-readable block name (required; triggers registration)
+\item \verb{@block <name>} - Human-readable block name (required; triggers
+registration)
 \item \verb{@blockDescr <text>} - Block description (required)
-\item \verb{@blockCategory <category>} - Category (required; one of the suggested categories)
-\item \verb{@blockIcon <icon>} - Bootstrap icon name (optional; defaults to category icon)
-\item \verb{@blockParam <name> <description>} - Block parameter description (optional; repeatable)
-\item \verb{@blockCtor <name>} - Explicit constructor name (optional; defaults to object name)
+\item \verb{@blockCategory <category>} - Category (required; one of the
+suggested categories)
+\item \verb{@blockIcon <icon>} - Bootstrap icon name (optional; defaults to
+category icon)
+\item \verb{@blockParam <name> <description>} - Block parameter description
+(optional; repeatable)
+\item \verb{@blockCtor <name>} - Explicit constructor name (optional; defaults
+to object name)
 }
 }
 

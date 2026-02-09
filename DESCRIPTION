@@ -1,7 +1,7 @@
 Package: blockr.core
 Title: Graphical Web-Framework for Data Manipulation and Visualization
 Version: 0.1.2
-Authors@R: 
+Authors@R:
     c(person(given = "Nicolas",
              family = "Bennett",
              role = c("aut", "cre"),
@@ -31,9 +31,16 @@ URL: https://bristolmyerssquibb.github.io/blockr.core/
 BugReports: https://github.com/BristolMyersSquibb/blockr.core/issues
 License: GPL (>= 3)
 Encoding: UTF-8
-Roxygen: list(markdown = TRUE,
-    roclets = c("collate", "rd", "namespace",
-        "blockr.core::block_registration_roclet"))
+Roxygen: list(
+        markdown = TRUE,
+        packages = "roxy.shinylive",
+        roclets = c(
+            "collate",
+            "rd",
+            "namespace",
+            "blockr.core::block_registration_roclet"
+        )
+    )
 RoxygenNote: 7.3.3
 Imports:
     shiny (>= 1.5.0),
