@@ -387,10 +387,16 @@ edit_link_observer <- function(upd, rv) {
         list(upd$curr[row], col, coal(upd$edit$val, ""))
       )
 
-      upd$curr[row] <- new
+      # vctrs 0.7.0: vec_assign() no longer modifies in place, so we must
+      # explicitly capture and reassign the result
+      temp_curr <- upd$curr
+      temp_curr[row] <- new
+      upd$curr <- temp_curr
 
       if (row %in% names(upd$add)) {
-        upd$add[row] <- new
+        temp_add <- upd$add
+        temp_add[row] <- new
+        upd$add <- temp_add
       } else {
         upd$add <- c(upd$add, new)
       }
