@@ -363,9 +363,9 @@ create_link_obs_observer <- function(input, rv, upd, session, proxy) {
         rownames = FALSE
       )
 
-      upd <- create_dt_link_obs(setdiff(ids, names(upd$obs)), upd, input,
-                                board_blocks(rv$board), session)
-      upd <- destroy_dt_link_obs(setdiff(names(upd$obs), ids), upd)
+      create_dt_link_obs(setdiff(ids, names(upd$obs)), upd, input,
+                         board_blocks(rv$board), session)
+      destroy_dt_link_obs(setdiff(names(upd$obs), ids), upd)
     }
   )
 }
@@ -500,8 +500,12 @@ modify_link_observer <- function(input, rv, upd, session, proxy, res) {
         return()
       }
 
-      new <- tryCatch(
+      new <- try_catch_continue(
         modify_board_links(rv$board, upd$add, upd$rm),
+        message = function(e) {
+          notify(conditionMessage(e), duration = NULL, type = "message",
+                 session = session)
+        },
         warning = function(e) {
           notify(conditionMessage(e), duration = NULL, type = "warning",
                  session = session)
@@ -509,8 +513,13 @@ modify_link_observer <- function(input, rv, upd, session, proxy, res) {
         error = function(e) {
           notify(conditionMessage(e), duration = NULL, type = "error",
                  session = session)
+          NULL
         }
       )
+
+      if (is.null(new)) {
+        return()
+      }
 
       res(
         list(
@@ -531,7 +540,7 @@ modify_link_observer <- function(input, rv, upd, session, proxy, res) {
         rownames = FALSE
       )
 
-      removeModal()
+      removeModal(session)
     }
   )
 }

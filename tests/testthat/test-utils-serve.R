@@ -105,6 +105,7 @@ test_that("board app", {
   app$wait_for_idle()
   app$set_inputs(`my_board-manage_links-ac_from` = "a")
   app$set_inputs(`my_board-manage_links-ac_to` = "c")
+  app$wait_for_idle()
   app$set_inputs(`my_board-manage_links-ac_input` = "x")
 
   app$set_inputs(`my_board-manage_links-new_link_id` = "bc")
@@ -112,6 +113,7 @@ test_that("board app", {
   app$wait_for_idle()
   app$set_inputs(`my_board-manage_links-bc_from` = "b")
   app$set_inputs(`my_board-manage_links-bc_to` = "c")
+  app$wait_for_idle()
   app$set_inputs(`my_board-manage_links-bc_input` = "y")
 
   app$click("my_board-manage_links-modify_links")
