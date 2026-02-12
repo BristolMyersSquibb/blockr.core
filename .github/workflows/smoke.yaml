@@ -9,6 +9,8 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    timeout-minutes: 30
+
     env:
       GITHUB_PAT: ${{ secrets.BLOCKR_PAT }}
       R_KEEP_PKG_SOURCE: yes
@@ -33,6 +35,34 @@ jobs:
         with:
           extra-packages: any::rcmdcheck
           needs: check
+
+      - name: Debug - environment
+        run: |
+          echo "=== Quarto ==="
+          which quarto && quarto --version || echo "quarto not found"
+          echo "=== Chrome ==="
+          which google-chrome-stable || true
+          google-chrome-stable --version || true
+          echo "QUARTO_CHROMIUM=${QUARTO_CHROMIUM:-<unset>}"
+
+      - name: Debug - R CMD INSTALL (the step that hangs)
+        run: |
+          mkdir -p /tmp/test-lib
+          timeout 120 R CMD INSTALL --no-test-load --no-docs \
+            --library=/tmp/test-lib . 2>&1 \
+            && echo "R CMD INSTALL OK" || echo "R CMD INSTALL FAILED (exit $?)"
+
+      - name: Debug - R CMD build
+        run: |
+          timeout 180 R CMD build --no-manual . 2>&1 \
+            && echo "R CMD build OK" || echo "R CMD build FAILED (exit $?)"
+
+      - name: Debug - quarto render single vignette
+        run: |
+          timeout 120 quarto render vignettes/get-started.qmd 2>&1 \
+            && echo "OK" || echo "FAILED (exit $?)"
+
+      - uses: mxschmitt/action-tmate@v3
 
       - uses: r-lib/actions/check-r-package@v2
         with:
