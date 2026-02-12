@@ -31,19 +31,6 @@ jobs:
 
       - uses: quarto-dev/quarto-actions/setup@v2
 
-      - name: Set up Chrome for Quarto
-        shell: bash
-        run: |
-          if [ "$RUNNER_OS" = "Linux" ]; then
-            CHROME=$(which google-chrome-stable || which chromium-browser || true)
-          elif [ "$RUNNER_OS" = "macOS" ]; then
-            CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-          fi
-          if [ -n "$CHROME" ]; then
-            echo "CHROMOTE_CHROME=$CHROME" >> "$GITHUB_ENV"
-            echo "QUARTO_CHROMIUM=$CHROME" >> "$GITHUB_ENV"
-          fi
-
       - uses: r-lib/actions/setup-r@v2
         with:
           r-version: ${{ matrix.config.r }}
@@ -52,7 +39,7 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::rcmdcheck, local::.
+          extra-packages: any::rcmdcheck
           needs: check
 
       - uses: r-lib/actions/check-r-package@v2
