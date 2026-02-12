@@ -2,6 +2,8 @@
 
 ## blockr.core 0.1.1
 
+CRAN release: 2025-12-06
+
 - Add Block-level notifications via (optional) `expr` server return
   value component `cond`.
 - Export

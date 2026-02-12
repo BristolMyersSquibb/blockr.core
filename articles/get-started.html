@@ -12,7 +12,6 @@
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><script src="get-started_files/libs/quarto-html/popper.min.js"></script><script src="get-started_files/libs/quarto-html/tippy.umd.min.js"></script><link href="get-started_files/libs/quarto-html/tippy.css" rel="stylesheet">
 <link href="get-started_files/libs/quarto-html/light-border.css" rel="stylesheet">
-<script src="get-started_files/libs/quarto-diagram/mermaid.min.js"></script><script src="get-started_files/libs/quarto-diagram/mermaid-init.js"></script><link href="get-started_files/libs/quarto-diagram/mermaid.css" rel="stylesheet">
 <!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="1. Getting started">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.5.0/mermaid.min.js" integrity="sha512-3EZqKCkk3nMLmbrI7mfry81KH7dkzy/BoDfQrodwLQnS/RbsVlERdYP6J0oiJegRUxSOmx7Y35WNbVKSw7mipw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
@@ -148,41 +147,7 @@
 <section class="level3"><h3 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
 </h3>
 <p><code>blockr.core</code> decomposes entire data pipeline workflows into smaller units called <strong>block</strong>, responsible for performing a single <strong>task</strong>. At the end of the day, you obtain a <strong>DAG</strong> to create powerful data <strong>workflows</strong>.</p>
-<div class="cell" data-layout-align="default">
-<div class="cell-output-display">
-<div>
-<p></p>
-<figure class=""><p></p>
-<div>
-<pre class="mermaid mermaid-js">flowchart TD
-  subgraph board[Board]
-
-    subgraph stack1[Stack 1]
-      direction TB
-      import[Data 1]
-      transform[Transform]
-      visualize[Visualize]
-      import2[Data 2]
-      merge[Merge data]
-      transform2[Subset columns]
-      import --&gt; transform --&gt; |filter| merge --&gt; |left join| visualize
-      import2 --&gt; transform2 --&gt; |subset| merge
-    end
-
-    subgraph stack2[Stack 2]
-      direction TB
-      import3[Data 3]
-      llm[Transform LLM]
-      visualise_llm[Visualize LLM]
-      import3 --&gt; llm --&gt; visualise_llm
-    end
-  end
-</pre>
-</div>
-<p></p></figure><p></p>
-</div>
-</div>
-</div>
+<p><img src="../man/diagrams/board-arch.png"></p>
 <p>At the top level, a blockr app is made of a <strong>board</strong> object. That board may contains <strong>blocks</strong>, <strong>stacks</strong> or group of blocks, and connections between blocks, also known as <strong>links</strong>. You may find interesting to read more about block metadata in this <a href="https://bristolmyerssquibb.github.io/blockr.core/articles/blocks-registry.html">vignette</a>.</p>
 </section><section class="level3"><h3 id="serve-blocks">Serve blocks<a class="anchor" aria-label="anchor" href="#serve-blocks"></a>
 </h3>

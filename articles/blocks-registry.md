@@ -20,39 +20,14 @@ registers blocks on load, these blocks become available to the end user.
 Therefore this makes it powerful for **collaboration** between data
 science teams.
 
-``` mermaid
-flowchart LR
-  subgraph blockr_ggplot2[blockr.ggplot2]
-    new_block1[New block]
-    new_block2[New block]
-  end
-  subgraph blockr_echarts4r[blockr.echarts4r]
-    new_block3[New block]
-    new_block4[New block]
-  end
-  blockr_ggplot2 --> |register| registry
-  blockr_echarts4r --> |register| registry
-  subgraph registry[Registry]
-    subgraph select_reg[Select block]
-      reg_name[Name: select block]
-      reg_descr[Description: select columns in a table]
-      reg_classes[Classes: select_block, tranform_block]
-      reg_category[Category: transform]
-      reg_ctor[Construcor: new_select_block]
-      reg_package[Package: blockr.dplyr]
-    end
-    subgraph filter_reg[Filter block]
-    end
-    filter_reg --x |unregister| trash['fa:fa-trash']
-  end
-```
+![](../man/diagrams/block-registry.png)
 
 ## Previewing available blocks
 
-Upon loading, `{blockr}` **registers** its internal **blocks** with
-`register_blockr_blocks()`. You won’t have to call this function as it
-is not exported anyway. This makes the **registry** environment ready to
-be queried by
+Upon loading, [blockr](https://bristolmyerssquibb.github.io/blockr/)
+**registers** its internal **blocks** with `register_blockr_blocks()`.
+You won’t have to call this function as it is not exported anyway. This
+makes the **registry** environment ready to be queried by
 [`available_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md).
 A truncated output example below:
 

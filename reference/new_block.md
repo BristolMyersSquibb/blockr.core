@@ -17,6 +17,7 @@ new_block(
   dat_valid = NULL,
   allow_empty_state = FALSE,
   block_name = default_block_name,
+  expr_type = c("quoted", "bquoted"),
   ...
 )
 
@@ -70,6 +71,10 @@ as_blocks(x, ...)
 - block_name:
 
   Block name
+
+- expr_type:
+
+  Expression type (experimental)
 
 - ...:
 

@@ -17,6 +17,8 @@ with_mock_session(expr, session = MockShinySession$new())
 with_mock_context(session, expr)
 
 get_s3_method(generic, object)
+
+export_safely(x)
 ```
 
 ## Arguments
@@ -50,6 +52,11 @@ get_s3_method(generic, object)
 - object:
 
   S3 Object
+
+- x:
+
+  Reactive object to use in
+  [`shiny::exportTestValues()`](https://rdrr.io/pkg/shiny/man/exportTestValues.html)
 
 ## Value
 

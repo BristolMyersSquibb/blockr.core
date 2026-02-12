@@ -91,7 +91,7 @@ lnks <- links(from = c("a", "b"), to = c("b", "c"), input = c("x", "y"))
 is_links(lnks)
 #> [1] TRUE
 names(lnks)
-#> [1] "secular_nauplius" "unbiased_tarsier"
+#> [1] "spatial_nabarlek" "wettish_basil"   
 
 tryCatch(
   c(lnks, new_link("a", "b", "x")),

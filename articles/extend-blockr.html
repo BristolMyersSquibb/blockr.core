@@ -12,7 +12,6 @@
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><script src="extend-blockr_files/libs/quarto-html/popper.min.js"></script><script src="extend-blockr_files/libs/quarto-html/tippy.umd.min.js"></script><link href="extend-blockr_files/libs/quarto-html/tippy.css" rel="stylesheet">
 <link href="extend-blockr_files/libs/quarto-html/light-border.css" rel="stylesheet">
-<script src="extend-blockr_files/libs/quarto-diagram/mermaid.min.js"></script><script src="extend-blockr_files/libs/quarto-diagram/mermaid-init.js"></script><link href="extend-blockr_files/libs/quarto-diagram/mermaid.css" rel="stylesheet">
 <!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="4. Extend blockr">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.5.0/mermaid.min.js" integrity="sha512-3EZqKCkk3nMLmbrI7mfry81KH7dkzy/BoDfQrodwLQnS/RbsVlERdYP6J0oiJegRUxSOmx7Y35WNbVKSw7mipw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
@@ -101,39 +100,7 @@
 <li>…</li>
 </ul>
 <p>All of the above is fully customizable by yourself, <code>blockr.core</code> only provides reasonable defaults to get you started. <code>blockr.ui</code> is an example of full customization.</p>
-<div class="cell" data-layout-align="default">
-<div class="cell-output-display">
-<div>
-<p></p>
-<figure class=""><p></p>
-<div>
-<pre class="mermaid mermaid-js">flowchart TD
-  subgraph board[board]
-    subgraph plugins[plugins]
-      subgraph manage_blocks[Manage blocks]
-      end
-      subgraph manage_links[Manage links]
-      end
-      subgraph manage_stacks[Manage stacks]
-      end
-      subgraph preserve_board[Preserve board]
-      end
-      subgraph generate_code[Generate code]
-      end
-      subgraph notify_user[Notify user]
-      end
-      subgraph edit_block[Edit block]
-      end
-      subgraph edit_stack[Edit stack]
-      end
-    end
-  end
-</pre>
-</div>
-<p></p></figure><p></p>
-</div>
-</div>
-</div>
+<p><img src="../man/diagrams/board-plugins.png"></p>
 </section><section class="level2"><h2 id="blockr-plugins">blockr plugins<a class="anchor" aria-label="anchor" href="#blockr-plugins"></a>
 </h2>
 <section class="level3"><h3 id="background">Background<a class="anchor" aria-label="anchor" href="#background"></a>

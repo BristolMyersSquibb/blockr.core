@@ -107,7 +107,9 @@ modifying board options are documented in <code><a href="new_board_options.html"
 <span>  <span class="va">x</span>,</span>
 <span>  stacks <span class="op">=</span> <span class="fu">board_stacks</span><span class="op">(</span><span class="va">x</span><span class="op">)</span>,</span>
 <span>  blocks <span class="op">=</span> <span class="fu">board_stack_ids</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">clear_board</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -243,10 +245,10 @@ IDs are of interest, this is available as <code>board_option_ids()</code>, which
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu">board_links</span><span class="op">(</span><span class="va">brd</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;links[1]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> tabarded_lice </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> a -&gt; b (data) </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> venomous_cutworm </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    a -&gt; b (data) </span>
 <span class="r-in"><span><span class="fu">board_link_ids</span><span class="op">(</span><span class="va">brd</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "tabarded_lice"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "venomous_cutworm"</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu">board_stacks</span><span class="op">(</span><span class="va">brd</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;stacks[0]&gt;</span>
@@ -254,6 +256,11 @@ IDs are of interest, this is available as <code>board_option_ids()</code>, which
 <span class="r-out co"><span class="r-pr">#&gt;</span> character(0)</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu">board_options</span><span class="op">(</span><span class="va">brd</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;board_options[4]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   board_name: NULL</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   show_conditions: warning, error</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   thematic: NULL</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   dark_mode: NULL</span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

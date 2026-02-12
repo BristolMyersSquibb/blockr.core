@@ -34,6 +34,8 @@ blockr_app_ui(id, x, ...)
 blockr_app_server(id, x, ...)
 
 get_serve_obj(id = NULL)
+
+blockr_test_exports(x, rv, ...)
 ```
 
 ## Arguments
@@ -61,6 +63,11 @@ get_serve_obj(id = NULL)
 - options:
 
   Board options
+
+- rv:
+
+  Board
+  [`shiny::reactiveValues()`](https://rdrr.io/pkg/shiny/man/reactiveValues.html)
 
 ## Value
 

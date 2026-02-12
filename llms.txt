@@ -189,6 +189,7 @@ Utilities for creating an working with boards
   [`` `board_options<-`() ``](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
   [`board_option_ids()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
   [`available_stack_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
+  [`clear_board()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
   : Board utils
 - [`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)
   : Board server
@@ -385,6 +386,7 @@ Various tools and utilities.
   [`blockr_app_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   [`blockr_app_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   [`get_serve_obj()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
+  [`blockr_test_exports()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   : Serve object
 - [`export_code()`](https://bristolmyerssquibb.github.io/blockr.core/reference/export_code.md)
   : Utilities for code export
@@ -435,7 +437,12 @@ Various tools and utilities.
   [`with_mock_session()`](https://bristolmyerssquibb.github.io/blockr.core/reference/testing.md)
   [`with_mock_context()`](https://bristolmyerssquibb.github.io/blockr.core/reference/testing.md)
   [`get_s3_method()`](https://bristolmyerssquibb.github.io/blockr.core/reference/testing.md)
+  [`export_safely()`](https://bristolmyerssquibb.github.io/blockr.core/reference/testing.md)
   : Testing utilities
+- [`bbquote()`](https://bristolmyerssquibb.github.io/blockr.core/reference/bbquote.md)
+  [`.()`](https://bristolmyerssquibb.github.io/blockr.core/reference/bbquote.md)
+  [`..()`](https://bristolmyerssquibb.github.io/blockr.core/reference/bbquote.md)
+  : Quoting utilities
 
 # Articles
 

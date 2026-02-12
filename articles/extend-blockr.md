@@ -28,29 +28,7 @@ All of the above is fully customizable by yourself, `blockr.core` only
 provides reasonable defaults to get you started. `blockr.ui` is an
 example of full customization.
 
-``` mermaid
-flowchart TD
-  subgraph board[board]
-    subgraph plugins[plugins]
-      subgraph manage_blocks[Manage blocks]
-      end
-      subgraph manage_links[Manage links]
-      end
-      subgraph manage_stacks[Manage stacks]
-      end
-      subgraph preserve_board[Preserve board]
-      end
-      subgraph generate_code[Generate code]
-      end
-      subgraph notify_user[Notify user]
-      end
-      subgraph edit_block[Edit block]
-      end
-      subgraph edit_stack[Edit stack]
-      end
-    end
-  end
-```
+![](../man/diagrams/board-plugins.png)
 
 ## blockr plugins
 

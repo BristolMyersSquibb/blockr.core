@@ -57,6 +57,8 @@ available_stack_blocks(
   stacks = board_stacks(x),
   blocks = board_stack_ids(x)
 )
+
+clear_board(x)
 ```
 
 ## Arguments
@@ -185,10 +187,10 @@ board_block_ids(brd)
 
 board_links(brd)
 #> <links[1]>
-#> tabarded_lice 
-#> a -> b (data) 
+#> venomous_cutworm 
+#>    a -> b (data) 
 board_link_ids(brd)
-#> [1] "tabarded_lice"
+#> [1] "venomous_cutworm"
 
 board_stacks(brd)
 #> <stacks[0]>
@@ -196,4 +198,9 @@ board_stack_ids(brd)
 #> character(0)
 
 board_options(brd)
+#> <board_options[4]>
+#>   board_name: NULL
+#>   show_conditions: warning, error
+#>   thematic: NULL
+#>   dark_mode: NULL
 ```
