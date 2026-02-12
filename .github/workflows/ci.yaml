@@ -16,6 +16,8 @@ jobs:
 
   smoke:
 
+    needs: lint
+
     uses: ./.github/workflows/smoke.yaml
 
     secrets: inherit

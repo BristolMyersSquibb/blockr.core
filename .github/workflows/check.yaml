@@ -35,6 +35,11 @@ jobs:
           http-user-agent: ${{ matrix.config.http-user-agent }}
           use-public-rspm: true
 
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::rcmdcheck
+          needs: check
+
       - name: Set up Chrome for Quarto mermaid rendering
         if: runner.os == 'Linux'
         run: |
@@ -42,11 +47,6 @@ jobs:
             | sudo tee /usr/local/bin/chrome-for-quarto > /dev/null
           sudo chmod +x /usr/local/bin/chrome-for-quarto
           echo "QUARTO_CHROMIUM=/usr/local/bin/chrome-for-quarto" >> "$GITHUB_ENV"
-
-      - uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          extra-packages: any::rcmdcheck
-          needs: check
 
       - uses: r-lib/actions/check-r-package@v2
         with:
