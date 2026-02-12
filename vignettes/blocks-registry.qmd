@@ -1,9 +1,6 @@
 ---
 title: "3. Browse for blocks"
 output: rmarkdown::html_vignette
-format:
-  html:
-    mermaid-format: svg
 vignette: >
   %\VignetteIndexEntry{3. Browse for blocks}
   %\VignetteEngine{quarto::html}
@@ -15,6 +12,7 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
+render_mermaid <- get("render_mermaid", envir = asNamespace("blockr.core"))
 ```
 
 ```{r setup}
@@ -33,32 +31,11 @@ metadata:
 
 In other words, the __registry__ is a __"supermarket"__ for data analysis. As shown below, if you develop your own blocks package and registers blocks on load, these blocks become available to the end user. Therefore this makes it powerful for __collaboration__ between data science teams.
 
-```{mermaid}
-flowchart LR
-  subgraph blockr_ggplot2[blockr.ggplot2]
-    new_block1[New block]
-    new_block2[New block]
-  end
-  subgraph blockr_echarts4r[blockr.echarts4r]
-    new_block3[New block]
-    new_block4[New block]
-  end
-  blockr_ggplot2 --> |register| registry
-  blockr_echarts4r --> |register| registry
-  subgraph registry[Registry]
-    subgraph select_reg[Select block]
-      reg_name[Name: select block]
-      reg_descr[Description: select columns in a table]
-      reg_classes[Classes: select_block, tranform_block]
-      reg_category[Category: transform]
-      reg_ctor[Construcor: new_select_block]
-      reg_package[Package: blockr.dplyr]
-    end
-    subgraph filter_reg[Filter block]
-    end
-    filter_reg --x |unregister| trash['fa:fa-trash']
-  end
+```{r, echo=FALSE, include=FALSE, eval=!nzchar(Sys.getenv("CI"))}
+render_mermaid("../man/diagrams/block-registry.mmd")
 ```
+
+![](../man/diagrams/block-registry.png)
 
 ## Previewing available blocks
 

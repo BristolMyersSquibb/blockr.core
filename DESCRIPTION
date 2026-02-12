@@ -106,6 +106,7 @@ Collate:
     'utils-expr.R'
     'utils-graph.R'
     'utils-logging.R'
+    'utils-mermaid.R'
     'utils-misc.R'
     'utils-pkg.R'
     'utils-ply.R'

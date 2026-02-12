@@ -32,13 +32,6 @@ jobs:
           extra-packages: any::pkgdown, local::.
           needs: website
 
-      - name: Set up Chrome for Quarto mermaid rendering
-        run: |
-          printf '#!/bin/sh\nexec google-chrome-stable --disable-dev-shm-usage "$@"\n' \
-            | sudo tee /usr/local/bin/chrome-for-quarto > /dev/null
-          sudo chmod +x /usr/local/bin/chrome-for-quarto
-          echo "QUARTO_CHROMIUM=/usr/local/bin/chrome-for-quarto" >> "$GITHUB_ENV"
-
       - name: Build site
         run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
         shell: Rscript {0}
