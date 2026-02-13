@@ -33,7 +33,7 @@ jobs:
           needs: website
 
       - name: Use default mermaid format on CI
-        run: rm -f vignettes/_metadata.yml
+        run: Rscript -e 'unlink("vignettes/_metadata.yml")'
 
       - name: Build site
         run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
