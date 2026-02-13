@@ -12,7 +12,6 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
-render_mermaid <- get("render_mermaid", envir = asNamespace("blockr.core"))
 ```
 
 ```{r setup}
@@ -28,11 +27,18 @@ library(blockr.core)
 - **An expression** (called "expr"), a reactive expression defining a blocks computation. This allows R code to be exported and  data analyses to be recreated, outside of blockr and a reactive context.
 - **A state object** (called "state"), a list of reactive values tracking user inputs. This allows blocks to separate user-defined state from inputs specified by blocks.
 
-```{r, echo=FALSE, include=FALSE, eval=!nzchar(Sys.getenv("CI"))}
-render_mermaid("../man/diagrams/block-structure.mmd")
+```{mermaid}
+flowchart LR
+  subgraph block[Block]
+    subgraph ctor[constructor]
+      block_ui[UI]
+      subgraph block_server[server]
+        blk_state[State]
+        blk_expr[Expression]
+      end
+    end
+  end
 ```
-
-![](../man/diagrams/block-structure.png)
 
 While blocks *return* the "expr" and "state" values, blocks *consist* of three elements:
 
@@ -67,11 +73,24 @@ ui <- function(id) {
 
 As inputs, a server function takes an id and any additional inputs from other blocks (e.g., data). For example, for the blocks shipped with blockr.core, this would result in zero inputs for a __data__ block, one for a __transform__ block such as a select block, two for a __join__ block and the special argument `...args` for __variadic__ blocks, such as an `rbind` block.
 
-```{r, echo=FALSE, include=FALSE, eval=!nzchar(Sys.getenv("CI"))}
-render_mermaid("../man/diagrams/block-inputs.mmd")
+```{mermaid}
+flowchart TB
+  data_blk[data block 1]
+  data_blk_2[data block 2]
+  data_blk_3[data block 3]
+  data_blk_4[data block 4]
+  select_blk[select block]
+  join_blk[join block]
+  rbind_blk[rbind block]
+  data_blk --> |data| select_blk
+  data_blk_2 -->|data1| join_blk
+  data_blk_3 --> |data2| join_blk
+  
+  data_blk --> |1| rbind_blk
+  select_blk --> |2| rbind_blk
+  data_blk_4 --> |3| rbind_blk
+  join_blk --> |4| rbind_blk
 ```
-
-![](../man/diagrams/block-inputs.png)
 
 A server function should return as output a `moduleServer()` call, defining:
 

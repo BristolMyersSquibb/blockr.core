@@ -12,7 +12,6 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
-render_mermaid <- get("render_mermaid", envir = asNamespace("blockr.core"))
 ```
 
 ```{r setup}
@@ -109,11 +108,31 @@ As a developer you may have to serve blockr applications or develop custom block
 
 `blockr.core` decomposes entire data pipeline workflows into smaller units called __block__, responsible for performing a single __task__. At the end of the day, you obtain a __DAG__ to create powerful data __workflows__.
 
-```{r, echo=FALSE, include=FALSE, eval=!nzchar(Sys.getenv("CI"))}
-render_mermaid("../man/diagrams/board-arch.mmd")
-```
+```{mermaid}
+flowchart TD
+  subgraph board[Board]
 
-![](../man/diagrams/board-arch.png)
+    subgraph stack1[Stack 1]
+      direction TB
+      import[Data 1]
+      transform[Transform]
+      visualize[Visualize]
+      import2[Data 2]
+      merge[Merge data]
+      transform2[Subset columns]
+      import --> transform --> |filter| merge --> |left join| visualize
+      import2 --> transform2 --> |subset| merge
+    end
+
+    subgraph stack2[Stack 2]
+      direction TB
+      import3[Data 3]
+      llm[Transform LLM]
+      visualise_llm[Visualize LLM]
+      import3 --> llm --> visualise_llm
+    end
+  end
+```
 
 At the top level, a blockr app is made of a __board__ object. That board may contains __blocks__, __stacks__ or group of blocks, and connections between blocks, also known as __links__. You may find interesting to read more about block metadata in this [vignette](https://bristolmyerssquibb.github.io/blockr.core/articles/blocks-registry.html).
 
