@@ -37,10 +37,12 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::rcmdcheck, local::.
+          extra-packages: any::rcmdcheck
           needs: check
+
+      - name: Use default mermaid format on CI
+        run: rm -f vignettes/_metadata.yml
 
       - uses: r-lib/actions/check-r-package@v2
         with:
           upload-snapshots: true
-          build_args: 'c("--no-manual","--compact-vignettes=gs+qpdf")'

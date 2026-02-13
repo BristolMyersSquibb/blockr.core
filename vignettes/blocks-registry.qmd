@@ -1,9 +1,6 @@
 ---
 title: "3. Browse for blocks"
 output: rmarkdown::html_vignette
-format:
-  html:
-    mermaid-format: png
 vignette: >
   %\VignetteIndexEntry{3. Browse for blocks}
   %\VignetteEngine{quarto::html}

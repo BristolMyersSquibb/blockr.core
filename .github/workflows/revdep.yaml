@@ -44,6 +44,7 @@ jobs:
         with:
           extra-packages: |
             any::rcmdcheck
+            local::../core
             local::../dep
           working-directory: core
 
