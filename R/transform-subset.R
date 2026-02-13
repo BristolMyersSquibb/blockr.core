@@ -20,44 +20,56 @@ new_subset_block <- function(subset = "", select = "", ...) {
         id,
         function(input, output, session) {
 
-          sub <- reactiveVal(subset)
-          sel <- reactiveVal(select)
-
           observeEvent(
             input$eval,
             {
-              sub(input$subset)
-              sel(input$select)
+              subset(input$subset)
+              select(input$select)
             }
           )
 
-          list(
-            expr = reactive(
-              {
-                su <- sub()
-                se <- sel()
-
-                if (nzchar(su) && nzchar(se)) {
-                  bbquote(
-                    subset(.(data), .(su), .(se)),
-                    list(su = pasrse_first(su), se = pasrse_first(se))
-                  )
-                } else if (nzchar(se)) {
-                  bbquote(
-                    subset(.(data), select = .(se)),
-                    list(se = pasrse_first(se))
-                  )
-                } else if (nzchar(su)) {
-                  bbquote(
-                    subset(.(data), .(su)),
-                    list(su = pasrse_first(su))
-                  )
-                } else {
-                  quote(subset(.(data)))
-                }
+          observeEvent(
+            req(subset()),
+            {
+              if (!identical(subset(), input$subset)) {
+                updateTextInput(session, "subset", value = subset())
               }
-            ),
-            state = list(subset = sub, select = sel)
+            }
+          )
+
+          observeEvent(
+            req(select()),
+            {
+              if (!identical(select(), input$select)) {
+                updateTextInput(session, "select", value = select())
+              }
+            }
+          )
+
+          reactive(
+            {
+              su <- subset()
+              se <- select()
+
+              if (nzchar(su) && nzchar(se)) {
+                bbquote(
+                  subset(.(data), .(su), .(se)),
+                  list(su = pasrse_first(su), se = pasrse_first(se))
+                )
+              } else if (nzchar(se)) {
+                bbquote(
+                  subset(.(data), select = .(se)),
+                  list(se = pasrse_first(se))
+                )
+              } else if (nzchar(su)) {
+                bbquote(
+                  subset(.(data), .(su)),
+                  list(su = pasrse_first(su))
+                )
+              } else {
+                quote(subset(.(data)))
+              }
+            }
           )
         }
       )
@@ -87,6 +99,7 @@ new_subset_block <- function(subset = "", select = "", ...) {
     },
     allow_empty_state = TRUE,
     expr_type = "bquoted",
+    external_ctrl = TRUE,
     class = "subset_block",
     ...
   )
