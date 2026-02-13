@@ -22,7 +22,18 @@ additional values:
   tracking user inputs. This allows blocks to separate user-defined
   state from inputs specified by blocks.
 
-![](../man/diagrams/block-structure.png)
+``` mermaid
+flowchart LR
+  subgraph block[Block]
+    subgraph ctor[constructor]
+      block_ui[UI]
+      subgraph block_server[server]
+        blk_state[State]
+        blk_expr[Expression]
+      end
+    end
+  end
+```
 
 While blocks *return* the “expr” and “state” values, blocks *consist* of
 three elements:
@@ -72,7 +83,24 @@ for a **transform** block such as a select block, two for a **join**
 block and the special argument `...args` for **variadic** blocks, such
 as an `rbind` block.
 
-![](../man/diagrams/block-inputs.png)
+``` mermaid
+flowchart TB
+  data_blk[data block 1]
+  data_blk_2[data block 2]
+  data_blk_3[data block 3]
+  data_blk_4[data block 4]
+  select_blk[select block]
+  join_blk[join block]
+  rbind_blk[rbind block]
+  data_blk --> |data| select_blk
+  data_blk_2 -->|data1| join_blk
+  data_blk_3 --> |data2| join_blk
+
+  data_blk --> |1| rbind_blk
+  select_blk --> |2| rbind_blk
+  data_blk_4 --> |3| rbind_blk
+  join_blk --> |4| rbind_blk
+```
 
 A server function should return as output a `moduleServer()` call,
 defining:

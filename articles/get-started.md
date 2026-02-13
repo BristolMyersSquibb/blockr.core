@@ -112,7 +112,31 @@ units called **block**, responsible for performing a single **task**. At
 the end of the day, you obtain a **DAG** to create powerful data
 **workflows**.
 
-![](../man/diagrams/board-arch.png)
+``` mermaid
+flowchart TD
+  subgraph board[Board]
+
+    subgraph stack1[Stack 1]
+      direction TB
+      import[Data 1]
+      transform[Transform]
+      visualize[Visualize]
+      import2[Data 2]
+      merge[Merge data]
+      transform2[Subset columns]
+      import --> transform --> |filter| merge --> |left join| visualize
+      import2 --> transform2 --> |subset| merge
+    end
+
+    subgraph stack2[Stack 2]
+      direction TB
+      import3[Data 3]
+      llm[Transform LLM]
+      visualise_llm[Visualize LLM]
+      import3 --> llm --> visualise_llm
+    end
+  end
+```
 
 At the top level, a blockr app is made of a **board** object. That board
 may contains **blocks**, **stacks** or group of blocks, and connections

@@ -12,6 +12,7 @@
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><script src="create-block_files/libs/quarto-html/popper.min.js"></script><script src="create-block_files/libs/quarto-html/tippy.umd.min.js"></script><link href="create-block_files/libs/quarto-html/tippy.css" rel="stylesheet">
 <link href="create-block_files/libs/quarto-html/light-border.css" rel="stylesheet">
+<script src="create-block_files/libs/quarto-diagram/mermaid.min.js"></script><script src="create-block_files/libs/quarto-diagram/mermaid-init.js"></script><link href="create-block_files/libs/quarto-diagram/mermaid.css" rel="stylesheet">
 <!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="2. Create a block">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.5.0/mermaid.min.js" integrity="sha512-3EZqKCkk3nMLmbrI7mfry81KH7dkzy/BoDfQrodwLQnS/RbsVlERdYP6J0oiJegRUxSOmx7Y35WNbVKSw7mipw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
@@ -95,7 +96,28 @@
 <li>
 <strong>A state object</strong> (called “state”), a list of reactive values tracking user inputs. This allows blocks to separate user-defined state from inputs specified by blocks.</li>
 </ul>
-<p><img src="../man/diagrams/block-structure.png"></p>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p>
+<figure class=""><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart LR
+  subgraph block[Block]
+    subgraph ctor[constructor]
+      block_ui[UI]
+      subgraph block_server[server]
+        blk_state[State]
+        blk_expr[Expression]
+      end
+    end
+  end
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
 <p>While blocks <em>return</em> the “expr” and “state” values, blocks <em>consist</em> of three elements:</p>
 <ol type="1">
 <li>A <strong>UI function</strong> to define the user interface.</li>
@@ -125,7 +147,34 @@
 </section><section class="level3"><h3 id="server-function">Server function<a class="anchor" aria-label="anchor" href="#server-function"></a>
 </h3>
 <p>As inputs, a server function takes an id and any additional inputs from other blocks (e.g., data). For example, for the blocks shipped with blockr.core, this would result in zero inputs for a <strong>data</strong> block, one for a <strong>transform</strong> block such as a select block, two for a <strong>join</strong> block and the special argument <code>...args</code> for <strong>variadic</strong> blocks, such as an <code>rbind</code> block.</p>
-<p><img src="../man/diagrams/block-inputs.png"></p>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p>
+<figure class=""><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart TB
+  data_blk[data block 1]
+  data_blk_2[data block 2]
+  data_blk_3[data block 3]
+  data_blk_4[data block 4]
+  select_blk[select block]
+  join_blk[join block]
+  rbind_blk[rbind block]
+  data_blk --&gt; |data| select_blk
+  data_blk_2 --&gt;|data1| join_blk
+  data_blk_3 --&gt; |data2| join_blk
+
+  data_blk --&gt; |1| rbind_blk
+  select_blk --&gt; |2| rbind_blk
+  data_blk_4 --&gt; |3| rbind_blk
+  join_blk --&gt; |4| rbind_blk
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
 <p>A server function should return as output a <code>moduleServer()</code> call, defining:</p>
 <ul>
 <li>
