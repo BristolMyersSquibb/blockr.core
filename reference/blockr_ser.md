@@ -147,7 +147,7 @@ blockr_ser(blk)
 #> $payload$package
 #> [1] "datasets"
 #> 
-#> $payload$name
+#> $payload$block_name
 #> [1] "Dataset"
 #> 
 #> 
