@@ -663,7 +663,7 @@ block_expr_type <- function(x) {
 }
 
 block_supports_external_ctrl <- function(x) {
-  length(block_external_ctrl) > 0L
+  length(block_external_ctrl(x)) > 0L
 }
 
 block_external_ctrl <- function(x) {

@@ -7,11 +7,8 @@ test_that("subset block constructor", {
   block_expr_test_server(
     blk,
     {
-      expect_equal(sub(), "")
-      expect_equal(sel(), "")
-
-      expect_equal(session$returned$state$subset(), "")
-      expect_equal(session$returned$state$select(), "")
+      expect_equal(subset(), "")
+      expect_equal(select(), "")
     },
     args = list(data = mtcars)
   )
