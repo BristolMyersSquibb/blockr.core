@@ -1,19 +1,22 @@
-#' Plugin module for editing board blocks
+#' Plugin module for external control of block inputs
 #'
-#' Logic and user experience for editing block attributes such as block titles
-#' can be customized or enhanced by providing an alternate version of this
-#' plugin. The default implementation only handles block titles, but if further
-#' (editable) block attributes are to be introduced, corresponding UI and logic
-#' can be included here. In addition to blocks titles, this default
-#' implementation provides UI for removing, as well as inserting blocks before
-#' or after the current one.
+#' This plugin enables setting block reactive state values from outside the
+#' block expression server context. Blocks opt in to external control via the
+#' `external_ctrl` argument to [new_block()], which can be set to `TRUE` (all
+#' constructor inputs) or a character vector of specific input names. The
+#' default server implementation creates observers that synchronize shiny
+#' inputs with the corresponding block state reactive values, while the
+#' default UI renders a [shiny::textInput()] for each externally controllable
+#' input. Both the server and UI can be replaced with custom implementations
+#' by passing alternate functions to `ctrl_block()`.
 #'
 #' @inheritParams new_plugin
 #'
 #' @return A plugin container inheriting from `ctrl_block` is returned by
-#' `ctrl_block()`, while the UI component (e.g. `ctrl_block_ui()`) is
+#' `ctrl_block()`, while the UI component (i.e. `ctrl_block_ui()`) is
 #' expected to return shiny UI (i.e. [shiny::tagList()]) and the server
-#' component (i.e. `ctrl_block_server()`) is expected to return `NULL`.
+#' component (i.e. `ctrl_block_server()`) is expected to return a value
+#' that passes validation (i.e. `TRUE` or a reactive).
 #'
 #' @export
 ctrl_block <- function(server = ctrl_block_server, ui = ctrl_block_ui) {
@@ -70,7 +73,7 @@ validate_ctrl <- function(x) {
   }
 
   blockr_abort(
-    "Expected `TURE` or a reactive value, but got {class(x)} instead.",
+    "Expected `TRUE` or a reactive value, but got {class(x)} instead.",
     class = "expect_true_or_rv"
   )
 }

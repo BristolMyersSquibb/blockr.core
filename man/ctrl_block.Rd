@@ -4,7 +4,7 @@
 \alias{ctrl_block}
 \alias{ctrl_block_server}
 \alias{ctrl_block_ui}
-\title{Plugin module for editing board blocks}
+\title{Plugin module for external control of block inputs}
 \usage{
 ctrl_block(server = ctrl_block_server, ui = ctrl_block_ui)
 
@@ -27,16 +27,19 @@ ctrl_block_ui(id, x)
 }
 \value{
 A plugin container inheriting from \code{ctrl_block} is returned by
-\code{ctrl_block()}, while the UI component (e.g. \code{ctrl_block_ui()}) is
+\code{ctrl_block()}, while the UI component (i.e. \code{ctrl_block_ui()}) is
 expected to return shiny UI (i.e. \code{\link[shiny:reexports]{shiny::tagList()}}) and the server
-component (i.e. \code{ctrl_block_server()}) is expected to return \code{NULL}.
+component (i.e. \code{ctrl_block_server()}) is expected to return a value
+that passes validation (i.e. \code{TRUE} or a reactive).
 }
 \description{
-Logic and user experience for editing block attributes such as block titles
-can be customized or enhanced by providing an alternate version of this
-plugin. The default implementation only handles block titles, but if further
-(editable) block attributes are to be introduced, corresponding UI and logic
-can be included here. In addition to blocks titles, this default
-implementation provides UI for removing, as well as inserting blocks before
-or after the current one.
+This plugin enables setting block reactive state values from outside the
+block expression server context. Blocks opt in to external control via the
+\code{external_ctrl} argument to \code{\link[=new_block]{new_block()}}, which can be set to \code{TRUE} (all
+constructor inputs) or a character vector of specific input names. The
+default server implementation creates observers that synchronize shiny
+inputs with the corresponding block state reactive values, while the
+default UI renders a \code{\link[shiny:textInput]{shiny::textInput()}} for each externally controllable
+input. Both the server and UI can be replaced with custom implementations
+by passing alternate functions to \code{ctrl_block()}.
 }
