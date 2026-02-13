@@ -40,6 +40,9 @@ jobs:
           extra-packages: any::rcmdcheck
           needs: check
 
+      - name: Use default mermaid format on CI
+        run: rm -f vignettes/_metadata.yml
+
       - uses: r-lib/actions/check-r-package@v2
         with:
           upload-snapshots: true
