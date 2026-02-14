@@ -3,6 +3,8 @@
 \name{generate_plugin_args}
 \alias{generate_plugin_args}
 \alias{sink_msg}
+\alias{block_expr_test_server}
+\alias{new_mock_session}
 \alias{with_mock_session}
 \alias{with_mock_context}
 \alias{get_s3_method}
@@ -13,7 +15,11 @@ generate_plugin_args(board, ..., mode = c("edit", "read"))
 
 sink_msg(...)
 
-with_mock_session(expr, session = MockShinySession$new())
+block_expr_test_server(x, expr, args = list(), session = new_mock_session())
+
+new_mock_session()
+
+with_mock_session(expr, session = new_mock_session())
 
 with_mock_context(session, expr)
 
@@ -29,15 +35,26 @@ export_safely(x)
 \item{mode}{Edit plugins, such as \code{manage_blocks} get an additional argument
 \code{update} over read plugins such as \code{preserve_board}.}
 
-\item{expr}{Expression}
+\item{x}{Reactive object to use in \code{\link[shiny:exportTestValues]{shiny::exportTestValues()}}}
 
-\item{session}{Shiny session object}
+\item{expr}{Test code containing expectations. The objects from inside the
+server function environment will be made available in the environment of
+the test expression (this is done using a data mask with
+\code{\link[rlang:eval_tidy]{rlang::eval_tidy()}}). This includes the parameters of the server function
+(e.g. \code{input}, \code{output}, and \code{session}), along with any other values
+created inside of the server function.}
+
+\item{args}{Additional arguments to pass to the module function. If \code{app} is
+a module, and no \code{id} argument is provided, one will be generated and
+supplied automatically.}
+
+\item{session}{The \code{\link[shiny]{MockShinySession}} object to use as the \link[shiny:domains]{reactive domain}. The same session object is used as the domain both
+during invocation of the server or module under test and during evaluation
+of \code{expr}.}
 
 \item{generic}{Generic function name (passed as string)}
 
 \item{object}{S3 Object}
-
-\item{x}{Reactive object to use in \code{\link[shiny:exportTestValues]{shiny::exportTestValues()}}}
 }
 \value{
 For testing plugins, \code{generate_plugin_args()} returns objects that
