@@ -1,0 +1,50 @@
+on:
+  pull_request:
+    branches: main
+    types: [edited]
+
+name: revdep-rerun
+
+jobs:
+
+  check-config:
+
+    if: github.event.changes.body
+
+    runs-on: ubuntu-latest
+
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+
+    steps:
+      - name: Check if revdeps config changed
+        id: diff
+        env:
+          OLD_BODY: ${{ github.event.changes.body.from }}
+          NEW_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          extract_revdeps() {
+            echo "$1" | tr -d '\r' \
+              | sed -n '/^```revdeps$/,/^```$/p' \
+              | grep -v '^```' \
+              | sort
+          }
+
+          OLD=$(extract_revdeps "$OLD_BODY")
+          NEW=$(extract_revdeps "$NEW_BODY")
+
+          if [ "$OLD" = "$NEW" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  revdep:
+
+    needs: check-config
+
+    if: needs.check-config.outputs.changed == 'true'
+
+    uses: ./.github/workflows/revdep.yaml
+
+    secrets: inherit
