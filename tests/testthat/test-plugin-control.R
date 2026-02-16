@@ -9,27 +9,30 @@ test_that("ctrl_block constructor", {
   expect_identical(plg$ui, ctrl_block_ui)
 })
 
-test_that("ctrl_block_ui generates text inputs for external ctrl fields", {
+test_that("ctrl_block_ui generates text inputs and submit button", {
 
   blk <- new_dataset_block("mtcars")
   ui <- ctrl_block_ui("ctrl", blk)
 
   expect_s3_class(ui, "shiny.tag.list")
-  expect_length(ui, 1L)
+  expect_length(ui, 2L)
 
-  html <- as.character(ui[[1L]])
+  html <- paste(vapply(ui, as.character, character(1L)), collapse = "")
   expect_match(html, "ctrl-dataset")
   expect_match(html, "Dataset")
+  expect_match(html, "ctrl-submit")
+  expect_match(html, "Submit")
 
   blk2 <- new_subset_block()
   ui2 <- ctrl_block_ui("ctrl", blk2)
 
   expect_s3_class(ui2, "shiny.tag.list")
-  expect_length(ui2, 2L)
+  expect_length(ui2, 3L)
 
   html2 <- paste(vapply(ui2, as.character, character(1L)), collapse = "")
   expect_match(html2, "ctrl-subset")
   expect_match(html2, "ctrl-select")
+  expect_match(html2, "ctrl-submit")
 })
 
 test_that("ctrl_block_ui is empty for blocks without external ctrl", {
@@ -52,7 +55,7 @@ test_that("block_supports_external_ctrl correctly distinguishes blocks", {
   expect_false(block_supports_external_ctrl(blk_without))
 })
 
-test_that("ctrl_block_server syncs input to reactive state", {
+test_that("ctrl_block_server syncs input to reactive state on submit", {
 
   blk <- new_dataset_block("mtcars")
 
@@ -64,7 +67,9 @@ test_that("ctrl_block_server syncs input to reactive state", {
       expect_equal(vars$dataset(), "mtcars")
 
       session$setInputs(dataset = "iris")
+      expect_equal(vars$dataset(), "mtcars")
 
+      session$setInputs(submit = 1L)
       expect_equal(vars$dataset(), "iris")
     },
     args = list(
@@ -76,7 +81,7 @@ test_that("ctrl_block_server syncs input to reactive state", {
   )
 })
 
-test_that("ctrl_block_server syncs multiple inputs", {
+test_that("ctrl_block_server syncs multiple inputs on submit", {
 
   blk <- new_subset_block(subset = "cyl > 4", select = "mpg")
 
@@ -88,11 +93,12 @@ test_that("ctrl_block_server syncs multiple inputs", {
       expect_equal(vars$subset(), "cyl > 4")
       expect_equal(vars$select(), "mpg")
 
-      session$setInputs(subset = "cyl > 6")
-      expect_equal(vars$subset(), "cyl > 6")
+      session$setInputs(subset = "cyl > 6", select = "disp")
+      expect_equal(vars$subset(), "cyl > 4")
       expect_equal(vars$select(), "mpg")
 
-      session$setInputs(select = "disp")
+      session$setInputs(submit = 1L)
+      expect_equal(vars$subset(), "cyl > 6")
       expect_equal(vars$select(), "disp")
     },
     args = list(
@@ -136,6 +142,7 @@ test_that("ctrl_block_server does not update when input matches state", {
       session$flushReact()
 
       session$setInputs(dataset = "mtcars")
+      session$setInputs(submit = 1L)
       expect_equal(vars$dataset(), "mtcars")
     },
     args = list(
@@ -169,6 +176,7 @@ test_that("ctrl_block integrates with block_server", {
       expect_identical(session$returned$result(), datasets::mtcars)
 
       session$makeScope("ctrl_block")$setInputs(dataset = "iris")
+      session$makeScope("ctrl_block")$setInputs(submit = 1L)
 
       expect_identical(session$returned$result(), datasets::iris)
     },

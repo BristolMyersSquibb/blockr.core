@@ -38,11 +38,16 @@ ctrl_block_server <- function(id, x, vars, dat, expr) {
 
       inps <- block_external_ctrl(x)
 
-      map(
-        observe_ctrl_input,
-        inps,
-        vars[inps],
-        MoreArgs = list(session = session)
+      observeEvent(
+        input$submit,
+        {
+          for (inp in inps) {
+            val <- session$input[[inp]]
+            if (!is.null(val) && !identical(vars[[inp]](), val)) {
+              vars[[inp]](val)
+            }
+          }
+        }
       )
 
       TRUE
@@ -57,13 +62,17 @@ ctrl_block_ui <- function(id, x) {
 
   inps <- block_external_ctrl(x)
 
+  if (!length(inps)) {
+    return(do.call(tagList, list()))
+  }
+
   fields <- map(
     textInput,
     inputId = chr_ply(inps, NS(id)),
     label = paste0(toupper(substr(inps, 1L, 1L)), substring(inps, 2L))
   )
 
-  do.call(tagList, fields)
+  do.call(tagList, c(fields, list(actionButton(NS(id, "submit"), "Submit"))))
 }
 
 validate_ctrl <- function(x) {
@@ -78,13 +87,3 @@ validate_ctrl <- function(x) {
   )
 }
 
-observe_ctrl_input <- function(id, var, session) {
-  observeEvent(
-    req(session$input[[id]]),
-    {
-      if (!identical(var(), session$input[[id]])) {
-        var(session$input[[id]])
-      }
-    }
-  )
-}
