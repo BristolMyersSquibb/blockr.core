@@ -384,7 +384,14 @@ data_eval_observer <- function(id, x, dat, gate, res, state, lang, rv, cond,
 eval_impl <- function(x, expr, dat) {
 
   if (identical(block_expr_type(x), "bquoted")) {
-    expr <- do.call(bquote, list(expr, dat, splice = is.na(block_arity(x))))
+    expr <- do.call(
+      bquote,
+      list(
+        expr,
+        lapply(set_names(nm = names(dat)), as.name),
+        splice = is.na(block_arity(x))
+      )
+    )
   }
 
   block_eval(x, expr, eval_env(dat))

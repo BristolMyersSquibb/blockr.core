@@ -38,19 +38,45 @@ ctrl_block_server <- function(id, x, vars, dat, expr) {
 
       inps <- block_external_ctrl(x)
 
+      gate <- reactiveVal(TRUE)
+
       observeEvent(
         input$submit,
         {
+          old <- lapply(vars[inps], reval)
+
           for (inp in inps) {
             val <- session$input[[inp]]
             if (!is.null(val) && !identical(vars[[inp]](), val)) {
               vars[[inp]](val)
             }
           }
+
+          result <- try(eval_impl(x, expr(), dat()), silent = TRUE)
+
+          if (inherits(result, "try-error")) {
+
+            for (inp in inps) {
+              if (!identical(vars[[inp]](), old[[inp]])) {
+                vars[[inp]](old[[inp]])
+              }
+            }
+
+            err <- attr(result, "condition")
+
+            if (!inherits(err, "shiny.silent.error")) {
+              notify(conditionMessage(err), type = "error")
+            }
+
+            gate(FALSE)
+
+          } else {
+            gate(TRUE)
+          }
         }
       )
 
-      TRUE
+      gate
     }
   )
 }
@@ -72,7 +98,13 @@ ctrl_block_ui <- function(id, x) {
     label = paste0(toupper(substr(inps, 1L, 1L)), substring(inps, 2L))
   )
 
-  do.call(tagList, c(fields, list(actionButton(NS(id, "submit"), "Submit"))))
+  do.call(
+    tagList,
+    c(
+      fields,
+      list(actionButton(NS(id, "submit"), "Submit"))
+    )
+  )
 }
 
 validate_ctrl <- function(x) {
@@ -86,4 +118,3 @@ validate_ctrl <- function(x) {
     class = "expect_true_or_rv"
   )
 }
-

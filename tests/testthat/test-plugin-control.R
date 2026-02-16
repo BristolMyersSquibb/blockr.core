@@ -58,6 +58,7 @@ test_that("block_supports_external_ctrl correctly distinguishes blocks", {
 test_that("ctrl_block_server syncs input to reactive state on submit", {
 
   blk <- new_dataset_block("mtcars")
+  dataset_rv <- reactiveVal("mtcars")
 
   testServer(
     ctrl_block_server,
@@ -74,9 +75,9 @@ test_that("ctrl_block_server syncs input to reactive state on submit", {
     },
     args = list(
       x = blk,
-      vars = list(dataset = reactiveVal("mtcars")),
-      dat = reactive(NULL),
-      expr = reactive(NULL)
+      vars = list(dataset = dataset_rv),
+      dat = reactive(list()),
+      expr = reactive(quote(TRUE))
     )
   )
 })
@@ -84,6 +85,8 @@ test_that("ctrl_block_server syncs input to reactive state on submit", {
 test_that("ctrl_block_server syncs multiple inputs on submit", {
 
   blk <- new_subset_block(subset = "cyl > 4", select = "mpg")
+  subset_rv <- reactiveVal("cyl > 4")
+  select_rv <- reactiveVal("mpg")
 
   testServer(
     ctrl_block_server,
@@ -103,17 +106,14 @@ test_that("ctrl_block_server syncs multiple inputs on submit", {
     },
     args = list(
       x = blk,
-      vars = list(
-        subset = reactiveVal("cyl > 4"),
-        select = reactiveVal("mpg")
-      ),
-      dat = reactive(NULL),
-      expr = reactive(NULL)
+      vars = list(subset = subset_rv, select = select_rv),
+      dat = reactive(list()),
+      expr = reactive(quote(TRUE))
     )
   )
 })
 
-test_that("ctrl_block_server returns TRUE", {
+test_that("ctrl_block_server returns a reactive gate", {
 
   blk <- new_dataset_block("mtcars")
 
@@ -121,13 +121,14 @@ test_that("ctrl_block_server returns TRUE", {
     ctrl_block_server,
     {
       session$flushReact()
-      expect_true(session$returned)
+      expect_true(is.reactive(session$returned))
+      expect_true(session$returned())
     },
     args = list(
       x = blk,
       vars = list(dataset = reactiveVal("mtcars")),
-      dat = reactive(NULL),
-      expr = reactive(NULL)
+      dat = reactive(list()),
+      expr = reactive(quote(TRUE))
     )
   )
 })
@@ -148,8 +149,72 @@ test_that("ctrl_block_server does not update when input matches state", {
     args = list(
       x = blk,
       vars = list(dataset = reactiveVal("mtcars")),
-      dat = reactive(NULL),
-      expr = reactive(NULL)
+      dat = reactive(list()),
+      expr = reactive(quote(TRUE))
+    )
+  )
+})
+
+test_that("ctrl_block_server reverts vars and blocks gate on eval error", {
+
+  blk <- new_dataset_block("mtcars")
+  dataset_rv <- reactiveVal("mtcars")
+  fail <- reactiveVal(FALSE)
+
+  testServer(
+    ctrl_block_server,
+    {
+      session$flushReact()
+
+      expect_true(session$returned())
+      expect_equal(vars$dataset(), "mtcars")
+
+      fail(TRUE)
+      session$setInputs(dataset = "bad_value")
+      session$setInputs(submit = 1L)
+
+      expect_equal(vars$dataset(), "mtcars")
+      expect_false(session$returned())
+    },
+    args = list(
+      x = blk,
+      vars = list(dataset = dataset_rv),
+      dat = reactive(list()),
+      expr = reactive(if (fail()) stop("eval failed") else quote(TRUE))
+    )
+  )
+})
+
+test_that("ctrl_block_server recovers gate after successful submit", {
+
+  blk <- new_dataset_block("mtcars")
+  dataset_rv <- reactiveVal("mtcars")
+  fail <- reactiveVal(FALSE)
+
+  testServer(
+    ctrl_block_server,
+    {
+      session$flushReact()
+
+      fail(TRUE)
+      session$setInputs(dataset = "bad")
+      session$setInputs(submit = 1L)
+
+      expect_false(session$returned())
+      expect_equal(vars$dataset(), "mtcars")
+
+      fail(FALSE)
+      session$setInputs(dataset = "iris")
+      session$setInputs(submit = 2L)
+
+      expect_true(session$returned())
+      expect_equal(vars$dataset(), "iris")
+    },
+    args = list(
+      x = blk,
+      vars = list(dataset = dataset_rv),
+      dat = reactive(list()),
+      expr = reactive(if (fail()) stop("eval failed") else quote(TRUE))
     )
   )
 })
@@ -158,6 +223,7 @@ test_that("validate_ctrl accepts TRUE and reactives", {
 
   expect_invisible(validate_ctrl(TRUE))
   expect_invisible(validate_ctrl(reactive(NULL)))
+  expect_invisible(validate_ctrl(reactiveVal(TRUE)))
 
   expect_error(validate_ctrl(FALSE), class = "expect_true_or_rv")
   expect_error(validate_ctrl("abc"), class = "expect_true_or_rv")
