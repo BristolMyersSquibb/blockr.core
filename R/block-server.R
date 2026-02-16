@@ -126,7 +126,10 @@ block_server.block <- function(id, x, data = list(), block_id = id,
       cb_res <- coal(
         call_plugin_server(
           ctrl_block,
-          list(x = x, vars = state, dat = dat_eval, expr = lang)
+          list(
+            x = x, vars = state,
+            eval = reactive(eval_impl(x, lang(), dat_eval()))
+          )
         ),
         TRUE
       )

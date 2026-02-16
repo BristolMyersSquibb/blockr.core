@@ -8,7 +8,7 @@
 \usage{
 ctrl_block(server = ctrl_block_server, ui = ctrl_block_ui)
 
-ctrl_block_server(id, x, vars, dat, expr)
+ctrl_block_server(id, x, vars, eval)
 
 ctrl_block_ui(id, x)
 }
@@ -19,27 +19,35 @@ ctrl_block_ui(id, x)
 
 \item{x}{Block}
 
-\item{vars}{Reactive state values}
+\item{vars}{Reactive state values (list of \code{reactiveVal} objects keyed by
+input name)}
 
-\item{dat}{Reactive input data}
-
-\item{expr}{Reactive block expression}
+\item{eval}{Reactive that evaluates the block expression against input
+data. May be used to validate that the new values produce a successful
+evaluation.}
 }
 \value{
 A plugin container inheriting from \code{ctrl_block} is returned by
 \code{ctrl_block()}, while the UI component (i.e. \code{ctrl_block_ui()}) is
 expected to return shiny UI (i.e. \code{\link[shiny:reexports]{shiny::tagList()}}) and the server
 component (i.e. \code{ctrl_block_server()}) is expected to return a value
-that passes validation (i.e. \code{TRUE} or a reactive).
+that passes validation (i.e. \code{TRUE} or a reactive gate).
 }
 \description{
 This plugin enables setting block reactive state values from outside the
 block expression server context. Blocks opt in to external control via the
 \code{external_ctrl} argument to \code{\link[=new_block]{new_block()}}, which can be set to \code{TRUE} (all
 constructor inputs) or a character vector of specific input names. The
-default server implementation creates observers that synchronize shiny
-inputs with the corresponding block state reactive values, while the
 default UI renders a \code{\link[shiny:textInput]{shiny::textInput()}} for each externally controllable
-input. Both the server and UI can be replaced with custom implementations
-by passing alternate functions to \code{ctrl_block()}.
+input along with a submit \code{\link[shiny:actionButton]{shiny::actionButton()}}. Both the server and UI
+can be replaced with custom implementations by passing alternate functions
+to \code{ctrl_block()}.
+}
+\details{
+The default server validates submitted values by evaluating the block
+expression (via the \code{eval} reactive) after updating state. On success,
+a reactive gate is returned as \code{TRUE}, allowing downstream evaluation to
+proceed. On failure, state values are reverted to their previous values,
+the user is notified, and the gate is set to \code{FALSE}, which blocks
+downstream evaluation until a subsequent successful submit.
 }

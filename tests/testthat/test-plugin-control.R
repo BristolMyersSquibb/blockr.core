@@ -76,8 +76,7 @@ test_that("ctrl_block_server syncs input to reactive state on submit", {
     args = list(
       x = blk,
       vars = list(dataset = dataset_rv),
-      dat = reactive(list()),
-      expr = reactive(quote(TRUE))
+      eval = reactive(TRUE)
     )
   )
 })
@@ -107,8 +106,7 @@ test_that("ctrl_block_server syncs multiple inputs on submit", {
     args = list(
       x = blk,
       vars = list(subset = subset_rv, select = select_rv),
-      dat = reactive(list()),
-      expr = reactive(quote(TRUE))
+      eval = reactive(TRUE)
     )
   )
 })
@@ -127,8 +125,7 @@ test_that("ctrl_block_server returns a reactive gate", {
     args = list(
       x = blk,
       vars = list(dataset = reactiveVal("mtcars")),
-      dat = reactive(list()),
-      expr = reactive(quote(TRUE))
+      eval = reactive(TRUE)
     )
   )
 })
@@ -149,8 +146,7 @@ test_that("ctrl_block_server does not update when input matches state", {
     args = list(
       x = blk,
       vars = list(dataset = reactiveVal("mtcars")),
-      dat = reactive(list()),
-      expr = reactive(quote(TRUE))
+      eval = reactive(TRUE)
     )
   )
 })
@@ -179,8 +175,7 @@ test_that("ctrl_block_server reverts vars and blocks gate on eval error", {
     args = list(
       x = blk,
       vars = list(dataset = dataset_rv),
-      dat = reactive(list()),
-      expr = reactive(if (fail()) stop("eval failed") else quote(TRUE))
+      eval = reactive(if (fail()) stop("eval failed") else TRUE)
     )
   )
 })
@@ -213,8 +208,7 @@ test_that("ctrl_block_server recovers gate after successful submit", {
     args = list(
       x = blk,
       vars = list(dataset = dataset_rv),
-      dat = reactive(list()),
-      expr = reactive(if (fail()) stop("eval failed") else quote(TRUE))
+      eval = reactive(if (fail()) stop("eval failed") else TRUE)
     )
   )
 })

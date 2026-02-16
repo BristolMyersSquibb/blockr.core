@@ -4,11 +4,17 @@
 #' block expression server context. Blocks opt in to external control via the
 #' `external_ctrl` argument to [new_block()], which can be set to `TRUE` (all
 #' constructor inputs) or a character vector of specific input names. The
-#' default server implementation creates observers that synchronize shiny
-#' inputs with the corresponding block state reactive values, while the
 #' default UI renders a [shiny::textInput()] for each externally controllable
-#' input. Both the server and UI can be replaced with custom implementations
-#' by passing alternate functions to `ctrl_block()`.
+#' input along with a submit [shiny::actionButton()]. Both the server and UI
+#' can be replaced with custom implementations by passing alternate functions
+#' to `ctrl_block()`.
+#'
+#' The default server validates submitted values by evaluating the block
+#' expression (via the `eval` reactive) after updating state. On success,
+#' a reactive gate is returned as `TRUE`, allowing downstream evaluation to
+#' proceed. On failure, state values are reverted to their previous values,
+#' the user is notified, and the gate is set to `FALSE`, which blocks
+#' downstream evaluation until a subsequent successful submit.
 #'
 #' @inheritParams new_plugin
 #'
@@ -16,7 +22,7 @@
 #' `ctrl_block()`, while the UI component (i.e. `ctrl_block_ui()`) is
 #' expected to return shiny UI (i.e. [shiny::tagList()]) and the server
 #' component (i.e. `ctrl_block_server()`) is expected to return a value
-#' that passes validation (i.e. `TRUE` or a reactive).
+#' that passes validation (i.e. `TRUE` or a reactive gate).
 #'
 #' @export
 ctrl_block <- function(server = ctrl_block_server, ui = ctrl_block_ui) {
@@ -25,13 +31,15 @@ ctrl_block <- function(server = ctrl_block_server, ui = ctrl_block_ui) {
 
 #' @param id Namespace ID
 #' @param x Block object
-#' @param vars Reactive state values
-#' @param dat Reactive input data
-#' @param expr Reactive block expression
+#' @param vars Reactive state values (list of `reactiveVal` objects keyed by
+#' input name)
+#' @param eval Reactive that evaluates the block expression against input
+#' data. May be used to validate that the new values produce a successful
+#' evaluation.
 #'
 #' @rdname ctrl_block
 #' @export
-ctrl_block_server <- function(id, x, vars, dat, expr) {
+ctrl_block_server <- function(id, x, vars, eval) {
   moduleServer(
     id,
     function(input, output, session) {
@@ -52,7 +60,7 @@ ctrl_block_server <- function(id, x, vars, dat, expr) {
             }
           }
 
-          result <- try(eval_impl(x, expr(), dat()), silent = TRUE)
+          result <- try(eval(), silent = TRUE)
 
           if (inherits(result, "try-error")) {
 
