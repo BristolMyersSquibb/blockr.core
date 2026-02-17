@@ -27,7 +27,7 @@ register_block(
   overwrite = FALSE
 )
 
-default_icon(category)
+default_icon(category = default_category())
 
 default_category()
 

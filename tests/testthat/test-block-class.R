@@ -176,3 +176,60 @@ test_that("Without package blocks can print", {
   }
   expect_snapshot(blk())
 })
+
+test_that("block metadata", {
+
+  meta1 <- block_metadata(new_dataset_block())
+
+  expect_s3_class(meta1, "data.frame")
+  expect_identical(nrow(meta1), 1L)
+  expect_identical(ncol(meta1), 7L)
+  expect_named(
+    meta1,
+    c("id", "name", "description", "category", "icon", "arguments", "package")
+  )
+
+  new_identity_block <- function() {
+    new_transform_block(
+      function(id, data) {
+        moduleServer(
+          id,
+          function(input, output, session) {
+            list(
+              expr = reactive(quote(identity(data))),
+              state = list()
+            )
+          }
+        )
+      },
+      function(id) {
+        tagList()
+      },
+      block_metadata = list(),
+      class = "identity_block"
+    )
+  }
+
+  meta2 <- block_metadata(new_identity_block())
+
+  expect_s3_class(meta2, "data.frame")
+  expect_identical(nrow(meta2), 1L)
+  expect_identical(ncol(meta2), 7L)
+  expect_named(
+    meta2,
+    c("id", "name", "description", "category", "icon", "arguments", "package")
+  )
+
+  meta3 <- block_metadata(
+    blocks(a = new_dataset_block(), b = new_identity_block())
+  )
+
+  expect_s3_class(meta3, "data.frame")
+  expect_identical(nrow(meta3), 2L)
+  expect_identical(ncol(meta3), 7L)
+  expect_named(
+    meta3,
+    c("id", "name", "description", "category", "icon", "arguments", "package")
+  )
+  expect_identical(rownames(meta3), c("a", "b"))
+})

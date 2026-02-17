@@ -192,11 +192,15 @@ new_block <- function(server, ui, class, ctor = sys.parent(), ctor_pkg = NULL,
     uid <- registry_id_from_block(class)
 
     if (length(uid)) {
+
       block_metadata <- lapply(
         set_names(nm = registry_metadata_fields),
         get_attr,
         get_registry_entry(uid)
       )
+
+      block_metadata <- c(list(id = uid), block_metadata)
+
     } else if (!isFALSE(block_metadata)) {
       blockr_warn(
         "No block metadata available for block {class[1L]}.",
@@ -696,5 +700,31 @@ block_ctrl <- function(x) {
 #' @rdname block_name
 #' @export
 block_metadata <- function(x) {
-  attr(x, "block_metadata")
+
+  default_name <- function(x) {
+    gsub("_", " ", class(x)[1L])
+  }
+
+  get_one <- function(x) {
+
+    met <- attr(x, "block_metadata")
+    cat <- coal(met[["category"]], default_category())
+
+    res <- list(
+      id = coal(met[["id"]], NA_character_),
+      name = coal(met[["name"]], default_name(x)),
+      description = coal(met[["description"]], "No description available."),
+      category = cat,
+      icon = coal(met[["icon"]], default_icon(cat)),
+      arguments = list(coal(met[["arguments"]], list())),
+      package = coal(met[["package"]], "local")
+    )
+
+    list2DF(res)
+  }
+
+  do.call(
+    rbind,
+    lapply(lapply(as_blocks(x), get_one), coal, list())
+  )
 }

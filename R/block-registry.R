@@ -172,7 +172,7 @@ registry_uid <- function(x) {
 
 #' @rdname register_block
 #' @export
-default_icon <- function(category) {
+default_icon <- function(category = default_category()) {
 
   stopifnot(is_string(category))
 
