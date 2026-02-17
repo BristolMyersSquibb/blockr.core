@@ -218,7 +218,7 @@ new_block <- function(server, ui, class, ctor = sys.parent(), ctor_pkg = NULL,
       ),
       ...,
       ctor = resolve_ctor(ctor, ctor_pkg),
-      name = block_name,
+      block_name = block_name,
       allow_empty_state = allow_empty_state,
       expr_type = expr_type,
       external_ctrl = external_ctrl,
@@ -498,7 +498,7 @@ c.block <- function(...) {
 #' @export
 block_name <- function(x) {
   stopifnot(is_block(x))
-  attr(x, "name")
+  attr(x, "block_name")
 }
 
 #' @param value New value
@@ -506,7 +506,7 @@ block_name <- function(x) {
 #' @export
 `block_name<-` <- function(x, value) {
   stopifnot(is_block(x), is_string(value))
-  attr(x, "name") <- value
+  attr(x, "block_name") <- value
   invisible(x)
 }
 
@@ -612,7 +612,7 @@ format.block <- function(x, ...) {
 
   out <- c(
     out,
-    paste0("Name: \"", attr(x, "name"), "\"")
+    paste0("Name: \"", attr(x, "block_name"), "\"")
   )
 
   arity <- block_arity(x)

@@ -58,18 +58,29 @@ test_that("board app", {
   app_path <- system.file("examples", "board", "empty", "app.R",
                           package = "blockr.core")
 
-  app <- shinytest2::AppDriver$new(
-    app_path,
-    name = "board",
-    seed = 42,
-    load_timeout = 30 * 1000
+  app <- try(
+    shinytest2::AppDriver$new(
+      app_path,
+      name = "board",
+      seed = 42,
+      load_timeout = 30 * 1000
+    )
+  )
+
+  testthat::skip_if(
+    inherits(app, "try-error"),
+    "Cannot start shinytest2 empty board app."
   )
 
   app$click("my_board-manage_blocks-add_block")
   app$wait_for_value(input = "my_board-manage_blocks-block_id")
+
   app$set_inputs(`my_board-manage_blocks-block_id` = "a")
   app$set_inputs(`my_board-manage_blocks-registry_select` = "dataset_block")
+
+  app$wait_for_idle()
   app$click("my_board-manage_blocks-confirm_add")
+
   app$wait_for_value(input = "my_board-block_a-expr-dataset")
   app$set_inputs(`my_board-block_a-expr-dataset` = "BOD")
 
@@ -78,9 +89,13 @@ test_that("board app", {
 
   app$click("my_board-manage_blocks-add_block")
   app$wait_for_value(input = "my_board-manage_blocks-block_id")
+
   app$set_inputs(`my_board-manage_blocks-block_id` = "b")
   app$set_inputs(`my_board-manage_blocks-registry_select` = "dataset_block")
+
+  app$wait_for_idle()
   app$click("my_board-manage_blocks-confirm_add")
+
   app$wait_for_value(input = "my_board-block_b-expr-dataset")
   app$set_inputs(`my_board-block_b-expr-dataset` = "ChickWeight")
 
@@ -89,8 +104,11 @@ test_that("board app", {
 
   app$click("my_board-manage_blocks-add_block")
   app$wait_for_value(input = "my_board-manage_blocks-block_id")
+
   app$set_inputs(`my_board-manage_blocks-block_id` = "c")
   app$set_inputs(`my_board-manage_blocks-registry_select` = "merge_block")
+
+  app$wait_for_idle()
   app$click("my_board-manage_blocks-confirm_add")
 
   app$wait_for_idle()

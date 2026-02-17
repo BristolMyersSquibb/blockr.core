@@ -124,7 +124,7 @@ test_that("block constructor", {
           dat_valid = NULL
         ),
         ctor = new_blockr_ctor(function() {}),
-        name = "1",
+        block_name = "1",
         class = c("some_block", "block")
       ),
       ui_eval = TRUE

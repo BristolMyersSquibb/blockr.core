@@ -28,9 +28,26 @@ jobs:
         with:
           path: core
 
+      - name: Determine revdep ref
+        id: revdep-ref
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PKG: ${{ matrix.pkg }}
+        run: |
+          REF=""
+          if [ -n "$PR_BODY" ]; then
+            REF=$(echo "$PR_BODY" | tr -d '\r' \
+              | sed -n '/^```revdeps$/,/^```$/p' \
+              | grep "^${PKG}:" \
+              | head -1 \
+              | sed 's/^[^:]*:[[:space:]]*//')
+          fi
+          echo "ref=${REF}" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v4
         with:
           repository: ${{ matrix.pkg }}
+          ref: ${{ steps.revdep-ref.outputs.ref }}
           token: ${{ secrets.BLOCKR_PAT }}
           path: dep
 
