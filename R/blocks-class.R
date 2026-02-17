@@ -178,7 +178,7 @@ c.blocks <- function(...) {
 `[[<-.blocks` <- function(x, i, ..., value) {
 
   i <- vec_as_location2(i, length(x), names(x))
-  val <- set_names(list(as_block(value)), x$id[i])
+  val <- set_names(list(as_block(value)), names(x)[i])
 
   blocks_assign(x, i, as_blocks(val))
 }
