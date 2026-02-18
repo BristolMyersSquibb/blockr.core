@@ -32,42 +32,15 @@ jobs:
         with:
           use-public-rspm: true
 
-      - name: Resolve deps
+      - uses: ./.github/actions/parse-deps
         id: revdep-ref
-        env:
-          PR_BODY: ${{ github.event.pull_request.body }}
-          PKG: ${{ matrix.pkg }}
-        run: |
-          Rscript - <<'REOF'
-          body <- Sys.getenv("PR_BODY")
-          pkg  <- Sys.getenv("PKG")
-          ref  <- ""
-          extra <- c("any::rcmdcheck", "local::../core", "local::../dep")
-          if (nzchar(body)) {
-            lines <- strsplit(body, "\r?\n", perl = TRUE)[[1]]
-            start <- which(lines == "```deps")
-            if (length(start)) {
-              end  <- Filter(function(i) i > start[[1]], which(lines == "```"))[[1]]
-              deps <- trimws(lines[(start[[1]] + 1L):(end - 1L)])
-              deps <- deps[nzchar(deps)]
-              extra <- c(extra, deps)
-              line  <- deps[startsWith(deps, pkg)]
-              if (length(line)) {
-                line <- line[[1]]
-                if (grepl("#", line, fixed = TRUE)) {
-                  ref <- paste0("refs/pull/", sub(".*#([0-9]+).*", "\\1", line), "/head")
-                } else if (grepl("@", line, fixed = TRUE)) {
-                  ref <- sub("^[^@]*@", "", line)
-                }
-              }
-            }
-          }
-          out <- Sys.getenv("GITHUB_OUTPUT")
-          cat(paste0("ref=", ref, "\n"),
-              file = out, append = TRUE)
-          cat(c("extra-packages<<EOF", extra, "EOF"),
-              file = out, sep = "\n", append = TRUE)
-          REOF
+        with:
+          pr-body: ${{ github.event.pull_request.body }}
+          pkg: ${{ matrix.pkg }}
+          base-packages: |
+            any::rcmdcheck
+            local::../core
+            local::../dep
 
       - uses: actions/checkout@v4
         with:

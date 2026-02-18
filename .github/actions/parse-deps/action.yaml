@@ -1,0 +1,67 @@
+name: Parse deps block
+description: >
+  Parses the ```deps block from a PR body, resolves refs, and outputs
+  an extra-packages list for setup-r-dependencies plus (optionally) a
+  git ref for a specific package.
+
+inputs:
+  pr-body:
+    description: The pull request body text.
+    required: true
+  pkg:
+    description: >
+      If set, also extract the git ref for this specific package
+      (owner/repo). Used by the revdep workflow.
+    required: false
+    default: ''
+  base-packages:
+    description: >
+      Newline-separated pak refs to prepend to extra-packages before
+      appending the deps block entries. Defaults to any::rcmdcheck.
+    required: false
+    default: any::rcmdcheck
+
+outputs:
+  extra-packages:
+    description: Newline-separated pak refs for setup-r-dependencies.
+    value: ${{ steps.parse.outputs.extra-packages }}
+  ref:
+    description: Git ref for the requested package, empty if not found.
+    value: ${{ steps.parse.outputs.ref }}
+
+runs:
+  using: composite
+  steps:
+    - name: Parse
+      id: parse
+      shell: bash
+      env:
+        PR_BODY: ${{ inputs.pr-body }}
+        PKG: ${{ inputs.pkg }}
+        BASE_PACKAGES: ${{ inputs.base-packages }}
+      run: |
+        extra="$BASE_PACKAGES"
+        ref=""
+        deps=$(echo "$PR_BODY" | tr -d '\r' \
+          | sed -n '/^```deps$/,/^```$/p' \
+          | grep -v '^```')
+        if [ -n "$deps" ]; then
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            extra="${extra}
+        ${line}"
+          done <<< "$deps"
+          if [ -n "$PKG" ]; then
+            line=$(echo "$deps" | grep "^${PKG}" | head -1)
+            if [ -n "$line" ]; then
+              if echo "$line" | grep -q '#'; then
+                pr_num=$(echo "$line" | sed 's/.*#\([0-9]*\).*/\1/')
+                ref="refs/pull/${pr_num}/head"
+              elif echo "$line" | grep -q '@'; then
+                ref=$(echo "$line" | sed 's/^[^@]*@//')
+              fi
+            fi
+          fi
+        fi
+        { echo "extra-packages<<EOF"; echo "$extra"; echo "EOF"; } >> "$GITHUB_OUTPUT"
+        echo "ref=${ref}" >> "$GITHUB_OUTPUT"

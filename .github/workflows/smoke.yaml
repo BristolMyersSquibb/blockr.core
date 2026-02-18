@@ -22,26 +22,10 @@ jobs:
         with:
           use-public-rspm: true
 
-      - name: Resolve dep refs
+      - uses: ./.github/actions/parse-deps
         id: dep-refs
-        env:
-          PR_BODY: ${{ github.event.pull_request.body }}
-        run: |
-          Rscript - <<'REOF'
-          body  <- Sys.getenv("PR_BODY")
-          extra <- "any::rcmdcheck"
-          if (nzchar(body)) {
-            lines <- strsplit(body, "\r?\n", perl = TRUE)[[1]]
-            start <- which(lines == "```deps")
-            if (length(start)) {
-              end  <- Filter(function(i) i > start[[1]], which(lines == "```"))[[1]]
-              deps <- trimws(lines[(start[[1]] + 1L):(end - 1L)])
-              extra <- c(extra, deps[nzchar(deps)])
-            }
-          }
-          cat(c("extra-packages<<EOF", extra, "EOF"),
-              file = Sys.getenv("GITHUB_OUTPUT"), sep = "\n", append = TRUE)
-          REOF
+        with:
+          pr-body: ${{ github.event.pull_request.body }}
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
