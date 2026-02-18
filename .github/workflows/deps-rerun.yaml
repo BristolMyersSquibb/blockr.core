@@ -1,0 +1,66 @@
+on:
+  pull_request:
+    branches: main
+    types: [edited]
+
+name: deps-rerun
+
+jobs:
+
+  rerun-deps:
+
+    if: github.event.changes.body
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - name: Check if deps block changed
+        id: deps-diff
+        env:
+          OLD_BODY: ${{ github.event.changes.body.from }}
+          NEW_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          Rscript - <<'REOF'
+          extract_deps <- function(body) {
+            lines <- strsplit(body, "\r?\n", perl = TRUE)[[1]]
+            start <- which(lines == "```deps")
+            if (!length(start)) return(character(0))
+            end  <- Filter(function(i) i > start[[1]], which(lines == "```"))[[1]]
+            deps <- trimws(lines[(start[[1]] + 1L):(end - 1L)])
+            sort(deps[nzchar(deps)])
+          }
+          changed <- !identical(
+            extract_deps(Sys.getenv("OLD_BODY")),
+            extract_deps(Sys.getenv("NEW_BODY"))
+          )
+          cat(paste0("changed=", tolower(changed), "\n"),
+              file = Sys.getenv("GITHUB_OUTPUT"), append = TRUE)
+          REOF
+
+      - name: Re-run affected jobs
+        if: steps.deps-diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.BLOCKR_PAT }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          RUN_ID=$(gh run list \
+            --repo "$REPO" \
+            --workflow ci.yaml \
+            --json databaseId,headSha,createdAt \
+            --jq "[.[] | select(.headSha == \"$SHA\")] | sort_by(.createdAt) | last | .databaseId")
+
+          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+            echo "No CI run found for SHA $SHA"
+            exit 1
+          fi
+
+          gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" --paginate \
+            --jq '.jobs[] | select(.name | test("^(smoke|revdep)")) | .id' \
+          | while read -r JOB_ID; do
+            gh api "repos/$REPO/actions/jobs/$JOB_ID/rerun" --method POST
+          done

@@ -28,21 +28,46 @@ jobs:
         with:
           path: core
 
-      - name: Determine revdep ref
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - name: Resolve deps
         id: revdep-ref
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
           PKG: ${{ matrix.pkg }}
         run: |
-          REF=""
-          if [ -n "$PR_BODY" ]; then
-            REF=$(echo "$PR_BODY" | tr -d '\r' \
-              | sed -n '/^```revdeps$/,/^```$/p' \
-              | grep "^${PKG}:" \
-              | head -1 \
-              | sed 's/^[^:]*:[[:space:]]*//')
-          fi
-          echo "ref=${REF}" >> "$GITHUB_OUTPUT"
+          Rscript - <<'REOF'
+          body <- Sys.getenv("PR_BODY")
+          pkg  <- Sys.getenv("PKG")
+          ref  <- ""
+          extra <- c("any::rcmdcheck", "local::../core", "local::../dep")
+          if (nzchar(body)) {
+            lines <- strsplit(body, "\r?\n", perl = TRUE)[[1]]
+            start <- which(lines == "```deps")
+            if (length(start)) {
+              end  <- Filter(function(i) i > start[[1]], which(lines == "```"))[[1]]
+              deps <- trimws(lines[(start[[1]] + 1L):(end - 1L)])
+              deps <- deps[nzchar(deps)]
+              extra <- c(extra, deps)
+              line  <- deps[startsWith(deps, pkg)]
+              if (length(line)) {
+                line <- line[[1]]
+                if (grepl("#", line, fixed = TRUE)) {
+                  ref <- paste0("refs/pull/", sub(".*#([0-9]+).*", "\\1", line), "/head")
+                } else if (grepl("@", line, fixed = TRUE)) {
+                  ref <- sub("^[^@]*@", "", line)
+                }
+              }
+            }
+          }
+          out <- Sys.getenv("GITHUB_OUTPUT")
+          cat(paste0("ref=", ref, "\n"),
+              file = out, append = TRUE)
+          cat(c("extra-packages<<EOF", extra, "EOF"),
+              file = out, sep = "\n", append = TRUE)
+          REOF
 
       - uses: actions/checkout@v4
         with:
@@ -53,16 +78,9 @@ jobs:
 
       - uses: r-lib/actions/setup-pandoc@v2
 
-      - uses: r-lib/actions/setup-r@v2
-        with:
-          use-public-rspm: true
-
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: |
-            any::rcmdcheck
-            local::../core
-            local::../dep
+          extra-packages: ${{ steps.revdep-ref.outputs.extra-packages }}
           working-directory: core
 
       - uses: r-lib/actions/check-r-package@v2
