@@ -123,16 +123,33 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         domain = session
       )
 
-      cb_res <- coal(
-        call_plugin_server(
-          ctrl_block,
-          list(
-            x = x, vars = state,
-            eval = reactive(eval_impl(x, lang(), dat_eval()))
+      if (block_supports_external_ctrl(x)) {
+
+        ctrl_vars <- state[block_external_ctrl_vars(x)]
+
+        if (!all(lgl_ply(ctrl_vars, inherits, "reactiveVal"))) {
+          blockr_abort(
+            "All externally controllable variables for {class(x)[1L]} are ",
+            "expected to inherit from `reactiveVal`.",
+            class = "unsupported_external_ctrl_variable"
           )
-        ),
-        TRUE
-      )
+        }
+
+        cb_res <- coal(
+          call_plugin_server(
+            ctrl_block,
+            list(
+              x = x,
+              vars = ctrl_vars,
+              data = dat_eval,
+              eval = reactive(eval_impl(x, lang(), dat_eval()))
+            )
+          ),
+          TRUE
+        )
+      } else {
+        cb_res <- TRUE
+      }
 
       data_eval_observer(block_id, x, dat_eval, cb_res, res, state, lang, rv,
                          cond, session)
@@ -187,40 +204,7 @@ expr_server <- function(x, data, ...) {
 
 #' @export
 expr_server.block <- function(x, data, ...) {
-
-  has_external_ctrl <- block_supports_external_ctrl(x)
-
-  srv_fun <- block_expr_server(x)
-  srv_env <- environment(srv_fun)
-
-  if (has_external_ctrl) {
-    srv_env <- rlang::env_clone(srv_env)
-    ctrl <- block_ctrl(x)
-    on.exit(`environment<-`(srv_fun, srv_env))
-    environment(srv_fun) <- list2env(ctrl, srv_env)
-  }
-
-  res <- do.call(
-    srv_fun,
-    c(list(id = "expr"), data)
-  )
-
-  if (has_external_ctrl && is.reactive(res)) {
-    res <- list(expr = res)
-  }
-
-  if (has_external_ctrl && !"state" %in% names(res)) {
-
-    miss <- setdiff(block_ctor_inputs(x), names(ctrl))
-
-    if (length(miss)) {
-      ctrl <- c(ctrl, mget(miss, srv_env))
-    }
-
-    res <- c(res, list(state = ctrl))
-  }
-
-  res
+  do.call(block_expr_server(x), c(list(id = "expr"), data))
 }
 
 #' @param expr Quoted expression to evaluate in the context of `data`

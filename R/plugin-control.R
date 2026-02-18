@@ -33,18 +33,19 @@ ctrl_block <- function(server = ctrl_block_server, ui = ctrl_block_ui) {
 #' @param x Block object
 #' @param vars Reactive state values (list of `reactiveVal` objects keyed by
 #' input name)
+#' @param data Input data paseed as list of reactive values
 #' @param eval Reactive that evaluates the block expression against input
 #' data. May be used to validate that the new values produce a successful
 #' evaluation.
 #'
 #' @rdname ctrl_block
 #' @export
-ctrl_block_server <- function(id, x, vars, eval) {
+ctrl_block_server <- function(id, x, vars, data, eval) {
   moduleServer(
     id,
     function(input, output, session) {
 
-      inps <- block_external_ctrl(x)
+      inps <- block_external_ctrl_vars(x)
 
       gate <- reactiveVal(TRUE)
 
@@ -94,7 +95,7 @@ ctrl_block_server <- function(id, x, vars, eval) {
 #' @export
 ctrl_block_ui <- function(id, x) {
 
-  inps <- block_external_ctrl(x)
+  inps <- block_external_ctrl_vars(x)
 
   if (!length(inps)) {
     return(do.call(tagList, list()))

@@ -667,10 +667,10 @@ block_expr_type <- function(x) {
 }
 
 block_supports_external_ctrl <- function(x) {
-  length(block_external_ctrl(x)) > 0L
+  length(block_external_ctrl_vars(x)) > 0L
 }
 
-block_external_ctrl <- function(x) {
+block_external_ctrl_vars <- function(x) {
 
   stopifnot(is_block(x))
 
@@ -687,14 +687,6 @@ block_external_ctrl <- function(x) {
   stopifnot(is.character(res), all(res %in% block_ctor_inputs(x)))
 
   res
-}
-
-block_ctrl <- function(x) {
-
-  inps <- block_external_ctrl(x)
-  vals <- mget(inps, environment(block_expr_server(x)))
-
-  lapply(vals, reactiveVal)
 }
 
 #' @rdname block_name

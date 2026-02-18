@@ -20,56 +20,62 @@ new_subset_block <- function(subset = "", select = "", ...) {
         id,
         function(input, output, session) {
 
+          sub <- reactiveVal(subset)
+          sel <- reactiveVal(select)
+
           observeEvent(
             input$eval,
             {
-              subset(input$subset)
-              select(input$select)
+              sub(input$subset)
+              sel(input$select)
             }
           )
 
           observeEvent(
-            req(subset()),
+            req(sub()),
             {
-              if (!identical(subset(), input$subset)) {
-                updateTextInput(session, "subset", value = subset())
+              if (!identical(sub(), input$subset)) {
+                updateTextInput(session, "subset", value = sub())
               }
             }
           )
 
           observeEvent(
-            req(select()),
+            req(sel()),
             {
-              if (!identical(select(), input$select)) {
-                updateTextInput(session, "select", value = select())
+              if (!identical(sel(), input$select)) {
+                updateTextInput(session, "select", value = sel())
               }
             }
           )
 
-          reactive(
-            {
-              su <- subset()
-              se <- select()
+          list(
+            expr = reactive(
+              {
+                su <- sub()
+                se <- sel()
 
-              if (nzchar(su) && nzchar(se)) {
-                bbquote(
-                  subset(.(data), .(su), .(se)),
-                  list(su = pasrse_first(su), se = pasrse_first(se))
-                )
-              } else if (nzchar(se)) {
-                bbquote(
-                  subset(.(data), select = .(se)),
-                  list(se = pasrse_first(se))
-                )
-              } else if (nzchar(su)) {
-                bbquote(
-                  subset(.(data), .(su)),
-                  list(su = pasrse_first(su))
-                )
-              } else {
-                quote(subset(.(data)))
+                if (nzchar(su) && nzchar(se)) {
+                  bbquote(
+                    subset(.(data), .(su), .(se)),
+                    list(su = pasrse_first(su), se = pasrse_first(se))
+                  )
+                } else if (nzchar(se)) {
+                  bbquote(
+                    subset(.(data), select = .(se)),
+                    list(se = pasrse_first(se))
+                  )
+                } else if (nzchar(su)) {
+                  bbquote(
+                    subset(.(data), .(su)),
+                    list(su = pasrse_first(su))
+                  )
+                } else {
+                  quote(subset(.(data)))
+                }
               }
-            }
+            ),
+            state = list(subset = sub, select = sel)
           )
         }
       )

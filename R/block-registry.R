@@ -127,7 +127,7 @@ register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
     }
 
     if (is.null(arguments)) {
-      arguments <- block_external_ctrl(obj)
+      arguments <- block_external_ctrl_vars(obj)
     }
   }
 

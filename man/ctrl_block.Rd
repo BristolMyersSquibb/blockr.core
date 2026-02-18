@@ -8,7 +8,7 @@
 \usage{
 ctrl_block(server = ctrl_block_server, ui = ctrl_block_ui)
 
-ctrl_block_server(id, x, vars, eval)
+ctrl_block_server(id, x, vars, data, eval)
 
 ctrl_block_ui(id, x)
 }
@@ -21,6 +21,8 @@ ctrl_block_ui(id, x)
 
 \item{vars}{Reactive state values (list of \code{reactiveVal} objects keyed by
 input name)}
+
+\item{data}{Input data paseed as list of reactive values}
 
 \item{eval}{Reactive that evaluates the block expression against input
 data. May be used to validate that the new values produce a successful

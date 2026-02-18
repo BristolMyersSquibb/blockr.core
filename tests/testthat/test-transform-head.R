@@ -4,8 +4,8 @@ test_that("head block constructor", {
 
   expect_s3_class(blk, "head_block")
 
-  block_expr_test_server(
-    blk,
+  testServer(
+    block_expr_server(blk),
     {
       expect_equal(nrw(), 6L)
       expect_equal(til(), FALSE)

@@ -4,8 +4,8 @@ test_that("merge block constructor", {
 
   expect_s3_class(blk, "merge_block")
 
-  block_expr_test_server(
-    blk,
+  testServer(
+    block_expr_server(blk),
     {
       expect_identical(sels(), character())
       expect_identical(allx(), FALSE)

@@ -4,11 +4,14 @@ test_that("subset block constructor", {
 
   expect_s3_class(blk, "subset_block")
 
-  block_expr_test_server(
-    blk,
+  testServer(
+    block_expr_server(blk),
     {
-      expect_equal(subset(), "")
-      expect_equal(select(), "")
+      expect_equal(sub(), "")
+      expect_equal(sel(), "")
+
+      expect_equal(session$returned$state$subset(), "")
+      expect_equal(session$returned$state$select(), "")
     },
     args = list(data = mtcars)
   )

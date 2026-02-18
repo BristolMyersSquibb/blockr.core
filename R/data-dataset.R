@@ -33,31 +33,39 @@ new_dataset_block <- function(dataset = character(), package = "datasets",
         id,
         function(input, output, session) {
 
+          dat <- reactiveVal(dataset)
+
           observeEvent(
             req(input$dataset),
-            dataset(input$dataset)
+            dat(input$dataset)
           )
 
           observeEvent(
-            req(dataset()),
+            req(dat()),
             {
-              if (!identical(dataset(), input$dataset)) {
+              if (!identical(dat(), input$dataset)) {
                 updateSelectInput(
                   session,
                   "dataset",
                   choices = list_datasets(package),
-                  selected = dataset()
+                  selected = dat()
                 )
               }
             }
           )
 
-          reactive(
-            eval(
-              bquote(
-                as.call(c(as.symbol("::"), quote(.(pkg)), quote(.(dat)))),
-                list(pkg = as.name(package), dat = as.name(dataset()))
+          list(
+            expr = reactive(
+              eval(
+                bquote(
+                  as.call(c(as.symbol("::"), quote(.(pkg)), quote(.(dat)))),
+                  list(pkg = as.name(package), dat = as.name(dat()))
+                )
               )
+            ),
+            state = list(
+              dataset = dat,
+              package = package
             )
           )
         }

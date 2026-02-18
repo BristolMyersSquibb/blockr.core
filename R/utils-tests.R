@@ -53,53 +53,11 @@ sink_msg <- function(...) {
   invisible(utils::capture.output(..., type = "message"))
 }
 
-#' @inheritParams shiny::testServer
-#' @rdname testing
-#' @export
-block_expr_test_server <- function(x, expr, args = list(),
-                                   session = new_mock_session()) {
-
-  on.exit(if (!session$isClosed()) session$close(), add = TRUE)
-
-  stopifnot(is_block(x))
-
-  quosure <- rlang::enquo(expr)
-
-  srv_fun <- block_expr_server(x)
-  srv_env <- environment(srv_fun)
-
-  if (block_supports_external_ctrl(x)) {
-    srv_env <- rlang::env_clone(srv_env)
-    eval_env <- list2env(block_ctrl(x), srv_env)
-    on.exit(`environment<-`(srv_fun, srv_env))
-    environment(srv_fun) <- eval_env
-  } else {
-    eval_env <- srv_env
-  }
-
-  if (!"id" %in% names(args)) {
-    args[["id"]] <- session$genId()
-  }
-
-  with_mock_context(session, rlang::exec(srv_fun, !!!args))
-
-  mask <- rlang::new_data_mask(
-    rlang::env_clone(session$env, eval_env),
-    eval_env
-  )
-
-  with_mock_context(
-    session,
-    rlang::eval_tidy(quosure, mask, rlang::caller_env())
-  )
-
-  invisible()
-}
-
 #' @rdname testing
 #' @export
 new_mock_session <- function() MockShinySession$new()
 
+#' @inheritParams shiny::testServer
 #' @rdname testing
 #' @export
 with_mock_session <- function(expr, session = new_mock_session()) {
