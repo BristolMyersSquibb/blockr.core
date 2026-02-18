@@ -14,11 +14,11 @@ jobs:
       revdep-packages: |
         BristolMyersSquibb/blockr.dock
         BristolMyersSquibb/blockr.dag
-      lintr-exclusions: >-
-        vignettes/create-block.qmd,
-        vignettes/extend-blockr.qmd,
-        vignettes/blocks-registry.qmd,
-        vignettes/get-started.qmd,
+      lintr-exclusions: |
+        vignettes/create-block.qmd
+        vignettes/extend-blockr.qmd
+        vignettes/blocks-registry.qmd
+        vignettes/get-started.qmd
         vignettes/testing-blocks.qmd
     secrets: inherit
     permissions:
