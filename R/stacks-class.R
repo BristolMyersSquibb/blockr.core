@@ -237,7 +237,7 @@ c.stacks <- function(...) {
 `[[<-.stacks` <- function(x, i, ..., value) {
 
   i <- vec_as_location2(i, length(x), names(x))
-  val <- set_names(list(as_stack(value)), x$id[i])
+  val <- set_names(list(as_stack(value)), names(x)[i])
 
   stacks_assign(x, i, as_stacks(val))
 }

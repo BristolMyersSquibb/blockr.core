@@ -65,6 +65,7 @@ reference:
   - generate_code
   - notify_user
   - preserve_board
+  - ctrl_block
 - title: Block classes
   contents:
     - new_data_block

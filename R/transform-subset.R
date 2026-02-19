@@ -31,6 +31,24 @@ new_subset_block <- function(subset = "", select = "", ...) {
             }
           )
 
+          observeEvent(
+            req(sub()),
+            {
+              if (!identical(sub(), input$subset)) {
+                updateTextInput(session, "subset", value = sub())
+              }
+            }
+          )
+
+          observeEvent(
+            req(sel()),
+            {
+              if (!identical(sel(), input$select)) {
+                updateTextInput(session, "select", value = sel())
+              }
+            }
+          )
+
           list(
             expr = reactive(
               {
@@ -87,6 +105,7 @@ new_subset_block <- function(subset = "", select = "", ...) {
     },
     allow_empty_state = TRUE,
     expr_type = "bquoted",
+    external_ctrl = TRUE,
     class = "subset_block",
     ...
   )

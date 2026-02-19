@@ -53,11 +53,14 @@ sink_msg <- function(...) {
   invisible(utils::capture.output(..., type = "message"))
 }
 
-#' @param expr Expression
-#' @param session Shiny session object
 #' @rdname testing
 #' @export
-with_mock_session <- function(expr, session = MockShinySession$new()) {
+new_mock_session <- function() MockShinySession$new()
+
+#' @inheritParams shiny::testServer
+#' @rdname testing
+#' @export
+with_mock_session <- function(expr, session = new_mock_session()) {
 
   empty_module <- function() {
     moduleServer(rand_names(), function(input, output, session) { })

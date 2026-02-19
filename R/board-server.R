@@ -106,6 +106,8 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
       }
 
       edit_block <- get_plugin("edit_block", plugins)
+      ctrl_block <- get_plugin("ctrl_block", plugins)
+
       edit_stack <- get_plugin("edit_stack", plugins)
 
       edit_plugin_args <- c(
@@ -116,7 +118,8 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
       observeEvent(
         TRUE,
-        setup_board(rv, edit_block, edit_stack, edit_plugin_args, session),
+        setup_board(rv, edit_block, ctrl_block, edit_stack, edit_plugin_args,
+                    session),
         once = TRUE
       )
 
@@ -168,7 +171,11 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
               c(
                 list(ns(NULL), rv$board, upd$blocks$add),
                 dot_args,
-                list(edit_ui = edit_block, session = session)
+                list(
+                  edit_ui = edit_block,
+                  ctrl_ui = ctrl_block,
+                  session = session
+                )
               )
             )
 
@@ -176,7 +183,12 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
             for (blk in names(upd$blocks$add)) {
               setup_block(
-                upd$blocks$add[[blk]], blk, rv, edit_block, edit_plugin_args
+                upd$blocks$add[[blk]],
+                blk,
+                rv,
+                edit_block,
+                ctrl_block,
+                edit_plugin_args
               )
             }
           }
@@ -253,7 +265,11 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
               c(
                 list(ns(NULL), rv$board, upd$blocks$rm),
                 dot_args,
-                list(edit_ui = edit_block, session = session)
+                list(
+                  edit_ui = edit_block,
+                  ctrl_ui = ctrl_block,
+                  session = session
+                )
               )
             )
 
@@ -371,7 +387,7 @@ bs_theme_colors <- function(session) {
   )
 }
 
-setup_board <- function(rv, blk_mod, stk_mod, args, sess) {
+setup_board <- function(rv, blk_ed, blk_ct, stk_mod, args, sess) {
 
   stopifnot(
     is.reactivevalues(rv),
@@ -391,7 +407,7 @@ setup_board <- function(rv, blk_mod, stk_mod, args, sess) {
   blks <- board_blocks(rv$board)
 
   for (i in names(blks)) {
-    setup_block(blks[[i]], i, rv, blk_mod, args)
+    setup_block(blks[[i]], i, rv, blk_ed, blk_ct, args)
   }
 
   setup_stacks(rv, stk_mod, args)
@@ -400,7 +416,7 @@ setup_board <- function(rv, blk_mod, stk_mod, args, sess) {
   invisible()
 }
 
-setup_block <- function(blk, id, rv, mod, args) {
+setup_block <- function(blk, id, rv, mod_ed, mod_ct, args) {
 
   arity <- block_arity(blk)
   inpts <- block_inputs(blk)
@@ -424,7 +440,10 @@ setup_block <- function(blk, id, rv, mod, args) {
     block = blk,
     server = do.call(
       block_server,
-      c(list(paste0("block_", id), blk, rv$inputs[[id]], id, mod), args)
+      c(
+        list(paste0("block_", id), blk, rv$inputs[[id]], id, mod_ed, mod_ct),
+        args
+      )
     )
   )
 

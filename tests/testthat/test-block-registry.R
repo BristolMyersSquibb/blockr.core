@@ -18,19 +18,26 @@ test_that("registry", {
     pattern = "^new_.+_block$"
   )
 
-  candidates <- candidates[lgl_ply(candidates, function(x) {
+  is_cand <- lgl_ply(
+    candidates,
+    function(x) {
 
-    res <- try(do.call(x, list()), silent = TRUE)
+      res <- try(do.call(x, list(block_metadata = list())), silent = TRUE)
 
-    if (inherits(res, "try-error")) {
-      return(FALSE)
+      if (inherits(res, "try-error")) {
+        return(FALSE)
+      }
+
+      length(grep("_block$", class(res), value = TRUE)) > 1L
     }
+  )
 
-    length(grep("_block$", class(res), value = TRUE)) > 1L
-  })]
+  candidates <- candidates[is_cand]
+
+  cand_1 <- do.call(candidates[1L], list(block_metadata = list()))
 
   expect_identical(
-    registry_id_from_block(do.call(candidates[1L], list())),
+    registry_id_from_block(cand_1),
     character()
   )
 
@@ -42,7 +49,7 @@ test_that("registry", {
   )
 
   expect_identical(
-    registry_id_from_block(do.call(candidates[1L], list())),
+    registry_id_from_block(cand_1),
     sub("^new_", "", candidates[1L])
   )
 
@@ -82,22 +89,22 @@ test_that("registry", {
 
 test_that("registry metadata", {
 
-  meta <- block_metadata()
+  meta <- registry_metadata()
 
   expect_s3_class(meta, "data.frame")
   expect_identical(nrow(meta), length(list_blocks()))
-  expect_identical(ncol(meta), 6L)
+  expect_identical(ncol(meta), 7L)
   expect_named(
     meta,
-    c("id", "name", "description", "category", "icon", "package")
+    c("id", "name", "description", "category", "icon", "arguments", "package")
   )
 
-  meta <- block_metadata(list_blocks()[1L], "name")
+  meta <- registry_metadata(list_blocks()[1L], "name")
 
   expect_type(meta, "character")
   expect_length(meta, 1L)
 
-  meta <- block_metadata(fields = "name")
+  meta <- registry_metadata(fields = "name")
 
   expect_type(meta, "character")
   expect_length(meta, length(list_blocks()))

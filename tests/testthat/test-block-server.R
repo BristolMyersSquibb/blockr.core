@@ -31,7 +31,8 @@ test_that("block server", {
       function(id) {
         tagList()
       },
-      class = "identity_block"
+      class = "identity_block",
+      block_metadata = list()
     )
   }
 
@@ -78,7 +79,8 @@ test_that("block conditions", {
       function(id) {
         tagList()
       },
-      class = "conds_block"
+      class = "conds_block",
+      block_metadata = list()
     )
   }
 
