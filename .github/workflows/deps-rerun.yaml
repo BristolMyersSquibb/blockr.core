@@ -6,20 +6,6 @@ on:
 name: deps-rerun
 
 jobs:
-
-  rerun-deps:
-
-    if: github.event.changes.body
-
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: ./.github/actions/rerun-deps
-        with:
-          old-body: ${{ github.event.changes.body.from }}
-          new-body: ${{ github.event.pull_request.body }}
-          sha: ${{ github.event.pull_request.head.sha }}
-          repo: ${{ github.repository }}
-          token: ${{ secrets.BLOCKR_PAT }}
+  rerun:
+    uses: cynkra/blockr.ci/.github/workflows/deps-rerun.yaml@main
+    secrets: inherit
