@@ -138,7 +138,7 @@ custom_plugins <- function(x) {
     if (all(is.na(hit))) {
       c(default, custom)
     } else {
-      c(default[-hit[!is.na(hit)]], custom[!is.na(hit)])
+      c(default[-hit[!is.na(hit)]], custom)
     }
   }
 }
