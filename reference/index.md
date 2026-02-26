@@ -20,6 +20,7 @@ block.
   [`validate_data_inputs()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md)
   [`block_inputs()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md)
   [`block_arity()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md)
+  [`block_metadata()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md)
   : Block utilities
 - [`block_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_server.md)
   [`expr_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_server.md)
@@ -41,7 +42,7 @@ block.
   [`unregister_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
   [`register_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
   [`available_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
-  [`block_metadata()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
+  [`registry_metadata()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
   [`create_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
   : Block registry
 
@@ -211,6 +212,10 @@ Plugin implementations provided by the core.
   [`preserve_board_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/preserve_board.md)
   [`serialize_board()`](https://bristolmyerssquibb.github.io/blockr.core/reference/preserve_board.md)
   : Serialization plugin module
+- [`ctrl_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/ctrl_block.md)
+  [`ctrl_block_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/ctrl_block.md)
+  [`ctrl_block_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/ctrl_block.md)
+  : Plugin module for external control of block inputs
 
 ## Block classes
 
@@ -351,6 +356,7 @@ Various tools and utilities.
   : Blockr conditions
 - [`generate_plugin_args()`](https://bristolmyerssquibb.github.io/blockr.core/reference/testing.md)
   [`sink_msg()`](https://bristolmyerssquibb.github.io/blockr.core/reference/testing.md)
+  [`new_mock_session()`](https://bristolmyerssquibb.github.io/blockr.core/reference/testing.md)
   [`with_mock_session()`](https://bristolmyerssquibb.github.io/blockr.core/reference/testing.md)
   [`with_mock_context()`](https://bristolmyerssquibb.github.io/blockr.core/reference/testing.md)
   [`get_s3_method()`](https://bristolmyerssquibb.github.io/blockr.core/reference/testing.md)

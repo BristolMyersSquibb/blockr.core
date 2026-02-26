@@ -63,7 +63,9 @@ re-use in other packages.</p>
 <span></span>
 <span><span class="fu">sink_msg</span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">with_mock_session</span><span class="op">(</span><span class="va">expr</span>, session <span class="op">=</span> <span class="va">MockShinySession</span><span class="op">$</span><span class="fu">new</span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu">new_mock_session</span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">with_mock_session</span><span class="op">(</span><span class="va">expr</span>, session <span class="op">=</span> <span class="fu">new_mock_session</span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">with_mock_context</span><span class="op">(</span><span class="va">session</span>, <span class="va">expr</span><span class="op">)</span></span>
 <span></span>
@@ -90,11 +92,18 @@ re-use in other packages.</p>
 
 
 <dt id="arg-expr">expr<a class="anchor" aria-label="anchor" href="#arg-expr"></a></dt>
-<dd><p>Expression</p></dd>
+<dd><p>Test code containing expectations. The objects from inside the
+server function environment will be made available in the environment of
+the test expression (this is done using a data mask with
+<code><a href="https://rlang.r-lib.org/reference/eval_tidy.html" class="external-link">rlang::eval_tidy()</a></code>). This includes the parameters of the server function
+(e.g. <code>input</code>, <code>output</code>, and <code>session</code>), along with any other values
+created inside of the server function.</p></dd>
 
 
 <dt id="arg-session">session<a class="anchor" aria-label="anchor" href="#arg-session"></a></dt>
-<dd><p>Shiny session object</p></dd>
+<dd><p>The <code><a href="https://rdrr.io/pkg/shiny/man/MockShinySession.html" class="external-link">MockShinySession</a></code> object to use as the <a href="https://rdrr.io/pkg/shiny/man/domains.html" class="external-link">reactive domain</a>. The same session object is used as the domain both
+during invocation of the server or module under test and during evaluation
+of <code>expr</code>.</p></dd>
 
 
 <dt id="arg-generic">generic<a class="anchor" aria-label="anchor" href="#arg-generic"></a></dt>

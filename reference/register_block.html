@@ -82,11 +82,12 @@ specific arguments.</p>
 <span>  uid <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  category <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  icon <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  arguments <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  package <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  overwrite <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">default_icon</span><span class="op">(</span><span class="va">category</span><span class="op">)</span></span>
+<span><span class="fu">default_icon</span><span class="op">(</span>category <span class="op">=</span> <span class="fu">default_category</span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">default_category</span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
@@ -102,7 +103,7 @@ specific arguments.</p>
 <span></span>
 <span><span class="fu">available_blocks</span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">block_metadata</span><span class="op">(</span>blocks <span class="op">=</span> <span class="fu">list_blocks</span><span class="op">(</span><span class="op">)</span>, fields <span class="op">=</span> <span class="st">"all"</span><span class="op">)</span></span>
+<span><span class="fu">registry_metadata</span><span class="op">(</span>blocks <span class="op">=</span> <span class="fu">list_blocks</span><span class="op">(</span><span class="op">)</span>, fields <span class="op">=</span> <span class="st">"all"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">create_block</span><span class="op">(</span><span class="va">id</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -134,6 +135,10 @@ blocks are uncategorized.</p></dd>
 
 <dt id="arg-icon">icon<a class="anchor" aria-label="anchor" href="#arg-icon"></a></dt>
 <dd><p>Icon</p></dd>
+
+
+<dt id="arg-arguments">arguments<a class="anchor" aria-label="anchor" href="#arg-arguments"></a></dt>
+<dd><p>Block argument description</p></dd>
 
 
 <dt id="arg-package">package<a class="anchor" aria-label="anchor" href="#arg-package"></a></dt>

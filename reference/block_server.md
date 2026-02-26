@@ -23,6 +23,7 @@ block_server(
   data = list(),
   block_id = id,
   edit_block = NULL,
+  ctrl_block = NULL,
   board = reactiveValues(),
   update = reactiveVal(),
   ...
@@ -62,9 +63,9 @@ block_render_trigger(x, session = get_session())
 
   Block ID
 
-- edit_block:
+- edit_block, ctrl_block:
 
-  Block edit plugin
+  Block plugins
 
 - board:
 

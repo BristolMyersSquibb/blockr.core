@@ -20,11 +20,12 @@ register_block(
   uid = NULL,
   category = NULL,
   icon = NULL,
+  arguments = NULL,
   package = NULL,
   overwrite = FALSE
 )
 
-default_icon(category)
+default_icon(category = default_category())
 
 default_category()
 
@@ -40,7 +41,7 @@ register_blocks(...)
 
 available_blocks()
 
-block_metadata(blocks = list_blocks(), fields = "all")
+registry_metadata(blocks = list_blocks(), fields = "all")
 
 create_block(id, ...)
 ```
@@ -71,6 +72,10 @@ create_block(id, ...)
 - icon:
 
   Icon
+
+- arguments:
+
+  Block argument description
 
 - package:
 

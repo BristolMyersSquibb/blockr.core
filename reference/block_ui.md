@@ -27,7 +27,7 @@ expr_ui(id, x, ...)
 block_output(x, result, session)
 
 # S3 method for class 'board'
-block_ui(id, x, blocks = NULL, edit_ui = NULL, ...)
+block_ui(id, x, blocks = NULL, edit_ui = NULL, ctrl_ui = NULL, ...)
 ```
 
 ## Arguments
@@ -56,9 +56,9 @@ block_ui(id, x, blocks = NULL, edit_ui = NULL, ...)
 
   (Additional) blocks (or IDs) for which to generate the UI
 
-- edit_ui:
+- edit_ui, ctrl_ui:
 
-  Block edit plugin
+  Block plugin UI
 
 ## Value
 

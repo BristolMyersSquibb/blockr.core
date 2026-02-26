@@ -1,0 +1,4 @@
+local({
+  source("https://raw.githubusercontent.com/cynkra/blockr.ci/main/inst/install.R", local = TRUE)
+  install_blockr("BristolMyersSquibb/blockr.core")
+})

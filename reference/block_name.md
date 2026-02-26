@@ -19,6 +19,8 @@ validate_data_inputs(x, data)
 block_inputs(x)
 
 block_arity(x)
+
+block_metadata(x)
 ```
 
 ## Arguments

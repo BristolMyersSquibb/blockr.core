@@ -12,7 +12,9 @@ generate_plugin_args(board, ..., mode = c("edit", "read"))
 
 sink_msg(...)
 
-with_mock_session(expr, session = MockShinySession$new())
+new_mock_session()
+
+with_mock_session(expr, session = new_mock_session())
 
 with_mock_context(session, expr)
 
@@ -39,11 +41,22 @@ export_safely(x)
 
 - expr:
 
-  Expression
+  Test code containing expectations. The objects from inside the server
+  function environment will be made available in the environment of the
+  test expression (this is done using a data mask with
+  [`rlang::eval_tidy()`](https://rlang.r-lib.org/reference/eval_tidy.html)).
+  This includes the parameters of the server function (e.g. `input`,
+  `output`, and `session`), along with any other values created inside
+  of the server function.
 
 - session:
 
-  Shiny session object
+  The
+  [`MockShinySession`](https://rdrr.io/pkg/shiny/man/MockShinySession.html)
+  object to use as the [reactive
+  domain](https://rdrr.io/pkg/shiny/man/domains.html). The same session
+  object is used as the domain both during invocation of the server or
+  module under test and during evaluation of `expr`.
 
 - generic:
 

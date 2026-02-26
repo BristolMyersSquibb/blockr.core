@@ -18,6 +18,8 @@ new_block(
   allow_empty_state = FALSE,
   block_name = default_block_name,
   expr_type = c("quoted", "bquoted"),
+  external_ctrl = FALSE,
+  block_metadata = NULL,
   ...
 )
 
@@ -75,6 +77,14 @@ as_blocks(x, ...)
 - expr_type:
 
   Expression type (experimental)
+
+- external_ctrl:
+
+  Set up external control (experimental)
+
+- block_metadata:
+
+  Block metadata
 
 - ...:
 
@@ -251,6 +261,7 @@ new_identity_block <- function() {
 }
 
 blk <- new_identity_block()
+#> Warning: No block metadata available for block identity_block.
 is_block(blk)
 #> [1] TRUE
 
