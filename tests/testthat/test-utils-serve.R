@@ -138,7 +138,6 @@ test_that("board app", {
 
   app$click("my_board-manage_links-modify_links")
 
-  app$wait_for_idle()
   app$expect_values(export = TRUE, screenshot_args = FALSE)
 
   app$set_inputs(`my_board-block_c-expr-by` = "Time")

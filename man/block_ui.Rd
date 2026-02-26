@@ -13,7 +13,7 @@ expr_ui(id, x, ...)
 
 block_output(x, result, session)
 
-\method{block_ui}{board}(id, x, blocks = NULL, edit_ui = NULL, ...)
+\method{block_ui}{board}(id, x, blocks = NULL, edit_ui = NULL, ctrl_ui = NULL, ...)
 }
 \arguments{
 \item{id}{Namespace ID}
@@ -28,7 +28,7 @@ block_output(x, result, session)
 
 \item{blocks}{(Additional) blocks (or IDs) for which to generate the UI}
 
-\item{edit_ui}{Block edit plugin}
+\item{edit_ui, ctrl_ui}{Block plugin UI}
 }
 \value{
 Both \code{expr_ui()} and \code{block_ui()} are expected to return shiny UI

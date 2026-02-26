@@ -120,6 +120,8 @@
 #' @param allow_empty_state Either `TRUE`, `FALSE` or a character vector of
 #' `state` values that may be empty while still moving forward with block eval
 #' @param expr_type Expression type (experimental)
+#' @param external_ctrl Set up external control (experimental)
+#' @param block_metadata Block metadata
 #' @param ... Further (metadata) attributes
 #'
 #' @examples
@@ -157,9 +159,13 @@
 new_block <- function(server, ui, class, ctor = sys.parent(), ctor_pkg = NULL,
                       dat_valid = NULL, allow_empty_state = FALSE,
                       block_name = default_block_name,
-                      expr_type = c("quoted", "bquoted"), ...) {
+                      expr_type = c("quoted", "bquoted"),
+                      external_ctrl = FALSE, block_metadata = NULL, ...) {
 
-  stopifnot(is.character(class), length(class) > 0L)
+  stopifnot(
+    is.character(class), length(class) > 0L,
+    is_bool(external_ctrl) || is.character(external_ctrl)
+  )
 
   expr_type <- match.arg(expr_type)
 
@@ -181,6 +187,28 @@ new_block <- function(server, ui, class, ctor = sys.parent(), ctor_pkg = NULL,
 
   stopifnot(is_string(block_name))
 
+  if (is.null(block_metadata) || isFALSE(block_metadata)) {
+
+    uid <- registry_id_from_block(class)
+
+    if (length(uid)) {
+
+      block_metadata <- lapply(
+        set_names(nm = registry_metadata_fields),
+        get_attr,
+        get_registry_entry(uid)
+      )
+
+      block_metadata <- c(list(id = uid), block_metadata)
+
+    } else if (!isFALSE(block_metadata)) {
+      blockr_warn(
+        "No block metadata available for block {class[1L]}.",
+        class = "missing_block_metadata"
+      )
+    }
+  }
+
   validate_block(
     new_vctr(
       list(
@@ -193,6 +221,8 @@ new_block <- function(server, ui, class, ctor = sys.parent(), ctor_pkg = NULL,
       block_name = block_name,
       allow_empty_state = allow_empty_state,
       expr_type = expr_type,
+      external_ctrl = external_ctrl,
+      block_metadata = block_metadata,
       class = class
     ),
     ui_eval = TRUE
@@ -206,7 +236,9 @@ static_block_arguments <- function() {
     "class",
     "dat_valid",
     "allow_empty_state",
-    "expr_type"
+    "expr_type",
+    "external_ctrl",
+    "block_metadata"
   )
 }
 
@@ -215,7 +247,9 @@ internal_block_attributes <- function() {
     "ctor",
     "class",
     "allow_empty_state",
-    "expr_type"
+    "expr_type",
+    "external_ctrl",
+    "block_metadata"
   )
 }
 
@@ -630,4 +664,59 @@ board_options.block <- function(x, ...) {
 block_expr_type <- function(x) {
   stopifnot(is_block(x))
   attr(x, "expr_type")
+}
+
+block_supports_external_ctrl <- function(x) {
+  length(block_external_ctrl_vars(x)) > 0L
+}
+
+block_external_ctrl_vars <- function(x) {
+
+  stopifnot(is_block(x))
+
+  res <- attr(x, "external_ctrl")
+
+  if (isTRUE(res)) {
+    return(block_ctor_inputs(x))
+  }
+
+  if (isFALSE(res)) {
+    return(character())
+  }
+
+  stopifnot(is.character(res), all(res %in% block_ctor_inputs(x)))
+
+  res
+}
+
+#' @rdname block_name
+#' @export
+block_metadata <- function(x) {
+
+  default_name <- function(x) {
+    gsub("_", " ", class(x)[1L])
+  }
+
+  get_one <- function(x) {
+
+    met <- attr(x, "block_metadata")
+    cat <- coal(met[["category"]], default_category())
+
+    res <- list(
+      id = coal(met[["id"]], NA_character_),
+      name = coal(met[["name"]], default_name(x)),
+      description = coal(met[["description"]], "No description available."),
+      category = cat,
+      icon = coal(met[["icon"]], default_icon(cat)),
+      arguments = list(coal(met[["arguments"]], list())),
+      package = coal(met[["package"]], "local")
+    )
+
+    list2DF(res)
+  }
+
+  do.call(
+    rbind,
+    lapply(lapply(as_blocks(x), get_one), coal, list())
+  )
 }

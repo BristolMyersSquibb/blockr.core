@@ -136,13 +136,10 @@ custom_plugins <- function(x) {
     hit <- match(names(custom), names(default), nomatch = NA_integer_)
 
     if (all(is.na(hit))) {
-      return(default)
+      c(default, custom)
+    } else {
+      c(default[-hit[!is.na(hit)]], custom)
     }
-
-    keep <- custom[!is.na(hit)]
-    remv <- hit[!is.na(hit)]
-
-    c(default[-remv], keep)
   }
 }
 

@@ -38,6 +38,7 @@ block_registry <- new.env()
 #' @param category Useful to sort blocks by topics. If not specified,
 #'   blocks are uncategorized.
 #' @param icon Icon
+#' @param arguments Block argument description
 #' @param package Package where constructor is defined (or `NULL`)
 #' @param overwrite Overwrite existing entry
 #'
@@ -59,8 +60,8 @@ block_registry <- new.env()
 #'
 #' @export
 register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
-                           category = NULL, icon = NULL, package = NULL,
-                           overwrite = FALSE) {
+                           category = NULL, icon = NULL, arguments = NULL,
+                           package = NULL, overwrite = FALSE) {
 
   if (is.null(category)) {
     category <- default_category()
@@ -113,18 +114,25 @@ register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
     package <- pkg_name(environment(ctor))
   }
 
-  if (is.null(classes)) {
+  if (is.null(classes) || is.null(arguments)) {
+
     if (is.null(ctor_name)) {
-      obj <- ctor(ctor = ctor, ctor_pkg = NULL)
+      obj <- ctor(ctor = ctor, ctor_pkg = NULL, block_metadata = FALSE)
     } else {
-      obj <- ctor(ctor = ctor_name, ctor_pkg = package)
+      obj <- ctor(ctor = ctor_name, ctor_pkg = package, block_metadata = FALSE)
     }
 
-    classes <- class(obj)
+    if (is.null(classes)) {
+      classes <- class(obj)
+    }
+
+    if (is.null(arguments)) {
+      arguments <- block_external_ctrl_vars(obj)
+    }
   }
 
   if (is.null(uid)) {
-    uid <- classes[1L]
+    uid <- registry_uid(classes)
   }
 
   if (uid %in% list_blocks() && !isTRUE(overwrite)) {
@@ -141,6 +149,7 @@ register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
     classes = classes,
     category = category,
     icon = icon,
+    arguments = arguments,
     ctor_name = ctor_name,
     package = package
   )
@@ -150,9 +159,20 @@ register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
   invisible(entry)
 }
 
+registry_uid <- function(x) {
+
+  if (is_block(x)) {
+    x <- class(x)
+  }
+
+  stopifnot(is.character(x), length(x) >= 1L)
+
+  x[1L]
+}
+
 #' @rdname register_block
 #' @export
-default_icon <- function(category) {
+default_icon <- function(category = default_category()) {
 
   stopifnot(is_string(category))
 
@@ -242,21 +262,18 @@ list_blocks <- function() {
 #' @export
 registry_id_from_block <- function(block) {
 
-  stopifnot(is_block(block))
-
+  uid <- registry_uid(block)
   ids <- list_blocks()
 
-  reg <- lapply(set_names(nm = ids), get_registry_entry)
-  cls <- lapply(reg, attr, "classes")
-  hit <- lgl_ply(cls, identical, class(block))
+  hit <- sum(uid == ids)
 
-  if (sum(hit) == 0L) {
+  if (!hit) {
     return(character())
   }
 
-  stopifnot(sum(hit) == 1L)
+  stopifnot(identical(hit, 1L))
 
-  ids[hit]
+  uid
 }
 
 #' @rdname register_block
@@ -299,30 +316,41 @@ available_blocks <- function() {
   lapply(set_names(nm = list_blocks()), get_registry_entry)
 }
 
+registry_metadata_fields <- c(
+  "name",
+  "description",
+  "category",
+  "icon",
+  "arguments",
+  "package"
+)
+
 #' @param blocks Character vector of registry IDs
 #' @param fields Metadata fields
 #'
 #' @rdname register_block
 #' @export
-block_metadata <- function(blocks = list_blocks(), fields = "all") {
+registry_metadata <- function(blocks = list_blocks(), fields = "all") {
 
   stopifnot(is.character(blocks), is.character(fields))
 
-  all_fields <- c("name", "description", "category", "icon", "package")
-
   if (identical(fields, "all")) {
-    fields <- all_fields
+    fields <- registry_metadata_fields
   }
 
-  fields <- match.arg(fields, all_fields, several.ok = TRUE)
+  fields <- match.arg(fields, registry_metadata_fields, several.ok = TRUE)
 
   reg <- lapply(blocks, get_registry_entry)
-  fld <- setdiff(fields, "package")
+  fld <- setdiff(fields, c("package", "arguments"))
 
   res <- lapply(
     set_names(nm = fld),
     function(f) chr_ply(reg, attr, f)
   )
+
+  if ("arguments" %in% fields) {
+    res <- c(res, list(arguments = lapply(reg, attr, "arguments")))
+  }
 
   if ("package" %in% fields) {
     res <- c(
@@ -337,7 +365,7 @@ block_metadata <- function(blocks = list_blocks(), fields = "all") {
     return(set_names(res[[1L]], blocks))
   }
 
-  as.data.frame(c(list(id = blocks), res))
+  list2DF(c(list(id = blocks), res))
 }
 
 #' @param id Block ID as reported by `list_blocks()`
@@ -352,7 +380,7 @@ register_core_blocks <- function(which = blockr_option("core_blocks", "all")) {
   blocks <- paste0(
     c(
       "dataset", "subset", "merge", "rbind", "scatter", "upload", "filebrowser",
-      "csv", "static", "head", "glue"
+      "csv", "head", "glue"
     ),
     "_block"
   )
@@ -375,7 +403,6 @@ register_core_blocks <- function(which = blockr_option("core_blocks", "all")) {
       "new_upload_block",
       "new_filebrowser_block",
       "new_csv_block",
-      "new_static_block",
       "new_head_block",
       "new_glue_block"
     )[blocks],
@@ -388,7 +415,6 @@ register_core_blocks <- function(which = blockr_option("core_blocks", "all")) {
       "data upload block",
       "file browser block",
       "csv parser block",
-      "static data block",
       "head/tail block",
       "glue string block"
     )[blocks],
@@ -401,7 +427,6 @@ register_core_blocks <- function(which = blockr_option("core_blocks", "all")) {
       "Upload data",
       "Browse local files",
       "Read CSV file",
-      "Static data",
       "Data head/tail",
       "String interpolation using glue"
     )[blocks],
@@ -414,7 +439,6 @@ register_core_blocks <- function(which = blockr_option("core_blocks", "all")) {
       "input",
       "input",
       "utility",
-      "input",
       "transform",
       "utility"
     )[blocks],
@@ -427,9 +451,20 @@ register_core_blocks <- function(which = blockr_option("core_blocks", "all")) {
       "upload",
       "folder2-open",
       "filetype-csv",
-      "file-earmark-text",
       "eye",
       "braces"
+    )[blocks],
+    arguments = list(
+      c(dataset = "Selects the dataset to use."),
+      character(),
+      character(),
+      character(),
+      character(),
+      character(),
+      character(),
+      character(),
+      character(),
+      character()
     )[blocks],
     package = pkg_name(),
     overwrite = TRUE
