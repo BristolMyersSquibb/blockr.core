@@ -9,6 +9,12 @@
 #' @param dataset Selected dataset
 #' @param package Name of an R package containing datasets
 #'
+#' @block Dataset block
+#' @blockDescr Choose a dataset from a package
+#' @blockCategory input
+#' @blockIcon database
+#' @blockParam dataset Selects the dataset to use.
+#'
 #' @rdname new_data_block
 #' @export
 new_dataset_block <- function(dataset = character(), package = "datasets",
