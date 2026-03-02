@@ -21,8 +21,8 @@ new_csv_block <- function(sep = ",", quote = "\"", ...) {
 
           list(
             expr = reactive(
-              bquote(
-                utils::read.table(file, header = TRUE, sep = .(sp),
+              bbquote(
+                utils::read.table(.(file), header = TRUE, sep = .(sp),
                                   quote = .(qo), dec = ".", fill = TRUE,
                                   comment.char = ""),
                 list(sp = sp(), qo = qo())
@@ -47,6 +47,7 @@ new_csv_block <- function(sep = ",", quote = "\"", ...) {
         )
       )
     },
+    expr_type = "bquoted",
     class = "csv_block",
     ...
   )

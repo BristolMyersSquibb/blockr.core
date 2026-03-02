@@ -65,6 +65,7 @@ reference:
   - generate_code
   - notify_user
   - preserve_board
+  - ctrl_block
 - title: Block classes
   contents:
     - new_data_block
@@ -96,3 +97,4 @@ reference:
   - get_session
   - blockr_abort
   - generate_plugin_args
+  - bbquote

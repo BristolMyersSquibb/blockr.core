@@ -38,9 +38,9 @@ new_head_block <- function(n = 6L, direction = c("head", "tail"), ...) {
           list(
             expr = reactive(
               if (isTRUE(til())) {
-                bquote(utils::tail(data, n = .(n)), list(n = nrw()))
+                bbquote(utils::tail(.(data), n = .(n)), list(n = nrw()))
               } else {
-                bquote(utils::head(data, n = .(n)), list(n = nrw()))
+                bbquote(utils::head(.(data), n = .(n)), list(n = nrw()))
               }
             ),
             state = list(
@@ -69,6 +69,7 @@ new_head_block <- function(n = 6L, direction = c("head", "tail"), ...) {
     dat_val = function(data) {
       stopifnot(is.data.frame(data))
     },
+    expr_type = "bquoted",
     class = "head_block",
     ...
   )

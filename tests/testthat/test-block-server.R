@@ -31,7 +31,8 @@ test_that("block server", {
       function(id) {
         tagList()
       },
-      class = "identity_block"
+      class = "identity_block",
+      block_metadata = list()
     )
   }
 
@@ -78,7 +79,8 @@ test_that("block conditions", {
       function(id) {
         tagList()
       },
-      class = "conds_block"
+      class = "conds_block",
+      block_metadata = list()
     )
   }
 
@@ -176,12 +178,23 @@ test_that("block expr validation", {
 
   expect_error(
     check_expr_val(list(expr = reactiveVal(), state = "b"), blk),
-    class = "expr_server_return_state_invalid"
+    class = "expr_server_return_state_type_invalid"
   )
 
   expect_error(
-    check_expr_val(list(expr = reactiveVal(), state = reactiveVal()), blk),
-    class = "expr_server_return_state_invalid"
+    check_expr_val(list(expr = reactiveVal(), state = list()), blk),
+    class = "expr_server_return_state_missing_component"
+  )
+
+  expect_error(
+    check_expr_val(
+      list(
+        expr = reactiveVal(),
+        state = list(dataset = "a", package = "b", ui = NULL)
+      ),
+      blk
+    ),
+    class = "expr_server_return_state_invalid_component"
   )
 
   expect_error(

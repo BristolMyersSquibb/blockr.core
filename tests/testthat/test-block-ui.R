@@ -16,7 +16,8 @@ test_that("dummy block ui test", {
       function(id) {
         tagList()
       },
-      class = "identity_block"
+      class = "identity_block",
+      block_metadata = list()
     )
   }
 

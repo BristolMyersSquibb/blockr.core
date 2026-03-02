@@ -13,11 +13,23 @@ new_glue_block <- function(text = character(), ...) {
       moduleServer(
         id,
         function(input, output, session) {
+
+          arg_names <- reactive(
+            set_names(names(...args), dot_args_names(...args))
+          )
+
           list(
             expr = reactive(
               bquote(
-                glue::glue(.(txt)),
-                list(txt = input$text)
+                glue::glue(.(txt), .envir = .(env)),
+                list(
+                  txt = input$text,
+                  env = bquote(
+                    list2env(list(..(data)), parent = baseenv()),
+                    list(data = lapply(arg_names(), as_dot_call)),
+                    splice = TRUE
+                  )
+                )
               )
             ),
             state = list(
@@ -35,6 +47,7 @@ new_glue_block <- function(text = character(), ...) {
         placeholder = "You may use markdown syntax to style the text."
       )
     },
+    expr_type = "bquoted",
     class = "glue_block",
     ...
   )

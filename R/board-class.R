@@ -516,7 +516,9 @@ board_options <- function(x) {
 
 #' @export
 board_options.board <- function(x) {
-  validate_board_options(x[["options"]])
+  res <- x[["options"]]
+  validate_board_options(res)
+  res
 }
 
 #' @rdname board_blocks
@@ -628,4 +630,17 @@ format.board <- function(x, ...) {
 print.board <- function(x, ...) {
   cat(format(x, ...), sep = "\n")
   invisible(x)
+}
+
+#' @rdname board_blocks
+#' @export
+clear_board <- function(x) {
+
+  stopifnot(is_board(x))
+
+  res <- modify_board_stacks(x, rm = board_stacks(x))
+  res <- modify_board_links(res, rm = board_links(res))
+  res <- rm_blocks(res, board_blocks(res))
+
+  res
 }

@@ -191,7 +191,7 @@ c.links <- function(...) {
 `[[<-.links` <- function(x, i, ..., value) {
 
   i <- vec_as_location2(i, length(x), names(x))
-  val <- set_names(list(as_link(value)), x$id[i])
+  val <- set_names(list(as_link(value)), names(x)[i])
 
   links_assign(x, i, as_links(val))
 }

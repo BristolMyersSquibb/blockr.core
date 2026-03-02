@@ -309,9 +309,9 @@ create_stack_obs_observer <- function(input, rv, upd, sess, proxy) {
         rownames = FALSE
       )
 
-      upd <- create_dt_stack_obs(setdiff(ids, names(upd$obs)), upd, input,
-                                 board_blocks(rv$board), sess)
-      upd <- destroy_dt_stack_obs(setdiff(names(upd$obs), ids), upd)
+      create_dt_stack_obs(setdiff(ids, names(upd$obs)), upd, input,
+                          board_blocks(rv$board), sess)
+      destroy_dt_stack_obs(setdiff(names(upd$obs), ids), upd)
     }
   )
 }
@@ -465,8 +465,12 @@ modify_stack_observer <- function(input, rv, upd, sess, proxy, res) {
         return()
       }
 
-      new <- tryCatch(
+      new <- try_catch_continue(
         modify_board_stacks(rv$board, upd$add, upd$rm, upd$mod),
+        message = function(e) {
+          notify(conditionMessage(e), duration = NULL, type = "message",
+                 session = sess)
+        },
         warning = function(e) {
           notify(conditionMessage(e), duration = NULL, type = "warning",
                  session = sess)
@@ -474,8 +478,13 @@ modify_stack_observer <- function(input, rv, upd, sess, proxy, res) {
         error = function(e) {
           notify(conditionMessage(e), duration = NULL, type = "error",
                  session = sess)
+          NULL
         }
       )
+
+      if (is.null(new)) {
+        return()
+      }
 
       res(
         list(

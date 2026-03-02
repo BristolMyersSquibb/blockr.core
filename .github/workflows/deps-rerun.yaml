@@ -1,0 +1,11 @@
+on:
+  pull_request:
+    branches: main
+    types: [edited]
+
+name: deps-rerun
+
+jobs:
+  rerun:
+    uses: cynkra/blockr.ci/.github/workflows/deps-rerun.yaml@main
+    secrets: inherit

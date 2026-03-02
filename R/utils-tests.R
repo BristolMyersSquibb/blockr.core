@@ -53,11 +53,14 @@ sink_msg <- function(...) {
   invisible(utils::capture.output(..., type = "message"))
 }
 
-#' @param expr Expression
-#' @param session Shiny session object
 #' @rdname testing
 #' @export
-with_mock_session <- function(expr, session = MockShinySession$new()) {
+new_mock_session <- function() MockShinySession$new()
+
+#' @inheritParams shiny::testServer
+#' @rdname testing
+#' @export
+with_mock_session <- function(expr, session = new_mock_session()) {
 
   empty_module <- function() {
     moduleServer(rand_names(), function(input, output, session) { })
@@ -116,5 +119,18 @@ get_s3_method <- function(generic, object) {
   blockr_abort(
     "No function found for generic `{generic}()` and classes {class(object)}.",
     class = "generic_method_not_found"
+  )
+}
+
+#' @param x Reactive object to use in [shiny::exportTestValues()]
+#' @rdname testing
+#' @export
+export_safely <- function(x) {
+  # https://github.com/rstudio/shiny/issues/3768
+  r_quo <- rlang::enquo(x)
+  rlang::inject(
+    reactive(
+      tryCatch(!!r_quo, error = function(e) e)
+    )
   )
 }

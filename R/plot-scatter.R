@@ -45,10 +45,11 @@ new_scatter_block <- function(x = character(), y = character(), ...) {
 
           list(
             expr = reactive(
-              bquote(
-                plot(data[[.(x)]], data[[.(y)]], xlab = .(xcol),
-                     ylab = .(ycol)),
-                list(x = x_col(), y = y_col(), xcol = x_col(), ycol = y_col())
+              bbquote(
+                plot(.(data)[[.(x)]], data[[.(y)]], xlab = .(x_col),
+                     ylab = .(y_col)),
+                list(x = x_col(), y = y_col(), x_col = x_col(),
+                     y_col = y_col())
               )
             ),
             state = list(x = x_col, y = y_col)
@@ -75,6 +76,7 @@ new_scatter_block <- function(x = character(), y = character(), ...) {
     dat_valid = function(data) {
       stopifnot(is.data.frame(data) || is.matrix(data))
     },
+    expr_type = "bquoted",
     class = "scatter_block",
     ...
   )

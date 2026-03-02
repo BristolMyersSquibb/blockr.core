@@ -19,6 +19,9 @@ new_block(
   dat_valid = NULL,
   allow_empty_state = FALSE,
   block_name = default_block_name,
+  expr_type = c("quoted", "bquoted"),
+  external_ctrl = FALSE,
+  block_metadata = NULL,
   ...
 )
 
@@ -53,6 +56,12 @@ constructor name or \code{NULL}}
 \code{state} values that may be empty while still moving forward with block eval}
 
 \item{block_name}{Block name}
+
+\item{expr_type}{Expression type (experimental)}
+
+\item{external_ctrl}{Set up external control (experimental)}
+
+\item{block_metadata}{Block metadata}
 
 \item{...}{Further (metadata) attributes}
 

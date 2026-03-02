@@ -148,12 +148,10 @@ capture_conditions <- function(expr, rv, slot, error_val = NULL,
 
   cond <- list2env(empty_block_condition()[cnds])
 
-  res <- tryCatch(
-    withCallingHandlers(
-      expr,
-      message = msg_handler(cond, cnds),
-      warning = warn_handler(cond, cnds)
-    ),
+  res <- try_catch_continue(
+    expr,
+    message = msg_handler(cond, cnds),
+    warning = warn_handler(cond, cnds),
     error = err_handler(cond, cnds, error_val)
   )
 
@@ -180,6 +178,17 @@ capture_conditions <- function(expr, rv, slot, error_val = NULL,
   }
 
   res
+}
+
+try_catch_continue <- function(expr, message, warning, error) {
+  tryCatch(
+    withCallingHandlers(
+      expr,
+      message = message,
+      warning = warning
+    ),
+    error = error
+  )
 }
 
 glue_plur <- function(..., envir = parent.frame()) {

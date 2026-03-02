@@ -35,7 +35,24 @@ new_dataset_block <- function(dataset = character(), package = "datasets",
 
           dat <- reactiveVal(dataset)
 
-          observeEvent(input$dataset, dat(input$dataset))
+          observeEvent(
+            req(input$dataset),
+            dat(input$dataset)
+          )
+
+          observeEvent(
+            req(dat()),
+            {
+              if (!identical(dat(), input$dataset)) {
+                updateSelectInput(
+                  session,
+                  "dataset",
+                  choices = list_datasets(package),
+                  selected = dat()
+                )
+              }
+            }
+          )
 
           list(
             expr = reactive(
@@ -63,6 +80,7 @@ new_dataset_block <- function(dataset = character(), package = "datasets",
       )
     },
     class = "dataset_block",
+    external_ctrl = "dataset",
     ...
   )
 }

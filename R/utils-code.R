@@ -21,9 +21,29 @@ export_code <- function(expressions, board) {
     }
   )
 
+  expr_type <- set_names(
+    chr_ply(board_blocks(board), block_expr_type),
+    board_block_ids(board)
+  )
+
   ordering <- topo_sort(as.matrix(board))
 
-  exprs <- Map(wrap_expr, expressions[ordering], arg_map[ordering])
+  list(
+    exprs = expressions[ordering],
+    args = set_names(arg_map[ordering], ordering),
+    types = expr_type[ordering]
+  )
+}
+
+export_wrapped_code <- function(expressions, board) {
+
+  exprs <- do.call(
+    Map,
+    c(
+      list(wrap_expr),
+      export_code(expressions, board)
+    )
+  )
 
   exprs <- map(assignment, names(exprs), exprs)
   exprs <- lapply(exprs, deparse)
@@ -32,11 +52,16 @@ export_code <- function(expressions, board) {
   paste0(exprs, collapse = "\n\n")
 }
 
-wrap_expr <- function(expr, env) {
-  if (length(env)) {
-    call("with", env, expr)
+wrap_expr <- function(exprs, args, types) {
+
+  if (identical(types, "bquoted")) {
+    exprs <- do.call(bquote, list(exprs, args))
+  }
+
+  if (length(args) && identical(types, "quoted")) {
+    call("with", args, exprs)
   } else {
-    call("local", expr)
+    call("local", exprs)
   }
 }
 
