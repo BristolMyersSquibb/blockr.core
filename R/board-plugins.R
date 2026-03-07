@@ -67,7 +67,8 @@ abort_not_null <- function(x) {
 
 known_plugins <- function() {
   c("preserve_board", "manage_blocks", "manage_links", "manage_stacks",
-    "notify_user", "generate_code", "edit_block", "edit_stack", "ctrl_block")
+    "notify_user", "generate_code", "edit_block", "edit_stack", "ctrl_block",
+    "build_deck")
 }
 
 #' @rdname new_plugin

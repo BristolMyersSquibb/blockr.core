@@ -327,6 +327,12 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         plugins = plugins
       )
 
+      call_plugin_server(
+        "build_deck",
+        server_args = read_plugin_args,
+        plugins = plugins
+      )
+
       if (identical(callback_location, "end")) {
 
         for (i in seq_along(callbacks)) {
