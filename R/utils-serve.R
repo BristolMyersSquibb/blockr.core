@@ -177,6 +177,17 @@ custom_options <- function(x) {
 
 #' @rdname serve
 #' @export
+blockr_app_request <- function(x, request) {
+  UseMethod("blockr_app_request")
+}
+
+#' @export
+blockr_app_request.board <- function(x, request) {
+  invisible()
+}
+
+#' @rdname serve
+#' @export
 blockr_app_ui <- function(id, x, ...) {
   UseMethod("blockr_app_ui", x)
 }
@@ -204,16 +215,19 @@ serve_board_ui <- function(id, plugins, options, ...) {
 
   args <- list(...)
 
-  function() {
+  function(request) {
 
     x <- get_serve_obj("reload")
     id <- coal(attr(x, "id"), id)
+
+    blockr_app_request(x, request)
 
     log_debug("building ui for board {id}")
 
     do.call(
       blockr_app_ui,
-      c(list(id, x, plugins = plugins(x), options = options(x)), args)
+      c(list(id, x, plugins = plugins(x), options = options(x),
+             request = request), args)
     )
   }
 }

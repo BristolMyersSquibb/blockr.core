@@ -8,6 +8,7 @@
 \alias{custom_plugins}
 \alias{blockr_app_options}
 \alias{custom_options}
+\alias{blockr_app_request}
 \alias{blockr_app_ui}
 \alias{blockr_app_server}
 \alias{get_serve_obj}
@@ -33,6 +34,8 @@ custom_plugins(x)
 blockr_app_options(x)
 
 custom_options(x)
+
+blockr_app_request(x, request)
 
 blockr_app_ui(id, x, ...)
 
