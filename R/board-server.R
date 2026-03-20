@@ -35,8 +35,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
                                callback_location = c("end", "start"),
                                ...) {
 
-  reload_meta <- get_reload_meta()
-  finalize_reload("reload")
+  reload_meta <- finalize_reload("reload")
 
   plugins <- as_plugins(plugins)
 
@@ -319,7 +318,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
             }
 
             log_debug("refreshing board")
-            update_serve_obj(board, "reload", meta = meta)
+            update_serve_obj("reload", board, meta = meta)
 
             log_debug("reloading session")
             session$reload()
