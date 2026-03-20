@@ -90,10 +90,10 @@ guaranteed to be unique and not present among values passed as
 
 ``` r
 rand_names()
-#> [1] "even_finwhale"
+#> [1] "chorded_tamarin"
 rand_names(n = 5L)
-#> [1] "operatic_moth"    "electric_cowbird" "forlorn_crab"     "obese_angora"    
-#> [5] "dozy_pig"        
+#> [1] "citable_nuthatch"  "liked_kitty"       "airy_bagworm"     
+#> [4] "doctoral_nauplius" "revenued_tarsier" 
 rand_names(id_fun = sample_letters)
-#> [1] "afbsnayo"
+#> [1] "ulbfdpbc"
 ```

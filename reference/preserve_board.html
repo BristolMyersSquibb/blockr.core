@@ -75,7 +75,7 @@ module.</p>
 <span></span>
 <span><span class="fu">preserve_board_server</span><span class="op">(</span><span class="va">id</span>, <span class="va">board</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">restore_board</span><span class="op">(</span><span class="va">x</span>, <span class="va">new</span>, <span class="va">result</span>, <span class="va">...</span>, session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu">restore_board</span><span class="op">(</span><span class="va">x</span>, <span class="va">new</span>, <span class="va">result</span>, <span class="va">...</span>, meta <span class="op">=</span> <span class="cn">NULL</span>, session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">preserve_board_ui</span><span class="op">(</span><span class="va">id</span>, <span class="va">board</span><span class="op">)</span></span>
 <span></span>
@@ -112,6 +112,11 @@ module.</p>
 
 <dt id="arg-result">result<a class="anchor" aria-label="anchor" href="#arg-result"></a></dt>
 <dd><p>A <code><a href="https://rdrr.io/pkg/shiny/man/reactiveVal.html" class="external-link">shiny::reactiveVal()</a></code> to hold the new board object</p></dd>
+
+
+<dt id="arg-meta">meta<a class="anchor" aria-label="anchor" href="#arg-meta"></a></dt>
+<dd><p>Optional named list of plugin metadata to persist across
+the reload triggered by board restoration</p></dd>
 
 
 <dt id="arg-session">session<a class="anchor" aria-label="anchor" href="#arg-session"></a></dt>

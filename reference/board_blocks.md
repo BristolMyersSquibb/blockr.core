@@ -187,10 +187,10 @@ board_block_ids(brd)
 
 board_links(brd)
 #> <links[1]>
-#> venomous_cutworm 
-#>    a -> b (data) 
+#> feverous_joey 
+#> a -> b (data) 
 board_link_ids(brd)
-#> [1] "venomous_cutworm"
+#> [1] "feverous_joey"
 
 board_stacks(brd)
 #> <stacks[0]>
