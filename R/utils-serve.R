@@ -242,8 +242,8 @@ serve_board_srv <- function(id, plugins, options, ...) {
 
 serve_obj <- new.env()
 
-update_serve_obj <- function(x, id = "initial") {
-  assign(id, x, envir = serve_obj)
+update_serve_obj <- function(x, id = "initial", meta = NULL) {
+  assign(id, list(board = x, meta = meta), envir = serve_obj)
   invisible(x)
 }
 
@@ -264,10 +264,22 @@ finalize_reload <- function(id = "reload") {
 #' @rdname serve
 #' @export
 get_serve_obj <- function(id = NULL) {
-  coal(
+
+  obj <- coal(
     get0(coal(id, "initial"), envir = serve_obj, inherits = FALSE),
     get("initial", envir = serve_obj, inherits = FALSE)
   )
+
+  if (is.list(obj) && is_board(obj$board)) obj$board else obj
+}
+
+#' @rdname serve
+#' @export
+get_reload_meta <- function() {
+
+  obj <- get0("reload", envir = serve_obj, inherits = FALSE)
+
+  if (is.list(obj)) obj$meta else NULL
 }
 
 revert <- function(...) {

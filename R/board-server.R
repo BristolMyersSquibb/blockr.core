@@ -35,6 +35,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
                                callback_location = c("end", "start"),
                                ...) {
 
+  reload_meta <- get_reload_meta()
   finalize_reload("reload")
 
   plugins <- as_plugins(plugins)
@@ -63,7 +64,8 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         board = x,
         board_id = id,
         links = list(),
-        stacks = list()
+        stacks = list(),
+        reload_meta = reload_meta
       )
 
       rv_ro <- list(board = make_read_only(rv))
@@ -306,8 +308,18 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
             removeNotification(session$token)
 
+            val <- board_refresh()
+
+            if (is_board(val)) {
+              board <- val
+              meta <- NULL
+            } else {
+              board <- val$board
+              meta <- val$meta
+            }
+
             log_debug("refreshing board")
-            update_serve_obj(board_refresh(), "reload")
+            update_serve_obj(board, "reload", meta = meta)
 
             log_debug("reloading session")
             session$reload()

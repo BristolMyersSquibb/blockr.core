@@ -107,7 +107,7 @@ test_that("gen_code return validation", {
           session$flushReact(),
           paste(
             "Expecting the `preserve_board` return value to evaluate to a",
-            "`board` object."
+            "`board` object or a list with a `board` element."
           )
         )
       )
