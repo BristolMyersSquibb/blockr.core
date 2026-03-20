@@ -293,37 +293,54 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
       )
 
       if (not_null(board_refresh)) {
-        observeEvent(
-          board_refresh(),
-          {
-            while (is_reloading("reload")) {
-              notify(
-                "Reload in progress.",
-                duration = NULL,
-                id = session$token
-              )
-              Sys.sleep(5)
+
+        reload_pending <- reactiveVal(NULL)
+
+        observeEvent(board_refresh(), reload_pending(Sys.time()))
+
+        observe({
+
+          pending <- reload_pending()
+          req(pending)
+
+          if (is_reloading("reload")) {
+
+            if (difftime(Sys.time(), pending, units = "secs") >= 60) {
+              log_warn("stale reload state, clearing")
+              finalize_reload("reload")
+              reload_pending(NULL)
+              session$close()
+              return()
             }
 
-            removeNotification(session$token)
-
-            val <- board_refresh()
-
-            if (is_board(val)) {
-              board <- val
-              meta <- NULL
-            } else {
-              board <- val$board
-              meta <- val$meta
-            }
-
-            log_debug("refreshing board")
-            update_serve_obj("reload", board, meta = meta)
-
-            log_debug("reloading session")
-            session$reload()
+            notify(
+              "Reload in progress.",
+              duration = NULL,
+              id = session$token
+            )
+            invalidateLater(1000)
+            return()
           }
-        )
+
+          removeNotification(session$token)
+          reload_pending(NULL)
+
+          val <- isolate(board_refresh())
+
+          if (is_board(val)) {
+            board <- val
+            meta <- NULL
+          } else {
+            board <- val$board
+            meta <- val$meta
+          }
+
+          log_debug("refreshing board")
+          update_serve_obj("reload", board, meta = meta)
+
+          log_debug("reloading session")
+          session$reload()
+        })
       }
 
       call_plugin_server(
