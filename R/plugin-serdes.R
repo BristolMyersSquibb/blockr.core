@@ -81,17 +81,28 @@ read_json <- function(x) {
 #' @param x The current `board` object
 #' @param new Serialized (list-based) representation of the new board
 #' @param result A [shiny::reactiveVal()] to hold the new board object
+#' @param meta Optional named list of plugin metadata to persist across
+#'   the reload triggered by board restoration
 #' @param session Shiny session
 #'
 #' @rdname preserve_board
 #' @export
-restore_board <- function(x, new, result, ..., session = get_session()) {
+restore_board <- function(x, new, result, ..., meta = NULL,
+                          session = get_session()) {
   UseMethod("restore_board")
 }
 
 #' @export
-restore_board.board <- function(x, new, result, ..., session = get_session()) {
-  result(blockr_deser(new))
+restore_board.board <- function(x, new, result, ..., meta = NULL,
+                                session = get_session()) {
+
+  board <- blockr_deser(new)
+
+  if (is.null(meta)) {
+    result(board)
+  } else {
+    result(list(board = board, meta = meta))
+  }
 }
 
 #' @param board The initial `board` object
@@ -196,15 +207,18 @@ check_ser_deser_val <- function(val) {
   observeEvent(
     val(),
     {
-      if (!is_board(val())) {
+      v <- val()
+      board <- if (is_board(v)) v else if (is.list(v)) v$board
+
+      if (!is_board(board)) {
         blockr_abort(
           "Expecting the `preserve_board` return value to evaluate to a ",
-          "`board` object.",
+          "`board` object or a list with a `board` element.",
           class = "preserve_board_return_invalid"
         )
       }
 
-      validate_board(val())
+      validate_board(board)
     },
     once = TRUE
   )
