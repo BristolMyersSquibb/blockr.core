@@ -259,7 +259,8 @@ reorder_dots_observer <- function(data, sess) {
           reorder_rv(data[["...args"]], arg_names[ind])
         }
       },
-      domain = sess
+      domain = sess,
+      label = "reorder_dots"
     )
   }
 }
@@ -286,7 +287,8 @@ validate_block_observer <- function(id, x, dat, res, rv, cond, sess) {
           session = sess
         )
       },
-      domain = sess
+      domain = sess,
+      label = "validate_block"
     )
   }
 }
@@ -343,7 +345,8 @@ state_check_observer <- function(id, x, dat, res, state, rv, cond, sess) {
         rv$state_set <- TRUE
       }
     },
-    domain = sess
+    domain = sess,
+    label = "state_check"
   )
 }
 
@@ -364,7 +367,8 @@ data_eval_observer <- function(id, x, dat, gate, res, state, lang, rv, cond,
 
       res(out)
     },
-    domain = sess
+    domain = sess,
+    label = "data_eval"
   )
 }
 
@@ -410,7 +414,8 @@ output_render_observer <- function(x, res, cond, sess) {
         session = sess
       )
     },
-    domain = sess
+    domain = sess,
+    label = "output_render"
   )
 }
 
@@ -443,7 +448,8 @@ block_cond_observer <- function(blk, cond, sess) {
       } else if (any(lengths(cur_cnds) > 0L)) {
         cond$block <- empty_block_condition()[names(new_cnds)]
       }
-    }
+    },
+    label = "block_cond"
   )
 }
 
@@ -542,7 +548,8 @@ check_expr_val <- function(val, x) {
               }
             }
           },
-          once = TRUE
+          once = TRUE,
+          label = paste0("check_cond_", cnd)
         )
       },
       val[["cond"]]

@@ -53,7 +53,8 @@ generate_code_server <- function(id, board, ...) {
             footer = NULL,
             size = "l"
           )
-        )
+        ),
+        label = "show_code_modal"
       )
 
       NULL

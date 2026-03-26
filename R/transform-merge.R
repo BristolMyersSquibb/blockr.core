@@ -29,7 +29,7 @@ new_merge_block <- function(by = character(), all_x = FALSE, all_y = FALSE,
           allx <- reactiveVal(all_x)
           ally <- reactiveVal(all_y)
 
-          observeEvent(input$by, sels(input$by))
+          observeEvent(input$by, sels(input$by), label = "update_by")
 
           observeEvent(
             input$type,
@@ -38,7 +38,8 @@ new_merge_block <- function(by = character(), all_x = FALSE, all_y = FALSE,
               ally("all.y" %in% input$type)
             },
             ignoreNULL = FALSE,
-            ignoreInit = TRUE
+            ignoreInit = TRUE,
+            label = "update_join_type"
           )
 
           cols <- reactive(by_choices(x(), y()))
@@ -49,7 +50,8 @@ new_merge_block <- function(by = character(), all_x = FALSE, all_y = FALSE,
               inputId = "by",
               choices = cols(),
               selected = sels()
-            )
+            ),
+            label = "sync_by_choices"
           )
 
           list(

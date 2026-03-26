@@ -22,8 +22,8 @@ new_head_block <- function(n = 6L, direction = c("head", "tail"), ...) {
           nrw <- reactiveVal(n)
           til <- reactiveVal(isTRUE(direction == "tail"))
 
-          observeEvent(input$n, nrw(input$n))
-          observeEvent(input$tail, til(input$tail))
+          observeEvent(input$n, nrw(input$n), label = "update_n")
+          observeEvent(input$tail, til(input$tail), label = "update_tail")
 
           observeEvent(
             nrow(data()),
@@ -32,7 +32,8 @@ new_head_block <- function(n = 6L, direction = c("head", "tail"), ...) {
               value = nrw(),
               min = 1L,
               max = nrow(data())
-            )
+            ),
+            label = "update_n_max"
           )
 
           list(

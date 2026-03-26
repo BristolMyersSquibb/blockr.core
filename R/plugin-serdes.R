@@ -62,7 +62,8 @@ preserve_board_server <- function(id, board, ...) {
               list(session = session)
             )
           )
-        }
+        },
+        label = "restore_board"
       )
 
       res
@@ -190,7 +191,8 @@ check_ser_deser_val <- function(val) {
         )
       }
     },
-    once = TRUE
+    once = TRUE,
+    label = "check_ser_deser_return_type"
   )
 
   observeEvent(
@@ -206,7 +208,8 @@ check_ser_deser_val <- function(val) {
 
       validate_board(val())
     },
-    once = TRUE
+    once = TRUE,
+    label = "check_ser_deser_board_type"
   )
 
   val

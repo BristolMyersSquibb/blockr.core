@@ -22,8 +22,8 @@ new_scatter_block <- function(x = character(), y = character(), ...) {
           x_col <- reactiveVal(x)
           y_col <- reactiveVal(y)
 
-          observeEvent(input$xcol, x_col(input$xcol))
-          observeEvent(input$ycol, y_col(input$ycol))
+          observeEvent(input$xcol, x_col(input$xcol), label = "update_xcol")
+          observeEvent(input$ycol, y_col(input$ycol), label = "update_ycol")
 
           observeEvent(
             cols(),
@@ -40,7 +40,8 @@ new_scatter_block <- function(x = character(), y = character(), ...) {
                 choices = cols(),
                 selected = y_col()
               )
-            }
+            },
+            label = "sync_col_choices"
           )
 
           list(

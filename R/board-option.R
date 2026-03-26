@@ -262,7 +262,8 @@ new_board_name_option <- function(value = NULL, category = "Board options",
               updateTextInput(session, "board_name", value = val)
               session$sendCustomMessage("change-board-title", val)
             },
-            once = TRUE
+            once = TRUE,
+            label = "init_board_name"
           )
         },
         observeEvent(
@@ -271,7 +272,8 @@ new_board_name_option <- function(value = NULL, category = "Board options",
             val <- get_board_option_value("board_name", session)
             updateTextInput(session, "board_name", value = val)
             session$sendCustomMessage("change-board-title", val)
-          }
+          },
+          label = "sync_board_name"
         )
       )
     },
@@ -321,7 +323,8 @@ new_n_rows_option <- function(value = blockr_option("n_rows", 50L),
             "n_rows",
             value = get_board_option_value("n_rows", session)
           )
-        }
+        },
+        label = "sync_n_rows"
       )
     },
     transform = function(x) as.integer(x),
@@ -370,7 +373,8 @@ new_page_size_option <- function(value = blockr_option("page_size", 5L),
             "page_size",
             selected = get_board_option_value("page_size", session)
           )
-        }
+        },
+        label = "sync_page_size"
       )
     },
     transform = function(x) as.integer(x),
@@ -419,7 +423,8 @@ new_filter_rows_option <- function(value = blockr_option("filter_rows",
             value = get_board_option_value("filter_rows", session),
             session = session
           )
-        }
+        },
+        label = "sync_filter_rows"
       )
     },
     category = category,
@@ -468,7 +473,8 @@ new_thematic_option <- function(value = blockr_option("thematic", NULL),
             value = get_board_option_value("thematic", session),
             session = session
           )
-        }
+        },
+        label = "sync_thematic"
       )
     },
     category = category,
@@ -538,7 +544,8 @@ new_dark_mode_option <- function(value = blockr_option("dark_mode", NULL),
             mode = get_board_option_value("dark_mode", session),
             session = session
           )
-        }
+        },
+        label = "sync_dark_mode"
       )
     },
     category = category,
@@ -589,7 +596,8 @@ new_show_conditions_option <- function(value = blockr_option("show_conditions",
             "show_conditions",
             selected = get_board_option_value("show_conditions", session)
           )
-        }
+        },
+        label = "sync_show_conditions"
       )
     },
     category = category,
@@ -688,7 +696,8 @@ new_llm_model_option <- function(value = NULL, category = "Board options",
             stopifnot(is_string(nme), nme %in% names(options))
 
             updateSelectInput(session, "llm_model", selected = nme)
-          }
+          },
+          label = "sync_llm_model"
         )
       }
     },

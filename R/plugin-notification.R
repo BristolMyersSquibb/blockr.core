@@ -40,7 +40,8 @@ notify_user_server <- function(id, board, ...) {
 
       observeEvent(
         names(board$blocks),
-        update_block_notif(board$blocks, state, session)
+        update_block_notif(board$blocks, state, session),
+        label = "update_block_notif"
       )
 
       invisible()
@@ -107,7 +108,8 @@ set_up_type_notif <- function(typ, conds, blk, session) {
       remove_block_notif(new_ids, ids(), session)
 
       ids(new_ids)
-    }
+    },
+    label = paste0("notif_", typ, "_", blk)
   )
 
   list(ids = ids, obs = obs)

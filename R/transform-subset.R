@@ -28,7 +28,8 @@ new_subset_block <- function(subset = "", select = "", ...) {
             {
               sub(input$subset)
               sel(input$select)
-            }
+            },
+            label = "eval_subset"
           )
 
           observeEvent(
@@ -37,7 +38,8 @@ new_subset_block <- function(subset = "", select = "", ...) {
               if (!identical(sub(), input$subset)) {
                 updateTextInput(session, "subset", value = sub())
               }
-            }
+            },
+            label = "sync_subset_input"
           )
 
           observeEvent(
@@ -46,7 +48,8 @@ new_subset_block <- function(subset = "", select = "", ...) {
               if (!identical(sel(), input$select)) {
                 updateTextInput(session, "select", value = sel())
               }
-            }
+            },
+            label = "sync_select_input"
           )
 
           list(

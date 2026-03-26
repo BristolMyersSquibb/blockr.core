@@ -37,7 +37,8 @@ new_dataset_block <- function(dataset = character(), package = "datasets",
 
           observeEvent(
             req(input$dataset),
-            dat(input$dataset)
+            dat(input$dataset),
+            label = "update_dataset"
           )
 
           observeEvent(
@@ -51,7 +52,8 @@ new_dataset_block <- function(dataset = character(), package = "datasets",
                   selected = dat()
                 )
               }
-            }
+            },
+            label = "sync_dataset_input"
           )
 
           list(

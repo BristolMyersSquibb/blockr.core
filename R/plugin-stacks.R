@@ -42,7 +42,8 @@ manage_stacks_server <- function(id, board, update, ...) {
 
       observeEvent(
         input$stacks_mod,
-        showModal(stacks_modal(session$ns))
+        showModal(stacks_modal(session$ns)),
+        label = "show_stacks_modal"
       )
 
       upd <- reactiveValues(
@@ -58,7 +59,8 @@ manage_stacks_server <- function(id, board, update, ...) {
         board_stacks(board$board),
         {
           upd$curr <- board_stacks(board$board)
-        }
+        },
+        label = "sync_curr_stacks"
       )
 
       output$stacks_dt <- DT::renderDataTable(
@@ -265,7 +267,8 @@ create_dt_stack_obs <- function(ids, upd, ...) {
         upd$edit <- list(row = row, col = col, val = new)
       },
       ignoreInit = TRUE,
-      ignoreNULL = FALSE
+      ignoreNULL = FALSE,
+      label = paste0("edit_stack_", inp)
     )
   }
 
@@ -312,7 +315,8 @@ create_stack_obs_observer <- function(input, rv, upd, sess, proxy) {
       create_dt_stack_obs(setdiff(ids, names(upd$obs)), upd, input,
                           board_blocks(rv$board), sess)
       destroy_dt_stack_obs(setdiff(names(upd$obs), ids), upd)
-    }
+    },
+    label = "sync_stack_dt_observers"
   )
 }
 
@@ -347,7 +351,8 @@ edit_stack_observer <- function(upd, rv) {
           upd$add <- c(upd$add, upd$curr[row])
         }
       }
-    }
+    },
+    label = "edit_stack"
   )
 }
 
@@ -405,7 +410,8 @@ add_stack_observer <- function(input, rv, upd, sess) {
           session = sess
         )
       }
-    }
+    },
+    label = "add_stack"
   )
 }
 
@@ -430,7 +436,8 @@ rm_stack_observer <- function(input, rv, upd, sess) {
 
         notify("No row selected", type = "warning", session = sess)
       }
-    }
+    },
+    label = "rm_stack"
   )
 }
 
@@ -445,7 +452,8 @@ cancel_stack_observer <- function(input, rv, upd, session) {
       upd$rm <- character()
       upd$mod <- stacks()
       upd$curr <- board_stacks(rv$board)
-    }
+    },
+    label = "cancel_stacks"
   )
 }
 
@@ -508,6 +516,7 @@ modify_stack_observer <- function(input, rv, upd, sess, proxy, res) {
       )
 
       removeModal(sess)
-    }
+    },
+    label = "modify_stacks"
   )
 }
