@@ -253,6 +253,7 @@ serve_board_srv <- function(id, plugins, options, ...) {
 
 serve_obj <- new.env()
 
+#' @param meta Optional metadata to store alongside the board.
 #' @rdname serve
 #' @export
 update_serve_obj <- function(id, x, meta = NULL) {
