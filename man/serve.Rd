@@ -61,6 +61,8 @@ blockr_test_exports(x, rv, ...)
 
 \item{options}{Board options}
 
+\item{meta}{Optional metadata to store alongside the board.}
+
 \item{preload}{A function with signature \verb{function(query, req)} that
 receives parsed URL query parameters and the HTTP request object. It
 should return \code{NULL} or a list with \code{board} and \code{meta} components. When
