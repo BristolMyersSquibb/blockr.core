@@ -10,6 +10,8 @@
 \alias{custom_options}
 \alias{blockr_app_ui}
 \alias{blockr_app_server}
+\alias{update_serve_obj}
+\alias{register_board_preload}
 \alias{get_serve_obj}
 \alias{blockr_test_exports}
 \title{Serve object}
@@ -38,6 +40,10 @@ blockr_app_ui(id, x, ...)
 
 blockr_app_server(id, x, ...)
 
+update_serve_obj(id, x, meta = NULL)
+
+register_board_preload(preload)
+
 get_serve_obj(id = NULL)
 
 blockr_test_exports(x, rv, ...)
@@ -54,6 +60,12 @@ blockr_test_exports(x, rv, ...)
 \item{plugins}{Board plugins}
 
 \item{options}{Board options}
+
+\item{preload}{A function with signature \verb{function(query, req)} that
+receives parsed URL query parameters and the HTTP request object. It
+should return \code{NULL} or a list with \code{board} and \code{meta} components. When
+non-\code{NULL}, the board is used as the initial state, avoiding a redundant
+\code{session$reload()} on fresh page loads from URL.}
 
 \item{rv}{Board \code{\link[shiny:reactiveValues]{shiny::reactiveValues()}}}
 }
