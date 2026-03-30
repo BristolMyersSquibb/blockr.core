@@ -213,7 +213,7 @@ serve_board_ui <- function(id, plugins, options, ...) {
     # Preload: load the board from the URL before building the UI.
     # This avoids session$reload() which kills the process on Connect.
     if (!is_reloading("reload")) {
-      preload <- blockr_option("preload_board", NULL)
+      preload <- blockr_option("preload_board")
       if (is.function(preload) && nzchar(req$QUERY_STRING %||% "")) {
         query <- parseQueryString(req$QUERY_STRING)
         loaded <- tryCatch(preload(query), error = function(e) {
@@ -229,7 +229,7 @@ serve_board_ui <- function(id, plugins, options, ...) {
       }
     }
 
-    x <- get_serve_obj("reload")
+    x <- get_serve_obj(c("preload", "reload"))
     id <- coal(attr(x, "id"), id)
 
     log_debug("building ui for board {id}")
@@ -249,7 +249,7 @@ serve_board_srv <- function(id, plugins, options, ...) {
 
     onStop(revert(trace_observe()), session)
 
-    x <- get_serve_obj("reload")
+    x <- get_serve_obj(c("preload", "reload"))
     id <- coal(attr(x, "id"), id)
 
     res <- do.call(
@@ -276,26 +276,45 @@ is_reloading <- function(id = "reload") {
 
 finalize_reload <- function(id = "reload") {
 
-  obj <- get0(id, envir = serve_obj, inherits = FALSE)
+  session <- getDefaultReactiveDomain()
+  sid <- if (!is.null(session)) substr(session$token, 1, 8) else "no-session"
 
-  if (is.null(obj)) {
-    return(invisible(NULL))
+  for (lookup in c("preload", id)) {
+    obj <- get0(lookup, envir = serve_obj, inherits = FALSE)
+    if (!is.null(obj)) {
+      log_info(
+        "[RELOAD-DEBUG] finalize_reload('{lookup}') | ",
+        "session: {sid} | ",
+        "found: TRUE | ",
+        "meta_url: {coal(obj$meta$url, '(null)')}"
+      )
+      rm(list = lookup, envir = serve_obj, inherits = FALSE)
+      return(invisible(obj$meta))
+    }
   }
 
-  rm(list = id, envir = serve_obj, inherits = FALSE)
-  invisible(obj$meta)
+  log_info(
+    "[RELOAD-DEBUG] finalize_reload | ",
+    "session: {sid} | found: FALSE"
+  )
+  invisible(NULL)
 }
 
 #' @rdname serve
 #' @export
 get_serve_obj <- function(id = NULL) {
 
-  obj <- coal(
-    get0(coal(id, "initial"), envir = serve_obj, inherits = FALSE),
-    get("initial", envir = serve_obj, inherits = FALSE)
-  )
+  ids <- c(id, "initial")
 
-  if (is.list(obj) && is_board(obj$board)) obj$board else obj
+  for (i in ids) {
+    obj <- get0(i, envir = serve_obj, inherits = FALSE)
+    if (!is.null(obj)) {
+      if (is.list(obj) && is_board(obj$board)) return(obj$board)
+      return(obj)
+    }
+  }
+
+  get("initial", envir = serve_obj, inherits = FALSE)
 }
 
 revert <- function(...) {
