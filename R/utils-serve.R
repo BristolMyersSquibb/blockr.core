@@ -206,10 +206,14 @@ serve_board_ui <- function(id, plugins, options, ...) {
 
   function() {
 
+    log_info(
+      "[RELOAD-DEBUG] serve_board_ui | is_reloading: {is_reloading('reload')}"
+    )
+
     x <- get_serve_obj("reload")
     id <- coal(attr(x, "id"), id)
 
-    log_debug("building ui for board {id}")
+    log_info("[RELOAD-DEBUG] serve_board_ui | board: {id}")
 
     do.call(
       blockr_app_ui,
@@ -223,6 +227,10 @@ serve_board_srv <- function(id, plugins, options, ...) {
   args <- list(...)
 
   function(input, output, session) {
+
+    log_info(
+      "[RELOAD-DEBUG] serve_board_srv | session: {substr(session$token, 1, 8)}"
+    )
 
     onStop(revert(trace_observe()), session)
 
@@ -243,6 +251,13 @@ serve_board_srv <- function(id, plugins, options, ...) {
 serve_obj <- new.env()
 
 update_serve_obj <- function(id, x, meta = NULL) {
+  session <- getDefaultReactiveDomain()
+  sid <- if (!is.null(session)) substr(session$token, 1, 8) else "no-session"
+  log_info(
+    "[RELOAD-DEBUG] update_serve_obj('{id}') | ",
+    "session: {sid} | ",
+    "meta_url: {coal(meta$url, '(null)')}"
+  )
   assign(id, list(board = x, meta = meta), envir = serve_obj)
   invisible(x)
 }
@@ -254,6 +269,15 @@ is_reloading <- function(id = "reload") {
 finalize_reload <- function(id = "reload") {
 
   obj <- get0(id, envir = serve_obj, inherits = FALSE)
+  session <- getDefaultReactiveDomain()
+  sid <- if (!is.null(session)) substr(session$token, 1, 8) else "no-session"
+
+  log_info(
+    "[RELOAD-DEBUG] finalize_reload('{id}') | ",
+    "session: {sid} | ",
+    "found: {!is.null(obj)} | ",
+    "meta_url: {if (!is.null(obj)) coal(obj$meta$url, '(null)') else '(null)'}"
+  )
 
   if (is.null(obj)) {
     return(invisible(NULL))
