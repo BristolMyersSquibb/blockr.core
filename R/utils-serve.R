@@ -206,21 +206,32 @@ serve_board_ui <- function(id, plugins, options, ...) {
 
   function(req) {
 
+    log_info(
+      "[RELOAD-DEBUG] serve_board_ui called | ",
+      "URL: {coal(req$QUERY_STRING, '(none)')} | ",
+      "is_reloading: {is_reloading('reload')}"
+    )
+
     if (!is_reloading("reload")) {
       preload <- get0("preload_fn", envir = serve_obj, inherits = FALSE)
       if (!is.null(preload)) {
         query <- parseQueryString(coal(req$QUERY_STRING, ""))
         result <- tryCatch(preload(query, req), error = function(e) NULL)
         if (not_null(result)) {
+          log_info("[RELOAD-DEBUG] preload successful, writing to serve_obj")
           update_serve_obj("reload", result$board, meta = result$meta)
+        } else {
+          log_info("[RELOAD-DEBUG] preload returned NULL")
         }
       }
+    } else {
+      log_info("[RELOAD-DEBUG] skipping preload, reload already in progress")
     }
 
     x <- get_serve_obj("reload")
     id <- coal(attr(x, "id"), id)
 
-    log_debug("building ui for board {id}")
+    log_info("[RELOAD-DEBUG] building UI for board {id}")
 
     do.call(
       blockr_app_ui,
@@ -234,6 +245,12 @@ serve_board_srv <- function(id, plugins, options, ...) {
   args <- list(...)
 
   function(input, output, session) {
+
+    log_info(
+      "[RELOAD-DEBUG] serve_board_srv called | ",
+      "session: {substr(session$token, 1, 8)} | ",
+      "is_reloading: {is_reloading('reload')}"
+    )
 
     onStop(revert(trace_observe()), session)
 
@@ -257,6 +274,14 @@ serve_obj <- new.env()
 #' @rdname serve
 #' @export
 update_serve_obj <- function(id, x, meta = NULL) {
+  session <- getDefaultReactiveDomain()
+  stk <- substr(paste(sys.calls(), collapse = " > "), 1, 200)
+  log_info(
+    "[RELOAD-DEBUG] update_serve_obj('{id}') | ",
+    "session: {if (!is.null(session)) substr(session$token, 1, 8) else 'none'} | ",
+    "meta_url: {coal(meta$url, '(null)')} | ",
+    "caller: {stk}"
+  )
   assign(id, list(board = x, meta = meta), envir = serve_obj)
   invisible(x)
 }
@@ -268,6 +293,14 @@ is_reloading <- function(id = "reload") {
 finalize_reload <- function(id = "reload") {
 
   obj <- get0(id, envir = serve_obj, inherits = FALSE)
+  session <- getDefaultReactiveDomain()
+
+  log_info(
+    "[RELOAD-DEBUG] finalize_reload('{id}') | ",
+    "session: {if (!is.null(session)) substr(session$token, 1, 8) else 'none'} | ",
+    "found: {!is.null(obj)} | ",
+    "meta_url: {if (!is.null(obj)) coal(obj$meta$url, '(null)') else '(null)'}"
+  )
 
   if (is.null(obj)) {
     return(invisible(NULL))
