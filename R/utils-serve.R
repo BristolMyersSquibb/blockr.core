@@ -204,7 +204,18 @@ serve_board_ui <- function(id, plugins, options, ...) {
 
   args <- list(...)
 
-  function() {
+  function(req) {
+
+    if (!is_reloading("reload")) {
+      preload <- get0("preload_fn", envir = serve_obj, inherits = FALSE)
+      if (!is.null(preload)) {
+        query <- parseQueryString(coal(req$QUERY_STRING, ""))
+        result <- tryCatch(preload(query, req), error = function(e) NULL)
+        if (not_null(result)) {
+          update_serve_obj("reload", result$board, meta = result$meta)
+        }
+      }
+    }
 
     x <- get_serve_obj("reload")
     id <- coal(attr(x, "id"), id)
@@ -242,6 +253,9 @@ serve_board_srv <- function(id, plugins, options, ...) {
 
 serve_obj <- new.env()
 
+#' @param meta Optional metadata to store alongside the board.
+#' @rdname serve
+#' @export
 update_serve_obj <- function(id, x, meta = NULL) {
   assign(id, list(board = x, meta = meta), envir = serve_obj)
   invisible(x)
@@ -261,6 +275,25 @@ finalize_reload <- function(id = "reload") {
 
   rm(list = id, envir = serve_obj, inherits = FALSE)
   invisible(obj$meta)
+}
+
+#' @param preload A function with signature `function(query, req)` that
+#'   receives parsed URL query parameters and the HTTP request object. It
+#'   should return `NULL` or a list with `board` and `meta` components. When
+#'   non-`NULL`, the board is used as the initial state, avoiding a redundant
+#'   `session$reload()` on fresh page loads from URL.
+#'
+#' @rdname serve
+#' @export
+register_board_preload <- function(preload) {
+
+  stopifnot(is.function(preload) || is.null(preload))
+
+  old <- get0("preload_fn", envir = serve_obj, inherits = FALSE)
+
+  assign("preload_fn", preload, envir = serve_obj)
+
+  invisible(old)
 }
 
 #' @rdname serve
