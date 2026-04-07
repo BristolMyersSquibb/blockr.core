@@ -22,7 +22,7 @@ library(blockr.core)
 
 **Note:** If you are not already familiar with [Shiny modules](https://mastering-shiny.org/scaling-modules.html), it is recommended you familiarize yourself with them before continuing with this section.
 
-`blockr.core` is built on top of Shiny. At it's heart, a __block__ is nothing more than a specialized Shiny __module__ that returns two additional values:
+`blockr.core` is built on top of Shiny. At its heart, a __block__ is nothing more than a specialized Shiny __module__ that returns two additional values:
 
 - **An expression** (called "expr"), a reactive expression defining a blocks computation. This allows R code to be exported and  data analyses to be recreated, outside of blockr and a reactive context.
 - **A state object** (called "state"), a list of reactive values tracking user inputs. This allows blocks to separate user-defined state from inputs specified by blocks.
