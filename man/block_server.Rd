@@ -21,6 +21,7 @@ block_server(id, x, data = list(), ...)
   ctrl_block = NULL,
   board = reactiveValues(),
   update = reactiveVal(),
+  needed = NULL,
   ...
 )
 

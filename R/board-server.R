@@ -117,10 +117,14 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         dot_args
       )
 
+      lazy_eval <- isTRUE(blockr_option("lazy_eval", FALSE))
+
+      needed_ids <- if (lazy_eval) needed_block_ids(rv, session)
+
       observeEvent(
         TRUE,
         setup_board(rv, edit_block, ctrl_block, edit_stack, edit_plugin_args,
-                    session),
+                    session, needed_ids),
         once = TRUE
       )
 
@@ -189,7 +193,8 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
                 rv,
                 edit_block,
                 ctrl_block,
-                edit_plugin_args
+                edit_plugin_args,
+                needed = make_block_needed(blk, needed_ids)
               )
             }
           }
@@ -415,7 +420,8 @@ bs_theme_colors <- function(session) {
   )
 }
 
-setup_board <- function(rv, blk_ed, blk_ct, stk_mod, args, sess) {
+setup_board <- function(rv, blk_ed, blk_ct, stk_mod, args, sess,
+                        needed_ids = NULL) {
 
   stopifnot(
     is.reactivevalues(rv),
@@ -435,7 +441,8 @@ setup_board <- function(rv, blk_ed, blk_ct, stk_mod, args, sess) {
   blks <- board_blocks(rv$board)
 
   for (i in names(blks)) {
-    setup_block(blks[[i]], i, rv, blk_ed, blk_ct, args)
+    blk_needed <- make_block_needed(i, needed_ids)
+    setup_block(blks[[i]], i, rv, blk_ed, blk_ct, args, needed = blk_needed)
   }
 
   setup_stacks(rv, stk_mod, args)
@@ -444,7 +451,7 @@ setup_board <- function(rv, blk_ed, blk_ct, stk_mod, args, sess) {
   invisible()
 }
 
-setup_block <- function(blk, id, rv, mod_ed, mod_ct, args) {
+setup_block <- function(blk, id, rv, mod_ed, mod_ct, args, needed = NULL) {
 
   arity <- block_arity(blk)
   inpts <- block_inputs(blk)
@@ -469,7 +476,8 @@ setup_block <- function(blk, id, rv, mod_ed, mod_ct, args) {
     server = do.call(
       block_server,
       c(
-        list(paste0("block_", id), blk, rv$inputs[[id]], id, mod_ed, mod_ct),
+        list(paste0("block_", id), blk, rv$inputs[[id]], id, mod_ed, mod_ct,
+             needed = needed),
         args
       )
     )
@@ -501,6 +509,59 @@ destroy_rm_blocks <- function(ids, rv, sess, args) {
   )
 
   invisible()
+}
+
+make_block_needed <- function(block_id, needed_ids) {
+
+  if (is.null(needed_ids)) {
+    return(NULL)
+  }
+
+  local({
+    bid <- block_id
+    reactive(bid %in% needed_ids())
+  })
+}
+
+upstream_closure <- function(visible_ids, links) {
+
+  needed <- visible_ids
+  queue <- visible_ids
+
+  while (length(queue)) {
+    parents <- links$from[links$to %in% queue]
+    parents <- setdiff(parents, needed)
+    needed <- union(needed, parents)
+    queue <- parents
+  }
+
+  needed
+}
+
+block_output_hidden <- function(block_id, sess) {
+
+  client_key <- paste0(
+    "output_",
+    sess$ns(paste0("block_", block_id)),
+    "-result_hidden"
+  )
+
+  sess$clientData[[client_key]]
+}
+
+needed_block_ids <- function(rv, sess) {
+
+  reactive({
+    block_ids <- names(rv$blocks)
+
+    visible <- block_ids[vapply(block_ids, function(bid) {
+      identical(block_output_hidden(bid, sess), FALSE)
+    }, logical(1))]
+
+    links <- board_links(rv$board)
+
+    upstream_closure(visible, links)
+  })
 }
 
 setup_link <- function(rv, id, from, to, input) {

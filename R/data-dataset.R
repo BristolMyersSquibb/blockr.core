@@ -15,7 +15,15 @@ new_dataset_block <- function(dataset = character(), package = "datasets",
                               ...) {
 
   is_dataset_eligible <- function(x, pkg) {
-    inherits(do.call("::", list(pkg, x)), "data.frame")
+    obj <- tryCatch(
+      do.call("::", list(pkg, x)),
+      error = function(e) {
+        env <- new.env(parent = emptyenv())
+        utils::data(list = x, package = pkg, envir = env)
+        env[[x]]
+      }
+    )
+    inherits(obj, "data.frame")
   }
 
   list_datasets <- function(package) {
@@ -55,14 +63,26 @@ new_dataset_block <- function(dataset = character(), package = "datasets",
           )
 
           list(
-            expr = reactive(
-              eval(
-                bquote(
-                  as.call(c(as.symbol("::"), quote(.(pkg)), quote(.(dat)))),
-                  list(pkg = as.name(package), dat = as.name(dat()))
-                )
-              )
-            ),
+            expr = reactive({
+              d <- dat()
+              pkg <- package
+              exported <- tryCatch({
+                do.call("::", list(pkg, d))
+                TRUE
+              }, error = function(e) FALSE)
+              if (exported) {
+                eval(bquote(
+                  as.call(c(as.symbol("::"), quote(.(p)), quote(.(d)))),
+                  list(p = as.name(pkg), d = as.name(d))
+                ))
+              } else {
+                bquote(local({
+                  env <- new.env(parent = emptyenv())
+                  utils::data(list = .(d), package = .(pkg), envir = env)
+                  env[[.(d)]]
+                }))
+              }
+            }),
             state = list(
               dataset = dat,
               package = package
