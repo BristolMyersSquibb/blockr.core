@@ -117,7 +117,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         dot_args
       )
 
-      lazy_eval <- isTRUE(blockr_option("lazy_eval", FALSE))
+      lazy_eval <- isTRUE(blockr_option("lazy_eval", TRUE))
 
       needed_ids <- if (lazy_eval) needed_block_ids(rv, session)
 
