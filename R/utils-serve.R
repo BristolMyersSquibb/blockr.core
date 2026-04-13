@@ -213,7 +213,7 @@ serve_board_ui <- function(id, plugins, options, ...) {
     # Preload: load the board from the URL before building the UI.
     # This avoids session$reload() which kills the process on Connect.
     if (!is_reloading("reload")) {
-      preload <- blockr_option("preload_board")
+      preload <- blockr_option("preload_board", NULL)
       if (is.function(preload) && nzchar(req$QUERY_STRING %||% "")) {
         query <- parseQueryString(req$QUERY_STRING)
         loaded <- tryCatch(preload(query), error = function(e) {
