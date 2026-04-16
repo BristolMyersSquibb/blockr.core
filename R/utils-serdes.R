@@ -264,11 +264,18 @@ blockr_deser.list <- function(x, ...) {
   )
 
   if (!identical(class(res), cls)) {
-    blockr_abort(
-      "Could not deserialize object: expected {qty(cls)} class{?es} {cls}, ",
-      "but received {qty(res)} {class(res)}.",
-      class = "block_deser_class_error"
-    )
+    # Allow class evolution: a constructor refactoring that inserts new
+    # intermediate classes (e.g. crossfilter_block between
+    # js_crossfilter_block and transform_block) is backwards-compatible
+    # as long as every stored class still appears in the result, in order.
+    idx <- match(cls, class(res))
+    if (any(is.na(idx)) || is.unsorted(idx)) {
+      blockr_abort(
+        "Could not deserialize object: expected {qty(cls)} class{?es} ",
+        "{cls}, but received {qty(res)} {class(res)}.",
+        class = "block_deser_class_error"
+      )
+    }
   }
 
   res
