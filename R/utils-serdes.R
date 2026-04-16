@@ -331,7 +331,8 @@ blockr_deser.board <- function(x, data, ...) {
 
   res <- do.call(ctor_fun(ctor), args)
 
-  attr(res, "id") <- data[["id"]]
+  bid <- data[["id"]]
+  attr(res, "id") <- if (is_string(bid)) bid
 
   res
 }
