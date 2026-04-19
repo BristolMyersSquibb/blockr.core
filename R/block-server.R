@@ -289,8 +289,6 @@ validate_block_observer <- function(id, x, dat, res, rv, cond, sess) {
       {
         log_debug("performing input validation for block ", id)
 
-        res(NULL)
-
         rv$state_set <- NULL
 
         rv$data_valid <- capture_conditions(
@@ -343,8 +341,6 @@ state_check_observer <- function(id, x, dat, res, state, rv, cond, sess) {
     state_check(),
     {
       log_debug("checking returned state values of block ", id)
-
-      res(NULL)
 
       ok <- state_check()
 

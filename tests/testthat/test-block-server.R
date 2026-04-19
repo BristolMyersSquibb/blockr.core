@@ -48,6 +48,40 @@ test_that("block server", {
   )
 })
 
+test_that("two chained validated blocks produce data.frames end-to-end", {
+  # Sanity check around the removal of the eager `res(NULL)` calls in
+  # validate_block_observer and state_check_observer (see
+  # `hidden-lazy-repro.R` for the browser-level regression this
+  # guards against). A plain testServer flush doesn't surface the
+  # transient NULL that the browser-level render sees, so this test is
+  # deliberately conservative: it just confirms that a two-hop chain of
+  # blocks both having `dat_valid` produces a data.frame downstream.
+  board <- new_board(
+    blocks = c(
+      a  = new_dataset_block("iris"),
+      b  = new_dataset_block("iris"),
+      c  = new_dataset_block("iris"),
+      m  = new_merge_block(by = "Species"),
+      m2 = new_merge_block(by = "Species")
+    ),
+    links = links(
+      from  = c("a", "b",  "m",  "c"),
+      to    = c("m", "m",  "m2", "m2"),
+      input = c("x", "y",  "x",  "y")
+    )
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+      expect_true(is.data.frame(rv$blocks$m$server$result()))
+      expect_true(is.data.frame(rv$blocks$m2$server$result()))
+    },
+    args = list(x = board)
+  )
+})
+
 test_that("block conditions", {
 
   new_conds_block <- function() {
