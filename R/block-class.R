@@ -152,7 +152,8 @@
 #' `block`, while `is_block()` returns a boolean indicating whether an object
 #' inherits from `block` or not. Block vectors, created using `blocks()`,
 #' `as_blocks()`, or by combining multiple blocks using [base::c()] all inherit
-#' from `blocks` and `is_blocks()` returns a boolean indicating whether an object
+#' from `blocks` and `is_blocks()` returns a boolean indicating whether an
+#' object
 #' inherits from `blocks` or not.
 #'
 #' @export

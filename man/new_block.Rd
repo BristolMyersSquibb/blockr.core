@@ -72,7 +72,8 @@ Both \code{new_block()} and \code{as_block()} return an object inheriting from
 \code{block}, while \code{is_block()} returns a boolean indicating whether an object
 inherits from \code{block} or not. Block vectors, created using \code{blocks()},
 \code{as_blocks()}, or by combining multiple blocks using \code{\link[base:c]{base::c()}} all inherit
-from \code{blocks} and \code{is_blocks()} returns a boolean indicating whether an object
+from \code{blocks} and \code{is_blocks()} returns a boolean indicating whether an
+object
 inherits from \code{blocks} or not.
 }
 \description{
