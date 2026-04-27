@@ -121,6 +121,24 @@ destroy_observers <- function(ns_prefix, session = get_session()) {
   invisible(TRUE)
 }
 
+#' Destroy a Shiny module
+#'
+#' Cleans up inputs, outputs and/or observers associated with a Shiny module.
+#'
+#' @note This function relies on non-documented, internal Shiny APIs that are
+#' not officially supported or recommended to use. These internals may break
+#' if Shiny's internal source code changes. Use with caution and only
+#' whenever necessary.
+#'
+#' @param id Module namespace id.
+#' @param what Character vector indicating which components to destroy.
+#'   Defaults to all of `"inputs"`, `"outputs"` and `"observers"`.
+#' @param session Shiny session object.
+#'
+#' @return The namespaced id (invisibly).
+#'
+#' @keywords internal
+#' @export
 destroy_module <- function(id, what = c("inputs", "outputs", "observers"),
                            session = get_session()) {
 
@@ -252,6 +270,7 @@ notify <- function(..., envir = parent.frame(), action = NULL, duration = 5,
   type <- match.arg(type)
 
   msg <- glue_plur(..., envir = envir)
+  msg <- HTML(cli::ansi_html(msg))
 
   showNotification(
     msg,

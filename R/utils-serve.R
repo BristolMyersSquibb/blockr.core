@@ -23,7 +23,7 @@
 #'
 #' @export
 serve <- function(x, ...) {
-  update_serve_obj(x)
+  update_serve_obj("initial", x)
   UseMethod("serve")
 }
 
@@ -242,8 +242,8 @@ serve_board_srv <- function(id, plugins, options, ...) {
 
 serve_obj <- new.env()
 
-update_serve_obj <- function(x, id = "initial") {
-  assign(id, x, envir = serve_obj)
+update_serve_obj <- function(id, x, meta = NULL) {
+  assign(id, list(board = x, meta = meta), envir = serve_obj)
   invisible(x)
 }
 
@@ -253,21 +253,26 @@ is_reloading <- function(id = "reload") {
 
 finalize_reload <- function(id = "reload") {
 
-  if (is_reloading(id)) {
-    rm(list = id, envir = serve_obj, inherits = FALSE)
-    return(invisible(TRUE))
+  obj <- get0(id, envir = serve_obj, inherits = FALSE)
+
+  if (is.null(obj)) {
+    return(invisible(NULL))
   }
 
-  invisible(FALSE)
+  rm(list = id, envir = serve_obj, inherits = FALSE)
+  invisible(obj$meta)
 }
 
 #' @rdname serve
 #' @export
 get_serve_obj <- function(id = NULL) {
-  coal(
+
+  obj <- coal(
     get0(coal(id, "initial"), envir = serve_obj, inherits = FALSE),
     get("initial", envir = serve_obj, inherits = FALSE)
   )
+
+  if (is.list(obj) && is_board(obj$board)) obj$board else obj
 }
 
 revert <- function(...) {
