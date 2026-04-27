@@ -259,18 +259,18 @@ default_eval_parent <- local({
 # Mirror the env that `attachNamespace()` builds for `package:pkg`, minus
 # the search-path mutation and `.onAttach` side effects. Regular exports
 # go through `importIntoEnv()` (alias map + active bindings handled by R
-# itself); lazy data uses `delayedAssign()` to recreate the promise
-# semantics — R's own `attachNamespace()` does this via
-# `.Internal(importIntoEnv())`, which CRAN forbids.
+# itself); lazy data is forced once via `mget()` — values are shared with
+# the namespace's own lazydata cache, so this is a one-time disk load
+# rather than a copy.
 pkg_export_env <- function(pkg, parent) {
   ns <- loadNamespace(pkg)
   e <- new.env(parent = parent)
   exports <- getNamespaceExports(ns)
   importIntoEnv(e, exports, ns, exports)
   lazydata <- getNamespaceInfo(ns, "lazydata")
-  Map(
-    function(nm) delayedAssign(nm, get(nm, envir = lazydata), assign.env = e),
-    ls(lazydata, all.names = TRUE)
+  list2env(
+    mget(ls(lazydata, all.names = TRUE), envir = lazydata),
+    envir = e
   )
   lockEnvironment(e, bindings = TRUE)
   e
