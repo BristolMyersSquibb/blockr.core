@@ -259,19 +259,20 @@ default_eval_parent <- local({
 # Mirror the env that `attachNamespace()` builds for `package:pkg`, minus
 # the search-path mutation and `.onAttach` side effects. Regular exports
 # go through `importIntoEnv()` (alias map + active bindings handled by R
-# itself); lazy data is forced once via `mget()` — values are shared with
-# the namespace's own lazydata cache, so this is a one-time disk load
-# rather than a copy.
+# itself); lazy data uses `delayedAssign()` with the literal symbol as
+# value — when forced, the symbol resolves in `lazydata` and triggers the
+# underlying lazy-load. R's own `attachNamespace()` does the equivalent
+# via `.Internal(importIntoEnv())`, which CRAN forbids.
 pkg_export_env <- function(pkg, parent) {
   ns <- loadNamespace(pkg)
   e <- new.env(parent = parent)
   exports <- getNamespaceExports(ns)
   importIntoEnv(e, exports, ns, exports)
   lazydata <- getNamespaceInfo(ns, "lazydata")
-  list2env(
-    mget(ls(lazydata, all.names = TRUE), envir = lazydata),
-    envir = e
-  )
+  for (nm in ls(lazydata, all.names = TRUE)) {
+    do.call(delayedAssign,
+            list(nm, as.symbol(nm), eval.env = lazydata, assign.env = e))
+  }
   lockEnvironment(e, bindings = TRUE)
   e
 }
