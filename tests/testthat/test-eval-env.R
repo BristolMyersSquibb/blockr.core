@@ -66,4 +66,3 @@ test_that("data inputs are bound in the eval env", {
   expect_equal(get("x", envir = e), 1:5)
   expect_equal(get("y", envir = e), letters[1:3])
 })
-
