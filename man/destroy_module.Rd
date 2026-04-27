@@ -30,3 +30,4 @@ not officially supported or recommended to use. These internals may break
 if Shiny's internal source code changes. Use with caution and only
 whenever necessary.
 }
+\keyword{internal}

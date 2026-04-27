@@ -2,7 +2,7 @@
 title: "5. Testing blocks"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{1. Testing blocks}
+  %\VignetteIndexEntry{5. Testing blocks}
   %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
 ---
