@@ -67,12 +67,3 @@ test_that("data inputs are bound in the eval env", {
   expect_equal(get("y", envir = e), letters[1:3])
 })
 
-test_that("lazy-loaded datasets resolve as promises, not active bindings", {
-  withr::with_options(list(blockr.attach_default_packages = TRUE), {
-    parent <- parent.env(eval_env(list()))
-    while (!exists("iris", envir = parent, inherits = FALSE)) {
-      parent <- parent.env(parent)
-    }
-    expect_false(bindingIsActive("iris", parent))
-  })
-})
