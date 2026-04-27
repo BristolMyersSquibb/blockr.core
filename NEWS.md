@@ -7,8 +7,8 @@
   `bquote()`-based quasiquotation.
 * Export `custom_plugins()` and `custom_options()` for easier board
   customization.
-* Export `block_metadata()` (renamed from `registry_metadata()`) and attach
-  block metadata with defaults to block objects.
+* Add `block_metadata()` for retrieving per-block metadata and attach block
+  metadata with defaults to block objects.
 * Export test utilities (`blockr_test_exports()`, `new_mock_session()`,
   `export_safely()`) for use in downstream package tests.
 

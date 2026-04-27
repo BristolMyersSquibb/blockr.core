@@ -296,7 +296,7 @@ In the server module, we first call `esquisse_server()`. Then, the most technica
 
 ```r
 block_output.transform_block <- function(x, result, session) {
-  session$output$result <- dt_result(result$dat, session)
+  dt_result(result, x, session)
 }
 ```
 
@@ -314,8 +314,7 @@ As you may notice, `new_complex_block()` is very similar to `new_transform_block
 #' @export
 block_output.complex_block <- function(x, result, session) {
   session$output$filters <- renderPrint(result$filters)
-  # result must come at the end of the output list if you have multiple outputs
-  session$output$result <- dt_result(result$dat, session)
+  dt_result(result$dat, x, session)
 }
 ```
 
