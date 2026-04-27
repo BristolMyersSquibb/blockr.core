@@ -223,7 +223,57 @@ block_eval.block <- function(x, expr, env, ...) {
 #' @rdname block_server
 #' @export
 eval_env <- function(data) {
-  list2env(data, parent = blockr_option("eval_parent_env", baseenv()))
+  parent <- if (isTRUE(blockr_option("attach_default_packages", FALSE))) {
+    default_eval_parent()
+  } else {
+    baseenv()
+  }
+  list2env(data, parent = parent)
+}
+
+# Packages attached on a vanilla R startup, in `search()` order (innermost
+# first). The other priority="base" packages (parallel, grid, tools, ...)
+# are intentionally excluded — they're not on a fresh search() and users
+# namespace-prefix them.
+.eval_env_default_pkgs <- c(
+  "stats", "graphics", "grDevices", "utils", "datasets", "methods"
+)
+
+# Build (and cache) a chain of read-only environments mirroring the
+# `search()` path of a vanilla R session: stats -> graphics -> grDevices
+# -> utils -> datasets -> methods -> base. Activated by the
+# `attach_default_packages` blockr option.
+default_eval_parent <- local({
+  cached <- NULL
+  function() {
+    if (!is.null(cached)) return(cached)
+    parent <- baseenv()
+    for (pkg in rev(.eval_env_default_pkgs)) {
+      parent <- pkg_export_env(pkg, parent)
+    }
+    cached <<- parent
+    cached
+  }
+})
+
+# Mirror the env that `attachNamespace()` builds for `package:pkg`, minus
+# the search-path mutation and `.onAttach` side effects. Regular exports
+# go through `importIntoEnv()` (alias map + active bindings handled by R
+# itself); lazy data uses `delayedAssign()` to recreate the promise
+# semantics — R's own `attachNamespace()` does this via
+# `.Internal(importIntoEnv())`, which CRAN forbids.
+pkg_export_env <- function(pkg, parent) {
+  ns <- loadNamespace(pkg)
+  e <- new.env(parent = parent)
+  exports <- getNamespaceExports(ns)
+  importIntoEnv(e, exports, ns, exports)
+  lazydata <- getNamespaceInfo(ns, "lazydata")
+  Map(
+    function(nm) delayedAssign(nm, get(nm, envir = lazydata), assign.env = e),
+    ls(lazydata, all.names = TRUE)
+  )
+  lockEnvironment(e, bindings = TRUE)
+  e
 }
 
 #' @param session Shiny session object
