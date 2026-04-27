@@ -12,7 +12,6 @@
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><script src="extend-blockr_files/libs/quarto-html/popper.min.js"></script><script src="extend-blockr_files/libs/quarto-html/tippy.umd.min.js"></script><link href="extend-blockr_files/libs/quarto-html/tippy.css" rel="stylesheet">
 <link href="extend-blockr_files/libs/quarto-html/light-border.css" rel="stylesheet">
-<script src="extend-blockr_files/libs/quarto-diagram/mermaid.min.js"></script><script src="extend-blockr_files/libs/quarto-diagram/mermaid-init.js"></script><link href="extend-blockr_files/libs/quarto-diagram/mermaid.css" rel="stylesheet">
 <!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="4. Extend blockr">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.5.0/mermaid.min.js" integrity="sha512-3EZqKCkk3nMLmbrI7mfry81KH7dkzy/BoDfQrodwLQnS/RbsVlERdYP6J0oiJegRUxSOmx7Y35WNbVKSw7mipw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
@@ -91,149 +90,57 @@
 </div>
 <section class="level2"><h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
 </h2>
-<p>In the <code>Create block</code> <a href="https://bristolmyerssquibb.github.io/blockr.core/articles/create-block.html">vignette</a>, you were taught how to design new blocks for blockr. Did you know that we could go much further?</p>
-<p>Each major <code>blockr.core</code> feature belongs to its own <strong>plugin</strong>, materialized as a shiny module:</p>
-<ul>
-<li>Manage blocks (create/remove, append, …)</li>
-<li>Manage <strong>links</strong>, that is how blocks are connected. Linking block A to block B means that block A passes its output data to block B.</li>
-<li>Manage <strong>stacks</strong> (group blocks together).</li>
-<li>Preserve the <strong>board</strong> state: save and restore the application state.</li>
-<li>…</li>
-</ul>
-<p>All of the above is fully customizable by yourself, <code>blockr.core</code> only provides reasonable defaults to get you started. <code>blockr.ui</code> is an example of full customization.</p>
-<div class="cell" data-layout-align="default">
-<div class="cell-output-display">
-<div>
-<p></p>
-<figure class=""><p></p>
-<div>
-<pre class="mermaid mermaid-js">flowchart TD
-  subgraph board[board]
-    subgraph plugins[plugins]
-      subgraph manage_blocks[Manage blocks]
-      end
-      subgraph manage_links[Manage links]
-      end
-      subgraph manage_stacks[Manage stacks]
-      end
-      subgraph preserve_board[Preserve board]
-      end
-      subgraph generate_code[Generate code]
-      end
-      subgraph notify_user[Notify user]
-      end
-      subgraph edit_block[Edit block]
-      end
-      subgraph edit_stack[Edit stack]
-      end
-    end
-  end
-</pre>
-</div>
-<p></p></figure><p></p>
-</div>
-</div>
-</div>
-</section><section class="level2"><h2 id="blockr-plugins">blockr plugins<a class="anchor" aria-label="anchor" href="#blockr-plugins"></a>
+<p><code>blockr</code> can be extended in 3 main ways. The first way is to create new blocks, as described in the <code>Create block</code> <a href="https://bristolmyerssquibb.github.io/blockr.core/articles/create-block.html">vignette</a>. The second way is to change the behavior at <strong>board</strong> level through the <strong>plugin</strong> system. Finally we can customize the UI library, as we will in the last section.</p>
+</section><section class="level2"><h2 id="plugins">Plugins<a class="anchor" aria-label="anchor" href="#plugins"></a>
 </h2>
-<section class="level3"><h3 id="background">Background<a class="anchor" aria-label="anchor" href="#background"></a>
+<p>Most major features of a <strong>board</strong> are implemented through what we call <strong>plugins</strong>. A board of a given class, such as <code>"board"</code> (the basic legacy board) or <code>"dock_board"</code> (the board used by <code>blockr::run_app()</code>) supports a given set of <strong>plugins</strong>, implemented using shiny modules. Users can override the ui and server functions of these modules from the outside if they wish to tweak the display and logic of these features, as we’ll show further below.</p>
+<section class="level3"><h3 id="available-plugins">Available plugins<a class="anchor" aria-label="anchor" href="#available-plugins"></a>
 </h3>
-<p><strong>plugins</strong> are used to customize/enhance UX aspects of the <strong>board</strong> module, that is the top level module exposed by <code>blockr.core</code>. As stated above, there are a couple of plugins already available in the core, such that when you want to create a custom blockr app, you can do this on the UI side:</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">main_ui</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">board</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">ns</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/NS.html" class="external-link">NS</a></span><span class="op">(</span><span class="va">id</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="../reference/board_ui.html">board_ui</a></span><span class="op">(</span></span>
-<span>    <span class="fu">ns</span><span class="op">(</span><span class="st">"board"</span><span class="op">)</span>,</span>
-<span>    <span class="va">board</span>,</span>
-<span>    plugins <span class="op">=</span> <span class="fu"><a href="../reference/new_plugin.html">board_plugins</a></span><span class="op">(</span></span>
-<span>      <span class="va">board</span>,</span>
-<span>      <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
-<span>        <span class="st">"preserve_board"</span>,</span>
-<span>        <span class="st">"manage_blocks"</span>,</span>
-<span>        <span class="st">"manage_links"</span>,</span>
-<span>        <span class="st">"manage_stacks"</span>,</span>
-<span>        <span class="st">"generate_code"</span>,</span>
-<span>        <span class="st">"notify_user"</span></span>
-<span>      <span class="op">)</span></span>
+<p>The legacy board supports the following plugins :</p>
+<ul>
+<li>
+<code><a href="../reference/manage_blocks.html">manage_blocks()</a></code>: Implements the way <strong>blocks</strong> are created, removed, appened…</li>
+<li>
+<code><a href="../reference/manage_links.html">manage_links()</a></code>: Implements how <strong>blocks</strong> are connected. Linking <strong>block</strong> A to <strong>block</strong> B means that <strong>block</strong> A passes its output data to <strong>block</strong> B.</li>
+<li>
+<code><a href="../reference/manage_stacks.html">manage_stacks()</a></code>: Implements how <strong>blocks</strong> can be grouped using <strong>stacks</strong>.</li>
+<li>
+<code><a href="../reference/preserve_board.html">preserve_board()</a></code>: Implements how <strong>boards</strong> can be saved and restored.</li>
+<li>
+<code><a href="../reference/generate_code.html">generate_code()</a></code>: Implements the way the data manipulation code executed by the <strong>blocks</strong> is displayed to the user.</li>
+<li>
+<code><a href="../reference/notify_user.html">notify_user()</a></code>: Implements how notifications and warnings are relayed to the user.</li>
+<li>
+<code><a href="../reference/edit_block.html">edit_block()</a></code>: Implements how a block attributes such as titles are processed and rendered.</li>
+<li>
+<code><a href="../reference/edit_stack.html">edit_stack()</a></code>: Implements how a stack attributes such as names are processed and rendered.</li>
+</ul></section><section class="level3"><h3 id="override-a-plugins-server-and-ui-functions">Override a plugin’s server and ui functions<a class="anchor" aria-label="anchor" href="#override-a-plugins-server-and-ui-functions"></a>
+</h3>
+<p>We will work from an example, we want to modify the <code><a href="../reference/manage_blocks.html">manage_blocks()</a></code> plugin to use the <code>scoutbaR</code> package to search for blocks to add.</p>
+<p>By default <code><a href="../reference/manage_blocks.html">manage_blocks()</a></code> uses <code><a href="../reference/manage_blocks.html">manage_blocks_ui()</a></code> and <code><a href="../reference/manage_blocks.html">manage_blocks_server()</a></code>, a good workflow is to start from those and implement our modifications.</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># manage_blocks_ui</span></span>
+<span><span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">board</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="https://rstudio.github.io/htmltools/reference/tagList.html" class="external-link">tagList</a></span><span class="op">(</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/actionButton.html" class="external-link">actionButton</a></span><span class="op">(</span></span>
+<span>      <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/NS.html" class="external-link">NS</a></span><span class="op">(</span><span class="va">id</span>, <span class="st">"add_block"</span><span class="op">)</span>,</span>
+<span>      <span class="st">"Add block"</span>,</span>
+<span>      icon <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/icon.html" class="external-link">icon</a></span><span class="op">(</span><span class="st">"circle-plus"</span><span class="op">)</span>,</span>
+<span>      class <span class="op">=</span> <span class="st">"btn-success"</span></span>
+<span>    <span class="op">)</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/actionButton.html" class="external-link">actionButton</a></span><span class="op">(</span></span>
+<span>      <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/NS.html" class="external-link">NS</a></span><span class="op">(</span><span class="va">id</span>, <span class="st">"rm_block"</span><span class="op">)</span>,</span>
+<span>      <span class="st">"Remove block"</span>,</span>
+<span>      icon <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/icon.html" class="external-link">icon</a></span><span class="op">(</span><span class="st">"circle-minus"</span><span class="op">)</span>,</span>
+<span>      class <span class="op">=</span> <span class="st">"btn-danger"</span></span>
 <span>    <span class="op">)</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
-</div>
-<p><code><a href="../reference/board_ui.html">board_ui()</a></code> expects the namespace of the module, a <strong>board</strong> object which you can create with <code>new_board</code>. The board is, in general, passed when you call <code>serve</code> on the board object such that you can start an app with predefined blocks, links and stacks. where <code><a href="../reference/new_plugin.html">board_plugins()</a></code> expect a vector of plugin names. It is important to state that at the moment, you can only overwrite existing plugins but not create new ones. On the server side, you call <code><a href="../reference/board_server.html">board_server()</a></code>, the server counter part of <code><a href="../reference/board_ui.html">board_ui()</a></code> which expects a namespace, the board object and a subset (or all) of plugins. <code>callbacks</code> are to inject code directly into the board server function, as opposed to plugins which are nested submodules. <code>parent</code> is used to <strong>communicate</strong> application state between all parts of the application in a standardized way.</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">main_server</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">board</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/moduleServer.html" class="external-link">moduleServer</a></span><span class="op">(</span></span>
-<span>    <span class="va">id</span>,</span>
-<span>    <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span><span class="op">)</span> <span class="op">{</span></span>
-<span>      <span class="va">ns</span> <span class="op">&lt;-</span> <span class="va">session</span><span class="op">$</span><span class="va">n</span></span>
-<span></span>
-<span>      <span class="va">app_state</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/reactiveValues.html" class="external-link">reactiveValues</a></span><span class="op">(</span></span>
-<span>        <span class="co"># App state for module communication</span></span>
-<span>      <span class="op">)</span></span>
-<span></span>
-<span>      <span class="co"># Board module</span></span>
-<span>      <span class="fu"><a href="../reference/board_server.html">board_server</a></span><span class="op">(</span></span>
-<span>        <span class="st">"board"</span>,</span>
-<span>        <span class="va">board</span>,</span>
-<span>        plugins <span class="op">=</span> <span class="fu"><a href="../reference/new_plugin.html">board_plugins</a></span><span class="op">(</span></span>
-<span>          <span class="va">board</span>,</span>
-<span>          <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
-<span>            <span class="st">"preserve_board"</span>,</span>
-<span>            <span class="st">"manage_blocks"</span>,</span>
-<span>            <span class="st">"manage_links"</span>,</span>
-<span>            <span class="st">"manage_stacks"</span>,</span>
-<span>            <span class="st">"generate_code"</span>,</span>
-<span>            <span class="st">"notify_user"</span></span>
-<span>          <span class="op">)</span></span>
-<span>        <span class="op">)</span>,</span>
-<span>        callbacks <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>        parent <span class="op">=</span> <span class="va">app_state</span></span>
-<span>      <span class="op">)</span></span>
-<span>    <span class="op">}</span></span>
-<span>  <span class="op">)</span></span>
-<span><span class="op">}</span></span></code></pre></div>
-</div>
-<p>Looking at the <code>board_plugins.board()</code> function:</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">board_plugins.board</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span>, <span class="va">which</span> <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span> <span class="op">{</span></span>
-<span></span>
-<span>  <span class="va">plugins</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/new_plugin.html">plugins</a></span><span class="op">(</span></span>
-<span>    <span class="fu"><a href="../reference/preserve_board.html">preserve_board</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>    <span class="fu"><a href="../reference/manage_blocks.html">manage_blocks</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>    <span class="fu"><a href="../reference/manage_links.html">manage_links</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>    <span class="fu"><a href="../reference/manage_stacks.html">manage_stacks</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>    <span class="fu"><a href="../reference/notify_user.html">notify_user</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>    <span class="fu"><a href="../reference/generate_code.html">generate_code</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>    <span class="fu"><a href="../reference/edit_block.html">edit_block</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>    <span class="fu"><a href="../reference/edit_stack.html">edit_stack</a></span><span class="op">(</span><span class="op">)</span></span>
-<span>  <span class="op">)</span></span>
-<span></span>
-<span>  <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">which</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="va">plugins</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span></span>
-<span>  <span class="va">plugins</span><span class="op">[</span><span class="va">which</span><span class="op">]</span></span>
-<span><span class="op">}</span></span></code></pre></div>
-</div>
-<p>Each plugin is composed of a <strong>server</strong> and <strong>ui</strong> part, since they are modules. For instance, the <code>manage_blocks</code> plugin is defined as:</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">manage_blocks</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">server</span>, <span class="va">ui</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="../reference/new_plugin.html">new_plugin</a></span><span class="op">(</span><span class="va">server</span>, <span class="va">ui</span>, validator <span class="op">=</span> <span class="va">expect_null</span>, class <span class="op">=</span> <span class="st">"manage_blocks"</span><span class="op">)</span></span>
-<span><span class="op">}</span></span></code></pre></div>
-</div>
-<p>In the following, we want to create a custom <code>manage_blocks</code> plugin that uses the <code>scoutbaR</code> package, described in <a href="https://bristolmyerssquibb.github.io/blockr.core/articles/blocks-registry.html">vignette</a></p>
-</section><section class="level3"><h3 id="a-custom-manage_blocks">A custom manage_blocks<a class="anchor" aria-label="anchor" href="#a-custom-manage_blocks"></a>
-</h3>
-<p>To create our custom manage blocks, we’ll first need to overwrite the <code>add_rm_block_server</code> and <code>add_rm_block_ui</code> functions. For sake of simplicity, on the UI side, we provide a <code>Add</code> block button as well as as scoutbar widget (<code>blk_choices()</code> is described in the following <a href="https://bristolmyerssquibb.github.io/blockr.core/articles/blocks-registry.html">vignette</a>):</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">add_rm_block_ui</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">board</span><span class="op">)</span> <span class="op">{</span></span>
+<p>For simplicity let’s assume we also want to drop the “Remove block” button, our new ui becomes:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">new_manage_blocks_ui</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">board</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://rstudio.github.io/htmltools/reference/tagList.html" class="external-link">tagList</a></span><span class="op">(</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/pkg/scoutbaR/man/scoutbar.html" class="external-link">scoutbar</a></span><span class="op">(</span></span>
+<span>    <span class="fu">scoutbaR</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/scoutbaR/man/scoutbar.html" class="external-link">scoutbar</a></span><span class="op">(</span></span>
 <span>      <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/NS.html" class="external-link">NS</a></span><span class="op">(</span><span class="va">id</span>, <span class="st">"scoutbar"</span><span class="op">)</span>,</span>
 <span>      placeholder <span class="op">=</span> <span class="st">"Search for a block"</span>,</span>
 <span>      actions <span class="op">=</span> <span class="fu">blk_choices</span><span class="op">(</span><span class="op">)</span>,</span>
@@ -247,65 +154,62 @@
 <span>    <span class="op">)</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
-</div>
-<p>On the server part, a plugin is always defined as follows (documentation has been left for reference):</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co">#' Add/remove block module</span></span>
-<span><span class="co">#'</span></span>
-<span><span class="co">#' Customizable logic for adding/removing blocks to the board.</span></span>
-<span><span class="co">#'</span></span>
-<span><span class="co">#' @param id Namespace ID</span></span>
-<span><span class="co">#' @param board Reactive values object</span></span>
-<span><span class="co">#' @param update Reactive value object to initiate board updates</span></span>
-<span><span class="co">#' @param ... Extra arguments passed from parent scope</span></span>
-<span><span class="co">#'</span></span>
-<span><span class="co">#' @return A [shiny::reactiveValues()] object with components `add` and `rm`,</span></span>
-<span><span class="co">#' where `add` may be `NULL` or a `block` object and `rm` be `NULL` or a string</span></span>
-<span><span class="co">#' (block ID).</span></span>
-<span><span class="co">#'</span></span>
-<span><span class="co">#' @rdname add_rm_block</span></span>
-<span><span class="co">#' @export</span></span>
-<span><span class="va">add_rm_block_server</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">board</span>, <span class="va">update</span>, <span class="va">...</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/moduleServer.html" class="external-link">moduleServer</a></span><span class="op">(</span></span>
-<span>    <span class="va">id</span>,</span>
-<span>    <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span><span class="op">)</span> <span class="op">{</span></span>
-<span>      <span class="co"># SERVER LOGIC</span></span>
-<span></span>
-<span>      <span class="cn">NULL</span></span>
-<span>    <span class="op">}</span></span>
+<p><code>blk_choices()</code> is a list of scoutbar actions, the details are not relevant here but the definition is provided below for information.</p>
+<details><div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">blk_choices</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">blk_cats</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="fu"><a href="../reference/chr_ply.html">chr_ply</a></span><span class="op">(</span><span class="fu"><a href="../reference/register_block.html">available_blocks</a></span><span class="op">(</span><span class="op">)</span>, \<span class="op">(</span><span class="va">b</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">b</span>, <span class="st">"category"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span>  <span class="op">)</span></span>
-<span><span class="op">}</span></span></code></pre></div>
-</div>
-<p>The server function <strong>signature</strong> must start with the module id, <code>board</code> refers to internal reactive values (read-only), <code>update</code> is a reactive value to send updates to the board module and <code>...</code> is used to recover parameters passed from the top level like <code>parent</code>. The plugin always returns <code>NULL</code>.</p>
-<p>We now want to open the <code>scoutbaR</code> widget whenever the users clicks on the <code>Add block</code> button. We can achieve that by calling <code>update_scoutbar</code> passing <code>revealScoutbar = TRUE</code>.</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">add_rm_block_server</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">board</span>, <span class="va">update</span>, <span class="va">...</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/moduleServer.html" class="external-link">moduleServer</a></span><span class="op">(</span></span>
-<span>    <span class="va">id</span>,</span>
-<span>    <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span><span class="op">)</span> <span class="op">{</span></span>
-<span>      <span class="co"># Trigger add block</span></span>
-<span>      <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/observeEvent.html" class="external-link">observeEvent</a></span><span class="op">(</span></span>
-<span>        <span class="va">input</span><span class="op">$</span><span class="va">add_block</span>,</span>
-<span>        <span class="op">{</span></span>
-<span>          <span class="fu"><a href="https://rdrr.io/pkg/scoutbaR/man/scoutbar.html" class="external-link">update_scoutbar</a></span><span class="op">(</span></span>
-<span>            <span class="va">session</span>,</span>
-<span>            <span class="st">"scoutbar"</span>,</span>
-<span>            revealScoutbar <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span>          <span class="op">)</span></span>
-<span>        <span class="op">}</span></span>
+<span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">blk_cats</span>, \<span class="op">(</span><span class="va">cat</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/pkg/scoutbaR/man/scout_section.html" class="external-link">scout_section</a></span><span class="op">(</span></span>
+<span>      label <span class="op">=</span> <span class="va">cat</span>,</span>
+<span>      .list <span class="op">=</span> <span class="fu">dropNulls</span><span class="op">(</span></span>
+<span>        <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span></span>
+<span>          <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="../reference/register_block.html">available_blocks</a></span><span class="op">(</span><span class="op">)</span>, \<span class="op">(</span><span class="va">choice</span><span class="op">)</span> <span class="op">{</span></span>
+<span>            <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">choice</span>, <span class="st">"category"</span><span class="op">)</span> <span class="op">==</span> <span class="va">cat</span><span class="op">)</span> <span class="op">{</span></span>
+<span>              <span class="fu"><a href="https://rdrr.io/pkg/scoutbaR/man/scout_action.html" class="external-link">scout_action</a></span><span class="op">(</span></span>
+<span>                id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">choice</span>, <span class="st">"classes"</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
+<span>                label <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">choice</span>, <span class="st">"name"</span><span class="op">)</span>,</span>
+<span>                description <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">choice</span>, <span class="st">"description"</span><span class="op">)</span>,</span>
+<span>                icon <span class="op">=</span> <span class="fu">blk_icon</span><span class="op">(</span><span class="va">cat</span><span class="op">)</span></span>
+<span>              <span class="op">)</span></span>
+<span>            <span class="op">}</span></span>
+<span>          <span class="op">}</span><span class="op">)</span></span>
+<span>        <span class="op">)</span></span>
 <span>      <span class="op">)</span></span>
+<span>    <span class="op">)</span></span>
+<span>  <span class="op">}</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
 <span></span>
-<span>      <span class="cn">NULL</span></span>
-<span>    <span class="op">}</span></span>
+<span><span class="va">blk_icon</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">category</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="kw"><a href="https://rdrr.io/r/base/switch.html" class="external-link">switch</a></span><span class="op">(</span></span>
+<span>    <span class="va">category</span>,</span>
+<span>    <span class="st">"data"</span> <span class="op">=</span> <span class="st">"table"</span>,</span>
+<span>    <span class="st">"file"</span> <span class="op">=</span> <span class="st">"file-import"</span>,</span>
+<span>    <span class="st">"parse"</span> <span class="op">=</span> <span class="st">"cogs"</span>,</span>
+<span>    <span class="st">"plot"</span> <span class="op">=</span> <span class="st">"chart-line"</span>,</span>
+<span>    <span class="st">"transform"</span> <span class="op">=</span> <span class="st">"wand-magic-sparkles"</span>,</span>
+<span>    <span class="st">"table"</span> <span class="op">=</span> <span class="st">"table"</span></span>
 <span>  <span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="va">chr_ply</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span>, <span class="va">fun</span>, <span class="va">...</span>, <span class="va">length</span> <span class="op">=</span> <span class="fl">1L</span>, <span class="va">use_names</span> <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">fun</span>, <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="va">length</span><span class="op">)</span>, <span class="va">...</span>, USE.NAMES <span class="op">=</span> <span class="va">use_names</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="va">lgl_ply</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span>, <span class="va">fun</span>, <span class="va">...</span>, <span class="va">length</span> <span class="op">=</span> <span class="fl">1L</span>, <span class="va">use_names</span> <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">fun</span>, <span class="fu"><a href="https://rdrr.io/r/base/logical.html" class="external-link">logical</a></span><span class="op">(</span><span class="va">length</span><span class="op">)</span>, <span class="va">...</span>, USE.NAMES <span class="op">=</span> <span class="va">use_names</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="va">dropNulls</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">x</span><span class="op">[</span><span class="op">!</span><span class="fu"><a href="../reference/chr_ply.html">lgl_ply</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">is.null</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="op">}</span></span></code></pre></div>
-</div>
-<p>Next step is to manage the user choice, that is when a scoutbar action is selected. We listen to <code>input$scoutbar</code> which holds the name of the selected block. Since it is a string, we call <code><a href="../reference/register_block.html">create_block()</a></code>, which instantiates a block from its name, and wrap it by <code><a href="../reference/new_block.html">as_blocks()</a></code>. Finally, we signal this change to the board by refreshing the <code>update</code> reactive value, saying we want to add a new block <code>list(blocks = list(add = new_blk))</code>:</p>
+</details><p>In the same fashion we override the server function to handle the new logic.</p>
+<p>We end up with the following server function, see additional explanations below.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">add_rm_block_server</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">board</span>, <span class="va">update</span>, <span class="va">...</span><span class="op">)</span> <span class="op">{</span></span>
+<div class="sourceCode cell-code" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">new_manage_blocks_server</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">board</span>, <span class="va">update</span>, <span class="va">...</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/moduleServer.html" class="external-link">moduleServer</a></span><span class="op">(</span></span>
 <span>    <span class="va">id</span>,</span>
 <span>    <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span><span class="op">)</span> <span class="op">{</span></span>
@@ -333,28 +237,14 @@
 <span>  <span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
 </div>
-</section><section class="level3"><h3 id="register-plugins">Register plugins<a class="anchor" aria-label="anchor" href="#register-plugins"></a>
+<p>The server function’s <strong>signature</strong> must start with the module id, <code>board</code> refers to internal reactive values (read-only), <code>update</code> is a reactive value to send updates to the board module and <code>...</code> is used to recover parameters passed from the top level like <code>parent</code>. The plugin always returns <code>NULL</code>.</p>
+<p>In the first observer we open the <code>scoutbaR</code> widget whenever the users clicks on the <code>Add block</code> button. We can achieve that by calling <code>update_scoutbar</code> passing <code>revealScoutbar = TRUE</code>.</p>
+<p>In the second observer we listen to <code>input$scoutbar</code> which holds the name of the selected block, and use to create a “blocks” object with <code><a href="../reference/register_block.html">create_block()</a></code> and <code><a href="../reference/new_block.html">as_blocks()</a></code>. Finally, we signal this change to the board by refreshing the <code>update</code> reactive value, saying we want to add a new block <code>list(blocks = list(add = new_blk))</code>.</p>
+</section><section class="level3"><h3 id="putting-everything-together">Putting everything together<a class="anchor" aria-label="anchor" href="#putting-everything-together"></a>
 </h3>
-<p>To register our new plugin, we can defined a custom <code><a href="../reference/new_plugin.html">board_plugins()</a></code> function that calls our own plugin for <code><a href="../reference/manage_blocks.html">manage_blocks()</a></code>. For sake of simplicity, all other plugins are omitted:</p>
+<p>Once we have updated ui and server functions we can use the updated plugin by defining new main ui and server functions around them.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">custom_board_plugins</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">which</span> <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">plugins</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/new_plugin.html">plugins</a></span><span class="op">(</span></span>
-<span>    <span class="fu"><a href="../reference/manage_blocks.html">manage_blocks</a></span><span class="op">(</span>server <span class="op">=</span> <span class="va">add_rm_block_server</span>, ui <span class="op">=</span> <span class="va">add_rm_block_ui</span><span class="op">)</span></span>
-<span>  <span class="op">)</span></span>
-<span></span>
-<span>  <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">which</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="va">plugins</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span></span>
-<span>  <span class="va">plugins</span><span class="op">[</span><span class="va">which</span><span class="op">]</span></span>
-<span><span class="op">}</span></span></code></pre></div>
-</div>
-</section><section class="level3"><h3 id="testing-the-new-plugin">Testing the new plugin<a class="anchor" aria-label="anchor" href="#testing-the-new-plugin"></a>
-</h3>
-<p>In the below example, you may click on the <code>Add block</code> button and see the scoutbar opening and then select a block.</p>
-<div class="cell">
-<details class="code-fold"><summary>Code</summary><div class="sourceCode cell-code" id="cb11"><pre class="downlit sourceCode r">
+<details class="code-fold"><summary>Code</summary><div class="sourceCode cell-code" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">main_ui</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">board</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">ns</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/NS.html" class="external-link">NS</a></span><span class="op">(</span><span class="va">id</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="../reference/board_ui.html">board_ui</a></span><span class="op">(</span></span>
@@ -378,10 +268,8 @@
 <span>      <span class="fu"><a href="../reference/board_server.html">board_server</a></span><span class="op">(</span></span>
 <span>        <span class="st">"board"</span>,</span>
 <span>        <span class="va">board</span>,</span>
-<span>        plugins <span class="op">=</span> <span class="fu">custom_board_plugins</span><span class="op">(</span></span>
-<span>          <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
-<span>            <span class="st">"manage_blocks"</span></span>
-<span>          <span class="op">)</span></span>
+<span>        plugins <span class="op">=</span> <span class="fu"><a href="../reference/new_plugin.html">plugins</a></span><span class="op">(</span></span>
+<span>          <span class="fu"><a href="../reference/manage_blocks.html">manage_blocks</a></span><span class="op">(</span>server <span class="op">=</span> <span class="va">new_manage_blocks_server</span>, ui <span class="op">=</span> <span class="va">new_manage_blocks_ui</span><span class="op">)</span></span>
 <span>        <span class="op">)</span>,</span>
 <span>        callbacks <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span></span>
 <span>      <span class="op">)</span></span>
@@ -410,7 +298,7 @@
 </div>
 <div class="cell">
 <div class="cell-output-display">
-<iframe class="border border-5 rounded shadow-lg" src="https://shinylive.io/r/app/#h=0&amp;code=NobwRAdghgtgpmAXGKAHVA6ASmANGAYwHsIAXOMpMAdzgCMAnRRASwgGdSoAbbgCgA6YOtyIEA1gwzEGcIbgAEs1EXYKAvAqEALUqVTtEAeiMEAnhElQMAcxaltAVzoYWRIyLGSMtOliNCAJQCENwsjFAMZnzs2mxmwaHhDJHRdOxhdImZKVExxI6kdFBY2cmpfJ4SUjJwiQTaDAD6qNxmCgA8ALQKAGaOEASkbhB8AB6K-RCKGLOK3BQ2DhoKAIwAMoqO7HBN0PBqmgBiAILrAMoAooEKICEKCgBuaK3RE30Dig2RUENwDHwFhAltpAjM5goAKpXDAAOROAFlLucVttdvs4OxEgBfEIhADEAHIFAABcRwMzUIgMAAmajY5AY0G4IW4Nm4LTanR6UyGI3Gk0+ClmGHmi2Wmg2Wx2e1gmJWpwu11u9yeLzaAo+0wUojsBB4gPFoPBoqhMPhSJRmjRsoOOLxEBpDCIqFhjl4am6Wr5JHGNzuEAeY2AAEI2RzXpqWOwMBB3dxAgBdEK4iAhETiJosYiBr284a+-XkGzUhIqwMKdjUewNQQVh5FuAlqK4VUPIQ0qBcIQrIRcERyPBtrRgXosBY9zRCMcLLosGAqBikeTDoSoSI7Scj4g2dgr+sj1pEZdgXuEbSRUhdMIQQetg99lIcXrUmBboTUKCOrowKB6rrsOuDDiAse5Dg+YD9hOp5TpBUADkIqr2mmEAZk0DRENm8p5gMPqjP6qpoUWno9Ow1KkHWDwPAMLAAI6OHAfANM0kZQM847wQsTRVOI7B8GCWgCJUNxdqQAJ0IoQiNs2ZhBIEiQPIkqrcOqaTcJmxGSUJRYEQe7AFKQTQ7HhlFUQ8Kl0HA3ArEW95mQ8GBhJwKxOi6boeqZ9kKAMGKeV5OqqXwbFQBxA7caIEh8QJAjadomEEHU5b+fZLC9AoQV6ACGFYZJhBdk2pZBBomg6UlyX2fpRCFE0vwFqMw7lVRLA0isolZXFOXbip7A7GBgTAKsiZ2Y19kWVZrWZUxHUJblGJBMNI1UTSmIEAwLCoHVE1iVN8VwLly36WtG0jPNDUjdmJArGhF2jDpZ3JQpI2po12KPV5b1UR9j2vSmIRQDSNJNAwMDhV4TSOCw3LenVfDNYodBEJENK6Q8XA2Os0YUcOlWFMUAJnbC5ywzSuU40UkSnQeDytL8cBxdwy0MGe5xwJEDR9NSChQAoPH7l5tUjIcPPqeh02YvxC1UQ4cDwGenbAXzFVxdQWBwAlZAs2z2grAAKlgkKXMOYLDgLJAAEKFKQvoE0TcMjv9gO82AxtUyOsJwNQwteIrZk3SsN2CIQLAMAQs6tNslNmY9yEO0DIM8UZ-yPP8UP5vydsI0jWyoJ25AmijCgwEQNLunALMMMn+MHnDw5p76bCoIUihVfoTeVpi7AjAXZn4goOtrTYNgpw7XsSGdRDpEncCXMnZB+b7ECN6QAAksc8ZLZkBo1jg5-lRkGXj8-+b1nckBv-lCGTeM++VsjJzw5wH5Euv64brtR-dCjPfZSmuxPOwV2nrPCiDdCjLyvpERQW9-K3moOFcQUMoDsFBpFJisg948VhovMBECGDyU-jvXOjFP7mUxpUCKvEVhOQoiPTQsD4H4PfgoD6DwfooS8rCSE6x1jDm-shAg2wrbx0RrSTkjg7AcFTrhGG1A4js00Jw7hBdw4SJIgoFRbA+LDl-NAIeKDeIxCnkzTQsdgb6MToAhgWxIYmIBnHcxENo4OgeKldK0ZYzxj4LI7MoJu5KDgKQRwTI+AaI4N9Zx6juDiM0cAbxDRkwQFTL+Ng4NIY4UGDDDOIjkZlUkV6QmxNHqZ1ERDPyHBA7FJpJHKilTJahKFgIzgRBhFIzEaoo+BAj7tjADov8uweJgTOl9JCv0ULJIgBYyuUiMnpxJjzbJBci4lwWOXSufka4HjrqMUBpBm6FCXooE+XcypmTyaRDuIxl4oTOr3M22TC7F1LmdSpkz-hdJHJUm+Zlamf3qTZQRzTuLZLaZo95DYwVUSEL0vRAzEJMMUp-F2yV9S8GKJFKhZCWHMN4SMxJDpKlQ3oZU-iDoIZQ3XHo3oUTmqmXGakwOLx5DzKRokX+ACpnpJMjsvZrddntx6sc6BdL2VvKEIyvAzLaTIRCLEeIJx0B8AhocoxgQwDYkTEAA" style="zoom: 0.75;" width="100%" height="1100px"></iframe>
+<iframe class="border border-5 rounded shadow-lg" src="https://shinylive.io/r/app/#h=0&amp;code=NobwRAdghgtgpmAXGKAHVA6ASmANGAYwHsIAXOMpMAdzgCMAnRRASwgGdSoAbbgCgA6YOtyIEA1gwzEGcIbgAEs1EXYKAvAqEALUqVTtEAeiMEAnhElQMAcxaltAVzoYWRIyLGSMtOliNCAJQCENwsjFAMZnzs2mxmwaHhDJHRdOxhdImZKVExxI6kdFBY2cmpfJ4SUjJwiQTaDAD6qNxmCgA8ALQKAGaOEASkbhB8AB6K-RCKGLOK3BQ2DhoKAIwAMoqO7HBN0PBqmgBiAILrAMoAooEKICEKCgBuaK3RE30Dig2RUENwDHwFhAltpAjM5goAKpXDAAOROAFlLucVttdvs4OxEgBfEIhADEAHIFAABcRwMzUIgMAAmajY5AY0G4IW4Nm4LTanR6UyGI3Gk0+ClmGHmi2Wmg2Wx2e1gmJWpwu11u9yeLzaAo+0wUojsBB4gPFoPBoqhMPhSJRmjRsoOOLxEBpDCIqFhjl4am6Wr5JHGNzuEAeY2AAEI2RzXpqWOwMBB3dxAgBdEK4iAhETiJosYiBr284a+-XkGzUhIqwMKdjUewNQQVh5FuAlqK4VUPIQ0qBcIQrIRcERyPBtrRgXosBY9zRCMcLLosGAqBikeTDoSoSI7Scj4g2dgr+sj1pEZdgXuEbSRUhdMIQQetg99lIcXrUmBboTUKCOrowKB6rrsOuDDiAse5Dg+YD9hOp5TpBUADkIqr2mmEAZk0DRENm8p5gMPqjP6qpoUWno9Ow1KkHWDwPAMLAAI6OHAfANM0kZQM847wQsTRVOI7B8GCWgCJUNxdqQAJ0IoQiNs2ZhBIEiQPIkqrcOqaTcJmxGSUJRYEQe7AFKQTQ7HhlFUQ8Kl0HA3ArEW95mQ8GBhJwKxOi6boeqZ9kKAMGKeV5OqqXwbFQBxA7caIEh8QJAjadomEEHU5b+fZLC9AoQV6ACGFYZJhBdk2pZBBomg6UlyX2fpRCFE0vwFqMw7lVRLA0isolZXFOXbip7A7GBgTAKsiZ2Y19kWVZrWZUxHUJblGJBMNI1UTSmIEAwLCoHVE1iVN8VwLly36WtG0jPNDUjdmJArGhF2jDpZ3JQpI2po12KPV5b1UR9j2vSmIS3tQTS-tANi7Dx7BGf8jz-Ny3p1XwzWKHQRCRDSWyoJ25AmrpDwwEQNLunA5yQ-8fkI8O+b8mwqCFIoVX6DTlaYuwIzY-Z+IKAAKmtNggwwChQDSLU8WdRDpMTlxQ2QflmVThQACQCzS4VeAt9kBo1jjo-lRkGcUAL3RVTMjKryVCJVhR6-ui2yFDPDnLrkQrBzWCQpcBuKQbz32UpB4PKLOwMFDEsUBRsukHL5tFJEijq-5-3heIMNQODYNMbI2s8fDEDU+Hkd6-JBuaxjjHuzq0YUWDKxORRisrPHGYF77n1nT9KFebCkLrOsw5e8hv5sE0jgsDDFO+gjChIyjrMcDDsLnPDNKPZPtKDywfkcIIwjI7Sp0HsvqPDq0jh2DPJXbKQRAwNx29K0fJ98WdBDS1RQhA3+oMRbxiFN19SG-Sh-cIAQ0DtDHCgw4bj33qzXG+MFhExAfrA8ZMDyj1GGHWmhQc6KF6szEgrMzIzy9DgkYcsUJnXZgAIRvgoGBBMzr72AVDRBpst4oytv5feJsqJ3zYIcBQPCN6lzfiDZWkUYjEz5poeOwiP5eHBgHJhWxh5SLgADGRojeKrw+mZMEBt9S8GKJFKu5d+JnQ+r3f+6ZqFenrjfUxKEh4w3XCI3o3Ah40lMoA1em8XjyAnjfRIPsFGgJ5LhCB2cGZ0ywYzHqLMypeOCfrFA6A-FQMsRwOIEAzAnHQHwIe2CJGBDANiRMQA" style="zoom: 0.75;" width="100%" height="1100px"></iframe>
 </div>
 </div>
 </section></section><section class="level2"><h2 id="custom-ui-components">Custom UI components<a class="anchor" aria-label="anchor" href="#custom-ui-components"></a>
@@ -418,7 +306,7 @@
 <p>If you’d like to use the board with another UI kit than <code>bslib</code> you can create a new method for <code><a href="../reference/board_ui.html">board_ui()</a></code>. For that, you’ll need a little bit of S3 <a href="https://adv-r.hadley.nz/s3.html" class="external-link">knowledge</a>.</p>
 <p>The function signature should contain <code>id</code> (module namespace), <code>x</code> (board object), and <code>plugins</code> to use <code>blockr.core</code> plugins. In the following, we leverage the brand new <code>shinyNextUI</code> to power the custom board UI:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">board_ui.custom_board</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">x</span>, <span class="va">plugins</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, <span class="va">...</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">plugins</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/new_plugin.html">as_plugins</a></span><span class="op">(</span><span class="va">plugins</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rstudio.github.io/htmltools/reference/builder.html" class="external-link">div</a></span><span class="op">(</span></span>
@@ -433,7 +321,7 @@
 </div>
 <p>We have to customize the <code>block_ui</code> too. Overall, we leverage the <code>shinyNextUI::card</code> component to create the block layout:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">get_block_registry</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/stopifnot.html" class="external-link">stopifnot</a></span><span class="op">(</span><span class="fu"><a href="../reference/new_block.html">is_block</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="../reference/register_block.html">available_blocks</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fu"><a href="https://rdrr.io/r/base/strsplit.html" class="external-link">strsplit</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">x</span>, <span class="st">"ctor"</span><span class="op">)</span>, <span class="st">"new_"</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span><span class="op">]</span><span class="op">]</span></span>
@@ -518,7 +406,7 @@
 </ul>
 <p><code>add_rm_block_ui()</code> now leverages <code>shinyNextUI::actionButton</code>:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">add_rm_block_ui</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">board</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://rstudio.github.io/htmltools/reference/tagList.html" class="external-link">tagList</a></span><span class="op">(</span></span>
 <span>    <span class="fu"><a href="https://rdrr.io/pkg/scoutbaR/man/scoutbar.html" class="external-link">scoutbar</a></span><span class="op">(</span></span>
@@ -539,7 +427,7 @@
 <p>Since <code>blockr.core</code> blocks utilizes <code>shiny</code>/<code>bslib</code> UI, you’d also have to rewrite the UI and/or server part whenever necessary. This <a href="https://bristolmyerssquibb.github.io/blockr.core/articles/create-block.html">vignette</a> provides a starting point to authoring blocks.</p>
 <p>As a final step, when you call <code><a href="../reference/new_board.html">new_board()</a></code> don’t forget to add it the <code>custom_board</code> class so that the custom S3 methods are invoked.</p>
 <div class="cell">
-<details class="code-fold"><summary>Code</summary><div class="sourceCode cell-code" id="cb15"><pre class="downlit sourceCode r">
+<details class="code-fold"><summary>Code</summary><div class="sourceCode cell-code" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">board</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/new_board.html">new_board</a></span><span class="op">(</span>class <span class="op">=</span> <span class="st">"custom_board"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">ui</span> <span class="op">&lt;-</span> <span class="fu">nextui_page</span><span class="op">(</span></span>
@@ -578,12 +466,9 @@
 </div>
 <div class="cell">
 <div class="cell-output-display">
-<iframe class="border border-5 rounded shadow-lg" src="https://shinylive.io/r/app/#h=0&amp;code=NobwRAdghgtgpmAXGKAHVA6ASmANGAYwHsIAXOMpMAdzgCMAnRRASwgGdSoAbbgCgA6YOtyIEA1gwzEGcIbgAEs1EXYKAvAqEALUqVTtEAeiMEAnhElQMAcxaltAVzoYWRIyLGSMtOliNCAJQCENwsjFAMZnzs2mxmwaHhDJHR7MSOpHRQWIlhEVF8nhJSMnB5yakxcRBmAHJwAB6kAKoAkokE2gwA+qjcZgoAPAC0CgBmjhAEpG4QfI2KkxCKGGuK3BQ2DhoKAIwAMoqO7HA90PBqmgBiAIIHAMoAooEKICEKCgBuaP3RixMpooupEoDM4Aw+JsINttIFVusFC1nhg6rcALJPB67E5nC5wdiJAC+IRCAGIAOQKAAC4jgZmoRAYABM1GxyAxoNwQtwbNw+gNhmNljM5gslkCFGsMBstjtNIdjqdzrACbs7o8Xm8Pt9fgNxYCVgpRHYCDwoXK4QiZUiUWjMdjNLiVZdiaSIMyGERUHVHLw1KNDaKSAtXu8IJ9GsAAIS8-l-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-RbxP3sJRtuOgPgsM2fWIYIEMARIMxAA" style="zoom: 0.75;" width="100%" height="1100px"></iframe>
+<iframe class="border border-5 rounded shadow-lg" src="https://shinylive.io/r/app/#h=0&amp;code=NobwRAdghgtgpmAXGKAHVA6ASmANGAYwHsIAXOMpMAdzgCMAnRRASwgGdSoAbbgCgA6YOtyIEA1gwzEGcIbgAEs1EXYKAvAqEALUqVTtEAeiMEAnhElQMAcxaltAVzoYWRIyLGSMtOliNCAJQCENwsjFAMZnzs2mxmwaHhDJHR7MSOpHRQWIlhEVF8nhJSMnB5yakxcRBmAHJwAB6kAKoAkokE2gwA+qjcZgoAPAC0CgBmjhAEpG4QfI2KkxCKGGuK3BQ2DhoKAIwAMoqO7HA90PBqmgBiAIIHAMoAooEKICEKCgBuaP3RixMpooupEoDM4Aw+JsINttIFVusFC1nhg6rcALJPB67E5nC5wdiJAC+IRCAGIAOQKAAC4jgZmoRAYABM1GxyAxoNwQtwbNw+gNhmNljM5gslkCFGsMBstjtNIdjqdzrACbs7o8Xm8Pt9fgNxYCVgpRHYCDwoXK4QiZUiUWjMdjNLiVZdiaSIMyGERUHVHLw1KNDaKSAtXu8IJ9GsAAIS8-l-A0sdgYCB+7iBAC6IRJEBCInEPRYxAjgZFsxDZvINiZCW1EYU7Go9i6gnrn0rcGrUVwOs+QmZUC4Ql2Qi4IjkeF7WjA4xYm2HmiEs82IxYMBUDFI8inQlQkVOC+nxBs7G3ben-SIW7AI8I2kipBGYQgE5759HKQ44yZMEPQmoUAeiMMBQKaIzsHuDDiJsp6Tu+YBjvON6LghUDjkIOpurmED5j0XREEWaqllMwbzGGOq4ZWAZjOwTKkK2nyfFMLAAI6OHAfBdL0CZQD8c5oZsPTFOI7B8PCWgCEUryDqQkJ0IoQgdl2ZhBIEiSfIkOrcHq0SUYO7AKZJlbkee6REJkPSnKRDGMZ82l0HA3C7JWb62Z8GBhJwuyet6vr+jZbkKFM+IBYFxo6XwvFQPx45CaIEiieJAhGdoBEEOUdZhW5LDjAokV6JC+GEQphCDp2NZBBomjGZlWVuWZFlguW8xTnVjEsMyuwyYVqXFUe2nsKcsGBMAewZq5bVufZjldQVnG9elJX4kEE2TYxzIEgQDAsKgzWzbJ81pXAJUbek227XMK2tZNRYkLsuG3fMxnXVl6mTTmbVEm9gXfYxv1vV92YhFAzLMj0DAwHFXg9I4LBCkGzV8B1ih0EQkTMiZnxcDYBxJvRU4NVkkShZ8dQPEjzIlYT2QMFd56fP0YJwKl3AbQwt4PHAkRdBMTIKFACjCWegVNXMVyC9wBZFeliWrYxDhwPAt4DlBwv1al1BYHA6VkJz3PaLsAAqWAtE8U7wgTNT1E0rRtMwoskAAQpkpAhtdZMUyVINg0LYAW-T04NNQEteGrtmPbsj2CIQLAMAQK79CcdO2W9WEvtQPQgdANhnMJ7CWRCXwQvDZZisjgtoyyxyoAO5DWpjCgwEQzJ+nAnMMEXkJTsjU6lyGbCoJkijmfoQ8NgS7BzA3tlkgohvbTYOfs97IcSNdRB0KcHdwE8RdkCT7UQIPpAACTe1DEhy7Z4ZtY4NdlZZGRE13AeBUNk8kFfYVCNTkRh3Vsgi48AeE-GmRsTZm1fn9F6CgPpuU0gHDeW8i67woPRAemQT6-wYIoG+YV05xXEPDKA+c86cVkA-YSSMj6YOwWpGBd9a4cRgXZPGRR4oiV2J5eiK9NAEPzPQqBv1PiA2woFOoLQDgHCnHArCOdSAXwLLIOwnAoglxIojRoDdODehyhAK8SNSEcNDG9KKMVBJkJGsAVREEwg8LmgCRSrtaZ+yWnADOQRgCjQzBmYAAAmHxWYIA5jzBwmGLBpAnFdpDVG6N1HTERuXAEeddgSKkfXWqwk8JxOIgksUAJy4cGngoDq8M9ycDgAABmjlk+QJSMbulsg9CA354byMUeDTseNChaMaetFgXwD7xxIeLIQMARh+P-p8UpfDRIdX9m-K2DRmjtGYGaFkB9Pg-G2oBUgt5UYsghHAZkUzGKxHiMs22az0Y9G0FzNmmzGLDMGnUVUysRjjE2I0BQAArKJOUzAjGLOQMgIwHKkFoBQU54dizsILFHbqcLCwtKICVJSFU-ZqS-rZCC20yDjEebZIQjsOGIAUAAUjUBTMllLghwTWoi5p34lqqmTpNE8zgalhLqRhPA9ThHwOxWcpZNtVmIFdkQbgsxUCEvarCoQbBvxAtjvHCcCzJrArQbsbGuNOCytsjKlh2V5VgDCDYXQdA-R0DZWtIQAAJIgwdXZBVOAoBwSZV7iAAPzQrCuqtaMrGWS2Rcy6cp0to7WaitacGAghGo0kagVGkhXnNqJcsVzIBkdQhGJFNIqVl20QOsn2zdohGqaKgXosM+AcApuJLRQrPhZOrbW+ZihelCLzRc0VhbM1fGzZCf16tu0FuuSyHo34rw5qNbi9kBL43TkNmYVAcAaXsAANwKAAApgnEKBVdFLYKNsYkG+FKK0VlWUjauqp6Q2oovLu-dcaoEJqEddf6OoQn1h0agPRBikzSHvCkcEkJ5kKAAGTgeNJaOtVV9gHAQdM3KhiUxpnYV4QkxSUmBlieOshHaREKEcq6nKeUAMgmAxydDCU1K1SbRw6iFcbn4ZGnnIJIi+k-r-egoxGHqMiUETqHVbCpzojQAfLJxav55y-viUSech2fHREyOAtwGAni4WwjgqTybzMU7aJ4qIMRYnVPcZ45tMJAxwpXMGsNIk6JiTZ+J1kkmKETnYbTmhuG5qlGsBu7m2CMZIQKRwHnRIBaKTqPtoUZkKHKeQap5chBCRs9e3DtmWCezi9wULgWvFjMAvuxRsEfHtqHdF66sW4skIS1l5Ledr30ehtWpJH76xYXS-DfhNnOIDVGYQKJRBHPo2fSEWGXWbawz6Pumy6XwmhSEOl-+6W5YRfFgQQbw3x1raGY8gr2dc4MYwgHNrGktAQAQcg4uuSXM0NIMPTIx9FDvynpkmzBdt4vyJcIVL9LGIranGt5ym2Us3J29dAge2wBZyKw1sA77zZyzNLwbICVNN6tTlZkIqazC3HQHwWGz3C4QkCGAIkGYgA" style="zoom: 0.75;" width="100%" height="1100px"></iframe>
 </div>
 </div>
-</section><section class="level2"><h2 id="customize-board-options">Customize board options<a class="anchor" aria-label="anchor" href="#customize-board-options"></a>
-</h2>
-<p>TBD</p>
 </section><script id="quarto-html-after-body" type="application/javascript">
   window.document.addEventListener("DOMContentLoaded", function (event) {
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
