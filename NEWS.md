@@ -1,3 +1,17 @@
+# blockr.core 0.1.2
+
+* Add `ctrl_block()` plugin for external block control, allowing blocks to be
+  driven programmatically from outside the standard block UI.
+* Add `clear_board()` for removing all blocks/stacks from a board.
+* Add `bbquote()` and helpers (`.`, `..`) for cleaner code generation via
+  `bquote()`-based quasiquotation.
+* Export `custom_plugins()` and `custom_options()` for easier board
+  customization.
+* Export `block_metadata()` (renamed from `registry_metadata()`) and attach
+  block metadata with defaults to block objects.
+* Export test utilities (`blockr_test_exports()`, `new_mock_session()`,
+  `export_safely()`) for use in downstream package tests.
+
 # blockr.core 0.1.1
 
 * Add Block-level notifications via (optional) `expr` server return value
