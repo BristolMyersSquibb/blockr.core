@@ -50,8 +50,8 @@ flowchart LR
 ## Previewing available blocks
 
 Upon loading, [blockr](https://bristolmyerssquibb.github.io/blockr/)
-**registers** its internal **blocks** with `register_blockr_blocks()`.
-You won’t have to call this function as it is not exported anyway. This
+**registers** its internal **blocks** with `register_core_blocks()`. You
+won’t have to call this function as it is not exported anyway. This
 makes the **registry** environment ready to be queried by
 [`available_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md).
 A truncated output example below:
@@ -72,7 +72,7 @@ attr(,"description")
 attr(,"classes")
 [1] "dataset_block" "data_block"    "block"         "vctrs_vctr"    "list"         
 attr(,"category")
-[1] "data"
+[1] "input"
 attr(,"ctor_name")
 [1] "new_dataset_block"
 attr(,"package")

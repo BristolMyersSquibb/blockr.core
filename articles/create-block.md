@@ -371,7 +371,7 @@ display the block output:
 
 ``` r
 block_output.transform_block <- function(x, result, session) {
-  session$output$result <- dt_result(result$dat, session)
+  dt_result(result, x, session)
 }
 ```
 
@@ -398,8 +398,7 @@ roxygen tag):
 #' @export
 block_output.complex_block <- function(x, result, session) {
   session$output$filters <- renderPrint(result$filters)
-  # result must come at the end of the output list if you have multiple outputs
-  session$output$result <- dt_result(result$dat, session)
+  dt_result(result$dat, x, session)
 }
 ```
 

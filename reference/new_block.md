@@ -100,8 +100,8 @@ Both `new_block()` and `as_block()` return an object inheriting from
 `block`, while `is_block()` returns a boolean indicating whether an
 object inherits from `block` or not. Block vectors, created using
 `blocks()`, `as_blocks()`, or by combining multiple blocks using
-[`base::c()`](https://rdrr.io/r/base/c.html) all inherit frm `blocks`
-and `iss_block()` returns a boolean indicating whether an object
+[`base::c()`](https://rdrr.io/r/base/c.html) all inherit from `blocks`
+and `is_blocks()` returns a boolean indicating whether an object
 inherits from `blocks` or not.
 
 ## Details

@@ -1,5 +1,33 @@
 # Changelog
 
+## blockr.core 0.1.2
+
+- Add
+  [`ctrl_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/ctrl_block.md)
+  plugin for external block control, allowing blocks to be driven
+  programmatically from outside the standard block UI.
+- Add
+  [`clear_board()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
+  for removing all blocks/stacks from a board.
+- Add
+  [`bbquote()`](https://bristolmyerssquibb.github.io/blockr.core/reference/bbquote.md)
+  and helpers (`.`, `..`) for cleaner code generation via
+  [`bquote()`](https://rdrr.io/r/base/bquote.html)-based quasiquotation.
+- Export
+  [`custom_plugins()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
+  and
+  [`custom_options()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
+  for easier board customization.
+- Add
+  [`block_metadata()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md)
+  for retrieving per-block metadata and attach block metadata with
+  defaults to block objects.
+- Export test utilities
+  ([`blockr_test_exports()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md),
+  [`new_mock_session()`](https://bristolmyerssquibb.github.io/blockr.core/reference/testing.md),
+  [`export_safely()`](https://bristolmyerssquibb.github.io/blockr.core/reference/testing.md))
+  for use in downstream package tests.
+
 ## blockr.core 0.1.1
 
 CRAN release: 2025-12-06

@@ -243,7 +243,7 @@ main_server <- function(id, board) {
   moduleServer(
     id,
     function(input, output, session) {
-      ns <- session$n
+      ns <- session$ns
 
       # Board module
       board_server(

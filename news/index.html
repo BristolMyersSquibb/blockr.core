@@ -47,6 +47,15 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.1.2" id="blockrcore-012">blockr.core 0.1.2<a class="anchor" aria-label="anchor" href="#blockrcore-012"></a></h2>
+<ul><li>Add <code><a href="../reference/ctrl_block.html">ctrl_block()</a></code> plugin for external block control, allowing blocks to be driven programmatically from outside the standard block UI.</li>
+<li>Add <code><a href="../reference/board_blocks.html">clear_board()</a></code> for removing all blocks/stacks from a board.</li>
+<li>Add <code><a href="../reference/bbquote.html">bbquote()</a></code> and helpers (<code>.</code>, <code>..</code>) for cleaner code generation via <code><a href="https://rdrr.io/r/base/bquote.html" class="external-link">bquote()</a></code>-based quasiquotation.</li>
+<li>Export <code><a href="../reference/serve.html">custom_plugins()</a></code> and <code><a href="../reference/serve.html">custom_options()</a></code> for easier board customization.</li>
+<li>Add <code><a href="../reference/block_name.html">block_metadata()</a></code> for retrieving per-block metadata and attach block metadata with defaults to block objects.</li>
+<li>Export test utilities (<code><a href="../reference/serve.html">blockr_test_exports()</a></code>, <code><a href="../reference/testing.html">new_mock_session()</a></code>, <code><a href="../reference/testing.html">export_safely()</a></code>) for use in downstream package tests.</li>
+</ul></div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.1" id="blockrcore-011">blockr.core 0.1.1<a class="anchor" aria-label="anchor" href="#blockrcore-011"></a></h2><p class="text-muted">CRAN release: 2025-12-06</p>
 <ul><li>Add Block-level notifications via (optional) <code>expr</code> server return value component <code>cond</code>.</li>
 <li>Export <code><a href="../reference/new_board_options.html">get_board_option_value()</a></code> to make available current option settings via <code>session$UserData</code>.</li>
