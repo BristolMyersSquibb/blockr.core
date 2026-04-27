@@ -137,6 +137,7 @@ destroy_observers <- function(ns_prefix, session = get_session()) {
 #'
 #' @return The namespaced id (invisibly).
 #'
+#' @keywords internal
 #' @export
 destroy_module <- function(id, what = c("inputs", "outputs", "observers"),
                            session = get_session()) {
@@ -269,6 +270,7 @@ notify <- function(..., envir = parent.frame(), action = NULL, duration = 5,
   type <- match.arg(type)
 
   msg <- glue_plur(..., envir = envir)
+  msg <- HTML(cli::ansi_html(msg))
 
   showNotification(
     msg,
