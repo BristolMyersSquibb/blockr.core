@@ -63,6 +63,7 @@ Config/testthat/edition: 3
 VignetteBuilder: quarto
 Collate:
     'block-class.R'
+    'block-eval.R'
     'block-registry.R'
     'block-server.R'
     'block-ui.R'
