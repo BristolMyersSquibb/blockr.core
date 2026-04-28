@@ -716,8 +716,11 @@ block_metadata <- function(x) {
     list2DF(res)
   }
 
-  do.call(
-    rbind,
-    lapply(lapply(as_blocks(x), get_one), coal, list())
-  )
+  rows <- lapply(as_blocks(x), get_one)
+
+  if (!length(rows)) {
+    return(get_one(structure(list(), class = "block"))[0L, , drop = FALSE])
+  }
+
+  do.call(rbind, lapply(rows, coal, list()))
 }
