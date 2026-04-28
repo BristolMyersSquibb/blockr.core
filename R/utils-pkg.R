@@ -1,6 +1,10 @@
 #' @import vctrs shiny
 #' @keywords internal
 #' @importFrom cli qty
+#' @importFrom datasets iris
+#' @importFrom grDevices col2rgb
+#' @importFrom graphics plot
+#' @importFrom methods is
 NULL
 
 #' @param env An environment that is resolved to a package name
