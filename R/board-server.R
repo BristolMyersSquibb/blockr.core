@@ -36,6 +36,10 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
                                ...) {
 
   reload_meta <- finalize_reload("reload")
+  log_info(
+    "[RELOAD-DEBUG] board_server.board init | ",
+    "reload_meta_url: {coal(reload_meta$url, '(null)')}"
+  )
 
   plugins <- as_plugins(plugins)
 
@@ -296,23 +300,45 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
         reload_pending <- reactiveVal(NULL)
 
-        observeEvent(board_refresh(), reload_pending(Sys.time()))
+        observeEvent(board_refresh(), {
+          log_info(
+            "[RELOAD-DEBUG] board_refresh fired | ",
+            "session: {substr(session$token, 1, 8)}"
+          )
+          reload_pending(Sys.time())
+        })
 
         observe({
 
           pending <- reload_pending()
           req(pending)
 
+          age <- round(difftime(Sys.time(), pending, units = "secs"), 1)
+
+          log_info(
+            "[RELOAD-DEBUG] reload observe | ",
+            "session: {substr(session$token, 1, 8)} | ",
+            "is_reloading: {is_reloading('reload')} | ",
+            "pending_age: {age}s"
+          )
+
           if (is_reloading("reload")) {
 
             if (difftime(Sys.time(), pending, units = "secs") >= 60) {
-              log_warn("stale reload state, clearing")
+              log_warn(
+                "[RELOAD-DEBUG] stale reload (60s), closing | ",
+                "session: {substr(session$token, 1, 8)}"
+              )
               finalize_reload("reload")
               reload_pending(NULL)
               session$close()
               return()
             }
 
+            log_info(
+              "[RELOAD-DEBUG] waiting, reload in progress | ",
+              "session: {substr(session$token, 1, 8)}"
+            )
             notify(
               "Reload in progress.",
               duration = NULL,
@@ -335,10 +361,13 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
             meta <- val$meta
           }
 
-          log_debug("refreshing board")
+          log_info(
+            "[RELOAD-DEBUG] >>> session$reload() | ",
+            "session: {substr(session$token, 1, 8)} | ",
+            "meta_url: {coal(meta$url, '(null)')}"
+          )
           update_serve_obj("reload", board, meta = meta)
 
-          log_debug("reloading session")
           session$reload()
         })
       }
