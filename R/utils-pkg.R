@@ -1,11 +1,14 @@
 #' @import vctrs shiny
 #' @keywords internal
 #' @importFrom cli qty
-#' @importFrom datasets iris
 #' @importFrom grDevices col2rgb
 #' @importFrom graphics plot
 #' @importFrom methods is
 NULL
+
+# `datasets` has no function exports (only lazy data), so @importFrom
+# can't anchor it; reference `iris` here to silence the unused-Imports NOTE.
+ignore_unused_imports <- function() datasets::iris
 
 #' @param env An environment that is resolved to a package name
 #' @rdname set_names
