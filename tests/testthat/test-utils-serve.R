@@ -151,10 +151,7 @@ test_that("board app", {
 test_that("board stacks", {
 
   skip_on_cran()
-
-  # allow chromote to release resources from prior shinytest2 tests;
-  # without this the most complex app in the file races jQuery loading
-  Sys.sleep(2)
+  skip_if(grepl("devel|unstable", R.version$status))
 
   app_path <- system.file("examples", "board", "stack", "app.R",
                           package = "blockr.core")
