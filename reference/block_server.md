@@ -14,6 +14,12 @@ context of input data), respectively.
 ## Usage
 
 ``` r
+block_eval(x, expr, env, ...)
+
+eval_env(data)
+
+block_eval_trigger(x, session = get_session())
+
 block_server(id, x, data = list(), ...)
 
 # S3 method for class 'block'
@@ -31,33 +37,39 @@ block_server(
 
 expr_server(x, data, ...)
 
-block_eval(x, expr, env, ...)
-
-eval_env(data)
-
-block_eval_trigger(x, session = get_session())
-
 block_render_trigger(x, session = get_session())
 ```
 
 ## Arguments
-
-- id:
-
-  Namespace ID
 
 - x:
 
   Object for which to generate a
   [`shiny::moduleServer()`](https://rdrr.io/pkg/shiny/man/moduleServer.html)
 
-- data:
+- expr:
 
-  Input data (list of reactives)
+  Quoted expression to evaluate in the context of `data`
+
+- env:
+
+  Environment in which to evaluate `expr`
 
 - ...:
 
   Generic consistency
+
+- data:
+
+  Input data (list of reactives)
+
+- session:
+
+  Shiny session object
+
+- id:
+
+  Namespace ID
 
 - block_id:
 
@@ -74,18 +86,6 @@ block_render_trigger(x, session = get_session())
 - update:
 
   Reactive value object to initiate board updates
-
-- expr:
-
-  Quoted expression to evaluate in the context of `data`
-
-- env:
-
-  Environment in which to evaluate `expr`
-
-- session:
-
-  Shiny session object
 
 ## Value
 
