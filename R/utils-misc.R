@@ -28,7 +28,10 @@ include_mermaid <- function(name,
       sprintf('{"args":[%s]}', paste0('"', chromium_args, '"', collapse = ",")),
       cfg
     )
-    system2("mmdc", c("-i", mmd, "-o", svg, "--puppeteerConfigFile", cfg, "--quiet"))
+    system2(
+      "mmdc",
+      c("-i", mmd, "-o", svg, "--puppeteerConfigFile", cfg, "--quiet")
+    )
   }
 
   knitr::include_graphics(svg)
