@@ -12,3 +12,4 @@ _\.new\.png$
 ^vignettes/\.quarto$
 ^doc$
 ^Meta$
+^.calude$
