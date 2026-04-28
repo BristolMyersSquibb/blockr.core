@@ -151,7 +151,6 @@ test_that("board app", {
 test_that("board stacks", {
 
   skip_on_cran()
-  skip_if(grepl("devel|unstable", R.version$status))
 
   app_path <- system.file("examples", "board", "stack", "app.R",
                           package = "blockr.core")
