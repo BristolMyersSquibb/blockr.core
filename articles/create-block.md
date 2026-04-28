@@ -7,11 +7,11 @@ library(blockr.core)
 ## Creating blocks
 
 **Note:** If you are not already familiar with [Shiny
-modules](https://shiny.posit.co/r/articles/improve/modules/), it is
+modules](https://mastering-shiny.org/scaling-modules.html), it is
 recommended you familiarize yourself with them before continuing with
 this section.
 
-`blockr.core` is built on top of Shiny. At it’s heart, a **block** is
+`blockr.core` is built on top of Shiny. At its heart, a **block** is
 nothing more than a specialized Shiny **module** that returns two
 additional values:
 
