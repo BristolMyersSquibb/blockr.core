@@ -1,5 +1,7 @@
 # blockr.core 0.1.2
 
+* A blockr option `attach_default_packages` can be set to opt into evaluating
+  block expressions with objects from default packages directly available.
 * Add `ctrl_block()` plugin for external block control, allowing blocks to be
   driven programmatically from outside the standard block UI.
 * Add `clear_board()` for removing all blocks/stacks from a board.
