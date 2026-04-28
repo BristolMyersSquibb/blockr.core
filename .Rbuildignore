@@ -13,3 +13,4 @@ _\.new\.png$
 ^doc$
 ^Meta$
 ^.calude$
+^vignettes/mermaid/.*\.mmd$

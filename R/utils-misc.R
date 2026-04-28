@@ -1,3 +1,34 @@
+#' Include a pre-rendered mermaid diagram
+#'
+#' Renders mermaid `.mmd` source to `.svg` when the source is newer than the
+#' existing SVG and `mmdc` is available, then includes the SVG via
+#' [knitr::include_graphics()]. The `MMDC_PUPPETEER_CONFIG` environment
+#' variable can point to a puppeteer config file passed to `mmdc`.
+#'
+#' @param name Diagram name (without extension), resolved relative to a
+#'   `mermaid/` directory alongside the calling document.
+#'
+#' @keywords internal
+#'
+#' @export
+include_mermaid <- function(name) {
+
+  mmd <- file.path("mermaid", paste0(name, ".mmd"))
+  svg <- file.path("mermaid", paste0(name, ".svg"))
+
+  needs_render <- !file.exists(svg) ||
+    (file.exists(mmd) && file.mtime(mmd) > file.mtime(svg))
+
+  if (needs_render && nzchar(Sys.which("mmdc"))) {
+    args <- c("-i", mmd, "-o", svg, "--quiet")
+    cfg <- Sys.getenv("MMDC_PUPPETEER_CONFIG")
+    if (nzchar(cfg)) args <- c(args, "--puppeteerConfigFile", cfg)
+    system2("mmdc", args)
+  }
+
+  knitr::include_graphics(svg)
+}
+
 #' Random IDs
 #'
 #' Randomly generated unique IDs are used throughout the package, created by
