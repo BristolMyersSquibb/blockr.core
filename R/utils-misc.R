@@ -1,3 +1,42 @@
+#' Include a pre-rendered mermaid diagram
+#'
+#' Renders mermaid `.mmd` source to `.svg` when the source is newer than the
+#' existing SVG and `mmdc` is available, then includes the SVG via
+#' [knitr::include_graphics()].
+#'
+#' @param name Diagram name (without extension), resolved relative to a
+#'   `mermaid/` directory alongside the calling document.
+#' @param chromium_args Character vector of extra Chromium flags passed to
+#'   `mmdc` via a temporary puppeteer config file.
+#'
+#' @keywords internal
+#'
+#' @export
+include_mermaid <- function(name,
+                            chromium_args = c("--no-sandbox")) {
+
+  mmd <- file.path("mermaid", paste0(name, ".mmd"))
+  svg <- file.path("mermaid", paste0(name, ".svg"))
+
+  needs_render <- !file.exists(svg) ||
+    (file.exists(mmd) && file.mtime(mmd) > file.mtime(svg))
+
+  if (needs_render && nzchar(Sys.which("mmdc"))) {
+    cfg <- tempfile(fileext = ".json")
+    on.exit(unlink(cfg))
+    writeLines(
+      sprintf('{"args":[%s]}', paste0('"', chromium_args, '"', collapse = ",")),
+      cfg
+    )
+    system2(
+      "mmdc",
+      c("-i", mmd, "-o", svg, "--puppeteerConfigFile", cfg, "--quiet")
+    )
+  }
+
+  knitr::include_graphics(svg)
+}
+
 #' Random IDs
 #'
 #' Randomly generated unique IDs are used throughout the package, created by

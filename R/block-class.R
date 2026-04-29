@@ -152,7 +152,8 @@
 #' `block`, while `is_block()` returns a boolean indicating whether an object
 #' inherits from `block` or not. Block vectors, created using `blocks()`,
 #' `as_blocks()`, or by combining multiple blocks using [base::c()] all inherit
-#' frm `blocks` and `iss_block()` returns a boolean indicating whether an object
+#' from `blocks` and `is_blocks()` returns a boolean indicating whether an
+#' object
 #' inherits from `blocks` or not.
 #'
 #' @export
@@ -289,7 +290,7 @@ validate_block_server <- function(server) {
 
   if (any(grepl("^[1-9][0-9]*$", args))) {
     blockr_abort(
-      "Integer-valued argument names are reserved as poistional arguments ",
+      "Integer-valued argument names are reserved as positional arguments",
       "in `...args.`",
       class = "block_server_args_invalid"
     )
@@ -323,7 +324,7 @@ validate_data_validator <- function(validator, server) {
 
   if (!length(server_args) && not_null(validator)) {
     blockr_abort(
-      "A nullary server function cannot accopmany a data input validator.",
+      "A nullary server function cannot accompany a data input validator.",
       class = "block_validator_nullary_invalid"
     )
   }
@@ -715,8 +716,9 @@ block_metadata <- function(x) {
     list2DF(res)
   }
 
-  do.call(
-    rbind,
-    lapply(lapply(as_blocks(x), get_one), coal, list())
-  )
+  if (length(x)) {
+    do.call(rbind, lapply(as_blocks(x), get_one))
+  } else {
+    get_one(structure(list(), class = "block"))[0L, , drop = FALSE]
+  }
 }

@@ -76,158 +76,57 @@ blk_choices <- function() {
 
 ## Introduction
 
-In the `Create block` [vignette](https://bristolmyerssquibb.github.io/blockr.core/articles/create-block.html),
-you were taught how to design new blocks for blockr. Did you know that we could go much further?
+`blockr` can be extended in 3 main ways. The first way is to create new blocks, as described in the `Create block` [vignette](https://bristolmyerssquibb.github.io/blockr.core/articles/create-block.html). The second way is to change the behavior at __board__ level through the __plugin__ system. Finally we can customize the UI library, as we will in the last section.
 
-Each major `blockr.core` feature belongs to its own __plugin__, materialized as a shiny module:
+## Plugins
 
-- Manage blocks (create/remove, append, ...)
-- Manage __links__, that is how blocks are connected. Linking block A to block B means that block A passes its output
-data to block B.
-- Manage __stacks__ (group blocks together).
-- Preserve the __board__ state: save and restore the application state.
-- ...
+Most major features of a __board__ are implemented through what we call __plugins__. A board of a given class, such as `"board"` (the basic legacy board) or `"dock_board"` (the board used by `blockr::run_app()`) supports a given set of __plugins__, implemented using shiny modules. Users can override the ui and server functions of these modules from the outside if they wish to tweak the display and logic of these features, as we'll show further below.
 
-All of the above is fully customizable by yourself, `blockr.core` only provides reasonable defaults to get you started.
-`blockr.ui` is an example of full customization.
+### Available plugins
 
-```{mermaid}
-flowchart TD
-  subgraph board[board]
-    subgraph plugins[plugins]
-      subgraph manage_blocks[Manage blocks]
-      end
-      subgraph manage_links[Manage links]
-      end
-      subgraph manage_stacks[Manage stacks]
-      end
-      subgraph preserve_board[Preserve board]
-      end
-      subgraph generate_code[Generate code]
-      end
-      subgraph notify_user[Notify user]
-      end
-      subgraph edit_block[Edit block]
-      end
-      subgraph edit_stack[Edit stack]
-      end
-    end
-  end
-```
+The legacy board supports the following plugins :
 
-## blockr plugins
+- `manage_blocks()`: Implements the way __blocks__ are created, removed, appened...
+- `manage_links()`: Implements how __blocks__ are connected. Linking __block__ A to __block__ B means that __block__ A passes its output data to __block__ B.
+- `manage_stacks()`: Implements how __blocks__ can be grouped using __stacks__.
+- `preserve_board()`: Implements how __boards__ can be saved and restored.
+- `generate_code()`: Implements the way the data manipulation code executed by the __blocks__ is displayed to the user.
+- `notify_user()`: Implements how notifications and warnings are relayed to the user.
+- `edit_block()`: Implements how a block attributes such as titles are processed and rendered.
+- `edit_stack()`: Implements how a stack attributes such as names are processed and rendered.
 
-### Background
+### Override a plugin's server and ui functions
 
-__plugins__ are used to customize/enhance UX aspects of the __board__ module, that is the top level module exposed by `blockr.core`.
-As stated above, there are a couple of plugins already available in the core, such that when you want to create a custom blockr app,
-you can do this on the UI side:
+We will work from an example, we want to modify the `manage_blocks()` plugin to use the `scoutbaR` package to search for blocks to add.
 
-```{r, eval=FALSE}
-main_ui <- function(id, board) {
-  ns <- NS(id)
-  board_ui(
-    ns("board"),
-    board,
-    plugins = board_plugins(
-      board,
-      c(
-        "preserve_board",
-        "manage_blocks",
-        "manage_links",
-        "manage_stacks",
-        "generate_code",
-        "notify_user"
-      )
+By default `manage_blocks()` uses `manage_blocks_ui()` and `manage_blocks_server()`, a good workflow is to start from those and implement our modifications.
+
+```r
+# manage_blocks_ui
+function(id, board) {
+  tagList(
+    actionButton(
+      NS(id, "add_block"),
+      "Add block",
+      icon = icon("circle-plus"),
+      class = "btn-success"
+    ),
+    actionButton(
+      NS(id, "rm_block"),
+      "Remove block",
+      icon = icon("circle-minus"),
+      class = "btn-danger"
     )
   )
 }
 ```
 
-`board_ui()` expects the namespace of the module, a __board__ object which you can create with `new_board`. The board is, in general, passed
-when you call `serve` on the board object such that you can start an app with predefined blocks, links and stacks.
-where `board_plugins()` expect a vector of plugin names. It is important to state that at the moment, you can only overwrite existing plugins
-but not create new ones. On the server side, you call `board_server()`, the server counter part of `board_ui()` which expects a namespace, the board object
-and a subset (or all) of plugins. `callbacks` are to inject code directly into the board server function, as opposed to plugins which are nested submodules.
-`parent` is used to __communicate__ application state between all parts of the application in a standardized way.
+For simplicity let's assume we also want to drop the "Remove block" button, our new ui becomes: 
 
-```{r, eval=FALSE}
-main_server <- function(id, board) {
-  moduleServer(
-    id,
-    function(input, output, session) {
-      ns <- session$n
-
-      app_state <- reactiveValues(
-        # App state for module communication
-      )
-
-      # Board module
-      board_server(
-        "board",
-        board,
-        plugins = board_plugins(
-          board,
-          c(
-            "preserve_board",
-            "manage_blocks",
-            "manage_links",
-            "manage_stacks",
-            "generate_code",
-            "notify_user"
-          )
-        ),
-        callbacks = list(),
-        parent = app_state
-      )
-    }
-  )
-}
-```
-
-Looking at the `board_plugins.board()` function:
-
-```{r, eval=FALSE}
-board_plugins.board <- function(x, which = NULL) {
-
-  plugins <- plugins(
-    preserve_board(),
-    manage_blocks(),
-    manage_links(),
-    manage_stacks(),
-    notify_user(),
-    generate_code(),
-    edit_block(),
-    edit_stack()
-  )
-
-  if (is.null(which)) {
-    return(plugins)
-  }
-
-  plugins[which]
-}
-```
-
-Each plugin is composed of a __server__ and __ui__ part, since they are modules. For instance, the `manage_blocks` plugin is defined as:
-
-```{r, eval=FALSE}
-manage_blocks <- function(server, ui) {
-  new_plugin(server, ui, validator = expect_null, class = "manage_blocks")
-}
-```
-
-In the following, we want to create a custom `manage_blocks` plugin that uses the `scoutbaR` package, described in [vignette](https://bristolmyerssquibb.github.io/blockr.core/articles/blocks-registry.html)
-
-### A custom manage_blocks
-
-To create our custom manage blocks, we'll first need to overwrite the `add_rm_block_server` and `add_rm_block_ui` functions. 
-For sake of simplicity, on the UI side, we provide a `Add` block button as well as as scoutbar widget (`blk_choices()` is described in the following [vignette](https://bristolmyerssquibb.github.io/blockr.core/articles/blocks-registry.html)):
-
-```{r custom-plugin-ui, eval=FALSE}
-add_rm_block_ui <- function(id, board) {
+```r
+new_manage_blocks_ui <- function(id, board) {
   tagList(
-    scoutbar(
+    scoutbaR::scoutbar(
       NS(id, "scoutbar"),
       placeholder = "Search for a block",
       actions = blk_choices(),
@@ -243,68 +142,69 @@ add_rm_block_ui <- function(id, board) {
 }
 ```
 
-On the server part, a plugin is always defined as follows (documentation has been left for reference):
+`blk_choices()` is a list of scoutbar actions, the details are not relevant here but the definition is provided below for information.
 
-```{r, eval=FALSE}
-#' Add/remove block module
-#'
-#' Customizable logic for adding/removing blocks to the board.
-#'
-#' @param id Namespace ID
-#' @param board Reactive values object
-#' @param update Reactive value object to initiate board updates
-#' @param ... Extra arguments passed from parent scope
-#'
-#' @return A [shiny::reactiveValues()] object with components `add` and `rm`,
-#' where `add` may be `NULL` or a `block` object and `rm` be `NULL` or a string
-#' (block ID).
-#'
-#' @rdname add_rm_block
-#' @export
-add_rm_block_server <- function(id, board, update, ...) {
-  moduleServer(
-    id,
-    function(input, output, session) {
-      # SERVER LOGIC
+<details>
 
-      NULL
-    }
+```r
+blk_choices <- function() {
+  blk_cats <- sort(
+    unique(chr_ply(available_blocks(), \(b) attr(b, "category")))
   )
-}
-```
 
-The server function __signature__ must start with the module id, `board` refers to internal reactive values (read-only), `update` is a reactive value
-to send updates to the board module and `...` is used to recover parameters passed from the top level like `parent`. The plugin always returns `NULL`.
-
-We now want to open the `scoutbaR` widget whenever the users clicks on the `Add block` button. We can achieve that by calling `update_scoutbar` passing `revealScoutbar = TRUE`.
-
-```{r, eval=FALSE}
-add_rm_block_server <- function(id, board, update, ...) {
-  moduleServer(
-    id,
-    function(input, output, session) {
-      # Trigger add block
-      observeEvent(
-        input$add_block,
-        {
-          update_scoutbar(
-            session,
-            "scoutbar",
-            revealScoutbar = TRUE
-          )
-        }
+  lapply(blk_cats, \(cat) {
+    scout_section(
+      label = cat,
+      .list = dropNulls(
+        unname(
+          lapply(available_blocks(), \(choice) {
+            if (attr(choice, "category") == cat) {
+              scout_action(
+                id = attr(choice, "classes")[1],
+                label = attr(choice, "name"),
+                description = attr(choice, "description"),
+                icon = blk_icon(cat)
+              )
+            }
+          })
+        )
       )
+    )
+  })
+}
 
-      NULL
-    }
+blk_icon <- function(category) {
+  switch(
+    category,
+    "data" = "table",
+    "file" = "file-import",
+    "parse" = "cogs",
+    "plot" = "chart-line",
+    "transform" = "wand-magic-sparkles",
+    "table" = "table"
   )
 }
-```
 
-Next step is to manage the user choice, that is when a scoutbar action is selected. We listen to `input$scoutbar` which holds the name of the selected block. Since it is a string, we call `create_block()`, which instantiates a block from its name, and wrap it by `as_blocks()`. Finally, we signal this change to the board by refreshing the `update` reactive value, saying we want to add a new block `list(blocks = list(add = new_blk))`:
+chr_ply <- function(x, fun, ..., length = 1L, use_names = FALSE) {
+  vapply(x, fun, character(length), ..., USE.NAMES = use_names)
+}
+
+lgl_ply <- function(x, fun, ..., length = 1L, use_names = FALSE) {
+  vapply(x, fun, logical(length), ..., USE.NAMES = use_names)
+}
+
+dropNulls <- function(x) {
+  x[!lgl_ply(x, is.null)]
+}
+```
+</details>
+
+In the same fashion we override the server function to handle the new logic.
+
+We end up with the following server function, see additional explanations below.
 
 ```{r custom-plugin-server, eval=FALSE}
-add_rm_block_server <- function(id, board, update, ...) {
+new_manage_blocks_server <- function(id, board, update, ...) {
   moduleServer(
     id,
     function(input, output, session) {
@@ -333,27 +233,16 @@ add_rm_block_server <- function(id, board, update, ...) {
 }
 ```
 
-### Register plugins
+The server function's __signature__ must start with the module id, `board` refers to internal reactive values (read-only), `update` is a reactive value
+to send updates to the board module and `...` is used to recover parameters passed from the top level like `parent`. The plugin always returns `NULL`.
 
-To register our new plugin, we can defined a custom `board_plugins()` function that calls our own plugin for `manage_blocks()`. For sake of simplicity, all other plugins are omitted:
+In the first observer we open the `scoutbaR` widget whenever the users clicks on the `Add block` button. We can achieve that by calling `update_scoutbar` passing `revealScoutbar = TRUE`.
 
-```{r custom-plugin-helpers, eval=FALSE}
-custom_board_plugins <- function(which = NULL) {
-  plugins <- plugins(
-    manage_blocks(server = add_rm_block_server, ui = add_rm_block_ui)
-  )
+In the second observer we listen to `input$scoutbar` which holds the name of the selected block, and use to create a "blocks" object with `create_block()` and `as_blocks()`. Finally, we signal this change to the board by refreshing the `update` reactive value, saying we want to add a new block `list(blocks = list(add = new_blk))`.
 
-  if (is.null(which)) {
-    return(plugins)
-  }
+### Putting everything together
 
-  plugins[which]
-}
-```
-
-### Testing the new plugin
-
-In the below example, you may click on the `Add block` button and see the scoutbar opening and then select a block.
+Once we have updated ui and server functions we can use the updated plugin by defining new main ui and server functions around them.
 
 ```{r custom-plugin-app, eval=FALSE}
 #| code-fold: true
@@ -374,16 +263,14 @@ main_server <- function(id, board) {
   moduleServer(
     id,
     function(input, output, session) {
-      ns <- session$n
+      ns <- session$ns
 
       # Board module
       board_server(
         "board",
         board,
-        plugins = custom_board_plugins(
-          c(
-            "manage_blocks"
-          )
+        plugins = plugins(
+          manage_blocks(server = new_manage_blocks_server, ui = new_manage_blocks_ui)
         ),
         callbacks = list()
       )
@@ -634,7 +521,3 @@ shiny::tags$iframe(
   height = "1100px"
 )
 ```
-
-## Customize board options
-
-TBD

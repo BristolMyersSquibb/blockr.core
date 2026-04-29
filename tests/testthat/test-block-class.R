@@ -232,4 +232,14 @@ test_that("block metadata", {
     c("id", "name", "description", "category", "icon", "arguments", "package")
   )
   expect_identical(rownames(meta3), c("a", "b"))
+
+  meta4 <- block_metadata(blocks())
+
+  expect_s3_class(meta4, "data.frame")
+  expect_identical(nrow(meta4), 0L)
+  expect_identical(ncol(meta4), 7L)
+  expect_named(
+    meta4,
+    c("id", "name", "description", "category", "icon", "arguments", "package")
+  )
 })

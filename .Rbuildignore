@@ -12,3 +12,5 @@ _\.new\.png$
 ^vignettes/\.quarto$
 ^doc$
 ^Meta$
+^.calude$
+^vignettes/mermaid/.*\.mmd$

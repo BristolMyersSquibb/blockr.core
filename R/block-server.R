@@ -224,37 +224,6 @@ expr_server.block <- function(x, data, ...) {
   do.call(block_expr_server(x), c(list(id = "expr"), data))
 }
 
-#' @param expr Quoted expression to evaluate in the context of `data`
-#' @param env Environment in which to evaluate `expr`
-#' @rdname block_server
-#' @export
-block_eval <- function(x, expr, env, ...) {
-  UseMethod("block_eval")
-}
-
-#' @export
-block_eval.block <- function(x, expr, env, ...) {
-  eval(expr, env)
-}
-
-#' @rdname block_server
-#' @export
-eval_env <- function(data) {
-  list2env(data, parent = baseenv())
-}
-
-#' @param session Shiny session object
-#' @rdname block_server
-#' @export
-block_eval_trigger <- function(x, session = get_session()) {
-  UseMethod("block_eval_trigger", x)
-}
-
-#' @export
-block_eval_trigger.block <- function(x, session = get_session()) {
-  NULL
-}
-
 reorder_dots_observer <- function(data, sess) {
 
   if ("...args" %in% names(data)) {
