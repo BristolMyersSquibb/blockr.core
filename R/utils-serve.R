@@ -204,7 +204,30 @@ serve_board_ui <- function(id, plugins, options, ...) {
 
   args <- list(...)
 
-  function() {
+  function(req) {
+
+    log_info(
+      "[RELOAD-DEBUG] serve_board_ui | is_reloading: {is_reloading('reload')}"
+    )
+
+    # Preload: load the board from the URL before building the UI.
+    # This avoids session$reload() which kills the process on Connect.
+    if (!is_reloading("reload")) {
+      preload <- blockr_option("preload_board", NULL)
+      if (is.function(preload) && nzchar(req$QUERY_STRING %||% "")) {
+        query <- parseQueryString(req$QUERY_STRING)
+        loaded <- tryCatch(preload(query), error = function(e) {
+          log_warn("[RELOAD-DEBUG] preload failed: {conditionMessage(e)}")
+          NULL
+        })
+        if (not_null(loaded) && is_board(loaded$board)) {
+          log_info("[RELOAD-DEBUG] preload OK, writing to serve_obj")
+          update_serve_obj("preload", loaded$board, meta = loaded$meta)
+        } else {
+          log_info("[RELOAD-DEBUG] preload returned NULL")
+        }
+      }
+    }
 
     x <- get_serve_obj("reload")
     id <- coal(attr(x, "id"), id)

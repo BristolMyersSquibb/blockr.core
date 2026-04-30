@@ -52,7 +52,8 @@ block_server <- function(id, x, data = list(), ...) {
 block_server.block <- function(id, x, data = list(), block_id = id,
                                edit_block = NULL, ctrl_block = NULL,
                                board = reactiveValues(),
-                               update = reactiveVal(), ...) {
+                               update = reactiveVal(),
+                               needed = NULL, ...) {
 
   dot_args <- list(...)
 
@@ -151,9 +152,25 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         cb_res <- TRUE
       }
 
-      data_eval_observer(block_id, x, dat_eval, cb_res, res, state, lang, rv,
-                         cond, session)
-      output_render_observer(x, res, cond, session)
+      start_suspended <- !is.null(needed)
+
+      eval_obs <- data_eval_observer(block_id, x, dat_eval, cb_res, res,
+                                     state, lang, rv, cond, session,
+                                     suspended = start_suspended)
+      render_obs <- output_render_observer(x, res, cond, session,
+                                           suspended = start_suspended)
+
+      if (!is.null(needed)) {
+        observe({
+          if (isTRUE(needed())) {
+            eval_obs$resume()
+            render_obs$resume()
+          } else {
+            eval_obs$suspend()
+            render_obs$suspend()
+          }
+        })
+      }
 
       eb_res <- call_plugin_server(
         edit_block,
@@ -317,7 +334,7 @@ state_check_observer <- function(id, x, dat, res, state, rv, cond, sess) {
 }
 
 data_eval_observer <- function(id, x, dat, gate, res, state, lang, rv, cond,
-                               sess) {
+                               sess, suspended = FALSE) {
 
   observeEvent(
     req(reval_if(gate), dat()),
@@ -333,7 +350,8 @@ data_eval_observer <- function(id, x, dat, gate, res, state, lang, rv, cond,
 
       res(out)
     },
-    domain = sess
+    domain = sess,
+    suspended = suspended
   )
 }
 
@@ -364,7 +382,7 @@ block_render_trigger.block <- function(x, session = get_session()) {
   NULL
 }
 
-output_render_observer <- function(x, res, cond, sess) {
+output_render_observer <- function(x, res, cond, sess, suspended = FALSE) {
 
   observeEvent(
     {
