@@ -1,3 +1,2 @@
 format:
-  html:
-    mermaid-format: svg
+  html: default

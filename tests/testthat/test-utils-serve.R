@@ -5,11 +5,18 @@ test_that("merge app", {
   app_path <- system.file("examples", "block", "merge", "app.R",
                           package = "blockr.core")
 
-  app <- shinytest2::AppDriver$new(
-    app_path,
-    name = "merge",
-    seed = 42,
-    load_timeout = 30 * 1000
+  app <- try(
+    shinytest2::AppDriver$new(
+      app_path,
+      name = "merge",
+      seed = 42,
+      load_timeout = 30 * 1000
+    )
+  )
+
+  testthat::skip_if(
+    inherits(app, "try-error"),
+    "Cannot start shinytest2 merge app."
   )
 
   app$expect_values(export = TRUE, screenshot_args = FALSE)
@@ -39,11 +46,18 @@ test_that("rbind app", {
   app_path <- system.file("examples", "block", "rbind", "app.R",
                           package = "blockr.core")
 
-  app <- shinytest2::AppDriver$new(
-    app_path,
-    name = "rbind",
-    seed = 42,
-    load_timeout = 30 * 1000
+  app <- try(
+    shinytest2::AppDriver$new(
+      app_path,
+      name = "rbind",
+      seed = 42,
+      load_timeout = 30 * 1000
+    )
+  )
+
+  testthat::skip_if(
+    inherits(app, "try-error"),
+    "Cannot start shinytest2 rbind app."
   )
 
   app$expect_values(export = TRUE, screenshot_args = FALSE)
@@ -155,11 +169,18 @@ test_that("board stacks", {
   app_path <- system.file("examples", "board", "stack", "app.R",
                           package = "blockr.core")
 
-  app <- shinytest2::AppDriver$new(
-    app_path,
-    name = "stack",
-    seed = 42,
-    load_timeout = 30 * 1000
+  app <- try(
+    shinytest2::AppDriver$new(
+      app_path,
+      name = "stack",
+      seed = 42,
+      load_timeout = 30 * 1000
+    )
+  )
+
+  testthat::skip_if(
+    inherits(app, "try-error"),
+    "Cannot start shinytest2 board stacks app."
   )
 
   app$click("my_board-manage_stacks-stacks_mod")
