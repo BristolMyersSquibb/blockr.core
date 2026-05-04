@@ -23,7 +23,8 @@ new_head_block <- function(n = 6L, direction = c("head", "tail"), ...) {
           til <- reactiveVal(isTRUE(direction == "tail"))
 
           observeEvent(input$n, nrw(input$n), label = otel_lbl("update_n"))
-          observeEvent(input$tail, til(input$tail), label = otel_lbl("update_tail"))
+          observeEvent(input$tail, til(input$tail),
+                       label = otel_lbl("update_tail"))
 
           observeEvent(
             nrow(data()),
