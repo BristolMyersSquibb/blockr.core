@@ -70,5 +70,13 @@ pkg_avail <- function(...) {
 #' @rdname otel_lbl
 #' @export
 otel_lbl <- function(name, env = parent.frame()) {
+
+  if (!is_string(name) || is.na(name) || !nzchar(name)) {
+    blockr_abort(
+      "`name` must be a non-empty string.",
+      class = "otel_lbl_name_invalid"
+    )
+  }
+
   paste0("<", pkg_name(env), ">", name)
 }
