@@ -39,7 +39,8 @@ manage_blocks_server <- function(id, board, update, ...) {
 
       observeEvent(
         input$add_block,
-        showModal(add_block_modal(session$ns))
+        showModal(add_block_modal(session$ns)),
+        label = otel_lbl("show_add_block_modal")
       )
 
       observeEvent(
@@ -60,17 +61,20 @@ manage_blocks_server <- function(id, board, update, ...) {
           )
 
           removeModal()
-        }
+        },
+        label = otel_lbl("confirm_add_block")
       )
 
       observeEvent(
         input$cancel_add,
-        removeModal()
+        removeModal(),
+        label = otel_lbl("cancel_add_block")
       )
 
       observeEvent(
         input$rm_block,
-        rm_block_modal(session$ns, board$board)
+        rm_block_modal(session$ns, board$board),
+        label = otel_lbl("show_rm_block_modal")
       )
 
       observeEvent(
@@ -105,12 +109,14 @@ manage_blocks_server <- function(id, board, update, ...) {
           )
 
           removeModal()
-        }
+        },
+        label = otel_lbl("confirm_rm_block")
       )
 
       observeEvent(
         input$cancel_rm,
-        removeModal()
+        removeModal(),
+        label = otel_lbl("cancel_rm_block")
       )
 
       NULL

@@ -62,7 +62,8 @@ preserve_board_server <- function(id, board, ...) {
               list(session = session)
             )
           )
-        }
+        },
+        label = otel_lbl("restore_board")
       )
 
       res
@@ -201,7 +202,8 @@ check_ser_deser_val <- function(val) {
         )
       }
     },
-    once = TRUE
+    once = TRUE,
+    label = otel_lbl("check_ser_deser_return_type")
   )
 
   observeEvent(
@@ -220,7 +222,8 @@ check_ser_deser_val <- function(val) {
 
       validate_board(board)
     },
-    once = TRUE
+    once = TRUE,
+    label = otel_lbl("check_ser_deser_board_type")
   )
 
   val

@@ -53,7 +53,8 @@ generate_code_server <- function(id, board, ...) {
             footer = NULL,
             size = "l"
           )
-        )
+        ),
+        label = otel_lbl("show_code_modal")
       )
 
       NULL

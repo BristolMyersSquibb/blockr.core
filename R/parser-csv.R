@@ -16,8 +16,10 @@ new_csv_block <- function(sep = ",", quote = "\"", ...) {
           sp <- reactiveVal(sep)
           qo <- reactiveVal(quote)
 
-          observeEvent(input$sep, sp(input$sep))
-          observeEvent(input$quote, qo(input$quote))
+          observeEvent(input$sep, sp(input$sep),
+                       label = otel_lbl("update_sep"))
+          observeEvent(input$quote, qo(input$quote),
+                       label = otel_lbl("update_quote"))
 
           list(
             expr = reactive(

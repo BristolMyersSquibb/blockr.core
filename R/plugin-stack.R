@@ -47,7 +47,8 @@ edit_stack_server <- function(id, stack_id, board, update, ...) {
           "stack_name_in",
           "Stack name",
           cur_name()
-        )
+        ),
+        label = otel_lbl("sync_stack_name_input")
       )
 
       observeEvent(
@@ -60,12 +61,14 @@ edit_stack_server <- function(id, stack_id, board, update, ...) {
             new_val <- as_stacks(set_names(list(new_val), stack_id))
             update(list(stacks = list(mod = new_val)))
           }
-        }
+        },
+        label = otel_lbl("update_stack_name")
       )
 
       observeEvent(
         input$rm_stack,
-        update(list(stacks = list(rm = stack_id)))
+        update(list(stacks = list(rm = stack_id))),
+        label = otel_lbl("rm_stack")
       )
 
       NULL

@@ -33,7 +33,8 @@ new_filebrowser_block <- function(file_path = character(),
             {
               req(file())
               path(unname(file()))
-            }
+            },
+            label = otel_lbl("update_file_path")
           )
 
           list(

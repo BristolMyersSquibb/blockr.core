@@ -98,3 +98,4 @@ reference:
   - blockr_abort
   - generate_plugin_args
   - bbquote
+  - otel_lbl

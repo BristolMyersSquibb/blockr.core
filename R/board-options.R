@@ -203,7 +203,8 @@ board_option_to_userdata <- function(x, ..., session = get_session()) {
           }
         },
         event.quoted = TRUE,
-        ignoreInit = TRUE
+        ignoreInit = TRUE,
+        label = otel_lbl(paste0("update_option_", id))
       )
     )
   } else {

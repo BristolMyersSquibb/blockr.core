@@ -121,7 +121,8 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         TRUE,
         setup_board(rv, edit_block, ctrl_block, edit_stack, edit_plugin_args,
                     session),
-        once = TRUE
+        once = TRUE,
+        label = otel_lbl("setup_board")
       )
 
       call_plugin_server(
@@ -155,7 +156,8 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
             validate_update_links_board(board_update, rv$board)
           }
         },
-        priority = Inf
+        priority = Inf,
+        label = otel_lbl("validate_board_update")
       )
 
       observeEvent(
@@ -281,7 +283,8 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
           log_debug("board update completed")
         },
-        priority = -Inf
+        priority = -Inf,
+        label = otel_lbl("process_board_update")
       )
 
       read_plugin_args <- c(rv_ro, dot_args)
@@ -340,7 +343,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
           log_debug("reloading session")
           session$reload()
-        })
+        }, label = otel_lbl("refresh_board"))
       }
 
       call_plugin_server(
@@ -377,7 +380,8 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
             } else if (isFALSE(get_board_option_or_null("thematic"))) {
               thematic::thematic_off()
             }
-          }
+          },
+          label = otel_lbl("update_thematic")
         )
       }
 
@@ -514,7 +518,8 @@ setup_link <- function(rv, id, from, to, input) {
           rv$blocks[[from]]$server$result()
         )
       },
-      ignoreNULL = FALSE
+      ignoreNULL = FALSE,
+      label = otel_lbl(paste0("link_", id))
     )
 
   } else {
@@ -525,7 +530,8 @@ setup_link <- function(rv, id, from, to, input) {
         rv$inputs[[to]][["...args"]][[input]] <-
           rv$blocks[[from]]$server$result()
       },
-      ignoreNULL = FALSE
+      ignoreNULL = FALSE,
+      label = otel_lbl(paste0("link_vararg_", id))
     )
   }
 

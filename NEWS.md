@@ -1,3 +1,11 @@
+# blockr.core (development version)
+
+* Add `otel_lbl()` for building OpenTelemetry-friendly observer labels
+  prefixed with the calling package name (e.g. `<blockr.core>setup_board`).
+* Label all package observers with descriptive, verb-noun names via
+  `otel_lbl()` to make OTel traces unambiguous across `blockr.core`,
+  `blockr.dock`, and downstream extensions.
+
 # blockr.core 0.1.2
 
 * A blockr option `attach_default_packages` can be set to opt into evaluating

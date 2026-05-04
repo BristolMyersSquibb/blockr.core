@@ -22,8 +22,10 @@ new_scatter_block <- function(x = character(), y = character(), ...) {
           x_col <- reactiveVal(x)
           y_col <- reactiveVal(y)
 
-          observeEvent(input$xcol, x_col(input$xcol))
-          observeEvent(input$ycol, y_col(input$ycol))
+          observeEvent(input$xcol, x_col(input$xcol),
+                       label = otel_lbl("update_xcol"))
+          observeEvent(input$ycol, y_col(input$ycol),
+                       label = otel_lbl("update_ycol"))
 
           observeEvent(
             cols(),
@@ -40,7 +42,8 @@ new_scatter_block <- function(x = character(), y = character(), ...) {
                 choices = cols(),
                 selected = y_col()
               )
-            }
+            },
+            label = otel_lbl("sync_col_choices")
           )
 
           list(
