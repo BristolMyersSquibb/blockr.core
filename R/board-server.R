@@ -122,7 +122,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         setup_board(rv, edit_block, ctrl_block, edit_stack, edit_plugin_args,
                     session),
         once = TRUE,
-        label = "setup_board"
+        label = otel_lbl("setup_board")
       )
 
       call_plugin_server(
@@ -157,7 +157,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
           }
         },
         priority = Inf,
-        label = "validate_board_update"
+        label = otel_lbl("validate_board_update")
       )
 
       observeEvent(
@@ -284,7 +284,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
           log_debug("board update completed")
         },
         priority = -Inf,
-        label = "process_board_update"
+        label = otel_lbl("process_board_update")
       )
 
       read_plugin_args <- c(rv_ro, dot_args)
@@ -343,7 +343,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
           log_debug("reloading session")
           session$reload()
-        }, label = "board_refresh")
+        }, label = otel_lbl("refresh_board"))
       }
 
       call_plugin_server(
@@ -381,7 +381,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
               thematic::thematic_off()
             }
           },
-          label = "thematic_update"
+          label = otel_lbl("update_thematic")
         )
       }
 
@@ -519,7 +519,7 @@ setup_link <- function(rv, id, from, to, input) {
         )
       },
       ignoreNULL = FALSE,
-      label = paste0("link_", id)
+      label = otel_lbl(paste0("link_", id))
     )
 
   } else {
@@ -531,7 +531,7 @@ setup_link <- function(rv, id, from, to, input) {
           rv$blocks[[from]]$server$result()
       },
       ignoreNULL = FALSE,
-      label = paste0("link_vararg_", id)
+      label = otel_lbl(paste0("link_vararg_", id))
     )
   }
 

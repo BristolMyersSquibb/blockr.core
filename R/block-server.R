@@ -229,7 +229,7 @@ reorder_dots_observer <- function(data, sess) {
         }
       },
       domain = sess,
-      label = "reorder_dots"
+      label = otel_lbl("reorder_dots")
     )
   }
 }
@@ -257,7 +257,7 @@ validate_block_observer <- function(id, x, dat, res, rv, cond, sess) {
         )
       },
       domain = sess,
-      label = "validate_block"
+      label = otel_lbl("validate_block")
     )
   }
 }
@@ -315,7 +315,7 @@ state_check_observer <- function(id, x, dat, res, state, rv, cond, sess) {
       }
     },
     domain = sess,
-    label = "state_check"
+    label = otel_lbl("check_state")
   )
 }
 
@@ -337,7 +337,7 @@ data_eval_observer <- function(id, x, dat, gate, res, state, lang, rv, cond,
       res(out)
     },
     domain = sess,
-    label = "data_eval"
+    label = otel_lbl("eval_data")
   )
 }
 
@@ -384,7 +384,7 @@ output_render_observer <- function(x, res, cond, sess) {
       )
     },
     domain = sess,
-    label = "output_render"
+    label = otel_lbl("render_output")
   )
 }
 
@@ -418,7 +418,7 @@ block_cond_observer <- function(blk, cond, sess) {
         cond$block <- empty_block_condition()[names(new_cnds)]
       }
     },
-    label = "block_cond"
+    label = otel_lbl("update_block_cond")
   )
 }
 
@@ -518,7 +518,7 @@ check_expr_val <- function(val, x) {
             }
           },
           once = TRUE,
-          label = paste0("check_cond_", cnd)
+          label = otel_lbl(paste0("check_cond_", cnd))
         )
       },
       val[["cond"]]

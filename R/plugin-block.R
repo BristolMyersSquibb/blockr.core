@@ -54,7 +54,7 @@ edit_block_server <- function(id, block_id, board, update, ...) {
           "Block name",
           cur_name()
         ),
-        label = "sync_block_name_input"
+        label = otel_lbl("sync_block_name_input")
       )
 
       observeEvent(
@@ -68,7 +68,7 @@ edit_block_server <- function(id, block_id, board, update, ...) {
             update(list(blocks = list(mod = new_val)))
           }
         },
-        label = "update_block_name"
+        label = otel_lbl("update_block_name")
       )
 
       output$block_summary <- renderText(
@@ -81,7 +81,7 @@ edit_block_server <- function(id, block_id, board, update, ...) {
       observeEvent(
         input$rm_block,
         update(list(blocks = list(rm = block_id))),
-        label = "rm_block"
+        label = otel_lbl("rm_block")
       )
 
       position <- NULL
@@ -110,7 +110,7 @@ edit_block_server <- function(id, block_id, board, update, ...) {
               )
             }
           },
-          label = "add_block_before"
+          label = otel_lbl("add_block_before")
         )
       }
 
@@ -124,7 +124,7 @@ edit_block_server <- function(id, block_id, board, update, ...) {
             stack_checkbox = is_block_in_stacks(block_id, board$board)
           )
         },
-        label = "add_block_after"
+        label = otel_lbl("add_block_after")
       )
 
       observeEvent(
@@ -152,7 +152,7 @@ edit_block_server <- function(id, block_id, board, update, ...) {
             )
           }
         },
-        label = "update_insert_input_choices"
+        label = otel_lbl("update_insert_input_choices")
       )
 
       observeEvent(
@@ -231,13 +231,13 @@ edit_block_server <- function(id, block_id, board, update, ...) {
 
           position <<- NULL
         },
-        label = "confirm_insert_block"
+        label = otel_lbl("confirm_insert_block")
       )
 
       observeEvent(
         input$cancel_insert,
         removeModal(),
-        label = "cancel_insert_block"
+        label = otel_lbl("cancel_insert_block")
       )
 
       NULL

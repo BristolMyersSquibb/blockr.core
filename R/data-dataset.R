@@ -38,7 +38,7 @@ new_dataset_block <- function(dataset = character(), package = "datasets",
           observeEvent(
             req(input$dataset),
             dat(input$dataset),
-            label = "update_dataset"
+            label = otel_lbl("update_dataset")
           )
 
           observeEvent(
@@ -53,7 +53,7 @@ new_dataset_block <- function(dataset = character(), package = "datasets",
                 )
               }
             },
-            label = "sync_dataset_input"
+            label = otel_lbl("sync_dataset_input")
           )
 
           list(

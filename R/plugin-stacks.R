@@ -43,7 +43,7 @@ manage_stacks_server <- function(id, board, update, ...) {
       observeEvent(
         input$stacks_mod,
         showModal(stacks_modal(session$ns)),
-        label = "show_stacks_modal"
+        label = otel_lbl("show_stacks_modal")
       )
 
       upd <- reactiveValues(
@@ -60,7 +60,7 @@ manage_stacks_server <- function(id, board, update, ...) {
         {
           upd$curr <- board_stacks(board$board)
         },
-        label = "sync_curr_stacks"
+        label = otel_lbl("sync_curr_stacks")
       )
 
       output$stacks_dt <- DT::renderDataTable(
@@ -268,7 +268,7 @@ create_dt_stack_obs <- function(ids, upd, ...) {
       },
       ignoreInit = TRUE,
       ignoreNULL = FALSE,
-      label = paste0("edit_stack_", inp)
+      label = otel_lbl(paste0("edit_stack_", inp))
     )
   }
 
@@ -316,7 +316,7 @@ create_stack_obs_observer <- function(input, rv, upd, sess, proxy) {
                           board_blocks(rv$board), sess)
       destroy_dt_stack_obs(setdiff(names(upd$obs), ids), upd)
     },
-    label = "sync_stack_dt_observers"
+    label = otel_lbl("sync_stack_dt_observers")
   )
 }
 
@@ -352,7 +352,7 @@ edit_stack_observer <- function(upd, rv) {
         }
       }
     },
-    label = "edit_stack"
+    label = otel_lbl("edit_stack")
   )
 }
 
@@ -411,7 +411,7 @@ add_stack_observer <- function(input, rv, upd, sess) {
         )
       }
     },
-    label = "add_stack"
+    label = otel_lbl("add_stack")
   )
 }
 
@@ -437,7 +437,7 @@ rm_stack_observer <- function(input, rv, upd, sess) {
         notify("No row selected", type = "warning", session = sess)
       }
     },
-    label = "rm_stack"
+    label = otel_lbl("rm_stack")
   )
 }
 
@@ -453,7 +453,7 @@ cancel_stack_observer <- function(input, rv, upd, session) {
       upd$mod <- stacks()
       upd$curr <- board_stacks(rv$board)
     },
-    label = "cancel_stacks"
+    label = otel_lbl("cancel_stacks")
   )
 }
 
@@ -517,6 +517,6 @@ modify_stack_observer <- function(input, rv, upd, sess, proxy, res) {
 
       removeModal(sess)
     },
-    label = "modify_stacks"
+    label = otel_lbl("modify_stacks")
   )
 }

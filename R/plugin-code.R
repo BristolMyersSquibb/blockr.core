@@ -54,7 +54,7 @@ generate_code_server <- function(id, board, ...) {
             size = "l"
           )
         ),
-        label = "show_code_modal"
+        label = otel_lbl("show_code_modal")
       )
 
       NULL

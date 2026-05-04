@@ -41,7 +41,7 @@ notify_user_server <- function(id, board, ...) {
       observeEvent(
         names(board$blocks),
         update_block_notif(board$blocks, state, session),
-        label = "update_block_notif"
+        label = otel_lbl("update_block_notif")
       )
 
       invisible()
@@ -109,7 +109,7 @@ set_up_type_notif <- function(typ, conds, blk, session) {
 
       ids(new_ids)
     },
-    label = paste0("notif_", typ, "_", blk)
+    label = otel_lbl(paste0("update_notif_", typ, "_", blk))
   )
 
   list(ids = ids, obs = obs)

@@ -83,7 +83,7 @@ ctrl_block_server <- function(id, x, vars, data, eval) {
             gate(TRUE)
           }
         },
-        label = "submit_ctrl_block"
+        label = otel_lbl("submit_ctrl_block")
       )
 
       gate

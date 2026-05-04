@@ -263,7 +263,7 @@ new_board_name_option <- function(value = NULL, category = "Board options",
               session$sendCustomMessage("change-board-title", val)
             },
             once = TRUE,
-            label = "init_board_name"
+            label = otel_lbl("init_board_name")
           )
         },
         observeEvent(
@@ -273,7 +273,7 @@ new_board_name_option <- function(value = NULL, category = "Board options",
             updateTextInput(session, "board_name", value = val)
             session$sendCustomMessage("change-board-title", val)
           },
-          label = "sync_board_name"
+          label = otel_lbl("sync_board_name")
         )
       )
     },
@@ -324,7 +324,7 @@ new_n_rows_option <- function(value = blockr_option("n_rows", 50L),
             value = get_board_option_value("n_rows", session)
           )
         },
-        label = "sync_n_rows"
+        label = otel_lbl("sync_n_rows")
       )
     },
     transform = function(x) as.integer(x),
@@ -374,7 +374,7 @@ new_page_size_option <- function(value = blockr_option("page_size", 5L),
             selected = get_board_option_value("page_size", session)
           )
         },
-        label = "sync_page_size"
+        label = otel_lbl("sync_page_size")
       )
     },
     transform = function(x) as.integer(x),
@@ -424,7 +424,7 @@ new_filter_rows_option <- function(value = blockr_option("filter_rows",
             session = session
           )
         },
-        label = "sync_filter_rows"
+        label = otel_lbl("sync_filter_rows")
       )
     },
     category = category,
@@ -474,7 +474,7 @@ new_thematic_option <- function(value = blockr_option("thematic", NULL),
             session = session
           )
         },
-        label = "sync_thematic"
+        label = otel_lbl("sync_thematic")
       )
     },
     category = category,
@@ -545,7 +545,7 @@ new_dark_mode_option <- function(value = blockr_option("dark_mode", NULL),
             session = session
           )
         },
-        label = "sync_dark_mode"
+        label = otel_lbl("sync_dark_mode")
       )
     },
     category = category,
@@ -597,7 +597,7 @@ new_show_conditions_option <- function(value = blockr_option("show_conditions",
             selected = get_board_option_value("show_conditions", session)
           )
         },
-        label = "sync_show_conditions"
+        label = otel_lbl("sync_show_conditions")
       )
     },
     category = category,
@@ -697,7 +697,7 @@ new_llm_model_option <- function(value = NULL, category = "Board options",
 
             updateSelectInput(session, "llm_model", selected = nme)
           },
-          label = "sync_llm_model"
+          label = otel_lbl("sync_llm_model")
         )
       }
     },

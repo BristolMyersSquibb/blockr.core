@@ -29,7 +29,7 @@ new_subset_block <- function(subset = "", select = "", ...) {
               sub(input$subset)
               sel(input$select)
             },
-            label = "eval_subset"
+            label = otel_lbl("eval_subset")
           )
 
           observeEvent(
@@ -39,7 +39,7 @@ new_subset_block <- function(subset = "", select = "", ...) {
                 updateTextInput(session, "subset", value = sub())
               }
             },
-            label = "sync_subset_input"
+            label = otel_lbl("sync_subset_input")
           )
 
           observeEvent(
@@ -49,7 +49,7 @@ new_subset_block <- function(subset = "", select = "", ...) {
                 updateTextInput(session, "select", value = sel())
               }
             },
-            label = "sync_select_input"
+            label = otel_lbl("sync_select_input")
           )
 
           list(
