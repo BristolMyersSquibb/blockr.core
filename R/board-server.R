@@ -540,10 +540,17 @@ upstream_closure <- function(visible_ids, links) {
 
 block_output_hidden <- function(block_id, sess) {
 
+  # Read the dock branch's card_probe sensor (a no-op uiOutput placed inside
+  # the whole card wrapper) instead of the block's `result` output. The
+  # result output is just the data preview region — it can be collapsed
+  # independently while the card itself (with inputs and controls) stays
+  # visible. Boards that don't render a card_probe will return NULL here,
+  # which means `identical(., FALSE)` is FALSE and the block is treated as
+  # visible — same fallback as before for non-dock boards.
   client_key <- paste0(
     "output_",
-    sess$ns(paste0("block_", block_id)),
-    "-result_hidden"
+    sess$ns(paste0("block_", block_id, "-card_probe")),
+    "_hidden"
   )
 
   sess$clientData[[client_key]]
@@ -554,8 +561,12 @@ needed_block_ids <- function(rv, sess) {
   reactive({
     block_ids <- names(rv$blocks)
 
+    # Treat NULL (no card_probe sensor present, e.g. non-dock board, or
+    # client hasn't reported visibility yet) as visible — falling back to
+    # eager evaluation is much safer than starving every block when the
+    # sensor is missing or slow to report.
     visible <- block_ids[vapply(block_ids, function(bid) {
-      identical(block_output_hidden(bid, sess), FALSE)
+      !identical(block_output_hidden(bid, sess), TRUE)
     }, logical(1))]
 
     links <- board_links(rv$board)
