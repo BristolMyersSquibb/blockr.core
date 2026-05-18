@@ -41,7 +41,7 @@ manage_links_server <- function(id, board, update, ...) {
       observeEvent(
         input$links_mod,
         showModal(links_modal(session$ns)),
-        label = otel_lbl("show_links_modal")
+        label = "show_links_modal"
       )
 
       upd <- reactiveValues(
@@ -57,7 +57,7 @@ manage_links_server <- function(id, board, update, ...) {
         {
           upd$curr <- board_links(board$board)
         },
-        label = otel_lbl("sync_curr_links")
+        label = "sync_curr_links"
       )
 
       output$links_dt <- DT::renderDataTable(
@@ -295,7 +295,7 @@ create_dt_link_obs <- function(ids, upd, ...) {
         upd$edit <- list(row = row, col = col, val = new)
       },
       ignoreInit = TRUE,
-      label = otel_lbl(paste0("edit_link_", inp))
+      label = paste0("edit_link_", inp)
     )
   }
 
@@ -370,7 +370,7 @@ create_link_obs_observer <- function(input, rv, upd, session, proxy) {
                          board_blocks(rv$board), session)
       destroy_dt_link_obs(setdiff(names(upd$obs), ids), upd)
     },
-    label = otel_lbl("sync_link_dt_observers")
+    label = "sync_link_dt_observers"
   )
 }
 
@@ -399,7 +399,7 @@ edit_link_observer <- function(upd, rv) {
         upd$add <- c(upd$add, new)
       }
     },
-    label = otel_lbl("edit_link")
+    label = "edit_link"
   )
 }
 
@@ -448,7 +448,7 @@ add_link_observer <- function(input, rv, upd, sess) {
         )
       }
     },
-    label = otel_lbl("add_link")
+    label = "add_link"
   )
 }
 
@@ -473,7 +473,7 @@ rm_link_observer <- function(input, rv, upd, sess) {
         notify("No row selected", type = "warning", session = sess)
       }
     },
-    label = otel_lbl("rm_link")
+    label = "rm_link"
   )
 }
 
@@ -488,7 +488,7 @@ cancel_link_observer <- function(input, rv, upd, session) {
       upd$rm <- character()
       upd$curr <- board_links(rv$board)
     },
-    label = otel_lbl("cancel_links")
+    label = "cancel_links"
   )
 }
 
@@ -550,6 +550,6 @@ modify_link_observer <- function(input, rv, upd, session, proxy, res) {
 
       removeModal(session)
     },
-    label = otel_lbl("modify_links")
+    label = "modify_links"
   )
 }
