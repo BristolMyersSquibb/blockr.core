@@ -69,7 +69,7 @@ test_that("shiny utils", {
   expect_true(untrace_start_span())
 })
 
-test_that("trace_start_span injects an attribute-augmenting tracer", {
+test_that("trace_start_span injects code.namespace from code.file.path", {
 
   skip_if_not(pkg_avail("otel"))
 
@@ -77,10 +77,52 @@ test_that("trace_start_span injects an attribute-augmenting tracer", {
   if (!was_traced) trace_start_span()
   withr::defer(if (!was_traced) untrace_start_span())
 
-  body_src <- paste(deparse(body(otel::start_span)), collapse = "\n")
-  expect_match(body_src, "code\\.file\\.path", fixed = FALSE)
-  expect_match(body_src, "code\\.namespace", fixed = FALSE)
-  expect_match(body_src, "getNamespaceInfo", fixed = FALSE)
+  tracer <- otel::get_default_tracer_provider()$get_tracer("blockr.test")
+
+  captured <- list()
+  original_method <- tracer$start_span
+  withr::defer(tracer$start_span <- original_method)
+
+  tracer$start_span <- function(name, attributes = NULL, links = NULL,
+                                options = NULL, ...) {
+    captured$attrs <<- attributes
+    original_method(name, attributes, links, options, ...)
+  }
+
+  shiny_root <- normalizePath(
+    getNamespaceInfo("shiny", "path"), winslash = "/", mustWork = FALSE
+  )
+
+  captured <<- list()
+  otel::start_span(
+    "test-span",
+    attributes = list(
+      code.file.path = file.path(shiny_root, "R", "fake.R"),
+      other = "unchanged"
+    ),
+    tracer = tracer
+  )
+
+  expect_identical(captured$attrs[["code.namespace"]], "shiny")
+  expect_identical(captured$attrs[["other"]], "unchanged")
+
+  captured <<- list()
+  otel::start_span(
+    "test-span",
+    attributes = list(code.file.path = "/home/user/myapp/server.R"),
+    tracer = tracer
+  )
+
+  expect_null(captured$attrs[["code.namespace"]])
+
+  captured <<- list()
+  otel::start_span(
+    "test-span",
+    attributes = list(other = "no-file-path"),
+    tracer = tracer
+  )
+
+  expect_null(captured$attrs[["code.namespace"]])
 })
 
 test_that("trace_start_span is a no-op when otel is unavailable", {
