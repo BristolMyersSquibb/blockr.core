@@ -1,10 +1,25 @@
 # blockr.core (development version)
 
-* Add `otel_lbl()` for building OpenTelemetry-friendly observer labels
-  prefixed with the calling package name (e.g. `<blockr.core>setup_board`).
-* Label all package observers with descriptive, verb-noun names via
-  `otel_lbl()` to make OTel traces unambiguous across `blockr.core`,
-  `blockr.dock`, and downstream extensions.
+* Label all package observers with descriptive, verb-noun names to make
+  OpenTelemetry traces unambiguous across `blockr.core`, `blockr.dock`,
+  and downstream extension packages.
+* `trace_start_span()` hooks `otel::start_span()` and injects a
+  `code.namespace` attribute identifying the originating package,
+  resolved from `code.file.path` by matching
+  `basename(dirname(dirname(path)))` against
+  `getNamespaceInfo(pkg, "path")` and caching the validated mapping.
+  Reactive spans are thereby attributed to their originating package
+  without any call-site decoration. Started alongside `trace_observe()`
+  from `serve()`. Can be disabled independently via the
+  `start_span_hook_disabled` blockr option, and is automatically
+  skipped when `otel` is not installed (the package is in `Suggests`
+  rather than `Imports`, since OpenTelemetry support in shiny only
+  landed in 1.12.1). Deliberately uses `code.namespace`, deprecated in
+  favor of folding the namespace into `code.function.name`, because
+  the deprecation's premise (namespace = where the called function is
+  defined) does not match this use case (where the call site lives) —
+  we want to attribute to the caller's package, not relabel shiny's
+  `observe` / `reactive` / etc. as belonging to a downstream package.
 
 # blockr.core 0.1.2
 

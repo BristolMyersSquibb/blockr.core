@@ -238,6 +238,112 @@ is_observe_traced <- function() {
   inherits(shiny::observe, "functionWithTrace")
 }
 
+trace_start_span <- function() {
+
+  if (isTRUE(blockr_option("start_span_hook_disabled", FALSE))) {
+    return(invisible(FALSE))
+  }
+
+  if (!pkg_avail("otel")) {
+    return(invisible(FALSE))
+  }
+
+  if (is_start_span_traced()) {
+    return(invisible(FALSE))
+  }
+
+  log_debug("hooking otel::start_span attribute injection")
+
+  pkg_paths <- new.env(parent = emptyenv())
+
+  suppressMessages(
+    trace(
+      otel::start_span,
+      tracer = bquote(
+        {
+          fp <- attributes[["code.file.path"]]
+
+          if (is.character(fp) && length(fp) == 1L && nzchar(fp)) {
+
+            proposed_root <- normalizePath(
+              dirname(dirname(fp)), winslash = "/", mustWork = FALSE
+            )
+            proposed_pkg <- basename(proposed_root)
+            cache <- .(pkg_paths)
+
+            pkg <- NULL
+
+            if (exists(proposed_pkg, envir = cache, inherits = FALSE)) {
+
+              if (identical(
+                get(proposed_pkg, envir = cache, inherits = FALSE),
+                proposed_root
+              )) {
+                pkg <- proposed_pkg
+              }
+            } else {
+
+              actual <- tryCatch(
+                normalizePath(
+                  getNamespaceInfo(proposed_pkg, "path"),
+                  winslash = "/", mustWork = FALSE
+                ),
+                error = function(...) NA_character_
+              )
+
+              if (!is.na(actual) && nzchar(actual)) {
+
+                assign(proposed_pkg, actual, envir = cache)
+
+                if (identical(actual, proposed_root)) {
+                  pkg <- proposed_pkg
+                }
+              }
+            }
+
+            if (!is.null(pkg)) {
+              attributes[["code.namespace"]] <- pkg
+            }
+          }
+        }
+      ),
+      print = FALSE
+    )
+  )
+
+  invisible(untrace_start_span)
+}
+
+untrace_start_span <- function() {
+
+  if (isTRUE(blockr_option("start_span_hook_disabled", FALSE))) {
+    return(invisible(FALSE))
+  }
+
+  if (!pkg_avail("otel")) {
+    return(invisible(FALSE))
+  }
+
+  if (!is_start_span_traced()) {
+    return(invisible(FALSE))
+  }
+
+  log_debug("removing otel::start_span hook")
+
+  suppressMessages(untrace(otel::start_span))
+
+  invisible(TRUE)
+}
+
+is_start_span_traced <- function() {
+
+  if (!pkg_avail("otel")) {
+    return(FALSE)
+  }
+
+  inherits(otel::start_span, "functionWithTrace")
+}
+
 #' Shiny utilities
 #'
 #' Utility functions for shiny:

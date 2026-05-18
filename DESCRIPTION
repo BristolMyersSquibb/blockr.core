@@ -47,6 +47,7 @@ Imports:
     cli,
     glue
 Suggests:
+    otel,
     testthat (>= 3.0.0),
     memuse,
     withr,

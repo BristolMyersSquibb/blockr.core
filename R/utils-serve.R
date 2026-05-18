@@ -224,7 +224,7 @@ serve_board_srv <- function(id, plugins, options, ...) {
 
   function(input, output, session) {
 
-    onStop(revert(trace_observe()), session)
+    onStop(revert(trace_observe(), trace_start_span()), session)
 
     x <- get_serve_obj("reload")
     id <- coal(attr(x, "id"), id)
