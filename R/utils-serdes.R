@@ -68,8 +68,12 @@ blockr_ser.blocks <- function(x, blocks = NULL, ...) {
 
   } else {
 
+    # A per-block `NULL` entry means "use constructor defaults" (e.g. a
+    # lazy-eval block that was never revealed and therefore never ran);
+    # `blockr_ser.block()` handles `state = NULL` via `initial_block_state()`.
     stopifnot(
-      is.list(blocks), all(lgl_ply(blocks, is.list)),
+      is.list(blocks),
+      all(lgl_ply(blocks, function(b) is.null(b) || is.list(b))),
       length(blocks) == length(x), setequal(names(blocks), names(x))
     )
 

@@ -34,7 +34,16 @@ generate_code_server <- function(id, board, ...) {
 
       code <- reactive(
         export_wrapped_code(
-          lst_xtr_reval(board$blocks, "server", "expr"),
+          # Under lazy-eval, not-yet-revealed blocks carry a placeholder
+          # entry with `server = NULL` (no runtime `expr`). Restrict code
+          # export to blocks whose server has actually been constructed.
+          lst_xtr_reval(
+            board$blocks[
+              vapply(board$blocks, function(b) !is.null(b[["server"]]),
+                     logical(1))
+            ],
+            "server", "expr"
+          ),
           board$board
         )
       )

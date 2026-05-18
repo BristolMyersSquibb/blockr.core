@@ -150,10 +150,19 @@ serialize_board <- function(x, blocks, id = NULL, ...,
 serialize_board.board <- function(x, blocks, id = NULL, ...,
                                   session = get_session()) {
 
-  blocks <- lapply(
-    lst_xtr(blocks, "server", "state"),
-    lapply,
-    reval_if
+  # Under lazy-eval, not-yet-revealed blocks carry a placeholder entry with
+  # `server = NULL`. Such blocks never ran, so their runtime state equals
+  # their constructor defaults: map them to NULL so `blockr_ser.block()`
+  # falls back to `initial_block_state()` rather than serializing an empty
+  # payload.
+  has_srv <- vapply(blocks, function(b) !is.null(b[["server"]]), logical(1))
+
+  states <- lst_xtr(blocks, "server", "state")
+
+  blocks <- Map(
+    function(st, keep) if (keep) lapply(st, reval_if) else NULL,
+    states,
+    has_srv
   )
 
   opts <- lapply(

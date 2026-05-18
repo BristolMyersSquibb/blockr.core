@@ -440,9 +440,22 @@ setup_board <- function(rv, blk_ed, blk_ct, stk_mod, args, sess,
 
   blks <- board_blocks(rv$board)
 
+  # When lazy-eval is active (needed_ids non-NULL) we defer the expensive
+  # per-block `block_server()` construction and its incident link observers
+  # until a block first enters the needed set. The cheap plumbing (per-block
+  # input reactiveVals and a placeholder `rv$blocks` entry) is always set up
+  # eagerly so plugins enumerating `rv$blocks`/`rv$inputs` keep working.
+  defer <- not_null(needed_ids)
+
   for (i in names(blks)) {
     blk_needed <- make_block_needed(i, needed_ids)
-    setup_block(blks[[i]], i, rv, blk_ed, blk_ct, args, needed = blk_needed)
+    setup_block(blks[[i]], i, rv, blk_ed, blk_ct, args, needed = blk_needed,
+                defer = defer)
+  }
+
+  if (defer) {
+    setup_deferred_blocks(rv, mod_ed = blk_ed, mod_ct = blk_ct, args = args,
+                          needed_ids = needed_ids)
   }
 
   setup_stacks(rv, stk_mod, args)
@@ -451,7 +464,8 @@ setup_board <- function(rv, blk_ed, blk_ct, stk_mod, args, sess,
   invisible()
 }
 
-setup_block <- function(blk, id, rv, mod_ed, mod_ct, args, needed = NULL) {
+setup_block <- function(blk, id, rv, mod_ed, mod_ct, args, needed = NULL,
+                        defer = FALSE) {
 
   arity <- block_arity(blk)
   inpts <- block_inputs(blk)
@@ -466,6 +480,15 @@ setup_block <- function(blk, id, rv, mod_ed, mod_ct, args, needed = NULL) {
   }
 
   rv$inputs[[id]] <- inpts
+
+  if (defer) {
+    # Cheap placeholder so plugins that enumerate `rv$blocks` (notification,
+    # code export, dag, serialization) see the block. `server = NULL` is
+    # handled gracefully downstream; the real server + links are wired by
+    # `construct_block()` on first reveal.
+    rv$blocks[[id]] <- list(block = blk, server = NULL, needed = needed)
+    return(invisible())
+  }
 
   links <- board_links(rv$board)
 
@@ -482,6 +505,88 @@ setup_block <- function(blk, id, rv, mod_ed, mod_ct, args, needed = NULL) {
       )
     )
   )
+
+  invisible()
+}
+
+# Build the real `block_server()` for a deferred block and wire any incident
+# links whose other endpoint already has a constructed server. Idempotent:
+# guarded on `is.null(server)` so repeated reveals are no-ops. Links are
+# wired here (not in `setup_block`) because `setup_link()` dereferences
+# `rv$blocks[[from]]$server$result()` and therefore cannot exist before the
+# `from` block's server. Construction happens upstream-first (see
+# `setup_deferred_blocks`), so when a block is built all its `from` parents
+# are already constructed and every `to == id` link can be wired immediately;
+# `from == id` links are wired now if their `to` exists, otherwise later when
+# the `to` block is itself constructed.
+construct_block <- function(id, rv, mod_ed, mod_ct, args) {
+
+  entry <- rv$blocks[[id]]
+
+  if (is.null(entry) || not_null(entry[["server"]])) {
+    return(invisible())
+  }
+
+  blk <- entry[["block"]]
+
+  srv <- do.call(
+    block_server,
+    c(
+      list(paste0("block_", id), blk, rv$inputs[[id]], id, mod_ed, mod_ct,
+           needed = entry[["needed"]]),
+      args
+    )
+  )
+
+  rv$blocks[[id]] <- list(block = blk, server = srv,
+                          needed = entry[["needed"]])
+
+  links <- board_links(rv$board)
+
+  built <- function(bid) {
+    bid %in% names(rv$blocks) && not_null(rv$blocks[[bid]][["server"]])
+  }
+
+  incident <- links[
+    (links$to == id & lgl_ply(links$from, built)) |
+      (links$from == id & lgl_ply(links$to, built))
+  ]
+
+  if (length(incident)) {
+    update_block_links(rv, incident)
+  }
+
+  invisible()
+}
+
+setup_deferred_blocks <- function(rv, mod_ed, mod_ct, args, needed_ids) {
+
+  # Upstream-first topological order of all block ids, so that constructing
+  # a block always happens after its parents (link-wiring invariant).
+  topo <- topo_sort(rv$board)
+
+  observe({
+
+    need <- needed_ids()
+
+    todo <- intersect(
+      topo,
+      need[lgl_ply(need, function(bid) {
+        bid %in% names(rv$blocks) &&
+          is.null(rv$blocks[[bid]][["server"]])
+      })]
+    )
+
+    if (!length(todo)) {
+      return(invisible())
+    }
+
+    log_debug("constructing deferred block{?s} {todo}")
+
+    for (bid in todo) {
+      construct_block(bid, rv, mod_ed, mod_ct, args)
+    }
+  })
 
   invisible()
 }

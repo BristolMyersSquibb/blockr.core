@@ -38,8 +38,13 @@ notify_user_server <- function(id, board, ...) {
         set_up_blocks_notif(isolate(board$blocks), session = session)
       )
 
+      # Re-run whenever the set of blocks *with a constructed server*
+      # changes, not just when block names change. Under lazy-eval, block
+      # servers are constructed on first reveal (well after the placeholder
+      # `rv$blocks` entry appears), so a `names()`-only trigger would never
+      # wire notifications for deferred blocks.
       observeEvent(
-        names(board$blocks),
+        constructed_block_ids(board$blocks),
         update_block_notif(board$blocks, state, session)
       )
 
@@ -58,9 +63,21 @@ notify_user_ui <- function(id, board) {
   )
 }
 
+# Block ids whose server module has actually been constructed. Under
+# lazy-eval, `rv$blocks` carries placeholder entries (`server = NULL`) for
+# not-yet-revealed blocks; notifications can only be wired once the real
+# server (and its `cond` reactiveValues) exists.
+constructed_block_ids <- function(blocks) {
+  names(blocks)[
+    vapply(blocks, function(b) !is.null(b[["server"]]), logical(1))
+  ]
+}
+
 update_block_notif <- function(blocks, state, session) {
 
-  do_add <- setdiff(names(blocks), names(state))
+  have <- constructed_block_ids(blocks)
+
+  do_add <- setdiff(have, names(state))
 
   if (length(do_add)) {
     tmp <- set_up_blocks_notif(blocks, do_add, session)
@@ -78,7 +95,7 @@ update_block_notif <- function(blocks, state, session) {
   invisible()
 }
 
-set_up_blocks_notif  <- function(blocks, todo = names(blocks),
+set_up_blocks_notif  <- function(blocks, todo = constructed_block_ids(blocks),
                                  session = get_session()) {
 
   res <- set_names(vector("list", length(todo)), todo)
