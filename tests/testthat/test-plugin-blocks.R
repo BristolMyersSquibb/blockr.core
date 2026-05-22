@@ -84,58 +84,37 @@ test_that("add/rm blocks", {
 
 test_that("add/rm blocks return validation", {
 
-  with_mock_session(
-    {
-      expect_error(
-        validate_board_update(
-          reactiveVal(list(blocks = "a")),
-          new_board()
-        ),
-        class = "board_update_component_type_invalid"
-      )
+  expect_error(
+    validate_board_update(list(blocks = "a"), new_board()),
+    class = "board_update_component_type_invalid"
+  )
 
-      expect_error(
-        validate_board_update(
-          reactiveVal(list(blocks = list(abc = NULL))),
-          new_board()
-        ),
-        class = "board_update_component_components_invalid"
-      )
+  expect_error(
+    validate_board_update(list(blocks = list(abc = NULL)), new_board()),
+    class = "board_update_component_components_invalid"
+  )
 
-      expect_error(
-        validate_board_update(
-          reactiveVal(list(blocks = list(add = "a"))),
-          new_board()
-        ),
-        class = "board_update_add_component_invalid"
-      )
+  expect_error(
+    validate_board_update(list(blocks = list(add = "a")), new_board()),
+    class = "board_update_add_component_invalid"
+  )
 
-      expect_error(
-        validate_board_update(
-          reactiveVal(
-            list(blocks = list(add = blocks(a = new_dataset_block())))
-          ),
-          new_board(blocks = blocks(a = new_dataset_block()))
-        ),
-        class = "board_update_blocks_add_invalid"
-      )
+  expect_error(
+    validate_board_update(
+      list(blocks = list(add = blocks(a = new_dataset_block()))),
+      new_board(blocks = blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_blocks_add_invalid"
+  )
 
-      expect_error(
-        validate_board_update(
-          reactiveVal(list(blocks = list(rm = 1))),
-          new_board()
-        ),
-        class = "board_update_rm_component_invalid"
-      )
+  expect_error(
+    validate_board_update(list(blocks = list(rm = 1)), new_board()),
+    class = "board_update_rm_component_invalid"
+  )
 
-      expect_error(
-        validate_board_update(
-          reactiveVal(list(blocks = list(rm = "a"))),
-          new_board()
-        ),
-        class = "board_update_blocks_rm_invalid"
-      )
-    }
+  expect_error(
+    validate_board_update(list(blocks = list(rm = "a")), new_board()),
+    class = "board_update_blocks_rm_invalid"
   )
 })
 

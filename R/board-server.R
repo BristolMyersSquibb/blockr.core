@@ -145,14 +145,16 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
       observeEvent(
         board_update(),
         {
+          upd <- board_update()
+
           log_debug("starting board update")
-          validate_board_update(board_update, rv$board)
+          validate_board_update_structure(upd, rv$board)
           log_debug("board update validated")
 
           log_debug("preprocessing board update")
           if (!preprocess_board_update(board_update, rv$board)) {
             log_debug("validating board links against board")
-            validate_update_links_board(board_update, rv$board)
+            validate_board_update_xrefs(upd, rv$board)
           }
         },
         priority = Inf
@@ -679,30 +681,75 @@ add_blocks_to_stacks <- function(rv, add, session) {
   invisible()
 }
 
-validate_board_update <- function(x, board) {
+#' Validate a board update payload
+#'
+#' Run the same validation logic that the `board_server()` observer applies
+#' to every `board_update` payload, but against a caller-supplied payload
+#' value and board. Useful for downstream packages that want to surface
+#' validation errors before committing a proposed update — for example a
+#' staging layer that accumulates pending changes from LLM tool calls and
+#' needs each call to fail loudly if it would conflict with the live board.
+#'
+#' Validation runs in two passes: a structural check on the payload shape
+#' and per-slot block / link / stack rules, followed by a cross-reference
+#' check that link `from`/`to` endpoints and stack members resolve in the
+#' post-update merged view.
+#'
+#' Preprocessing (auto-cleanup of dangling refs from block removals) is an
+#' apply-time concern and is **not** performed here — the payload is
+#' validated as-is.
+#'
+#' @param payload A list of the shape accepted by the `board_update`
+#' reactiveVal, with optional `blocks`, `links`, and `stacks` slots, each
+#' a list with optional `add`, `mod`, and `rm` entries.
+#' @param board A `board` object to validate the payload against.
+#'
+#' @return `invisible(payload)` on success. On failure, throws a
+#' `blockr_abort()` error with a class such as `board_update_*_invalid`.
+#'
+#' @examples
+#' brd <- new_board(
+#'   blocks = c(a = new_dataset_block("iris"), b = new_subset_block()),
+#'   links = links(ab = new_link(from = "a", to = "b"))
+#' )
+#'
+#' validate_board_update(
+#'   list(links = list(rm = "ab")),
+#'   brd
+#' )
+#'
+#' try(
+#'   validate_board_update(
+#'     list(links = list(add = links(xy = new_link(from = "x", to = "y")))),
+#'     brd
+#'   )
+#' )
+#'
+#' @export
+validate_board_update <- function(payload, board) {
 
-  if (!is.reactive(x)) {
-    blockr_abort(
-      "Expecting a board update to be passed as a reactive object.",
-      class = "board_update_object_invalid"
-    )
-  }
+  validate_board_update_structure(payload, board)
+  validate_board_update_xrefs(payload, board)
 
-  res <- x()
+  invisible(payload)
+}
+
+# nolint next: object_length_linter.
+validate_board_update_structure <- function(payload, board) {
 
   exp_typ <- c("blocks", "links", "stacks")
 
-  if (!is.list(res)) {
+  if (!is.list(payload)) {
     blockr_abort(
       "Expecting a board update to be specified as a list.",
       class = "board_update_type_invalid"
     )
   }
 
-  if (!all(names(res) %in% exp_typ)) {
+  if (!all(names(payload) %in% exp_typ)) {
     blockr_abort(
       "Expecting a board update to consist of components {exp_typ}. Please ",
-      "remove {setdiff(names(res), exp_typ)}.",
+      "remove {setdiff(names(payload), exp_typ)}.",
       class = "board_update_components_invalid"
     )
   }
@@ -711,11 +758,11 @@ validate_board_update <- function(x, board) {
 
   for (typ in exp_typ) {
 
-    if (!typ %in% names(res)) {
+    if (!typ %in% names(payload)) {
       next
     }
 
-    x <- res[[typ]]
+    x <- payload[[typ]]
 
     if (!is.list(x)) {
       blockr_abort(
@@ -757,16 +804,16 @@ validate_board_update <- function(x, board) {
     }
   }
 
-  if ("blocks" %in% names(res)) {
-    validate_board_update_blocks(res$blocks, board)
+  if ("blocks" %in% names(payload)) {
+    validate_board_update_blocks(payload$blocks, board)
   }
 
-  if ("links" %in% names(res)) {
-    validate_board_update_links(res$links, board)
+  if ("links" %in% names(payload)) {
+    validate_board_update_links(payload$links, board)
   }
 
-  if ("stacks" %in% names(res)) {
-    validate_board_update_stacks(res, board)
+  if ("stacks" %in% names(payload)) {
+    validate_board_update_stacks(payload, board)
   }
 
   invisible()
@@ -916,12 +963,10 @@ combine_update_blocks <- function(upd, board) {
   all_blks
 }
 
-validate_update_links_board <- function(x, board) {
+validate_board_update_xrefs <- function(payload, board) {
 
-  upd <- x()
-
-  if (has_comp("links", upd)) {
-    lnk <- upd$links
+  if (has_comp("links", payload)) {
+    lnk <- payload$links
   } else {
     return(invisible())
   }
@@ -945,7 +990,10 @@ validate_update_links_board <- function(x, board) {
       )
     }
 
-    validate_board_blocks_links(combine_update_blocks(upd, board), all_lnks)
+    validate_board_blocks_links(
+      combine_update_blocks(payload, board),
+      all_lnks
+    )
   }
 
   invisible()
