@@ -16,7 +16,7 @@ test_that("edit blocks", {
       expect_length(res$mod, 1L)
 
       expect_named(res$mod, "a")
-      expect_identical(block_name(res$mod[["a"]]), "iris")
+      expect_identical(res$mod[["a"]], list(block_name = "iris"))
 
       expect_null(session$returned)
     },

@@ -204,24 +204,28 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
             for (blk_id in names(upd$blocks$mod)) {
 
-              old_blk <- cur_blks[[blk_id]]
-              new_blk <- upd$blocks$mod[[blk_id]]
+              delta <- upd$blocks$mod[[blk_id]]
 
-              if (mod_block_needs_resetup(old_blk, new_blk)) {
+              if (!length(delta)) {
+                next
+              }
+
+              blk <- cur_blks[[blk_id]]
+              ctrl <- block_external_ctrl_vars(blk)
+
+              if (all(names(delta) %in% ctrl)) {
+
+                apply_block_mod_delta(blk_id, delta, rv)
+
+              } else {
+
+                new_blk <- reconstruct_block(blk_id, blk, delta, rv)
 
                 re_setup_block(
                   new_blk, blk_id, rv,
                   edit_block, ctrl_block, edit_plugin_args,
                   dot_args, ns(NULL), session
                 )
-
-              } else {
-
-                apply_ctrl_block_mod(blk_id, old_blk, new_blk, rv)
-
-                blks <- board_blocks(rv$board)
-                blks[[blk_id]] <- new_blk
-                board_blocks(rv$board) <- blks
               }
             }
           }
@@ -543,53 +547,60 @@ re_setup_block <- function(blk, id, rv, mod_ed, mod_ct, args, dot_args,
   invisible()
 }
 
-mod_block_compatible <- function(old, new) {
-
-  identical(class(old), class(new)) &&
-    identical(block_ctor(old), block_ctor(new)) &&
-    identical(block_ctor_inputs(old), block_ctor_inputs(new)) &&
-    identical(block_inputs(old), block_inputs(new)) &&
-    identical(block_external_ctrl_vars(old), block_external_ctrl_vars(new)) &&
-    identical(block_arity(old), block_arity(new))
-}
-
-mod_block_needs_resetup <- function(old, new) {
-
-  if (!mod_block_compatible(old, new)) {
-    return(TRUE)
-  }
-
-  ctrl <- block_external_ctrl_vars(new)
-  old_state <- initial_block_state(old)
-  new_state <- initial_block_state(new)
-
-  diffs <- !mapply(identical, old_state, new_state, USE.NAMES = FALSE)
-  changed <- names(old_state)[diffs]
-
-  !all(changed %in% ctrl)
-}
-
-apply_ctrl_block_mod <- function(blk_id, old, new, rv) {
-
-  ctrl <- block_external_ctrl_vars(new)
-
-  if (!length(ctrl)) {
-    return(invisible())
-  }
-
-  old_state <- initial_block_state(old)
-  new_state <- initial_block_state(new)
+apply_block_mod_delta <- function(blk_id, delta, rv) {
 
   state_rvs <- rv$blocks[[blk_id]]$server$state
 
-  for (nm in ctrl) {
+  for (nm in names(delta)) {
 
-    if (!identical(old_state[[nm]], new_state[[nm]])) {
-      state_rvs[[nm]](new_state[[nm]])
+    if (identical(nm, "block_name")) {
+
+      blks <- board_blocks(rv$board)
+      block_name(blks[[blk_id]]) <- delta[[nm]]
+      board_blocks(rv$board) <- blks
+
+    } else {
+
+      cur <- reval_if(state_rvs[[nm]])
+
+      if (!identical(cur, delta[[nm]])) {
+        state_rvs[[nm]](delta[[nm]])
+      }
     }
   }
 
   invisible()
+}
+
+reconstruct_block <- function(blk_id, blk, delta, rv) {
+
+  state_rvs <- rv$blocks[[blk_id]]$server$state
+  ctor_args <- block_ctor_inputs(blk)
+
+  args <- lapply(state_rvs[ctor_args], reval_if)
+
+  if ("block_name" %in% names(delta)) {
+    name <- delta[["block_name"]]
+  } else {
+    name <- block_name(blk)
+  }
+
+  args[setdiff(names(delta), "block_name")] <-
+    delta[setdiff(names(delta), "block_name")]
+
+  ctor <- block_ctor(blk)
+
+  do.call(
+    ctor_fun(ctor),
+    c(
+      args,
+      list(
+        ctor = coal(ctor_name(ctor), ctor_fun(ctor)),
+        ctor_pkg = ctor_pkg(ctor),
+        block_name = name
+      )
+    )
+  )
 }
 
 destroy_rm_blocks <- function(ids, rv, sess, args) {
@@ -813,7 +824,10 @@ add_blocks_to_stacks <- function(rv, add, session) {
 #'
 #' @param payload A list of the shape accepted by the `board_update`
 #' reactiveVal, with optional `blocks`, `links`, and `stacks` slots, each
-#' a list with optional `add`, `mod`, and `rm` entries.
+#' a list with optional `add`, `mod`, and `rm` entries. For `blocks`,
+#' `mod` is a named list keyed by block ID where each entry is a named
+#' list of constructor argument values to apply on top of the live
+#' block's current state (plus the reserved key `block_name`).
 #' @param board A `board` object to validate the payload against.
 #'
 #' @return `invisible(payload)` on success. On failure, throws a
@@ -907,12 +921,26 @@ validate_board_update_structure <- function(payload, board) {
       )
     }
 
-    if ("mod" %in% names(x) && !(is.null(x$mod) || inherits(x$mod, typ))) {
-      blockr_abort(
-        "Expecting a board update `mod` component be specified as a {typ} ",
-        "object (or NULL).",
-        class = "board_update_mod_component_invalid"
-      )
+    if ("mod" %in% names(x)) {
+
+      if (identical(typ, "blocks")) {
+
+        if (!(is.null(x$mod) || is.list(x$mod))) {
+          blockr_abort(
+            "Expecting a board update blocks `mod` component be specified as ",
+            "a named list of per-block argument deltas (or NULL).",
+            class = "board_update_mod_component_invalid"
+          )
+        }
+
+      } else if (!(is.null(x$mod) || inherits(x$mod, typ))) {
+
+        blockr_abort(
+          "Expecting a board update `mod` component be specified as a {typ} ",
+          "object (or NULL).",
+          class = "board_update_mod_component_invalid"
+        )
+      }
     }
   }
 
@@ -980,6 +1008,15 @@ validate_board_update_blocks <- function(x, board) {
 
   if (has_comp("mod", x)) {
 
+    if (length(names(x$mod)) != length(x$mod) ||
+          any(nchar(names(x$mod)) == 0L)) {
+      blockr_abort(
+        "Expecting the blocks `mod` component to be a named list keyed by ",
+        "block ID.",
+        class = "board_update_blocks_mod_invalid"
+      )
+    }
+
     if (!all(names(x$mod) %in% cur_ids)) {
       blockr_abort(
         "Expecting the modified blocks to be specified by known IDs.",
@@ -987,7 +1024,33 @@ validate_board_update_blocks <- function(x, board) {
       )
     }
 
-    validate_blocks(x$mod)
+    blks <- board_blocks(board)
+
+    for (blk_id in names(x$mod)) {
+
+      delta <- x$mod[[blk_id]]
+
+      if (is_block(delta) || !is.list(delta) ||
+            (length(delta) &&
+               (length(names(delta)) != length(delta) ||
+                  any(nchar(names(delta)) == 0L)))) {
+        blockr_abort(
+          "Expecting each blocks `mod` entry to be a named list of ",
+          "constructor argument values.",
+          class = "board_update_blocks_mod_invalid"
+        )
+      }
+
+      allowed <- c(block_ctor_inputs(blks[[blk_id]]), "block_name")
+      extra <- setdiff(names(delta), allowed)
+
+      if (length(extra)) {
+        blockr_abort(
+          "Block `{blk_id}` mod delta contains unknown argument{?s} {extra}.",
+          class = "board_update_blocks_mod_invalid"
+        )
+      }
+    }
   }
 
   invisible()
@@ -1063,13 +1126,6 @@ combine_update_blocks <- function(upd, board) {
 
   if (has_comp("add", blk)) {
     all_blks <- c(all_blks, blk$add)
-  }
-
-  if (has_comp("mod", blk)) {
-    all_blks <- c(
-      all_blks[setdiff(names(all_blks), names(blk$mod))],
-      blk$mod
-    )
   }
 
   all_blks

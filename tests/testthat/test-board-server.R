@@ -198,7 +198,7 @@ test_that("board server", {
   )
 })
 
-test_that("blocks$mod with ctrl-only diff writes reactiveVals", {
+test_that("blocks$mod with ctrl-able delta writes reactiveVals in place", {
 
   board <- new_board(
     blocks = c(a = new_dataset_block("iris"), b = new_subset_block()),
@@ -214,11 +214,13 @@ test_that("blocks$mod with ctrl-only diff writes reactiveVals", {
 
       pre_server <- rv$blocks$b$server
 
-      new_b <- as_blocks(
-        set_names(list(new_subset_block(subset = "Species == \"setosa\"")), "b")
+      board_update(
+        list(
+          blocks = list(
+            mod = list(b = list(subset = "Species == \"setosa\""))
+          )
+        )
       )
-
-      board_update(list(blocks = list(mod = new_b)))
 
       session$flushReact()
 
@@ -232,7 +234,7 @@ test_that("blocks$mod with ctrl-only diff writes reactiveVals", {
   )
 })
 
-test_that("blocks$mod with non-ctrl diff re-sets up the block server", {
+test_that("blocks$mod with non-ctrl delta re-sets up the block server", {
 
   board <- new_board(
     blocks = c(a = new_dataset_block("iris"), b = new_head_block(n = 6L)),
@@ -248,9 +250,7 @@ test_that("blocks$mod with non-ctrl diff re-sets up the block server", {
 
       pre_server <- rv$blocks$b$server
 
-      new_b <- as_blocks(set_names(list(new_head_block(n = 3L)), "b"))
-
-      board_update(list(blocks = list(mod = new_b)))
+      board_update(list(blocks = list(mod = list(b = list(n = 3L)))))
 
       session$flushReact()
 
@@ -289,9 +289,7 @@ test_that("blocks$mod preserves outgoing links across re-setup", {
         utils::head(datasets::iris, n = 2L)
       )
 
-      new_b <- as_blocks(set_names(list(new_head_block(n = 3L)), "b"))
-
-      board_update(list(blocks = list(mod = new_b)))
+      board_update(list(blocks = list(mod = list(b = list(n = 3L)))))
 
       session$flushReact()
 
@@ -305,10 +303,10 @@ test_that("blocks$mod preserves outgoing links across re-setup", {
   )
 })
 
-test_that("blocks$mod with metadata-only change skips re-setup", {
+test_that("blocks$mod routes block_name as ctrl-able without re-setup", {
 
   board <- new_board(
-    blocks = c(a = new_dataset_block("iris"), b = new_subset_block()),
+    blocks = c(a = new_dataset_block("iris"), b = new_head_block()),
     links = links(from = "a", to = "b")
   )
 
@@ -320,11 +318,8 @@ test_that("blocks$mod with metadata-only change skips re-setup", {
       pre_server <- rv$blocks$b$server
       pre_result <- rv$blocks$b$server$result()
 
-      new_b_blk <- board_blocks(rv$board)[["b"]]
-      block_name(new_b_blk) <- "Renamed"
-
       board_update(
-        list(blocks = list(mod = as_blocks(set_names(list(new_b_blk), "b"))))
+        list(blocks = list(mod = list(b = list(block_name = "Renamed"))))
       )
 
       session$flushReact()
@@ -337,10 +332,10 @@ test_that("blocks$mod with metadata-only change skips re-setup", {
   )
 })
 
-test_that("blocks$mod can swap block class via re-setup", {
+test_that("blocks$mod re-setup carries the current ctrl-arg value forward", {
 
   board <- new_board(
-    blocks = c(a = new_dataset_block("iris"), b = new_head_block()),
+    blocks = c(a = new_dataset_block("iris"), b = new_subset_block()),
     links = links(from = "a", to = "b")
   )
 
@@ -349,16 +344,52 @@ test_that("blocks$mod can swap block class via re-setup", {
     {
       session$flushReact()
 
-      expect_s3_class(board_blocks(rv$board)$b, "head_block")
-
-      new_b <- as_blocks(set_names(list(new_subset_block()), "b"))
-
-      board_update(list(blocks = list(mod = new_b)))
+      board_update(
+        list(
+          blocks = list(
+            mod = list(b = list(subset = "Species == \"setosa\""))
+          )
+        )
+      )
 
       session$flushReact()
 
-      expect_s3_class(board_blocks(rv$board)$b, "subset_block")
-      expect_identical(rv$blocks$b$server$result(), datasets::iris)
+      rv$blocks$b$server$state$select("Sepal.Length")
+      session$flushReact()
+
+      expect_equal(
+        names(rv$blocks$b$server$result()),
+        "Sepal.Length"
+      )
+    },
+    args = list(x = board)
+  )
+})
+
+test_that("blocks$mod combines block_name and ctor-arg delta", {
+
+  board <- new_board(
+    blocks = c(a = new_dataset_block("iris"), b = new_head_block(n = 6L))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      board_update(
+        list(
+          blocks = list(
+            mod = list(b = list(n = 4L, block_name = "Four rows"))
+          )
+        )
+      )
+
+      session$flushReact()
+
+      blk <- board_blocks(rv$board)$b
+      expect_identical(initial_block_state(blk)$n, 4L)
+      expect_identical(block_name(blk), "Four rows")
     },
     args = list(x = board)
   )
@@ -381,7 +412,7 @@ test_that("update validation", {
       list(
         blocks = list(
           add = blocks(a = new_dataset_block()),
-          mod = blocks(a = new_dataset_block())
+          mod = list(a = list(dataset = "iris"))
         )
       ),
       new_board()
@@ -391,15 +422,7 @@ test_that("update validation", {
 
   expect_error(
     validate_board_update(
-      list(blocks = list(mod = list(a = list()))),
-      new_board(blocks(a = new_dataset_block()))
-    ),
-    class = "board_update_mod_component_invalid"
-  )
-
-  expect_error(
-    validate_board_update(
-      list(blocks = list(mod = blocks(b = new_dataset_block()))),
+      list(blocks = list(mod = list(a = "not a list"))),
       new_board(blocks(a = new_dataset_block()))
     ),
     class = "board_update_blocks_mod_invalid"
@@ -407,10 +430,34 @@ test_that("update validation", {
 
   expect_error(
     validate_board_update(
-      list(blocks = list(mod = structure("xyz", class = "blocks"))),
+      list(blocks = list(mod = list(b = list()))),
       new_board(blocks(a = new_dataset_block()))
     ),
-    class = "blocks_contains_invalid"
+    class = "board_update_blocks_mod_invalid"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(blocks = list(mod = list(a = list(no_such_arg = 1)))),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_blocks_mod_invalid"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(blocks = list(mod = "xyz")),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_mod_component_invalid"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(blocks = list(mod = blocks(a = new_dataset_block()))),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_blocks_mod_invalid"
   )
 
   expect_error(

@@ -668,7 +668,7 @@ block_expr_type <- function(x) {
 }
 
 block_supports_external_ctrl <- function(x) {
-  length(block_external_ctrl_vars(x)) > 0L
+  length(setdiff(block_external_ctrl_vars(x), "block_name")) > 0L
 }
 
 block_external_ctrl_vars <- function(x) {
@@ -677,17 +677,16 @@ block_external_ctrl_vars <- function(x) {
 
   res <- attr(x, "external_ctrl")
 
-  if (isTRUE(res)) {
-    return(block_ctor_inputs(x))
+  user <- if (isTRUE(res)) {
+    block_ctor_inputs(x)
+  } else if (isFALSE(res)) {
+    character()
+  } else {
+    stopifnot(is.character(res), all(res %in% block_ctor_inputs(x)))
+    res
   }
 
-  if (isFALSE(res)) {
-    return(character())
-  }
-
-  stopifnot(is.character(res), all(res %in% block_ctor_inputs(x)))
-
-  res
+  union(user, "block_name")
 }
 
 #' @rdname block_name

@@ -125,7 +125,7 @@ block_server.block <- function(id, x, data = list(), block_id = id,
 
       if (block_supports_external_ctrl(x)) {
 
-        ctrl_vars <- state[block_external_ctrl_vars(x)]
+        ctrl_vars <- state[setdiff(block_external_ctrl_vars(x), "block_name")]
 
         if (!all(lgl_ply(ctrl_vars, inherits, "reactiveVal"))) {
           blockr_abort(

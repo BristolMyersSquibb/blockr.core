@@ -1,10 +1,21 @@
 # blockr.core 0.1.2
 
-* `update(list(blocks = list(mod = ...)))` now re-sets up the running block
-  server when needed. Diffs that only touch externally controllable arguments
-  (see `block_external_ctrl_vars()`) write the corresponding `reactiveVal`s
-  in place; all other changes (non-ctrl args, class swap) tear down the
-  block module, re-create it under the same id, and re-wire links (#175).
+* The `blocks$mod` slot in `update(...)` payloads now expects a **delta**
+  shape: a named list keyed by block ID, where each entry is a named list
+  of constructor argument values to apply on top of the block's live
+  state. Deltas whose keys are all externally controllable
+  (see `block_external_ctrl_vars()`) are routed to the corresponding
+  `reactiveVal`s in place; any other delta reconstructs the block via its
+  constructor (current live args merged with the delta) and atomically
+  re-sets up the block module under the same id, re-wiring incoming and
+  outgoing links. `block_name` is always treated as externally
+  controllable and routes directly to a registry attribute update without
+  re-setup (#175).
+* `block_external_ctrl_vars()` always includes `"block_name"` — every
+  block can be renamed through `update(...)` regardless of its
+  `external_ctrl` opt-in. `block_supports_external_ctrl()` now reports
+  whether the block opts into any *user-rendered* ctrl variables (i.e.
+  excluding `block_name`), preserving the gate on the ctrl plugin UI.
 * A blockr option `attach_default_packages` can be set to opt into evaluating
   block expressions with objects from default packages directly available.
 * Add `ctrl_block()` plugin for external block control, allowing blocks to be
