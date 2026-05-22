@@ -234,80 +234,10 @@ test_that("blocks$mod with ctrl-able delta writes reactiveVals in place", {
   )
 })
 
-test_that("blocks$mod with non-ctrl delta re-sets up the block server", {
+test_that("blocks$mod routes block_name without disturbing the server", {
 
   board <- new_board(
-    blocks = c(a = new_dataset_block("iris"), b = new_head_block(n = 6L)),
-    links = links(from = "a", to = "b")
-  )
-
-  testServer(
-    get_s3_method("board_server", board),
-    {
-      session$flushReact()
-
-      expect_identical(rv$blocks$b$server$result(), utils::head(datasets::iris))
-
-      pre_server <- rv$blocks$b$server
-
-      board_update(list(blocks = list(mod = list(b = list(n = 3L)))))
-
-      session$flushReact()
-
-      expect_false(identical(rv$blocks$b$server, pre_server))
-      expect_identical(
-        rv$blocks$b$server$result(),
-        utils::head(datasets::iris, n = 3L)
-      )
-    },
-    args = list(x = board)
-  )
-})
-
-test_that("blocks$mod preserves outgoing links across re-setup", {
-
-  board <- new_board(
-    blocks = c(
-      a = new_dataset_block("iris"),
-      b = new_head_block(n = 6L),
-      c = new_head_block(n = 2L)
-    ),
-    links = links(
-      ab = new_link(from = "a", to = "b"),
-      bc = new_link(from = "b", to = "c")
-    )
-  )
-
-  testServer(
-    get_s3_method("board_server", board),
-    {
-      session$flushReact()
-
-      expect_setequal(names(rv$links), c("ab", "bc"))
-      expect_identical(
-        rv$blocks$c$server$result(),
-        utils::head(datasets::iris, n = 2L)
-      )
-
-      board_update(list(blocks = list(mod = list(b = list(n = 3L)))))
-
-      session$flushReact()
-
-      expect_setequal(names(rv$links), c("ab", "bc"))
-      expect_identical(
-        rv$blocks$c$server$result(),
-        utils::head(utils::head(datasets::iris, n = 3L), n = 2L)
-      )
-    },
-    args = list(x = board)
-  )
-})
-
-test_that("blocks$mod routes block_name as ctrl-able without re-setup", {
-
-  board <- new_board(
-    blocks = c(a = new_dataset_block("iris"), b = new_head_block()),
-    links = links(from = "a", to = "b")
+    blocks = c(a = new_dataset_block("iris"), b = new_head_block())
   )
 
   testServer(
@@ -332,7 +262,7 @@ test_that("blocks$mod routes block_name as ctrl-able without re-setup", {
   )
 })
 
-test_that("blocks$mod re-setup carries the current ctrl-arg value forward", {
+test_that("blocks$mod with both ctrl-arg and block_name delta applies both", {
 
   board <- new_board(
     blocks = c(a = new_dataset_block("iris"), b = new_subset_block()),
@@ -344,54 +274,47 @@ test_that("blocks$mod re-setup carries the current ctrl-arg value forward", {
     {
       session$flushReact()
 
+      pre_server <- rv$blocks$b$server
+
       board_update(
         list(
           blocks = list(
-            mod = list(b = list(subset = "Species == \"setosa\""))
+            mod = list(
+              b = list(
+                subset = "Species == \"setosa\"",
+                block_name = "Setosa only"
+              )
+            )
           )
         )
       )
 
       session$flushReact()
 
-      rv$blocks$b$server$state$select("Sepal.Length")
-      session$flushReact()
-
-      expect_equal(
-        names(rv$blocks$b$server$result()),
-        "Sepal.Length"
+      expect_identical(rv$blocks$b$server, pre_server)
+      expect_identical(
+        rv$blocks$b$server$result(),
+        subset(datasets::iris, Species == "setosa")
       )
+      expect_identical(block_name(board_blocks(rv$board)$b), "Setosa only")
     },
     args = list(x = board)
   )
 })
 
-test_that("blocks$mod combines block_name and ctor-arg delta", {
+test_that("blocks$mod rejects non-ctrl-able arguments", {
 
   board <- new_board(
-    blocks = c(a = new_dataset_block("iris"), b = new_head_block(n = 6L))
+    blocks = c(a = new_dataset_block("iris"), b = new_head_block(n = 6L)),
+    links = links(from = "a", to = "b")
   )
 
-  testServer(
-    get_s3_method("board_server", board),
-    {
-      session$flushReact()
-
-      board_update(
-        list(
-          blocks = list(
-            mod = list(b = list(n = 4L, block_name = "Four rows"))
-          )
-        )
-      )
-
-      session$flushReact()
-
-      blk <- board_blocks(rv$board)$b
-      expect_identical(initial_block_state(blk)$n, 4L)
-      expect_identical(block_name(blk), "Four rows")
-    },
-    args = list(x = board)
+  expect_error(
+    validate_board_update(
+      list(blocks = list(mod = list(b = list(n = 3L)))),
+      board
+    ),
+    class = "board_update_blocks_mod_not_ctrl"
   )
 })
 
@@ -441,7 +364,15 @@ test_that("update validation", {
       list(blocks = list(mod = list(a = list(no_such_arg = 1)))),
       new_board(blocks(a = new_dataset_block()))
     ),
-    class = "board_update_blocks_mod_invalid"
+    class = "board_update_blocks_mod_not_ctrl"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(blocks = list(mod = list(a = list(package = "datasets")))),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_blocks_mod_not_ctrl"
   )
 
   expect_error(

@@ -200,32 +200,12 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
             log_debug("modifying block{?s} {names(upd$blocks$mod)}")
 
-            cur_blks <- board_blocks(rv$board)
-
             for (blk_id in names(upd$blocks$mod)) {
 
               delta <- upd$blocks$mod[[blk_id]]
 
-              if (!length(delta)) {
-                next
-              }
-
-              blk <- cur_blks[[blk_id]]
-              ctrl <- block_external_ctrl_vars(blk)
-
-              if (all(names(delta) %in% ctrl)) {
-
+              if (length(delta)) {
                 apply_block_mod_delta(blk_id, delta, rv)
-
-              } else {
-
-                new_blk <- reconstruct_block(blk_id, blk, delta, rv)
-
-                re_setup_block(
-                  new_blk, blk_id, rv,
-                  edit_block, ctrl_block, edit_plugin_args,
-                  dot_args, ns(NULL), session
-                )
               }
             }
           }
@@ -504,49 +484,6 @@ setup_block <- function(blk, id, rv, mod_ed, mod_ct, args) {
   invisible()
 }
 
-re_setup_block <- function(blk, id, rv, mod_ed, mod_ct, args, dot_args,
-                           parent_ns, sess) {
-
-  links <- board_links(rv$board)
-  links_out <- links[links$from == id]
-  links_io <- links[links$from == id | links$to == id]
-
-  update_block_links(rv, rm = links_io)
-
-  destroy_module(paste0("block_", id), session = sess)
-
-  rv$inputs[[id]] <- NULL
-  rv$blocks[[id]] <- NULL
-
-  do.call(
-    remove_block_ui,
-    c(
-      list(parent_ns, rv$board, id),
-      dot_args,
-      list(edit_ui = mod_ed, ctrl_ui = mod_ct, session = sess)
-    )
-  )
-
-  blks <- board_blocks(rv$board)
-  blks[[id]] <- blk
-  board_blocks(rv$board) <- blks
-
-  do.call(
-    insert_block_ui,
-    c(
-      list(parent_ns, rv$board, as_blocks(set_names(list(blk), id))),
-      dot_args,
-      list(edit_ui = mod_ed, ctrl_ui = mod_ct, session = sess)
-    )
-  )
-
-  setup_block(blk, id, rv, mod_ed, mod_ct, args)
-
-  update_block_links(rv, add = links_out)
-
-  invisible()
-}
-
 apply_block_mod_delta <- function(blk_id, delta, rv) {
 
   state_rvs <- rv$blocks[[blk_id]]$server$state
@@ -570,37 +507,6 @@ apply_block_mod_delta <- function(blk_id, delta, rv) {
   }
 
   invisible()
-}
-
-reconstruct_block <- function(blk_id, blk, delta, rv) {
-
-  state_rvs <- rv$blocks[[blk_id]]$server$state
-  ctor_args <- block_ctor_inputs(blk)
-
-  args <- lapply(state_rvs[ctor_args], reval_if)
-
-  if ("block_name" %in% names(delta)) {
-    name <- delta[["block_name"]]
-  } else {
-    name <- block_name(blk)
-  }
-
-  args[setdiff(names(delta), "block_name")] <-
-    delta[setdiff(names(delta), "block_name")]
-
-  ctor <- block_ctor(blk)
-
-  do.call(
-    ctor_fun(ctor),
-    c(
-      args,
-      list(
-        ctor = coal(ctor_name(ctor), ctor_fun(ctor)),
-        ctor_pkg = ctor_pkg(ctor),
-        block_name = name
-      )
-    )
-  )
 }
 
 destroy_rm_blocks <- function(ids, rv, sess, args) {
@@ -1041,13 +947,15 @@ validate_board_update_blocks <- function(x, board) {
         )
       }
 
-      allowed <- c(block_ctor_inputs(blks[[blk_id]]), "block_name")
+      allowed <- block_external_ctrl_vars(blks[[blk_id]])
       extra <- setdiff(names(delta), allowed)
 
       if (length(extra)) {
         blockr_abort(
-          "Block `{blk_id}` mod delta contains unknown argument{?s} {extra}.",
-          class = "board_update_blocks_mod_invalid"
+          "Block `{blk_id}` mod delta contains argument{?s} {extra} which ",
+          "{?is/are} not externally controllable. Use a `rm` + `add` payload ",
+          "to replace the block.",
+          class = "board_update_blocks_mod_not_ctrl"
         )
       }
     }

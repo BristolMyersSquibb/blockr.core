@@ -32,31 +32,59 @@ ctrl_block <- function(server = ctrl_block_server, ui = ctrl_block_ui) {
 #' @param id Namespace ID
 #' @param x Block object
 #' @param vars Reactive state values (list of `reactiveVal` objects keyed by
-#' input name)
+#' input name). Does not include `block_name`, which is routed through
+#' `update` rather than a state `reactiveVal`.
 #' @param data Input data paseed as list of reactive values
 #' @param eval Reactive that evaluates the block expression against input
 #' data. May be used to validate that the new values produce a successful
 #' evaluation.
+#' @param block_id Block id used to route `block_name` changes through
+#' `update`.
+#' @param update Board update `reactiveVal` used to emit `block_name`
+#' changes.
 #'
 #' @rdname ctrl_block
 #' @export
-ctrl_block_server <- function(id, x, vars, data, eval) {
+ctrl_block_server <- function(id, x, vars, data, eval, block_id, update) {
   moduleServer(
     id,
     function(input, output, session) {
 
-      inps <- setdiff(block_external_ctrl_vars(x), "block_name")
+      inps <- block_external_ctrl_vars(x)
+      writable <- setdiff(inps, "block_name")
 
       gate <- reactiveVal(TRUE)
 
       observeEvent(
         input$submit,
         {
-          old <- lapply(vars[inps], reval)
+          old <- lapply(vars[writable], reval)
 
           for (inp in inps) {
+
             val <- session$input[[inp]]
-            if (!is.null(val) && !identical(vars[[inp]](), val)) {
+
+            if (is.null(val)) {
+              next
+            }
+
+            if (identical(inp, "block_name")) {
+
+              update(
+                list(
+                  blocks = list(
+                    mod = set_names(
+                      list(list(block_name = val)),
+                      block_id
+                    )
+                  )
+                )
+              )
+
+              next
+            }
+
+            if (!identical(vars[[inp]](), val)) {
               vars[[inp]](val)
             }
           }
@@ -65,7 +93,7 @@ ctrl_block_server <- function(id, x, vars, data, eval) {
 
           if (inherits(result, "try-error")) {
 
-            for (inp in inps) {
+            for (inp in writable) {
               if (!identical(vars[[inp]](), old[[inp]])) {
                 vars[[inp]](old[[inp]])
               }
@@ -95,7 +123,7 @@ ctrl_block_server <- function(id, x, vars, data, eval) {
 #' @export
 ctrl_block_ui <- function(id, x) {
 
-  inps <- setdiff(block_external_ctrl_vars(x), "block_name")
+  inps <- block_external_ctrl_vars(x)
 
   if (!length(inps)) {
     return(do.call(tagList, list()))

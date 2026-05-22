@@ -142,7 +142,9 @@ block_server.block <- function(id, x, data = list(), block_id = id,
               x = x,
               vars = ctrl_vars,
               data = dat_eval,
-              eval = reactive(eval_impl(x, lang(), dat_eval()))
+              eval = reactive(eval_impl(x, lang(), dat_eval())),
+              block_id = block_id,
+              update = update
             )
           ),
           TRUE

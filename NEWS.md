@@ -2,20 +2,20 @@
 
 * The `blocks$mod` slot in `update(...)` payloads now expects a **delta**
   shape: a named list keyed by block ID, where each entry is a named list
-  of constructor argument values to apply on top of the block's live
-  state. Deltas whose keys are all externally controllable
-  (see `block_external_ctrl_vars()`) are routed to the corresponding
-  `reactiveVal`s in place; any other delta reconstructs the block via its
-  constructor (current live args merged with the delta) and atomically
-  re-sets up the block module under the same id, re-wiring incoming and
-  outgoing links. `block_name` is always treated as externally
-  controllable and routes directly to a registry attribute update without
-  re-setup (#175).
+  of argument values to apply to the live block. Keys must be in
+  `block_external_ctrl_vars(blk)` — non-ctrl-able changes go through
+  `rm` + `add`. Ctrl-arg writes hit the corresponding `reactiveVal` in
+  place; `block_name` (always treated as ctrl-able) updates the block's
+  registry attribute (#175).
 * `block_external_ctrl_vars()` always includes `"block_name"` — every
   block can be renamed through `update(...)` regardless of its
   `external_ctrl` opt-in. `block_supports_external_ctrl()` now reports
   whether the block opts into any *user-rendered* ctrl variables (i.e.
   excluding `block_name`), preserving the gate on the ctrl plugin UI.
+* The default `ctrl_block_server()` now takes `block_id` and `update`
+  arguments and routes `block_name` submissions through the board's
+  `update` reactiveVal. Custom ctrl plugin server implementations need
+  to accept these arguments.
 * A blockr option `attach_default_packages` can be set to opt into evaluating
   block expressions with objects from default packages directly available.
 * Add `ctrl_block()` plugin for external block control, allowing blocks to be
