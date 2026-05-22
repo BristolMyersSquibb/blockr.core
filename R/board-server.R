@@ -213,7 +213,6 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
           if (length(upd$links$mod)) {
 
             cur_lnks <- board_links(rv$board)[names(upd$links$mod)]
-            # nolint next: object_usage_linter.
             merged <- as_links(Map(update_link, cur_lnks, upd$links$mod))
 
             upd$links$add <- c(upd$links$add, merged)
@@ -257,7 +256,6 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
             cur_stks <- board_stacks(rv$board)[names(upd$stacks$mod)]
             upd$stacks$mod <- as_stacks(
-              # nolint next: object_usage_linter.
               Map(update_stack, cur_stks, upd$stacks$mod)
             )
           }
@@ -1063,7 +1061,7 @@ validate_board_update_xrefs <- function(payload, board) {
 
     if (has_comp("mod", lnk)) {
       merged <- Map(
-        update_link, # nolint: object_usage_linter.
+        update_link,
         board_links(board)[names(lnk$mod)],
         lnk$mod
       )
@@ -1126,7 +1124,7 @@ validate_board_update_stacks <- function(upd, board) {
     validate_mod_deltas(x$mod, names(all_stks), "stacks")
 
     merged <- Map(
-      update_stack, # nolint: object_usage_linter.
+      update_stack,
       board_stacks(board)[names(x$mod)],
       x$mod
     )
@@ -1163,7 +1161,6 @@ preprocess_board_update <- function(update, board) {
 
     if (length(upd$stacks$mod)) {
       cur_for_mod <- board_stacks(board)[names(upd$stacks$mod)]
-      # nolint next: object_usage_linter.
       mod_stks <- Map(update_stack, cur_for_mod, upd$stacks$mod)
       merged_stks[names(upd$stacks$mod)] <- as_stacks(mod_stks)
     }
