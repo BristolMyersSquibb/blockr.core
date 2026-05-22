@@ -1,12 +1,19 @@
 # blockr.core 0.1.2
 
-* The `blocks$mod` slot in `update(...)` payloads now expects a **delta**
-  shape: a named list keyed by block ID, where each entry is a named list
-  of argument values to apply to the live block. Keys must be in
-  `block_external_ctrl_vars(blk)` — non-ctrl-able changes go through
-  `rm` + `add`. Ctrl-arg writes hit the corresponding `reactiveVal` in
-  place; `block_name` (always treated as ctrl-able) updates the block's
-  registry attribute (#175).
+* The `mod` slots in `update(...)` payloads for **blocks, links and
+  stacks** now uniformly expect a **delta** shape: a named list keyed
+  by entry ID, where each entry is a named list of argument values to
+  apply on top of the live entry.
+  - For `blocks`, keys must be in `block_external_ctrl_vars(blk)` —
+    non-ctrl-able changes go through `rm` + `add`. Ctrl-arg writes hit
+    the corresponding `reactiveVal` in place; `block_name` (always
+    treated as ctrl-able) updates the block's registry attribute.
+  - For `links` and `stacks`, deltas are merged onto the current entry
+    via the new `update_link()` / `update_stack()` S3 generics. The
+    default methods reconstruct the entry through its stored
+    constructor, preserving sub-class attributes. Sub-class owners
+    (e.g. `dock_stack` adding `color`) only need to register a method
+    when their constructor deviates from the convention (#175).
 * `block_external_ctrl_vars()` always includes `"block_name"` — every
   block can be renamed through `update(...)` regardless of its
   `external_ctrl` opt-in. The default ctrl plugin panel renders a

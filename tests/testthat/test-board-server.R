@@ -318,6 +318,100 @@ test_that("blocks$mod rejects non-ctrl-able arguments", {
   )
 })
 
+test_that("links$mod accepts partial-args deltas via update_link", {
+
+  board <- new_board(
+    blocks = c(a = new_dataset_block("iris"), b = new_subset_block()),
+    links = links(ab = list(from = "a", to = "b", input = "data"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      board_update(
+        list(links = list(mod = list(ab = list(input = "data"))))
+      )
+
+      session$flushReact()
+
+      expect_identical(board_links(rv$board)$input, "data")
+    },
+    args = list(x = board)
+  )
+})
+
+test_that("stacks$mod merges deltas onto current stack via update_stack", {
+
+  board <- new_board(
+    blocks = c(a = new_dataset_block("iris"), b = new_subset_block()),
+    stacks = stacks(s1 = new_stack(c("a"), "Initial"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      board_update(
+        list(stacks = list(mod = list(s1 = list(blocks = c("a", "b")))))
+      )
+
+      session$flushReact()
+
+      stk <- board_stacks(rv$board)$s1
+      expect_setequal(stack_blocks(stk), c("a", "b"))
+      expect_identical(stack_name(stk), "Initial")
+
+      board_update(
+        list(stacks = list(mod = list(s1 = list(name = "Renamed"))))
+      )
+
+      session$flushReact()
+
+      stk <- board_stacks(rv$board)$s1
+      expect_setequal(stack_blocks(stk), c("a", "b"))
+      expect_identical(stack_name(stk), "Renamed")
+    },
+    args = list(x = board)
+  )
+})
+
+test_that("update_stack default preserves extra attrs through reconstruction", {
+
+  stk <- new_stack(
+    c("a", "b"),
+    name = "S",
+    color = "red",
+    pkg = "blockr.core"
+  )
+
+  out <- update_stack(stk, list(blocks = "c"))
+  expect_identical(stack_blocks(out), "c")
+  expect_identical(stack_name(out), "S")
+  expect_identical(attr(out, "color"), "red")
+
+  out2 <- update_stack(stk, list(color = "blue"))
+  expect_setequal(stack_blocks(out2), c("a", "b"))
+  expect_identical(attr(out2, "color"), "blue")
+})
+
+test_that("update_link default preserves all fields through reconstruction", {
+
+  lnk <- new_link("a", "b", "data")
+
+  out <- update_link(lnk, list(input = "x"))
+  expect_identical(out$from, "a")
+  expect_identical(out$to, "b")
+  expect_identical(out$input, "x")
+
+  out2 <- update_link(lnk, list(to = "c", input = "y"))
+  expect_identical(out2$from, "a")
+  expect_identical(out2$to, "c")
+  expect_identical(out2$input, "y")
+})
+
 test_that("update validation", {
 
   expect_error(
@@ -407,9 +501,12 @@ test_that("update validation", {
   expect_error(
     validate_board_update(
       list(links = list(mod = list(ab = "xyz"))),
-      new_board(blocks(a = new_dataset_block(), b = new_head_block()))
+      new_board(
+        blocks(a = new_dataset_block(), b = new_head_block()),
+        links(ab = list(from = "a", to = "b", input = "data"))
+      )
     ),
-    class = "board_update_mod_component_invalid"
+    class = "board_update_links_mod_invalid"
   )
 
   expect_error(
@@ -419,7 +516,10 @@ test_that("update validation", {
           mod = links(ab = list(from = "a", to = "b", input = "data"))
         )
       ),
-      new_board(blocks(a = new_dataset_block(), b = new_head_block()))
+      new_board(
+        blocks(a = new_dataset_block(), b = new_head_block()),
+        links(ab = list(from = "a", to = "b", input = "data"))
+      )
     ),
     class = "board_update_links_mod_invalid"
   )
@@ -438,11 +538,7 @@ test_that("update validation", {
 
   expect_error(
     validate_board_update(
-      list(
-        links = list(
-          mod = links(xyz = list(from = "a", to = "c", input = "data"))
-        )
-      ),
+      list(links = list(mod = list(xyz = list(to = "c")))),
       new_board(
         blocks(a = new_dataset_block(), b = new_head_block()),
         links(xyz = list(from = "a", to = "b", input = "data"))
@@ -462,14 +558,17 @@ test_that("update validation", {
   expect_error(
     validate_board_update(
       list(stacks = list(mod = list(a = "a"))),
-      new_board(blocks(a = new_dataset_block()))
+      new_board(
+        blocks(a = new_dataset_block()),
+        stacks = stacks(a = "a")
+      )
     ),
-    class = "board_update_mod_component_invalid"
+    class = "board_update_stacks_mod_invalid"
   )
 
   expect_error(
     validate_board_update(
-      list(stacks = list(mod = stacks(b = "b"))),
+      list(stacks = list(mod = list(b = list(blocks = "a")))),
       new_board(
         blocks(a = new_dataset_block()),
         stacks = stacks(a = "a")
@@ -491,7 +590,7 @@ test_that("update validation", {
 
   expect_error(
     validate_board_update(
-      list(stacks = list(mod = stacks(a = "b"))),
+      list(stacks = list(mod = list(a = list(blocks = "b")))),
       new_board(
         blocks(a = new_dataset_block()),
         stacks = stacks(a = "a")

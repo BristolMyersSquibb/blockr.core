@@ -211,7 +211,12 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
           }
 
           if (length(upd$links$mod)) {
-            upd$links$add <- c(upd$links$add, upd$links$mod)
+
+            cur_lnks <- board_links(rv$board)[names(upd$links$mod)]
+            # nolint next: object_usage_linter.
+            merged <- as_links(Map(update_link, cur_lnks, upd$links$mod))
+
+            upd$links$add <- c(upd$links$add, merged)
             upd$links$rm <- c(upd$links$rm, names(upd$links$mod))
           }
 
@@ -247,7 +252,14 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
           }
 
           if (length(upd$stacks$mod)) {
+
             log_debug("modifying stack{?s} {names(upd$stacks$mod)}")
+
+            cur_stks <- board_stacks(rv$board)[names(upd$stacks$mod)]
+            upd$stacks$mod <- as_stacks(
+              # nolint next: object_usage_linter.
+              Map(update_stack, cur_stks, upd$stacks$mod)
+            )
           }
 
           update_stack_blocks(
@@ -827,26 +839,12 @@ validate_board_update_structure <- function(payload, board) {
       )
     }
 
-    if ("mod" %in% names(x)) {
-
-      if (identical(typ, "blocks")) {
-
-        if (!(is.null(x$mod) || is.list(x$mod))) {
-          blockr_abort(
-            "Expecting a board update blocks `mod` component be specified as ",
-            "a named list of per-block argument deltas (or NULL).",
-            class = "board_update_mod_component_invalid"
-          )
-        }
-
-      } else if (!(is.null(x$mod) || inherits(x$mod, typ))) {
-
-        blockr_abort(
-          "Expecting a board update `mod` component be specified as a {typ} ",
-          "object (or NULL).",
-          class = "board_update_mod_component_invalid"
-        )
-      }
+    if ("mod" %in% names(x) && !(is.null(x$mod) || is.list(x$mod))) {
+      blockr_abort(
+        "Expecting a board update `mod` component be specified as a named ",
+        "list of per-entry argument deltas (or NULL).",
+        class = "board_update_mod_component_invalid"
+      )
     }
   }
 
@@ -914,39 +912,13 @@ validate_board_update_blocks <- function(x, board) {
 
   if (has_comp("mod", x)) {
 
-    if (length(names(x$mod)) != length(x$mod) ||
-          any(nchar(names(x$mod)) == 0L)) {
-      blockr_abort(
-        "Expecting the blocks `mod` component to be a named list keyed by ",
-        "block ID.",
-        class = "board_update_blocks_mod_invalid"
-      )
-    }
-
-    if (!all(names(x$mod) %in% cur_ids)) {
-      blockr_abort(
-        "Expecting the modified blocks to be specified by known IDs.",
-        class = "board_update_blocks_mod_invalid"
-      )
-    }
+    validate_mod_deltas(x$mod, cur_ids, "blocks")
 
     blks <- board_blocks(board)
 
     for (blk_id in names(x$mod)) {
 
       delta <- x$mod[[blk_id]]
-
-      if (is_block(delta) || !is.list(delta) ||
-            (length(delta) &&
-               (length(names(delta)) != length(delta) ||
-                  any(nchar(names(delta)) == 0L)))) {
-        blockr_abort(
-          "Expecting each blocks `mod` entry to be a named list of ",
-          "constructor argument values.",
-          class = "board_update_blocks_mod_invalid"
-        )
-      }
-
       allowed <- block_external_ctrl_vars(blks[[blk_id]])
       extra <- setdiff(names(delta), allowed)
 
@@ -1005,14 +977,44 @@ validate_board_update_links <- function(x, board) {
 
   if (has_comp("mod", x)) {
 
-    if (!all(names(x$mod) %in% cur_ids)) {
+    validate_mod_deltas(x$mod, cur_ids, "links")
+  }
+
+  invisible()
+}
+
+validate_mod_deltas <- function(mod, cur_ids, typ) {
+
+  if (length(names(mod)) != length(mod) || any(nchar(names(mod)) == 0L)) {
+    blockr_abort(
+      "Expecting the {typ} `mod` component to be a named list keyed by ID.",
+      class = paste0("board_update_", typ, "_mod_invalid")
+    )
+  }
+
+  if (!all(names(mod) %in% cur_ids)) {
+    blockr_abort(
+      "Expecting the modified {typ} entries to be specified by known IDs.",
+      class = paste0("board_update_", typ, "_mod_invalid")
+    )
+  }
+
+  is_obj <- switch(typ, blocks = is_block, links = is_link, stacks = is_stack)
+
+  for (id in names(mod)) {
+
+    delta <- mod[[id]]
+
+    if (is_obj(delta) || !is.list(delta) ||
+          (length(delta) &&
+             (length(names(delta)) != length(delta) ||
+                any(nchar(names(delta)) == 0L)))) {
       blockr_abort(
-        "Expecting the modified links to be specified by known IDs.",
-        class = "board_update_links_mod_invalid"
+        "Expecting each {typ} `mod` entry to be a named list of constructor ",
+        "argument values.",
+        class = paste0("board_update_", typ, "_mod_invalid")
       )
     }
-
-    validate_links(x$mod)
   }
 
   invisible()
@@ -1060,9 +1062,14 @@ validate_board_update_xrefs <- function(payload, board) {
     }
 
     if (has_comp("mod", lnk)) {
+      merged <- Map(
+        update_link, # nolint: object_usage_linter.
+        board_links(board)[names(lnk$mod)],
+        lnk$mod
+      )
       all_lnks <- c(
         all_lnks[setdiff(names(all_lnks), names(lnk$mod))],
-        lnk$mod
+        as_links(merged)
       )
     }
 
@@ -1116,16 +1123,18 @@ validate_board_update_stacks <- function(upd, board) {
 
   if (has_comp("mod", x)) {
 
-    if (!all(names(x$mod) %in% names(all_stks))) {
-      blockr_abort(
-        "Expecting the modified stacks to be specified by known IDs.",
-        class = "board_update_stacks_mod_invalid"
-      )
-    }
+    validate_mod_deltas(x$mod, names(all_stks), "stacks")
 
-    validate_stacks(x$mod)
+    merged <- Map(
+      update_stack, # nolint: object_usage_linter.
+      board_stacks(board)[names(x$mod)],
+      x$mod
+    )
 
-    all_stks <- c(all_stks[setdiff(names(all_stks), names(x$mod))], x$mod)
+    all_stks <- c(
+      all_stks[setdiff(names(all_stks), names(x$mod))],
+      as_stacks(merged)
+    )
   }
 
   if (has_comps(c("add", "mod"), x)) {
@@ -1150,19 +1159,26 @@ preprocess_board_update <- function(update, board) {
       upd$links$rm
     )
 
-    stacks <- board_stacks(board)
+    merged_stks <- board_stacks(board)
 
-    stacks <- c(
-      upd$stacks$mod,
-      stacks[setdiff(names(stacks), c(names(upd$stacks$mod), upd$stacks$rm))]
-    )
+    if (length(upd$stacks$mod)) {
+      cur_for_mod <- board_stacks(board)[names(upd$stacks$mod)]
+      # nolint next: object_usage_linter.
+      mod_stks <- Map(update_stack, cur_for_mod, upd$stacks$mod)
+      merged_stks[names(upd$stacks$mod)] <- as_stacks(mod_stks)
+    }
 
-    upd_stk <- as_stacks(
-      lapply(
-        stacks[lengths(lapply(stacks, intersect, rm)) > 0L],
-        setdiff,
-        rm
-      )
+    if (length(upd$stacks$rm)) {
+      merged_stks <- merged_stks[setdiff(names(merged_stks), upd$stacks$rm)]
+    }
+
+    affected <- merged_stks[
+      lengths(lapply(merged_stks, intersect, rm)) > 0L
+    ]
+
+    upd_stk <- lapply(
+      affected,
+      function(s) list(blocks = setdiff(stack_blocks(s), rm))
     )
 
   } else {
@@ -1183,18 +1199,6 @@ preprocess_board_update <- function(update, board) {
     }
   }
 
-  upd_lnk <- NULL
-
-  if ("links" %in% names(upd) && "mod" %in% names(upd$links)) {
-
-    tmp <- complete_unary_inputs(upd$links$mod, board_blocks(board))
-    tmp <- complete_variadic_inputs(tmp, board_blocks(board))
-
-    if (!identical(tmp$input, upd$links$mod$input)) {
-      upd_lnk <- tmp
-    }
-  }
-
   if (length(mis_lnk)) {
     log_debug("adding link removal{?s} for {mis_lnk}")
     upd$links$rm <- c(mis_lnk, upd$links$rm)
@@ -1202,7 +1206,10 @@ preprocess_board_update <- function(update, board) {
 
   if (length(upd_stk)) {
     log_debug("adding stack update{?s} for {names(upd_stk)}")
-    upd$stacks$mod <- c(upd_stk, upd$stacks$mod)
+    upd$stacks$mod <- c(
+      upd_stk,
+      upd$stacks$mod[setdiff(names(upd$stacks$mod), names(upd_stk))]
+    )
   }
 
   if (length(add_lnk)) {
@@ -1213,15 +1220,7 @@ preprocess_board_update <- function(update, board) {
     )
   }
 
-  if (length(upd_lnk)) {
-    log_debug("adding link input update{?s} for {names(upd_lnk)}")
-    upd$links$mod <- c(
-      upd_lnk,
-      upd$links$mod[setdiff(names(upd$links$mod), names(upd_lnk))]
-    )
-  }
-
-  if (length(mis_lnk) + length(upd_stk) + length(add_lnk) + length(upd_lnk)) {
+  if (length(mis_lnk) + length(upd_stk) + length(add_lnk)) {
     update(upd)
     return(TRUE)
   }
