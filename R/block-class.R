@@ -668,7 +668,7 @@ block_expr_type <- function(x) {
 }
 
 block_supports_external_ctrl <- function(x) {
-  length(setdiff(block_external_ctrl_vars(x), "block_name")) > 0L
+  length(block_external_ctrl_vars(x)) > 0L
 }
 
 block_external_ctrl_vars <- function(x) {
