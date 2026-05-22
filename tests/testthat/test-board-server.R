@@ -200,278 +200,196 @@ test_that("board server", {
 
 test_that("update validation", {
 
-  with_mock_session(
-    {
-      expect_error(
-        validate_board_update(list(), new_board()),
-        class = "board_update_object_invalid"
-      )
-
-      expect_error(
-        validate_board_update(reactiveVal("a"), new_board()),
-        class = "board_update_type_invalid"
-      )
-
-      expect_error(
-        validate_board_update(
-          reactiveVal(list(test = list(add = "a"))),
-          new_board()
-        ),
-        class = "board_update_components_invalid"
-      )
-    }
+  expect_error(
+    validate_board_update("a", new_board()),
+    class = "board_update_type_invalid"
   )
 
-  with_mock_session(
-    {
-      expect_error(
-        validate_board_update(
-          reactiveVal(
-            list(
-              blocks = list(
-                add = blocks(a = new_dataset_block()),
-                mod = blocks(a = new_dataset_block())
-              )
-            )
-          ),
-          new_board()
-        ),
-        class = "board_update_blocks_add_mod_clash"
-      )
-
-      expect_error(
-        validate_board_update(
-          reactiveVal(
-            list(
-              blocks = list(
-                mod = list(a = list())
-              )
-            )
-          ),
-          new_board(blocks(a = new_dataset_block()))
-        ),
-        class = "board_update_mod_component_invalid"
-      )
-
-      expect_error(
-        validate_board_update(
-          reactiveVal(
-            list(
-              blocks = list(
-                mod = blocks(b = new_dataset_block())
-              )
-            )
-          ),
-          new_board(blocks(a = new_dataset_block()))
-        ),
-        class = "board_update_blocks_mod_invalid"
-      )
-
-      expect_error(
-        validate_board_update(
-          reactiveVal(
-            list(
-              blocks = list(
-                mod = structure("xyz", class = "blocks")
-              )
-            )
-          ),
-          new_board(blocks(a = new_dataset_block()))
-        ),
-        class = "blocks_contains_invalid"
-      )
-    }
+  expect_error(
+    validate_board_update(list(test = list(add = "a")), new_board()),
+    class = "board_update_components_invalid"
   )
 
-  with_mock_session(
-    {
-      expect_error(
-        validate_board_update(
-          reactiveVal(
-            list(
-              links = list(
-                add = links(ab = list(from = "a", to = "b", input = "data")),
-                mod = links(ab = list(from = "a", to = "b", input = "data"))
-              )
-            )
-          ),
-          new_board(
-            blocks(
-              a = new_dataset_block(),
-              b = new_head_block()
-            )
-          )
-        ),
-        class = "board_update_links_add_mod_clash"
-      )
-
-      expect_error(
-        validate_board_update(
-          reactiveVal(
-            list(
-              links = list(
-                mod = list(ab = "xyz")
-              )
-            )
-          ),
-          new_board(
-            blocks(
-              a = new_dataset_block(),
-              b = new_head_block()
-            )
-          )
-        ),
-        class = "board_update_mod_component_invalid"
-      )
-
-      expect_error(
-        validate_board_update(
-          reactiveVal(
-            list(
-              links = list(
-                mod = links(ab = list(from = "a", to = "b", input = "data"))
-              )
-            )
-          ),
-          new_board(
-            blocks(
-              a = new_dataset_block(),
-              b = new_head_block()
-            )
-          )
-        ),
-        class = "board_update_links_mod_invalid"
-      )
-
-      expect_error(
-        validate_update_links_board(
-          reactiveVal(
-            list(
-              links = list(
-                add = links(xyz = list(from = "a", to = "c", input = "data"))
-              )
-            )
-          ),
-          new_board(
-            blocks(
-              a = new_dataset_block(),
-              b = new_head_block()
-            )
-          )
-        ),
-        class = "board_block_link_name_mismatch"
-      )
-
-      expect_error(
-        validate_update_links_board(
-          reactiveVal(
-            list(
-              links = list(
-                mod = links(xyz = list(from = "a", to = "c", input = "data"))
-              )
-            )
-          ),
-          new_board(
-            blocks(
-              a = new_dataset_block(),
-              b = new_head_block()
-            ),
-            links(xyz = list(from = "a", to = "b", input = "data"))
-          )
-        ),
-        class = "board_block_link_name_mismatch"
-      )
-    }
+  expect_error(
+    validate_board_update(
+      list(
+        blocks = list(
+          add = blocks(a = new_dataset_block()),
+          mod = blocks(a = new_dataset_block())
+        )
+      ),
+      new_board()
+    ),
+    class = "board_update_blocks_add_mod_clash"
   )
 
-  with_mock_session(
-    {
-      expect_error(
-        validate_board_update(
-          reactiveVal(
-            list(
-              stacks = list(
-                add = stacks(a = "a"),
-                mod = stacks(a = "a")
-              )
-            )
-          ),
-          new_board(
-            blocks(
-              a = new_dataset_block()
-            )
-          )
-        ),
-        class = "board_update_stacks_add_mod_clash"
-      )
+  expect_error(
+    validate_board_update(
+      list(blocks = list(mod = list(a = list()))),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_mod_component_invalid"
+  )
 
-      expect_error(
-        validate_board_update(
-          reactiveVal(
-            list(
-              stacks = list(
-                mod = list(a = "a")
-              )
-            )
-          ),
-          new_board(
-            blocks(a = new_dataset_block())
-          )
-        ),
-        class = "board_update_mod_component_invalid"
-      )
+  expect_error(
+    validate_board_update(
+      list(blocks = list(mod = blocks(b = new_dataset_block()))),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_blocks_mod_invalid"
+  )
 
-      expect_error(
-        validate_board_update(
-          reactiveVal(
-            list(
-              stacks = list(
-                mod = stacks(b = "b")
-              )
-            )
-          ),
-          new_board(
-            blocks(a = new_dataset_block()),
-            stacks = stacks(a = "a")
-          )
-        ),
-        class = "board_update_stacks_mod_invalid"
-      )
+  expect_error(
+    validate_board_update(
+      list(blocks = list(mod = structure("xyz", class = "blocks"))),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "blocks_contains_invalid"
+  )
 
-      expect_error(
-        validate_board_update(
-          reactiveVal(
-            list(
-              stacks = list(
-                add = stacks(b = "b")
-              )
-            )
-          ),
-          new_board(
-            blocks(a = new_dataset_block()),
-            stacks = stacks(a = "a")
-          )
-        ),
-        class = "board_block_stack_name_mismatch"
-      )
+  expect_error(
+    validate_board_update(
+      list(
+        links = list(
+          add = links(ab = list(from = "a", to = "b", input = "data")),
+          mod = links(ab = list(from = "a", to = "b", input = "data"))
+        )
+      ),
+      new_board(blocks(a = new_dataset_block(), b = new_head_block()))
+    ),
+    class = "board_update_links_add_mod_clash"
+  )
 
-      expect_error(
-        validate_board_update(
-          reactiveVal(
-            list(
-              stacks = list(
-                mod = stacks(a = "b")
-              )
-            )
-          ),
-          new_board(
-            blocks(a = new_dataset_block()),
-            stacks = stacks(a = "a")
-          )
-        ),
-        class = "board_block_stack_name_mismatch"
+  expect_error(
+    validate_board_update(
+      list(links = list(mod = list(ab = "xyz"))),
+      new_board(blocks(a = new_dataset_block(), b = new_head_block()))
+    ),
+    class = "board_update_mod_component_invalid"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(
+        links = list(
+          mod = links(ab = list(from = "a", to = "b", input = "data"))
+        )
+      ),
+      new_board(blocks(a = new_dataset_block(), b = new_head_block()))
+    ),
+    class = "board_update_links_mod_invalid"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(
+        links = list(
+          add = links(xyz = list(from = "a", to = "c", input = "data"))
+        )
+      ),
+      new_board(blocks(a = new_dataset_block(), b = new_head_block()))
+    ),
+    class = "board_block_link_name_mismatch"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(
+        links = list(
+          mod = links(xyz = list(from = "a", to = "c", input = "data"))
+        )
+      ),
+      new_board(
+        blocks(a = new_dataset_block(), b = new_head_block()),
+        links(xyz = list(from = "a", to = "b", input = "data"))
       )
-    }
+    ),
+    class = "board_block_link_name_mismatch"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(stacks = list(add = stacks(a = "a"), mod = stacks(a = "a"))),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_stacks_add_mod_clash"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(stacks = list(mod = list(a = "a"))),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_mod_component_invalid"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(stacks = list(mod = stacks(b = "b"))),
+      new_board(
+        blocks(a = new_dataset_block()),
+        stacks = stacks(a = "a")
+      )
+    ),
+    class = "board_update_stacks_mod_invalid"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(stacks = list(add = stacks(b = "b"))),
+      new_board(
+        blocks(a = new_dataset_block()),
+        stacks = stacks(a = "a")
+      )
+    ),
+    class = "board_block_stack_name_mismatch"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(stacks = list(mod = stacks(a = "b"))),
+      new_board(
+        blocks(a = new_dataset_block()),
+        stacks = stacks(a = "a")
+      )
+    ),
+    class = "board_block_stack_name_mismatch"
+  )
+})
+
+test_that("public validate_board_update", {
+
+  brd <- new_board(
+    blocks = c(a = new_dataset_block("iris"), b = new_subset_block()),
+    links = links(ab = new_link(from = "a", to = "b"))
+  )
+
+  expect_identical(
+    validate_board_update(list(), brd),
+    list()
+  )
+
+  pay <- list(links = list(rm = "ab"))
+  expect_identical(
+    validate_board_update(pay, brd),
+    pay
+  )
+
+  expect_error(
+    validate_board_update("not-a-list", brd),
+    class = "board_update_type_invalid"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(
+        links = list(
+          add = links(xy = new_link(from = "x", to = "y", input = "data"))
+        )
+      ),
+      brd
+    ),
+    class = "board_block_link_name_mismatch"
   )
 })
 

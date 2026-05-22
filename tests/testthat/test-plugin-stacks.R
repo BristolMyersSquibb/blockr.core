@@ -158,81 +158,55 @@ test_that("add/rm stacks", {
 
 test_that("add/rm stacks return validation", {
 
-  with_mock_session(
-    {
-      val <- reactiveVal(
-        list(stacks = list(add = stacks(a = "a"), rm = "ab"))
-      )
-
-      brd <- new_board(
-        blocks = c(
-          a = new_dataset_block("iris"),
-          b = new_subset_block()
-        ),
-        stacks = stacks(ab = c("a", "b"))
-      )
-
-      expect_null(
-        validate_board_update(val, brd)
-      )
-    }
+  brd <- new_board(
+    blocks = c(
+      a = new_dataset_block("iris"),
+      b = new_subset_block()
+    ),
+    stacks = stacks(ab = c("a", "b"))
   )
 
-  with_mock_session(
-    {
-      expect_error(
-        validate_board_update(
-          reactiveVal(list(stacks = "a")),
-          new_board()
-        ),
-        class = "board_update_component_type_invalid"
-      )
+  pay <- list(stacks = list(add = stacks(a = "a"), rm = "ab"))
 
-      expect_error(
-        validate_board_update(
-          reactiveVal(list(stacks = list(abc = NULL))),
-          new_board()
-        ),
-        class = "board_update_component_components_invalid"
-      )
+  expect_identical(
+    validate_board_update(pay, brd),
+    pay
+  )
 
-      expect_error(
-        validate_board_update(
-          reactiveVal(list(stacks = list(add = "a"))),
-          new_board()
-        ),
-        class = "board_update_add_component_invalid"
-      )
+  expect_error(
+    validate_board_update(list(stacks = "a"), new_board()),
+    class = "board_update_component_type_invalid"
+  )
 
-      expect_error(
-        validate_board_update(
-          reactiveVal(
-            list(stacks = list(add = stacks(a = new_stack())))
-          ),
-          new_board(
-            blocks = c(a = new_dataset_block()),
-            stacks = stacks(a = "a")
-          )
-        ),
-        class = "board_update_stacks_add_invalid"
-      )
+  expect_error(
+    validate_board_update(list(stacks = list(abc = NULL)), new_board()),
+    class = "board_update_component_components_invalid"
+  )
 
-      expect_error(
-        validate_board_update(
-          reactiveVal(list(stacks = list(rm = 1))),
-          new_board()
-        ),
-        class = "board_update_rm_component_invalid"
-      )
+  expect_error(
+    validate_board_update(list(stacks = list(add = "a")), new_board()),
+    class = "board_update_add_component_invalid"
+  )
 
-      expect_error(
-        validate_board_update(
-          reactiveVal(list(stacks = list(rm = "a"))),
-          new_board()
-        ),
-        class = "board_update_stacks_rm_invalid"
+  expect_error(
+    validate_board_update(
+      list(stacks = list(add = stacks(a = new_stack()))),
+      new_board(
+        blocks = c(a = new_dataset_block()),
+        stacks = stacks(a = "a")
       )
-    }
+    ),
+    class = "board_update_stacks_add_invalid"
+  )
+
+  expect_error(
+    validate_board_update(list(stacks = list(rm = 1)), new_board()),
+    class = "board_update_rm_component_invalid"
+  )
+
+  expect_error(
+    validate_board_update(list(stacks = list(rm = "a")), new_board()),
+    class = "board_update_stacks_rm_invalid"
   )
 })
 
