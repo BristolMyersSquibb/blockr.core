@@ -23,10 +23,9 @@
 #'
 #' @export
 write_log <- function(..., level = "info", envir = parent.frame(),
-                      asis = FALSE, use_glue = TRUE,
-                      pkg = coal(pkg_name(envir), "blockr.core")) {
+                      asis = FALSE, use_glue = TRUE, pkg = pkg_name(envir)) {
 
-  stopifnot(is.environment(envir), is_string(pkg))
+  stopifnot(is.environment(envir), is.null(pkg) || is_string(pkg))
 
   lvl <- as_log_level(level)
 
@@ -40,7 +39,7 @@ write_log <- function(..., level = "info", envir = parent.frame(),
     "[", toupper(level), "]",
     if (isTRUE(blockr_option("log_time", TRUE))) get_timmestamp("[", "]"),
     if (isTRUE(blockr_option("log_mem", FALSE))) get_mem_use("[", "]"),
-    "[", pkg, "]",
+    if (not_null(pkg)) paste0("[", pkg, "]"),
     " "
   )
 
