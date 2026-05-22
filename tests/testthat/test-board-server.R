@@ -198,6 +198,172 @@ test_that("board server", {
   )
 })
 
+test_that("blocks$mod with ctrl-only diff writes reactiveVals", {
+
+  board <- new_board(
+    blocks = c(a = new_dataset_block("iris"), b = new_subset_block()),
+    links = links(from = "a", to = "b")
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_identical(rv$blocks$b$server$result(), datasets::iris)
+
+      pre_server <- rv$blocks$b$server
+
+      new_b <- as_blocks(
+        set_names(list(new_subset_block(subset = "Species == \"setosa\"")), "b")
+      )
+
+      board_update(list(blocks = list(mod = new_b)))
+
+      session$flushReact()
+
+      expect_identical(rv$blocks$b$server, pre_server)
+      expect_identical(
+        rv$blocks$b$server$result(),
+        subset(datasets::iris, Species == "setosa")
+      )
+    },
+    args = list(x = board)
+  )
+})
+
+test_that("blocks$mod with non-ctrl diff re-sets up the block server", {
+
+  board <- new_board(
+    blocks = c(a = new_dataset_block("iris"), b = new_head_block(n = 6L)),
+    links = links(from = "a", to = "b")
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_identical(rv$blocks$b$server$result(), utils::head(datasets::iris))
+
+      pre_server <- rv$blocks$b$server
+
+      new_b <- as_blocks(set_names(list(new_head_block(n = 3L)), "b"))
+
+      board_update(list(blocks = list(mod = new_b)))
+
+      session$flushReact()
+
+      expect_false(identical(rv$blocks$b$server, pre_server))
+      expect_identical(
+        rv$blocks$b$server$result(),
+        utils::head(datasets::iris, n = 3L)
+      )
+    },
+    args = list(x = board)
+  )
+})
+
+test_that("blocks$mod preserves outgoing links across re-setup", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("iris"),
+      b = new_head_block(n = 6L),
+      c = new_head_block(n = 2L)
+    ),
+    links = links(
+      ab = new_link(from = "a", to = "b"),
+      bc = new_link(from = "b", to = "c")
+    )
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_setequal(names(rv$links), c("ab", "bc"))
+      expect_identical(
+        rv$blocks$c$server$result(),
+        utils::head(datasets::iris, n = 2L)
+      )
+
+      new_b <- as_blocks(set_names(list(new_head_block(n = 3L)), "b"))
+
+      board_update(list(blocks = list(mod = new_b)))
+
+      session$flushReact()
+
+      expect_setequal(names(rv$links), c("ab", "bc"))
+      expect_identical(
+        rv$blocks$c$server$result(),
+        utils::head(utils::head(datasets::iris, n = 3L), n = 2L)
+      )
+    },
+    args = list(x = board)
+  )
+})
+
+test_that("blocks$mod with metadata-only change skips re-setup", {
+
+  board <- new_board(
+    blocks = c(a = new_dataset_block("iris"), b = new_subset_block()),
+    links = links(from = "a", to = "b")
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      pre_server <- rv$blocks$b$server
+      pre_result <- rv$blocks$b$server$result()
+
+      new_b_blk <- board_blocks(rv$board)[["b"]]
+      block_name(new_b_blk) <- "Renamed"
+
+      board_update(
+        list(blocks = list(mod = as_blocks(set_names(list(new_b_blk), "b"))))
+      )
+
+      session$flushReact()
+
+      expect_identical(rv$blocks$b$server, pre_server)
+      expect_identical(rv$blocks$b$server$result(), pre_result)
+      expect_identical(block_name(board_blocks(rv$board)$b), "Renamed")
+    },
+    args = list(x = board)
+  )
+})
+
+test_that("blocks$mod can swap block class via re-setup", {
+
+  board <- new_board(
+    blocks = c(a = new_dataset_block("iris"), b = new_head_block()),
+    links = links(from = "a", to = "b")
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_s3_class(board_blocks(rv$board)$b, "head_block")
+
+      new_b <- as_blocks(set_names(list(new_subset_block()), "b"))
+
+      board_update(list(blocks = list(mod = new_b)))
+
+      session$flushReact()
+
+      expect_s3_class(board_blocks(rv$board)$b, "subset_block")
+      expect_identical(rv$blocks$b$server$result(), datasets::iris)
+    },
+    args = list(x = board)
+  )
+})
+
 test_that("update validation", {
 
   expect_error(

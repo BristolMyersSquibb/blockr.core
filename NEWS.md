@@ -1,5 +1,10 @@
 # blockr.core 0.1.2
 
+* `update(list(blocks = list(mod = ...)))` now re-sets up the running block
+  server when needed. Diffs that only touch externally controllable arguments
+  (see `block_external_ctrl_vars()`) write the corresponding `reactiveVal`s
+  in place; all other changes (non-ctrl args, class swap) tear down the
+  block module, re-create it under the same id, and re-wire links (#175).
 * A blockr option `attach_default_packages` can be set to opt into evaluating
   block expressions with objects from default packages directly available.
 * Add `ctrl_block()` plugin for external block control, allowing blocks to be

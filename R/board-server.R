@@ -200,10 +200,30 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
             log_debug("modifying block{?s} {names(upd$blocks$mod)}")
 
-            blks <- board_blocks(rv$board)
-            blks[names(upd$blocks$mod)] <- upd$blocks$mod
+            cur_blks <- board_blocks(rv$board)
 
-            board_blocks(rv$board) <- blks
+            for (blk_id in names(upd$blocks$mod)) {
+
+              old_blk <- cur_blks[[blk_id]]
+              new_blk <- upd$blocks$mod[[blk_id]]
+
+              if (mod_block_needs_resetup(old_blk, new_blk)) {
+
+                re_setup_block(
+                  new_blk, blk_id, rv,
+                  edit_block, ctrl_block, edit_plugin_args,
+                  dot_args, ns(NULL), session
+                )
+
+              } else {
+
+                apply_ctrl_block_mod(blk_id, old_blk, new_blk, rv)
+
+                blks <- board_blocks(rv$board)
+                blks[[blk_id]] <- new_blk
+                board_blocks(rv$board) <- blks
+              }
+            }
           }
 
           if (length(upd$links$mod)) {
@@ -476,6 +496,98 @@ setup_block <- function(blk, id, rv, mod_ed, mod_ct, args) {
       )
     )
   )
+
+  invisible()
+}
+
+re_setup_block <- function(blk, id, rv, mod_ed, mod_ct, args, dot_args,
+                           parent_ns, sess) {
+
+  links <- board_links(rv$board)
+  links_out <- links[links$from == id]
+  links_io <- links[links$from == id | links$to == id]
+
+  update_block_links(rv, rm = links_io)
+
+  destroy_module(paste0("block_", id), session = sess)
+
+  rv$inputs[[id]] <- NULL
+  rv$blocks[[id]] <- NULL
+
+  do.call(
+    remove_block_ui,
+    c(
+      list(parent_ns, rv$board, id),
+      dot_args,
+      list(edit_ui = mod_ed, ctrl_ui = mod_ct, session = sess)
+    )
+  )
+
+  blks <- board_blocks(rv$board)
+  blks[[id]] <- blk
+  board_blocks(rv$board) <- blks
+
+  do.call(
+    insert_block_ui,
+    c(
+      list(parent_ns, rv$board, as_blocks(set_names(list(blk), id))),
+      dot_args,
+      list(edit_ui = mod_ed, ctrl_ui = mod_ct, session = sess)
+    )
+  )
+
+  setup_block(blk, id, rv, mod_ed, mod_ct, args)
+
+  update_block_links(rv, add = links_out)
+
+  invisible()
+}
+
+mod_block_compatible <- function(old, new) {
+
+  identical(class(old), class(new)) &&
+    identical(block_ctor(old), block_ctor(new)) &&
+    identical(block_ctor_inputs(old), block_ctor_inputs(new)) &&
+    identical(block_inputs(old), block_inputs(new)) &&
+    identical(block_external_ctrl_vars(old), block_external_ctrl_vars(new)) &&
+    identical(block_arity(old), block_arity(new))
+}
+
+mod_block_needs_resetup <- function(old, new) {
+
+  if (!mod_block_compatible(old, new)) {
+    return(TRUE)
+  }
+
+  ctrl <- block_external_ctrl_vars(new)
+  old_state <- initial_block_state(old)
+  new_state <- initial_block_state(new)
+
+  diffs <- !mapply(identical, old_state, new_state, USE.NAMES = FALSE)
+  changed <- names(old_state)[diffs]
+
+  !all(changed %in% ctrl)
+}
+
+apply_ctrl_block_mod <- function(blk_id, old, new, rv) {
+
+  ctrl <- block_external_ctrl_vars(new)
+
+  if (!length(ctrl)) {
+    return(invisible())
+  }
+
+  old_state <- initial_block_state(old)
+  new_state <- initial_block_state(new)
+
+  state_rvs <- rv$blocks[[blk_id]]$server$state
+
+  for (nm in ctrl) {
+
+    if (!identical(old_state[[nm]], new_state[[nm]])) {
+      state_rvs[[nm]](new_state[[nm]])
+    }
+  }
 
   invisible()
 }
