@@ -127,12 +127,18 @@ block_server.block <- function(id, x, data = list(), block_id = id,
 
       if (is_board(isolate(board$board))) {
 
+        attr_name <- reactive(
+          {
+            blk <- board_blocks(board$board)[[block_id]]
+            if (is_block(blk)) block_name(blk) else NULL
+          }
+        )
+
         observeEvent(
           block_name_rv(),
           {
-            attr_name <- block_name(board_blocks(board$board)[[block_id]])
             new_name <- block_name_rv()
-            if (!identical(attr_name, new_name)) {
+            if (!identical(attr_name(), new_name)) {
               update(
                 list(
                   blocks = list(
@@ -149,11 +155,10 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         )
 
         observeEvent(
-          block_name(board_blocks(board$board)[[block_id]]),
+          attr_name(),
           {
-            attr_name <- block_name(board_blocks(board$board)[[block_id]])
-            if (!identical(block_name_rv(), attr_name)) {
-              block_name_rv(attr_name)
+            if (!identical(block_name_rv(), attr_name())) {
+              block_name_rv(attr_name())
             }
           },
           ignoreInit = TRUE
