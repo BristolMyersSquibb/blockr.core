@@ -21,9 +21,12 @@ A link of the same class as \code{x} with \code{delta} applied.
 \description{
 \code{update_link()} is an S3 generic that produces a modified link by
 merging a named-list \code{delta} of constructor argument values onto an
-existing link. The default \code{.link} method reconstructs the object via
-its stored constructor so that sub-class invariants are preserved.
-Owners of link sub-classes can register a class-specific method when
-the default reconstruction does not fit (e.g. a non-standard
-constructor signature).
+existing link. The default \code{.link} method passes the current
+\code{as.list(x)} (the link's \code{from}, \code{to}, \code{input} plus any extra
+\emph{list-element} fields a sub-class adds) merged with the delta to the
+stored constructor. Sub-class extensions stored as attributes (rather
+than list elements) are \strong{not} preserved through the default
+reconstruction — sub-class owners must register a class-specific
+method when their constructor uses attributes or a non-standard
+signature.
 }

@@ -983,17 +983,21 @@ validate_board_update_links <- function(x, board) {
 
 validate_mod_deltas <- function(mod, cur_ids, typ) {
 
+  err_class <- function(suffix) paste0("board_update_", typ, "_mod_", suffix)
+
   if (length(names(mod)) != length(mod) || any(nchar(names(mod)) == 0L)) {
     blockr_abort(
       "Expecting the {typ} `mod` component to be a named list keyed by ID.",
-      class = paste0("board_update_", typ, "_mod_invalid")
+      class = err_class("unnamed")
     )
   }
 
-  if (!all(names(mod) %in% cur_ids)) {
+  unknown <- setdiff(names(mod), cur_ids)
+
+  if (length(unknown)) {
     blockr_abort(
-      "Expecting the modified {typ} entries to be specified by known IDs.",
-      class = paste0("board_update_", typ, "_mod_invalid")
+      "Modified {typ} entries reference unknown ID{?s} {unknown}.",
+      class = err_class("unknown_id")
     )
   }
 
@@ -1004,13 +1008,20 @@ validate_mod_deltas <- function(mod, cur_ids, typ) {
     delta <- mod[[id]]
 
     if (is_obj(delta) || !is.list(delta) ||
-          (length(delta) &&
-             (length(names(delta)) != length(delta) ||
-                any(nchar(names(delta)) == 0L)))) {
+          length(names(delta)) != length(delta) ||
+          any(nchar(names(delta)) == 0L)) {
       blockr_abort(
-        "Expecting each {typ} `mod` entry to be a named list of constructor ",
-        "argument values.",
-        class = paste0("board_update_", typ, "_mod_invalid")
+        "Expecting each {typ} `mod` entry to be a named list of ",
+        "constructor argument values.",
+        class = err_class("entry_invalid")
+      )
+    }
+
+    if (!length(delta)) {
+      blockr_abort(
+        "{typ} `mod` entry `{id}` is empty; omit it or supply at least one ",
+        "argument.",
+        class = err_class("entry_empty")
       )
     }
   }
