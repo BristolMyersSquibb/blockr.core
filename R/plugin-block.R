@@ -39,7 +39,10 @@ edit_block_server <- function(id, block_id, board, update, ...) {
       )
 
       cur_name <- reactive(
-        block_name(board_blocks(board$board)[[block_id]])
+        {
+          blk <- board_blocks(board$board)[[block_id]]
+          if (is_block(blk)) block_name(blk) else NULL
+        }
       )
 
       output$block_name_out <- renderUI(

@@ -123,11 +123,11 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         domain = session
       )
 
-      block_name_rv <- reactiveVal(block_name(x))
+      cur_name <- reactiveVal(block_name(x))
 
       if (is_board(isolate(board$board))) {
 
-        attr_name <- reactive(
+        reg_name <- reactive(
           {
             blk <- board_blocks(board$board)[[block_id]]
             if (is_block(blk)) block_name(blk) else NULL
@@ -135,10 +135,10 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         )
 
         observeEvent(
-          block_name_rv(),
+          cur_name(),
           {
-            new_name <- block_name_rv()
-            if (!identical(attr_name(), new_name)) {
+            new_name <- cur_name()
+            if (!identical(reg_name(), new_name)) {
               update(
                 list(
                   blocks = list(
@@ -155,10 +155,10 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         )
 
         observeEvent(
-          attr_name(),
+          reg_name(),
           {
-            if (!identical(block_name_rv(), attr_name())) {
-              block_name_rv(attr_name())
+            if (!identical(cur_name(), reg_name())) {
+              cur_name(reg_name())
             }
           },
           ignoreInit = TRUE
@@ -167,7 +167,7 @@ block_server.block <- function(id, x, data = list(), block_id = id,
 
       ctrl_vars <- c(
         state[setdiff(block_external_ctrl_vars(x), "block_name")],
-        list(block_name = block_name_rv)
+        list(block_name = cur_name)
       )
 
       if (!all(lgl_ply(ctrl_vars, inherits, "reactiveVal"))) {

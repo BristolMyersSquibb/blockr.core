@@ -23,7 +23,8 @@
 #'
 #' @export
 write_log <- function(..., level = "info", envir = parent.frame(),
-                      asis = FALSE, use_glue = TRUE, pkg = pkg_name(envir)) {
+                      asis = FALSE, use_glue = TRUE,
+                      pkg = coal(pkg_name(envir), "blockr.core")) {
 
   stopifnot(is.environment(envir), is_string(pkg))
 
