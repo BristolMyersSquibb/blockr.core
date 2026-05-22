@@ -20,7 +20,8 @@ ctrl_block_ui(id, x)
 \item{x}{Block}
 
 \item{vars}{Reactive state values (list of \code{reactiveVal} objects keyed by
-input name)}
+input name). \code{block_name} is included by the default \code{block_server.block}
+even though it is not part of the block's \code{expr_server} state.}
 
 \item{data}{Input data paseed as list of reactive values}
 

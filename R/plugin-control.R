@@ -32,59 +32,32 @@ ctrl_block <- function(server = ctrl_block_server, ui = ctrl_block_ui) {
 #' @param id Namespace ID
 #' @param x Block object
 #' @param vars Reactive state values (list of `reactiveVal` objects keyed by
-#' input name). Does not include `block_name`, which is routed through
-#' `update` rather than a state `reactiveVal`.
+#' input name). `block_name` is included by the default `block_server.block`
+#' even though it is not part of the block's `expr_server` state.
 #' @param data Input data paseed as list of reactive values
 #' @param eval Reactive that evaluates the block expression against input
 #' data. May be used to validate that the new values produce a successful
 #' evaluation.
-#' @param block_id Block id used to route `block_name` changes through
-#' `update`.
-#' @param update Board update `reactiveVal` used to emit `block_name`
-#' changes.
 #'
 #' @rdname ctrl_block
 #' @export
-ctrl_block_server <- function(id, x, vars, data, eval, block_id, update) {
+ctrl_block_server <- function(id, x, vars, data, eval) {
   moduleServer(
     id,
     function(input, output, session) {
 
-      inps <- block_external_ctrl_vars(x)
-      writable <- setdiff(inps, "block_name")
+      inps <- names(vars)
 
       gate <- reactiveVal(TRUE)
 
       observeEvent(
         input$submit,
         {
-          old <- lapply(vars[writable], reval)
+          old <- lapply(vars[inps], reval)
 
           for (inp in inps) {
-
             val <- session$input[[inp]]
-
-            if (is.null(val)) {
-              next
-            }
-
-            if (identical(inp, "block_name")) {
-
-              update(
-                list(
-                  blocks = list(
-                    mod = set_names(
-                      list(list(block_name = val)),
-                      block_id
-                    )
-                  )
-                )
-              )
-
-              next
-            }
-
-            if (!identical(vars[[inp]](), val)) {
+            if (!is.null(val) && !identical(vars[[inp]](), val)) {
               vars[[inp]](val)
             }
           }
@@ -93,7 +66,7 @@ ctrl_block_server <- function(id, x, vars, data, eval, block_id, update) {
 
           if (inherits(result, "try-error")) {
 
-            for (inp in writable) {
+            for (inp in inps) {
               if (!identical(vars[[inp]](), old[[inp]])) {
                 vars[[inp]](old[[inp]])
               }

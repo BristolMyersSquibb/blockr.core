@@ -123,9 +123,49 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         domain = session
       )
 
+      block_name_rv <- reactiveVal(block_name(x))
+
+      if (is_board(isolate(board$board))) {
+
+        observeEvent(
+          block_name_rv(),
+          {
+            attr_name <- block_name(board_blocks(board$board)[[block_id]])
+            new_name <- block_name_rv()
+            if (!identical(attr_name, new_name)) {
+              update(
+                list(
+                  blocks = list(
+                    mod = set_names(
+                      list(list(block_name = new_name)),
+                      block_id
+                    )
+                  )
+                )
+              )
+            }
+          },
+          ignoreInit = TRUE
+        )
+
+        observeEvent(
+          block_name(board_blocks(board$board)[[block_id]]),
+          {
+            attr_name <- block_name(board_blocks(board$board)[[block_id]])
+            if (!identical(block_name_rv(), attr_name)) {
+              block_name_rv(attr_name)
+            }
+          },
+          ignoreInit = TRUE
+        )
+      }
+
       if (block_supports_external_ctrl(x)) {
 
-        ctrl_vars <- state[setdiff(block_external_ctrl_vars(x), "block_name")]
+        ctrl_vars <- c(
+          state[setdiff(block_external_ctrl_vars(x), "block_name")],
+          list(block_name = block_name_rv)
+        )
 
         if (!all(lgl_ply(ctrl_vars, inherits, "reactiveVal"))) {
           blockr_abort(
@@ -142,9 +182,7 @@ block_server.block <- function(id, x, data = list(), block_id = id,
               x = x,
               vars = ctrl_vars,
               data = dat_eval,
-              eval = reactive(eval_impl(x, lang(), dat_eval())),
-              block_id = block_id,
-              update = update
+              eval = reactive(eval_impl(x, lang(), dat_eval()))
             )
           ),
           TRUE

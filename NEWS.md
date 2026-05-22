@@ -12,10 +12,14 @@
   `external_ctrl` opt-in. `block_supports_external_ctrl()` now reports
   whether the block opts into any *user-rendered* ctrl variables (i.e.
   excluding `block_name`), preserving the gate on the ctrl plugin UI.
-* The default `ctrl_block_server()` now takes `block_id` and `update`
-  arguments and routes `block_name` submissions through the board's
-  `update` reactiveVal. Custom ctrl plugin server implementations need
-  to accept these arguments.
+* The default `block_server.block` now constructs a `block_name`
+  `reactiveVal` per block and appends it to the `vars` list passed to the
+  ctrl plugin. Two guarded observers keep that `reactiveVal` in sync with
+  the block's `block_name` attribute on the board (one emits an
+  `update(mod = ...)` when the ctrl plugin writes the rv; the other
+  pulls registry-attr changes back into the rv). The `ctrl_block_server`
+  plugin signature is unchanged — block authors and custom ctrl plugins
+  see uniform `vars` reactiveVals.
 * A blockr option `attach_default_packages` can be set to opt into evaluating
   block expressions with objects from default packages directly available.
 * Add `ctrl_block()` plugin for external block control, allowing blocks to be

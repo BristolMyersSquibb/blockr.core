@@ -83,9 +83,7 @@ test_that("ctrl_block_server syncs input to reactive state on submit", {
     args = list(
       x = blk,
       vars = list(dataset = dataset_rv),
-      eval = reactive(TRUE),
-      block_id = "blk",
-      update = reactiveVal(NULL)
+      eval = reactive(TRUE)
     )
   )
 })
@@ -115,9 +113,7 @@ test_that("ctrl_block_server syncs multiple inputs on submit", {
     args = list(
       x = blk,
       vars = list(subset = subset_rv, select = select_rv),
-      eval = reactive(TRUE),
-      block_id = "blk",
-      update = reactiveVal(NULL)
+      eval = reactive(TRUE)
     )
   )
 })
@@ -157,9 +153,7 @@ test_that("ctrl_block_server does not update when input matches state", {
     args = list(
       x = blk,
       vars = list(dataset = reactiveVal("mtcars")),
-      eval = reactive(TRUE),
-      block_id = "blk",
-      update = reactiveVal(NULL)
+      eval = reactive(TRUE)
     )
   )
 })
@@ -188,9 +182,7 @@ test_that("ctrl_block_server reverts vars and blocks gate on eval error", {
     args = list(
       x = blk,
       vars = list(dataset = dataset_rv),
-      eval = reactive(if (fail()) stop("eval failed") else TRUE),
-      block_id = "blk",
-      update = reactiveVal(NULL)
+      eval = reactive(if (fail()) stop("eval failed") else TRUE)
     )
   )
 })
@@ -223,37 +215,7 @@ test_that("ctrl_block_server recovers gate after successful submit", {
     args = list(
       x = blk,
       vars = list(dataset = dataset_rv),
-      eval = reactive(if (fail()) stop("eval failed") else TRUE),
-      block_id = "blk",
-      update = reactiveVal(NULL)
-    )
-  )
-})
-
-test_that("ctrl_block_server emits update on block_name change", {
-
-  blk <- new_dataset_block("mtcars")
-  upd <- reactiveVal(NULL)
-
-  testServer(
-    ctrl_block_server,
-    {
-      session$flushReact()
-
-      session$setInputs(block_name = "Renamed")
-      session$setInputs(submit = 1L)
-
-      expect_identical(
-        upd(),
-        list(blocks = list(mod = list(blk = list(block_name = "Renamed"))))
-      )
-    },
-    args = list(
-      x = blk,
-      vars = list(dataset = reactiveVal("mtcars")),
-      eval = reactive(TRUE),
-      block_id = "blk",
-      update = upd
+      eval = reactive(if (fail()) stop("eval failed") else TRUE)
     )
   )
 })
