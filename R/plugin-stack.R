@@ -55,10 +55,16 @@ edit_stack_server <- function(id, stack_id, board, update, ...) {
         {
           req(input$stack_name_in)
           if (!identical(cur_name(), input$stack_name_in)) {
-            new_val <- board_stacks(board$board)[[stack_id]]
-            stack_name(new_val) <- input$stack_name_in
-            new_val <- as_stacks(set_names(list(new_val), stack_id))
-            update(list(stacks = list(mod = new_val)))
+            update(
+              list(
+                stacks = list(
+                  mod = set_names(
+                    list(list(name = input$stack_name_in)),
+                    stack_id
+                  )
+                )
+              )
+            )
           }
         }
       )

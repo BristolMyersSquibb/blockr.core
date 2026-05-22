@@ -486,12 +486,21 @@ modify_stack_observer <- function(input, rv, upd, sess, proxy, res) {
         return()
       }
 
+      mod_payload <- if (length(upd$mod)) {
+        lapply(
+          upd$mod,
+          function(s) {
+            list(name = stack_name(s), blocks = stack_blocks(s))
+          }
+        )
+      }
+
       res(
         list(
           stacks = list(
             add = if (length(upd$add)) upd$add,
             rm = if (length(upd$rm)) upd$rm,
-            mod = if (length(upd$mod)) upd$mod
+            mod = mod_payload
           )
         )
       )
