@@ -52,16 +52,6 @@ test_that("ctrl_block_ui renders block_name even without other ctrl vars", {
   expect_match(html, "ctrl-submit")
 })
 
-test_that("block_supports_external_ctrl is true for every block", {
-
-  blk_with <- new_dataset_block("mtcars")
-  expect_true(block_supports_external_ctrl(blk_with))
-
-  blk_without <- new_dataset_block("mtcars")
-  attr(blk_without, "external_ctrl") <- FALSE
-  expect_true(block_supports_external_ctrl(blk_without))
-})
-
 test_that("ctrl_block_server syncs input to reactive state on submit", {
 
   blk <- new_dataset_block("mtcars")

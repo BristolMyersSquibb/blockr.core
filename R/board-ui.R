@@ -79,7 +79,7 @@ block_ui.board <- function(id, x, blocks = NULL, edit_ui = NULL, ctrl_ui = NULL,
 
     blk_id <- board_ns(paste0("block_", block_id))
 
-    if (block_supports_external_ctrl(x) && !is.null(ctrl)) {
+    if (!is.null(ctrl)) {
       ctrl_ui <- ctrl(NS(blk_id, "ctrl_block"), x)
     } else {
       ctrl_ui <- NULL

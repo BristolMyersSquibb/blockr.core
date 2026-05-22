@@ -160,36 +160,31 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         )
       }
 
-      if (block_supports_external_ctrl(x)) {
+      ctrl_vars <- c(
+        state[setdiff(block_external_ctrl_vars(x), "block_name")],
+        list(block_name = block_name_rv)
+      )
 
-        ctrl_vars <- c(
-          state[setdiff(block_external_ctrl_vars(x), "block_name")],
-          list(block_name = block_name_rv)
+      if (!all(lgl_ply(ctrl_vars, inherits, "reactiveVal"))) {
+        blockr_abort(
+          "All externally controllable variables for {class(x)[1L]} are ",
+          "expected to inherit from `reactiveVal`.",
+          class = "unsupported_external_ctrl_variable"
         )
-
-        if (!all(lgl_ply(ctrl_vars, inherits, "reactiveVal"))) {
-          blockr_abort(
-            "All externally controllable variables for {class(x)[1L]} are ",
-            "expected to inherit from `reactiveVal`.",
-            class = "unsupported_external_ctrl_variable"
-          )
-        }
-
-        cb_res <- coal(
-          call_plugin_server(
-            ctrl_block,
-            list(
-              x = x,
-              vars = ctrl_vars,
-              data = dat_eval,
-              eval = reactive(eval_impl(x, lang(), dat_eval()))
-            )
-          ),
-          TRUE
-        )
-      } else {
-        cb_res <- TRUE
       }
+
+      cb_res <- coal(
+        call_plugin_server(
+          ctrl_block,
+          list(
+            x = x,
+            vars = ctrl_vars,
+            data = dat_eval,
+            eval = reactive(eval_impl(x, lang(), dat_eval()))
+          )
+        ),
+        TRUE
+      )
 
       data_eval_observer(block_id, x, dat_eval, cb_res, res, state, lang, rv,
                          cond, session)

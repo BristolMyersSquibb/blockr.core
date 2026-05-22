@@ -9,10 +9,11 @@
   registry attribute (#175).
 * `block_external_ctrl_vars()` always includes `"block_name"` — every
   block can be renamed through `update(...)` regardless of its
-  `external_ctrl` opt-in. As a consequence, `block_supports_external_ctrl()`
-  is now `TRUE` for every block, and the default ctrl plugin panel
-  renders a `block_name` field on every block card alongside any
-  opted-in ctrl vars.
+  `external_ctrl` opt-in. The default ctrl plugin panel renders a
+  `block_name` field on every block card alongside any opted-in ctrl
+  vars. `block_supports_external_ctrl()` (which would now be `TRUE` for
+  every block) has been removed; the gates that used to call it have
+  been simplified accordingly.
 * The default `block_server.block` now constructs a `block_name`
   `reactiveVal` per block and appends it to the `vars` list passed to the
   ctrl plugin. Two guarded observers keep that `reactiveVal` in sync with

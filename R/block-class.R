@@ -667,10 +667,6 @@ block_expr_type <- function(x) {
   attr(x, "expr_type")
 }
 
-block_supports_external_ctrl <- function(x) {
-  length(block_external_ctrl_vars(x)) > 0L
-}
-
 block_external_ctrl_vars <- function(x) {
 
   stopifnot(is_block(x))
