@@ -1052,6 +1052,8 @@ combine_update_blocks <- function(upd, board) {
 
 validate_board_update_xrefs <- function(payload, board) {
 
+  payload <- augment_board_update(payload, board)
+
   if (has_comp("links", payload)) {
     lnk <- payload$links
   } else {
@@ -1153,9 +1155,7 @@ validate_board_update_stacks <- function(upd, board) {
   invisible()
 }
 
-preprocess_board_update <- function(update, board) {
-
-  upd <- update()
+augment_board_update <- function(upd, board) {
 
   if ("blocks" %in% names(upd) && "rm" %in% names(upd$blocks)) {
 
@@ -1228,10 +1228,18 @@ preprocess_board_update <- function(update, board) {
     )
   }
 
-  if (length(mis_lnk) + length(upd_stk) + length(add_lnk)) {
-    update(upd)
-    return(TRUE)
+  upd
+}
+
+preprocess_board_update <- function(update, board) {
+
+  upd <- update()
+  augmented <- augment_board_update(upd, board)
+
+  if (identical(augmented, upd)) {
+    return(FALSE)
   }
 
-  FALSE
+  update(augmented)
+  TRUE
 }

@@ -754,6 +754,34 @@ test_that("public validate_board_update", {
   )
 })
 
+test_that("validate_board_update handles block-rm orphan cleanup (#177)", {
+
+  brd <- new_board(
+    blocks = c(my_data = new_dataset_block("iris"), preview = new_head_block()),
+    links = c(lnk1 = new_link("my_data", "preview", "data"))
+  )
+
+  payload <- list(
+    blocks = list(add = c(preview_new = new_head_block()), rm = "preview"),
+    links = list(add = c(lnk_new = new_link("my_data", "preview_new", "data")))
+  )
+
+  expect_identical(
+    validate_board_update(payload, brd),
+    payload
+  )
+
+  payload_mod <- list(
+    blocks = list(rm = "preview"),
+    links = list(mod = list(lnk1 = list(input = "data")))
+  )
+
+  expect_error(
+    validate_board_update(payload_mod, brd),
+    class = "board_block_link_name_mismatch"
+  )
+})
+
 test_that("board server utils", {
 
   expect_identical(
