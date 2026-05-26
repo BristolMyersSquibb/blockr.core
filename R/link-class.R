@@ -69,8 +69,7 @@ new_link <- function(from = "", to = "", input = "", ...,
   )
 }
 
-#' Apply a partial-arg delta to a link
-#'
+#' @section Partial-arg updates:
 #' `update_link()` is an S3 generic that produces a modified link by
 #' merging a named-list `delta` of constructor argument values onto an
 #' existing link. The default `.link` method passes the current
@@ -82,12 +81,10 @@ new_link <- function(from = "", to = "", input = "", ...,
 #' method when their constructor uses attributes or a non-standard
 #' signature.
 #'
-#' @param x A `link` object (or sub-class).
 #' @param delta A named list of constructor argument values to apply on
 #' top of `x`'s current fields.
 #'
-#' @return A link of the same class as `x` with `delta` applied.
-#'
+#' @rdname new_link
 #' @export
 update_link <- function(x, delta) {
   UseMethod("update_link")

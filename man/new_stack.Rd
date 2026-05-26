@@ -2,6 +2,8 @@
 % Please edit documentation in R/stack-class.R, R/stacks-class.R
 \name{new_stack}
 \alias{new_stack}
+\alias{update_stack}
+\alias{update_stack.stack}
 \alias{default_stack_name}
 \alias{is_stack}
 \alias{stack_blocks}
@@ -23,6 +25,10 @@ new_stack(
   pkg = pkg_name(),
   class = character()
 )
+
+update_stack(x, delta)
+
+\method{update_stack}{stack}(x, delta)
 
 default_stack_name()
 
@@ -59,6 +65,9 @@ as_stacks(x, ...)
 
 \item{x}{Stack object}
 
+\item{delta}{A named list of constructor argument values to apply on
+top of \code{x}'s current fields.}
+
 \item{value}{Replacement value}
 }
 \value{
@@ -90,6 +99,19 @@ inheritance can be tested with \code{is_stack()}. Attributes can be retrieved
 (and modified) with \code{stack_blocks()}/\verb{stack_blocks<-()} and
 \code{stack_name()}/\verb{stack_name<-()}, while validation is available as
 (generic) \code{validate_stack()}.
+}
+\section{Partial-arg updates}{
+
+\code{update_stack()} is an S3 generic that produces a modified stack by
+merging a named-list \code{delta} of constructor argument values onto an
+existing stack. The default \code{.stack} method reconstructs the object
+via its stored constructor, treating the underlying character vector
+(block IDs) as \code{blocks} and every other attribute as a named
+constructor argument. Sub-class owners (e.g. \code{dock_stack} adding
+\code{color}) only need to register a method when their constructor
+deviates from this convention. The reserved delta key \code{blocks}
+replaces the member block IDs; every other key updates the named
+attribute.
 }
 \examples{
 stk <- new_stack(letters[1:5], "Alphabet 1")

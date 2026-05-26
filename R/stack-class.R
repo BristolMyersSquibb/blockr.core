@@ -116,8 +116,7 @@ stack_name <- function(x, name) {
   x
 }
 
-#' Apply a partial-arg delta to a stack
-#'
+#' @section Partial-arg updates:
 #' `update_stack()` is an S3 generic that produces a modified stack by
 #' merging a named-list `delta` of constructor argument values onto an
 #' existing stack. The default `.stack` method reconstructs the object
@@ -125,15 +124,14 @@ stack_name <- function(x, name) {
 #' (block IDs) as `blocks` and every other attribute as a named
 #' constructor argument. Sub-class owners (e.g. `dock_stack` adding
 #' `color`) only need to register a method when their constructor
-#' deviates from this convention.
+#' deviates from this convention. The reserved delta key `blocks`
+#' replaces the member block IDs; every other key updates the named
+#' attribute.
 #'
-#' @param x A `stack` object (or sub-class).
 #' @param delta A named list of constructor argument values to apply on
-#' top of `x`'s current fields. The reserved key `blocks` replaces the
-#' member block IDs; every other key updates the named attribute.
+#' top of `x`'s current fields.
 #'
-#' @return A stack of the same class as `x` with `delta` applied.
-#'
+#' @rdname new_stack
 #' @export
 update_stack <- function(x, delta) {
   UseMethod("update_stack")
