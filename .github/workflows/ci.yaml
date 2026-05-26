@@ -20,6 +20,8 @@ jobs:
         vignettes/blocks-registry.qmd
         vignettes/get-started.qmd
         vignettes/testing-blocks.qmd
-    secrets: inherit
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      BLOCKR_PAT: ${{ secrets.BLOCKR_PAT }}
     permissions:
       contents: write
