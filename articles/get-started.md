@@ -1,6 +1,7 @@
 # 1. Getting started
 
 ``` r
+
 library(blockr.core)
 ```
 
@@ -15,6 +16,7 @@ Leveraging the default `blockr.core` UI displayed below, let’s see how
 easily you can set your first data pipeline.
 
 ``` r
+
 serve(
   new_board()
 )
@@ -127,12 +129,14 @@ application. Below is all what you need to spin up an app with a single
 block:
 
 ``` r
+
 serve(new_dataset_block("iris"))
 ```
 
 For a block that requires input, additionally pass static data:
 
 ``` r
+
 serve(
   new_merge_block(by = "name"),
   data = list(x = datasets::BOD, y = datasets::ChickWeight)
@@ -145,6 +149,7 @@ block server function (see truncated example below with
 [`new_merge_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_transform_block.md)):
 
 ``` r
+
 new_merge_block <- function(by = character(), all_x = FALSE, all_y = FALSE, ...) {
 
   new_transform_block(
@@ -163,6 +168,7 @@ new_merge_block <- function(by = character(), all_x = FALSE, all_y = FALSE, ...)
 In most of the case, you want to serve an entire board.
 
 ``` r
+
 serve(new_board())
 ```
 
@@ -171,6 +177,7 @@ cases, it is possible to initialize the board with few blocks, stacks
 and links:
 
 ``` r
+
 serve(
   new_board(
     blocks = c(
@@ -209,6 +216,7 @@ may look at the `serve.board` method for reference:
   the board server module.
 
 ``` r
+
 ui <- bslib::page_fluid(
   board_ui(id, x, plugins)
 )

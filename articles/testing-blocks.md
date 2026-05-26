@@ -28,6 +28,7 @@ class of object. For this example, let’s create a pretend “test_block”
 class:
 
 ``` r
+
 test_that("block constructor", {
     expect_s3_class(new_test_block(), "test_block")
 })
@@ -41,6 +42,7 @@ reactive values in the block. For this example, let’s imagine out test
 block has an input widget that allows the user to select a color:
 
 ``` r
+
 test_that("test block server input widgets update reactive values", {
     testServer(
         app = new_test_block()$expr_server, # Capture the expression server
@@ -65,6 +67,7 @@ our block by indexing into the `session$returned` object returned by
 [`shiny::testServer()`](https://rdrr.io/pkg/shiny/man/testServer.html):
 
 ``` r
+
 test_that("state is correctly returned", {
     testServer(
         app = new_test_block()$expr_server,
@@ -95,6 +98,7 @@ in an expression to build a new “colored_number” class which just prints
 a colored number to the screen:
 
 ``` r
+
 test_that("expr evaluates correctly", {
     testServer(
         app = new_test_block()$expr_server,
@@ -116,6 +120,7 @@ We may also want to test that errors are correctly thrown for incorrect
 expressions:
 
 ``` r
+
 test_that("incorrect colours throw an error", {
     testServer(
         app = new_test_block()$expr_server,
@@ -142,6 +147,7 @@ instance, let’s assume our test block requires a data.frame to be passed
 to the argument “df”:
 
 ``` r
+
 test_that("test block server input widgets update reactive values", {
     testServer(
         app = new_test_block()$expr_server,

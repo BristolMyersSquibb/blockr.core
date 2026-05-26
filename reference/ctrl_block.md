@@ -39,7 +39,8 @@ ctrl_block_ui(id, x)
 - vars:
 
   Reactive state values (list of `reactiveVal` objects keyed by input
-  name)
+  name). `block_name` is included by the default `block_server.block`
+  even though it is not part of the block's `expr_server` state.
 
 - data:
 

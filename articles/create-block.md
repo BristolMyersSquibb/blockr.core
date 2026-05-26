@@ -1,6 +1,7 @@
 # 2. Create a block
 
 ``` r
+
 library(blockr.core)
 ```
 
@@ -53,6 +54,7 @@ This means that:
 Let’s start to build our block template:
 
 ``` r
+
 ui <- function(id) {
   tagList(
     # Wrap widgets in `tagList()`
@@ -85,6 +87,7 @@ defining:
   names) that of the constructor signature.
 
 ``` r
+
 server <- function(id, data) {
   moduleServer(id, function(input, output, session) {
     # Reactive logic goes here
@@ -176,6 +179,7 @@ one offered as
 [`new_head_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_transform_block.md):
 
 ``` r
+
 new_head_block <- function(n = 6L, ...) {
   new_transform_block(
     function(id, data) {
@@ -244,6 +248,7 @@ block.
 An app containing such a head block can be spun up as
 
 ``` r
+
 serve(new_head_block(n = 10L), list(data = mtcars))
 ```
 
@@ -253,6 +258,7 @@ Such a binary block (with arguments `x` and `y`) can be explored in a
 standalone app (with nonsensical inputs) as
 
 ``` r
+
 serve(
   new_merge_block(by = "Time"),
   data = list(x = datasets::BOD, y = datasets::ChickWeight)
@@ -286,6 +292,7 @@ rectangular data as input and returns a list of 3 elements: modified
 data, code plot and filters code:
 
 ``` r
+
 results <- esquisse::esquisse_server(
   id = "esquisse",
   data_rv = data
@@ -304,6 +311,7 @@ following code for the constructor server function. This block will have
 upstream block):
 
 ``` r
+
 esquisse_block_server <- function(id, data) {
   moduleServer(
     id,
@@ -342,6 +350,7 @@ and plot code. By default, if we assume our `esquisse` block to be a
 display the block output:
 
 ``` r
+
 block_output.transform_block <- function(x, result, session) {
   dt_result(result, x, session)
 }
@@ -354,6 +363,7 @@ constructor for our `esquisse` block, we call it `complex_block` and
 `new_complex_block()`, respectively:
 
 ``` r
+
 new_complex_block <- function(server, ui, class, ctor = sys.parent(), ...) {
   new_block(server, ui, c(class, "complex_block"), ctor, ...)
 }
@@ -367,6 +377,7 @@ which is able to process our `list` result (don’t forget the `@export`
 roxygen tag):
 
 ``` r
+
 #' @export
 block_output.complex_block <- function(x, result, session) {
   session$output$filters <- renderPrint(result$filters)
@@ -378,6 +389,7 @@ We also provide the UI counter part. Here you could go for more fancy
 layout but for sake of simplicity, we design a minimalistic UI:
 
 ``` r
+
 #' @export
 block_ui.complex_block <- function(id, x, ...) {
   tagList(
@@ -392,6 +404,7 @@ The UI function of our constructor is simple, even though you would be
 totally free to customize it further:
 
 ``` r
+
 esquisse_block_ui <- function(id) {
   tagList(
     esquisse::esquisse_ui(
@@ -405,6 +418,7 @@ esquisse_block_ui <- function(id) {
 Finally our new `esquisse` block constructor given by:
 
 ``` r
+
 new_esquisse_block <- function(...) {
   new_complex_block(
     server = esquisse_block_server,
@@ -420,6 +434,7 @@ new_esquisse_block <- function(...) {
 To test our new block we call:
 
 ``` r
+
 serve(
   new_board(
     blocks = list(

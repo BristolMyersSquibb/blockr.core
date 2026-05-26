@@ -27,6 +27,11 @@ new_link(
   class = character()
 )
 
+update_link(x, delta)
+
+# S3 method for class 'link'
+update_link(x, delta)
+
 is_link(x)
 
 as_link(x)
@@ -66,6 +71,11 @@ validate_links(x)
 
   Links object
 
+- delta:
+
+  A named list of constructor argument values to apply on top of `x`'s
+  current fields.
+
 ## Value
 
 Both `new_link()`/`as_link()`, and `links()`/`as_links()` return `link`
@@ -83,6 +93,18 @@ object inherits from `link` (or `links`) is available via `is_link()`
 (or `is_links()`, respectively). Coercion to `link` (and `links`)
 objects is implemented as `as_link()` (and `as_links()`, respectively).
 Finally, links can be validated by calling `validate_links()`.
+
+## Partial-arg updates
+
+`update_link()` is an S3 generic that produces a modified link by
+merging a named-list `delta` of constructor argument values onto an
+existing link. The default `.link` method passes the current
+`as.list(x)` (the link's `from`, `to`, `input` plus any extra
+*list-element* fields a sub-class adds) merged with the delta to the
+stored constructor. Sub-class extensions stored as attributes (rather
+than list elements) are **not** preserved through the default
+reconstruction — sub-class owners must register a class-specific method
+when their constructor uses attributes or a non-standard signature.
 
 ## Examples
 

@@ -12,6 +12,7 @@ You can install the development version of blockr.core from
 [GitHub](https://github.com/) with:
 
 ``` r
+
 pak::pak("BristolMyersSquibb/blockr.core")
 ```
 

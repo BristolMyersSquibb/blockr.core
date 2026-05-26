@@ -1,6 +1,7 @@
 # 3. Browse for blocks
 
 ``` r
+
 library(blockr.core)
 ```
 
@@ -32,6 +33,7 @@ makes the **registry** environment ready to be queried by
 A truncated output example below:
 
 ``` r
+
 available_blocks()[["dataset_block"]]
 ```
 
@@ -57,6 +59,7 @@ attr(,"class")
 ```
 
 ``` r
+
 names(available_blocks())
 #>  [1] "csv_block"         "dataset_block"     "filebrowser_block"
 #>  [4] "glue_block"        "head_block"        "merge_block"      
@@ -82,6 +85,7 @@ Let’s say you want to create a new `new_dummy_block` which does nothing
 specific in the `./R/dummy-block.R` script:
 
 ``` r
+
 # ./R/dummy-block.R
 new_dummy_block <- function(text = "Hello World", ...) {
   new_data_block(
@@ -117,6 +121,7 @@ Finally, we create a `.R/zzz.R` script where you run this code to
 register the block(s) whenever the package loads:
 
 ``` r
+
 # ./R/zzz.R
 .onLoad <- function(libname, pkgname) {
   register_dummy_blocks()
@@ -127,6 +132,7 @@ register the block(s) whenever the package loads:
 If we now query the registry, the new block is available:
 
 ``` r
+
 available_blocks()[["dummy_block"]]
 #> function (text = "Hello World", ...) 
 #> {
@@ -149,7 +155,7 @@ available_blocks()[["dummy_block"]]
 #> attr(,"icon")
 #> [1] "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-question-square \" style=\"height:1em;width:1em;fill:currentColor;vertical-align:-0.125em;\" aria-hidden=\"true\" role=\"img\" ><path d=\"M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z\"></path>\n<path d=\"M5.255 5.786a.237.237 0 0 0 .241.247h.825c.138 0 .248-.113.266-.25.09-.656.54-1.134 1.342-1.134.686 0 1.314.343 1.314 1.168 0 .635-.374.927-.965 1.371-.673.489-1.206 1.06-1.168 1.987l.003.217a.25.25 0 0 0 .25.246h.811a.25.25 0 0 0 .25-.25v-.105c0-.718.273-.927 1.01-1.486.609-.463 1.244-.977 1.244-2.056 0-1.511-1.276-2.241-2.673-2.241-1.267 0-2.655.59-2.75 2.286zm1.557 5.763c0 .533.425.927 1.01.927.609 0 1.028-.394 1.028-.927 0-.552-.42-.94-1.029-.94-.584 0-1.009.388-1.009.94z\"></path></svg>"
 #> attr(,"arguments")
-#> character(0)
+#> [1] "block_name"
 #> attr(,"class")
 #> [1] "block_registry_entry"
 ```
@@ -163,6 +169,7 @@ is
 We can remove our new `dummy_block` from the registry:
 
 ``` r
+
 unregister_blocks(uid = "dummy_block")
 
 # Check it out

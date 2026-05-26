@@ -1,6 +1,7 @@
 # 4. Extend blockr
 
 ``` r
+
 library(shiny)
 library(bslib)
 library(scoutbaR)
@@ -67,6 +68,7 @@ and
 a good workflow is to start from those and implement our modifications.
 
 ``` r
+
 # manage_blocks_ui
 function(id, board) {
   tagList(
@@ -90,6 +92,7 @@ For simplicity let’s assume we also want to drop the “Remove block”
 button, our new ui becomes:
 
 ``` r
+
 new_manage_blocks_ui <- function(id, board) {
   tagList(
     scoutbaR::scoutbar(
@@ -112,6 +115,7 @@ new_manage_blocks_ui <- function(id, board) {
 relevant here but the definition is provided below for information.
 
 ``` r
+
 blk_choices <- function() {
   blk_cats <- sort(
     unique(chr_ply(available_blocks(), \(b) attr(b, "category")))
@@ -170,6 +174,7 @@ We end up with the following server function, see additional
 explanations below.
 
 ``` r
+
 new_manage_blocks_server <- function(id, board, update, ...) {
   moduleServer(
     id,
@@ -226,6 +231,7 @@ plugin by defining new main ui and server functions around them.
 Code
 
 ``` r
+
 main_ui <- function(id, board) {
   ns <- NS(id)
   board_ui(
@@ -290,6 +296,7 @@ following, we leverage the brand new `shinyNextUI` to power the custom
 board UI:
 
 ``` r
+
 board_ui.custom_board <- function(id, x, plugins = list(), ...) {
   plugins <- as_plugins(plugins)
   div(
@@ -307,6 +314,7 @@ We have to customize the `block_ui` too. Overall, we leverage the
 `shinyNextUI::card` component to create the block layout:
 
 ``` r
+
 get_block_registry <- function(x) {
   stopifnot(is_block(x))
   available_blocks()[[strsplit(attr(x, "ctor"), "new_")[[1]][2]]]
@@ -393,6 +401,7 @@ Notice the use of few `blockr.core` helpers along the way:
 `add_rm_block_ui()` now leverages `shinyNextUI::actionButton`:
 
 ``` r
+
 add_rm_block_ui <- function(id, board) {
   tagList(
     scoutbar(
@@ -424,6 +433,7 @@ methods are invoked.
 Code
 
 ``` r
+
 board <- new_board(class = "custom_board")
 
 ui <- nextui_page(

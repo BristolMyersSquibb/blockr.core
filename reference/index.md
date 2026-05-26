@@ -51,6 +51,7 @@ block.
 Utilities for creating an working with links
 
 - [`new_link()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_link.md)
+  [`update_link()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_link.md)
   [`is_link()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_link.md)
   [`as_link()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_link.md)
   [`links()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_link.md)
@@ -64,6 +65,7 @@ Utilities for creating an working with links
 Utilities for creating an working with stacks
 
 - [`new_stack()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
+  [`update_stack()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
   [`default_stack_name()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
   [`is_stack()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
   [`stack_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
@@ -151,6 +153,8 @@ Utilities for creating an working with boards
   [`get_board_option_values()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
   [`combine_board_options()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
   : Board options
+- [`validate_board_update()`](https://bristolmyerssquibb.github.io/blockr.core/reference/validate_board_update.md)
+  : Validate a board update payload
 
 ## Board plugins
 
