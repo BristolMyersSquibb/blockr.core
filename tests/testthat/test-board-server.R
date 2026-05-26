@@ -529,9 +529,8 @@ test_that("update validation", {
     class = "board_update_type_invalid"
   )
 
-  expect_error(
-    validate_board_update(list(test = list(add = "a")), new_board()),
-    class = "board_update_components_invalid"
+  expect_silent(
+    validate_board_update(list(test = list(add = "a")), new_board())
   )
 
   expect_error(
