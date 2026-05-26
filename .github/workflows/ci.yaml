@@ -11,9 +11,6 @@ jobs:
   ci:
     uses: cynkra/blockr.ci/.github/workflows/ci.yaml@main
     with:
-      revdep-packages: |
-        BristolMyersSquibb/blockr.dock
-        BristolMyersSquibb/blockr.dag
       lintr-exclusions: |
         vignettes/create-block.qmd
         vignettes/extend-blockr.qmd
@@ -25,3 +22,13 @@ jobs:
       BLOCKR_PAT: ${{ secrets.BLOCKR_PAT }}
     permissions:
       contents: write
+
+  revdep:
+    if: github.event_name == 'merge_group'
+    uses: cynkra/blockr.ci/.github/workflows/revdep.yaml@main
+    with:
+      revdep-packages: |
+        BristolMyersSquibb/blockr.dock
+        BristolMyersSquibb/blockr.dag
+    secrets:
+      BLOCKR_PAT: ${{ secrets.BLOCKR_PAT }}
