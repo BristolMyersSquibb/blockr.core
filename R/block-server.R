@@ -123,33 +123,73 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         domain = session
       )
 
-      if (block_supports_external_ctrl(x)) {
+      cur_name <- reactiveVal(block_name(x))
 
-        ctrl_vars <- state[block_external_ctrl_vars(x)]
+      if (is_board(isolate(board$board))) {
 
-        if (!all(lgl_ply(ctrl_vars, inherits, "reactiveVal"))) {
-          blockr_abort(
-            "All externally controllable variables for {class(x)[1L]} are ",
-            "expected to inherit from `reactiveVal`.",
-            class = "unsupported_external_ctrl_variable"
-          )
-        }
-
-        cb_res <- coal(
-          call_plugin_server(
-            ctrl_block,
-            list(
-              x = x,
-              vars = ctrl_vars,
-              data = dat_eval,
-              eval = reactive(eval_impl(x, lang(), dat_eval()))
-            )
-          ),
-          TRUE
+        reg_name <- reactive(
+          {
+            blk <- board_blocks(board$board)[[block_id]]
+            if (is_block(blk)) block_name(blk) else NULL
+          }
         )
-      } else {
-        cb_res <- TRUE
+
+        observeEvent(
+          cur_name(),
+          {
+            new_name <- cur_name()
+            if (!identical(reg_name(), new_name)) {
+              update(
+                list(
+                  blocks = list(
+                    mod = set_names(
+                      list(list(block_name = new_name)),
+                      block_id
+                    )
+                  )
+                )
+              )
+            }
+          },
+          ignoreInit = TRUE
+        )
+
+        observeEvent(
+          reg_name(),
+          {
+            if (!identical(cur_name(), reg_name())) {
+              cur_name(reg_name())
+            }
+          },
+          ignoreInit = TRUE
+        )
       }
+
+      ctrl_vars <- c(
+        state[setdiff(block_external_ctrl_vars(x), "block_name")],
+        list(block_name = cur_name)
+      )
+
+      if (!all(lgl_ply(ctrl_vars, inherits, "reactiveVal"))) {
+        blockr_abort(
+          "All externally controllable variables for {class(x)[1L]} are ",
+          "expected to inherit from `reactiveVal`.",
+          class = "unsupported_external_ctrl_variable"
+        )
+      }
+
+      cb_res <- coal(
+        call_plugin_server(
+          ctrl_block,
+          list(
+            x = x,
+            vars = ctrl_vars,
+            data = dat_eval,
+            eval = reactive(eval_impl(x, lang(), dat_eval()))
+          )
+        ),
+        TRUE
+      )
 
       data_eval_observer(block_id, x, dat_eval, cb_res, res, state, lang, rv,
                          cond, session)

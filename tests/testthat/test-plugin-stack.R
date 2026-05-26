@@ -16,7 +16,7 @@ test_that("edit blocks", {
       expect_length(res$mod, 1L)
 
       expect_named(res$mod, "a")
-      expect_identical(stack_name(res$mod[["a"]]), "data")
+      expect_identical(res$mod[["a"]], list(name = "data"))
 
       expect_null(session$returned)
     },

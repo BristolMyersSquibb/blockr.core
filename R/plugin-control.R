@@ -32,7 +32,8 @@ ctrl_block <- function(server = ctrl_block_server, ui = ctrl_block_ui) {
 #' @param id Namespace ID
 #' @param x Block object
 #' @param vars Reactive state values (list of `reactiveVal` objects keyed by
-#' input name)
+#' input name). `block_name` is included by the default `block_server.block`
+#' even though it is not part of the block's `expr_server` state.
 #' @param data Input data paseed as list of reactive values
 #' @param eval Reactive that evaluates the block expression against input
 #' data. May be used to validate that the new values produce a successful
@@ -45,7 +46,7 @@ ctrl_block_server <- function(id, x, vars, data, eval) {
     id,
     function(input, output, session) {
 
-      inps <- block_external_ctrl_vars(x)
+      inps <- names(vars)
 
       gate <- reactiveVal(TRUE)
 

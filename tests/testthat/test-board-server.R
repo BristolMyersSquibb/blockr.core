@@ -198,6 +198,330 @@ test_that("board server", {
   )
 })
 
+test_that("blocks$mod with ctrl-able delta writes reactiveVals in place", {
+
+  board <- new_board(
+    blocks = c(a = new_dataset_block("iris"), b = new_subset_block()),
+    links = links(from = "a", to = "b")
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_identical(rv$blocks$b$server$result(), datasets::iris)
+
+      pre_server <- rv$blocks$b$server
+
+      board_update(
+        list(
+          blocks = list(
+            mod = list(b = list(subset = "Species == \"setosa\""))
+          )
+        )
+      )
+
+      session$flushReact()
+
+      expect_identical(rv$blocks$b$server, pre_server)
+      expect_identical(
+        rv$blocks$b$server$result(),
+        subset(datasets::iris, Species == "setosa")
+      )
+    },
+    args = list(x = board)
+  )
+})
+
+test_that("blocks$mod routes block_name without disturbing the server", {
+
+  board <- new_board(
+    blocks = c(a = new_dataset_block("iris"), b = new_head_block())
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      pre_server <- rv$blocks$b$server
+      pre_result <- rv$blocks$b$server$result()
+
+      board_update(
+        list(blocks = list(mod = list(b = list(block_name = "Renamed"))))
+      )
+
+      session$flushReact()
+
+      expect_identical(rv$blocks$b$server, pre_server)
+      expect_identical(rv$blocks$b$server$result(), pre_result)
+      expect_identical(block_name(board_blocks(rv$board)$b), "Renamed")
+    },
+    args = list(x = board)
+  )
+})
+
+test_that("blocks$mod with both ctrl-arg and block_name delta applies both", {
+
+  board <- new_board(
+    blocks = c(a = new_dataset_block("iris"), b = new_subset_block()),
+    links = links(from = "a", to = "b")
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      pre_server <- rv$blocks$b$server
+
+      board_update(
+        list(
+          blocks = list(
+            mod = list(
+              b = list(
+                subset = "Species == \"setosa\"",
+                block_name = "Setosa only"
+              )
+            )
+          )
+        )
+      )
+
+      session$flushReact()
+
+      expect_identical(rv$blocks$b$server, pre_server)
+      expect_identical(
+        rv$blocks$b$server$result(),
+        subset(datasets::iris, Species == "setosa")
+      )
+      expect_identical(block_name(board_blocks(rv$board)$b), "Setosa only")
+    },
+    args = list(x = board)
+  )
+})
+
+test_that("blocks$mod rejects non-ctrl-able arguments", {
+
+  board <- new_board(
+    blocks = c(a = new_dataset_block("iris"), b = new_head_block(n = 6L)),
+    links = links(from = "a", to = "b")
+  )
+
+  expect_error(
+    validate_board_update(
+      list(blocks = list(mod = list(b = list(n = 3L)))),
+      board
+    ),
+    class = "board_update_blocks_mod_not_ctrl"
+  )
+})
+
+test_that("ctrl plugin sees block_name as a routable var", {
+
+  blk <- new_dataset_block("iris")
+  upd <- reactiveVal()
+
+  testServer(
+    get_s3_method("block_server", blk),
+    {
+      session$flushReact()
+
+      session$makeScope("ctrl_block")$setInputs(
+        block_name = "NewName",
+        submit = 1L
+      )
+
+      session$flushReact()
+
+      expect_identical(
+        upd(),
+        list(
+          blocks = list(
+            mod = list(blk = list(block_name = "NewName"))
+          )
+        )
+      )
+    },
+    args = list(
+      x = blk,
+      ctrl_block = ctrl_block(),
+      board = reactiveValues(
+        board = new_board(blocks = c(blk = new_dataset_block("iris")))
+      ),
+      block_id = "blk",
+      update = upd
+    )
+  )
+})
+
+test_that("a delta-set block_name survives serialize + deserialize", {
+
+  board <- new_board(
+    blocks = c(a = new_dataset_block("iris"), b = new_subset_block())
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      board_update(
+        list(blocks = list(mod = list(b = list(block_name = "Persisted"))))
+      )
+
+      session$flushReact()
+
+      state <- lapply(
+        blockr.core:::lst_xtr(rv$blocks, "server", "state"),
+        lapply,
+        reval_if
+      )
+      ser <- blockr_ser(rv$board, blocks = state)
+      restored <- blockr_deser(ser)
+
+      expect_identical(
+        block_name(board_blocks(restored)$b),
+        "Persisted"
+      )
+    },
+    args = list(x = board)
+  )
+})
+
+test_that("block_name attr and ctrl reactiveVal stay in sync without loops", {
+
+  board <- new_board(
+    blocks = c(a = new_dataset_block("iris"), b = new_subset_block())
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      n_updates <- 0L
+
+      observe({
+        upd <- board_update()
+        if (!is.null(upd) && !is.null(upd$blocks$mod$b$block_name)) {
+          n_updates <<- n_updates + 1L
+        }
+      })
+
+      session$flushReact()
+
+      board_update(
+        list(blocks = list(mod = list(b = list(block_name = "FromBoard"))))
+      )
+
+      session$flushReact()
+
+      expect_identical(block_name(board_blocks(rv$board)$b), "FromBoard")
+
+      pre <- n_updates
+      session$flushReact()
+      expect_identical(n_updates, pre)
+    },
+    args = list(x = board)
+  )
+})
+
+test_that("links$mod accepts partial-args deltas via update_link", {
+
+  board <- new_board(
+    blocks = c(a = new_dataset_block("iris"), b = new_subset_block()),
+    links = links(ab = list(from = "a", to = "b", input = "data"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      board_update(
+        list(links = list(mod = list(ab = list(input = "data"))))
+      )
+
+      session$flushReact()
+
+      expect_identical(board_links(rv$board)$input, "data")
+    },
+    args = list(x = board)
+  )
+})
+
+test_that("stacks$mod merges deltas onto current stack via update_stack", {
+
+  board <- new_board(
+    blocks = c(a = new_dataset_block("iris"), b = new_subset_block()),
+    stacks = stacks(s1 = new_stack(c("a"), "Initial"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      board_update(
+        list(stacks = list(mod = list(s1 = list(blocks = c("a", "b")))))
+      )
+
+      session$flushReact()
+
+      stk <- board_stacks(rv$board)$s1
+      expect_setequal(stack_blocks(stk), c("a", "b"))
+      expect_identical(stack_name(stk), "Initial")
+
+      board_update(
+        list(stacks = list(mod = list(s1 = list(name = "Renamed"))))
+      )
+
+      session$flushReact()
+
+      stk <- board_stacks(rv$board)$s1
+      expect_setequal(stack_blocks(stk), c("a", "b"))
+      expect_identical(stack_name(stk), "Renamed")
+    },
+    args = list(x = board)
+  )
+})
+
+test_that("update_stack default preserves extra attrs through reconstruction", {
+
+  stk <- new_stack(
+    c("a", "b"),
+    name = "S",
+    color = "red",
+    pkg = "blockr.core"
+  )
+
+  out <- update_stack(stk, list(blocks = "c"))
+  expect_identical(stack_blocks(out), "c")
+  expect_identical(stack_name(out), "S")
+  expect_identical(attr(out, "color"), "red")
+
+  out2 <- update_stack(stk, list(color = "blue"))
+  expect_setequal(stack_blocks(out2), c("a", "b"))
+  expect_identical(attr(out2, "color"), "blue")
+})
+
+test_that("update_link default preserves all fields through reconstruction", {
+
+  lnk <- new_link("a", "b", "data")
+
+  out <- update_link(lnk, list(input = "x"))
+  expect_identical(out$from, "a")
+  expect_identical(out$to, "b")
+  expect_identical(out$input, "x")
+
+  out2 <- update_link(lnk, list(to = "c", input = "y"))
+  expect_identical(out2$from, "a")
+  expect_identical(out2$to, "c")
+  expect_identical(out2$input, "y")
+})
+
 test_that("update validation", {
 
   expect_error(
@@ -215,7 +539,7 @@ test_that("update validation", {
       list(
         blocks = list(
           add = blocks(a = new_dataset_block()),
-          mod = blocks(a = new_dataset_block())
+          mod = list(a = list(dataset = "iris"))
         )
       ),
       new_board()
@@ -225,7 +549,47 @@ test_that("update validation", {
 
   expect_error(
     validate_board_update(
+      list(blocks = list(mod = list(a = "not a list"))),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_blocks_mod_entry_invalid"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(blocks = list(mod = list(b = list(dataset = "iris")))),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_blocks_mod_unknown_id"
+  )
+
+  expect_error(
+    validate_board_update(
       list(blocks = list(mod = list(a = list()))),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_blocks_mod_entry_empty"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(blocks = list(mod = list(a = list(no_such_arg = 1)))),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_blocks_mod_not_ctrl"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(blocks = list(mod = list(a = list(package = "datasets")))),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_blocks_mod_not_ctrl"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(blocks = list(mod = "xyz")),
       new_board(blocks(a = new_dataset_block()))
     ),
     class = "board_update_mod_component_invalid"
@@ -233,18 +597,10 @@ test_that("update validation", {
 
   expect_error(
     validate_board_update(
-      list(blocks = list(mod = blocks(b = new_dataset_block()))),
+      list(blocks = list(mod = blocks(a = new_dataset_block()))),
       new_board(blocks(a = new_dataset_block()))
     ),
-    class = "board_update_blocks_mod_invalid"
-  )
-
-  expect_error(
-    validate_board_update(
-      list(blocks = list(mod = structure("xyz", class = "blocks"))),
-      new_board(blocks(a = new_dataset_block()))
-    ),
-    class = "blocks_contains_invalid"
+    class = "board_update_blocks_mod_entry_invalid"
   )
 
   expect_error(
@@ -263,9 +619,12 @@ test_that("update validation", {
   expect_error(
     validate_board_update(
       list(links = list(mod = list(ab = "xyz"))),
-      new_board(blocks(a = new_dataset_block(), b = new_head_block()))
+      new_board(
+        blocks(a = new_dataset_block(), b = new_head_block()),
+        links(ab = list(from = "a", to = "b", input = "data"))
+      )
     ),
-    class = "board_update_mod_component_invalid"
+    class = "board_update_links_mod_entry_invalid"
   )
 
   expect_error(
@@ -275,9 +634,12 @@ test_that("update validation", {
           mod = links(ab = list(from = "a", to = "b", input = "data"))
         )
       ),
-      new_board(blocks(a = new_dataset_block(), b = new_head_block()))
+      new_board(
+        blocks(a = new_dataset_block(), b = new_head_block()),
+        links(ab = list(from = "a", to = "b", input = "data"))
+      )
     ),
-    class = "board_update_links_mod_invalid"
+    class = "board_update_links_mod_entry_invalid"
   )
 
   expect_error(
@@ -294,11 +656,7 @@ test_that("update validation", {
 
   expect_error(
     validate_board_update(
-      list(
-        links = list(
-          mod = links(xyz = list(from = "a", to = "c", input = "data"))
-        )
-      ),
+      list(links = list(mod = list(xyz = list(to = "c")))),
       new_board(
         blocks(a = new_dataset_block(), b = new_head_block()),
         links(xyz = list(from = "a", to = "b", input = "data"))
@@ -318,20 +676,23 @@ test_that("update validation", {
   expect_error(
     validate_board_update(
       list(stacks = list(mod = list(a = "a"))),
-      new_board(blocks(a = new_dataset_block()))
-    ),
-    class = "board_update_mod_component_invalid"
-  )
-
-  expect_error(
-    validate_board_update(
-      list(stacks = list(mod = stacks(b = "b"))),
       new_board(
         blocks(a = new_dataset_block()),
         stacks = stacks(a = "a")
       )
     ),
-    class = "board_update_stacks_mod_invalid"
+    class = "board_update_stacks_mod_entry_invalid"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(stacks = list(mod = list(b = list(blocks = "a")))),
+      new_board(
+        blocks(a = new_dataset_block()),
+        stacks = stacks(a = "a")
+      )
+    ),
+    class = "board_update_stacks_mod_unknown_id"
   )
 
   expect_error(
@@ -347,7 +708,7 @@ test_that("update validation", {
 
   expect_error(
     validate_board_update(
-      list(stacks = list(mod = stacks(a = "b"))),
+      list(stacks = list(mod = list(a = list(blocks = "b")))),
       new_board(
         blocks(a = new_dataset_block()),
         stacks = stacks(a = "a")

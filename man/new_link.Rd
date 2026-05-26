@@ -2,6 +2,8 @@
 % Please edit documentation in R/link-class.R, R/links-class.R
 \name{new_link}
 \alias{new_link}
+\alias{update_link}
+\alias{update_link.link}
 \alias{is_link}
 \alias{as_link}
 \alias{links}
@@ -19,6 +21,10 @@ new_link(
   pkg = pkg_name(),
   class = character()
 )
+
+update_link(x, delta)
+
+\method{update_link}{link}(x, delta)
 
 is_link(x)
 
@@ -44,6 +50,9 @@ validate_links(x)
 \item{class}{(Optional) link sub-class}
 
 \item{x}{Links object}
+
+\item{delta}{A named list of constructor argument values to apply on
+top of \code{x}'s current fields.}
 }
 \value{
 Both \code{new_link()}/\code{as_link()}, and \code{links()}/\code{as_links()} return
@@ -75,6 +84,19 @@ inherits from \code{link} (or \code{links}) is available via \code{is_link()} (o
 \code{is_links()}, respectively). Coercion to \code{link} (and \code{links}) objects is
 implemented as \code{as_link()} (and \code{as_links()}, respectively). Finally, links
 can be validated by calling \code{validate_links()}.
+}
+\section{Partial-arg updates}{
+
+\code{update_link()} is an S3 generic that produces a modified link by
+merging a named-list \code{delta} of constructor argument values onto an
+existing link. The default \code{.link} method passes the current
+\code{as.list(x)} (the link's \code{from}, \code{to}, \code{input} plus any extra
+\emph{list-element} fields a sub-class adds) merged with the delta to the
+stored constructor. Sub-class extensions stored as attributes (rather
+than list elements) are \strong{not} preserved through the default
+reconstruction — sub-class owners must register a class-specific
+method when their constructor uses attributes or a non-standard
+signature.
 }
 \examples{
 lnks <- links(from = c("a", "b"), to = c("b", "c"), input = c("x", "y"))

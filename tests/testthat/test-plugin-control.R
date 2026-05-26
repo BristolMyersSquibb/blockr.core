@@ -15,11 +15,13 @@ test_that("ctrl_block_ui generates text inputs and submit button", {
   ui <- ctrl_block_ui("ctrl", blk)
 
   expect_s3_class(ui, "shiny.tag.list")
-  expect_length(ui, 2L)
+  expect_length(ui, 3L)
 
   html <- paste(vapply(ui, as.character, character(1L)), collapse = "")
   expect_match(html, "ctrl-dataset")
   expect_match(html, "Dataset")
+  expect_match(html, "ctrl-block_name")
+  expect_match(html, "Block_name")
   expect_match(html, "ctrl-submit")
   expect_match(html, "Submit")
 
@@ -27,32 +29,27 @@ test_that("ctrl_block_ui generates text inputs and submit button", {
   ui2 <- ctrl_block_ui("ctrl", blk2)
 
   expect_s3_class(ui2, "shiny.tag.list")
-  expect_length(ui2, 3L)
+  expect_length(ui2, 4L)
 
   html2 <- paste(vapply(ui2, as.character, character(1L)), collapse = "")
   expect_match(html2, "ctrl-subset")
   expect_match(html2, "ctrl-select")
+  expect_match(html2, "ctrl-block_name")
   expect_match(html2, "ctrl-submit")
 })
 
-test_that("ctrl_block_ui is empty for blocks without external ctrl", {
+test_that("ctrl_block_ui renders block_name even without other ctrl vars", {
 
   blk <- new_dataset_block("mtcars")
   attr(blk, "external_ctrl") <- FALSE
 
   ui <- ctrl_block_ui("ctrl", blk)
   expect_s3_class(ui, "shiny.tag.list")
-  expect_length(ui, 0L)
-})
+  expect_length(ui, 2L)
 
-test_that("block_supports_external_ctrl correctly distinguishes blocks", {
-
-  blk_with <- new_dataset_block("mtcars")
-  expect_true(block_supports_external_ctrl(blk_with))
-
-  blk_without <- new_dataset_block("mtcars")
-  attr(blk_without, "external_ctrl") <- FALSE
-  expect_false(block_supports_external_ctrl(blk_without))
+  html <- paste(vapply(ui, as.character, character(1L)), collapse = "")
+  expect_match(html, "ctrl-block_name")
+  expect_match(html, "ctrl-submit")
 })
 
 test_that("ctrl_block_server syncs input to reactive state on submit", {

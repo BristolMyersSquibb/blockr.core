@@ -39,7 +39,10 @@ edit_block_server <- function(id, block_id, board, update, ...) {
       )
 
       cur_name <- reactive(
-        block_name(board_blocks(board$board)[[block_id]])
+        {
+          blk <- board_blocks(board$board)[[block_id]]
+          if (is_block(blk)) block_name(blk) else NULL
+        }
       )
 
       output$block_name_out <- renderUI(
@@ -61,10 +64,16 @@ edit_block_server <- function(id, block_id, board, update, ...) {
         {
           req(input$block_name_in)
           if (!identical(cur_name(), input$block_name_in)) {
-            new_val <- board_blocks(board$board)[[block_id]]
-            block_name(new_val) <- input$block_name_in
-            new_val <- as_blocks(set_names(list(new_val), block_id))
-            update(list(blocks = list(mod = new_val)))
+            update(
+              list(
+                blocks = list(
+                  mod = set_names(
+                    list(list(block_name = input$block_name_in)),
+                    block_id
+                  )
+                )
+              )
+            )
           }
         }
       )

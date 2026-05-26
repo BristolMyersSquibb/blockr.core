@@ -1,5 +1,34 @@
 # blockr.core 0.1.2
 
+* The `mod` slots in `update(...)` payloads for **blocks, links and
+  stacks** now uniformly expect a **delta** shape: a named list keyed
+  by entry ID, where each entry is a named list of argument values to
+  apply on top of the live entry.
+  - For `blocks`, keys must be in `block_external_ctrl_vars(blk)` —
+    non-ctrl-able changes go through `rm` + `add`. Ctrl-arg writes hit
+    the corresponding `reactiveVal` in place; `block_name` (always
+    treated as ctrl-able) updates the block's registry attribute.
+  - For `links` and `stacks`, deltas are merged onto the current entry
+    via the new `update_link()` / `update_stack()` S3 generics. The
+    default methods reconstruct the entry through its stored
+    constructor, preserving sub-class attributes. Sub-class owners
+    (e.g. `dock_stack` adding `color`) only need to register a method
+    when their constructor deviates from the convention (#175).
+* `block_external_ctrl_vars()` always includes `"block_name"` — every
+  block can be renamed through `update(...)` regardless of its
+  `external_ctrl` opt-in. The default ctrl plugin panel renders a
+  `block_name` field on every block card alongside any opted-in ctrl
+  vars. `block_supports_external_ctrl()` (which would now be `TRUE` for
+  every block) has been removed; the gates that used to call it have
+  been simplified accordingly.
+* The default `block_server.block` now constructs a `block_name`
+  `reactiveVal` per block and appends it to the `vars` list passed to the
+  ctrl plugin. Two guarded observers keep that `reactiveVal` in sync with
+  the block's `block_name` attribute on the board (one emits an
+  `update(mod = ...)` when the ctrl plugin writes the rv; the other
+  pulls registry-attr changes back into the rv). The `ctrl_block_server`
+  plugin signature is unchanged — block authors and custom ctrl plugins
+  see uniform `vars` reactiveVals.
 * A blockr option `attach_default_packages` can be set to opt into evaluating
   block expressions with objects from default packages directly available.
 * Add `ctrl_block()` plugin for external block control, allowing blocks to be

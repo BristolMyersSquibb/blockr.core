@@ -69,6 +69,44 @@ new_link <- function(from = "", to = "", input = "", ...,
   )
 }
 
+#' @section Partial-arg updates:
+#' `update_link()` is an S3 generic that produces a modified link by
+#' merging a named-list `delta` of constructor argument values onto an
+#' existing link. The default `.link` method passes the current
+#' `as.list(x)` (the link's `from`, `to`, `input` plus any extra
+#' *list-element* fields a sub-class adds) merged with the delta to the
+#' stored constructor. Sub-class extensions stored as attributes (rather
+#' than list elements) are **not** preserved through the default
+#' reconstruction — sub-class owners must register a class-specific
+#' method when their constructor uses attributes or a non-standard
+#' signature.
+#'
+#' @param delta A named list of constructor argument values to apply on
+#' top of `x`'s current fields.
+#'
+#' @rdname new_link
+#' @export
+update_link <- function(x, delta) {
+  UseMethod("update_link")
+}
+
+#' @export
+update_link.link <- function(x, delta) {
+
+  ctor <- attr(x, "ctor")
+
+  args <- as.list(x)
+  args[names(delta)] <- delta
+
+  do.call(
+    ctor_fun(ctor),
+    c(
+      args,
+      list(ctor = coal(ctor_name(ctor), ctor_fun(ctor)), pkg = ctor_pkg(ctor))
+    )
+  )
+}
+
 validate_link <- function(x) {
 
   if (!is_link(x)) {
