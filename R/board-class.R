@@ -247,11 +247,13 @@ is_acyclic.board <- function(x) {
 #' Board blocks can be retrieved using `board_blocks()` and updated with the
 #' corresponding replacement function `board_blocks<-()`. If just the current
 #' board IDs are of interest, `board_block_ids()` is available as short for
-#' `names(board_blocks(x))`. The replacement function `board_blocks<-()`
+#' `names(board_blocks(x))`. In order to remove block(s) from a board, the
+#' (generic) convenience function `rm_blocks()` is exported, which takes care
+#' (in the default implementation for `board`) of also updating links and
+#' stacks accordingly. The more basic replacement function `board_blocks<-()`
 #' might fail at validation of the updated board object if an inconsistent
 #' state results from an update (e.g. a block referenced by a stack is no
-#' longer available); the higher-level convenience function [rm_blocks()]
-#' (documented under [board_update]) handles such dependencies automatically.
+#' longer available).
 #'
 #' @param x Board
 #'
@@ -281,7 +283,9 @@ is_acyclic.board <- function(x) {
 #' return corresponding objects (i.e. `blocks`, `links`, `stacks` and
 #' `board_options`), while ID getters (`board_block_ids()`, `board_link_ids()`,
 #' `board_stack_ids()` and `board_option_ids()`) return character vectors, as
-#' does `available_stack_blocks()`.
+#' does `available_stack_blocks()`. Convenience functions `rm_blocks()`,
+#' `modify_board_links()` and `modify_board_stacks()` return an updated `board`
+#' object.
 #'
 #' @export
 board_blocks <- function(x) {
@@ -304,7 +308,11 @@ board_block_ids <- function(x) {
   names(board_blocks(x))
 }
 
-#' @rdname board_update
+#' @param rm Block/link/stack IDs to remove
+#' @param ... Further arguments they may be passed from the board server context
+#' @param session Shiny session object
+#'
+#' @rdname board_blocks
 #' @export
 rm_blocks <- function(x, rm, ..., session = get_session()) {
   UseMethod("rm_blocks", x)
@@ -363,9 +371,10 @@ rm_blocks.board <- function(x, rm, ..., session = get_session()) {
 #' Board links can be retrieved using `board_links()` and updated with the
 #' corresponding replacement function `board_links<-()`. If only links IDs are
 #' of interest, this is available as `board_link_ids()`, which is short for
-#' `names(board_links(x))`. The higher-level convenience function
-#' [modify_board_links()] (documented under [board_update]) covers
-#' add/remove/modify in one call.
+#' `names(board_links(x))`. A (generic) convenience function for all kinds of
+#' updates to board links in one is available as `modify_board_links()`. With
+#' arguments `add`, `rm` and `mod`, links can be added, removed or modified in
+#' one go.
 #'
 #' @rdname board_blocks
 #' @export
@@ -388,7 +397,9 @@ board_link_ids <- function(x) {
   names(board_links(x))
 }
 
-#' @rdname board_update
+#' @param add Links/stacks to add
+#' @param mod Link/stacks to modify
+#' @rdname board_blocks
 #' @export
 modify_board_links <- function(x, add = NULL, rm = NULL, mod = NULL, ...,
                                session = get_session()) {
@@ -428,11 +439,11 @@ modify_board_links.board <- function(x, add = NULL, rm = NULL, mod = NULL,
 #' Board stacks can be retrieved using `board_stacks()` and updated with the
 #' corresponding replacement function `board_stacks<-()`. If only the stack IDs
 #' are of interest, this is available as `board_stack_ids()`, which is short
-#' for `names(board_stacks(x))`. The higher-level convenience function
-#' [modify_board_stacks()] (documented under [board_update]) covers
-#' add/remove/modify in one call. If block IDs that are not already associated
-#' with a stack (i.e. "free" blocks) are of interest, this is available as
-#' `available_stack_blocks()`.
+#' for `names(board_stacks(x))`. A (generic) convenience function to update
+#' stacks is available as `modify_board_stacks()`, which can add, remove and
+#' modify stacks depending on arguments passed as `add`, `rm` and `mod`. If
+#' block IDs that are not already associated with a stack (i.e. "free" blocks)
+#' are of interest, this is available as `available_stack_blocks()`.
 #'
 #' @rdname board_blocks
 #' @export
@@ -455,7 +466,7 @@ board_stack_ids <- function(x) {
   names(board_stacks(x))
 }
 
-#' @rdname board_update
+#' @rdname board_blocks
 #' @export
 modify_board_stacks <- function(x, add = NULL, rm = NULL, mod = NULL, ...,
                                 session = get_session()) {

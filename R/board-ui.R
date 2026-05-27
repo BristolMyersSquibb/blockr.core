@@ -11,17 +11,21 @@
 #' themselves. Additionally, `toolbar_ui()` is responsible for creating a
 #' toolbar UI component from several plugin UI components.
 #'
-#' Dynamic UI updates (inserting and removing block-level UI elements as
-#' blocks are added or removed) are handled by [insert_block_ui()] and
-#' [remove_block_ui()], documented alongside the rest of the update API
-#' under [board_update].
+#' Dynamic UI updates are handled by functions `insert_block_ui()` and
+#' `remove_block_ui()` for adding and removing block-level UI elements to and
+#' from `board` UI, whenever blocks are added or removed. These update functions
+#' are provided as S3 generics with implementations for `board` and can be
+#' extended if so desired.
 #'
 #' @param id Namespace ID
 #' @param x Board
 #' @param ... Generic consistency
 #'
 #' @return A `board_ui()` implementation is expected to return [shiny::tag] or
-#' [shiny::tagList()] objects, as does `toolbar_ui()`.
+#' [shiny::tagList()] objects, as does `toolbar_ui()`, while updater functions
+#' (`insert_block_ui()` and `remove_block_ui()`) are called for their side
+#' effects (which includes UI updates such as [shiny::insertUI()],
+#' [shiny::removeUI()]) and return the board object passed as `x` invisibly.
 #'
 #' @export
 board_ui <- function(id, x, ...) {
@@ -135,7 +139,9 @@ block_ui.board <- function(id, x, blocks = NULL, edit_ui = NULL, ctrl_ui = NULL,
   )
 }
 
-#' @rdname board_update
+#' @param blocks (Additional) blocks (or IDs) for which to generate the UI
+#' @param session Shiny session
+#' @rdname board_ui
 #' @export
 insert_block_ui <- function(id, x, blocks = NULL, ...,
                             session = get_session()) {
@@ -143,7 +149,7 @@ insert_block_ui <- function(id, x, blocks = NULL, ...,
   UseMethod("insert_block_ui", x)
 }
 
-#' @rdname board_update
+#' @rdname board_ui
 #' @export
 insert_block_ui.board <- function(id, x, blocks = NULL, ...,
                                   session = get_session()) {
@@ -160,7 +166,7 @@ insert_block_ui.board <- function(id, x, blocks = NULL, ...,
   invisible(x)
 }
 
-#' @rdname board_update
+#' @rdname board_ui
 #' @export
 remove_block_ui <- function(id, x, blocks = NULL, ...,
                             session = get_session()) {
@@ -168,7 +174,7 @@ remove_block_ui <- function(id, x, blocks = NULL, ...,
   UseMethod("remove_block_ui", x)
 }
 
-#' @rdname board_update
+#' @rdname board_ui
 #' @export
 remove_block_ui.board <- function(id, x, blocks = NULL, ...,
                                   session = get_session()) {
