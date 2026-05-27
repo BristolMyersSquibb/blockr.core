@@ -11,7 +11,7 @@ validate_board_update(payload, board)
 
 augment_board_update(upd, board, ...)
 
-apply_board_update(board, upd, rv, ...)
+apply_board_update(board, upd, ...)
 }
 \arguments{
 \item{payload, upd}{A list of the shape accepted by the
@@ -23,25 +23,22 @@ apply on top of the live block's current state (plus the reserved
 key \code{block_name}). Subclass methods may extend the payload with
 additional top-level slots.}
 
-\item{board}{A \code{board} object (for \code{validate_board_update()} and
-\code{augment_board_update()}) or the current \code{board} reactive value
-(for \code{apply_board_update()}).}
+\item{board}{A \code{board} object — a plain S3 snapshot in all three
+generics (no reactive surface).}
 
 \item{...}{Additional arguments. The \code{-Inf} observer splices any
 \code{...} originally passed to \code{board_server()} into the
 \code{apply_board_update()} dispatch alongside \code{session}, so subclass
 methods receive them as named arguments. Subclass methods typically
-forward \code{...} via \code{NextMethod()} (a no-op for the default \code{.board}
-method).}
-
-\item{rv}{The board server's \code{reactiveValues} store.}
+forward \code{...} via \code{NextMethod()}.}
 }
 \value{
 \code{validate_board_update()} returns \code{invisible(payload)} on
 success and throws a \code{blockr_abort()} error (e.g.
 \verb{board_update_*_invalid}) on failure. \code{augment_board_update()}
-returns the (possibly extended) payload. \code{apply_board_update()} is
-called for its side effects and returns \code{invisible(NULL)}.
+returns the (possibly extended) payload. \code{apply_board_update()}
+returns a \code{board} object, which the \code{-Inf} observer assigns back to
+\code{rv$board}.
 }
 \description{
 The board server applies every state change through a single
@@ -91,12 +88,15 @@ from running in that flush.
 \code{apply_board_update()} runs in the \code{-Inf} phase as a post-core
 hook. The in-core apply path (blocks / links / stacks / UI
 insert+remove) is \strong{not} routed through this generic and is not
-overridable here; the default \code{.board} method is a no-op. Subclass
-methods react to subclass payload slots (e.g. a \code{views} slot for a
-layout-aware subclass) after core mutations have settled — so \code{rv}
-is already in its post-update state when the hook fires. Resetting
-the \code{board_update} reactive happens in the observer, not in either
-method.
+overridable here; the default \code{.board} method returns the supplied
+board unchanged. Subclass methods react to subclass payload slots
+(e.g. a \code{views} slot for a layout-aware subclass) by returning a
+new \code{board} value, which the observer assigns back to \code{rv$board}.
+Subclasses receive only the board (a plain S3 snapshot, not a
+reactive); the rest of the server's reactive state is deliberately
+out of reach so subclass methods cannot mutate \code{rv$blocks},
+\code{rv$inputs}, etc. by accident. Resetting the \code{board_update}
+reactive happens in the observer, not in this method.
 
 For piecemeal customization of the core apply path itself (a
 different UI for block insertion, a custom link-modification rule,

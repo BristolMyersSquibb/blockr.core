@@ -178,14 +178,17 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
             )
           )
 
-          do.call(
+          new_board <- do.call(
             apply_board_update,
             c(
-              list(rv$board, upd, rv),
+              list(rv$board, upd),
               list(session = session),
               dot_args
             )
           )
+
+          stopifnot(is_board(new_board))
+          rv$board <- new_board
 
           board_update(NULL)
 
@@ -658,12 +661,15 @@ add_blocks_to_stacks <- function(rv, add, session) {
 #' `apply_board_update()` runs in the `-Inf` phase as a post-core
 #' hook. The in-core apply path (blocks / links / stacks / UI
 #' insert+remove) is **not** routed through this generic and is not
-#' overridable here; the default `.board` method is a no-op. Subclass
-#' methods react to subclass payload slots (e.g. a `views` slot for a
-#' layout-aware subclass) after core mutations have settled — so `rv`
-#' is already in its post-update state when the hook fires. Resetting
-#' the `board_update` reactive happens in the observer, not in either
-#' method.
+#' overridable here; the default `.board` method returns the supplied
+#' board unchanged. Subclass methods react to subclass payload slots
+#' (e.g. a `views` slot for a layout-aware subclass) by returning a
+#' new `board` value, which the observer assigns back to `rv$board`.
+#' Subclasses receive only the board (a plain S3 snapshot, not a
+#' reactive); the rest of the server's reactive state is deliberately
+#' out of reach so subclass methods cannot mutate `rv$blocks`,
+#' `rv$inputs`, etc. by accident. Resetting the `board_update`
+#' reactive happens in the observer, not in this method.
 #'
 #' For piecemeal customization of the core apply path itself (a
 #' different UI for block insertion, a custom link-modification rule,
@@ -680,22 +686,20 @@ add_blocks_to_stacks <- function(rv, add, session) {
 #' apply on top of the live block's current state (plus the reserved
 #' key `block_name`). Subclass methods may extend the payload with
 #' additional top-level slots.
-#' @param board A `board` object (for `validate_board_update()` and
-#' `augment_board_update()`) or the current `board` reactive value
-#' (for `apply_board_update()`).
-#' @param rv The board server's `reactiveValues` store.
+#' @param board A `board` object — a plain S3 snapshot in all three
+#' generics (no reactive surface).
 #' @param ... Additional arguments. The `-Inf` observer splices any
 #' `...` originally passed to `board_server()` into the
 #' `apply_board_update()` dispatch alongside `session`, so subclass
 #' methods receive them as named arguments. Subclass methods typically
-#' forward `...` via `NextMethod()` (a no-op for the default `.board`
-#' method).
+#' forward `...` via `NextMethod()`.
 #'
 #' @return `validate_board_update()` returns `invisible(payload)` on
 #' success and throws a `blockr_abort()` error (e.g.
 #' `board_update_*_invalid`) on failure. `augment_board_update()`
-#' returns the (possibly extended) payload. `apply_board_update()` is
-#' called for its side effects and returns `invisible(NULL)`.
+#' returns the (possibly extended) payload. `apply_board_update()`
+#' returns a `board` object, which the `-Inf` observer assigns back to
+#' `rv$board`.
 #'
 #' @examples
 #' brd <- new_board(
@@ -1189,13 +1193,13 @@ augment_board_update.board <- function(upd, board, ...) {
 
 #' @rdname board_update_lifecycle
 #' @export
-apply_board_update <- function(board, upd, rv, ...) {
+apply_board_update <- function(board, upd, ...) {
   UseMethod("apply_board_update", board)
 }
 
 #' @export
-apply_board_update.board <- function(board, upd, rv, ...) {
-  invisible()
+apply_board_update.board <- function(board, upd, ...) {
+  board
 }
 
 apply_core_board_update <- function(rv, upd, ...,

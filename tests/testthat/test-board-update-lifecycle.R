@@ -20,7 +20,7 @@ reset_ext_methods <- function() {
 
   register_ext_method(
     "apply_board_update",
-    function(board, upd, rv, ...) NextMethod()
+    function(board, upd, ...) NextMethod()
   )
 }
 
@@ -131,10 +131,11 @@ test_that("board_update lifecycle runs augment before apply and resets", {
 
   register_ext_method(
     "apply_board_update",
-    function(board, upd, rv, ...) {
+    function(board, upd, ...) {
       call_log <<- c(call_log, "apply")
-      rv$ext_seen <- upd$ext
-      NextMethod()
+      board <- NextMethod()
+      attr(board, "ext_seen") <- upd$ext
+      board
     }
   )
 
@@ -161,8 +162,9 @@ test_that("board_update lifecycle runs augment before apply and resets", {
         min(which(call_log == "apply"))
       )
 
-      expect_identical(rv$ext_seen$augmented, TRUE)
-      expect_identical(rv$ext_seen$views$grid, "two-up")
+      ext_seen <- attr(rv$board, "ext_seen")
+      expect_identical(ext_seen$augmented, TRUE)
+      expect_identical(ext_seen$views$grid, "two-up")
 
       expect_length(board_blocks(rv$board), 1L)
 
@@ -183,7 +185,7 @@ test_that("apply_board_update splices board_server `...` as named args", {
 
   register_ext_method(
     "apply_board_update",
-    function(board, upd, rv, ...) {
+    function(board, upd, ...) {
       seen <<- list(...)
       NextMethod()
     }
@@ -209,6 +211,12 @@ test_that("apply_board_update splices board_server `...` as named args", {
   )
 })
 
+test_that("apply_board_update.board returns the supplied board unchanged", {
+
+  brd <- new_board()
+  expect_identical(apply_board_update(brd, list()), brd)
+})
+
 test_that("apply_board_update runs after core has settled rv state", {
 
   reset_ext_methods()
@@ -217,8 +225,8 @@ test_that("apply_board_update runs after core has settled rv state", {
 
   register_ext_method(
     "apply_board_update",
-    function(board, upd, rv, ...) {
-      observed <<- board_block_ids(rv$board)
+    function(board, upd, ...) {
+      observed <<- board_block_ids(board)
       NextMethod()
     }
   )
