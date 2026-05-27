@@ -7,22 +7,19 @@
 #' of displaying stacks and integrating them with a board is desired, this can
 #' be implemented by introducing a board subclass and providing a `stack_ui()`
 #' method for that subclass. Inserting stacks into (and removing stacks from)
-#' a board is available as `insert_stack_ui()`/`remove_stack_ui()` and blocks
-#' into/from stacks via `add_block_to_stack()`/`remove_block_from_stack()`.
-#' All are S3 generics with implementations for `board` and alternative
-#' implementation may be provided for board sub-classes.
+#' a board is available as `insert_stack_ui()`/`remove_stack_ui()`. For moving
+#' blocks in and out of stack containers, [add_block_to_stack()] /
+#' [remove_block_from_stack()] are documented under [board_update] alongside
+#' the rest of the update API.
 #'
 #' @param id Parent namespace
 #' @param x Object
 #' @param ... Generic consistency
 #'
 #' @return UI set up via `stack_ui()` is expected to return [shiny::tag()] or
-#' [shiny::tagList()] objects while stack/block insertion/removal functions
-#' (into/from board/stack objects) are called for their side-effects. Both
-#' `insert_stack_ui()`/`remove_stack_ui` and
-#' `add_block_to_stack()`/`remove_block_from_stack()` return `NULL` invisibly
-#' and where the former call [shiny::insertUI()]/[shiny::removeUI()] and the
-#' latter modify the DOM via [shiny::session] custom messages.
+#' [shiny::tagList()] objects while stack insertion/removal functions are
+#' called for their side-effects. `insert_stack_ui()`/`remove_stack_ui()`
+#' return `NULL` invisibly and call [shiny::insertUI()]/[shiny::removeUI()].
 #'
 #' @export
 stack_ui <- function(id, x, ...) {
@@ -170,8 +167,7 @@ remove_stack_ui.board <- function(id, board, session = get_session(), ...) {
   invisible()
 }
 
-#' @param block_id,stack_id,board_id Block/stack/board IDs
-#' @rdname stack_ui
+#' @rdname board_update
 #' @export
 add_block_to_stack <- function(board, block_id, stack_id,
                                session = get_session(), ...) {
@@ -179,7 +175,7 @@ add_block_to_stack <- function(board, block_id, stack_id,
   UseMethod("add_block_to_stack", board)
 }
 
-#' @rdname stack_ui
+#' @rdname board_update
 #' @export
 add_block_to_stack.board <- function(board, block_id, stack_id,
                                      session = get_session(), ...) {
@@ -201,7 +197,7 @@ add_block_to_stack.board <- function(board, block_id, stack_id,
   invisible()
 }
 
-#' @rdname stack_ui
+#' @rdname board_update
 #' @export
 remove_block_from_stack <- function(board, block_id, board_id,
                                     session = get_session(), ...) {
@@ -209,7 +205,7 @@ remove_block_from_stack <- function(board, block_id, board_id,
   UseMethod("remove_block_from_stack", board)
 }
 
-#' @rdname stack_ui
+#' @rdname board_update
 #' @export
 remove_block_from_stack.board <- function(board, block_id, board_id,
                                           session = get_session(), ...) {

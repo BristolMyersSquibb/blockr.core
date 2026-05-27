@@ -612,14 +612,15 @@ add_blocks_to_stacks <- function(rv, add, session) {
   invisible()
 }
 
-#' Board update lifecycle
+#' Board update
 #'
 #' The board server applies every state change through a single
 #' `board_update` reactive that drives two priority-ordered observers:
 #' a `+Inf` validation/augmentation phase and a `-Inf` apply phase.
-#' The functions documented here cover the public surface of that
-#' lifecycle — payload validation that mirrors the observer's checks,
-#' and two S3 generics by which board subclasses participate.
+#' This page covers the public surface of that mechanism — the
+#' caller-facing validator, the two S3 generics by which board
+#' subclasses participate, and the sub-generics that the in-core
+#' apply path uses to mutate board state and the DOM.
 #'
 #' @section Validation:
 #' `validate_board_update()` runs the same validation logic that the
@@ -666,12 +667,25 @@ add_blocks_to_stacks <- function(rv, add, session) {
 #' `rv$inputs`, etc. by accident. Resetting the `board_update`
 #' reactive happens in the observer, not in this method.
 #'
-#' For piecemeal customization of the core apply path itself (a
-#' different UI for block insertion, a custom link-modification rule,
-#' etc.) override the relevant sub-generic — [`insert_block_ui()`],
-#' [`remove_block_ui()`], [`modify_board_links()`],
-#' [`modify_board_stacks()`] — rather than trying to swap
-#' `apply_board_update()`.
+#' @section State mutators:
+#' Building blocks the in-core apply path uses to update board state.
+#' Each is an S3 generic with a default `board` method; subclasses
+#' override individual generics for piecemeal customization (e.g. a
+#' custom link-modification rule) rather than trying to swap
+#' `apply_board_update()` as a whole.
+#' - `rm_blocks()` removes blocks (and refuses to remove blocks still
+#'   referenced by links or stacks).
+#' - `modify_board_links()` adds / removes / modifies links in one
+#'   call.
+#' - `modify_board_stacks()` adds / removes / modifies stacks in one
+#'   call.
+#'
+#' @section UI lifecycle:
+#' Building blocks for keeping the DOM in sync with board state.
+#' - `insert_block_ui()` / `remove_block_ui()` add / remove the
+#'   block-level UI containers (one per block).
+#' - `add_block_to_stack()` / `remove_block_from_stack()` move block
+#'   UI in and out of stack containers via shiny custom messages.
 #'
 #' @param payload,upd A list of the shape accepted by the
 #' `board_update` reactiveVal, with optional `blocks`, `links`, and
@@ -681,8 +695,17 @@ add_blocks_to_stacks <- function(rv, add, session) {
 #' apply on top of the live block's current state (plus the reserved
 #' key `block_name`). Subclass methods may extend the payload with
 #' additional top-level slots.
-#' @param board A `board` object — a plain S3 snapshot in all three
-#' generics (no reactive surface).
+#' @param board,x A `board` object — a plain S3 snapshot in all
+#' generics on this page (no reactive surface). The sub-generics
+#' inherited from earlier APIs use `x`; the new lifecycle generics
+#' use `board`.
+#' @param id Parent namespace (UI generics).
+#' @param blocks Block IDs or a `blocks` object (UI generics).
+#' @param block_id,stack_id,board_id Single block / stack / board ID
+#' (stack UI generics).
+#' @param add,rm,mod Components to add / remove / modify (state
+#' mutators). For `rm_blocks()`, `rm` is a character vector or a
+#' `blocks` object whose names give the IDs to remove.
 #' @param ... Forwarded between methods. For `apply_board_update()`,
 #' the `-Inf` observer splices any `...` originally passed to
 #' `board_server()` into the dispatch, so subclass methods receive
@@ -696,9 +719,12 @@ add_blocks_to_stacks <- function(rv, add, session) {
 #' @return `validate_board_update()` returns `invisible(payload)` on
 #' success and throws a `blockr_abort()` error (e.g.
 #' `board_update_*_invalid`) on failure. `augment_board_update()`
-#' returns the (possibly extended) payload. `apply_board_update()`
-#' returns a `board` object, which the `-Inf` observer assigns back to
-#' `rv$board`.
+#' returns the (possibly extended) payload. `apply_board_update()`,
+#' `rm_blocks()`, `modify_board_links()` and `modify_board_stacks()`
+#' all return a `board` object. The UI generics
+#' (`insert_block_ui()`, `remove_block_ui()`, `add_block_to_stack()`,
+#' `remove_block_from_stack()`) are called for their DOM side effects
+#' and return `invisible(x)` / `invisible(NULL)`.
 #'
 #' @examples
 #' brd <- new_board(
@@ -718,10 +744,10 @@ add_blocks_to_stacks <- function(rv, add, session) {
 #'   )
 #' )
 #'
-#' @name board_update_lifecycle
+#' @name board_update
 NULL
 
-#' @rdname board_update_lifecycle
+#' @rdname board_update
 #' @export
 validate_board_update <- function(payload, board, ...,
                                   session = get_session()) {
@@ -1109,7 +1135,7 @@ validate_board_update_stacks <- function(upd, board) {
   invisible()
 }
 
-#' @rdname board_update_lifecycle
+#' @rdname board_update
 #' @export
 augment_board_update <- function(upd, board, ...,
                                  session = get_session()) {
@@ -1194,7 +1220,7 @@ augment_board_update.board <- function(upd, board, ...,
   upd
 }
 
-#' @rdname board_update_lifecycle
+#' @rdname board_update
 #' @export
 apply_board_update <- function(board, upd, ...,
                                session = get_session()) {

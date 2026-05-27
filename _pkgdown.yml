@@ -49,9 +49,7 @@ reference:
     - board_server
     - board_ui
     - new_board_options
-    - validate_board_update
-    - augment_board_update
-    - apply_board_update
+    - board_update
 - title: Board plugins
 - subtitle: Utilities
   desc: Tools for creating and working with board plugins.

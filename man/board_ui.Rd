@@ -5,10 +5,6 @@
 \alias{board_ui}
 \alias{board_ui.board}
 \alias{board_ui.NULL}
-\alias{insert_block_ui}
-\alias{insert_block_ui.board}
-\alias{remove_block_ui}
-\alias{remove_block_ui.board}
 \alias{toolbar_ui}
 \alias{toolbar_ui.board}
 \title{Board UI}
@@ -20,14 +16,6 @@ board_ui(id, x, ...)
 \method{board_ui}{board}(id, x, plugins = board_plugins(x), options = NULL, ...)
 
 \method{board_ui}{`NULL`}(id, x, ...)
-
-insert_block_ui(id, x, blocks = NULL, ..., session = get_session())
-
-\method{insert_block_ui}{board}(id, x, blocks = NULL, ..., session = get_session())
-
-remove_block_ui(id, x, blocks = NULL, ..., session = get_session())
-
-\method{remove_block_ui}{board}(id, x, blocks = NULL, ..., session = get_session())
 
 toolbar_ui(id, x, plugins = list(), ...)
 
@@ -44,17 +32,10 @@ toolbar_ui(id, x, plugins = list(), ...)
 
 \item{options}{Board options (\code{NULL} defaults to the union of board, block
 and registry sourced options)}
-
-\item{blocks}{(Additional) blocks (or IDs) for which to generate the UI}
-
-\item{session}{Shiny session}
 }
 \value{
-A \code{board_ui()} implementation is expected to return \link[shiny:reexports]{shiny::tag} or
-\code{\link[shiny:reexports]{shiny::tagList()}} objects, as does \code{toolbar_ui()}, while updater functions
-(\code{insert_block_ui()} and \code{remove_block_ui()}) are called for their side
-effects (which includes UI updates such as \code{\link[shiny:insertUI]{shiny::insertUI()}},
-\code{\link[shiny:insertUI]{shiny::removeUI()}}) and return the board object passed as \code{x} invisibly.
+A \code{board_ui()} implementation is expected to return \link[shiny:tag]{shiny::tag} or
+\code{\link[shiny:tagList]{shiny::tagList()}} objects, as does \code{toolbar_ui()}.
 }
 \description{
 As counterpart to \code{\link[=board_server]{board_server()}}, \code{board_ui()} is responsible for rendering
@@ -69,9 +50,8 @@ themselves. Additionally, \code{toolbar_ui()} is responsible for creating a
 toolbar UI component from several plugin UI components.
 }
 \details{
-Dynamic UI updates are handled by functions \code{insert_block_ui()} and
-\code{remove_block_ui()} for adding and removing block-level UI elements to and
-from \code{board} UI, whenever blocks are added or removed. These update functions
-are provided as S3 generics with implementations for \code{board} and can be
-extended if so desired.
+Dynamic UI updates (inserting and removing block-level UI elements as
+blocks are added or removed) are handled by \code{\link[=insert_block_ui]{insert_block_ui()}} and
+\code{\link[=remove_block_ui]{remove_block_ui()}}, documented alongside the rest of the update API
+under \link{board_update}.
 }
