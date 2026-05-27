@@ -14,100 +14,72 @@ augment_board_update(upd, board, ..., session = get_session())
 apply_board_update(board, upd, ..., session = get_session())
 }
 \arguments{
-\item{payload, upd}{A list of the shape accepted by the
-\code{board_update} reactiveVal, with optional \code{blocks}, \code{links}, and
-\code{stacks} slots, each a list with optional \code{add}, \code{mod}, and \code{rm}
-entries. For \code{blocks}, \code{mod} is a named list keyed by block ID
-where each entry is a named list of constructor argument values to
-apply on top of the live block's current state (plus the reserved
-key \code{block_name}). Subclass methods may extend the payload with
-additional top-level slots.}
+\item{payload, upd}{A board update payload — see Validation above
+for the accepted shape.}
 
-\item{board}{A \code{board} object — a plain S3 snapshot in all three
-generics (no reactive surface).}
+\item{board}{A \code{board} object.}
 
-\item{...}{Forwarded between methods. For \code{apply_board_update()},
-the \code{-Inf} observer splices any \code{...} originally passed to
-\code{board_server()} into the dispatch, so subclass methods receive
-those as named arguments here.}
+\item{...}{Forwarded between methods. For \code{\link[=apply_board_update]{apply_board_update()}},
+the final observer also splices \code{board_server()}'s \code{...} in here.}
 
-\item{session}{The shiny session, used by subclass methods that
-need to notify, namespace UI, or otherwise touch the reactive
-context. Defaults to \code{\link[=get_session]{get_session()}} so non-reactive callers (e.g.
-a staging layer running \code{validate_board_update()} outside a session)
-don't have to pass anything.}
+\item{session}{A shiny session, default \code{\link[=get_session]{get_session()}}.}
 }
 \value{
-\code{validate_board_update()} returns \code{invisible(payload)} on
-success and throws a \code{blockr_abort()} error (e.g.
-\verb{board_update_*_invalid}) on failure. \code{augment_board_update()}
-returns the (possibly extended) payload. \code{apply_board_update()}
-returns a \code{board} object, which the \code{-Inf} observer assigns back to
-\code{rv$board}.
+\code{\link[=validate_board_update]{validate_board_update()}} returns \code{invisible(payload)} (or
+throws a \code{blockr_abort()} error). \code{\link[=augment_board_update]{augment_board_update()}} returns
+the (possibly extended) payload. \code{\link[=apply_board_update]{apply_board_update()}} returns a
+\code{board}.
 }
 \description{
-The board server applies every state change through a single
-\code{board_update} reactive that drives two priority-ordered observers:
-a \code{+Inf} validation/augmentation phase and a \code{-Inf} apply phase.
-This page covers the public surface of that mechanism — the
-caller-facing validator and the two S3 generics by which board
-subclasses participate.
+Inside \code{\link[=board_server]{board_server()}} every state change flows through one
+\code{board_update} reactive. Core registers two observers framing the
+change: an initial one that validates the payload and runs
+\code{\link[=augment_board_update]{augment_board_update()}} for auto-fixups, and a final one that runs
+\code{\link[=apply_board_update]{apply_board_update()}} and resets the reactive. Plugins or
+callbacks may register their own observers in between, provided they
+use a \emph{finite} priority — the highest and lowest reactive priorities
+are reserved for core.
+}
+\details{
+All three functions dispatch on the \code{board} class. Subclasses
+override to validate, augment, or react to their own payload slots,
+typically composing with \code{NextMethod()}. \code{\link[=validate_board_update]{validate_board_update()}}
+is also a caller-facing entry point: it mirrors the initial
+observer's checks against a caller-supplied payload, useful for
+staging layers (e.g. accumulating LLM-proposed updates) that need
+to fail loudly before publishing.
 }
 \section{Validation}{
 
-\code{validate_board_update()} runs the same validation logic that the
-\code{board_server()} \code{+Inf} observer applies to every payload, but
-against a caller-supplied value. Useful for downstream packages
-that want to surface validation errors before committing a proposed
-update — for example a staging layer that accumulates pending
-changes from LLM tool calls and needs each call to fail loudly if
-it would conflict with the live board.
-
-It dispatches on the \code{board} class so subclasses can extend
-validation to their own payload slots (typically by composing via
-\code{NextMethod()}). The default \code{.board} method runs in two passes: a
-structural check on the payload shape and per-slot block / link /
-stack rules, followed by a cross-reference check that link
-\code{from}/\code{to} endpoints and stack members resolve in the post-update
-merged view. Preprocessing (auto-cleanup of dangling refs from
-block removals) is an apply-time concern and is \strong{not} performed
-here — the payload is validated as-is. Unknown top-level keys are
-passed through, so subclass slots reach subclass
-\code{augment_board_update()} / \code{apply_board_update()} methods.
+The default \code{.board} method runs a structural check on the payload
+(block / link / stack per-slot rules) and a cross-reference check
+that link endpoints and stack members resolve in the post-update
+merged view. Unknown top-level keys are passed through, so subclass
+payload slots reach subclass augment / apply methods.
 }
 
-\section{Augment (subclass swap point)}{
+\section{Augment}{
 
-\code{augment_board_update()} runs in the \code{+Inf} phase and is a true
-swap point. The default \code{.board} method implements core
-augmentation (dangling-link cleanup on block removal, link-input
-completion); subclasses may replace it wholesale (typically by
-composing via \code{NextMethod()}) to validate or normalize their own
-payload slots. Errors thrown here propagate out of the \code{+Inf}
-observer and prevent the \code{-Inf} observer (and thus any apply work)
-from running in that flush.
+The default \code{.board} method inserts implied link removals and stack
+updates that follow from block removals, plus link-input
+completion. Subclass methods may extend the payload with their own
+fixups; an error thrown here aborts the update before apply runs.
 }
 
-\section{Apply (subclass post-core hook)}{
+\section{Apply}{
 
-\code{apply_board_update()} runs in the \code{-Inf} phase as a post-core
-hook. The in-core apply path (blocks / links / stacks / UI
-insert+remove) is \strong{not} routed through this generic and is not
-overridable here; the default \code{.board} method returns the supplied
-board unchanged. Subclass methods react to subclass payload slots
-(e.g. a \code{views} slot for a layout-aware subclass) by returning a
-new \code{board} value, which the observer assigns back to \code{rv$board}.
-Subclasses receive only the board (a plain S3 snapshot, not a
-reactive); the rest of the server's reactive state is deliberately
-out of reach so subclass methods cannot mutate \code{rv$blocks},
-\code{rv$inputs}, etc. by accident. Resetting the \code{board_update}
-reactive happens in the observer, not in this method.
+The default \code{.board} method returns the supplied board unchanged —
+the core apply path (block / link / stack mutation, block UI
+insertion / removal) is not routed through this generic. Subclass
+methods receive a plain \code{board} snapshot (no reactive surface) and
+return a \code{board}, which the final observer assigns back to
+\code{rv$board}. For piecemeal customization of the core apply path
+itself, override the relevant sub-generic
+(\code{\link[=modify_board_links]{modify_board_links()}}, \code{\link[=insert_block_ui]{insert_block_ui()}}, etc.) instead.
 
-For piecemeal customization of the core apply path itself (a
-different UI for block insertion, a custom link-modification rule,
-etc.) override the relevant sub-generic — \code{insert_block_ui()},
-\code{remove_block_ui()}, \code{modify_board_links()}, \code{modify_board_stacks()} —
-rather than trying to swap \code{apply_board_update()}.
+Errors thrown from either augment or apply are caught by the
+observer, reported via \code{\link[=notify]{notify()}}, and the reactive is reset so the
+app keeps running.
 }
 
 \examples{

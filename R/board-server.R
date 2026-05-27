@@ -145,15 +145,24 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         {
           upd <- board_update()
 
-          log_debug("starting board update")
-          validate_board_update_structure(upd, rv$board)
-          log_debug("board update validated")
+          tryCatch(
+            {
+              log_debug("starting board update")
+              validate_board_update_structure(upd, rv$board)
+              log_debug("board update validated")
 
-          log_debug("preprocessing board update")
-          if (!preprocess_board_update(board_update, rv$board)) {
-            log_debug("validating board links against board")
-            validate_board_update_xrefs(upd, rv$board)
-          }
+              log_debug("preprocessing board update")
+              if (!preprocess_board_update(board_update, rv$board)) {
+                log_debug("validating board links against board")
+                validate_board_update_xrefs(upd, rv$board)
+              }
+            },
+            error = function(e) {
+              log_warn("board update rejected: {conditionMessage(e)}")
+              notify(conditionMessage(e), type = "error", session = session)
+              board_update(NULL)
+            }
+          )
         },
         priority = Inf
       )
@@ -163,27 +172,35 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         {
           upd <- board_update()
 
-          apply_core_board_update(
-            rv, upd,
-            session = session,
-            edit_block = edit_block,
-            ctrl_block = ctrl_block,
-            edit_stack = edit_stack,
-            edit_plugin_args = edit_plugin_args,
-            dot_args = dot_args
-          )
+          tryCatch(
+            {
+              apply_core_board_update(
+                rv, upd,
+                session = session,
+                edit_block = edit_block,
+                ctrl_block = ctrl_block,
+                edit_stack = edit_stack,
+                edit_plugin_args = edit_plugin_args,
+                dot_args = dot_args
+              )
 
-          new_board <- do.call(
-            apply_board_update,
-            c(
-              list(rv$board, upd),
-              dot_args,
-              list(session = session)
-            )
-          )
+              new_board <- do.call(
+                apply_board_update,
+                c(
+                  list(rv$board, upd),
+                  dot_args,
+                  list(session = session)
+                )
+              )
 
-          stopifnot(is_board(new_board))
-          rv$board <- new_board
+              stopifnot(is_board(new_board))
+              rv$board <- new_board
+            },
+            error = function(e) {
+              log_warn("apply_board_update failed: {conditionMessage(e)}")
+              notify(conditionMessage(e), type = "error", session = session)
+            }
+          )
 
           board_update(NULL)
 
@@ -614,90 +631,61 @@ add_blocks_to_stacks <- function(rv, add, session) {
 
 #' Board update
 #'
-#' The board server applies every state change through a single
-#' `board_update` reactive that drives two priority-ordered observers:
-#' a `+Inf` validation/augmentation phase and a `-Inf` apply phase.
-#' This page covers the public surface of that mechanism — the
-#' caller-facing validator and the two S3 generics by which board
-#' subclasses participate.
+#' Inside [board_server()] every state change flows through one
+#' `board_update` reactive. Core registers two observers framing the
+#' change: an initial one that validates the payload and runs
+#' [augment_board_update()] for auto-fixups, and a final one that runs
+#' [apply_board_update()] and resets the reactive. Plugins or
+#' callbacks may register their own observers in between, provided they
+#' use a *finite* priority — the highest and lowest reactive priorities
+#' are reserved for core.
+#'
+#' All three functions dispatch on the `board` class. Subclasses
+#' override to validate, augment, or react to their own payload slots,
+#' typically composing with `NextMethod()`. [validate_board_update()]
+#' is also a caller-facing entry point: it mirrors the initial
+#' observer's checks against a caller-supplied payload, useful for
+#' staging layers (e.g. accumulating LLM-proposed updates) that need
+#' to fail loudly before publishing.
 #'
 #' @section Validation:
-#' `validate_board_update()` runs the same validation logic that the
-#' `board_server()` `+Inf` observer applies to every payload, but
-#' against a caller-supplied value. Useful for downstream packages
-#' that want to surface validation errors before committing a proposed
-#' update — for example a staging layer that accumulates pending
-#' changes from LLM tool calls and needs each call to fail loudly if
-#' it would conflict with the live board.
+#' The default `.board` method runs a structural check on the payload
+#' (block / link / stack per-slot rules) and a cross-reference check
+#' that link endpoints and stack members resolve in the post-update
+#' merged view. Unknown top-level keys are passed through, so subclass
+#' payload slots reach subclass augment / apply methods.
 #'
-#' It dispatches on the `board` class so subclasses can extend
-#' validation to their own payload slots (typically by composing via
-#' `NextMethod()`). The default `.board` method runs in two passes: a
-#' structural check on the payload shape and per-slot block / link /
-#' stack rules, followed by a cross-reference check that link
-#' `from`/`to` endpoints and stack members resolve in the post-update
-#' merged view. Preprocessing (auto-cleanup of dangling refs from
-#' block removals) is an apply-time concern and is **not** performed
-#' here — the payload is validated as-is. Unknown top-level keys are
-#' passed through, so subclass slots reach subclass
-#' `augment_board_update()` / `apply_board_update()` methods.
+#' @section Augment:
+#' The default `.board` method inserts implied link removals and stack
+#' updates that follow from block removals, plus link-input
+#' completion. Subclass methods may extend the payload with their own
+#' fixups; an error thrown here aborts the update before apply runs.
 #'
-#' @section Augment (subclass swap point):
-#' `augment_board_update()` runs in the `+Inf` phase and is a true
-#' swap point. The default `.board` method implements core
-#' augmentation (dangling-link cleanup on block removal, link-input
-#' completion); subclasses may replace it wholesale (typically by
-#' composing via `NextMethod()`) to validate or normalize their own
-#' payload slots. Errors thrown here propagate out of the `+Inf`
-#' observer and prevent the `-Inf` observer (and thus any apply work)
-#' from running in that flush.
+#' @section Apply:
+#' The default `.board` method returns the supplied board unchanged —
+#' the core apply path (block / link / stack mutation, block UI
+#' insertion / removal) is not routed through this generic. Subclass
+#' methods receive a plain `board` snapshot (no reactive surface) and
+#' return a `board`, which the final observer assigns back to
+#' `rv$board`. For piecemeal customization of the core apply path
+#' itself, override the relevant sub-generic
+#' ([modify_board_links()], [insert_block_ui()], etc.) instead.
 #'
-#' @section Apply (subclass post-core hook):
-#' `apply_board_update()` runs in the `-Inf` phase as a post-core
-#' hook. The in-core apply path (blocks / links / stacks / UI
-#' insert+remove) is **not** routed through this generic and is not
-#' overridable here; the default `.board` method returns the supplied
-#' board unchanged. Subclass methods react to subclass payload slots
-#' (e.g. a `views` slot for a layout-aware subclass) by returning a
-#' new `board` value, which the observer assigns back to `rv$board`.
-#' Subclasses receive only the board (a plain S3 snapshot, not a
-#' reactive); the rest of the server's reactive state is deliberately
-#' out of reach so subclass methods cannot mutate `rv$blocks`,
-#' `rv$inputs`, etc. by accident. Resetting the `board_update`
-#' reactive happens in the observer, not in this method.
+#' Errors thrown from either augment or apply are caught by the
+#' observer, reported via [notify()], and the reactive is reset so the
+#' app keeps running.
 #'
-#' For piecemeal customization of the core apply path itself (a
-#' different UI for block insertion, a custom link-modification rule,
-#' etc.) override the relevant sub-generic — `insert_block_ui()`,
-#' `remove_block_ui()`, `modify_board_links()`, `modify_board_stacks()` —
-#' rather than trying to swap `apply_board_update()`.
+#' @param payload,upd A board update payload — see Validation above
+#' for the accepted shape.
+#' @param board A `board` object.
+#' @param ... Forwarded between methods. For [apply_board_update()],
+#' the final observer also splices `board_server()`'s `...` in here.
+#' @param session A shiny session, default [get_session()].
 #'
-#' @param payload,upd A list of the shape accepted by the
-#' `board_update` reactiveVal, with optional `blocks`, `links`, and
-#' `stacks` slots, each a list with optional `add`, `mod`, and `rm`
-#' entries. For `blocks`, `mod` is a named list keyed by block ID
-#' where each entry is a named list of constructor argument values to
-#' apply on top of the live block's current state (plus the reserved
-#' key `block_name`). Subclass methods may extend the payload with
-#' additional top-level slots.
-#' @param board A `board` object — a plain S3 snapshot in all three
-#' generics (no reactive surface).
-#' @param ... Forwarded between methods. For `apply_board_update()`,
-#' the `-Inf` observer splices any `...` originally passed to
-#' `board_server()` into the dispatch, so subclass methods receive
-#' those as named arguments here.
-#' @param session The shiny session, used by subclass methods that
-#' need to notify, namespace UI, or otherwise touch the reactive
-#' context. Defaults to [get_session()] so non-reactive callers (e.g.
-#' a staging layer running `validate_board_update()` outside a session)
-#' don't have to pass anything.
-#'
-#' @return `validate_board_update()` returns `invisible(payload)` on
-#' success and throws a `blockr_abort()` error (e.g.
-#' `board_update_*_invalid`) on failure. `augment_board_update()`
-#' returns the (possibly extended) payload. `apply_board_update()`
-#' returns a `board` object, which the `-Inf` observer assigns back to
-#' `rv$board`.
+#' @return [validate_board_update()] returns `invisible(payload)` (or
+#' throws a `blockr_abort()` error). [augment_board_update()] returns
+#' the (possibly extended) payload. [apply_board_update()] returns a
+#' `board`.
 #'
 #' @examples
 #' brd <- new_board(
