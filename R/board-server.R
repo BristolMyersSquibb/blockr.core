@@ -163,19 +163,14 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         {
           upd <- board_update()
 
-          do.call(
-            apply_core_board_update,
-            c(
-              list(rv, upd),
-              list(
-                session = session,
-                edit_block = edit_block,
-                ctrl_block = ctrl_block,
-                edit_stack = edit_stack,
-                edit_plugin_args = edit_plugin_args
-              ),
-              dot_args
-            )
+          apply_core_board_update(
+            rv, upd,
+            session = session,
+            edit_block = edit_block,
+            ctrl_block = ctrl_block,
+            edit_stack = edit_stack,
+            edit_plugin_args = edit_plugin_args,
+            dot_args = dot_args
           )
 
           new_board <- do.call(
@@ -1212,12 +1207,10 @@ apply_board_update.board <- function(board, upd, ...,
   board
 }
 
-apply_core_board_update <- function(rv, upd, ...,
-                                    session,
+apply_core_board_update <- function(rv, upd, session,
                                     edit_block, ctrl_block, edit_stack,
-                                    edit_plugin_args) {
+                                    edit_plugin_args, dot_args = list()) {
 
-  dot_args <- list(...)
   ns <- session$ns
 
   if (length(upd$blocks$add)) {
