@@ -614,34 +614,86 @@ add_blocks_to_stacks <- function(rv, add, session) {
   invisible()
 }
 
-#' Validate a board update payload
+#' Board update lifecycle
 #'
-#' Run the same validation logic that the `board_server()` observer applies
-#' to every `board_update` payload, but against a caller-supplied payload
-#' value and board. Useful for downstream packages that want to surface
-#' validation errors before committing a proposed update — for example a
-#' staging layer that accumulates pending changes from LLM tool calls and
-#' needs each call to fail loudly if it would conflict with the live board.
+#' The board server applies every state change through a single
+#' `board_update` reactive that drives two priority-ordered observers:
+#' a `+Inf` validation/augmentation phase and a `-Inf` apply phase.
+#' The functions documented here cover the public surface of that
+#' lifecycle — payload validation that mirrors the observer's checks,
+#' and two S3 generics by which board subclasses participate.
 #'
-#' Validation runs in two passes: a structural check on the payload shape
-#' and per-slot block / link / stack rules, followed by a cross-reference
-#' check that link `from`/`to` endpoints and stack members resolve in the
-#' post-update merged view.
+#' @section Validation:
+#' `validate_board_update()` runs the same validation logic that the
+#' `board_server()` `+Inf` observer applies to every payload, but
+#' against a caller-supplied value. Useful for downstream packages
+#' that want to surface validation errors before committing a proposed
+#' update — for example a staging layer that accumulates pending
+#' changes from LLM tool calls and needs each call to fail loudly if
+#' it would conflict with the live board.
 #'
-#' Preprocessing (auto-cleanup of dangling refs from block removals) is an
+#' Validation runs in two passes: a structural check on the payload
+#' shape and per-slot block / link / stack rules, followed by a
+#' cross-reference check that link `from`/`to` endpoints and stack
+#' members resolve in the post-update merged view. Preprocessing
+#' (auto-cleanup of dangling refs from block removals) is an
 #' apply-time concern and is **not** performed here — the payload is
-#' validated as-is.
+#' validated as-is. Unknown top-level keys are passed through so that
+#' subclass slots can flow to subclass `augment_board_update()` /
+#' `apply_board_update()` methods.
 #'
-#' @param payload A list of the shape accepted by the `board_update`
-#' reactiveVal, with optional `blocks`, `links`, and `stacks` slots, each
-#' a list with optional `add`, `mod`, and `rm` entries. For `blocks`,
-#' `mod` is a named list keyed by block ID where each entry is a named
-#' list of constructor argument values to apply on top of the live
-#' block's current state (plus the reserved key `block_name`).
-#' @param board A `board` object to validate the payload against.
+#' @section Augment (subclass swap point):
+#' `augment_board_update()` runs in the `+Inf` phase and is a true
+#' swap point. The default `.board` method implements core
+#' augmentation (dangling-link cleanup on block removal, link-input
+#' completion); subclasses may replace it wholesale (typically by
+#' composing via `NextMethod()`) to validate or normalize their own
+#' payload slots. Errors thrown here propagate out of the `+Inf`
+#' observer and prevent the `-Inf` observer (and thus any apply work)
+#' from running in that flush.
 #'
-#' @return `invisible(payload)` on success. On failure, throws a
-#' `blockr_abort()` error with a class such as `board_update_*_invalid`.
+#' @section Apply (subclass post-core hook):
+#' `apply_board_update()` runs in the `-Inf` phase as a post-core
+#' hook. The in-core apply path (blocks / links / stacks / UI
+#' insert+remove) is **not** routed through this generic and is not
+#' overridable here; the default `.board` method is a no-op. Subclass
+#' methods react to subclass payload slots (e.g. a `views` slot for a
+#' layout-aware subclass) after core mutations have settled — so `rv`
+#' is already in its post-update state when the hook fires. Resetting
+#' the `board_update` reactive happens in the observer, not in either
+#' method.
+#'
+#' For piecemeal customization of the core apply path itself (a
+#' different UI for block insertion, a custom link-modification rule,
+#' etc.) override the relevant sub-generic — [`insert_block_ui()`],
+#' [`remove_block_ui()`], [`modify_board_links()`],
+#' [`modify_board_stacks()`], [`setup_block()`] — rather than trying
+#' to swap `apply_board_update()`.
+#'
+#' @param payload,upd A list of the shape accepted by the
+#' `board_update` reactiveVal, with optional `blocks`, `links`, and
+#' `stacks` slots, each a list with optional `add`, `mod`, and `rm`
+#' entries. For `blocks`, `mod` is a named list keyed by block ID
+#' where each entry is a named list of constructor argument values to
+#' apply on top of the live block's current state (plus the reserved
+#' key `block_name`). Subclass methods may extend the payload with
+#' additional top-level slots.
+#' @param board A `board` object (for `validate_board_update()` and
+#' `augment_board_update()`) or the current `board` reactive value
+#' (for `apply_board_update()`).
+#' @param rv The board server's `reactiveValues` store.
+#' @param ... Additional arguments. The `-Inf` observer splices any
+#' `...` originally passed to `board_server()` into the
+#' `apply_board_update()` dispatch alongside `session`, so subclass
+#' methods receive them as named arguments. Subclass methods typically
+#' forward `...` via `NextMethod()` (a no-op for the default `.board`
+#' method).
+#'
+#' @return `validate_board_update()` returns `invisible(payload)` on
+#' success and throws a `blockr_abort()` error (e.g.
+#' `board_update_*_invalid`) on failure. `augment_board_update()`
+#' returns the (possibly extended) payload. `apply_board_update()` is
+#' called for its side effects and returns `invisible(NULL)`.
 #'
 #' @examples
 #' brd <- new_board(
@@ -661,6 +713,10 @@ add_blocks_to_stacks <- function(rv, add, session) {
 #'   )
 #' )
 #'
+#' @name board_update_lifecycle
+NULL
+
+#' @rdname board_update_lifecycle
 #' @export
 validate_board_update <- function(payload, board) {
 
@@ -1040,59 +1096,6 @@ validate_board_update_stacks <- function(upd, board) {
 
   invisible()
 }
-
-#' Board update lifecycle generics
-#'
-#' Extension points for `board` subclasses to participate in the
-#' `board_update` lifecycle. `augment_board_update()` runs in the `+Inf`
-#' phase and is a true swap point: the default `.board` method
-#' implements core augmentation (dangling-link cleanup on block removal,
-#' link-input completion), and subclasses may replace it wholesale
-#' (typically by composing via `NextMethod()`) to validate or normalize
-#' their own payload slots. `apply_board_update()` runs in the `-Inf`
-#' phase as a post-core hook: the in-core apply path (blocks / links /
-#' stacks / UI insert+remove) is **not** routed through this generic and
-#' is not overridable here; the default `.board` method is a no-op.
-#' Subclasses override `apply_board_update()` to react to subclass
-#' payload slots (e.g. a `views` slot for a layout-aware subclass) after
-#' core mutations have settled.
-#'
-#' For piecemeal customization of the core apply path itself (e.g. a
-#' different UI for block insertion, a custom link-modification rule),
-#' override the existing sub-generics — `insert_block_ui()`,
-#' `remove_block_ui()`, `modify_board_links()`, `modify_board_stacks()`,
-#' `setup_block()` — rather than trying to swap `apply_board_update()`.
-#'
-#' @param upd A board update payload, as accepted by
-#' [validate_board_update()]. Subclass methods may extend the payload
-#' with additional top-level slots; `validate_board_update_structure()`
-#' passes unknown keys through unchanged so subclass slots reach
-#' subclass methods.
-#' @param board The current `board` reactive value.
-#' @param rv The board server's `reactiveValues` store.
-#' @param ... Additional arguments. The `-Inf` observer splices any
-#' `...` originally passed to `board_server()` into the
-#' `apply_board_update()` dispatch alongside `session`, so subclass
-#' methods receive them as named arguments. Subclass methods typically
-#' forward `...` via `NextMethod()` (a no-op for the default `.board`
-#' method).
-#'
-#' @details
-#' Errors thrown from `augment_board_update()` propagate out of the
-#' `+Inf` observer and prevent the `-Inf` observer (and thus any apply
-#' work) from running in that flush.
-#'
-#' `apply_board_update()` runs *after* the core apply path has finished,
-#' so subclass methods see `rv` with the post-update state. Resetting
-#' the `board_update` reactive happens in the observer, not in either
-#' method.
-#'
-#' @return `augment_board_update()` returns the (possibly extended)
-#' payload list. `apply_board_update()` is called for its side effects
-#' and returns `invisible(NULL)`.
-#'
-#' @name board_update_lifecycle
-NULL
 
 #' @rdname board_update_lifecycle
 #' @export
