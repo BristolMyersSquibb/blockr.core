@@ -632,15 +632,17 @@ add_blocks_to_stacks <- function(rv, add, session) {
 #' changes from LLM tool calls and needs each call to fail loudly if
 #' it would conflict with the live board.
 #'
-#' Validation runs in two passes: a structural check on the payload
-#' shape and per-slot block / link / stack rules, followed by a
-#' cross-reference check that link `from`/`to` endpoints and stack
-#' members resolve in the post-update merged view. Preprocessing
-#' (auto-cleanup of dangling refs from block removals) is an
-#' apply-time concern and is **not** performed here — the payload is
-#' validated as-is. Unknown top-level keys are passed through so that
-#' subclass slots can flow to subclass `augment_board_update()` /
-#' `apply_board_update()` methods.
+#' It dispatches on the `board` class so subclasses can extend
+#' validation to their own payload slots (typically by composing via
+#' `NextMethod()`). The default `.board` method runs in two passes: a
+#' structural check on the payload shape and per-slot block / link /
+#' stack rules, followed by a cross-reference check that link
+#' `from`/`to` endpoints and stack members resolve in the post-update
+#' merged view. Preprocessing (auto-cleanup of dangling refs from
+#' block removals) is an apply-time concern and is **not** performed
+#' here — the payload is validated as-is. Unknown top-level keys are
+#' passed through, so subclass slots reach subclass
+#' `augment_board_update()` / `apply_board_update()` methods.
 #'
 #' @section Augment (subclass swap point):
 #' `augment_board_update()` runs in the `+Inf` phase and is a true
@@ -719,6 +721,11 @@ NULL
 #' @rdname board_update_lifecycle
 #' @export
 validate_board_update <- function(payload, board) {
+  UseMethod("validate_board_update", board)
+}
+
+#' @export
+validate_board_update.board <- function(payload, board) {
 
   validate_board_update_structure(payload, board)
   validate_board_update_xrefs(payload, board)

@@ -61,15 +61,17 @@ update — for example a staging layer that accumulates pending
 changes from LLM tool calls and needs each call to fail loudly if
 it would conflict with the live board.
 
-Validation runs in two passes: a structural check on the payload
-shape and per-slot block / link / stack rules, followed by a
-cross-reference check that link \code{from}/\code{to} endpoints and stack
-members resolve in the post-update merged view. Preprocessing
-(auto-cleanup of dangling refs from block removals) is an
-apply-time concern and is \strong{not} performed here — the payload is
-validated as-is. Unknown top-level keys are passed through so that
-subclass slots can flow to subclass \code{augment_board_update()} /
-\code{apply_board_update()} methods.
+It dispatches on the \code{board} class so subclasses can extend
+validation to their own payload slots (typically by composing via
+\code{NextMethod()}). The default \code{.board} method runs in two passes: a
+structural check on the payload shape and per-slot block / link /
+stack rules, followed by a cross-reference check that link
+\code{from}/\code{to} endpoints and stack members resolve in the post-update
+merged view. Preprocessing (auto-cleanup of dangling refs from
+block removals) is an apply-time concern and is \strong{not} performed
+here — the payload is validated as-is. Unknown top-level keys are
+passed through, so subclass slots reach subclass
+\code{augment_board_update()} / \code{apply_board_update()} methods.
 }
 
 \section{Augment (subclass swap point)}{

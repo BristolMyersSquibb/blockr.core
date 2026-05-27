@@ -6,7 +6,27 @@ register_ext_method <- function(generic, method) {
   )
 }
 
+reset_ext_methods <- function() {
+
+  register_ext_method(
+    "validate_board_update",
+    function(payload, board) NextMethod()
+  )
+
+  register_ext_method(
+    "augment_board_update",
+    function(upd, board, ...) NextMethod()
+  )
+
+  register_ext_method(
+    "apply_board_update",
+    function(board, upd, rv, ...) NextMethod()
+  )
+}
+
 test_that("augment_board_update dispatches and chains via NextMethod", {
+
+  reset_ext_methods()
 
   register_ext_method(
     "augment_board_update",
@@ -38,6 +58,8 @@ test_that("augment_board_update dispatches and chains via NextMethod", {
 
 test_that("subclass errors during augment_board_update propagate", {
 
+  reset_ext_methods()
+
   register_ext_method(
     "augment_board_update",
     function(upd, board) stop("subclass augment failure")
@@ -51,7 +73,49 @@ test_that("subclass errors during augment_board_update propagate", {
   )
 })
 
+test_that("validate_board_update dispatches and chains via NextMethod", {
+
+  reset_ext_methods()
+
+  register_ext_method(
+    "validate_board_update",
+    function(payload, board) {
+      NextMethod()
+      if (length(payload$ext$views)) {
+        stopifnot(is.character(payload$ext$views))
+      }
+      invisible(payload)
+    }
+  )
+
+  ext_board <- new_board(class = "test_ext_board")
+
+  expect_silent(
+    validate_board_update(
+      list(ext = list(views = "two-up")),
+      ext_board
+    )
+  )
+
+  expect_error(
+    validate_board_update(
+      list(ext = list(views = 42L)),
+      ext_board
+    )
+  )
+
+  expect_error(
+    validate_board_update(
+      list(blocks = list(mod = list(a = "not a list"))),
+      ext_board
+    ),
+    class = "board_update_blocks_mod_unknown_id"
+  )
+})
+
 test_that("board_update lifecycle runs augment before apply and resets", {
+
+  reset_ext_methods()
 
   call_log <- character()
 
@@ -113,6 +177,8 @@ test_that("board_update lifecycle runs augment before apply and resets", {
 
 test_that("apply_board_update splices board_server `...` as named args", {
 
+  reset_ext_methods()
+
   seen <- NULL
 
   register_ext_method(
@@ -144,6 +210,8 @@ test_that("apply_board_update splices board_server `...` as named args", {
 })
 
 test_that("apply_board_update runs after core has settled rv state", {
+
+  reset_ext_methods()
 
   observed <- NULL
 
