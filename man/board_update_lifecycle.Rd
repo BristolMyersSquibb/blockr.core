@@ -102,8 +102,8 @@ For piecemeal customization of the core apply path itself (a
 different UI for block insertion, a custom link-modification rule,
 etc.) override the relevant sub-generic — \code{\link[=insert_block_ui]{insert_block_ui()}},
 \code{\link[=remove_block_ui]{remove_block_ui()}}, \code{\link[=modify_board_links]{modify_board_links()}},
-\code{\link[=modify_board_stacks]{modify_board_stacks()}}, \code{\link[=setup_block]{setup_block()}} — rather than trying
-to swap \code{apply_board_update()}.
+\code{\link[=modify_board_stacks]{modify_board_stacks()}} — rather than trying to swap
+\code{apply_board_update()}.
 }
 
 \examples{

@@ -669,8 +669,8 @@ add_blocks_to_stacks <- function(rv, add, session) {
 #' different UI for block insertion, a custom link-modification rule,
 #' etc.) override the relevant sub-generic — [`insert_block_ui()`],
 #' [`remove_block_ui()`], [`modify_board_links()`],
-#' [`modify_board_stacks()`], [`setup_block()`] — rather than trying
-#' to swap `apply_board_update()`.
+#' [`modify_board_stacks()`] — rather than trying to swap
+#' `apply_board_update()`.
 #'
 #' @param payload,upd A list of the shape accepted by the
 #' `board_update` reactiveVal, with optional `blocks`, `links`, and
