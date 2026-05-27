@@ -163,14 +163,19 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         {
           upd <- board_update()
 
-          apply_board_update(
-            rv$board, upd, rv,
-            session = session,
-            edit_block = edit_block,
-            ctrl_block = ctrl_block,
-            edit_stack = edit_stack,
-            edit_plugin_args = edit_plugin_args,
-            dot_args = dot_args
+          do.call(
+            apply_board_update,
+            c(
+              list(rv$board, upd, rv),
+              list(
+                session = session,
+                edit_block = edit_block,
+                ctrl_block = ctrl_block,
+                edit_stack = edit_stack,
+                edit_plugin_args = edit_plugin_args
+              ),
+              dot_args
+            )
           )
 
           board_update(NULL)
@@ -1042,11 +1047,11 @@ validate_board_update_stacks <- function(upd, board) {
 #' unknown keys so subclass slots pass through to subclass methods.
 #' @param board The current `board` reactive value.
 #' @param rv The board server's `reactiveValues` store.
-#' @param ... Additional arguments forwarded between methods. The default
-#' `apply_board_update.board` method requires named arguments `session`,
-#' `edit_block`, `ctrl_block`, `edit_stack`, `edit_plugin_args`, and
-#' `dot_args`; these are supplied by the `board_server()` `-Inf` observer
-#' and propagated to subclass methods via `NextMethod()`.
+#' @param ... Additional arguments forwarded between methods. For
+#' `apply_board_update()`, the `-Inf` observer splices any `...` originally
+#' passed to `board_server()` plus its own internal plugin handles; the
+#' default `.board` method picks out what it needs. Subclass methods
+#' typically only need to forward `...` via `NextMethod()`.
 #'
 #' @details
 #' `augment_board_update()` is invoked from `preprocess_board_update()` in
@@ -1071,12 +1076,12 @@ NULL
 
 #' @rdname board_update_lifecycle
 #' @export
-augment_board_update <- function(upd, board) {
+augment_board_update <- function(upd, board, ...) {
   UseMethod("augment_board_update", board)
 }
 
 #' @export
-augment_board_update.board <- function(upd, board) {
+augment_board_update.board <- function(upd, board, ...) {
 
   if ("blocks" %in% names(upd) && "rm" %in% names(upd$blocks)) {
 
@@ -1159,10 +1164,12 @@ apply_board_update <- function(board, upd, rv, ...) {
 }
 
 #' @export
-apply_board_update.board <- function(board, upd, rv, ..., session,
+apply_board_update.board <- function(board, upd, rv, ...,
+                                     session,
                                      edit_block, ctrl_block, edit_stack,
-                                     edit_plugin_args, dot_args = list()) {
+                                     edit_plugin_args) {
 
+  dot_args <- list(...)
   ns <- session$ns
 
   if (length(upd$blocks$add)) {

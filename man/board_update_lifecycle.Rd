@@ -6,7 +6,7 @@
 \alias{apply_board_update}
 \title{Board update lifecycle generics}
 \usage{
-augment_board_update(upd, board)
+augment_board_update(upd, board, ...)
 
 apply_board_update(board, upd, rv, ...)
 }
@@ -18,13 +18,13 @@ unknown keys so subclass slots pass through to subclass methods.}
 
 \item{board}{The current \code{board} reactive value.}
 
-\item{rv}{The board server's \code{reactiveValues} store.}
+\item{...}{Additional arguments forwarded between methods. For
+\code{apply_board_update()}, the \code{-Inf} observer splices any \code{...} originally
+passed to \code{board_server()} plus its own internal plugin handles; the
+default \code{.board} method picks out what it needs. Subclass methods
+typically only need to forward \code{...} via \code{NextMethod()}.}
 
-\item{...}{Additional arguments forwarded between methods. The default
-\code{apply_board_update.board} method requires named arguments \code{session},
-\code{edit_block}, \code{ctrl_block}, \code{edit_stack}, \code{edit_plugin_args}, and
-\code{dot_args}; these are supplied by the \code{board_server()} \code{-Inf} observer
-and propagated to subclass methods via \code{NextMethod()}.}
+\item{rv}{The board server's \code{reactiveValues} store.}
 }
 \value{
 \code{augment_board_update()} returns the (possibly extended)

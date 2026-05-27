@@ -110,3 +110,36 @@ test_that("board_update lifecycle runs augment before apply and resets", {
     )
   )
 })
+
+test_that("apply_board_update receives board_server `...` as named splice", {
+
+  seen <- NULL
+
+  register_ext_method(
+    "apply_board_update",
+    function(board, upd, rv, ...) {
+      seen <<- list(...)
+      NextMethod()
+    }
+  )
+
+  ext_board <- new_board(class = "test_ext_board")
+
+  testServer(
+    get_s3_method("board_server", ext_board),
+    {
+      session$flushReact()
+      board_update(list(blocks = list(add = as_blocks(new_dataset_block()))))
+      session$flushReact()
+
+      expect_identical(seen$passthrough, "carry me")
+      expect_named(seen, c("session", "edit_block", "ctrl_block",
+                           "edit_stack", "edit_plugin_args", "passthrough"))
+    },
+    args = list(
+      x = ext_board,
+      plugins = list(manage_blocks()),
+      passthrough = "carry me"
+    )
+  )
+})
