@@ -142,8 +142,8 @@ and registry sourced options)</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A <code>board_ui()</code> implementation is expected to return <a href="https://rdrr.io/pkg/shiny/man/reexports.html" class="external-link">shiny::tag</a> or
-<code><a href="https://rdrr.io/pkg/shiny/man/reexports.html" class="external-link">shiny::tagList()</a></code> objects, as does <code>toolbar_ui()</code>, while updater functions
+    <p>A <code>board_ui()</code> implementation is expected to return <a href="https://rstudio.github.io/htmltools/reference/builder.html" class="external-link">shiny::tag</a> or
+<code><a href="https://rstudio.github.io/htmltools/reference/tagList.html" class="external-link">shiny::tagList()</a></code> objects, as does <code>toolbar_ui()</code>, while updater functions
 (<code>insert_block_ui()</code> and <code>remove_block_ui()</code>) are called for their side
 effects (which includes UI updates such as <code><a href="https://rdrr.io/pkg/shiny/man/insertUI.html" class="external-link">shiny::insertUI()</a></code>,
 <code><a href="https://rdrr.io/pkg/shiny/man/insertUI.html" class="external-link">shiny::removeUI()</a></code>) and return the board object passed as <code>x</code> invisibly.</p>

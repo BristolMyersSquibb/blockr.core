@@ -153,8 +153,10 @@ Utilities for creating an working with boards
   [`get_board_option_values()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
   [`combine_board_options()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
   : Board options
-- [`validate_board_update()`](https://bristolmyerssquibb.github.io/blockr.core/reference/validate_board_update.md)
-  : Validate a board update payload
+- [`validate_board_update()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_update.md)
+  [`augment_board_update()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_update.md)
+  [`apply_board_update()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_update.md)
+  : Board update
 
 ## Board plugins
 

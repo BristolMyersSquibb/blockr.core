@@ -21,6 +21,7 @@
 <url><loc>https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.html</loc></url>
 <url><loc>https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.html</loc></url>
 <url><loc>https://bristolmyerssquibb.github.io/blockr.core/reference/board_ui.html</loc></url>
+<url><loc>https://bristolmyerssquibb.github.io/blockr.core/reference/board_update.html</loc></url>
 <url><loc>https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.html</loc></url>
 <url><loc>https://bristolmyerssquibb.github.io/blockr.core/reference/ctrl_block.html</loc></url>
 <url><loc>https://bristolmyerssquibb.github.io/blockr.core/reference/destroy_module.html</loc></url>
@@ -55,7 +56,6 @@
 <url><loc>https://bristolmyerssquibb.github.io/blockr.core/reference/stack_ui.html</loc></url>
 <url><loc>https://bristolmyerssquibb.github.io/blockr.core/reference/testing.html</loc></url>
 <url><loc>https://bristolmyerssquibb.github.io/blockr.core/reference/topo_sort.html</loc></url>
-<url><loc>https://bristolmyerssquibb.github.io/blockr.core/reference/validate_board_update.html</loc></url>
 <url><loc>https://bristolmyerssquibb.github.io/blockr.core/reference/write_log.html</loc></url>
 </urlset>
 
