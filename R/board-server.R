@@ -164,9 +164,9 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
           upd <- board_update()
 
           do.call(
-            apply_board_update,
+            apply_core_board_update,
             c(
-              list(rv$board, upd, rv),
+              list(rv, upd),
               list(
                 session = session,
                 edit_block = edit_block,
@@ -174,6 +174,15 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
                 edit_stack = edit_stack,
                 edit_plugin_args = edit_plugin_args
               ),
+              dot_args
+            )
+          )
+
+          do.call(
+            apply_board_update,
+            c(
+              list(rv$board, upd, rv),
+              list(session = session),
               dot_args
             )
           )
@@ -1034,42 +1043,53 @@ validate_board_update_stacks <- function(upd, board) {
 
 #' Board update lifecycle generics
 #'
-#' Subclasses of `board` extend the `board_update` lifecycle by providing
-#' methods on `augment_board_update()` (the `+Inf` phase that augments and
-#' cross-validates the payload) and `apply_board_update()` (the `-Inf`
-#' phase that mutates the live board and `rv`). The default `board`
-#' methods carry the in-core behaviour and remain byte-equivalent to the
-#' pre-generic implementation.
+#' Extension points for `board` subclasses to participate in the
+#' `board_update` lifecycle. `augment_board_update()` runs in the `+Inf`
+#' phase and is a true swap point: the default `.board` method
+#' implements core augmentation (dangling-link cleanup on block removal,
+#' link-input completion), and subclasses may replace it wholesale
+#' (typically by composing via `NextMethod()`) to validate or normalize
+#' their own payload slots. `apply_board_update()` runs in the `-Inf`
+#' phase as a post-core hook: the in-core apply path (blocks / links /
+#' stacks / UI insert+remove) is **not** routed through this generic and
+#' is not overridable here; the default `.board` method is a no-op.
+#' Subclasses override `apply_board_update()` to react to subclass
+#' payload slots (e.g. a `views` slot for a layout-aware subclass) after
+#' core mutations have settled.
+#'
+#' For piecemeal customization of the core apply path itself (e.g. a
+#' different UI for block insertion, a custom link-modification rule),
+#' override the existing sub-generics — `insert_block_ui()`,
+#' `remove_block_ui()`, `modify_board_links()`, `modify_board_stacks()`,
+#' `setup_block()` — rather than trying to swap `apply_board_update()`.
 #'
 #' @param upd A board update payload, as accepted by
-#' [validate_board_update()]. Subclass methods may extend the payload with
-#' additional top-level slots; `validate_board_update_structure()` ignores
-#' unknown keys so subclass slots pass through to subclass methods.
+#' [validate_board_update()]. Subclass methods may extend the payload
+#' with additional top-level slots; `validate_board_update_structure()`
+#' passes unknown keys through unchanged so subclass slots reach
+#' subclass methods.
 #' @param board The current `board` reactive value.
 #' @param rv The board server's `reactiveValues` store.
-#' @param ... Additional arguments forwarded between methods. For
-#' `apply_board_update()`, the `-Inf` observer splices any `...` originally
-#' passed to `board_server()` plus its own internal plugin handles; the
-#' default `.board` method picks out what it needs. Subclass methods
-#' typically only need to forward `...` via `NextMethod()`.
+#' @param ... Additional arguments. The `-Inf` observer splices any
+#' `...` originally passed to `board_server()` into the
+#' `apply_board_update()` dispatch alongside `session`, so subclass
+#' methods receive them as named arguments. Subclass methods typically
+#' forward `...` via `NextMethod()` (a no-op for the default `.board`
+#' method).
 #'
 #' @details
-#' `augment_board_update()` is invoked from `preprocess_board_update()` in
-#' the `+Inf` observer, *before* cross-reference validation. Subclass
-#' methods should call `NextMethod()` to compose with the default
-#' augmentation. An error thrown here aborts the lifecycle before any
-#' `apply` runs.
+#' Errors thrown from `augment_board_update()` propagate out of the
+#' `+Inf` observer and prevent the `-Inf` observer (and thus any apply
+#' work) from running in that flush.
 #'
-#' `apply_board_update()` is invoked from the `-Inf` observer. Resetting
-#' the `board_update` reactive happens in the observer, not in this
-#' method; subclass methods extend *what* is applied, not *when* the
-#' reactive resets. Subclass methods are expected to call `NextMethod()`
-#' so that in-core slots (`blocks`/`links`/`stacks`) continue to be
-#' processed.
+#' `apply_board_update()` runs *after* the core apply path has finished,
+#' so subclass methods see `rv` with the post-update state. Resetting
+#' the `board_update` reactive happens in the observer, not in either
+#' method.
 #'
 #' @return `augment_board_update()` returns the (possibly extended)
-#' payload list. `apply_board_update()` is called for its side effects and
-#' returns `invisible(NULL)`.
+#' payload list. `apply_board_update()` is called for its side effects
+#' and returns `invisible(NULL)`.
 #'
 #' @name board_update_lifecycle
 NULL
@@ -1164,10 +1184,14 @@ apply_board_update <- function(board, upd, rv, ...) {
 }
 
 #' @export
-apply_board_update.board <- function(board, upd, rv, ...,
-                                     session,
-                                     edit_block, ctrl_block, edit_stack,
-                                     edit_plugin_args) {
+apply_board_update.board <- function(board, upd, rv, ...) {
+  invisible()
+}
+
+apply_core_board_update <- function(rv, upd, ...,
+                                    session,
+                                    edit_block, ctrl_block, edit_stack,
+                                    edit_plugin_args) {
 
   dot_args <- list(...)
   ns <- session$ns

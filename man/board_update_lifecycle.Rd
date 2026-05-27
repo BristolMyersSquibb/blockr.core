@@ -12,44 +12,55 @@ apply_board_update(board, upd, rv, ...)
 }
 \arguments{
 \item{upd}{A board update payload, as accepted by
-\code{\link[=validate_board_update]{validate_board_update()}}. Subclass methods may extend the payload with
-additional top-level slots; \code{validate_board_update_structure()} ignores
-unknown keys so subclass slots pass through to subclass methods.}
+\code{\link[=validate_board_update]{validate_board_update()}}. Subclass methods may extend the payload
+with additional top-level slots; \code{validate_board_update_structure()}
+passes unknown keys through unchanged so subclass slots reach
+subclass methods.}
 
 \item{board}{The current \code{board} reactive value.}
 
-\item{...}{Additional arguments forwarded between methods. For
-\code{apply_board_update()}, the \code{-Inf} observer splices any \code{...} originally
-passed to \code{board_server()} plus its own internal plugin handles; the
-default \code{.board} method picks out what it needs. Subclass methods
-typically only need to forward \code{...} via \code{NextMethod()}.}
+\item{...}{Additional arguments. The \code{-Inf} observer splices any
+\code{...} originally passed to \code{board_server()} into the
+\code{apply_board_update()} dispatch alongside \code{session}, so subclass
+methods receive them as named arguments. Subclass methods typically
+forward \code{...} via \code{NextMethod()} (a no-op for the default \code{.board}
+method).}
 
 \item{rv}{The board server's \code{reactiveValues} store.}
 }
 \value{
 \code{augment_board_update()} returns the (possibly extended)
-payload list. \code{apply_board_update()} is called for its side effects and
-returns \code{invisible(NULL)}.
+payload list. \code{apply_board_update()} is called for its side effects
+and returns \code{invisible(NULL)}.
 }
 \description{
-Subclasses of \code{board} extend the \code{board_update} lifecycle by providing
-methods on \code{augment_board_update()} (the \code{+Inf} phase that augments and
-cross-validates the payload) and \code{apply_board_update()} (the \code{-Inf}
-phase that mutates the live board and \code{rv}). The default \code{board}
-methods carry the in-core behaviour and remain byte-equivalent to the
-pre-generic implementation.
+Extension points for \code{board} subclasses to participate in the
+\code{board_update} lifecycle. \code{augment_board_update()} runs in the \code{+Inf}
+phase and is a true swap point: the default \code{.board} method
+implements core augmentation (dangling-link cleanup on block removal,
+link-input completion), and subclasses may replace it wholesale
+(typically by composing via \code{NextMethod()}) to validate or normalize
+their own payload slots. \code{apply_board_update()} runs in the \code{-Inf}
+phase as a post-core hook: the in-core apply path (blocks / links /
+stacks / UI insert+remove) is \strong{not} routed through this generic and
+is not overridable here; the default \code{.board} method is a no-op.
+Subclasses override \code{apply_board_update()} to react to subclass
+payload slots (e.g. a \code{views} slot for a layout-aware subclass) after
+core mutations have settled.
 }
 \details{
-\code{augment_board_update()} is invoked from \code{preprocess_board_update()} in
-the \code{+Inf} observer, \emph{before} cross-reference validation. Subclass
-methods should call \code{NextMethod()} to compose with the default
-augmentation. An error thrown here aborts the lifecycle before any
-\code{apply} runs.
+For piecemeal customization of the core apply path itself (e.g. a
+different UI for block insertion, a custom link-modification rule),
+override the existing sub-generics — \code{insert_block_ui()},
+\code{remove_block_ui()}, \code{modify_board_links()}, \code{modify_board_stacks()},
+\code{setup_block()} — rather than trying to swap \code{apply_board_update()}.
 
-\code{apply_board_update()} is invoked from the \code{-Inf} observer. Resetting
-the \code{board_update} reactive happens in the observer, not in this
-method; subclass methods extend \emph{what} is applied, not \emph{when} the
-reactive resets. Subclass methods are expected to call \code{NextMethod()}
-so that in-core slots (\code{blocks}/\code{links}/\code{stacks}) continue to be
-processed.
+Errors thrown from \code{augment_board_update()} propagate out of the
+\code{+Inf} observer and prevent the \code{-Inf} observer (and thus any apply
+work) from running in that flush.
+
+\code{apply_board_update()} runs \emph{after} the core apply path has finished,
+so subclass methods see \code{rv} with the post-update state. Resetting
+the \code{board_update} reactive happens in the observer, not in either
+method.
 }
