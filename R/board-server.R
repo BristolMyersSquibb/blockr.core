@@ -55,8 +55,6 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
     id,
     function(input, output, session) {
 
-      ns <- session$ns
-
       rv <- reactiveValues(
         blocks = list(),
         inputs = list(),
@@ -147,15 +145,24 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         {
           upd <- board_update()
 
-          log_debug("starting board update")
-          validate_board_update_structure(upd, rv$board)
-          log_debug("board update validated")
+          tryCatch(
+            {
+              log_debug("starting board update")
+              validate_board_update_structure(upd, rv$board)
+              log_debug("board update validated")
 
-          log_debug("preprocessing board update")
-          if (!preprocess_board_update(board_update, rv$board)) {
-            log_debug("validating board links against board")
-            validate_board_update_xrefs(upd, rv$board)
-          }
+              log_debug("preprocessing board update")
+              if (!preprocess_board_update(board_update, rv$board)) {
+                log_debug("validating board links against board")
+                validate_board_update_xrefs(upd, rv$board)
+              }
+            },
+            error = function(e) {
+              log_warn("board update rejected: {conditionMessage(e)}")
+              notify(conditionMessage(e), type = "error", session = session)
+              board_update(NULL)
+            }
+          )
         },
         priority = Inf
       )
@@ -165,133 +172,35 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         {
           upd <- board_update()
 
-          if (length(upd$blocks$add)) {
+          tryCatch(
+            {
+              apply_core_board_update(
+                rv, upd,
+                session = session,
+                edit_block = edit_block,
+                ctrl_block = ctrl_block,
+                edit_stack = edit_stack,
+                edit_plugin_args = edit_plugin_args,
+                dot_args = dot_args
+              )
 
-            log_debug("adding block{?s} {names(upd$blocks$add)}")
-
-            do.call(
-              insert_block_ui,
-              c(
-                list(ns(NULL), rv$board, upd$blocks$add),
-                dot_args,
-                list(
-                  edit_ui = edit_block,
-                  ctrl_ui = ctrl_block,
-                  session = session
+              new_board <- do.call(
+                apply_board_update,
+                c(
+                  list(rv$board, upd),
+                  dot_args,
+                  list(session = session)
                 )
               )
-            )
 
-            board_blocks(rv$board) <- c(board_blocks(rv$board), upd$blocks$add)
-
-            for (blk in names(upd$blocks$add)) {
-              setup_block(
-                upd$blocks$add[[blk]],
-                blk,
-                rv,
-                edit_block,
-                ctrl_block,
-                edit_plugin_args
-              )
+              stopifnot(is_board(new_board))
+              rv$board <- new_board
+            },
+            error = function(e) {
+              log_warn("apply_board_update failed: {conditionMessage(e)}")
+              notify(conditionMessage(e), type = "error", session = session)
             }
-          }
-
-          if (length(upd$blocks$mod)) {
-
-            log_debug("modifying block{?s} {names(upd$blocks$mod)}")
-
-            for (blk_id in names(upd$blocks$mod)) {
-
-              delta <- upd$blocks$mod[[blk_id]]
-
-              if (length(delta)) {
-                apply_block_mod_delta(blk_id, delta, rv)
-              }
-            }
-          }
-
-          if (length(upd$links$mod)) {
-
-            cur_lnks <- board_links(rv$board)[names(upd$links$mod)]
-            merged <- as_links(Map(update_link, cur_lnks, upd$links$mod))
-
-            upd$links$add <- c(upd$links$add, merged)
-            upd$links$rm <- c(upd$links$rm, names(upd$links$mod))
-          }
-
-          if (length(upd$links$add) || length(upd$links$rm)) {
-
-            if (length(upd$links$add)) {
-              log_debug("adding link{?s} {names(upd$links$add)}")
-            }
-
-            if (length(upd$links$rm)) {
-              log_debug("removing link{?s} {names(upd$links$rm)}")
-            }
-
-            rm <- board_links(rv$board)[upd$links$rm]
-            update_block_links(rv, upd$links$add, rm)
-
-            rv$board <- do.call(
-              modify_board_links,
-              c(
-                list(rv$board, upd$links$add, upd$links$rm),
-                dot_args,
-                list(session = session)
-              )
-            )
-          }
-
-          if (length(upd$stacks$rm)) {
-            log_debug("removing stack{?s} {names(upd$stacks$rm)}")
-          }
-
-          if (length(upd$stacks$add)) {
-            log_debug("adding stack{?s} {names(upd$stacks$add)}")
-          }
-
-          if (length(upd$stacks$mod)) {
-
-            log_debug("modifying stack{?s} {names(upd$stacks$mod)}")
-
-            cur_stks <- board_stacks(rv$board)[names(upd$stacks$mod)]
-            upd$stacks$mod <- as_stacks(
-              Map(update_stack, cur_stks, upd$stacks$mod)
-            )
-          }
-
-          update_stack_blocks(
-            rv, upd$stacks, edit_stack, edit_plugin_args, session
           )
-
-          rv$board <- do.call(
-            modify_board_stacks,
-            c(
-              list(rv$board, upd$stacks$add, upd$stacks$rm, upd$stacks$mod),
-              dot_args,
-              list(session = session)
-            )
-          )
-
-          if (length(upd$blocks$rm)) {
-
-            log_debug("removing block{?s} {names(upd$blocks$rm)}")
-
-            do.call(
-              remove_block_ui,
-              c(
-                list(ns(NULL), rv$board, upd$blocks$rm),
-                dot_args,
-                list(
-                  edit_ui = edit_block,
-                  ctrl_ui = ctrl_block,
-                  session = session
-                )
-              )
-            )
-
-            destroy_rm_blocks(upd$blocks$rm, rv, session, dot_args)
-          }
 
           board_update(NULL)
 
@@ -720,34 +629,63 @@ add_blocks_to_stacks <- function(rv, add, session) {
   invisible()
 }
 
-#' Validate a board update payload
+#' Board update
 #'
-#' Run the same validation logic that the `board_server()` observer applies
-#' to every `board_update` payload, but against a caller-supplied payload
-#' value and board. Useful for downstream packages that want to surface
-#' validation errors before committing a proposed update — for example a
-#' staging layer that accumulates pending changes from LLM tool calls and
-#' needs each call to fail loudly if it would conflict with the live board.
+#' Inside [board_server()] every state change flows through one
+#' `board_update` reactive. Core registers two observers framing the
+#' change: an initial one that validates the payload and runs
+#' [augment_board_update()] for auto-fixups, and a final one that runs
+#' [apply_board_update()] and resets the reactive. Plugins or
+#' callbacks may register their own observers in between, provided they
+#' use a *finite* priority — the highest and lowest reactive priorities
+#' are reserved for core.
 #'
-#' Validation runs in two passes: a structural check on the payload shape
-#' and per-slot block / link / stack rules, followed by a cross-reference
-#' check that link `from`/`to` endpoints and stack members resolve in the
-#' post-update merged view.
+#' All three functions dispatch on the `board` class. Subclasses
+#' override to validate, augment, or react to their own payload slots,
+#' typically composing with `NextMethod()`. [validate_board_update()]
+#' is also a caller-facing entry point: it mirrors the initial
+#' observer's checks against a caller-supplied payload, useful for
+#' staging layers (e.g. accumulating LLM-proposed updates) that need
+#' to fail loudly before publishing.
 #'
-#' Preprocessing (auto-cleanup of dangling refs from block removals) is an
-#' apply-time concern and is **not** performed here — the payload is
-#' validated as-is.
+#' @section Validation:
+#' The default `.board` method runs a structural check on the payload
+#' (block / link / stack per-slot rules) and a cross-reference check
+#' that link endpoints and stack members resolve in the post-update
+#' merged view. Unknown top-level keys are passed through, so subclass
+#' payload slots reach subclass augment / apply methods.
 #'
-#' @param payload A list of the shape accepted by the `board_update`
-#' reactiveVal, with optional `blocks`, `links`, and `stacks` slots, each
-#' a list with optional `add`, `mod`, and `rm` entries. For `blocks`,
-#' `mod` is a named list keyed by block ID where each entry is a named
-#' list of constructor argument values to apply on top of the live
-#' block's current state (plus the reserved key `block_name`).
-#' @param board A `board` object to validate the payload against.
+#' @section Augment:
+#' The default `.board` method inserts implied link removals and stack
+#' updates that follow from block removals, plus link-input
+#' completion. Subclass methods may extend the payload with their own
+#' fixups; an error thrown here aborts the update before apply runs.
 #'
-#' @return `invisible(payload)` on success. On failure, throws a
-#' `blockr_abort()` error with a class such as `board_update_*_invalid`.
+#' @section Apply:
+#' The default `.board` method returns the supplied board unchanged —
+#' the core apply path (block / link / stack mutation, block UI
+#' insertion / removal) is not routed through this generic. Subclass
+#' methods receive a plain `board` snapshot (no reactive surface) and
+#' return a `board`, which the final observer assigns back to
+#' `rv$board`. For piecemeal customization of the core apply path
+#' itself, override the relevant sub-generic
+#' ([modify_board_links()], [insert_block_ui()], etc.) instead.
+#'
+#' Errors thrown from either augment or apply are caught by the
+#' observer, reported via [notify()], and the reactive is reset so the
+#' app keeps running.
+#'
+#' @param payload,upd A board update payload — see Validation above
+#' for the accepted shape.
+#' @param board A `board` object.
+#' @param ... Forwarded between methods. For [apply_board_update()],
+#' the final observer also splices `board_server()`'s `...` in here.
+#' @param session A shiny session, default [get_session()].
+#'
+#' @return [validate_board_update()] returns `invisible(payload)` (or
+#' throws a `blockr_abort()` error). [augment_board_update()] returns
+#' the (possibly extended) payload. [apply_board_update()] returns a
+#' `board`.
 #'
 #' @examples
 #' brd <- new_board(
@@ -767,8 +705,19 @@ add_blocks_to_stacks <- function(rv, add, session) {
 #'   )
 #' )
 #'
+#' @name board_update
+NULL
+
+#' @rdname board_update
 #' @export
-validate_board_update <- function(payload, board) {
+validate_board_update <- function(payload, board, ...,
+                                  session = get_session()) {
+  UseMethod("validate_board_update", board)
+}
+
+#' @export
+validate_board_update.board <- function(payload, board, ...,
+                                        session = get_session()) {
 
   validate_board_update_structure(payload, board)
   validate_board_update_xrefs(payload, board)
@@ -785,14 +734,6 @@ validate_board_update_structure <- function(payload, board) {
     blockr_abort(
       "Expecting a board update to be specified as a list.",
       class = "board_update_type_invalid"
-    )
-  }
-
-  if (!all(names(payload) %in% exp_typ)) {
-    blockr_abort(
-      "Expecting a board update to consist of components {exp_typ}. Please ",
-      "remove {setdiff(names(payload), exp_typ)}.",
-      class = "board_update_components_invalid"
     )
   }
 
@@ -1155,7 +1096,16 @@ validate_board_update_stacks <- function(upd, board) {
   invisible()
 }
 
-augment_board_update <- function(upd, board) {
+#' @rdname board_update
+#' @export
+augment_board_update <- function(upd, board, ...,
+                                 session = get_session()) {
+  UseMethod("augment_board_update", board)
+}
+
+#' @export
+augment_board_update.board <- function(upd, board, ...,
+                                       session = get_session()) {
 
   if ("blocks" %in% names(upd) && "rm" %in% names(upd$blocks)) {
 
@@ -1229,6 +1179,156 @@ augment_board_update <- function(upd, board) {
   }
 
   upd
+}
+
+#' @rdname board_update
+#' @export
+apply_board_update <- function(board, upd, ...,
+                               session = get_session()) {
+  UseMethod("apply_board_update", board)
+}
+
+#' @export
+apply_board_update.board <- function(board, upd, ...,
+                                     session = get_session()) {
+  board
+}
+
+apply_core_board_update <- function(rv, upd, session,
+                                    edit_block, ctrl_block, edit_stack,
+                                    edit_plugin_args, dot_args = list()) {
+
+  ns <- session$ns
+
+  if (length(upd$blocks$add)) {
+
+    log_debug("adding block{?s} {names(upd$blocks$add)}")
+
+    do.call(
+      insert_block_ui,
+      c(
+        list(ns(NULL), rv$board, upd$blocks$add),
+        dot_args,
+        list(
+          edit_ui = edit_block,
+          ctrl_ui = ctrl_block,
+          session = session
+        )
+      )
+    )
+
+    board_blocks(rv$board) <- c(board_blocks(rv$board), upd$blocks$add)
+
+    for (blk in names(upd$blocks$add)) {
+      setup_block(
+        upd$blocks$add[[blk]],
+        blk,
+        rv,
+        edit_block,
+        ctrl_block,
+        edit_plugin_args
+      )
+    }
+  }
+
+  if (length(upd$blocks$mod)) {
+
+    log_debug("modifying block{?s} {names(upd$blocks$mod)}")
+
+    for (blk_id in names(upd$blocks$mod)) {
+
+      delta <- upd$blocks$mod[[blk_id]]
+
+      if (length(delta)) {
+        apply_block_mod_delta(blk_id, delta, rv)
+      }
+    }
+  }
+
+  if (length(upd$links$mod)) {
+
+    cur_lnks <- board_links(rv$board)[names(upd$links$mod)]
+    merged <- as_links(Map(update_link, cur_lnks, upd$links$mod))
+
+    upd$links$add <- c(upd$links$add, merged)
+    upd$links$rm <- c(upd$links$rm, names(upd$links$mod))
+  }
+
+  if (length(upd$links$add) || length(upd$links$rm)) {
+
+    if (length(upd$links$add)) {
+      log_debug("adding link{?s} {names(upd$links$add)}")
+    }
+
+    if (length(upd$links$rm)) {
+      log_debug("removing link{?s} {names(upd$links$rm)}")
+    }
+
+    rm <- board_links(rv$board)[upd$links$rm]
+    update_block_links(rv, upd$links$add, rm)
+
+    rv$board <- do.call(
+      modify_board_links,
+      c(
+        list(rv$board, upd$links$add, upd$links$rm),
+        dot_args,
+        list(session = session)
+      )
+    )
+  }
+
+  if (length(upd$stacks$rm)) {
+    log_debug("removing stack{?s} {names(upd$stacks$rm)}")
+  }
+
+  if (length(upd$stacks$add)) {
+    log_debug("adding stack{?s} {names(upd$stacks$add)}")
+  }
+
+  if (length(upd$stacks$mod)) {
+
+    log_debug("modifying stack{?s} {names(upd$stacks$mod)}")
+
+    cur_stks <- board_stacks(rv$board)[names(upd$stacks$mod)]
+    upd$stacks$mod <- as_stacks(
+      Map(update_stack, cur_stks, upd$stacks$mod)
+    )
+  }
+
+  update_stack_blocks(
+    rv, upd$stacks, edit_stack, edit_plugin_args, session
+  )
+
+  rv$board <- do.call(
+    modify_board_stacks,
+    c(
+      list(rv$board, upd$stacks$add, upd$stacks$rm, upd$stacks$mod),
+      dot_args,
+      list(session = session)
+    )
+  )
+
+  if (length(upd$blocks$rm)) {
+
+    log_debug("removing block{?s} {names(upd$blocks$rm)}")
+
+    do.call(
+      remove_block_ui,
+      c(
+        list(ns(NULL), rv$board, upd$blocks$rm),
+        dot_args,
+        list(
+          edit_ui = edit_block,
+          ctrl_ui = ctrl_block,
+          session = session
+        )
+      )
+    )
+
+    destroy_rm_blocks(upd$blocks$rm, rv, session, dot_args)
+  }
+
+  invisible()
 }
 
 preprocess_board_update <- function(update, board) {
