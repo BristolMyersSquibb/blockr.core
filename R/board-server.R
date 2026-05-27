@@ -182,8 +182,8 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
             apply_board_update,
             c(
               list(rv$board, upd),
-              list(session = session),
-              dot_args
+              dot_args,
+              list(session = session)
             )
           )
 
@@ -688,11 +688,15 @@ add_blocks_to_stacks <- function(rv, add, session) {
 #' additional top-level slots.
 #' @param board A `board` object — a plain S3 snapshot in all three
 #' generics (no reactive surface).
-#' @param ... Additional arguments. The `-Inf` observer splices any
-#' `...` originally passed to `board_server()` into the
-#' `apply_board_update()` dispatch alongside `session`, so subclass
-#' methods receive them as named arguments. Subclass methods typically
-#' forward `...` via `NextMethod()`.
+#' @param ... Forwarded between methods. For `apply_board_update()`,
+#' the `-Inf` observer splices any `...` originally passed to
+#' `board_server()` into the dispatch, so subclass methods receive
+#' those as named arguments here.
+#' @param session The shiny session, used by subclass methods that
+#' need to notify, namespace UI, or otherwise touch the reactive
+#' context. Defaults to [get_session()] so non-reactive callers (e.g.
+#' a staging layer running `validate_board_update()` outside a session)
+#' don't have to pass anything.
 #'
 #' @return `validate_board_update()` returns `invisible(payload)` on
 #' success and throws a `blockr_abort()` error (e.g.
@@ -724,12 +728,14 @@ NULL
 
 #' @rdname board_update_lifecycle
 #' @export
-validate_board_update <- function(payload, board) {
+validate_board_update <- function(payload, board, ...,
+                                  session = get_session()) {
   UseMethod("validate_board_update", board)
 }
 
 #' @export
-validate_board_update.board <- function(payload, board) {
+validate_board_update.board <- function(payload, board, ...,
+                                        session = get_session()) {
 
   validate_board_update_structure(payload, board)
   validate_board_update_xrefs(payload, board)
@@ -1110,12 +1116,14 @@ validate_board_update_stacks <- function(upd, board) {
 
 #' @rdname board_update_lifecycle
 #' @export
-augment_board_update <- function(upd, board, ...) {
+augment_board_update <- function(upd, board, ...,
+                                 session = get_session()) {
   UseMethod("augment_board_update", board)
 }
 
 #' @export
-augment_board_update.board <- function(upd, board, ...) {
+augment_board_update.board <- function(upd, board, ...,
+                                       session = get_session()) {
 
   if ("blocks" %in% names(upd) && "rm" %in% names(upd$blocks)) {
 
@@ -1193,12 +1201,14 @@ augment_board_update.board <- function(upd, board, ...) {
 
 #' @rdname board_update_lifecycle
 #' @export
-apply_board_update <- function(board, upd, ...) {
+apply_board_update <- function(board, upd, ...,
+                               session = get_session()) {
   UseMethod("apply_board_update", board)
 }
 
 #' @export
-apply_board_update.board <- function(board, upd, ...) {
+apply_board_update.board <- function(board, upd, ...,
+                                     session = get_session()) {
   board
 }
 

@@ -999,7 +999,7 @@ test_that("apply_board_update splices board_server `...` as named args", {
       session$flushReact()
 
       expect_identical(seen$passthrough, "carry me")
-      expect_named(seen, c("session", "passthrough"))
+      expect_named(seen, c("passthrough", "session"))
     },
     args = list(
       x = ext_board,

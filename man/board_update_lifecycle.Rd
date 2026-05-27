@@ -7,11 +7,11 @@
 \alias{apply_board_update}
 \title{Board update lifecycle}
 \usage{
-validate_board_update(payload, board)
+validate_board_update(payload, board, ..., session = get_session())
 
-augment_board_update(upd, board, ...)
+augment_board_update(upd, board, ..., session = get_session())
 
-apply_board_update(board, upd, ...)
+apply_board_update(board, upd, ..., session = get_session())
 }
 \arguments{
 \item{payload, upd}{A list of the shape accepted by the
@@ -26,11 +26,16 @@ additional top-level slots.}
 \item{board}{A \code{board} object — a plain S3 snapshot in all three
 generics (no reactive surface).}
 
-\item{...}{Additional arguments. The \code{-Inf} observer splices any
-\code{...} originally passed to \code{board_server()} into the
-\code{apply_board_update()} dispatch alongside \code{session}, so subclass
-methods receive them as named arguments. Subclass methods typically
-forward \code{...} via \code{NextMethod()}.}
+\item{...}{Forwarded between methods. For \code{apply_board_update()},
+the \code{-Inf} observer splices any \code{...} originally passed to
+\code{board_server()} into the dispatch, so subclass methods receive
+those as named arguments here.}
+
+\item{session}{The shiny session, used by subclass methods that
+need to notify, namespace UI, or otherwise touch the reactive
+context. Defaults to \code{\link[=get_session]{get_session()}} so non-reactive callers (e.g.
+a staging layer running \code{validate_board_update()} outside a session)
+don't have to pass anything.}
 }
 \value{
 \code{validate_board_update()} returns \code{invisible(payload)} on
