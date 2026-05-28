@@ -1,0 +1,13 @@
+on:
+  push:
+    branches: main
+
+name: pkgdown
+
+jobs:
+  pkgdown:
+    uses: cynkra/blockr.ci/.github/workflows/pkgdown.yaml@17-pr-gates
+    secrets:
+      BLOCKR_PAT: ${{ secrets.BLOCKR_PAT }}
+    permissions:
+      contents: write

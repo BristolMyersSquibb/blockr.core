@@ -7,6 +7,6 @@ name: deps-rerun
 
 jobs:
   rerun:
-    uses: cynkra/blockr.ci/.github/workflows/deps-rerun.yaml@main
+    uses: cynkra/blockr.ci/.github/workflows/deps-rerun.yaml@17-pr-gates
     secrets:
       BLOCKR_PAT: ${{ secrets.BLOCKR_PAT }}

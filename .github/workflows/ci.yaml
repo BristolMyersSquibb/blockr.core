@@ -1,6 +1,4 @@
 on:
-  push:
-    branches: main
   pull_request:
     branches: main
   merge_group:
@@ -9,7 +7,7 @@ name: ci
 
 jobs:
   ci:
-    uses: cynkra/blockr.ci/.github/workflows/ci.yaml@main
+    uses: cynkra/blockr.ci/.github/workflows/ci.yaml@17-pr-gates
     with:
       lintr-exclusions: |
         vignettes/create-block.qmd
@@ -20,12 +18,9 @@ jobs:
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       BLOCKR_PAT: ${{ secrets.BLOCKR_PAT }}
-    permissions:
-      contents: write
 
   revdep:
-    if: github.event_name == 'merge_group'
-    uses: cynkra/blockr.ci/.github/workflows/revdep.yaml@main
+    uses: cynkra/blockr.ci/.github/workflows/revdep.yaml@17-pr-gates
     with:
       revdep-packages: |
         BristolMyersSquibb/blockr.dock
