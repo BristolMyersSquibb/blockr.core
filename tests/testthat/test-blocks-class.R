@@ -116,3 +116,39 @@ test_that("blocks utils", {
     class = "blocks_names_invalid"
   )
 })
+
+test_that("blocks split into singletons", {
+
+  blks <- c(
+    b = new_dataset_block(),
+    a = new_subset_block(),
+    c = new_subset_block()
+  )
+
+  res <- split(blks)
+
+  expect_type(res, "list")
+  expect_length(res, 3L)
+  expect_true(all(lgl_ply(res, is_blocks)))
+  expect_identical(int_ply(res, length), rep(1L, 3L))
+  expect_identical(chr_ply(res, names), c("b", "a", "c"))
+
+  expect_length(split(blocks()), 0L)
+
+  many <- do.call(
+    blocks,
+    set_names(
+      replicate(12L, new_subset_block(), simplify = FALSE),
+      paste0("b", seq_len(12L))
+    )
+  )
+
+  expect_identical(chr_ply(split(many), names), paste0("b", seq_len(12L)))
+
+  grp <- split(blks, c("g1", "g1", "g2"))
+
+  expect_named(grp, c("g1", "g2"))
+  expect_s3_class(grp[["g1"]], "blocks")
+  expect_length(grp[["g1"]], 2L)
+  expect_length(grp[["g2"]], 1L)
+})

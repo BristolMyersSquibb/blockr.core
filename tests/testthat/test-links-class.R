@@ -146,3 +146,24 @@ test_that("links class", {
     class = "links_acyclic_invalid"
   )
 })
+
+test_that("links split into singletons", {
+
+  lnk <- links(b = new_link("a", "b"), a = new_link("b", "c"))
+
+  res <- split(lnk)
+
+  expect_type(res, "list")
+  expect_length(res, 2L)
+  expect_true(all(lgl_ply(res, is_links)))
+  expect_identical(int_ply(res, length), c(1L, 1L))
+  expect_identical(chr_ply(res, names), c("b", "a"))
+
+  expect_length(split(links()), 0L)
+
+  grp <- split(lnk, c("g", "g"))
+
+  expect_named(grp, "g")
+  expect_s3_class(grp[["g"]], "links")
+  expect_length(grp[["g"]], 2L)
+})

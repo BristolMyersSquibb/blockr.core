@@ -142,6 +142,36 @@ c.blocks <- function(...) {
   as_blocks(res)
 }
 
+#' Split container objects into singletons
+#'
+#' [base::split()] methods for the container classes [blocks], [links] and
+#' [stacks]. The only departure from the base generic is that the grouping `f`
+#' defaults to `seq_along(x)`, so `split(x)` returns each element wrapped in a
+#' one-element container of the same class, in input order. This is the
+#' discoverable idiom for iterating a container as singleton containers (e.g.
+#' `lapply(split(x), f)`) rather than as bare elements (`lapply(x, f)`) or via
+#' the verbose `split(x, seq_along(x))`. Passing an explicit `f` recovers
+#' standard [base::split()] grouping semantics.
+#'
+#' @param x A container object (`blocks`, `links` or `stacks`).
+#' @param f Grouping passed to [base::split()]. Defaults to `seq_along(x)`, i.e.
+#'   one group per element with order preserved.
+#' @param ... Forwarded to [base::split()].
+#'
+#' @return A list of container objects, each of the same class as `x`, one per
+#'   level of `f`. With the default `f`, a list of one-element containers in
+#'   input order.
+#'
+#' @examples
+#' blks <- c(a = new_dataset_block(), b = new_subset_block())
+#' split(blks)
+#'
+#' @rdname split-container
+#' @export
+split.blocks <- function(x, f = seq_along(x), ...) {
+  split.default(x, f, ...)
+}
+
 #' @export
 `[<-.blocks` <- function(x, i, ..., value) {
 

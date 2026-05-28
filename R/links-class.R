@@ -136,6 +136,12 @@ c.links <- function(...) {
   as_links(list_to_list_of_links(list(...)))
 }
 
+#' @rdname split-container
+#' @export
+split.links <- function(x, f = seq_along(x), ...) {
+  split.default(x, f, ...)
+}
+
 #' @export
 `[.links` <- function(x, i, ...) {
 

@@ -204,6 +204,12 @@ c.stacks <- function(...) {
   as_stacks(res)
 }
 
+#' @rdname split-container
+#' @export
+split.stacks <- function(x, f = seq_along(x), ...) {
+  split.default(x, f, ...)
+}
+
 #' @export
 `[<-.stacks` <- function(x, i, ..., value) {
 

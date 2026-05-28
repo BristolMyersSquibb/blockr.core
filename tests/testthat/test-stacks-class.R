@@ -107,3 +107,27 @@ test_that("stacks class", {
 
   expect_identical(orig, modi)
 })
+
+test_that("stacks split into singletons", {
+
+  stk <- stacks(
+    b = new_stack(letters[1:2], "stack b"),
+    a = new_stack(letters[3:4], "stack a")
+  )
+
+  res <- split(stk)
+
+  expect_type(res, "list")
+  expect_length(res, 2L)
+  expect_true(all(lgl_ply(res, is_stacks)))
+  expect_identical(int_ply(res, length), c(1L, 1L))
+  expect_identical(chr_ply(res, names), c("b", "a"))
+
+  expect_length(split(stacks()), 0L)
+
+  grp <- split(stk, c("g", "g"))
+
+  expect_named(grp, "g")
+  expect_s3_class(grp[["g"]], "stacks")
+  expect_length(grp[["g"]], 2L)
+})
