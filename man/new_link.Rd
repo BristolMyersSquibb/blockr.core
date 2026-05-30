@@ -3,11 +3,11 @@
 \name{new_link}
 \alias{new_link}
 \alias{update_link}
-\alias{update_link.link}
 \alias{is_link}
 \alias{as_link}
 \alias{links}
 \alias{is_links}
+\alias{split.links}
 \alias{as_links}
 \alias{validate_links}
 \title{Board links}
@@ -24,8 +24,6 @@ new_link(
 
 update_link(x, delta)
 
-\method{update_link}{link}(x, delta)
-
 is_link(x)
 
 as_link(x)
@@ -33,6 +31,8 @@ as_link(x)
 links(...)
 
 is_links(x)
+
+\method{split}{links}(x, f = seq_along(x), ...)
 
 as_links(x, ...)
 
@@ -53,6 +53,10 @@ validate_links(x)
 
 \item{delta}{A named list of constructor argument values to apply on
 top of \code{x}'s current fields.}
+
+\item{f}{Grouping factor; defaults to \code{seq_along(x)}, which yields a list of
+one-element \code{links} in input order (the idiom for iterating the container
+as singletons rather than as bare elements).}
 }
 \value{
 Both \code{new_link()}/\code{as_link()}, and \code{links()}/\code{as_links()} return
@@ -98,6 +102,7 @@ reconstruction — sub-class owners must register a class-specific
 method when their constructor uses attributes or a non-standard
 signature.
 }
+
 \examples{
 lnks <- links(from = c("a", "b"), to = c("b", "c"), input = c("x", "y"))
 is_links(lnks)

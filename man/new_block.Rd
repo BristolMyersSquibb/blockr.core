@@ -8,6 +8,7 @@
 \alias{blocks}
 \alias{is_blocks}
 \alias{as_blocks}
+\alias{split.blocks}
 \title{Blocks}
 \usage{
 new_block(
@@ -36,6 +37,8 @@ blocks(...)
 is_blocks(x)
 
 as_blocks(x, ...)
+
+\method{split}{blocks}(x, f = seq_along(x), ...)
 }
 \arguments{
 \item{server}{A function returning \code{\link[shiny:moduleServer]{shiny::moduleServer()}}}
@@ -66,6 +69,10 @@ constructor name or \code{NULL}}
 \item{...}{Further (metadata) attributes}
 
 \item{x}{An object inheriting from \code{"block"}}
+
+\item{f}{Grouping factor; defaults to \code{seq_along(x)}, which yields a list of
+one-element \code{blocks} in input order (the idiom for iterating the container
+as singletons rather than as bare elements).}
 }
 \value{
 Both \code{new_block()} and \code{as_block()} return an object inheriting from
