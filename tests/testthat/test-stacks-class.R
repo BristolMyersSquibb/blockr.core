@@ -130,4 +130,9 @@ test_that("stacks split into singletons", {
   expect_named(grp, "g")
   expect_s3_class(grp[["g"]], "stacks")
   expect_length(grp[["g"]], 2L)
+
+  fac <- factor(c("g1", "g2"), levels = c("g1", "g2", "g3"))
+
+  expect_named(split(stk, fac), c("g1", "g2", "g3"))
+  expect_named(split(stk, fac, drop = TRUE), c("g1", "g2"))
 })

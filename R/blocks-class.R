@@ -145,10 +145,11 @@ c.blocks <- function(...) {
 #' @param f Grouping factor; defaults to `seq_along(x)`, which yields a list of
 #'   one-element `blocks` in input order (the idiom for iterating the container
 #'   as singletons rather than as bare elements).
+#' @param drop Passed to [base::split()].
 #' @rdname new_block
 #' @export
-split.blocks <- function(x, f = seq_along(x), ...) {
-  split.default(x, f, ...)
+split.blocks <- function(x, f = seq_along(x), drop = FALSE, ...) {
+  split.default(x, f, drop = drop, ...)
 }
 
 #' @export

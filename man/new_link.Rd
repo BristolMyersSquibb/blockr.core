@@ -32,7 +32,7 @@ links(...)
 
 is_links(x)
 
-\method{split}{links}(x, f = seq_along(x), ...)
+\method{split}{links}(x, f = seq_along(x), drop = FALSE, ...)
 
 as_links(x, ...)
 
@@ -57,6 +57,8 @@ top of \code{x}'s current fields.}
 \item{f}{Grouping factor; defaults to \code{seq_along(x)}, which yields a list of
 one-element \code{links} in input order (the idiom for iterating the container
 as singletons rather than as bare elements).}
+
+\item{drop}{Passed to \code{\link[base:split]{base::split()}}.}
 }
 \value{
 Both \code{new_link()}/\code{as_link()}, and \code{links()}/\code{as_links()} return

@@ -38,7 +38,7 @@ is_blocks(x)
 
 as_blocks(x, ...)
 
-\method{split}{blocks}(x, f = seq_along(x), ...)
+\method{split}{blocks}(x, f = seq_along(x), drop = FALSE, ...)
 }
 \arguments{
 \item{server}{A function returning \code{\link[shiny:moduleServer]{shiny::moduleServer()}}}
@@ -73,6 +73,8 @@ constructor name or \code{NULL}}
 \item{f}{Grouping factor; defaults to \code{seq_along(x)}, which yields a list of
 one-element \code{blocks} in input order (the idiom for iterating the container
 as singletons rather than as bare elements).}
+
+\item{drop}{Passed to \code{\link[base:split]{base::split()}}.}
 }
 \value{
 Both \code{new_block()} and \code{as_block()} return an object inheriting from

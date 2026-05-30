@@ -50,7 +50,7 @@ is_stacks(x)
 
 as_stacks(x, ...)
 
-\method{split}{stacks}(x, f = seq_along(x), ...)
+\method{split}{stacks}(x, f = seq_along(x), drop = FALSE, ...)
 }
 \arguments{
 \item{blocks}{Set of blocks}
@@ -73,6 +73,8 @@ top of \code{x}'s current fields.}
 \item{f}{Grouping factor; defaults to \code{seq_along(x)}, which yields a list of
 one-element \code{stacks} in input order (the idiom for iterating the container
 as singletons rather than as bare elements).}
+
+\item{drop}{Passed to \code{\link[base:split]{base::split()}}.}
 }
 \value{
 Construction and coercion via \code{new_stack()}/\code{as_stack()} and

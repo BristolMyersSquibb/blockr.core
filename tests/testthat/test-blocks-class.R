@@ -151,4 +151,9 @@ test_that("blocks split into singletons", {
   expect_s3_class(grp[["g1"]], "blocks")
   expect_length(grp[["g1"]], 2L)
   expect_length(grp[["g2"]], 1L)
+
+  fac <- factor(c("g1", "g1", "g2"), levels = c("g1", "g2", "g3"))
+
+  expect_named(split(blks, fac), c("g1", "g2", "g3"))
+  expect_named(split(blks, fac, drop = TRUE), c("g1", "g2"))
 })
