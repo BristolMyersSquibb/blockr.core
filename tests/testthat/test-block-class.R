@@ -243,3 +243,34 @@ test_that("block metadata", {
     c("id", "name", "description", "category", "icon", "arguments", "package")
   )
 })
+
+test_that("external_ctrl_vars resolves the external_ctrl declaration", {
+
+  expect_identical(
+    external_ctrl_vars(new_static_block(mtcars)),
+    "block_name"
+  )
+
+  expect_setequal(
+    external_ctrl_vars(new_subset_block()),
+    c("subset", "select", "block_name")
+  )
+
+  expect_setequal(
+    external_ctrl_vars(new_dataset_block("mtcars")),
+    c("dataset", "block_name")
+  )
+
+  blk <- new_dataset_block("mtcars")
+  attr(blk, "external_ctrl") <- "not_an_input"
+
+  expect_error(external_ctrl_vars(blk))
+  expect_error(external_ctrl_vars("not a block"))
+})
+
+test_that("has_external_ctrl is TRUE whenever any var is controllable", {
+
+  expect_true(has_external_ctrl(new_static_block(mtcars)))
+  expect_true(has_external_ctrl(new_subset_block()))
+  expect_true(has_external_ctrl(new_dataset_block("mtcars")))
+})

@@ -1,3 +1,13 @@
+# blockr.core 0.1.3
+
+* New exported generic `external_ctrl_vars()` (with a `block` method) and
+  predicate `has_external_ctrl()` provide a public, polymorphic API for
+  resolving a board component's `external_ctrl` declaration into the set of
+  externally controllable variable names. This promotes the previously
+  internal `block_external_ctrl_vars()`, letting dependent packages dispatch
+  on it (e.g. for dock extensions) instead of re-reading the raw
+  `external_ctrl` attribute (#192).
+
 # blockr.core 0.1.2
 
 * The `mod` slots in `update(...)` payloads for **blocks, links and

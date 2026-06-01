@@ -858,7 +858,7 @@ validate_board_update_blocks <- function(x, board) {
     for (blk_id in names(x$mod)) {
 
       delta <- x$mod[[blk_id]]
-      allowed <- block_external_ctrl_vars(blks[[blk_id]])
+      allowed <- external_ctrl_vars(blks[[blk_id]])
       extra <- setdiff(names(delta), allowed)
 
       if (length(extra)) {

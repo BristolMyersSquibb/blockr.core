@@ -96,7 +96,7 @@ ctrl_block_server <- function(id, x, vars, data, eval) {
 #' @export
 ctrl_block_ui <- function(id, x) {
 
-  inps <- block_external_ctrl_vars(x)
+  inps <- external_ctrl_vars(x)
 
   if (!length(inps)) {
     return(do.call(tagList, list()))

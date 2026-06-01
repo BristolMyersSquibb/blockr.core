@@ -166,7 +166,7 @@ block_server.block <- function(id, x, data = list(), block_id = id,
       }
 
       ctrl_vars <- c(
-        state[setdiff(block_external_ctrl_vars(x), "block_name")],
+        state[setdiff(external_ctrl_vars(x), "block_name")],
         list(block_name = cur_name)
       )
 

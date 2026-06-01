@@ -471,6 +471,17 @@ c.block <- function(...) {
 #' function argument `...args`, signalling variadic behavior is stripped from
 #' `block_inputs()`.
 #'
+#' @section External control:
+#' Blocks can expose constructor inputs for programmatic control from outside
+#' the block server (see the `external_ctrl` argument to [new_block()] and the
+#' [ctrl_block()] plugin). `external_ctrl_vars()` is a generic that resolves
+#' this declaration into the concrete set of controllable variable names:
+#' `TRUE` expands to all constructor inputs, `FALSE` to none and a character
+#' vector is taken as a (validated) subset. For blocks, `"block_name"` is
+#' always included as every block can be renamed. The predicate
+#' `has_external_ctrl()` reports whether this set is non-empty (always `TRUE`
+#' for blocks).
+#'
 #' @param x An object inheriting from `"block"`
 #'
 #' @examples
@@ -488,13 +499,19 @@ c.block <- function(...) {
 #' block_inputs(new_rbind_block())
 #' block_arity(new_rbind_block())
 #'
+#' external_ctrl_vars(new_dataset_block())
+#' has_external_ctrl(new_dataset_block())
+#'
 #' @return Return types vary among the set of exported utilities:
 #' * `block_name()`: string valued block name,
 #' * `block_name<-()`: `x` (invisibly),
 #' * `validate_data_inputs()`: `NULL` if no validator is set and the result of
 #'   the validator function otherwise,
 #' * `block_inputs()`: a (possibly empty) character vector of data input names,
-#' * `block_arity()`: a scalar integer with `NA` in case of variadic behavior.
+#' * `block_arity()`: a scalar integer with `NA` in case of variadic behavior,
+#' * `external_ctrl_vars()`: a character vector of externally controllable
+#'   variable names (always including `"block_name"` for blocks),
+#' * `has_external_ctrl()`: a scalar logical.
 #'
 #' @export
 block_name <- function(x) {
@@ -667,9 +684,14 @@ block_expr_type <- function(x) {
   attr(x, "expr_type")
 }
 
-block_external_ctrl_vars <- function(x) {
+#' @rdname block_name
+#' @export
+external_ctrl_vars <- function(x) {
+  UseMethod("external_ctrl_vars")
+}
 
-  stopifnot(is_block(x))
+#' @export
+external_ctrl_vars.block <- function(x) {
 
   res <- attr(x, "external_ctrl")
 
@@ -683,6 +705,12 @@ block_external_ctrl_vars <- function(x) {
   }
 
   union(user, "block_name")
+}
+
+#' @rdname block_name
+#' @export
+has_external_ctrl <- function(x) {
+  length(external_ctrl_vars(x)) > 0
 }
 
 #' @rdname block_name
