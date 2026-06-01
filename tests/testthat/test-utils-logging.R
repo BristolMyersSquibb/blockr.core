@@ -26,8 +26,16 @@ test_that("logging", {
     {
       expect_true(blockr_option("log_time", FALSE))
       expect_true(blockr_option("log_mem", FALSE))
-      expect_output(log_info("abc"), "\\]\\[.+B\\]\\[blockr\\.core\\] ")
-      expect_output(log_info("abc"), "\\]\\[.+\\]\\[")
+
+      with_mocked_bindings(
+        {
+          expect_output(log_info("abc"), "\\]\\[42B\\]\\[blockr\\.core\\] ")
+          expect_output(log_info("abc"), "\\]\\[.+\\]\\[")
+        },
+        get_mem_use = function(prefix = "", suffix = "") {
+          paste0(prefix, "42B", suffix)
+        }
+      )
     }
   )
 
@@ -42,5 +50,16 @@ test_that("logging", {
       expect_warning(log_error("abc"))
       expect_error(log_fatal("abc"))
     }
+  )
+})
+
+test_that("memory marker is omitted when memuse is unavailable", {
+
+  expect_identical(
+    with_mocked_bindings(
+      get_mem_use("[", "]"),
+      has_memuse = function() FALSE
+    ),
+    ""
   )
 })
