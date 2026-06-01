@@ -70,6 +70,10 @@ write_log <- function(..., level = "info", envir = parent.frame(),
 
 get_mem_use <- function(prefix = "", suffix = "") {
 
+  if (!has_memuse()) {
+    return("")
+  }
+
   mem <- memuse::Sys.procmem()
 
   if (is.null(mem$peak)) {
@@ -79,6 +83,10 @@ get_mem_use <- function(prefix = "", suffix = "") {
   }
 
   paste0(prefix, mem$size, peak, suffix)
+}
+
+has_memuse <- function() {
+  requireNamespace("memuse", quietly = TRUE)
 }
 
 get_timmestamp <- function(prefix = "", suffix = "") {
