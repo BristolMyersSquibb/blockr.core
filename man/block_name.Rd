@@ -6,6 +6,8 @@
 \alias{validate_data_inputs}
 \alias{block_inputs}
 \alias{block_arity}
+\alias{external_ctrl_vars}
+\alias{has_external_ctrl}
 \alias{block_metadata}
 \title{Block utilities}
 \usage{
@@ -18,6 +20,10 @@ validate_data_inputs(x, data)
 block_inputs(x)
 
 block_arity(x)
+
+external_ctrl_vars(x)
+
+has_external_ctrl(x)
 
 block_metadata(x)
 }
@@ -36,7 +42,10 @@ Return types vary among the set of exported utilities:
 \item \code{validate_data_inputs()}: \code{NULL} if no validator is set and the result of
 the validator function otherwise,
 \item \code{block_inputs()}: a (possibly empty) character vector of data input names,
-\item \code{block_arity()}: a scalar integer with \code{NA} in case of variadic behavior.
+\item \code{block_arity()}: a scalar integer with \code{NA} in case of variadic behavior,
+\item \code{external_ctrl_vars()}: a character vector of externally controllable
+variable names (always including \code{"block_name"} for blocks),
+\item \code{has_external_ctrl()}: a scalar logical.
 }
 }
 \description{
@@ -74,6 +83,19 @@ function argument \code{...args}, signalling variadic behavior is stripped from
 \code{block_inputs()}.
 }
 
+\section{External control}{
+
+Blocks can expose constructor inputs for programmatic control from outside
+the block server (see the \code{external_ctrl} argument to \code{\link[=new_block]{new_block()}} and the
+\code{\link[=ctrl_block]{ctrl_block()}} plugin). \code{external_ctrl_vars()} is a generic that resolves
+this declaration into the concrete set of controllable variable names:
+\code{TRUE} expands to all constructor inputs, \code{FALSE} to none and a character
+vector is taken as a (validated) subset. For blocks, \code{"block_name"} is
+always included as every block can be renamed. The predicate
+\code{has_external_ctrl()} reports whether this set is non-empty (always \code{TRUE}
+for blocks).
+}
+
 \examples{
 blk <- new_dataset_block()
 block_name(blk)
@@ -88,5 +110,8 @@ block_arity(new_merge_block())
 
 block_inputs(new_rbind_block())
 block_arity(new_rbind_block())
+
+external_ctrl_vars(new_dataset_block())
+has_external_ctrl(new_dataset_block())
 
 }
