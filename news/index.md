@@ -1,5 +1,19 @@
 # Changelog
 
+## blockr.core 0.1.3
+
+- New exported generic
+  [`external_ctrl_vars()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md)
+  (with a `block` method) and predicate
+  [`has_external_ctrl()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md)
+  provide a public, polymorphic API for resolving a board component’s
+  `external_ctrl` declaration into the set of externally controllable
+  variable names. This promotes the previously internal
+  `block_external_ctrl_vars()`, letting dependent packages dispatch on
+  it (e.g. for dock extensions) instead of re-reading the raw
+  `external_ctrl` attribute
+  ([\#192](https://github.com/BristolMyersSquibb/blockr.core/issues/192)).
+
 ## blockr.core 0.1.2
 
 CRAN release: 2026-04-28

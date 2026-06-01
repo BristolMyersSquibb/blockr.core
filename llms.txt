@@ -104,6 +104,8 @@ block.
   [`validate_data_inputs()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md)
   [`block_inputs()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md)
   [`block_arity()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md)
+  [`external_ctrl_vars()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md)
+  [`has_external_ctrl()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md)
   [`block_metadata()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md)
   : Block utilities
 - [`block_eval()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_server.md)

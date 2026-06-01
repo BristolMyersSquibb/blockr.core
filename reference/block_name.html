@@ -75,6 +75,10 @@ with blocks in lacking, please consider opening an
 <span></span>
 <span><span class="fu">block_arity</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span></span>
+<span><span class="fu">external_ctrl_vars</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">has_external_ctrl</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
+<span></span>
 <span><span class="fu">block_metadata</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -101,7 +105,10 @@ with blocks in lacking, please consider opening an
 <li><p><code>validate_data_inputs()</code>: <code>NULL</code> if no validator is set and the result of
 the validator function otherwise,</p></li>
 <li><p><code>block_inputs()</code>: a (possibly empty) character vector of data input names,</p></li>
-<li><p><code>block_arity()</code>: a scalar integer with <code>NA</code> in case of variadic behavior.</p></li>
+<li><p><code>block_arity()</code>: a scalar integer with <code>NA</code> in case of variadic behavior,</p></li>
+<li><p><code>external_ctrl_vars()</code>: a character vector of externally controllable
+variable names (always including <code>"block_name"</code> for blocks),</p></li>
+<li><p><code>has_external_ctrl()</code>: a scalar logical.</p></li>
 </ul></div>
     <div class="section level2">
     <h2 id="block-name">Block name<a class="anchor" aria-label="anchor" href="#block-name"></a></h2>
@@ -134,6 +141,20 @@ functionality), <code>block_arity()</code> returns <code>NA</code> and the speci
 function argument <code>...args</code>, signalling variadic behavior is stripped from
 <code>block_inputs()</code>.</p>
     </div>
+    <div class="section level2">
+    <h2 id="external-control">External control<a class="anchor" aria-label="anchor" href="#external-control"></a></h2>
+
+
+<p>Blocks can expose constructor inputs for programmatic control from outside
+the block server (see the <code>external_ctrl</code> argument to <code><a href="new_block.html">new_block()</a></code> and the
+<code><a href="ctrl_block.html">ctrl_block()</a></code> plugin). <code>external_ctrl_vars()</code> is a generic that resolves
+this declaration into the concrete set of controllable variable names:
+<code>TRUE</code> expands to all constructor inputs, <code>FALSE</code> to none and a character
+vector is taken as a (validated) subset. For blocks, <code>"block_name"</code> is
+always included as every block can be renamed. The predicate
+<code>has_external_ctrl()</code> reports whether this set is non-empty (always <code>TRUE</code>
+for blocks).</p>
+    </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
@@ -158,6 +179,11 @@ function argument <code>...args</code>, signalling variadic behavior is stripped
 <span class="r-out co"><span class="r-pr">#&gt;</span> character(0)</span>
 <span class="r-in"><span><span class="fu">block_arity</span><span class="op">(</span><span class="fu"><a href="new_transform_block.html">new_rbind_block</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] NA</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="fu">external_ctrl_vars</span><span class="op">(</span><span class="fu"><a href="new_data_block.html">new_dataset_block</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "dataset"    "block_name"</span>
+<span class="r-in"><span><span class="fu">has_external_ctrl</span><span class="op">(</span><span class="fu"><a href="new_data_block.html">new_dataset_block</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

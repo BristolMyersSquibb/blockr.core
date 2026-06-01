@@ -20,6 +20,10 @@ block_inputs(x)
 
 block_arity(x)
 
+external_ctrl_vars(x)
+
+has_external_ctrl(x)
+
 block_metadata(x)
 ```
 
@@ -52,7 +56,12 @@ Return types vary among the set of exported utilities:
   names,
 
 - `block_arity()`: a scalar integer with `NA` in case of variadic
-  behavior.
+  behavior,
+
+- `external_ctrl_vars()`: a character vector of externally controllable
+  variable names (always including `"block_name"` for blocks),
+
+- `has_external_ctrl()`: a scalar logical.
 
 ## Block name
 
@@ -82,6 +91,21 @@ functionality), `block_arity()` returns `NA` and the special block
 server function argument `...args`, signalling variadic behavior is
 stripped from `block_inputs()`.
 
+## External control
+
+Blocks can expose constructor inputs for programmatic control from
+outside the block server (see the `external_ctrl` argument to
+[`new_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block.md)
+and the
+[`ctrl_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/ctrl_block.md)
+plugin). `external_ctrl_vars()` is a generic that resolves this
+declaration into the concrete set of controllable variable names: `TRUE`
+expands to all constructor inputs, `FALSE` to none and a character
+vector is taken as a (validated) subset. For blocks, `"block_name"` is
+always included as every block can be renamed. The predicate
+`has_external_ctrl()` reports whether this set is non-empty (always
+`TRUE` for blocks).
+
 ## Examples
 
 ``` r
@@ -106,4 +130,9 @@ block_inputs(new_rbind_block())
 #> character(0)
 block_arity(new_rbind_block())
 #> [1] NA
+
+external_ctrl_vars(new_dataset_block())
+#> [1] "dataset"    "block_name"
+has_external_ctrl(new_dataset_block())
+#> [1] TRUE
 ```
