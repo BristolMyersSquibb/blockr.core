@@ -11,6 +11,10 @@
 #' strings and no objects which are hard/impossible to truthfully re-create in
 #' new sessions (such as environments).
 #'
+#' During deserialization, `blockr_deser()` forwards `...` to the dispatched
+#' per-class method. This lets callers (and outer methods deserializing nested
+#' objects) thread additional context down to inner deserializers.
+#'
 #' @param x Object to (de)serialize
 #' @param ... Generic consistency
 #'
@@ -260,7 +264,8 @@ blockr_deser.list <- function(x, ...) {
 
   res <- blockr_deser(
     structure(list(), class = cls),
-    data = x
+    data = x,
+    ...
   )
 
   if (!identical(class(res), cls)) {

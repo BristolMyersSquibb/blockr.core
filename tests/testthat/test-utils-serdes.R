@@ -142,3 +142,30 @@ test_that("serialization", {
     class = "option_value_arg_name_mismatch"
   )
 })
+
+test_that("blockr_deser.list forwards `...` to per-class methods", {
+
+  captured <- NULL
+
+  registerS3method(
+    "blockr_deser", "deser_ctx_probe",
+    function(x, data, version = NULL, ...) {
+      captured <<- version
+      structure(list(), class = "deser_ctx_probe")
+    },
+    envir = asNamespace("blockr.core")
+  )
+
+  with_ctx <- blockr_deser(
+    list(object = "deser_ctx_probe"),
+    version = "1.2.3"
+  )
+
+  expect_s3_class(with_ctx, "deser_ctx_probe")
+  expect_identical(captured, "1.2.3")
+
+  no_ctx <- blockr_deser(list(object = "deser_ctx_probe"))
+
+  expect_s3_class(no_ctx, "deser_ctx_probe")
+  expect_null(captured)
+})
