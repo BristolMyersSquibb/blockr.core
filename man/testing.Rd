@@ -51,7 +51,9 @@ of \code{expr}.}
 }
 \value{
 For testing plugins, \code{generate_plugin_args()} returns objects that
-mimic how plugins are called in the board server, \code{sink_msg()} is called
+mimic how plugins are called in the board server (with reactive components
+re-created on a \code{NULL} reactive domain so they outlive the
+\code{\link[shiny:testServer]{shiny::testServer()}} session used to set them up), \code{sink_msg()} is called
 mainly for the side-effect of muting shiny messages (and returns them
 invisibly), \code{with_mock_session()} returns \code{NULL} (invisibly) and
 \code{with_mock_context()} returns the result of a call to
