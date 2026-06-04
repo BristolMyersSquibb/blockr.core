@@ -72,8 +72,8 @@ test_that("with no producer every block is visible", {
     {
       session$flushReact()
 
-      expect_null(rv$visible)
-      expect_null(rv$visible_eval)
+      expect_true(rv$visible)
+      expect_true(rv$eval)
 
       expect_true(evaluated(rv, "a"))
       expect_true(evaluated(rv, "b"))
@@ -109,7 +109,7 @@ test_that("a producer gates evaluation and rendering on visibility", {
       session$flushReact()
 
       expect_setequal(rv$visible, "b")
-      expect_setequal(rv$visible_eval, c("a", "b"))
+      expect_setequal(rv$eval, c("a", "b"))
 
       expect_true(evaluated(rv, "b"))
       expect_true(rendered("b"))
