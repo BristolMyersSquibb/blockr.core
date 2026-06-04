@@ -82,6 +82,20 @@ observer, reported via \code{\link[=notify]{notify()}}, and the reactive is rese
 app keeps running.
 }
 
+\section{Outcome}{
+
+Alongside the human-facing \code{\link[=notify]{notify()}} toast, every update cycle
+records a machine-readable result into \code{board$last_update} (the
+read-only board handed to plugins and callbacks). It is a list with
+a monotonically increasing \code{seq}, a logical \code{ok}, the \code{phase} it
+ended in (\code{"validate"} or \code{"apply"}), and a \code{message}
+(\code{conditionMessage()} on failure, \code{NA} on success); it is \code{NULL}
+before the first update. The \code{seq} advances on every write so that
+two consecutive identical outcomes still invalidate a downstream
+observer. A programmatic caller can watch this field to learn
+whether a dispatched update was rejected, failed to apply, or landed.
+}
+
 \examples{
 brd <- new_board(
   blocks = c(a = new_dataset_block("iris"), b = new_subset_block()),

@@ -62,7 +62,8 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         board_id = id,
         links = list(),
         stacks = list(),
-        reload_meta = reload_meta
+        reload_meta = reload_meta,
+        last_update = NULL
       )
 
       rv_ro <- list(board = make_read_only(rv))
@@ -140,6 +141,20 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         plugins = plugins
       )
 
+      update_seq <- 0L
+
+      record_update_outcome <- function(ok, phase, message = NA_character_) {
+
+        update_seq <<- update_seq + 1L
+
+        rv$last_update <- list(
+          seq = update_seq,
+          ok = ok,
+          phase = phase,
+          message = message
+        )
+      }
+
       observeEvent(
         board_update(),
         {
@@ -160,6 +175,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
             error = function(e) {
               log_warn("board update rejected: {conditionMessage(e)}")
               notify(conditionMessage(e), type = "error", session = session)
+              record_update_outcome(FALSE, "validate", conditionMessage(e))
               board_update(NULL)
             }
           )
@@ -195,10 +211,13 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
               stopifnot(is_board(new_board))
               rv$board <- new_board
+
+              record_update_outcome(TRUE, "apply")
             },
             error = function(e) {
               log_warn("apply_board_update failed: {conditionMessage(e)}")
               notify(conditionMessage(e), type = "error", session = session)
+              record_update_outcome(FALSE, "apply", conditionMessage(e))
             }
           )
 
@@ -674,6 +693,18 @@ add_blocks_to_stacks <- function(rv, add, session) {
 #' Errors thrown from either augment or apply are caught by the
 #' observer, reported via [notify()], and the reactive is reset so the
 #' app keeps running.
+#'
+#' @section Outcome:
+#' Alongside the human-facing [notify()] toast, every update cycle
+#' records a machine-readable result into `board$last_update` (the
+#' read-only board handed to plugins and callbacks). It is a list with
+#' a monotonically increasing `seq`, a logical `ok`, the `phase` it
+#' ended in (`"validate"` or `"apply"`), and a `message`
+#' (`conditionMessage()` on failure, `NA` on success); it is `NULL`
+#' before the first update. The `seq` advances on every write so that
+#' two consecutive identical outcomes still invalidate a downstream
+#' observer. A programmatic caller can watch this field to learn
+#' whether a dispatched update was rejected, failed to apply, or landed.
 #'
 #' @param payload,upd A board update payload — see Validation above
 #' for the accepted shape.

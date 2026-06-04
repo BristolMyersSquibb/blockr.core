@@ -1048,3 +1048,111 @@ test_that("apply_board_update runs after core has settled rv state", {
     )
   )
 })
+
+test_that("successful board update records ok outcome with monotonic seq", {
+
+  empty <- new_board()
+
+  testServer(
+    get_s3_method("board_server", empty),
+    {
+      session$flushReact()
+
+      expect_null(rv$last_update)
+
+      board_update(
+        list(blocks = list(add = as_blocks(c(a = new_dataset_block()))))
+      )
+
+      session$flushReact()
+
+      expect_length(board_blocks(rv$board), 1L)
+      expect_true(rv$last_update$ok)
+      expect_identical(rv$last_update$phase, "apply")
+      expect_identical(rv$last_update$seq, 1L)
+      expect_identical(rv$last_update$message, NA_character_)
+
+      expect_identical(make_read_only(rv)$last_update, rv$last_update)
+
+      board_update(
+        list(blocks = list(add = as_blocks(c(b = new_subset_block()))))
+      )
+
+      session$flushReact()
+
+      expect_length(board_blocks(rv$board), 2L)
+      expect_true(rv$last_update$ok)
+      expect_identical(rv$last_update$seq, 2L)
+    },
+    args = list(
+      x = empty,
+      plugins = list(manage_blocks())
+    )
+  )
+})
+
+test_that("rejected board update records validate-phase failure each time", {
+
+  empty <- new_board()
+
+  testServer(
+    get_s3_method("board_server", empty),
+    {
+      session$flushReact()
+
+      board_update(list(blocks = list(rm = "missing")))
+
+      session$flushReact()
+
+      expect_false(rv$last_update$ok)
+      expect_identical(rv$last_update$phase, "validate")
+      expect_true(nzchar(rv$last_update$message))
+      expect_null(board_update())
+      expect_length(board_blocks(rv$board), 0L)
+
+      first_seq <- rv$last_update$seq
+
+      board_update(list(blocks = list(rm = "missing")))
+
+      session$flushReact()
+
+      expect_false(rv$last_update$ok)
+      expect_identical(rv$last_update$phase, "validate")
+      expect_identical(rv$last_update$seq, first_seq + 1L)
+    },
+    args = list(
+      x = empty,
+      plugins = list(manage_blocks())
+    )
+  )
+})
+
+test_that("apply-phase failure records apply outcome", {
+
+  local_mocked_bindings(
+    apply_board_update = function(board, upd, ...) {
+      stop("apply boom")
+    }
+  )
+
+  empty <- new_board()
+
+  testServer(
+    get_s3_method("board_server", empty),
+    {
+      session$flushReact()
+
+      board_update(list())
+
+      session$flushReact()
+
+      expect_false(rv$last_update$ok)
+      expect_identical(rv$last_update$phase, "apply")
+      expect_match(rv$last_update$message, "apply boom")
+    },
+    args = list(
+      x = empty,
+      plugins = list(manage_blocks())
+    )
+  )
+})
