@@ -121,7 +121,9 @@ of <code>expr</code>.</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>For testing plugins, <code>generate_plugin_args()</code> returns objects that
-mimic how plugins are called in the board server, <code>sink_msg()</code> is called
+mimic how plugins are called in the board server (with reactive components
+re-created on a <code>NULL</code> reactive domain so they outlive the
+<code><a href="https://rdrr.io/pkg/shiny/man/testServer.html" class="external-link">shiny::testServer()</a></code> session used to set them up), <code>sink_msg()</code> is called
 mainly for the side-effect of muting shiny messages (and returns them
 invisibly), <code>with_mock_session()</code> returns <code>NULL</code> (invisibly) and
 <code>with_mock_context()</code> returns the result of a call to

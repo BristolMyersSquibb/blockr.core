@@ -74,9 +74,12 @@ export_safely(x)
 ## Value
 
 For testing plugins, `generate_plugin_args()` returns objects that mimic
-how plugins are called in the board server, `sink_msg()` is called
-mainly for the side-effect of muting shiny messages (and returns them
-invisibly), `with_mock_session()` returns `NULL` (invisibly) and
+how plugins are called in the board server (with reactive components
+re-created on a `NULL` reactive domain so they outlive the
+[`shiny::testServer()`](https://rdrr.io/pkg/shiny/man/testServer.html)
+session used to set them up), `sink_msg()` is called mainly for the
+side-effect of muting shiny messages (and returns them invisibly),
+`with_mock_session()` returns `NULL` (invisibly) and
 `with_mock_context()` returns the result of a call to
 [`shiny::withReactiveDomain()`](https://rdrr.io/pkg/shiny/man/domains.html).
 Finally, `get_s3_method()` returns a class-specific implementation of
