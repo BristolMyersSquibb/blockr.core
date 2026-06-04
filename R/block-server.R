@@ -28,6 +28,17 @@
 #' [block_output()] generic. The [block_ui()] generic can then be used to
 #' control rendering of outputs.
 #'
+#' When a front-end (such as blockr.dock) drives the `visible` write-channel
+#' that [board_server()] hands to the board callback, naming the block IDs
+#' currently on screen, block evaluation and rendering are gated on
+#' visibility: a block renders only while on screen and evaluates only while on
+#' screen or upstream of an on-screen block (its closure over [board_links()]).
+#' Gating suspends and resumes the evaluation and render observers, starting
+#' them suspended so off-screen blocks neither evaluate nor render at startup.
+#' With nothing driving `visible` every block is treated as visible and
+#' behaviour is unchanged; the `gate_visibility` [blockr_option()] (default
+#' `TRUE`) turns gating off entirely.
+#'
 #' @param id Namespace ID
 #' @param x Object for which to generate a [shiny::moduleServer()]
 #' @param data Input data (list of reactives)
@@ -191,9 +202,18 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         TRUE
       )
 
-      data_eval_observer(block_id, x, dat_eval, cb_res, res, state, lang, rv,
-                         cond, session)
-      output_render_observer(x, res, cond, session)
+      gated <- is_board(isolate(board$board)) &&
+        isTRUE(blockr_option("gate_visibility", TRUE))
+
+      eval_obs <- data_eval_observer(block_id, x, dat_eval, cb_res, res, state,
+                                     lang, rv, cond, session, suspended = gated)
+
+      render_obs <- output_render_observer(x, res, cond, session,
+                                           suspended = gated)
+
+      if (gated) {
+        visibility_gate_observer(block_id, board, eval_obs, render_obs, session)
+      }
 
       eb_res <- call_plugin_server(
         edit_block,
@@ -363,7 +383,7 @@ state_check_observer <- function(id, x, dat, res, state, rv, cond, sess) {
 }
 
 data_eval_observer <- function(id, x, dat, gate, res, state, lang, rv, cond,
-                               sess) {
+                               sess, suspended = FALSE) {
 
   observeEvent(
     req(reval_if(gate), dat()),
@@ -379,7 +399,8 @@ data_eval_observer <- function(id, x, dat, gate, res, state, lang, rv, cond,
 
       res(out)
     },
-    domain = sess
+    domain = sess,
+    suspended = suspended
   )
 }
 
@@ -410,7 +431,7 @@ block_render_trigger.block <- function(x, session = get_session()) {
   NULL
 }
 
-output_render_observer <- function(x, res, cond, sess) {
+output_render_observer <- function(x, res, cond, sess, suspended = FALSE) {
 
   observeEvent(
     {
@@ -424,6 +445,30 @@ output_render_observer <- function(x, res, cond, sess) {
         "render",
         session = sess
       )
+    },
+    domain = sess,
+    suspended = suspended
+  )
+}
+
+visibility_gate_observer <- function(id, board, eval_obs, render_obs, sess) {
+
+  observe(
+    {
+      vis <- board$visible
+      ev <- board$visible_eval
+
+      if (is.null(ev) || id %in% ev) {
+        eval_obs$resume()
+      } else {
+        eval_obs$suspend()
+      }
+
+      if (is.null(vis) || id %in% vis) {
+        render_obs$resume()
+      } else {
+        render_obs$suspend()
+      }
     },
     domain = sess
   )
