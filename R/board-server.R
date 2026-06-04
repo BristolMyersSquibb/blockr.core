@@ -63,7 +63,9 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         links = list(),
         stacks = list(),
         reload_meta = reload_meta,
-        last_update = NULL
+        last_update = NULL,
+        visible = NULL,
+        visible_eval = NULL
       )
 
       rv_ro <- list(board = make_read_only(rv))
@@ -79,6 +81,19 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
       )
 
       board_update <- reactiveVal()
+      board_visible <- reactiveVal()
+
+      observe(
+        {
+          vis <- board_visible()
+          rv$visible <- vis
+          rv$visible_eval <- if (is.null(vis)) {
+            NULL
+          } else {
+            upstream_blocks(vis, rv$board)
+          }
+        }
+      )
 
       cb_res <- set_names(
         vector("list", length(callbacks)),
@@ -87,7 +102,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
       cb_args <- c(
         rv_ro,
-        list(update = board_update),
+        list(update = board_update, visible = board_visible),
         dot_args,
         list(session = session)
       )
