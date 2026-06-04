@@ -49,6 +49,8 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.3" id="blockrcore-013">blockr.core 0.1.3<a class="anchor" aria-label="anchor" href="#blockrcore-013"></a></h2>
 <ul><li>New exported generic <code><a href="../reference/block_name.html">external_ctrl_vars()</a></code> (with a <code>block</code> method) and predicate <code><a href="../reference/block_name.html">has_external_ctrl()</a></code> provide a public, polymorphic API for resolving a board component’s <code>external_ctrl</code> declaration into the set of externally controllable variable names. This promotes the previously internal <code>block_external_ctrl_vars()</code>, letting dependent packages dispatch on it (e.g. for dock extensions) instead of re-reading the raw <code>external_ctrl</code> attribute (<a href="https://github.com/BristolMyersSquibb/blockr.core/issues/192" class="external-link">#192</a>).</li>
+<li>
+<code><a href="../reference/blockr_ser.html">blockr_deser.list()</a></code> now forwards <code>...</code> to the dispatched per-class method, so callers can thread additional context (e.g. a producer version) down to nested deserializers. Previously such arguments were silently dropped at the list-dispatch boundary (<a href="https://github.com/BristolMyersSquibb/blockr.core/issues/186" class="external-link">#186</a>).</li>
 </ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.2" id="blockrcore-012">blockr.core 0.1.2<a class="anchor" aria-label="anchor" href="#blockrcore-012"></a></h2><p class="text-muted">CRAN release: 2026-04-28</p>

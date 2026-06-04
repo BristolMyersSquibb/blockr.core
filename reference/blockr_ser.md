@@ -130,6 +130,11 @@ representing objects as easy-to-serialize (nested) lists containing
 mostly strings and no objects which are hard/impossible to truthfully
 re-create in new sessions (such as environments).
 
+During deserialization, `blockr_deser()` forwards `...` to the
+dispatched per-class method. This lets callers (and outer methods
+deserializing nested objects) thread additional context down to inner
+deserializers.
+
 ## Examples
 
 ``` r

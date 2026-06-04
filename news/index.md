@@ -13,6 +13,12 @@
   it (e.g. for dock extensions) instead of re-reading the raw
   `external_ctrl` attribute
   ([\#192](https://github.com/BristolMyersSquibb/blockr.core/issues/192)).
+- [`blockr_deser.list()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_ser.md)
+  now forwards `...` to the dispatched per-class method, so callers can
+  thread additional context (e.g. a producer version) down to nested
+  deserializers. Previously such arguments were silently dropped at the
+  list-dispatch boundary
+  ([\#186](https://github.com/BristolMyersSquibb/blockr.core/issues/186)).
 
 ## blockr.core 0.1.2
 
