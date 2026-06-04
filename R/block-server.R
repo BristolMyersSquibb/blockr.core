@@ -456,15 +456,15 @@ visibility_gate_observer <- function(id, board, eval_obs, render_obs, sess) {
   observe(
     {
       vis <- board$visible
-      ev <- board$visible_eval
+      ev <- board$eval
 
-      if (is.null(ev) || id %in% ev) {
+      if (isTRUE(ev) || id %in% ev) {
         eval_obs$resume()
       } else {
         eval_obs$suspend()
       }
 
-      if (is.null(vis) || id %in% vis) {
+      if (isTRUE(vis) || id %in% vis) {
         render_obs$resume()
       } else {
         render_obs$suspend()
