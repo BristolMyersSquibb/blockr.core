@@ -72,8 +72,8 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         stacks = list(),
         last_update = NULL,
         conditions = NULL,
-        visible = NULL,
-        visible_eval = NULL
+        visible = TRUE,
+        eval = TRUE
       )
 
       rv_ro <- list(board = make_read_only(rv))
@@ -100,11 +100,13 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
       observe(
         {
           vis <- board_visible()
-          rv$visible <- vis
-          rv$visible_eval <- if (is.null(vis)) {
-            NULL
+
+          if (is.null(vis)) {
+            rv$visible <- TRUE
+            rv$eval <- TRUE
           } else {
-            upstream_blocks(vis, rv$board)
+            rv$visible <- vis
+            rv$eval <- upstream_blocks(vis, rv$board)
           }
         }
       )
