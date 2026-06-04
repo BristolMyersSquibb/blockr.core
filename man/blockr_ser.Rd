@@ -111,6 +111,10 @@ generics and perform most of the heavy lifting for (de-)serialization:
 representing objects as easy-to-serialize (nested) lists containing mostly
 strings and no objects which are hard/impossible to truthfully re-create in
 new sessions (such as environments).
+
+During deserialization, \code{blockr_deser()} forwards \code{...} to the dispatched
+per-class method. This lets callers (and outer methods deserializing nested
+objects) thread additional context down to inner deserializers.
 }
 \examples{
 blk <- new_dataset_block("iris")

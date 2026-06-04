@@ -7,6 +7,10 @@
   internal `block_external_ctrl_vars()`, letting dependent packages dispatch
   on it (e.g. for dock extensions) instead of re-reading the raw
   `external_ctrl` attribute (#192).
+* `blockr_deser.list()` now forwards `...` to the dispatched per-class
+  method, so callers can thread additional context (e.g. a producer
+  version) down to nested deserializers. Previously such arguments were
+  silently dropped at the list-dispatch boundary (#186).
 
 # blockr.core 0.1.2
 
