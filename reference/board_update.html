@@ -155,6 +155,21 @@ itself, override the relevant sub-generic
 observer, reported via <code><a href="get_session.html">notify()</a></code>, and the reactive is reset so the
 app keeps running.</p>
     </div>
+    <div class="section level2">
+    <h2 id="outcome">Outcome<a class="anchor" aria-label="anchor" href="#outcome"></a></h2>
+
+
+<p>Alongside the human-facing <code><a href="get_session.html">notify()</a></code> toast, every update cycle
+records a machine-readable result into <code>board$last_update</code> (the
+read-only board handed to plugins and callbacks). It is a list with
+a monotonically increasing <code>seq</code>, a logical <code>ok</code>, the <code>phase</code> it
+ended in (<code>"validate"</code> or <code>"apply"</code>), and a <code>message</code>
+(<code><a href="https://rdrr.io/r/base/conditions.html" class="external-link">conditionMessage()</a></code> on failure, <code>NA</code> on success); it is <code>NULL</code>
+before the first update. The <code>seq</code> advances on every write so that
+two consecutive identical outcomes still invalidate a downstream
+observer. A programmatic caller can watch this field to learn
+whether a dispatched update was rejected, failed to apply, or landed.</p>
+    </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>

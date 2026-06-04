@@ -92,6 +92,22 @@ reported via
 [`notify()`](https://bristolmyerssquibb.github.io/blockr.core/reference/get_session.md),
 and the reactive is reset so the app keeps running.
 
+## Outcome
+
+Alongside the human-facing
+[`notify()`](https://bristolmyerssquibb.github.io/blockr.core/reference/get_session.md)
+toast, every update cycle records a machine-readable result into
+`board$last_update` (the read-only board handed to plugins and
+callbacks). It is a list with a monotonically increasing `seq`, a
+logical `ok`, the `phase` it ended in (`"validate"` or `"apply"`), and a
+`message`
+([`conditionMessage()`](https://rdrr.io/r/base/conditions.html) on
+failure, `NA` on success); it is `NULL` before the first update. The
+`seq` advances on every write so that two consecutive identical outcomes
+still invalidate a downstream observer. A programmatic caller can watch
+this field to learn whether a dispatched update was rejected, failed to
+apply, or landed.
+
 ## Examples
 
 ``` r
