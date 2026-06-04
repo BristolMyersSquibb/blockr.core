@@ -50,11 +50,11 @@ and registry sourced options)}
 \item{session}{Shiny session}
 }
 \value{
-A \code{board_ui()} implementation is expected to return \link[shiny:tag]{shiny::tag} or
-\code{\link[shiny:tagList]{shiny::tagList()}} objects, as does \code{toolbar_ui()}, while updater functions
+A \code{board_ui()} implementation is expected to return \link[shiny:reexports]{shiny::tag} or
+\code{\link[shiny:reexports]{shiny::tagList()}} objects, as does \code{toolbar_ui()}, while updater functions
 (\code{insert_block_ui()} and \code{remove_block_ui()}) are called for their side
 effects (which includes UI updates such as \code{\link[shiny:insertUI]{shiny::insertUI()}},
-\code{\link[shiny:removeUI]{shiny::removeUI()}}) and return the board object passed as \code{x} invisibly.
+\code{\link[shiny:insertUI]{shiny::removeUI()}}) and return the board object passed as \code{x} invisibly.
 }
 \description{
 As counterpart to \code{\link[=board_server]{board_server()}}, \code{board_ui()} is responsible for rendering

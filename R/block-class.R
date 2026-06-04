@@ -675,6 +675,28 @@ print.block <- function(x, ...) {
 }
 
 #' @export
+str_value.block <- function(x, ...) {
+
+  out <- paste0("<", class(x)[1L], ">")
+
+  args <- block_ctor_inputs(x)
+
+  if (length(args)) {
+    ctrl <- external_ctrl_vars(x)
+    args <- ifelse(args %in% ctrl, paste0(args, "*"), args)
+    out <- paste0(out, " ", paste0(args, collapse = ", "))
+  }
+
+  out
+}
+
+#' @importFrom utils str
+#' @export
+str.block <- function(object, ...) {
+  cat_str_value(object, ...)
+}
+
+#' @export
 board_options.block <- function(x, ...) {
   new_board_options()
 }

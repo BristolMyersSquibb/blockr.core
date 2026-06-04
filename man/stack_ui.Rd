@@ -66,12 +66,12 @@ remove_block_from_stack(
 \item{block_id, stack_id, board_id}{Block/stack/board IDs}
 }
 \value{
-UI set up via \code{stack_ui()} is expected to return \code{\link[shiny:tag]{shiny::tag()}} or
-\code{\link[shiny:tagList]{shiny::tagList()}} objects while stack/block insertion/removal functions
+UI set up via \code{stack_ui()} is expected to return \code{\link[shiny:reexports]{shiny::tag()}} or
+\code{\link[shiny:reexports]{shiny::tagList()}} objects while stack/block insertion/removal functions
 (into/from board/stack objects) are called for their side-effects. Both
 \code{insert_stack_ui()}/\code{remove_stack_ui} and
 \code{add_block_to_stack()}/\code{remove_block_from_stack()} return \code{NULL} invisibly
-and where the former call \code{\link[shiny:insertUI]{shiny::insertUI()}}/\code{\link[shiny:removeUI]{shiny::removeUI()}} and the
+and where the former call \code{\link[shiny:insertUI]{shiny::insertUI()}}/\code{\link[shiny:insertUI]{shiny::removeUI()}} and the
 latter modify the DOM via \link[shiny:session]{shiny::session} custom messages.
 }
 \description{

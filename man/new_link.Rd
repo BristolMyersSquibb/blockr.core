@@ -3,7 +3,6 @@
 \name{new_link}
 \alias{new_link}
 \alias{update_link}
-\alias{update_link.link}
 \alias{is_link}
 \alias{as_link}
 \alias{links}
@@ -23,8 +22,6 @@ new_link(
 )
 
 update_link(x, delta)
-
-\method{update_link}{link}(x, delta)
 
 is_link(x)
 
@@ -98,6 +95,7 @@ reconstruction — sub-class owners must register a class-specific
 method when their constructor uses attributes or a non-standard
 signature.
 }
+
 \examples{
 lnks <- links(from = c("a", "b"), to = c("b", "c"), input = c("x", "y"))
 is_links(lnks)

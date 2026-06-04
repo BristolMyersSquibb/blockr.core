@@ -251,6 +251,25 @@ print.stack <- function(x, ...) {
 }
 
 #' @export
+str_value.stack <- function(x, ...) {
+
+  out <- paste0("<", class(x)[1L], "> \"", stack_name(x), "\"")
+
+  blks <- stack_blocks(x)
+
+  if (length(blks)) {
+    out <- paste0(out, ": ", paste0(blks, collapse = ", "))
+  }
+
+  out
+}
+
+#' @export
+str.stack <- function(object, ...) {
+  cat_str_value(object, ...)
+}
+
+#' @export
 duplicated.stack <- function(x, incomparables = FALSE, ...) {
   duplicated(as.character(x), incomparables = incomparables, ...)
 }
