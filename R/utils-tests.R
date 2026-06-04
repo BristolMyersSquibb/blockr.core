@@ -9,7 +9,9 @@
 #' `update` over read plugins such as `preserve_board`.
 #'
 #' @return For testing plugins, `generate_plugin_args()` returns objects that
-#' mimic how plugins are called in the board server, `sink_msg()` is called
+#' mimic how plugins are called in the board server (with reactive components
+#' re-created on a `NULL` reactive domain so they outlive the
+#' [shiny::testServer()] session used to set them up), `sink_msg()` is called
 #' mainly for the side-effect of muting shiny messages (and returns them
 #' invisibly), `with_mock_session()` returns `NULL` (invisibly) and
 #' `with_mock_context()` returns the result of a call to
@@ -34,16 +36,50 @@ generate_plugin_args <- function(board, ..., mode = c("edit", "read")) {
     get_s3_method("board_server", board),
     {
       session$flushReact()
-      res_plugin_args <<- switch(
-        mode,
-        edit = edit_plugin_args,
-        read = read_plugin_args
+      res_plugin_args <<- snapshot_reactives(
+        switch(mode, edit = edit_plugin_args, read = read_plugin_args)
       )
     },
     args = list(x = board, ...)
   )
 
   res_plugin_args
+}
+
+# Re-create the reactive parts of the plugin args on a NULL reactive domain, so
+# they survive the testServer() session that built them (which shiny tears down
+# on close, taking session-scoped reactives with it; see #196). reactiveVal and
+# reactiveExpr both become read-only reactives, since callers only read them.
+snapshot_reactives <- function(x) {
+
+  if (is.reactivevalues(x)) {
+    vals <- lapply(isolate(reactiveValuesToList(x)), snapshot_reactives)
+    return(withReactiveDomain(NULL, do.call(reactiveValues, vals)))
+  }
+
+  if (inherits(x, "reactive")) {
+
+    # Defer evaluation errors (e.g. a block with unset inputs) to read time, as
+    # the live reactive would have, rather than failing the whole snapshot.
+    captured <- tryCatch(
+      list(value = isolate(x())),
+      error = function(e) list(cond = e)
+    )
+
+    if (is.null(captured$cond)) {
+      val <- captured$value
+      return(withReactiveDomain(NULL, reactive(val)))
+    }
+
+    cnd <- captured$cond
+    return(withReactiveDomain(NULL, reactive(stop(cnd))))
+  }
+
+  if (is.list(x) && is.null(attr(x, "class"))) {
+    return(lapply(x, snapshot_reactives))
+  }
+
+  x
 }
 
 #' @param ... Forwarded to [utils::capture.output()]
