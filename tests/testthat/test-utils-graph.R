@@ -39,23 +39,3 @@ test_that("topo sort", {
     character()
   )
 })
-
-test_that("upstream blocks", {
-
-  board <- new_board(
-    c(a = new_dataset_block("iris"), b = new_dataset_block("mtcars"),
-      c = new_scatter_block(), d = new_subset_block()),
-    list(from = c("a", "d"), to = c("d", "c"))
-  )
-
-  expect_setequal(upstream_blocks("c", board), c("a", "c", "d"))
-  expect_setequal(upstream_blocks("d", board), c("a", "d"))
-  expect_setequal(upstream_blocks("a", board), "a")
-  expect_setequal(upstream_blocks("b", board), "b")
-  expect_setequal(upstream_blocks(c("b", "c"), board), c("a", "b", "c", "d"))
-
-  empty <- new_board(c(a = new_dataset_block("iris")))
-
-  expect_setequal(upstream_blocks("a", empty), "a")
-  expect_identical(upstream_blocks(character(), empty), character())
-})

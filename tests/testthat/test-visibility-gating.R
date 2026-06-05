@@ -1,6 +1,9 @@
 probe_render <- new.env()
 probe_render$ids <- character()
 
+probe_eval <- new.env()
+probe_eval$ids <- character()
+
 registerS3method(
   "block_output", "probe_block",
   function(x, result, session) {
@@ -12,6 +15,14 @@ registerS3method(
 registerS3method(
   "block_ui", "probe_block",
   function(id, x, ...) shiny::tagList()
+)
+
+registerS3method(
+  "block_eval", "probe_block",
+  function(x, expr, env, ...) {
+    probe_eval$ids <- c(probe_eval$ids, attr(x, "probe_id"))
+    NextMethod()
+  }
 )
 
 probe_source <- function() {
@@ -46,24 +57,33 @@ probe_passthrough <- function() {
   )
 }
 
-reset_render_log <- function() {
+with_id <- function(blk, id) {
+  attr(blk, "probe_id") <- id
+  blk
+}
+
+reset_probes <- function() {
   probe_render$ids <- character()
+  probe_eval$ids <- character()
 }
 
 rendered <- function(id) {
   any(endsWith(probe_render$ids, paste0("block_", id)))
 }
 
-evaluated <- function(rv, id) {
-  !is.null(rv$blocks[[id]]$server$result())
+evaluated <- function(id) {
+  id %in% probe_eval$ids
 }
 
 test_that("with no producer every block is visible", {
 
-  reset_render_log()
+  reset_probes()
 
   board <- new_board(
-    blocks = c(a = probe_source(), b = probe_passthrough()),
+    blocks = c(
+      a = with_id(probe_source(), "a"),
+      b = with_id(probe_passthrough(), "b")
+    ),
     links = links(new_link(from = "a", to = "b"))
   )
 
@@ -73,28 +93,27 @@ test_that("with no producer every block is visible", {
       session$flushReact()
 
       expect_true(rv$visible)
-      expect_true(rv$eval)
 
-      expect_true(evaluated(rv, "a"))
-      expect_true(evaluated(rv, "b"))
+      expect_true(evaluated("a"))
+      expect_true(evaluated("b"))
 
       expect_true(rendered("a"))
       expect_true(rendered("b"))
     },
-    args = list(x = board)
+    args = list(x = board, plugins = list())
   )
 })
 
 test_that("a producer gates evaluation and rendering on visibility", {
 
-  reset_render_log()
+  reset_probes()
 
   board <- new_board(
     blocks = c(
-      a = probe_source(),
-      b = probe_passthrough(),
-      c = probe_passthrough(),
-      d = probe_passthrough()
+      a = with_id(probe_source(), "a"),
+      b = with_id(probe_passthrough(), "b"),
+      c = with_id(probe_passthrough(), "c"),
+      d = with_id(probe_passthrough(), "d")
     ),
     links = links(
       new_link(from = "a", to = "b"),
@@ -109,31 +128,31 @@ test_that("a producer gates evaluation and rendering on visibility", {
       session$flushReact()
 
       expect_setequal(rv$visible, "b")
-      expect_setequal(rv$eval, c("a", "b"))
 
-      expect_true(evaluated(rv, "b"))
+      expect_true(evaluated("b"))
       expect_true(rendered("b"))
 
-      expect_true(evaluated(rv, "a"))
+      expect_true(evaluated("a"))
       expect_false(rendered("a"))
 
-      expect_false(evaluated(rv, "c"))
+      expect_false(evaluated("c"))
       expect_false(rendered("c"))
 
-      expect_false(evaluated(rv, "d"))
+      expect_false(evaluated("d"))
       expect_false(rendered("d"))
 
       board_visible(c("b", "c", "d"))
       session$flushReact()
 
-      expect_true(evaluated(rv, "c"))
+      expect_true(evaluated("c"))
       expect_true(rendered("c"))
 
-      expect_true(evaluated(rv, "d"))
+      expect_true(evaluated("d"))
       expect_true(rendered("d"))
     },
     args = list(
       x = board,
+      plugins = list(),
       callbacks = function(visible, ...) {
         visible("b")
         NULL
@@ -144,15 +163,15 @@ test_that("a producer gates evaluation and rendering on visibility", {
 
 test_that("the gate_visibility option disables gating", {
 
-  reset_render_log()
+  reset_probes()
 
   withr::local_options(blockr.gate_visibility = FALSE)
 
   board <- new_board(
     blocks = c(
-      a = probe_source(),
-      b = probe_passthrough(),
-      c = probe_passthrough()
+      a = with_id(probe_source(), "a"),
+      b = with_id(probe_passthrough(), "b"),
+      c = with_id(probe_passthrough(), "c")
     ),
     links = links(
       new_link(from = "a", to = "b"),
@@ -166,12 +185,13 @@ test_that("the gate_visibility option disables gating", {
       session$flushReact()
 
       for (id in c("a", "b", "c")) {
-        expect_true(evaluated(rv, id))
+        expect_true(evaluated(id))
         expect_true(rendered(id))
       }
     },
     args = list(
       x = board,
+      plugins = list(),
       callbacks = function(visible, ...) {
         visible("b")
         NULL

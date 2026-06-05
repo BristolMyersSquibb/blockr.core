@@ -30,14 +30,18 @@
 #'
 #' When a front-end (such as blockr.dock) drives the `visible` write-channel
 #' that [board_server()] hands to the board callback, naming the block IDs
-#' currently on screen, block evaluation and rendering are gated on
-#' visibility: a block renders only while on screen and evaluates only while on
-#' screen or upstream of an on-screen block (its closure over [board_links()]).
-#' Gating suspends and resumes the evaluation and render observers, starting
-#' them suspended so off-screen blocks neither evaluate nor render at startup.
-#' With nothing driving `visible` every block is treated as visible and
-#' behaviour is unchanged; the `gate_visibility` [blockr_option()] (default
-#' `TRUE`) turns gating off entirely.
+#' currently on screen, rendering is gated on visibility: the render observer
+#' is suspended while a block is off screen and resumed once it is on screen,
+#' starting suspended so nothing renders before the front-end first reports.
+#' Evaluation is demand-driven. A block's result is a reactive that computes
+#' only when pulled, either by its own render (while on screen) or by a
+#' downstream block pulling it through [board_links()]. An off-screen block
+#' with no on-screen descendant is therefore never pulled and stays fully
+#' quiescent, evaluating, validating and rendering nothing, while the reactive
+#' graph computes the upstream closure of each visible block on its own. With
+#' nothing driving `visible` every block renders and behaviour is unchanged;
+#' the `gate_visibility` [blockr_option()] (default `TRUE`) turns gating off
+#' entirely.
 #'
 #' @param id Namespace ID
 #' @param x Object for which to generate a [shiny::moduleServer()]
@@ -71,11 +75,6 @@ block_server.block <- function(id, x, data = list(), block_id = id,
     id,
     function(input, output, session) {
 
-      rv <- reactiveValues(
-        data_valid = if (block_has_data_validator(x)) NULL else TRUE,
-        state_set = NULL
-      )
-
       cond <- reactiveValues(
         data = NULL,
         state = NULL,
@@ -85,8 +84,6 @@ block_server.block <- function(id, x, data = list(), block_id = id,
       )
 
       reorder_dots_observer(data, session)
-
-      res <- reactiveVal()
 
       exp <- check_expr_val(
         expr_server(x, data),
@@ -104,20 +101,22 @@ block_server.block <- function(id, x, data = list(), block_id = id,
           res <- lapply(data[names(data) != "...args"], reval)
 
           if ("...args" %in% names(data)) {
-            tmp <- list(`...args` = reactiveValuesToList(data[["...args"]]))
-            res <- c(res, tmp)
+            args <- lapply(reactiveValuesToList(data[["...args"]]), reval_if)
+            res <- c(res, list(`...args` = args))
           }
 
           res
         }
       )
 
-      validate_block_observer(block_id, x, dat, res, rv, cond, session)
-      state_check_observer(block_id, x, dat, res, state, rv, cond, session)
+      data_valid <- validate_block_reactive(block_id, x, dat, cond, session)
+
+      state_set <- state_check_reactive(block_id, x, state, data_valid, cond,
+                                        session)
 
       dat_eval <- reactive(
         {
-          req(rv$state_set)
+          req(state_set())
           lapply(state, reval_if)
           try(lang(), silent = TRUE)
 
@@ -202,17 +201,38 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         TRUE
       )
 
+      gate <- cb_res
+
+      res <- reactive(
+        {
+          if (!isTRUE(reval_if(gate)) || !state_set()) {
+            return(NULL)
+          }
+
+          eval_data <- dat_eval()
+
+          log_debug("evaluating block ", block_id)
+
+          isolate(
+            capture_conditions(
+              eval_impl(x, lang(), eval_data),
+              cond,
+              "eval",
+              session = session
+            )
+          )
+        },
+        domain = session
+      )
+
       gated <- is_board(isolate(board$board)) &&
         isTRUE(blockr_option("gate_visibility", TRUE))
-
-      eval_obs <- data_eval_observer(block_id, x, dat_eval, cb_res, res, state,
-                                     lang, rv, cond, session, suspended = gated)
 
       render_obs <- output_render_observer(x, res, cond, session,
                                            suspended = gated)
 
       if (gated) {
-        visibility_gate_observer(block_id, board, eval_obs, render_obs, session)
+        render_gate_observer(block_id, board, render_obs, session)
       }
 
       eb_res <- call_plugin_server(
@@ -293,108 +313,83 @@ reorder_dots_observer <- function(data, sess) {
   }
 }
 
-validate_block_observer <- function(id, x, dat, res, rv, cond, sess) {
+validate_block_reactive <- function(id, x, dat, cond, sess) {
 
-  if (block_has_data_validator(x)) {
-    observeEvent(
-      dat(),
-      {
-        log_debug("performing input validation for block ", id)
+  if (!block_has_data_validator(x)) {
+    return(reactive(TRUE, domain = sess))
+  }
 
-        res(NULL)
+  reactive(
+    {
+      log_debug("performing input validation for block ", id)
 
-        rv$state_set <- NULL
+      inp <- dat()
 
-        rv$data_valid <- capture_conditions(
+      isolate(
+        capture_conditions(
           {
-            validate_data_inputs(x, dat())
+            validate_data_inputs(x, inp)
             TRUE
           },
           cond,
           "data",
           session = sess
         )
-      },
-      domain = sess
-    )
-  }
-}
-
-state_check_observer <- function(id, x, dat, res, state, rv, cond, sess) {
-
-  state_check <- reactive(
-    {
-      dat()
-
-      if (!isTruthy(rv$data_valid)) {
-        return(NULL)
-      }
-
-      allow_empty <- block_allow_empty_state(x)
-
-      if (isTRUE(allow_empty) || !length(state)) {
-        return(TRUE)
-      }
-
-      if (isFALSE(allow_empty)) {
-        check <- TRUE
-      } else {
-        check <- setdiff(names(state), allow_empty)
-      }
-
-      lgl_ply(
-        lapply(state[check], reval_if),
-        Negate(is_empty),
-        use_names = TRUE
       )
     },
     domain = sess
   )
+}
 
-  observeEvent(
-    state_check(),
+state_check_reactive <- function(id, x, state, data_valid, cond, sess) {
+
+  reactive(
     {
       log_debug("checking returned state values of block ", id)
 
-      res(NULL)
-
-      ok <- state_check()
-
-      rv$state_set <- NULL
-
-      if (!all(ok)) {
-        cond$state$error <- new_condition(
-          paste0("State values ", paste_enum(names(ok)[!ok]), " are ",
-                 "not yet initialized.")
-        )
-      } else {
-        cond$state$error <- list()
-        rv$state_set <- TRUE
+      if (!isTruthy(data_valid())) {
+        return(FALSE)
       }
-    },
-    domain = sess
-  )
-}
 
-data_eval_observer <- function(id, x, dat, gate, res, state, lang, rv, cond,
-                               sess, suspended = FALSE) {
+      err <- NULL
 
-  observeEvent(
-    req(reval_if(gate), dat()),
-    {
-      log_debug("evaluating block ", id)
+      allow_empty <- block_allow_empty_state(x)
 
-      out <- capture_conditions(
-        eval_impl(x, lang(), dat()),
-        cond,
-        "eval",
-        session = sess
+      if (!isTRUE(allow_empty) && length(state)) {
+
+        if (isFALSE(allow_empty)) {
+          check <- TRUE
+        } else {
+          check <- setdiff(names(state), allow_empty)
+        }
+
+        ok <- lgl_ply(
+          lapply(state[check], reval_if),
+          Negate(is_empty),
+          use_names = TRUE
+        )
+
+        if (!all(ok)) {
+          err <- new_condition(
+            paste0("State values ", paste_enum(names(ok)[!ok]), " are ",
+                   "not yet initialized.")
+          )
+        }
+      }
+
+      isolate(
+        if (is.null(err)) {
+          if (length(cond$state$error)) {
+            cond$state$error <- list()
+          }
+        } else {
+          cond$state$error <- err
+        }
       )
 
-      res(out)
+      is.null(err)
     },
-    domain = sess,
-    suspended = suspended
+    domain = sess
   )
 }
 
@@ -445,26 +440,15 @@ output_render_observer <- function(x, res, cond, sess, suspended = FALSE) {
   )
 }
 
-visibility_gate_observer <- function(id, board, eval_obs, render_obs, sess) {
+render_gate_observer <- function(id, board, render_obs, sess) {
 
-  prev_eval <- NA
   prev_render <- NA
 
   observe(
     {
-      do_eval <- isTRUE(board$eval) || id %in% board$eval
       do_render <- isTRUE(board$visible) || id %in% board$visible
 
-      if (do_eval) eval_obs$resume() else eval_obs$suspend()
       if (do_render) render_obs$resume() else render_obs$suspend()
-
-      if (!identical(do_eval, prev_eval)) {
-        prev_eval <<- do_eval
-        log_debug(
-          "block {id} evaluation ",
-          "{if (do_eval) 'resumed' else 'suspended'}"
-        )
-      }
 
       if (!identical(do_render, prev_render)) {
         prev_render <<- do_render

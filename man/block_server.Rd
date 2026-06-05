@@ -95,12 +95,16 @@ control rendering of outputs.
 
 When a front-end (such as blockr.dock) drives the \code{visible} write-channel
 that \code{\link[=board_server]{board_server()}} hands to the board callback, naming the block IDs
-currently on screen, block evaluation and rendering are gated on
-visibility: a block renders only while on screen and evaluates only while on
-screen or upstream of an on-screen block (its closure over \code{\link[=board_links]{board_links()}}).
-Gating suspends and resumes the evaluation and render observers, starting
-them suspended so off-screen blocks neither evaluate nor render at startup.
-With nothing driving \code{visible} every block is treated as visible and
-behaviour is unchanged; the \code{gate_visibility} \code{\link[=blockr_option]{blockr_option()}} (default
-\code{TRUE}) turns gating off entirely.
+currently on screen, rendering is gated on visibility: the render observer
+is suspended while a block is off screen and resumed once it is on screen,
+starting suspended so nothing renders before the front-end first reports.
+Evaluation is demand-driven. A block's result is a reactive that computes
+only when pulled, either by its own render (while on screen) or by a
+downstream block pulling it through \code{\link[=board_links]{board_links()}}. An off-screen block
+with no on-screen descendant is therefore never pulled and stays fully
+quiescent, evaluating, validating and rendering nothing, while the reactive
+graph computes the upstream closure of each visible block on its own. With
+nothing driving \code{visible} every block renders and behaviour is unchanged;
+the \code{gate_visibility} \code{\link[=blockr_option]{blockr_option()}} (default \code{TRUE}) turns gating off
+entirely.
 }
