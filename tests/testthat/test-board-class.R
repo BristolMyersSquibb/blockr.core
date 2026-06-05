@@ -181,3 +181,25 @@ test_that("board constructor", {
     board_options(empty)
   )
 })
+
+test_that("a board has a compact str_value()", {
+
+  board <- new_board(
+    blocks = c(a = new_dataset_block(), b = new_subset_block()),
+    stacks = list(s1 = new_stack(c("a", "b"), name = "my stack"))
+  )
+
+  res <- str_value(board)
+  lines <- strsplit(res, "\n")[[1L]]
+
+  expect_length(res, 1L)
+  expect_identical(lines[1L], "<board>")
+  expect_true("<blocks[2]>" %in% lines)
+  expect_true("  a: <dataset_block> dataset*, package" %in% lines)
+  expect_true("<links[0]>" %in% lines)
+  expect_true("<stacks[1]>" %in% lines)
+  expect_true("  s1: <stack> \"my stack\": a, b" %in% lines)
+  expect_true(any(startsWith(lines, "<board_options[")))
+
+  expect_identical(capture.output(str(board))[1L], " <board>")
+})

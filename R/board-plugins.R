@@ -191,6 +191,16 @@ print.plugin <- function(x, ...) {
   invisible(x)
 }
 
+#' @export
+str_value.plugin <- function(x, ...) {
+  format(x, ...)
+}
+
+#' @export
+str.plugin <- function(object, ...) {
+  cat_str_value(object, ...)
+}
+
 harmonize_list_of_plugins <- function(x) {
   if (is_plugin(x)) {
     list(x)
@@ -446,6 +456,16 @@ format.plugins <- function(x, ...) {
 print.plugins <- function(x, ...) {
   cat(format(x, ...), sep = "\n")
   invisible(x)
+}
+
+#' @export
+str_value.plugins <- function(x, ...) {
+  str_value_collection(x, chr_ply(x, str_value))
+}
+
+#' @export
+str.plugins <- function(object, ...) {
+  cat_str_value(object, ...)
 }
 
 #' @export

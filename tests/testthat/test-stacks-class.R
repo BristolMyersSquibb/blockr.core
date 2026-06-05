@@ -107,3 +107,17 @@ test_that("stacks class", {
 
   expect_identical(orig, modi)
 })
+
+test_that("a stacks container has a compact str_value()", {
+
+  stk <- stacks(s1 = new_stack(c("a", "b"), name = "my stack"))
+
+  expect_identical(
+    str_value(stk),
+    "<stacks[1]>\n  s1: <stack> \"my stack\": a, b"
+  )
+
+  expect_identical(str_value(stacks()), "<stacks[0]>")
+
+  expect_identical(capture.output(str(stk))[1L], " <stacks[1]>")
+})

@@ -1,5 +1,13 @@
 # blockr.core 0.1.3
 
+* `str_value()` now covers every domain class that has a full-tier
+  `format()` / `print()` counterpart, completing the compact rendering
+  tier: the scalars `link`, `board_option`, `llm_model_option` and
+  `plugin`; the containers `blocks`, `stacks`, `links`, `board_options`
+  and `plugins`; and the whole `board`. Each class also gains a
+  `utils::str()` method that thinly displays its `str_value()`; a
+  container or board renders one element per line below a `<class[n]>`
+  header (#212).
 * New exported generic `external_ctrl_vars()` (with a `block` method) and
   predicate `has_external_ctrl()` provide a public, polymorphic API for
   resolving a board component's `external_ctrl` declaration into the set of

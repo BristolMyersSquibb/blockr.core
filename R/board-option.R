@@ -224,6 +224,16 @@ print.board_option <- function(x, ...) {
 }
 
 #' @export
+str_value.board_option <- function(x, ...) {
+  format(x, ...)
+}
+
+#' @export
+str.board_option <- function(object, ...) {
+  cat_str_value(object, ...)
+}
+
+#' @export
 c.board_option <- function(...) {
   as_board_options(list_to_list_of_opts(list(...)))
 }
@@ -741,6 +751,11 @@ format.llm_model_option <- function(x, session = get_session(), ...) {
   nm <- coal(attr(vl, "chat_name"), "Default chat function")
 
   paste0(id, ": ", nm, opts)
+}
+
+#' @export
+str_value.llm_model_option <- function(x, ...) {
+  format(x, ...)
 }
 
 #' @export

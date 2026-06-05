@@ -116,3 +116,50 @@ test_that("blocks utils", {
     class = "blocks_names_invalid"
   )
 })
+
+test_that("a blocks container has a compact str_value()", {
+
+  brd <- new_board(blocks = c(a = new_dataset_block(), b = new_subset_block()))
+
+  expect_identical(
+    str_value(board_blocks(brd)),
+    paste(
+      "<blocks[2]>",
+      "  a: <dataset_block> dataset*, package",
+      "  b: <subset_block> subset*, select*",
+      sep = "\n"
+    )
+  )
+
+  expect_identical(str_value(board_blocks(new_board())), "<blocks[0]>")
+
+  out <- capture.output(res <- withVisible(str(board_blocks(brd))))
+
+  expect_identical(
+    out,
+    c(
+      " <blocks[2]>",
+      "  a: <dataset_block> dataset*, package",
+      "  b: <subset_block> subset*, select*"
+    )
+  )
+  expect_false(res$visible)
+  expect_identical(res$value, board_blocks(brd))
+})
+
+test_that("str_value() of a blocks container is extensible via NextMethod()", {
+
+  registerS3method(
+    "str_value", "test_sub_blocks",
+    function(x, ...) paste0(NextMethod(), "\n[extra]"),
+    envir = asNamespace("blockr.core")
+  )
+
+  blk <- board_blocks(new_board(blocks = c(a = new_dataset_block())))
+  class(blk) <- c("test_sub_blocks", class(blk))
+
+  expect_identical(
+    str_value(blk),
+    "<test_sub_blocks[1]>\n  a: <dataset_block> dataset*, package\n[extra]"
+  )
+})

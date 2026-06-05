@@ -142,3 +142,20 @@ test_that("opt ser/deser", {
     }
   )
 })
+
+test_that("a board options container has a compact str_value()", {
+
+  opts <- as_board_options(new_board())
+
+  res <- str_value(opts)
+  lines <- strsplit(res, "\n")[[1L]]
+
+  expect_length(res, 1L)
+  expect_identical(lines[1L], "<board_options[4]>")
+  expect_length(lines, 5L)
+  expect_true(any(startsWith(lines[-1L], "  board_name: ")))
+
+  expect_identical(str_value(new_board_options()), "<board_options[0]>")
+
+  expect_identical(capture.output(str(opts))[1L], " <board_options[4]>")
+})

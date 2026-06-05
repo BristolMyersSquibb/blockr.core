@@ -239,3 +239,23 @@ test_that("llm model opt", {
     class = "board_options_llm_model_invalid"
   )
 })
+
+test_that("a board option has a compact str_value()", {
+
+  opt <- new_board_name_option("My board")
+
+  expect_identical(str_value(opt), "board_name: My board")
+  expect_identical(str_value(opt), format(opt))
+
+  expect_identical(capture.output(str(opt)), " board_name: My board")
+
+  chat_fun <- function(system_prompt = NULL, params = NULL) NULL
+
+  llm <- withr::with_options(
+    list(blockr.chat_function = chat_fun),
+    new_llm_model_option()
+  )
+
+  expect_identical(str_value(llm), "llm_model: Default chat function")
+  expect_identical(str_value(llm), format(llm))
+})
