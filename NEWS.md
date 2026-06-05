@@ -1,5 +1,17 @@
 # blockr.core 0.1.3
 
+* The `preserve_board` plugin gains a request-phase `loader`: a function
+  of a single request that core calls when building the board UI (at the
+  GET) and server (at the WS connect) to resolve the board to serve,
+  falling back to the `serve()` default when the loader is absent or
+  returns `NULL`. This replaces the process-global slot core used to
+  stage a board across a `session$reload()`: `serve()` no longer owns any
+  reload state, the exported `get_serve_obj()`, the `board_refresh`
+  reload producer and `rv$reload_meta` are gone, and the handoff moves
+  behind the plugin's own loader/server. The default save/restore keeps
+  working — an uploaded board is staged for the loader and the plugin's
+  server fires its own reload. `new_plugin()` and `preserve_board()` take
+  a `loader` argument accordingly (#214).
 * `str_value()` now covers every domain class that has a full-tier
   `format()` / `print()` counterpart, completing the compact rendering
   tier: the scalars `link`, `board_option`, `llm_model_option` and

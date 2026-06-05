@@ -7,6 +7,7 @@
 \alias{as_plugin}
 \alias{plugin_server}
 \alias{plugin_ui}
+\alias{plugin_loader}
 \alias{plugin_validator}
 \alias{plugin_id}
 \alias{board_plugins}
@@ -16,7 +17,13 @@
 \alias{validate_plugins}
 \title{Board plugin}
 \usage{
-new_plugin(server, ui = NULL, validator = abort_not_null, class = character())
+new_plugin(
+  server,
+  ui = NULL,
+  validator = abort_not_null,
+  class = character(),
+  loader = NULL
+)
 
 is_plugin(x)
 
@@ -27,6 +34,8 @@ as_plugin(x)
 plugin_server(x)
 
 plugin_ui(x)
+
+plugin_loader(x)
 
 plugin_validator(x)
 
@@ -48,6 +57,11 @@ validate_plugins(x)
 \item{validator}{Validator function that validates server return values}
 
 \item{class}{Plugin subclass}
+
+\item{loader}{Optional request-phase board loader (a function of a single
+request argument returning a \code{board} or \code{NULL}). Only meaningful for the
+\code{preserve_board} plugin, where it resolves the board to build for an
+incoming request (see \code{\link[=preserve_board]{preserve_board()}}).}
 
 \item{x}{Plugin object}
 
