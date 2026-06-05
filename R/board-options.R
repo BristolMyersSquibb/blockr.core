@@ -343,6 +343,16 @@ print.board_options <- function(x, ...) {
 }
 
 #' @export
+str_value.board_options <- function(x, ...) {
+  str_value_collection(x, chr_ply(x, str_value), ids = NULL)
+}
+
+#' @export
+str.board_options <- function(object, ...) {
+  cat_str_value(object, ...)
+}
+
+#' @export
 c.board_options <- function(...) {
   as_board_options(list_to_list_of_opts(list(...)))
 }

@@ -182,3 +182,25 @@ test_that("check default validator", {
     class = "expect_not_null"
   )
 })
+
+test_that("plugins have a compact str_value()", {
+
+  expect_identical(str_value(preserve_board()), "<preserve_board<plugin>>")
+  expect_identical(str_value(preserve_board()), format(preserve_board()))
+
+  pls <- plugins(preserve_board(), manage_blocks())
+
+  expect_identical(
+    str_value(pls),
+    paste(
+      "<plugins[2]>",
+      "  preserve_board: <preserve_board<plugin>>",
+      "  manage_blocks: <manage_blocks<plugin>>",
+      sep = "\n"
+    )
+  )
+
+  expect_identical(str_value(plugins()), "<plugins[0]>")
+
+  expect_identical(capture.output(str(pls))[1L], " <plugins[2]>")
+})

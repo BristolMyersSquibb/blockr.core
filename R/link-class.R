@@ -257,6 +257,16 @@ print.link <- function(x, ...) {
 }
 
 #' @export
+str_value.link <- function(x, ...) {
+  paste(format(x, ...), collapse = " ")
+}
+
+#' @export
+str.link <- function(object, ...) {
+  cat_str_value(object, ...)
+}
+
+#' @export
 c.link <- function(...) {
   as_links(list_to_list_of_links(list(...)))
 }

@@ -47,3 +47,18 @@ test_that("link class", {
   expect_s3_class(c(lnk, lst), "links")
   expect_s3_class(c(lnk, chr), "links")
 })
+
+test_that("a link has a compact str_value()", {
+
+  expect_identical(
+    str_value(new_link(from = "a", to = "b", input = "x")),
+    "<link> a -> b (x)"
+  )
+  expect_identical(str_value(new_link(from = "a", to = "b")), "<link> a -> b")
+  expect_identical(str_value(new_link()), "<link> ? -> ?")
+
+  expect_identical(
+    capture.output(str(new_link(from = "a", to = "b"))),
+    " <link> a -> b"
+  )
+})

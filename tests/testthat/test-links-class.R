@@ -146,3 +146,22 @@ test_that("links class", {
     class = "links_acyclic_invalid"
   )
 })
+
+test_that("a links container has a compact str_value()", {
+
+  lks <- as_links(
+    list(
+      l1 = new_link(from = "a", to = "b"),
+      l2 = new_link(from = "c", to = "d", input = "z")
+    )
+  )
+
+  expect_identical(
+    str_value(lks),
+    "<links[2]>\n  l1: <link> a -> b\n  l2: <link> c -> d (z)"
+  )
+
+  expect_identical(str_value(links()), "<links[0]>")
+
+  expect_identical(capture.output(str(lks))[1L], " <links[2]>")
+})

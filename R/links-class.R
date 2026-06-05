@@ -127,6 +127,16 @@ format.links <- function(x, ...) {
 }
 
 #' @export
+str_value.links <- function(x, ...) {
+  str_value_collection(x, chr_ply(as.list(x), str_value))
+}
+
+#' @export
+str.links <- function(object, ...) {
+  cat_str_value(object, ...)
+}
+
+#' @export
 vec_restore.links <- function(x, to, ...) {
   validate_links(NextMethod())
 }

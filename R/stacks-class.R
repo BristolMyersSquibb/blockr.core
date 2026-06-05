@@ -123,6 +123,16 @@ print.stacks <- function(x, ...) {
   invisible(x)
 }
 
+#' @export
+str_value.stacks <- function(x, ...) {
+  str_value_collection(x, chr_ply(x, str_value))
+}
+
+#' @export
+str.stacks <- function(object, ...) {
+  cat_str_value(object, ...)
+}
+
 #' @rdname new_stack
 #' @export
 as_stacks <- function(x, ...) {

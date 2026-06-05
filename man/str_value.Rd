@@ -3,7 +3,7 @@
 \name{str_value}
 \alias{str_value}
 \alias{str_value.default}
-\title{Compact one-line rendering}
+\title{Compact rendering}
 \usage{
 str_value(x, ...)
 
@@ -15,24 +15,26 @@ str_value(x, ...)
 \item{...}{Generic consistency.}
 }
 \value{
-\code{str_value()} returns a length-one character vector. The
-\code{\link[utils:str]{utils::str()}} methods are called for their side effect (one line on the
-console) and return their \code{object} invisibly.
+\code{str_value()} returns a length-one character vector (multi-line for
+containers). The \code{\link[utils:str]{utils::str()}} methods are called for their side effect
+(display) and return their \code{object} invisibly.
 }
 \description{
-\code{str_value()} returns a compact, one-line string describing an object. It
-is the value-returning half of the compact rendering tier: where
-\code{\link[utils:str]{utils::str()}} only displays (it \code{cat()}s and returns \code{NULL}),
-\code{str_value()} returns the string, mirroring how \code{\link[=format]{format()}} returns what
-\code{\link[=print]{print()}} displays in the full, multi-line tier. The \code{\link[utils:str]{utils::str()}}
-methods for blocks and stacks are thin wrappers that display
-\code{str_value()}.
+\code{str_value()} returns a compact string describing an object. It is the
+value-returning half of the compact rendering tier: where \code{\link[utils:str]{utils::str()}}
+only displays (it \code{cat()}s and returns \code{NULL}), \code{str_value()} returns the
+string, mirroring how \code{\link[=format]{format()}} returns what \code{\link[=print]{print()}} displays in the
+full, multi-line tier. The \code{\link[utils:str]{utils::str()}} methods are thin wrappers that
+display \code{str_value()}.
 }
 \details{
-The \code{block} method lists a block's constructor inputs, marking the
-externally controllable ones (those reported by \code{\link[=external_ctrl_vars]{external_ctrl_vars()}})
-with a trailing \code{*}; the \code{stack} method shows the stack name and its
-member block ids.
+A scalar object (a \code{block}, \code{stack}, \code{link}, \code{board_option} or \code{plugin})
+renders as a single line; a container (\code{blocks}, \code{stacks}, \code{links},
+\code{board_options}, \code{plugins}) and a whole \code{board} render as one element per
+line below a \verb{<class[n]>} header. The \code{block} method lists a block's
+constructor inputs, marking the externally controllable ones (those
+reported by \code{\link[=external_ctrl_vars]{external_ctrl_vars()}}) with a trailing \code{*}; the \code{stack}
+method shows the stack name and its member block ids.
 
 This is the blockr extension point for token-dense renderings such as a
 board summary. A home package surfaces a subclass's state by defining a
@@ -44,5 +46,8 @@ board summary. A home package surfaces a subclass's state by defining a
 str_value(new_dataset_block())
 
 str_value(new_stack(c("plot", "data"), name = "My stack"))
+
+board <- new_board(c(a = new_dataset_block()))
+str(board)
 
 }

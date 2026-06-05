@@ -115,6 +115,16 @@ print.blocks <- function(x, ...) {
 }
 
 #' @export
+str_value.blocks <- function(x, ...) {
+  str_value_collection(x, chr_ply(x, str_value))
+}
+
+#' @export
+str.blocks <- function(object, ...) {
+  cat_str_value(object, ...)
+}
+
+#' @export
 vec_restore.blocks <- function(x, to, ...) {
   validate_blocks(NextMethod())
 }

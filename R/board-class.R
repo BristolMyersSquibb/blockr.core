@@ -632,6 +632,23 @@ print.board <- function(x, ...) {
   invisible(x)
 }
 
+#' @export
+str_value.board <- function(x, ...) {
+  paste(
+    paste0("<", class(x)[1L], ">"),
+    str_value(board_blocks(x)),
+    str_value(board_links(x)),
+    str_value(board_stacks(x)),
+    str_value(as_board_options(x)),
+    sep = "\n"
+  )
+}
+
+#' @export
+str.board <- function(object, ...) {
+  cat_str_value(object, ...)
+}
+
 #' @rdname board_blocks
 #' @export
 clear_board <- function(x) {
