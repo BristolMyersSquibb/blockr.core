@@ -207,10 +207,23 @@ serve_board_ui <- function(id, plugins, options, ...) {
   function(req) {
 
     if (!is_reloading("reload")) {
+
       preload <- get0("preload_fn", envir = serve_obj, inherits = FALSE)
-      if (!is.null(preload)) {
+
+      if (not_null(preload)) {
+
         query <- parseQueryString(coal(req$QUERY_STRING, ""))
-        result <- tryCatch(preload(query, req), error = function(e) NULL)
+
+        result <- validate_preload_result(
+          tryCatch(
+            preload(query, req),
+            error = function(e) {
+              log_warn("board preload failed: {conditionMessage(e)}")
+              NULL
+            }
+          )
+        )
+
         if (not_null(result)) {
           update_serve_obj("reload", result$board, meta = result$meta)
         }
@@ -253,9 +266,6 @@ serve_board_srv <- function(id, plugins, options, ...) {
 
 serve_obj <- new.env()
 
-#' @param meta Optional metadata to store alongside the board.
-#' @rdname serve
-#' @export
 update_serve_obj <- function(id, x, meta = NULL) {
   assign(id, list(board = x, meta = meta), envir = serve_obj)
   invisible(x)
@@ -277,6 +287,30 @@ finalize_reload <- function(id = "reload") {
   invisible(obj$meta)
 }
 
+validate_preload_result <- function(x) {
+
+  if (is.null(x)) {
+    return(NULL)
+  }
+
+  if (!is.list(x) || !is_board(x$board)) {
+    blockr_abort(
+      "A board preload callback must return `NULL` or a list with a ",
+      "`board` (a board object) and optional `meta`.",
+      class = "invalid_board_preload"
+    )
+  }
+
+  if (not_null(x$meta) && !is.list(x$meta)) {
+    blockr_abort(
+      "`meta` from a board preload callback must be `NULL` or a list.",
+      class = "invalid_board_preload"
+    )
+  }
+
+  list(board = x$board, meta = x$meta)
+}
+
 #' @param preload A function with signature `function(query, req)` that
 #'   receives parsed URL query parameters and the HTTP request object. It
 #'   should return `NULL` or a list with `board` and `meta` components. When
@@ -290,6 +324,13 @@ register_board_preload <- function(preload) {
   stopifnot(is.function(preload) || is.null(preload))
 
   old <- get0("preload_fn", envir = serve_obj, inherits = FALSE)
+
+  if (not_null(old) && not_null(preload)) {
+    blockr_warn(
+      "Replacing an existing board preload callback.",
+      class = "board_preload_replaced"
+    )
+  }
 
   assign("preload_fn", preload, envir = serve_obj)
 

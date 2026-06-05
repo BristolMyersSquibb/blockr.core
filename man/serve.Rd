@@ -10,7 +10,6 @@
 \alias{custom_options}
 \alias{blockr_app_ui}
 \alias{blockr_app_server}
-\alias{update_serve_obj}
 \alias{register_board_preload}
 \alias{get_serve_obj}
 \alias{blockr_test_exports}
@@ -40,8 +39,6 @@ blockr_app_ui(id, x, ...)
 
 blockr_app_server(id, x, ...)
 
-update_serve_obj(id, x, meta = NULL)
-
 register_board_preload(preload)
 
 get_serve_obj(id = NULL)
@@ -60,8 +57,6 @@ blockr_test_exports(x, rv, ...)
 \item{plugins}{Board plugins}
 
 \item{options}{Board options}
-
-\item{meta}{Optional metadata to store alongside the board.}
 
 \item{preload}{A function with signature \verb{function(query, req)} that
 receives parsed URL query parameters and the HTTP request object. It
