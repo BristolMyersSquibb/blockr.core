@@ -199,3 +199,49 @@ test_that("the gate_visibility option disables gating", {
     )
   )
 })
+
+test_that("a link change re-routes the pulled upstream", {
+
+  reset_probes()
+
+  board <- new_board(
+    blocks = c(
+      a = with_id(probe_source(), "a"),
+      c = with_id(probe_source(), "c"),
+      b = with_id(probe_passthrough(), "b")
+    ),
+    links = links(ab = new_link("a", "b", "data"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_true(evaluated("a"))
+      expect_true(evaluated("b"))
+      expect_false(evaluated("c"))
+
+      reset_probes()
+
+      board_update(
+        list(
+          links = list(rm = "ab", add = links(cb = new_link("c", "b", "data")))
+        )
+      )
+      session$flushReact()
+
+      expect_true(evaluated("c"))
+      expect_true(evaluated("b"))
+      expect_false(evaluated("a"))
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visible, ...) {
+        visible("b")
+        NULL
+      }
+    )
+  )
+})
