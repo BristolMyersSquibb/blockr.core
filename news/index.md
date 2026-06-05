@@ -2,6 +2,19 @@
 
 ## blockr.core 0.1.3
 
+- [`str_value()`](https://bristolmyerssquibb.github.io/blockr.core/reference/str_value.md)
+  now covers every domain class that has a full-tier
+  [`format()`](https://rdrr.io/r/base/format.html) /
+  [`print()`](https://rdrr.io/r/base/print.html) counterpart, completing
+  the compact rendering tier: the scalars `link`, `board_option`,
+  `llm_model_option` and `plugin`; the containers `blocks`, `stacks`,
+  `links`, `board_options` and `plugins`; and the whole `board`. Each
+  class also gains a [`utils::str()`](https://rdrr.io/r/utils/str.html)
+  method that thinly displays its
+  [`str_value()`](https://bristolmyerssquibb.github.io/blockr.core/reference/str_value.md);
+  a container or board renders one element per line below a `<class[n]>`
+  header
+  ([\#212](https://github.com/BristolMyersSquibb/blockr.core/issues/212)).
 - New exported generic
   [`external_ctrl_vars()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md)
   (with a `block` method) and predicate

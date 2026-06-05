@@ -1,15 +1,14 @@
-# Compact one-line rendering
+# Compact rendering
 
-`str_value()` returns a compact, one-line string describing an object.
-It is the value-returning half of the compact rendering tier: where
+`str_value()` returns a compact string describing an object. It is the
+value-returning half of the compact rendering tier: where
 [`utils::str()`](https://rdrr.io/r/utils/str.html) only displays (it
 [`cat()`](https://rdrr.io/r/base/cat.html)s and returns `NULL`),
 `str_value()` returns the string, mirroring how
 [`format()`](https://rdrr.io/r/base/format.html) returns what
 [`print()`](https://rdrr.io/r/base/print.html) displays in the full,
 multi-line tier. The [`utils::str()`](https://rdrr.io/r/utils/str.html)
-methods for blocks and stacks are thin wrappers that display
-`str_value()`.
+methods are thin wrappers that display `str_value()`.
 
 ## Usage
 
@@ -32,15 +31,19 @@ str_value(x, ...)
 
 ## Value
 
-`str_value()` returns a length-one character vector. The
-[`utils::str()`](https://rdrr.io/r/utils/str.html) methods are called
-for their side effect (one line on the console) and return their
+`str_value()` returns a length-one character vector (multi-line for
+containers). The [`utils::str()`](https://rdrr.io/r/utils/str.html)
+methods are called for their side effect (display) and return their
 `object` invisibly.
 
 ## Details
 
-The `block` method lists a block's constructor inputs, marking the
-externally controllable ones (those reported by
+A scalar object (a `block`, `stack`, `link`, `board_option` or `plugin`)
+renders as a single line; a container (`blocks`, `stacks`, `links`,
+`board_options`, `plugins`) and a whole `board` render as one element
+per line below a `<class[n]>` header. The `block` method lists a block's
+constructor inputs, marking the externally controllable ones (those
+reported by
 [`external_ctrl_vars()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md))
 with a trailing `*`; the `stack` method shows the stack name and its
 member block ids.
@@ -62,4 +65,17 @@ str_value(new_dataset_block())
 
 str_value(new_stack(c("plot", "data"), name = "My stack"))
 #> [1] "<stack> \"My stack\": plot, data"
+
+board <- new_board(c(a = new_dataset_block()))
+str(board)
+#>  <board>
+#> <blocks[1]>
+#>   a: <dataset_block> dataset*, package
+#> <links[0]>
+#> <stacks[0]>
+#> <board_options[4]>
+#>   board_name: NULL
+#>   show_conditions: warning, error
+#>   thematic: NULL
+#>   dark_mode: NULL
 ```

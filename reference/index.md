@@ -321,7 +321,7 @@ Various tools and utilities.
 - [`export_code()`](https://bristolmyerssquibb.github.io/blockr.core/reference/export_code.md)
   : Utilities for code export
 - [`str_value()`](https://bristolmyerssquibb.github.io/blockr.core/reference/str_value.md)
-  : Compact one-line rendering
+  : Compact rendering
 - [`chr_ply()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
   [`lgl_ply()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
   [`int_ply()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
