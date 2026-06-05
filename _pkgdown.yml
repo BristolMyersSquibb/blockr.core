@@ -92,6 +92,7 @@ reference:
   - blockr_option
   - serve
   - export_code
+  - str_value
   - chr_ply
   - set_names
   - is_scalar

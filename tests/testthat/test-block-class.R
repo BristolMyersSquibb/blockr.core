@@ -146,6 +146,31 @@ test_that("block class", {
   expect_snapshot(print(x))
 })
 
+test_that("blocks report controllability in str_value()", {
+
+  expect_identical(
+    str_value(new_scatter_block(x = "wt", y = "mpg")),
+    "<scatter_block> x, y"
+  )
+  expect_identical(
+    str_value(new_subset_block()),
+    "<subset_block> subset*, select*"
+  )
+  expect_identical(
+    str_value(new_dataset_block()),
+    "<dataset_block> dataset*, package"
+  )
+  expect_identical(str_value(new_rbind_block()), "<rbind_block>")
+  expect_identical(str_value(structure(list(), class = "made_up")), "<made_up>")
+
+  blk <- new_dataset_block()
+  out <- capture.output(res <- withVisible(str(blk)))
+
+  expect_identical(out, " <dataset_block> dataset*, package")
+  expect_false(res$visible)
+  expect_identical(res$value, blk)
+})
+
 test_that("block utils", {
 
   blk <- new_dataset_block()

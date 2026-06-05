@@ -99,6 +99,7 @@ Collate:
     'stack-class.R'
     'stack-ui.R'
     'stacks-class.R'
+    'str-value.R'
     'text-block.R'
     'text-glue.R'
     'transform-block.R'

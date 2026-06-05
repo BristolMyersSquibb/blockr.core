@@ -2,14 +2,13 @@
 % Please edit documentation in R/stack-class.R, R/stacks-class.R
 \name{new_stack}
 \alias{new_stack}
-\alias{update_stack}
-\alias{update_stack.stack}
 \alias{default_stack_name}
 \alias{is_stack}
 \alias{stack_blocks}
 \alias{stack_blocks<-}
 \alias{stack_name}
 \alias{stack_name<-}
+\alias{update_stack}
 \alias{validate_stack}
 \alias{as_stack}
 \alias{stacks}
@@ -26,10 +25,6 @@ new_stack(
   class = character()
 )
 
-update_stack(x, delta)
-
-\method{update_stack}{stack}(x, delta)
-
 default_stack_name()
 
 is_stack(x)
@@ -41,6 +36,8 @@ stack_blocks(x) <- value
 stack_name(x, name)
 
 stack_name(x) <- value
+
+update_stack(x, delta)
 
 validate_stack(x)
 
@@ -65,10 +62,10 @@ as_stacks(x, ...)
 
 \item{x}{Stack object}
 
+\item{value}{Replacement value}
+
 \item{delta}{A named list of constructor argument values to apply on
 top of \code{x}'s current fields.}
-
-\item{value}{Replacement value}
 }
 \value{
 Construction and coercion via \code{new_stack()}/\code{as_stack()} and
@@ -113,6 +110,7 @@ deviates from this convention. The reserved delta key \code{blocks}
 replaces the member block IDs; every other key updates the named
 attribute.
 }
+
 \examples{
 stk <- new_stack(letters[1:5], "Alphabet 1")
 

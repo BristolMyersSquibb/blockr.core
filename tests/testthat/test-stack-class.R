@@ -88,3 +88,36 @@ test_that("stack class", {
   expect_true(is_stacks(stks))
   expect_length(stks, 2)
 })
+
+test_that("stacks have a compact str_value()", {
+
+  stk <- new_stack(c("a", "b"), name = "my stack")
+
+  expect_identical(str_value(stk), "<stack> \"my stack\": a, b")
+  expect_identical(str_value(new_stack(name = "empty")), "<stack> \"empty\"")
+
+  out <- capture.output(res <- withVisible(str(stk)))
+
+  expect_identical(out, " <stack> \"my stack\": a, b")
+  expect_false(res$visible)
+  expect_identical(res$value, stk)
+})
+
+test_that("str_value() is extensible via NextMethod()", {
+
+  registerS3method(
+    "str_value", "test_substack",
+    function(x, ...) paste0(NextMethod(), " [extra]"),
+    envir = asNamespace("blockr.core")
+  )
+
+  sub <- new_stack(c("a", "b"), name = "S")
+  class(sub) <- c("test_substack", class(sub))
+
+  expect_identical(str_value(sub), "<test_substack> \"S\": a, b [extra]")
+
+  expect_identical(
+    capture.output(str(sub)),
+    " <test_substack> \"S\": a, b [extra]"
+  )
+})
