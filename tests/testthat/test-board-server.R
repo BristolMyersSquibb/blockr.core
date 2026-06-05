@@ -528,8 +528,7 @@ test_that("destroy_link drops an unlinked variadic ...args entry (#227)", {
     {
       rv <- reactiveValues(
         board = new_board(blocks(v = new_rbind_block())),
-        inputs = list(v = list(`...args` = reactiveValues(a = 1, b = 2))),
-        links = list(l1 = observe(NULL))
+        inputs = list(v = list(`...args` = reactiveValues(a = 1, b = 2)))
       )
 
       args <- isolate(rv$inputs$v[["...args"]])
@@ -539,7 +538,6 @@ test_that("destroy_link drops an unlinked variadic ...args entry (#227)", {
 
       expect_false("a" %in% isolate(names(args)))
       expect_setequal(isolate(names(args)), "b")
-      expect_null(isolate(rv$links$l1))
     }
   )
 })
