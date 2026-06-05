@@ -1,5 +1,12 @@
 # blockr.core 0.1.3
 
+* The board reload handoff (the `session$reload()` board restore) is keyed per
+  reload rather than via a single process-global slot: the board is staged
+  under a one-time token that rides across the reload in the URL and is
+  resolved per request. Under one shared process (e.g. Posit Connect) a session
+  no longer renders or strands a board staged for another — the root cause of
+  the cross-session board contamination and the associated reload loop. Stale
+  handoff slots are evicted on a TTL (#208).
 * New exported generic `external_ctrl_vars()` (with a `block` method) and
   predicate `has_external_ctrl()` provide a public, polymorphic API for
   resolving a board component's `external_ctrl` declaration into the set of

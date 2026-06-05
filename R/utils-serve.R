@@ -206,13 +206,14 @@ serve_board_ui <- function(id, plugins, options, ...) {
 
   function(req) {
 
-    if (!is_reloading("reload")) {
+    query <- parseQueryString(coal(req$QUERY_STRING, ""))
+    key <- staged_board_key(query)
+
+    if (!is_reloading(key)) {
 
       preload <- get0("preload_fn", envir = serve_obj, inherits = FALSE)
 
       if (not_null(preload)) {
-
-        query <- parseQueryString(coal(req$QUERY_STRING, ""))
 
         result <- validate_preload_result(
           tryCatch(
@@ -225,12 +226,12 @@ serve_board_ui <- function(id, plugins, options, ...) {
         )
 
         if (not_null(result)) {
-          update_serve_obj("reload", result$board, meta = result$meta)
+          update_serve_obj(key, result$board, meta = result$meta)
         }
       }
     }
 
-    x <- get_serve_obj("reload")
+    x <- get_serve_obj(key)
     id <- coal(attr(x, "id"), id)
 
     log_debug("building ui for board {id}")
@@ -250,13 +251,28 @@ serve_board_srv <- function(id, plugins, options, ...) {
 
     onStop(revert(trace_observe()), session)
 
-    x <- get_serve_obj("reload")
+    query <- session_url_query(session)
+    x <- get_serve_obj(staged_board_key(query))
     id <- coal(attr(x, "id"), id)
 
     res <- do.call(
       blockr_app_server,
       c(list(id, x, plugins = plugins(x), options = options(x)), args)
     )
+
+    # `board_server()` consumes the staged slot synchronously above (its
+    # `finalize_reload()` runs during the call). Strip the one-time handoff
+    # token from the address bar only afterwards, so the consume provably
+    # reads the live token rather than racing the (asynchronous, client-side)
+    # `updateQueryString()`.
+    if (not_null(reload_token(query))) {
+      query[[reload_query_param]] <- NULL
+      updateQueryString(
+        query_to_string(query),
+        mode = "replace",
+        session = session
+      )
+    }
 
     blockr_test_exports(x, res)
 
@@ -266,16 +282,28 @@ serve_board_srv <- function(id, plugins, options, ...) {
 
 serve_obj <- new.env()
 
+reload_query_param <- "__blockr_reload__"
+
+reload_handoff_ttl <- 600
+
 update_serve_obj <- function(id, x, meta = NULL) {
-  assign(id, list(board = x, meta = meta), envir = serve_obj)
+
+  assign(
+    id,
+    list(board = x, meta = meta, stamp = Sys.time()),
+    envir = serve_obj
+  )
+
+  sweep_serve_obj()
+
   invisible(x)
 }
 
-is_reloading <- function(id = "reload") {
+is_reloading <- function(id) {
   exists(id, envir = serve_obj, inherits = FALSE)
 }
 
-finalize_reload <- function(id = "reload") {
+finalize_reload <- function(id) {
 
   obj <- get0(id, envir = serve_obj, inherits = FALSE)
 
@@ -285,6 +313,111 @@ finalize_reload <- function(id = "reload") {
 
   rm(list = id, envir = serve_obj, inherits = FALSE)
   invisible(obj$meta)
+}
+
+# Per-load staging slots (`reload-<token>` handoffs and `preload-<query>`
+# request-phase boards) accumulate in the process-global `serve_obj` whenever a
+# session never returns to consume them (cross-process reloads, double
+# restores, tabs closed mid-reload). Evict ones older than the TTL whenever a
+# new slot is staged.
+sweep_serve_obj <- function(ttl = reload_handoff_ttl, now = Sys.time()) {
+
+  for (key in grep("^(reload|preload)-", ls(serve_obj), value = TRUE)) {
+
+    obj <- get0(key, envir = serve_obj, inherits = FALSE)
+
+    expired <- is.list(obj) && not_null(obj$stamp) &&
+      difftime(now, obj$stamp, units = "secs") > ttl
+
+    if (expired) {
+      rm(list = key, envir = serve_obj, inherits = FALSE)
+    }
+  }
+
+  invisible()
+}
+
+reload_token <- function(query) {
+  tok <- query[[reload_query_param]]
+  if (is_string(tok) && nzchar(tok)) tok else NULL
+}
+
+preload_key <- function(query) {
+
+  rest <- query[setdiff(names(query), reload_query_param)]
+
+  if (!length(rest)) {
+    return("preload-")
+  }
+
+  rest <- rest[order(names(rest))]
+
+  paste0(
+    "preload-",
+    paste(names(rest), unlist(rest), sep = "=", collapse = "&")
+  )
+}
+
+staged_board_key <- function(query) {
+
+  tok <- reload_token(query)
+
+  if (not_null(tok)) {
+    key <- paste0("reload-", tok)
+    if (is_reloading(key)) {
+      return(key)
+    }
+  }
+
+  preload_key(query)
+}
+
+session_url_query <- function(session = get_session()) {
+
+  if (is.null(session)) {
+    return(list())
+  }
+
+  parseQueryString(coal(isolate(session$clientData$url_search), ""))
+}
+
+query_to_string <- function(query) {
+
+  if (!length(query)) {
+    return("?")
+  }
+
+  nms <- chr_ply(names(query), utils::URLencode, reserved = TRUE)
+
+  vals <- chr_ply(
+    unlist(query, use.names = FALSE),
+    utils::URLencode,
+    reserved = TRUE
+  )
+
+  paste0("?", paste(nms, vals, sep = "=", collapse = "&"))
+}
+
+stage_reload_handoff <- function(board, meta, session) {
+
+  token <- rand_names()
+
+  update_serve_obj(paste0("reload-", token), board, meta = meta)
+
+  query <- session_url_query(session)
+  query[[reload_query_param]] <- token
+
+  log_debug("staging board for reload handoff {token}")
+
+  updateQueryString(
+    query_to_string(query),
+    mode = "replace",
+    session = session
+  )
+
+  session$reload()
+
+  invisible(token)
 }
 
 validate_preload_result <- function(x) {
