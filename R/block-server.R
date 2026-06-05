@@ -453,21 +453,31 @@ output_render_observer <- function(x, res, cond, sess, suspended = FALSE) {
 
 visibility_gate_observer <- function(id, board, eval_obs, render_obs, sess) {
 
+  prev_eval <- NA
+  prev_render <- NA
+
   observe(
     {
-      vis <- board$visible
-      ev <- board$eval
+      do_eval <- isTRUE(board$eval) || id %in% board$eval
+      do_render <- isTRUE(board$visible) || id %in% board$visible
 
-      if (isTRUE(ev) || id %in% ev) {
-        eval_obs$resume()
-      } else {
-        eval_obs$suspend()
+      if (do_eval) eval_obs$resume() else eval_obs$suspend()
+      if (do_render) render_obs$resume() else render_obs$suspend()
+
+      if (!identical(do_eval, prev_eval)) {
+        prev_eval <<- do_eval
+        log_debug(
+          "block {id} evaluation ",
+          "{if (do_eval) 'resumed' else 'suspended'}"
+        )
       }
 
-      if (isTRUE(vis) || id %in% vis) {
-        render_obs$resume()
-      } else {
-        render_obs$suspend()
+      if (!identical(do_render, prev_render)) {
+        prev_render <<- do_render
+        log_debug(
+          "block {id} rendering ",
+          "{if (do_render) 'resumed' else 'suspended'}"
+        )
       }
     },
     domain = sess
