@@ -80,9 +80,8 @@ toolbar_ui(id, x, plugins = list(), options = NULL, ...)
 ## Value
 
 A `board_ui()` implementation is expected to return
-[shiny::tag](https://rstudio.github.io/htmltools/reference/builder.html)
-or
-[`shiny::tagList()`](https://rstudio.github.io/htmltools/reference/tagList.html)
+[shiny::tag](https://rdrr.io/pkg/shiny/man/reexports.html) or
+[`shiny::tagList()`](https://rdrr.io/pkg/shiny/man/reexports.html)
 objects, as does `toolbar_ui()`, while updater functions
 (`insert_block_ui()` and `remove_block_ui()`) are called for their side
 effects (which includes UI updates such as

@@ -25,11 +25,6 @@ new_stack(
   class = character()
 )
 
-update_stack(x, delta)
-
-# S3 method for class 'stack'
-update_stack(x, delta)
-
 default_stack_name()
 
 is_stack(x)
@@ -41,6 +36,8 @@ stack_blocks(x) <- value
 stack_name(x, name)
 
 stack_name(x) <- value
+
+update_stack(x, delta)
 
 validate_stack(x)
 
@@ -79,14 +76,14 @@ as_stacks(x, ...)
 
   Stack object
 
+- value:
+
+  Replacement value
+
 - delta:
 
   A named list of constructor argument values to apply on top of `x`'s
   current fields.
-
-- value:
-
-  Replacement value
 
 ## Value
 

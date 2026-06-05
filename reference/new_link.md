@@ -29,9 +29,6 @@ new_link(
 
 update_link(x, delta)
 
-# S3 method for class 'link'
-update_link(x, delta)
-
 is_link(x)
 
 as_link(x)

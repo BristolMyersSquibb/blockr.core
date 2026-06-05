@@ -67,13 +67,13 @@ Utilities for creating an working with links
 Utilities for creating an working with stacks
 
 - [`new_stack()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
-  [`update_stack()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
   [`default_stack_name()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
   [`is_stack()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
   [`stack_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
   [`` `stack_blocks<-`() ``](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
   [`stack_name()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
   [`` `stack_name<-`() ``](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
+  [`update_stack()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
   [`validate_stack()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
   [`as_stack()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
   [`stacks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_stack.md)
@@ -320,6 +320,8 @@ Various tools and utilities.
   : Serve object
 - [`export_code()`](https://bristolmyerssquibb.github.io/blockr.core/reference/export_code.md)
   : Utilities for code export
+- [`str_value()`](https://bristolmyerssquibb.github.io/blockr.core/reference/str_value.md)
+  : Compact one-line rendering
 - [`chr_ply()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
   [`lgl_ply()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
   [`int_ply()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
