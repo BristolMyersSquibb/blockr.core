@@ -93,6 +93,12 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
           } else {
             rv$visible <- vis
             rv$eval <- upstream_blocks(vis, rv$board)
+
+            log_debug(
+              "visibility update: {length(vis)}/",
+              "{length(board_block_ids(rv$board))} on screen, ",
+              "{length(rv$eval)} evaluating"
+            )
           }
         }
       )
