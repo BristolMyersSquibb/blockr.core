@@ -1,4 +1,4 @@
-test_that("ser/deser module", {
+test_that("serialize/restore module", {
 
   test_board <- new_board(
     blocks = c(
@@ -18,24 +18,28 @@ test_that("ser/deser module", {
     args = list(board = reactiveValues(board = test_board))
   )
 
+  withr::defer(clear_reload_handoff())
+
   testServer(
     preserve_board_server,
     {
       session$setInputs(restore = list(datapath = temp))
 
-      expect_s3_class(res(), class(test_board))
+      restored <- preserve_board_loader(NULL)
 
-      expect_length(board_blocks(res()), length(board_blocks(test_board)))
-      expect_length(board_links(res()), length(board_links(test_board)))
+      expect_s3_class(restored, class(test_board))
 
-      expect_setequal(board_block_ids(res()), board_block_ids(test_board))
-      expect_setequal(board_link_ids(res()), board_link_ids(test_board))
+      expect_length(board_blocks(restored), length(board_blocks(test_board)))
+      expect_length(board_links(restored), length(board_links(test_board)))
+
+      expect_setequal(board_block_ids(restored), board_block_ids(test_board))
+      expect_setequal(board_link_ids(restored), board_link_ids(test_board))
     },
     args = list(board = reactiveValues(board = new_board()))
   )
 })
 
-test_that("ser/deser board", {
+test_that("restore through board server stages the reload handoff", {
 
   test_board <- new_board(
     blocks = c(
@@ -64,13 +68,15 @@ test_that("ser/deser board", {
     )
   )
 
+  withr::defer(clear_reload_handoff())
+
   testServer(
     get_s3_method("board_server", test_board),
     {
       ser_deser <- session$makeScope("preserve_board")
       ser_deser$setInputs(restore = list(datapath = temp))
 
-      brd <- board_refresh()
+      brd <- preserve_board_loader(NULL)
 
       expect_length(board_blocks(brd), length(board_blocks(test_board)))
       expect_length(board_links(brd), length(board_links(test_board)))
@@ -85,34 +91,88 @@ test_that("ser/deser board", {
   )
 })
 
-test_that("gen_code return validation", {
+test_that("preserve_board ships a default loader", {
 
-  with_mock_session(
-    {
-      check_ser_deser_val(list(a = 1))
-      sink_msg(
-        expect_warning(
-          session$flushReact(),
-          "Expecting `preserve_board` to return a reactive value"
-        )
-      )
-    }
+  plug <- preserve_board()
+
+  expect_true(is_plugin(plug))
+  expect_s3_class(plug, "preserve_board")
+  expect_identical(plugin_loader(plug), preserve_board_loader)
+})
+
+test_that("preserve_board_loader reads the reload handoff", {
+
+  withr::defer(clear_reload_handoff())
+
+  clear_reload_handoff()
+  expect_null(preserve_board_loader(NULL))
+
+  board <- new_board(blocks = c(a = new_dataset_block("iris")))
+  stage_reload_handoff(board)
+  expect_identical(preserve_board_loader(NULL), board)
+
+  clear_reload_handoff()
+  expect_null(preserve_board_loader(NULL))
+})
+
+test_that("resolve_board prefers the loader board over the default", {
+
+  withr::defer(clear_reload_handoff())
+
+  default <- new_board()
+  staged <- new_board(blocks = c(a = new_dataset_block("iris")))
+
+  clear_reload_handoff()
+  expect_identical(
+    resolve_board(default, blockr_app_plugins, NULL),
+    default
   )
 
-  with_mock_session(
-    {
-      check_ser_deser_val(reactiveVal(1))
-      sink_msg(
-        expect_warning(
-          session$flushReact(),
-          paste(
-            "Expecting the `preserve_board` return value to evaluate to a",
-            "`board` object or a list with a `board` element."
-          )
-        )
-      )
-    }
+  stage_reload_handoff(staged)
+  expect_identical(
+    resolve_board(default, blockr_app_plugins, NULL),
+    staged
   )
+})
+
+test_that("resolve_board falls back when the plugin has no loader", {
+
+  withr::defer(clear_reload_handoff())
+
+  default <- new_board()
+  no_loader <- function(x) plugins(preserve_board(loader = NULL))
+
+  stage_reload_handoff(new_board(blocks = c(a = new_dataset_block("iris"))))
+
+  expect_identical(
+    resolve_board(default, no_loader, NULL),
+    default
+  )
+})
+
+test_that("board requests expose the parsed query at both entry points", {
+
+  get_req <- new.env()
+  get_req$QUERY_STRING <- "board_name=foo&user=bar"
+
+  get <- board_request_get(get_req)
+
+  expect_s3_class(get, "board_request")
+  expect_identical(get$query, list(board_name = "foo", user = "bar"))
+  expect_identical(get$request, get_req)
+  expect_null(get$session)
+
+  ws_sess <- list(
+    clientData = list(url_search = "?board_name=foo&user=bar"),
+    request = get_req
+  )
+
+  ws <- board_request_ws(ws_sess)
+
+  expect_s3_class(ws, "board_request")
+  expect_identical(ws$query, list(board_name = "foo", user = "bar"))
+  expect_identical(ws$session, ws_sess)
+  expect_identical(ws$request, get_req)
 })
 
 test_that("restore_board with meta wraps result", {
@@ -154,52 +214,6 @@ test_that("restore_board without meta returns naked board", {
       val <- result()
       expect_true(is_board(val))
       expect_length(board_blocks(val), length(board_blocks(test_board)))
-    }
-  )
-})
-
-test_that("meta round-trip through serve_obj", {
-
-  id <- "test_meta_roundtrip"
-  on.exit(if (is_reloading(id)) finalize_reload(id), add = TRUE)
-
-  board <- new_board()
-  meta <- list(url = "/bar", n = 42L)
-
-  update_serve_obj(id, board, meta = meta)
-  expect_true(is_reloading(id))
-
-  result <- finalize_reload(id)
-  expect_identical(result, meta)
-  expect_false(is_reloading(id))
-})
-
-test_that("finalize_reload returns NULL when not reloading", {
-  expect_null(finalize_reload("nonexistent_test_id"))
-})
-
-test_that("update_serve_obj without meta stores NULL meta", {
-
-  id <- "test_no_meta"
-  on.exit(if (is_reloading(id)) finalize_reload(id), add = TRUE)
-
-  update_serve_obj(id, new_board())
-
-  result <- finalize_reload(id)
-  expect_null(result)
-})
-
-test_that("check_ser_deser_val accepts list with board and meta", {
-
-  board <- new_board()
-
-  with_mock_session(
-    {
-      val <- reactiveVal(list(board = board, meta = list(url = "/test")))
-      res <- check_ser_deser_val(val)
-      sink_msg(session$flushReact())
-
-      expect_identical(res, val)
     }
   )
 })

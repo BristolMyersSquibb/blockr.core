@@ -45,8 +45,6 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
                                callback_location = c("end", "start"),
                                ...) {
 
-  reload_meta <- finalize_reload("reload")
-
   plugins <- as_plugins(plugins)
 
   if (is.function(callbacks)) {
@@ -72,7 +70,6 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         board_id = id,
         links = list(),
         stacks = list(),
-        reload_meta = reload_meta,
         last_update = NULL,
         conditions = NULL
       )
@@ -257,62 +254,11 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
       read_plugin_args <- c(rv_ro, dot_args)
 
-      board_refresh <- call_plugin_server(
+      call_plugin_server(
         "preserve_board",
         server_args = read_plugin_args,
         plugins = plugins
       )
-
-      if (not_null(board_refresh)) {
-
-        reload_pending <- reactiveVal(NULL)
-
-        observeEvent(board_refresh(), reload_pending(Sys.time()))
-
-        observe({
-
-          pending <- reload_pending()
-          req(pending)
-
-          if (is_reloading("reload")) {
-
-            if (difftime(Sys.time(), pending, units = "secs") >= 60) {
-              log_warn("stale reload state, clearing")
-              finalize_reload("reload")
-              reload_pending(NULL)
-              session$close()
-              return()
-            }
-
-            notify(
-              "Reload in progress.",
-              duration = NULL,
-              id = session$token
-            )
-            invalidateLater(1000)
-            return()
-          }
-
-          notify_remove(session$token)
-          reload_pending(NULL)
-
-          val <- isolate(board_refresh())
-
-          if (is_board(val)) {
-            board <- val
-            meta <- NULL
-          } else {
-            board <- val$board
-            meta <- val$meta
-          }
-
-          log_debug("refreshing board")
-          update_serve_obj("reload", board, meta = meta)
-
-          log_debug("reloading session")
-          session$reload()
-        })
-      }
 
       call_plugin_server(
         "notify_user",

@@ -23,7 +23,6 @@
 #'
 #' @export
 serve <- function(x, ...) {
-  update_serve_obj("initial", x)
   UseMethod("serve")
 }
 
@@ -103,12 +102,11 @@ serve.block <- function(x, id = "block", ..., data = list()) {
 serve.board <- function(x, id = rand_names(), plugins = blockr_app_plugins,
                         options = blockr_app_options, ...) {
 
-
   stopifnot(is_string(id), is.function(plugins), is.function(options))
 
   shinyApp(
-    serve_board_ui(id, plugins, options),
-    serve_board_srv(id, plugins, options, ...)
+    serve_board_ui(id, x, plugins, options),
+    serve_board_srv(id, x, plugins, options, ...)
   )
 }
 
@@ -200,13 +198,13 @@ blockr_app_server.board <- function(id, x, ...) {
   board_server(id, x, ...)
 }
 
-serve_board_ui <- function(id, plugins, options, ...) {
+serve_board_ui <- function(id, default, plugins, options, ...) {
 
   args <- list(...)
 
-  function() {
+  function(request) {
 
-    x <- get_serve_obj("reload")
+    x <- resolve_board(default, plugins, board_request_get(request))
     id <- coal(attr(x, "id"), id)
 
     log_debug("building ui for board {id}")
@@ -218,7 +216,7 @@ serve_board_ui <- function(id, plugins, options, ...) {
   }
 }
 
-serve_board_srv <- function(id, plugins, options, ...) {
+serve_board_srv <- function(id, default, plugins, options, ...) {
 
   args <- list(...)
 
@@ -226,7 +224,7 @@ serve_board_srv <- function(id, plugins, options, ...) {
 
     onStop(revert(trace_observe()), session)
 
-    x <- get_serve_obj("reload")
+    x <- resolve_board(default, plugins, board_request_ws(session))
     id <- coal(attr(x, "id"), id)
 
     res <- do.call(
@@ -240,39 +238,36 @@ serve_board_srv <- function(id, plugins, options, ...) {
   }
 }
 
-serve_obj <- new.env()
+resolve_board <- function(default, plugins, request) {
 
-update_serve_obj <- function(id, x, meta = NULL) {
-  assign(id, list(board = x, meta = meta), envir = serve_obj)
-  invisible(x)
+  loader <- plugin_loader(get_plugin("preserve_board", plugins(default)))
+
+  board <- if (is.null(loader)) NULL else loader(request)
+
+  coal(board, default, fail_all = FALSE)
 }
 
-is_reloading <- function(id = "reload") {
-  exists(id, envir = serve_obj, inherits = FALSE)
-}
-
-finalize_reload <- function(id = "reload") {
-
-  obj <- get0(id, envir = serve_obj, inherits = FALSE)
-
-  if (is.null(obj)) {
-    return(invisible(NULL))
-  }
-
-  rm(list = id, envir = serve_obj, inherits = FALSE)
-  invisible(obj$meta)
-}
-
-#' @rdname serve
-#' @export
-get_serve_obj <- function(id = NULL) {
-
-  obj <- coal(
-    get0(coal(id, "initial"), envir = serve_obj, inherits = FALSE),
-    get("initial", envir = serve_obj, inherits = FALSE)
+new_board_request <- function(query, request, session) {
+  structure(
+    list(query = query, request = request, session = session),
+    class = "board_request"
   )
+}
 
-  if (is.list(obj) && is_board(obj$board)) obj$board else obj
+board_request_get <- function(request) {
+  new_board_request(
+    parseQueryString(coal(request$QUERY_STRING, "")),
+    request = request,
+    session = NULL
+  )
+}
+
+board_request_ws <- function(session) {
+  new_board_request(
+    parseQueryString(coal(isolate(session$clientData$url_search), "")),
+    request = session$request,
+    session = session
+  )
 }
 
 revert <- function(...) {

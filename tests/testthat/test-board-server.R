@@ -116,7 +116,7 @@ test_that("board server", {
           id,
           function(input, output, session) {
             observeEvent(TRUE, parent(1L), once = TRUE)
-            reactiveVal()
+            NULL
           }
         )
       },
@@ -153,7 +153,7 @@ test_that("board server", {
                   board$abc,
                   expect_identical(board$abc, 1L)
                 )
-                reactiveVal()
+                NULL
               }
             )
           },
@@ -190,7 +190,7 @@ test_that("board server", {
               },
               once = TRUE
             )
-            reactiveVal()
+            NULL
           }
         )
       }
