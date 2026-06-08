@@ -1,35 +1,95 @@
-new_condition <- function(x, as_list = TRUE) {
+new_blk_cnd <- function(x) {
+  structure(
+    x,
+    id = digest::digest(x, "xxh3_64", serialize = FALSE),
+    class = "blk_cnd"
+  )
+}
 
-  if (inherits(x, "condition")) {
-    x <- fmt_cnd_msg(x)
-  }
+as_blk_cnd <- function(x) {
+  UseMethod("as_blk_cnd")
+}
 
-  if (inherits(x, "block_cnd")) {
+#' @noRd
+#' @export
+as_blk_cnd.blk_cnd <- function(x) {
+  x
+}
 
-    res <- x
+#' @noRd
+#' @export
+as_blk_cnd.condition <- function(x) {
+  new_blk_cnd(fmt_cnd_msg(x))
+}
 
-  } else {
+#' @noRd
+#' @export
+as_blk_cnd.character <- function(x) {
+  new_blk_cnd(x)
+}
 
-    res <- structure(
-      x,
-      id = digest::digest(x, "xxh3_64", serialize = FALSE),
-      class = "block_cnd"
+blk_cnds <- function(x, block = NA_character_) {
+
+  phases <- names(x)
+
+  rows <- lapply(
+    c("error", "warning", "message"),
+    function(sev) {
+
+      msgs <- lst_xtr(x[phases], sev)
+      lens <- lengths(msgs)
+
+      if (!any(lens)) {
+        return(NULL)
+      }
+
+      flat <- unlst(msgs)
+
+      data.frame(
+        phase = rep(phases, lens),
+        severity = sev,
+        message = chr_ply(flat, cnd_message),
+        id = chr_ply(flat, cnd_id),
+        row.names = NULL
+      )
+    }
+  )
+
+  out <- do.call(rbind, rows)
+
+  if (is.null(out)) {
+    out <- data.frame(
+      phase = character(),
+      severity = character(),
+      message = character(),
+      id = character()
     )
   }
 
-  if (!isTRUE(as_list)) {
-    return(res)
-  }
+  res <- cbind(block = rep(block, nrow(out)), out)
+  row.names(res) <- NULL
 
-  list(res)
+  res
 }
 
-is_block_cnd <- function(x) {
-  inherits(x, "block_cnd")
+is_blk_cnd <- function(x) {
+  inherits(x, "blk_cnd")
 }
 
-is_list_of_block_cnds <- function(x) {
-  is.list(x) && all(lgl_ply(x, is_block_cnd))
+cnd_id <- function(x) {
+  attr(x, "id")
+}
+
+cnd_message <- function(x) {
+  as.character(x)
+}
+
+empty_conditions_frame <- function() {
+  blk_cnds(list())
+}
+
+is_list_of_blk_cnds <- function(x) {
+  is.list(x) && all(lgl_ply(x, is_blk_cnd))
 }
 
 empty_block_condition <- function() {
@@ -98,7 +158,7 @@ msg_handler <- function(cond, conds) {
   stopifnot(is.environment(cond), is.character(conds))
   function(m) {
     if ("message" %in% conds) {
-      cond$message <- c(cond$message, new_condition(m))
+      cond$message <- c(cond$message, list(as_blk_cnd(m)))
     }
     log_info(fmt_cnd_msg(m))
     tryInvokeRestart("muffleMessage")
@@ -109,7 +169,7 @@ warn_handler <- function(cond, conds) {
   stopifnot(is.environment(cond), is.character(conds))
   function(w) {
     if ("warning" %in% conds) {
-      cond$warning <- c(cond$warning, new_condition(w))
+      cond$warning <- c(cond$warning, list(as_blk_cnd(w)))
     }
     log_warn(fmt_cnd_msg(w))
     tryInvokeRestart("muffleWarning")
@@ -120,7 +180,7 @@ err_handler <- function(cond, conds, err_val = NULL) {
   stopifnot(is.environment(cond), is.character(conds))
   function(e) {
     if ("error" %in% conds) {
-      cond$error <- new_condition(e)
+      cond$error <- list(as_blk_cnd(e))
     }
     log_error(fmt_cnd_msg(e))
     err_val

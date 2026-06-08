@@ -64,8 +64,8 @@ test_that("generate_plugin_args returns session-independent args", {
     exprs <- lst_xtr_reval(args$board$blocks, "server", "expr")
     expect_named(exprs, c("a", "b", "c"), ignore.order = TRUE)
 
-    cond <- args$board$blocks[["a"]]$server$cond
-    expect_true(is.reactivevalues(cond))
-    expect_type(reactiveValuesToList(cond), "list")
+    conditions <- args$board$blocks[["a"]]$server$conditions
+    expect_true(is.function(conditions))
+    expect_s3_class(conditions(), "data.frame")
   })
 })

@@ -223,12 +223,16 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         block_cond_observer(blk_cnd, cond, session)
       }
 
+      conditions <- reactive(
+        blk_cnds(reactiveValuesToList(cond), block_id)
+      )
+
       c(
         list(
           result = res,
           expr = lang,
           state = state,
-          cond = cond
+          conditions = conditions
         ),
         eb_res
       )
@@ -343,9 +347,11 @@ state_check_observer <- function(id, x, dat, res, state, rv, cond, sess) {
       rv$state_set <- NULL
 
       if (!all(ok)) {
-        cond$state$error <- new_condition(
-          paste0("State values ", paste_enum(names(ok)[!ok]), " are ",
-                 "not yet initialized.")
+        cond$state$error <- list(
+          new_blk_cnd(
+            paste0("State values ", paste_enum(names(ok)[!ok]), " are ",
+                   "not yet initialized.")
+          )
         )
       } else {
         cond$state$error <- list()
@@ -436,8 +442,7 @@ block_cond_observer <- function(blk, cond, sess) {
 
       if (any(lengths(new_cnds))) {
 
-        new_cnds <- lapply(new_cnds, lapply, new_condition,
-                           as_list = FALSE)
+        new_cnds <- lapply(new_cnds, lapply, as_blk_cnd)
 
         chk <- lgl_mply(
           Negate(setequal),
@@ -540,12 +545,12 @@ check_expr_val <- function(val, x) {
           req(length(cnds[[cnd]]) > 0L),
           {
             for (y in cnds[[cnd]]) {
-              if (!(is.character(y) || is_list_of_block_cnds(y))) {
+              if (!(is.character(y) || is_list_of_blk_cnds(y))) {
                 blockr_abort(
                   "The `cond` component of the return value for ",
                   "{class(x)[1L]} is expected to contain a nested list of ",
                   "character vectors or list of objects inheriting from ",
-                  "`block_cnd`.",
+                  "`blk_cnd`.",
                   class = "expr_server_return_cond_invalid"
                 )
               }
