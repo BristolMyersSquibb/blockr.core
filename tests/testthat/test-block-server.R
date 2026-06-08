@@ -93,8 +93,6 @@ test_that("block conditions", {
       {
         session$flushReact()
 
-        cond <- session$returned$cond
-
         expect_s3_class(cond, "reactivevalues")
 
         expect_true("block" %in% names(cond))
@@ -127,8 +125,6 @@ test_that("block conditions", {
       get_s3_method("block_server", cnd),
       {
         session$flushReact()
-
-        cond <- session$returned$cond
 
         expect_s3_class(cond, "reactivevalues")
 
@@ -238,5 +234,42 @@ test_that("block expr validation", {
       )
       sink_msg(expect_warning(session$flushReact()))
     }
+  )
+})
+
+test_that("block server exposes a reactive conditions frame", {
+
+  blk <- new_dataset_block("iris")
+
+  testServer(
+    get_s3_method("block_server", blk),
+    {
+      session$flushReact()
+
+      expect_true(is.reactive(conditions))
+      expect_named(
+        conditions(),
+        c("block", "phase", "severity", "message", "id")
+      )
+      expect_identical(nrow(conditions()), 0L)
+
+      cond$eval <- list(error = list(new_block_cnd("boom")))
+
+      session$flushReact()
+
+      res <- conditions()
+
+      expect_identical(nrow(res), 1L)
+      expect_identical(res$phase, "eval")
+      expect_identical(res$severity, "error")
+      expect_identical(res$message, "boom")
+
+      cond$eval <- list(error = list())
+
+      session$flushReact()
+
+      expect_identical(nrow(conditions()), 0L)
+    },
+    args = list(x = blk, data = list())
   )
 })

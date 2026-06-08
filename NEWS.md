@@ -1,5 +1,17 @@
 # blockr.core 0.1.3
 
+* Active block conditions (errors, warnings and messages captured during
+  evaluation) are now emitted as tidy data frames. Each block server
+  returns its conditions as a reactive `server$conditions` (one row per
+  active condition, columns `block`, `phase`, `severity`, `message` and
+  `id`), and `board_server()` combines these into a board-level reactive
+  `board$conditions()` on the read-only board handed to plugins and
+  callbacks. A consumer reads one reactive — a single block's frame for
+  fine-grained updates, or the whole board — instead of walking the
+  nested per-block condition state, and the default `notify_user()`
+  plugin renders toasts from this single source. The block server no
+  longer returns its raw `cond` reactive values object — read
+  `server$conditions()` instead (#217).
 * `str_value()` now covers every domain class that has a full-tier
   `format()` / `print()` counterpart, completing the compact rendering
   tier: the scalars `link`, `board_option`, `llm_model_option` and

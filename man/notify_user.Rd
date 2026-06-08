@@ -23,19 +23,18 @@ notify_user_ui(id, board)
 }
 \value{
 A plugin container inheriting from \code{notify_user} is returned by
-\code{notify_user()}, while the UI component (e.g. \code{notify_user_ui()}) is
-expected to return shiny UI (i.e. \code{\link[shiny:reexports]{shiny::tagList()}}; if available) and the
-server component (i.e. \code{notify_user_server()}) is expected to return a
-\code{\link[shiny:reactiveVal]{shiny::reactiveVal()}} or \code{\link[shiny:reactive]{shiny::reactive()}} which evaluates to a list
-containing notifications per block and notification type (i.e. "message",
-"warning" or "error").
+\code{notify_user()} and the UI component (e.g. \code{notify_user_ui()}) is expected
+to return shiny UI (i.e. \code{\link[shiny:reexports]{shiny::tagList()}}). The server component (i.e.
+\code{notify_user_server()}) is called for the side effect of managing
+notifications and returns \code{NULL}.
 }
 \description{
-During the evaluation cycle of each block, user notifications may be
-generated to inform in case of issues such as errors or warnings. These
-notifications are provided in a way that display can be controlled and
-adapted to specific needs. The default \code{notify_user} plugin simply displays
-notifications via \code{\link[shiny:showNotification]{shiny::showNotification()}}, with some ID management in
-order to be able to clear no longer relevant notifications via
-\code{\link[shiny:showNotification]{shiny::removeNotification()}}.
+During the evaluation cycle of each block, conditions (errors, warnings and
+messages) may be raised. The default \code{notify_user} plugin surfaces these to
+the user as \code{\link[shiny:showNotification]{shiny::showNotification()}} toasts, displaying newly active
+conditions and clearing ones that are no longer active via
+\code{\link[shiny:showNotification]{shiny::removeNotification()}}. It renders from \code{board$conditions()} (see
+\code{\link[=board_server]{board_server()}}), the board-level reactive frame of active conditions, so
+that toast display and any programmatic consumer share a single processed
+view rather than each walking per-block condition state.
 }

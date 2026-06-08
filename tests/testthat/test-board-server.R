@@ -1156,3 +1156,56 @@ test_that("apply-phase failure records apply outcome", {
     )
   )
 })
+
+test_that("board combines per-block conditions and exposes them per block", {
+
+  board <- new_board(
+    blocks = c(a = new_dataset_block("iris"), b = new_subset_block())
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_identical(make_read_only(rv)$conditions, rv$conditions)
+
+      # block b is unlinked, so its data validator errors; a stays healthy
+      expect_identical(nrow(rv$blocks$a$server$conditions()), 0L)
+
+      b_cond <- rv$blocks$b$server$conditions()
+
+      expect_identical(nrow(b_cond), 1L)
+      expect_identical(b_cond$block, "b")
+      expect_identical(b_cond$severity, "error")
+
+      combined <- rv$conditions()
+
+      expect_named(combined, c("block", "phase", "severity", "message", "id"))
+      expect_identical(nrow(combined), 1L)
+      expect_identical(combined$block, "b")
+    },
+    args = list(x = board, plugins = list(manage_blocks()))
+  )
+})
+
+test_that("board drops conditions of removed blocks", {
+
+  board <- new_board(blocks = c(a = new_subset_block()))
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_identical(nrow(rv$conditions()), 1L)
+
+      board_update(list(blocks = list(rm = "a")))
+
+      session$flushReact()
+
+      expect_identical(nrow(rv$conditions()), 0L)
+    },
+    args = list(x = board, plugins = list(manage_blocks()))
+  )
+})

@@ -223,12 +223,16 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         block_cond_observer(blk_cnd, cond, session)
       }
 
+      conditions <- reactive(
+        block_cnds(reactiveValuesToList(cond), block_id)
+      )
+
       c(
         list(
           result = res,
           expr = lang,
           state = state,
-          cond = cond
+          conditions = conditions
         ),
         eb_res
       )

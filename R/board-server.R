@@ -8,6 +8,16 @@
 #' plugin architecture and callback functions which can be used to register
 #' additional observers.
 #'
+#' @section Active conditions:
+#' Conditions raised while blocks evaluate (errors, warnings and messages) are
+#' exposed as a reactive data frame `board$conditions` on the read-only board
+#' handed to plugins and callbacks, with one row per active condition and
+#' columns `block`, `phase`, `severity`, `message` and `id`. It combines the
+#' per-block `server$conditions` reactives (see [block_server()]), so a
+#' consumer reads a single reactive — the whole board, or one block's frame
+#' for fine-grained updates — rather than walking nested condition state. The
+#' default [notify_user()] plugin renders its toasts from this source.
+#'
 #' @param x Board
 #' @param id Parent namespace
 #' @param ... Generic consistency
@@ -63,10 +73,17 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         links = list(),
         stacks = list(),
         reload_meta = reload_meta,
-        last_update = NULL
+        last_update = NULL,
+        conditions = NULL
       )
 
       rv_ro <- list(board = make_read_only(rv))
+
+      rv$conditions <- reactive(
+        combine_block_conditions(
+          lapply(rv$blocks, function(blk) blk$server$conditions())
+        )
+      )
 
       do.call(
         board_options_to_userdata,
@@ -386,6 +403,18 @@ setup_board <- function(rv, blk_ed, blk_ct, stk_mod, args, sess) {
   add_blocks_to_stacks(rv, board_stacks(rv$board), sess)
 
   invisible()
+}
+
+combine_block_conditions <- function(frames) {
+
+  res <- do.call(
+    rbind,
+    c(list(empty_conditions_frame()), unname(frames))
+  )
+
+  row.names(res) <- NULL
+
+  res
 }
 
 setup_block <- function(blk, id, rv, mod_ed, mod_ct, args) {
