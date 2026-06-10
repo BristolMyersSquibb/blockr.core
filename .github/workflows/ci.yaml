@@ -7,7 +7,7 @@ name: ci
 
 jobs:
   ci:
-    uses: cynkra/blockr.ci/.github/workflows/ci.yaml@17-pr-gates
+    uses: cynkra/blockr.ci/.github/workflows/ci.yaml@main
     with:
       lintr-exclusions: |
         vignettes/create-block.qmd
@@ -20,7 +20,7 @@ jobs:
       BLOCKR_PAT: ${{ secrets.BLOCKR_PAT }}
 
   revdep:
-    uses: cynkra/blockr.ci/.github/workflows/revdep.yaml@17-pr-gates
+    uses: cynkra/blockr.ci/.github/workflows/revdep.yaml@main
     with:
       revdep-packages: |
         BristolMyersSquibb/blockr.dock
