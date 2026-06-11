@@ -6,7 +6,7 @@ name: pkgdown
 
 jobs:
   pkgdown:
-    uses: cynkra/blockr.ci/.github/workflows/pkgdown.yaml@17-pr-gates
+    uses: cynkra/blockr.ci/.github/workflows/pkgdown.yaml@main
     secrets:
       BLOCKR_PAT: ${{ secrets.BLOCKR_PAT }}
     permissions:
