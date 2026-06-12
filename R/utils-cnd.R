@@ -24,8 +24,70 @@ new_condition <- function(x, as_list = TRUE) {
   list(res)
 }
 
+block_cnds <- function(x, block = NA_character_) {
+
+  phase_order <- c("data", "state", "eval", "render", "block")
+  phases <- names(x)
+  phases <- c(intersect(phase_order, phases), setdiff(phases, phase_order))
+
+  rows <- lapply(
+    c("error", "warning", "message"),
+    function(sev) {
+
+      msgs <- lst_xtr(x[phases], sev)
+      lens <- lengths(msgs)
+
+      if (!any(lens)) {
+        return(NULL)
+      }
+
+      flat <- unlst(msgs)
+
+      data.frame(
+        phase = rep(phases, lens),
+        severity = sev,
+        message = chr_ply(flat, cnd_message),
+        id = chr_ply(flat, cnd_id),
+        row.names = NULL
+      )
+    }
+  )
+
+  out <- do.call(rbind, rows)
+
+  if (is.null(out)) {
+    out <- data.frame(
+      phase = character(),
+      severity = character(),
+      message = character(),
+      id = character()
+    )
+  }
+
+  res <- cbind(block = rep(block, nrow(out)), out)
+  row.names(res) <- NULL
+
+  res
+}
+
+new_block_cnd <- function(message) {
+  new_condition(message, as_list = FALSE)
+}
+
 is_block_cnd <- function(x) {
   inherits(x, "block_cnd")
+}
+
+cnd_id <- function(x) {
+  attr(x, "id")
+}
+
+cnd_message <- function(x) {
+  as.character(x)
+}
+
+empty_conditions_frame <- function() {
+  block_cnds(list())
 }
 
 is_list_of_block_cnds <- function(x) {
