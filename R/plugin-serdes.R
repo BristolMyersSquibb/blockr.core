@@ -8,21 +8,32 @@
 #' Such enhancements can be implemented in a third-party `preserve_board`
 #' module.
 #'
+#' Unlike other plugins, `preserve_board` additionally carries a `loader`: a
+#' function of a single request argument that core calls when building the
+#' board UI (at the GET) and server (at the WS connect), returning the `board`
+#' to build or `NULL` to fall back to the `serve()` default. This is how a
+#' restored (or otherwise externally resolved) board is handed to a freshly
+#' (re)loaded session. The default trio (`preserve_board_server()` /
+#' `preserve_board_loader()`) implements save/restore: the server stages the
+#' deserialized board and triggers a [shiny::reactiveVal()] reload, the loader
+#' returns it on the next request. A third-party module may replace any of the
+#' three to source the board from elsewhere (e.g. a database).
+#'
 #' @param server,ui Server/UI for the plugin module
+#' @param loader Request-phase board loader (see [new_plugin()])
 #'
 #' @return A plugin container inheriting from `preserve_board` is returned by
 #' `preserve_board()`, while the UI component (e.g. `preserve_board_ui()`) is
-#' expected to return shiny UI (i.e. [shiny::tagList()]) and the server
-#' component (i.e. `preserve_board_server()`) is expected to return a
-#' [shiny::reactiveVal()] or [shiny::reactive()] which evaluates to `NULL` or a
+#' expected to return shiny UI (i.e. [shiny::tagList()]) and the loader
+#' component (i.e. `preserve_board_loader()`) is expected to return `NULL` or a
 #' `board` object.
 #'
 #' @export
 preserve_board <- function(server = preserve_board_server,
-                           ui = preserve_board_ui) {
+                           ui = preserve_board_ui,
+                           loader = preserve_board_loader) {
 
-  new_plugin(server, ui, validator = check_ser_deser_val,
-             class = "preserve_board")
+  new_plugin(server, ui, loader = loader, class = "preserve_board")
 }
 
 #' @param id Namespace ID
@@ -38,6 +49,8 @@ preserve_board_server <- function(id, board, ...) {
   moduleServer(
     id,
     function(input, output, session) {
+
+      clear_reload_handoff()
 
       output$serialize <- downloadHandler(
         board_filename(board),
@@ -65,9 +78,46 @@ preserve_board_server <- function(id, board, ...) {
         }
       )
 
-      res
+      observeEvent(
+        res(),
+        {
+          val <- res()
+
+          stage_reload_handoff(if (is_board(val)) val else val$board)
+          session$reload()
+        }
+      )
+
+      invisible()
     }
   )
+}
+
+reload_handoff <- new.env(parent = emptyenv())
+
+stage_reload_handoff <- function(board) {
+  assign("board", board, envir = reload_handoff)
+  invisible(board)
+}
+
+clear_reload_handoff <- function() {
+
+  if (exists("board", envir = reload_handoff, inherits = FALSE)) {
+    rm("board", envir = reload_handoff)
+  }
+
+  invisible()
+}
+
+#' @param request Request wrapper supplied by core at the UI (GET) and server
+#' (WS connect) entry points, exposing the parsed URL `query` alongside the raw
+#' `request`/`session`. The default loader ignores it and reads the staged
+#' board directly.
+#'
+#' @rdname preserve_board
+#' @export
+preserve_board_loader <- function(request) {
+  get0("board", envir = reload_handoff, inherits = FALSE)
 }
 
 read_json <- function(x) {
@@ -188,40 +238,4 @@ write_board_to_disk <- function(rv, ..., session = get_session()) {
 
 write_json <- function(x) {
   jsonlite::toJSON(x, null = "null")
-}
-
-check_ser_deser_val <- function(val) {
-  observeEvent(
-    TRUE,
-    {
-      if (!is.reactive(val)) {
-        blockr_abort(
-          "Expecting `preserve_board` to return a reactive value.",
-          class = "preserve_board_return_invalid"
-        )
-      }
-    },
-    once = TRUE
-  )
-
-  observeEvent(
-    val(),
-    {
-      v <- val()
-      board <- if (is_board(v)) v else if (is.list(v)) v$board
-
-      if (!is_board(board)) {
-        blockr_abort(
-          "Expecting the `preserve_board` return value to evaluate to a ",
-          "`board` object or a list with a `board` element.",
-          class = "preserve_board_return_invalid"
-        )
-      }
-
-      validate_board(board)
-    },
-    once = TRUE
-  )
-
-  val
 }

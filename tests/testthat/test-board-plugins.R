@@ -31,7 +31,7 @@ test_that("plugins", {
   expect_error(
     validate_plugin(
       structure(
-        list(server = "a", ui = NULL),
+        list(server = "a", ui = NULL, loader = NULL),
         class = c("preserve_board", "plugin")
       )
     ),
@@ -41,7 +41,7 @@ test_that("plugins", {
   expect_error(
     validate_plugin(
       structure(
-        list(server = identity, ui = "a"),
+        list(server = identity, ui = "a", loader = NULL),
         class = c("preserve_board", "plugin")
       )
     ),
@@ -51,7 +51,17 @@ test_that("plugins", {
   expect_error(
     validate_plugin(
       structure(
-        list(server = identity, ui = identity),
+        list(server = identity, ui = identity, loader = "a"),
+        class = c("preserve_board", "plugin")
+      )
+    ),
+    class = "plugin_loader_invalid"
+  )
+
+  expect_error(
+    validate_plugin(
+      structure(
+        list(server = identity, ui = identity, loader = NULL),
         validator = "a",
         class = c("preserve_board", "plugin")
       )

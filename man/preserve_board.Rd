@@ -3,14 +3,21 @@
 \name{preserve_board}
 \alias{preserve_board}
 \alias{preserve_board_server}
+\alias{preserve_board_loader}
 \alias{restore_board}
 \alias{preserve_board_ui}
 \alias{serialize_board}
 \title{Serialization plugin module}
 \usage{
-preserve_board(server = preserve_board_server, ui = preserve_board_ui)
+preserve_board(
+  server = preserve_board_server,
+  ui = preserve_board_ui,
+  loader = preserve_board_loader
+)
 
 preserve_board_server(id, board, ...)
+
+preserve_board_loader(request)
 
 restore_board(x, new, result, ..., meta = NULL, session = get_session())
 
@@ -21,11 +28,18 @@ serialize_board(x, blocks, id = NULL, ..., session = get_session())
 \arguments{
 \item{server, ui}{Server/UI for the plugin module}
 
+\item{loader}{Request-phase board loader (see \code{\link[=new_plugin]{new_plugin()}})}
+
 \item{id}{Namespace ID}
 
 \item{board}{The initial \code{board} object}
 
 \item{...}{Extra arguments passed from parent scope}
+
+\item{request}{Request wrapper supplied by core at the UI (GET) and server
+(WS connect) entry points, exposing the parsed URL \code{query} alongside the raw
+\code{request}/\code{session}. The default loader ignores it and reads the staged
+board directly.}
 
 \item{x}{The current \code{board} object}
 
@@ -43,9 +57,8 @@ the reload triggered by board restoration}
 \value{
 A plugin container inheriting from \code{preserve_board} is returned by
 \code{preserve_board()}, while the UI component (e.g. \code{preserve_board_ui()}) is
-expected to return shiny UI (i.e. \code{\link[shiny:reexports]{shiny::tagList()}}) and the server
-component (i.e. \code{preserve_board_server()}) is expected to return a
-\code{\link[shiny:reactiveVal]{shiny::reactiveVal()}} or \code{\link[shiny:reactive]{shiny::reactive()}} which evaluates to \code{NULL} or a
+expected to return shiny UI (i.e. \code{\link[shiny:reexports]{shiny::tagList()}}) and the loader
+component (i.e. \code{preserve_board_loader()}) is expected to return \code{NULL} or a
 \code{board} object.
 }
 \description{
@@ -56,4 +69,16 @@ such as save/restore (via download, as implemented in the default
 in terms of undo/redo functionality and (automatic) saving of board state.
 Such enhancements can be implemented in a third-party \code{preserve_board}
 module.
+}
+\details{
+Unlike other plugins, \code{preserve_board} additionally carries a \code{loader}: a
+function of a single request argument that core calls when building the
+board UI (at the GET) and server (at the WS connect), returning the \code{board}
+to build or \code{NULL} to fall back to the \code{serve()} default. This is how a
+restored (or otherwise externally resolved) board is handed to a freshly
+(re)loaded session. The default trio (\code{preserve_board_server()} /
+\code{preserve_board_loader()}) implements save/restore: the server stages the
+deserialized board and triggers a \code{\link[shiny:reactiveVal]{shiny::reactiveVal()}} reload, the loader
+returns it on the next request. A third-party module may replace any of the
+three to source the board from elsewhere (e.g. a database).
 }
