@@ -63,3 +63,17 @@ board_server(
 A `board_server()` implementation (such as the default for the `board`
 base class) is expected to return a
 [`shiny::moduleServer()`](https://rdrr.io/pkg/shiny/man/moduleServer.html).
+
+## Active conditions
+
+Conditions raised while blocks evaluate (errors, warnings and messages)
+are exposed as a reactive data frame `board$conditions` on the read-only
+board handed to plugins and callbacks, with one row per active condition
+and columns `block`, `phase`, `severity`, `message` and `id`. It
+combines the per-block `server$conditions` reactives (see
+[`block_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_server.md)),
+so a consumer reads a single reactive — the whole board, or one block's
+frame for fine-grained updates — rather than walking nested condition
+state. The default
+[`notify_user()`](https://bristolmyerssquibb.github.io/blockr.core/reference/notify_user.md)
+plugin renders its toasts from this source.

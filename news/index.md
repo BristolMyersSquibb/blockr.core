@@ -2,6 +2,22 @@
 
 ## blockr.core 0.1.3
 
+- Active block conditions (errors, warnings and messages captured during
+  evaluation) are now emitted as tidy data frames. Each block server
+  returns its conditions as a reactive `server$conditions` (one row per
+  active condition, columns `block`, `phase`, `severity`, `message` and
+  `id`), and
+  [`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)
+  combines these into a board-level reactive `board$conditions()` on the
+  read-only board handed to plugins and callbacks. A consumer reads one
+  reactive — a single block’s frame for fine-grained updates, or the
+  whole board — instead of walking the nested per-block condition state,
+  and the default
+  [`notify_user()`](https://bristolmyerssquibb.github.io/blockr.core/reference/notify_user.md)
+  plugin renders toasts from this single source. The block server no
+  longer returns its raw `cond` reactive values object — read
+  `server$conditions()` instead
+  ([\#217](https://github.com/BristolMyersSquibb/blockr.core/issues/217)).
 - [`str_value()`](https://bristolmyerssquibb.github.io/blockr.core/reference/str_value.md)
   now covers every domain class that has a full-tier
   [`format()`](https://rdrr.io/r/base/format.html) /

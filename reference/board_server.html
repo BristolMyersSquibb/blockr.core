@@ -125,6 +125,19 @@ plugins)</p></dd>
     <p>A <code>board_server()</code> implementation (such as the default for the
 <code>board</code> base class) is expected to return a <code><a href="https://rdrr.io/pkg/shiny/man/moduleServer.html" class="external-link">shiny::moduleServer()</a></code>.</p>
     </div>
+    <div class="section level2">
+    <h2 id="active-conditions">Active conditions<a class="anchor" aria-label="anchor" href="#active-conditions"></a></h2>
+
+
+<p>Conditions raised while blocks evaluate (errors, warnings and messages) are
+exposed as a reactive data frame <code>board$conditions</code> on the read-only board
+handed to plugins and callbacks, with one row per active condition and
+columns <code>block</code>, <code>phase</code>, <code>severity</code>, <code>message</code> and <code>id</code>. It combines the
+per-block <code>server$conditions</code> reactives (see <code><a href="block_server.html">block_server()</a></code>), so a
+consumer reads a single reactive — the whole board, or one block's frame
+for fine-grained updates — rather than walking nested condition state. The
+default <code><a href="notify_user.html">notify_user()</a></code> plugin renders its toasts from this source.</p>
+    </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>

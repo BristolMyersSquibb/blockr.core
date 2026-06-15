@@ -1,14 +1,17 @@
 # User notification plugin module
 
-During the evaluation cycle of each block, user notifications may be
-generated to inform in case of issues such as errors or warnings. These
-notifications are provided in a way that display can be controlled and
-adapted to specific needs. The default `notify_user` plugin simply
-displays notifications via
-[`shiny::showNotification()`](https://rdrr.io/pkg/shiny/man/showNotification.html),
-with some ID management in order to be able to clear no longer relevant
-notifications via
+During the evaluation cycle of each block, conditions (errors, warnings
+and messages) may be raised. The default `notify_user` plugin surfaces
+these to the user as
+[`shiny::showNotification()`](https://rdrr.io/pkg/shiny/man/showNotification.html)
+toasts, displaying newly active conditions and clearing ones that are no
+longer active via
 [`shiny::removeNotification()`](https://rdrr.io/pkg/shiny/man/showNotification.html).
+It renders from `board$conditions()` (see
+[`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)),
+the board-level reactive frame of active conditions, so that toast
+display and any programmatic consumer share a single processed view
+rather than each walking per-block condition state.
 
 ## Usage
 
@@ -41,12 +44,8 @@ notify_user_ui(id, board)
 ## Value
 
 A plugin container inheriting from `notify_user` is returned by
-`notify_user()`, while the UI component (e.g. `notify_user_ui()`) is
+`notify_user()` and the UI component (e.g. `notify_user_ui()`) is
 expected to return shiny UI (i.e.
-[`shiny::tagList()`](https://rdrr.io/pkg/shiny/man/reexports.html); if
-available) and the server component (i.e. `notify_user_server()`) is
-expected to return a
-[`shiny::reactiveVal()`](https://rdrr.io/pkg/shiny/man/reactiveVal.html)
-or [`shiny::reactive()`](https://rdrr.io/pkg/shiny/man/reactive.html)
-which evaluates to a list containing notifications per block and
-notification type (i.e. "message", "warning" or "error").
+[`shiny::tagList()`](https://rdrr.io/pkg/shiny/man/reexports.html)). The
+server component (i.e. `notify_user_server()`) is called for the side
+effect of managing notifications and returns `NULL`.
