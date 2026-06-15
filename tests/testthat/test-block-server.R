@@ -93,8 +93,6 @@ test_that("block conditions", {
       {
         session$flushReact()
 
-        cond <- session$returned$cond
-
         expect_s3_class(cond, "reactivevalues")
 
         expect_true("block" %in% names(cond))
@@ -104,7 +102,7 @@ test_that("block conditions", {
         expect_length(cond$block$error, 0L)
 
         for (x in unlst(cond$block)) {
-          expect_s3_class(x, "block_cnd")
+          expect_s3_class(x, "blk_cnd")
         }
 
         expect_true("eval" %in% names(cond))
@@ -114,7 +112,7 @@ test_that("block conditions", {
         expect_length(cond$eval$error, 0L)
 
         for (x in unlst(cond$eval)) {
-          expect_s3_class(x, "block_cnd")
+          expect_s3_class(x, "blk_cnd")
         }
       },
       args = list(x = cnd, data = list(data = function() iris))
@@ -128,8 +126,6 @@ test_that("block conditions", {
       {
         session$flushReact()
 
-        cond <- session$returned$cond
-
         expect_s3_class(cond, "reactivevalues")
 
         expect_true("block" %in% names(cond))
@@ -139,7 +135,7 @@ test_that("block conditions", {
         expect_length(cond$block$message, 1L)
 
         for (x in unlst(cond$block)) {
-          expect_s3_class(x, "block_cnd")
+          expect_s3_class(x, "blk_cnd")
         }
 
         expect_true("eval" %in% names(cond))
@@ -149,7 +145,7 @@ test_that("block conditions", {
         expect_length(cond$eval$message, 2L)
 
         for (x in unlst(cond$eval)) {
-          expect_s3_class(x, "block_cnd")
+          expect_s3_class(x, "blk_cnd")
         }
       },
       args = list(x = cnd, data = list(data = function() iris))
@@ -238,5 +234,42 @@ test_that("block expr validation", {
       )
       sink_msg(expect_warning(session$flushReact()))
     }
+  )
+})
+
+test_that("block server exposes a reactive conditions frame", {
+
+  blk <- new_dataset_block("iris")
+
+  testServer(
+    get_s3_method("block_server", blk),
+    {
+      session$flushReact()
+
+      expect_true(is.reactive(conditions))
+      expect_named(
+        conditions(),
+        c("block", "phase", "severity", "message", "id")
+      )
+      expect_identical(nrow(conditions()), 0L)
+
+      cond$eval <- list(error = list(new_blk_cnd("boom")))
+
+      session$flushReact()
+
+      res <- conditions()
+
+      expect_identical(nrow(res), 1L)
+      expect_identical(res$phase, "eval")
+      expect_identical(res$severity, "error")
+      expect_identical(res$message, "boom")
+
+      cond$eval <- list(error = list())
+
+      session$flushReact()
+
+      expect_identical(nrow(conditions()), 0L)
+    },
+    args = list(x = blk, data = list())
   )
 })

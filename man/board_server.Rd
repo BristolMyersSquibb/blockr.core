@@ -48,3 +48,15 @@ implementation of \code{board} sub-classes may be provided, as well as via a
 plugin architecture and callback functions which can be used to register
 additional observers.
 }
+\section{Active conditions}{
+
+Conditions raised while blocks evaluate (errors, warnings and messages) are
+exposed as a reactive data frame \code{board$conditions} on the read-only board
+handed to plugins and callbacks, with one row per active condition and
+columns \code{block}, \code{phase}, \code{severity}, \code{message} and \code{id}. It combines the
+per-block \code{server$conditions} reactives (see \code{\link[=block_server]{block_server()}}), so a
+consumer reads a single reactive — the whole board, or one block's frame
+for fine-grained updates — rather than walking nested condition state. The
+default \code{\link[=notify_user]{notify_user()}} plugin renders its toasts from this source.
+}
+
