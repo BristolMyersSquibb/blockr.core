@@ -1,89 +1,249 @@
-test_that("notify_user tracks board$conditions()", {
+cnd_row <- function(block, severity, id, message = "m", phase = "eval") {
+  data.frame(
+    block = block,
+    phase = phase,
+    severity = severity,
+    message = message,
+    id = id
+  )
+}
+
+record_notifications <- function() {
+  rec <- new.env(parent = emptyenv())
+  rec$events <- character()
+  rec
+}
+
+test_that("notify_user shows and clears conditions per block", {
+
+  rec <- record_notifications()
+
+  local_mocked_bindings(
+    showNotification = function(ui, ..., id = NULL, session = NULL) {
+      rec$events <- c(rec$events, paste0("show:", id))
+      id
+    },
+    removeNotification = function(id, session = NULL) {
+      rec$events <- c(rec$events, paste0("remove:", id))
+      invisible()
+    }
+  )
+
+  cond_a <- reactiveVal(empty_conditions_frame())
+
+  board <- reactiveValues(
+    blocks = list(a = list(server = list(conditions = cond_a)))
+  )
 
   testServer(
     notify_user_server,
     {
-      expect_null(session$returned)
-
       session$flushReact()
-      expect_identical(shown(), character())
+      expect_identical(rec$events, character())
 
-      board$conditions(
-        data.frame(
-          block = "a",
-          phase = "eval",
-          severity = "error",
-          message = "some error",
-          id = "id1"
-        )
-      )
-
+      cond_a(cnd_row("a", "error", "e1", "boom"))
       session$flushReact()
+      expect_identical(rec$events, "show:a-error-e1")
 
-      expect_identical(shown(), "error-id1")
-
-      board$conditions(empty_conditions_frame())
-
+      cond_a(empty_conditions_frame())
       session$flushReact()
+      expect_identical(rec$events, c("show:a-error-e1", "remove:a-error-e1"))
 
-      expect_identical(shown(), character())
       expect_null(session$returned)
     },
-    args = list(
-      board = reactiveValues(
-        conditions = reactiveVal(empty_conditions_frame())
-      )
-    )
+    args = list(board = board)
   )
 })
 
-test_that("update_condition_notif gates and de-duplicates", {
+test_that("notify_user shows a separate toast per block for a shared message", {
+
+  rec <- record_notifications()
+
+  local_mocked_bindings(
+    showNotification = function(ui, ..., id = NULL, session = NULL) {
+      rec$events <- c(rec$events, paste0("show:", id))
+      id
+    },
+    removeNotification = function(id, session = NULL) {
+      rec$events <- c(rec$events, paste0("remove:", id))
+      invisible()
+    }
+  )
+
+  cond_a <- reactiveVal(empty_conditions_frame())
+  cond_b <- reactiveVal(empty_conditions_frame())
+
+  board <- reactiveValues(
+    blocks = list(
+      a = list(server = list(conditions = cond_a)),
+      b = list(server = list(conditions = cond_b))
+    )
+  )
+
+  testServer(
+    notify_user_server,
+    {
+      session$flushReact()
+
+      cond_a(cnd_row("a", "error", "e1", "boom"))
+      session$flushReact()
+
+      cond_b(cnd_row("b", "error", "e1", "boom"))
+      session$flushReact()
+
+      expect_identical(rec$events, c("show:a-error-e1", "show:b-error-e1"))
+
+      cond_a(empty_conditions_frame())
+      session$flushReact()
+
+      expect_identical(
+        rec$events,
+        c("show:a-error-e1", "show:b-error-e1", "remove:a-error-e1")
+      )
+    },
+    args = list(board = board)
+  )
+})
+
+test_that("notify_user clears notifications of a removed block", {
+
+  rec <- record_notifications()
+
+  local_mocked_bindings(
+    showNotification = function(ui, ..., id = NULL, session = NULL) {
+      rec$events <- c(rec$events, paste0("show:", id))
+      id
+    },
+    removeNotification = function(id, session = NULL) {
+      rec$events <- c(rec$events, paste0("remove:", id))
+      invisible()
+    }
+  )
+
+  cond_a <- reactiveVal(cnd_row("a", "error", "ea", "boom"))
+  cond_b <- reactiveVal(cnd_row("b", "warning", "wb", "careful"))
+
+  board <- reactiveValues(
+    blocks = list(
+      a = list(server = list(conditions = cond_a)),
+      b = list(server = list(conditions = cond_b))
+    )
+  )
+
+  testServer(
+    notify_user_server,
+    {
+      session$flushReact()
+      expect_setequal(rec$events, c("show:a-error-ea", "show:b-warning-wb"))
+
+      rec$events <- character()
+
+      board$blocks <- board$blocks["a"]
+      session$flushReact()
+
+      expect_identical(rec$events, "remove:b-warning-wb")
+    },
+    args = list(board = board)
+  )
+})
+
+test_that("notify_user reads only the changed block's conditions", {
+
+  local_mocked_bindings(
+    showNotification = function(ui, ..., id = NULL, session = NULL) id,
+    removeNotification = function(id, session = NULL) invisible()
+  )
+
+  reads <- new.env(parent = emptyenv())
+  reads$a <- 0L
+  reads$b <- 0L
+
+  val_a <- reactiveVal(empty_conditions_frame())
+  val_b <- reactiveVal(cnd_row("b", "error", "eb", "B"))
+
+  cond_a <- function() {
+    reads$a <- reads$a + 1L
+    val_a()
+  }
+
+  cond_b <- function() {
+    reads$b <- reads$b + 1L
+    val_b()
+  }
+
+  board <- reactiveValues(
+    blocks = list(
+      a = list(server = list(conditions = cond_a)),
+      b = list(server = list(conditions = cond_b))
+    )
+  )
+
+  testServer(
+    notify_user_server,
+    {
+      session$flushReact()
+
+      reads_a <- reads$a
+      reads_b <- reads$b
+
+      for (i in seq_len(5L)) {
+        val_a(cnd_row("a", "error", paste0("ea", i), "A"))
+        session$flushReact()
+      }
+
+      expect_gt(reads$a, reads_a)
+      expect_identical(reads$b, reads_b)
+    },
+    args = list(board = board)
+  )
+})
+
+test_that("notif_frame gates by show_conditions", {
+
+  frame <- rbind(
+    cnd_row("a", "error", "e1", "boom"),
+    cnd_row("b", "warning", "w1", "careful"),
+    cnd_row("c", "message", "m1", "fyi")
+  )
 
   with_mock_session(
     {
-      df <- data.frame(
-        block = c("a", "b", "c"),
-        phase = c("eval", "render", "data"),
-        severity = c("error", "warning", "message"),
-        message = c("boom", "careful", "fyi"),
-        id = c("e1", "w1", "m1")
-      )
-
-      shown <- withr::with_options(
+      gated <- withr::with_options(
         list(blockr.show_conditions = c("warning", "error")),
-        update_condition_notif(df, character(), session)
+        notif_frame(frame, session)
       )
 
-      expect_setequal(shown, c("error-e1", "warning-w1"))
+      expect_setequal(gated$key, c("a-error-e1", "b-warning-w1"))
 
-      shown <- withr::with_options(
+      full <- withr::with_options(
         list(blockr.show_conditions = c("message", "warning", "error")),
-        update_condition_notif(df, shown, session)
+        notif_frame(frame, session)
       )
 
-      expect_setequal(shown, c("error-e1", "warning-w1", "message-m1"))
-
-      dup <- data.frame(
-        block = c("a", "b"),
-        phase = c("eval", "render"),
-        severity = c("error", "error"),
-        message = c("boom", "boom"),
-        id = c("e1", "e1")
+      expect_setequal(
+        full$key,
+        c("a-error-e1", "b-warning-w1", "c-message-m1")
       )
+    }
+  )
+})
 
-      shown <- withr::with_options(
+test_that("notif_frame collapses a block's duplicate keys to one row", {
+
+  dup <- rbind(
+    cnd_row("a", "error", "e1", "boom"),
+    cnd_row("a", "error", "e1", "boom", phase = "render")
+  )
+
+  with_mock_session(
+    {
+      res <- withr::with_options(
         list(blockr.show_conditions = c("warning", "error")),
-        update_condition_notif(dup, character(), session)
+        notif_frame(dup, session)
       )
 
-      expect_identical(shown, "error-e1")
-
-      shown <- withr::with_options(
-        list(blockr.show_conditions = c("warning", "error")),
-        update_condition_notif(empty_conditions_frame(), shown, session)
-      )
-
-      expect_identical(shown, character())
+      expect_identical(nrow(res), 1L)
+      expect_identical(res$key, "a-error-e1")
     }
   )
 })

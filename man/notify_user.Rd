@@ -33,8 +33,7 @@ During the evaluation cycle of each block, conditions (errors, warnings and
 messages) may be raised. The default \code{notify_user} plugin surfaces these to
 the user as \code{\link[shiny:showNotification]{shiny::showNotification()}} toasts, displaying newly active
 conditions and clearing ones that are no longer active via
-\code{\link[shiny:showNotification]{shiny::removeNotification()}}. It renders from \code{board$conditions()} (see
-\code{\link[=board_server]{board_server()}}), the board-level reactive frame of active conditions, so
-that toast display and any programmatic consumer share a single processed
-view rather than each walking per-block condition state.
+\code{\link[shiny:showNotification]{shiny::removeNotification()}}. Each block's conditions (see \code{\link[=board_server]{board_server()}})
+are tracked individually, so that a single block's change touches only its
+own notifications rather than re-processing the whole board.
 }
