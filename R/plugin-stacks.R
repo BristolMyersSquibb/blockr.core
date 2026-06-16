@@ -469,15 +469,15 @@ modify_stack_observer <- function(input, rv, upd, sess, proxy, res) {
         modify_board_stacks(rv$board, upd$add, upd$rm, upd$mod),
         message = function(e) {
           notify(conditionMessage(e), duration = NULL, type = "message",
-                 session = sess)
+                 glue = FALSE, session = sess)
         },
         warning = function(e) {
           notify(conditionMessage(e), duration = NULL, type = "warning",
-                 session = sess)
+                 glue = FALSE, session = sess)
         },
         error = function(e) {
           notify(conditionMessage(e), duration = NULL, type = "error",
-                 session = sess)
+                 glue = FALSE, session = sess)
           NULL
         }
       )

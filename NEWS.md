@@ -7,6 +7,14 @@
   O(N) rather than O(N^2) cost when a condition cascade touches many
   blocks on a large board. `board$conditions()` is unchanged for
   programmatic consumers (#222).
+* `notify()` gains `glue` and `log` arguments (both `TRUE` by default, so
+  existing behaviour is unchanged). `glue = FALSE` surfaces literal text
+  without [cli::pluralize()] interpolation — so caught condition messages
+  containing brace characters no longer error — and `log = FALSE` skips
+  the log entry for already-logged text. The board update, link and stack
+  error toasts now pass condition messages through with `glue = FALSE`,
+  and the default `notify_user()` plugin renders through `notify()`
+  (#222).
 * Active block conditions (errors, warnings and messages captured during
   evaluation) are now emitted as tidy data frames. Each block server
   returns its conditions as a reactive `server$conditions` (one row per

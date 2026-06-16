@@ -85,7 +85,7 @@ block_notif_observer <- function(block_id, board, session) {
       frame <- notif_frame(conditions(), session)
 
       for (key in setdiff(shown, frame$key)) {
-        removeNotification(key, session)
+        notify_remove(key, session)
       }
 
       for (key in setdiff(frame$key, shown)) {
@@ -103,7 +103,7 @@ block_notif_observer <- function(block_id, board, session) {
       obs$destroy()
 
       for (key in shown) {
-        removeNotification(key, session)
+        notify_remove(key, session)
       }
     }
   )
@@ -129,10 +129,10 @@ notif_frame <- function(conditions, session = get_session()) {
 }
 
 notif_show <- function(key, row, session) {
-  showNotification(
-    HTML(
-      paste0("Block ", row$block, ": ", cli::ansi_html(row$message))
-    ),
+  notify(
+    "Block ", row$block, ": ", row$message,
+    glue = FALSE,
+    log = FALSE,
     duration = NULL,
     id = key,
     type = row$severity,

@@ -256,6 +256,10 @@ get_session <- function() {
 }
 
 #' @param close_button Passed as `closeButton` to [shiny::showNotification()]
+#' @param glue,log Whether to [glue::glue()]-interpolate `...` and whether to
+#' emit a log message. Set both to `FALSE` to surface pre-formatted,
+#' already-logged text (e.g. a captured condition message, which may contain
+#' braces that would otherwise fail interpolation).
 #'
 #' @inheritParams write_log
 #' @inheritParams shiny::showNotification
@@ -265,11 +269,11 @@ get_session <- function() {
 notify <- function(..., envir = parent.frame(), action = NULL, duration = 5,
                    close_button = TRUE, id = NULL,
                    type = c("message", "warning", "error"),
-                   session = get_session()) {
+                   glue = TRUE, log = TRUE, session = get_session()) {
 
   type <- match.arg(type)
 
-  msg <- glue_plur(..., envir = envir)
+  msg <- if (glue) glue_plur(..., envir = envir) else paste0(...)
   msg <- HTML(cli::ansi_html(msg))
 
   showNotification(
@@ -282,12 +286,18 @@ notify <- function(..., envir = parent.frame(), action = NULL, duration = 5,
     session = session
   )
 
-  switch(
-    type,
-    message = log_info(msg, envir = envir, use_glue = FALSE),
-    warning = log_warn(msg, envir = envir, use_glue = FALSE),
-    error = log_error(msg, envir = envir, use_glue = FALSE)
-  )
+  if (log) {
+    switch(
+      type,
+      message = log_info(msg, envir = envir, use_glue = FALSE),
+      warning = log_warn(msg, envir = envir, use_glue = FALSE),
+      error = log_error(msg, envir = envir, use_glue = FALSE)
+    )
+  }
 
   invisible(NULL)
+}
+
+notify_remove <- function(id, session = get_session()) {
+  removeNotification(id, session = session)
 }

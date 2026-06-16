@@ -75,7 +75,7 @@ ctrl_block_server <- function(id, x, vars, data, eval) {
             err <- attr(result, "condition")
 
             if (!inherits(err, "shiny.silent.error")) {
-              notify(conditionMessage(err), type = "error")
+              notify(conditionMessage(err), type = "error", glue = FALSE)
             }
 
             gate(FALSE)

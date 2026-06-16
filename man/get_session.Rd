@@ -15,6 +15,8 @@ notify(
   close_button = TRUE,
   id = NULL,
   type = c("message", "warning", "error"),
+  glue = TRUE,
+  log = TRUE,
   session = get_session()
 )
 }
@@ -44,6 +46,11 @@ notification if it exists, otherwise it will create a new one.
 
 \item{type}{A string which controls the color of the notification. One of
 "default" (gray), "message" (blue), "warning" (yellow), or "error" (red).}
+
+\item{glue, log}{Whether to \code{\link[glue:glue]{glue::glue()}}-interpolate \code{...} and whether to
+emit a log message. Set both to \code{FALSE} to surface pre-formatted,
+already-logged text (e.g. a captured condition message, which may contain
+braces that would otherwise fail interpolation).}
 
 \item{session}{Session object to send notification to.}
 }
