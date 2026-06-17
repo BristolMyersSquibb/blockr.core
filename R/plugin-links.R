@@ -504,15 +504,15 @@ modify_link_observer <- function(input, rv, upd, session, proxy, res) {
         modify_board_links(rv$board, upd$add, upd$rm),
         message = function(e) {
           notify(conditionMessage(e), duration = NULL, type = "message",
-                 session = session)
+                 glue = FALSE, session = session)
         },
         warning = function(e) {
           notify(conditionMessage(e), duration = NULL, type = "warning",
-                 session = session)
+                 glue = FALSE, session = session)
         },
         error = function(e) {
           notify(conditionMessage(e), duration = NULL, type = "error",
-                 session = session)
+                 glue = FALSE, session = session)
           NULL
         }
       )

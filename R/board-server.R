@@ -191,7 +191,8 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
             },
             error = function(e) {
               log_warn("board update rejected: {conditionMessage(e)}")
-              notify(conditionMessage(e), type = "error", session = session)
+              notify(conditionMessage(e), type = "error", glue = FALSE,
+                     session = session)
               record_update_outcome(FALSE, "validate", conditionMessage(e))
               board_update(NULL)
             }
@@ -233,7 +234,8 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
             },
             error = function(e) {
               log_warn("apply_board_update failed: {conditionMessage(e)}")
-              notify(conditionMessage(e), type = "error", session = session)
+              notify(conditionMessage(e), type = "error", glue = FALSE,
+                     session = session)
               record_update_outcome(FALSE, "apply", conditionMessage(e))
             }
           )
@@ -283,7 +285,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
             return()
           }
 
-          removeNotification(session$token)
+          notify_remove(session$token)
           reload_pending(NULL)
 
           val <- isolate(board_refresh())

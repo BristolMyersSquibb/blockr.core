@@ -4,10 +4,9 @@
 #' messages) may be raised. The default `notify_user` plugin surfaces these to
 #' the user as [shiny::showNotification()] toasts, displaying newly active
 #' conditions and clearing ones that are no longer active via
-#' [shiny::removeNotification()]. It renders from `board$conditions()` (see
-#' [board_server()]), the board-level reactive frame of active conditions, so
-#' that toast display and any programmatic consumer share a single processed
-#' view rather than each walking per-block condition state.
+#' [shiny::removeNotification()]. Each block's conditions (see [board_server()])
+#' are tracked individually, so that a single block's change touches only its
+#' own notifications rather than re-processing the whole board.
 #'
 #' @param server,ui Server/UI for the plugin module
 #'
@@ -33,15 +32,16 @@ notify_user_server <- function(id, board, ...) {
     id,
     function(input, output, session) {
 
-      shown <- reactiveVal(character())
+      tracked <- new.env(parent = emptyenv())
 
-      observeEvent(
-        board$conditions(),
-        shown(
-          update_condition_notif(board$conditions(), shown(), session)
-        ),
-        ignoreNULL = FALSE
-      )
+      observe({
+
+        ids <- names(board$blocks)
+
+        isolate(
+          sync_block_notifs(ids, tracked, board, session)
+        )
+      })
 
       invisible()
     }
@@ -58,8 +58,58 @@ notify_user_ui <- function(id, board) {
   )
 }
 
-update_condition_notif <- function(conditions, shown,
-                                   session = get_session()) {
+sync_block_notifs <- function(ids, tracked, board, session) {
+
+  for (id in setdiff(ids, ls(tracked))) {
+    tracked[[id]] <- block_notif_observer(id, board, session)
+  }
+
+  for (id in setdiff(ls(tracked), ids)) {
+
+    tracked[[id]]$destroy()
+    rm(list = id, envir = tracked)
+  }
+
+  invisible()
+}
+
+block_notif_observer <- function(block_id, board, session) {
+
+  conditions <- isolate(board$blocks[[block_id]]$server$conditions)
+
+  shown <- character()
+
+  obs <- observeEvent(
+    conditions(),
+    {
+      frame <- notif_frame(conditions(), session)
+
+      for (key in setdiff(shown, frame$key)) {
+        notify_remove(key, session)
+      }
+
+      for (key in setdiff(frame$key, shown)) {
+        notif_show(key, frame[frame$key == key, , drop = FALSE], session)
+      }
+
+      shown <<- frame$key
+    },
+    ignoreNULL = FALSE
+  )
+
+  list(
+    destroy = function() {
+
+      obs$destroy()
+
+      for (key in shown) {
+        notify_remove(key, session)
+      }
+    }
+  )
+}
+
+notif_frame <- function(conditions, session = get_session()) {
 
   cnds <- coal(
     isolate(
@@ -70,36 +120,22 @@ update_condition_notif <- function(conditions, shown,
 
   conditions <- conditions[conditions$severity %in% cnds, , drop = FALSE]
 
-  ids <- paste(conditions$severity, conditions$id, sep = "-")
-  keep <- which(!duplicated(ids))
+  conditions$key <- paste(
+    conditions$block, conditions$severity, conditions$id,
+    sep = "-"
+  )
 
-  cur <- character()
+  conditions[!duplicated(conditions$key), , drop = FALSE]
+}
 
-  for (i in keep) {
-
-    id <- ids[i]
-
-    if (!id %in% shown) {
-      showNotification(
-        HTML(
-          paste0(
-            "Block ", conditions$block[i], ": ",
-            cli::ansi_html(conditions$message[i])
-          )
-        ),
-        duration = NULL,
-        id = id,
-        type = conditions$severity[i],
-        session = session
-      )
-    }
-
-    cur <- c(cur, id)
-  }
-
-  for (id in setdiff(shown, cur)) {
-    removeNotification(id, session)
-  }
-
-  cur
+notif_show <- function(key, row, session) {
+  notify(
+    "Block ", row$block, ": ", row$message,
+    glue = FALSE,
+    log = FALSE,
+    duration = NULL,
+    id = key,
+    type = row$severity,
+    session = session
+  )
 }
