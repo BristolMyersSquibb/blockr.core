@@ -7,11 +7,10 @@ these to the user as
 toasts, displaying newly active conditions and clearing ones that are no
 longer active via
 [`shiny::removeNotification()`](https://rdrr.io/pkg/shiny/man/showNotification.html).
-It renders from `board$conditions()` (see
-[`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)),
-the board-level reactive frame of active conditions, so that toast
-display and any programmatic consumer share a single processed view
-rather than each walking per-block condition state.
+Each block's conditions (see
+[`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md))
+are tracked individually, so that a single block's change touches only
+its own notifications rather than re-processing the whole board.
 
 ## Usage
 

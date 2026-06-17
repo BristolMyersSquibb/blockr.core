@@ -2,6 +2,27 @@
 
 ## blockr.core 0.1.3
 
+- The default
+  [`notify_user()`](https://bristolmyerssquibb.github.io/blockr.core/reference/notify_user.md)
+  plugin now tracks each block’s conditions individually rather than
+  re-deriving the whole board’s condition frame on every change. A
+  single block’s condition change updates only the notifications it
+  affects, restoring O(block)-per-change work and an O(N) rather than
+  O(N^2) cost when a condition cascade touches many blocks on a large
+  board. `board$conditions()` is unchanged for programmatic consumers
+  ([\#222](https://github.com/BristolMyersSquibb/blockr.core/issues/222)).
+- [`notify()`](https://bristolmyerssquibb.github.io/blockr.core/reference/get_session.md)
+  gains `glue` and `log` arguments (both `TRUE` by default, so existing
+  behaviour is unchanged). `glue = FALSE` surfaces literal text without
+  \[cli::pluralize()\] interpolation — so caught condition messages
+  containing brace characters no longer error — and `log = FALSE` skips
+  the log entry for already-logged text. The board update, link and
+  stack error toasts now pass condition messages through with
+  `glue = FALSE`, and the default
+  [`notify_user()`](https://bristolmyerssquibb.github.io/blockr.core/reference/notify_user.md)
+  plugin renders through
+  [`notify()`](https://bristolmyerssquibb.github.io/blockr.core/reference/get_session.md)
+  ([\#222](https://github.com/BristolMyersSquibb/blockr.core/issues/222)).
 - Active block conditions (errors, warnings and messages captured during
   evaluation) are now emitted as tidy data frames. Each block server
   returns its conditions as a reactive `server$conditions` (one row per
@@ -14,8 +35,8 @@
   whole board — instead of walking the nested per-block condition state,
   and the default
   [`notify_user()`](https://bristolmyerssquibb.github.io/blockr.core/reference/notify_user.md)
-  plugin renders toasts from this single source. The block server no
-  longer returns its raw `cond` reactive values object — read
+  plugin surfaces them to the user as toasts. The block server no longer
+  returns its raw `cond` reactive values object — read
   `server$conditions()` instead
   ([\#217](https://github.com/BristolMyersSquibb/blockr.core/issues/217)).
 - [`str_value()`](https://bristolmyerssquibb.github.io/blockr.core/reference/str_value.md)

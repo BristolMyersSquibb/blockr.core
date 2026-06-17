@@ -75,6 +75,8 @@ notify: Glue-capable wrapper for shiny::showNotification().
 <span>  close_button <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  id <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"message"</span>, <span class="st">"warning"</span>, <span class="st">"error"</span><span class="op">)</span>,</span>
+<span>  glue <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  log <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  session <span class="op">=</span> <span class="fu">get_session</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -119,6 +121,13 @@ notification if it exists, otherwise it will create a new one.</p>
 <dt id="arg-type">type<a class="anchor" aria-label="anchor" href="#arg-type"></a></dt>
 <dd><p>A string which controls the color of the notification. One of
 "default" (gray), "message" (blue), "warning" (yellow), or "error" (red).</p></dd>
+
+
+<dt id="arg-glue-log">glue, log<a class="anchor" aria-label="anchor" href="#arg-glue-log"></a></dt>
+<dd><p>Whether to <code><a href="https://glue.tidyverse.org/reference/glue.html" class="external-link">glue::glue()</a></code>-interpolate <code>...</code> and whether to
+emit a log message. Set both to <code>FALSE</code> to surface pre-formatted,
+already-logged text (e.g. a captured condition message, which may contain
+braces that would otherwise fail interpolation).</p></dd>
 
 
 <dt id="arg-session">session<a class="anchor" aria-label="anchor" href="#arg-session"></a></dt>

@@ -23,6 +23,8 @@ notify(
   close_button = TRUE,
   id = NULL,
   type = c("message", "warning", "error"),
+  glue = TRUE,
+  log = TRUE,
   session = get_session()
 )
 ```
@@ -70,6 +72,15 @@ notify(
   A string which controls the color of the notification. One of
   "default" (gray), "message" (blue), "warning" (yellow), or "error"
   (red).
+
+- glue, log:
+
+  Whether to
+  [`glue::glue()`](https://glue.tidyverse.org/reference/glue.html)-interpolate
+  `...` and whether to emit a log message. Set both to `FALSE` to
+  surface pre-formatted, already-logged text (e.g. a captured condition
+  message, which may contain braces that would otherwise fail
+  interpolation).
 
 - session:
 

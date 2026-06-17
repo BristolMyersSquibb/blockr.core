@@ -3,17 +3,15 @@
 messages) may be raised. The default notify_user plugin surfaces these to
 the user as shiny::showNotification() toasts, displaying newly active
 conditions and clearing ones that are no longer active via
-shiny::removeNotification(). It renders from board$conditions() (see
-board_server()), the board-level reactive frame of active conditions, so
-that toast display and any programmatic consumer share a single processed
-view rather than each walking per-block condition state."><meta property="og:description" content="During the evaluation cycle of each block, conditions (errors, warnings and
+shiny::removeNotification(). Each block's conditions (see board_server())
+are tracked individually, so that a single block's change touches only its
+own notifications rather than re-processing the whole board."><meta property="og:description" content="During the evaluation cycle of each block, conditions (errors, warnings and
 messages) may be raised. The default notify_user plugin surfaces these to
 the user as shiny::showNotification() toasts, displaying newly active
 conditions and clearing ones that are no longer active via
-shiny::removeNotification(). It renders from board$conditions() (see
-board_server()), the board-level reactive frame of active conditions, so
-that toast display and any programmatic consumer share a single processed
-view rather than each walking per-block condition state."><script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.5.0/mermaid.min.js" integrity="sha512-3EZqKCkk3nMLmbrI7mfry81KH7dkzy/BoDfQrodwLQnS/RbsVlERdYP6J0oiJegRUxSOmx7Y35WNbVKSw7mipw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script></head><body>
+shiny::removeNotification(). Each block's conditions (see board_server())
+are tracked individually, so that a single block's change touches only its
+own notifications rather than re-processing the whole board."><script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.5.0/mermaid.min.js" integrity="sha512-3EZqKCkk3nMLmbrI7mfry81KH7dkzy/BoDfQrodwLQnS/RbsVlERdYP6J0oiJegRUxSOmx7Y35WNbVKSw7mipw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -66,10 +64,9 @@ view rather than each walking per-block condition state."><script src="https://c
 messages) may be raised. The default <code>notify_user</code> plugin surfaces these to
 the user as <code><a href="https://rdrr.io/pkg/shiny/man/showNotification.html" class="external-link">shiny::showNotification()</a></code> toasts, displaying newly active
 conditions and clearing ones that are no longer active via
-<code><a href="https://rdrr.io/pkg/shiny/man/showNotification.html" class="external-link">shiny::removeNotification()</a></code>. It renders from <code>board$conditions()</code> (see
-<code><a href="board_server.html">board_server()</a></code>), the board-level reactive frame of active conditions, so
-that toast display and any programmatic consumer share a single processed
-view rather than each walking per-block condition state.</p>
+<code><a href="https://rdrr.io/pkg/shiny/man/showNotification.html" class="external-link">shiny::removeNotification()</a></code>. Each block's conditions (see <code><a href="board_server.html">board_server()</a></code>)
+are tracked individually, so that a single block's change touches only its
+own notifications rather than re-processing the whole board.</p>
     </div>
 
     <div class="section level2">
