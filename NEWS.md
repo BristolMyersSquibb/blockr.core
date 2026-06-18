@@ -1,5 +1,11 @@
 # blockr.core 0.1.3
 
+* New exported `trim_rv()` removes entries from a `reactiveValues`
+  object, which assigning `NULL` does not do -- the key lingers in
+  `names()` with a `NULL` value. Unlinking a variadic block argument now
+  drops it from the block's `...args` outright rather than leaving a
+  phantom `NULL` entry behind (#227).
+
 * The default `notify_user()` plugin now tracks each block's conditions
   individually rather than re-deriving the whole board's condition frame
   on every change. A single block's condition change updates only the

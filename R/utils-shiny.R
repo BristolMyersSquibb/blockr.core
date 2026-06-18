@@ -10,6 +10,55 @@ reorder_rv <- function(x, new) {
   invisible(x)
 }
 
+#' Remove entries from a `reactiveValues` object
+#'
+#' shiny offers no public way to delete a key from a [shiny::reactiveValues()]
+#' object -- assigning `NULL` stores a `NULL` value but leaves the key in
+#' `names()`. `trim_rv()` removes the named entries outright and invalidates
+#' the affected reactive dependencies, so a key can be truly dropped (and
+#' later re-added) -- for instance when a variadic block argument is unlinked.
+#'
+#' @param x A `reactiveValues` object.
+#' @param rm Character vector of keys to remove; all must be present in `x`.
+#'
+#' @return `x`, invisibly.
+#'
+#' @export
+trim_rv <- function(x, rm) {
+
+  stopifnot(is.reactivevalues(x), all(rm %in% names(x)))
+
+  internals <- .subset2(x, "impl")
+
+  # No public removal exists, so mirror the internals ReactiveValues$set()
+  # touches: drop the value and its name, then invalidate the same
+  # dependencies an update would (the key's own, plus names / as-list).
+  for (key in rm) {
+
+    internals$.values$remove(key)
+
+    if (internals$.dependents$containsKey(key)) {
+      internals$.dependents$get(key)$invalidate()
+    }
+  }
+
+  internals$.nameOrder <- setdiff(internals$.nameOrder, rm)
+
+  if (isTRUE(internals$.hasRetrieved$names)) {
+    internals$.namesDeps$invalidate()
+  }
+
+  if (isTRUE(internals$.hasRetrieved$asList)) {
+    internals$.valuesDeps$invalidate()
+  }
+
+  if (isTRUE(internals$.hasRetrieved$asListAll)) {
+    internals$.allValuesDeps$invalidate()
+  }
+
+  invisible(x)
+}
+
 make_read_only <- function(x) {
 
   stopifnot(is.reactivevalues(x))

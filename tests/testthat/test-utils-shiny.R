@@ -49,6 +49,39 @@ test_that("shiny utils", {
   expect_true(untrace_observe())
 })
 
+test_that("trim_rv removes keys, invalidates readers, and allows re-add", {
+
+  with_mock_session(
+    {
+      rv <- reactiveValues(a = 1, b = 2, c = 3)
+
+      seen <- NULL
+      observe(seen <<- list(names = names(rv), b = rv[["b"]]))
+      session$flushReact()
+
+      expect_setequal(seen$names, c("a", "b", "c"))
+      expect_identical(seen$b, 2)
+
+      # Unlike `rv[["b"]] <- NULL` (which leaves a NULL-valued key behind),
+      # trim_rv() drops the key outright and re-runs the reader.
+      trim_rv(rv, "b")
+      session$flushReact()
+
+      expect_setequal(seen$names, c("a", "c"))
+      expect_null(seen$b)
+
+      # The slot is genuinely free, so the same key can be re-added.
+      rv[["b"]] <- 99
+      session$flushReact()
+
+      expect_setequal(seen$names, c("a", "c", "b"))
+      expect_identical(seen$b, 99)
+
+      expect_error(trim_rv(rv, "absent"))
+    }
+  )
+})
+
 test_that("notify(glue = FALSE) surfaces literal text with braces", {
 
   shown <- NULL
