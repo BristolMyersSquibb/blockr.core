@@ -179,14 +179,22 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
           tryCatch(
             {
-              log_debug("starting board update")
-              validate_board_update_structure(upd, rv$board)
-              log_debug("board update validated")
+              if (is_board_locked(rv$board)) {
 
-              log_debug("preprocessing board update")
-              if (!preprocess_board_update(board_update, rv$board)) {
-                log_debug("validating board links against board")
-                validate_board_update_xrefs(upd, rv$board)
+                log_debug("rejecting board update on locked board")
+                board_update(NULL)
+
+              } else {
+
+                log_debug("starting board update")
+                validate_board_update_structure(upd, rv$board)
+                log_debug("board update validated")
+
+                log_debug("preprocessing board update")
+                if (!preprocess_board_update(board_update, rv$board)) {
+                  log_debug("validating board links against board")
+                  validate_board_update_xrefs(upd, rv$board)
+                }
               }
             },
             error = function(e) {
@@ -748,6 +756,9 @@ add_blocks_to_stacks <- function(rv, add, session) {
 #' throws a `blockr_abort()` error). [augment_board_update()] returns
 #' the (possibly extended) payload. [apply_board_update()] returns a
 #' `board`.
+#'
+#' @seealso On a locked board (see [is_board_locked()]) the update is
+#' dropped rather than applied.
 #'
 #' @examples
 #' brd <- new_board(

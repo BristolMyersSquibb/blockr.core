@@ -115,3 +115,7 @@ try(
 )
 
 }
+\seealso{
+On a locked board (see \code{\link[=is_board_locked]{is_board_locked()}}) the update is
+dropped rather than applied.
+}

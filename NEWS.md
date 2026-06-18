@@ -5,7 +5,18 @@
   `names()` with a `NULL` value. Unlinking a variadic block argument now
   drops it from the block's `...args` outright rather than leaving a
   phantom `NULL` entry behind (#227).
-
+* Boards can be deployed read-only via the `blockr.locked` option,
+  enforced server-side rather than by UI hiding (which a forged
+  `Shiny.setInputValue` bypasses). While locked, the two channels every
+  mutation funnels through -- the `board_update` lifecycle and
+  `set_board_option_value()` -- refuse to apply changes.
+  `is_board_locked()` is an S3 generic (the default method reads the
+  option; a subclass can source the state differently, e.g. an
+  authenticated unlock). `set_board_option_value()` gains a required
+  `board` argument so the option channel can resolve the lock. Locking
+  is not a defense against arbitrary R executing in the session -- which
+  can flip the flag or edit the board directly -- so untrusted
+  deployments must be isolated at the deployment layer (#229).
 * The default `notify_user()` plugin now tracks each block's conditions
   individually rather than re-deriving the whole board's condition frame
   on every change. A single block's condition change updates only the

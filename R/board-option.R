@@ -268,7 +268,7 @@ new_board_name_option <- function(value = NULL, category = "Board options",
             TRUE,
             {
               val <- id_to_sentence_case(board$board_id)
-              set_board_option_value("board_name", val, session)
+              set_board_option_value("board_name", val, board$board, session)
               updateTextInput(session, "board_name", value = val)
               session$sendCustomMessage("change-board-title", val)
             },
