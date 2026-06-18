@@ -2,6 +2,15 @@
 
 ## blockr.core 0.1.3
 
+- New exported
+  [`trim_rv()`](https://bristolmyerssquibb.github.io/blockr.core/reference/trim_rv.md)
+  removes entries from a `reactiveValues` object, which assigning `NULL`
+  does not do – the key lingers in
+  [`names()`](https://rdrr.io/r/base/names.html) with a `NULL` value.
+  Unlinking a variadic block argument now drops it from the block’s
+  `...args` outright rather than leaving a phantom `NULL` entry behind
+  ([\#227](https://github.com/BristolMyersSquibb/blockr.core/issues/227)).
+
 - The default
   [`notify_user()`](https://bristolmyerssquibb.github.io/blockr.core/reference/notify_user.md)
   plugin now tracks each block’s conditions individually rather than
@@ -11,6 +20,7 @@
   O(N^2) cost when a condition cascade touches many blocks on a large
   board. `board$conditions()` is unchanged for programmatic consumers
   ([\#222](https://github.com/BristolMyersSquibb/blockr.core/issues/222)).
+
 - [`notify()`](https://bristolmyerssquibb.github.io/blockr.core/reference/get_session.md)
   gains `glue` and `log` arguments (both `TRUE` by default, so existing
   behaviour is unchanged). `glue = FALSE` surfaces literal text without
@@ -23,6 +33,7 @@
   plugin renders through
   [`notify()`](https://bristolmyerssquibb.github.io/blockr.core/reference/get_session.md)
   ([\#222](https://github.com/BristolMyersSquibb/blockr.core/issues/222)).
+
 - Active block conditions (errors, warnings and messages captured during
   evaluation) are now emitted as tidy data frames. Each block server
   returns its conditions as a reactive `server$conditions` (one row per
@@ -39,6 +50,7 @@
   returns its raw `cond` reactive values object — read
   `server$conditions()` instead
   ([\#217](https://github.com/BristolMyersSquibb/blockr.core/issues/217)).
+
 - [`str_value()`](https://bristolmyerssquibb.github.io/blockr.core/reference/str_value.md)
   now covers every domain class that has a full-tier
   [`format()`](https://rdrr.io/r/base/format.html) /
@@ -52,6 +64,7 @@
   a container or board renders one element per line below a `<class[n]>`
   header
   ([\#212](https://github.com/BristolMyersSquibb/blockr.core/issues/212)).
+
 - New exported generic
   [`external_ctrl_vars()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md)
   (with a `block` method) and predicate
@@ -63,6 +76,7 @@
   it (e.g. for dock extensions) instead of re-reading the raw
   `external_ctrl` attribute
   ([\#192](https://github.com/BristolMyersSquibb/blockr.core/issues/192)).
+
 - [`blockr_deser.list()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_ser.md)
   now forwards `...` to the dispatched per-class method, so callers can
   thread additional context (e.g. a producer version) down to nested

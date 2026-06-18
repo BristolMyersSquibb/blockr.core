@@ -377,6 +377,7 @@ Various tools and utilities.
 - [`topo_sort()`](https://bristolmyerssquibb.github.io/blockr.core/reference/topo_sort.md)
   [`is_acyclic()`](https://bristolmyerssquibb.github.io/blockr.core/reference/topo_sort.md)
   : Graph utils
+
 - [`rand_names()`](https://bristolmyerssquibb.github.io/blockr.core/reference/rand_names.md)
   [`adjective_animal()`](https://bristolmyerssquibb.github.io/blockr.core/reference/rand_names.md)
   [`sample_letters()`](https://bristolmyerssquibb.github.io/blockr.core/reference/rand_names.md)
@@ -389,9 +390,11 @@ Various tools and utilities.
   [`to_sentence_case()`](https://bristolmyerssquibb.github.io/blockr.core/reference/rand_names.md)
   [`id_to_sentence_case()`](https://bristolmyerssquibb.github.io/blockr.core/reference/rand_names.md)
   : Random IDs
+
 - [`blockr_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_option.md)
   [`set_blockr_options()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_option.md)
   : Blockr Options
+
 - [`serve()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   [`blockr_app_plugins()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   [`custom_plugins()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
@@ -402,10 +405,13 @@ Various tools and utilities.
   [`get_serve_obj()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   [`blockr_test_exports()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   : Serve object
+
 - [`export_code()`](https://bristolmyerssquibb.github.io/blockr.core/reference/export_code.md)
   : Utilities for code export
+
 - [`str_value()`](https://bristolmyerssquibb.github.io/blockr.core/reference/str_value.md)
   : Compact rendering
+
 - [`chr_ply()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
   [`lgl_ply()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
   [`int_ply()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
@@ -421,6 +427,7 @@ Various tools and utilities.
   [`lst_xtr()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
   [`map()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
   : Functional programming utilities
+
 - [`set_names()`](https://bristolmyerssquibb.github.io/blockr.core/reference/set_names.md)
   [`paste_enum()`](https://bristolmyerssquibb.github.io/blockr.core/reference/set_names.md)
   [`coal()`](https://bristolmyerssquibb.github.io/blockr.core/reference/set_names.md)
@@ -432,6 +439,7 @@ Various tools and utilities.
   [`pkg_file()`](https://bristolmyerssquibb.github.io/blockr.core/reference/set_names.md)
   [`pkg_avail()`](https://bristolmyerssquibb.github.io/blockr.core/reference/set_names.md)
   : Miscellaneous utilities
+
 - [`is_scalar()`](https://bristolmyerssquibb.github.io/blockr.core/reference/assertions.md)
   [`is_string()`](https://bristolmyerssquibb.github.io/blockr.core/reference/assertions.md)
   [`is_bool()`](https://bristolmyerssquibb.github.io/blockr.core/reference/assertions.md)
@@ -441,13 +449,16 @@ Various tools and utilities.
   [`not_null()`](https://bristolmyerssquibb.github.io/blockr.core/reference/assertions.md)
   [`has_length()`](https://bristolmyerssquibb.github.io/blockr.core/reference/assertions.md)
   : Assertions
+
 - [`get_session()`](https://bristolmyerssquibb.github.io/blockr.core/reference/get_session.md)
   [`notify()`](https://bristolmyerssquibb.github.io/blockr.core/reference/get_session.md)
   : Shiny utilities
+
 - [`blockr_abort()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_abort.md)
   [`blockr_warn()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_abort.md)
   [`blockr_inform()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_abort.md)
   : Blockr conditions
+
 - [`generate_plugin_args()`](https://bristolmyerssquibb.github.io/blockr.core/reference/testing.md)
   [`sink_msg()`](https://bristolmyerssquibb.github.io/blockr.core/reference/testing.md)
   [`new_mock_session()`](https://bristolmyerssquibb.github.io/blockr.core/reference/testing.md)
@@ -456,10 +467,16 @@ Various tools and utilities.
   [`get_s3_method()`](https://bristolmyerssquibb.github.io/blockr.core/reference/testing.md)
   [`export_safely()`](https://bristolmyerssquibb.github.io/blockr.core/reference/testing.md)
   : Testing utilities
+
 - [`bbquote()`](https://bristolmyerssquibb.github.io/blockr.core/reference/bbquote.md)
   [`.()`](https://bristolmyerssquibb.github.io/blockr.core/reference/bbquote.md)
   [`..()`](https://bristolmyerssquibb.github.io/blockr.core/reference/bbquote.md)
   : Quoting utilities
+
+- [`trim_rv()`](https://bristolmyerssquibb.github.io/blockr.core/reference/trim_rv.md)
+  :
+
+  Remove entries from a `reactiveValues` object
 
 # Articles
 
