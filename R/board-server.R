@@ -540,7 +540,7 @@ destroy_link <- function(rv, id, from, to, input) {
   if (input %in% block_inputs(board_blocks(rv$board)[[to]])) {
     rv$inputs[[to]][[input]](NULL)
   } else {
-    rv$inputs[[to]][["...args"]][[input]] <- NULL
+    trim_rv(rv$inputs[[to]][["...args"]], input)
   }
 
   invisible()

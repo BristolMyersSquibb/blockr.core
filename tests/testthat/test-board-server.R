@@ -522,6 +522,28 @@ test_that("update_link default preserves all fields through reconstruction", {
   expect_identical(out2$input, "y")
 })
 
+test_that("destroy_link drops an unlinked variadic ...args entry (#227)", {
+
+  with_mock_session(
+    {
+      rv <- reactiveValues(
+        board = new_board(blocks(v = new_rbind_block())),
+        inputs = list(v = list(`...args` = reactiveValues(a = 1, b = 2))),
+        links = list(l1 = observe(NULL))
+      )
+
+      args <- isolate(rv$inputs$v[["...args"]])
+      expect_setequal(isolate(names(args)), c("a", "b"))
+
+      isolate(destroy_link(rv, "l1", from = "x", to = "v", input = "a"))
+
+      expect_false("a" %in% isolate(names(args)))
+      expect_setequal(isolate(names(args)), "b")
+      expect_null(isolate(rv$links$l1))
+    }
+  )
+})
+
 test_that("update validation", {
 
   expect_error(
