@@ -1,10 +1,11 @@
 reorder_rv <- function(x, new) {
 
-  stopifnot(
-    is.reactivevalues(x), setequal(new, names(x)), anyDuplicated(new) == 0L
-  )
+  stopifnot(is.reactivevalues(x))
 
   internals <- .subset2(x, "impl")
+
+  stopifnot(setequal(new, internals$.nameOrder), anyDuplicated(new) == 0L)
+
   internals$.nameOrder <- new
 
   invisible(x)
@@ -26,9 +27,11 @@ reorder_rv <- function(x, new) {
 #' @export
 trim_rv <- function(x, rm) {
 
-  stopifnot(is.reactivevalues(x), all(rm %in% names(x)))
+  stopifnot(is.reactivevalues(x))
 
   internals <- .subset2(x, "impl")
+
+  stopifnot(all(rm %in% internals$.nameOrder))
 
   # No public removal exists, so mirror the internals ReactiveValues$set()
   # touches: drop the value and its name, then invalidate the same

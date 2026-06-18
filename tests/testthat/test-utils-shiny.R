@@ -82,6 +82,44 @@ test_that("trim_rv removes keys, invalidates readers, and allows re-add", {
   )
 })
 
+test_that("trim_rv and reorder_rv run outside a reactive context", {
+
+  rv <- reactiveValues(a = 1, b = 2, c = 3)
+
+  expect_silent(trim_rv(rv, "b"))
+  expect_setequal(isolate(names(rv)), c("a", "c"))
+
+  expect_silent(reorder_rv(rv, c("c", "a")))
+  expect_identical(isolate(names(rv)), c("c", "a"))
+
+  expect_error(trim_rv(rv, "absent"))
+  expect_error(reorder_rv(rv, c("a", "b", "c")))
+})
+
+test_that("trim_rv invalidates reactiveValuesToList readers", {
+
+  with_mock_session(
+    {
+      rv <- reactiveValues(a = 1, b = 2, c = 3)
+
+      as_seen <- NULL
+      all_seen <- NULL
+      observe(as_seen <<- reactiveValuesToList(rv))
+      observe(all_seen <<- reactiveValuesToList(rv, all.names = TRUE))
+      session$flushReact()
+
+      expect_true(all(c("a", "b", "c") %in% names(as_seen)))
+      expect_true(all(c("a", "b", "c") %in% names(all_seen)))
+
+      trim_rv(rv, "b")
+      session$flushReact()
+
+      expect_false("b" %in% names(as_seen))
+      expect_false("b" %in% names(all_seen))
+    }
+  )
+})
+
 test_that("notify(glue = FALSE) surfaces literal text with braces", {
 
   shown <- NULL
