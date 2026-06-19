@@ -122,7 +122,7 @@ board_option_values(x)
 
 get_board_option_value(opt, session = get_session())
 
-set_board_option_value(opt, val, session = get_session())
+set_board_option_value(opt, val, board, session = get_session())
 
 get_board_option_or_default(
   opt,
@@ -199,6 +199,12 @@ combine_board_options(...)
 - val:
 
   New value
+
+- board:
+
+  Board the option belongs to, used to resolve the lock state (see
+  [`is_board_locked()`](https://bristolmyerssquibb.github.io/blockr.core/reference/locked-board.md));
+  pass `NULL` to fall back to the option.
 
 - opts:
 

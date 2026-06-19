@@ -10,7 +10,21 @@
   Unlinking a variadic block argument now drops it from the block’s
   `...args` outright rather than leaving a phantom `NULL` entry behind
   ([\#227](https://github.com/BristolMyersSquibb/blockr.core/issues/227)).
-
+- Boards can be deployed read-only via the `blockr.locked` option,
+  enforced server-side rather than by UI hiding (which a forged
+  `Shiny.setInputValue` bypasses). While locked, the two channels every
+  mutation funnels through – the `board_update` lifecycle and
+  [`set_board_option_value()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  – refuse to apply changes.
+  [`is_board_locked()`](https://bristolmyerssquibb.github.io/blockr.core/reference/locked-board.md)
+  is an S3 generic (the default method reads the option; a subclass can
+  source the state differently, e.g. an authenticated unlock).
+  [`set_board_option_value()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  gains a required `board` argument so the option channel can resolve
+  the lock. Locking is not a defense against arbitrary R executing in
+  the session – which can flip the flag or edit the board directly – so
+  untrusted deployments must be isolated at the deployment layer
+  ([\#229](https://github.com/BristolMyersSquibb/blockr.core/issues/229)).
 - The default
   [`notify_user()`](https://bristolmyerssquibb.github.io/blockr.core/reference/notify_user.md)
   plugin now tracks each block’s conditions individually rather than
@@ -20,7 +34,6 @@
   O(N^2) cost when a condition cascade touches many blocks on a large
   board. `board$conditions()` is unchanged for programmatic consumers
   ([\#222](https://github.com/BristolMyersSquibb/blockr.core/issues/222)).
-
 - [`notify()`](https://bristolmyerssquibb.github.io/blockr.core/reference/get_session.md)
   gains `glue` and `log` arguments (both `TRUE` by default, so existing
   behaviour is unchanged). `glue = FALSE` surfaces literal text without
@@ -33,7 +46,6 @@
   plugin renders through
   [`notify()`](https://bristolmyerssquibb.github.io/blockr.core/reference/get_session.md)
   ([\#222](https://github.com/BristolMyersSquibb/blockr.core/issues/222)).
-
 - Active block conditions (errors, warnings and messages captured during
   evaluation) are now emitted as tidy data frames. Each block server
   returns its conditions as a reactive `server$conditions` (one row per
@@ -50,7 +62,6 @@
   returns its raw `cond` reactive values object — read
   `server$conditions()` instead
   ([\#217](https://github.com/BristolMyersSquibb/blockr.core/issues/217)).
-
 - [`str_value()`](https://bristolmyerssquibb.github.io/blockr.core/reference/str_value.md)
   now covers every domain class that has a full-tier
   [`format()`](https://rdrr.io/r/base/format.html) /
@@ -64,7 +75,6 @@
   a container or board renders one element per line below a `<class[n]>`
   header
   ([\#212](https://github.com/BristolMyersSquibb/blockr.core/issues/212)).
-
 - New exported generic
   [`external_ctrl_vars()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md)
   (with a `block` method) and predicate
@@ -76,7 +86,6 @@
   it (e.g. for dock extensions) instead of re-reading the raw
   `external_ctrl` attribute
   ([\#192](https://github.com/BristolMyersSquibb/blockr.core/issues/192)).
-
 - [`blockr_deser.list()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_ser.md)
   now forwards `...` to the dispatched per-class method, so callers can
   thread additional context (e.g. a producer version) down to nested

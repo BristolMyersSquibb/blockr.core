@@ -179,7 +179,7 @@ is available as S3 generic. Inheritance checking is available as
 <span></span>
 <span><span class="fu">get_board_option_value</span><span class="op">(</span><span class="va">opt</span>, session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">set_board_option_value</span><span class="op">(</span><span class="va">opt</span>, <span class="va">val</span>, session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu">set_board_option_value</span><span class="op">(</span><span class="va">opt</span>, <span class="va">val</span>, <span class="va">board</span>, session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">get_board_option_or_default</span><span class="op">(</span></span>
 <span>  <span class="va">opt</span>,</span>
@@ -257,6 +257,12 @@ is available as S3 generic. Inheritance checking is available as
 
 <dt id="arg-val">val<a class="anchor" aria-label="anchor" href="#arg-val"></a></dt>
 <dd><p>New value</p></dd>
+
+
+<dt id="arg-board">board<a class="anchor" aria-label="anchor" href="#arg-board"></a></dt>
+<dd><p>Board the option belongs to, used to resolve the lock
+state (see <code><a href="locked-board.html">is_board_locked()</a></code>); pass <code>NULL</code> to fall back to the
+option.</p></dd>
 
 
 <dt id="arg-opts">opts<a class="anchor" aria-label="anchor" href="#arg-opts"></a></dt>

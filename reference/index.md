@@ -159,6 +159,8 @@ Utilities for creating an working with boards
   [`augment_board_update()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_update.md)
   [`apply_board_update()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_update.md)
   : Board update
+- [`is_board_locked()`](https://bristolmyerssquibb.github.io/blockr.core/reference/locked-board.md)
+  : Locked boards
 
 ## Board plugins
 

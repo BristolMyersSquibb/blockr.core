@@ -108,6 +108,12 @@ still invalidate a downstream observer. A programmatic caller can watch
 this field to learn whether a dispatched update was rejected, failed to
 apply, or landed.
 
+## See also
+
+On a locked board (see
+[`is_board_locked()`](https://bristolmyerssquibb.github.io/blockr.core/reference/locked-board.md))
+the update is dropped rather than applied.
+
 ## Examples
 
 ``` r
