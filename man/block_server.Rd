@@ -107,4 +107,14 @@ graph computes the upstream closure of each visible block on its own. With
 nothing driving \code{visible} every block renders and behaviour is unchanged;
 the \code{gate_visibility} \code{\link[=blockr_option]{blockr_option()}} (default \code{TRUE}) turns gating off
 entirely.
+
+A front-end can also drive a \code{frozen} write-channel that \code{\link[=board_server]{board_server()}}
+hands to the board callback, naming the block IDs whose inputs it has
+hidden. While a block is named there its inputs are frozen: core holds the
+block expression at the value last seen while editable and stops consuming
+the block's inputs, so a forged client input (which still fires the
+underlying observer) reaches neither the expression nor evaluation -- it
+changes nothing and triggers no re-evaluation. The block still
+re-evaluates when its upstream data changes, and unfreezing resumes normal
+input handling.
 }

@@ -45,6 +45,15 @@
   is not a defense against arbitrary R executing in the session -- which
   can flip the flag or edit the board directly -- so untrusted
   deployments must be isolated at the deployment layer (#229).
+* `board_server()` exposes a `frozen` write-channel to the board callback,
+  alongside `visible`, naming the block IDs whose inputs a front-end has
+  hidden. While a block is frozen, core holds its expression at the value
+  last seen while editable and stops consuming the block's inputs, so a
+  forged `Shiny.setInputValue` -- which still fires the underlying input
+  observer -- reaches neither the expression nor evaluation and can no
+  longer inject code or otherwise steer the block. The block still
+  re-evaluates when its upstream data changes, and unfreezing restores
+  normal input handling (#231).
 * The default `notify_user()` plugin now tracks each block's conditions
   individually rather than re-deriving the whole board's condition frame
   on every change. A single block's condition change updates only the

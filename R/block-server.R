@@ -43,6 +43,16 @@
 #' the `gate_visibility` [blockr_option()] (default `TRUE`) turns gating off
 #' entirely.
 #'
+#' A front-end can also drive a `frozen` write-channel that [board_server()]
+#' hands to the board callback, naming the block IDs whose inputs it has
+#' hidden. While a block is named there its inputs are frozen: core holds the
+#' block expression at the value last seen while editable and stops consuming
+#' the block's inputs, so a forged client input (which still fires the
+#' underlying observer) reaches neither the expression nor evaluation -- it
+#' changes nothing and triggers no re-evaluation. The block still
+#' re-evaluates when its upstream data changes, and unfreezing resumes normal
+#' input handling.
+#'
 #' @param id Namespace ID
 #' @param x Object for which to generate a [shiny::moduleServer()]
 #' @param data Input data (list of reactives)
@@ -90,9 +100,21 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         x
       )
 
-      lang <- reactive(
+      freezable <- is_board(isolate(board$board))
+
+      frozen <- reactive(
+        freezable && block_id %in% board$frozen
+      )
+
+      live_lang <- reactive(
         exprs_to_lang(exp$expr())
       )
+
+      lang <- if (freezable) {
+        freeze_expr(live_lang, frozen, session)
+      } else {
+        live_lang
+      }
 
       state <- exp$state
 
@@ -114,10 +136,18 @@ block_server.block <- function(id, x, data = list(), block_id = id,
       state_set <- state_check_reactive(block_id, x, state, data_valid, cond,
                                         session)
 
+      ready <- reactive(
+        if (frozen()) isTruthy(data_valid()) else state_set()
+      )
+
       dat_eval <- reactive(
         {
-          req(state_set())
-          lapply(state, reval_if)
+          req(ready())
+
+          if (!frozen()) {
+            lapply(state, reval_if)
+          }
+
           try(lang(), silent = TRUE)
 
           res <- dat()
@@ -205,7 +235,7 @@ block_server.block <- function(id, x, data = list(), block_id = id,
 
       res <- reactive(
         {
-          if (!isTRUE(reval_if(gate)) || !state_set()) {
+          if (!isTRUE(reval_if(gate)) || !ready()) {
             return(NULL)
           }
 
@@ -463,6 +493,25 @@ render_gate_observer <- function(id, board, render_obs, sess) {
           "{if (do_render) 'resumed' else 'suspended'}"
         )
       }
+    },
+    domain = sess
+  )
+}
+
+freeze_expr <- function(live, frozen, sess) {
+
+  pin <- reactiveVal(tryCatch(isolate(live()), error = function(e) NULL))
+
+  reactive(
+    {
+      if (frozen()) {
+        return(isolate(pin()))
+      }
+
+      cur <- live()
+      isolate(pin(cur))
+
+      cur
     },
     domain = sess
   )
