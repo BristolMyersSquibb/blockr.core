@@ -149,7 +149,7 @@ board_option_values(x)
 
 get_board_option_value(opt, session = get_session())
 
-set_board_option_value(opt, val, session = get_session())
+set_board_option_value(opt, val, board, session = get_session())
 
 get_board_option_or_default(
   opt,
@@ -196,6 +196,10 @@ combine_board_options(...)
 \item{session}{Shiny session}
 
 \item{val}{New value}
+
+\item{board}{Board the option belongs to, used to resolve the lock
+state (see \code{\link[=is_board_locked]{is_board_locked()}}); pass \code{NULL} to fall back to the
+option.}
 
 \item{opts}{Board options}
 

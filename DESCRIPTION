@@ -69,6 +69,7 @@ Collate:
     'block-ui.R'
     'blocks-class.R'
     'board-class.R'
+    'board-lock.R'
     'board-option.R'
     'board-options.R'
     'board-plugins.R'
