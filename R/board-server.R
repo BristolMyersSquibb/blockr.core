@@ -37,12 +37,15 @@ board_server <- function(id, x, ...) {
 #' for their side-effects)
 #' @param callback_location Location of callback invocation (before or after
 #' plugins)
+#' @param loader The app's [board_loader()] (supplied by [serve()]), through
+#' which the `preserve_board` server stages a board for the next reload
 #' @rdname board_server
 #' @export
 board_server.board <- function(id, x, plugins = board_plugins(x),
                                options = board_options(x),
                                callbacks = list(),
                                callback_location = c("end", "start"),
+                               loader = NULL,
                                ...) {
 
   plugins <- as_plugins(plugins)
@@ -256,7 +259,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
       call_plugin_server(
         "preserve_board",
-        server_args = read_plugin_args,
+        server_args = c(read_plugin_args, list(loader = loader)),
         plugins = plugins
       )
 

@@ -104,9 +104,11 @@ serve.board <- function(x, id = rand_names(), plugins = blockr_app_plugins,
 
   stopifnot(is_string(id), is.function(plugins), is.function(options))
 
+  loader <- attr(get_plugin("preserve_board", plugins(x)), "loader")
+
   shinyApp(
-    serve_board_ui(id, x, plugins, options),
-    serve_board_srv(id, x, plugins, options, ...)
+    serve_board_ui(id, x, loader, plugins, options),
+    serve_board_srv(id, x, loader, plugins, options, ...)
   )
 }
 
@@ -198,13 +200,13 @@ blockr_app_server.board <- function(id, x, ...) {
   board_server(id, x, ...)
 }
 
-serve_board_ui <- function(id, default, plugins, options, ...) {
+serve_board_ui <- function(id, default, loader, plugins, options, ...) {
 
   args <- list(...)
 
   function(request) {
 
-    x <- resolve_board(default, plugins, board_request_get(request))
+    x <- resolve_board(default, loader, board_request_get(request))
     id <- coal(attr(x, "id"), id)
 
     log_debug("building ui for board {id}")
@@ -216,7 +218,7 @@ serve_board_ui <- function(id, default, plugins, options, ...) {
   }
 }
 
-serve_board_srv <- function(id, default, plugins, options, ...) {
+serve_board_srv <- function(id, default, loader, plugins, options, ...) {
 
   args <- list(...)
 
@@ -224,12 +226,17 @@ serve_board_srv <- function(id, default, plugins, options, ...) {
 
     onStop(revert(trace_observe()), session)
 
-    x <- resolve_board(default, plugins, board_request_ws(session))
+    x <- resolve_board(default, loader, board_request_ws(session))
     id <- coal(attr(x, "id"), id)
 
     res <- do.call(
       blockr_app_server,
-      c(list(id, x, plugins = plugins(x), options = options(x)), args)
+      c(
+        list(
+          id, x, plugins = plugins(x), options = options(x), loader = loader
+        ),
+        args
+      )
     )
 
     blockr_test_exports(x, res)
@@ -238,11 +245,9 @@ serve_board_srv <- function(id, default, plugins, options, ...) {
   }
 }
 
-resolve_board <- function(default, plugins, request) {
+resolve_board <- function(default, loader, request) {
 
-  loader <- board_loader(get_plugin("preserve_board", plugins(default)))
-
-  board <- if (is.null(loader)) NULL else loader(request)
+  board <- if (is.null(loader)) NULL else loader$resolve(request)
 
   if (is.null(board)) {
     return(default)

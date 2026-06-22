@@ -1,10 +1,4 @@
-reset_handoff <- function() {
-  rm(list = ls(reload_handoff), envir = reload_handoff)
-}
-
 test_that("the default server downloads and restores the board", {
-
-  withr::defer(reset_handoff())
 
   test_board <- new_board(
     blocks = c(
@@ -22,27 +16,25 @@ test_that("the default server downloads and restores the board", {
     args = list(board = reactiveValues(board = test_board))
   )
 
+  staged <- NULL
+  spy <- board_loader(
+    resolve = function(request) NULL,
+    stage = function(board, session) staged <<- board
+  )
+
   testServer(
     preserve_board_server,
-    {
-      reset_handoff()
-      session$setInputs(restore = list(datapath = temp))
-
-      expect_length(ls(reload_handoff), 1L)
-      staged <- get(ls(reload_handoff), envir = reload_handoff)
-
-      expect_s3_class(staged, class(test_board))
-      expect_length(board_blocks(staged), length(board_blocks(test_board)))
-      expect_setequal(board_block_ids(staged), board_block_ids(test_board))
-      expect_setequal(board_link_ids(staged), board_link_ids(test_board))
-    },
-    args = list(board = reactiveValues(board = new_board()))
+    session$setInputs(restore = list(datapath = temp)),
+    args = list(board = reactiveValues(board = new_board()), loader = spy)
   )
+
+  expect_s3_class(staged, class(test_board))
+  expect_length(board_blocks(staged), length(board_blocks(test_board)))
+  expect_setequal(board_block_ids(staged), board_block_ids(test_board))
+  expect_setequal(board_link_ids(staged), board_link_ids(test_board))
 })
 
-test_that("restore through the board server stages a board", {
-
-  withr::defer(reset_handoff())
+test_that("the board server stages restores through the supplied loader", {
 
   test_board <- new_board(
     blocks = c(
@@ -65,87 +57,115 @@ test_that("restore through the board server stages a board", {
       ser_deser <- session$makeScope("preserve_board")
       file.copy(ser_deser$output$serialize, temp)
     },
-    args = list(
-      x = test_board,
-      plugins = preserve_board()
-    )
+    args = list(x = test_board, plugins = preserve_board())
+  )
+
+  staged <- NULL
+  spy <- board_loader(
+    resolve = function(request) NULL,
+    stage = function(board, session) staged <<- board
   )
 
   testServer(
     get_s3_method("board_server", test_board),
     {
-      reset_handoff()
       ser_deser <- session$makeScope("preserve_board")
       ser_deser$setInputs(restore = list(datapath = temp))
-
-      expect_length(ls(reload_handoff), 1L)
-      staged <- get(ls(reload_handoff), envir = reload_handoff)
-
-      expect_length(board_blocks(staged), length(board_blocks(test_board)))
-      expect_setequal(board_block_ids(staged), board_block_ids(test_board))
-      expect_setequal(board_link_ids(staged), board_link_ids(test_board))
     },
-    args = list(
-      x = new_board(),
-      plugins = preserve_board()
-    )
+    args = list(x = new_board(), plugins = preserve_board(), loader = spy)
   )
+
+  expect_length(board_blocks(staged), length(board_blocks(test_board)))
+  expect_setequal(board_block_ids(staged), board_block_ids(test_board))
+  expect_setequal(board_link_ids(staged), board_link_ids(test_board))
 })
 
-test_that("preserve_board carries the loader as an attribute", {
+test_that("preserve_board carries a board_loader as an attribute", {
 
   plug <- preserve_board()
 
   expect_true(is_plugin(plug))
   expect_s3_class(plug, "preserve_board")
-  expect_identical(board_loader(plug), preserve_board_loader)
+  expect_true(is_board_loader(attr(plug, "loader")))
   expect_null(plug[["loader"]])
   expect_setequal(names(plug), c("server", "ui"))
 })
 
-test_that("preserve_board_loader resolves the staged board by token", {
+test_that("board_loader bundles a resolve and a stage", {
 
-  withr::defer(reset_handoff())
-
-  board <- new_board(blocks = c(a = new_dataset_block("iris")))
-  token <- "tok-loader"
-  assign(token, board, envir = reload_handoff)
-
-  expect_identical(
-    preserve_board_loader(list(query = set_names(list(token), reload_param))),
-    board
+  ld <- board_loader(
+    resolve = function(request) NULL,
+    stage = function(board, session) NULL
   )
-  expect_null(preserve_board_loader(list(query = list())))
+
+  expect_true(is_board_loader(ld))
+  expect_true(is.function(ld$resolve))
+  expect_true(is.function(ld$stage))
+
+  expect_error(board_loader(resolve = "x", stage = identity))
+  expect_false(is_board_loader(list(resolve = identity, stage = identity)))
+})
+
+test_that("the default loader round-trips a board by token", {
+
+  ld <- preserve_board_loader()
+  board <- new_board(blocks = c(a = new_dataset_block("iris")))
+
+  token <- ld$stage(board, shiny::MockShinySession$new())
+
+  with_token <- list(
+    query = set_names(list(token), reload_param),
+    session = NULL
+  )
+
+  expect_identical(ld$resolve(with_token), board)
+  expect_null(ld$resolve(list(query = list(), session = NULL)))
+
+  # a separate loader instance has its own store -- no shared global
+  expect_null(preserve_board_loader()$resolve(with_token))
+})
+
+test_that("the default loader consumes the token at the WS read", {
+
+  ld <- preserve_board_loader()
+  board <- new_board(blocks = c(a = new_dataset_block("iris")))
+
+  session <- shiny::MockShinySession$new()
+  token <- ld$stage(board, session)
+
+  ws <- list(query = set_names(list(token), reload_param), session = session)
+  get <- list(query = set_names(list(token), reload_param), session = NULL)
+
+  expect_identical(ld$resolve(ws), board)
+  expect_null(ld$resolve(get))
 })
 
 test_that("resolve_board prefers the loader board over the default", {
 
-  withr::defer(reset_handoff())
-
   default <- new_board()
   staged <- new_board(blocks = c(a = new_dataset_block("iris")))
-  token <- "tok-resolve"
-  assign(token, staged, envir = reload_handoff)
 
-  with_token <- list(query = set_names(list(token), reload_param))
+  ld <- preserve_board_loader()
+  token <- ld$stage(staged, shiny::MockShinySession$new())
 
-  expect_identical(
-    resolve_board(default, blockr_app_plugins, with_token),
-    staged
+  with_token <- list(
+    query = set_names(list(token), reload_param),
+    session = NULL
   )
+
+  expect_identical(resolve_board(default, ld, with_token), staged)
   expect_identical(
-    resolve_board(default, blockr_app_plugins, list(query = list())),
+    resolve_board(default, ld, list(query = list(), session = NULL)),
     default
   )
 })
 
-test_that("resolve_board falls back when the plugin has no loader", {
+test_that("resolve_board falls back when there is no loader", {
 
   default <- new_board()
-  no_loader <- function(x) plugins(preserve_board(loader = NULL))
 
   expect_identical(
-    resolve_board(default, no_loader, list(query = list())),
+    resolve_board(default, NULL, list(query = list())),
     default
   )
 })
@@ -153,7 +173,10 @@ test_that("resolve_board falls back when the plugin has no loader", {
 test_that("resolve_board rejects a non-board loader result", {
 
   default <- new_board()
-  bad <- function(x) plugins(preserve_board(loader = function(request) "nope"))
+  bad <- board_loader(
+    resolve = function(request) "nope",
+    stage = function(board, session) NULL
+  )
 
   expect_error(
     resolve_board(default, bad, list(query = list())),

@@ -2,6 +2,8 @@
 % Please edit documentation in R/plugin-serdes.R
 \name{preserve_board}
 \alias{preserve_board}
+\alias{board_loader}
+\alias{is_board_loader}
 \alias{preserve_board_server}
 \alias{preserve_board_loader}
 \alias{restore_board}
@@ -12,12 +14,16 @@
 preserve_board(
   server = preserve_board_server,
   ui = preserve_board_ui,
-  loader = preserve_board_loader
+  loader = preserve_board_loader()
 )
 
-preserve_board_server(id, board, ...)
+board_loader(resolve, stage)
 
-preserve_board_loader(request)
+is_board_loader(x)
+
+preserve_board_server(id, board, ..., loader = NULL)
+
+preserve_board_loader()
 
 restore_board(x, new, result, ..., meta = NULL, session = get_session())
 
@@ -28,21 +34,21 @@ serialize_board(x, blocks, id = NULL, ..., session = get_session())
 \arguments{
 \item{server, ui}{Server/UI for the plugin module}
 
-\item{loader}{Request-phase board loader (see \code{\link[=new_plugin]{new_plugin()}})}
+\item{loader}{A \code{board_loader()} object, or \code{NULL}}
+
+\item{resolve, stage}{Paired functions backing a \code{board_loader}: \code{resolve} is
+\verb{function(request)} returning a \code{board} or \code{NULL}; \code{stage} is
+\verb{function(board, session)} which persists \code{board} and triggers the reload
+that \code{resolve} later picks up. They share private state, so a \code{board_loader}
+is built as a unit rather than supplied as two loose functions.}
+
+\item{x}{The current \code{board} object}
 
 \item{id}{Namespace ID}
 
 \item{board}{The initial \code{board} object}
 
 \item{...}{Extra arguments passed from parent scope}
-
-\item{request}{Request passed by core at the UI (GET) and server (WS connect)
-entry points: a list with the parsed URL \code{query}, the raw \code{request}, and
-\code{session} (\code{NULL} at the GET, so a loader must tolerate its absence). The
-default loader reads the one-time handoff token from \code{query} and returns the
-board staged for it (or \code{NULL}).}
-
-\item{x}{The current \code{board} object}
 
 \item{new}{Serialized (list-based) representation of the new board}
 
@@ -58,9 +64,8 @@ the reload triggered by board restoration}
 \value{
 A plugin container inheriting from \code{preserve_board} is returned by
 \code{preserve_board()}, while the UI component (e.g. \code{preserve_board_ui()}) is
-expected to return shiny UI (i.e. \code{\link[shiny:reexports]{shiny::tagList()}}) and the loader
-component (i.e. \code{preserve_board_loader()}) is expected to return \code{NULL} or a
-\code{board} object.
+expected to return shiny UI (i.e. \code{\link[shiny:reexports]{shiny::tagList()}}). \code{board_loader()}
+returns a \code{board_loader} object and \code{is_board_loader()} a scalar logical.
 }
 \description{
 Board state can be preserved by serializing all contained objects and
@@ -82,13 +87,14 @@ session yet), so a loader must tolerate its absence there. Core validates
 the returned value, which must be \code{NULL} or a \code{board}.
 
 This is how a restored (or otherwise externally resolved) board is handed to
-a freshly (re)loaded session. The default trio (\code{preserve_board_server()} /
-\code{preserve_board_loader()}) implements save/restore: the server stages the
-deserialized board and triggers a \code{\link[shiny:reactiveVal]{shiny::reactiveVal()}} reload, the loader
-returns it on the next request. A third-party module may replace any of the
-three to source the board from elsewhere (e.g. a database). The default
-handoff is a single process-global slot and so is single-tab /
-preview-grade: concurrent restores in one process can clobber one another.
-Multi-user deployments should supply their own \code{loader} (e.g. keyed per
-user/session), as blockr.session does.
+a freshly (re)loaded session. The loader is a \code{board_loader} object, pairing
+a \code{resolve(request)} (read) with a \code{stage(board, session)} (persist and
+trigger the reload that \code{resolve} later picks up) over shared private state.
+\code{\link[=serve]{serve()}} pulls the served board's loader once and uses it for both the
+request-phase resolution and the in-session staging, so the board crossing a
+reload does not depend on which \code{preserve_board} the resolved board itself
+carries. The default loader keeps its state in the app object rather than a
+process global, so it is per-\code{\link[=serve]{serve()}} and survives the reload without a
+shared slot; it is single-process, though, so multi-user deployments supply
+their own \code{loader} resolving from a shared backend (as blockr.session does).
 }

@@ -14,6 +14,7 @@ board_server(id, x, ...)
   options = board_options(x),
   callbacks = list(),
   callback_location = c("end", "start"),
+  loader = NULL,
   ...
 )
 }
@@ -34,6 +35,9 @@ for their side-effects)}
 
 \item{callback_location}{Location of callback invocation (before or after
 plugins)}
+
+\item{loader}{The app's \code{\link[=board_loader]{board_loader()}} (supplied by \code{\link[=serve]{serve()}}), through
+which the \code{preserve_board} server stages a board for the next reload}
 }
 \value{
 A \code{board_server()} implementation (such as the default for the
