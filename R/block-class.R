@@ -195,7 +195,7 @@ new_block <- function(server, ui, class, ctor = sys.parent(), ctor_pkg = NULL,
     if (length(uid)) {
 
       block_metadata <- lapply(
-        set_names(nm = registry_metadata_fields),
+        set_names(nm = block_record_fields()),
         get_attr,
         get_registry_entry(uid)
       )
@@ -765,19 +765,52 @@ block_metadata.default <- function(x, ...) {
 }
 
 block_catalog_row <- function(x) {
-  block_catalog(attr(x, "block_metadata"), gsub("_", " ", class(x)[1L]))
+  block_catalog(block_metadata_record(x), gsub("_", " ", class(x)[1L]))
 }
 
 registry_catalog_row <- function(id) {
+  block_catalog(block_metadata_record(id), NA_character_)
+}
 
-  entry <- get_registry_entry(id)
+block_record_fields <- function() {
+  c(registry_metadata_fields, "examples")
+}
 
-  record <- c(
-    list(id = id),
-    lapply(set_names(nm = registry_metadata_fields), get_attr, entry)
+block_metadata_record <- function(x, ...) {
+  UseMethod("block_metadata_record")
+}
+
+#' @export
+block_metadata_record.block <- function(x, ...) {
+
+  record <- attr(x, "block_metadata")
+
+  if (is.list(record)) record else list()
+}
+
+#' @export
+block_metadata_record.block_registry_entry <- function(x, ...) {
+  c(
+    list(id = registry_uid(attr(x, "classes"))),
+    lapply(set_names(nm = block_record_fields()), get_attr, x)
   )
+}
 
-  block_catalog(record, NA_character_)
+#' @export
+block_metadata_record.character <- function(x, ...) {
+
+  record <- block_metadata_record(get_registry_entry(x))
+  record[["id"]] <- x
+
+  record
+}
+
+#' @export
+block_metadata_record.default <- function(x, ...) {
+  blockr_abort(
+    "Cannot resolve an object of class {class(x)[1L]} to block metadata.",
+    class = "block_metadata_unresolved"
+  )
 }
 
 block_catalog <- function(record, default_name) {

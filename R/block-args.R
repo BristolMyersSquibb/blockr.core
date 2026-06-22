@@ -10,8 +10,10 @@
 #' with the accessor generics `block_args()` (the specification),
 #' `block_examples()` (complete worked configurations), `block_guidance()`
 #' (model-facing construction notes) and `block_keywords()` (discovery terms).
-#' Each dispatches on a `block`, a `block_registry_entry` or a registry ID, so
-#' the same call works whether one holds a block instance or only its type. The
+#' Each accepts a `block`, a `block_registry_entry` or a registry ID -- a block
+#' instance is read from its own attached metadata, the registry is consulted
+#' only for a bare ID or entry -- so the same call works whether one holds an
+#' instance or only its type. The
 #' flat, scalar catalog metadata (name, description, category, ...) is instead
 #' tabulated across many blocks via [block_metadata()].
 #'
@@ -252,108 +254,40 @@ deprecate_legacy_arg_attrs <- function() {
   )
 }
 
-as_registry_entry <- function(x, ...) {
-  UseMethod("as_registry_entry")
-}
-
-#' @export
-as_registry_entry.block_registry_entry <- function(x, ...) {
-  x
-}
-
-#' @export
-as_registry_entry.character <- function(x, ...) {
-  get_registry_entry(x)
-}
-
-#' @export
-as_registry_entry.block <- function(x, ...) {
-
-  uid <- registry_id_from_block(x)
-
-  if (!length(uid)) {
-    blockr_abort(
-      "Block {class(x)[1L]} is not registered.",
-      class = "block_not_registered"
-    )
-  }
-
-  get_registry_entry(uid)
-}
-
-#' @export
-as_registry_entry.default <- function(x, ...) {
-  blockr_abort(
-    "Cannot resolve an object of class {class(x)[1L]} to a registry entry.",
-    class = "block_not_registered"
-  )
-}
-
 #' @param x A `block`, a `block_registry_entry` or a registry ID for the
 #'   construction-metadata accessors; a `block_arg` (or a bare description
 #'   string) for `block_arg_description()` and friends
 #' @rdname register_block
 #' @export
 block_args <- function(x, ...) {
-  UseMethod("block_args")
-}
-
-#' @export
-block_args.block_registry_entry <- function(x, ...) {
-  attr(x, "arguments")
-}
-
-#' @export
-block_args.default <- function(x, ...) {
-  block_args(as_registry_entry(x), ...)
+  coal(block_metadata_record(x, ...)[["arguments"]], new_block_args(),
+       fail_all = FALSE)
 }
 
 #' @rdname register_block
 #' @export
 block_examples <- function(x, ...) {
-  UseMethod("block_examples")
-}
 
-#' @export
-block_examples.block_registry_entry <- function(x, ...) {
-  block_examples_list(attr(x, "arguments"), attr(x, "examples"))
-}
+  record <- block_metadata_record(x, ...)
 
-#' @export
-block_examples.default <- function(x, ...) {
-  block_examples(as_registry_entry(x), ...)
+  block_examples_list(
+    coal(record[["arguments"]], new_block_args(), fail_all = FALSE),
+    coal(record[["examples"]], list(), fail_all = FALSE)
+  )
 }
 
 #' @rdname register_block
 #' @export
 block_guidance <- function(x, ...) {
-  UseMethod("block_guidance")
-}
-
-#' @export
-block_guidance.block_registry_entry <- function(x, ...) {
-  coal(attr(x, "guidance"), character(), fail_all = FALSE)
-}
-
-#' @export
-block_guidance.default <- function(x, ...) {
-  block_guidance(as_registry_entry(x), ...)
+  coal(block_metadata_record(x, ...)[["guidance"]], character(),
+       fail_all = FALSE)
 }
 
 #' @rdname register_block
 #' @export
 block_keywords <- function(x, ...) {
-  UseMethod("block_keywords")
-}
-
-#' @export
-block_keywords.block_registry_entry <- function(x, ...) {
-  coal(attr(x, "keywords"), character(), fail_all = FALSE)
-}
-
-#' @export
-block_keywords.default <- function(x, ...) {
-  block_keywords(as_registry_entry(x), ...)
+  coal(block_metadata_record(x, ...)[["keywords"]], character(),
+       fail_all = FALSE)
 }
 
 #' @rdname register_block

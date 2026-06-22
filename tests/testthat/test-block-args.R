@@ -218,6 +218,32 @@ test_that("construction-metadata accessors dispatch on id, entry and block", {
   )
 })
 
+test_that("construction accessors read the block's attached metadata", {
+
+  withr::defer({
+    unregister_blocks()
+    register_core_blocks()
+  })
+
+  register_block(
+    new_head_block,
+    name = "Head",
+    description = "d",
+    uid = "head_block",
+    overwrite = TRUE,
+    arguments = new_block_args(n = new_block_arg("rows", example = 3L)),
+    guidance = "be careful"
+  )
+
+  blk <- new_head_block()
+
+  unregister_blocks("head_block")
+
+  expect_identical(block_arg_description(block_args(blk)[["n"]]), "rows")
+  expect_identical(block_guidance(blk), "be careful")
+  expect_identical(block_examples(blk), list(list(n = 3L)))
+})
+
 test_that("block_keywords and block_guidance default to empty character", {
 
   withr::defer(unregister_blocks("ut_head_empty"))

@@ -177,8 +177,10 @@ For a registered block, the structured construction metadata is retrieved
 with the accessor generics \code{block_args()} (the specification),
 \code{block_examples()} (complete worked configurations), \code{block_guidance()}
 (model-facing construction notes) and \code{block_keywords()} (discovery terms).
-Each dispatches on a \code{block}, a \code{block_registry_entry} or a registry ID, so
-the same call works whether one holds a block instance or only its type. The
+Each accepts a \code{block}, a \code{block_registry_entry} or a registry ID -- a block
+instance is read from its own attached metadata, the registry is consulted
+only for a bare ID or entry -- so the same call works whether one holds an
+instance or only its type. The
 flat, scalar catalog metadata (name, description, category, ...) is instead
 tabulated across many blocks via \code{\link[=block_metadata]{block_metadata()}}.
 
