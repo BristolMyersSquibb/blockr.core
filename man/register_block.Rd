@@ -23,6 +23,11 @@ register_block(
   category = NULL,
   icon = NULL,
   arguments = NULL,
+  details = NULL,
+  link = NULL,
+  guidance = NULL,
+  examples = list(),
+  keywords = NULL,
   package = NULL,
   overwrite = FALSE
 )
@@ -61,7 +66,23 @@ blocks are uncategorized.}
 
 \item{icon}{Icon}
 
-\item{arguments}{Block argument description}
+\item{arguments}{Block argument specification, either a \code{\link[=block_args]{block_args()}} object
+or a (possibly empty) named character vector of argument descriptions}
+
+\item{details}{Optional longer human-facing description (e.g. for a help
+popover), complementing the short \code{description}}
+
+\item{link}{Optional URL to a block's help or documentation page}
+
+\item{guidance}{Optional model-facing construction guidance (do/don't rules,
+enums, pitfalls), distinct from the human-facing \code{details}}
+
+\item{examples}{Optional list of complete worked configurations (each a
+named list keyed by argument name); supersedes the per-argument example
+assembly. See \code{\link[=block_args]{block_args()}}.}
+
+\item{keywords}{Optional character vector of free-text search terms used for
+block discovery}
 
 \item{package}{Package where constructor is defined (or \code{NULL})}
 

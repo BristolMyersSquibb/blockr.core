@@ -93,10 +93,11 @@ test_that("registry metadata", {
 
   expect_s3_class(meta, "data.frame")
   expect_identical(nrow(meta), length(list_blocks()))
-  expect_identical(ncol(meta), 7L)
+  expect_identical(ncol(meta), 11L)
   expect_named(
     meta,
-    c("id", "name", "description", "category", "icon", "arguments", "package")
+    c("id", "name", "description", "details", "link", "guidance", "keywords",
+      "category", "icon", "arguments", "package")
   )
 
   meta <- registry_metadata(list_blocks()[1L], "name")

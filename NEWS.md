@@ -1,5 +1,17 @@
 # blockr.core 0.1.3
 
+* Block registry entries gained a structured argument specification via the
+  new exported `block_args()` / `block_arg()`, carrying a per-argument
+  `description`, a single worked `example`, and an optional machine-readable
+  `type`. `register_block()` additionally accepts block-level `details`,
+  `link`, `guidance`, `examples`, and `keywords`. The construction metadata
+  formerly smuggled as `examples` / `prompt` attributes on `arguments` is now
+  first-class and validated at registration (every argument is a real
+  constructor formal and every worked example actually constructs); the legacy
+  attributes are still absorbed, with a deprecation warning. `block_arg_specs()`
+  and `block_examples()` expose the structured form, while
+  `registry_metadata(.., "arguments")` keeps projecting the legacy named-vector
+  shape for existing consumers (#121).
 * New exported `trim_rv()` removes entries from a `reactiveValues`
   object, which assigning `NULL` does not do -- the key lingers in
   `names()` with a `NULL` value. Unlinking a variadic block argument now
