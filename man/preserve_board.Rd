@@ -36,10 +36,11 @@ serialize_board(x, blocks, id = NULL, ..., session = get_session())
 
 \item{...}{Extra arguments passed from parent scope}
 
-\item{request}{Request wrapper supplied by core at the UI (GET) and server
-(WS connect) entry points, exposing the parsed URL \code{query}, the raw
-\code{request}, and \code{session} (\code{NULL} at the GET). The default loader ignores it
-and reads the staged board directly.}
+\item{request}{Request passed by core at the UI (GET) and server (WS connect)
+entry points: a list with the parsed URL \code{query}, the raw \code{request}, and
+\code{session} (\code{NULL} at the GET, so a loader must tolerate its absence). The
+default loader reads the one-time handoff token from \code{query} and returns the
+board staged for it (or \code{NULL}).}
 
 \item{x}{The current \code{board} object}
 

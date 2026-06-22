@@ -42,8 +42,12 @@ preserve_board <- function(server = preserve_board_server,
                            ui = preserve_board_ui,
                            loader = preserve_board_loader) {
 
-  new_plugin(server, ui, loader = loader, class = "preserve_board")
+  stopifnot(is.null(loader) || is.function(loader))
+
+  new_plugin(server, ui, class = "preserve_board", loader = loader)
 }
+
+board_loader <- function(x) attr(x, "loader")
 
 #' @param id Namespace ID
 #' @param board Reactive values object
@@ -59,7 +63,7 @@ preserve_board_server <- function(id, board, ...) {
     id,
     function(input, output, session) {
 
-      clear_reload_handoff()
+      consume_reload_handoff(session)
 
       output$serialize <- downloadHandler(
         board_filename(board),
@@ -92,8 +96,7 @@ preserve_board_server <- function(id, board, ...) {
         {
           val <- res()
 
-          stage_reload_handoff(if (is_board(val)) val else val$board)
-          session$reload()
+          stage_reload_handoff(if (is_board(val)) val else val$board, session)
         }
       )
 
@@ -102,31 +105,62 @@ preserve_board_server <- function(id, board, ...) {
   )
 }
 
+reload_param <- "__blockr_reload__"
+
 reload_handoff <- new.env(parent = emptyenv())
 
-stage_reload_handoff <- function(board) {
-  assign("board", board, envir = reload_handoff)
-  invisible(board)
+stage_reload_handoff <- function(board, session) {
+
+  token <- rand_names()
+  assign(token, board, envir = reload_handoff)
+
+  query <- session_query(session)
+  query[[reload_param]] <- token
+
+  log_debug("staging board for reload handoff {token}")
+
+  updateQueryString(query_to_string(query), mode = "replace", session = session)
+  session$reload()
+
+  invisible(token)
 }
 
-clear_reload_handoff <- function() {
+consume_reload_handoff <- function(session) {
 
-  if (exists("board", envir = reload_handoff, inherits = FALSE)) {
-    rm("board", envir = reload_handoff)
+  query <- session_query(session)
+  token <- query[[reload_param]]
+
+  if (is.null(token)) {
+    return(invisible())
   }
+
+  if (exists(token, envir = reload_handoff, inherits = FALSE)) {
+    rm(list = token, envir = reload_handoff)
+  }
+
+  query[[reload_param]] <- NULL
+  updateQueryString(query_to_string(query), mode = "replace", session = session)
 
   invisible()
 }
 
-#' @param request Request wrapper supplied by core at the UI (GET) and server
-#' (WS connect) entry points, exposing the parsed URL `query`, the raw
-#' `request`, and `session` (`NULL` at the GET). The default loader ignores it
-#' and reads the staged board directly.
+#' @param request Request passed by core at the UI (GET) and server (WS connect)
+#' entry points: a list with the parsed URL `query`, the raw `request`, and
+#' `session` (`NULL` at the GET, so a loader must tolerate its absence). The
+#' default loader reads the one-time handoff token from `query` and returns the
+#' board staged for it (or `NULL`).
 #'
 #' @rdname preserve_board
 #' @export
 preserve_board_loader <- function(request) {
-  get0("board", envir = reload_handoff, inherits = FALSE)
+
+  token <- request$query[[reload_param]]
+
+  if (is.null(token)) {
+    return(NULL)
+  }
+
+  get0(token, envir = reload_handoff, inherits = FALSE)
 }
 
 read_json <- function(x) {

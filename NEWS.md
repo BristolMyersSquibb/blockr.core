@@ -2,18 +2,23 @@
 
 * The `preserve_board` plugin gains a request-phase `loader`: a function
   of a single request that core calls when building the board UI (at the
-  GET) and server (at the WS connect) to resolve the board to serve,
-  falling back to the `serve()` default when the loader is absent or
-  returns `NULL`. This replaces the process-global slot core used to
-  stage a board across a `session$reload()`: `serve()` no longer owns any
-  reload state, the exported `get_serve_obj()`, the `board_refresh`
-  reload producer and `rv$reload_meta` are gone, and the handoff moves
-  behind the plugin's own loader/server. The default save/restore keeps
-  working — an uploaded board is staged for the loader and the plugin's
-  server fires its own reload — though this default handoff is a single
-  process-global slot (single-tab / preview-grade); multi-user apps
-  should supply their own `loader`. `new_plugin()` and `preserve_board()`
-  take a `loader` argument accordingly (#214).
+  GET) and server (at the WS connect) to resolve which board to serve,
+  validating the result and falling back to the `serve()` default when
+  the loader is absent or returns `NULL`. The loader is carried as a
+  plugin attribute, so `new_plugin()` now takes `...` for plugin-specific
+  components (rather than a fixed slot) and `preserve_board()` gains a
+  `loader` argument. This removes the process-global slot core used to
+  stage a board across `session$reload()`: `serve()` owns no reload state,
+  and the exported `get_serve_obj()`, the board-server reload producer and
+  `rv$reload_meta` are gone. The board now crosses the reload through the
+  request: the default save/restore stages the uploaded board under a
+  one-time token written into the URL, so the post-reload loader matches
+  it per-tab rather than reading an unconditional shared slot (a clean
+  reload, with no token, falls back to the default). A downstream
+  `preserve_board` (e.g. blockr.session) instead resolves from the URL
+  query against its own backend, which is multi-process-safe; mixing
+  different `preserve_board` plugins across one reload is not supported
+  (#214).
 * New exported `trim_rv()` removes entries from a `reactiveValues`
   object, which assigning `NULL` does not do -- the key lingers in
   `names()` with a `NULL` value. Unlinking a variadic block argument now

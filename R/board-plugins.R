@@ -9,12 +9,11 @@
 #' validator function.
 #'
 #' @param server,ui Server/UI for the plugin module
-#' @param loader Optional request-phase board loader (a function of a single
-#' request argument returning a `board` or `NULL`). Only meaningful for the
-#' `preserve_board` plugin, where it resolves the board to build for an
-#' incoming request (see [preserve_board()]).
 #' @param validator Validator function that validates server return values
 #' @param class Plugin subclass
+#' @param ... Plugin-specific extra components, attached as attributes. The
+#' `preserve_board` plugin uses this to carry its request-phase `loader` (see
+#' [preserve_board()]).
 #'
 #' @examples
 #' plg <- board_plugins(new_board())
@@ -36,11 +35,12 @@
 #'
 #' @export
 new_plugin <- function(server, ui = NULL, validator = abort_not_null,
-                       class = character(), loader = NULL) {
+                       class = character(), ...) {
 
   res <- structure(
-    list(server = server, ui = ui, loader = loader),
+    list(server = server, ui = ui),
     validator = validator,
+    ...,
     class = c(class, "plugin")
   )
 
@@ -101,12 +101,18 @@ as_plugin.plugins <- function(x) {
 
 #' @export
 as.list.plugin <- function(x, ...) {
-  list(
-    server = plugin_server(x),
-    ui = plugin_ui(x),
-    loader = plugin_loader(x),
-    validator = plugin_validator(x),
-    class = setdiff(class(x), "plugin")
+
+  extra <- attributes(x)
+  extra[c("names", "class", "validator")] <- NULL
+
+  c(
+    list(
+      server = plugin_server(x),
+      ui = plugin_ui(x),
+      validator = plugin_validator(x),
+      class = setdiff(class(x), "plugin")
+    ),
+    extra
   )
 }
 
@@ -117,10 +123,6 @@ plugin_server <- function(x) x[["server"]]
 #' @rdname new_plugin
 #' @export
 plugin_ui <- function(x) x[["ui"]]
-
-#' @rdname new_plugin
-#' @export
-plugin_loader <- function(x) x[["loader"]]
 
 #' @rdname new_plugin
 #' @export
@@ -147,10 +149,9 @@ validate_plugin <- function(x) {
     )
   }
 
-  if (!setequal(names(x), c("server", "ui", "loader"))) {
+  if (!setequal(names(x), c("server", "ui"))) {
     blockr_abort(
-      "Expecting a plugin to contain components \"server\", \"ui\" and ",
-      "\"loader\".",
+      "Expecting a plugin to contain components \"server\" and \"ui\".",
       class = "plugin_components_invalid"
     )
   }
@@ -170,15 +171,6 @@ validate_plugin <- function(x) {
     blockr_abort(
       "Expecting a plugin ui to be `NULL` or a function.",
       class = "plugin_ui_invalid"
-    )
-  }
-
-  loader <- plugin_loader(x)
-
-  if (!is.null(loader) && !is.function(loader)) {
-    blockr_abort(
-      "Expecting a plugin loader to be `NULL` or a function.",
-      class = "plugin_loader_invalid"
     )
   }
 

@@ -240,7 +240,7 @@ serve_board_srv <- function(id, default, plugins, options, ...) {
 
 resolve_board <- function(default, plugins, request) {
 
-  loader <- plugin_loader(get_plugin("preserve_board", plugins(default)))
+  loader <- board_loader(get_plugin("preserve_board", plugins(default)))
 
   board <- if (is.null(loader)) NULL else loader(request)
 
@@ -259,27 +259,38 @@ resolve_board <- function(default, plugins, request) {
   validate_board(board)
 }
 
-new_board_request <- function(query, request, session) {
-  structure(
-    list(query = query, request = request, session = session),
-    class = "board_request"
-  )
-}
-
 board_request_get <- function(request) {
-  new_board_request(
-    parseQueryString(coal(request$QUERY_STRING, "")),
+  list(
+    query = parseQueryString(coal(request$QUERY_STRING, "")),
     request = request,
     session = NULL
   )
 }
 
 board_request_ws <- function(session) {
-  new_board_request(
-    parseQueryString(coal(isolate(session$clientData$url_search), "")),
+  list(
+    query = session_query(session),
     request = session$request,
     session = session
   )
+}
+
+session_query <- function(session) {
+  parseQueryString(coal(isolate(session$clientData$url_search), ""))
+}
+
+query_to_string <- function(query) {
+
+  if (!length(query)) {
+    return("?")
+  }
+
+  nms <- chr_ply(names(query), utils::URLencode, reserved = TRUE)
+  vals <- chr_ply(
+    unlist(query, use.names = FALSE), utils::URLencode, reserved = TRUE
+  )
+
+  paste0("?", paste(nms, vals, sep = "=", collapse = "&"))
 }
 
 revert <- function(...) {
