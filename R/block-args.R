@@ -1,25 +1,35 @@
 #' @details
 #' Block constructor arguments can be documented with a structured
-#' specification: each argument via `block_arg()` (a `description`, a single
+#' specification: each argument via `new_block_arg()` (a `description`, a single
 #' worked `example`, and an optional machine-readable `type`), collected with
-#' `block_args()`. A bare named character vector of descriptions, and the empty
-#' `character()`, are also accepted and normalized into this form, so existing
-#' registrations are unaffected.
+#' `new_block_args()`. A bare named character vector of descriptions, and the
+#' empty `character()`, are also accepted and normalized into this form, so
+#' existing registrations are unaffected.
+#'
+#' For a registered block, the structured construction metadata is retrieved
+#' with the accessor generics `block_args()` (the specification),
+#' `block_examples()` (complete worked configurations), `block_guidance()`
+#' (model-facing construction notes) and `block_keywords()` (discovery terms).
+#' Each dispatches on a `block`, a `block_registry_entry` or a registry ID, so
+#' the same call works whether one holds a block instance or only its type. The
+#' flat, scalar catalog metadata (name, description, category, ...) is instead
+#' tabulated across many blocks via [block_metadata()].
 #'
 #' The complete worked configuration of a block is the assembly of its
-#' per-argument examples, keyed by argument name -- this is what
-#' `block_examples()` returns. When arguments interact, or several few-shot
-#' examples are wanted, complete configurations are instead supplied as a list
-#' via `examples` and supersede that assembly; combining multiple per-argument
-#' examples is intentionally not supported, as there is no safe way to form
-#' coherent whole-block configurations from them.
+#' per-argument examples, keyed by argument name. When arguments interact, or
+#' several few-shot examples are wanted, complete configurations are instead
+#' supplied as a list via the `examples` argument of `register_block()` and
+#' supersede that assembly; combining multiple per-argument examples is
+#' intentionally not supported, as there is no safe way to form coherent
+#' whole-block configurations from them.
 #'
+#' @param description Human- and model-facing description of an argument
 #' @param example A single worked value for an argument (or `NULL`)
 #' @param type Optional machine-readable type (e.g. an `ellmer::type_*`),
 #'   stored opaquely and not interpreted by blockr.core
 #' @rdname register_block
 #' @export
-block_arg <- function(description = NULL, example = NULL, type = NULL) {
+new_block_arg <- function(description = NULL, example = NULL, type = NULL) {
 
   if (not_null(description) && !is_string(description)) {
     blockr_abort(
@@ -36,11 +46,11 @@ block_arg <- function(description = NULL, example = NULL, type = NULL) {
 
 #' @rdname register_block
 #' @export
-block_args <- function(...) {
+new_block_args <- function(...) {
   as_block_args(list(...))
 }
 
-new_block_args <- function(x) {
+block_args_obj <- function(x) {
   structure(x, class = "block_args")
 }
 
@@ -57,13 +67,14 @@ as_block_arg.block_arg <- function(x, ...) {
 
 #' @export
 as_block_arg.character <- function(x, ...) {
-  block_arg(description = x)
+  new_block_arg(description = x)
 }
 
 #' @export
 as_block_arg.default <- function(x, ...) {
   blockr_abort(
-    "A block argument must be a string (its description) or a `block_arg()`.",
+    "A block argument must be a string (its description) or a ",
+    "`new_block_arg()`.",
     class = "block_arg_invalid"
   )
 }
@@ -89,7 +100,7 @@ as_block_args.list <- function(x, ...) {
     )
   }
 
-  new_block_args(lapply(x, as_block_arg))
+  block_args_obj(lapply(x, as_block_arg))
 }
 
 #' @export
@@ -106,19 +117,21 @@ as_block_args.character <- function(x, ...) {
   spec <- set_names(
     lapply(
       nms,
-      function(nm) block_arg(description = x[[nm]], example = examples[[nm]])
+      function(nm) {
+        new_block_arg(description = x[[nm]], example = examples[[nm]])
+      }
     ),
     nms
   )
 
-  new_block_args(spec)
+  block_args_obj(spec)
 }
 
 #' @export
 as_block_args.default <- function(x, ...) {
   blockr_abort(
-    "`arguments` must be a `block_args()`, a named character vector, or a ",
-    "list of `block_arg()` objects.",
+    "`arguments` must be a `block_args` object, a named character vector, or ",
+    "a list of `block_arg` objects.",
     class = "block_args_invalid"
   )
 }
@@ -224,34 +237,120 @@ as_legacy_arguments <- function(args, guidance, examples_list) {
   )
 
   example <- if (length(examples_list)) examples_list[[1L]] else NULL
+  prompt <- if (length(guidance)) paste(guidance, collapse = "\n\n") else NULL
 
-  structure(set_names(desc, names(args)), examples = example, prompt = guidance)
+  structure(set_names(desc, names(args)), examples = example, prompt = prompt)
 }
 
 deprecate_legacy_arg_attrs <- function() {
   blockr_warn(
     "Passing block metadata as `examples`/`prompt` attributes on `arguments` ",
-    "is deprecated; use `block_args()` / `block_arg()` and the `guidance` ",
-    "argument of `register_block()` instead.",
+    "is deprecated; use `new_block_args()` / `new_block_arg()` and the ",
+    "`guidance` argument of `register_block()` instead.",
     class = "deprecated_arg_attrs",
     frequency = "once",
     frequency_id = "blockr_deprecated_arg_attrs"
   )
 }
 
+registry_entry_for_block <- function(x) {
+
+  uid <- registry_id_from_block(x)
+
+  if (!length(uid)) {
+    blockr_abort(
+      "Block {class(x)[1L]} is not registered.",
+      class = "block_not_registered"
+    )
+  }
+
+  get_registry_entry(uid)
+}
+
+#' @param x A `block`, a `block_registry_entry` or a registry ID (for the
+#'   accessor generics), or a `block_arg` (for `arg_description()` and friends)
 #' @rdname register_block
 #' @export
-block_arg_specs <- function(id) {
-  attr(get_registry_entry(id), "arguments")
+block_args <- function(x, ...) {
+  UseMethod("block_args")
+}
+
+#' @export
+block_args.block_registry_entry <- function(x, ...) {
+  attr(x, "arguments")
+}
+
+#' @export
+block_args.character <- function(x, ...) {
+  block_args(get_registry_entry(x))
+}
+
+#' @export
+block_args.block <- function(x, ...) {
+  block_args(registry_entry_for_block(x))
 }
 
 #' @rdname register_block
 #' @export
-block_examples <- function(id) {
+block_examples <- function(x, ...) {
+  UseMethod("block_examples")
+}
 
-  entry <- get_registry_entry(id)
+#' @export
+block_examples.block_registry_entry <- function(x, ...) {
+  block_examples_list(attr(x, "arguments"), attr(x, "examples"))
+}
 
-  block_examples_list(attr(entry, "arguments"), attr(entry, "examples"))
+#' @export
+block_examples.character <- function(x, ...) {
+  block_examples(get_registry_entry(x))
+}
+
+#' @export
+block_examples.block <- function(x, ...) {
+  block_examples(registry_entry_for_block(x))
+}
+
+#' @rdname register_block
+#' @export
+block_guidance <- function(x, ...) {
+  UseMethod("block_guidance")
+}
+
+#' @export
+block_guidance.block_registry_entry <- function(x, ...) {
+  coal(attr(x, "guidance"), character(), fail_all = FALSE)
+}
+
+#' @export
+block_guidance.character <- function(x, ...) {
+  block_guidance(get_registry_entry(x))
+}
+
+#' @export
+block_guidance.block <- function(x, ...) {
+  block_guidance(registry_entry_for_block(x))
+}
+
+#' @rdname register_block
+#' @export
+block_keywords <- function(x, ...) {
+  UseMethod("block_keywords")
+}
+
+#' @export
+block_keywords.block_registry_entry <- function(x, ...) {
+  coal(attr(x, "keywords"), character(), fail_all = FALSE)
+}
+
+#' @export
+block_keywords.character <- function(x, ...) {
+  block_keywords(get_registry_entry(x))
+}
+
+#' @export
+block_keywords.block <- function(x, ...) {
+  block_keywords(registry_entry_for_block(x))
 }
 
 block_arg_field <- function(x, field) {
@@ -259,7 +358,6 @@ block_arg_field <- function(x, field) {
   x[[field]]
 }
 
-#' @param x A `block_arg()` object, as held in a `block_args()` specification
 #' @rdname register_block
 #' @export
 arg_description <- function(x) {

@@ -32,25 +32,27 @@ block_registry <- new.env()
 #' block construction via a registry ID is available as `create_block()`.
 #'
 #' @param ctor Block constructor
-#' @param name,description Metadata describing the block (`block_arg()` uses
+#' @param name,description Metadata describing the block (`new_block_arg()` uses
 #'   `description` to document a single constructor argument)
 #' @param classes Block classes
 #' @param uid Unique ID for a registry entry
 #' @param category Useful to sort blocks by topics. If not specified,
 #'   blocks are uncategorized.
 #' @param icon Icon
-#' @param arguments Block argument specification, either a [block_args()] object
-#'   or a (possibly empty) named character vector of argument descriptions
+#' @param arguments Block argument specification, either a [new_block_args()]
+#'   object or a (possibly empty) named character vector of argument
+#'   descriptions
 #' @param details Optional longer human-facing description (e.g. for a help
 #'   popover), complementing the short `description`
 #' @param link Optional URL to a block's help or documentation page
 #' @param guidance Optional model-facing construction guidance (do/don't rules,
-#'   enums, pitfalls), distinct from the human-facing `details`
+#'   enums, pitfalls), distinct from the human-facing `details`; a character
+#'   vector, one entry per note. Retrieved with `block_guidance()`.
 #' @param examples Optional list of complete worked configurations (each a
 #'   named list keyed by argument name); supersedes the per-argument example
-#'   assembly. See [block_args()].
-#' @param keywords Optional character vector of free-text search terms used for
-#'   block discovery
+#'   assembly. Retrieved with `block_examples()`.
+#' @param keywords Optional character vector of free-text search terms for block
+#'   discovery, retrieved with `block_keywords()`
 #' @param package Package where constructor is defined (or `NULL`)
 #' @param overwrite Overwrite existing entry
 #'
@@ -68,12 +70,14 @@ block_registry <- new.env()
 #' `unregister_blocks()` returns `NULL` (invisibly). Listing via `list_blocks()`
 #' returns a character vector and a list of `block_registry_entry` object(s) for
 #' `available_blocks()`. `create_block()` returns a newly instantiated `block`
-#' object. `block_arg()` and `block_args()` return `block_arg` and `block_args`
-#' objects respectively; for a registered block, `block_arg_specs()` returns its
-#' `block_args` object and `block_examples()` a list of complete worked
-#' configurations (each a named list keyed by argument name).
-#' `arg_description()`, `arg_example()` and `arg_type()` return the
-#' corresponding fields of a `block_arg`.
+#' object. `new_block_arg()` and `new_block_args()` construct `block_arg` and
+#' `block_args` objects. For a registered block -- passed as a block instance, a
+#' `block_registry_entry` or a registry ID -- `block_args()` returns its
+#' `block_args` specification, `block_examples()` a list of complete worked
+#' configurations (each a named list keyed by argument name), `block_guidance()`
+#' a character vector of construction notes and `block_keywords()` a character
+#' vector of discovery terms. `arg_description()`, `arg_example()` and
+#' `arg_type()` return the corresponding field of a `block_arg`.
 #'
 #' @export
 register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
@@ -318,8 +322,9 @@ unregister_blocks <- function(uid = list_blocks()) {
   invisible()
 }
 
-#' @param ... Forwarded to `register_block()` (`register_blocks()`), or named
-#'   `block_arg()` objects/strings, one per constructor formal (`block_args()`)
+#' @param ... For `register_blocks()`, arguments forwarded to
+#'   `register_block()`; for `new_block_args()`, named `new_block_arg()` objects
+#'   (or strings), one per constructor formal
 #' @rdname register_block
 #' @export
 register_blocks <- function(...) {
@@ -390,6 +395,15 @@ registry_arguments_field <- function(entry) {
 #' @rdname register_block
 #' @export
 registry_metadata <- function(blocks = list_blocks(), fields = "all") {
+
+  blockr_warn(
+    "`registry_metadata()` is deprecated; use `block_metadata()` for catalog ",
+    "fields and `block_args()` / `block_examples()` / `block_guidance()` / ",
+    "`block_keywords()` for construction metadata.",
+    class = "deprecated_registry_metadata",
+    frequency = "once",
+    frequency_id = "blockr_deprecated_registry_metadata"
+  )
 
   stopifnot(is.character(blocks), is.character(fields))
 
@@ -520,8 +534,8 @@ register_core_blocks <- function(which = blockr_option("core_blocks", "all")) {
       "braces"
     )[blocks],
     arguments = list(
-      block_args(
-        dataset = block_arg(
+      new_block_args(
+        dataset = new_block_arg(
           description = "Selects the dataset to use.",
           example = "iris"
         )

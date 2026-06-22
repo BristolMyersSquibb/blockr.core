@@ -737,33 +737,66 @@ has_external_ctrl <- function(x) {
 
 #' @rdname block_name
 #' @export
-block_metadata <- function(x) {
+block_metadata <- function(x, ...) {
+  UseMethod("block_metadata")
+}
 
-  default_name <- function(x) {
-    gsub("_", " ", class(x)[1L])
+#' @export
+block_metadata.character <- function(x, ...) {
+
+  if (!length(x)) {
+    return(empty_block_catalog())
   }
 
-  get_one <- function(x) {
+  do.call(rbind, lapply(x, registry_catalog_row))
+}
 
-    met <- attr(x, "block_metadata")
-    cat <- coal(met[["category"]], default_category())
+#' @export
+block_metadata.default <- function(x, ...) {
 
-    res <- list(
-      id = coal(met[["id"]], NA_character_),
-      name = coal(met[["name"]], default_name(x)),
-      description = coal(met[["description"]], "No description available."),
-      category = cat,
-      icon = coal(met[["icon"]], default_icon(cat)),
-      arguments = list(coal(met[["arguments"]], list())),
-      package = coal(met[["package"]], "local")
+  blks <- as_blocks(x)
+
+  if (!length(blks)) {
+    return(empty_block_catalog())
+  }
+
+  do.call(rbind, lapply(blks, block_catalog_row))
+}
+
+block_catalog_row <- function(x) {
+  block_catalog(attr(x, "block_metadata"), gsub("_", " ", class(x)[1L]))
+}
+
+registry_catalog_row <- function(id) {
+
+  entry <- get_registry_entry(id)
+
+  record <- c(
+    list(id = id),
+    lapply(set_names(nm = registry_metadata_fields), get_attr, entry)
+  )
+
+  block_catalog(record, NA_character_)
+}
+
+block_catalog <- function(record, default_name) {
+
+  category <- coal(record[["category"]], default_category())
+
+  list2DF(
+    list(
+      id = coal(record[["id"]], NA_character_),
+      name = coal(record[["name"]], default_name),
+      description = coal(record[["description"]], "No description available."),
+      details = coal(record[["details"]], NA_character_),
+      link = coal(record[["link"]], NA_character_),
+      category = category,
+      icon = coal(record[["icon"]], default_icon(category)),
+      package = coal(record[["package"]], "local")
     )
+  )
+}
 
-    list2DF(res)
-  }
-
-  if (length(x)) {
-    do.call(rbind, lapply(as_blocks(x), get_one))
-  } else {
-    get_one(structure(list(), class = "block"))[0L, , drop = FALSE]
-  }
+empty_block_catalog <- function() {
+  block_catalog(list(), NA_character_)[0L, , drop = FALSE]
 }

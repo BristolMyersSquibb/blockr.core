@@ -25,7 +25,7 @@ external_ctrl_vars(x)
 
 has_external_ctrl(x)
 
-block_metadata(x)
+block_metadata(x, ...)
 }
 \arguments{
 \item{x}{An object inheriting from \code{"block"}}

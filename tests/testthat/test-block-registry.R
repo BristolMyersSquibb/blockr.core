@@ -89,6 +89,8 @@ test_that("registry", {
 
 test_that("registry metadata", {
 
+  withr::local_options(rlib_warning_verbosity = "quiet")
+
   meta <- registry_metadata()
 
   expect_s3_class(meta, "data.frame")

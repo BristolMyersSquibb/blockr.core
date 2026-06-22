@@ -1,17 +1,22 @@
 # blockr.core 0.1.3
 
-* Block registry entries gained a structured argument specification via the
-  new exported `block_args()` / `block_arg()`, carrying a per-argument
-  `description`, a single worked `example`, and an optional machine-readable
-  `type`. `register_block()` additionally accepts block-level `details`,
-  `link`, `guidance`, `examples`, and `keywords`. The construction metadata
-  formerly smuggled as `examples` / `prompt` attributes on `arguments` is now
-  first-class and validated at registration (every argument is a real
+* Block registry entries gained a structured argument specification, built
+  with the new exported `new_block_args()` / `new_block_arg()`, carrying a
+  per-argument `description`, a single worked `example`, and an optional
+  machine-readable `type`. `register_block()` additionally accepts block-level
+  `details`, `link`, `guidance`, `examples`, and `keywords`. The construction
+  metadata formerly smuggled as `examples` / `prompt` attributes on `arguments`
+  is now first-class and validated at registration (every argument is a real
   constructor formal and every worked example actually constructs); the legacy
-  attributes are still absorbed, with a deprecation warning. `block_arg_specs()`
-  and `block_examples()` expose the structured form, while
-  `registry_metadata(.., "arguments")` keeps projecting the legacy named-vector
-  shape for existing consumers (#121).
+  attributes are still absorbed, with a deprecation warning (#121).
+* The block metadata API is split by cardinality. Scalar catalog attributes
+  (name, description, details, link, category, icon, package) are tabulated
+  across many blocks by `block_metadata()`, now a generic dispatching on a
+  block, a `block_registry_entry` or a registry ID. The per-block, collection-
+  valued construction metadata is read with the accessor generics `block_args()`,
+  `block_examples()`, `block_guidance()` and `block_keywords()` (same dispatch),
+  and a single argument's fields with `arg_description()`, `arg_example()` and
+  `arg_type()`. `registry_metadata()` is deprecated in favour of these (#121).
 * New exported `trim_rv()` removes entries from a `reactiveValues`
   object, which assigning `NULL` does not do -- the key lingers in
   `names()` with a `NULL` value. Unlinking a variadic block argument now

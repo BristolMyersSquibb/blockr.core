@@ -208,10 +208,11 @@ test_that("block metadata", {
 
   expect_s3_class(meta1, "data.frame")
   expect_identical(nrow(meta1), 1L)
-  expect_identical(ncol(meta1), 7L)
+  expect_identical(ncol(meta1), 8L)
   expect_named(
     meta1,
-    c("id", "name", "description", "category", "icon", "arguments", "package")
+    c("id", "name", "description", "details", "link", "category", "icon",
+      "package")
   )
 
   new_identity_block <- function() {
@@ -239,10 +240,11 @@ test_that("block metadata", {
 
   expect_s3_class(meta2, "data.frame")
   expect_identical(nrow(meta2), 1L)
-  expect_identical(ncol(meta2), 7L)
+  expect_identical(ncol(meta2), 8L)
   expect_named(
     meta2,
-    c("id", "name", "description", "category", "icon", "arguments", "package")
+    c("id", "name", "description", "details", "link", "category", "icon",
+      "package")
   )
 
   meta3 <- block_metadata(
@@ -251,10 +253,11 @@ test_that("block metadata", {
 
   expect_s3_class(meta3, "data.frame")
   expect_identical(nrow(meta3), 2L)
-  expect_identical(ncol(meta3), 7L)
+  expect_identical(ncol(meta3), 8L)
   expect_named(
     meta3,
-    c("id", "name", "description", "category", "icon", "arguments", "package")
+    c("id", "name", "description", "details", "link", "category", "icon",
+      "package")
   )
   expect_identical(rownames(meta3), c("a", "b"))
 
@@ -262,10 +265,11 @@ test_that("block metadata", {
 
   expect_s3_class(meta4, "data.frame")
   expect_identical(nrow(meta4), 0L)
-  expect_identical(ncol(meta4), 7L)
+  expect_identical(ncol(meta4), 8L)
   expect_named(
     meta4,
-    c("id", "name", "description", "category", "icon", "arguments", "package")
+    c("id", "name", "description", "details", "link", "category", "icon",
+      "package")
   )
 })
 
