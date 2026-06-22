@@ -244,7 +244,19 @@ resolve_board <- function(default, plugins, request) {
 
   board <- if (is.null(loader)) NULL else loader(request)
 
-  coal(board, default, fail_all = FALSE)
+  if (is.null(board)) {
+    return(default)
+  }
+
+  if (!is_board(board)) {
+    blockr_abort(
+      "A `preserve_board` loader must return `NULL` or a `board`, but got ",
+      "{class(board)} instead.",
+      class = "invalid_board_loader"
+    )
+  }
+
+  validate_board(board)
 }
 
 new_board_request <- function(query, request, session) {

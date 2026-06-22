@@ -150,6 +150,17 @@ test_that("resolve_board falls back when the plugin has no loader", {
   )
 })
 
+test_that("resolve_board rejects a non-board loader result", {
+
+  default <- new_board()
+  bad <- function(x) plugins(preserve_board(loader = function(request) "nope"))
+
+  expect_error(
+    resolve_board(default, bad, NULL),
+    class = "invalid_board_loader"
+  )
+})
+
 test_that("board requests expose the parsed query at both entry points", {
 
   get_req <- new.env()

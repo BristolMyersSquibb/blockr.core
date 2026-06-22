@@ -37,9 +37,9 @@ serialize_board(x, blocks, id = NULL, ..., session = get_session())
 \item{...}{Extra arguments passed from parent scope}
 
 \item{request}{Request wrapper supplied by core at the UI (GET) and server
-(WS connect) entry points, exposing the parsed URL \code{query} alongside the raw
-\code{request}/\code{session}. The default loader ignores it and reads the staged
-board directly.}
+(WS connect) entry points, exposing the parsed URL \code{query}, the raw
+\code{request}, and \code{session} (\code{NULL} at the GET). The default loader ignores it
+and reads the staged board directly.}
 
 \item{x}{The current \code{board} object}
 
@@ -74,11 +74,20 @@ module.
 Unlike other plugins, \code{preserve_board} additionally carries a \code{loader}: a
 function of a single request argument that core calls when building the
 board UI (at the GET) and server (at the WS connect), returning the \code{board}
-to build or \code{NULL} to fall back to the \code{serve()} default. This is how a
-restored (or otherwise externally resolved) board is handed to a freshly
-(re)loaded session. The default trio (\code{preserve_board_server()} /
+to build or \code{NULL} to fall back to the \code{serve()} default. The request
+exposes the parsed URL \code{query} (normalized across both call sites) and the
+raw \code{request}/\code{session}; note \code{session} is \code{NULL} at the GET (there is no
+session yet), so a loader must tolerate its absence there. Core validates
+the returned value, which must be \code{NULL} or a \code{board}.
+
+This is how a restored (or otherwise externally resolved) board is handed to
+a freshly (re)loaded session. The default trio (\code{preserve_board_server()} /
 \code{preserve_board_loader()}) implements save/restore: the server stages the
 deserialized board and triggers a \code{\link[shiny:reactiveVal]{shiny::reactiveVal()}} reload, the loader
 returns it on the next request. A third-party module may replace any of the
-three to source the board from elsewhere (e.g. a database).
+three to source the board from elsewhere (e.g. a database). The default
+handoff is a single process-global slot and so is single-tab /
+preview-grade: concurrent restores in one process can clobber one another.
+Multi-user deployments should supply their own \code{loader} (e.g. keyed per
+user/session), as blockr.session does.
 }

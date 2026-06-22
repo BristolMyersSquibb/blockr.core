@@ -10,8 +10,10 @@
   reload producer and `rv$reload_meta` are gone, and the handoff moves
   behind the plugin's own loader/server. The default save/restore keeps
   working — an uploaded board is staged for the loader and the plugin's
-  server fires its own reload. `new_plugin()` and `preserve_board()` take
-  a `loader` argument accordingly (#214).
+  server fires its own reload — though this default handoff is a single
+  process-global slot (single-tab / preview-grade); multi-user apps
+  should supply their own `loader`. `new_plugin()` and `preserve_board()`
+  take a `loader` argument accordingly (#214).
 * New exported `trim_rv()` removes entries from a `reactiveValues`
   object, which assigning `NULL` does not do -- the key lingers in
   `names()` with a `NULL` value. Unlinking a variadic block argument now

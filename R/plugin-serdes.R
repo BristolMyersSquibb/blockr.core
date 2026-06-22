@@ -11,13 +11,22 @@
 #' Unlike other plugins, `preserve_board` additionally carries a `loader`: a
 #' function of a single request argument that core calls when building the
 #' board UI (at the GET) and server (at the WS connect), returning the `board`
-#' to build or `NULL` to fall back to the `serve()` default. This is how a
-#' restored (or otherwise externally resolved) board is handed to a freshly
-#' (re)loaded session. The default trio (`preserve_board_server()` /
+#' to build or `NULL` to fall back to the `serve()` default. The request
+#' exposes the parsed URL `query` (normalized across both call sites) and the
+#' raw `request`/`session`; note `session` is `NULL` at the GET (there is no
+#' session yet), so a loader must tolerate its absence there. Core validates
+#' the returned value, which must be `NULL` or a `board`.
+#'
+#' This is how a restored (or otherwise externally resolved) board is handed to
+#' a freshly (re)loaded session. The default trio (`preserve_board_server()` /
 #' `preserve_board_loader()`) implements save/restore: the server stages the
 #' deserialized board and triggers a [shiny::reactiveVal()] reload, the loader
 #' returns it on the next request. A third-party module may replace any of the
-#' three to source the board from elsewhere (e.g. a database).
+#' three to source the board from elsewhere (e.g. a database). The default
+#' handoff is a single process-global slot and so is single-tab /
+#' preview-grade: concurrent restores in one process can clobber one another.
+#' Multi-user deployments should supply their own `loader` (e.g. keyed per
+#' user/session), as blockr.session does.
 #'
 #' @param server,ui Server/UI for the plugin module
 #' @param loader Request-phase board loader (see [new_plugin()])
@@ -110,9 +119,9 @@ clear_reload_handoff <- function() {
 }
 
 #' @param request Request wrapper supplied by core at the UI (GET) and server
-#' (WS connect) entry points, exposing the parsed URL `query` alongside the raw
-#' `request`/`session`. The default loader ignores it and reads the staged
-#' board directly.
+#' (WS connect) entry points, exposing the parsed URL `query`, the raw
+#' `request`, and `session` (`NULL` at the GET). The default loader ignores it
+#' and reads the staged board directly.
 #'
 #' @rdname preserve_board
 #' @export
