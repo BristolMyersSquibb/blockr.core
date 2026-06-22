@@ -7,9 +7,9 @@
 \alias{block_examples}
 \alias{block_guidance}
 \alias{block_keywords}
-\alias{arg_description}
-\alias{arg_example}
-\alias{arg_type}
+\alias{block_arg_description}
+\alias{block_arg_example}
+\alias{block_arg_type}
 \alias{register_block}
 \alias{default_icon}
 \alias{default_category}
@@ -35,11 +35,11 @@ block_guidance(x, ...)
 
 block_keywords(x, ...)
 
-arg_description(x)
+block_arg_description(x, ...)
 
-arg_example(x)
+block_arg_example(x, ...)
 
-arg_type(x)
+block_arg_type(x, ...)
 
 register_block(
   ctor,
@@ -89,8 +89,9 @@ stored opaquely and not interpreted by blockr.core}
 \code{register_block()}; for \code{new_block_args()}, named \code{new_block_arg()} objects
 (or strings), one per constructor formal}
 
-\item{x}{A \code{block}, a \code{block_registry_entry} or a registry ID (for the
-accessor generics), or a \code{block_arg} (for \code{arg_description()} and friends)}
+\item{x}{A \code{block}, a \code{block_registry_entry} or a registry ID for the
+construction-metadata accessors; a \code{block_arg} (or a bare description
+string) for \code{block_arg_description()} and friends}
 
 \item{ctor}{Block constructor}
 
@@ -150,8 +151,9 @@ object. \code{new_block_arg()} and \code{new_block_args()} construct \code{block
 \code{block_args} specification, \code{block_examples()} a list of complete worked
 configurations (each a named list keyed by argument name), \code{block_guidance()}
 a character vector of construction notes and \code{block_keywords()} a character
-vector of discovery terms. \code{arg_description()}, \code{arg_example()} and
-\code{arg_type()} return the corresponding field of a \code{block_arg}.
+vector of discovery terms. \code{block_arg_description()}, \code{block_arg_example()}
+and \code{block_arg_type()} return the corresponding field of a single argument's
+\code{block_arg} (resolving a bare description string too).
 }
 \description{
 Listing of blocks is available via a block registry, which associates a block

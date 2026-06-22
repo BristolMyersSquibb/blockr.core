@@ -252,7 +252,22 @@ deprecate_legacy_arg_attrs <- function() {
   )
 }
 
-registry_entry_for_block <- function(x) {
+as_registry_entry <- function(x, ...) {
+  UseMethod("as_registry_entry")
+}
+
+#' @export
+as_registry_entry.block_registry_entry <- function(x, ...) {
+  x
+}
+
+#' @export
+as_registry_entry.character <- function(x, ...) {
+  get_registry_entry(x)
+}
+
+#' @export
+as_registry_entry.block <- function(x, ...) {
 
   uid <- registry_id_from_block(x)
 
@@ -266,8 +281,17 @@ registry_entry_for_block <- function(x) {
   get_registry_entry(uid)
 }
 
-#' @param x A `block`, a `block_registry_entry` or a registry ID (for the
-#'   accessor generics), or a `block_arg` (for `arg_description()` and friends)
+#' @export
+as_registry_entry.default <- function(x, ...) {
+  blockr_abort(
+    "Cannot resolve an object of class {class(x)[1L]} to a registry entry.",
+    class = "block_not_registered"
+  )
+}
+
+#' @param x A `block`, a `block_registry_entry` or a registry ID for the
+#'   construction-metadata accessors; a `block_arg` (or a bare description
+#'   string) for `block_arg_description()` and friends
 #' @rdname register_block
 #' @export
 block_args <- function(x, ...) {
@@ -280,13 +304,8 @@ block_args.block_registry_entry <- function(x, ...) {
 }
 
 #' @export
-block_args.character <- function(x, ...) {
-  block_args(get_registry_entry(x))
-}
-
-#' @export
-block_args.block <- function(x, ...) {
-  block_args(registry_entry_for_block(x))
+block_args.default <- function(x, ...) {
+  block_args(as_registry_entry(x), ...)
 }
 
 #' @rdname register_block
@@ -301,13 +320,8 @@ block_examples.block_registry_entry <- function(x, ...) {
 }
 
 #' @export
-block_examples.character <- function(x, ...) {
-  block_examples(get_registry_entry(x))
-}
-
-#' @export
-block_examples.block <- function(x, ...) {
-  block_examples(registry_entry_for_block(x))
+block_examples.default <- function(x, ...) {
+  block_examples(as_registry_entry(x), ...)
 }
 
 #' @rdname register_block
@@ -322,13 +336,8 @@ block_guidance.block_registry_entry <- function(x, ...) {
 }
 
 #' @export
-block_guidance.character <- function(x, ...) {
-  block_guidance(get_registry_entry(x))
-}
-
-#' @export
-block_guidance.block <- function(x, ...) {
-  block_guidance(registry_entry_for_block(x))
+block_guidance.default <- function(x, ...) {
+  block_guidance(as_registry_entry(x), ...)
 }
 
 #' @rdname register_block
@@ -343,34 +352,54 @@ block_keywords.block_registry_entry <- function(x, ...) {
 }
 
 #' @export
-block_keywords.character <- function(x, ...) {
-  block_keywords(get_registry_entry(x))
-}
-
-#' @export
-block_keywords.block <- function(x, ...) {
-  block_keywords(registry_entry_for_block(x))
-}
-
-block_arg_field <- function(x, field) {
-  stopifnot(inherits(x, "block_arg"))
-  x[[field]]
+block_keywords.default <- function(x, ...) {
+  block_keywords(as_registry_entry(x), ...)
 }
 
 #' @rdname register_block
 #' @export
-arg_description <- function(x) {
-  block_arg_field(x, "description")
+block_arg_description <- function(x, ...) {
+  UseMethod("block_arg_description")
+}
+
+#' @export
+block_arg_description.block_arg <- function(x, ...) {
+  x[["description"]]
+}
+
+#' @export
+block_arg_description.default <- function(x, ...) {
+  block_arg_description(as_block_arg(x), ...)
 }
 
 #' @rdname register_block
 #' @export
-arg_example <- function(x) {
-  block_arg_field(x, "example")
+block_arg_example <- function(x, ...) {
+  UseMethod("block_arg_example")
+}
+
+#' @export
+block_arg_example.block_arg <- function(x, ...) {
+  x[["example"]]
+}
+
+#' @export
+block_arg_example.default <- function(x, ...) {
+  block_arg_example(as_block_arg(x), ...)
 }
 
 #' @rdname register_block
 #' @export
-arg_type <- function(x) {
-  block_arg_field(x, "type")
+block_arg_type <- function(x, ...) {
+  UseMethod("block_arg_type")
+}
+
+#' @export
+block_arg_type.block_arg <- function(x, ...) {
+  x[["type"]]
+}
+
+#' @export
+block_arg_type.default <- function(x, ...) {
+  block_arg_type(as_block_arg(x), ...)
 }

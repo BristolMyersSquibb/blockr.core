@@ -76,8 +76,9 @@ block_registry <- new.env()
 #' `block_args` specification, `block_examples()` a list of complete worked
 #' configurations (each a named list keyed by argument name), `block_guidance()`
 #' a character vector of construction notes and `block_keywords()` a character
-#' vector of discovery terms. `arg_description()`, `arg_example()` and
-#' `arg_type()` return the corresponding field of a `block_arg`.
+#' vector of discovery terms. `block_arg_description()`, `block_arg_example()`
+#' and `block_arg_type()` return the corresponding field of a single argument's
+#' `block_arg` (resolving a bare description string too).
 #'
 #' @export
 register_block <- function(ctor, name, description, classes = NULL, uid = NULL,

@@ -24,11 +24,15 @@ test_that("block_arg field getters expose the spec without indexing", {
 
   a <- new_block_arg(description = "rows", example = 10L, type = NULL)
 
-  expect_identical(arg_description(a), "rows")
-  expect_identical(arg_example(a), 10L)
-  expect_null(arg_type(a))
+  expect_identical(block_arg_description(a), "rows")
+  expect_identical(block_arg_example(a), 10L)
+  expect_null(block_arg_type(a))
 
-  expect_error(arg_description("not a block_arg"))
+  # a bare description string resolves through as_block_arg()
+  expect_identical(block_arg_description("just a description"),
+                   "just a description")
+  expect_null(block_arg_example("just a description"))
+  expect_error(block_arg_description(1L), class = "block_arg_invalid")
 
   spec <- new_block_args(
     n = new_block_arg("rows", example = 10L),
@@ -36,7 +40,7 @@ test_that("block_arg field getters expose the spec without indexing", {
   )
 
   expect_identical(
-    vapply(spec, arg_description, character(1)),
+    vapply(spec, block_arg_description, character(1)),
     c(n = "rows", direction = "end")
   )
 })
@@ -209,7 +213,7 @@ test_that("construction-metadata accessors dispatch on id, entry and block", {
   expect_identical(block_guidance(blk), block_guidance("head_block"))
 
   expect_identical(
-    vapply(block_args("ut_head_acc"), arg_description, character(1)),
+    vapply(block_args("ut_head_acc"), block_arg_description, character(1)),
     c(n = "How many rows", direction = "head or tail")
   )
 })
