@@ -1,43 +1,23 @@
-#' Block argument specification
+#' @details
+#' Block constructor arguments can be documented with a structured
+#' specification: each argument via `block_arg()` (a `description`, a single
+#' worked `example`, and an optional machine-readable `type`), collected with
+#' `block_args()`. A bare named character vector of descriptions, and the empty
+#' `character()`, are also accepted and normalized into this form, so existing
+#' registrations are unaffected.
 #'
-#' Block constructor arguments can be documented in the registry with a
-#' structured specification instead of a bare named character vector of
-#' descriptions. Each argument is described via `block_arg()` (a human/model
-#' `description`, an optional worked `example` value, and an optional
-#' machine-readable `type`), and the per-argument specs are collected with
-#' `block_args()`. A bare named character vector (descriptions only) and the
-#' empty `character()` remain valid and are normalized into this representation,
-#' so existing registrations are unaffected.
+#' The complete worked configuration of a block is the assembly of its
+#' per-argument examples, keyed by argument name -- this is what
+#' `block_examples()` returns. When arguments interact, or several few-shot
+#' examples are wanted, complete configurations are instead supplied as a list
+#' via `examples` and supersede that assembly; combining multiple per-argument
+#' examples is intentionally not supported, as there is no safe way to form
+#' coherent whole-block configurations from them.
 #'
-#' The worked `example` of an argument is a single value. A complete worked
-#' configuration of a block is the assembly of its per-argument examples, keyed
-#' by argument name -- this is what `block_examples()` returns and what model
-#' consumers render. When arguments interact, or several few-shot examples are
-#' wanted, complete configurations are instead supplied as a list via the
-#' `examples` argument of [register_block()]; these supersede the per-argument
-#' assembly. Multiple per-argument examples are intentionally not supported:
-#' there is no safe way to combine them into coherent whole-block
-#' configurations.
-#'
-#' @param description Human- and model-facing description of the argument
-#' @param example A single worked value for the argument (or `NULL`)
+#' @param example A single worked value for an argument (or `NULL`)
 #' @param type Optional machine-readable type (e.g. an `ellmer::type_*`),
 #'   stored opaquely and not interpreted by blockr.core
-#' @param ... Named `block_arg()` objects (or strings, taken as descriptions),
-#'   one per constructor formal
-#' @param id Registry ID as reported by [list_blocks()]
-#'
-#' @return `block_arg()` returns a `block_arg` object and `block_args()` a
-#'   `block_args` object. `block_arg_specs()` returns the `block_args` object of
-#'   a registered block, while `block_examples()` returns a list of complete
-#'   worked configurations (each a named list keyed by argument name).
-#'
-#' @examples
-#' spec <- block_args(
-#'   n = block_arg(description = "Number of rows", example = 5L)
-#' )
-#'
-#' @rdname block_args
+#' @rdname register_block
 #' @export
 block_arg <- function(description = NULL, example = NULL, type = NULL) {
 
@@ -54,7 +34,7 @@ block_arg <- function(description = NULL, example = NULL, type = NULL) {
   )
 }
 
-#' @rdname block_args
+#' @rdname register_block
 #' @export
 block_args <- function(...) {
 
@@ -232,13 +212,13 @@ deprecate_legacy_arg_attrs <- function() {
   )
 }
 
-#' @rdname block_args
+#' @rdname register_block
 #' @export
 block_arg_specs <- function(id) {
   attr(get_registry_entry(id), "arguments")
 }
 
-#' @rdname block_args
+#' @rdname register_block
 #' @export
 block_examples <- function(id) {
 

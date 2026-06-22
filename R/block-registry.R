@@ -32,7 +32,8 @@ block_registry <- new.env()
 #' block construction via a registry ID is available as `create_block()`.
 #'
 #' @param ctor Block constructor
-#' @param name,description Metadata describing the block
+#' @param name,description Metadata describing the block (`block_arg()` uses
+#'   `description` to document a single constructor argument)
 #' @param classes Block classes
 #' @param uid Unique ID for a registry entry
 #' @param category Useful to sort blocks by topics. If not specified,
@@ -66,8 +67,11 @@ block_registry <- new.env()
 #' effects and return `block_registry_entry` object(s) invisibly, while
 #' `unregister_blocks()` returns `NULL` (invisibly). Listing via `list_blocks()`
 #' returns a character vector and a list of `block_registry_entry` object(s) for
-#' `available_blocks()`. Finally, `create_block()` returns a newly instantiated
-#' `block` object.
+#' `available_blocks()`. `create_block()` returns a newly instantiated `block`
+#' object. `block_arg()` and `block_args()` return `block_arg` and `block_args`
+#' objects respectively; for a registered block, `block_arg_specs()` returns its
+#' `block_args` object and `block_examples()` a list of complete worked
+#' configurations (each a named list keyed by argument name).
 #'
 #' @export
 register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
@@ -312,7 +316,8 @@ unregister_blocks <- function(uid = list_blocks()) {
   invisible()
 }
 
-#' @param ... Forwarded to `register_block()`
+#' @param ... Forwarded to `register_block()` (`register_blocks()`), or named
+#'   `block_arg()` objects/strings, one per constructor formal (`block_args()`)
 #' @rdname register_block
 #' @export
 register_blocks <- function(...) {

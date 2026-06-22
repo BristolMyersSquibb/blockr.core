@@ -32,7 +32,6 @@ reference:
     - block_server
     - block_ui
     - register_block
-    - block_args
 - subtitle: Links
   desc: Utilities for creating an working with links
   contents:
