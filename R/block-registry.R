@@ -72,6 +72,8 @@ block_registry <- new.env()
 #' objects respectively; for a registered block, `block_arg_specs()` returns its
 #' `block_args` object and `block_examples()` a list of complete worked
 #' configurations (each a named list keyed by argument name).
+#' `arg_description()`, `arg_example()` and `arg_type()` return the
+#' corresponding fields of a `block_arg`.
 #'
 #' @export
 register_block <- function(ctor, name, description, classes = NULL, uid = NULL,

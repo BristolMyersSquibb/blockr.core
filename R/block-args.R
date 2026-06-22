@@ -37,19 +37,7 @@ block_arg <- function(description = NULL, example = NULL, type = NULL) {
 #' @rdname register_block
 #' @export
 block_args <- function(...) {
-
-  args <- list(...)
-
-  nms <- names(args)
-
-  if (length(args) && (is.null(nms) || any(!nzchar(nms)))) {
-    blockr_abort(
-      "Every block argument must be named after a constructor formal.",
-      class = "block_args_unnamed"
-    )
-  }
-
-  new_block_args(lapply(args, as_block_arg))
+  as_block_args(list(...))
 }
 
 new_block_args <- function(x) {
@@ -58,38 +46,58 @@ new_block_args <- function(x) {
 
 is_block_args <- function(x) inherits(x, "block_args")
 
-as_block_arg <- function(x) {
+as_block_arg <- function(x, ...) {
+  UseMethod("as_block_arg")
+}
 
-  if (inherits(x, "block_arg")) {
-    return(x)
-  }
+#' @export
+as_block_arg.block_arg <- function(x, ...) {
+  x
+}
 
-  if (is_string(x)) {
-    return(block_arg(description = x))
-  }
+#' @export
+as_block_arg.character <- function(x, ...) {
+  block_arg(description = x)
+}
 
+#' @export
+as_block_arg.default <- function(x, ...) {
   blockr_abort(
     "A block argument must be a string (its description) or a `block_arg()`.",
     class = "block_arg_invalid"
   )
 }
 
-normalize_arguments <- function(arguments, guidance) {
+as_block_args <- function(x, ...) {
+  UseMethod("as_block_args")
+}
 
-  if (is_block_args(arguments)) {
-    return(list(arguments = arguments, guidance = guidance))
+#' @export
+as_block_args.block_args <- function(x, ...) {
+  x
+}
+
+#' @export
+as_block_args.list <- function(x, ...) {
+
+  nms <- names(x)
+
+  if (length(x) && (is.null(nms) || any(!nzchar(nms)))) {
+    blockr_abort(
+      "Every block argument must be named after a constructor formal.",
+      class = "block_args_unnamed"
+    )
   }
 
-  stopifnot(is.character(arguments))
+  new_block_args(lapply(x, as_block_arg))
+}
 
-  examples <- attr(arguments, "examples")
-  prompt <- attr(arguments, "prompt")
+#' @export
+as_block_args.character <- function(x, ...) {
 
-  if (not_null(examples) || not_null(prompt)) {
-    deprecate_legacy_arg_attrs()
-  }
+  examples <- attr(x, "examples")
 
-  nms <- names(arguments)
+  nms <- names(x)
 
   if (is.null(nms)) {
     nms <- character()
@@ -98,15 +106,34 @@ normalize_arguments <- function(arguments, guidance) {
   spec <- set_names(
     lapply(
       nms,
-      function(nm) {
-        block_arg(description = arguments[[nm]], example = examples[[nm]])
-      }
+      function(nm) block_arg(description = x[[nm]], example = examples[[nm]])
     ),
     nms
   )
 
+  new_block_args(spec)
+}
+
+#' @export
+as_block_args.default <- function(x, ...) {
+  blockr_abort(
+    "`arguments` must be a `block_args()`, a named character vector, or a ",
+    "list of `block_arg()` objects.",
+    class = "block_args_invalid"
+  )
+}
+
+normalize_arguments <- function(arguments, guidance) {
+
+  prompt <- if (is.character(arguments)) attr(arguments, "prompt") else NULL
+
+  if (is.character(arguments) &&
+        (not_null(attr(arguments, "examples")) || not_null(prompt))) {
+    deprecate_legacy_arg_attrs()
+  }
+
   list(
-    arguments = new_block_args(spec),
+    arguments = as_block_args(arguments),
     guidance = coal(guidance, prompt, fail_all = FALSE)
   )
 }
@@ -225,4 +252,28 @@ block_examples <- function(id) {
   entry <- get_registry_entry(id)
 
   block_examples_list(attr(entry, "arguments"), attr(entry, "examples"))
+}
+
+block_arg_field <- function(x, field) {
+  stopifnot(inherits(x, "block_arg"))
+  x[[field]]
+}
+
+#' @param x A `block_arg()` object, as held in a `block_args()` specification
+#' @rdname register_block
+#' @export
+arg_description <- function(x) {
+  block_arg_field(x, "description")
+}
+
+#' @rdname register_block
+#' @export
+arg_example <- function(x) {
+  block_arg_field(x, "example")
+}
+
+#' @rdname register_block
+#' @export
+arg_type <- function(x) {
+  block_arg_field(x, "type")
 }

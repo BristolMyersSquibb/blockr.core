@@ -5,6 +5,9 @@
 \alias{block_args}
 \alias{block_arg_specs}
 \alias{block_examples}
+\alias{arg_description}
+\alias{arg_example}
+\alias{arg_type}
 \alias{register_block}
 \alias{default_icon}
 \alias{default_category}
@@ -25,6 +28,12 @@ block_args(...)
 block_arg_specs(id)
 
 block_examples(id)
+
+arg_description(x)
+
+arg_example(x)
+
+arg_type(x)
 
 register_block(
   ctor,
@@ -74,6 +83,8 @@ stored opaquely and not interpreted by blockr.core}
 \code{block_arg()} objects/strings, one per constructor formal (\code{block_args()})}
 
 \item{id}{Block ID as reported by \code{list_blocks()}}
+
+\item{x}{A \code{block_arg()} object, as held in a \code{block_args()} specification}
 
 \item{ctor}{Block constructor}
 
@@ -127,6 +138,8 @@ object. \code{block_arg()} and \code{block_args()} return \code{block_arg} and \
 objects respectively; for a registered block, \code{block_arg_specs()} returns its
 \code{block_args} object and \code{block_examples()} a list of complete worked
 configurations (each a named list keyed by argument name).
+\code{arg_description()}, \code{arg_example()} and \code{arg_type()} return the
+corresponding fields of a \code{block_arg}.
 }
 \description{
 Listing of blocks is available via a block registry, which associates a block
