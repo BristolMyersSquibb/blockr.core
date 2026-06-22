@@ -208,11 +208,11 @@ test_that("block metadata", {
 
   expect_s3_class(meta1, "data.frame")
   expect_identical(nrow(meta1), 1L)
-  expect_identical(ncol(meta1), 8L)
+  expect_identical(ncol(meta1), 12L)
   expect_named(
     meta1,
-    c("id", "name", "description", "details", "link", "category", "icon",
-      "package")
+    c("id", "name", "description", "details", "link", "guidance", "keywords",
+      "category", "icon", "arguments", "examples", "package")
   )
 
   new_identity_block <- function() {
@@ -240,11 +240,11 @@ test_that("block metadata", {
 
   expect_s3_class(meta2, "data.frame")
   expect_identical(nrow(meta2), 1L)
-  expect_identical(ncol(meta2), 8L)
+  expect_identical(ncol(meta2), 12L)
   expect_named(
     meta2,
-    c("id", "name", "description", "details", "link", "category", "icon",
-      "package")
+    c("id", "name", "description", "details", "link", "guidance", "keywords",
+      "category", "icon", "arguments", "examples", "package")
   )
 
   meta3 <- block_metadata(
@@ -253,11 +253,11 @@ test_that("block metadata", {
 
   expect_s3_class(meta3, "data.frame")
   expect_identical(nrow(meta3), 2L)
-  expect_identical(ncol(meta3), 8L)
+  expect_identical(ncol(meta3), 12L)
   expect_named(
     meta3,
-    c("id", "name", "description", "details", "link", "category", "icon",
-      "package")
+    c("id", "name", "description", "details", "link", "guidance", "keywords",
+      "category", "icon", "arguments", "examples", "package")
   )
   expect_identical(rownames(meta3), c("a", "b"))
 
@@ -265,12 +265,20 @@ test_that("block metadata", {
 
   expect_s3_class(meta4, "data.frame")
   expect_identical(nrow(meta4), 0L)
-  expect_identical(ncol(meta4), 8L)
+  expect_identical(ncol(meta4), 12L)
   expect_named(
     meta4,
-    c("id", "name", "description", "details", "link", "category", "icon",
-      "package")
+    c("id", "name", "description", "details", "link", "guidance", "keywords",
+      "category", "icon", "arguments", "examples", "package")
   )
+
+  expect_type(meta1$keywords, "list")
+  expect_type(meta1$arguments, "list")
+  expect_s3_class(meta1$arguments[[1L]], "block_args")
+
+  sel <- block_metadata(new_dataset_block(), fields = c("name", "icon"))
+
+  expect_named(sel, c("name", "icon"))
 })
 
 test_that("external_ctrl_vars resolves the external_ctrl declaration", {

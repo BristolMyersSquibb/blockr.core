@@ -9,14 +9,16 @@
   is now first-class and validated at registration (every argument is a real
   constructor formal and every worked example actually constructs); the legacy
   attributes are still absorbed, with a deprecation warning (#121).
-* The block metadata API is split by cardinality. Scalar catalog attributes
-  (name, description, details, link, category, icon, package) are tabulated
-  across many blocks by `block_metadata()`, now a generic dispatching on a
-  block, a `block_registry_entry` or a registry ID. The per-block, collection-
-  valued construction metadata is read with the accessor generics `block_args()`,
-  `block_examples()`, `block_guidance()` and `block_keywords()` (same dispatch),
-  and a single argument's fields with `arg_description()`, `arg_example()` and
-  `arg_type()`. `registry_metadata()` is deprecated in favour of these (#121).
+* Block metadata is exposed two ways. `block_metadata()` returns a
+  `data.frame` over one or many blocks -- dispatching on a `block`, a `blocks`
+  collection, a `block_registry_entry` or a registry ID -- with every attribute
+  available as a column (the multi-valued `arguments`, `examples` and
+  `keywords` as list-columns) and a `fields` argument to select a subset. Each
+  attribute additionally has a single-block getter: `block_meta_name()`,
+  `block_meta_description()`, `block_meta_guidance()`, `block_meta_arguments()`,
+  `block_meta_keywords()`, and so on. A single argument's fields are read with
+  `block_arg_description()`, `block_arg_example()` and `block_arg_type()`.
+  `registry_metadata()` is deprecated in favour of these (#121).
 * New exported `trim_rv()` removes entries from a `reactiveValues`
   object, which assigning `NULL` does not do -- the key lingers in
   `names()` with a `NULL` value. Unlinking a variadic block argument now

@@ -236,9 +236,7 @@ deprecate_legacy_arg_attrs <- function() {
   )
 }
 
-#' @param x A `block`, a `block_registry_entry` or a registry ID for the
-#'   construction-metadata accessors; a `block_arg` (or a bare description
-#'   string) for `block_arg_description()` and friends
+#' @param x A `block_arg` object, or a bare string taken as its description
 #' @rdname register_block
 #' @export
 block_arg_description <- function(x, ...) {

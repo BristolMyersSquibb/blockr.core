@@ -71,14 +71,11 @@ block_registry <- new.env()
 #' returns a character vector and a list of `block_registry_entry` object(s) for
 #' `available_blocks()`. `create_block()` returns a newly instantiated `block`
 #' object. `new_block_arg()` and `new_block_args()` construct `block_arg` and
-#' `block_args` objects. For a registered block -- passed as a block instance, a
-#' `block_registry_entry` or a registry ID -- `block_args()` returns its
-#' `block_args` specification, `block_examples()` a list of complete worked
-#' configurations (each a named list keyed by argument name), `block_guidance()`
-#' a character vector of construction notes and `block_keywords()` a character
-#' vector of discovery terms. `block_arg_description()`, `block_arg_example()`
+#' `block_args` objects, and `block_arg_description()`, `block_arg_example()`
 #' and `block_arg_type()` return the corresponding field of a single argument's
-#' `block_arg` (resolving a bare description string too).
+#' `block_arg` (resolving a bare description string too). The registered
+#' metadata of a block is read with [block_metadata()] and the `block_meta_*()`
+#' accessors.
 #'
 #' @export
 register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
@@ -398,9 +395,8 @@ registry_arguments_field <- function(entry) {
 registry_metadata <- function(blocks = list_blocks(), fields = "all") {
 
   blockr_warn(
-    "`registry_metadata()` is deprecated; use `block_metadata()` for catalog ",
-    "fields and `block_args()` / `block_examples()` / `block_guidance()` / ",
-    "`block_keywords()` for construction metadata.",
+    "`registry_metadata()` is deprecated; use `block_metadata()` or the ",
+    "`block_meta_*()` accessors instead.",
     class = "deprecated_registry_metadata",
     frequency = "once",
     frequency_id = "blockr_deprecated_registry_metadata"

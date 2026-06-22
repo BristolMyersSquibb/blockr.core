@@ -190,30 +190,37 @@ test_that("construction-metadata accessors dispatch on id, entry and block", {
       n = new_block_arg("How many rows", example = 10L),
       direction = new_block_arg("head or tail", example = "tail")
     ),
-    guidance = c("Use direction='tail' for the bottom.", "n counts rows."),
+    guidance = "Use direction='tail' for the bottom rows.",
     keywords = c("first", "last", "top")
   )
 
-  expect_s3_class(block_args("ut_head_acc"), "block_args")
+  expect_s3_class(block_meta_arguments("ut_head_acc"), "block_args")
   expect_identical(
-    block_examples("ut_head_acc"),
+    block_meta_examples("ut_head_acc"),
     list(list(n = 10L, direction = "tail"))
   )
   expect_identical(
-    block_guidance("ut_head_acc"),
-    c("Use direction='tail' for the bottom.", "n counts rows.")
+    block_meta_guidance("ut_head_acc"),
+    "Use direction='tail' for the bottom rows."
   )
-  expect_identical(block_keywords("ut_head_acc"), c("first", "last", "top"))
+  expect_identical(
+    block_meta_keywords("ut_head_acc"),
+    c("first", "last", "top")
+  )
 
   entry <- available_blocks()[["ut_head_acc"]]
-  expect_identical(block_keywords(entry), c("first", "last", "top"))
+  expect_identical(block_meta_keywords(entry), c("first", "last", "top"))
 
   blk <- new_head_block()
-  expect_identical(block_args(blk), block_args("head_block"))
-  expect_identical(block_guidance(blk), block_guidance("head_block"))
+  expect_identical(
+    block_meta_arguments(blk),
+    block_meta_arguments("head_block")
+  )
+  expect_identical(block_meta_guidance(blk), block_meta_guidance("head_block"))
 
   expect_identical(
-    vapply(block_args("ut_head_acc"), block_arg_description, character(1)),
+    vapply(block_meta_arguments("ut_head_acc"), block_arg_description,
+           character(1)),
     c(n = "How many rows", direction = "head or tail")
   )
 })
@@ -239,12 +246,14 @@ test_that("construction accessors read the block's attached metadata", {
 
   unregister_blocks("head_block")
 
-  expect_identical(block_arg_description(block_args(blk)[["n"]]), "rows")
-  expect_identical(block_guidance(blk), "be careful")
-  expect_identical(block_examples(blk), list(list(n = 3L)))
+  args <- block_meta_arguments(blk)
+
+  expect_identical(block_arg_description(args[["n"]]), "rows")
+  expect_identical(block_meta_guidance(blk), "be careful")
+  expect_identical(block_meta_examples(blk), list(list(n = 3L)))
 })
 
-test_that("block_keywords and block_guidance default to empty character", {
+test_that("block metadata accessors fall back when an attribute is absent", {
 
   withr::defer(unregister_blocks("ut_head_empty"))
 
@@ -255,11 +264,12 @@ test_that("block_keywords and block_guidance default to empty character", {
     uid = "ut_head_empty"
   )
 
-  expect_identical(block_keywords("ut_head_empty"), character())
-  expect_identical(block_guidance("ut_head_empty"), character())
+  expect_identical(block_meta_keywords("ut_head_empty"), character())
+  expect_identical(block_meta_examples("ut_head_empty"), list())
+  expect_identical(block_meta_guidance("ut_head_empty"), NA_character_)
 })
 
-test_that("block_metadata tabulates scalar catalog fields", {
+test_that("block_metadata tabulates catalog fields with list-columns", {
 
   withr::defer(unregister_blocks("ut_head_cat"))
 
@@ -279,8 +289,10 @@ test_that("block_metadata tabulates scalar catalog fields", {
   expect_identical(meta$name, "Head")
   expect_identical(meta$details, "Defaults to six rows.")
   expect_identical(meta$link, "https://example.com/head")
-  expect_false("arguments" %in% names(meta))
-  expect_false("keywords" %in% names(meta))
+
+  expect_type(meta$arguments, "list")
+  expect_type(meta$keywords, "list")
+  expect_s3_class(meta$arguments[[1L]], "block_args")
 
   blk <- new_head_block()
   expect_identical(block_metadata(blk)$id, "head_block")
