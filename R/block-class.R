@@ -735,6 +735,7 @@ has_external_ctrl <- function(x) {
   length(external_ctrl_vars(x)) > 0
 }
 
+#' @param ... Generic consistency, passed on to methods
 #' @rdname block_name
 #' @export
 block_metadata <- function(x, ...) {

@@ -33,6 +33,8 @@ block_metadata(x, ...)
 \item{value}{New value}
 
 \item{data}{Data input values}
+
+\item{...}{Generic consistency, passed on to methods}
 }
 \value{
 Return types vary among the set of exported utilities:

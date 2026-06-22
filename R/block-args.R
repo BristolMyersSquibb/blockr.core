@@ -23,7 +23,6 @@
 #' intentionally not supported, as there is no safe way to form coherent
 #' whole-block configurations from them.
 #'
-#' @param description Human- and model-facing description of an argument
 #' @param example A single worked value for an argument (or `NULL`)
 #' @param type Optional machine-readable type (e.g. an `ellmer::type_*`),
 #'   stored opaquely and not interpreted by blockr.core

@@ -80,8 +80,6 @@ registry_metadata(blocks = list_blocks(), fields = "all")
 create_block(id, ...)
 }
 \arguments{
-\item{description}{Human- and model-facing description of an argument}
-
 \item{example}{A single worked value for an argument (or \code{NULL})}
 
 \item{type}{Optional machine-readable type (e.g. an \verb{ellmer::type_*}),
