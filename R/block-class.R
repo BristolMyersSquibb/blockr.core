@@ -785,7 +785,14 @@ block_metadata_record.block <- function(x, ...) {
 
   record <- attr(x, "block_metadata")
 
-  if (is.list(record)) record else list()
+  if (!is.list(record)) {
+    blockr_abort(
+      "Block {class(x)[1L]} carries no metadata.",
+      class = "missing_block_metadata"
+    )
+  }
+
+  record
 }
 
 #' @export
@@ -805,12 +812,37 @@ block_metadata_record.character <- function(x, ...) {
   record
 }
 
+#' @rdname register_block
 #' @export
-block_metadata_record.default <- function(x, ...) {
-  blockr_abort(
-    "Cannot resolve an object of class {class(x)[1L]} to block metadata.",
-    class = "block_metadata_unresolved"
+block_args <- function(x, ...) {
+  coal(block_metadata_record(x, ...)[["arguments"]], new_block_args(),
+       fail_all = FALSE)
+}
+
+#' @rdname register_block
+#' @export
+block_examples <- function(x, ...) {
+
+  record <- block_metadata_record(x, ...)
+
+  block_examples_list(
+    coal(record[["arguments"]], new_block_args(), fail_all = FALSE),
+    coal(record[["examples"]], list(), fail_all = FALSE)
   )
+}
+
+#' @rdname register_block
+#' @export
+block_guidance <- function(x, ...) {
+  coal(block_metadata_record(x, ...)[["guidance"]], character(),
+       fail_all = FALSE)
+}
+
+#' @rdname register_block
+#' @export
+block_keywords <- function(x, ...) {
+  coal(block_metadata_record(x, ...)[["keywords"]], character(),
+       fail_all = FALSE)
 }
 
 block_catalog <- function(record, default_name) {

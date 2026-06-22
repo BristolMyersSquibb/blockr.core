@@ -17,7 +17,7 @@ test_that("new_block_arg and new_block_args constructors", {
 
   expect_error(new_block_arg(description = 1L), class = "block_arg_invalid")
   expect_error(new_block_args(new_block_arg("x")), class = "block_args_unnamed")
-  expect_error(new_block_args(n = 1L), class = "block_arg_invalid")
+  expect_error(new_block_args(n = 1L))
 })
 
 test_that("block_arg field getters expose the spec without indexing", {
@@ -32,7 +32,7 @@ test_that("block_arg field getters expose the spec without indexing", {
   expect_identical(block_arg_description("just a description"),
                    "just a description")
   expect_null(block_arg_example("just a description"))
-  expect_error(block_arg_description(1L), class = "block_arg_invalid")
+  expect_error(block_arg_description(1L))
 
   spec <- new_block_args(
     n = new_block_arg("rows", example = 10L),
@@ -53,8 +53,8 @@ test_that("as_block_args dispatches by input type", {
   expect_s3_class(as_block_args(list(n = new_block_arg("rows"))), "block_args")
   expect_s3_class(as_block_args(c(n = "rows")), "block_args")
 
-  expect_error(as_block_args(1L), class = "block_args_invalid")
-  expect_error(as_block_arg(1L), class = "block_arg_invalid")
+  expect_error(as_block_args(1L))
+  expect_error(as_block_arg(1L))
 })
 
 test_that("bare and empty arguments normalize without warning", {

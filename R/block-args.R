@@ -71,15 +71,6 @@ as_block_arg.character <- function(x, ...) {
   new_block_arg(description = x)
 }
 
-#' @export
-as_block_arg.default <- function(x, ...) {
-  blockr_abort(
-    "A block argument must be a string (its description) or a ",
-    "`new_block_arg()`.",
-    class = "block_arg_invalid"
-  )
-}
-
 as_block_args <- function(x, ...) {
   UseMethod("as_block_args")
 }
@@ -126,15 +117,6 @@ as_block_args.character <- function(x, ...) {
   )
 
   block_args_obj(spec)
-}
-
-#' @export
-as_block_args.default <- function(x, ...) {
-  blockr_abort(
-    "`arguments` must be a `block_args` object, a named character vector, or ",
-    "a list of `block_arg` objects.",
-    class = "block_args_invalid"
-  )
 }
 
 normalize_arguments <- function(arguments, guidance) {
@@ -257,39 +239,6 @@ deprecate_legacy_arg_attrs <- function() {
 #' @param x A `block`, a `block_registry_entry` or a registry ID for the
 #'   construction-metadata accessors; a `block_arg` (or a bare description
 #'   string) for `block_arg_description()` and friends
-#' @rdname register_block
-#' @export
-block_args <- function(x, ...) {
-  coal(block_metadata_record(x, ...)[["arguments"]], new_block_args(),
-       fail_all = FALSE)
-}
-
-#' @rdname register_block
-#' @export
-block_examples <- function(x, ...) {
-
-  record <- block_metadata_record(x, ...)
-
-  block_examples_list(
-    coal(record[["arguments"]], new_block_args(), fail_all = FALSE),
-    coal(record[["examples"]], list(), fail_all = FALSE)
-  )
-}
-
-#' @rdname register_block
-#' @export
-block_guidance <- function(x, ...) {
-  coal(block_metadata_record(x, ...)[["guidance"]], character(),
-       fail_all = FALSE)
-}
-
-#' @rdname register_block
-#' @export
-block_keywords <- function(x, ...) {
-  coal(block_metadata_record(x, ...)[["keywords"]], character(),
-       fail_all = FALSE)
-}
-
 #' @rdname register_block
 #' @export
 block_arg_description <- function(x, ...) {
