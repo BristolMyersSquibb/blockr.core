@@ -111,16 +111,16 @@ test_that("board server", {
     session$flushReact(),
     args = list(
       board = empty,
-      plugin_a = function(id, board, update, parent, ...) {
+      plugin_a = function(id, board, update, parent) {
         moduleServer(
           id,
           function(input, output, session) {
             observeEvent(TRUE, parent(1L), once = TRUE)
-            NULL
+            reactiveVal()
           }
         )
       },
-      plugin_b = function(id, board, update, parent, ...) {
+      plugin_b = function(id, board, update, parent) {
         moduleServer(
           id,
           function(input, output, session) {
@@ -153,7 +153,7 @@ test_that("board server", {
                   board$abc,
                   expect_identical(board$abc, 1L)
                 )
-                NULL
+                reactiveVal()
               }
             )
           },
@@ -190,7 +190,7 @@ test_that("board server", {
               },
               once = TRUE
             )
-            NULL
+            reactiveVal()
           }
         )
       }
