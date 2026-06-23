@@ -16,13 +16,7 @@
 \alias{validate_plugins}
 \title{Board plugin}
 \usage{
-new_plugin(
-  server,
-  ui = NULL,
-  validator = abort_not_null,
-  class = character(),
-  ...
-)
+new_plugin(server, ui = NULL, validator = abort_not_null, class = character())
 
 is_plugin(x)
 
@@ -55,9 +49,9 @@ validate_plugins(x)
 
 \item{class}{Plugin subclass}
 
-\item{...}{Plugin objects}
-
 \item{x}{Plugin object}
+
+\item{...}{Plugin objects}
 }
 \value{
 Constructors \code{new_plugin()}/\code{plugins()} return \code{plugin} and

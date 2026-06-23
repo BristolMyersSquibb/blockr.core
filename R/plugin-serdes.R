@@ -8,61 +8,73 @@
 #' Such enhancements can be implemented in a third-party `preserve_board`
 #' module.
 #'
-#' Unlike other plugins, `preserve_board` additionally carries a `loader`: a
-#' function of a single request argument that core calls when building the
-#' board UI (at the GET) and server (at the WS connect), returning the `board`
-#' to build or `NULL` to fall back to the `serve()` default. The request
-#' exposes the parsed URL `query` (normalized across both call sites) and the
-#' raw `request`/`session`; note `session` is `NULL` at the GET (there is no
-#' session yet), so a loader must tolerate its absence there. Core validates
-#' the returned value, which must be `NULL` or a `board`.
-#'
-#' This is how a restored (or otherwise externally resolved) board is handed to
-#' a freshly (re)loaded session. The loader is a `board_loader` object, pairing
-#' a `resolve(request)` (read) with a `stage(board, session)` (persist and
-#' trigger the reload that `resolve` later picks up) over shared private state.
-#' [serve()] pulls the served board's loader once and uses it for both the
-#' request-phase resolution and the in-session staging, so the board crossing a
-#' reload does not depend on which `preserve_board` the resolved board itself
-#' carries. The default loader keeps its state in the app object rather than a
-#' process global, so it is per-[serve()] and survives the reload without a
-#' shared slot; it is single-process, though, so multi-user deployments supply
-#' their own `loader` resolving from a shared backend (as blockr.session does).
+#' How a board is carried across the `session$reload()` that a restore
+#' triggers is the job of a separate, app-level **board loader**, configured
+#' via the `board_loader` option (see [serve()]) rather than attached to the
+#' plugin. A [board_loader()] pairs a `resolve(request)` -- returning the
+#' `board` to build for an incoming request, or `NULL` for the [serve()]
+#' default -- with a `stage(board, session)`, which persists a board and
+#' returns the URL query parameters that reference it. [serve()] reads the
+#' option once and uses that one loader for both the request-phase resolution
+#' (at the GET and the WS connect) and, in [board_server()], the in-session
+#' staging; **core** writes those parameters into the URL and drives the
+#' reload. The plugin server never touches the loader and never reloads, so
+#' the reload stays a guaranteed core mechanism. The default loader keeps its
+#' handoff in a per-loader store (no process global) and is single-process;
+#' multi-user deployments set the option to a loader resolving from a shared
+#' backend (as blockr.session does).
 #'
 #' @param server,ui Server/UI for the plugin module
-#' @param loader A `board_loader()` object, or `NULL`
 #'
 #' @return A plugin container inheriting from `preserve_board` is returned by
 #' `preserve_board()`, while the UI component (e.g. `preserve_board_ui()`) is
-#' expected to return shiny UI (i.e. [shiny::tagList()]). `board_loader()`
-#' returns a `board_loader` object and `is_board_loader()` a scalar logical.
+#' expected to return shiny UI (i.e. [shiny::tagList()]) and the server
+#' component a [shiny::reactiveVal()] evaluating to `NULL` or the `board` to
+#' restore. `board_loader()` returns a `board_loader` object and
+#' `is_board_loader()` a scalar logical.
 #'
 #' @export
 preserve_board <- function(server = preserve_board_server,
-                           ui = preserve_board_ui,
-                           loader = preserve_board_loader()) {
+                           ui = preserve_board_ui) {
 
-  stopifnot(is.null(loader) || is_board_loader(loader))
-
-  new_plugin(server, ui, class = "preserve_board", loader = loader)
+  new_plugin(server, ui, validator = check_ser_deser_val,
+             class = "preserve_board")
 }
 
 #' @param resolve,stage Paired functions backing a `board_loader`: `resolve` is
-#' `function(request)` returning a `board` or `NULL`; `stage` is
-#' `function(board, session)` which persists `board` and triggers the reload
-#' that `resolve` later picks up. They share private state, so a `board_loader`
-#' is built as a unit rather than supplied as two loose functions.
+#' `function(request)` returning the `board` to build or `NULL`; `stage` is
+#' `function(board, session)` which persists `board` and returns the URL query
+#' parameters referencing it (core writes them and reloads). They share private
+#' state, so a `board_loader` is built as a unit, not supplied as two loose
+#' functions.
 #'
 #' @rdname preserve_board
 #' @export
 board_loader <- function(resolve, stage) {
 
-  stopifnot(is.function(resolve), is.function(stage))
+  if (!is.function(resolve) || !has_formals(resolve, "request")) {
+    blockr_abort(
+      "A `board_loader` `resolve` must be a function of `request`.",
+      class = "board_loader_resolve_invalid"
+    )
+  }
+
+  if (!is.function(stage) || !has_formals(stage, c("board", "session"))) {
+    blockr_abort(
+      "A `board_loader` `stage` must be a function of `board` and `session`.",
+      class = "board_loader_stage_invalid"
+    )
+  }
 
   structure(
     list(resolve = resolve, stage = stage),
     class = "board_loader"
   )
+}
+
+has_formals <- function(f, args) {
+  nms <- names(formals(f))
+  "..." %in% nms || all(args %in% nms)
 }
 
 #' @rdname preserve_board
@@ -77,7 +89,7 @@ is_board_loader <- function(x) {
 #'
 #' @rdname preserve_board
 #' @export
-preserve_board_server <- function(id, board, ..., loader = NULL) {
+preserve_board_server <- function(id, board, ...) {
 
   dot_args <- list(...)
 
@@ -111,19 +123,7 @@ preserve_board_server <- function(id, board, ..., loader = NULL) {
         }
       )
 
-      observeEvent(
-        res(),
-        {
-          val <- res()
-          new <- if (is_board(val)) val else val$board
-
-          if (not_null(loader)) {
-            loader$stage(new, session)
-          }
-        }
-      )
-
-      invisible()
+      res
     }
   )
 }
@@ -163,17 +163,9 @@ preserve_board_loader <- function() {
     token <- rand_names()
     assign(token, board, envir = store)
 
-    query <- session_query(session)
-    query[[reload_param]] <- token
-
     log_debug("staging board for reload handoff {token}")
 
-    updateQueryString(
-      query_to_string(query), mode = "replace", session = session
-    )
-    session$reload()
-
-    invisible(token)
+    set_names(list(token), reload_param)
   }
 
   board_loader(resolve, stage)
@@ -307,4 +299,40 @@ write_board_to_disk <- function(rv, ..., session = get_session()) {
 
 write_json <- function(x) {
   jsonlite::toJSON(x, null = "null")
+}
+
+check_ser_deser_val <- function(val) {
+  observeEvent(
+    TRUE,
+    {
+      if (!is.reactive(val)) {
+        blockr_abort(
+          "Expecting `preserve_board` to return a reactive value.",
+          class = "preserve_board_return_invalid"
+        )
+      }
+    },
+    once = TRUE
+  )
+
+  observeEvent(
+    val(),
+    {
+      v <- val()
+      board <- if (is_board(v)) v else if (is.list(v)) v$board
+
+      if (!is_board(board)) {
+        blockr_abort(
+          "Expecting the `preserve_board` return value to evaluate to a ",
+          "`board` object or a list with a `board` element.",
+          class = "preserve_board_return_invalid"
+        )
+      }
+
+      validate_board(board)
+    },
+    once = TRUE
+  )
+
+  val
 }

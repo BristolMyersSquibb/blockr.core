@@ -11,9 +11,6 @@
 #' @param server,ui Server/UI for the plugin module
 #' @param validator Validator function that validates server return values
 #' @param class Plugin subclass
-#' @param ... Plugin-specific extra components, attached as attributes. The
-#' `preserve_board` plugin uses this to carry its request-phase `loader` (see
-#' [preserve_board()]).
 #'
 #' @examples
 #' plg <- board_plugins(new_board())
@@ -35,12 +32,11 @@
 #'
 #' @export
 new_plugin <- function(server, ui = NULL, validator = abort_not_null,
-                       class = character(), ...) {
+                       class = character()) {
 
   res <- structure(
     list(server = server, ui = ui),
     validator = validator,
-    ...,
     class = c(class, "plugin")
   )
 
@@ -101,18 +97,11 @@ as_plugin.plugins <- function(x) {
 
 #' @export
 as.list.plugin <- function(x, ...) {
-
-  extra <- attributes(x)
-  extra[c("names", "class", "validator")] <- NULL
-
-  c(
-    list(
-      server = plugin_server(x),
-      ui = plugin_ui(x),
-      validator = plugin_validator(x),
-      class = setdiff(class(x), "plugin")
-    ),
-    extra
+  list(
+    server = plugin_server(x),
+    ui = plugin_ui(x),
+    validator = plugin_validator(x),
+    class = setdiff(class(x), "plugin")
   )
 }
 

@@ -1,24 +1,22 @@
 # blockr.core 0.1.3
 
-* The `preserve_board` plugin gains a request-phase `loader`, a
-  `board_loader()` object pairing a `resolve(request)` (which returns the
-  board to serve, or `NULL`) with a `stage(board, session)` (which persists
-  a board and triggers the reload that `resolve` then picks up) over shared
-  private state. `serve()` captures the served board's loader once and uses
-  it both to resolve the board when building the UI (GET) and server (WS
-  connect) — validating the result, else falling back to the `serve()`
-  default — and to stage the board in-session, so the board crossing a
-  reload is independent of which `preserve_board` the resolved board
-  carries. The loader is carried as a plugin attribute, so `new_plugin()`
-  now takes `...` for plugin-specific components rather than a fixed slot.
-  This removes the process-global slot core used to stage a board across
-  `session$reload()`: `serve()` owns no reload state, and the exported
-  `get_serve_obj()`, the board-server reload producer and `rv$reload_meta`
-  are gone. The default loader keeps its handoff in the app object (not a
-  global), staging an uploaded board under a one-time URL token matched
-  per-tab; a downstream `preserve_board` (e.g. blockr.session) instead
-  resolves from the URL query against its own backend, which is
-  multi-process-safe (#214).
+* The board to build for an incoming request is now resolved by an
+  app-level **board loader**, configured through the new `board_loader`
+  option (default: an in-process save/restore handoff). A `board_loader()`
+  pairs a `resolve(request)` — returning the board to build, or `NULL` for
+  the `serve()` default — with a `stage(board, session)`, which persists a
+  board and returns the URL query parameters referencing it. `serve()` reads
+  the option once and uses that one loader to resolve the board at the UI
+  (GET) and server (WS connect) builds; when a restore fires, `board_server()`
+  stages the board through the loader, and **core** writes the parameters
+  into the URL and drives `session$reload()` — so the reload stays a
+  guaranteed core mechanism and the `preserve_board` plugin (unchanged at
+  `{server, ui}`) never reloads. This removes the process-global slot core
+  used to stage a board across a reload: the exported `get_serve_obj()`, the
+  old board-server reload producer and `rv$reload_meta` are gone. The default
+  loader keeps its handoff in a per-loader store (single-process); a
+  downstream loader (e.g. blockr.session) resolves from the URL query against
+  a shared backend, which is multi-process-safe (#214).
 * New exported `trim_rv()` removes entries from a `reactiveValues`
   object, which assigning `NULL` does not do -- the key lingers in
   `names()` with a `NULL` value. Unlinking a variadic block argument now

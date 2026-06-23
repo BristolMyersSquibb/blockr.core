@@ -104,7 +104,7 @@ serve.board <- function(x, id = rand_names(), plugins = blockr_app_plugins,
 
   stopifnot(is_string(id), is.function(plugins), is.function(options))
 
-  loader <- attr(get_plugin("preserve_board", plugins(x)), "loader")
+  loader <- blockr_option("board_loader", preserve_board_loader())
 
   shinyApp(
     serve_board_ui(id, x, loader, plugins, options),
@@ -282,6 +282,22 @@ board_request_ws <- function(session) {
 
 session_query <- function(session) {
   parseQueryString(coal(isolate(session$clientData$url_search), ""))
+}
+
+reload_board <- function(loader, board, session) {
+
+  params <- loader$stage(board, session)
+
+  if (length(params)) {
+    query <- modifyList(session_query(session), as.list(params))
+    updateQueryString(query_to_string(query), mode = "replace",
+                      session = session)
+  }
+
+  log_debug("reloading session")
+  session$reload()
+
+  invisible()
 }
 
 query_to_string <- function(query) {

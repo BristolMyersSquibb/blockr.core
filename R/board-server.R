@@ -257,11 +257,22 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
       read_plugin_args <- c(rv_ro, dot_args)
 
-      call_plugin_server(
+      board_refresh <- call_plugin_server(
         "preserve_board",
-        server_args = c(read_plugin_args, list(loader = loader)),
+        server_args = read_plugin_args,
         plugins = plugins
       )
+
+      if (not_null(loader) && not_null(board_refresh)) {
+
+        observeEvent(
+          board_refresh(),
+          {
+            val <- board_refresh()
+            reload_board(loader, if (is_board(val)) val else val$board, session)
+          }
+        )
+      }
 
       call_plugin_server(
         "notify_user",

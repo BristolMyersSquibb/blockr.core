@@ -1,4 +1,4 @@
-test_that("the default server downloads and restores the board", {
+test_that("the default server produces the deserialized board", {
 
   test_board <- new_board(
     blocks = c(
@@ -16,25 +16,23 @@ test_that("the default server downloads and restores the board", {
     args = list(board = reactiveValues(board = test_board))
   )
 
-  staged <- NULL
-  spy <- board_loader(
-    resolve = function(request) NULL,
-    stage = function(board, session) staged <<- board
-  )
-
   testServer(
     preserve_board_server,
-    session$setInputs(restore = list(datapath = temp)),
-    args = list(board = reactiveValues(board = new_board()), loader = spy)
-  )
+    {
+      session$setInputs(restore = list(datapath = temp))
 
-  expect_s3_class(staged, class(test_board))
-  expect_length(board_blocks(staged), length(board_blocks(test_board)))
-  expect_setequal(board_block_ids(staged), board_block_ids(test_board))
-  expect_setequal(board_link_ids(staged), board_link_ids(test_board))
+      restored <- res()
+
+      expect_s3_class(restored, class(test_board))
+      expect_length(board_blocks(restored), length(board_blocks(test_board)))
+      expect_setequal(board_block_ids(restored), board_block_ids(test_board))
+      expect_setequal(board_link_ids(restored), board_link_ids(test_board))
+    },
+    args = list(board = reactiveValues(board = new_board()))
+  )
 })
 
-test_that("the board server stages restores through the supplied loader", {
+test_that("the board server reloads a restore through the supplied loader", {
 
   test_board <- new_board(
     blocks = c(
@@ -63,7 +61,10 @@ test_that("the board server stages restores through the supplied loader", {
   staged <- NULL
   spy <- board_loader(
     resolve = function(request) NULL,
-    stage = function(board, session) staged <<- board
+    stage = function(board, session) {
+      staged <<- board
+      set_names(list("tok"), reload_param)
+    }
   )
 
   testServer(
@@ -80,18 +81,17 @@ test_that("the board server stages restores through the supplied loader", {
   expect_setequal(board_link_ids(staged), board_link_ids(test_board))
 })
 
-test_that("preserve_board carries a board_loader as an attribute", {
+test_that("preserve_board is the save/restore plugin (no loader on it)", {
 
   plug <- preserve_board()
 
   expect_true(is_plugin(plug))
   expect_s3_class(plug, "preserve_board")
-  expect_true(is_board_loader(attr(plug, "loader")))
-  expect_null(plug[["loader"]])
   expect_setequal(names(plug), c("server", "ui"))
+  expect_null(attr(plug, "loader"))
 })
 
-test_that("board_loader bundles a resolve and a stage", {
+test_that("board_loader bundles a resolve and a stage with validated formals", {
 
   ld <- board_loader(
     resolve = function(request) NULL,
@@ -102,26 +102,36 @@ test_that("board_loader bundles a resolve and a stage", {
   expect_true(is.function(ld$resolve))
   expect_true(is.function(ld$stage))
 
-  expect_error(board_loader(resolve = "x", stage = identity))
-  expect_false(is_board_loader(list(resolve = identity, stage = identity)))
+  expect_error(
+    board_loader(function(x) NULL, function(board, session) NULL),
+    class = "board_loader_resolve_invalid"
+  )
+  expect_error(
+    board_loader(function(request) NULL, function(b, s) NULL),
+    class = "board_loader_stage_invalid"
+  )
+  expect_true(
+    is_board_loader(board_loader(function(...) NULL, function(...) NULL))
+  )
 })
 
-test_that("the default loader round-trips a board by token", {
+test_that("the default loader stages by token and resolves it back", {
 
   ld <- preserve_board_loader()
   board <- new_board(blocks = c(a = new_dataset_block("iris")))
 
-  token <- ld$stage(board, shiny::MockShinySession$new())
+  params <- ld$stage(board, shiny::MockShinySession$new())
+  expect_named(params, reload_param)
 
+  token <- params[[reload_param]]
   with_token <- list(
-    query = set_names(list(token), reload_param),
-    session = NULL
+    query = set_names(list(token), reload_param), session = NULL
   )
 
   expect_identical(ld$resolve(with_token), board)
   expect_null(ld$resolve(list(query = list(), session = NULL)))
 
-  # a separate loader instance has its own store -- no shared global
+  # a separate loader instance has its own store
   expect_null(preserve_board_loader()$resolve(with_token))
 })
 
@@ -131,7 +141,7 @@ test_that("the default loader consumes the token at the WS read", {
   board <- new_board(blocks = c(a = new_dataset_block("iris")))
 
   session <- shiny::MockShinySession$new()
-  token <- ld$stage(board, session)
+  token <- ld$stage(board, session)[[reload_param]]
 
   ws <- list(query = set_names(list(token), reload_param), session = session)
   get <- list(query = set_names(list(token), reload_param), session = NULL)
@@ -140,17 +150,15 @@ test_that("the default loader consumes the token at the WS read", {
   expect_null(ld$resolve(get))
 })
 
-test_that("resolve_board prefers the loader board over the default", {
+test_that("resolve_board prefers the loader board, validates, falls back", {
 
   default <- new_board()
   staged <- new_board(blocks = c(a = new_dataset_block("iris")))
 
   ld <- preserve_board_loader()
-  token <- ld$stage(staged, shiny::MockShinySession$new())
-
+  token <- ld$stage(staged, shiny::MockShinySession$new())[[reload_param]]
   with_token <- list(
-    query = set_names(list(token), reload_param),
-    session = NULL
+    query = set_names(list(token), reload_param), session = NULL
   )
 
   expect_identical(resolve_board(default, ld, with_token), staged)
@@ -158,29 +166,62 @@ test_that("resolve_board prefers the loader board over the default", {
     resolve_board(default, ld, list(query = list(), session = NULL)),
     default
   )
-})
+  expect_identical(resolve_board(default, NULL, list(query = list())), default)
 
-test_that("resolve_board falls back when there is no loader", {
-
-  default <- new_board()
-
-  expect_identical(
-    resolve_board(default, NULL, list(query = list())),
-    default
-  )
-})
-
-test_that("resolve_board rejects a non-board loader result", {
-
-  default <- new_board()
   bad <- board_loader(
     resolve = function(request) "nope",
     stage = function(board, session) NULL
   )
-
   expect_error(
     resolve_board(default, bad, list(query = list())),
     class = "invalid_board_loader"
+  )
+})
+
+test_that("reload_board stages the board through the loader", {
+
+  staged <- NULL
+  spy <- board_loader(
+    resolve = function(request) NULL,
+    stage = function(board, session) {
+      staged <<- board
+      set_names(list("tok"), reload_param)
+    }
+  )
+
+  board <- new_board(blocks = c(a = new_dataset_block("iris")))
+  reload_board(spy, board, shiny::MockShinySession$new())
+
+  expect_identical(staged, board)
+})
+
+test_that("preserve_board return validation", {
+
+  with_mock_session(
+    {
+      check_ser_deser_val(list(a = 1))
+      sink_msg(
+        expect_warning(
+          session$flushReact(),
+          "Expecting `preserve_board` to return a reactive value"
+        )
+      )
+    }
+  )
+
+  with_mock_session(
+    {
+      check_ser_deser_val(reactiveVal(1))
+      sink_msg(
+        expect_warning(
+          session$flushReact(),
+          paste(
+            "Expecting the `preserve_board` return value to evaluate to a",
+            "`board` object or a list with a `board` element."
+          )
+        )
+      )
+    }
   )
 })
 
