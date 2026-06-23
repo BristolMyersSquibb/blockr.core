@@ -58,13 +58,9 @@ test_that("the board server reloads a restore through the supplied loader", {
     args = list(x = test_board, plugins = preserve_board())
   )
 
-  staged <- NULL
-  spy <- board_loader(
-    resolve = function(request) NULL,
-    stage = function(board, session) {
-      staged <<- board
-      set_names(list("tok"), reload_param)
-    }
+  reloaded <- NULL
+  local_mocked_bindings(
+    reload_board = function(loader, board, session) reloaded <<- board
   )
 
   testServer(
@@ -73,12 +69,16 @@ test_that("the board server reloads a restore through the supplied loader", {
       ser_deser <- session$makeScope("preserve_board")
       ser_deser$setInputs(restore = list(datapath = temp))
     },
-    args = list(x = new_board(), plugins = preserve_board(), loader = spy)
+    args = list(
+      x = new_board(),
+      plugins = preserve_board(),
+      loader = preserve_board_loader()
+    )
   )
 
-  expect_length(board_blocks(staged), length(board_blocks(test_board)))
-  expect_setequal(board_block_ids(staged), board_block_ids(test_board))
-  expect_setequal(board_link_ids(staged), board_link_ids(test_board))
+  expect_length(board_blocks(reloaded), length(board_blocks(test_board)))
+  expect_setequal(board_block_ids(reloaded), board_block_ids(test_board))
+  expect_setequal(board_link_ids(reloaded), board_link_ids(test_board))
 })
 
 test_that("preserve_board is the save/restore plugin (no loader on it)", {
