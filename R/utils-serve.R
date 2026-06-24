@@ -253,59 +253,6 @@ serve_board_srv <- function(id, default, loader, plugins, options, ...) {
   }
 }
 
-resolve_board <- function(default, loader, query, session) {
-
-  board <- loader$resolve(query, session)
-
-  if (is.null(board)) {
-    return(default)
-  }
-
-  if (!is_board(board)) {
-    blockr_abort(
-      "A board loader must return `NULL` or a `board`, but got ",
-      "{class(board)} instead.",
-      class = "invalid_board_loader"
-    )
-  }
-
-  validate_board(board)
-}
-
-session_query <- function(session) {
-  parseQueryString(coal(isolate(session$clientData$url_search), ""))
-}
-
-reload_board <- function(loader, board, session) {
-
-  params <- loader$stage(board, session)
-
-  if (length(params)) {
-    query <- modifyList(session_query(session), as.list(params))
-    updateQueryString(query_to_string(query), mode = "replace",
-                      session = session)
-  }
-
-  log_debug("reloading session")
-  session$reload()
-
-  invisible()
-}
-
-query_to_string <- function(query) {
-
-  if (!length(query)) {
-    return("?")
-  }
-
-  nms <- chr_ply(names(query), utils::URLencode, reserved = TRUE)
-  vals <- chr_ply(
-    unlist(query, use.names = FALSE), utils::URLencode, reserved = TRUE
-  )
-
-  paste0("?", paste(nms, vals, sep = "=", collapse = "&"))
-}
-
 revert <- function(...) {
   funs <- Filter(is.function, list(...))
   function() {

@@ -8,21 +8,9 @@
 #' Such enhancements can be implemented in a third-party `preserve_board`
 #' module.
 #'
-#' How a board is carried across the `session$reload()` that a restore
-#' triggers is the job of a separate, app-level **board loader**, passed to
-#' [serve()] as its `loader` argument rather than attached to the plugin. A
-#' [board_loader()] pairs a `resolve(query, session)` -- returning the `board`
-#' to build for an incoming request, or `NULL` for the [serve()] default --
-#' with a `stage(board, session)`, which persists a board and returns the URL
-#' query parameters that reference it. [serve()] uses that one loader for both
-#' the request-phase resolution (at the GET, where `session` is `NULL`, and at
-#' the WS connect) and the in-session staging when a restore fires; **core**
-#' writes those parameters into the URL and drives the reload. The plugin
-#' server never touches the loader and never reloads, so the reload stays a
-#' guaranteed core mechanism. The default [local_loader()] keeps its handoff
-#' in a per-loader store (no process global) and is single-process; multi-user
-#' deployments pass a loader resolving from a shared backend (as blockr.session
-#' does).
+#' The `session$reload()` that a restore triggers is handled by the app's
+#' [board_loader()] (passed to [serve()]), not by the plugin -- the plugin
+#' server simply returns the `board` to restore and never reloads.
 #'
 #' @param server,ui Server/UI for the plugin module
 #'
@@ -30,8 +18,7 @@
 #' `preserve_board()`, while the UI component (e.g. `preserve_board_ui()`) is
 #' expected to return shiny UI (i.e. [shiny::tagList()]) and the server
 #' component a [shiny::reactiveVal()] evaluating to `NULL` or the `board` to
-#' restore. `board_loader()` and `local_loader()` return a `board_loader`
-#' object and `is_board_loader()` a scalar logical.
+#' restore.
 #'
 #' @export
 preserve_board <- function(server = preserve_board_server,
@@ -39,67 +26,6 @@ preserve_board <- function(server = preserve_board_server,
 
   new_plugin(server, ui, validator = check_ser_deser_val,
              class = "preserve_board")
-}
-
-#' @param resolve,stage Paired functions backing a `board_loader`: `resolve` is
-#' `function(query, session)` returning the `board` to build or `NULL` (the
-#' parsed URL `query`, and the `session` -- `NULL` at the GET, set at the WS
-#' connect); `stage` is `function(board, session)` which persists `board` and
-#' returns the URL query parameters referencing it (core writes them and
-#' reloads). They share private state, so a `board_loader` is built as a unit,
-#' not supplied as two loose functions.
-#'
-#' @rdname preserve_board
-#' @export
-board_loader <- function(resolve, stage) {
-  validate_board_loader(
-    structure(
-      list(resolve = resolve, stage = stage),
-      class = "board_loader"
-    )
-  )
-}
-
-validate_board_loader <- function(x) {
-
-  if (!is_board_loader(x)) {
-    blockr_abort(
-      "Expecting a `board_loader` object.",
-      class = "board_loader_invalid"
-    )
-  }
-
-  resolve_ok <- is.function(x$resolve) &&
-    has_formals(x$resolve, c("query", "session"))
-
-  if (!resolve_ok) {
-    blockr_abort(
-      "A `board_loader` `resolve` must be a function of `query` and `session`.",
-      class = "board_loader_resolve_invalid"
-    )
-  }
-
-  stage_ok <- is.function(x$stage) &&
-    has_formals(x$stage, c("board", "session"))
-
-  if (!stage_ok) {
-    blockr_abort(
-      "A `board_loader` `stage` must be a function of `board` and `session`.",
-      class = "board_loader_stage_invalid"
-    )
-  }
-
-  x
-}
-
-has_formals <- function(f, args) {
-  all(args %in% names(formals(f)))
-}
-
-#' @rdname preserve_board
-#' @export
-is_board_loader <- function(x) {
-  inherits(x, "board_loader")
 }
 
 #' @param id Namespace ID
@@ -145,59 +71,6 @@ preserve_board_server <- function(id, board, ...) {
       res
     }
   )
-}
-
-reload_param <- "__blockr_reload__"
-
-#' @rdname preserve_board
-#' @export
-local_loader <- function() {
-
-  store <- new.env(parent = emptyenv())
-
-  resolve <- function(query, session) {
-
-    token <- query[[reload_param]]
-
-    if (is.null(token)) {
-      return(NULL)
-    }
-
-    board <- get0(token, envir = store, inherits = FALSE)
-
-    if (not_null(session)) {
-
-      if (not_null(board)) {
-        rm(list = token, envir = store)
-      }
-
-      strip_reload_token(session)
-    }
-
-    board
-  }
-
-  stage <- function(board, session) {
-
-    token <- rand_names()
-    assign(token, board, envir = store)
-
-    log_debug("staging board for reload handoff {token}")
-
-    set_names(list(token), reload_param)
-  }
-
-  board_loader(resolve, stage)
-}
-
-strip_reload_token <- function(session) {
-
-  query <- session_query(session)
-  query[[reload_param]] <- NULL
-
-  updateQueryString(query_to_string(query), mode = "replace", session = session)
-
-  invisible()
 }
 
 read_json <- function(x) {
