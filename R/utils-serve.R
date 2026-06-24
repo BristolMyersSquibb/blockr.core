@@ -77,6 +77,8 @@ serve.block <- function(x, id = "block", ..., data = list()) {
 #' @param id Board namespace ID
 #' @param plugins Board plugins
 #' @param options Board options
+#' @param loader A [board_loader()] resolving the board to build for each
+#' request; defaults to [local_loader()], the in-process save/restore handoff
 #'
 #' @rdname serve
 #'
@@ -100,11 +102,12 @@ serve.block <- function(x, id = "block", ..., data = list()) {
 #'
 #' @export
 serve.board <- function(x, id = rand_names(), plugins = blockr_app_plugins,
-                        options = blockr_app_options, ...) {
+                        options = blockr_app_options, loader = local_loader(),
+                        ...) {
 
   stopifnot(is_string(id), is.function(plugins), is.function(options))
 
-  loader <- blockr_option("board_loader", preserve_board_loader())
+  validate_board_loader(loader)
 
   shinyApp(
     serve_board_ui(id, x, loader, plugins, options),
@@ -206,7 +209,8 @@ serve_board_ui <- function(id, default, loader, plugins, options, ...) {
 
   function(request) {
 
-    x <- resolve_board(default, loader, board_request_get(request))
+    query <- parseQueryString(coal(request$QUERY_STRING, ""))
+    x <- resolve_board(default, loader, query, NULL)
     id <- coal(attr(x, "id"), id)
 
     log_debug("building ui for board {id}")
@@ -226,18 +230,22 @@ serve_board_srv <- function(id, default, loader, plugins, options, ...) {
 
     onStop(revert(trace_observe()), session)
 
-    x <- resolve_board(default, loader, board_request_ws(session))
+    x <- resolve_board(default, loader, session_query(session), session)
     id <- coal(attr(x, "id"), id)
 
     res <- do.call(
       blockr_app_server,
-      c(
-        list(
-          id, x, plugins = plugins(x), options = options(x), loader = loader
-        ),
-        args
-      )
+      c(list(id, x, plugins = plugins(x), options = options(x)), args)
     )
+
+    board_refresh <- res[["board_refresh"]]
+
+    if (not_null(board_refresh)) {
+      observeEvent(
+        board_refresh(),
+        reload_board(loader, board_refresh(), session)
+      )
+    }
 
     blockr_test_exports(x, res)
 
@@ -245,9 +253,9 @@ serve_board_srv <- function(id, default, loader, plugins, options, ...) {
   }
 }
 
-resolve_board <- function(default, loader, request) {
+resolve_board <- function(default, loader, query, session) {
 
-  board <- if (is.null(loader)) NULL else loader$resolve(request)
+  board <- loader$resolve(query, session)
 
   if (is.null(board)) {
     return(default)
@@ -255,29 +263,13 @@ resolve_board <- function(default, loader, request) {
 
   if (!is_board(board)) {
     blockr_abort(
-      "A `preserve_board` loader must return `NULL` or a `board`, but got ",
+      "A board loader must return `NULL` or a `board`, but got ",
       "{class(board)} instead.",
       class = "invalid_board_loader"
     )
   }
 
   validate_board(board)
-}
-
-board_request_get <- function(request) {
-  list(
-    query = parseQueryString(coal(request$QUERY_STRING, "")),
-    request = request,
-    session = NULL
-  )
-}
-
-board_request_ws <- function(session) {
-  list(
-    query = session_query(session),
-    request = session$request,
-    session = session
-  )
 }
 
 session_query <- function(session) {

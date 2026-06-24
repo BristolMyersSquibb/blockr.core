@@ -5,7 +5,7 @@
 \alias{board_loader}
 \alias{is_board_loader}
 \alias{preserve_board_server}
-\alias{preserve_board_loader}
+\alias{local_loader}
 \alias{restore_board}
 \alias{preserve_board_ui}
 \alias{serialize_board}
@@ -19,9 +19,9 @@ is_board_loader(x)
 
 preserve_board_server(id, board, ...)
 
-preserve_board_loader()
+local_loader()
 
-restore_board(x, new, result, ..., meta = NULL, session = get_session())
+restore_board(x, new, result, ..., session = get_session())
 
 preserve_board_ui(id, board)
 
@@ -31,11 +31,12 @@ serialize_board(x, blocks, id = NULL, ..., session = get_session())
 \item{server, ui}{Server/UI for the plugin module}
 
 \item{resolve, stage}{Paired functions backing a \code{board_loader}: \code{resolve} is
-\verb{function(request)} returning the \code{board} to build or \code{NULL}; \code{stage} is
-\verb{function(board, session)} which persists \code{board} and returns the URL query
-parameters referencing it (core writes them and reloads). They share private
-state, so a \code{board_loader} is built as a unit, not supplied as two loose
-functions.}
+\verb{function(query, session)} returning the \code{board} to build or \code{NULL} (the
+parsed URL \code{query}, and the \code{session} -- \code{NULL} at the GET, set at the WS
+connect); \code{stage} is \verb{function(board, session)} which persists \code{board} and
+returns the URL query parameters referencing it (core writes them and
+reloads). They share private state, so a \code{board_loader} is built as a unit,
+not supplied as two loose functions.}
 
 \item{x}{The current \code{board} object}
 
@@ -49,9 +50,6 @@ functions.}
 
 \item{result}{A \code{\link[shiny:reactiveVal]{shiny::reactiveVal()}} to hold the new board object}
 
-\item{meta}{Optional named list of plugin metadata to persist across
-the reload triggered by board restoration}
-
 \item{session}{Shiny session}
 
 \item{blocks}{Block state reactive values}
@@ -61,8 +59,8 @@ A plugin container inheriting from \code{preserve_board} is returned by
 \code{preserve_board()}, while the UI component (e.g. \code{preserve_board_ui()}) is
 expected to return shiny UI (i.e. \code{\link[shiny:reexports]{shiny::tagList()}}) and the server
 component a \code{\link[shiny:reactiveVal]{shiny::reactiveVal()}} evaluating to \code{NULL} or the \code{board} to
-restore. \code{board_loader()} returns a \code{board_loader} object and
-\code{is_board_loader()} a scalar logical.
+restore. \code{board_loader()} and \code{local_loader()} return a \code{board_loader}
+object and \code{is_board_loader()} a scalar logical.
 }
 \description{
 Board state can be preserved by serializing all contained objects and
@@ -75,18 +73,18 @@ module.
 }
 \details{
 How a board is carried across the \code{session$reload()} that a restore
-triggers is the job of a separate, app-level \strong{board loader}, configured
-via the \code{board_loader} option (see \code{\link[=serve]{serve()}}) rather than attached to the
-plugin. A \code{\link[=board_loader]{board_loader()}} pairs a \code{resolve(request)} -- returning the
-\code{board} to build for an incoming request, or \code{NULL} for the \code{\link[=serve]{serve()}}
-default -- with a \code{stage(board, session)}, which persists a board and
-returns the URL query parameters that reference it. \code{\link[=serve]{serve()}} reads the
-option once and uses that one loader for both the request-phase resolution
-(at the GET and the WS connect) and, in \code{\link[=board_server]{board_server()}}, the in-session
-staging; \strong{core} writes those parameters into the URL and drives the
-reload. The plugin server never touches the loader and never reloads, so
-the reload stays a guaranteed core mechanism. The default loader keeps its
-handoff in a per-loader store (no process global) and is single-process;
-multi-user deployments set the option to a loader resolving from a shared
-backend (as blockr.session does).
+triggers is the job of a separate, app-level \strong{board loader}, passed to
+\code{\link[=serve]{serve()}} as its \code{loader} argument rather than attached to the plugin. A
+\code{\link[=board_loader]{board_loader()}} pairs a \code{resolve(query, session)} -- returning the \code{board}
+to build for an incoming request, or \code{NULL} for the \code{\link[=serve]{serve()}} default --
+with a \code{stage(board, session)}, which persists a board and returns the URL
+query parameters that reference it. \code{\link[=serve]{serve()}} uses that one loader for both
+the request-phase resolution (at the GET, where \code{session} is \code{NULL}, and at
+the WS connect) and the in-session staging when a restore fires; \strong{core}
+writes those parameters into the URL and drives the reload. The plugin
+server never touches the loader and never reloads, so the reload stays a
+guaranteed core mechanism. The default \code{\link[=local_loader]{local_loader()}} keeps its handoff
+in a per-loader store (no process global) and is single-process; multi-user
+deployments pass a loader resolving from a shared backend (as blockr.session
+does).
 }

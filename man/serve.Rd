@@ -22,6 +22,7 @@ serve(x, ...)
   id = rand_names(),
   plugins = blockr_app_plugins,
   options = blockr_app_options,
+  loader = local_loader(),
   ...
 )
 
@@ -51,6 +52,9 @@ blockr_test_exports(x, rv, ...)
 \item{plugins}{Board plugins}
 
 \item{options}{Board options}
+
+\item{loader}{A \code{\link[=board_loader]{board_loader()}} resolving the board to build for each
+request; defaults to \code{\link[=local_loader]{local_loader()}}, the in-process save/restore handoff}
 
 \item{rv}{Board \code{\link[shiny:reactiveValues]{shiny::reactiveValues()}}}
 }
