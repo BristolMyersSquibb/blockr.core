@@ -6,7 +6,7 @@
 \alias{local_loader}
 \title{Board loader}
 \usage{
-board_loader(resolve, stage)
+board_loader(resolve, stage = NULL)
 
 is_board_loader(x)
 
@@ -16,10 +16,11 @@ local_loader()
 \item{resolve, stage}{Paired functions backing a \code{board_loader}: \code{resolve} is
 \verb{function(query, session)} returning the \code{board} to build or \code{NULL} (the
 parsed URL \code{query}, and the \code{session} -- \code{NULL} at the GET, set at the WS
-connect); \code{stage} is \verb{function(board, session)} which persists \code{board} and
-returns the URL query parameters referencing it (core writes them and
-reloads). They share private state, so a \code{board_loader} is built as a unit,
-not supplied as two loose functions.}
+connect); \code{stage} is \verb{function(board, session)} (or \code{NULL} for a loader that
+does not stage, e.g. resolve-only) which persists \code{board} and returns the
+URL query parameters referencing it (core writes them and reloads). They
+share private state, so a \code{board_loader} is built as a unit, not supplied as
+two loose functions.}
 
 \item{x}{Object to test for \code{board_loader}-ness}
 }
@@ -33,8 +34,10 @@ across the \code{session$reload()} that a \link{preserve_board} restore triggers
 the job of an app-level \strong{board loader}, passed to \code{\link[=serve]{serve()}} as its
 \code{loader} argument. A \code{board_loader()} pairs a \code{resolve(query, session)} --
 returning the \code{board} to build for an incoming request, or \code{NULL} for the
-\code{\link[=serve]{serve()}} default -- with a \code{stage(board, session)}, which persists a board
-and returns the URL query parameters that reference it. \code{\link[=serve]{serve()}} uses that
+\code{\link[=serve]{serve()}} default -- with an optional \code{stage(board, session)}, which
+persists a board and returns the URL query parameters that reference it (a
+resolve-only loader, e.g. one not backing a restore, leaves \code{stage} \code{NULL}).
+\code{\link[=serve]{serve()}} uses that
 one loader for both the request-phase resolution (at the GET, where
 \code{session} is \code{NULL}, and at the WS connect) and the in-session staging when
 a restore fires; \strong{core} writes those parameters into the URL and drives

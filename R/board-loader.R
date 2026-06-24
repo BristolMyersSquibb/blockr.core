@@ -5,8 +5,10 @@
 #' the job of an app-level **board loader**, passed to [serve()] as its
 #' `loader` argument. A `board_loader()` pairs a `resolve(query, session)` --
 #' returning the `board` to build for an incoming request, or `NULL` for the
-#' [serve()] default -- with a `stage(board, session)`, which persists a board
-#' and returns the URL query parameters that reference it. [serve()] uses that
+#' [serve()] default -- with an optional `stage(board, session)`, which
+#' persists a board and returns the URL query parameters that reference it (a
+#' resolve-only loader, e.g. one not backing a restore, leaves `stage` `NULL`).
+#' [serve()] uses that
 #' one loader for both the request-phase resolution (at the GET, where
 #' `session` is `NULL`, and at the WS connect) and the in-session staging when
 #' a restore fires; **core** writes those parameters into the URL and drives
@@ -20,17 +22,18 @@
 #' @param resolve,stage Paired functions backing a `board_loader`: `resolve` is
 #' `function(query, session)` returning the `board` to build or `NULL` (the
 #' parsed URL `query`, and the `session` -- `NULL` at the GET, set at the WS
-#' connect); `stage` is `function(board, session)` which persists `board` and
-#' returns the URL query parameters referencing it (core writes them and
-#' reloads). They share private state, so a `board_loader` is built as a unit,
-#' not supplied as two loose functions.
+#' connect); `stage` is `function(board, session)` (or `NULL` for a loader that
+#' does not stage, e.g. resolve-only) which persists `board` and returns the
+#' URL query parameters referencing it (core writes them and reloads). They
+#' share private state, so a `board_loader` is built as a unit, not supplied as
+#' two loose functions.
 #' @param x Object to test for `board_loader`-ness
 #'
 #' @return `board_loader()` and `local_loader()` return a `board_loader` object
 #' and `is_board_loader()` a scalar logical.
 #'
 #' @export
-board_loader <- function(resolve, stage) {
+board_loader <- function(resolve, stage = NULL) {
   validate_board_loader(
     structure(
       list(resolve = resolve, stage = stage),
@@ -49,7 +52,7 @@ validate_board_loader <- function(x) {
   }
 
   resolve_ok <- is.function(x$resolve) &&
-    has_formals(x$resolve, c("query", "session"))
+    formals_match(x$resolve, c("query", "session"))
 
   if (!resolve_ok) {
     blockr_abort(
@@ -58,12 +61,13 @@ validate_board_loader <- function(x) {
     )
   }
 
-  stage_ok <- is.function(x$stage) &&
-    has_formals(x$stage, c("board", "session"))
+  stage_ok <- is.null(x$stage) ||
+    (is.function(x$stage) && formals_match(x$stage, c("board", "session")))
 
   if (!stage_ok) {
     blockr_abort(
-      "A `board_loader` `stage` must be a function of `board` and `session`.",
+      "A `board_loader` `stage` must be `NULL` or a function of `board` and ",
+      "`session`.",
       class = "board_loader_stage_invalid"
     )
   }
@@ -71,8 +75,8 @@ validate_board_loader <- function(x) {
   x
 }
 
-has_formals <- function(f, args) {
-  all(args %in% names(formals(f)))
+formals_match <- function(f, args) {
+  identical(names(formals(f)), args)
 }
 
 #' @rdname board_loader
@@ -113,7 +117,7 @@ local_loader <- function() {
 
   stage <- function(board, session) {
 
-    token <- rand_names()
+    token <- rand_names(ls(envir = store))
     assign(token, board, envir = store)
 
     log_debug("staging board for reload handoff {token}")
@@ -144,8 +148,7 @@ resolve_board <- function(default, loader, query, session) {
 
   if (!is_board(board)) {
     blockr_abort(
-      "A board loader must return `NULL` or a `board`, but got ",
-      "{class(board)} instead.",
+      "A board loader's `resolve` must return `NULL` or a `board`.",
       class = "invalid_board_loader"
     )
   }
@@ -159,12 +162,15 @@ session_query <- function(session) {
 
 reload_board <- function(loader, board, session) {
 
-  params <- loader$stage(board, session)
+  if (not_null(loader$stage)) {
 
-  if (length(params)) {
-    query <- modifyList(session_query(session), as.list(params))
-    updateQueryString(query_to_string(query), mode = "replace",
-                      session = session)
+    params <- loader$stage(board, session)
+
+    if (length(params)) {
+      query <- modifyList(session_query(session), as.list(params))
+      updateQueryString(query_to_string(query), mode = "replace",
+                        session = session)
+    }
   }
 
   log_debug("reloading session")

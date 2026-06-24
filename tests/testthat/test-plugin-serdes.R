@@ -112,7 +112,7 @@ test_that("preserve_board is the save/restore plugin (no loader on it)", {
   expect_null(attr(plug, "loader"))
 })
 
-test_that("board_loader bundles a resolve and a stage with validated formals", {
+test_that("board_loader bundles a resolve and an optional validated stage", {
 
   ld <- board_loader(
     resolve = function(query, session) NULL,
@@ -123,17 +123,34 @@ test_that("board_loader bundles a resolve and a stage with validated formals", {
   expect_true(is.function(ld$resolve))
   expect_true(is.function(ld$stage))
 
+  stageless <- board_loader(function(query, session) NULL)
+  expect_true(is_board_loader(stageless))
+  expect_null(stageless$stage)
+
   expect_error(
-    board_loader(function(x) NULL, function(board, session) NULL),
+    board_loader(function(x) NULL),
     class = "board_loader_resolve_invalid"
   )
   expect_error(
     board_loader(function(query, session) NULL, function(b, s) NULL),
     class = "board_loader_stage_invalid"
   )
+
+  # formals must match exactly -- extra args (or `...`) are rejected
   expect_error(
-    board_loader(function(...) NULL, function(...) NULL),
+    board_loader(function(query, session, x) NULL),
     class = "board_loader_resolve_invalid"
+  )
+  expect_error(
+    board_loader(function(...) NULL),
+    class = "board_loader_resolve_invalid"
+  )
+  expect_error(
+    board_loader(
+      function(query, session) NULL,
+      function(board, session, x) NULL
+    ),
+    class = "board_loader_stage_invalid"
   )
 })
 
@@ -179,10 +196,7 @@ test_that("resolve_board prefers the loader board, validates, falls back", {
   expect_identical(resolve_board(default, ld, query, NULL), staged)
   expect_identical(resolve_board(default, ld, list(), NULL), default)
 
-  bad <- board_loader(
-    resolve = function(query, session) "nope",
-    stage = function(board, session) NULL
-  )
+  bad <- board_loader(resolve = function(query, session) "nope")
   expect_error(
     resolve_board(default, bad, list(), NULL),
     class = "invalid_board_loader"
@@ -204,6 +218,10 @@ test_that("reload_board stages the board through the loader", {
   reload_board(spy, board, shiny::MockShinySession$new())
 
   expect_identical(staged, board)
+
+  # a loader without a stage simply reloads, with nothing to persist
+  no_stage <- board_loader(function(query, session) NULL)
+  expect_no_error(reload_board(no_stage, board, shiny::MockShinySession$new()))
 })
 
 test_that("preserve_board return validation", {
