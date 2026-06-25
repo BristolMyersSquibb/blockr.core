@@ -2,6 +2,20 @@
 
 ## blockr.core 0.1.3
 
+- Board options contributed by blocks or the registry (e.g. the
+  preview-row count) are no longer reset to their defaults on save and
+  reload. The settings sidebar manages the wider
+  [`blockr_app_options()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
+  set, but a board carried only its own
+  [`board_options()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md),
+  and that narrow set is what
+  [`serialize_board()`](https://bristolmyerssquibb.github.io/blockr.core/reference/preserve_board.md)
+  persisted — so a user’s change to a block-backed option was dropped.
+  `resolve_board()` now augments the board it returns with the managed
+  option set, so the UI, the server and serialization all operate on the
+  same options
+  ([\#238](https://github.com/BristolMyersSquibb/blockr.core/issues/238)).
+
 - The board to build for an incoming request is now resolved by an
   app-level **board loader**, passed to
   [`serve()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
@@ -34,6 +48,7 @@
   (e.g. blockr.session) resolves from the URL query against a shared
   backend, which is multi-process-safe
   ([\#214](https://github.com/BristolMyersSquibb/blockr.core/issues/214)).
+
 - New exported
   [`trim_rv()`](https://bristolmyerssquibb.github.io/blockr.core/reference/trim_rv.md)
   removes entries from a `reactiveValues` object, which assigning `NULL`
@@ -42,6 +57,7 @@
   Unlinking a variadic block argument now drops it from the block’s
   `...args` outright rather than leaving a phantom `NULL` entry behind
   ([\#227](https://github.com/BristolMyersSquibb/blockr.core/issues/227)).
+
 - Boards can be deployed read-only via the `blockr.locked` option,
   enforced server-side rather than by UI hiding (which a forged
   `Shiny.setInputValue` bypasses). While locked, the two channels every
@@ -57,6 +73,7 @@
   the session – which can flip the flag or edit the board directly – so
   untrusted deployments must be isolated at the deployment layer
   ([\#229](https://github.com/BristolMyersSquibb/blockr.core/issues/229)).
+
 - The default
   [`notify_user()`](https://bristolmyerssquibb.github.io/blockr.core/reference/notify_user.md)
   plugin now tracks each block’s conditions individually rather than
@@ -66,6 +83,7 @@
   O(N^2) cost when a condition cascade touches many blocks on a large
   board. `board$conditions()` is unchanged for programmatic consumers
   ([\#222](https://github.com/BristolMyersSquibb/blockr.core/issues/222)).
+
 - [`notify()`](https://bristolmyerssquibb.github.io/blockr.core/reference/get_session.md)
   gains `glue` and `log` arguments (both `TRUE` by default, so existing
   behaviour is unchanged). `glue = FALSE` surfaces literal text without
@@ -78,6 +96,7 @@
   plugin renders through
   [`notify()`](https://bristolmyerssquibb.github.io/blockr.core/reference/get_session.md)
   ([\#222](https://github.com/BristolMyersSquibb/blockr.core/issues/222)).
+
 - Active block conditions (errors, warnings and messages captured during
   evaluation) are now emitted as tidy data frames. Each block server
   returns its conditions as a reactive `server$conditions` (one row per
@@ -94,6 +113,7 @@
   returns its raw `cond` reactive values object — read
   `server$conditions()` instead
   ([\#217](https://github.com/BristolMyersSquibb/blockr.core/issues/217)).
+
 - [`str_value()`](https://bristolmyerssquibb.github.io/blockr.core/reference/str_value.md)
   now covers every domain class that has a full-tier
   [`format()`](https://rdrr.io/r/base/format.html) /
@@ -107,6 +127,7 @@
   a container or board renders one element per line below a `<class[n]>`
   header
   ([\#212](https://github.com/BristolMyersSquibb/blockr.core/issues/212)).
+
 - New exported generic
   [`external_ctrl_vars()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md)
   (with a `block` method) and predicate
@@ -118,6 +139,7 @@
   it (e.g. for dock extensions) instead of re-reading the raw
   `external_ctrl` attribute
   ([\#192](https://github.com/BristolMyersSquibb/blockr.core/issues/192)).
+
 - [`blockr_deser.list()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_ser.md)
   now forwards `...` to the dispatched per-class method, so callers can
   thread additional context (e.g. a producer version) down to nested
