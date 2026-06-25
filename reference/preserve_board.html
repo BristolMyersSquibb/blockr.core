@@ -75,7 +75,7 @@ module.</p>
 <span></span>
 <span><span class="fu">preserve_board_server</span><span class="op">(</span><span class="va">id</span>, <span class="va">board</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">restore_board</span><span class="op">(</span><span class="va">x</span>, <span class="va">new</span>, <span class="va">result</span>, <span class="va">...</span>, meta <span class="op">=</span> <span class="cn">NULL</span>, session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu">restore_board</span><span class="op">(</span><span class="va">x</span>, <span class="va">new</span>, <span class="va">result</span>, <span class="va">...</span>, session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">preserve_board_ui</span><span class="op">(</span><span class="va">id</span>, <span class="va">board</span><span class="op">)</span></span>
 <span></span>
@@ -114,11 +114,6 @@ module.</p>
 <dd><p>A <code><a href="https://rdrr.io/pkg/shiny/man/reactiveVal.html" class="external-link">shiny::reactiveVal()</a></code> to hold the new board object</p></dd>
 
 
-<dt id="arg-meta">meta<a class="anchor" aria-label="anchor" href="#arg-meta"></a></dt>
-<dd><p>Optional named list of plugin metadata to persist across
-the reload triggered by board restoration</p></dd>
-
-
 <dt id="arg-session">session<a class="anchor" aria-label="anchor" href="#arg-session"></a></dt>
 <dd><p>Shiny session</p></dd>
 
@@ -132,9 +127,14 @@ the reload triggered by board restoration</p></dd>
     <p>A plugin container inheriting from <code>preserve_board</code> is returned by
 <code>preserve_board()</code>, while the UI component (e.g. <code>preserve_board_ui()</code>) is
 expected to return shiny UI (i.e. <code><a href="https://rdrr.io/pkg/shiny/man/reexports.html" class="external-link">shiny::tagList()</a></code>) and the server
-component (i.e. <code>preserve_board_server()</code>) is expected to return a
-<code><a href="https://rdrr.io/pkg/shiny/man/reactiveVal.html" class="external-link">shiny::reactiveVal()</a></code> or <code><a href="https://rdrr.io/pkg/shiny/man/reactive.html" class="external-link">shiny::reactive()</a></code> which evaluates to <code>NULL</code> or a
-<code>board</code> object.</p>
+component a <code><a href="https://rdrr.io/pkg/shiny/man/reactiveVal.html" class="external-link">shiny::reactiveVal()</a></code> evaluating to <code>NULL</code> or the <code>board</code> to
+restore.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>The <code>session$reload()</code> that a restore triggers is handled by the app's
+<code><a href="board_loader.html">board_loader()</a></code> (passed to <code><a href="serve.html">serve()</a></code>), not by the plugin – the plugin
+server simply returns the <code>board</code> to restore and never reloads.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

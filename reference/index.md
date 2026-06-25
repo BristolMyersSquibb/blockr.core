@@ -320,9 +320,13 @@ Various tools and utilities.
   [`custom_options()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   [`blockr_app_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   [`blockr_app_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
-  [`get_serve_obj()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   [`blockr_test_exports()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   : Serve object
+
+- [`board_loader()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_loader.md)
+  [`is_board_loader()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_loader.md)
+  [`local_loader()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_loader.md)
+  : Board loader
 
 - [`export_code()`](https://bristolmyerssquibb.github.io/blockr.core/reference/export_code.md)
   : Utilities for code export

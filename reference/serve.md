@@ -18,6 +18,7 @@ serve(
   id = rand_names(),
   plugins = blockr_app_plugins,
   options = blockr_app_options,
+  loader = local_loader(),
   ...
 )
 
@@ -32,8 +33,6 @@ custom_options(x)
 blockr_app_ui(id, x, ...)
 
 blockr_app_server(id, x, ...)
-
-get_serve_obj(id = NULL)
 
 blockr_test_exports(x, rv, ...)
 ```
@@ -63,6 +62,14 @@ blockr_test_exports(x, rv, ...)
 - options:
 
   Board options
+
+- loader:
+
+  A
+  [`board_loader()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_loader.md)
+  resolving the board to build for each request; defaults to
+  [`local_loader()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_loader.md),
+  the in-process save/restore handoff
 
 - rv:
 

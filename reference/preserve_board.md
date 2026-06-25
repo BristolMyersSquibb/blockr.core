@@ -15,7 +15,7 @@ preserve_board(server = preserve_board_server, ui = preserve_board_ui)
 
 preserve_board_server(id, board, ...)
 
-restore_board(x, new, result, ..., meta = NULL, session = get_session())
+restore_board(x, new, result, ..., session = get_session())
 
 preserve_board_ui(id, board)
 
@@ -54,11 +54,6 @@ serialize_board(x, blocks, id = NULL, ..., session = get_session())
   [`shiny::reactiveVal()`](https://rdrr.io/pkg/shiny/man/reactiveVal.html)
   to hold the new board object
 
-- meta:
-
-  Optional named list of plugin metadata to persist across the reload
-  triggered by board restoration
-
 - session:
 
   Shiny session
@@ -73,8 +68,15 @@ A plugin container inheriting from `preserve_board` is returned by
 `preserve_board()`, while the UI component (e.g. `preserve_board_ui()`)
 is expected to return shiny UI (i.e.
 [`shiny::tagList()`](https://rdrr.io/pkg/shiny/man/reexports.html)) and
-the server component (i.e. `preserve_board_server()`) is expected to
-return a
+the server component a
 [`shiny::reactiveVal()`](https://rdrr.io/pkg/shiny/man/reactiveVal.html)
-or [`shiny::reactive()`](https://rdrr.io/pkg/shiny/man/reactive.html)
-which evaluates to `NULL` or a `board` object.
+evaluating to `NULL` or the `board` to restore.
+
+## Details
+
+The `session$reload()` that a restore triggers is handled by the app's
+[`board_loader()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_loader.md)
+(passed to
+[`serve()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)),
+not by the plugin – the plugin server simply returns the `board` to
+restore and never reloads.

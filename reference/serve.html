@@ -70,6 +70,7 @@ purposes during block development) or an entire board</p>
 <span>  id <span class="op">=</span> <span class="fu"><a href="rand_names.html">rand_names</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  plugins <span class="op">=</span> <span class="va">blockr_app_plugins</span>,</span>
 <span>  options <span class="op">=</span> <span class="va">blockr_app_options</span>,</span>
+<span>  loader <span class="op">=</span> <span class="fu"><a href="board_loader.html">local_loader</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -84,8 +85,6 @@ purposes during block development) or an entire board</p>
 <span><span class="fu">blockr_app_ui</span><span class="op">(</span><span class="va">id</span>, <span class="va">x</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">blockr_app_server</span><span class="op">(</span><span class="va">id</span>, <span class="va">x</span>, <span class="va">...</span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu">get_serve_obj</span><span class="op">(</span>id <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">blockr_test_exports</span><span class="op">(</span><span class="va">x</span>, <span class="va">rv</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -116,6 +115,11 @@ purposes during block development) or an entire board</p>
 
 <dt id="arg-options">options<a class="anchor" aria-label="anchor" href="#arg-options"></a></dt>
 <dd><p>Board options</p></dd>
+
+
+<dt id="arg-loader">loader<a class="anchor" aria-label="anchor" href="#arg-loader"></a></dt>
+<dd><p>A <code><a href="board_loader.html">board_loader()</a></code> resolving the board to build for each
+request; defaults to <code><a href="board_loader.html">local_loader()</a></code>, the in-process save/restore handoff</p></dd>
 
 
 <dt id="arg-rv">rv<a class="anchor" aria-label="anchor" href="#arg-rv"></a></dt>

@@ -2,6 +2,38 @@
 
 ## blockr.core 0.1.3
 
+- The board to build for an incoming request is now resolved by an
+  app-level **board loader**, passed to
+  [`serve()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
+  as its new `loader` argument (default:
+  [`local_loader()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_loader.md),
+  an in-process save/restore handoff). A
+  [`board_loader()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_loader.md)
+  pairs a `resolve(query, session)` — returning the board to build, or
+  `NULL` for the
+  [`serve()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
+  default — with a `stage(board, session)`, which persists a board and
+  returns the URL query parameters referencing it.
+  [`serve()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
+  uses that one loader to resolve the board at the UI (GET, where
+  `session` is `NULL`) and server (WS connect) builds; when a restore
+  fires,
+  [`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)
+  exposes the board to restore as a `board_refresh` reactive, and
+  [`serve()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
+  stages it through the loader, writes the parameters into the URL and
+  drives `session$reload()` — so the reload stays a guaranteed core
+  mechanism and the `preserve_board` plugin (unchanged at
+  `{server, ui}`) neither holds the loader nor reloads. This removes the
+  process-global slot core used to stage a board across a reload: the
+  exported `get_serve_obj()`, the old board-server reload producer,
+  `rv$reload_meta` and the
+  [`restore_board()`](https://bristolmyerssquibb.github.io/blockr.core/reference/preserve_board.md)
+  `meta` argument are gone. The default loader keeps its handoff in a
+  per-loader store (single-process); a downstream loader
+  (e.g. blockr.session) resolves from the URL query against a shared
+  backend, which is multi-process-safe
+  ([\#214](https://github.com/BristolMyersSquibb/blockr.core/issues/214)).
 - New exported
   [`trim_rv()`](https://bristolmyerssquibb.github.io/blockr.core/reference/trim_rv.md)
   removes entries from a `reactiveValues` object, which assigning `NULL`
