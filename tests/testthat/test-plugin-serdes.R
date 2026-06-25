@@ -1,4 +1,4 @@
-test_that("ser/deser module", {
+test_that("the default server produces the deserialized board", {
 
   test_board <- new_board(
     blocks = c(
@@ -12,9 +12,7 @@ test_that("ser/deser module", {
 
   testServer(
     preserve_board_server,
-    {
-      file.copy(output$serialize, temp)
-    },
+    file.copy(output$serialize, temp),
     args = list(board = reactiveValues(board = test_board))
   )
 
@@ -23,19 +21,18 @@ test_that("ser/deser module", {
     {
       session$setInputs(restore = list(datapath = temp))
 
-      expect_s3_class(res(), class(test_board))
+      restored <- res()
 
-      expect_length(board_blocks(res()), length(board_blocks(test_board)))
-      expect_length(board_links(res()), length(board_links(test_board)))
-
-      expect_setequal(board_block_ids(res()), board_block_ids(test_board))
-      expect_setequal(board_link_ids(res()), board_link_ids(test_board))
+      expect_s3_class(restored, class(test_board))
+      expect_length(board_blocks(restored), length(board_blocks(test_board)))
+      expect_setequal(board_block_ids(restored), board_block_ids(test_board))
+      expect_setequal(board_link_ids(restored), board_link_ids(test_board))
     },
     args = list(board = reactiveValues(board = new_board()))
   )
 })
 
-test_that("ser/deser board", {
+test_that("board_server exposes the restored board through board_refresh", {
 
   test_board <- new_board(
     blocks = c(
@@ -58,10 +55,7 @@ test_that("ser/deser board", {
       ser_deser <- session$makeScope("preserve_board")
       file.copy(ser_deser$output$serialize, temp)
     },
-    args = list(
-      x = test_board,
-      plugins = preserve_board()
-    )
+    args = list(x = test_board, plugins = preserve_board())
   )
 
   testServer(
@@ -70,22 +64,169 @@ test_that("ser/deser board", {
       ser_deser <- session$makeScope("preserve_board")
       ser_deser$setInputs(restore = list(datapath = temp))
 
-      brd <- board_refresh()
+      restored <- board_refresh()
 
-      expect_length(board_blocks(brd), length(board_blocks(test_board)))
-      expect_length(board_links(brd), length(board_links(test_board)))
-
-      expect_setequal(board_block_ids(brd), board_block_ids(test_board))
-      expect_setequal(board_link_ids(brd), board_link_ids(test_board))
+      expect_length(board_blocks(restored), length(board_blocks(test_board)))
+      expect_setequal(board_block_ids(restored), board_block_ids(test_board))
+      expect_setequal(board_link_ids(restored), board_link_ids(test_board))
     },
-    args = list(
-      x = new_board(),
-      plugins = preserve_board()
-    )
+    args = list(x = new_board(), plugins = preserve_board())
   )
 })
 
-test_that("gen_code return validation", {
+test_that("serve_board_srv stages and reloads when board_refresh fires", {
+
+  refresh <- reactiveVal()
+  staged <- NULL
+
+  spy <- board_loader(
+    resolve = function(request, session, default) NULL,
+    stage = function(board, session) staged <<- board
+  )
+
+  local_mocked_bindings(
+    board_server = function(id, x, ...) list(board_refresh = refresh),
+    blockr_test_exports = function(x, rv, ...) invisible()
+  )
+
+  board <- new_board(blocks = c(a = new_dataset_block("iris")))
+
+  srv <- serve_board_srv(
+    "app", board, spy, blockr_app_plugins, blockr_app_options
+  )
+
+  testServer(
+    srv,
+    {
+      refresh(board)
+      session$flushReact()
+
+      expect_identical(staged, board)
+    }
+  )
+})
+
+test_that("preserve_board is the save/restore plugin (no loader on it)", {
+
+  plug <- preserve_board()
+
+  expect_true(is_plugin(plug))
+  expect_s3_class(plug, "preserve_board")
+  expect_setequal(names(plug), c("server", "ui"))
+  expect_null(attr(plug, "loader"))
+})
+
+test_that("board_loader bundles a resolve and an optional validated stage", {
+
+  ld <- board_loader(
+    resolve = function(request, session, default) NULL,
+    stage = function(board, session) NULL
+  )
+
+  expect_true(is_board_loader(ld))
+  expect_true(is.function(ld$resolve))
+  expect_true(is.function(ld$stage))
+
+  stageless <- board_loader(function(request, session, default) NULL)
+  expect_true(is_board_loader(stageless))
+  expect_null(stageless$stage)
+
+  expect_error(
+    board_loader(function(x) NULL),
+    class = "board_loader_resolve_invalid"
+  )
+  expect_error(
+    board_loader(
+      function(request, session, default) NULL,
+      function(b, s) NULL
+    ),
+    class = "board_loader_stage_invalid"
+  )
+
+  # formals must match exactly -- missing/extra args (or `...`) are rejected
+  expect_error(
+    board_loader(function(request, session) NULL),
+    class = "board_loader_resolve_invalid"
+  )
+  expect_error(
+    board_loader(function(...) NULL),
+    class = "board_loader_resolve_invalid"
+  )
+  expect_error(
+    board_loader(
+      function(request, session, default) NULL,
+      function(board, session, x) NULL
+    ),
+    class = "board_loader_stage_invalid"
+  )
+})
+
+test_that("the default loader stages a board and resolves it back", {
+
+  ld <- local_loader()
+  board <- new_board(blocks = c(a = new_dataset_block("iris")))
+
+  written <- NULL
+  session <- list(
+    clientData = list(url_search = ""),
+    updateQueryString = function(url, mode) written <<- url
+  )
+
+  ld$stage(board, session)
+  expect_true(grepl(reload_param, written, fixed = TRUE))
+
+  # the staged board resolves back from the URL the stage wrote
+  get_req <- list(QUERY_STRING = sub("^[?]", "", written))
+  expect_identical(ld$resolve(get_req, NULL, board), board)
+  expect_null(ld$resolve(list(QUERY_STRING = ""), NULL, board))
+
+  # a separate loader instance has its own store
+  expect_null(local_loader()$resolve(get_req, NULL, board))
+})
+
+test_that("the default loader consumes the token at the WS read", {
+
+  ld <- local_loader()
+  board <- new_board(blocks = c(a = new_dataset_block("iris")))
+
+  written <- NULL
+  staging <- list(
+    clientData = list(url_search = ""),
+    updateQueryString = function(url, mode) written <<- url
+  )
+  ld$stage(board, staging)
+
+  # WS read off clientData consumes the token from the store
+  ws <- list(
+    clientData = list(url_search = written),
+    updateQueryString = function(url, mode) NULL
+  )
+  expect_identical(ld$resolve(NULL, ws, board), board)
+
+  # consumed: a GET read by the same query no longer finds it
+  get_req <- list(QUERY_STRING = sub("^[?]", "", written))
+  expect_null(ld$resolve(get_req, NULL, board))
+})
+
+test_that("resolve_board prefers the loader board, validates, falls back", {
+
+  default <- new_board()
+  staged <- new_board(blocks = c(a = new_dataset_block("iris")))
+
+  pref <- board_loader(function(request, session, default) staged)
+  expect_identical(resolve_board(default, pref, list(), NULL), staged)
+
+  none <- board_loader(function(request, session, default) NULL)
+  expect_identical(resolve_board(default, none, list(), NULL), default)
+
+  bad <- board_loader(function(request, session, default) "nope")
+  expect_error(
+    resolve_board(default, bad, list(), NULL),
+    class = "invalid_board_loader"
+  )
+})
+
+test_that("preserve_board return validation", {
 
   with_mock_session(
     {
@@ -105,40 +246,14 @@ test_that("gen_code return validation", {
       sink_msg(
         expect_warning(
           session$flushReact(),
-          paste(
-            "Expecting the `preserve_board` return value to evaluate to a",
-            "`board` object or a list with a `board` element."
-          )
+          "Expecting the `preserve_board` return value to evaluate to a"
         )
       )
     }
   )
 })
 
-test_that("restore_board with meta wraps result", {
-
-  test_board <- new_board(
-    blocks = c(a = new_dataset_block("iris"))
-  )
-
-  ser <- blockr_ser(test_board)
-  result <- reactiveVal()
-  meta <- list(url = "/foo", flag = TRUE)
-
-  with_mock_session(
-    {
-      restore_board(test_board, ser, result, meta = meta, session = session)
-
-      val <- result()
-      expect_true(is.list(val))
-      expect_true(is_board(val$board))
-      expect_identical(val$meta, meta)
-      expect_length(board_blocks(val$board), length(board_blocks(test_board)))
-    }
-  )
-})
-
-test_that("restore_board without meta returns naked board", {
+test_that("restore_board returns the deserialized board", {
 
   test_board <- new_board(
     blocks = c(a = new_dataset_block("iris"))
@@ -154,52 +269,6 @@ test_that("restore_board without meta returns naked board", {
       val <- result()
       expect_true(is_board(val))
       expect_length(board_blocks(val), length(board_blocks(test_board)))
-    }
-  )
-})
-
-test_that("meta round-trip through serve_obj", {
-
-  id <- "test_meta_roundtrip"
-  on.exit(if (is_reloading(id)) finalize_reload(id), add = TRUE)
-
-  board <- new_board()
-  meta <- list(url = "/bar", n = 42L)
-
-  update_serve_obj(id, board, meta = meta)
-  expect_true(is_reloading(id))
-
-  result <- finalize_reload(id)
-  expect_identical(result, meta)
-  expect_false(is_reloading(id))
-})
-
-test_that("finalize_reload returns NULL when not reloading", {
-  expect_null(finalize_reload("nonexistent_test_id"))
-})
-
-test_that("update_serve_obj without meta stores NULL meta", {
-
-  id <- "test_no_meta"
-  on.exit(if (is_reloading(id)) finalize_reload(id), add = TRUE)
-
-  update_serve_obj(id, new_board())
-
-  result <- finalize_reload(id)
-  expect_null(result)
-})
-
-test_that("check_ser_deser_val accepts list with board and meta", {
-
-  board <- new_board()
-
-  with_mock_session(
-    {
-      val <- reactiveVal(list(board = board, meta = list(url = "/test")))
-      res <- check_ser_deser_val(val)
-      sink_msg(session$flushReact())
-
-      expect_identical(res, val)
     }
   )
 })

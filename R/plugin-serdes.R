@@ -8,14 +8,17 @@
 #' Such enhancements can be implemented in a third-party `preserve_board`
 #' module.
 #'
+#' The `session$reload()` that a restore triggers is handled by the app's
+#' [board_loader()] (passed to [serve()]), not by the plugin -- the plugin
+#' server simply returns the `board` to restore and never reloads.
+#'
 #' @param server,ui Server/UI for the plugin module
 #'
 #' @return A plugin container inheriting from `preserve_board` is returned by
 #' `preserve_board()`, while the UI component (e.g. `preserve_board_ui()`) is
 #' expected to return shiny UI (i.e. [shiny::tagList()]) and the server
-#' component (i.e. `preserve_board_server()`) is expected to return a
-#' [shiny::reactiveVal()] or [shiny::reactive()] which evaluates to `NULL` or a
-#' `board` object.
+#' component a [shiny::reactiveVal()] evaluating to `NULL` or the `board` to
+#' restore.
 #'
 #' @export
 preserve_board <- function(server = preserve_board_server,
@@ -81,28 +84,17 @@ read_json <- function(x) {
 #' @param x The current `board` object
 #' @param new Serialized (list-based) representation of the new board
 #' @param result A [shiny::reactiveVal()] to hold the new board object
-#' @param meta Optional named list of plugin metadata to persist across
-#'   the reload triggered by board restoration
 #' @param session Shiny session
 #'
 #' @rdname preserve_board
 #' @export
-restore_board <- function(x, new, result, ..., meta = NULL,
-                          session = get_session()) {
+restore_board <- function(x, new, result, ..., session = get_session()) {
   UseMethod("restore_board")
 }
 
 #' @export
-restore_board.board <- function(x, new, result, ..., meta = NULL,
-                                session = get_session()) {
-
-  board <- blockr_deser(new)
-
-  if (is.null(meta)) {
-    result(board)
-  } else {
-    result(list(board = board, meta = meta))
-  }
+restore_board.board <- function(x, new, result, ..., session = get_session()) {
+  result(blockr_deser(new))
 }
 
 #' @param board The initial `board` object
@@ -207,13 +199,12 @@ check_ser_deser_val <- function(val) {
   observeEvent(
     val(),
     {
-      v <- val()
-      board <- if (is_board(v)) v else if (is.list(v)) v$board
+      board <- val()
 
       if (!is_board(board)) {
         blockr_abort(
           "Expecting the `preserve_board` return value to evaluate to a ",
-          "`board` object or a list with a `board` element.",
+          "`board` object.",
           class = "preserve_board_return_invalid"
         )
       }
