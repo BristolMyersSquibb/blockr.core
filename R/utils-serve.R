@@ -209,7 +209,7 @@ serve_board_ui <- function(id, default, loader, plugins, options, ...) {
 
   function(request) {
 
-    x <- resolve_board(default, loader, request, NULL)
+    x <- resolve_board(default, loader, request, NULL, options)
     id <- coal(attr(x, "id"), id)
 
     log_debug("building ui for board {id}")
@@ -229,7 +229,7 @@ serve_board_srv <- function(id, default, loader, plugins, options, ...) {
 
     onStop(revert(trace_observe()), session)
 
-    x <- resolve_board(default, loader, session$request, session)
+    x <- resolve_board(default, loader, session$request, session, options)
     id <- coal(attr(x, "id"), id)
 
     res <- do.call(

@@ -213,16 +213,88 @@ test_that("resolve_board prefers the loader board, validates, falls back", {
   default <- new_board()
   staged <- new_board(blocks = c(a = new_dataset_block("iris")))
 
+  # resolve_board augments the returned board's options (covered below), so the
+  # picked board is no longer identical to the input -- compare by blocks.
   pref <- board_loader(function(request, session, default) staged)
-  expect_identical(resolve_board(default, pref, list(), NULL), staged)
+  expect_identical(
+    board_blocks(resolve_board(default, pref, list(), NULL)),
+    board_blocks(staged)
+  )
 
   none <- board_loader(function(request, session, default) NULL)
-  expect_identical(resolve_board(default, none, list(), NULL), default)
+  expect_identical(
+    board_blocks(resolve_board(default, none, list(), NULL)),
+    board_blocks(default)
+  )
 
   bad <- board_loader(function(request, session, default) "nope")
   expect_error(
     resolve_board(default, bad, list(), NULL),
     class = "invalid_board_loader"
+  )
+})
+
+test_that("resolve_board augments the board with the managed option set", {
+
+  # A board declares only its own options, but the settings UI manages the
+  # wider blockr_app_options() set -- options contributed by registered blocks
+  # (e.g. the preview-row count `n_rows`). resolve_board() bakes that set onto
+  # the board it returns so the server and serialization see the full set.
+  brd <- new_board()
+
+  expect_false("n_rows" %in% names(board_options(brd)))
+  expect_true("n_rows" %in% names(blockr_app_options(brd)))
+
+  null_loader <- board_loader(function(request, session, default) NULL)
+  via_default <- resolve_board(
+    brd, null_loader, request = list(), session = NULL
+  )
+  expect_true("n_rows" %in% names(board_options(via_default)))
+
+  load_loader <- board_loader(function(request, session, default) new_board())
+  via_loaded <- resolve_board(
+    brd, load_loader, request = list(), session = NULL
+  )
+  expect_true("n_rows" %in% names(board_options(via_loaded)))
+})
+
+test_that("a user-changed block-backed board option survives save/restore", {
+
+  # End to end of the augmentation: `n_rows` is contributed by blocks, not the
+  # board itself, so before resolve_board() widened the board it was dropped on
+  # save and reverted to its registry default on reload.
+  x <- resolve_board(
+    new_board(),
+    board_loader(function(request, session, default) NULL),
+    request = list(),
+    session = NULL
+  )
+
+  ser <- NULL
+
+  testServer(
+    get_s3_method("board_server", x),
+    {
+      session$flushReact()
+
+      session$setInputs(n_rows = 100L)
+      session$flushReact()
+
+      ser <<- serialize_board(rv$board, rv$blocks, id = "b", session = session)
+    },
+    args = list(
+      x = x,
+      plugins = list(manage_blocks()),
+      options = blockr_app_options(x)
+    )
+  )
+
+  loaded <- blockr_deser(ser)
+
+  expect_true("n_rows" %in% names(board_options(loaded)))
+  expect_identical(
+    board_option_value(blockr_app_options(loaded)[["n_rows"]]),
+    100L
   )
 })
 

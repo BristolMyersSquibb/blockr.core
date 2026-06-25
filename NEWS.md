@@ -1,5 +1,14 @@
 # blockr.core 0.1.3
 
+* Board options contributed by blocks or the registry (e.g. the
+  preview-row count) are no longer reset to their defaults on save and
+  reload. The settings sidebar manages the wider `blockr_app_options()`
+  set, but a board carried only its own `board_options()`, and that
+  narrow set is what `serialize_board()` persisted — so a user's change
+  to a block-backed option was dropped. `resolve_board()` now augments
+  the board it returns with the managed option set, so the UI, the
+  server and serialization all operate on the same options (#238).
+
 * The board to build for an incoming request is now resolved by an
   app-level **board loader**, passed to `serve()` as its new `loader`
   argument (default: `local_loader()`, an in-process save/restore handoff).
