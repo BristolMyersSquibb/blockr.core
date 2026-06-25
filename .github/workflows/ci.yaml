@@ -26,5 +26,6 @@ jobs:
         BristolMyersSquibb/blockr.dock
         BristolMyersSquibb/blockr.dag
         BristolMyersSquibb/blockr.assistant
+        BristolMyersSquibb/blockr.session
     secrets:
       BLOCKR_PAT: ${{ secrets.BLOCKR_PAT }}
