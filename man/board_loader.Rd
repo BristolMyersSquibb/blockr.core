@@ -4,6 +4,7 @@
 \alias{board_loader}
 \alias{is_board_loader}
 \alias{local_loader}
+\alias{session_query}
 \title{Board loader}
 \usage{
 board_loader(resolve, stage = NULL)
@@ -11,40 +12,52 @@ board_loader(resolve, stage = NULL)
 is_board_loader(x)
 
 local_loader()
+
+session_query(request, session)
 }
 \arguments{
 \item{resolve, stage}{Paired functions backing a \code{board_loader}: \code{resolve} is
-\verb{function(query, session)} returning the \code{board} to build or \code{NULL} (the
-parsed URL \code{query}, and the \code{session} -- \code{NULL} at the GET, set at the WS
-connect); \code{stage} is \verb{function(board, session)} (or \code{NULL} for a loader that
-does not stage, e.g. resolve-only) which persists \code{board} and returns the
-URL query parameters referencing it (core writes them and reloads). They
+\verb{function(request, session, default)} returning the \code{board} to build or
+\code{NULL}; \code{stage} is \verb{function(board, session)} (or \code{NULL} for a loader
+that does not stage, e.g. resolve-only) which persists \code{board} and returns
+the URL query parameters referencing it (core writes them and reloads). They
 share private state, so a \code{board_loader} is built as a unit, not supplied as
 two loose functions.}
 
 \item{x}{Object to test for \code{board_loader}-ness}
+
+\item{request, session}{The incoming HTTP request and shiny \code{session}. The
+\code{session} is \code{NULL} at the GET (where the query lives on \code{request}) and set
+at the WS connect (where it lives on \code{session$clientData}).}
 }
 \value{
-\code{board_loader()} and \code{local_loader()} return a \code{board_loader} object
-and \code{is_board_loader()} a scalar logical.
+\code{board_loader()} and \code{local_loader()} return a \code{board_loader}
+object, \code{is_board_loader()} a scalar logical and \code{session_query()} the
+parsed URL query as a named list.
 }
 \description{
 Which \code{board} to build for an incoming request -- and how a board is carried
 across the \code{session$reload()} that a \link{preserve_board} restore triggers -- is
 the job of an app-level \strong{board loader}, passed to \code{\link[=serve]{serve()}} as its
-\code{loader} argument. A \code{board_loader()} pairs a \code{resolve(query, session)} --
-returning the \code{board} to build for an incoming request, or \code{NULL} for the
-\code{\link[=serve]{serve()}} default -- with an optional \code{stage(board, session)}, which
-persists a board and returns the URL query parameters that reference it (a
-resolve-only loader, e.g. one not backing a restore, leaves \code{stage} \code{NULL}).
-\code{\link[=serve]{serve()}} uses that
-one loader for both the request-phase resolution (at the GET, where
-\code{session} is \code{NULL}, and at the WS connect) and the in-session staging when
-a restore fires; \strong{core} writes those parameters into the URL and drives
-the reload, so the reload stays a guaranteed core mechanism that no loader
-can opt out of.
+\code{loader} argument. A \code{board_loader()} pairs a \code{resolve(request, session, default)} -- returning the \code{board} to build for an incoming request, or
+\code{NULL} for the \code{\link[=serve]{serve()}} default -- with an optional \code{stage(board, session)}, which persists a board and returns the URL query parameters that
+reference it (a resolve-only loader, e.g. one not backing a restore, leaves
+\code{stage} \code{NULL}). \code{\link[=serve]{serve()}} uses that one loader for both the request-phase
+resolution (at the GET, where \code{session} is \code{NULL}, and at the WS connect)
+and the in-session staging when a restore fires; \strong{core} writes those
+parameters into the URL and drives the reload, so the reload stays a
+guaranteed core mechanism that no loader can opt out of.
 }
 \details{
+\code{resolve} receives the raw HTTP \code{request} at both phases (the UI request at
+the GET, \code{session$request} at the WS), the \code{session} (\code{NULL} at the GET),
+and \code{default} -- the \code{board} passed to \code{\link[=serve]{serve()}} (the \code{\link[=serve]{serve()}} default,
+built when \code{resolve} returns \code{NULL}), which a loader can also derive its own
+result from (e.g. \code{clear_board(default)}). Read its query parameters with
+the exported \code{\link[=session_query]{session_query()}}, which papers over the
+GET-vs-WS phase split (the websocket request does not carry the page query,
+so it is read from \code{session$clientData} instead).
+
 The default \code{\link[=local_loader]{local_loader()}} keeps its handoff in a per-loader store (no
 process global) and is therefore single-process; multi-user deployments pass
 a loader resolving from a shared backend (as blockr.session does).

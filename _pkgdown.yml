@@ -93,6 +93,7 @@ reference:
   - blockr_option
   - serve
   - board_loader
+  - session_query
   - export_code
   - str_value
   - chr_ply
