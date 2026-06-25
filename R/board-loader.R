@@ -167,20 +167,28 @@ local_loader <- function() {
   board_loader(resolve, stage)
 }
 
-resolve_board <- function(default, loader, request, session) {
+resolve_board <- function(default, loader, request, session,
+                          options = blockr_app_options) {
 
   board <- loader$resolve(request, session, default)
 
   if (is.null(board)) {
-    return(default)
-  }
-
-  if (!is_board(board)) {
+    board <- default
+  } else if (!is_board(board)) {
     blockr_abort(
       "A board loader's `resolve` must return `NULL` or a `board`.",
       class = "invalid_board_loader"
     )
+  } else {
+    board <- validate_board(board)
   }
 
-  validate_board(board)
+  # A board declares only its own options, but the settings UI manages the
+  # wider `options(board)` set (board options plus those contributed by blocks
+  # and the registry). Bake it onto the resolved board so the UI, the server
+  # and serialization all see the same set -- otherwise a user-changed,
+  # block-contributed option is lost on save.
+  board_options(board) <- options(board)
+
+  board
 }
