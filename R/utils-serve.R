@@ -242,7 +242,13 @@ serve_board_srv <- function(id, default, loader, plugins, options, ...) {
     if (not_null(board_refresh)) {
       observeEvent(
         board_refresh(),
-        reload_board(loader, board_refresh(), session)
+        {
+          if (not_null(loader$stage)) {
+            loader$stage(board_refresh(), session)
+          }
+
+          session$reload()
+        }
       )
     }
 

@@ -4,7 +4,6 @@
 \alias{board_loader}
 \alias{is_board_loader}
 \alias{local_loader}
-\alias{session_query}
 \title{Board loader}
 \usage{
 board_loader(resolve, stage = NULL)
@@ -12,8 +11,6 @@ board_loader(resolve, stage = NULL)
 is_board_loader(x)
 
 local_loader()
-
-session_query(request, session)
 }
 \arguments{
 \item{resolve, stage}{Paired functions backing a \code{board_loader}: \code{resolve} is
@@ -25,15 +22,10 @@ share private state, so a \code{board_loader} is built as a unit, not supplied a
 two loose functions.}
 
 \item{x}{Object to test for \code{board_loader}-ness}
-
-\item{request, session}{The incoming HTTP request and shiny \code{session}. The
-\code{session} is \code{NULL} at the GET (where the query lives on \code{request}) and set
-at the WS connect (where it lives on \code{session$clientData}).}
 }
 \value{
-\code{board_loader()} and \code{local_loader()} return a \code{board_loader}
-object, \code{is_board_loader()} a scalar logical and \code{session_query()} the
-parsed URL query as a named list.
+\code{board_loader()} and \code{local_loader()} return a \code{board_loader} object
+and \code{is_board_loader()} a scalar logical.
 }
 \description{
 Which \code{board} to build for an incoming request -- and how a board is carried
@@ -53,10 +45,10 @@ guaranteed core mechanism that no loader can opt out of.
 the GET, \code{session$request} at the WS), the \code{session} (\code{NULL} at the GET),
 and \code{default} -- the \code{board} passed to \code{\link[=serve]{serve()}} (the \code{\link[=serve]{serve()}} default,
 built when \code{resolve} returns \code{NULL}), which a loader can also derive its own
-result from (e.g. \code{clear_board(default)}). Read its query parameters with
-the exported \code{\link[=session_query]{session_query()}}, which papers over the
-GET-vs-WS phase split (the websocket request does not carry the page query,
-so it is read from \code{session$clientData} instead).
+result from (e.g. \code{clear_board(default)}). A loader that keys off URL query
+parameters reads them itself, minding the phase split: the query is on
+\code{request$QUERY_STRING} at the GET but \code{session$clientData$url_search} at the
+WS (the websocket request carries neither).
 
 The default \code{\link[=local_loader]{local_loader()}} keeps its handoff in a per-loader store (no
 process global) and is therefore single-process; multi-user deployments pass

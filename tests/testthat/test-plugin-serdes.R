@@ -74,21 +74,25 @@ test_that("board_server exposes the restored board through board_refresh", {
   )
 })
 
-test_that("serve_board_srv drives the reload when board_refresh fires", {
+test_that("serve_board_srv stages and reloads when board_refresh fires", {
 
   refresh <- reactiveVal()
-  reloaded <- NULL
+  staged <- NULL
+
+  spy <- board_loader(
+    resolve = function(request, session, default) NULL,
+    stage = function(board, session) staged <<- board
+  )
 
   local_mocked_bindings(
     board_server = function(id, x, ...) list(board_refresh = refresh),
-    reload_board = function(loader, board, session) reloaded <<- board,
     blockr_test_exports = function(x, rv, ...) invisible()
   )
 
   board <- new_board(blocks = c(a = new_dataset_block("iris")))
 
   srv <- serve_board_srv(
-    "app", board, local_loader(), blockr_app_plugins, blockr_app_options
+    "app", board, spy, blockr_app_plugins, blockr_app_options
   )
 
   testServer(
@@ -97,7 +101,7 @@ test_that("serve_board_srv drives the reload when board_refresh fires", {
       refresh(board)
       session$flushReact()
 
-      expect_identical(reloaded, board)
+      expect_identical(staged, board)
     }
   )
 })
@@ -157,18 +161,22 @@ test_that("board_loader bundles a resolve and an optional validated stage", {
   )
 })
 
-test_that("the default loader stages by token and resolves it back", {
+test_that("the default loader stages a board and resolves it back", {
 
   ld <- local_loader()
   board <- new_board(blocks = c(a = new_dataset_block("iris")))
 
-  params <- ld$stage(board, shiny::MockShinySession$new())
-  expect_named(params, reload_param)
+  written <- NULL
+  session <- list(
+    clientData = list(url_search = ""),
+    updateQueryString = function(url, mode) written <<- url
+  )
 
-  token <- params[[reload_param]]
-  get_req <- list(QUERY_STRING = paste0(reload_param, "=", token))
+  ld$stage(board, session)
+  expect_true(grepl(reload_param, written, fixed = TRUE))
 
-  # GET read (session NULL): returns the board, does not consume it
+  # the staged board resolves back from the URL the stage wrote
+  get_req <- list(QUERY_STRING = sub("^[?]", "", written))
   expect_identical(ld$resolve(get_req, NULL, board), board)
   expect_null(ld$resolve(list(QUERY_STRING = ""), NULL, board))
 
@@ -181,18 +189,22 @@ test_that("the default loader consumes the token at the WS read", {
   ld <- local_loader()
   board <- new_board(blocks = c(a = new_dataset_block("iris")))
 
-  token <- ld$stage(board, shiny::MockShinySession$new())[[reload_param]]
-  ws <- list(
-    request = list(),
-    clientData = list(url_search = paste0("?", reload_param, "=", token))
+  written <- NULL
+  staging <- list(
+    clientData = list(url_search = ""),
+    updateQueryString = function(url, mode) written <<- url
   )
+  ld$stage(board, staging)
 
-  local_mocked_bindings(strip_reload_token = function(session) invisible())
+  # WS read off clientData consumes the token from the store
+  ws <- list(
+    clientData = list(url_search = written),
+    updateQueryString = function(url, mode) NULL
+  )
+  expect_identical(ld$resolve(NULL, ws, board), board)
 
-  # WS read returns the board and consumes it from the store
-  expect_identical(ld$resolve(ws$request, ws, board), board)
-
-  get_req <- list(QUERY_STRING = paste0(reload_param, "=", token))
+  # consumed: a GET read by the same query no longer finds it
+  get_req <- list(QUERY_STRING = sub("^[?]", "", written))
   expect_null(ld$resolve(get_req, NULL, board))
 })
 
@@ -201,57 +213,17 @@ test_that("resolve_board prefers the loader board, validates, falls back", {
   default <- new_board()
   staged <- new_board(blocks = c(a = new_dataset_block("iris")))
 
-  ld <- local_loader()
-  token <- ld$stage(staged, shiny::MockShinySession$new())[[reload_param]]
-  req <- list(QUERY_STRING = paste0(reload_param, "=", token))
+  pref <- board_loader(function(request, session, default) staged)
+  expect_identical(resolve_board(default, pref, list(), NULL), staged)
 
-  expect_identical(resolve_board(default, ld, req, NULL), staged)
-  expect_identical(
-    resolve_board(default, ld, list(QUERY_STRING = ""), NULL),
-    default
-  )
+  none <- board_loader(function(request, session, default) NULL)
+  expect_identical(resolve_board(default, none, list(), NULL), default)
 
   bad <- board_loader(function(request, session, default) "nope")
   expect_error(
-    resolve_board(default, bad, list(QUERY_STRING = ""), NULL),
+    resolve_board(default, bad, list(), NULL),
     class = "invalid_board_loader"
   )
-})
-
-test_that("reload_board stages the board through the loader", {
-
-  staged <- NULL
-  spy <- board_loader(
-    resolve = function(request, session, default) NULL,
-    stage = function(board, session) {
-      staged <<- board
-      set_names(list("tok"), reload_param)
-    }
-  )
-
-  board <- new_board(blocks = c(a = new_dataset_block("iris")))
-  reload_board(spy, board, shiny::MockShinySession$new())
-
-  expect_identical(staged, board)
-
-  # a loader without a stage simply reloads, with nothing to persist
-  no_stage <- board_loader(function(request, session, default) NULL)
-  expect_no_error(reload_board(no_stage, board, shiny::MockShinySession$new()))
-})
-
-test_that("session_query reads the query at the GET and the WS", {
-
-  # GET: parsed from the raw request's QUERY_STRING (session is NULL)
-  expect_identical(
-    session_query(list(QUERY_STRING = "a=1&b=2"), NULL),
-    list(a = "1", b = "2")
-  )
-
-  # WS: read off session$clientData$url_search (the request is ignored)
-  ws <- list(clientData = list(url_search = "?a=1&b=2"))
-  expect_identical(session_query(NULL, ws), list(a = "1", b = "2"))
-
-  expect_identical(session_query(list(QUERY_STRING = ""), NULL), list())
 })
 
 test_that("preserve_board return validation", {

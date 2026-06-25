@@ -18,10 +18,10 @@
 #' the GET, `session$request` at the WS), the `session` (`NULL` at the GET),
 #' and `default` -- the `board` passed to [serve()] (the [serve()] default,
 #' built when `resolve` returns `NULL`), which a loader can also derive its own
-#' result from (e.g. `clear_board(default)`). Read its query parameters with
-#' the exported [session_query()], which papers over the
-#' GET-vs-WS phase split (the websocket request does not carry the page query,
-#' so it is read from `session$clientData` instead).
+#' result from (e.g. `clear_board(default)`). A loader that keys off URL query
+#' parameters reads them itself, minding the phase split: the query is on
+#' `request$QUERY_STRING` at the GET but `session$clientData$url_search` at the
+#' WS (the websocket request carries neither).
 #'
 #' The default [local_loader()] keeps its handoff in a per-loader store (no
 #' process global) and is therefore single-process; multi-user deployments pass
@@ -34,14 +34,10 @@
 #' the URL query parameters referencing it (core writes them and reloads). They
 #' share private state, so a `board_loader` is built as a unit, not supplied as
 #' two loose functions.
-#' @param request,session The incoming HTTP request and shiny `session`. The
-#' `session` is `NULL` at the GET (where the query lives on `request`) and set
-#' at the WS connect (where it lives on `session$clientData`).
 #' @param x Object to test for `board_loader`-ness
 #'
-#' @return `board_loader()` and `local_loader()` return a `board_loader`
-#' object, `is_board_loader()` a scalar logical and `session_query()` the
-#' parsed URL query as a named list.
+#' @return `board_loader()` and `local_loader()` return a `board_loader` object
+#' and `is_board_loader()` a scalar logical.
 #'
 #' @export
 board_loader <- function(resolve, stage = NULL) {
@@ -105,9 +101,40 @@ local_loader <- function() {
 
   store <- new.env(parent = emptyenv())
 
+  read_query <- function(request, session) {
+
+    search <- if (is.null(session)) {
+      request[["QUERY_STRING"]]
+    } else {
+      isolate(session$clientData$url_search)
+    }
+
+    parseQueryString(coal(search, ""))
+  }
+
+  query_string <- function(query) {
+
+    if (!length(query)) {
+      return("?")
+    }
+
+    nms <- chr_ply(names(query), utils::URLencode, reserved = TRUE)
+    vals <- chr_ply(unlst(query), utils::URLencode, reserved = TRUE)
+
+    paste0("?", paste(nms, vals, sep = "=", collapse = "&"))
+  }
+
+  write_token <- function(session, token) {
+
+    query <- read_query(NULL, session)
+    query[[reload_param]] <- token
+
+    updateQueryString(query_string(query), mode = "replace", session = session)
+  }
+
   resolve <- function(request, session, default) {
 
-    token <- session_query(request, session)[[reload_param]]
+    token <- read_query(request, session)[[reload_param]]
 
     if (is.null(token)) {
       return(NULL)
@@ -121,7 +148,7 @@ local_loader <- function() {
         rm(list = token, envir = store)
       }
 
-      strip_reload_token(session)
+      write_token(session, NULL)
     }
 
     board
@@ -134,20 +161,10 @@ local_loader <- function() {
 
     log_debug("staging board for reload handoff {token}")
 
-    set_names(list(token), reload_param)
+    write_token(session, token)
   }
 
   board_loader(resolve, stage)
-}
-
-strip_reload_token <- function(session) {
-
-  query <- session_query(NULL, session)
-  query[[reload_param]] <- NULL
-
-  updateQueryString(query_to_string(query), mode = "replace", session = session)
-
-  invisible()
 }
 
 resolve_board <- function(default, loader, request, session) {
@@ -166,50 +183,4 @@ resolve_board <- function(default, loader, request, session) {
   }
 
   validate_board(board)
-}
-
-#' @rdname board_loader
-#' @export
-session_query <- function(request, session) {
-
-  search <- if (is.null(session)) {
-    request[["QUERY_STRING"]]
-  } else {
-    isolate(session$clientData$url_search)
-  }
-
-  parseQueryString(coal(search, ""))
-}
-
-reload_board <- function(loader, board, session) {
-
-  if (not_null(loader$stage)) {
-
-    params <- loader$stage(board, session)
-
-    if (length(params)) {
-      query <- modifyList(session_query(NULL, session), as.list(params))
-      updateQueryString(query_to_string(query), mode = "replace",
-                        session = session)
-    }
-  }
-
-  log_debug("reloading session")
-  session$reload()
-
-  invisible()
-}
-
-query_to_string <- function(query) {
-
-  if (!length(query)) {
-    return("?")
-  }
-
-  nms <- chr_ply(names(query), utils::URLencode, reserved = TRUE)
-  vals <- chr_ply(
-    unlist(query, use.names = FALSE), utils::URLencode, reserved = TRUE
-  )
-
-  paste0("?", paste(nms, vals, sep = "=", collapse = "&"))
 }
