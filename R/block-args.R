@@ -26,8 +26,9 @@
 #' whole-block configurations from them.
 #'
 #' @param example A single worked value for an argument (or `NULL`)
-#' @param type Optional machine-readable type (e.g. an `ellmer::type_*`),
-#'   stored opaquely and not interpreted by blockr.core
+#' @param type Optional machine-readable type for the argument, built with the
+#'   [arg-type] descriptor constructors (`arg_string()`, `arg_object()`, ...). A
+#'   plain JSON-Schema-subset list; worked examples are validated against it
 #' @rdname register_block
 #' @export
 new_block_arg <- function(description = NULL, example = NULL, type = NULL) {
@@ -178,6 +179,18 @@ validate_block_spec <- function(args, examples, obj, ctor, ctor_ref, ctor_pkg,
     }
   }
 
+  for (nm in names(args)) {
+
+    type <- args[[nm]][["type"]]
+
+    if (not_null(type) && !valid_descriptor(type)) {
+      blockr_abort(
+        "The `type` of block argument {nm} is not a valid descriptor.",
+        class = "block_arg_type_invalid"
+      )
+    }
+  }
+
   for (cfg in block_examples_list(args, examples)) {
 
     unknown <- setdiff(names(cfg), inputs)
@@ -187,6 +200,19 @@ validate_block_spec <- function(args, examples, obj, ctor, ctor_ref, ctor_pkg,
         "Example field(s) {unknown} are not constructor formals ({inputs}).",
         class = "block_example_unknown"
       )
+    }
+
+    for (nm in intersect(names(cfg), names(args))) {
+
+      type <- args[[nm]][["type"]]
+
+      if (not_null(type) && !conforms_to(cfg[[nm]], type)) {
+        blockr_abort(
+          "Example value for block argument {nm} does not conform to its ",
+          "declared `type`.",
+          class = "block_example_nonconforming"
+        )
+      }
     }
 
     res <- try(

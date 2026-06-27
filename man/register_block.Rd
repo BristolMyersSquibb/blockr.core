@@ -70,8 +70,9 @@ create_block(id, ...)
 \arguments{
 \item{example}{A single worked value for an argument (or \code{NULL})}
 
-\item{type}{Optional machine-readable type (e.g. an \verb{ellmer::type_*}),
-stored opaquely and not interpreted by blockr.core}
+\item{type}{Optional machine-readable type for the argument, built with the
+\link{arg-type} descriptor constructors (\code{arg_string()}, \code{arg_object()}, ...). A
+plain JSON-Schema-subset list; worked examples are validated against it}
 
 \item{...}{For \code{register_blocks()}, arguments forwarded to
 \code{register_block()}; for \code{new_block_args()}, named \code{new_block_arg()} objects

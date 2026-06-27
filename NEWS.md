@@ -9,6 +9,12 @@
   is now first-class and validated at registration (every argument is a real
   constructor formal and every worked example actually constructs); the legacy
   attributes are still absorbed, with a deprecation warning (#121).
+* An argument's `type` is a dependency-free JSON-Schema-subset descriptor built
+  with `arg_string()`, `arg_number()`, `arg_integer()`, `arg_boolean()`,
+  `arg_enum()`, `arg_array()` and `arg_object()` (consumable directly, e.g. via
+  `ellmer::type_from_schema()`), replacing the opaque `ellmer::type_*` slot.
+  Registration now validates the descriptor and checks each worked example
+  against it, so a malformed-but-constructible value is rejected (#121).
 * Block metadata is exposed two ways. `block_metadata()` returns a
   `data.frame` over one or many blocks -- dispatching on a `block`, a `blocks`
   collection, a `block_registry_entry` or a registry ID -- with every attribute

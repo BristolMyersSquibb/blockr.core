@@ -151,6 +151,89 @@ test_that("registration hard-validates the structured spec form", {
   expect_false("ut_head_bad_example" %in% list_blocks())
 })
 
+test_that("registration validates worked examples against declared types", {
+
+  new_stateful_block <- function(state = list(), ...) {
+    new_transform_block(
+      function(id, data) {
+        moduleServer(
+          id,
+          function(input, output, session) {
+            list(expr = reactive(quote(identity(data))), state = list())
+          }
+        )
+      },
+      function(id) {
+        tagList()
+      },
+      class = "stateful_block",
+      ...
+    )
+  }
+
+  state_type <- arg_object(
+    conditions = arg_array(arg_object(column = arg_string())),
+    operator   = arg_enum(c("&", "|"))
+  )
+
+  withr::defer(
+    if ("stateful_block" %in% list_blocks()) unregister_blocks("stateful_block")
+  )
+
+  expect_no_error(
+    register_block(
+      new_stateful_block,
+      name = "Stateful",
+      description = "d",
+      uid = "stateful_block",
+      arguments = new_block_args(
+        state = new_block_arg(
+          "the state",
+          example = list(
+            conditions = list(list(column = "Species")),
+            operator = "&"
+          ),
+          type = state_type
+        )
+      )
+    )
+  )
+
+  # malformed-but-constructible: conditions is a string, not an array
+  expect_error(
+    register_block(
+      new_stateful_block,
+      name = "Stateful",
+      description = "d",
+      uid = "stateful_block",
+      overwrite = TRUE,
+      arguments = new_block_args(
+        state = new_block_arg(
+          "the state",
+          example = list(conditions = "not-a-list", operator = "&"),
+          type = state_type
+        )
+      )
+    ),
+    class = "block_example_nonconforming"
+  )
+
+  # structural: a malformed type descriptor is rejected
+  expect_error(
+    register_block(
+      new_stateful_block,
+      name = "Stateful",
+      description = "d",
+      uid = "stateful_block",
+      overwrite = TRUE,
+      arguments = new_block_args(
+        state = new_block_arg("the state", type = list(type = "frobnicate"))
+      )
+    ),
+    class = "block_arg_type_invalid"
+  )
+})
+
 test_that("block-level examples validate without a user-supplied spec", {
 
   withr::defer(unregister_blocks("ut_ex_only"))
