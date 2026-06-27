@@ -72,7 +72,8 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         stacks = list(),
         last_update = NULL,
         conditions = NULL,
-        visible = TRUE
+        visible = TRUE,
+        frozen = character()
       )
 
       rv_ro <- list(board = make_read_only(rv))
@@ -103,6 +104,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
       board_update <- reactiveVal()
       board_visible <- reactiveVal()
+      board_frozen <- reactiveVal()
 
       observe(
         {
@@ -121,6 +123,23 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         }
       )
 
+      observe(
+        {
+          frz <- board_frozen()
+
+          if (is.null(frz)) {
+            rv$frozen <- character()
+          } else {
+            rv$frozen <- frz
+
+            log_debug(
+              "input freeze update: {length(frz)}/",
+              "{length(board_block_ids(rv$board))} frozen"
+            )
+          }
+        }
+      )
+
       cb_res <- set_names(
         vector("list", length(callbacks)),
         names(callbacks)
@@ -128,7 +147,8 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
       cb_args <- c(
         rv_ro,
-        list(update = board_update, visible = board_visible),
+        list(update = board_update, visible = board_visible,
+             frozen = board_frozen),
         dot_args,
         list(session = session)
       )
