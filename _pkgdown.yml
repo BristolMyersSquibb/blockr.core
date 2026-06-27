@@ -94,6 +94,7 @@ reference:
   - rand_names
   - blockr_option
   - serve
+  - board_loader
   - export_code
   - str_value
   - chr_ply

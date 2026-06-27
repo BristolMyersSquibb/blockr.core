@@ -12,7 +12,7 @@ preserve_board(server = preserve_board_server, ui = preserve_board_ui)
 
 preserve_board_server(id, board, ...)
 
-restore_board(x, new, result, ..., meta = NULL, session = get_session())
+restore_board(x, new, result, ..., session = get_session())
 
 preserve_board_ui(id, board)
 
@@ -33,9 +33,6 @@ serialize_board(x, blocks, id = NULL, ..., session = get_session())
 
 \item{result}{A \code{\link[shiny:reactiveVal]{shiny::reactiveVal()}} to hold the new board object}
 
-\item{meta}{Optional named list of plugin metadata to persist across
-the reload triggered by board restoration}
-
 \item{session}{Shiny session}
 
 \item{blocks}{Block state reactive values}
@@ -44,9 +41,8 @@ the reload triggered by board restoration}
 A plugin container inheriting from \code{preserve_board} is returned by
 \code{preserve_board()}, while the UI component (e.g. \code{preserve_board_ui()}) is
 expected to return shiny UI (i.e. \code{\link[shiny:reexports]{shiny::tagList()}}) and the server
-component (i.e. \code{preserve_board_server()}) is expected to return a
-\code{\link[shiny:reactiveVal]{shiny::reactiveVal()}} or \code{\link[shiny:reactive]{shiny::reactive()}} which evaluates to \code{NULL} or a
-\code{board} object.
+component a \code{\link[shiny:reactiveVal]{shiny::reactiveVal()}} evaluating to \code{NULL} or the \code{board} to
+restore.
 }
 \description{
 Board state can be preserved by serializing all contained objects and
@@ -56,4 +52,9 @@ such as save/restore (via download, as implemented in the default
 in terms of undo/redo functionality and (automatic) saving of board state.
 Such enhancements can be implemented in a third-party \code{preserve_board}
 module.
+}
+\details{
+The \code{session$reload()} that a restore triggers is handled by the app's
+\code{\link[=board_loader]{board_loader()}} (passed to \code{\link[=serve]{serve()}}), not by the plugin -- the plugin
+server simply returns the \code{board} to restore and never reloads.
 }

@@ -25,6 +25,34 @@
   `block_meta_keywords()`, and so on. A single argument's fields are read with
   `block_arg_description()`, `block_arg_example()` and `block_arg_type()`.
   `registry_metadata()` is deprecated in favour of these (#121).
+* Board options contributed by blocks or the registry (e.g. the
+  preview-row count) are no longer reset to their defaults on save and
+  reload. The settings sidebar manages the wider `blockr_app_options()`
+  set, but a board carried only its own `board_options()`, and that
+  narrow set is what `serialize_board()` persisted — so a user's change
+  to a block-backed option was dropped. `resolve_board()` now augments
+  the board it returns with the managed option set, so the UI, the
+  server and serialization all operate on the same options (#238).
+
+* The board to build for an incoming request is now resolved by an
+  app-level **board loader**, passed to `serve()` as its new `loader`
+  argument (default: `local_loader()`, an in-process save/restore handoff).
+  A `board_loader()` pairs a `resolve(query, session)` — returning the board
+  to build, or `NULL` for the `serve()` default — with a `stage(board,
+  session)`, which persists a board and returns the URL query parameters
+  referencing it. `serve()` uses that one loader to resolve the board at the
+  UI (GET, where `session` is `NULL`) and server (WS connect) builds; when a
+  restore fires, `board_server()` exposes the board to restore as a
+  `board_refresh` reactive, and `serve()` stages it through the loader,
+  writes the parameters into the URL and drives `session$reload()` — so the
+  reload stays a guaranteed core mechanism and the `preserve_board` plugin
+  (unchanged at `{server, ui}`) neither holds the loader nor reloads. This
+  removes the process-global slot core used to stage a board across a
+  reload: the exported `get_serve_obj()`, the old board-server reload
+  producer, `rv$reload_meta` and the `restore_board()` `meta` argument are
+  gone. The default loader keeps its handoff in a per-loader store
+  (single-process); a downstream loader (e.g. blockr.session) resolves from
+  the URL query against a shared backend, which is multi-process-safe (#214).
 * New exported `trim_rv()` removes entries from a `reactiveValues`
   object, which assigning `NULL` does not do -- the key lingers in
   `names()` with a `NULL` value. Unlinking a variadic block argument now
