@@ -57,6 +57,23 @@ probe_passthrough <- function() {
   )
 }
 
+probe_data_observer <- function() {
+  new_transform_block(
+    function(id, data) {
+      moduleServer(
+        id,
+        function(input, output, session) {
+          observeEvent(data(), NULL)
+          list(expr = reactive(quote(identity(data))), state = list())
+        }
+      )
+    },
+    function(id) shiny::tagList(),
+    class = "probe_block",
+    block_metadata = FALSE
+  )
+}
+
 with_id <- function(blk, id) {
   attr(blk, "probe_id") <- id
   blk
@@ -240,6 +257,40 @@ test_that("a link change re-routes the pulled upstream", {
       plugins = list(),
       callbacks = function(visible, ...) {
         visible("b")
+        NULL
+      }
+    )
+  )
+})
+
+test_that("an off-screen data-observing block does not pull its upstream", {
+
+  reset_probes()
+
+  board <- new_board(
+    blocks = c(
+      a = with_id(probe_source(), "a"),
+      b = with_id(probe_data_observer(), "b"),
+      c = with_id(probe_source(), "c")
+    ),
+    links = links(new_link("a", "b", "data"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_true(evaluated("c"))
+
+      expect_false(evaluated("a"))
+      expect_false(evaluated("b"))
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visible, ...) {
+        visible("c")
         NULL
       }
     )

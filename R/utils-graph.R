@@ -99,6 +99,21 @@ as_adjacency_matrix <- function(from, to, nodes = union(from, to)) {
   res
 }
 
+upstream_blocks <- function(ids, board) {
+
+  links <- board_links(board)
+
+  res <- ids
+  new <- ids
+
+  while (length(new)) {
+    new <- setdiff(links$from[links$to %in% new], res)
+    res <- c(res, new)
+  }
+
+  res
+}
+
 #' @param x Object
 #' @rdname topo_sort
 #' @export

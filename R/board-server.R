@@ -83,6 +83,14 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         )
       )
 
+      rv$needed <- reactive(
+        if (isTRUE(rv$visible)) {
+          TRUE
+        } else {
+          upstream_blocks(rv$visible, rv$board)
+        }
+      )
+
       do.call(
         board_options_to_userdata,
         c(
@@ -100,7 +108,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         {
           vis <- board_visible()
 
-          if (is.null(vis)) {
+          if (is.null(vis) || !isTRUE(blockr_option("gate_visibility", TRUE))) {
             rv$visible <- TRUE
           } else {
             rv$visible <- vis
@@ -415,7 +423,7 @@ setup_block <- function(blk, id, rv, mod_ed, mod_ct, args) {
     inpts
   )
 
-  inpts <- lapply(srcs, upstream_result, rv)
+  inpts <- lapply(srcs, upstream_result, rv, id)
 
   if (is.na(arity)) {
     inpts <- c(inpts, list(`...args` = reactiveValues()))
@@ -493,10 +501,13 @@ destroy_rm_blocks <- function(ids, rv, sess, args) {
   invisible()
 }
 
-upstream_result <- function(src, rv) {
+upstream_result <- function(src, rv, to) {
 
   reactive(
     {
+      needed <- rv$needed()
+      req(isTRUE(needed) || to %in% needed)
+
       from <- reval_if(src)
 
       if (is.null(from)) {
@@ -513,7 +524,7 @@ setup_link <- function(rv, id, from, to, input) {
   if (input %in% block_inputs(board_blocks(rv$board)[[to]])) {
     rv$sources[[to]][[input]](from)
   } else {
-    rv$inputs[[to]][["...args"]][[input]] <- upstream_result(from, rv)
+    rv$inputs[[to]][["...args"]][[input]] <- upstream_result(from, rv, to)
   }
 
   invisible()
