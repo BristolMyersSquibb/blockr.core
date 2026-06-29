@@ -2,6 +2,61 @@
 
 ## blockr.core 0.1.3
 
+- Block registry entries gained a structured argument specification,
+  built with the new exported
+  [`new_block_args()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md)
+  /
+  [`new_block_arg()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md),
+  carrying a per-argument `description`, a single worked `example`, and
+  an optional machine-readable `type`.
+  [`register_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
+  additionally accepts block-level `details`, `link`, `guidance`,
+  `examples`, and `keywords`. The construction metadata formerly
+  smuggled as `examples` / `prompt` attributes on `arguments` is now
+  first-class and validated at registration (every argument is a real
+  constructor formal and every worked example actually constructs); the
+  legacy attributes are still absorbed, with a deprecation warning
+  ([\#121](https://github.com/BristolMyersSquibb/blockr.core/issues/121)).
+
+- An argument’s `type` is a dependency-free JSON-Schema-subset
+  descriptor built with
+  [`arg_string()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md),
+  [`arg_number()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md),
+  [`arg_integer()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md),
+  [`arg_boolean()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md),
+  [`arg_enum()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md),
+  [`arg_array()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md)
+  and
+  [`arg_object()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md)
+  (consumable directly, e.g. via
+  [`ellmer::type_from_schema()`](https://ellmer.tidyverse.org/reference/type_boolean.html)),
+  replacing the opaque `ellmer::type_*` slot. Registration now validates
+  the descriptor and checks each worked example against it, so a
+  malformed-but-constructible value is rejected
+  ([\#121](https://github.com/BristolMyersSquibb/blockr.core/issues/121)).
+
+- Block metadata is exposed two ways.
+  [`block_metadata()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_metadata.md)
+  returns a `data.frame` over one or many blocks – dispatching on a
+  `block`, a `blocks` collection, a `block_registry_entry` or a registry
+  ID – with every attribute available as a column (the multi-valued
+  `arguments`, `examples` and `keywords` as list-columns) and a `fields`
+  argument to select a subset. Each attribute additionally has a
+  single-block getter:
+  [`block_meta_name()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_metadata.md),
+  [`block_meta_description()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_metadata.md),
+  [`block_meta_guidance()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_metadata.md),
+  [`block_meta_arguments()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_metadata.md),
+  [`block_meta_keywords()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_metadata.md),
+  and so on. A single argument’s fields are read with
+  [`block_arg_description()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md),
+  [`block_arg_example()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md)
+  and
+  [`block_arg_type()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md).
+  [`registry_metadata()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
+  is deprecated in favour of these
+  ([\#121](https://github.com/BristolMyersSquibb/blockr.core/issues/121)).
+
 - Board options contributed by blocks or the registry (e.g. the
   preview-row count) are no longer reset to their defaults on save and
   reload. The settings sidebar manages the wider
@@ -204,7 +259,7 @@ CRAN release: 2026-04-28
   [`custom_options()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   for easier board customization.
 - Add
-  [`block_metadata()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md)
+  [`block_metadata()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_metadata.md)
   for retrieving per-block metadata and attach block metadata with
   defaults to block objects.
 - Export test utilities

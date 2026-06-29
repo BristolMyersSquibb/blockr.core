@@ -21,6 +21,11 @@ register_block(
   category = NULL,
   icon = NULL,
   arguments = NULL,
+  details = NULL,
+  link = NULL,
+  guidance = NULL,
+  examples = list(),
+  keywords = NULL,
   package = NULL,
   overwrite = FALSE
 )
@@ -75,7 +80,38 @@ create_block(id, ...)
 
 - arguments:
 
-  Block argument description
+  Block argument specification, either a
+  [`new_block_args()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md)
+  object or a (possibly empty) named character vector of argument
+  descriptions
+
+- details:
+
+  Optional longer human-facing description (e.g. for a help popover),
+  complementing the short `description`
+
+- link:
+
+  Optional URL to a block's help or documentation page
+
+- guidance:
+
+  Optional model-facing construction guidance (do/don't rules, enums,
+  pitfalls), distinct from the human-facing `details`. Retrieved with
+  [`block_metadata()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_metadata.md)
+
+- examples:
+
+  Optional list of complete worked configurations (each a named list
+  keyed by argument name); supersedes the per-argument example assembly.
+  Retrieved with
+  [`block_metadata()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_metadata.md)
+
+- keywords:
+
+  Optional character vector of free-text search terms for block
+  discovery, retrieved with
+  [`block_metadata()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_metadata.md)
 
 - package:
 
@@ -91,7 +127,12 @@ create_block(id, ...)
 
 - ...:
 
-  Forwarded to `register_block()`
+  For `register_blocks()`, arguments forwarded to `register_block()`;
+  for
+  [`new_block_args()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md),
+  named
+  [`new_block_arg()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md)
+  objects (or strings), one per constructor formal
 
 - blocks:
 
@@ -111,8 +152,14 @@ create_block(id, ...)
 effects and return `block_registry_entry` object(s) invisibly, while
 `unregister_blocks()` returns `NULL` (invisibly). Listing via
 `list_blocks()` returns a character vector and a list of
-`block_registry_entry` object(s) for `available_blocks()`. Finally,
-`create_block()` returns a newly instantiated `block` object.
+`block_registry_entry` object(s) for `available_blocks()`.
+`create_block()` returns a newly instantiated `block` object. A block's
+registered metadata is read with
+[`block_metadata()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_metadata.md)
+and the `block_meta_*()` accessors, and its argument specification is
+built and read with
+[`new_block_arg()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md)
+and friends.
 
 ## Details
 

@@ -83,6 +83,11 @@ specific arguments.</p>
 <span>  category <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  icon <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  arguments <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  details <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  link <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  guidance <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  examples <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  keywords <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  package <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  overwrite <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
@@ -138,7 +143,35 @@ blocks are uncategorized.</p></dd>
 
 
 <dt id="arg-arguments">arguments<a class="anchor" aria-label="anchor" href="#arg-arguments"></a></dt>
-<dd><p>Block argument description</p></dd>
+<dd><p>Block argument specification, either a <code><a href="new_block_arg.html">new_block_args()</a></code>
+object or a (possibly empty) named character vector of argument
+descriptions</p></dd>
+
+
+<dt id="arg-details">details<a class="anchor" aria-label="anchor" href="#arg-details"></a></dt>
+<dd><p>Optional longer human-facing description (e.g. for a help
+popover), complementing the short <code>description</code></p></dd>
+
+
+<dt id="arg-link">link<a class="anchor" aria-label="anchor" href="#arg-link"></a></dt>
+<dd><p>Optional URL to a block's help or documentation page</p></dd>
+
+
+<dt id="arg-guidance">guidance<a class="anchor" aria-label="anchor" href="#arg-guidance"></a></dt>
+<dd><p>Optional model-facing construction guidance (do/don't rules,
+enums, pitfalls), distinct from the human-facing <code>details</code>. Retrieved with
+<code><a href="block_metadata.html">block_metadata()</a></code></p></dd>
+
+
+<dt id="arg-examples">examples<a class="anchor" aria-label="anchor" href="#arg-examples"></a></dt>
+<dd><p>Optional list of complete worked configurations (each a
+named list keyed by argument name); supersedes the per-argument example
+assembly. Retrieved with <code><a href="block_metadata.html">block_metadata()</a></code></p></dd>
+
+
+<dt id="arg-keywords">keywords<a class="anchor" aria-label="anchor" href="#arg-keywords"></a></dt>
+<dd><p>Optional character vector of free-text search terms for block
+discovery, retrieved with <code><a href="block_metadata.html">block_metadata()</a></code></p></dd>
 
 
 <dt id="arg-package">package<a class="anchor" aria-label="anchor" href="#arg-package"></a></dt>
@@ -154,7 +187,9 @@ blocks are uncategorized.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
-<dd><p>Forwarded to <code>register_block()</code></p></dd>
+<dd><p>For <code>register_blocks()</code>, arguments forwarded to
+<code>register_block()</code>; for <code><a href="new_block_arg.html">new_block_args()</a></code>, named <code><a href="new_block_arg.html">new_block_arg()</a></code> objects
+(or strings), one per constructor formal</p></dd>
 
 
 <dt id="arg-blocks">blocks<a class="anchor" aria-label="anchor" href="#arg-blocks"></a></dt>
@@ -175,8 +210,10 @@ blocks are uncategorized.</p></dd>
 effects and return <code>block_registry_entry</code> object(s) invisibly, while
 <code>unregister_blocks()</code> returns <code>NULL</code> (invisibly). Listing via <code>list_blocks()</code>
 returns a character vector and a list of <code>block_registry_entry</code> object(s) for
-<code>available_blocks()</code>. Finally, <code>create_block()</code> returns a newly instantiated
-<code>block</code> object.</p>
+<code>available_blocks()</code>. <code>create_block()</code> returns a newly instantiated <code>block</code>
+object. A block's registered metadata is read with <code><a href="block_metadata.html">block_metadata()</a></code> and the
+<code>block_meta_*()</code> accessors, and its argument specification is built and read
+with <code><a href="new_block_arg.html">new_block_arg()</a></code> and friends.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

@@ -23,8 +23,6 @@ block_arity(x)
 external_ctrl_vars(x)
 
 has_external_ctrl(x)
-
-block_metadata(x)
 ```
 
 ## Arguments
