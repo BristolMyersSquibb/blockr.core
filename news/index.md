@@ -57,6 +57,18 @@
   is deprecated in favour of these
   ([\#121](https://github.com/BristolMyersSquibb/blockr.core/issues/121)).
 
+- Board accessors
+  ([`board_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md),
+  [`board_links()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md),
+  [`board_stacks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md))
+  are now pure reads. They previously re-validated their entire
+  collection on every call, and because board setup reads links once per
+  block, that cost scaled quadratically and dominated startup of large
+  boards. Validation is unchanged at construction and on mutation, and
+  [`validate_board()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board.md)
+  still checks each collection in full
+  ([\#241](https://github.com/BristolMyersSquibb/blockr.core/issues/241)).
+
 - Board options contributed by blocks or the registry (e.g. the
   preview-row count) are no longer reset to their defaults on save and
   reload. The settings sidebar manages the wider
