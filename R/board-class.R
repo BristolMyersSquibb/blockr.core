@@ -182,10 +182,10 @@ validate_board.board <- function(x) {
     )
   }
 
-  blks <- board_blocks(x)
+  blks <- validate_blocks(board_blocks(x))
 
-  validate_board_blocks_links(blks, board_links(x))
-  validate_board_blocks_stacks(blks, board_stacks(x))
+  validate_board_blocks_links(blks, validate_links(board_links(x)))
+  validate_board_blocks_stacks(blks, validate_stacks(board_stacks(x)))
 
   x
 }
@@ -290,7 +290,7 @@ is_acyclic.board <- function(x) {
 #' @export
 board_blocks <- function(x) {
   stopifnot(is_board(x))
-  validate_blocks(x[["blocks"]])
+  x[["blocks"]]
 }
 
 #' @param value Replacement value
@@ -380,7 +380,7 @@ rm_blocks.board <- function(x, rm, ..., session = get_session()) {
 #' @export
 board_links <- function(x) {
   stopifnot(is_board(x))
-  validate_links(x[["links"]])
+  x[["links"]]
 }
 
 #' @rdname board_blocks
@@ -449,7 +449,7 @@ modify_board_links.board <- function(x, add = NULL, rm = NULL, mod = NULL,
 #' @export
 board_stacks <- function(x) {
   stopifnot(is_board(x))
-  validate_stacks(x[["stacks"]])
+  x[["stacks"]]
 }
 
 #' @rdname board_blocks

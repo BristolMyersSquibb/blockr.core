@@ -25,6 +25,12 @@
   `block_meta_keywords()`, and so on. A single argument's fields are read with
   `block_arg_description()`, `block_arg_example()` and `block_arg_type()`.
   `registry_metadata()` is deprecated in favour of these (#121).
+* Board accessors (`board_blocks()`, `board_links()`, `board_stacks()`)
+  are now pure reads. They previously re-validated their entire
+  collection on every call, and because board setup reads links once per
+  block, that cost scaled quadratically and dominated startup of large
+  boards. Validation is unchanged at construction and on mutation, and
+  `validate_board()` still checks each collection in full (#241).
 * Board options contributed by blocks or the registry (e.g. the
   preview-row count) are no longer reset to their defaults on save and
   reload. The settings sidebar manages the wider `blockr_app_options()`
