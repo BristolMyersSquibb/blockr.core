@@ -175,6 +175,16 @@ caught and returned in order to be surfaced to the app user.</p>
 from output, the behavior of which can be customized via the
 <code><a href="block_ui.html">block_output()</a></code> generic. The <code><a href="block_ui.html">block_ui()</a></code> generic can then be used to
 control rendering of outputs.</p>
+<p>When a front-end (such as blockr.dock) drives the <code>visible</code> write-channel
+that <code><a href="board_server.html">board_server()</a></code> hands to the board callback, naming the block IDs
+currently on screen, block evaluation and rendering are gated on
+visibility: a block renders only while on screen and evaluates only while on
+screen or upstream of an on-screen block (its closure over <code><a href="board_blocks.html">board_links()</a></code>).
+Gating suspends and resumes the evaluation and render observers, starting
+them suspended so off-screen blocks neither evaluate nor render at startup.
+With nothing driving <code>visible</code> every block is treated as visible and
+behaviour is unchanged; the <code>gate_visibility</code> <code><a href="blockr_option.html">blockr_option()</a></code> (default
+<code>TRUE</code>) turns gating off entirely.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

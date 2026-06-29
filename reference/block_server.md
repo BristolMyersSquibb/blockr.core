@@ -120,3 +120,18 @@ separated from output, the behavior of which can be customized via the
 generic. The
 [`block_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_ui.md)
 generic can then be used to control rendering of outputs.
+
+When a front-end (such as blockr.dock) drives the `visible`
+write-channel that
+[`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)
+hands to the board callback, naming the block IDs currently on screen,
+block evaluation and rendering are gated on visibility: a block renders
+only while on screen and evaluates only while on screen or upstream of
+an on-screen block (its closure over
+[`board_links()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)).
+Gating suspends and resumes the evaluation and render observers,
+starting them suspended so off-screen blocks neither evaluate nor render
+at startup. With nothing driving `visible` every block is treated as
+visible and behaviour is unchanged; the `gate_visibility`
+[`blockr_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_option.md)
+(default `TRUE`) turns gating off entirely.
