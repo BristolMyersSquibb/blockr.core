@@ -32,8 +32,7 @@ block_registry <- new.env()
 #' block construction via a registry ID is available as `create_block()`.
 #'
 #' @param ctor Block constructor
-#' @param name,description Metadata describing the block (`new_block_arg()` uses
-#'   `description` to document a single constructor argument)
+#' @param name,description Metadata describing the block
 #' @param classes Block classes
 #' @param uid Unique ID for a registry entry
 #' @param category Useful to sort blocks by topics. If not specified,
@@ -46,13 +45,13 @@ block_registry <- new.env()
 #'   popover), complementing the short `description`
 #' @param link Optional URL to a block's help or documentation page
 #' @param guidance Optional model-facing construction guidance (do/don't rules,
-#'   enums, pitfalls), distinct from the human-facing `details`; a character
-#'   vector, one entry per note. Retrieved with `block_guidance()`.
+#'   enums, pitfalls), distinct from the human-facing `details`. Retrieved with
+#'   [block_metadata()]
 #' @param examples Optional list of complete worked configurations (each a
 #'   named list keyed by argument name); supersedes the per-argument example
-#'   assembly. Retrieved with `block_examples()`.
+#'   assembly. Retrieved with [block_metadata()]
 #' @param keywords Optional character vector of free-text search terms for block
-#'   discovery, retrieved with `block_keywords()`
+#'   discovery, retrieved with [block_metadata()]
 #' @param package Package where constructor is defined (or `NULL`)
 #' @param overwrite Overwrite existing entry
 #'
@@ -70,12 +69,9 @@ block_registry <- new.env()
 #' `unregister_blocks()` returns `NULL` (invisibly). Listing via `list_blocks()`
 #' returns a character vector and a list of `block_registry_entry` object(s) for
 #' `available_blocks()`. `create_block()` returns a newly instantiated `block`
-#' object. `new_block_arg()` and `new_block_args()` construct `block_arg` and
-#' `block_args` objects, and `block_arg_description()`, `block_arg_example()`
-#' and `block_arg_type()` return the corresponding field of a single argument's
-#' `block_arg` (resolving a bare description string too). The registered
-#' metadata of a block is read with [block_metadata()] and the `block_meta_*()`
-#' accessors.
+#' object. A block's registered metadata is read with [block_metadata()] and the
+#' `block_meta_*()` accessors, and its argument specification is built and read
+#' with [new_block_arg()] and friends.
 #'
 #' @export
 register_block <- function(ctor, name, description, classes = NULL, uid = NULL,

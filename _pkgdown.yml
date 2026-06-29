@@ -32,7 +32,7 @@ reference:
     - block_server
     - block_ui
     - register_block
-    - arg-type
+    - new_block_arg
     - block_metadata
 - subtitle: Links
   desc: Utilities for creating an working with links
