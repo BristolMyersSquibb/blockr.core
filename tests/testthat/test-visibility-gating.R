@@ -4,6 +4,9 @@ probe_render$ids <- character()
 probe_eval <- new.env()
 probe_eval$ids <- character()
 
+probe_args <- new.env()
+probe_args$entry_classes <- NULL
+
 registerS3method(
   "block_output", "probe_block",
   function(x, result, session) {
@@ -65,6 +68,33 @@ probe_data_observer <- function() {
         function(input, output, session) {
           observeEvent(data(), NULL)
           list(expr = reactive(quote(identity(data))), state = list())
+        }
+      )
+    },
+    function(id) shiny::tagList(),
+    class = "probe_block",
+    block_metadata = FALSE
+  )
+}
+
+probe_variadic <- function() {
+  new_transform_block(
+    function(id, ...args) {
+      moduleServer(
+        id,
+        function(input, output, session) {
+
+          observe(
+            {
+              ks <- names(...args)
+              req(length(ks) > 0)
+              probe_args$entry_classes <- chr_ply(
+                ks, function(k) class(...args[[k]])[1L]
+              )
+            }
+          )
+
+          list(expr = reactive(quote(datasets::BOD)), state = list())
         }
       )
     },
@@ -377,6 +407,75 @@ test_that("adding a block does not re-evaluate existing needed blocks", {
       plugins = list(),
       callbacks = function(visible, ...) {
         visible("b")
+        NULL
+      }
+    )
+  )
+})
+
+test_that("a variadic block receives its inputs as values, not reactives", {
+
+  reset_probes()
+  probe_args$entry_classes <- NULL
+
+  board <- new_board(
+    blocks = c(
+      a = with_id(probe_source(), "a"),
+      b = with_id(probe_source(), "b"),
+      c = with_id(probe_variadic(), "c")
+    ),
+    links = links(new_link("a", "c", "1"), new_link("b", "c", "2"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_length(probe_args$entry_classes, 2)
+      expect_setequal(probe_args$entry_classes, "data.frame")
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visible, ...) {
+        visible("c")
+        NULL
+      }
+    )
+  )
+})
+
+test_that("an off-screen variadic block does not pull its inputs", {
+
+  reset_probes()
+
+  board <- new_board(
+    blocks = c(
+      a = with_id(probe_source(), "a"),
+      b = with_id(probe_source(), "b"),
+      c = with_id(probe_variadic(), "c"),
+      e = with_id(probe_source(), "e")
+    ),
+    links = links(new_link("a", "c", "1"), new_link("b", "c", "2"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_true(evaluated("e"))
+
+      expect_false(evaluated("a"))
+      expect_false(evaluated("b"))
+      expect_false(evaluated("c"))
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visible, ...) {
+        visible("e")
         NULL
       }
     )

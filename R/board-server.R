@@ -67,6 +67,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         blocks = list(),
         inputs = list(),
         sources = list(),
+        arg_writers = list(),
         board = x,
         board_id = id,
         stacks = list(),
@@ -403,6 +404,7 @@ setup_board <- function(rv, blk_ed, blk_ct, stk_mod, args, sess) {
   rv$blocks <- list()
   rv$inputs <- list()
   rv$sources <- list()
+  rv$arg_writers <- list()
   rv$stacks <- list()
 
   blks <- board_blocks(rv$board)
@@ -447,6 +449,29 @@ setup_block <- function(blk, id, rv, mod_ed, mod_ct, args) {
   }
 
   rv$inputs[[id]] <- inpts
+
+  if (is.na(arity)) {
+
+    arg_rv <- rv$inputs[[id]][["...args"]]
+
+    rv$arg_writers[[id]] <- observe(
+      {
+        needed <- rv$needed()
+        req(isTRUE(needed) || id %in% needed)
+
+        for (k in setdiff(names(src_rv), block_inputs(blk))) {
+
+          from <- src_rv[[k]]
+
+          arg_rv[[k]] <- if (is.null(from)) {
+            NULL
+          } else {
+            isolate(rv$blocks[[from]])$server$result()
+          }
+        }
+      }
+    )
+  }
 
   links <- board_links(rv$board)
 
@@ -503,10 +528,14 @@ destroy_rm_blocks <- function(ids, rv, sess, args) {
   for (id in ids) {
     destroy_module(paste0("block_", id), session = sess)
     remove_block_from_stack(rv$board, id, rv$board_id, sess)
+    if (not_null(rv$arg_writers[[id]])) {
+      rv$arg_writers[[id]]$destroy()
+    }
   }
 
   rv$inputs <- rv$inputs[!names(rv$inputs) %in% ids]
   rv$sources <- rv$sources[!names(rv$sources) %in% ids]
+  rv$arg_writers <- rv$arg_writers[!names(rv$arg_writers) %in% ids]
   rv$blocks <- rv$blocks[!names(rv$blocks) %in% ids]
 
   rv$board <- do.call(
@@ -538,13 +567,6 @@ upstream_result <- function(input, src_rv, rv, to) {
 setup_link <- function(rv, id, from, to, input) {
 
   src_rv <- rv$sources[[to]]
-
-  if (!input %in% block_inputs(board_blocks(rv$board)[[to]])) {
-    rv$inputs[[to]][["...args"]][[input]] <- upstream_result(
-      input, src_rv, rv, to
-    )
-  }
-
   src_rv[[input]] <- from
 
   invisible()
