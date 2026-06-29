@@ -3,8 +3,12 @@
 # Give Chrome longer to open its remote-debugging port. chromote's default is
 # 10s (`getOption("chromote.timeout", 10)` in launch_chrome_impl), too short on
 # loaded CI runners -- Windows especially -- where launch intermittently aborts
-# with "Chrome debugging port not open after 10 seconds".
-options(chromote.timeout = 30)
+# with "Chrome debugging port not open after 10 seconds". Scoped to the suite
+# so the option is restored when testing finishes.
+withr::local_options(
+  chromote.timeout = 30,
+  .local_envir = testthat::teardown_env()
+)
 
 # Chrome leaves scratch dirs (com.google.Chrome.* / org.chromium.Chromium.*,
 # scoped_dir variants included) in the session temp parent (`$TMPDIR`), which
