@@ -182,6 +182,39 @@ test_that("board constructor", {
   )
 })
 
+test_that("validate_board checks each collection, not just cross-relations", {
+
+  board <- new_board(c(a = new_dataset_block(), b = new_subset_block()))
+
+  # Board accessors are pure reads, so validate_board must itself run each
+  # collection's validator. A bare list (e.g. from a botched deserialization)
+  # slips past the cross-relationship checks but not the per-collection ones.
+
+  blocks_corrupt <- board
+  blocks_corrupt[["blocks"]] <- list()
+
+  expect_error(
+    validate_board(blocks_corrupt),
+    class = "blocks_class_invalid"
+  )
+
+  links_corrupt <- board
+  links_corrupt[["links"]] <- list()
+
+  expect_error(
+    validate_board(links_corrupt),
+    class = "links_class_invalid"
+  )
+
+  stacks_corrupt <- board
+  stacks_corrupt[["stacks"]] <- list()
+
+  expect_error(
+    validate_board(stacks_corrupt),
+    class = "stacks_class_invalid"
+  )
+})
+
 test_that("a board has a compact str_value()", {
 
   board <- new_board(
