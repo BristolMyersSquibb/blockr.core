@@ -63,7 +63,6 @@ Suggests:
 Config/testthat/edition: 3
 VignetteBuilder: quarto
 Collate:
-    'arg-type.R'
     'block-args.R'
     'block-class.R'
     'block-eval.R'
