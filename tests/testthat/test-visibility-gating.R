@@ -340,3 +340,45 @@ test_that("an unrelated structural edit does not re-evaluate needed blocks", {
     )
   )
 })
+
+test_that("adding a block does not re-evaluate existing needed blocks", {
+
+  reset_probes()
+
+  board <- new_board(
+    blocks = c(
+      a = with_id(probe_source(), "a"),
+      b = with_id(probe_passthrough(), "b")
+    ),
+    links = links(new_link("a", "b", "data"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_true(evaluated("a"))
+      expect_true(evaluated("b"))
+
+      reset_probes()
+
+      board_update(
+        list(blocks = list(add = blocks(d = with_id(probe_source(), "d"))))
+      )
+      session$flushReact()
+
+      expect_false(evaluated("a"))
+      expect_false(evaluated("b"))
+      expect_false(evaluated("d"))
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visible, ...) {
+        visible("b")
+        NULL
+      }
+    )
+  )
+})

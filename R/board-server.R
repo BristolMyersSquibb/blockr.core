@@ -434,18 +434,18 @@ setup_block <- function(blk, id, rv, mod_ed, mod_ct, args) {
   arity <- block_arity(blk)
   inpts <- block_inputs(blk)
 
-  srcs <- set_names(
-    replicate(length(inpts), reactiveVal()),
+  rv$sources[[id]] <- reactiveValues()
+  src_rv <- rv$sources[[id]]
+
+  inpts <- set_names(
+    lapply(inpts, upstream_result, src_rv, rv, id),
     inpts
   )
-
-  inpts <- lapply(srcs, upstream_result, rv, id)
 
   if (is.na(arity)) {
     inpts <- c(inpts, list(`...args` = reactiveValues()))
   }
 
-  rv$sources[[id]] <- srcs
   rv$inputs[[id]] <- inpts
 
   links <- board_links(rv$board)
@@ -517,19 +517,19 @@ destroy_rm_blocks <- function(ids, rv, sess, args) {
   invisible()
 }
 
-upstream_result <- function(src, rv, to) {
+upstream_result <- function(input, src_rv, rv, to) {
 
   reactive(
     {
       needed <- rv$needed()
       req(isTRUE(needed) || to %in% needed)
 
-      from <- reval_if(src)
+      from <- src_rv[[input]]
 
       if (is.null(from)) {
         NULL
       } else {
-        rv$blocks[[from]]$server$result()
+        isolate(rv$blocks[[from]])$server$result()
       }
     }
   )
@@ -537,20 +537,27 @@ upstream_result <- function(src, rv, to) {
 
 setup_link <- function(rv, id, from, to, input) {
 
-  if (input %in% block_inputs(board_blocks(rv$board)[[to]])) {
-    rv$sources[[to]][[input]](from)
-  } else {
-    rv$inputs[[to]][["...args"]][[input]] <- upstream_result(from, rv, to)
+  src_rv <- rv$sources[[to]]
+
+  if (!input %in% block_inputs(board_blocks(rv$board)[[to]])) {
+    rv$inputs[[to]][["...args"]][[input]] <- upstream_result(
+      input, src_rv, rv, to
+    )
   }
+
+  src_rv[[input]] <- from
 
   invisible()
 }
 
 destroy_link <- function(rv, id, from, to, input) {
 
+  src_rv <- rv$sources[[to]]
+
   if (input %in% block_inputs(board_blocks(rv$board)[[to]])) {
-    rv$sources[[to]][[input]](NULL)
+    src_rv[[input]] <- NULL
   } else {
+    trim_rv(src_rv, input)
     trim_rv(rv$inputs[[to]][["...args"]], input)
   }
 
