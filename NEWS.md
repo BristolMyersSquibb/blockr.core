@@ -1,5 +1,30 @@
 # blockr.core 0.1.3
 
+* Block registry entries gained a structured argument specification, built
+  with the new exported `new_block_args()` / `new_block_arg()`, carrying a
+  per-argument `description`, a single worked `example`, and an optional
+  machine-readable `type`. `register_block()` additionally accepts block-level
+  `details`, `link`, `guidance`, `examples`, and `keywords`. The construction
+  metadata formerly smuggled as `examples` / `prompt` attributes on `arguments`
+  is now first-class and validated at registration (every argument is a real
+  constructor formal and every worked example actually constructs); the legacy
+  attributes are still absorbed, with a deprecation warning (#121).
+* An argument's `type` is a dependency-free JSON-Schema-subset descriptor built
+  with `arg_string()`, `arg_number()`, `arg_integer()`, `arg_boolean()`,
+  `arg_enum()`, `arg_array()` and `arg_object()` (consumable directly, e.g. via
+  `ellmer::type_from_schema()`), replacing the opaque `ellmer::type_*` slot.
+  Registration now validates the descriptor and checks each worked example
+  against it, so a malformed-but-constructible value is rejected (#121).
+* Block metadata is exposed two ways. `block_metadata()` returns a
+  `data.frame` over one or many blocks -- dispatching on a `block`, a `blocks`
+  collection, a `block_registry_entry` or a registry ID -- with every attribute
+  available as a column (the multi-valued `arguments`, `examples` and
+  `keywords` as list-columns) and a `fields` argument to select a subset. Each
+  attribute additionally has a single-block getter: `block_meta_name()`,
+  `block_meta_description()`, `block_meta_guidance()`, `block_meta_arguments()`,
+  `block_meta_keywords()`, and so on. A single argument's fields are read with
+  `block_arg_description()`, `block_arg_example()` and `block_arg_type()`.
+  `registry_metadata()` is deprecated in favour of these (#121).
 * Board options contributed by blocks or the registry (e.g. the
   preview-row count) are no longer reset to their defaults on save and
   reload. The settings sidebar manages the wider `blockr_app_options()`

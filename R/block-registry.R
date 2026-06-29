@@ -38,7 +38,20 @@ block_registry <- new.env()
 #' @param category Useful to sort blocks by topics. If not specified,
 #'   blocks are uncategorized.
 #' @param icon Icon
-#' @param arguments Block argument description
+#' @param arguments Block argument specification, either a [new_block_args()]
+#'   object or a (possibly empty) named character vector of argument
+#'   descriptions
+#' @param details Optional longer human-facing description (e.g. for a help
+#'   popover), complementing the short `description`
+#' @param link Optional URL to a block's help or documentation page
+#' @param guidance Optional model-facing construction guidance (do/don't rules,
+#'   enums, pitfalls), distinct from the human-facing `details`. Retrieved with
+#'   [block_metadata()]
+#' @param examples Optional list of complete worked configurations (each a
+#'   named list keyed by argument name); supersedes the per-argument example
+#'   assembly. Retrieved with [block_metadata()]
+#' @param keywords Optional character vector of free-text search terms for block
+#'   discovery, retrieved with [block_metadata()]
 #' @param package Package where constructor is defined (or `NULL`)
 #' @param overwrite Overwrite existing entry
 #'
@@ -55,12 +68,16 @@ block_registry <- new.env()
 #' effects and return `block_registry_entry` object(s) invisibly, while
 #' `unregister_blocks()` returns `NULL` (invisibly). Listing via `list_blocks()`
 #' returns a character vector and a list of `block_registry_entry` object(s) for
-#' `available_blocks()`. Finally, `create_block()` returns a newly instantiated
-#' `block` object.
+#' `available_blocks()`. `create_block()` returns a newly instantiated `block`
+#' object. A block's registered metadata is read with [block_metadata()] and the
+#' `block_meta_*()` accessors, and its argument specification is built and read
+#' with [new_block_arg()] and friends.
 #'
 #' @export
 register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
                            category = NULL, icon = NULL, arguments = NULL,
+                           details = NULL, link = NULL, guidance = NULL,
+                           examples = list(), keywords = NULL,
                            package = NULL, overwrite = FALSE) {
 
   if (is.null(category)) {
@@ -114,13 +131,15 @@ register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
     package <- pkg_name(environment(ctor))
   }
 
-  if (is.null(classes) || is.null(arguments)) {
+  ctor_ref <- if (is.null(ctor_name)) ctor else ctor_name
+  ctor_pkg <- if (is.null(ctor_name)) NULL else package
 
-    if (is.null(ctor_name)) {
-      obj <- ctor(ctor = ctor, ctor_pkg = NULL, block_metadata = FALSE)
-    } else {
-      obj <- ctor(ctor = ctor_name, ctor_pkg = package, block_metadata = FALSE)
-    }
+  user_spec <- is_block_args(arguments)
+  validate <- user_spec || length(examples) > 0L
+
+  if (is.null(classes) || is.null(arguments) || validate) {
+
+    obj <- ctor(ctor = ctor_ref, ctor_pkg = ctor_pkg, block_metadata = FALSE)
 
     if (is.null(classes)) {
       classes <- class(obj)
@@ -129,6 +148,15 @@ register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
     if (is.null(arguments)) {
       arguments <- external_ctrl_vars(obj)
     }
+  }
+
+  norm <- normalize_arguments(arguments, guidance)
+  arguments <- norm[["arguments"]]
+  guidance <- norm[["guidance"]]
+
+  if (validate) {
+    validate_block_spec(arguments, examples, obj, ctor, ctor_ref, ctor_pkg,
+                        check_names = user_spec)
   }
 
   if (is.null(uid)) {
@@ -150,6 +178,11 @@ register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
     category = category,
     icon = icon,
     arguments = arguments,
+    details = details,
+    link = link,
+    guidance = guidance,
+    examples = examples,
+    keywords = keywords,
     ctor_name = ctor_name,
     package = package
   )
@@ -283,7 +316,9 @@ unregister_blocks <- function(uid = list_blocks()) {
   invisible()
 }
 
-#' @param ... Forwarded to `register_block()`
+#' @param ... For `register_blocks()`, arguments forwarded to
+#'   `register_block()`; for `new_block_args()`, named `new_block_arg()` objects
+#'   (or strings), one per constructor formal
 #' @rdname register_block
 #' @export
 register_blocks <- function(...) {
@@ -319,11 +354,34 @@ available_blocks <- function() {
 registry_metadata_fields <- c(
   "name",
   "description",
+  "details",
+  "link",
+  "guidance",
+  "keywords",
   "category",
   "icon",
   "arguments",
   "package"
 )
+
+registry_scalar_field <- function(entry, field) {
+  coal(attr(entry, field), NA_character_, fail_all = FALSE)
+}
+
+registry_keywords_field <- function(entry) {
+  coal(attr(entry, "keywords"), character(), fail_all = FALSE)
+}
+
+registry_arguments_field <- function(entry) {
+
+  args <- attr(entry, "arguments")
+
+  as_legacy_arguments(
+    args,
+    attr(entry, "guidance"),
+    block_examples_list(args, attr(entry, "examples"))
+  )
+}
 
 #' @param blocks Character vector of registry IDs
 #' @param fields Metadata fields
@@ -331,6 +389,14 @@ registry_metadata_fields <- c(
 #' @rdname register_block
 #' @export
 registry_metadata <- function(blocks = list_blocks(), fields = "all") {
+
+  blockr_warn(
+    "`registry_metadata()` is deprecated; use `block_metadata()` or the ",
+    "`block_meta_*()` accessors instead.",
+    class = "deprecated_registry_metadata",
+    frequency = "once",
+    frequency_id = "blockr_deprecated_registry_metadata"
+  )
 
   stopifnot(is.character(blocks), is.character(fields))
 
@@ -341,15 +407,19 @@ registry_metadata <- function(blocks = list_blocks(), fields = "all") {
   fields <- match.arg(fields, registry_metadata_fields, several.ok = TRUE)
 
   reg <- lapply(blocks, get_registry_entry)
-  fld <- setdiff(fields, c("package", "arguments"))
+  scalar <- setdiff(fields, c("keywords", "arguments", "package"))
 
   res <- lapply(
-    set_names(nm = fld),
-    function(f) chr_ply(reg, attr, f)
+    set_names(nm = scalar),
+    function(f) chr_ply(reg, registry_scalar_field, f)
   )
 
+  if ("keywords" %in% fields) {
+    res <- c(res, list(keywords = lapply(reg, registry_keywords_field)))
+  }
+
   if ("arguments" %in% fields) {
-    res <- c(res, list(arguments = lapply(reg, attr, "arguments")))
+    res <- c(res, list(arguments = lapply(reg, registry_arguments_field)))
   }
 
   if ("package" %in% fields) {
@@ -358,6 +428,8 @@ registry_metadata <- function(blocks = list_blocks(), fields = "all") {
       list(package = chr_ply(lapply(reg, attr, "package"), coal, "local"))
     )
   }
+
+  res <- res[intersect(fields, names(res))]
 
   if (length(fields) == 1L && length(blocks) == 1L) {
     return(res[[1L]])
@@ -455,7 +527,12 @@ register_core_blocks <- function(which = blockr_option("core_blocks", "all")) {
       "braces"
     )[blocks],
     arguments = list(
-      c(dataset = "Selects the dataset to use."),
+      new_block_args(
+        dataset = new_block_arg(
+          description = "Selects the dataset to use.",
+          example = "iris"
+        )
+      ),
       character(),
       character(),
       character(),

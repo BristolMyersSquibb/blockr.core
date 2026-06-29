@@ -195,7 +195,7 @@ new_block <- function(server, ui, class, ctor = sys.parent(), ctor_pkg = NULL,
     if (length(uid)) {
 
       block_metadata <- lapply(
-        set_names(nm = registry_metadata_fields),
+        set_names(nm = block_record_fields()),
         get_attr,
         get_registry_entry(uid)
       )
@@ -733,37 +733,4 @@ external_ctrl_vars.block <- function(x) {
 #' @export
 has_external_ctrl <- function(x) {
   length(external_ctrl_vars(x)) > 0
-}
-
-#' @rdname block_name
-#' @export
-block_metadata <- function(x) {
-
-  default_name <- function(x) {
-    gsub("_", " ", class(x)[1L])
-  }
-
-  get_one <- function(x) {
-
-    met <- attr(x, "block_metadata")
-    cat <- coal(met[["category"]], default_category())
-
-    res <- list(
-      id = coal(met[["id"]], NA_character_),
-      name = coal(met[["name"]], default_name(x)),
-      description = coal(met[["description"]], "No description available."),
-      category = cat,
-      icon = coal(met[["icon"]], default_icon(cat)),
-      arguments = list(coal(met[["arguments"]], list())),
-      package = coal(met[["package"]], "local")
-    )
-
-    list2DF(res)
-  }
-
-  if (length(x)) {
-    do.call(rbind, lapply(as_blocks(x), get_one))
-  } else {
-    get_one(structure(list(), class = "block"))[0L, , drop = FALSE]
-  }
 }

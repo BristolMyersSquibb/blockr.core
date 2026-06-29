@@ -51,6 +51,7 @@ Suggests:
     memuse,
     withr,
     shinytest2,
+    chromote,
     roxy.shinylive,
     knitr,
     rmarkdown,
@@ -62,8 +63,10 @@ Suggests:
 Config/testthat/edition: 3
 VignetteBuilder: quarto
 Collate:
+    'block-args.R'
     'block-class.R'
     'block-eval.R'
+    'block-meta.R'
     'block-registry.R'
     'block-server.R'
     'block-ui.R'

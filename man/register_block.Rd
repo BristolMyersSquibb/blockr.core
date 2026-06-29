@@ -23,6 +23,11 @@ register_block(
   category = NULL,
   icon = NULL,
   arguments = NULL,
+  details = NULL,
+  link = NULL,
+  guidance = NULL,
+  examples = list(),
+  keywords = NULL,
   package = NULL,
   overwrite = FALSE
 )
@@ -61,7 +66,25 @@ blocks are uncategorized.}
 
 \item{icon}{Icon}
 
-\item{arguments}{Block argument description}
+\item{arguments}{Block argument specification, either a \code{\link[=new_block_args]{new_block_args()}}
+object or a (possibly empty) named character vector of argument
+descriptions}
+
+\item{details}{Optional longer human-facing description (e.g. for a help
+popover), complementing the short \code{description}}
+
+\item{link}{Optional URL to a block's help or documentation page}
+
+\item{guidance}{Optional model-facing construction guidance (do/don't rules,
+enums, pitfalls), distinct from the human-facing \code{details}. Retrieved with
+\code{\link[=block_metadata]{block_metadata()}}}
+
+\item{examples}{Optional list of complete worked configurations (each a
+named list keyed by argument name); supersedes the per-argument example
+assembly. Retrieved with \code{\link[=block_metadata]{block_metadata()}}}
+
+\item{keywords}{Optional character vector of free-text search terms for block
+discovery, retrieved with \code{\link[=block_metadata]{block_metadata()}}}
 
 \item{package}{Package where constructor is defined (or \code{NULL})}
 
@@ -69,7 +92,9 @@ blocks are uncategorized.}
 
 \item{block}{Block object}
 
-\item{...}{Forwarded to \code{register_block()}}
+\item{...}{For \code{register_blocks()}, arguments forwarded to
+\code{register_block()}; for \code{new_block_args()}, named \code{new_block_arg()} objects
+(or strings), one per constructor formal}
 
 \item{blocks}{Character vector of registry IDs}
 
@@ -82,8 +107,10 @@ blocks are uncategorized.}
 effects and return \code{block_registry_entry} object(s) invisibly, while
 \code{unregister_blocks()} returns \code{NULL} (invisibly). Listing via \code{list_blocks()}
 returns a character vector and a list of \code{block_registry_entry} object(s) for
-\code{available_blocks()}. Finally, \code{create_block()} returns a newly instantiated
-\code{block} object.
+\code{available_blocks()}. \code{create_block()} returns a newly instantiated \code{block}
+object. A block's registered metadata is read with \code{\link[=block_metadata]{block_metadata()}} and the
+\verb{block_meta_*()} accessors, and its argument specification is built and read
+with \code{\link[=new_block_arg]{new_block_arg()}} and friends.
 }
 \description{
 Listing of blocks is available via a block registry, which associates a block

@@ -8,7 +8,6 @@
 \alias{block_arity}
 \alias{external_ctrl_vars}
 \alias{has_external_ctrl}
-\alias{block_metadata}
 \title{Block utilities}
 \usage{
 block_name(x)
@@ -24,8 +23,6 @@ block_arity(x)
 external_ctrl_vars(x)
 
 has_external_ctrl(x)
-
-block_metadata(x)
 }
 \arguments{
 \item{x}{An object inheriting from \code{"block"}}
