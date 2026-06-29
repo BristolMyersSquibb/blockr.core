@@ -83,11 +83,27 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         )
       )
 
-      rv$needed <- reactive(
-        if (isTRUE(rv$visible)) {
-          TRUE
-        } else {
-          upstream_blocks(rv$visible, rv$board)
+      rv$needed <- reactiveVal(TRUE)
+
+      observe(
+        {
+          cur <- if (isTRUE(rv$visible)) {
+            TRUE
+          } else {
+            upstream_blocks(rv$visible, rv$board)
+          }
+
+          old <- isolate(rv$needed())
+
+          same <- if (isTRUE(cur) || isTRUE(old)) {
+            identical(cur, old)
+          } else {
+            setequal(cur, old)
+          }
+
+          if (!same) {
+            rv$needed(cur)
+          }
         }
       )
 

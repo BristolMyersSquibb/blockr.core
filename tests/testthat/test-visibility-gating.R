@@ -296,3 +296,47 @@ test_that("an off-screen data-observing block does not pull its upstream", {
     )
   )
 })
+
+test_that("an unrelated structural edit does not re-evaluate needed blocks", {
+
+  reset_probes()
+
+  board <- new_board(
+    blocks = c(
+      a = with_id(probe_source(), "a"),
+      b = with_id(probe_passthrough(), "b"),
+      x = with_id(probe_source(), "x")
+    ),
+    links = links(new_link("a", "b", "data"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_true(evaluated("a"))
+      expect_true(evaluated("b"))
+      expect_false(evaluated("x"))
+
+      reset_probes()
+
+      board_update(
+        list(blocks = list(mod = list(x = list(block_name = "renamed"))))
+      )
+      session$flushReact()
+
+      expect_false(evaluated("a"))
+      expect_false(evaluated("b"))
+      expect_false(evaluated("x"))
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visible, ...) {
+        visible("b")
+        NULL
+      }
+    )
+  )
+})
