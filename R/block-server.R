@@ -105,8 +105,7 @@ block_server.block <- function(id, x, data = list(), block_id = id,
           res <- lapply(data[names(data) != "...args"], reval)
 
           if ("...args" %in% names(data)) {
-            args <- lapply(reactiveValuesToList(data[["...args"]]), reval_if)
-            res <- c(res, list(`...args` = args))
+            res <- c(res, list(`...args` = as.list(data[["...args"]])))
           }
 
           res
@@ -313,7 +312,7 @@ reorder_dots_observer <- function(data, sess) {
             which(!pos_args)
           )
 
-          reorder_rv(data[["...args"]], arg_names[ind])
+          reorder_reactives(data[["...args"]], arg_names[ind])
         }
       },
       domain = sess
