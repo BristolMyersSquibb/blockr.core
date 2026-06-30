@@ -33,7 +33,14 @@ serve <- function(x, ...) {
 serve.block <- function(x, id = "block", ..., data = list()) {
 
   init_data <- function(x, is_variadic) {
-    if (is_variadic) do.call(reactiveValues, x) else reactiveVal(x)
+
+    if (!is_variadic) {
+      return(reactiveVal(x))
+    }
+
+    const <- function(val) function() val
+
+    do.call(reactives, lapply(x, const))
   }
 
   if (...length() && !length(data)) {

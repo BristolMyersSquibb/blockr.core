@@ -1,16 +1,3 @@
-reorder_rv <- function(x, new) {
-
-  stopifnot(is.reactivevalues(x))
-
-  internals <- .subset2(x, "impl")
-
-  stopifnot(setequal(new, internals$.nameOrder), anyDuplicated(new) == 0L)
-
-  internals$.nameOrder <- new
-
-  invisible(x)
-}
-
 #' Remove entries from a `reactiveValues` object
 #'
 #' shiny offers no public way to delete a key from a [shiny::reactiveValues()]
