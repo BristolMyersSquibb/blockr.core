@@ -290,14 +290,6 @@ validate_block_server <- function(server) {
     )
   }
 
-  if (any(grepl("^[1-9][0-9]*$", args))) {
-    blockr_abort(
-      "Integer-valued argument names are reserved as positional arguments",
-      "in `...args.`",
-      class = "block_server_args_invalid"
-    )
-  }
-
   invisible(server)
 }
 

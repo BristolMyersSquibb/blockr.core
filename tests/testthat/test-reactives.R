@@ -269,3 +269,31 @@ test_that("set_reactive replaces an existing slot without duplicating it", {
     )
   )
 })
+
+test_that("append_reactive adds unnamed slots at the end", {
+
+  with_mock_session(
+    {
+      coll <- reactives(a = function() 1)
+
+      seen <- NULL
+      observe(seen <<- as.list(coll))
+      session$flushReact()
+
+      expect_identical(seen, list(a = 1))
+
+      append_reactive(coll, function() 2)
+      append_reactive(coll, function() 3)
+      session$flushReact()
+
+      expect_identical(seen, list(a = 1, 2, 3))
+      expect_identical(isolate(names(coll)), c("a", "", ""))
+      expect_identical(isolate(length(coll)), 3L)
+
+      drop_reactive(coll, isolate(raw_keys(coll))[[2L]])
+      session$flushReact()
+
+      expect_identical(seen, list(a = 1, 3))
+    }
+  )
+})

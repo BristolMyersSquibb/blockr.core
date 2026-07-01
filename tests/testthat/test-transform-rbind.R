@@ -17,8 +17,8 @@ test_that("rbind block constructor", {
       x = blk,
       data = list(
         ...args = reactives(
-          `1` = function() iris[1:3, ],
-          `2` = function() iris[4:6, ]
+          function() iris[1:3, ],
+          function() iris[4:6, ]
         )
       )
     )
@@ -57,7 +57,7 @@ test_that("rbind block constructor", {
       x = blk,
       data = list(
         ...args = reactives(
-          `1` = function() iris[1:3, ],
+          function() iris[1:3, ],
           a = function() iris[4:6, ]
         )
       )
@@ -65,7 +65,7 @@ test_that("rbind block constructor", {
   )
 })
 
-test_that("rbind block evaluates as a variadic block in a board", {
+test_that("named variadic inputs produce named rbind arguments", {
 
   board <- new_board(
     blocks = c(
@@ -74,8 +74,43 @@ test_that("rbind block evaluates as a variadic block in a board", {
       c = new_rbind_block()
     ),
     links = links(
-      ac = new_link("a", "c", "1"),
-      bc = new_link("b", "c", "2")
+      ac = new_link("a", "c", "left"),
+      bc = new_link("b", "c", "right")
+    )
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_identical(
+        rv$blocks$c$server$result(),
+        rbind(left = datasets::BOD, right = datasets::BOD)
+      )
+
+      code <- export_wrapped_code(
+        lapply(lst_xtr(rv$blocks, "server", "expr"), reval),
+        rv$board
+      )
+
+      expect_match(code, "rbind(left = a, right = b)", fixed = TRUE)
+    },
+    args = list(x = board)
+  )
+})
+
+test_that("unnamed variadic inputs produce a positional rbind", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      b = new_dataset_block("BOD"),
+      c = new_rbind_block()
+    ),
+    links = links(
+      ac = new_link("a", "c"),
+      bc = new_link("b", "c")
     )
   )
 
@@ -100,35 +135,7 @@ test_that("rbind block evaluates as a variadic block in a board", {
   )
 })
 
-test_that("rbind variadic inputs need no explicit positional names", {
-
-  board <- new_board(
-    blocks = c(
-      a = new_dataset_block("BOD"),
-      b = new_dataset_block("BOD"),
-      c = new_rbind_block()
-    ),
-    links = links(
-      ac = new_link("a", "c"),
-      bc = new_link("b", "c")
-    )
-  )
-
-  testServer(
-    get_s3_method("board_server", board),
-    {
-      session$flushReact()
-
-      expect_identical(
-        rv$blocks$c$server$result(),
-        rbind(datasets::BOD, datasets::BOD)
-      )
-    },
-    args = list(x = board)
-  )
-})
-
-test_that("positional ...args are ordered by their numeric key", {
+test_that("positional ...args follow container order, not any sort", {
 
   blk <- new_rbind_block()
 
@@ -146,8 +153,8 @@ test_that("positional ...args are ordered by their numeric key", {
       x = blk,
       data = list(
         ...args = reactives(
-          `2` = function() iris[1:3, ],
-          `1` = function() iris[4:6, ]
+          function() iris[4:6, ],
+          function() iris[1:3, ]
         )
       )
     )

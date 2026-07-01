@@ -87,8 +87,6 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         block = NULL
       )
 
-      reorder_dots_observer(data, session)
-
       exp <- check_expr_val(
         expr_server(x, data),
         x
@@ -105,7 +103,7 @@ block_server.block <- function(id, x, data = list(), block_id = id,
           res <- lapply(data[names(data) != "...args"], reval)
 
           if ("...args" %in% names(data)) {
-            res <- c(res, list(`...args` = as.list(data[["...args"]])))
+            res <- c(res, list(`...args` = dot_arg_values(data[["...args"]])))
           }
 
           res
@@ -292,32 +290,6 @@ expr_server <- function(x, data, ...) {
 #' @export
 expr_server.block <- function(x, data, ...) {
   do.call(block_expr_server(x), c(list(id = "expr"), data))
-}
-
-reorder_dots_observer <- function(data, sess) {
-
-  if ("...args" %in% names(data)) {
-
-    observeEvent(
-      names(data[["...args"]]),
-      {
-        arg_names <- names(data[["...args"]])
-        pos_args <- grepl("[1-9][0-9]*", arg_names)
-
-        if (any(pos_args)) {
-
-          ind <- which(pos_args)
-          ind <- c(
-            ind[order(as.integer(arg_names[ind]))],
-            which(!pos_args)
-          )
-
-          reorder_reactives(data[["...args"]], arg_names[ind])
-        }
-      },
-      domain = sess
-    )
-  }
 }
 
 validate_block_reactive <- function(id, x, dat, cond, sess) {

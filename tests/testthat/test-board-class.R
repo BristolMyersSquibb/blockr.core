@@ -237,7 +237,7 @@ test_that("a board has a compact str_value()", {
   expect_identical(capture.output(str(board))[1L], " <board>")
 })
 
-test_that("empty variadic link inputs complete to positional integers", {
+test_that("empty variadic link inputs stay unnamed", {
 
   board <- new_board(
     blocks = c(
@@ -251,5 +251,5 @@ test_that("empty variadic link inputs complete to positional integers", {
     )
   )
 
-  expect_identical(board_links(board)$input, c("1", "2"))
+  expect_identical(board_links(board)$input, c("", ""))
 })

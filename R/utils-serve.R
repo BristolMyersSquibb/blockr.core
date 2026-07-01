@@ -47,11 +47,17 @@ serve.block <- function(x, id = "block", ..., data = list()) {
     data <- list(...)
   }
 
-  dot_args <- !names(data) %in% block_inputs(x)
+  nms <- names(data)
+
+  if (is.null(nms)) {
+    nms <- character(length(data))
+  }
+
+  dot_args <- !nms %in% block_inputs(x)
 
   if (!is.na(block_arity(x)) && any(dot_args)) {
     blockr_abort(
-      "Unexpected arguments {names(data)[dot_args]}.",
+      "Unexpected arguments {nms[dot_args]}.",
       class = "unexpected_var_args"
     )
   }

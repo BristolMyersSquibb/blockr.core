@@ -17,7 +17,10 @@ export_code <- function(expressions, board) {
   arg_map <- lapply(
     split(as.list(lnks), lnks$to),
     function(x) {
-      set_names(lapply(lst_xtr(x, "from"), as.name), lst_xtr(x, "input"))
+      set_names(
+        lapply(lst_xtr(x, "from"), as.name),
+        arg_refs(chr_xtr(x, "input"))
+      )
     }
   )
 

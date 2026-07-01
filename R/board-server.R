@@ -517,14 +517,14 @@ destroy_rm_blocks <- function(ids, rv, sess, args) {
   invisible()
 }
 
-upstream_result <- function(input, src_rv, rv, to) {
+upstream_result <- function(key, src_rv, rv, to) {
 
   reactive(
     {
       needed <- rv$needed()
       req(isTRUE(needed) || to %in% needed)
 
-      from <- src_rv[[input]]
+      from <- src_rv[[key]]
 
       if (is.null(from)) {
         NULL
@@ -535,18 +535,14 @@ upstream_result <- function(input, src_rv, rv, to) {
   )
 }
 
+link_slot_key <- function(rv, to, id, input) {
+
+  if (input %in% block_inputs(board_blocks(rv$board)[[to]])) input else id
+}
+
 setup_link <- function(rv, id, from, to, input) {
 
-  src_rv <- rv$sources[[to]]
-
-  if (!input %in% block_inputs(board_blocks(rv$board)[[to]])) {
-    set_reactive(
-      rv$inputs[[to]][["...args"]], input,
-      upstream_result(input, src_rv, rv, to)
-    )
-  }
-
-  src_rv[[input]] <- from
+  rv$sources[[to]][[link_slot_key(rv, to, id, input)]] <- from
 
   invisible()
 }
@@ -558,8 +554,43 @@ destroy_link <- function(rv, id, from, to, input) {
   if (input %in% block_inputs(board_blocks(rv$board)[[to]])) {
     src_rv[[input]] <- NULL
   } else {
-    trim_rv(src_rv, input)
-    drop_reactive(rv$inputs[[to]][["...args"]], input)
+    trim_rv(src_rv, id)
+  }
+
+  invisible()
+}
+
+variadic_links <- function(rv, to, add, rm) {
+
+  lnks <- board_links(rv$board)
+  lnks <- c(lnks[!names(lnks) %in% c(names(rm), names(add))], add)
+
+  fixed <- block_inputs(board_blocks(rv$board)[[to]])
+
+  lnks[lnks$to == to & !field(lnks, "input") %in% fixed]
+}
+
+sync_dot_args <- function(rv, to, lnks) {
+
+  args <- rv$inputs[[to]][["...args"]]
+  src_rv <- rv$sources[[to]]
+
+  for (key in isolate(raw_keys(args))) {
+    drop_reactive(args, key)
+  }
+
+  ids <- names(lnks)
+  inputs <- field(lnks, "input")
+
+  for (i in seq_along(ids)) {
+
+    slot <- upstream_result(ids[[i]], src_rv, rv, to)
+
+    if (nzchar(inputs[[i]])) {
+      set_reactive(args, inputs[[i]], slot)
+    } else {
+      append_reactive(args, slot)
+    }
   }
 
   invisible()
@@ -577,6 +608,15 @@ update_block_links <- function(rv, add = NULL, rm = NULL) {
 
   for (i in names(todo)) {
     do.call(setup_link, c(list(rv, i), todo[[i]]))
+  }
+
+  blks <- board_blocks(rv$board)
+
+  touched <- unique(c(chr_xtr(as.list(rm), "to"), chr_xtr(as.list(add), "to")))
+  touched <- touched[is.na(int_ply(blks[touched], block_arity))]
+
+  for (to in touched) {
+    sync_dot_args(rv, to, variadic_links(rv, to, add, rm))
   }
 
   invisible()
@@ -1234,7 +1274,6 @@ augment_board_update.board <- function(upd, board, ...,
   if ("links" %in% names(upd) && "add" %in% names(upd$links)) {
 
     tmp <- complete_unary_inputs(upd$links$add, board_blocks(board))
-    tmp <- complete_variadic_inputs(tmp, board_blocks(board))
 
     if (!identical(tmp$input, upd$links$add$input)) {
       add_lnk <- tmp

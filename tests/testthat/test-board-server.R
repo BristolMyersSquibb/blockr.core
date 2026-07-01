@@ -522,29 +522,32 @@ test_that("update_link default preserves all fields through reconstruction", {
   expect_identical(out2$input, "y")
 })
 
-test_that("destroy_link drops an unlinked variadic ...args entry (#227)", {
+test_that("removing a variadic link drops its ...args slot", {
 
-  with_mock_session(
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      b = new_dataset_block("BOD"),
+      v = new_rbind_block()
+    ),
+    links = links(av = new_link("a", "v"), bv = new_link("b", "v"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
     {
-      rv <- reactiveValues(
-        board = new_board(blocks(v = new_rbind_block())),
-        sources = list(v = reactiveValues(a = "x", b = "y")),
-        inputs = list(
-          v = list(`...args` = reactives(a = function() 1, b = function() 2))
-        )
-      )
+      session$flushReact()
 
-      args <- isolate(rv$inputs$v[["...args"]])
-      srcs <- isolate(rv$sources$v)
+      args <- rv$inputs$v[["...args"]]
+      expect_identical(isolate(length(args)), 2L)
 
-      expect_setequal(isolate(names(args)), c("a", "b"))
-      expect_setequal(isolate(names(srcs)), c("a", "b"))
+      board_update(list(links = list(rm = "av")))
+      session$flushReact()
 
-      isolate(destroy_link(rv, "l1", from = "x", to = "v", input = "a"))
-
-      expect_setequal(isolate(names(args)), "b")
-      expect_setequal(isolate(names(srcs)), "b")
-    }
+      expect_identical(isolate(length(args)), 1L)
+      expect_identical(rv$blocks$v$server$result(), datasets::BOD)
+    },
+    args = list(x = board)
   )
 })
 

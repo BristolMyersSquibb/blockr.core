@@ -305,21 +305,30 @@ set_blockr_options <- function(...) {
   do.call(options, vals)
 }
 
-dot_args_names <- function(x) {
+dot_sym <- function(i) {
+  paste0(".arg", i)
+}
 
-  res <- names(x)
+arg_refs <- function(nms) {
 
-  unnamed <- grepl("^[1-9][0-9]*$", res)
+  unnamed <- !nzchar(nms)
 
-  if (all(unnamed)) {
-    return(NULL)
+  replace(nms, unnamed, dot_sym(seq_len(sum(unnamed))))
+}
+
+dot_arg_refs <- function(x) {
+
+  nms <- names(x)
+
+  if (is.null(nms)) {
+    nms <- character(length(x))
   }
 
-  if (any(unnamed)) {
-    return(replace(res, unnamed, ""))
-  }
+  set_names(arg_refs(nms), nms)
+}
 
-  res
+dot_arg_values <- function(x) {
+  set_names(as.list(x), unname(dot_arg_refs(x)))
 }
 
 exprs_to_lang <- function(exprs) {

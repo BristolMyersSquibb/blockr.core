@@ -66,7 +66,7 @@ test_that("rbind app", {
 
   expect_s3_class(res, "data.frame")
   expect_identical(dim(res), c(2L, 1L))
-  expect_identical(res[["a"]], c(2, 1))
+  expect_identical(res[["a"]], c(1, 2))
 })
 
 test_that("board app", {
