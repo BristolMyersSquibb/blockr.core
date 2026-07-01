@@ -563,7 +563,17 @@ destroy_link <- function(rv, id, from, to, input) {
 variadic_links <- function(rv, to, add, rm) {
 
   lnks <- board_links(rv$board)
-  lnks <- c(lnks[!names(lnks) %in% c(names(rm), names(add))], add)
+
+  present <- intersect(names(add), names(lnks))
+
+  if (length(present)) {
+    lnks[present] <- add[present]
+  }
+
+  fresh <- add[setdiff(names(add), present)]
+  drop <- setdiff(names(rm), present)
+
+  lnks <- c(lnks[!names(lnks) %in% drop], fresh)
 
   fixed <- block_inputs(board_blocks(rv$board)[[to]])
 

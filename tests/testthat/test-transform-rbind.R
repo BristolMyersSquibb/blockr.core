@@ -160,3 +160,51 @@ test_that("positional ...args follow container order, not any sort", {
     )
   )
 })
+
+test_that("editing a variadic link preserves its argument order", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      b = new_dataset_block("BOD"),
+      c = new_rbind_block()
+    ),
+    links = links(ac = new_link("a", "c"), bc = new_link("b", "c"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_match(
+        export_wrapped_code(
+          lapply(lst_xtr(rv$blocks, "server", "expr"), reval),
+          rv$board
+        ),
+        "rbind(a, b)",
+        fixed = TRUE
+      )
+
+      board_update(
+        list(
+          links = list(
+            add = links(ac = new_link("a", "c", "left")),
+            rm = "ac"
+          )
+        )
+      )
+      session$flushReact()
+
+      expect_match(
+        export_wrapped_code(
+          lapply(lst_xtr(rv$blocks, "server", "expr"), reval),
+          rv$board
+        ),
+        "rbind(left = a, b)",
+        fixed = TRUE
+      )
+    },
+    args = list(x = board)
+  )
+})

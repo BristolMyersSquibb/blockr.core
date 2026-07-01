@@ -405,6 +405,14 @@ modify_board_links.board <- function(x, add = NULL, rm = NULL, mod = NULL,
     rm <- names(rm)
   }
 
+  keep <- intersect(names(add), rm)
+
+  if (length(keep)) {
+    links[keep] <- add[keep]
+    add <- add[setdiff(names(add), keep)]
+    rm <- setdiff(rm, keep)
+  }
+
   if (length(rm)) {
     stopifnot(is.character(rm), all(rm %in% names(links)))
     links <- links[!names(links) %in% rm]
