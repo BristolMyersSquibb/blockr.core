@@ -412,3 +412,18 @@ test_that("variadic link inputs offer no positional-integer options", {
   expect_false(grepl("<option[^>]*value=\"[0-9]", dt$Input[[1L]]))
   expect_false(grepl("<option[^>]*value=\"[0-9]", dt$Input[[2L]]))
 })
+
+test_that("a named variadic link renders its name in the editor", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      c = new_rbind_block()
+    ),
+    links = links(l1 = new_link("a", "c", "left"))
+  )
+
+  dt <- dt_board_link(board_links(board), NS("x"), board)
+
+  expect_match(dt$Input[[1L]], "value=\"left\" selected", fixed = TRUE)
+})

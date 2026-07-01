@@ -140,12 +140,11 @@ dt_board_link <- function(lnk, ns, board) {
     names(to_avail)[to_avail > 0L]
   )
 
+  cur_inp <- lapply(split(lnk$input, lnk$to), filter_empty)
+
   in_avail <- c(
     lapply(blks[!is.na(arity)], block_inputs),
-    set_names(
-      rep(list(character()), sum(is.na(arity))),
-      names(arity)[is.na(arity)]
-    )
+    cur_inp[intersect(names(cur_inp), names(arity)[is.na(arity)])]
   )
 
   rm_inp <- lapply(
@@ -262,7 +261,7 @@ create_dt_link_obs <- function(ids, upd, ...) {
             hit <- upd$curr$to == new
 
             if (is.na(ary)) {
-              inp <- character()
+              inp <- upd$curr[[row]][["input"]]
               opt <- list(create = TRUE)
             } else {
               inp <- setdiff(block_inputs(blk), upd$curr$input[hit])
