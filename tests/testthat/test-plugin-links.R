@@ -395,3 +395,20 @@ test_that("dummy ad/rm link ui test", {
   expect_s3_class(manage_links_ui("link", new_board()), "shiny.tag.list")
   expect_s3_class(links_modal(NS("links")), "shiny.tag")
 })
+
+test_that("variadic link inputs offer no positional-integer options", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      b = new_dataset_block("BOD"),
+      c = new_rbind_block()
+    ),
+    links = links(ac = new_link("a", "c"), bc = new_link("b", "c"))
+  )
+
+  dt <- dt_board_link(board_links(board), NS("x"), board)
+
+  expect_false(grepl("<option[^>]*value=\"[0-9]", dt$Input[[1L]]))
+  expect_false(grepl("<option[^>]*value=\"[0-9]", dt$Input[[2L]]))
+})
