@@ -127,3 +127,29 @@ test_that("rbind variadic inputs need no explicit positional names", {
     args = list(x = board)
   )
 })
+
+test_that("positional ...args are ordered by their numeric key", {
+
+  blk <- new_rbind_block()
+
+  testServer(
+    get_s3_method("block_server", blk),
+    {
+      session$flushReact()
+
+      expect_identical(
+        session$returned$result(),
+        rbind(iris[4:6, ], iris[1:3, ])
+      )
+    },
+    args = list(
+      x = blk,
+      data = list(
+        ...args = reactives(
+          `2` = function() iris[1:3, ],
+          `1` = function() iris[4:6, ]
+        )
+      )
+    )
+  )
+})

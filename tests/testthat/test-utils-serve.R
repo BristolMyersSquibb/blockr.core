@@ -60,9 +60,13 @@ test_that("rbind app", {
     "Cannot start shinytest2 rbind app."
   )
 
-  app$expect_values(export = TRUE, screenshot_args = FALSE)
+  on.exit(app$stop(), add = TRUE)
 
-  app$stop()
+  res <- app$get_values(export = TRUE)$export[["result"]]
+
+  expect_s3_class(res, "data.frame")
+  expect_identical(dim(res), c(2L, 1L))
+  expect_identical(res[["a"]], c(2, 1))
 })
 
 test_that("board app", {

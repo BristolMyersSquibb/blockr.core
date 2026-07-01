@@ -236,3 +236,20 @@ test_that("a board has a compact str_value()", {
 
   expect_identical(capture.output(str(board))[1L], " <board>")
 })
+
+test_that("empty variadic link inputs complete to positional integers", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      b = new_dataset_block("BOD"),
+      c = new_rbind_block()
+    ),
+    links = links(
+      ac = new_link("a", "c"),
+      bc = new_link("b", "c")
+    )
+  )
+
+  expect_identical(board_links(board)$input, c("1", "2"))
+})

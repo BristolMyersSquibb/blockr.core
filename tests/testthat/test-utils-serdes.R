@@ -169,3 +169,39 @@ test_that("blockr_deser.list forwards `...` to per-class methods", {
   expect_s3_class(no_ctx, "deser_ctx_probe")
   expect_null(captured)
 })
+
+test_that("a board with variadic links round-trips and still evaluates", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      b = new_dataset_block("BOD"),
+      c = new_rbind_block()
+    ),
+    links = links(
+      ac = new_link("a", "c"),
+      bc = new_link("b", "c")
+    )
+  )
+
+  expect_identical(
+    board,
+    blockr_deser(blockr_ser(board)),
+    ignore_function_env = TRUE
+  )
+
+  restored <- blockr_deser(blockr_ser(board))
+
+  testServer(
+    get_s3_method("board_server", restored),
+    {
+      session$flushReact()
+
+      expect_identical(
+        rv$blocks$c$server$result(),
+        rbind(datasets::BOD, datasets::BOD)
+      )
+    },
+    args = list(x = restored)
+  )
+})
