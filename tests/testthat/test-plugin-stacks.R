@@ -210,6 +210,178 @@ test_that("add/rm stacks return validation", {
   )
 })
 
+test_that("merge_staged_stacks overlays staged edits on refreshed stacks", {
+
+  applied <- stacks(
+    k1 = new_stack(name = "One"),
+    k2 = new_stack(name = "Two")
+  )
+
+  expect_identical(
+    merge_staged_stacks(applied, stacks(), character(), stacks()),
+    applied
+  )
+
+  added <- stacks(z = new_stack(name = "Zed"))
+  expect_identical(
+    merge_staged_stacks(applied, added, character(), stacks()),
+    c(applied, added)
+  )
+
+  modded <- stacks(k1 = new_stack(name = "Renamed"))
+  in_place <- applied
+  in_place[["k1"]] <- modded[["k1"]]
+  expect_identical(
+    merge_staged_stacks(applied, stacks(), character(), modded),
+    in_place
+  )
+
+  expect_named(
+    merge_staged_stacks(applied, added, "k2", stacks()),
+    c("k1", "z")
+  )
+})
+
+test_that("manage stacks keeps staged edits when the board re-emits", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("iris"),
+      b = new_subset_block()
+    )
+  )
+
+  testServer(
+    manage_stacks_server,
+    {
+      session$flushReact()
+
+      session$setInputs(add_stack = 1)
+      session$flushReact()
+
+      row <- names(upd$add)
+      expect_length(upd$curr, 1L)
+
+      upd$edit <- list(row = row, col = "blocks", val = "a")
+      session$flushReact()
+
+      expect_named(upd$add, row)
+      expect_true(row %in% names(upd$curr))
+
+      board$board <- new_board(
+        blocks = c(
+          a = new_dataset_block("iris"),
+          b = new_subset_block()
+        )
+      )
+      session$flushReact()
+
+      expect_true(row %in% names(upd$curr))
+      expect_named(upd$add, row)
+      expect_identical(upd$curr[[row]], upd$add[[row]])
+
+      session$setInputs(modify_stacks = 1)
+
+      res <- update()$stacks
+
+      expect_named(res$add, row)
+    },
+    args = list(board = reactiveValues(board = board), update = reactiveVal())
+  )
+})
+
+test_that("manage stacks redraws only when the id set changes", {
+
+  redraws <- 0L
+
+  local_mocked_bindings(
+    replaceData = function(...) redraws <<- redraws + 1L,
+    .package = "DT"
+  )
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("iris"),
+      b = new_subset_block()
+    ),
+    stacks = stacks(ab = c("a", "b"))
+  )
+
+  testServer(
+    manage_stacks_server,
+    {
+      session$flushReact()
+
+      expect_identical(names(upd$curr), "ab")
+      expect_setequal(names(upd$obs), "ab")
+
+      base <- redraws
+
+      upd$curr <- stacks(ab = new_stack(blocks = "a", name = "ab"))
+      session$flushReact()
+
+      expect_identical(names(upd$curr), "ab")
+      expect_identical(redraws, base)
+      expect_setequal(names(upd$obs), "ab")
+
+      upd$curr <- stacks(
+        ab = new_stack(blocks = "a", name = "ab"),
+        cd = new_stack(blocks = "b", name = "cd")
+      )
+      session$flushReact()
+
+      expect_gt(redraws, base)
+      expect_setequal(names(upd$obs), c("ab", "cd"))
+    },
+    args = list(board = reactiveValues(board = board), update = reactiveVal())
+  )
+})
+
+test_that("manage stacks ignores no-op board re-emits", {
+
+  stack_syncs <- 0L
+
+  real_merge_stacks <- merge_staged_stacks
+
+  local_mocked_bindings(
+    merge_staged_stacks = function(...) {
+      stack_syncs <<- stack_syncs + 1L
+      real_merge_stacks(...)
+    }
+  )
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("iris"),
+      b = new_subset_block()
+    ),
+    stacks = stacks(s1 = new_stack(blocks = "a", name = "One"))
+  )
+
+  testServer(
+    manage_stacks_server,
+    {
+      session$flushReact()
+
+      expect_gt(stack_syncs, 0L)
+
+      stack_base <- stack_syncs
+
+      board$board <- new_board(
+        blocks = c(
+          a = new_dataset_block("iris"),
+          b = new_subset_block()
+        ),
+        stacks = stacks(s1 = new_stack(blocks = "a", name = "One"))
+      )
+      session$flushReact()
+
+      expect_identical(stack_syncs, stack_base)
+    },
+    args = list(board = reactiveValues(board = board), update = reactiveVal())
+  )
+})
+
 test_that("dummy ad/rm stack ui test", {
   expect_s3_class(manage_stacks_ui("stack", new_board()), "shiny.tag.list")
   expect_s3_class(stacks_modal(NS("stacks")), "shiny.tag")

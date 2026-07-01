@@ -54,10 +54,14 @@ manage_stacks_server <- function(id, board, update, ...) {
         edit = NULL
       )
 
+      applied_stacks <- deduped_board_reactive(board, board_stacks)
+
       observeEvent(
-        board_stacks(board$board),
+        applied_stacks(),
         {
-          upd$curr <- board_stacks(board$board)
+          upd$curr <- merge_staged_stacks(
+            applied_stacks(), upd$add, upd$rm, upd$mod
+          )
         }
       )
 
@@ -299,9 +303,13 @@ destroy_dt_stack_obs <- function(ids, update) {
 create_stack_obs_observer <- function(input, rv, upd, sess, proxy) {
 
   observeEvent(
-    upd$curr,
+    names(upd$curr),
     {
       ids <- names(upd$curr)
+
+      if (setequal(ids, names(upd$obs))) {
+        return()
+      }
 
       DT::replaceData(
         proxy,
@@ -349,6 +357,20 @@ edit_stack_observer <- function(upd, rv) {
       }
     }
   )
+}
+
+merge_staged_stacks <- function(applied, add, rm, mod) {
+
+  keep <- setdiff(names(applied), rm)
+  out <- applied[keep]
+
+  modded <- intersect(keep, names(mod))
+
+  if (length(modded)) {
+    out[modded] <- mod[modded]
+  }
+
+  c(out, add[setdiff(names(add), names(applied))])
 }
 
 add_stack_observer <- function(input, rv, upd, sess) {
