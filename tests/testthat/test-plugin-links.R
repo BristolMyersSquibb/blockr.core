@@ -427,3 +427,28 @@ test_that("a named variadic link renders its name in the editor", {
 
   expect_match(dt$Input[[1L]], "value=\"left\" selected", fixed = TRUE)
 })
+
+test_that("clearing a variadic input name registers as a staged change", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      c = new_rbind_block()
+    ),
+    links = links(l1 = new_link("a", "c", "left"))
+  )
+
+  testServer(
+    manage_links_server,
+    {
+      session$flushReact()
+
+      session$setInputs(l1_input = "")
+
+      expect_identical(upd$edit, list(row = "l1", col = "input", val = ""))
+      expect_length(upd$add, 1L)
+      expect_identical(upd$add[["l1"]][["input"]], "")
+    },
+    args = list(board = reactiveValues(board = board), update = reactiveVal())
+  )
+})

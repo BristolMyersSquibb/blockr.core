@@ -210,7 +210,7 @@ create_dt_link_obs <- function(ids, upd, ...) {
         new <- input[[inp]]
         cur <- upd$curr[[row]][[col]]
 
-        if (new == cur || new == "") {
+        if (new == cur || (new == "" && col != "input")) {
           return()
         }
 
