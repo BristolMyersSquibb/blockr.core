@@ -355,6 +355,23 @@ bs_theme_colors <- function(session) {
   )
 }
 
+deduped_board_reactive <- function(board, accessor) {
+
+  val <- reactiveVal(isolate(accessor(board$board)))
+
+  observe(
+    {
+      new <- accessor(board$board)
+
+      if (!identical(new, isolate(val()))) {
+        val(new)
+      }
+    }
+  )
+
+  val
+}
+
 setup_board <- function(rv, blk_ed, blk_ct, stk_mod, args, sess) {
 
   stopifnot(

@@ -1,5 +1,30 @@
 # blockr.core 0.1.3
 
+* The manage-links and manage-stacks plugins no longer flicker the table's
+  cell selectizes on a board re-emit (#246). The observer that keeps the
+  table in sync re-rendered every row whenever `upd$curr` was invalidated --
+  `observeEvent(names(upd$curr))` fires on each re-emit, not only when the
+  link or stack id set changes -- so `DT::replaceData` ran unconditionally,
+  briefly blanking the cell inputs before the async redraw landed. The
+  redraw is now guarded on the id set, so it runs only when a link or stack
+  is actually added or removed; value edits and no-op re-emits are skipped.
+* The manage-links and manage-stacks plugins no longer clobber staged
+  edits on a board re-emit (#246). The board-sync observers replaced the
+  working copy on every re-emit, dropping a half-finished staged add or
+  edit while its entry lingered in `upd$add` / `upd$mod`. A new
+  `merge_staged_links()` / `merge_staged_stacks()` overlay now merges the
+  refreshed applied state with the staged add / edit / rm deltas instead of
+  replacing it, mirroring the blockr.dock edit-board extension.
+* The manage-links and manage-stacks plugins now dedupe board re-emits
+  (#246). The board-sync observers keyed off `board_links()` /
+  `board_stacks()` fired on each board invalidation -- `observeEvent` does
+  not value-dedupe -- so a fresh board object carrying byte-identical links
+  or stacks still re-ran the handler. A new shared
+  `deduped_board_reactive()` helper wraps each board accessor in a
+  `reactiveVal` + `identical()` guard and keys the re-sync off the deduped
+  value, so a board update that leaves the links or stacks untouched never
+  reaches the plugin.
+
 * Block registry entries gained a structured argument specification, built
   with the new exported `new_block_args()` / `new_block_arg()`, carrying a
   per-argument `description`, a single worked `example`, and an optional

@@ -51,10 +51,12 @@ manage_links_server <- function(id, board, update, ...) {
         edit = NULL
       )
 
+      applied_links <- deduped_board_reactive(board, board_links)
+
       observeEvent(
-        board_links(board$board),
+        applied_links(),
         {
-          upd$curr <- board_links(board$board)
+          upd$curr <- merge_staged_links(applied_links(), upd$add, upd$rm)
         }
       )
 
@@ -357,6 +359,10 @@ create_link_obs_observer <- function(input, rv, upd, session, proxy) {
     {
       ids <- names(upd$curr)
 
+      if (setequal(ids, names(upd$obs))) {
+        return()
+      }
+
       DT::replaceData(
         proxy,
         dt_board_link(upd$curr, session$ns, rv$board),
@@ -396,6 +402,20 @@ edit_link_observer <- function(upd, rv) {
       }
     }
   )
+}
+
+merge_staged_links <- function(applied, add, rm) {
+
+  keep <- setdiff(names(applied), setdiff(rm, names(add)))
+  out <- applied[keep]
+
+  edited <- intersect(keep, names(add))
+
+  if (length(edited)) {
+    out[edited] <- add[edited]
+  }
+
+  c(out, add[setdiff(names(add), names(applied))])
 }
 
 add_link_observer <- function(input, rv, upd, sess) {
