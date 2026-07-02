@@ -37,7 +37,7 @@
 #'
 #' @return `block_registration_roclet()` returns a roclet object.
 #'
-#' @name block-roclet
+#' @name block_roclet
 #' @export
 block_registration_roclet <- function() {
   roxygen2::roclet("block_registration")
