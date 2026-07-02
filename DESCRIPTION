@@ -24,7 +24,6 @@ BugReports: https://github.com/BristolMyersSquibb/blockr.core/issues
 License: GPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE, packages = c("roxy.shinylive"))
-RoxygenNote: 8.0.0
 Imports:
     shiny (>= 1.5.0),
     DT,
@@ -127,3 +126,4 @@ Collate:
     'utils-shiny.R'
     'utils-tests.R'
     'zzz-onload.R'
+Config/roxygen2/version: 8.0.0
