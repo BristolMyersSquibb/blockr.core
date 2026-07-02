@@ -67,8 +67,8 @@ serialize_board(x, blocks, id = NULL, ..., session = get_session())
 A plugin container inheriting from `preserve_board` is returned by
 `preserve_board()`, while the UI component (e.g. `preserve_board_ui()`)
 is expected to return shiny UI (i.e.
-[`shiny::tagList()`](https://rdrr.io/pkg/shiny/man/reexports.html)) and
-the server component a
+[`shiny::tagList()`](https://rstudio.github.io/htmltools/reference/tagList.html))
+and the server component a
 [`shiny::reactiveVal()`](https://rdrr.io/pkg/shiny/man/reactiveVal.html)
 evaluating to `NULL` or the `board` to restore.
 

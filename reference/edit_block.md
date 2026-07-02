@@ -70,6 +70,6 @@ block_summary(x, data)
 A plugin container inheriting from `edit_block` is returned by
 `edit_block()`, while the UI component (e.g. `edit_block_ui()`) is
 expected to return shiny UI (i.e.
-[`shiny::tagList()`](https://rdrr.io/pkg/shiny/man/reexports.html)) and
-the server component (i.e. `edit_block_server()`) is expected to return
-`NULL`.
+[`shiny::tagList()`](https://rstudio.github.io/htmltools/reference/tagList.html))
+and the server component (i.e. `edit_block_server()`) is expected to
+return `NULL`.

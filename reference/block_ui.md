@@ -64,10 +64,10 @@ block_ui(id, x, blocks = NULL, edit_ui = NULL, ctrl_ui = NULL, ...)
 
 Both `expr_ui()` and `block_ui()` are expected to return shiny UI (e.g.
 objects wrapped in a
-[`shiny::tagList()`](https://rdrr.io/pkg/shiny/man/reexports.html)). For
-rendering the UI, `block_output()` is required to return the result of a
-shiny render function. For example, a transform block might show the
-resulting `data.frame` as an HTML table using the DT package. The
+[`shiny::tagList()`](https://rstudio.github.io/htmltools/reference/tagList.html)).
+For rendering the UI, `block_output()` is required to return the result
+of a shiny render function. For example, a transform block might show
+the resulting `data.frame` as an HTML table using the DT package. The
 corresponding `block_ui()` function would then contain UI created by
 [`DT::dataTableOutput()`](https://rdrr.io/pkg/DT/man/dataTableOutput.html)
 and rendering in `block_output()` would then be handled by

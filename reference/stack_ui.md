@@ -95,8 +95,9 @@ remove_block_from_stack(
 ## Value
 
 UI set up via `stack_ui()` is expected to return
-[`shiny::tag()`](https://rdrr.io/pkg/shiny/man/reexports.html) or
-[`shiny::tagList()`](https://rdrr.io/pkg/shiny/man/reexports.html)
+[`shiny::tag()`](https://rstudio.github.io/htmltools/reference/builder.html)
+or
+[`shiny::tagList()`](https://rstudio.github.io/htmltools/reference/tagList.html)
 objects while stack/block insertion/removal functions (into/from
 board/stack objects) are called for their side-effects. Both
 `insert_stack_ui()`/`remove_stack_ui` and

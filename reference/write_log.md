@@ -54,20 +54,6 @@ cnd_logger(msg, level)
 cat_logger(msg, level)
 ```
 
-## Format
-
-An object of class `ordered` (inherits from `factor`) of length 1.
-
-An object of class `ordered` (inherits from `factor`) of length 1.
-
-An object of class `ordered` (inherits from `factor`) of length 1.
-
-An object of class `ordered` (inherits from `factor`) of length 1.
-
-An object of class `ordered` (inherits from `factor`) of length 1.
-
-An object of class `ordered` (inherits from `factor`) of length 1.
-
 ## Arguments
 
 - ...:

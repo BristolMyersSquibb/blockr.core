@@ -42,8 +42,8 @@ manage_stacks_ui(id, board)
 A plugin container inheriting from `manage_stacks` is returned by
 `manage_stacks()`, while the UI component (e.g. `manage_stacks_ui()`) is
 expected to return shiny UI (i.e.
-[`shiny::tagList()`](https://rdrr.io/pkg/shiny/man/reexports.html)) and
-the server component (i.e. `manage_stacks_server()`) is expected to
+[`shiny::tagList()`](https://rstudio.github.io/htmltools/reference/tagList.html))
+and the server component (i.e. `manage_stacks_server()`) is expected to
 return `NULL`.
 
 ## Details

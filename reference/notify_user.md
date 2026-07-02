@@ -45,6 +45,6 @@ notify_user_ui(id, board)
 A plugin container inheriting from `notify_user` is returned by
 `notify_user()` and the UI component (e.g. `notify_user_ui()`) is
 expected to return shiny UI (i.e.
-[`shiny::tagList()`](https://rdrr.io/pkg/shiny/man/reexports.html)). The
-server component (i.e. `notify_user_server()`) is called for the side
-effect of managing notifications and returns `NULL`.
+[`shiny::tagList()`](https://rstudio.github.io/htmltools/reference/tagList.html)).
+The server component (i.e. `notify_user_server()`) is called for the
+side effect of managing notifications and returns `NULL`.

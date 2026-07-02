@@ -134,7 +134,7 @@ the output to be displayed by the UI portion defined via <code>block_ui()</code>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>Both <code>expr_ui()</code> and <code>block_ui()</code> are expected to return shiny UI
-(e.g. objects wrapped in a <code><a href="https://rdrr.io/pkg/shiny/man/reexports.html" class="external-link">shiny::tagList()</a></code>). For rendering the UI,
+(e.g. objects wrapped in a <code><a href="https://rstudio.github.io/htmltools/reference/tagList.html" class="external-link">shiny::tagList()</a></code>). For rendering the UI,
 <code>block_output()</code> is required to return the result of a shiny render function.
 For example, a transform block might show the resulting <code>data.frame</code> as an
 HTML table using the DT package. The corresponding <code>block_ui()</code> function

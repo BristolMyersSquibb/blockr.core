@@ -42,8 +42,8 @@ manage_links_ui(id, board)
 A plugin container inheriting from `manage_links` is returned by
 `manage_links()`, while the UI component (e.g. `manage_links_ui()`) is
 expected to return shiny UI (i.e.
-[`shiny::tagList()`](https://rdrr.io/pkg/shiny/man/reexports.html)) and
-the server component (i.e. `manage_links_server()`) is expected to
+[`shiny::tagList()`](https://rstudio.github.io/htmltools/reference/tagList.html))
+and the server component (i.e. `manage_links_server()`) is expected to
 return `NULL`.
 
 ## Details

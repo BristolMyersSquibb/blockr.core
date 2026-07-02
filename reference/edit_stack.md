@@ -52,6 +52,6 @@ edit_stack_ui(id, x, ...)
 A plugin container inheriting from `edit_stack` is returned by
 `edit_stack()`, while the UI component (e.g. `edit_stack_ui()`) is
 expected to return shiny UI (i.e.
-[`shiny::tagList()`](https://rdrr.io/pkg/shiny/man/reexports.html)) and
-the server component (i.e. `edit_stack_server()`) is expected to return
-`NULL`.
+[`shiny::tagList()`](https://rstudio.github.io/htmltools/reference/tagList.html))
+and the server component (i.e. `edit_stack_server()`) is expected to
+return `NULL`.

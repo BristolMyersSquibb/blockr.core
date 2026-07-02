@@ -40,6 +40,6 @@ generate_code_ui(id, board)
 A plugin container inheriting from `generate_code` is returned by
 `generate_code()`, while the UI component (e.g. `generate_code_ui()`) is
 expected to return shiny UI (i.e.
-[`shiny::tagList()`](https://rdrr.io/pkg/shiny/man/reexports.html)) and
-the server component (i.e. `generate_code_server()`) is expected to
+[`shiny::tagList()`](https://rstudio.github.io/htmltools/reference/tagList.html))
+and the server component (i.e. `generate_code_server()`) is expected to
 return `NULL`.

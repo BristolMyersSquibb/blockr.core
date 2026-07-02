@@ -42,8 +42,8 @@ manage_blocks_ui(id, board)
 A plugin container inheriting from `manage_blocks` is returned by
 `manage_blocks()`, while the UI component (e.g. `manage_blocks_ui()`) is
 expected to return shiny UI (i.e.
-[`shiny::tagList()`](https://rdrr.io/pkg/shiny/man/reexports.html)) and
-the server component (i.e. `manage_blocks_server()`) is expected to
+[`shiny::tagList()`](https://rstudio.github.io/htmltools/reference/tagList.html))
+and the server component (i.e. `manage_blocks_server()`) is expected to
 return `NULL`.
 
 ## Details

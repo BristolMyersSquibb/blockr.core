@@ -57,9 +57,9 @@ ctrl_block_ui(id, x)
 A plugin container inheriting from `ctrl_block` is returned by
 `ctrl_block()`, while the UI component (i.e. `ctrl_block_ui()`) is
 expected to return shiny UI (i.e.
-[`shiny::tagList()`](https://rdrr.io/pkg/shiny/man/reexports.html)) and
-the server component (i.e. `ctrl_block_server()`) is expected to return
-a value that passes validation (i.e. `TRUE` or a reactive gate).
+[`shiny::tagList()`](https://rstudio.github.io/htmltools/reference/tagList.html))
+and the server component (i.e. `ctrl_block_server()`) is expected to
+return a value that passes validation (i.e. `TRUE` or a reactive gate).
 
 ## Details
 
