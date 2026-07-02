@@ -203,8 +203,7 @@ combine_board_options(...)
 - board:
 
   Board the option belongs to, used to resolve the lock state (see
-  [`is_board_locked()`](https://bristolmyerssquibb.github.io/blockr.core/reference/locked-board.md));
-  pass `NULL` to fall back to the option.
+  [`is_board_locked()`](https://bristolmyerssquibb.github.io/blockr.core/reference/locked-board.md)).
 
 - opts:
 
