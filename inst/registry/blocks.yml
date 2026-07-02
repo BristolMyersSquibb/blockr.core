@@ -9,6 +9,7 @@ new_dataset_block:
     "recommended" priority. The source package can be chosen at time of block instantiation
     and can be set to any R package, for which then a set of candidate datasets is
     computed. This includes exported objects that inherit from `data.frame`.
+  link: https://bristolmyerssquibb.github.io/blockr.core/reference/new_data_block.html
   icon: database
   guidance: Loads a data.frame that ships with an installed package. Set `package`
     to the source package (default "datasets"), then `dataset` to the name of a data.frame
@@ -40,6 +41,7 @@ new_filebrowser_block:
     not self-contained and a script containing code from an upload block is cannot
     be run in a new session. Also, serialization of upload blocks is currently not
     allowed as the full data would have to be included during serialization.
+  link: https://bristolmyerssquibb.github.io/blockr.core/reference/new_file_block.html
   icon: folder2-open
   guidance: Selects a file from the server's file system for a downstream parser such
     as a CSV block. `file_path` is the chosen path; `volumes` bounds the root directories
@@ -65,6 +67,7 @@ new_upload_block:
     not self-contained and a script containing code from an upload block is cannot
     be run in a new session. Also, serialization of upload blocks is currently not
     allowed as the full data would have to be included during serialization.
+  link: https://bristolmyerssquibb.github.io/blockr.core/reference/new_file_block.html
   icon: upload
   guidance: Provides a data.frame from a file uploaded in the running app. Uploaded
     data lives only for the session, so serialization and reproducible export are
@@ -81,6 +84,7 @@ new_csv_block:
   category: utility
   details: Files in CSV format provided for example by a block created via [new_file_block()]
     may be parsed into `data.frame` by CSV blocks.
+  link: https://bristolmyerssquibb.github.io/blockr.core/reference/new_parser_block.html
   icon: filetype-csv
   guidance: Parses a delimited text file (typically from a file or upload block) into
     a data.frame with `utils::read.table()`. `sep` is the field separator and `quote`
@@ -110,6 +114,7 @@ new_scatter_block:
     (fixed to the corresponding column names), no further plotting options are available
     and for any "production" application, a more sophisticated (set of) block(s) for
     data visualization will most likely be required.
+  link: https://bristolmyerssquibb.github.io/blockr.core/reference/new_plot_block.html
   icon: dice-5
   guidance: Draws a scatter plot of `x` against `y` with `base::plot()`. `x` and `y`
     are column names from the input data; axis labels follow the column names.
@@ -136,6 +141,7 @@ new_glue_block:
   category: utility
   details: Using [glue::glue()], this block allows evaluation of a text string in
     the context of datasets to produce (markdown formatted) text as block result.
+  link: https://bristolmyerssquibb.github.io/blockr.core/reference/new_text_block.html
   icon: braces
   guidance: Interpolates a template against the input data with `glue::glue()` to
     produce (markdown) text. Reference columns of the data in `text` with braces,
@@ -161,6 +167,7 @@ new_head_block:
     by [utils::head()] and [utils::tail()]) is implemented as `head_block`. This is
     an example of a block that takes a single `data.frame` as input and produces a
     single `data.frame` as output.
+  link: https://bristolmyerssquibb.github.io/blockr.core/reference/new_transform_block.html
   icon: eye
   guidance: 'Keeps the first or last `n` rows of the input with `utils::head()` /
     `utils::tail()`. `direction` chooses the end: "head" for the first rows, "tail"
@@ -196,6 +203,7 @@ new_merge_block:
     [base::merge()] for details. This block class serves as an example for a transform
     block that takes exactly two data inputs `x` and `y` to produce a single `data.frame`
     as output.
+  link: https://bristolmyerssquibb.github.io/blockr.core/reference/new_transform_block.html
   icon: union
   guidance: 'Joins the two inputs with `base::merge()`. `by` names the shared key
     column(s); omit it to join on all common columns. all_x and all_y set the join
@@ -235,6 +243,7 @@ new_rbind_block:
   details: Row-wise concatenation of an arbitrary number of `data.frame`s, as performed
     by [base::rbind()] is available as an `rbind_block`. This mainly serves as an
     example for a variadic block via the "special" `...args` block data argument.
+  link: https://bristolmyerssquibb.github.io/blockr.core/reference/new_transform_block.html
   icon: chevron-bar-expand
   guidance: Row-binds two or more inputs with `base::rbind()`; the inputs must share
     the same columns. Takes a variable number of data inputs and has no configurable
@@ -254,6 +263,7 @@ new_subset_block:
     objects via [base::subset()]. Using non-standard evaluation, strings passed as
     `subset`/`select` arguments or entered via shiny UI are turned into `language`
     objects by [base::parse()].
+  link: https://bristolmyerssquibb.github.io/blockr.core/reference/new_transform_block.html
   icon: funnel
   guidance: Row- and column-subsets the input with `base::subset()`. `subset` is a
     logical expression over the columns keeping rows where it is TRUE; `select` picks

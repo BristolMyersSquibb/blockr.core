@@ -13,10 +13,12 @@
   `DESCRIPTION` `Roxygen` field and calling `register_package_blocks()` from
   `.onLoad()`.
 * The core blocks now carry richer registration metadata: model-facing
-  `guidance`, search `keywords`, `details` (falling back to the
-  constructor's `@section` prose when `@blockDetails` is omitted), and
-  per-argument JSON-schema `type` descriptors alongside descriptions and
-  worked examples. Each argument is declared with one `@blockArg <name>
+  `guidance`, search `keywords` (comma-separated, so a term may contain
+  spaces), `details` (falling back to the constructor's `@section` prose
+  when `@blockDetails` is omitted), a documentation `link` (derived from the
+  package's pkgdown `url` and the documented topic when `@blockLink` is
+  omitted), and per-argument JSON-schema `type` descriptors alongside
+  descriptions and worked examples. Each argument is declared with one `@blockArg <name>
   <description>` tag; optional `[example] <expr>` and `[type] <expr>`
   markers give R expressions (evaluated at documentation time) for a worked
   example and an `arg_*()` type descriptor, so a typed argument can carry a

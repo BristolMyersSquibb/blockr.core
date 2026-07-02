@@ -37,7 +37,9 @@ discovery; a term may contain spaces. Optional.}
 help popover). Optional; when omitted it falls back to the constructor's
 \verb{@details} or, failing that, its \verb{@section} prose.}
 \item{\verb{@blockLink <url>}}{URL of the block's help or documentation page.
-Optional.}
+Optional; when omitted it is derived from the package's pkgdown \code{url}
+(\verb{_pkgdown.yml} or \code{DESCRIPTION}) and the documented topic, as
+\verb{<url>/reference/<topic>.html}.}
 \item{\verb{@blockArg <name> <description>}}{One constructor argument's
 specification. The text after the name is a free-text description;
 \verb{[example] <expr>} and \verb{[type] <expr>} markers (each on its own line)

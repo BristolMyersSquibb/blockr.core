@@ -25,7 +25,9 @@
 #'     help popover). Optional; when omitted it falls back to the constructor's
 #'     `@details` or, failing that, its `@section` prose.}
 #'   \item{`@blockLink <url>`}{URL of the block's help or documentation page.
-#'     Optional.}
+#'     Optional; when omitted it is derived from the package's pkgdown `url`
+#'     (`_pkgdown.yml` or `DESCRIPTION`) and the documented topic, as
+#'     `<url>/reference/<topic>.html`.}
 #'   \item{`@blockArg <name> <description>`}{One constructor argument's
 #'     specification. The text after the name is a free-text description;
 #'     `[example] <expr>` and `[type] <expr>` markers (each on its own line)
@@ -123,6 +125,7 @@ roxy_tag_parse.roxy_tag_blockCtor <- function(x) {
 #' @exportS3Method roxygen2::roclet_process
 roclet_process.roclet_block_registration <- function(x, blocks, env,
                                                      base_path) {
+  base_url <- pkgdown_site_url(base_path)
   entries <- list()
 
   for (block in blocks) {
@@ -131,7 +134,7 @@ roclet_process.roclet_block_registration <- function(x, blocks, env,
       next
     }
 
-    entries[[block_roclet_ctor(block)]] <- block_roclet_entry(block)
+    entries[[block_roclet_ctor(block)]] <- block_roclet_entry(block, base_url)
   }
 
   entries
@@ -200,7 +203,7 @@ block_roclet_ctor <- function(block) {
   name
 }
 
-block_roclet_entry <- function(block) {
+block_roclet_entry <- function(block, base_url) {
 
   require_block_tag(block, "blockDescr")
   require_block_tag(block, "blockCategory")
@@ -217,7 +220,7 @@ block_roclet_entry <- function(block) {
     entry[["details"]] <- details
   }
 
-  link <- block_tag_value(block, "blockLink")
+  link <- block_link(block, base_url)
 
   if (not_null(link)) {
     entry[["link"]] <- link
@@ -377,6 +380,80 @@ block_details <- function(block) {
   }
 
   reflow_text(sub("^[^:]+:[[:space:]]*", "", section))
+}
+
+block_link <- function(block, base_url) {
+
+  explicit <- block_tag_value(block, "blockLink")
+
+  if (not_null(explicit)) {
+    return(explicit)
+  }
+
+  url <- derived_link(block, base_url)
+
+  if (not_null(url) && url_exists(url)) {
+    return(url)
+  }
+
+  NULL
+}
+
+derived_link <- function(block, base_url) {
+
+  if (is.null(base_url)) {
+    return(NULL)
+  }
+
+  topic <- coal(
+    block_tag_value(block, "rdname"),
+    block_tag_value(block, "name"),
+    block_roclet_ctor(block),
+    fail_all = FALSE
+  )
+
+  paste0(sub("/?$", "/", base_url), "reference/", topic, ".html")
+}
+
+url_exists <- function(url) {
+
+  status <- tryCatch(
+    attr(curlGetHeaders(url, timeout = 10L), "status"),
+    error = function(e) NA_integer_
+  )
+
+  isTRUE(status >= 200L && status < 300L)
+}
+
+pkgdown_site_url <- function(base_path) {
+
+  configs <- file.path(
+    base_path,
+    c("_pkgdown.yml", "pkgdown/_pkgdown.yml", "inst/_pkgdown.yml")
+  )
+
+  for (path in configs[file.exists(configs)]) {
+
+    url <- yaml::read_yaml(path)[["url"]]
+
+    if (is_string(url)) {
+      return(url)
+    }
+  }
+
+  desc <- file.path(base_path, "DESCRIPTION")
+
+  if (!file.exists(desc)) {
+    return(NULL)
+  }
+
+  url <- read.dcf(desc, "URL")[1L]
+
+  if (is.na(url)) {
+    return(NULL)
+  }
+
+  trimws(strsplit(url, "[,[:space:]]+")[[1L]][1L])
 }
 
 block_examples <- function(block) {

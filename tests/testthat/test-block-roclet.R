@@ -137,6 +137,52 @@ new_demo_block <- function() NULL
   expect_identical(res[["details"]], "An explicit detail.")
 })
 
+test_that("block_link derives a pkgdown URL, gated on the URL existing", {
+
+  skip_if_not_installed("roxygen2")
+
+  block <- roxygen2::parse_text("
+#' Title
+#' @rdname some_topic
+#' @export
+new_x_block <- function() NULL
+")[[1L]]
+
+  expect_identical(
+    derived_link(block, "https://example.com/pkg"),
+    "https://example.com/pkg/reference/some_topic.html"
+  )
+  expect_null(derived_link(block, NULL))
+
+  local_mocked_bindings(url_exists = function(url) TRUE)
+  expect_identical(
+    block_link(block, "https://example.com/pkg"),
+    "https://example.com/pkg/reference/some_topic.html"
+  )
+
+  local_mocked_bindings(url_exists = function(url) FALSE)
+  expect_null(block_link(block, "https://example.com/pkg"))
+})
+
+test_that("an explicit @blockLink is used without an HTTP check", {
+
+  skip_if_not_installed("roxygen2")
+
+  block <- roxygen2::parse_text("
+#' Title
+#' @blockLink https://example.com/custom
+#' @export
+new_x_block <- function() NULL
+")[[1L]]
+
+  local_mocked_bindings(url_exists = function(url) stop("must not be called"))
+
+  expect_identical(
+    block_link(block, "https://example.com/pkg"),
+    "https://example.com/custom"
+  )
+})
+
 test_that("only constructors carrying @block are picked up", {
 
   skip_if_not_installed("roxygen2")
@@ -280,6 +326,10 @@ test_that("the shipped core registry is complete", {
 
   expect_true(is_string(reg[["new_dataset_block"]][["details"]]))
   expect_length(reg[["new_merge_block"]][["examples"]], 2L)
+  expect_match(
+    reg[["new_dataset_block"]][["link"]],
+    "/reference/new_data_block\\.html$"
+  )
 })
 
 test_that("core blocks register with types, guidance and keywords", {
@@ -300,6 +350,10 @@ test_that("core blocks register with types, guidance and keywords", {
   expect_identical(block_arg_type(merge_args[["all_x"]])[["type"]], "boolean")
 
   expect_true(is_string(block_meta_details("dataset_block")))
+  expect_match(
+    block_meta_link("dataset_block"),
+    "/reference/new_data_block\\.html$"
+  )
   expect_identical(
     block_meta_examples("merge_block"),
     list(list(all_x = TRUE, all_y = FALSE), list(all_x = TRUE, all_y = TRUE))
