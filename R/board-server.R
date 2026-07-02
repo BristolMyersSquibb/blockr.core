@@ -405,11 +405,14 @@ setup_board <- function(rv, blk_ed, blk_ct, stk_mod, args, sess) {
   rv$sources <- list()
   rv$stacks <- list()
 
-  blks <- board_blocks(rv$board)
+  observe(
+    {
+      need <- needed_block_ids(rv)
+      construct_blocks(need, rv, blk_ed, blk_ct, args)
+    }
+  )
 
-  for (i in names(blks)) {
-    setup_block(blks[[i]], i, rv, blk_ed, blk_ct, args)
-  }
+  construct_remaining_blocks(rv, blk_ed, blk_ct, args)
 
   setup_stacks(rv, stk_mod, args)
   add_blocks_to_stacks(rv, board_stacks(rv$board), sess)
@@ -429,20 +432,23 @@ combine_block_conditions <- function(frames) {
   res
 }
 
-setup_block <- function(blk, id, rv, mod_ed, mod_ct, args) {
+construct_block <- function(id, rv, mod_ed, mod_ct, args) {
 
-  arity <- block_arity(blk)
-  inpts <- block_inputs(blk)
+  if (id %in% names(rv$blocks)) {
+    return(invisible())
+  }
+
+  blk <- board_blocks(rv$board)[[id]]
 
   rv$sources[[id]] <- reactiveValues()
   src_rv <- rv$sources[[id]]
 
   inpts <- set_names(
-    lapply(inpts, upstream_result, src_rv, rv, id),
-    inpts
+    lapply(block_inputs(blk), upstream_result, src_rv, rv, id),
+    block_inputs(blk)
   )
 
-  if (is.na(arity)) {
+  if (is.na(block_arity(blk))) {
     inpts <- c(inpts, list(`...args` = reactives()))
   }
 
@@ -464,6 +470,77 @@ setup_block <- function(blk, id, rv, mod_ed, mod_ct, args) {
   )
 
   invisible()
+}
+
+construct_blocks <- function(ids, rv, mod_ed, mod_ct, args) {
+
+  ordered <- isolate(
+    intersect(topo_sort(as.matrix(rv$board)), setdiff(ids, names(rv$blocks)))
+  )
+
+  if (!length(ordered)) {
+    return(invisible())
+  }
+
+  log_debug("constructing block{?s} {ordered}")
+
+  for (id in ordered) {
+    isolate(construct_block(id, rv, mod_ed, mod_ct, args))
+  }
+
+  invisible()
+}
+
+construct_remaining_blocks <- function(rv, mod_ed, mod_ct, args) {
+
+  if (background_construction_delay() <= 0) {
+
+    construct_blocks(board_block_ids(rv$board), rv, mod_ed, mod_ct, args)
+
+    return(invisible())
+  }
+
+  started <- FALSE
+
+  obs <- observe(
+    {
+      if (!started) {
+
+        started <<- TRUE
+        invalidateLater(background_construction_delay())
+
+        return(invisible())
+      }
+
+      remaining <- isolate(
+        setdiff(topo_sort(as.matrix(rv$board)), names(rv$blocks))
+      )
+
+      if (!length(remaining)) {
+
+        obs$destroy()
+
+        return(invisible())
+      }
+
+      isolate(construct_block(remaining[[1L]], rv, mod_ed, mod_ct, args))
+
+      invalidateLater(background_construction_delay())
+    }
+  )
+
+  invisible()
+}
+
+background_construction_delay <- function() {
+  as.numeric(blockr_option("background_construction_delay", 50L))
+}
+
+needed_block_ids <- function(rv) {
+
+  need <- rv$needed()
+
+  if (isTRUE(need)) board_block_ids(rv$board) else need
 }
 
 apply_block_mod_delta <- function(blk_id, delta, rv) {
@@ -526,11 +603,9 @@ upstream_result <- function(key, src_rv, rv, to) {
 
       from <- src_rv[[key]]
 
-      if (is.null(from)) {
-        NULL
-      } else {
-        isolate(rv$blocks[[from]])$server$result()
-      }
+      srv <- if (is.null(from)) NULL else isolate(rv$blocks[[from]])[["server"]]
+
+      if (is.null(srv)) NULL else srv$result()
     }
   )
 }
@@ -1352,16 +1427,8 @@ apply_core_board_update <- function(rv, upd, session,
 
     board_blocks(rv$board) <- c(board_blocks(rv$board), upd$blocks$add)
 
-    for (blk in names(upd$blocks$add)) {
-      setup_block(
-        upd$blocks$add[[blk]],
-        blk,
-        rv,
-        edit_block,
-        ctrl_block,
-        edit_plugin_args
-      )
-    }
+    construct_blocks(names(upd$blocks$add), rv, edit_block, ctrl_block,
+                     edit_plugin_args)
   }
 
   if (length(upd$blocks$mod)) {
@@ -1373,6 +1440,7 @@ apply_core_board_update <- function(rv, upd, session,
       delta <- upd$blocks$mod[[blk_id]]
 
       if (length(delta)) {
+        construct_block(blk_id, rv, edit_block, ctrl_block, edit_plugin_args)
         apply_block_mod_delta(blk_id, delta, rv)
       }
     }

@@ -7,11 +7,22 @@ probe_eval$ids <- character()
 probe_args <- new.env()
 probe_args$entry_classes <- NULL
 
+probe_construct <- new.env()
+probe_construct$ids <- character()
+
 registerS3method(
   "block_output", "probe_block",
   function(x, result, session) {
     probe_render$ids <- c(probe_render$ids, session$ns(NULL))
     NULL
+  }
+)
+
+registerS3method(
+  "expr_server", "probe_block",
+  function(x, data, ...) {
+    probe_construct$ids <- c(probe_construct$ids, attr(x, "probe_id"))
+    NextMethod()
   }
 )
 
@@ -112,6 +123,7 @@ with_id <- function(blk, id) {
 reset_probes <- function() {
   probe_render$ids <- character()
   probe_eval$ids <- character()
+  probe_construct$ids <- character()
 }
 
 rendered <- function(id) {
@@ -120,6 +132,10 @@ rendered <- function(id) {
 
 evaluated <- function(id) {
   id %in% probe_eval$ids
+}
+
+constructed <- function(id) {
+  id %in% probe_construct$ids
 }
 
 test_that("with no producer every block is visible", {
@@ -479,5 +495,117 @@ test_that("an off-screen variadic block does not pull its inputs", {
         NULL
       }
     )
+  )
+})
+
+ordered_board <- function() {
+  new_board(
+    blocks = c(
+      a = with_id(probe_source(), "a"),
+      b = with_id(probe_passthrough(), "b"),
+      c = with_id(probe_passthrough(), "c"),
+      d = with_id(probe_passthrough(), "d")
+    ),
+    links = links(
+      new_link(from = "a", to = "b"),
+      new_link(from = "b", to = "c"),
+      new_link(from = "a", to = "d")
+    )
+  )
+}
+
+visible_b <- function(visible, ...) {
+  visible("b")
+  NULL
+}
+
+test_that("only the needed blocks are constructed before first paint", {
+
+  reset_probes()
+
+  testServer(
+    get_s3_method("board_server", ordered_board()),
+    {
+      session$flushReact()
+
+      expect_true(constructed("a"))
+      expect_true(constructed("b"))
+
+      expect_false(constructed("c"))
+      expect_false(constructed("d"))
+
+      session$elapse(5000)
+      session$flushReact()
+
+      expect_true(constructed("c"))
+      expect_true(constructed("d"))
+    },
+    args = list(x = ordered_board(), plugins = list(), callbacks = visible_b)
+  )
+})
+
+test_that("opening a view constructs its blocks without the background", {
+
+  reset_probes()
+
+  testServer(
+    get_s3_method("board_server", ordered_board()),
+    {
+      session$flushReact()
+
+      expect_false(constructed("c"))
+
+      board_visible(c("b", "c"))
+      session$flushReact()
+
+      expect_true(constructed("c"))
+      expect_false(constructed("d"))
+    },
+    args = list(x = ordered_board(), plugins = list(), callbacks = visible_b)
+  )
+})
+
+test_that("the background constructs every block exactly once", {
+
+  reset_probes()
+
+  testServer(
+    get_s3_method("board_server", ordered_board()),
+    {
+      session$flushReact()
+      session$elapse(5000)
+      session$flushReact()
+
+      built <- probe_construct$ids
+
+      expect_setequal(built, c("a", "b", "c", "d"))
+      expect_length(built, 4L)
+
+      session$elapse(5000)
+      session$flushReact()
+
+      expect_identical(probe_construct$ids, built)
+    },
+    args = list(x = ordered_board(), plugins = list(), callbacks = visible_b)
+  )
+})
+
+test_that("a zero background delay builds every block up front", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  testServer(
+    get_s3_method("board_server", ordered_board()),
+    {
+      session$flushReact()
+
+      expect_true(constructed("a"))
+      expect_true(constructed("b"))
+      expect_true(constructed("c"))
+      expect_true(constructed("d"))
+    },
+    args = list(x = ordered_board(), plugins = list(), callbacks = visible_b)
   )
 })

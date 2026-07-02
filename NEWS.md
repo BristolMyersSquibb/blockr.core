@@ -1,5 +1,19 @@
 # blockr.core 0.1.3
 
+* Block-server construction is now ordered by visibility (#243). On a large
+  multi-view board `setup_board()` built every block's server up front, so
+  first paint waited for the full per-block construction cost regardless of
+  how many blocks were on screen. Construction is now prioritized by the
+  same *needed* set (on-screen blocks plus their upstream closure) as
+  evaluation: those blocks are built first and the rest are built
+  progressively in the background, so first paint waits only for what is
+  shown. A block still building is absent from the read-only board handed to
+  plugins, and serialization falls back to its constructor state until it
+  appears. Requires a front-end driving the `visible` channel; without one
+  every block is needed and all servers are built up front, as before. The
+  background cadence is the `background_construction_delay` option
+  (milliseconds between successive blocks, default 50); setting it to 0
+  builds every block up front and opts out of the staggering.
 * The manage-links and manage-stacks plugins no longer flicker the table's
   cell selectizes on a board re-emit (#246). The observer that keeps the
   table in sync re-rendered every row whenever `upd$curr` was invalidated --
