@@ -1,0 +1,477 @@
+#' Block registration roclet
+#'
+#' A custom roxygen2 roclet that turns block registration metadata, declared as
+#' tags on block constructors, into a YAML registry (`inst/registry/blocks.yml`)
+#' that [register_package_blocks()] reads at load time. It runs alongside the
+#' standard roclets during [roxygen2::roxygenise()] (or `devtools::document()`)
+#' for any package that lists `blockr.core::block_registration_roclet` in the
+#' `Roxygen` field of its `DESCRIPTION`.
+#'
+#' @section Tags:
+#' Placed in the roxygen block above a block constructor:
+#' \describe{
+#'   \item{`@block <name>`}{Human-readable block name. Required: its presence is
+#'     what marks a constructor for registration.}
+#'   \item{`@blockDescr <text>`}{Short block description. Required.}
+#'   \item{`@blockCategory <category>`}{One of the [suggested_categories()].
+#'     Required.}
+#'   \item{`@blockIcon <icon>`}{Bootstrap icon name. Optional, defaulting to the
+#'     category icon (see [default_icon()]).}
+#'   \item{`@blockGuidance <text>`}{Model-facing construction guidance -- do and
+#'     don't rules, enumerations, pitfalls. Optional.}
+#'   \item{`@blockKeywords <terms>`}{Comma-separated search terms for block
+#'     discovery; a term may contain spaces. Optional.}
+#'   \item{`@blockDetails <text>`}{Longer human-facing description (e.g. for a
+#'     help popover). Optional; when omitted it falls back to the constructor's
+#'     `@details` or, failing that, its `@section` prose.}
+#'   \item{`@blockLink <url>`}{URL of the block's help or documentation page.
+#'     Optional; when omitted it is derived from the package's pkgdown `url`
+#'     (`_pkgdown.yml` or `DESCRIPTION`) and the documented topic, as
+#'     `<url>/reference/<topic>.html`.}
+#'   \item{`@blockArg <name> <description>`}{One constructor argument's
+#'     specification. The text after the name is a free-text description;
+#'     `[example] <expr>` and `[type] <expr>` markers (each on its own line)
+#'     supply an R expression -- evaluated when documentation is generated --
+#'     for a worked example value and an `arg_*()` type descriptor (see
+#'     [new_block_arg()]). An explicit `[description] <text>` marker may replace
+#'     the inline description. Optional and repeatable.}
+#'   \item{`@blockExamples <expr>`}{Block-level worked example configurations,
+#'     as an R expression -- evaluated when documentation is generated -- that
+#'     yields a list of complete configurations (each a named list keyed by
+#'     argument). Optional; supersedes the per-argument `[example]` assembly.}
+#'   \item{`@blockCtor <name>`}{Constructor name override. Optional: the
+#'     documented object otherwise supplies the name.}
+#' }
+#' Multi-argument worked `examples` (whole-block configurations, as opposed to a
+#' per-argument `[example]`) remain out of the tags' scope; a block needing
+#' those registers via [register_block()] directly.
+#'
+#' @return `block_registration_roclet()` returns a roclet object.
+#'
+#' @name block_roclet
+#' @export
+block_registration_roclet <- function() {
+  roxygen2::roclet("block_registration")
+}
+
+#' @exportS3Method roxygen2::roxy_tag_parse
+roxy_tag_parse.roxy_tag_block <- function(x) {
+  roxygen2::tag_value(x)
+}
+
+#' @exportS3Method roxygen2::roxy_tag_parse
+roxy_tag_parse.roxy_tag_blockDescr <- function(x) {
+  roxygen2::tag_value(x)
+}
+
+#' @exportS3Method roxygen2::roxy_tag_parse
+roxy_tag_parse.roxy_tag_blockCategory <- function(x) {
+  roxygen2::tag_value(x)
+}
+
+#' @exportS3Method roxygen2::roxy_tag_parse
+roxy_tag_parse.roxy_tag_blockIcon <- function(x) {
+  roxygen2::tag_value(x)
+}
+
+#' @exportS3Method roxygen2::roxy_tag_parse
+roxy_tag_parse.roxy_tag_blockGuidance <- function(x) {
+  roxygen2::tag_value(x, multiline = TRUE)
+}
+
+#' @exportS3Method roxygen2::roxy_tag_parse
+roxy_tag_parse.roxy_tag_blockKeywords <- function(x) {
+  roxygen2::tag_value(x)
+}
+
+#' @exportS3Method roxygen2::roxy_tag_parse
+roxy_tag_parse.roxy_tag_blockDetails <- function(x) {
+  roxygen2::tag_value(x, multiline = TRUE)
+}
+
+#' @exportS3Method roxygen2::roxy_tag_parse
+roxy_tag_parse.roxy_tag_blockLink <- function(x) {
+  roxygen2::tag_value(x)
+}
+
+#' @exportS3Method roxygen2::roxy_tag_parse
+roxy_tag_parse.roxy_tag_blockExamples <- function(x) {
+  roxygen2::tag_value(x, multiline = TRUE)
+}
+
+#' @exportS3Method roxygen2::roxy_tag_parse
+roxy_tag_parse.roxy_tag_blockArg <- function(x) {
+
+  raw <- trimws(x[["raw"]])
+  split <- regexpr("[[:space:]]", raw)
+
+  if (split < 0L) {
+    return(roxygen2::roxy_tag_warning(x, "requires an argument name"))
+  }
+
+  x[["val"]] <- c(
+    list(name = substr(raw, 1L, split - 1L)),
+    block_arg_fields(substring(raw, split + 1L))
+  )
+
+  x
+}
+
+#' @exportS3Method roxygen2::roxy_tag_parse
+roxy_tag_parse.roxy_tag_blockCtor <- function(x) {
+  roxygen2::tag_value(x)
+}
+
+#' @exportS3Method roxygen2::roclet_process
+roclet_process.roclet_block_registration <- function(x, blocks, env,
+                                                     base_path) {
+  base_url <- pkgdown_site_url(base_path)
+  entries <- list()
+
+  for (block in blocks) {
+
+    if (is.null(roxygen2::block_get_tag(block, "block"))) {
+      next
+    }
+
+    entries[[block_roclet_ctor(block)]] <- block_roclet_entry(block, base_url)
+  }
+
+  entries
+}
+
+#' @exportS3Method roxygen2::roclet_output
+roclet_output.roclet_block_registration <- function(x, results, base_path,
+                                                    ...) {
+  if (!length(results)) {
+    return(invisible(character()))
+  }
+
+  dir <- file.path(base_path, "inst", "registry")
+  dir.create(dir, recursive = TRUE, showWarnings = FALSE)
+
+  path <- file.path(dir, "blocks.yml")
+
+  writeLines(
+    c(block_roclet_header(), "", yaml::as.yaml(results)),
+    path
+  )
+
+  invisible(path)
+}
+
+#' @exportS3Method roxygen2::roclet_clean
+roclet_clean.roclet_block_registration <- function(x, base_path) {
+
+  path <- file.path(base_path, "inst", "registry", "blocks.yml")
+
+  generated <- file.exists(path) &&
+    identical(readLines(path, n = 1L, warn = FALSE), block_roclet_header())
+
+  if (generated) {
+    unlink(path)
+  }
+
+  invisible()
+}
+
+block_roclet_header <- function() {
+  "# Generated by blockr.core block_registration roclet: do not edit by hand"
+}
+
+block_roclet_ctor <- function(block) {
+
+  ctor <- roxygen2::block_get_tag(block, "blockCtor")
+
+  if (not_null(ctor)) {
+    return(ctor$val)
+  }
+
+  name <- coal(block$object$alias, block$object$topic, fail_all = FALSE)
+
+  if (is.null(name) && not_null(block$call)) {
+    name <- as.character(block$call[[2L]])
+  }
+
+  if (!is_string(name)) {
+    block_roclet_abort(
+      roxygen2::block_get_tag(block, "block"),
+      "Unable to determine the block constructor name."
+    )
+  }
+
+  name
+}
+
+block_roclet_entry <- function(block, base_url) {
+
+  require_block_tag(block, "blockDescr")
+  require_block_tag(block, "blockCategory")
+
+  entry <- list(
+    name = block_tag_value(block, "block"),
+    description = block_tag_value(block, "blockDescr"),
+    category = block_tag_value(block, "blockCategory")
+  )
+
+  details <- block_details(block)
+
+  if (not_null(details)) {
+    entry[["details"]] <- details
+  }
+
+  link <- block_link(block, base_url)
+
+  if (not_null(link)) {
+    entry[["link"]] <- link
+  }
+
+  icon <- block_tag_value(block, "blockIcon")
+
+  if (not_null(icon)) {
+    entry[["icon"]] <- icon
+  }
+
+  guidance <- block_guidance(block)
+
+  if (not_null(guidance)) {
+    entry[["guidance"]] <- guidance
+  }
+
+  keywords <- block_keywords(block)
+
+  if (length(keywords)) {
+    entry[["keywords"]] <- keywords
+  }
+
+  args <- block_roclet_args(block)
+
+  if (length(args)) {
+    entry[["arguments"]] <- args
+  }
+
+  examples <- block_examples(block)
+
+  if (length(examples)) {
+    entry[["examples"]] <- examples
+  }
+
+  entry
+}
+
+block_roclet_args <- function(block) {
+
+  vals <- lapply(roxygen2::block_get_tags(block, "blockArg"), `[[`, "val")
+
+  set_names(lapply(vals, block_arg_spec), chr_xtr(vals, "name"))
+}
+
+block_arg_fields <- function(body) {
+
+  lines <- strsplit(body, "\n", fixed = TRUE)[[1L]]
+
+  fields <- list()
+  key <- "description"
+
+  for (line in lines) {
+
+    marker <- regmatches(
+      line,
+      regexec("^[[:space:]]*\\[(description|example|type)\\][[:space:]]*(.*)$",
+              line)
+    )[[1L]]
+
+    if (length(marker)) {
+      key <- marker[[2L]]
+      value <- marker[[3L]]
+    } else {
+      value <- trimws(line)
+    }
+
+    fields[[key]] <- trimws(paste(c(fields[[key]], value), collapse = " "))
+  }
+
+  Filter(nzchar, fields)
+}
+
+block_arg_spec <- function(val) {
+  compact_arg(
+    val[["description"]],
+    eval_arg_expr(val[["example"]]),
+    eval_arg_expr(val[["type"]])
+  )
+}
+
+eval_arg_expr <- function(expr) {
+
+  if (is.null(expr)) {
+    return(NULL)
+  }
+
+  eval(str2lang(expr), new.env(parent = asNamespace("blockr.core")))
+}
+
+compact_arg <- function(description, example, type) {
+
+  arg <- list(description = description, example = example, type = type)
+
+  arg[!lgl_ply(arg, is.null)]
+}
+
+require_block_tag <- function(block, tag) {
+
+  if (is.null(roxygen2::block_get_tag(block, tag))) {
+    block_roclet_abort(
+      roxygen2::block_get_tag(block, "block"),
+      paste0("A block declared with @block must also provide @", tag, ".")
+    )
+  }
+
+  invisible()
+}
+
+block_tag_value <- function(block, tag) {
+
+  hit <- roxygen2::block_get_tag(block, tag)
+
+  if (is.null(hit)) NULL else hit$val
+}
+
+block_tag_raw <- function(block, tag) {
+
+  hit <- roxygen2::block_get_tag(block, tag)
+
+  if (is.null(hit)) NULL else trimws(hit[["raw"]])
+}
+
+block_keywords <- function(block) {
+
+  value <- block_tag_value(block, "blockKeywords")
+
+  if (is.null(value)) {
+    return(character())
+  }
+
+  parts <- trimws(strsplit(value, ",", fixed = TRUE)[[1L]])
+
+  parts[nzchar(parts)]
+}
+
+block_guidance <- function(block) {
+  reflow_text(block_tag_value(block, "blockGuidance"))
+}
+
+block_details <- function(block) {
+
+  explicit <- coal(
+    block_tag_value(block, "blockDetails"),
+    block_tag_raw(block, "details"),
+    fail_all = FALSE
+  )
+
+  if (not_null(explicit)) {
+    return(reflow_text(explicit))
+  }
+
+  section <- block_tag_raw(block, "section")
+
+  if (is.null(section)) {
+    return(NULL)
+  }
+
+  reflow_text(sub("^[^:]+:[[:space:]]*", "", section))
+}
+
+block_link <- function(block, base_url) {
+
+  explicit <- block_tag_value(block, "blockLink")
+
+  if (not_null(explicit)) {
+    return(explicit)
+  }
+
+  url <- derived_link(block, base_url)
+
+  if (not_null(url) && url_exists(url)) {
+    return(url)
+  }
+
+  NULL
+}
+
+derived_link <- function(block, base_url) {
+
+  if (is.null(base_url)) {
+    return(NULL)
+  }
+
+  topic <- coal(
+    block_tag_value(block, "rdname"),
+    block_tag_value(block, "name"),
+    block_roclet_ctor(block),
+    fail_all = FALSE
+  )
+
+  paste0(sub("/?$", "/", base_url), "reference/", topic, ".html")
+}
+
+url_exists <- function(url) {
+
+  status <- tryCatch(
+    attr(curlGetHeaders(url, timeout = 10L), "status"),
+    error = function(e) NA_integer_
+  )
+
+  isTRUE(status >= 200L && status < 300L)
+}
+
+pkgdown_site_url <- function(base_path) {
+
+  configs <- file.path(
+    base_path,
+    c("_pkgdown.yml", "pkgdown/_pkgdown.yml", "inst/_pkgdown.yml")
+  )
+
+  for (path in configs[file.exists(configs)]) {
+
+    url <- yaml::read_yaml(path)[["url"]]
+
+    if (is_string(url)) {
+      return(url)
+    }
+  }
+
+  desc <- file.path(base_path, "DESCRIPTION")
+
+  if (!file.exists(desc)) {
+    return(NULL)
+  }
+
+  url <- read.dcf(desc, "URL")[1L]
+
+  if (is.na(url)) {
+    return(NULL)
+  }
+
+  trimws(strsplit(url, "[,[:space:]]+")[[1L]][1L])
+}
+
+block_examples <- function(block) {
+  eval_arg_expr(block_tag_value(block, "blockExamples"))
+}
+
+reflow_text <- function(text) {
+
+  if (is.null(text)) {
+    return(NULL)
+  }
+
+  gsub("\\s+", " ", trimws(text))
+}
+
+block_roclet_abort <- function(tag, message) {
+  cli::cli_abort(
+    paste0("{tag$file}:{tag$line}: ", message),
+    class = "block_roclet_invalid"
+  )
+}

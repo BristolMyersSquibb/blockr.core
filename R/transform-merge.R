@@ -9,6 +9,26 @@
 #' @param by Column(s) tp join on
 #' @param all_x,all_y Join type, see [base::merge()]
 #'
+#' @block merge block
+#' @blockDescr Joining or datasets
+#' @blockCategory transform
+#' @blockIcon union
+#' @blockGuidance Joins the two inputs with `base::merge()`. `by` names the
+#'   shared key column(s); omit it to join on all common columns. all_x and
+#'   all_y set the join type: both FALSE for an inner join, both TRUE for a full
+#'   outer join, all_x alone for a left join, all_y alone for a right join.
+#' @blockKeywords merge, join, inner join, outer join, left join, right join
+#' @blockArg by Shared key column(s) to join on.
+#'   [type] arg_array(arg_string())
+#' @blockArg all_x Keep unmatched rows from the first input.
+#'   [type] arg_boolean()
+#' @blockArg all_y Keep unmatched rows from the second input.
+#'   [type] arg_boolean()
+#' @blockExamples list(
+#'   list(all_x = TRUE, all_y = FALSE),
+#'   list(all_x = TRUE, all_y = TRUE)
+#' )
+#'
 #' @rdname new_transform_block
 #' @export
 new_merge_block <- function(by = character(), all_x = FALSE, all_y = FALSE,
