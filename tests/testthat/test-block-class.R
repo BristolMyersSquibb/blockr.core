@@ -227,3 +227,92 @@ test_that("has_external_ctrl is TRUE whenever any var is controllable", {
   expect_true(has_external_ctrl(new_subset_block()))
   expect_true(has_external_ctrl(new_dataset_block("mtcars")))
 })
+
+test_that("allow_empty_state parses user- and data-input specs", {
+
+  expect_identical(
+    parse_allow_empty_state(FALSE),
+    list(empty_state = FALSE, optional_inputs = character(), min_args = 1L)
+  )
+
+  expect_identical(
+    parse_allow_empty_state(c("a", "b")),
+    list(
+      empty_state = c("a", "b"),
+      optional_inputs = character(),
+      min_args = 1L
+    )
+  )
+
+  expect_identical(
+    parse_allow_empty_state(list(input = "n", data = list("y", ...args = 2))),
+    list(empty_state = "n", optional_inputs = "y", min_args = 2L)
+  )
+
+  expect_identical(
+    parse_allow_empty_state(list(data = list(...args = 1))),
+    list(empty_state = FALSE, optional_inputs = character(), min_args = 1L)
+  )
+
+  expect_identical(
+    parse_allow_empty_state(list(input = TRUE)),
+    list(empty_state = TRUE, optional_inputs = character(), min_args = 1L)
+  )
+})
+
+test_that("block accessors expose user- and data-input specs", {
+
+  # rbind declares nothing: variadic minimum defaults to 1
+  rb <- new_rbind_block()
+  expect_identical(block_min_args(rb), 1L)
+  expect_identical(block_allow_empty_state(rb), FALSE)
+  expect_identical(block_optional_inputs(rb), character())
+
+  # glue opts out of the default, working with zero data inputs
+  expect_identical(block_min_args(new_glue_block()), 0L)
+})
+
+test_that("allow_empty_state validates its structured form", {
+
+  expect_error(
+    new_head_block(allow_empty_state = list("data")),
+    class = "allow_empty_state_invalid"
+  )
+
+  expect_error(
+    new_head_block(allow_empty_state = list(data = list(...args = 2))),
+    class = "allow_empty_state_invalid"
+  )
+
+  expect_error(
+    new_head_block(allow_empty_state = list(data = list("nope"))),
+    class = "allow_empty_state_invalid"
+  )
+
+  var_block <- function(aes) {
+    new_transform_block(
+      function(id, ...args) {
+        moduleServer(
+          id,
+          function(input, output, session) {
+            list(expr = reactive(quote(rbind(...args))), state = list())
+          }
+        )
+      },
+      function(id) tagList(),
+      class = "test_variadic_block",
+      allow_empty_state = aes,
+      block_metadata = list()
+    )
+  }
+
+  expect_error(
+    var_block(list(data = list(...args = -1))),
+    class = "allow_empty_state_invalid"
+  )
+
+  expect_s3_class(
+    var_block(list(data = list(...args = 2))),
+    "test_variadic_block"
+  )
+})

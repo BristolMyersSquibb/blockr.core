@@ -17,11 +17,34 @@
 #' i.e. block user inputs and expression), and instantiation of the
 #' `edit_block` module (if passed from the parent scope).
 #'
-#' A block is considered ready for evaluation whenever input data is available
-#' that satisfies validation ([validate_data_inputs()]) and nonempty state
-#' values are available (unless otherwise instructed via `allow_empty_state`
-#' in [new_block()]). Conditions raised during validation and evaluation are
-#' caught and returned in order to be surfaced to the app user.
+#' Each block carries an *eval status* -- one of `dormant`, `waiting`, `unset`,
+#' `failed` or `ready` -- which, together with the orthogonal `visible` flag,
+#' determines its behaviour. The status separates the two input kinds (data
+#' inputs from links, user inputs from `state`) and a genuine failure:
+#' * `dormant` -- not *needed* (neither on screen nor feeding, transitively over
+#'   [board_links()], an on-screen block); inputs stay unfulfilled
+#'   ([shiny::req()] out) and nothing evaluates.
+#' * `waiting` -- needed, but a required *data* input is missing: unconnected,
+#'   below the required number of variadic `...args` inputs (one by default),
+#'   or fed by an upstream block that is not itself `ready` (see
+#'   `allow_empty_state`).
+#' * `unset` -- data inputs are ready, but a required *user* input (`state`
+#'   value) has not been provided (unless permitted by `allow_empty_state`).
+#' * `failed` -- all inputs are present, but the block cannot produce a result:
+#'   the data validator ([validate_data_inputs()]) or the block expression
+#'   raised. The offending condition is surfaced through the block conditions.
+#' * `ready` -- evaluation succeeded and a result (possibly a legitimate `NULL`)
+#'   is available for downstream blocks to consume.
+#'
+#' A block reaches `ready` only once its upstreams have, so an unconnected or
+#' pending block holds its whole downstream chain `waiting` without any of them
+#' evaluating against missing data. Output rendering follows the status: the
+#' block output is shown only while `ready` and cleared otherwise, so a block
+#' leaving `ready` never displays a stale result. While not `ready` the block
+#' surfaces a condition explaining why -- a `status`-phase note for `waiting`
+#' and `unset`, or the raised error for `failed`. Conditions raised during
+#' validation and evaluation are caught and returned to be surfaced to the app
+#' user.
 #'
 #' Block-level user inputs (provided by the expression module) are separated
 #' from output, the behavior of which can be customized via the
@@ -66,12 +89,17 @@ block_server <- function(id, x, data = list(), ...) {
 #' @param edit_block,ctrl_block Block plugins
 #' @param board Reactive values object containing board information
 #' @param update Reactive value object to initiate board updates
+#' @param inputs_ready Reactive flag signaling whether the block's required
+#' inputs are all connected to ready upstream blocks (supplied by
+#' [board_server()]; defaults to always-ready when a block server is run
+#' standalone)
 #' @rdname block_server
 #' @export
 block_server.block <- function(id, x, data = list(), block_id = id,
                                edit_block = NULL, ctrl_block = NULL,
                                board = reactiveValues(),
-                               update = reactiveVal(), ...) {
+                               update = reactiveVal(),
+                               inputs_ready = reactive(TRUE), ...) {
 
   dot_args <- list(...)
 
@@ -84,7 +112,8 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         state = NULL,
         eval = NULL,
         render = NULL,
-        block = NULL
+        block = NULL,
+        status = NULL
       )
 
       exp <- check_expr_val(
@@ -110,14 +139,14 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         }
       )
 
-      data_valid <- validate_block_reactive(block_id, x, dat, cond, session)
+      data_valid <- validate_block_reactive(block_id, x, dat, cond, session,
+                                            inputs_ready)
 
-      state_set <- state_check_reactive(block_id, x, state, data_valid, cond,
-                                        session)
+      state_ready <- state_ready_reactive(block_id, x, state, session)
 
       dat_eval <- reactive(
         {
-          req(state_set())
+          req(isTRUE(data_valid()), isTRUE(state_ready()))
           lapply(state, reval_if)
           try(lang(), silent = TRUE)
 
@@ -206,7 +235,8 @@ block_server.block <- function(id, x, data = list(), block_id = id,
 
       res <- reactive(
         {
-          if (!isTRUE(reval_if(gate)) || !state_set()) {
+          if (!isTRUE(reval_if(gate)) || !isTRUE(data_valid()) ||
+                !isTRUE(state_ready())) {
             return(NULL)
           }
 
@@ -226,10 +256,33 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         domain = session
       )
 
+      failed <- reactive(
+        {
+          if (!inputs_ready() || !isTRUE(state_ready())) {
+            return(FALSE)
+          }
+
+          if (!isTRUE(data_valid())) {
+            return(TRUE)
+          }
+
+          res()
+
+          length(cond$eval$error) > 0L
+        },
+        domain = session
+      )
+
+      block_ready <- reactive(
+        isTRUE(reval_if(gate)) && inputs_ready() && isTRUE(state_ready()) &&
+          !failed()
+      )
+
       gated <- is_board(isolate(board$board)) &&
         isTRUE(blockr_option("gate_visibility", TRUE))
 
-      render_obs <- output_render_observer(x, res, cond, session,
+      render_obs <- output_render_observer(x, block_ready, inputs_ready,
+                                           state_ready, res, cond, session,
                                            suspended = gated)
 
       if (gated) {
@@ -271,6 +324,8 @@ block_server.block <- function(id, x, data = list(), block_id = id,
       c(
         list(
           result = res,
+          state_ready = state_ready,
+          failed = failed,
           expr = lang,
           state = state,
           conditions = conditions
@@ -292,22 +347,32 @@ expr_server.block <- function(x, data, ...) {
   do.call(block_expr_server(x), c(list(id = "expr"), data))
 }
 
-validate_block_reactive <- function(id, x, dat, cond, sess) {
+validate_block_reactive <- function(id, x, dat, cond, sess, inputs_ready) {
 
-  if (!block_has_data_validator(x)) {
-    return(reactive(TRUE, domain = sess))
-  }
+  has_validator <- block_has_data_validator(x)
 
   reactive(
     {
-      log_debug("performing input validation for block ", id)
+      if (!inputs_ready()) {
 
-      inp <- dat()
+        isolate(clear_data_conditions(cond))
+
+        return(FALSE)
+      }
+
+      if (!has_validator) {
+
+        isolate(clear_data_conditions(cond))
+
+        return(TRUE)
+      }
+
+      log_debug("performing input validation for block ", id)
 
       isolate(
         capture_conditions(
           {
-            validate_data_inputs(x, inp)
+            validate_data_inputs(x, dat())
             TRUE
           },
           cond,
@@ -320,55 +385,32 @@ validate_block_reactive <- function(id, x, dat, cond, sess) {
   )
 }
 
-state_check_reactive <- function(id, x, state, data_valid, cond, sess) {
+clear_data_conditions <- function(cond) {
+
+  if (any(lengths(cond$data))) {
+    cond$data <- empty_block_condition()
+  }
+}
+
+state_ready_reactive <- function(id, x, state, sess) {
 
   reactive(
     {
       log_debug("checking returned state values of block ", id)
 
-      if (!isTruthy(data_valid())) {
-        return(FALSE)
-      }
-
-      err <- NULL
-
       allow_empty <- block_allow_empty_state(x)
 
-      if (!isTRUE(allow_empty) && length(state)) {
-
-        if (isFALSE(allow_empty)) {
-          check <- TRUE
-        } else {
-          check <- setdiff(names(state), allow_empty)
-        }
-
-        ok <- lgl_ply(
-          lapply(state[check], reval_if),
-          Negate(is_empty),
-          use_names = TRUE
-        )
-
-        if (!all(ok)) {
-          err <- list(
-            new_blk_cnd(
-              paste0("State values ", paste_enum(names(ok)[!ok]), " are ",
-                     "not yet initialized.")
-            )
-          )
-        }
+      if (isTRUE(allow_empty) || !length(state)) {
+        return(TRUE)
       }
 
-      isolate(
-        if (is.null(err)) {
-          if (length(cond$state$error)) {
-            cond$state$error <- list()
-          }
-        } else {
-          cond$state$error <- err
-        }
-      )
+      check <- if (isFALSE(allow_empty)) {
+        TRUE
+      } else {
+        setdiff(names(state), allow_empty)
+      }
 
-      is.null(err)
+      all(lgl_ply(lapply(state[check], reval_if), Negate(is_empty)))
     },
     domain = sess
   )
@@ -401,24 +443,55 @@ block_render_trigger.block <- function(x, session = get_session()) {
   NULL
 }
 
-output_render_observer <- function(x, res, cond, sess, suspended = FALSE) {
+output_render_observer <- function(x, ready, inputs_ready, state_ready, res,
+                                   cond, sess, suspended = FALSE) {
 
-  observeEvent(
+  observe(
     {
       block_render_trigger(x, sess)
-      res()
-    },
-    {
-      sess$output$result <- capture_conditions(
-        block_output(x, res(), sess),
-        cond,
-        "render",
-        session = sess
-      )
+
+      if (isTRUE(ready())) {
+
+        sess$output$result <- capture_conditions(
+          block_output(x, res(), sess),
+          cond,
+          "render",
+          session = sess
+        )
+
+        isolate(explain_block_status(cond, NULL))
+
+      } else {
+
+        sess$output$result <- NULL
+
+        reason <- if (!inputs_ready()) {
+          "This block is waiting for its data input to be connected."
+        } else if (!isTRUE(state_ready())) {
+          "This block is waiting for its inputs to be set."
+        } else {
+          NULL
+        }
+
+        isolate(explain_block_status(cond, reason))
+      }
     },
     domain = sess,
     suspended = suspended
   )
+}
+
+explain_block_status <- function(cond, reason) {
+
+  new <- empty_block_condition()
+
+  if (not_null(reason)) {
+    new[["warning"]] <- list(new_blk_cnd(reason))
+  }
+
+  if (!identical(cond$status, new)) {
+    cond$status <- new
+  }
 }
 
 render_gate_observer <- function(id, board, render_obs, sess) {

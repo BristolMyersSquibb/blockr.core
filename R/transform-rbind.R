@@ -30,10 +30,6 @@ new_rbind_block <- function(...) {
         }
       )
     },
-    dat_valid = function(...args) {
-      stopifnot(length(...args) >= 1L)
-    },
-    allow_empty_state = TRUE,
     expr_type = "bquoted",
     class = "rbind_block",
     ...

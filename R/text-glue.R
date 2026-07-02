@@ -47,6 +47,7 @@ new_glue_block <- function(text = character(), ...) {
         placeholder = "You may use markdown syntax to style the text."
       )
     },
+    allow_empty_state = list(data = list(...args = 0)),
     expr_type = "bquoted",
     class = "glue_block",
     ...

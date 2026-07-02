@@ -208,3 +208,33 @@ test_that("editing a variadic link preserves its argument order", {
     args = list(x = board)
   )
 })
+
+test_that("a variadic block below its input minimum is waiting", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("iris"),
+      b = new_rbind_block()
+    )
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_identical(rv$eval$b(), "waiting")
+      expect_null(rv$blocks$b$server$result())
+      expect_false("error" %in% rv$blocks$b$server$conditions()$severity)
+
+      board_update(
+        list(links = list(add = links(ab = new_link("a", "b"))))
+      )
+      session$flushReact()
+
+      expect_identical(rv$eval$b(), "ready")
+      expect_identical(rv$blocks$b$server$result(), datasets::iris)
+    },
+    args = list(x = board)
+  )
+})

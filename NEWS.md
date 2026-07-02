@@ -1,5 +1,29 @@
 # blockr.core 0.1.3
 
+* Blocks now carry an eval status -- `dormant`, `waiting`, `unset`, `failed` or
+  `ready` -- that, alongside the orthogonal visibility flag, gates evaluation,
+  rendering and the data a block exposes downstream (#219, #122). A block whose
+  required data inputs are unconnected (or a variadic block below its `...args`
+  minimum) is `waiting`; one waiting on an unset user input is `unset`; one that
+  has its inputs but whose validator or expression raises is `failed`. In none
+  of these does it evaluate against missing data or log the former
+  `is.data.frame(data) is not TRUE` error. A block reaches `ready` only once its
+  upstreams have, so an unconnected or pending block holds its whole downstream
+  chain `waiting`. Output rendering follows the status -- shown only while
+  `ready` and cleared otherwise -- so a block leaving `ready` no longer shows a
+  stale result.
+* By default a block requires every data input to be connected and a variadic
+  block to have at least one `...args` input. `new_block()`'s
+  `allow_empty_state` argument gains a structured `list(input = ..., data =
+  ...)` form to relax this per input kind: `input` (the existing
+  `TRUE`/`FALSE`/character form) relaxes required user inputs, while `data`
+  names non-variadic data inputs that may stay unconnected and, via a `...args`
+  entry, overrides the variadic minimum, e.g.
+  `list(input = "n", data = list("y", ...args = 2))`. `rbind_block` needs no
+  declaration now (the former `stopifnot(length(...args) >= 1L)` is the
+  default); `glue_block`, which renders with no data inputs, opts out via
+  `list(data = list(...args = 0))`.
+
 * The manage-links and manage-stacks plugins no longer flicker the table's
   cell selectizes on a board re-emit (#246). The observer that keeps the
   table in sync re-rendered every row whenever `upd$curr` was invalidated --
