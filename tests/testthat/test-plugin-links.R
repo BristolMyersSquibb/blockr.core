@@ -395,3 +395,60 @@ test_that("dummy ad/rm link ui test", {
   expect_s3_class(manage_links_ui("link", new_board()), "shiny.tag.list")
   expect_s3_class(links_modal(NS("links")), "shiny.tag")
 })
+
+test_that("variadic link inputs offer no positional-integer options", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      b = new_dataset_block("BOD"),
+      c = new_rbind_block()
+    ),
+    links = links(ac = new_link("a", "c"), bc = new_link("b", "c"))
+  )
+
+  dt <- dt_board_link(board_links(board), NS("x"), board)
+
+  expect_false(grepl("<option[^>]*value=\"[0-9]", dt$Input[[1L]]))
+  expect_false(grepl("<option[^>]*value=\"[0-9]", dt$Input[[2L]]))
+})
+
+test_that("a named variadic link renders its name in the editor", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      c = new_rbind_block()
+    ),
+    links = links(l1 = new_link("a", "c", "left"))
+  )
+
+  dt <- dt_board_link(board_links(board), NS("x"), board)
+
+  expect_match(dt$Input[[1L]], "value=\"left\" selected", fixed = TRUE)
+})
+
+test_that("clearing a variadic input name registers as a staged change", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      c = new_rbind_block()
+    ),
+    links = links(l1 = new_link("a", "c", "left"))
+  )
+
+  testServer(
+    manage_links_server,
+    {
+      session$flushReact()
+
+      session$setInputs(l1_input = "")
+
+      expect_identical(upd$edit, list(row = "l1", col = "input", val = ""))
+      expect_length(upd$add, 1L)
+      expect_identical(upd$add[["l1"]][["input"]], "")
+    },
+    args = list(board = reactiveValues(board = board), update = reactiveVal())
+  )
+})

@@ -15,7 +15,7 @@ new_glue_block <- function(text = character(), ...) {
         function(input, output, session) {
 
           arg_names <- reactive(
-            set_names(names(...args), dot_args_names(...args))
+            dot_arg_refs(...args)
           )
 
           list(

@@ -45,7 +45,6 @@ new_board <- function(blocks = list(), links = list(), stacks = list(),
   options <- as_board_options(options)
 
   links <- complete_unary_inputs(links, blocks)
-  links <- complete_variadic_inputs(links, blocks)
 
   validate_board(
     structure(
@@ -73,21 +72,6 @@ complete_unary_inputs <- function(x, blocks) {
   inputs <- lapply(blocks[unique(x$to[to_complete])], block_inputs)
 
   x$input[to_complete] <- chr_ply(inputs[x$to[to_complete]], identity)
-
-  x
-}
-
-complete_variadic_inputs <- function(x, blocks) {
-
-  ids <- names(blocks)
-
-  to_complete <- x$to %in% ids[is.na(int_ply(blocks, block_arity))] & (
-    is.na(x$input) | nchar(x$input) == 0L
-  )
-
-  to_todo <- x$to[to_complete]
-
-  x$input[to_complete] <- stats::ave(to_todo, to_todo, FUN = seq_along)
 
   x
 }
@@ -419,6 +403,14 @@ modify_board_links.board <- function(x, add = NULL, rm = NULL, mod = NULL,
 
   if (is_links(rm)) {
     rm <- names(rm)
+  }
+
+  keep <- intersect(names(add), rm)
+
+  if (length(keep)) {
+    links[keep] <- add[keep]
+    add <- add[setdiff(names(add), keep)]
+    rm <- setdiff(rm, keep)
   }
 
   if (length(rm)) {

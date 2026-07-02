@@ -236,3 +236,44 @@ test_that("a board has a compact str_value()", {
 
   expect_identical(capture.output(str(board))[1L], " <board>")
 })
+
+test_that("empty variadic link inputs stay unnamed", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      b = new_dataset_block("BOD"),
+      c = new_rbind_block()
+    ),
+    links = links(
+      ac = new_link("a", "c"),
+      bc = new_link("b", "c")
+    )
+  )
+
+  expect_identical(board_links(board)$input, c("", ""))
+})
+
+test_that("editing a link via add + rm overlap preserves its position", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      b = new_dataset_block("BOD"),
+      c = new_rbind_block()
+    ),
+    links = links(
+      ac = new_link("a", "c", "left"),
+      bc = new_link("b", "c")
+    )
+  )
+
+  edited <- modify_board_links(
+    board,
+    add = links(ac = new_link("a", "c", "x")),
+    rm = "ac"
+  )
+
+  expect_identical(names(board_links(edited)), c("ac", "bc"))
+  expect_identical(board_links(edited)[["ac"]][["input"]], "x")
+})

@@ -82,18 +82,14 @@ test_that("trim_rv removes keys, invalidates readers, and allows re-add", {
   )
 })
 
-test_that("trim_rv and reorder_rv run outside a reactive context", {
+test_that("trim_rv runs outside a reactive context", {
 
   rv <- reactiveValues(a = 1, b = 2, c = 3)
 
   expect_silent(trim_rv(rv, "b"))
   expect_setequal(isolate(names(rv)), c("a", "c"))
 
-  expect_silent(reorder_rv(rv, c("c", "a")))
-  expect_identical(isolate(names(rv)), c("c", "a"))
-
   expect_error(trim_rv(rv, "absent"))
-  expect_error(reorder_rv(rv, c("a", "b", "c")))
 })
 
 test_that("trim_rv invalidates reactiveValuesToList readers", {

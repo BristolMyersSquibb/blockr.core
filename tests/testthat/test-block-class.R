@@ -41,11 +41,6 @@ test_that("block constructor", {
     class = "block_server_dots_invalid"
   )
 
-  expect_error(
-    validate_block_server(function(id, `1`) {}),
-    class = "block_server_args_invalid"
-  )
-
   expect_identical(
     validate_block_server(function(id) {}),
     function(id) {}

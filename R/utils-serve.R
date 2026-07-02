@@ -33,18 +33,31 @@ serve <- function(x, ...) {
 serve.block <- function(x, id = "block", ..., data = list()) {
 
   init_data <- function(x, is_variadic) {
-    if (is_variadic) do.call(reactiveValues, x) else reactiveVal(x)
+
+    if (!is_variadic) {
+      return(reactiveVal(x))
+    }
+
+    const <- function(val) function() val
+
+    do.call(reactives, lapply(x, const))
   }
 
   if (...length() && !length(data)) {
     data <- list(...)
   }
 
-  dot_args <- !names(data) %in% block_inputs(x)
+  nms <- names(data)
+
+  if (is.null(nms)) {
+    nms <- character(length(data))
+  }
+
+  dot_args <- !nms %in% block_inputs(x)
 
   if (!is.na(block_arity(x)) && any(dot_args)) {
     blockr_abort(
-      "Unexpected arguments {names(data)[dot_args]}.",
+      "Unexpected arguments {nms[dot_args]}.",
       class = "unexpected_var_args"
     )
   }

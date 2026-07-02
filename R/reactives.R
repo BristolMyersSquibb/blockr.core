@@ -96,6 +96,16 @@ drop_reactive <- function(x, key) {
   invisible(x)
 }
 
+append_reactive <- function(x, fun) {
+
+  keys <- isolate(raw_keys(x))
+  pos <- keys[is_positional_key(keys)]
+
+  idx <- if (length(pos)) max(as.integer(substring(pos, 2L))) + 1L else 1L
+
+  set_reactive(x, positional_key(idx), fun)
+}
+
 reorder_reactives <- function(x, order) {
 
   keys <- .subset2(x, "keys")
