@@ -192,11 +192,13 @@ input. A block implementing <code><a href="https://rdrr.io/r/utils/head.html" cl
 extra argument <code>data</code>, while a block that performs <code><a href="https://rdrr.io/r/base/merge.html" class="external-link">base::merge()</a></code> requires
 two extra arguments, e.g. <code>x</code> and <code>y</code>. Finally, a variadic block, e.g.
 a block implementing something like <code><a href="https://rdrr.io/r/base/cbind.html" class="external-link">base::rbind()</a></code>, needs to accommodate for
-an arbitrary number of inputs. This is achieved by passing a
-<code><a href="https://rdrr.io/pkg/shiny/man/reactiveValues.html" class="external-link">shiny::reactiveValues()</a></code> object as <code>...args</code> and thus such a variadic block
-needs <code>...args</code> as part of the server function signature. All per-data input
-arguments are passed as <code><a href="https://rdrr.io/pkg/shiny/man/reactive.html" class="external-link">shiny::reactive()</a></code> or <code><a href="https://rdrr.io/pkg/shiny/man/reactiveVal.html" class="external-link">shiny::reactiveVal()</a></code>
-objects.</p>
+an arbitrary number of inputs. This is achieved by passing a container
+object as <code>...args</code> and thus such a variadic block needs <code>...args</code> as part
+of the server function signature. The container mirrors
+<code><a href="https://rdrr.io/pkg/shiny/man/reactiveValues.html" class="external-link">shiny::reactiveValues()</a></code> for reads (<code><a href="https://rdrr.io/r/base/names.html" class="external-link">names()</a></code>, <code>[[</code>, <code>$</code> and <code><a href="https://rdrr.io/r/base/list.html" class="external-link">as.list()</a></code>),
+and accessing a slot yields the value of its (lazily evaluated) input. The
+fixed per-data input arguments are instead passed as <code><a href="https://rdrr.io/pkg/shiny/man/reactive.html" class="external-link">shiny::reactive()</a></code> or
+<code><a href="https://rdrr.io/pkg/shiny/man/reactiveVal.html" class="external-link">shiny::reactiveVal()</a></code> objects.</p>
 <p>The server function may implement arbitrary shiny logic and is expected to
 return a list with components <code>expr</code> and <code>state</code>. The expression corresponds
 to the R code necessary to perform the block task and is expected to be

@@ -144,11 +144,14 @@ requires two extra arguments, e.g. `x` and `y`. Finally, a variadic
 block, e.g. a block implementing something like
 [`base::rbind()`](https://rdrr.io/r/base/cbind.html), needs to
 accommodate for an arbitrary number of inputs. This is achieved by
-passing a
+passing a container object as `...args` and thus such a variadic block
+needs `...args` as part of the server function signature. The container
+mirrors
 [`shiny::reactiveValues()`](https://rdrr.io/pkg/shiny/man/reactiveValues.html)
-object as `...args` and thus such a variadic block needs `...args` as
-part of the server function signature. All per-data input arguments are
-passed as
+for reads ([`names()`](https://rdrr.io/r/base/names.html), `[[`, `$` and
+[`as.list()`](https://rdrr.io/r/base/list.html)), and accessing a slot
+yields the value of its (lazily evaluated) input. The fixed per-data
+input arguments are instead passed as
 [`shiny::reactive()`](https://rdrr.io/pkg/shiny/man/reactive.html) or
 [`shiny::reactiveVal()`](https://rdrr.io/pkg/shiny/man/reactiveVal.html)
 objects.

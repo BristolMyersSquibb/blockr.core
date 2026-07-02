@@ -177,14 +177,22 @@ from output, the behavior of which can be customized via the
 control rendering of outputs.</p>
 <p>When a front-end (such as blockr.dock) drives the <code>visible</code> write-channel
 that <code><a href="board_server.html">board_server()</a></code> hands to the board callback, naming the block IDs
-currently on screen, block evaluation and rendering are gated on
-visibility: a block renders only while on screen and evaluates only while on
-screen or upstream of an on-screen block (its closure over <code><a href="board_blocks.html">board_links()</a></code>).
-Gating suspends and resumes the evaluation and render observers, starting
-them suspended so off-screen blocks neither evaluate nor render at startup.
-With nothing driving <code>visible</code> every block is treated as visible and
-behaviour is unchanged; the <code>gate_visibility</code> <code><a href="blockr_option.html">blockr_option()</a></code> (default
-<code>TRUE</code>) turns gating off entirely.</p>
+currently on screen, evaluation and rendering are gated on visibility.
+Rendering is gated on plain visibility: the render observer is suspended
+while a block is off screen and resumed once it is on screen, starting
+suspended so nothing renders before the front-end first reports. Evaluation
+is gated on the <em>needed</em> set, the on-screen blocks together with their
+upstream closure over <code><a href="board_blocks.html">board_links()</a></code> (derived from <code>visible</code>, recomputed
+only when it or the links change). A block's input data reactives stay
+unfulfilled (they <code><a href="https://rdrr.io/pkg/shiny/man/req.html" class="external-link">shiny::req()</a></code> out) unless the block is needed, so a block
+that is neither visible nor feeding a visible block pulls no input and stays
+fully quiescent: its result reactive, and any observer its expression server
+registers on the incoming data, all short-circuit and do nothing. A needed
+but off-screen block (one feeding a visible block) evaluates but does not
+render. With nothing driving
+<code>visible</code> every block is needed and behaviour is unchanged; the
+<code>gate_visibility</code> <code><a href="blockr_option.html">blockr_option()</a></code> (default <code>TRUE</code>) turns gating off
+entirely.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
