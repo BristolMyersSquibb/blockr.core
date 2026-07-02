@@ -32,6 +32,7 @@ block_server(
   ctrl_block = NULL,
   board = reactiveValues(),
   update = reactiveVal(),
+  inputs_ready = reactive(TRUE),
   ...
 )
 
@@ -87,6 +88,13 @@ block_render_trigger(x, session = get_session())
 
   Reactive value object to initiate board updates
 
+- inputs_ready:
+
+  Reactive flag signaling whether the block's required inputs are all
+  connected to ready upstream blocks (supplied by
+  [`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md);
+  defaults to always-ready when a block server is run standalone)
+
 ## Value
 
 Both `block_server()` and `expr_server()` return shiny server module
@@ -105,14 +113,46 @@ block-specific functionality, i.e. block user inputs and expression),
 and instantiation of the `edit_block` module (if passed from the parent
 scope).
 
-A block is considered ready for evaluation whenever input data is
-available that satisfies validation
-([`validate_data_inputs()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md))
-and nonempty state values are available (unless otherwise instructed via
-`allow_empty_state` in
-[`new_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block.md)).
-Conditions raised during validation and evaluation are caught and
-returned in order to be surfaced to the app user.
+Each block carries an *eval status* – one of `dormant`, `waiting`,
+`unset`, `failed` or `ready` – which, together with the orthogonal
+`visible` flag, determines its behaviour. The status separates the two
+input kinds (data inputs from links, user inputs from `state`) and a
+genuine failure:
+
+- `dormant` – not *needed* (neither on screen nor feeding, transitively
+  over
+  [`board_links()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md),
+  an on-screen block); inputs stay unfulfilled
+  ([`shiny::req()`](https://rdrr.io/pkg/shiny/man/req.html) out) and
+  nothing evaluates.
+
+- `waiting` – needed, but a required *data* input is missing:
+  unconnected, below the required number of variadic `...args` inputs
+  (one by default), or fed by an upstream block that is not itself
+  `ready` (see `allow_empty_state`).
+
+- `unset` – data inputs are ready, but a required *user* input (`state`
+  value) has not been provided (unless permitted by
+  `allow_empty_state`).
+
+- `failed` – all inputs are present, but the block cannot produce a
+  result: the data validator
+  ([`validate_data_inputs()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md))
+  or the block expression raised. The offending condition is surfaced
+  through the block conditions.
+
+- `ready` – evaluation succeeded and a result (possibly a legitimate
+  `NULL`) is available for downstream blocks to consume.
+
+A block reaches `ready` only once its upstreams have, so an unconnected
+or pending block holds its whole downstream chain `waiting` without any
+of them evaluating against missing data. Output rendering follows the
+status: the block output is shown only while `ready` and cleared
+otherwise, so a block leaving `ready` never displays a stale result.
+While not `ready` the block surfaces a condition explaining why – a
+`status`-phase note for `waiting` and `unset`, or the raised error for
+`failed`. Conditions raised during validation and evaluation are caught
+and returned to be surfaced to the app user.
 
 Block-level user inputs (provided by the expression module) are
 separated from output, the behavior of which can be customized via the

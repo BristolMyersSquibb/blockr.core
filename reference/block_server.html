@@ -95,6 +95,7 @@ respectively.</p>
 <span>  ctrl_block <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  board <span class="op">=</span> <span class="fu">reactiveValues</span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  update <span class="op">=</span> <span class="fu">reactiveVal</span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  inputs_ready <span class="op">=</span> <span class="fu">reactive</span><span class="op">(</span><span class="cn">TRUE</span><span class="op">)</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -150,6 +151,13 @@ respectively.</p>
 <dt id="arg-update">update<a class="anchor" aria-label="anchor" href="#arg-update"></a></dt>
 <dd><p>Reactive value object to initiate board updates</p></dd>
 
+
+<dt id="arg-inputs-ready">inputs_ready<a class="anchor" aria-label="anchor" href="#arg-inputs-ready"></a></dt>
+<dd><p>Reactive flag signaling whether the block's required
+inputs are all connected to ready upstream blocks (supplied by
+<code><a href="board_server.html">board_server()</a></code>; defaults to always-ready when a block server is run
+standalone)</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -166,11 +174,32 @@ functionality, including data input validation (if available), instantiation
 of the block expression server (handling the block-specific functionality,
 i.e. block user inputs and expression), and instantiation of the
 <code>edit_block</code> module (if passed from the parent scope).</p>
-<p>A block is considered ready for evaluation whenever input data is available
-that satisfies validation (<code><a href="block_name.html">validate_data_inputs()</a></code>) and nonempty state
-values are available (unless otherwise instructed via <code>allow_empty_state</code>
-in <code><a href="new_block.html">new_block()</a></code>). Conditions raised during validation and evaluation are
-caught and returned in order to be surfaced to the app user.</p>
+<p>Each block carries an <em>eval status</em> – one of <code>dormant</code>, <code>waiting</code>, <code>unset</code>,
+<code>failed</code> or <code>ready</code> – which, together with the orthogonal <code>visible</code> flag,
+determines its behaviour. The status separates the two input kinds (data
+inputs from links, user inputs from <code>state</code>) and a genuine failure:</p><ul><li><p><code>dormant</code> – not <em>needed</em> (neither on screen nor feeding, transitively over
+<code><a href="board_blocks.html">board_links()</a></code>, an on-screen block); inputs stay unfulfilled
+(<code><a href="https://rdrr.io/pkg/shiny/man/req.html" class="external-link">shiny::req()</a></code> out) and nothing evaluates.</p></li>
+<li><p><code>waiting</code> – needed, but a required <em>data</em> input is missing: unconnected,
+below the required number of variadic <code>...args</code> inputs (one by default),
+or fed by an upstream block that is not itself <code>ready</code> (see
+<code>allow_empty_state</code>).</p></li>
+<li><p><code>unset</code> – data inputs are ready, but a required <em>user</em> input (<code>state</code>
+value) has not been provided (unless permitted by <code>allow_empty_state</code>).</p></li>
+<li><p><code>failed</code> – all inputs are present, but the block cannot produce a result:
+the data validator (<code><a href="block_name.html">validate_data_inputs()</a></code>) or the block expression
+raised. The offending condition is surfaced through the block conditions.</p></li>
+<li><p><code>ready</code> – evaluation succeeded and a result (possibly a legitimate <code>NULL</code>)
+is available for downstream blocks to consume.</p></li>
+</ul><p>A block reaches <code>ready</code> only once its upstreams have, so an unconnected or
+pending block holds its whole downstream chain <code>waiting</code> without any of them
+evaluating against missing data. Output rendering follows the status: the
+block output is shown only while <code>ready</code> and cleared otherwise, so a block
+leaving <code>ready</code> never displays a stale result. While not <code>ready</code> the block
+surfaces a condition explaining why – a <code>status</code>-phase note for <code>waiting</code>
+and <code>unset</code>, or the raised error for <code>failed</code>. Conditions raised during
+validation and evaluation are caught and returned to be surfaced to the app
+user.</p>
 <p>Block-level user inputs (provided by the expression module) are separated
 from output, the behavior of which can be customized via the
 <code><a href="block_ui.html">block_output()</a></code> generic. The <code><a href="block_ui.html">block_ui()</a></code> generic can then be used to

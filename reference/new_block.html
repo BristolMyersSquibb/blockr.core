@@ -121,8 +121,15 @@ constructor name or <code>NULL</code></p></dd>
 
 
 <dt id="arg-allow-empty-state">allow_empty_state<a class="anchor" aria-label="anchor" href="#arg-allow-empty-state"></a></dt>
-<dd><p>Either <code>TRUE</code>, <code>FALSE</code> or a character vector of
-<code>state</code> values that may be empty while still moving forward with block eval</p></dd>
+<dd><p>Relaxes the block's readiness requirements. By
+default every data input must be connected and a variadic block needs at
+least one <code>...args</code> input. As <code>TRUE</code>, <code>FALSE</code> or a character vector of
+<code>state</code> names it relaxes <em>user</em> inputs (which <code>state</code> values may be empty).
+A <code>list(input = ..., data = ...)</code> also relaxes <em>data</em> inputs: <code>input</code> takes
+the same <code>TRUE</code>/<code>FALSE</code>/character form, while <code>data</code> names non-variadic data
+inputs that may stay unconnected and, via a <code>...args</code> entry, overrides the
+required number of variadic inputs, e.g.
+<code>list(input = "n", data = list("y", ...args = 2))</code></p></dd>
 
 
 <dt id="arg-block-name">block_name<a class="anchor" aria-label="anchor" href="#arg-block-name"></a></dt>
@@ -264,6 +271,13 @@ validation can optionally be performed by passing a predicate function with
 the same arguments as in the server function (not including <code>id</code>) and the
 block expression will not be evaluated as long as this function throws an
 error.</p>
+<p>Ahead of validation, a block must have its inputs available: every required
+<em>data</em> input connected to a ready upstream (variadic blocks need at least the
+<code>...args</code> minimum declared via <code>allow_empty_state</code>) and every required <em>user</em>
+input (<code>state</code>) provided. Until then – including while an upstream is itself
+still pending – neither the validator nor the block expression run and no
+output is produced. See <code><a href="block_server.html">block_server()</a></code> for the resulting eval status
+(<code>dormant</code> / <code>waiting</code> / <code>unset</code> / <code>failed</code> / <code>ready</code>).</p>
 <p>Other conditions (messages and warnings) may be thrown as will be caught
 and displayed to the user but they will not interrupt evaluation. Errors
 are safe in that they will be caught as well but the will interrupt

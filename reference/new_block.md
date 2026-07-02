@@ -67,8 +67,15 @@ as_blocks(x, ...)
 
 - allow_empty_state:
 
-  Either `TRUE`, `FALSE` or a character vector of `state` values that
-  may be empty while still moving forward with block eval
+  Relaxes the block's readiness requirements. By default every data
+  input must be connected and a variadic block needs at least one
+  `...args` input. As `TRUE`, `FALSE` or a character vector of `state`
+  names it relaxes *user* inputs (which `state` values may be empty). A
+  `list(input = ..., data = ...)` also relaxes *data* inputs: `input`
+  takes the same `TRUE`/`FALSE`/character form, while `data` names
+  non-variadic data inputs that may stay unconnected and, via a
+  `...args` entry, overrides the required number of variadic inputs,
+  e.g. `list(input = "n", data = list("y", ...args = 2))`
 
 - block_name:
 
@@ -228,6 +235,16 @@ validation can optionally be performed by passing a predicate function
 with the same arguments as in the server function (not including `id`)
 and the block expression will not be evaluated as long as this function
 throws an error.
+
+Ahead of validation, a block must have its inputs available: every
+required *data* input connected to a ready upstream (variadic blocks
+need at least the `...args` minimum declared via `allow_empty_state`)
+and every required *user* input (`state`) provided. Until then –
+including while an upstream is itself still pending – neither the
+validator nor the block expression run and no output is produced. See
+[`block_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_server.md)
+for the resulting eval status (`dormant` / `waiting` / `unset` /
+`failed` / `ready`).
 
 Other conditions (messages and warnings) may be thrown as will be caught
 and displayed to the user but they will not interrupt evaluation. Errors
