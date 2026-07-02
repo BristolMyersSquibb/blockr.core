@@ -2,6 +2,37 @@
 
 ## blockr.core 0.1.3
 
+- Block registration metadata can now be declared with roxygen2 tags
+  (`@block`, `@blockDescr`, `@blockCategory`, `@blockIcon`,
+  `@blockGuidance`, `@blockKeywords`, `@blockDetails`, `@blockLink`,
+  `@blockArg`, `@blockExamples` and `@blockCtor`) directly on a block
+  constructor
+  ([\#140](https://github.com/BristolMyersSquibb/blockr.core/issues/140)).
+  A new roclet,
+  [`block_registration_roclet()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_roclet.md),
+  gathers them into `inst/registry/blocks.yml`, which the newly exported
+  [`register_package_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
+  reads at load time. `register_core_blocks()` now sources its metadata
+  from that registry instead of a hardcoded call, so adding a block to
+  the registry is a matter of annotating its constructor. Extension
+  packages can opt in by adding the roclet to their `DESCRIPTION`
+  `Roxygen` field and calling
+  [`register_package_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
+  from `.onLoad()`.
+
+- The core blocks now carry richer registration metadata: model-facing
+  `guidance`, search `keywords` (comma-separated, so a term may contain
+  spaces), `details` (falling back to the constructor’s `@section` prose
+  when `@blockDetails` is omitted), a documentation `link` (derived from
+  the package’s pkgdown `url` and the documented topic when `@blockLink`
+  is omitted), and per-argument JSON-schema `type` descriptors alongside
+  descriptions and worked examples. Each argument is declared with one
+  `@blockArg <name> <description>` tag; optional `[example] <expr>` and
+  `[type] <expr>` markers give R expressions (evaluated at documentation
+  time) for a worked example and an `arg_*()` type descriptor, so a
+  typed argument can carry a typed example. Block-level worked
+  configurations are declared with `@blockExamples`.
+
 - The manage-links and manage-stacks plugins no longer flicker the
   table’s cell selectizes on a board re-emit
   ([\#246](https://github.com/BristolMyersSquibb/blockr.core/issues/246)).

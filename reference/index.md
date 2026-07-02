@@ -45,7 +45,10 @@ block.
   [`available_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
   [`registry_metadata()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
   [`create_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
+  [`register_package_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
   : Block registry
+- [`block_registration_roclet()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_roclet.md)
+  : Block registration roclet
 - [`new_block_arg()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md)
   [`new_block_args()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md)
   [`block_arg_description()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md)
