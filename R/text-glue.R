@@ -12,11 +12,9 @@
 #'   `glue::glue()` to produce (markdown) text. Reference columns of the data in
 #'   `text` with braces, e.g. "{nrow(data)} rows".
 #' @blockKeywords glue template text string interpolate markdown
-#' @blockArg text new_block_arg(
-#'   "Template string evaluated with glue::glue().",
-#'   example = "{nrow(data)} rows",
-#'   type = arg_string()
-#' )
+#' @blockArg text Template string evaluated with glue::glue().
+#'   [example] "{nrow(data)} rows"
+#'   [type] arg_string()
 #'
 #' @rdname new_text_block
 #' @export

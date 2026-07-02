@@ -15,16 +15,12 @@
 #'   TRUE; `select` picks columns. Both are R expressions written as strings and
 #'   evaluated with the data columns in scope.
 #' @blockKeywords filter subset select rows columns where
-#' @blockArg subset new_block_arg(
-#'   "Logical row-filter expression, as a string.",
-#'   example = "Sepal.Width > 3",
-#'   type = arg_string()
-#' )
-#' @blockArg select new_block_arg(
-#'   "Column-selection expression, as a string.",
-#'   example = "Species",
-#'   type = arg_string()
-#' )
+#' @blockArg subset Logical row-filter expression, as a string.
+#'   [example] "Sepal.Width > 3"
+#'   [type] arg_string()
+#' @blockArg select Column-selection expression, as a string.
+#'   [example] "Species"
+#'   [type] arg_string()
 #'
 #' @rdname new_transform_block
 #' @export

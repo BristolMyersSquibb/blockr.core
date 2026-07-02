@@ -18,10 +18,8 @@
 #'   parser such as a CSV block. `file_path` is the chosen path; `volumes`
 #'   bounds the root directories the browser may reach.
 #' @blockKeywords file browser path filesystem select
-#' @blockArg file_path new_block_arg(
-#'   "Path of the selected file.",
-#'   type = arg_string()
-#' )
+#' @blockArg file_path Path of the selected file.
+#'   [type] arg_string()
 #'
 #' @rdname new_file_block
 #' @export

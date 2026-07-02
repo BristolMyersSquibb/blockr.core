@@ -12,12 +12,11 @@
 #'   block) into a data.frame with `utils::read.table()`. `sep` is the field
 #'   separator and `quote` the quoting character.
 #' @blockKeywords csv parse read delimited import
-#' @blockArg sep new_block_arg(
-#'   "Field separator character.",
-#'   example = ",",
-#'   type = arg_string()
-#' )
-#' @blockArg quote new_block_arg("Quoting character.", type = arg_string())
+#' @blockArg sep Field separator character.
+#'   [example] ","
+#'   [type] arg_string()
+#' @blockArg quote Quoting character.
+#'   [type] arg_string()
 #'
 #' @rdname new_parser_block
 #' @export

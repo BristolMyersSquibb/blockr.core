@@ -11,11 +11,12 @@ test_that("the roclet reads block metadata off constructor tags", {
 #' @blockGuidance Keeps the first `n` rows;
 #'   `direction` picks the end.
 #' @blockKeywords head, tail  first
-#' @blockParam n Number of rows
-#' @blockParamType n arg_integer()
-#' @blockParam direction Which end
-#' @blockParamType direction arg_enum(c(\"head\", \"tail\"))
-#' @blockParamExample direction tail
+#' @blockArg n Number of rows to keep
+#'   [example] 10L
+#'   [type] arg_integer()
+#' @blockArg direction Which end, head or tail
+#'   [example] \"tail\"
+#'   [type] arg_enum(c(\"head\", \"tail\"))
 #' @export
 new_demo_block <- function(n = 1, direction = \"head\") n
 "
@@ -33,17 +34,21 @@ new_demo_block <- function(n = 1, direction = \"head\") n
   expect_identical(res[["keywords"]], c("head", "tail", "first"))
 
   args <- res[["arguments"]]
-  expect_identical(args[["n"]][["description"]], "Number of rows")
+  expect_identical(args[["n"]][["description"]], "Number of rows to keep")
+  expect_identical(args[["n"]][["example"]], 10L)
   expect_identical(args[["n"]][["type"]][["type"]], "integer")
+  expect_identical(
+    args[["direction"]][["description"]],
+    "Which end, head or tail"
+  )
   expect_identical(args[["direction"]][["example"]], "tail")
-  expect_identical(args[["direction"]][["type"]][["type"]], "string")
   expect_identical(
     as.character(args[["direction"]][["type"]][["enum"]]),
     c("head", "tail")
   )
 })
 
-test_that("@blockArg gives a whole argument spec in one expression", {
+test_that("@blockArg allows an explicit description and type-only args", {
 
   skip_if_not_installed("roxygen2")
 
@@ -52,49 +57,21 @@ test_that("@blockArg gives a whole argument spec in one expression", {
 #' @block demo block
 #' @blockDescr A demo
 #' @blockCategory transform
-#' @blockArg n new_block_arg(\"Rows to keep\", type = arg_integer())
-#' @blockArg direction new_block_arg(
-#'   \"Which end\",
-#'   example = \"tail\",
-#'   type = arg_enum(c(\"head\", \"tail\"))
-#' )
+#' @blockArg x
+#'   [type] arg_string()
+#'   [description] The x column
 #' @export
-new_demo_block <- function(n = 1, direction = \"head\") n
+new_demo_block <- function(x = \"\") x
 "
 
   args <- roxygen2::roc_proc_text(
     block_registration_roclet(), txt
   )[[1L]][["arguments"]]
 
-  expect_named(args, c("n", "direction"))
-  expect_identical(args[["n"]][["description"]], "Rows to keep")
-  expect_identical(args[["n"]][["type"]][["type"]], "integer")
-  expect_identical(args[["direction"]][["example"]], "tail")
-  expect_identical(
-    as.character(args[["direction"]][["type"]][["enum"]]),
-    c("head", "tail")
-  )
-})
-
-test_that("an argument given by both @blockArg and @blockParam is rejected", {
-
-  skip_if_not_installed("roxygen2")
-
-  txt <- "
-#' Title
-#' @block demo
-#' @blockDescr d
-#' @blockCategory transform
-#' @blockParam n Rows
-#' @blockArg n new_block_arg(\"Rows\", type = arg_integer())
-#' @export
-new_demo_block <- function(n = 1) n
-"
-
-  expect_error(
-    roxygen2::roc_proc_text(block_registration_roclet(), txt),
-    class = "block_roclet_invalid"
-  )
+  expect_named(args, "x")
+  expect_identical(args[["x"]][["description"]], "The x column")
+  expect_identical(args[["x"]][["type"]][["type"]], "string")
+  expect_null(args[["x"]][["example"]])
 })
 
 test_that("only constructors carrying @block are picked up", {

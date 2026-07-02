@@ -33,25 +33,18 @@ category icon (see \code{\link[=default_icon]{default_icon()}}).}
 don't rules, enumerations, pitfalls. Optional.}
 \item{\verb{@blockKeywords <words>}}{Free-text search terms for block discovery,
 separated by whitespace or commas. Optional.}
-\item{\verb{@blockParam <name> <description>}}{Description of a constructor
-argument. Optional and repeatable.}
-\item{\verb{@blockParamExample <name> <value>}}{A worked example value for a
-constructor argument. Optional and repeatable.}
-\item{\verb{@blockParamType <name> <expr>}}{Machine-readable type for a
-constructor argument, written as an \verb{arg_*()} descriptor expression such
-as \code{arg_enum(c("head", "tail"))} and evaluated while documentation is
-generated. Optional and repeatable. See \code{\link[=new_block_arg]{new_block_arg()}}.}
-\item{\verb{@blockArg <name> <expr>}}{A whole argument specification given as a
-\code{\link[=new_block_arg]{new_block_arg()}} expression, evaluated at documentation time -- e.g.
-\verb{@blockArg n new_block_arg("Rows to keep", type = arg_integer())}. A
-co-located alternative to the \verb{@blockParam} / \verb{@blockParamType} /
-\verb{@blockParamExample} trio; the two styles may be mixed across arguments
-but not on the same argument. Optional and repeatable.}
+\item{\verb{@blockArg <name> <description>}}{One constructor argument's
+specification. The text after the name is a free-text description;
+\verb{[example] <expr>} and \verb{[type] <expr>} markers (each on its own line)
+supply an R expression -- evaluated when documentation is generated --
+for a worked example value and an \verb{arg_*()} type descriptor (see
+\code{\link[=new_block_arg]{new_block_arg()}}). An explicit \verb{[description] <text>} marker may replace
+the inline description. Optional and repeatable.}
 \item{\verb{@blockCtor <name>}}{Constructor name override. Optional: the
 documented object otherwise supplies the name.}
 }
-Multi-argument worked \code{examples} (whole-block configurations, as opposed to
-the per-argument \verb{@blockParamExample}) remain out of the tags' scope; a block
-needing those registers via \code{\link[=register_block]{register_block()}} directly.
+Multi-argument worked \code{examples} (whole-block configurations, as opposed to a
+per-argument \verb{[example]}) remain out of the tags' scope; a block needing
+those registers via \code{\link[=register_block]{register_block()}} directly.
 }
 

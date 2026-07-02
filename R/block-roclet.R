@@ -21,26 +21,19 @@
 #'     don't rules, enumerations, pitfalls. Optional.}
 #'   \item{`@blockKeywords <words>`}{Free-text search terms for block discovery,
 #'     separated by whitespace or commas. Optional.}
-#'   \item{`@blockParam <name> <description>`}{Description of a constructor
-#'     argument. Optional and repeatable.}
-#'   \item{`@blockParamExample <name> <value>`}{A worked example value for a
-#'     constructor argument. Optional and repeatable.}
-#'   \item{`@blockParamType <name> <expr>`}{Machine-readable type for a
-#'     constructor argument, written as an `arg_*()` descriptor expression such
-#'     as `arg_enum(c("head", "tail"))` and evaluated while documentation is
-#'     generated. Optional and repeatable. See [new_block_arg()].}
-#'   \item{`@blockArg <name> <expr>`}{A whole argument specification given as a
-#'     [new_block_arg()] expression, evaluated at documentation time -- e.g.
-#'     `@blockArg n new_block_arg("Rows to keep", type = arg_integer())`. A
-#'     co-located alternative to the `@blockParam` / `@blockParamType` /
-#'     `@blockParamExample` trio; the two styles may be mixed across arguments
-#'     but not on the same argument. Optional and repeatable.}
+#'   \item{`@blockArg <name> <description>`}{One constructor argument's
+#'     specification. The text after the name is a free-text description;
+#'     `[example] <expr>` and `[type] <expr>` markers (each on its own line)
+#'     supply an R expression -- evaluated when documentation is generated --
+#'     for a worked example value and an `arg_*()` type descriptor (see
+#'     [new_block_arg()]). An explicit `[description] <text>` marker may replace
+#'     the inline description. Optional and repeatable.}
 #'   \item{`@blockCtor <name>`}{Constructor name override. Optional: the
 #'     documented object otherwise supplies the name.}
 #' }
-#' Multi-argument worked `examples` (whole-block configurations, as opposed to
-#' the per-argument `@blockParamExample`) remain out of the tags' scope; a block
-#' needing those registers via [register_block()] directly.
+#' Multi-argument worked `examples` (whole-block configurations, as opposed to a
+#' per-argument `[example]`) remain out of the tags' scope; a block needing
+#' those registers via [register_block()] directly.
 #'
 #' @return `block_registration_roclet()` returns a roclet object.
 #'
@@ -81,33 +74,18 @@ roxy_tag_parse.roxy_tag_blockKeywords <- function(x) {
 }
 
 #' @exportS3Method roxygen2::roxy_tag_parse
-roxy_tag_parse.roxy_tag_blockParam <- function(x) {
-  roxygen2::tag_name_description(x)
-}
-
-#' @exportS3Method roxygen2::roxy_tag_parse
-roxy_tag_parse.roxy_tag_blockParamExample <- function(x) {
-  roxygen2::tag_name_description(x)
-}
-
-#' @exportS3Method roxygen2::roxy_tag_parse
-roxy_tag_parse.roxy_tag_blockParamType <- function(x) {
-  roxygen2::tag_name_description(x)
-}
-
-#' @exportS3Method roxygen2::roxy_tag_parse
 roxy_tag_parse.roxy_tag_blockArg <- function(x) {
 
   raw <- trimws(x[["raw"]])
   split <- regexpr("[[:space:]]", raw)
 
   if (split < 0L) {
-    return(roxygen2::roxy_tag_warning(x, "requires a name and a value"))
+    return(roxygen2::roxy_tag_warning(x, "requires an argument name"))
   }
 
-  x[["val"]] <- list(
-    name = substr(raw, 1L, split - 1L),
-    expr = trimws(substring(raw, split + 1L))
+  x[["val"]] <- c(
+    list(name = substr(raw, 1L, split - 1L)),
+    block_arg_fields(substring(raw, split + 1L))
   )
 
   x
@@ -238,57 +216,54 @@ block_roclet_entry <- function(block) {
 
 block_roclet_args <- function(block) {
 
-  flat <- flat_arg_specs(block)
-  expr <- block_arg_specs(block)
-
-  clash <- intersect(names(flat), names(expr))
-
-  if (length(clash)) {
-    block_roclet_abort(
-      roxygen2::block_get_tag(block, "block"),
-      paste0(
-        "Argument(s) ", paste(clash, collapse = ", "),
-        " are given by both @blockArg and @blockParam*."
-      )
-    )
-  }
-
-  c(flat, expr)
-}
-
-flat_arg_specs <- function(block) {
-
-  descrs <- as.list(block_named_tag_values(block, "blockParam"))
-  examples <- as.list(block_named_tag_values(block, "blockParamExample"))
-  types <- block_named_tag_types(block)
-
-  nms <- unique(c(names(descrs), names(examples), names(types)))
-
-  set_names(
-    lapply(
-      nms,
-      function(nm) compact_arg(descrs[[nm]], examples[[nm]], types[[nm]])
-    ),
-    nms
-  )
-}
-
-block_arg_specs <- function(block) {
-
   vals <- lapply(roxygen2::block_get_tags(block, "blockArg"), `[[`, "val")
 
-  set_names(
-    lapply(chr_xtr(vals, "expr"), eval_block_arg),
-    chr_xtr(vals, "name")
+  set_names(lapply(vals, block_arg_spec), chr_xtr(vals, "name"))
+}
+
+block_arg_fields <- function(body) {
+
+  lines <- strsplit(body, "\n", fixed = TRUE)[[1L]]
+
+  fields <- list()
+  key <- "description"
+
+  for (line in lines) {
+
+    marker <- regmatches(
+      line,
+      regexec("^[[:space:]]*\\[(description|example|type)\\][[:space:]]*(.*)$",
+              line)
+    )[[1L]]
+
+    if (length(marker)) {
+      key <- marker[[2L]]
+      value <- marker[[3L]]
+    } else {
+      value <- trimws(line)
+    }
+
+    fields[[key]] <- trimws(paste(c(fields[[key]], value), collapse = " "))
+  }
+
+  Filter(nzchar, fields)
+}
+
+block_arg_spec <- function(val) {
+  compact_arg(
+    val[["description"]],
+    eval_arg_expr(val[["example"]]),
+    eval_arg_expr(val[["type"]])
   )
 }
 
-eval_block_arg <- function(expr) {
+eval_arg_expr <- function(expr) {
 
-  value <- eval(str2lang(expr), new.env(parent = asNamespace("blockr.core")))
-  arg <- as_block_arg(value)
+  if (is.null(expr)) {
+    return(NULL)
+  }
 
-  compact_arg(arg[["description"]], arg[["example"]], arg[["type"]])
+  eval(str2lang(expr), new.env(parent = asNamespace("blockr.core")))
 }
 
 compact_arg <- function(description, example, type) {
@@ -317,27 +292,6 @@ block_tag_value <- function(block, tag) {
   if (is.null(hit)) NULL else hit$val
 }
 
-block_named_tag_values <- function(block, tag) {
-
-  vals <- lapply(roxygen2::block_get_tags(block, tag), `[[`, "val")
-
-  set_names(chr_xtr(vals, "description"), chr_xtr(vals, "name"))
-}
-
-block_named_tag_types <- function(block) {
-
-  vals <- lapply(roxygen2::block_get_tags(block, "blockParamType"), `[[`, "val")
-
-  set_names(
-    lapply(chr_xtr(vals, "description"), eval_arg_descriptor),
-    chr_xtr(vals, "name")
-  )
-}
-
-eval_arg_descriptor <- function(expr) {
-  eval(str2lang(expr), new.env(parent = asNamespace("blockr.core")))
-}
-
 block_keywords <- function(block) {
 
   value <- block_tag_value(block, "blockKeywords")
@@ -352,14 +306,16 @@ block_keywords <- function(block) {
 }
 
 block_guidance <- function(block) {
+  reflow_text(block_tag_value(block, "blockGuidance"))
+}
 
-  value <- block_tag_value(block, "blockGuidance")
+reflow_text <- function(text) {
 
-  if (is.null(value)) {
+  if (is.null(text)) {
     return(NULL)
   }
 
-  gsub("\\s+", " ", trimws(value))
+  gsub("\\s+", " ", trimws(text))
 }
 
 block_roclet_abort <- function(tag, message) {
