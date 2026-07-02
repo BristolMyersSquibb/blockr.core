@@ -75,6 +75,8 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         visible = TRUE
       )
 
+      rv$eval <- reactiveValues()
+
       rv_ro <- list(board = make_read_only(rv))
 
       rv$conditions <- reactive(
@@ -452,18 +454,74 @@ setup_block <- function(blk, id, rv, mod_ed, mod_ct, args) {
 
   update_block_links(rv, links[links$to == id])
 
-  rv$blocks[[id]] <- list(
-    block = blk,
-    server = do.call(
-      block_server,
-      c(
-        list(paste0("block_", id), blk, rv$inputs[[id]], id, mod_ed, mod_ct),
-        args
-      )
+  inputs_ready <- reactive(block_inputs_ready(src_rv, blk, rv))
+
+  srv <- do.call(
+    block_server,
+    c(
+      list(paste0("block_", id), blk, rv$inputs[[id]], id, mod_ed, mod_ct),
+      args,
+      list(inputs_ready = inputs_ready)
     )
   )
 
+  rv$blocks[[id]] <- list(block = blk, server = srv)
+
+  rv$eval[[id]] <- reactive(block_eval_status(rv, id, inputs_ready, srv))
+
   invisible()
+}
+
+block_inputs_ready <- function(src_rv, blk, rv) {
+
+  src <- reactiveValuesToList(src_rv)
+  fixed <- block_inputs(blk)
+  required <- setdiff(fixed, block_optional_inputs(blk))
+
+  if (!all(lgl_ply(src[required], input_ready, rv))) {
+    return(FALSE)
+  }
+
+  if (is.na(block_arity(blk))) {
+
+    variadic <- src[setdiff(names(src), fixed)]
+
+    if (sum(lgl_ply(variadic, input_ready, rv)) < block_min_args(blk)) {
+      return(FALSE)
+    }
+  }
+
+  TRUE
+}
+
+input_ready <- function(from, rv) {
+  not_null(from) && identical(reval_if(rv$eval[[from]]), "ready")
+}
+
+block_eval_status <- function(rv, id, inputs_ready, srv) {
+
+  if (!block_needed(rv, id)) {
+    return("dormant")
+  }
+
+  if (!inputs_ready()) {
+    return("waiting")
+  }
+
+  if (!isTRUE(srv$state_ready())) {
+    return("unset")
+  }
+
+  if (isTRUE(srv$failed())) {
+    return("failed")
+  }
+
+  "ready"
+}
+
+block_needed <- function(rv, id) {
+  needed <- rv$needed()
+  isTRUE(needed) || id %in% needed
 }
 
 apply_block_mod_delta <- function(blk_id, delta, rv) {
@@ -508,6 +566,10 @@ destroy_rm_blocks <- function(ids, rv, sess, args) {
   rv$inputs <- rv$inputs[!names(rv$inputs) %in% ids]
   rv$sources <- rv$sources[!names(rv$sources) %in% ids]
   rv$blocks <- rv$blocks[!names(rv$blocks) %in% ids]
+
+  for (id in ids) {
+    rv$eval[[id]] <- NULL
+  }
 
   rv$board <- do.call(
     rm_blocks,

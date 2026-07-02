@@ -105,6 +105,14 @@
 #' block expression will not be evaluated as long as this function throws an
 #' error.
 #'
+#' Ahead of validation, a block must have its inputs available: every required
+#' *data* input connected to a ready upstream (variadic blocks need at least the
+#' `...args` minimum declared via `allow_empty_state`) and every required *user*
+#' input (`state`) provided. Until then -- including while an upstream is itself
+#' still pending -- neither the validator nor the block expression run and no
+#' output is produced. See [block_server()] for the resulting eval status
+#' (`dormant` / `waiting` / `unset` / `failed` / `ready`).
+#'
 #' Other conditions (messages and warnings) may be thrown as will be caught
 #' and displayed to the user but they will not interrupt evaluation. Errors
 #' are safe in that they will be caught as well but the will interrupt
@@ -119,8 +127,15 @@
 #'   constructor name or `NULL`
 #' @param dat_valid (Optional) input data validator
 #' @param block_name Block name
-#' @param allow_empty_state Either `TRUE`, `FALSE` or a character vector of
-#' `state` values that may be empty while still moving forward with block eval
+#' @param allow_empty_state Relaxes the block's readiness requirements. By
+#' default every data input must be connected and a variadic block needs at
+#' least one `...args` input. As `TRUE`, `FALSE` or a character vector of
+#' `state` names it relaxes *user* inputs (which `state` values may be empty).
+#' A `list(input = ..., data = ...)` also relaxes *data* inputs: `input` takes
+#' the same `TRUE`/`FALSE`/character form, while `data` names non-variadic data
+#' inputs that may stay unconnected and, via a `...args` entry, overrides the
+#' required number of variadic inputs, e.g.
+#' `list(input = "n", data = list("y", ...args = 2))`
 #' @param expr_type Expression type (experimental)
 #' @param external_ctrl Set up external control (experimental)
 #' @param block_metadata Block metadata
@@ -345,6 +360,73 @@ validate_data_validator <- function(validator, server) {
   invisible(validator)
 }
 
+validate_allow_empty_state <- function(x) {
+
+  spec <- attr(x, "allow_empty_state")
+
+  if (!is.list(spec)) {
+    return(invisible(x))
+  }
+
+  nms <- names(spec)
+
+  if (length(spec) &&
+        (is.null(nms) || any(!nzchar(nms)) ||
+           length(setdiff(nms, c("input", "data"))))) {
+    blockr_abort(
+      "A list-valued `allow_empty_state` may only contain `input` and ",
+      "`data` entries.",
+      class = "allow_empty_state_invalid"
+    )
+  }
+
+  data <- spec[["data"]]
+
+  if (is.null(data)) {
+    return(invisible(x))
+  }
+
+  dnms <- coal(names(data), character(length(data)))
+  is_args <- dnms == "...args"
+
+  if (sum(is_args) > 1L) {
+    blockr_abort(
+      "`allow_empty_state$data` accepts at most one `...args` entry.",
+      class = "allow_empty_state_invalid"
+    )
+  }
+
+  if (any(is_args)) {
+
+    if (!is.na(block_arity(x))) {
+      blockr_abort(
+        "A `...args` entry in `allow_empty_state$data` is only valid for a ",
+        "variadic block (one with a `...args` server argument).",
+        class = "allow_empty_state_invalid"
+      )
+    }
+
+    if (!is_count(data[[which(is_args)]])) {
+      blockr_abort(
+        "The `...args` entry in `allow_empty_state$data` is expected to be a ",
+        "single non-negative number.",
+        class = "allow_empty_state_invalid"
+      )
+    }
+  }
+
+  unknown <- setdiff(unlst(data[!is_args]), block_inputs(x))
+
+  if (length(unknown)) {
+    blockr_abort(
+      "`allow_empty_state$data` names unknown block inputs {unknown}.",
+      class = "allow_empty_state_invalid"
+    )
+  }
+
+  invisible(x)
+}
+
 validate_block <- function(x, ui_eval = FALSE) {
 
   if (!is_block(x)) {
@@ -389,6 +471,7 @@ validate_block <- function(x, ui_eval = FALSE) {
   validate_block_server(srv)
   validate_block_ui(block_expr_ui(x))
   validate_data_validator(block_data_validator(x), srv)
+  validate_allow_empty_state(x)
 
   if (isTRUE(ui_eval)) {
 
@@ -543,8 +626,57 @@ block_has_data_validator <- function(x) {
   not_null(block_data_validator(x))
 }
 
+parse_allow_empty_state <- function(x) {
+
+  empty_state <- FALSE
+  optional_inputs <- character()
+  min_args <- 1L
+
+  if (is.list(x)) {
+
+    if (not_null(x[["input"]])) {
+      empty_state <- x[["input"]]
+    }
+
+    data <- x[["data"]]
+    nms <- coal(names(data), character(length(data)))
+    is_args <- nms == "...args"
+
+    optional_inputs <- unlst(data[!is_args])
+
+    if (any(is_args)) {
+      min_args <- as.integer(data[[which(is_args)[1L]]])
+    }
+
+  } else if (not_null(x)) {
+    empty_state <- x
+  }
+
+  if (!length(empty_state)) {
+    empty_state <- FALSE
+  }
+
+  if (!length(optional_inputs)) {
+    optional_inputs <- character()
+  }
+
+  list(
+    empty_state = empty_state,
+    optional_inputs = optional_inputs,
+    min_args = min_args
+  )
+}
+
 block_allow_empty_state <- function(x) {
-  attr(x, "allow_empty_state")
+  parse_allow_empty_state(attr(x, "allow_empty_state"))[["empty_state"]]
+}
+
+block_optional_inputs <- function(x) {
+  parse_allow_empty_state(attr(x, "allow_empty_state"))[["optional_inputs"]]
+}
+
+block_min_args <- function(x) {
+  parse_allow_empty_state(attr(x, "allow_empty_state"))[["min_args"]]
 }
 
 #' @param data Data input values

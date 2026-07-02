@@ -1186,10 +1186,27 @@ test_that("apply-phase failure records apply outcome", {
   )
 })
 
+boom_block <- function() {
+  new_transform_block(
+    function(id, data) {
+      moduleServer(
+        id,
+        function(input, output, session) {
+          list(expr = reactive(quote(stop("boom"))), state = list())
+        }
+      )
+    },
+    function(id) tagList(),
+    class = "boom_block",
+    block_metadata = list()
+  )
+}
+
 test_that("board combines per-block conditions and exposes them per block", {
 
   board <- new_board(
-    blocks = c(a = new_dataset_block("iris"), b = new_subset_block())
+    blocks = c(a = new_dataset_block("iris"), b = boom_block()),
+    links = links(ab = new_link("a", "b", "data"))
   )
 
   testServer(
@@ -1199,13 +1216,16 @@ test_that("board combines per-block conditions and exposes them per block", {
 
       expect_identical(make_read_only(rv)$conditions, rv$conditions)
 
-      # block b is unlinked, so its data validator errors; a stays healthy
+      # block b evaluates against ready data but its expression raises, so it
+      # is `failed` with an eval-phase error; a stays healthy
       expect_identical(nrow(rv$blocks$a$server$conditions()), 0L)
+      expect_identical(rv$eval$b(), "failed")
 
       b_cond <- rv$blocks$b$server$conditions()
 
       expect_identical(nrow(b_cond), 1L)
       expect_identical(b_cond$block, "b")
+      expect_identical(b_cond$phase, "eval")
       expect_identical(b_cond$severity, "error")
 
       combined <- rv$conditions()
@@ -1220,16 +1240,20 @@ test_that("board combines per-block conditions and exposes them per block", {
 
 test_that("board drops conditions of removed blocks", {
 
-  board <- new_board(blocks = c(a = new_subset_block()))
+  board <- new_board(
+    blocks = c(a = new_dataset_block("iris"), b = boom_block()),
+    links = links(ab = new_link("a", "b", "data"))
+  )
 
   testServer(
     get_s3_method("board_server", board),
     {
       session$flushReact()
 
+      expect_identical(rv$eval$b(), "failed")
       expect_identical(nrow(rv$conditions()), 1L)
 
-      board_update(list(blocks = list(rm = "a")))
+      board_update(list(blocks = list(rm = "b")))
 
       session$flushReact()
 
