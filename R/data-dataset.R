@@ -9,6 +9,21 @@
 #' @param dataset Selected dataset
 #' @param package Name of an R package containing datasets
 #'
+#' @block dataset block
+#' @blockDescr Choose a dataset from a package
+#' @blockCategory input
+#' @blockIcon database
+#' @blockGuidance Loads a data.frame that ships with an installed package. Set
+#'   `package` to the source package (default "datasets"), then `dataset` to the
+#'   name of a data.frame object it exports.
+#' @blockKeywords dataset, data, import, package, source
+#' @blockArg dataset Selects the dataset to use.
+#'   [example] "iris"
+#'   [type] arg_string()
+#' @blockArg package R package to source the dataset from.
+#'   [example] "datasets"
+#'   [type] arg_string()
+#'
 #' @rdname new_data_block
 #' @export
 new_dataset_block <- function(dataset = character(), package = "datasets",

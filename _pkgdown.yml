@@ -32,6 +32,7 @@ reference:
     - block_server
     - block_ui
     - register_block
+    - block_registration_roclet
     - new_block_arg
     - block_metadata
 - subtitle: Links

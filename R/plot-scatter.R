@@ -8,6 +8,21 @@
 #'
 #' @param x,y Columns to place on respective axes
 #'
+#' @block scatter plot block
+#' @blockDescr Scatter plotting
+#' @blockCategory plot
+#' @blockIcon dice-5
+#' @blockGuidance Draws a scatter plot of `x` against `y` with `base::plot()`.
+#'   `x` and `y` are column names from the input data; axis labels follow the
+#'   column names.
+#' @blockKeywords scatter, scatter plot, chart, visualization, points
+#' @blockArg x Column for the horizontal axis.
+#'   [example] "Sepal.Length"
+#'   [type] arg_string()
+#' @blockArg y Column for the vertical axis.
+#'   [example] "Sepal.Width"
+#'   [type] arg_string()
+#'
 #' @rdname new_plot_block
 #' @export
 new_scatter_block <- function(x = character(), y = character(), ...) {
