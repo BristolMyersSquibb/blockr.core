@@ -1,5 +1,16 @@
 # blockr.core 0.1.3
 
+* Block registration metadata can now be declared with roxygen2 tags
+  (`@block`, `@blockDescr`, `@blockCategory`, `@blockIcon`, `@blockParam`
+  and `@blockParamExample`) directly on a block constructor (#140). A new
+  roclet, `block_registration_roclet()`, gathers them into
+  `inst/registry/blocks.yml`, which the newly exported
+  `register_package_blocks()` reads at load time. `register_core_blocks()`
+  now sources its metadata from that registry instead of a hardcoded call,
+  so adding a block to the registry is a matter of annotating its
+  constructor. Extension packages can opt in by adding the roclet to their
+  `DESCRIPTION` `Roxygen` field and calling `register_package_blocks()` from
+  `.onLoad()`.
 * The manage-links and manage-stacks plugins no longer flicker the table's
   cell selectizes on a board re-emit (#246). The observer that keeps the
   table in sync re-rendered every row whenever `upd$curr` was invalidated --
