@@ -31,8 +31,8 @@ Required.}
 category icon (see \code{\link[=default_icon]{default_icon()}}).}
 \item{\verb{@blockGuidance <text>}}{Model-facing construction guidance -- do and
 don't rules, enumerations, pitfalls. Optional.}
-\item{\verb{@blockKeywords <words>}}{Free-text search terms for block discovery,
-separated by whitespace or commas. Optional.}
+\item{\verb{@blockKeywords <terms>}}{Comma-separated search terms for block
+discovery; a term may contain spaces. Optional.}
 \item{\verb{@blockDetails <text>}}{Longer human-facing description (e.g. for a
 help popover). Optional; when omitted it falls back to the constructor's
 \verb{@details} or, failing that, its \verb{@section} prose.}

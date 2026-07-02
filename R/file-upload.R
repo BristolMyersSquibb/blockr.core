@@ -14,7 +14,7 @@
 #' @blockGuidance Provides a data.frame from a file uploaded in the running app.
 #'   Uploaded data lives only for the session, so serialization and reproducible
 #'   export are unavailable. Has no configurable arguments.
-#' @blockKeywords upload file import data session
+#' @blockKeywords upload, file, import, data, session
 #'
 #' @rdname new_file_block
 #' @export

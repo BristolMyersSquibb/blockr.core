@@ -14,7 +14,7 @@
 #' @blockGuidance Keeps the first or last `n` rows of the input with
 #'   `utils::head()` / `utils::tail()`. `direction` chooses the end: "head" for
 #'   the first rows, "tail" for the last.
-#' @blockKeywords head tail first last rows limit
+#' @blockKeywords head, tail, first, last, rows, limit
 #' @blockArg n Number of rows to keep.
 #'   [example] 10L
 #'   [type] arg_integer()

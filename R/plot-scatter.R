@@ -15,7 +15,7 @@
 #' @blockGuidance Draws a scatter plot of `x` against `y` with `base::plot()`.
 #'   `x` and `y` are column names from the input data; axis labels follow the
 #'   column names.
-#' @blockKeywords scatter plot chart visualization points
+#' @blockKeywords scatter, scatter plot, chart, visualization, points
 #' @blockArg x Column for the horizontal axis.
 #'   [example] "Sepal.Length"
 #'   [type] arg_string()

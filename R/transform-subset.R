@@ -14,7 +14,7 @@
 #'   `subset` is a logical expression over the columns keeping rows where it is
 #'   TRUE; `select` picks columns. Both are R expressions written as strings and
 #'   evaluated with the data columns in scope.
-#' @blockKeywords filter subset select rows columns where
+#' @blockKeywords filter, subset, select, rows, columns, where
 #' @blockArg subset Logical row-filter expression, as a string.
 #'   [example] "Sepal.Width > 3"
 #'   [type] arg_string()

@@ -19,8 +19,8 @@
 #'     category icon (see [default_icon()]).}
 #'   \item{`@blockGuidance <text>`}{Model-facing construction guidance -- do and
 #'     don't rules, enumerations, pitfalls. Optional.}
-#'   \item{`@blockKeywords <words>`}{Free-text search terms for block discovery,
-#'     separated by whitespace or commas. Optional.}
+#'   \item{`@blockKeywords <terms>`}{Comma-separated search terms for block
+#'     discovery; a term may contain spaces. Optional.}
 #'   \item{`@blockDetails <text>`}{Longer human-facing description (e.g. for a
 #'     help popover). Optional; when omitted it falls back to the constructor's
 #'     `@details` or, failing that, its `@section` prose.}
@@ -334,6 +334,13 @@ block_tag_value <- function(block, tag) {
   if (is.null(hit)) NULL else hit$val
 }
 
+block_tag_raw <- function(block, tag) {
+
+  hit <- roxygen2::block_get_tag(block, tag)
+
+  if (is.null(hit)) NULL else trimws(hit[["raw"]])
+}
+
 block_keywords <- function(block) {
 
   value <- block_tag_value(block, "blockKeywords")
@@ -342,7 +349,7 @@ block_keywords <- function(block) {
     return(character())
   }
 
-  parts <- strsplit(value, "[[:space:],]+")[[1L]]
+  parts <- trimws(strsplit(value, ",", fixed = TRUE)[[1L]])
 
   parts[nzchar(parts)]
 }
@@ -355,7 +362,7 @@ block_details <- function(block) {
 
   explicit <- coal(
     block_tag_value(block, "blockDetails"),
-    block_tag_value(block, "details"),
+    block_tag_raw(block, "details"),
     fail_all = FALSE
   )
 
@@ -363,7 +370,7 @@ block_details <- function(block) {
     return(reflow_text(explicit))
   }
 
-  section <- block_tag_value(block, "section")
+  section <- block_tag_raw(block, "section")
 
   if (is.null(section)) {
     return(NULL)

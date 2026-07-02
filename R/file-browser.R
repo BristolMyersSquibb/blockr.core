@@ -17,7 +17,7 @@
 #' @blockGuidance Selects a file from the server's file system for a downstream
 #'   parser such as a CSV block. `file_path` is the chosen path; `volumes`
 #'   bounds the root directories the browser may reach.
-#' @blockKeywords file browser path filesystem select
+#' @blockKeywords file, browser, path, filesystem, select
 #' @blockArg file_path Path of the selected file.
 #'   [type] arg_string()
 #'

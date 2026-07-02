@@ -11,7 +11,7 @@
 #' @blockGuidance Interpolates a template against the input data with
 #'   `glue::glue()` to produce (markdown) text. Reference columns of the data in
 #'   `text` with braces, e.g. "{nrow(data)} rows".
-#' @blockKeywords glue template text string interpolate markdown
+#' @blockKeywords glue, template, text, string, interpolate, markdown
 #' @blockArg text Template string evaluated with glue::glue().
 #'   [example] "{nrow(data)} rows"
 #'   [type] arg_string()

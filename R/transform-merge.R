@@ -17,7 +17,7 @@
 #'   shared key column(s); omit it to join on all common columns. all_x and
 #'   all_y set the join type: both FALSE for an inner join, both TRUE for a full
 #'   outer join, all_x alone for a left join, all_y alone for a right join.
-#' @blockKeywords merge join inner outer left right
+#' @blockKeywords merge, join, inner join, outer join, left join, right join
 #' @blockArg by Shared key column(s) to join on.
 #'   [type] arg_array(arg_string())
 #' @blockArg all_x Keep unmatched rows from the first input.

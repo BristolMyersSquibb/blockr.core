@@ -11,7 +11,7 @@
 #' @blockGuidance Row-binds two or more inputs with `base::rbind()`; the inputs
 #'   must share the same columns. Takes a variable number of data inputs and has
 #'   no configurable arguments.
-#' @blockKeywords rbind bind concatenate rows append union
+#' @blockKeywords rbind, bind, concatenate, rows, append, union
 #'
 #' @rdname new_transform_block
 #' @export

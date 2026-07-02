@@ -10,7 +10,7 @@ test_that("the roclet reads block metadata off constructor tags", {
 #' @blockIcon funnel
 #' @blockGuidance Keeps the first `n` rows;
 #'   `direction` picks the end.
-#' @blockKeywords head, tail  first
+#' @blockKeywords head, tail, multi word
 #' @blockArg n Number of rows to keep
 #'   [example] 10L
 #'   [type] arg_integer()
@@ -31,7 +31,7 @@ new_demo_block <- function(n = 1, direction = \"head\") n
     res[["guidance"]],
     "Keeps the first `n` rows; `direction` picks the end."
   )
-  expect_identical(res[["keywords"]], c("head", "tail", "first"))
+  expect_identical(res[["keywords"]], c("head", "tail", "multi word"))
 
   args <- res[["arguments"]]
   expect_identical(args[["n"]][["description"]], "Number of rows to keep")

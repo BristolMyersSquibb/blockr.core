@@ -11,7 +11,7 @@
 #' @blockGuidance Parses a delimited text file (typically from a file or upload
 #'   block) into a data.frame with `utils::read.table()`. `sep` is the field
 #'   separator and `quote` the quoting character.
-#' @blockKeywords csv parse read delimited import
+#' @blockKeywords csv, parse, read, delimited, import
 #' @blockArg sep Field separator character.
 #'   [example] ","
 #'   [type] arg_string()

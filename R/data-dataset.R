@@ -16,7 +16,7 @@
 #' @blockGuidance Loads a data.frame that ships with an installed package. Set
 #'   `package` to the source package (default "datasets"), then `dataset` to the
 #'   name of a data.frame object it exports.
-#' @blockKeywords dataset data import package source
+#' @blockKeywords dataset, data, import, package, source
 #' @blockArg dataset Selects the dataset to use.
 #'   [example] "iris"
 #'   [type] arg_string()
