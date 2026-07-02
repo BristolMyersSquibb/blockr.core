@@ -95,7 +95,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
           cur <- if (isTRUE(rv$visible)) {
             TRUE
           } else {
-            upstream_blocks(rv$visible, rv$board)
+            upstream_blocks(on_screen_blocks(rv$visible), rv$board)
           }
 
           old <- isolate(rv$needed())
@@ -130,12 +130,15 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
           vis <- board_visible()
 
           if (is.null(vis) || !isTRUE(blockr_option("gate_visibility", TRUE))) {
+
             rv$visible <- TRUE
+
           } else {
+
             rv$visible <- vis
 
             log_debug(
-              "visibility update: {length(vis)}/",
+              "visibility update: {length(on_screen_blocks(vis))}/",
               "{length(board_block_ids(rv$board))} on screen"
             )
           }
@@ -509,6 +512,22 @@ construct_remaining_blocks <- function(rv, mod_ed, mod_ct, args) {
     return(invisible())
   }
 
+  gate <- observe(
+    {
+      if (isTRUE(rv$visible) || visible_set_rendered(rv$visible)) {
+
+        gate$destroy()
+
+        construct_blocks_in_background(rv, mod_ed, mod_ct, args)
+      }
+    }
+  )
+
+  invisible()
+}
+
+construct_blocks_in_background <- function(rv, mod_ed, mod_ct, args) {
+
   started <- FALSE
 
   obs <- observe(
@@ -543,6 +562,14 @@ construct_remaining_blocks <- function(rv, mod_ed, mod_ct, args) {
 
 background_construction_delay <- function() {
   as.numeric(blockr_option("background_construction_delay", 50L))
+}
+
+on_screen_blocks <- function(status) {
+  names(status)[status %in% c("required", "rendered")]
+}
+
+visible_set_rendered <- function(status) {
+  all(status[on_screen_blocks(status)] == "rendered")
 }
 
 needed_block_ids <- function(rv) {
