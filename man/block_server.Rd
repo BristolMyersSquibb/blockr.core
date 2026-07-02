@@ -27,6 +27,7 @@ block_server(id, x, data = list(), ...)
   ctrl_block = NULL,
   board = reactiveValues(),
   update = reactiveVal(),
+  inputs_ready = reactive(TRUE),
   ...
 )
 
@@ -56,6 +57,11 @@ block_render_trigger(x, session = get_session())
 \item{board}{Reactive values object containing board information}
 
 \item{update}{Reactive value object to initiate board updates}
+
+\item{inputs_ready}{Reactive flag signaling whether the block's required
+inputs are all connected to ready upstream blocks (supplied by
+\code{\link[=board_server]{board_server()}}; defaults to always-ready when a block server is run
+standalone)}
 }
 \value{
 Both \code{block_server()} and \code{expr_server()} return shiny server module
@@ -82,11 +88,36 @@ of the block expression server (handling the block-specific functionality,
 i.e. block user inputs and expression), and instantiation of the
 \code{edit_block} module (if passed from the parent scope).
 
-A block is considered ready for evaluation whenever input data is available
-that satisfies validation (\code{\link[=validate_data_inputs]{validate_data_inputs()}}) and nonempty state
-values are available (unless otherwise instructed via \code{allow_empty_state}
-in \code{\link[=new_block]{new_block()}}). Conditions raised during validation and evaluation are
-caught and returned in order to be surfaced to the app user.
+Each block carries an \emph{eval status} -- one of \code{dormant}, \code{waiting}, \code{unset},
+\code{failed} or \code{ready} -- which, together with the orthogonal \code{visible} flag,
+determines its behaviour. The status separates the two input kinds (data
+inputs from links, user inputs from \code{state}) and a genuine failure:
+\itemize{
+\item \code{dormant} -- not \emph{needed} (neither on screen nor feeding, transitively over
+\code{\link[=board_links]{board_links()}}, an on-screen block); inputs stay unfulfilled
+(\code{\link[shiny:req]{shiny::req()}} out) and nothing evaluates.
+\item \code{waiting} -- needed, but a required \emph{data} input is missing: unconnected,
+below the required number of variadic \code{...args} inputs (one by default),
+or fed by an upstream block that is not itself \code{ready} (see
+\code{allow_empty_state}).
+\item \code{unset} -- data inputs are ready, but a required \emph{user} input (\code{state}
+value) has not been provided (unless permitted by \code{allow_empty_state}).
+\item \code{failed} -- all inputs are present, but the block cannot produce a result:
+the data validator (\code{\link[=validate_data_inputs]{validate_data_inputs()}}) or the block expression
+raised. The offending condition is surfaced through the block conditions.
+\item \code{ready} -- evaluation succeeded and a result (possibly a legitimate \code{NULL})
+is available for downstream blocks to consume.
+}
+
+A block reaches \code{ready} only once its upstreams have, so an unconnected or
+pending block holds its whole downstream chain \code{waiting} without any of them
+evaluating against missing data. Output rendering follows the status: the
+block output is shown only while \code{ready} and cleared otherwise, so a block
+leaving \code{ready} never displays a stale result. While not \code{ready} the block
+surfaces a condition explaining why -- a \code{status}-phase note for \code{waiting}
+and \code{unset}, or the raised error for \code{failed}. Conditions raised during
+validation and evaluation are caught and returned to be surfaced to the app
+user.
 
 Block-level user inputs (provided by the expression module) are separated
 from output, the behavior of which can be customized via the

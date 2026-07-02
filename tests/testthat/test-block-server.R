@@ -273,3 +273,165 @@ test_that("block server exposes a reactive conditions frame", {
     args = list(x = blk, data = list())
   )
 })
+
+test_that("an unconnected block is waiting and explains why", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("iris"),
+      b = new_head_block()
+    )
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_identical(rv$eval$a(), "ready")
+      expect_identical(rv$eval$b(), "waiting")
+
+      expect_identical(rv$blocks$a$server$result(), datasets::iris)
+      expect_null(rv$blocks$b$server$result())
+
+      # `waiting` surfaces a status-phase explanation (a warning, not an error)
+      cnds <- rv$blocks$b$server$conditions()
+      expect_false("error" %in% cnds$severity)
+      expect_true(any(cnds$phase == "status" & cnds$severity == "warning"))
+    },
+    args = list(x = board)
+  )
+})
+
+test_that("a waiting block evaluates once its input is connected", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("iris"),
+      b = new_head_block()
+    )
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+      expect_identical(rv$eval$b(), "waiting")
+
+      board_update(
+        list(links = list(add = links(ab = new_link("a", "b", "data"))))
+      )
+      session$flushReact()
+
+      expect_identical(rv$eval$b(), "ready")
+      expect_identical(
+        rv$blocks$b$server$result(),
+        utils::head(datasets::iris)
+      )
+      expect_identical(nrow(rv$blocks$b$server$conditions()), 0L)
+    },
+    args = list(x = board)
+  )
+})
+
+test_that("a waiting upstream holds its downstream waiting (cascade)", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("iris"),
+      b = new_head_block(),
+      c = new_head_block()
+    ),
+    links = links(bc = new_link("b", "c", "data"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_identical(rv$eval$b(), "waiting")
+      expect_identical(rv$eval$c(), "waiting")
+      expect_false("error" %in% rv$conditions()$severity)
+
+      board_update(
+        list(links = list(add = links(ab = new_link("a", "b", "data"))))
+      )
+      session$flushReact()
+
+      expect_identical(rv$eval$b(), "ready")
+      expect_identical(rv$eval$c(), "ready")
+      expect_identical(
+        rv$blocks$c$server$result(),
+        utils::head(datasets::iris)
+      )
+    },
+    args = list(x = board)
+  )
+})
+
+test_that("a block returns to waiting when its input is disconnected", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("iris"),
+      b = new_head_block()
+    ),
+    links = links(ab = new_link("a", "b", "data"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_identical(rv$eval$b(), "ready")
+      expect_identical(rv$blocks$b$server$result(), utils::head(datasets::iris))
+
+      board_update(list(links = list(rm = "ab")))
+      session$flushReact()
+
+      expect_identical(rv$eval$b(), "waiting")
+      expect_null(rv$blocks$b$server$result())
+    },
+    args = list(x = board)
+  )
+})
+
+test_that("a block whose expression errors is failed, not ready", {
+
+  boom_block <- function() {
+    new_transform_block(
+      function(id, data) {
+        moduleServer(
+          id,
+          function(input, output, session) {
+            list(expr = reactive(quote(stop("boom"))), state = list())
+          }
+        )
+      },
+      function(id) tagList(),
+      class = "boom_block",
+      block_metadata = list()
+    )
+  }
+
+  board <- new_board(
+    blocks = c(a = new_dataset_block("iris"), b = boom_block()),
+    links = links(ab = new_link("a", "b", "data"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_identical(rv$eval$b(), "failed")
+      expect_null(rv$blocks$b$server$result())
+
+      cnds <- rv$blocks$b$server$conditions()
+      expect_true(any(cnds$phase == "eval" & cnds$severity == "error"))
+    },
+    args = list(x = board)
+  )
+})

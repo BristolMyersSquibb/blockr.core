@@ -52,8 +52,15 @@ constructor name or \code{NULL}}
 
 \item{dat_valid}{(Optional) input data validator}
 
-\item{allow_empty_state}{Either \code{TRUE}, \code{FALSE} or a character vector of
-\code{state} values that may be empty while still moving forward with block eval}
+\item{allow_empty_state}{Relaxes the block's readiness requirements. By
+default every data input must be connected and a variadic block needs at
+least one \code{...args} input. As \code{TRUE}, \code{FALSE} or a character vector of
+\code{state} names it relaxes \emph{user} inputs (which \code{state} values may be empty).
+A \code{list(input = ..., data = ...)} also relaxes \emph{data} inputs: \code{input} takes
+the same \code{TRUE}/\code{FALSE}/character form, while \code{data} names non-variadic data
+inputs that may stay unconnected and, via a \code{...args} entry, overrides the
+required number of variadic inputs, e.g.
+\code{list(input = "n", data = list("y", ...args = 2))}}
 
 \item{block_name}{Block name}
 
@@ -188,6 +195,14 @@ validation can optionally be performed by passing a predicate function with
 the same arguments as in the server function (not including \code{id}) and the
 block expression will not be evaluated as long as this function throws an
 error.
+
+Ahead of validation, a block must have its inputs available: every required
+\emph{data} input connected to a ready upstream (variadic blocks need at least the
+\code{...args} minimum declared via \code{allow_empty_state}) and every required \emph{user}
+input (\code{state}) provided. Until then -- including while an upstream is itself
+still pending -- neither the validator nor the block expression run and no
+output is produced. See \code{\link[=block_server]{block_server()}} for the resulting eval status
+(\code{dormant} / \code{waiting} / \code{unset} / \code{failed} / \code{ready}).
 
 Other conditions (messages and warnings) may be thrown as will be caught
 and displayed to the user but they will not interrupt evaluation. Errors
