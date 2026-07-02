@@ -26,7 +26,7 @@ manage_stacks_ui(id, board)
 \value{
 A plugin container inheriting from \code{manage_stacks} is returned by
 \code{manage_stacks()}, while the UI component (e.g. \code{manage_stacks_ui()}) is
-expected to return shiny UI (i.e. \code{\link[shiny:reexports]{shiny::tagList()}}) and the server
+expected to return shiny UI (i.e. \code{\link[shiny:tagList]{shiny::tagList()}}) and the server
 component (i.e. \code{manage_stacks_server()}) is expected to return \code{NULL}.
 }
 \description{

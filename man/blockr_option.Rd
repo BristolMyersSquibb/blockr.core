@@ -22,7 +22,7 @@ the option being available only as environment variable, the value will be
 a string and if available as \code{\link[base:options]{base::options()}} entry it may be of any R type.
 }
 \description{
-Retrieves options via \code{\link[base:options]{base::getOption()}} or \code{\link[base:Sys.getenv]{base::Sys.getenv()}}, in that
+Retrieves options via \code{\link[base:getOption]{base::getOption()}} or \code{\link[base:Sys.getenv]{base::Sys.getenv()}}, in that
 order, and prefixes the option name passed as \code{name} with \code{blockr.} or
 \code{blockr_} respectively. Additionally, the name is converted to lower case
 for \code{getOption()} and upper case for environment variables. In case no value

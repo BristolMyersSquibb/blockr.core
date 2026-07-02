@@ -31,12 +31,12 @@ blockr_inform(
 
 \item{envir}{Forwarded to \code{\link[cli:pluralize]{cli::pluralize()}}}
 
-\item{frequency, frequency_id}{Forwarded to \code{\link[rlang:abort]{rlang::warn()}}}
+\item{frequency, frequency_id}{Forwarded to \code{\link[rlang:warn]{rlang::warn()}}}
 }
 \value{
 Called for side-effect of signaling conditions.
 }
 \description{
-Wrappers for \code{\link[rlang:abort]{rlang::abort()}}, \code{\link[rlang:abort]{rlang::warn()}} and \code{\link[rlang:abort]{rlang::inform()}}. In
+Wrappers for \code{\link[rlang:abort]{rlang::abort()}}, \code{\link[rlang:warn]{rlang::warn()}} and \code{\link[rlang:inform]{rlang::inform()}}. In
 addition to \code{class}, conditions inherit from "blockr_error".
 }

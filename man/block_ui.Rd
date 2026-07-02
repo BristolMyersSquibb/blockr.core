@@ -32,12 +32,12 @@ block_output(x, result, session)
 }
 \value{
 Both \code{expr_ui()} and \code{block_ui()} are expected to return shiny UI
-(e.g. objects wrapped in a \code{\link[shiny:reexports]{shiny::tagList()}}). For rendering the UI,
+(e.g. objects wrapped in a \code{\link[shiny:tagList]{shiny::tagList()}}). For rendering the UI,
 \code{block_output()} is required to return the result of a shiny render function.
 For example, a transform block might show the resulting \code{data.frame} as an
 HTML table using the DT package. The corresponding \code{block_ui()} function
 would then contain UI created by \code{\link[DT:dataTableOutput]{DT::dataTableOutput()}} and rendering in
-\code{block_output()} would then be handled by \code{\link[DT:dataTableOutput]{DT::renderDT()}}.
+\code{block_output()} would then be handled by \code{\link[DT:renderDT]{DT::renderDT()}}.
 }
 \description{
 The UI associated with a block is created via the generics \code{expr_ui()} and

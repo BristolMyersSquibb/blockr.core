@@ -112,7 +112,7 @@ Further arguments may be used in the function signature, one for each "data"
 input. A block implementing \code{\link[utils:head]{utils::head()}} for example could have a single
 extra argument \code{data}, while a block that performs \code{\link[base:merge]{base::merge()}} requires
 two extra arguments, e.g. \code{x} and \code{y}. Finally, a variadic block, e.g.
-a block implementing something like \code{\link[base:cbind]{base::rbind()}}, needs to accommodate for
+a block implementing something like \code{\link[base:rbind]{base::rbind()}}, needs to accommodate for
 an arbitrary number of inputs. This is achieved by passing a container
 object as \code{...args} and thus such a variadic block needs \code{...args} as part
 of the server function signature. The container mirrors

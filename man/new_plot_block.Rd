@@ -36,10 +36,10 @@ Due to the current block evaluation procedure, where block evaluation is
 separated from block "rendering" (via  \code{\link[shiny:renderPlot]{shiny::renderPlot()}}) integration of
 base R graphics requires some mechanism to achieve this decoupling. This
 is implemented by adding a \code{plot} attribute to the result of
-\code{\link[=block_eval]{block_eval()}}, generated with \code{\link[grDevices:recordplot]{grDevices::recordPlot()}} and containing the
+\code{\link[=block_eval]{block_eval()}}, generated with \code{\link[grDevices:recordPlot]{grDevices::recordPlot()}} and containing the
 required information to re-create the plot at a later time. As part of
 \code{\link[=block_output]{block_output()}}, the attribute is retrieved and passed to
-\code{\link[grDevices:recordplot]{grDevices::replayPlot()}}. Consequently, any block that inherits from
+\code{\link[grDevices:replayPlot]{grDevices::replayPlot()}}. Consequently, any block that inherits from
 \code{plot_block} is required to support this type of decoupling.
 }
 \section{Scatter block}{

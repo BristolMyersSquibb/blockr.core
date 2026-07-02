@@ -63,7 +63,7 @@ displaying a browser notification (and returns \code{NULL} invisibly).
 \description{
 Utility functions for shiny:
 \itemize{
-\item \code{get_session}: See \code{\link[shiny:domains]{shiny::getDefaultReactiveDomain()}}.
+\item \code{get_session}: See \code{\link[shiny:getDefaultReactiveDomain]{shiny::getDefaultReactiveDomain()}}.
 \item \code{generate_plugin_args}: Meant for unit testing plugins.
 \item \code{notify}: Glue-capable wrapper for \code{\link[shiny:showNotification]{shiny::showNotification()}}.
 }

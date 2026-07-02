@@ -59,11 +59,11 @@ map(fun, ..., use_names = FALSE)
 \item{i}{Index to extract}
 }
 \value{
-The result of a call to \code{\link[base:lapply]{base::lapply()}}, \code{\link[base:lapply]{base::vapply()}} or
-\code{\link[base:funprog]{base::Map()}}.
+The result of a call to \code{\link[base:lapply]{base::lapply()}}, \code{\link[base:vapply]{base::vapply()}} or
+\code{\link[base:Map]{base::Map()}}.
 }
 \description{
-A set of wrappers for \code{\link[base:lapply]{base::vapply()}} with some convenient defaults.
+A set of wrappers for \code{\link[base:vapply]{base::vapply()}} with some convenient defaults.
 Intended mainly for internal use, but available for dependent packages
 wherever this is deemed convenient.
 }
