@@ -61,7 +61,7 @@ the call stack}
 
 \item{x}{Character vector to transform}
 
-\item{replace, with}{Mapped to \code{\link[base:grep]{base::gsub()}}}
+\item{replace, with}{Mapped to \code{\link[base:gsub]{base::gsub()}}}
 }
 \value{
 A character vector of length \code{n} where each entry contains \code{length}

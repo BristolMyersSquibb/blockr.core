@@ -24,7 +24,7 @@ notify_user_ui(id, board)
 \value{
 A plugin container inheriting from \code{notify_user} is returned by
 \code{notify_user()} and the UI component (e.g. \code{notify_user_ui()}) is expected
-to return shiny UI (i.e. \code{\link[shiny:reexports]{shiny::tagList()}}). The server component (i.e.
+to return shiny UI (i.e. \code{\link[shiny:tagList]{shiny::tagList()}}). The server component (i.e.
 \code{notify_user_server()}) is called for the side effect of managing
 notifications and returns \code{NULL}.
 }
@@ -33,7 +33,7 @@ During the evaluation cycle of each block, conditions (errors, warnings and
 messages) may be raised. The default \code{notify_user} plugin surfaces these to
 the user as \code{\link[shiny:showNotification]{shiny::showNotification()}} toasts, displaying newly active
 conditions and clearing ones that are no longer active via
-\code{\link[shiny:showNotification]{shiny::removeNotification()}}. Each block's conditions (see \code{\link[=board_server]{board_server()}})
+\code{\link[shiny:removeNotification]{shiny::removeNotification()}}. Each block's conditions (see \code{\link[=board_server]{board_server()}})
 are tracked individually, so that a single block's change touches only its
 own notifications rather than re-processing the whole board.
 }

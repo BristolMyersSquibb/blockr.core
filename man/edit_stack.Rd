@@ -30,7 +30,7 @@ edit_stack_ui(id, x, ...)
 \value{
 A plugin container inheriting from \code{edit_stack} is returned by
 \code{edit_stack()}, while the UI component (e.g. \code{edit_stack_ui()}) is
-expected to return shiny UI (i.e. \code{\link[shiny:reexports]{shiny::tagList()}}) and the server
+expected to return shiny UI (i.e. \code{\link[shiny:tagList]{shiny::tagList()}}) and the server
 component (i.e. \code{edit_stack_server()}) is expected to return \code{NULL}.
 }
 \description{

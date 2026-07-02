@@ -32,7 +32,7 @@ evaluation.}
 \value{
 A plugin container inheriting from \code{ctrl_block} is returned by
 \code{ctrl_block()}, while the UI component (i.e. \code{ctrl_block_ui()}) is
-expected to return shiny UI (i.e. \code{\link[shiny:reexports]{shiny::tagList()}}) and the server
+expected to return shiny UI (i.e. \code{\link[shiny:tagList]{shiny::tagList()}}) and the server
 component (i.e. \code{ctrl_block_server()}) is expected to return a value
 that passes validation (i.e. \code{TRUE} or a reactive gate).
 }

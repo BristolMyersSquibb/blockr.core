@@ -57,7 +57,7 @@ re-created on a \code{NULL} reactive domain so they outlive the
 mainly for the side-effect of muting shiny messages (and returns them
 invisibly), \code{with_mock_session()} returns \code{NULL} (invisibly) and
 \code{with_mock_context()} returns the result of a call to
-\code{\link[shiny:domains]{shiny::withReactiveDomain()}}. Finally, \code{get_s3_method()} returns a
+\code{\link[shiny:withReactiveDomain]{shiny::withReactiveDomain()}}. Finally, \code{get_s3_method()} returns a
 class-specific implementation of the specified generic (and throws an error
 if none is found).
 }

@@ -74,7 +74,7 @@ block expression as this might lead to unexpected errors.
 The set of explicit (named) data inputs for a block is available as
 \code{block_inputs()}, while the block arity can be queried with \code{block_arity()}.
 In case of variadic blocks (i.e. blocks that take a variable number of
-inputs like for example a block providing \code{\link[base:cbind]{base::rbind()}}-like
+inputs like for example a block providing \code{\link[base:rbind]{base::rbind()}}-like
 functionality), \code{block_arity()} returns \code{NA} and the special block server
 function argument \code{...args}, signalling variadic behavior is stripped from
 \code{block_inputs()}.

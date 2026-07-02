@@ -40,7 +40,7 @@ serialize_board(x, blocks, id = NULL, ..., session = get_session())
 \value{
 A plugin container inheriting from \code{preserve_board} is returned by
 \code{preserve_board()}, while the UI component (e.g. \code{preserve_board_ui()}) is
-expected to return shiny UI (i.e. \code{\link[shiny:reexports]{shiny::tagList()}}) and the server
+expected to return shiny UI (i.e. \code{\link[shiny:tagList]{shiny::tagList()}}) and the server
 component a \code{\link[shiny:reactiveVal]{shiny::reactiveVal()}} evaluating to \code{NULL} or the \code{board} to
 restore.
 }

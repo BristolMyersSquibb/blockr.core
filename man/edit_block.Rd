@@ -44,7 +44,7 @@ block_summary(x, data)
 \value{
 A plugin container inheriting from \code{edit_block} is returned by
 \code{edit_block()}, while the UI component (e.g. \code{edit_block_ui()}) is
-expected to return shiny UI (i.e. \code{\link[shiny:reexports]{shiny::tagList()}}) and the server
+expected to return shiny UI (i.e. \code{\link[shiny:tagList]{shiny::tagList()}}) and the server
 component (i.e. \code{edit_block_server()}) is expected to return \code{NULL}.
 }
 \description{

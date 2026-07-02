@@ -68,7 +68,7 @@ passed as \code{expr} is expected to refer to the input data as \code{data}.
 \section{Head block}{
 
 Row-subsetting the first or last \code{n} rows of a \code{data.frame} (as provided by
-\code{\link[utils:head]{utils::head()}} and \code{\link[utils:head]{utils::tail()}}) is implemented as \code{head_block}. This is
+\code{\link[utils:head]{utils::head()}} and \code{\link[utils:tail]{utils::tail()}}) is implemented as \code{head_block}. This is
 an example of a block that takes a single \code{data.frame} as input and produces
 a single \code{data.frame} as output.
 }
@@ -86,7 +86,7 @@ and \code{y} to produce a single \code{data.frame} as output.
 \section{Row-bind block}{
 
 Row-wise concatenation of an arbitrary number of \code{data.frame}s, as performed
-by \code{\link[base:cbind]{base::rbind()}} is available as an \code{rbind_block}. This mainly serves as
+by \code{\link[base:rbind]{base::rbind()}} is available as an \code{rbind_block}. This mainly serves as
 an example for a variadic block via the "special" \code{...args} block data
 argument.
 }
