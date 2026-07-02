@@ -12,6 +12,13 @@
   chain `waiting`. Output rendering follows the status -- shown only while
   `ready` and cleared otherwise -- so a block leaving `ready` no longer shows a
   stale result.
+* Code export (`generate_code()`) now waits on this status: "Show code" emits a
+  script only once every block is settled, and otherwise opens the modal with a
+  short "board not ready" note rather than a stale or partial script (#256). A
+  `waiting`, `unset` or `failed` block -- a removed link, an unset required
+  input, an expression that raises -- holds the export back; an off-screen
+  `dormant` block does not, as its expression already reflects its
+  configuration.
 * By default a block requires every data input to be connected and a variadic
   block to have at least one `...args` input. `new_block()`'s
   `allow_empty_state` argument gains a structured `list(input = ..., data =
