@@ -74,6 +74,69 @@ new_demo_block <- function(x = \"\") x
   expect_null(args[["x"]][["example"]])
 })
 
+test_that("@blockExamples yields block-level worked configs", {
+
+  skip_if_not_installed("roxygen2")
+
+  txt <- "
+#' Title
+#' @block demo block
+#' @blockDescr A demo
+#' @blockCategory transform
+#' @blockExamples list(
+#'   list(n = 10L),
+#'   list(n = 3L)
+#' )
+#' @export
+new_demo_block <- function(n = 1) n
+"
+
+  res <- roxygen2::roc_proc_text(block_registration_roclet(), txt)[[1L]]
+
+  expect_identical(res[["examples"]], list(list(n = 10L), list(n = 3L)))
+})
+
+test_that("details falls back to @section and @blockLink is captured", {
+
+  skip_if_not_installed("roxygen2")
+
+  txt <- "
+#' Title
+#' @block demo block
+#' @blockDescr A demo
+#' @blockCategory transform
+#' @blockLink https://example.com/demo
+#' @section Demo block: Prose about the block.
+#' @export
+new_demo_block <- function() NULL
+"
+
+  res <- roxygen2::roc_proc_text(block_registration_roclet(), txt)[[1L]]
+
+  expect_identical(res[["details"]], "Prose about the block.")
+  expect_identical(res[["link"]], "https://example.com/demo")
+})
+
+test_that("@blockDetails overrides the @section fallback", {
+
+  skip_if_not_installed("roxygen2")
+
+  txt <- "
+#' Title
+#' @block demo block
+#' @blockDescr A demo
+#' @blockCategory transform
+#' @blockDetails An explicit detail.
+#' @section Demo block: Ignored prose.
+#' @export
+new_demo_block <- function() NULL
+"
+
+  res <- roxygen2::roc_proc_text(block_registration_roclet(), txt)[[1L]]
+
+  expect_identical(res[["details"]], "An explicit detail.")
+})
+
 test_that("only constructors carrying @block are picked up", {
 
   skip_if_not_installed("roxygen2")
@@ -214,6 +277,9 @@ test_that("the shipped core registry is complete", {
   )
   expect_true(is_string(head[["guidance"]]))
   expect_gt(length(head[["keywords"]]), 0L)
+
+  expect_true(is_string(reg[["new_dataset_block"]][["details"]]))
+  expect_length(reg[["new_merge_block"]][["examples"]], 2L)
 })
 
 test_that("core blocks register with types, guidance and keywords", {
@@ -232,4 +298,10 @@ test_that("core blocks register with types, guidance and keywords", {
   merge_args <- block_meta_arguments("merge_block")
   expect_identical(block_arg_type(merge_args[["by"]])[["type"]], "array")
   expect_identical(block_arg_type(merge_args[["all_x"]])[["type"]], "boolean")
+
+  expect_true(is_string(block_meta_details("dataset_block")))
+  expect_identical(
+    block_meta_examples("merge_block"),
+    list(list(all_x = TRUE, all_y = FALSE), list(all_x = TRUE, all_y = TRUE))
+  )
 })

@@ -33,6 +33,11 @@ category icon (see \code{\link[=default_icon]{default_icon()}}).}
 don't rules, enumerations, pitfalls. Optional.}
 \item{\verb{@blockKeywords <words>}}{Free-text search terms for block discovery,
 separated by whitespace or commas. Optional.}
+\item{\verb{@blockDetails <text>}}{Longer human-facing description (e.g. for a
+help popover). Optional; when omitted it falls back to the constructor's
+\verb{@details} or, failing that, its \verb{@section} prose.}
+\item{\verb{@blockLink <url>}}{URL of the block's help or documentation page.
+Optional.}
 \item{\verb{@blockArg <name> <description>}}{One constructor argument's
 specification. The text after the name is a free-text description;
 \verb{[example] <expr>} and \verb{[type] <expr>} markers (each on its own line)
@@ -40,6 +45,10 @@ supply an R expression -- evaluated when documentation is generated --
 for a worked example value and an \verb{arg_*()} type descriptor (see
 \code{\link[=new_block_arg]{new_block_arg()}}). An explicit \verb{[description] <text>} marker may replace
 the inline description. Optional and repeatable.}
+\item{\verb{@blockExamples <expr>}}{Block-level worked example configurations,
+as an R expression -- evaluated when documentation is generated -- that
+yields a list of complete configurations (each a named list keyed by
+argument). Optional; supersedes the per-argument \verb{[example]} assembly.}
 \item{\verb{@blockCtor <name>}}{Constructor name override. Optional: the
 documented object otherwise supplies the name.}
 }

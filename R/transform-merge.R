@@ -24,6 +24,10 @@
 #'   [type] arg_boolean()
 #' @blockArg all_y Keep unmatched rows from the second input.
 #'   [type] arg_boolean()
+#' @blockExamples list(
+#'   list(all_x = TRUE, all_y = FALSE),
+#'   list(all_x = TRUE, all_y = TRUE)
+#' )
 #'
 #' @rdname new_transform_block
 #' @export

@@ -21,6 +21,11 @@
 #'     don't rules, enumerations, pitfalls. Optional.}
 #'   \item{`@blockKeywords <words>`}{Free-text search terms for block discovery,
 #'     separated by whitespace or commas. Optional.}
+#'   \item{`@blockDetails <text>`}{Longer human-facing description (e.g. for a
+#'     help popover). Optional; when omitted it falls back to the constructor's
+#'     `@details` or, failing that, its `@section` prose.}
+#'   \item{`@blockLink <url>`}{URL of the block's help or documentation page.
+#'     Optional.}
 #'   \item{`@blockArg <name> <description>`}{One constructor argument's
 #'     specification. The text after the name is a free-text description;
 #'     `[example] <expr>` and `[type] <expr>` markers (each on its own line)
@@ -28,6 +33,10 @@
 #'     for a worked example value and an `arg_*()` type descriptor (see
 #'     [new_block_arg()]). An explicit `[description] <text>` marker may replace
 #'     the inline description. Optional and repeatable.}
+#'   \item{`@blockExamples <expr>`}{Block-level worked example configurations,
+#'     as an R expression -- evaluated when documentation is generated -- that
+#'     yields a list of complete configurations (each a named list keyed by
+#'     argument). Optional; supersedes the per-argument `[example]` assembly.}
 #'   \item{`@blockCtor <name>`}{Constructor name override. Optional: the
 #'     documented object otherwise supplies the name.}
 #' }
@@ -71,6 +80,21 @@ roxy_tag_parse.roxy_tag_blockGuidance <- function(x) {
 #' @exportS3Method roxygen2::roxy_tag_parse
 roxy_tag_parse.roxy_tag_blockKeywords <- function(x) {
   roxygen2::tag_value(x)
+}
+
+#' @exportS3Method roxygen2::roxy_tag_parse
+roxy_tag_parse.roxy_tag_blockDetails <- function(x) {
+  roxygen2::tag_value(x, multiline = TRUE)
+}
+
+#' @exportS3Method roxygen2::roxy_tag_parse
+roxy_tag_parse.roxy_tag_blockLink <- function(x) {
+  roxygen2::tag_value(x)
+}
+
+#' @exportS3Method roxygen2::roxy_tag_parse
+roxy_tag_parse.roxy_tag_blockExamples <- function(x) {
+  roxygen2::tag_value(x, multiline = TRUE)
 }
 
 #' @exportS3Method roxygen2::roxy_tag_parse
@@ -187,6 +211,18 @@ block_roclet_entry <- function(block) {
     category = block_tag_value(block, "blockCategory")
   )
 
+  details <- block_details(block)
+
+  if (not_null(details)) {
+    entry[["details"]] <- details
+  }
+
+  link <- block_tag_value(block, "blockLink")
+
+  if (not_null(link)) {
+    entry[["link"]] <- link
+  }
+
   icon <- block_tag_value(block, "blockIcon")
 
   if (not_null(icon)) {
@@ -209,6 +245,12 @@ block_roclet_entry <- function(block) {
 
   if (length(args)) {
     entry[["arguments"]] <- args
+  }
+
+  examples <- block_examples(block)
+
+  if (length(examples)) {
+    entry[["examples"]] <- examples
   }
 
   entry
@@ -307,6 +349,31 @@ block_keywords <- function(block) {
 
 block_guidance <- function(block) {
   reflow_text(block_tag_value(block, "blockGuidance"))
+}
+
+block_details <- function(block) {
+
+  explicit <- coal(
+    block_tag_value(block, "blockDetails"),
+    block_tag_value(block, "details"),
+    fail_all = FALSE
+  )
+
+  if (not_null(explicit)) {
+    return(reflow_text(explicit))
+  }
+
+  section <- block_tag_value(block, "section")
+
+  if (is.null(section)) {
+    return(NULL)
+  }
+
+  reflow_text(sub("^[^:]+:[[:space:]]*", "", section))
+}
+
+block_examples <- function(block) {
+  eval_arg_expr(block_tag_value(block, "blockExamples"))
 }
 
 reflow_text <- function(text) {

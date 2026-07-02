@@ -480,14 +480,21 @@ register_package_blocks <- function(which = "all", package = pkg_name(),
     names(entries),
     name = chr_xtr(entries, "name"),
     description = chr_xtr(entries, "description"),
+    details = lapply(entries, `[[`, "details"),
+    link = lapply(entries, `[[`, "link"),
     category = chr_xtr(entries, "category"),
     icon = lapply(entries, `[[`, "icon"),
     guidance = lapply(entries, `[[`, "guidance"),
     keywords = lapply(entries, `[[`, "keywords"),
     arguments = lapply(entries, yaml_block_arguments),
+    examples = lapply(entries, yaml_block_examples),
     package = package,
     overwrite = overwrite
   )
+}
+
+yaml_block_examples <- function(entry) {
+  coal(entry[["examples"]], list(), fail_all = FALSE)
 }
 
 yaml_block_arguments <- function(entry) {
