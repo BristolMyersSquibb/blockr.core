@@ -34,7 +34,6 @@ Imports:
     grDevices,
     graphics,
     methods,
-    stats,
     utils,
     jsonlite,
     vctrs,
