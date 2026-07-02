@@ -15,7 +15,11 @@
 #'   `utils::head()` / `utils::tail()`. `direction` chooses the end: "head" for
 #'   the first rows, "tail" for the last.
 #' @blockKeywords head tail first last rows limit
-#' @blockArg n new_block_arg("Number of rows to keep.", type = arg_integer())
+#' @blockArg n new_block_arg(
+#'   "Number of rows to keep.",
+#'   example = 10L,
+#'   type = arg_integer()
+#' )
 #' @blockArg direction new_block_arg(
 #'   "Row end to keep, either head (first) or tail (last).",
 #'   example = "tail",

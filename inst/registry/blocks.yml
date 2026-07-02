@@ -145,6 +145,7 @@ new_head_block:
   arguments:
     'n':
       description: Number of rows to keep.
+      example: 10
       type:
         type: integer
     direction:
