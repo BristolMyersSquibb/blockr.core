@@ -29,15 +29,29 @@ what marks a constructor for registration.}
 Required.}
 \item{\verb{@blockIcon <icon>}}{Bootstrap icon name. Optional, defaulting to the
 category icon (see \code{\link[=default_icon]{default_icon()}}).}
+\item{\verb{@blockGuidance <text>}}{Model-facing construction guidance -- do and
+don't rules, enumerations, pitfalls. Optional.}
+\item{\verb{@blockKeywords <words>}}{Free-text search terms for block discovery,
+separated by whitespace or commas. Optional.}
 \item{\verb{@blockParam <name> <description>}}{Description of a constructor
 argument. Optional and repeatable.}
 \item{\verb{@blockParamExample <name> <value>}}{A worked example value for a
 constructor argument. Optional and repeatable.}
+\item{\verb{@blockParamType <name> <expr>}}{Machine-readable type for a
+constructor argument, written as an \verb{arg_*()} descriptor expression such
+as \code{arg_enum(c("head", "tail"))} and evaluated while documentation is
+generated. Optional and repeatable. See \code{\link[=new_block_arg]{new_block_arg()}}.}
+\item{\verb{@blockArg <name> <expr>}}{A whole argument specification given as a
+\code{\link[=new_block_arg]{new_block_arg()}} expression, evaluated at documentation time -- e.g.
+\verb{@blockArg n new_block_arg("Rows to keep", type = arg_integer())}. A
+co-located alternative to the \verb{@blockParam} / \verb{@blockParamType} /
+\verb{@blockParamExample} trio; the two styles may be mixed across arguments
+but not on the same argument. Optional and repeatable.}
 \item{\verb{@blockCtor <name>}}{Constructor name override. Optional: the
 documented object otherwise supplies the name.}
 }
-Machine-readable argument \code{type} descriptors and multi-argument worked
-\code{examples} are intentionally out of the tags' scope; a block needing those
-registers via \code{\link[=register_block]{register_block()}} directly.
+Multi-argument worked \code{examples} (whole-block configurations, as opposed to
+the per-argument \verb{@blockParamExample}) remain out of the tags' scope; a block
+needing those registers via \code{\link[=register_block]{register_block()}} directly.
 }
 

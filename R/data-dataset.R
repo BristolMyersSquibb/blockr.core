@@ -13,8 +13,20 @@
 #' @blockDescr Choose a dataset from a package
 #' @blockCategory input
 #' @blockIcon database
-#' @blockParam dataset Selects the dataset to use.
-#' @blockParamExample dataset iris
+#' @blockGuidance Loads a data.frame that ships with an installed package. Set
+#'   `package` to the source package (default "datasets"), then `dataset` to the
+#'   name of a data.frame object it exports.
+#' @blockKeywords dataset data import package source
+#' @blockArg dataset new_block_arg(
+#'   "Selects the dataset to use.",
+#'   example = "iris",
+#'   type = arg_string()
+#' )
+#' @blockArg package new_block_arg(
+#'   "R package to source the dataset from.",
+#'   example = "datasets",
+#'   type = arg_string()
+#' )
 #'
 #' @rdname new_data_block
 #' @export

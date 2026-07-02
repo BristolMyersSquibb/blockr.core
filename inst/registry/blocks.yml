@@ -5,53 +5,227 @@ new_dataset_block:
   description: Choose a dataset from a package
   category: input
   icon: database
+  guidance: Loads a data.frame that ships with an installed package. Set `package`
+    to the source package (default "datasets"), then `dataset` to the name of a data.frame
+    object it exports.
+  keywords:
+  - dataset
+  - data
+  - import
+  - package
+  - source
   arguments:
     dataset:
       description: Selects the dataset to use.
       example: iris
+      type:
+        type: string
+    package:
+      description: R package to source the dataset from.
+      example: datasets
+      type:
+        type: string
 new_filebrowser_block:
   name: file browser block
   description: Browse local files
   category: input
   icon: folder2-open
+  guidance: Selects a file from the server's file system for a downstream parser such
+    as a CSV block. `file_path` is the chosen path; `volumes` bounds the root directories
+    the browser may reach.
+  keywords:
+  - file
+  - browser
+  - path
+  - filesystem
+  - select
+  arguments:
+    file_path:
+      description: Path of the selected file.
+      type:
+        type: string
 new_upload_block:
   name: data upload block
   description: Upload data
   category: input
   icon: upload
+  guidance: Provides a data.frame from a file uploaded in the running app. Uploaded
+    data lives only for the session, so serialization and reproducible export are
+    unavailable. Has no configurable arguments.
+  keywords:
+  - upload
+  - file
+  - import
+  - data
+  - session
 new_csv_block:
   name: csv parser block
   description: Read CSV file
   category: utility
   icon: filetype-csv
+  guidance: Parses a delimited text file (typically from a file or upload block) into
+    a data.frame with `utils::read.table()`. `sep` is the field separator and `quote`
+    the quoting character.
+  keywords:
+  - csv
+  - parse
+  - read
+  - delimited
+  - import
+  arguments:
+    sep:
+      description: Field separator character.
+      example: ','
+      type:
+        type: string
+    quote:
+      description: Quoting character.
+      type:
+        type: string
 new_scatter_block:
   name: scatter plot block
   description: Scatter plotting
   category: plot
   icon: dice-5
+  guidance: Draws a scatter plot of `x` against `y` with `base::plot()`. `x` and `y`
+    are column names from the input data; axis labels follow the column names.
+  keywords:
+  - scatter
+  - plot
+  - chart
+  - visualization
+  - points
+  arguments:
+    x:
+      description: Column for the horizontal axis.
+      example: Sepal.Length
+      type:
+        type: string
+    'y':
+      description: Column for the vertical axis.
+      example: Sepal.Width
+      type:
+        type: string
 new_glue_block:
   name: glue string block
   description: String interpolation using glue
   category: utility
   icon: braces
+  guidance: Interpolates a template against the input data with `glue::glue()` to
+    produce (markdown) text. Reference columns of the data in `text` with braces,
+    e.g. "{nrow(data)} rows".
+  keywords:
+  - glue
+  - template
+  - text
+  - string
+  - interpolate
+  - markdown
+  arguments:
+    text:
+      description: Template string evaluated with glue::glue().
+      example: '{nrow(data)} rows'
+      type:
+        type: string
 new_head_block:
   name: head/tail block
   description: Data head/tail
   category: transform
   icon: eye
+  guidance: 'Keeps the first or last `n` rows of the input with `utils::head()` /
+    `utils::tail()`. `direction` chooses the end: "head" for the first rows, "tail"
+    for the last.'
+  keywords:
+  - head
+  - tail
+  - first
+  - last
+  - rows
+  - limit
+  arguments:
+    'n':
+      description: Number of rows to keep.
+      type:
+        type: integer
+    direction:
+      description: Row end to keep, either head (first) or tail (last).
+      example: tail
+      type:
+        type: string
+        enum:
+        - head
+        - tail
 new_merge_block:
   name: merge block
   description: Joining or datasets
   category: transform
   icon: union
+  guidance: 'Joins the two inputs with `base::merge()`. `by` names the shared key
+    column(s); omit it to join on all common columns. all_x and all_y set the join
+    type: both FALSE for an inner join, both TRUE for a full outer join, all_x alone
+    for a left join, all_y alone for a right join.'
+  keywords:
+  - merge
+  - join
+  - inner
+  - outer
+  - left
+  - right
+  arguments:
+    by:
+      description: Shared key column(s) to join on.
+      type:
+        type: array
+        items:
+          type: string
+    all_x:
+      description: Keep unmatched rows from the first input.
+      type:
+        type: boolean
+    all_y:
+      description: Keep unmatched rows from the second input.
+      type:
+        type: boolean
 new_rbind_block:
   name: rbind block
   description: Row-binding of datasets
   category: transform
   icon: chevron-bar-expand
+  guidance: Row-binds two or more inputs with `base::rbind()`; the inputs must share
+    the same columns. Takes a variable number of data inputs and has no configurable
+    arguments.
+  keywords:
+  - rbind
+  - bind
+  - concatenate
+  - rows
+  - append
+  - union
 new_subset_block:
   name: subset block
   description: Row and column subsetting
   category: transform
   icon: funnel
+  guidance: Row- and column-subsets the input with `base::subset()`. `subset` is a
+    logical expression over the columns keeping rows where it is TRUE; `select` picks
+    columns. Both are R expressions written as strings and evaluated with the data
+    columns in scope.
+  keywords:
+  - filter
+  - subset
+  - select
+  - rows
+  - columns
+  - where
+  arguments:
+    subset:
+      description: Logical row-filter expression, as a string.
+      example: Sepal.Width > 3
+      type:
+        type: string
+    select:
+      description: Column-selection expression, as a string.
+      example: Species
+      type:
+        type: string
 

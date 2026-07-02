@@ -11,6 +11,16 @@
 #' @blockDescr Data head/tail
 #' @blockCategory transform
 #' @blockIcon eye
+#' @blockGuidance Keeps the first or last `n` rows of the input with
+#'   `utils::head()` / `utils::tail()`. `direction` chooses the end: "head" for
+#'   the first rows, "tail" for the last.
+#' @blockKeywords head tail first last rows limit
+#' @blockArg n new_block_arg("Number of rows to keep.", type = arg_integer())
+#' @blockArg direction new_block_arg(
+#'   "Row end to keep, either head (first) or tail (last).",
+#'   example = "tail",
+#'   type = arg_enum(c("head", "tail"))
+#' )
 #'
 #' @rdname new_transform_block
 #' @export

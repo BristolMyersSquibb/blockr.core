@@ -13,6 +13,23 @@
 #' @blockDescr Joining or datasets
 #' @blockCategory transform
 #' @blockIcon union
+#' @blockGuidance Joins the two inputs with `base::merge()`. `by` names the
+#'   shared key column(s); omit it to join on all common columns. all_x and
+#'   all_y set the join type: both FALSE for an inner join, both TRUE for a full
+#'   outer join, all_x alone for a left join, all_y alone for a right join.
+#' @blockKeywords merge join inner outer left right
+#' @blockArg by new_block_arg(
+#'   "Shared key column(s) to join on.",
+#'   type = arg_array(arg_string())
+#' )
+#' @blockArg all_x new_block_arg(
+#'   "Keep unmatched rows from the first input.",
+#'   type = arg_boolean()
+#' )
+#' @blockArg all_y new_block_arg(
+#'   "Keep unmatched rows from the second input.",
+#'   type = arg_boolean()
+#' )
 #'
 #' @rdname new_transform_block
 #' @export

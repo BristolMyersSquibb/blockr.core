@@ -482,6 +482,8 @@ register_package_blocks <- function(which = "all", package = pkg_name(),
     description = chr_xtr(entries, "description"),
     category = chr_xtr(entries, "category"),
     icon = lapply(entries, `[[`, "icon"),
+    guidance = lapply(entries, `[[`, "guidance"),
+    keywords = lapply(entries, `[[`, "keywords"),
     arguments = lapply(entries, yaml_block_arguments),
     package = package,
     overwrite = overwrite
@@ -498,7 +500,10 @@ yaml_block_arguments <- function(entry) {
 
   do.call(
     new_block_args,
-    lapply(args, function(a) new_block_arg(a[["description"]], a[["example"]]))
+    lapply(
+      args,
+      function(a) new_block_arg(a[["description"]], a[["example"]], a[["type"]])
+    )
   )
 }
 

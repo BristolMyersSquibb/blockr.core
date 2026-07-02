@@ -12,6 +12,20 @@
 #' @blockDescr Scatter plotting
 #' @blockCategory plot
 #' @blockIcon dice-5
+#' @blockGuidance Draws a scatter plot of `x` against `y` with `base::plot()`.
+#'   `x` and `y` are column names from the input data; axis labels follow the
+#'   column names.
+#' @blockKeywords scatter plot chart visualization points
+#' @blockArg x new_block_arg(
+#'   "Column for the horizontal axis.",
+#'   example = "Sepal.Length",
+#'   type = arg_string()
+#' )
+#' @blockArg y new_block_arg(
+#'   "Column for the vertical axis.",
+#'   example = "Sepal.Width",
+#'   type = arg_string()
+#' )
 #'
 #' @rdname new_plot_block
 #' @export

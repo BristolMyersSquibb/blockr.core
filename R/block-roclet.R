@@ -17,16 +17,30 @@
 #'     Required.}
 #'   \item{`@blockIcon <icon>`}{Bootstrap icon name. Optional, defaulting to the
 #'     category icon (see [default_icon()]).}
+#'   \item{`@blockGuidance <text>`}{Model-facing construction guidance -- do and
+#'     don't rules, enumerations, pitfalls. Optional.}
+#'   \item{`@blockKeywords <words>`}{Free-text search terms for block discovery,
+#'     separated by whitespace or commas. Optional.}
 #'   \item{`@blockParam <name> <description>`}{Description of a constructor
 #'     argument. Optional and repeatable.}
 #'   \item{`@blockParamExample <name> <value>`}{A worked example value for a
 #'     constructor argument. Optional and repeatable.}
+#'   \item{`@blockParamType <name> <expr>`}{Machine-readable type for a
+#'     constructor argument, written as an `arg_*()` descriptor expression such
+#'     as `arg_enum(c("head", "tail"))` and evaluated while documentation is
+#'     generated. Optional and repeatable. See [new_block_arg()].}
+#'   \item{`@blockArg <name> <expr>`}{A whole argument specification given as a
+#'     [new_block_arg()] expression, evaluated at documentation time -- e.g.
+#'     `@blockArg n new_block_arg("Rows to keep", type = arg_integer())`. A
+#'     co-located alternative to the `@blockParam` / `@blockParamType` /
+#'     `@blockParamExample` trio; the two styles may be mixed across arguments
+#'     but not on the same argument. Optional and repeatable.}
 #'   \item{`@blockCtor <name>`}{Constructor name override. Optional: the
 #'     documented object otherwise supplies the name.}
 #' }
-#' Machine-readable argument `type` descriptors and multi-argument worked
-#' `examples` are intentionally out of the tags' scope; a block needing those
-#' registers via [register_block()] directly.
+#' Multi-argument worked `examples` (whole-block configurations, as opposed to
+#' the per-argument `@blockParamExample`) remain out of the tags' scope; a block
+#' needing those registers via [register_block()] directly.
 #'
 #' @return `block_registration_roclet()` returns a roclet object.
 #'
@@ -57,6 +71,16 @@ roxy_tag_parse.roxy_tag_blockIcon <- function(x) {
 }
 
 #' @exportS3Method roxygen2::roxy_tag_parse
+roxy_tag_parse.roxy_tag_blockGuidance <- function(x) {
+  roxygen2::tag_value(x, multiline = TRUE)
+}
+
+#' @exportS3Method roxygen2::roxy_tag_parse
+roxy_tag_parse.roxy_tag_blockKeywords <- function(x) {
+  roxygen2::tag_value(x)
+}
+
+#' @exportS3Method roxygen2::roxy_tag_parse
 roxy_tag_parse.roxy_tag_blockParam <- function(x) {
   roxygen2::tag_name_description(x)
 }
@@ -64,6 +88,29 @@ roxy_tag_parse.roxy_tag_blockParam <- function(x) {
 #' @exportS3Method roxygen2::roxy_tag_parse
 roxy_tag_parse.roxy_tag_blockParamExample <- function(x) {
   roxygen2::tag_name_description(x)
+}
+
+#' @exportS3Method roxygen2::roxy_tag_parse
+roxy_tag_parse.roxy_tag_blockParamType <- function(x) {
+  roxygen2::tag_name_description(x)
+}
+
+#' @exportS3Method roxygen2::roxy_tag_parse
+roxy_tag_parse.roxy_tag_blockArg <- function(x) {
+
+  raw <- trimws(x[["raw"]])
+  split <- regexpr("[[:space:]]", raw)
+
+  if (split < 0L) {
+    return(roxygen2::roxy_tag_warning(x, "requires a name and a value"))
+  }
+
+  x[["val"]] <- list(
+    name = substr(raw, 1L, split - 1L),
+    expr = trimws(substring(raw, split + 1L))
+  )
+
+  x
 }
 
 #' @exportS3Method roxygen2::roxy_tag_parse
@@ -168,6 +215,18 @@ block_roclet_entry <- function(block) {
     entry[["icon"]] <- icon
   }
 
+  guidance <- block_guidance(block)
+
+  if (not_null(guidance)) {
+    entry[["guidance"]] <- guidance
+  }
+
+  keywords <- block_keywords(block)
+
+  if (length(keywords)) {
+    entry[["keywords"]] <- keywords
+  }
+
   args <- block_roclet_args(block)
 
   if (length(args)) {
@@ -179,21 +238,64 @@ block_roclet_entry <- function(block) {
 
 block_roclet_args <- function(block) {
 
-  descrs <- block_named_tag_values(block, "blockParam")
-  examples <- block_named_tag_values(block, "blockParamExample")
+  flat <- flat_arg_specs(block)
+  expr <- block_arg_specs(block)
 
-  nms <- union(names(descrs), names(examples))
+  clash <- intersect(names(flat), names(expr))
+
+  if (length(clash)) {
+    block_roclet_abort(
+      roxygen2::block_get_tag(block, "block"),
+      paste0(
+        "Argument(s) ", paste(clash, collapse = ", "),
+        " are given by both @blockArg and @blockParam*."
+      )
+    )
+  }
+
+  c(flat, expr)
+}
+
+flat_arg_specs <- function(block) {
+
+  descrs <- as.list(block_named_tag_values(block, "blockParam"))
+  examples <- as.list(block_named_tag_values(block, "blockParamExample"))
+  types <- block_named_tag_types(block)
+
+  nms <- unique(c(names(descrs), names(examples), names(types)))
 
   set_names(
     lapply(
       nms,
-      function(nm) {
-        arg <- list(description = descrs[[nm]], example = examples[[nm]])
-        arg[!lgl_ply(arg, is.null)]
-      }
+      function(nm) compact_arg(descrs[[nm]], examples[[nm]], types[[nm]])
     ),
     nms
   )
+}
+
+block_arg_specs <- function(block) {
+
+  vals <- lapply(roxygen2::block_get_tags(block, "blockArg"), `[[`, "val")
+
+  set_names(
+    lapply(chr_xtr(vals, "expr"), eval_block_arg),
+    chr_xtr(vals, "name")
+  )
+}
+
+eval_block_arg <- function(expr) {
+
+  value <- eval(str2lang(expr), new.env(parent = asNamespace("blockr.core")))
+  arg <- as_block_arg(value)
+
+  compact_arg(arg[["description"]], arg[["example"]], arg[["type"]])
+}
+
+compact_arg <- function(description, example, type) {
+
+  arg <- list(description = description, example = example, type = type)
+
+  arg[!lgl_ply(arg, is.null)]
 }
 
 require_block_tag <- function(block, tag) {
@@ -220,6 +322,44 @@ block_named_tag_values <- function(block, tag) {
   vals <- lapply(roxygen2::block_get_tags(block, tag), `[[`, "val")
 
   set_names(chr_xtr(vals, "description"), chr_xtr(vals, "name"))
+}
+
+block_named_tag_types <- function(block) {
+
+  vals <- lapply(roxygen2::block_get_tags(block, "blockParamType"), `[[`, "val")
+
+  set_names(
+    lapply(chr_xtr(vals, "description"), eval_arg_descriptor),
+    chr_xtr(vals, "name")
+  )
+}
+
+eval_arg_descriptor <- function(expr) {
+  eval(str2lang(expr), new.env(parent = asNamespace("blockr.core")))
+}
+
+block_keywords <- function(block) {
+
+  value <- block_tag_value(block, "blockKeywords")
+
+  if (is.null(value)) {
+    return(character())
+  }
+
+  parts <- strsplit(value, "[[:space:],]+")[[1L]]
+
+  parts[nzchar(parts)]
+}
+
+block_guidance <- function(block) {
+
+  value <- block_tag_value(block, "blockGuidance")
+
+  if (is.null(value)) {
+    return(NULL)
+  }
+
+  gsub("\\s+", " ", trimws(value))
 }
 
 block_roclet_abort <- function(tag, message) {
