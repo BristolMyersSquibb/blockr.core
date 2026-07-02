@@ -101,6 +101,7 @@ Collate:
     'plugin-serdes.R'
     'plugin-stack.R'
     'plugin-stacks.R'
+    'reactives.R'
     'stack-class.R'
     'stack-ui.R'
     'stacks-class.R'
