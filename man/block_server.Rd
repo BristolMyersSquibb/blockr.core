@@ -107,7 +107,12 @@ that is neither visible nor feeding a visible block pulls no input and stays
 fully quiescent: its result reactive, and any observer its expression server
 registers on the incoming data, all short-circuit and do nothing. A needed
 but off-screen block (one feeding a visible block) evaluates but does not
-render. With nothing driving
+render. Block-server \emph{construction} is prioritized the same way: the needed
+set is instantiated first so that first paint waits only for the on-screen
+blocks and their upstreams, and the remaining block servers are built
+progressively in the background. Until a block is built it is absent from
+the \code{board$blocks} handed to plugins and callbacks, which simply see it
+appear once constructed. With nothing driving
 \code{visible} every block is needed and behaviour is unchanged; the
 \code{gate_visibility} \code{\link[=blockr_option]{blockr_option()}} (default \code{TRUE}) turns gating off
 entirely.

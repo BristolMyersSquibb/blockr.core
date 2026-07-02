@@ -301,12 +301,18 @@ blockr_test_exports <- function(x, rv, ...) {
 #' @export
 blockr_test_exports.board <- function(x, rv, ...) {
   exportTestValues(
-    result = lapply(
+    result = {
+
+      blocks <- rv[[1L]]$blocks
+      ids <- intersect(board_block_ids(rv[[1L]]$board), names(blocks))
+
       lapply(
-        lapply(lst_xtr(rv[[1L]]$blocks, "server", "result"), export_safely),
+        lapply(
+          lapply(lst_xtr(blocks[ids], "server", "result"), export_safely),
+          reval
+        ),
         reval
-      ),
-      reval
-    )
+      )
+    }
   )
 }

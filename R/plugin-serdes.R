@@ -142,10 +142,12 @@ serialize_board <- function(x, blocks, id = NULL, ...,
 serialize_board.board <- function(x, blocks, id = NULL, ...,
                                   session = get_session()) {
 
+  states <- lst_xtr(blocks, "server", "state")
+  states <- set_names(states[board_block_ids(x)], board_block_ids(x))
+
   blocks <- lapply(
-    lst_xtr(blocks, "server", "state"),
-    lapply,
-    reval_if
+    states,
+    function(st) if (is.null(st)) NULL else lapply(st, reval_if)
   )
 
   opts <- lapply(
