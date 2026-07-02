@@ -198,8 +198,7 @@ combine_board_options(...)
 \item{val}{New value}
 
 \item{board}{Board the option belongs to, used to resolve the lock
-state (see \code{\link[=is_board_locked]{is_board_locked()}}); pass \code{NULL} to fall back to the
-option.}
+state (see \code{\link[=is_board_locked]{is_board_locked()}}).}
 
 \item{opts}{Board options}
 

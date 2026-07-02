@@ -275,8 +275,7 @@ get_board_opt_rv_from_userdata <- function(opt, session = get_session()) {
 
 #' @param val New value
 #' @param board Board the option belongs to, used to resolve the lock
-#' state (see [is_board_locked()]); pass `NULL` to fall back to the
-#' option.
+#' state (see [is_board_locked()]).
 #' @rdname new_board_options
 #' @export
 set_board_option_value <- function(opt, val, board, session = get_session()) {
