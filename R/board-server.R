@@ -493,6 +493,13 @@ construct_blocks <- function(ids, rv, mod_ed, mod_ct, args) {
 
 construct_remaining_blocks <- function(rv, mod_ed, mod_ct, args) {
 
+  if (background_construction_delay() <= 0) {
+
+    construct_blocks(board_block_ids(rv$board), rv, mod_ed, mod_ct, args)
+
+    return(invisible())
+  }
+
   started <- FALSE
 
   obs <- observe(
@@ -526,7 +533,7 @@ construct_remaining_blocks <- function(rv, mod_ed, mod_ct, args) {
 }
 
 background_construction_delay <- function() {
-  blockr_option("background_construction_delay", 50L)
+  as.numeric(blockr_option("background_construction_delay", 50L))
 }
 
 needed_block_ids <- function(rv) {

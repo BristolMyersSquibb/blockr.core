@@ -589,3 +589,23 @@ test_that("the background constructs every block exactly once", {
     args = list(x = ordered_board(), plugins = list(), callbacks = visible_b)
   )
 })
+
+test_that("a zero background delay builds every block up front", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  testServer(
+    get_s3_method("board_server", ordered_board()),
+    {
+      session$flushReact()
+
+      expect_true(constructed("a"))
+      expect_true(constructed("b"))
+      expect_true(constructed("c"))
+      expect_true(constructed("d"))
+    },
+    args = list(x = ordered_board(), plugins = list(), callbacks = visible_b)
+  )
+})

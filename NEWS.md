@@ -10,7 +10,10 @@
   shown. A block still building is absent from the read-only board handed to
   plugins, and serialization falls back to its constructor state until it
   appears. Requires a front-end driving the `visible` channel; without one
-  every block is needed and all servers are built up front, as before.
+  every block is needed and all servers are built up front, as before. The
+  background cadence is the `background_construction_delay` option
+  (milliseconds between successive blocks, default 50); setting it to 0
+  builds every block up front and opts out of the staggering.
 * The manage-links and manage-stacks plugins no longer flicker the table's
   cell selectizes on a board re-emit (#246). The observer that keeps the
   table in sync re-rendered every row whenever `upd$curr` was invalidated --
