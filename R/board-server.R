@@ -581,6 +581,8 @@ destroy_rm_blocks <- function(ids, rv, sess, args) {
 
 upstream_result <- function(key, src_rv, rv, to) {
 
+  force(key)
+
   reactive(
     {
       needed <- rv$needed()
