@@ -33,10 +33,12 @@ generate_code_server <- function(id, board, ...) {
     function(input, output, session) {
 
       code <- reactive(
-        export_wrapped_code(
-          lst_xtr_reval(board$blocks, "server", "expr"),
-          board$board
-        )
+        if (isTRUE(code_export_ready(board))) {
+          export_wrapped_code(
+            lst_xtr_reval(board$blocks, "server", "expr"),
+            board$board
+          )
+        }
       )
 
       observeEvent(
@@ -44,11 +46,7 @@ generate_code_server <- function(id, board, ...) {
         showModal(
           modalDialog(
             title = "Generated code",
-            div(
-              id = session$ns("code_out"),
-              class = "text-decoration-none position-relative",
-              pre(paste0(code(), collapse = "\n"))
-            ),
+            code_modal_body(code(), session$ns("code_out")),
             easyClose = TRUE,
             footer = NULL,
             size = "l"
@@ -70,5 +68,37 @@ generate_code_ui <- function(id, board) {
       "Show code",
       icon = icon("code")
     )
+  )
+}
+
+code_export_ready <- function(board) {
+
+  status <- reactiveValuesToList(board$eval)
+
+  if (!setequal(names(status), board_block_ids(board$board))) {
+    return(FALSE)
+  }
+
+  all(chr_ply(status, reval_if) %in% c("ready", "dormant"))
+}
+
+code_modal_body <- function(script, out_id) {
+
+  if (is.null(script)) {
+    return(
+      div(
+        class = "text-muted",
+        paste(
+          "The board is not ready. Finish configuring all blocks",
+          "before exporting code."
+        )
+      )
+    )
+  }
+
+  div(
+    id = out_id,
+    class = "text-decoration-none position-relative",
+    pre(paste0(script, collapse = "\n"))
   )
 }
