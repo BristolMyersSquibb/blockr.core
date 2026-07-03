@@ -551,6 +551,34 @@ test_that("removing a variadic link drops its ...args slot", {
   )
 })
 
+test_that("variadic ...args slots each bind to their own upstream", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_static_block(iris[1:3, ]),
+      b = new_static_block(iris[4:6, ]),
+      v = new_rbind_block()
+    ),
+    links = links(
+      av = new_link("a", "v", "x"),
+      bv = new_link("b", "v", "y")
+    )
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_identical(
+        rv$blocks$v$server$result(),
+        rbind(x = iris[1:3, ], y = iris[4:6, ])
+      )
+    },
+    args = list(x = board)
+  )
+})
+
 test_that("update validation", {
 
   expect_error(
