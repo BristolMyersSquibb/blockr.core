@@ -141,7 +141,7 @@
 <p>To register your own blocks, user facing functions are:</p>
 <ul>
 <li>
-<code><a href="../reference/register_block.html">register_block()</a></code> to register a block in the <strong>registry</strong>. If the <strong>block</strong> is already registered, it <strong>overwrites</strong> the existing one.</li>
+<code><a href="../reference/register_block.html">register_block()</a></code> to register a block in the <strong>registry</strong>. If a block with the same ID is already registered, it errors unless you pass <code>overwrite = TRUE</code>.</li>
 <li>
 <code><a href="../reference/register_block.html">register_blocks()</a></code> to register multiple blocks.</li>
 </ul>
@@ -186,9 +186,18 @@
 <span>  <span class="fu">register_dummy_blocks</span><span class="op">(</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/invisible.html" class="external-link">invisible</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
+<p>Because <code>.onLoad()</code> runs on every load of the package (including each <code>devtools::load_all()</code>, <code>document()</code> or <code>check()</code>), this registration must be idempotent. That is why <code>register_dummy_blocks()</code> passes <code>overwrite = TRUE</code>: without it, reloading the package aborts with <code>Block dummy_block already exists</code>, forcing you to restart R between reloads.</p>
+<p>For blocks that ship in a package, the recommended alternative removes the hand-written registration altogether. Declaring the block metadata as <code>@block</code> roxygen tags on the constructor, and adding <code><a href="../reference/block_roclet.html">blockr.core::block_registration_roclet</a></code> to the <code>Roxygen</code> field of the <code>DESCRIPTION</code>, lets <code>devtools::document()</code> generate an <code>inst/registry/blocks.yml</code> registry. A one-line <code>.onLoad()</code> then registers every block from it:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># ./R/zzz.R</span></span>
+<span><span class="va">.onLoad</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">libname</span>, <span class="va">pkgname</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="../reference/register_block.html">register_package_blocks</a></span><span class="op">(</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/invisible.html" class="external-link">invisible</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span></span>
+<span><span class="op">}</span></span></code></pre></div>
+<p><code><a href="../reference/register_block.html">register_package_blocks()</a></code> defaults to <code>overwrite = TRUE</code>, so it is reload-safe by construction. See <code><a href="../reference/block_roclet.html">?block_registration_roclet</a></code> for the full tag vocabulary.</p>
 <p>If we now query the registry, the new block is available:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/register_block.html">available_blocks</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="st">"dummy_block"</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="co">#&gt; function (text = "Hello World", ...) </span></span>
 <span><span class="co">#&gt; {</span></span>
@@ -223,7 +232,7 @@
 </h2>
 <p>The counterpart of <code><a href="../reference/register_block.html">register_block()</a></code> is <code><a href="../reference/register_block.html">unregister_blocks()</a></code>. We can remove our new <code>dummy_block</code> from the registry:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/register_block.html">unregister_blocks</a></span><span class="op">(</span>uid <span class="op">=</span> <span class="st">"dummy_block"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Check it out</span></span>

@@ -72,8 +72,8 @@ names(available_blocks())
 To register your own blocks, user facing functions are:
 
 - [`register_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
-  to register a block in the **registry**. If the **block** is already
-  registered, it **overwrites** the existing one.
+  to register a block in the **registry**. If a block with the same ID
+  is already registered, it errors unless you pass `overwrite = TRUE`.
 - [`register_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
   to register multiple blocks.
 
@@ -128,6 +128,36 @@ register the block(s) whenever the package loads:
   invisible(NULL)
 }
 ```
+
+Because `.onLoad()` runs on every load of the package (including each
+`devtools::load_all()`, `document()` or `check()`), this registration
+must be idempotent. That is why `register_dummy_blocks()` passes
+`overwrite = TRUE`: without it, reloading the package aborts with
+`Block dummy_block already exists`, forcing you to restart R between
+reloads.
+
+For blocks that ship in a package, the recommended alternative removes
+the hand-written registration altogether. Declaring the block metadata
+as `@block` roxygen tags on the constructor, and adding
+[`blockr.core::block_registration_roclet`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_roclet.md)
+to the `Roxygen` field of the `DESCRIPTION`, lets `devtools::document()`
+generate an `inst/registry/blocks.yml` registry. A one-line `.onLoad()`
+then registers every block from it:
+
+``` r
+
+# ./R/zzz.R
+.onLoad <- function(libname, pkgname) {
+  register_package_blocks()
+  invisible(NULL)
+}
+```
+
+[`register_package_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
+defaults to `overwrite = TRUE`, so it is reload-safe by construction.
+See
+[`?block_registration_roclet`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_roclet.md)
+for the full tag vocabulary.
 
 If we now query the registry, the new block is available:
 
