@@ -72,3 +72,9 @@ validator function.
 Files in CSV format provided for example by a block created via
 [`new_file_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_file_block.md)
 may be parsed into `data.frame` by CSV blocks.
+
+## See also
+
+The [blockr.io](https://bristolmyerssquibb.github.io/blockr.io/) package
+provides real-world blocks for parsing external data formats (e.g.
+`csv`, `xpt`).

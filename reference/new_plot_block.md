@@ -71,3 +71,9 @@ simplistic implementation, apart from axis labels (fixed to the
 corresponding column names), no further plotting options are available
 and for any "production" application, a more sophisticated (set of)
 block(s) for data visualization will most likely be required.
+
+## See also
+
+Real-world plot blocks built on `new_plot_block()` are provided by the
+[blockr.ggplot](https://bristolmyerssquibb.github.io/blockr.ggplot/)
+package.

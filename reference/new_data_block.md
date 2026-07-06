@@ -71,3 +71,9 @@ data with which it was initialized. Serialization of static blocks is
 not allowed and exported code will not be self-contained in the sense
 that it will not be possible to reproduce results in a script that
 contains code from a static block.
+
+## See also
+
+Real-world data blocks built on `new_data_block()` are provided by the
+[blockr.io](https://bristolmyerssquibb.github.io/blockr.io/) package,
+which sources data from a range of external formats.

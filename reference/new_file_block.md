@@ -86,3 +86,8 @@ life-time of the shiny session, exported code is not self-contained and
 a script containing code from an upload block is cannot be run in a new
 session. Also, serialization of upload blocks is currently not allowed
 as the full data would have to be included during serialization.
+
+## See also
+
+The [blockr.io](https://bristolmyerssquibb.github.io/blockr.io/) package
+provides real-world blocks for sourcing external files.

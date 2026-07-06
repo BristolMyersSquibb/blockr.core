@@ -116,3 +116,10 @@ objects via [`base::subset()`](https://rdrr.io/r/base/subset.html).
 Using non-standard evaluation, strings passed as `subset`/`select`
 arguments or entered via shiny UI are turned into `language` objects by
 [`base::parse()`](https://rdrr.io/r/base/parse.html).
+
+## See also
+
+Real-world transform blocks (e.g. `select`, `mutate`, `filter` and
+`join`) built on `new_transform_block()` are provided by the
+[blockr.dplyr](https://bristolmyerssquibb.github.io/blockr.dplyr/)
+package.
