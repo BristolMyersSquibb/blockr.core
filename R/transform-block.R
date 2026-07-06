@@ -11,6 +11,10 @@
 #' @return All blocks constructed via `new_transform_block()` inherit from
 #' `transform_block`.
 #'
+#' @seealso Real-world transform blocks (e.g. `select`, `mutate`, `filter` and
+#' `join`) built on `new_transform_block()` are provided by the
+#' [blockr.dplyr](https://bristolmyerssquibb.github.io/blockr.dplyr/) package.
+#'
 #' @export
 new_transform_block <- function(server, ui, class, ctor = sys.parent(), ...) {
   new_block(server, ui, c(class, "transform_block"), ctor, ...)

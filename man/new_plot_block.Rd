@@ -52,3 +52,8 @@ sophisticated (set of) block(s) for data visualization will most likely be
 required.
 }
 
+\seealso{
+Real-world plot blocks built on \code{new_plot_block()} are provided by
+the \href{https://bristolmyerssquibb.github.io/blockr.ggplot/}{blockr.ggplot}
+package.
+}

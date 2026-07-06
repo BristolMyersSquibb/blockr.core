@@ -59,3 +59,8 @@ be possible to reproduce results in a script that contains code from a
 static block.
 }
 
+\seealso{
+Real-world data blocks built on \code{new_data_block()} are provided by
+the \href{https://bristolmyerssquibb.github.io/blockr.io/}{blockr.io} package,
+which sources data from a range of external formats.
+}

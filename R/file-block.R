@@ -11,6 +11,9 @@
 #' @return All blocks constructed via `new_file_block()` inherit from
 #' `file_block`.
 #'
+#' @seealso The [blockr.io](https://bristolmyerssquibb.github.io/blockr.io/)
+#' package provides real-world blocks for sourcing external files.
+#'
 #' @export
 new_file_block <- function(server, ui, class, ctor = sys.parent(), ...) {
   new_block(server, ui, c(class, "file_block"), ctor, ...)
