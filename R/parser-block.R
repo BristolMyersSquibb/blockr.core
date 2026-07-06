@@ -15,6 +15,10 @@
 #' @return All blocks constructed via `new_parser_block()` inherit from
 #' `parser_block`.
 #'
+#' @seealso The [blockr.io](https://bristolmyerssquibb.github.io/blockr.io/)
+#' package provides real-world blocks for parsing external data formats (e.g.
+#' `csv`, `xpt`).
+#'
 #' @export
 new_parser_block <- function(server, ui, class, ctor = sys.parent(),
                              dat_valid = is_file, ...) {

@@ -19,6 +19,10 @@
 #' @return All blocks constructed via `new_plot_block()` inherit from
 #' `plot_block`.
 #'
+#' @seealso Real-world plot blocks built on `new_plot_block()` are provided by
+#' the [blockr.ggplot](https://bristolmyerssquibb.github.io/blockr.ggplot/)
+#' package.
+#'
 #' @export
 new_plot_block <- function(server, ui, class, ctor = sys.parent(), ...) {
   new_block(server, ui, c(class, "plot_block"), ctor, ...)

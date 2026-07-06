@@ -71,3 +71,7 @@ currently not allowed as the full data would have to be included during
 serialization.
 }
 
+\seealso{
+The \href{https://bristolmyerssquibb.github.io/blockr.io/}{blockr.io}
+package provides real-world blocks for sourcing external files.
+}

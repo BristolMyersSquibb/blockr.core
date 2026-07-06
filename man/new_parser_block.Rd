@@ -53,3 +53,8 @@ Files in CSV format provided for example by a block created via
 \code{\link[=new_file_block]{new_file_block()}} may be parsed into \code{data.frame} by CSV blocks.
 }
 
+\seealso{
+The \href{https://bristolmyerssquibb.github.io/blockr.io/}{blockr.io}
+package provides real-world blocks for parsing external data formats (e.g.
+\code{csv}, \code{xpt}).
+}

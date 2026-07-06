@@ -10,6 +10,10 @@
 #' @return All blocks constructed via `new_data_block()` inherit from
 #' `data_block`.
 #'
+#' @seealso Real-world data blocks built on `new_data_block()` are provided by
+#' the [blockr.io](https://bristolmyerssquibb.github.io/blockr.io/) package,
+#' which sources data from a range of external formats.
+#'
 #' @export
 new_data_block <- function(server, ui, class, ctor = sys.parent(), ...) {
   new_block(server, ui, c(class, "data_block"), ctor, ...)

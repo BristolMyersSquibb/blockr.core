@@ -99,3 +99,8 @@ as \code{subset}/\code{select} arguments or entered via shiny UI are turned into
 \code{language} objects by \code{\link[base:parse]{base::parse()}}.
 }
 
+\seealso{
+Real-world transform blocks (e.g. \code{select}, \code{mutate}, \code{filter} and
+\code{join}) built on \code{new_transform_block()} are provided by the
+\href{https://bristolmyerssquibb.github.io/blockr.dplyr/}{blockr.dplyr} package.
+}
