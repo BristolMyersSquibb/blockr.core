@@ -57,7 +57,8 @@ test_that("registry", {
 
   expect_error(
     register_block(get(candidates[1L]), "test", "test"),
-    class = "block_already_in_registry"
+    class = "block_already_in_registry",
+    regexp = "overwrite = TRUE"
   )
 
   expect_error(

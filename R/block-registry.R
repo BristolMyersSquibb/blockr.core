@@ -168,7 +168,8 @@ register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
 
   if (uid %in% list_blocks() && !isTRUE(overwrite)) {
     blockr_abort(
-      "Block {uid} already exists. Try removing or `overwrite = FALSE`.",
+      "Block {uid} already exists. Set `overwrite = TRUE` to replace it, ",
+      "or remove it first with `unregister_blocks(\"{uid}\")`.",
       class = "block_already_in_registry"
     )
   }
