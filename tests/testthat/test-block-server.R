@@ -398,6 +398,34 @@ test_that("a block returns to waiting when its input is disconnected", {
   )
 })
 
+test_that("output clears when a ready block's input is disconnected", {
+
+  blk <- new_head_block()
+  inputs_ready <- reactiveVal(TRUE)
+
+  testServer(
+    get_s3_method("block_server", blk),
+    {
+      session$flushReact()
+
+      expect_false(is.null(output$result))
+
+      inputs_ready(FALSE)
+      session$flushReact()
+
+      expect_null(session$returned$result())
+
+      # a cleared output holds no value, so fetching it errors
+      expect_error(output$result)
+    },
+    args = list(
+      x = blk,
+      data = list(data = reactive(utils::head(datasets::iris))),
+      inputs_ready = inputs_ready
+    )
+  )
+})
+
 test_that("a block whose expression errors is failed, not ready", {
 
   boom_block <- function() {
