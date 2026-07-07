@@ -59,6 +59,9 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
   stopifnot(is_board_options(options))
 
+  # carry the resolved option set on rv$board so it serializes in full
+  board_options(x) <- options
+
   moduleServer(
     id,
     function(input, output, session) {

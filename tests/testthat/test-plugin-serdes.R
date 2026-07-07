@@ -345,6 +345,38 @@ test_that("restore_board returns the deserialized board", {
   )
 })
 
+test_that("block-contributed board options survive save/restore", {
+
+  brd <- new_board(blocks = c(a = new_dataset_block("iris")))
+
+  temp <- withr::local_tempfile(fileext = ".json")
+
+  testServer(
+    get_s3_method("board_server", brd),
+    {
+      session$flushReact()
+      session$setInputs(page_size = "25")
+      session$flushReact()
+
+      ser_deser <- session$makeScope("preserve_board")
+      file.copy(ser_deser$output$serialize, temp)
+    },
+    args = list(
+      x = brd,
+      plugins = preserve_board(),
+      options = blockr_app_options(brd)
+    )
+  )
+
+  restored <- blockr_deser(read_json(temp))
+
+  expect_true("page_size" %in% board_option_ids(restored))
+  expect_identical(
+    board_option_value(blockr_app_options(restored)[["page_size"]]),
+    25L
+  )
+})
+
 test_that("dummy ser/deser ui test", {
   expect_s3_class(preserve_board_ui("ser_deser", new_board()), "shiny.tag.list")
 })

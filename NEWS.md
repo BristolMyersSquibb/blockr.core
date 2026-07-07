@@ -1,5 +1,10 @@
 # blockr.core 0.1.3
 
+* Board options contributed by blocks or the block registry -- such as the
+  table preview `page_size`, `n_rows` and `filter_rows` -- are now serialized
+  and restored along with the board. Previously only options owned by the board
+  itself (e.g. its name) survived a save/restore cycle, so customizations to
+  these block-sourced options were silently lost (#146).
 * Blocks now carry an eval status -- `dormant`, `waiting`, `unset`, `failed` or
   `ready` -- that, alongside the orthogonal visibility flag, gates evaluation,
   rendering and the data a block exposes downstream (#219, #122). A block whose
