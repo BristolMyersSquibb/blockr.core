@@ -279,6 +279,16 @@ blockr_deser.list <- function(x, ...) {
   res
 }
 
+restore_chr <- function(x) {
+
+  out <- as.character(x)
+
+  # the JSON token "NA" decodes to a bare NA; NaN (also NA-ish) stays "NaN"
+  out[is.na(x) & !is.nan(x)] <- "NA"
+
+  out
+}
+
 #' @param data List valued data (converted from JSON)
 #' @rdname blockr_ser
 #' @export
@@ -290,8 +300,14 @@ blockr_deser.block <- function(x, data, ...) {
 
   ctor <- blockr_deser(data[["constructor"]])
 
+  payload <- data[["payload"]]
+
+  if ("block_name" %in% names(payload)) {
+    payload[["block_name"]] <- restore_chr(payload[["block_name"]])
+  }
+
   args <- c(
-    data[["payload"]],
+    payload,
     list(
       ctor = coal(ctor_name(ctor), ctor_fun(ctor)),
       ctor_pkg = ctor_pkg(ctor)
@@ -342,9 +358,14 @@ blockr_deser.link <- function(x, data, ...) {
     all(c("constructor", "payload") %in% names(data))
   )
 
+  payload <- data[["payload"]]
+  fields <- intersect(c("from", "to", "input"), names(payload))
+
+  payload[fields] <- lapply(payload[fields], restore_chr)
+
   do.call(
     blockr_deser(data[["constructor"]]),
-    data[["payload"]]
+    payload
   )
 }
 
@@ -364,9 +385,14 @@ blockr_deser.stack <- function(x, data, ...) {
     all(c("constructor", "payload") %in% names(data))
   )
 
+  payload <- data[["payload"]]
+  fields <- intersect(c("blocks", "name"), names(payload))
+
+  payload[fields] <- lapply(payload[fields], restore_chr)
+
   do.call(
     blockr_deser(data[["constructor"]]),
-    data[["payload"]]
+    payload
   )
 }
 

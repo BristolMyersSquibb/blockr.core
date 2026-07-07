@@ -5,6 +5,11 @@
   and restored along with the board. Previously only options owned by the board
   itself (e.g. its name) survived a save/restore cycle, so customizations to
   these block-sourced options were silently lost (#146).
+* A board with a `link` input, a `stack` name or member block ID, or a block
+  name that is exactly `"Inf"`, `"-Inf"`, `"NaN"` or `"NA"` now survives a
+  save/restore cycle. `jsonlite` parses these JSON tokens back to the
+  numeric/logical values they encode, so the field previously returned as a
+  non-character value and aborted the restore (#136).
 * Blocks now carry an eval status -- `dormant`, `waiting`, `unset`, `failed` or
   `ready` -- that, alongside the orthogonal visibility flag, gates evaluation,
   rendering and the data a block exposes downstream (#219, #122). A block whose

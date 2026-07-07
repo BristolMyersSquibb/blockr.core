@@ -205,3 +205,48 @@ test_that("a board with variadic links round-trips and still evaluates", {
     args = list(x = restored)
   )
 })
+
+test_that("restore_chr re-stringifies JSON-decoded non-finite tokens", {
+
+  expect_identical(restore_chr(Inf), "Inf")
+  expect_identical(restore_chr(-Inf), "-Inf")
+  expect_identical(restore_chr(NaN), "NaN")
+  expect_identical(restore_chr(NA), "NA")
+
+  expect_identical(restore_chr(c("keep", NA)), c("keep", "NA"))
+  expect_identical(restore_chr("plain"), "plain")
+})
+
+test_that("character values matching JSON Inf/NA tokens survive restore", {
+
+  json_round_trip <- function(x) {
+    blockr_deser(read_json(write_json(blockr_ser(x))))
+  }
+
+  for (tok in c("Inf", "-Inf", "NaN", "NA")) {
+    expect_identical(
+      json_round_trip(new_link("a", "b", tok)),
+      new_link("a", "b", tok),
+      info = tok
+    )
+  }
+
+  expect_identical(
+    json_round_trip(new_stack("x", "NA")),
+    new_stack("x", "NA")
+  )
+
+  expect_identical(
+    json_round_trip(new_stack(c("Inf", "-Inf"), "grp")),
+    new_stack(c("Inf", "-Inf"), "grp")
+  )
+
+  blk <- new_dataset_block("iris", "datasets")
+  block_name(blk) <- "Inf"
+
+  expect_identical(
+    json_round_trip(blk),
+    blk,
+    ignore_function_env = TRUE
+  )
+})
