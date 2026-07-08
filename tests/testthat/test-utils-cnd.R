@@ -78,6 +78,43 @@ test_that("conditions", {
   expect_identical(cnd, as_blk_cnd(cnd))
 })
 
+test_that("captured condition messages with braces do not glue-interpolate", {
+
+  # tidyr::pivot_wider() emits duplicate-value warnings whose text contains
+  # literal `{summary_fun}`/`{data}` placeholders. Captured condition messages
+  # are already-formatted text and must never be run through glue, or the
+  # missing object aborts the whole reactive.
+  brace_msg <- "Use `values_fn = {summary_fun}` to summarise duplicates."
+
+  with_mock_session(
+    {
+      vals <- reactiveValues(test = NULL)
+
+      expect_no_error(
+        withr::with_options(
+          list(blockr.show_conditions = c("message", "warning", "error")),
+          capture_conditions(
+            {
+              message(brace_msg)
+              warning(brace_msg)
+              stop(brace_msg)
+            },
+            rv = vals,
+            slot = "test",
+            error_val = NULL
+          )
+        )
+      )
+
+      expect_identical(cnd_message(vals$test$warning[[1L]]), brace_msg)
+      expect_identical(cnd_message(vals$test$error[[1L]]), brace_msg)
+    }
+  )
+
+  expect_no_error(replay(simpleWarning(brace_msg)))
+  expect_no_error(replay(simpleError(brace_msg)))
+})
+
 test_that("blk_cnd data api", {
 
   cnd <- new_blk_cnd("xyz")
