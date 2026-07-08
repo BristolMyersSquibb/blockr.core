@@ -1,5 +1,13 @@
 # blockr.core 0.1.3
 
+* Captured block conditions are no longer run through [cli::pluralize()] when
+  logged. Condition messages are already-formatted text, so a block whose
+  warning or error contains brace characters -- e.g. the `{summary_fun}` /
+  `{data}` placeholders in `tidyr::pivot_wider()`'s duplicate-value warning --
+  no longer aborts the whole reactive with "Failed to evaluate glue component".
+  The `notify()` toast path was fixed for this in #222; this extends the same
+  `use_glue = FALSE` treatment to the `capture_conditions()` handlers and the
+  `replay()` methods that were still glue-interpolating captured text.
 * Blocks now carry an eval status -- `dormant`, `waiting`, `unset`, `failed` or
   `ready` -- that, alongside the orthogonal visibility flag, gates evaluation,
   rendering and the data a block exposes downstream (#219, #122). A block whose
