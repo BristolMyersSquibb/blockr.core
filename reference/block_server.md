@@ -164,13 +164,13 @@ generic can then be used to control rendering of outputs.
 When a front-end (such as blockr.dock) drives the `visible`
 write-channel that
 [`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)
-hands to the board callback, naming the block IDs currently on screen,
-evaluation and rendering are gated on visibility. Rendering is gated on
-plain visibility: the render observer is suspended while a block is off
-screen and resumed once it is on screen, starting suspended so nothing
-renders before the front-end first reports. Evaluation is gated on the
-*needed* set, the on-screen blocks together with their upstream closure
-over
+hands to the board callback, reporting each block's visibility status
+(off screen, on screen, or rendered into its view), evaluation and
+rendering are gated on visibility. Rendering is gated on plain
+visibility: the render observer is suspended while a block is off screen
+and resumed once it is on screen, starting suspended so nothing renders
+before the front-end first reports. Evaluation is gated on the *needed*
+set, the on-screen blocks together with their upstream closure over
 [`board_links()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
 (derived from `visible`, recomputed only when it or the links change). A
 block's input data reactives stay unfulfilled (they
@@ -183,10 +183,12 @@ block (one feeding a visible block) evaluates but does not render.
 Block-server *construction* is prioritized the same way: the needed set
 is instantiated first so that first paint waits only for the on-screen
 blocks and their upstreams, and the remaining block servers are built
-progressively in the background. Until a block is built it is absent
-from the `board$blocks` handed to plugins and callbacks, which simply
-see it appear once constructed. The background cadence is set by the
-`background_construction_delay`
+progressively in the background. That background pass holds until the
+front-end reports every on-screen block as rendered (arranged into its
+view), so it never competes with first paint. Until a block is built it
+is absent from the `board$blocks` handed to plugins and callbacks, which
+simply see it appear once constructed. The background cadence is set by
+the `background_construction_delay`
 [`blockr_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_option.md)
 (milliseconds between successive blocks, default 50); a value of 0
 disables the staggering and builds every block up front. With nothing
