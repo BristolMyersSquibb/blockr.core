@@ -61,7 +61,8 @@ blockr_ser.block <- function(x, state = NULL, ...) {
   )
 }
 
-#' @param blocks Block states (`NULL` defaults to values from ctor scope)
+#' @param blocks Block states (`NULL`, or a per-block `NULL` entry, defaults to
+#' values from the constructor scope)
 #' @rdname blockr_ser
 #' @export
 blockr_ser.blocks <- function(x, blocks = NULL, ...) {
@@ -73,7 +74,8 @@ blockr_ser.blocks <- function(x, blocks = NULL, ...) {
   } else {
 
     stopifnot(
-      is.list(blocks), all(lgl_ply(blocks, is.list)),
+      is.list(blocks),
+      all(lgl_ply(blocks, function(b) is.null(b) || is.list(b))),
       length(blocks) == length(x), setequal(names(blocks), names(x))
     )
 

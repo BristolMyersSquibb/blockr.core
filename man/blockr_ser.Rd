@@ -82,7 +82,8 @@ blockr_deser(x, ...)
 
 \item{state}{Object state (as returned from an \code{expr_server})}
 
-\item{blocks}{Block states (\code{NULL} defaults to values from ctor scope)}
+\item{blocks}{Block states (\code{NULL}, or a per-block \code{NULL} entry, defaults to
+values from the constructor scope)}
 
 \item{options}{Board option values (\code{NULL} uses values provided by \code{x})}
 
