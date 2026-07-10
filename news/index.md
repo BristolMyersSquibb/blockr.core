@@ -2,6 +2,23 @@
 
 ## blockr.core 0.1.3
 
+- Block-server construction is now ordered by visibility
+  ([\#243](https://github.com/BristolMyersSquibb/blockr.core/issues/243)).
+  On a large multi-view board `setup_board()` built every block’s server
+  up front, so first paint waited for the full per-block construction
+  cost regardless of how many blocks were on screen. Construction is now
+  prioritized by the same *needed* set (on-screen blocks plus their
+  upstream closure) as evaluation: those blocks are built first and the
+  rest are built progressively in the background, so first paint waits
+  only for what is shown. A block still building is absent from the
+  read-only board handed to plugins, and serialization falls back to its
+  constructor state until it appears. Requires a front-end driving the
+  `visible` channel; without one every block is needed and all servers
+  are built up front, as before. The background cadence is the
+  `background_construction_delay` option (milliseconds between
+  successive blocks, default 50); setting it to 0 builds every block up
+  front and opts out of the staggering.
+
 - Board options contributed by blocks or the block registry – such as
   the table preview `page_size`, `n_rows` and `filter_rows` – are now
   serialized and restored along with the board. Previously only options

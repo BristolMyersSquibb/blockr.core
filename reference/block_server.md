@@ -179,8 +179,18 @@ block is needed, so a block that is neither visible nor feeding a
 visible block pulls no input and stays fully quiescent: its result
 reactive, and any observer its expression server registers on the
 incoming data, all short-circuit and do nothing. A needed but off-screen
-block (one feeding a visible block) evaluates but does not render. With
-nothing driving `visible` every block is needed and behaviour is
-unchanged; the `gate_visibility`
+block (one feeding a visible block) evaluates but does not render.
+Block-server *construction* is prioritized the same way: the needed set
+is instantiated first so that first paint waits only for the on-screen
+blocks and their upstreams, and the remaining block servers are built
+progressively in the background. Until a block is built it is absent
+from the `board$blocks` handed to plugins and callbacks, which simply
+see it appear once constructed. The background cadence is set by the
+`background_construction_delay`
+[`blockr_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_option.md)
+(milliseconds between successive blocks, default 50); a value of 0
+disables the staggering and builds every block up front. With nothing
+driving `visible` every block is needed and behaviour is unchanged; the
+`gate_visibility`
 [`blockr_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_option.md)
 (default `TRUE`) turns gating off entirely.

@@ -95,7 +95,8 @@ blockr_deser(x, data, ...)
 
 - blocks:
 
-  Block states (`NULL` defaults to values from ctor scope)
+  Block states (`NULL`, or a per-block `NULL` entry, defaults to values
+  from the constructor scope)
 
 - options:
 
