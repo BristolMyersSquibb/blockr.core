@@ -14,6 +14,17 @@
   background cadence is the `background_construction_delay` option
   (milliseconds between successive blocks, default 50); setting it to 0
   builds every block up front and opts out of the staggering.
+* The background block-construction pass (#243) now waits for the front-end to
+  arrange the on-screen blocks before it starts (#257). It previously
+  self-started in the same flush that first paint was still evaluating, so on a
+  large multi-view board the off-screen construction saturated the single R
+  thread and starved the active view's arrangement. The `visible` write-channel
+  now carries a per-block status (off screen / on screen / rendered) instead of
+  a flat id set; the on-screen set that feeds the eval/needed gate is derived
+  from it unchanged, and the background pass holds until every on-screen block
+  is reported rendered. With nothing driving `visible` the board is all on
+  screen and ready, as before, and `background_construction_delay = 0` still
+  builds every block up front.
 * Board options contributed by blocks or the block registry -- such as the
   table preview `page_size`, `n_rows` and `filter_rows` -- are now serialized
   and restored along with the board. Previously only options owned by the board

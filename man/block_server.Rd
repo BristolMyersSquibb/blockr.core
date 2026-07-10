@@ -125,8 +125,9 @@ from output, the behavior of which can be customized via the
 control rendering of outputs.
 
 When a front-end (such as blockr.dock) drives the \code{visible} write-channel
-that \code{\link[=board_server]{board_server()}} hands to the board callback, naming the block IDs
-currently on screen, evaluation and rendering are gated on visibility.
+that \code{\link[=board_server]{board_server()}} hands to the board callback, reporting each block's
+visibility status (off screen, on screen, or rendered into its view),
+evaluation and rendering are gated on visibility.
 Rendering is gated on plain visibility: the render observer is suspended
 while a block is off screen and resumed once it is on screen, starting
 suspended so nothing renders before the front-end first reports. Evaluation
@@ -141,7 +142,10 @@ but off-screen block (one feeding a visible block) evaluates but does not
 render. Block-server \emph{construction} is prioritized the same way: the needed
 set is instantiated first so that first paint waits only for the on-screen
 blocks and their upstreams, and the remaining block servers are built
-progressively in the background. Until a block is built it is absent from
+progressively in the background. That background pass holds until the
+front-end reports every on-screen block as rendered (arranged into its
+view), so it never competes with first paint. Until a block is built it is
+absent from
 the \code{board$blocks} handed to plugins and callbacks, which simply see it
 appear once constructed. The background cadence is set by the
 \code{background_construction_delay} \code{\link[=blockr_option]{blockr_option()}} (milliseconds between
