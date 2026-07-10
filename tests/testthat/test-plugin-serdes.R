@@ -377,6 +377,20 @@ test_that("block-contributed board options survive save/restore", {
   )
 })
 
+test_that("serialize_board uses constructor state for a not-yet-built block", {
+
+  board <- new_board(blocks = c(a = new_dataset_block("iris")))
+
+  # `blocks` empty: block `a` has not been constructed (still building in the
+  # background), so it serializes from its constructor defaults.
+  ser <- serialize_board(board, list(), id = "board")
+
+  expect_identical(
+    ser$payload$blocks$payload$a$payload$dataset,
+    "iris"
+  )
+})
+
 test_that("dummy ser/deser ui test", {
   expect_s3_class(preserve_board_ui("ser_deser", new_board()), "shiny.tag.list")
 })
