@@ -1,236 +1,52 @@
 # blockr.core 0.1.3
 
-* Block-server construction is now ordered by visibility (#243). On a large
-  multi-view board `setup_board()` built every block's server up front, so
-  first paint waited for the full per-block construction cost regardless of
-  how many blocks were on screen. Construction is now prioritized by the
-  same *needed* set (on-screen blocks plus their upstream closure) as
-  evaluation: those blocks are built first and the rest are built
-  progressively in the background, so first paint waits only for what is
-  shown. A block still building is absent from the read-only board handed to
-  plugins, and serialization falls back to its constructor state until it
-  appears. Requires a front-end driving the `visible` channel; without one
-  every block is needed and all servers are built up front, as before. The
-  background cadence is the `background_construction_delay` option
-  (milliseconds between successive blocks, default 50); setting it to 0
-  builds every block up front and opts out of the staggering.
-* The background block-construction pass (#243) now waits for the front-end to
-  arrange the on-screen blocks before it starts (#257). It previously
-  self-started in the same flush that first paint was still evaluating, so on a
-  large multi-view board the off-screen construction saturated the single R
-  thread and starved the active view's arrangement. The `visible` write-channel
-  now carries a per-block status (off screen / on screen / rendered) instead of
-  a flat id set; the on-screen set that feeds the eval/needed gate is derived
-  from it unchanged, and the background pass holds until every on-screen block
-  is reported rendered. With nothing driving `visible` the board is all on
-  screen and ready, as before, and `background_construction_delay = 0` still
-  builds every block up front.
-* Board options contributed by blocks or the block registry -- such as the
-  table preview `page_size`, `n_rows` and `filter_rows` -- are now serialized
-  and restored along with the board. Previously only options owned by the board
-  itself (e.g. its name) survived a save/restore cycle, so customizations to
-  these block-sourced options were silently lost (#146).
-* Blocks now carry an eval status -- `dormant`, `waiting`, `unset`, `failed` or
-  `ready` -- that, alongside the orthogonal visibility flag, gates evaluation,
-  rendering and the data a block exposes downstream (#219, #122). A block whose
-  required data inputs are unconnected (or a variadic block below its `...args`
-  minimum) is `waiting`; one waiting on an unset user input is `unset`; one that
-  has its inputs but whose validator or expression raises is `failed`. In none
-  of these does it evaluate against missing data or log the former
-  `is.data.frame(data) is not TRUE` error. A block reaches `ready` only once its
-  upstreams have, so an unconnected or pending block holds its whole downstream
-  chain `waiting`. Output rendering follows the status -- shown only while
-  `ready` and cleared otherwise -- so a block leaving `ready` no longer shows a
-  stale result.
-* Code export (`generate_code()`) now waits on this status: "Show code" emits a
-  script only once every block is settled, and otherwise opens the modal with a
-  short "board not ready" note rather than a stale or partial script (#256). A
-  `waiting`, `unset` or `failed` block -- a removed link, an unset required
-  input, an expression that raises -- holds the export back; an off-screen
-  `dormant` block does not, as its expression already reflects its
-  configuration.
-* By default a block requires every data input to be connected and a variadic
-  block to have at least one `...args` input. `new_block()`'s
-  `allow_empty_state` argument gains a structured `list(input = ..., data =
-  ...)` form to relax this per input kind: `input` (the existing
-  `TRUE`/`FALSE`/character form) relaxes required user inputs, while `data`
-  names non-variadic data inputs that may stay unconnected and, via a `...args`
-  entry, overrides the variadic minimum, e.g.
-  `list(input = "n", data = list("y", ...args = 2))`. `rbind_block` needs no
-  declaration now (the former `stopifnot(length(...args) >= 1L)` is the
-  default); `glue_block`, which renders with no data inputs, opts out via
-  `list(data = list(...args = 0))`.
+* Block-server construction is now ordered by visibility -- on-screen blocks
+  and their upstream closure build first, the rest in the background (option
+  `background_construction_delay`, default 50 ms; 0 opts out).
+* Blocks now carry an eval status (`dormant`, `waiting`, `unset`, `failed`,
+  `ready`) that gates evaluation, rendering and downstream data, so a block
+  never evaluates against missing inputs or shows a stale result.
+* Code export (`generate_code()`) now waits until every block is settled,
+  showing a "board not ready" note instead of a partial script.
+* Block conditions (errors, warnings, messages) are exposed as tidy data frames
+  via `server$conditions` and `board$conditions()`; the block server no longer
+  returns its raw `cond` object.
+* The `notify()` helper gains `glue` and `log` arguments for literal
+  (brace-safe) text and skipping redundant logging.
+* The `allow_empty_state` argument of `new_block()` now accepts a structured
+  `list(input = ..., data = ...)` form to relax required inputs and the
+  variadic minimum per input kind.
+* Boards for incoming requests are now resolved by an app-level `loader`
+  argument to `serve()` (default `local_loader()`); this drops the
+  process-global staging slot, so `get_serve_obj()` and `restore_board()`'s
+  `meta` argument are gone.
+* Block- and registry-contributed board options (e.g. the table preview
+  `page_size`, `n_rows`, `filter_rows`) are now saved and restored, not reset
+  to defaults on reload.
+* Boards can be deployed read-only via the server-enforced `blockr.locked`
+  option, which refuses every mutation while set.
 * Block registration metadata can now be declared with roxygen2 tags
-  (`@block`, `@blockDescr`, `@blockCategory`, `@blockIcon`,
-  `@blockGuidance`, `@blockKeywords`, `@blockDetails`, `@blockLink`,
-  `@blockArg`, `@blockExamples` and `@blockCtor`) directly on a block
-  constructor (#140). A new roclet, `block_registration_roclet()`, gathers
-  them into `inst/registry/blocks.yml`, which the newly exported
-  `register_package_blocks()` reads at load time. `register_core_blocks()`
-  now sources its metadata from that registry instead of a hardcoded call,
-  so adding a block to the registry is a matter of annotating its
-  constructor. Extension packages can opt in by adding the roclet to their
-  `DESCRIPTION` `Roxygen` field and calling `register_package_blocks()` from
-  `.onLoad()`.
-* The core blocks now carry richer registration metadata: model-facing
-  `guidance`, search `keywords` (comma-separated, so a term may contain
-  spaces), `details` (falling back to the constructor's `@section` prose
-  when `@blockDetails` is omitted), a documentation `link` (derived from the
-  package's pkgdown `url` and the documented topic when `@blockLink` is
-  omitted), and per-argument JSON-schema `type` descriptors alongside
-  descriptions and worked examples. Each argument is declared with one `@blockArg <name>
-  <description>` tag; optional `[example] <expr>` and `[type] <expr>`
-  markers give R expressions (evaluated at documentation time) for a worked
-  example and an `arg_*()` type descriptor, so a typed argument can carry a
-  typed example. Block-level worked configurations are declared with
-  `@blockExamples`.
-* The manage-links and manage-stacks plugins no longer flicker the table's
-  cell selectizes on a board re-emit (#246). The observer that keeps the
-  table in sync re-rendered every row whenever `upd$curr` was invalidated --
-  `observeEvent(names(upd$curr))` fires on each re-emit, not only when the
-  link or stack id set changes -- so `DT::replaceData` ran unconditionally,
-  briefly blanking the cell inputs before the async redraw landed. The
-  redraw is now guarded on the id set, so it runs only when a link or stack
-  is actually added or removed; value edits and no-op re-emits are skipped.
-* The manage-links and manage-stacks plugins no longer clobber staged
-  edits on a board re-emit (#246). The board-sync observers replaced the
-  working copy on every re-emit, dropping a half-finished staged add or
-  edit while its entry lingered in `upd$add` / `upd$mod`. A new
-  `merge_staged_links()` / `merge_staged_stacks()` overlay now merges the
-  refreshed applied state with the staged add / edit / rm deltas instead of
-  replacing it, mirroring the blockr.dock edit-board extension.
-* The manage-links and manage-stacks plugins now dedupe board re-emits
-  (#246). The board-sync observers keyed off `board_links()` /
-  `board_stacks()` fired on each board invalidation -- `observeEvent` does
-  not value-dedupe -- so a fresh board object carrying byte-identical links
-  or stacks still re-ran the handler. A new shared
-  `deduped_board_reactive()` helper wraps each board accessor in a
-  `reactiveVal` + `identical()` guard and keys the re-sync off the deduped
-  value, so a board update that leaves the links or stacks untouched never
-  reaches the plugin.
-
-* Block registry entries gained a structured argument specification, built
-  with the new exported `new_block_args()` / `new_block_arg()`, carrying a
-  per-argument `description`, a single worked `example`, and an optional
-  machine-readable `type`. `register_block()` additionally accepts block-level
-  `details`, `link`, `guidance`, `examples`, and `keywords`. The construction
-  metadata formerly smuggled as `examples` / `prompt` attributes on `arguments`
-  is now first-class and validated at registration (every argument is a real
-  constructor formal and every worked example actually constructs); the legacy
-  attributes are still absorbed, with a deprecation warning (#121).
-* An argument's `type` is a dependency-free JSON-Schema-subset descriptor built
-  with `arg_string()`, `arg_number()`, `arg_integer()`, `arg_boolean()`,
-  `arg_enum()`, `arg_array()` and `arg_object()` (consumable directly, e.g. via
-  `ellmer::type_from_schema()`), replacing the opaque `ellmer::type_*` slot.
-  Registration now validates the descriptor and checks each worked example
-  against it, so a malformed-but-constructible value is rejected (#121).
-* Block metadata is exposed two ways. `block_metadata()` returns a
-  `data.frame` over one or many blocks -- dispatching on a `block`, a `blocks`
-  collection, a `block_registry_entry` or a registry ID -- with every attribute
-  available as a column (the multi-valued `arguments`, `examples` and
-  `keywords` as list-columns) and a `fields` argument to select a subset. Each
-  attribute additionally has a single-block getter: `block_meta_name()`,
-  `block_meta_description()`, `block_meta_guidance()`, `block_meta_arguments()`,
-  `block_meta_keywords()`, and so on. A single argument's fields are read with
-  `block_arg_description()`, `block_arg_example()` and `block_arg_type()`.
-  `registry_metadata()` is deprecated in favour of these (#121).
-* Board accessors (`board_blocks()`, `board_links()`, `board_stacks()`)
-  are now pure reads. They previously re-validated their entire
-  collection on every call, and because board setup reads links once per
-  block, that cost scaled quadratically and dominated startup of large
-  boards. Validation is unchanged at construction and on mutation, and
-  `validate_board()` still checks each collection in full (#241).
-* Board options contributed by blocks or the registry (e.g. the
-  preview-row count) are no longer reset to their defaults on save and
-  reload. The settings sidebar manages the wider `blockr_app_options()`
-  set, but a board carried only its own `board_options()`, and that
-  narrow set is what `serialize_board()` persisted — so a user's change
-  to a block-backed option was dropped. `resolve_board()` now augments
-  the board it returns with the managed option set, so the UI, the
-  server and serialization all operate on the same options (#238).
-
-* The board to build for an incoming request is now resolved by an
-  app-level **board loader**, passed to `serve()` as its new `loader`
-  argument (default: `local_loader()`, an in-process save/restore handoff).
-  A `board_loader()` pairs a `resolve(query, session)` — returning the board
-  to build, or `NULL` for the `serve()` default — with a `stage(board,
-  session)`, which persists a board and returns the URL query parameters
-  referencing it. `serve()` uses that one loader to resolve the board at the
-  UI (GET, where `session` is `NULL`) and server (WS connect) builds; when a
-  restore fires, `board_server()` exposes the board to restore as a
-  `board_refresh` reactive, and `serve()` stages it through the loader,
-  writes the parameters into the URL and drives `session$reload()` — so the
-  reload stays a guaranteed core mechanism and the `preserve_board` plugin
-  (unchanged at `{server, ui}`) neither holds the loader nor reloads. This
-  removes the process-global slot core used to stage a board across a
-  reload: the exported `get_serve_obj()`, the old board-server reload
-  producer, `rv$reload_meta` and the `restore_board()` `meta` argument are
-  gone. The default loader keeps its handoff in a per-loader store
-  (single-process); a downstream loader (e.g. blockr.session) resolves from
-  the URL query against a shared backend, which is multi-process-safe (#214).
-* New exported `trim_rv()` removes entries from a `reactiveValues`
-  object, which assigning `NULL` does not do -- the key lingers in
-  `names()` with a `NULL` value. Unlinking a variadic block argument now
-  drops it from the block's `...args` outright rather than leaving a
-  phantom `NULL` entry behind (#227).
-* Boards can be deployed read-only via the `blockr.locked` option,
-  enforced server-side rather than by UI hiding (which a forged
-  `Shiny.setInputValue` bypasses). While locked, the two channels every
-  mutation funnels through -- the `board_update` lifecycle and
-  `set_board_option_value()` -- refuse to apply changes.
-  `is_board_locked()` is an S3 generic (the default method reads the
-  option; a subclass can source the state differently, e.g. an
-  authenticated unlock). `set_board_option_value()` gains a required
-  `board` argument so the option channel can resolve the lock. Locking
-  is not a defense against arbitrary R executing in the session -- which
-  can flip the flag or edit the board directly -- so untrusted
-  deployments must be isolated at the deployment layer (#229).
-* The default `notify_user()` plugin now tracks each block's conditions
-  individually rather than re-deriving the whole board's condition frame
-  on every change. A single block's condition change updates only the
-  notifications it affects, restoring O(block)-per-change work and an
-  O(N) rather than O(N^2) cost when a condition cascade touches many
-  blocks on a large board. `board$conditions()` is unchanged for
-  programmatic consumers (#222).
-* `notify()` gains `glue` and `log` arguments (both `TRUE` by default, so
-  existing behaviour is unchanged). `glue = FALSE` surfaces literal text
-  without [cli::pluralize()] interpolation — so caught condition messages
-  containing brace characters no longer error — and `log = FALSE` skips
-  the log entry for already-logged text. The board update, link and stack
-  error toasts now pass condition messages through with `glue = FALSE`,
-  and the default `notify_user()` plugin renders through `notify()`
-  (#222).
-* Active block conditions (errors, warnings and messages captured during
-  evaluation) are now emitted as tidy data frames. Each block server
-  returns its conditions as a reactive `server$conditions` (one row per
-  active condition, columns `block`, `phase`, `severity`, `message` and
-  `id`), and `board_server()` combines these into a board-level reactive
-  `board$conditions()` on the read-only board handed to plugins and
-  callbacks. A consumer reads one reactive — a single block's frame for
-  fine-grained updates, or the whole board — instead of walking the
-  nested per-block condition state, and the default `notify_user()`
-  plugin surfaces them to the user as toasts. The block server no
-  longer returns its raw `cond` reactive values object — read
-  `server$conditions()` instead (#217).
-* `str_value()` now covers every domain class that has a full-tier
-  `format()` / `print()` counterpart, completing the compact rendering
-  tier: the scalars `link`, `board_option`, `llm_model_option` and
-  `plugin`; the containers `blocks`, `stacks`, `links`, `board_options`
-  and `plugins`; and the whole `board`. Each class also gains a
-  `utils::str()` method that thinly displays its `str_value()`; a
-  container or board renders one element per line below a `<class[n]>`
-  header (#212).
-* New exported generic `external_ctrl_vars()` (with a `block` method) and
-  predicate `has_external_ctrl()` provide a public, polymorphic API for
-  resolving a board component's `external_ctrl` declaration into the set of
-  externally controllable variable names. This promotes the previously
-  internal `block_external_ctrl_vars()`, letting dependent packages dispatch
-  on it (e.g. for dock extensions) instead of re-reading the raw
-  `external_ctrl` attribute (#192).
-* `blockr_deser.list()` now forwards `...` to the dispatched per-class
-  method, so callers can thread additional context (e.g. a producer
-  version) down to nested deserializers. Previously such arguments were
-  silently dropped at the list-dispatch boundary (#186).
+  (`@block`, `@blockArg`, ...), collected by the new
+  `block_registration_roclet()`; extension packages register via the exported
+  `register_package_blocks()`.
+* Block registry entries gain a structured argument spec (`new_block_args()`,
+  `new_block_arg()`) with JSON-Schema-subset `type` descriptors (`arg_string()`,
+  `arg_enum()`, ...), read via `block_metadata()`; `registry_metadata()` is
+  deprecated.
+* The manage-links and manage-stacks plugins no longer flicker cell inputs,
+  clobber staged edits, or needlessly re-render on a board re-emit.
+* Board accessors (`board_blocks()`, `board_links()`, `board_stacks()`) are now
+  pure reads, removing quadratic re-validation that dominated large-board
+  startup.
+* New exported generic `external_ctrl_vars()` and predicate
+  `has_external_ctrl()` expose a component's externally controllable variables.
+* New exported `trim_rv()` fully removes entries from a `reactiveValues` object
+  (assigning `NULL` leaves the key behind); unlinking a variadic argument now
+  drops it outright.
+* The `str_value()` compact printer, with matching `utils::str()` methods, now
+  covers all remaining domain classes and containers.
+* The `blockr_deser.list()` method now forwards `...` to per-class
+  deserializers, letting callers thread context to nested deserializers.
 
 # blockr.core 0.1.2
 
