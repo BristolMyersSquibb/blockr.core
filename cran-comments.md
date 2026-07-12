@@ -10,4 +10,6 @@
 
 0 errors | 0 warnings | 0 notes
 
-* New release (see NEWS.md)
+* Release for fixing CRAN issues.
+* A corresponding update of blockr.dock is underway as well that will address
+  breaking changes.
