@@ -52,10 +52,11 @@
 #' [block_output()] generic. The [block_ui()] generic can then be used to
 #' control rendering of outputs.
 #'
-#' A front-end (such as blockr.dock) drives two per-block channels that
-#' [board_server()] hands to the board callback as `visibility`: `required`
-#' (which blocks it needs built and evaluated) and `visible` (which blocks it
-#' has arranged on screen). Requirements are a cause the front-end -- and
+#' A front-end (such as blockr.dock) drives per-block channels that
+#' [board_server()] hands to the board callback as `visibility`. Two of them
+#' gate what is built and shown: `required` (which blocks it needs built and
+#' evaluated) and `visible` (which blocks it has arranged on screen).
+#' Requirements are a cause the front-end -- and
 #' core-side features such as code export -- declare; visibility is the effect
 #' the front-end reports back once it has painted a block. Rendering is gated
 #' on `visible`: the render observer is suspended while a block carries no
@@ -85,6 +86,19 @@
 #' `gate_visibility` [blockr_option()] (default `TRUE`) turns gating off
 #' entirely.
 #'
+#' The same bundle carries a third channel, `frozen`, through which a
+#' front-end reports the blocks whose inputs it has hidden (for example a
+#' locked board that shows outputs but not controls). While frozen a block is
+#' read-only: its expression, state readiness and the state it exposes for
+#' serialization are held at the values last seen while editable, and the input
+#' trigger is dropped, so a forged client input (which still fires the block's
+#' own observer) reaches neither the expression, the block's status, a
+#' re-evaluation, nor a save. Externally controllable inputs (see
+#' [external_ctrl_vars()]) are held too -- a high-priority observer reverts any
+#' write while frozen -- so not even the programmatic control channel can drive
+#' a frozen block. Upstream data still flows through, and unfreezing resumes
+#' normal input handling.
+#'
 #' @param id Namespace ID
 #' @param x Object for which to generate a [shiny::moduleServer()]
 #' @param data Input data (list of reactives)
@@ -108,10 +122,11 @@ block_server <- function(id, x, data = list(), ...) {
 #' inputs are all connected to ready upstream blocks (supplied by
 #' [board_server()]; defaults to always-ready when a block server is run
 #' standalone)
-#' @param visibility Visibility channel bundle -- a list with two channels,
-#' `required` and `visible`, each an environment of per-block `reactiveVal`s,
-#' supplied by [board_server()] to gate rendering; `NULL` (the standalone
-#' default) leaves the block ungated
+#' @param visibility Front-end channel bundle -- a list with three channels,
+#' `required`, `visible` and `frozen`, each an environment of per-block
+#' `reactiveVal`s, supplied by [board_server()] to gate rendering and to
+#' freeze block inputs; `NULL` (the standalone default) leaves the block
+#' ungated
 #' @rdname block_server
 #' @export
 block_server.block <- function(id, x, data = list(), block_id = id,
@@ -141,11 +156,23 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         x
       )
 
-      lang <- reactive(
-        exprs_to_lang(exp$expr())
+      frozen <- reactive(
+        not_null(visibility) && block_frozen(block_id, visibility)
+      )
+
+      lang <- freeze_reactive(
+        reactive(exprs_to_lang(exp$expr())),
+        frozen,
+        session
       )
 
       state <- exp$state
+
+      exposed_state <- if (not_null(visibility)) {
+        freeze_exposed_state(state, x, frozen, session)
+      } else {
+        state
+      }
 
       dat <- reactive(
         {
@@ -162,12 +189,20 @@ block_server.block <- function(id, x, data = list(), block_id = id,
       data_valid <- validate_block_reactive(block_id, x, dat, cond, session,
                                             inputs_ready)
 
-      state_ready <- state_ready_reactive(block_id, x, state, session)
+      state_ready <- freeze_reactive(
+        state_ready_reactive(block_id, x, state, session),
+        frozen,
+        session
+      )
 
       dat_eval <- reactive(
         {
           req(isTRUE(data_valid()), isTRUE(state_ready()))
-          lapply(state, reval_if)
+
+          if (!frozen()) {
+            lapply(state, reval_if)
+          }
+
           try(lang(), silent = TRUE)
 
           res <- dat()
@@ -348,7 +383,7 @@ block_server.block <- function(id, x, data = list(), block_id = id,
           state_ready = state_ready,
           failed = failed,
           expr = lang,
-          state = state,
+          state = exposed_state,
           conditions = conditions
         ),
         eb_res
@@ -536,6 +571,94 @@ render_gate_observer <- function(id, visibility, render_obs, sess) {
     },
     domain = sess
   )
+}
+
+freeze_reactive <- function(live, frozen, sess) {
+
+  pin <- reactiveVal(tryCatch(isolate(live()), error = function(e) NULL))
+
+  reactive(
+    {
+      if (frozen()) {
+        return(isolate(pin()))
+      }
+
+      cur <- live()
+      isolate(pin(cur))
+
+      cur
+    },
+    domain = sess
+  )
+}
+
+freeze_exposed_state <- function(state, x, frozen, sess) {
+
+  fn_names <- names(state)[lgl_ply(state, is.function)]
+
+  if (!length(fn_names)) {
+    return(state)
+  }
+
+  ctrl <- intersect(fn_names, external_ctrl_vars(x))
+  views <- setdiff(fn_names, ctrl)
+
+  live <- state[fn_names]
+
+  snapshot <- reactiveVal(NULL)
+
+  observeEvent(
+    frozen(),
+    if (isTRUE(frozen())) {
+      snapshot(lapply(live, reval_if))
+    },
+    domain = sess
+  )
+
+  if (length(ctrl)) {
+    hold_ctrl_state(live[ctrl], frozen, snapshot, sess)
+  }
+
+  for (nm in views) {
+    state[[nm]] <- freeze_state_view(live[[nm]], nm, frozen, snapshot, sess)
+  }
+
+  state
+}
+
+freeze_state_view <- function(live, nm, frozen, snapshot, sess) {
+
+  reactive(
+    if (frozen()) snapshot()[[nm]] else reval_if(live),
+    domain = sess
+  )
+}
+
+hold_ctrl_state <- function(rvs, frozen, snapshot, sess) {
+
+  revert <- observe(
+    {
+      snap <- snapshot()
+
+      if (not_null(snap)) {
+        for (nm in names(rvs)) {
+          if (!identical(rvs[[nm]](), snap[[nm]])) {
+            rvs[[nm]](snap[[nm]])
+          }
+        }
+      }
+    },
+    priority = Inf,
+    suspended = TRUE,
+    domain = sess
+  )
+
+  observe(
+    if (frozen()) revert$resume() else revert$suspend(),
+    domain = sess
+  )
+
+  invisible()
 }
 
 block_cond_observer <- function(blk, cond, sess) {
