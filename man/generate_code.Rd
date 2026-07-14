@@ -8,7 +8,7 @@
 \usage{
 generate_code(server = generate_code_server, ui = generate_code_ui)
 
-generate_code_server(id, board, ...)
+generate_code_server(id, board, visibility = NULL, ...)
 
 generate_code_ui(id, board)
 }
@@ -18,6 +18,13 @@ generate_code_ui(id, board)
 \item{id}{Namespace ID}
 
 \item{board}{Reactive values object}
+
+\item{visibility}{Visibility channel bundle (supplied by \code{\link[=board_server]{board_server()}}).
+On a gated board, "Show code" marks every block \code{required}, so the exported
+script covers the whole board and not only what is on screen; an off-screen
+block that is not fully configured then holds the export back rather than
+emitting broken code. \code{NULL} (the standalone default) leaves the board
+untouched.}
 
 \item{...}{Extra arguments passed from parent scope}
 }

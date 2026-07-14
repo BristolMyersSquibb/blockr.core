@@ -316,7 +316,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
       call_plugin_server(
         "generate_code",
-        server_args = read_plugin_args,
+        server_args = c(read_plugin_args, list(visibility = vis)),
         plugins = plugins
       )
 
@@ -502,11 +502,17 @@ construct_blocks <- function(ids, rv, mod_ed, mod_ct, args, vis) {
 
 construct_remaining_blocks <- function(rv, mod_ed, mod_ct, args, vis) {
 
-  if (background_construction_delay() <= 0) {
+  delay <- background_construction_delay()
+
+  if (delay <= 0) {
 
     construct_blocks(board_block_ids(rv$board), rv, mod_ed, mod_ct, args,
                      vis)
 
+    return(invisible())
+  }
+
+  if (is.infinite(delay)) {
     return(invisible())
   }
 

@@ -610,6 +610,67 @@ test_that("the background constructs every block exactly once", {
   )
 })
 
+test_that("an infinite background delay never fills in the background", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = Inf)
+
+  testServer(
+    get_s3_method("board_server", ordered_board()),
+    {
+      session$flushReact()
+
+      expect_true(constructed("a"))
+      expect_true(constructed("b"))
+
+      expect_false(constructed("c"))
+      expect_false(constructed("d"))
+
+      session$elapse(5000)
+      session$flushReact()
+
+      expect_false(constructed("c"))
+      expect_false(constructed("d"))
+
+      require_blocks(vis, "c")
+      render_blocks(vis, "c")
+      session$flushReact()
+
+      expect_true(constructed("c"))
+      expect_false(constructed("d"))
+    },
+    args = list(x = ordered_board(), plugins = list(), callbacks = visible_b)
+  )
+})
+
+test_that("an infinite background delay never arms the scheduler", {
+
+  reset_probes()
+
+  scheduled <- new.env()
+  scheduled$millis <- numeric()
+
+  local_mocked_bindings(
+    invalidateLater = function(millis, ...) {
+      scheduled$millis <- c(scheduled$millis, millis)
+      invisible()
+    }
+  )
+
+  withr::local_options(blockr.background_construction_delay = Inf)
+
+  testServer(
+    get_s3_method("board_server", ordered_board()),
+    {
+      session$flushReact()
+
+      expect_false(any(is.infinite(scheduled$millis)))
+    },
+    args = list(x = ordered_board(), plugins = list(), callbacks = visible_b)
+  )
+})
+
 test_that("is_visible is a non-NA check on the slot value", {
 
   expect_true(is_visible("main"))

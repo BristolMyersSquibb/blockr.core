@@ -85,15 +85,120 @@ test_that("code_export_ready settles on ready or dormant", {
 
 test_that("code modal body shows script or a not-ready note", {
 
-  note <- code_modal_body(NULL, "out")
+  note <- code_modal_body(NULL)
 
   expect_s3_class(note, "shiny.tag")
   expect_match(as.character(note), "not ready")
 
-  body <- code_modal_body("y <- 1", "out")
+  body <- code_modal_body("y <- 1")
 
   expect_match(as.character(body), "<pre>")
   expect_match(as.character(body), "y &lt;- 1")
+})
+
+test_that("require_all_blocks marks every block required on a gated board", {
+
+  reactiveConsole(TRUE)
+  on.exit(reactiveConsole(FALSE))
+
+  board <- list(
+    board = new_board(
+      blocks = c(
+        a = new_dataset_block("BOD"),
+        b = new_dataset_block("BOD"),
+        c = new_dataset_block("BOD")
+      )
+    )
+  )
+
+  vis <- list(
+    required = new.env(parent = emptyenv()),
+    visible = new.env(parent = emptyenv())
+  )
+  add_vis_slots(vis, c("a", "b", "c"))
+  vis$required[["a"]](TRUE)
+
+  require_all_blocks(board, vis)
+
+  expect_true(vis$required[["a"]]())
+  expect_true(vis$required[["b"]]())
+  expect_true(vis$required[["c"]]())
+})
+
+test_that("require_all_blocks is a no-op when ungated or standalone", {
+
+  reactiveConsole(TRUE)
+  on.exit(reactiveConsole(FALSE))
+
+  board <- list(board = new_board(blocks = c(a = new_dataset_block("BOD"))))
+
+  vis <- list(
+    required = new.env(parent = emptyenv()),
+    visible = new.env(parent = emptyenv())
+  )
+  add_vis_slots(vis, "a")
+
+  expect_null(require_all_blocks(board, vis))
+  expect_true(is.na(vis$required[["a"]]()))
+
+  expect_null(require_all_blocks(board, NULL))
+})
+
+test_that("show code requires the whole board, gating export on config", {
+
+  drive <- function(m) {
+
+    board <- new_board(
+      blocks = c(
+        a = new_dataset_block("BOD"),
+        b = new_dataset_block("BOD"),
+        m = m
+      ),
+      links = links(new_link("a", "m", "x"), new_link("b", "m", "y"))
+    )
+
+    withr::local_options(blockr.background_construction_delay = Inf)
+
+    out <- NULL
+
+    testServer(
+      get_s3_method("board_server", board),
+      {
+        for (id in c("a", "b")) {
+          vis$required[[id]](TRUE)
+          vis$visible[[id]]("main")
+        }
+        session$flushReact()
+
+        built <- "m" %in% names(reactiveValuesToList(rv$eval))
+
+        require_all_blocks(list(board = rv$board), vis)
+        session$flushReact()
+
+        out <<- list(
+          built = built,
+          status = reval_if(rv$eval[["m"]]),
+          ready = isTRUE(
+            code_export_ready(list(eval = rv$eval, board = rv$board))
+          )
+        )
+      },
+      args = list(x = board, plugins = list())
+    )
+
+    out
+  }
+
+  configured <- drive(new_merge_block(by = "Time"))
+
+  expect_false(configured$built)
+  expect_identical(configured$status, "ready")
+  expect_true(configured$ready)
+
+  unconfigured <- drive(new_merge_block())
+
+  expect_identical(unconfigured$status, "unset")
+  expect_false(unconfigured$ready)
 })
 
 test_that("dummy add/rm block ui test", {
