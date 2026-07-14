@@ -138,9 +138,22 @@ constructed <- function(id) {
   id %in% probe_construct$ids
 }
 
-vis_map <- function(..., level = "rendered") {
-  ids <- c(...)
-  set_names(rep(level, length(ids)), ids)
+require_blocks <- function(vis, ...) {
+
+  for (id in c(...)) {
+    vis$required[[id]](TRUE)
+  }
+
+  invisible()
+}
+
+render_blocks <- function(vis, ...) {
+
+  for (id in c(...)) {
+    vis$visible[[id]]("main")
+  }
+
+  invisible()
 }
 
 test_that("with no producer every block is visible", {
@@ -160,7 +173,7 @@ test_that("with no producer every block is visible", {
     {
       session$flushReact()
 
-      expect_true(rv$visible)
+      expect_true(rv$needed())
 
       expect_true(evaluated("a"))
       expect_true(evaluated("b"))
@@ -195,7 +208,7 @@ test_that("a producer gates evaluation and rendering on visibility", {
     {
       session$flushReact()
 
-      expect_setequal(on_screen_blocks(rv$visible), "b")
+      expect_setequal(required_now(vis$required), "b")
 
       expect_true(evaluated("b"))
       expect_true(rendered("b"))
@@ -209,7 +222,8 @@ test_that("a producer gates evaluation and rendering on visibility", {
       expect_false(evaluated("d"))
       expect_false(rendered("d"))
 
-      board_visible(vis_map("b", "c", "d"))
+      require_blocks(vis, "c", "d")
+      render_blocks(vis, "c", "d")
       session$flushReact()
 
       expect_true(evaluated("c"))
@@ -221,9 +235,9 @@ test_that("a producer gates evaluation and rendering on visibility", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visible, ...) {
-        visible(vis_map("b"))
-        NULL
+      callbacks = function(visibility, ...) {
+        require_blocks(visibility, "b")
+        render_blocks(visibility, "b")
       }
     )
   )
@@ -260,9 +274,9 @@ test_that("the gate_visibility option disables gating", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visible, ...) {
-        visible(vis_map("b"))
-        NULL
+      callbacks = function(visibility, ...) {
+        require_blocks(visibility, "b")
+        render_blocks(visibility, "b")
       }
     )
   )
@@ -306,9 +320,9 @@ test_that("a link change re-routes the pulled upstream", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visible, ...) {
-        visible(vis_map("b"))
-        NULL
+      callbacks = function(visibility, ...) {
+        require_blocks(visibility, "b")
+        render_blocks(visibility, "b")
       }
     )
   )
@@ -340,9 +354,9 @@ test_that("an off-screen data-observing block does not pull its upstream", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visible, ...) {
-        visible(vis_map("c"))
-        NULL
+      callbacks = function(visibility, ...) {
+        require_blocks(visibility, "c")
+        render_blocks(visibility, "c")
       }
     )
   )
@@ -384,9 +398,9 @@ test_that("an unrelated structural edit does not re-evaluate needed blocks", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visible, ...) {
-        visible(vis_map("b"))
-        NULL
+      callbacks = function(visibility, ...) {
+        require_blocks(visibility, "b")
+        render_blocks(visibility, "b")
       }
     )
   )
@@ -426,9 +440,9 @@ test_that("adding a block does not re-evaluate existing needed blocks", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visible, ...) {
-        visible(vis_map("b"))
-        NULL
+      callbacks = function(visibility, ...) {
+        require_blocks(visibility, "b")
+        render_blocks(visibility, "b")
       }
     )
   )
@@ -459,9 +473,9 @@ test_that("a variadic block receives its inputs as values, not reactives", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visible, ...) {
-        visible(vis_map("c"))
-        NULL
+      callbacks = function(visibility, ...) {
+        require_blocks(visibility, "c")
+        render_blocks(visibility, "c")
       }
     )
   )
@@ -495,9 +509,9 @@ test_that("an off-screen variadic block does not pull its inputs", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visible, ...) {
-        visible(vis_map("e"))
-        NULL
+      callbacks = function(visibility, ...) {
+        require_blocks(visibility, "e")
+        render_blocks(visibility, "e")
       }
     )
   )
@@ -519,9 +533,9 @@ ordered_board <- function() {
   )
 }
 
-visible_b <- function(visible, ...) {
-  visible(vis_map("b"))
-  NULL
+visible_b <- function(visibility, ...) {
+  require_blocks(visibility, "b")
+  render_blocks(visibility, "b")
 }
 
 test_that("only the needed blocks are constructed before first paint", {
@@ -560,7 +574,8 @@ test_that("opening a view constructs its blocks without the background", {
 
       expect_false(constructed("c"))
 
-      board_visible(vis_map("b", "c"))
+      require_blocks(vis, "c")
+      render_blocks(vis, "c")
       session$flushReact()
 
       expect_true(constructed("c"))
@@ -595,28 +610,97 @@ test_that("the background constructs every block exactly once", {
   )
 })
 
-test_that("on_screen_blocks is the union of the required and rendered ids", {
+test_that("is_visible is a non-NA check on the slot value", {
 
-  expect_setequal(
-    on_screen_blocks(c(a = "rendered", b = "required", z = "hidden")),
-    c("a", "b")
-  )
-
-  expect_length(on_screen_blocks(c(z = "hidden")), 0L)
-  expect_length(on_screen_blocks(character()), 0L)
+  expect_true(is_visible("main"))
+  expect_false(is_visible(NA_character_))
 })
 
-test_that("visible_set_rendered is TRUE only when all on-screen rendered", {
+test_that("channel validators enforce the required and visible contracts", {
 
-  expect_true(visible_set_rendered(c(a = "rendered", b = "rendered")))
+  expect_true(valid_required(TRUE))
+  expect_true(valid_required(FALSE))
+  expect_true(valid_required(NA))
+  expect_false(valid_required("x"))
+  expect_false(valid_required(NA_character_))
 
-  expect_false(visible_set_rendered(c(a = "rendered", b = "required")))
-  expect_false(visible_set_rendered(c(b = "required")))
+  expect_true(valid_visible("main"))
+  expect_true(valid_visible(NA_character_))
+  expect_false(valid_visible(""))
+  expect_false(valid_visible(NA))
+  expect_false(valid_visible(c("a", "b")))
+})
 
-  expect_true(visible_set_rendered(c(a = "rendered", z = "hidden")))
+test_that("validate_vis hard-errors on an off-contract slot", {
 
-  expect_true(visible_set_rendered(character()))
-  expect_true(visible_set_rendered(c(z = "hidden")))
+  isolate({
+    vis <- list(
+      required = new.env(parent = emptyenv()),
+      visible = new.env(parent = emptyenv())
+    )
+    add_vis_slots(vis, "a")
+
+    vis$required[["a"]](1L)
+    expect_error(validate_vis(vis), class = "invalid_required")
+
+    vis$required[["a"]](TRUE)
+    vis$visible[["a"]]("")
+    expect_error(validate_vis(vis), class = "invalid_visible")
+  })
+})
+
+test_that("required_now returns the TRUE-required blocks", {
+
+  isolate({
+    req <- new.env(parent = emptyenv())
+    req$a <- reactiveVal(TRUE)
+    req$b <- reactiveVal(FALSE)
+    req$c <- reactiveVal(NA)
+    req$d <- reactiveVal(TRUE)
+
+    expect_setequal(required_now(req), c("a", "d"))
+    expect_length(required_now(new.env(parent = emptyenv())), 0L)
+  })
+})
+
+test_that("ever_required and has_required track declared (non-NA) slots", {
+
+  isolate({
+    req <- new.env(parent = emptyenv())
+    req$a <- reactiveVal(TRUE)
+    req$b <- reactiveVal(FALSE)
+    req$c <- reactiveVal(NA)
+
+    expect_setequal(ever_required(req), c("a", "b"))
+    expect_true(has_required(req))
+    expect_false(has_required(new.env(parent = emptyenv())))
+  })
+})
+
+test_that("required_fulfilled holds only when every required block is shown", {
+
+  isolate({
+    vis <- list(
+      required = new.env(parent = emptyenv()),
+      visible = new.env(parent = emptyenv())
+    )
+    add_vis_slots(vis, c("a", "b"))
+    vis$required[["a"]](TRUE)
+    vis$required[["b"]](TRUE)
+    vis$visible[["a"]]("main")
+    vis$visible[["b"]]("main")
+
+    expect_true(required_fulfilled(vis))
+
+    vis$visible[["b"]](NA_character_)
+    expect_false(required_fulfilled(vis))
+
+    empty <- list(
+      required = new.env(parent = emptyenv()),
+      visible = new.env(parent = emptyenv())
+    )
+    expect_true(required_fulfilled(empty))
+  })
 })
 
 test_that("the background waits for the front-end's rendered report", {
@@ -637,7 +721,7 @@ test_that("the background waits for the front-end's rendered report", {
       expect_false(constructed("c"))
       expect_false(constructed("d"))
 
-      board_visible(vis_map("b"))
+      render_blocks(vis, "b")
       session$flushReact()
       session$elapse(5000)
       session$flushReact()
@@ -648,10 +732,7 @@ test_that("the background waits for the front-end's rendered report", {
     args = list(
       x = ordered_board(),
       plugins = list(),
-      callbacks = function(visible, ...) {
-        visible(vis_map("b", level = "required"))
-        NULL
-      }
+      callbacks = function(visibility, ...) require_blocks(visibility, "b")
     )
   )
 })

@@ -33,8 +33,14 @@ board_server <- function(id, x, ...) {
 #' @param plugins Board plugins as modules
 #' @param options Board options (`NULL` defaults to the union of board, block
 #' and registry sourced options)
-#' @param callbacks Single (or list of) callback function(s), called only
-#' for their side-effects)
+#' @param callbacks Single (or list of) callback function(s) registering
+#' additional observers. Each receives a `visibility` list with two channels,
+#' `required` and `visible`, each an environment of per-block `reactiveVal`s
+#' (core keeps one per board block as blocks are added and removed). Declare a
+#' block needed with `visibility$required[[id]](TRUE)` (or `FALSE` for built
+#' but dormant) and report the view it is rendered into with
+#' `visibility$visible[[id]](view)` (or `NA_character_` for off screen); the
+#' board reads both to gate construction, evaluation and rendering.
 #' @param callback_location Location of callback invocation (before or after
 #' plugins)
 #' @rdname board_server
@@ -74,11 +80,17 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         board_id = id,
         stacks = list(),
         last_update = NULL,
-        conditions = NULL,
-        visible = TRUE
+        conditions = NULL
       )
 
       rv$eval <- reactiveValues()
+
+      vis <- list(
+        required = new.env(parent = emptyenv()),
+        visible = new.env(parent = emptyenv())
+      )
+
+      add_vis_slots(vis, isolate(board_block_ids(rv$board)))
 
       rv_ro <- list(board = make_read_only(rv))
 
@@ -92,10 +104,10 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
       observe(
         {
-          cur <- if (isTRUE(rv$visible)) {
+          cur <- if (!gating_active(vis$required)) {
             TRUE
           } else {
-            upstream_blocks(on_screen_blocks(rv$visible), rv$board)
+            upstream_blocks(required_now(vis$required), rv$board)
           }
 
           old <- isolate(rv$needed())
@@ -112,6 +124,11 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         }
       )
 
+      observe(
+        validate_vis(vis),
+        priority = Inf
+      )
+
       do.call(
         board_options_to_userdata,
         c(
@@ -123,27 +140,6 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
       )
 
       board_update <- reactiveVal()
-      board_visible <- reactiveVal()
-
-      observe(
-        {
-          vis <- board_visible()
-
-          if (is.null(vis) || !isTRUE(blockr_option("gate_visibility", TRUE))) {
-
-            rv$visible <- TRUE
-
-          } else {
-
-            rv$visible <- vis
-
-            log_debug(
-              "visibility update: {length(on_screen_blocks(vis))}/",
-              "{length(board_block_ids(rv$board))} on screen"
-            )
-          }
-        }
-      )
 
       cb_res <- set_names(
         vector("list", length(callbacks)),
@@ -152,7 +148,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
       cb_args <- c(
         rv_ro,
-        list(update = board_update, visible = board_visible),
+        list(update = board_update, visibility = vis),
         dot_args,
         list(session = session)
       )
@@ -184,7 +180,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
       observeEvent(
         TRUE,
         setup_board(rv, edit_block, ctrl_block, edit_stack, edit_plugin_args,
-                    session),
+                    session, vis),
         once = TRUE
       )
 
@@ -271,7 +267,8 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
                 ctrl_block = ctrl_block,
                 edit_stack = edit_stack,
                 edit_plugin_args = edit_plugin_args,
-                dot_args = dot_args
+                dot_args = dot_args,
+                vis = vis
               )
 
               new_board <- do.call(
@@ -400,7 +397,7 @@ deduped_board_reactive <- function(board, accessor) {
   val
 }
 
-setup_board <- function(rv, blk_ed, blk_ct, stk_mod, args, sess) {
+setup_board <- function(rv, blk_ed, blk_ct, stk_mod, args, sess, vis) {
 
   stopifnot(
     is.reactivevalues(rv),
@@ -415,12 +412,12 @@ setup_board <- function(rv, blk_ed, blk_ct, stk_mod, args, sess) {
 
   observe(
     {
-      need <- needed_block_ids(rv)
-      construct_blocks(need, rv, blk_ed, blk_ct, args)
+      need <- needed_block_ids(rv, vis$required)
+      construct_blocks(need, rv, blk_ed, blk_ct, args, vis)
     }
   )
 
-  construct_remaining_blocks(rv, blk_ed, blk_ct, args)
+  construct_remaining_blocks(rv, blk_ed, blk_ct, args, vis)
 
   setup_stacks(rv, stk_mod, args)
   add_blocks_to_stacks(rv, board_stacks(rv$board), sess)
@@ -440,7 +437,7 @@ combine_block_conditions <- function(frames) {
   res
 }
 
-construct_block <- function(id, rv, mod_ed, mod_ct, args) {
+construct_block <- function(id, rv, mod_ed, mod_ct, args, vis) {
 
   if (id %in% names(rv$blocks)) {
     return(invisible())
@@ -473,7 +470,7 @@ construct_block <- function(id, rv, mod_ed, mod_ct, args) {
     c(
       list(paste0("block_", id), blk, rv$inputs[[id]], id, mod_ed, mod_ct),
       args,
-      list(inputs_ready = inputs_ready)
+      list(inputs_ready = inputs_ready, visibility = vis)
     )
   )
 
@@ -484,7 +481,7 @@ construct_block <- function(id, rv, mod_ed, mod_ct, args) {
   invisible()
 }
 
-construct_blocks <- function(ids, rv, mod_ed, mod_ct, args) {
+construct_blocks <- function(ids, rv, mod_ed, mod_ct, args, vis) {
 
   ordered <- isolate(
     intersect(topo_sort(as.matrix(rv$board)), setdiff(ids, names(rv$blocks)))
@@ -497,28 +494,30 @@ construct_blocks <- function(ids, rv, mod_ed, mod_ct, args) {
   log_debug("constructing block{?s} {ordered}")
 
   for (id in ordered) {
-    isolate(construct_block(id, rv, mod_ed, mod_ct, args))
+    isolate(construct_block(id, rv, mod_ed, mod_ct, args, vis))
   }
 
   invisible()
 }
 
-construct_remaining_blocks <- function(rv, mod_ed, mod_ct, args) {
+construct_remaining_blocks <- function(rv, mod_ed, mod_ct, args, vis) {
 
   if (background_construction_delay() <= 0) {
 
-    construct_blocks(board_block_ids(rv$board), rv, mod_ed, mod_ct, args)
+    construct_blocks(board_block_ids(rv$board), rv, mod_ed, mod_ct, args,
+                     vis)
 
     return(invisible())
   }
 
   gate <- observe(
     {
-      if (isTRUE(rv$visible) || visible_set_rendered(rv$visible)) {
+      if (!gating_active(vis$required) ||
+            required_fulfilled(vis)) {
 
         gate$destroy()
 
-        construct_blocks_in_background(rv, mod_ed, mod_ct, args)
+        construct_blocks_in_background(rv, mod_ed, mod_ct, args, vis)
       }
     }
   )
@@ -526,7 +525,8 @@ construct_remaining_blocks <- function(rv, mod_ed, mod_ct, args) {
   invisible()
 }
 
-construct_blocks_in_background <- function(rv, mod_ed, mod_ct, args) {
+construct_blocks_in_background <- function(rv, mod_ed, mod_ct, args,
+                                           vis) {
 
   started <- FALSE
 
@@ -551,7 +551,9 @@ construct_blocks_in_background <- function(rv, mod_ed, mod_ct, args) {
         return(invisible())
       }
 
-      isolate(construct_block(remaining[[1L]], rv, mod_ed, mod_ct, args))
+      isolate(
+        construct_block(remaining[[1L]], rv, mod_ed, mod_ct, args, vis)
+      )
 
       invalidateLater(background_construction_delay())
     }
@@ -564,19 +566,106 @@ background_construction_delay <- function() {
   as.numeric(blockr_option("background_construction_delay", 50L))
 }
 
-on_screen_blocks <- function(status) {
-  names(status)[status %in% c("required", "rendered")]
+add_vis_slots <- function(vis, ids) {
+
+  for (id in ids) {
+    vis$required[[id]] <- reactiveVal(NA)
+    vis$visible[[id]] <- reactiveVal(NA_character_)
+  }
+
+  invisible()
 }
 
-visible_set_rendered <- function(status) {
-  all(status[on_screen_blocks(status)] == "rendered")
+rm_vis_slots <- function(vis, ids) {
+
+  gone <- intersect(ids, ls(vis$required))
+
+  if (length(gone)) {
+    rm(list = gone, envir = vis$required)
+    rm(list = gone, envir = vis$visible)
+  }
+
+  invisible()
 }
 
-needed_block_ids <- function(rv) {
+gating_active <- function(required) {
+  isTRUE(blockr_option("gate_visibility", TRUE)) && has_required(required)
+}
+
+has_required <- function(required) {
+  length(ever_required(required)) > 0L
+}
+
+ever_required <- function(required) {
+  ids <- ls(required)
+  ids[lgl_ply(ids, slot_declared, required)]
+}
+
+slot_declared <- function(id, required) {
+  !is.na(required[[id]]())
+}
+
+required_now <- function(required) {
+  ids <- ls(required)
+  ids[lgl_ply(ids, slot_needed, required)]
+}
+
+slot_needed <- function(id, required) {
+  isTRUE(required[[id]]())
+}
+
+is_visible <- function(x) {
+  !is.na(x)
+}
+
+block_visible <- function(id, vis) {
+  is_visible(vis$visible[[id]]())
+}
+
+required_fulfilled <- function(vis) {
+  all(lgl_ply(required_now(vis$required), block_visible, vis))
+}
+
+validate_vis <- function(vis) {
+
+  for (id in ls(vis$required)) {
+    if (!valid_required(vis$required[[id]]())) {
+      blockr_abort(
+        "required[[{id}]] must be TRUE, FALSE or NA",
+        class = "invalid_required"
+      )
+    }
+  }
+
+  for (id in ls(vis$visible)) {
+    if (!valid_visible(vis$visible[[id]]())) {
+      blockr_abort(
+        "visible[[{id}]] must be a non-empty string or NA_character_",
+        class = "invalid_visible"
+      )
+    }
+  }
+
+  invisible()
+}
+
+valid_required <- function(x) {
+  is.logical(x) && length(x) == 1L
+}
+
+valid_visible <- function(x) {
+  is.character(x) && length(x) == 1L && (is.na(x) || nzchar(x))
+}
+
+needed_block_ids <- function(rv, required) {
 
   need <- rv$needed()
 
-  if (isTRUE(need)) board_block_ids(rv$board) else need
+  if (isTRUE(need)) {
+    return(board_block_ids(rv$board))
+  }
+
+  union(need, ever_required(required))
 }
 
 block_inputs_ready <- function(src_rv, blk, rv) {
@@ -1498,13 +1587,16 @@ apply_board_update.board <- function(board, upd, ...,
 
 apply_core_board_update <- function(rv, upd, session,
                                     edit_block, ctrl_block, edit_stack,
-                                    edit_plugin_args, dot_args = list()) {
+                                    edit_plugin_args, vis,
+                                    dot_args = list()) {
 
   ns <- session$ns
 
   if (length(upd$blocks$add)) {
 
     log_debug("adding block{?s} {names(upd$blocks$add)}")
+
+    add_vis_slots(vis, names(upd$blocks$add))
 
     do.call(
       insert_block_ui,
@@ -1522,7 +1614,7 @@ apply_core_board_update <- function(rv, upd, session,
     board_blocks(rv$board) <- c(board_blocks(rv$board), upd$blocks$add)
 
     construct_blocks(names(upd$blocks$add), rv, edit_block, ctrl_block,
-                     edit_plugin_args)
+                     edit_plugin_args, vis)
   }
 
   if (length(upd$blocks$mod)) {
@@ -1534,7 +1626,8 @@ apply_core_board_update <- function(rv, upd, session,
       delta <- upd$blocks$mod[[blk_id]]
 
       if (length(delta)) {
-        construct_block(blk_id, rv, edit_block, ctrl_block, edit_plugin_args)
+        construct_block(blk_id, rv, edit_block, ctrl_block, edit_plugin_args,
+                        vis)
         apply_block_mod_delta(blk_id, delta, rv)
       }
     }
@@ -1621,6 +1714,8 @@ apply_core_board_update <- function(rv, upd, session,
     )
 
     destroy_rm_blocks(upd$blocks$rm, rv, session, dot_args)
+
+    rm_vis_slots(vis, upd$blocks$rm)
   }
 
   invisible()

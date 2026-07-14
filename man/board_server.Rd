@@ -29,8 +29,14 @@ board_server(id, x, ...)
 \item{options}{Board options (\code{NULL} defaults to the union of board, block
 and registry sourced options)}
 
-\item{callbacks}{Single (or list of) callback function(s), called only
-for their side-effects)}
+\item{callbacks}{Single (or list of) callback function(s) registering
+additional observers. Each receives a \code{visibility} list with two channels,
+\code{required} and \code{visible}, each an environment of per-block \code{reactiveVal}s
+(core keeps one per board block as blocks are added and removed). Declare a
+block needed with \code{visibility$required[[id]](TRUE)} (or \code{FALSE} for built
+but dormant) and report the view it is rendered into with
+\code{visibility$visible[[id]](view)} (or \code{NA_character_} for off screen); the
+board reads both to gate construction, evaluation and rendering.}
 
 \item{callback_location}{Location of callback invocation (before or after
 plugins)}

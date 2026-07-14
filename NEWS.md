@@ -1,3 +1,10 @@
+# blockr.core 0.1.4
+
+* The board callback now gates block construction, evaluation and rendering
+  through two per-block `reactiveValues` it receives as `visibility` --
+  `required` (which blocks are needed) and `visible` (which are on screen) --
+  in place of the single `visible` write-channel. Breaking for front-ends.
+
 # blockr.core 0.1.3
 
 * Block-server construction is now ordered by visibility -- on-screen blocks
