@@ -23,11 +23,17 @@ generate_code <- function(server = generate_code_server,
 
 #' @param id Namespace ID
 #' @param board Reactive values object
+#' @param visibility Visibility channel bundle (supplied by [board_server()]).
+#' On a gated board, "Show code" marks every block `required`, so the exported
+#' script covers the whole board and not only what is on screen; an off-screen
+#' block that is not fully configured then holds the export back rather than
+#' emitting broken code. `NULL` (the standalone default) leaves the board
+#' untouched.
 #' @param ... Extra arguments passed from parent scope
 #'
 #' @rdname generate_code
 #' @export
-generate_code_server <- function(id, board, ...) {
+generate_code_server <- function(id, board, visibility = NULL, ...) {
   moduleServer(
     id,
     function(input, output, session) {
@@ -41,17 +47,23 @@ generate_code_server <- function(id, board, ...) {
         }
       )
 
+      output$code_out <- renderUI(code_modal_body(code()))
+
       observeEvent(
         input$code_mod,
-        showModal(
-          modalDialog(
-            title = "Generated code",
-            code_modal_body(code(), session$ns("code_out")),
-            easyClose = TRUE,
-            footer = NULL,
-            size = "l"
+        {
+          require_all_blocks(board, visibility)
+
+          showModal(
+            modalDialog(
+              title = "Generated code",
+              uiOutput(session$ns("code_out")),
+              easyClose = TRUE,
+              footer = NULL,
+              size = "l"
+            )
           )
-        )
+        }
       )
 
       NULL
@@ -82,7 +94,7 @@ code_export_ready <- function(board) {
   all(chr_ply(status, reval_if) %in% c("ready", "dormant"))
 }
 
-code_modal_body <- function(script, out_id) {
+code_modal_body <- function(script) {
 
   if (is.null(script)) {
     return(
@@ -97,8 +109,20 @@ code_modal_body <- function(script, out_id) {
   }
 
   div(
-    id = out_id,
     class = "text-decoration-none position-relative",
     pre(paste0(script, collapse = "\n"))
   )
+}
+
+require_all_blocks <- function(board, visibility) {
+
+  if (is.null(visibility) || !gating_active(visibility$required)) {
+    return(invisible())
+  }
+
+  for (id in board_block_ids(board$board)) {
+    visibility$required[[id]](TRUE)
+  }
+
+  invisible()
 }
