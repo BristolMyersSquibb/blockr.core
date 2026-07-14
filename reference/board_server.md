@@ -51,8 +51,15 @@ board_server(
 
 - callbacks:
 
-  Single (or list of) callback function(s), called only for their
-  side-effects)
+  Single (or list of) callback function(s) registering additional
+  observers. Each receives a `visibility` list with two channels,
+  `required` and `visible`, each an environment of per-block
+  `reactiveVal`s (core keeps one per board block as blocks are added and
+  removed). Declare a block needed with
+  `visibility$required[[id]](TRUE)` (or `FALSE` for built but dormant)
+  and report the view it is rendered into with
+  `visibility$visible[[id]](view)` (or `NA_character_` for off screen);
+  the board reads both to gate construction, evaluation and rendering.
 
 - callback_location:
 

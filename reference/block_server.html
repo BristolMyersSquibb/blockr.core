@@ -23,7 +23,7 @@ respectively.'><script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.5.
 
     <a class="navbar-brand me-2" href="../index.html">blockr.core</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -96,6 +96,7 @@ respectively.</p>
 <span>  board <span class="op">=</span> <span class="fu">reactiveValues</span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  update <span class="op">=</span> <span class="fu">reactiveVal</span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  inputs_ready <span class="op">=</span> <span class="fu">reactive</span><span class="op">(</span><span class="cn">TRUE</span><span class="op">)</span>,</span>
+<span>  visibility <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -158,6 +159,13 @@ inputs are all connected to ready upstream blocks (supplied by
 <code><a href="board_server.html">board_server()</a></code>; defaults to always-ready when a block server is run
 standalone)</p></dd>
 
+
+<dt id="arg-visibility">visibility<a class="anchor" aria-label="anchor" href="#arg-visibility"></a></dt>
+<dd><p>Visibility channel bundle – a list with two channels,
+<code>required</code> and <code>visible</code>, each an environment of per-block <code>reactiveVal</code>s,
+supplied by <code><a href="board_server.html">board_server()</a></code> to gate rendering; <code>NULL</code> (the standalone
+default) leaves the block ungated</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -175,8 +183,9 @@ of the block expression server (handling the block-specific functionality,
 i.e. block user inputs and expression), and instantiation of the
 <code>edit_block</code> module (if passed from the parent scope).</p>
 <p>Each block carries an <em>eval status</em> – one of <code>dormant</code>, <code>waiting</code>, <code>unset</code>,
-<code>failed</code> or <code>ready</code> – which, together with the orthogonal <code>visible</code> flag,
-determines its behaviour. The status separates the two input kinds (data
+<code>failed</code> or <code>ready</code> – which, together with its orthogonal front-end
+visibility, determines its behaviour. The status separates the two input
+kinds (data
 inputs from links, user inputs from <code>state</code>) and a genuine failure:</p><ul><li><p><code>dormant</code> – not <em>needed</em> (neither on screen nor feeding, transitively over
 <code><a href="board_blocks.html">board_links()</a></code>, an on-screen block); inputs stay unfulfilled
 (<code><a href="https://rdrr.io/pkg/shiny/man/req.html" class="external-link">shiny::req()</a></code> out) and nothing evaluates.</p></li>
@@ -204,34 +213,36 @@ user.</p>
 from output, the behavior of which can be customized via the
 <code><a href="block_ui.html">block_output()</a></code> generic. The <code><a href="block_ui.html">block_ui()</a></code> generic can then be used to
 control rendering of outputs.</p>
-<p>When a front-end (such as blockr.dock) drives the <code>visible</code> write-channel
-that <code><a href="board_server.html">board_server()</a></code> hands to the board callback, reporting each block's
-visibility status (off screen, on screen, or rendered into its view),
-evaluation and rendering are gated on visibility.
-Rendering is gated on plain visibility: the render observer is suspended
-while a block is off screen and resumed once it is on screen, starting
-suspended so nothing renders before the front-end first reports. Evaluation
-is gated on the <em>needed</em> set, the on-screen blocks together with their
-upstream closure over <code><a href="board_blocks.html">board_links()</a></code> (derived from <code>visible</code>, recomputed
-only when it or the links change). A block's input data reactives stay
+<p>A front-end (such as blockr.dock) drives two per-block channels that
+<code><a href="board_server.html">board_server()</a></code> hands to the board callback as <code>visibility</code>: <code>required</code>
+(which blocks it needs built and evaluated) and <code>visible</code> (which blocks it
+has arranged on screen). Requirements are a cause the front-end – and
+core-side features such as code export – declare; visibility is the effect
+the front-end reports back once it has painted a block. Rendering is gated
+on <code>visible</code>: the render observer is suspended while a block carries no
+visible slot and resumed once the front-end writes a non-empty string for
+it, starting suspended so nothing renders before the first report.
+Evaluation is gated on the <em>needed</em> set, the <code>required</code> blocks together with
+their upstream closure over <code><a href="board_blocks.html">board_links()</a></code> (recomputed only when
+requirements or links change). A block's input data reactives stay
 unfulfilled (they <code><a href="https://rdrr.io/pkg/shiny/man/req.html" class="external-link">shiny::req()</a></code> out) unless the block is needed, so a block
-that is neither visible nor feeding a visible block pulls no input and stays
-fully quiescent: its result reactive, and any observer its expression server
-registers on the incoming data, all short-circuit and do nothing. A needed
-but off-screen block (one feeding a visible block) evaluates but does not
-render. Block-server <em>construction</em> is prioritized the same way: the needed
-set is instantiated first so that first paint waits only for the on-screen
-blocks and their upstreams, and the remaining block servers are built
-progressively in the background. That background pass holds until the
-front-end reports every on-screen block as rendered (arranged into its
-view), so it never competes with first paint. Until a block is built it is
-absent from
-the <code>board$blocks</code> handed to plugins and callbacks, which simply see it
-appear once constructed. The background cadence is set by the
-<code>background_construction_delay</code> <code><a href="blockr_option.html">blockr_option()</a></code> (milliseconds between
-successive blocks, default 50); a value of 0 disables the staggering and
-builds every block up front. With nothing driving
-<code>visible</code> every block is needed and behaviour is unchanged; the
+that is neither required nor feeding a required block pulls no input and
+stays fully quiescent: its result reactive, and any observer its expression
+server registers on the incoming data, all short-circuit and do nothing. A
+needed but off-screen block (one feeding a required block) evaluates but
+does not render. Block-server <em>construction</em> is prioritized the same way:
+the needed set is instantiated first so that first paint waits only for the
+required blocks and their upstreams, and the remaining block servers are
+built progressively in the background. That background pass holds until the
+front-end reports every required block as visible, so it never competes with
+first paint. A <code>required</code> slot of <code>FALSE</code> keeps a block built but dormant
+(ever required, not needed now); an absent slot leaves it unbuilt. Until a
+block is built it is absent from the <code>board$blocks</code> handed to plugins and
+callbacks, which simply see it appear once constructed. The background
+cadence is set by the <code>background_construction_delay</code> <code><a href="blockr_option.html">blockr_option()</a></code>
+(milliseconds between successive blocks, default 50); a value of 0 disables
+the staggering and builds every block up front. With nothing writing
+<code>required</code> every block is needed and behaviour is unchanged; the
 <code>gate_visibility</code> <code><a href="blockr_option.html">blockr_option()</a></code> (default <code>TRUE</code>) turns gating off
 entirely.</p>
     </div>

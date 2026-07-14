@@ -33,6 +33,7 @@ block_server(
   board = reactiveValues(),
   update = reactiveVal(),
   inputs_ready = reactive(TRUE),
+  visibility = NULL,
   ...
 )
 
@@ -95,6 +96,15 @@ block_render_trigger(x, session = get_session())
   [`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md);
   defaults to always-ready when a block server is run standalone)
 
+- visibility:
+
+  Visibility channel bundle – a list with two channels, `required` and
+  `visible`, each an environment of per-block `reactiveVal`s, supplied
+  by
+  [`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)
+  to gate rendering; `NULL` (the standalone default) leaves the block
+  ungated
+
 ## Value
 
 Both `block_server()` and `expr_server()` return shiny server module
@@ -114,9 +124,9 @@ and instantiation of the `edit_block` module (if passed from the parent
 scope).
 
 Each block carries an *eval status* – one of `dormant`, `waiting`,
-`unset`, `failed` or `ready` – which, together with the orthogonal
-`visible` flag, determines its behaviour. The status separates the two
-input kinds (data inputs from links, user inputs from `state`) and a
+`unset`, `failed` or `ready` – which, together with its orthogonal
+front-end visibility, determines its behaviour. The status separates the
+two input kinds (data inputs from links, user inputs from `state`) and a
 genuine failure:
 
 - `dormant` – not *needed* (neither on screen nor feeding, transitively
@@ -161,38 +171,42 @@ generic. The
 [`block_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_ui.md)
 generic can then be used to control rendering of outputs.
 
-When a front-end (such as blockr.dock) drives the `visible`
-write-channel that
+A front-end (such as blockr.dock) drives two per-block channels that
 [`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)
-hands to the board callback, reporting each block's visibility status
-(off screen, on screen, or rendered into its view), evaluation and
-rendering are gated on visibility. Rendering is gated on plain
-visibility: the render observer is suspended while a block is off screen
-and resumed once it is on screen, starting suspended so nothing renders
-before the front-end first reports. Evaluation is gated on the *needed*
-set, the on-screen blocks together with their upstream closure over
+hands to the board callback as `visibility`: `required` (which blocks it
+needs built and evaluated) and `visible` (which blocks it has arranged
+on screen). Requirements are a cause the front-end – and core-side
+features such as code export – declare; visibility is the effect the
+front-end reports back once it has painted a block. Rendering is gated
+on `visible`: the render observer is suspended while a block carries no
+visible slot and resumed once the front-end writes a non-empty string
+for it, starting suspended so nothing renders before the first report.
+Evaluation is gated on the *needed* set, the `required` blocks together
+with their upstream closure over
 [`board_links()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
-(derived from `visible`, recomputed only when it or the links change). A
-block's input data reactives stay unfulfilled (they
+(recomputed only when requirements or links change). A block's input
+data reactives stay unfulfilled (they
 [`shiny::req()`](https://rdrr.io/pkg/shiny/man/req.html) out) unless the
-block is needed, so a block that is neither visible nor feeding a
-visible block pulls no input and stays fully quiescent: its result
+block is needed, so a block that is neither required nor feeding a
+required block pulls no input and stays fully quiescent: its result
 reactive, and any observer its expression server registers on the
 incoming data, all short-circuit and do nothing. A needed but off-screen
-block (one feeding a visible block) evaluates but does not render.
+block (one feeding a required block) evaluates but does not render.
 Block-server *construction* is prioritized the same way: the needed set
-is instantiated first so that first paint waits only for the on-screen
+is instantiated first so that first paint waits only for the required
 blocks and their upstreams, and the remaining block servers are built
 progressively in the background. That background pass holds until the
-front-end reports every on-screen block as rendered (arranged into its
-view), so it never competes with first paint. Until a block is built it
-is absent from the `board$blocks` handed to plugins and callbacks, which
-simply see it appear once constructed. The background cadence is set by
-the `background_construction_delay`
+front-end reports every required block as visible, so it never competes
+with first paint. A `required` slot of `FALSE` keeps a block built but
+dormant (ever required, not needed now); an absent slot leaves it
+unbuilt. Until a block is built it is absent from the `board$blocks`
+handed to plugins and callbacks, which simply see it appear once
+constructed. The background cadence is set by the
+`background_construction_delay`
 [`blockr_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_option.md)
 (milliseconds between successive blocks, default 50); a value of 0
 disables the staggering and builds every block up front. With nothing
-driving `visible` every block is needed and behaviour is unchanged; the
+writing `required` every block is needed and behaviour is unchanged; the
 `gate_visibility`
 [`blockr_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_option.md)
 (default `TRUE`) turns gating off entirely.

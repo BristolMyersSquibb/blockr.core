@@ -19,7 +19,7 @@ additional observers."><script src="https://cdnjs.cloudflare.com/ajax/libs/merma
 
     <a class="navbar-brand me-2" href="../index.html">blockr.core</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -111,8 +111,14 @@ and registry sourced options)</p></dd>
 
 
 <dt id="arg-callbacks">callbacks<a class="anchor" aria-label="anchor" href="#arg-callbacks"></a></dt>
-<dd><p>Single (or list of) callback function(s), called only
-for their side-effects)</p></dd>
+<dd><p>Single (or list of) callback function(s) registering
+additional observers. Each receives a <code>visibility</code> list with two channels,
+<code>required</code> and <code>visible</code>, each an environment of per-block <code>reactiveVal</code>s
+(core keeps one per board block as blocks are added and removed). Declare a
+block needed with <code>visibility$required[[id]](TRUE)</code> (or <code>FALSE</code> for built
+but dormant) and report the view it is rendered into with
+<code>visibility$visible[[id]](view)</code> (or <code>NA_character_</code> for off screen); the
+board reads both to gate construction, evaluation and rendering.</p></dd>
 
 
 <dt id="arg-callback-location">callback_location<a class="anchor" aria-label="anchor" href="#arg-callback-location"></a></dt>
