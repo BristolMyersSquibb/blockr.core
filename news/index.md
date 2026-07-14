@@ -7,6 +7,13 @@
   `visibility` – `required` (which blocks are needed) and `visible`
   (which are on screen) – in place of the single `visible`
   write-channel. Breaking for front-ends.
+- `background_construction_delay` now accepts `Inf`, skipping the
+  background construction pass so a block is built only once it becomes
+  required. Code export (“Show code”) then marks every block required,
+  so the exported script covers the whole board; an off-screen block
+  that is not fully configured holds the export back instead of emitting
+  broken code
+  ([\#269](https://github.com/BristolMyersSquibb/blockr.core/issues/269)).
 
 ## blockr.core 0.1.3
 
