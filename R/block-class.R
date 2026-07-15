@@ -848,8 +848,24 @@ external_ctrl_vars.block <- function(x) {
   } else if (isFALSE(res)) {
     character()
   } else {
-    stopifnot(is.character(res), all(res %in% block_ctor_inputs(x)))
-    res
+    stopifnot(is.character(res))
+    # Degrade gracefully instead of aborting: a named external_ctrl var that is
+    # not (any longer) a constructor input is dropped, not fatal. The hard
+    # `all(res %in% block_ctor_inputs(x))` assertion made a NAMED external_ctrl
+    # strictly more fragile than `external_ctrl = TRUE` (which never asserts):
+    # any drift between the declared vars and the reconstructed ctor's formals
+    # wedged the whole control -- and with it the per-block AI sparkle -- while a
+    # TRUE block sailed through. Keep the vars that still resolve; warn on the
+    # rest so an author-side mismatch is still visible.
+    keep <- intersect(res, block_ctor_inputs(x))
+    if (length(keep) < length(res)) {
+      warning(
+        "Dropping external_ctrl var(s) not among ctor inputs for ",
+        class(x)[[1L]], ": ", paste(setdiff(res, keep), collapse = ", "),
+        call. = FALSE
+      )
+    }
+    keep
   }
 
   union(user, "block_name")

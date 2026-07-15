@@ -141,14 +141,16 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         x
       )
 
-      lang <- reactive(
+      lang <- reactive({
+        log_debug("[TR ", block_id, "] lang recompute")
         exprs_to_lang(exp$expr())
-      )
+      })
 
       state <- exp$state
 
       dat <- reactive(
         {
+          log_debug("[TR ", block_id, "] dat recompute")
           res <- lapply(data[names(data) != "...args"], reval)
 
           if ("...args" %in% names(data)) {
@@ -159,10 +161,20 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         }
       )
 
-      data_valid <- validate_block_reactive(block_id, x, dat, cond, session,
+      data_valid_raw <- validate_block_reactive(block_id, x, dat, cond, session,
                                             inputs_ready)
+      data_valid <- reactive({
+        v <- data_valid_raw()
+        log_debug("[TR ", block_id, "] data_valid recompute -> ", isTRUE(v))
+        v
+      })
 
-      state_ready <- state_ready_reactive(block_id, x, state, session)
+      state_ready_raw <- state_ready_reactive(block_id, x, state, session)
+      state_ready <- reactive({
+        v <- state_ready_raw()
+        log_debug("[TR ", block_id, "] state_ready recompute -> ", isTRUE(v))
+        v
+      })
 
       dat_eval <- reactive(
         {
@@ -230,12 +242,20 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         list(block_name = cur_name)
       )
 
-      if (!all(lgl_ply(ctrl_vars, inherits, "reactiveVal"))) {
-        blockr_abort(
-          "All externally controllable variables for {class(x)[1L]} are ",
-          "expected to inherit from `reactiveVal`.",
-          class = "unsupported_external_ctrl_variable"
+      # Keep only the vars the block server actually backs with a reactiveVal.
+      # A NAMED external_ctrl var whose state slot is missing (e.g. a restored
+      # block whose server did not expose every declared field) used to abort
+      # the whole block here, taking the control -- and the AI sparkle -- down
+      # with it, while `external_ctrl = TRUE` never tripped this. Drop the
+      # unbacked vars and wire up the rest; block_name is always present, so the
+      # control still renders.
+      ok <- lgl_ply(ctrl_vars, inherits, "reactiveVal")
+      if (!all(ok)) {
+        log_warn(
+          "Ignoring external_ctrl var(s) without a reactiveVal for ",
+          "{class(x)[1L]}: {paste(names(ctrl_vars)[!ok], collapse = ', ')}"
         )
+        ctrl_vars <- ctrl_vars[ok]
       }
 
       cb_res <- coal(
