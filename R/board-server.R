@@ -102,6 +102,17 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
       rv$needed <- reactiveVal(TRUE)
 
+      # Per-block `needed` slots: an env of reactiveVals, one per block, kept in
+      # step with the whole-set rv$needed() below. A block's data-input and
+      # eval-status reactives read ONLY their own slot (see block_needed()), not
+      # the whole set, so a view switch that flips which LEAF blocks are needed
+      # does not invalidate a shared upstream block whose needed status is
+      # unchanged. Reading rv$needed() directly took a dependency on the entire
+      # set, so any switch re-fired every block's inputs and re-evaluated the
+      # whole shared pipeline (and everything downstream) even though no data
+      # changed.
+      rv$needed_slots <- new.env(parent = emptyenv())
+
       observe(
         {
           cur <- if (!gating_active(vis$required)) {
@@ -120,6 +131,12 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
           if (!same) {
             rv$needed(cur)
+          }
+
+          # Fan the set out to per-block slots, value-guarded so only blocks
+          # whose membership actually flipped invalidate their readers.
+          for (id in board_block_ids(rv$board)) {
+            set_needed_slot(rv, id, isTRUE(cur) || id %in% cur)
           }
         }
       )
@@ -745,8 +762,35 @@ block_eval_status <- function(rv, id, inputs_ready, srv) {
 }
 
 block_needed <- function(rv, id) {
-  needed <- rv$needed()
-  isTRUE(needed) || id %in% needed
+  isTRUE(block_needed_slot(rv, id)())
+}
+
+# The per-block `needed` reactiveVal for `id`. Created on first read from the
+# current whole-set value if the maintaining observer in board_server() has not
+# populated it yet (a block read in the same flush it is constructed);
+# thereafter that observer keeps it value-guarded. Reading THIS slot -- not
+# rv$needed() -- is what confines a needed-set change to the blocks whose
+# membership flipped, so a shared upstream block does not re-evaluate on a view
+# switch that only swaps leaves. The isolate() keeps lazy creation from taking a
+# dependency on the whole set; the caller depends on the returned slot instead.
+block_needed_slot <- function(rv, id) {
+  slot <- rv$needed_slots[[id]]
+  if (is.null(slot)) {
+    n <- isolate(rv$needed())
+    slot <- reactiveVal(isTRUE(n) || id %in% n)
+    rv$needed_slots[[id]] <- slot
+  }
+  slot
+}
+
+set_needed_slot <- function(rv, id, val) {
+  slot <- rv$needed_slots[[id]]
+  if (is.null(slot)) {
+    rv$needed_slots[[id]] <- reactiveVal(val)
+  } else if (!identical(isolate(slot()), val)) {
+    slot(val)
+  }
+  invisible()
 }
 
 apply_block_mod_delta <- function(blk_id, delta, rv) {
@@ -794,6 +838,9 @@ destroy_rm_blocks <- function(ids, rv, sess, args) {
 
   for (id in ids) {
     rv$eval[[id]] <- NULL
+    if (!is.null(rv$needed_slots[[id]])) {
+      rm(list = id, envir = rv$needed_slots)
+    }
   }
 
   rv$board <- do.call(
@@ -810,8 +857,10 @@ upstream_result <- function(key, src_rv, rv, to) {
 
   reactive(
     {
-      needed <- rv$needed()
-      req(isTRUE(needed) || to %in% needed)
+      # Gate on THIS block's per-block needed slot, not the whole rv$needed()
+      # set, so a view switch that flips other blocks does not invalidate this
+      # input reactive and force a re-evaluation of unchanged upstream data.
+      req(block_needed(rv, to))
 
       from <- src_rv[[key]]
 
