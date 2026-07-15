@@ -34,13 +34,15 @@ board_server <- function(id, x, ...) {
 #' @param options Board options (`NULL` defaults to the union of board, block
 #' and registry sourced options)
 #' @param callbacks Single (or list of) callback function(s) registering
-#' additional observers. Each receives a `visibility` list with two channels,
-#' `required` and `visible`, each an environment of per-block `reactiveVal`s
-#' (core keeps one per board block as blocks are added and removed). Declare a
-#' block needed with `visibility$required[[id]](TRUE)` (or `FALSE` for built
-#' but dormant) and report the view it is rendered into with
+#' additional observers. Each receives a `visibility` list with three channels,
+#' `required`, `visible` and `frozen`, each an environment of per-block
+#' `reactiveVal`s (core keeps one per board block as blocks are added and
+#' removed). Declare a block needed with `visibility$required[[id]](TRUE)` (or
+#' `FALSE` for built but dormant) and report the view it is rendered into with
 #' `visibility$visible[[id]](view)` (or `NA_character_` for off screen); the
-#' board reads both to gate construction, evaluation and rendering.
+#' board reads both to gate construction, evaluation and rendering. Set
+#' `visibility$frozen[[id]](TRUE)` to freeze a block's inputs (for example when
+#' its controls are hidden), so a forged input can no longer steer it.
 #' @param callback_location Location of callback invocation (before or after
 #' plugins)
 #' @rdname board_server
@@ -87,7 +89,8 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
       vis <- list(
         required = new.env(parent = emptyenv()),
-        visible = new.env(parent = emptyenv())
+        visible = new.env(parent = emptyenv()),
+        frozen = new.env(parent = emptyenv())
       )
 
       add_vis_slots(vis, isolate(board_block_ids(rv$board)))
@@ -624,6 +627,7 @@ add_vis_slots <- function(vis, ids) {
   for (id in ids) {
     vis$required[[id]] <- reactiveVal(NA)
     vis$visible[[id]] <- reactiveVal(NA_character_)
+    vis$frozen[[id]] <- reactiveVal(FALSE)
   }
 
   invisible()
@@ -636,6 +640,7 @@ rm_vis_slots <- function(vis, ids) {
   if (length(gone)) {
     rm(list = gone, envir = vis$required)
     rm(list = gone, envir = vis$visible)
+    rm(list = gone, envir = vis$frozen)
   }
 
   invisible()
@@ -675,6 +680,10 @@ block_visible <- function(id, vis) {
   is_visible(vis$visible[[id]]())
 }
 
+block_frozen <- function(id, vis) {
+  isTRUE(vis$frozen[[id]]())
+}
+
 required_fulfilled <- function(vis) {
   all(lgl_ply(required_now(vis$required), block_visible, vis))
 }
@@ -699,6 +708,15 @@ validate_vis <- function(vis) {
     }
   }
 
+  for (id in ls(vis$frozen)) {
+    if (!valid_frozen(vis$frozen[[id]]())) {
+      blockr_abort(
+        "frozen[[{id}]] must be TRUE or FALSE",
+        class = "invalid_frozen"
+      )
+    }
+  }
+
   invisible()
 }
 
@@ -708,6 +726,10 @@ valid_required <- function(x) {
 
 valid_visible <- function(x) {
   is.character(x) && length(x) == 1L && (is.na(x) || nzchar(x))
+}
+
+valid_frozen <- function(x) {
+  is.logical(x) && length(x) == 1L && !is.na(x)
 }
 
 needed_block_ids <- function(rv, required) {

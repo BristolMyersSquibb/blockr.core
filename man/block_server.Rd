@@ -64,10 +64,11 @@ inputs are all connected to ready upstream blocks (supplied by
 \code{\link[=board_server]{board_server()}}; defaults to always-ready when a block server is run
 standalone)}
 
-\item{visibility}{Visibility channel bundle -- a list with two channels,
-\code{required} and \code{visible}, each an environment of per-block \code{reactiveVal}s,
-supplied by \code{\link[=board_server]{board_server()}} to gate rendering; \code{NULL} (the standalone
-default) leaves the block ungated}
+\item{visibility}{Front-end channel bundle -- a list with three channels,
+\code{required}, \code{visible} and \code{frozen}, each an environment of per-block
+\code{reactiveVal}s, supplied by \code{\link[=board_server]{board_server()}} to gate rendering and to
+freeze block inputs; \code{NULL} (the standalone default) leaves the block
+ungated}
 }
 \value{
 Both \code{block_server()} and \code{expr_server()} return shiny server module
@@ -131,10 +132,11 @@ from output, the behavior of which can be customized via the
 \code{\link[=block_output]{block_output()}} generic. The \code{\link[=block_ui]{block_ui()}} generic can then be used to
 control rendering of outputs.
 
-A front-end (such as blockr.dock) drives two per-block channels that
-\code{\link[=board_server]{board_server()}} hands to the board callback as \code{visibility}: \code{required}
-(which blocks it needs built and evaluated) and \code{visible} (which blocks it
-has arranged on screen). Requirements are a cause the front-end -- and
+A front-end (such as blockr.dock) drives per-block channels that
+\code{\link[=board_server]{board_server()}} hands to the board callback as \code{visibility}. Two of them
+gate what is built and shown: \code{required} (which blocks it needs built and
+evaluated) and \code{visible} (which blocks it has arranged on screen).
+Requirements are a cause the front-end -- and
 core-side features such as code export -- declare; visibility is the effect
 the front-end reports back once it has painted a block. Rendering is gated
 on \code{visible}: the render observer is suspended while a block carries no
@@ -163,4 +165,17 @@ the staggering and builds every block up front. With nothing writing
 \code{required} every block is needed and behaviour is unchanged; the
 \code{gate_visibility} \code{\link[=blockr_option]{blockr_option()}} (default \code{TRUE}) turns gating off
 entirely.
+
+The same bundle carries a third channel, \code{frozen}, through which a
+front-end reports the blocks whose inputs it has hidden (for example a
+locked board that shows outputs but not controls). While frozen a block is
+read-only: its expression, state readiness and the state it exposes for
+serialization are held at the values last seen while editable, and the input
+trigger is dropped, so a forged client input (which still fires the block's
+own observer) reaches neither the expression, the block's status, a
+re-evaluation, nor a save. Externally controllable inputs (see
+\code{\link[=external_ctrl_vars]{external_ctrl_vars()}}) are held too -- a high-priority observer reverts any
+write while frozen -- so not even the programmatic control channel can drive
+a frozen block. Upstream data still flows through, and unfreezing resumes
+normal input handling.
 }
