@@ -72,6 +72,9 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
     id,
     function(input, output, session) {
 
+      probe_reset()
+      log_info("[probe] board start (", length(board_blocks(x)), " blocks)")
+
       rv <- reactiveValues(
         blocks = list(),
         inputs = list(),
@@ -485,6 +488,9 @@ construct_block <- function(id, rv, mod_ed, mod_ct, args, vis) {
   )
 
   rv$blocks[[id]] <- list(block = blk, server = srv)
+
+  log_info("[probe] construct #", probe_count("construct"), " ", id,
+           " (t+", probe_elapsed(), "ms)")
 
   # Install the eval-status reactive WITHOUT the complex assignment
   # `rv$eval[[id]] <- ...`: that form desugars to a rebind of the `eval` key on

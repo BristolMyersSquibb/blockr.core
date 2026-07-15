@@ -289,11 +289,14 @@ block_server.block <- function(id, x, data = list(), block_id = id,
                 identical(eval_lang, last_eval$lang) &&
                 identical(eval_data, last_eval$data) &&
                 identical(eval_trigger, last_eval$trigger)) {
-            log_debug("unchanged inputs for block ", block_id, ", skipping eval")
+            log_info("[probe] skip #", probe_count("skip"), " ", block_id,
+                     " (t+", probe_elapsed(), "ms)")
             return(last_eval$result)
           }
 
           log_debug("evaluating block ", block_id)
+
+          probe_t0 <- proc.time()[["elapsed"]]
 
           result <- isolate(
             capture_conditions(
@@ -303,6 +306,10 @@ block_server.block <- function(id, x, data = list(), block_id = id,
               session = session
             )
           )
+
+          log_info("[probe] eval #", probe_count("eval"), " ", block_id, " ",
+                   round((proc.time()[["elapsed"]] - probe_t0) * 1000),
+                   "ms (t+", probe_elapsed(), "ms)")
 
           last_eval$has <- TRUE
           last_eval$lang <- eval_lang
