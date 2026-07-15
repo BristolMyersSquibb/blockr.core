@@ -20,6 +20,12 @@
   export ("Show code") then marks every block required, so the exported
   script covers the whole board; an off-screen block that is not fully
   configured holds the export back instead of emitting broken code (#269).
+* `blockr_ser()` accepts a partial block-state snapshot: a board block omitted
+  from `blocks` (or mapped to `NULL`) serializes from its constructor scope
+  instead of aborting with `length(blocks) == length(x)`. Saving a board under
+  deferred construction, where off-screen blocks are never built and carry no
+  live state, no longer fails -- unbuilt blocks round-trip from their
+  constructors rather than being dropped (#279).
 * With a finite `background_construction_delay`, the staggered builder now
   prioritizes the on-screen view: each tick builds the next block needed by the
   visible set before the rest of the backlog, so switching view re-prioritizes

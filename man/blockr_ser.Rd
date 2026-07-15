@@ -82,8 +82,12 @@ blockr_deser(x, ...)
 
 \item{state}{Object state (as returned from an \code{expr_server})}
 
-\item{blocks}{Block states (\code{NULL}, or a per-block \code{NULL} entry, defaults to
-values from the constructor scope)}
+\item{blocks}{Block states keyed by block ID. A block that is \code{NULL}, or
+omitted from \code{blocks} altogether, defaults to values from its constructor
+scope. A partial snapshot is therefore valid: under deferred construction
+off-screen blocks are never built and carry no live state, so \code{blocks} may
+cover only the built subset -- the rest serialize from their constructors
+rather than aborting the save.}
 
 \item{options}{Board option values (\code{NULL} uses values provided by \code{x})}
 
