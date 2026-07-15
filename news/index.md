@@ -21,6 +21,12 @@
   newly-visible blocks come up progressively instead of in one blocking
   build
   ([\#275](https://github.com/BristolMyersSquibb/blockr.core/issues/275)).
+- The staggered builder no longer monopolizes the event loop while it
+  runs. Each tick’s pacing delay now begins once the just-built block
+  has flushed rather than while its reactive graph is still flushing, so
+  pending user input is serviced within one tick instead of behind the
+  entire backlog
+  ([\#276](https://github.com/BristolMyersSquibb/blockr.core/issues/276)).
 
 ## blockr.core 0.1.3
 
