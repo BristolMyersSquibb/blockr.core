@@ -125,6 +125,7 @@ Collate:
     'utils-misc.R'
     'utils-pkg.R'
     'utils-ply.R'
+    'utils-probe.R'
     'utils-serdes.R'
     'utils-serve.R'
     'utils-shiny.R'
