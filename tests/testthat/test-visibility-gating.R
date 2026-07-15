@@ -126,6 +126,14 @@ reset_probes <- function() {
   probe_construct$ids <- character()
 }
 
+# Drives the background builder synchronously: the production scheduler paces
+# the next tick behind a post-flush `later::later()`, which a mock session does
+# not run, so bump the pace channel directly to re-run the ticker on the next
+# flush.
+drive_construction <- function(pace, session) {
+  pace(isolate(pace()) + 1L)
+}
+
 rendered <- function(id) {
   any(endsWith(probe_render$ids, paste0("block_", id)))
 }
@@ -556,11 +564,11 @@ test_that("the priority lane builds the needed set ahead of the backlog", {
 
   reset_probes()
 
+  local_mocked_bindings(schedule_construction = drive_construction)
+
   testServer(
     get_s3_method("board_server", ordered_board()),
     {
-      session$flushReact()
-      session$elapse(5000)
       session$flushReact()
 
       built <- probe_construct$ids
@@ -586,11 +594,11 @@ test_that("opening a view pulls its blocks ahead of a gated backlog", {
 
   reset_probes()
 
+  local_mocked_bindings(schedule_construction = drive_construction)
+
   testServer(
     get_s3_method("board_server", ordered_board()),
     {
-      session$flushReact()
-      session$elapse(5000)
       session$flushReact()
 
       expect_true(constructed("b"))
@@ -616,11 +624,11 @@ test_that("the background constructs every block exactly once", {
 
   reset_probes()
 
+  local_mocked_bindings(schedule_construction = drive_construction)
+
   testServer(
     get_s3_method("board_server", ordered_board()),
     {
-      session$flushReact()
-      session$elapse(5000)
       session$flushReact()
 
       built <- probe_construct$ids
@@ -628,7 +636,6 @@ test_that("the background constructs every block exactly once", {
       expect_setequal(built, c("a", "b", "c", "d"))
       expect_length(built, 4L)
 
-      session$elapse(5000)
       session$flushReact()
 
       expect_identical(probe_construct$ids, built)
@@ -675,12 +682,12 @@ test_that("an infinite background delay never arms the scheduler", {
 
   reset_probes()
 
-  scheduled <- new.env()
-  scheduled$millis <- numeric()
+  armed <- new.env(parent = emptyenv())
+  armed$called <- FALSE
 
   local_mocked_bindings(
-    invalidateLater = function(millis, ...) {
-      scheduled$millis <- c(scheduled$millis, millis)
+    schedule_construction = function(pace, session) {
+      armed$called <- TRUE
       invisible()
     }
   )
@@ -692,7 +699,7 @@ test_that("an infinite background delay never arms the scheduler", {
     {
       session$flushReact()
 
-      expect_false(any(is.infinite(scheduled$millis)))
+      expect_false(armed$called)
     },
     args = list(x = ordered_board(), plugins = list(), callbacks = visible_b)
   )
@@ -795,11 +802,11 @@ test_that("the background waits for the front-end's rendered report", {
 
   reset_probes()
 
+  local_mocked_bindings(schedule_construction = drive_construction)
+
   testServer(
     get_s3_method("board_server", ordered_board()),
     {
-      session$flushReact()
-      session$elapse(5000)
       session$flushReact()
 
       expect_true(constructed("a"))
@@ -809,8 +816,6 @@ test_that("the background waits for the front-end's rendered report", {
       expect_false(constructed("d"))
 
       render_blocks(vis, "b")
-      session$flushReact()
-      session$elapse(5000)
       session$flushReact()
 
       expect_true(constructed("c"))

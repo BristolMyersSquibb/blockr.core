@@ -45,7 +45,8 @@ Imports:
     digest,
     cli,
     glue,
-    yaml
+    yaml,
+    later
 Suggests:
     testthat (>= 3.0.0),
     memuse,

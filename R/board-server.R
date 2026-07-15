@@ -529,13 +529,17 @@ construct_needed_blocks <- function(rv, mod_ed, mod_ct, args, vis) {
   invisible()
 }
 
-construct_blocks_in_background <- function(rv, mod_ed, mod_ct, args,
-                                           vis) {
+construct_blocks_in_background <- function(rv, mod_ed, mod_ct, args, vis) {
+
+  session <- getDefaultReactiveDomain()
+  pace <- reactiveVal(0L)
 
   started <- FALSE
 
   obs <- observe(
     {
+      pace()
+
       if (!started) {
 
         started <<- TRUE
@@ -549,7 +553,7 @@ construct_blocks_in_background <- function(rv, mod_ed, mod_ct, args,
           return(invisible())
         }
 
-        invalidateLater(background_construction_delay())
+        schedule_construction(pace, session)
 
         return(invisible())
       }
@@ -573,7 +577,7 @@ construct_blocks_in_background <- function(rv, mod_ed, mod_ct, args,
 
         isolate(construct_block(needed[[1L]], rv, mod_ed, mod_ct, args, vis))
 
-        invalidateLater(background_construction_delay())
+        schedule_construction(pace, session)
 
         return(invisible())
       }
@@ -584,11 +588,31 @@ construct_blocks_in_background <- function(rv, mod_ed, mod_ct, args,
 
       isolate(construct_block(remaining[[1L]], rv, mod_ed, mod_ct, args, vis))
 
-      invalidateLater(background_construction_delay())
+      schedule_construction(pace, session)
     }
   )
 
   invisible()
+}
+
+schedule_construction <- function(pace, session) {
+
+  advance <- function() {
+    if (!isTRUE(session$isClosed())) {
+      withReactiveDomain(session, pace(isolate(pace()) + 1L))
+    }
+  }
+
+  # Begin the pacing delay only once the block just built has flushed: an
+  # in-flush invalidateLater() clock is consumed by that flush (which runs the
+  # new block's reactive graph), leaving the event loop no idle window to
+  # service user input between ticks. Re-arming via `onFlushed()` starts the
+  # delay after the flush drains, so the window is genuine idle.
+  onFlushed(
+    function() later::later(advance, background_construction_delay() / 1000),
+    once = TRUE,
+    session = session
+  )
 }
 
 background_construction_delay <- function() {
