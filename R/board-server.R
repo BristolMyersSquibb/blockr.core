@@ -410,13 +410,6 @@ setup_board <- function(rv, blk_ed, blk_ct, stk_mod, args, sess, vis) {
   rv$sources <- list()
   rv$stacks <- list()
 
-  observe(
-    {
-      need <- needed_block_ids(rv, vis$required)
-      construct_blocks(need, rv, blk_ed, blk_ct, args, vis)
-    }
-  )
-
   construct_remaining_blocks(rv, blk_ed, blk_ct, args, vis)
 
   setup_stacks(rv, stk_mod, args)
@@ -513,18 +506,23 @@ construct_remaining_blocks <- function(rv, mod_ed, mod_ct, args, vis) {
   }
 
   if (is.infinite(delay)) {
+
+    construct_needed_blocks(rv, mod_ed, mod_ct, args, vis)
+
     return(invisible())
   }
 
-  gate <- observe(
+  construct_blocks_in_background(rv, mod_ed, mod_ct, args, vis)
+
+  invisible()
+}
+
+construct_needed_blocks <- function(rv, mod_ed, mod_ct, args, vis) {
+
+  observe(
     {
-      if (!gating_active(vis$required) ||
-            required_fulfilled(vis)) {
-
-        gate$destroy()
-
-        construct_blocks_in_background(rv, mod_ed, mod_ct, args, vis)
-      }
+      need <- needed_block_ids(rv, vis$required)
+      construct_blocks(need, rv, mod_ed, mod_ct, args, vis)
     }
   )
 
@@ -541,6 +539,16 @@ construct_blocks_in_background <- function(rv, mod_ed, mod_ct, args,
       if (!started) {
 
         started <<- TRUE
+
+        if (!isolate(gating_active(vis$required))) {
+
+          construct_blocks(board_block_ids(rv$board), rv, mod_ed, mod_ct,
+                           args, vis)
+          obs$destroy()
+
+          return(invisible())
+        }
+
         invalidateLater(background_construction_delay())
 
         return(invisible())
@@ -557,9 +565,24 @@ construct_blocks_in_background <- function(rv, mod_ed, mod_ct, args,
         return(invisible())
       }
 
-      isolate(
-        construct_block(remaining[[1L]], rv, mod_ed, mod_ct, args, vis)
+      needed <- isolate(
+        intersect(remaining, needed_block_ids(rv, vis$required))
       )
+
+      if (length(needed)) {
+
+        isolate(construct_block(needed[[1L]], rv, mod_ed, mod_ct, args, vis))
+
+        invalidateLater(background_construction_delay())
+
+        return(invisible())
+      }
+
+      if (gating_active(vis$required) && !required_fulfilled(vis)) {
+        return(invisible())
+      }
+
+      isolate(construct_block(remaining[[1L]], rv, mod_ed, mod_ct, args, vis))
 
       invalidateLater(background_construction_delay())
     }

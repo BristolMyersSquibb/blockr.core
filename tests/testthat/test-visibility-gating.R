@@ -189,6 +189,8 @@ test_that("a producer gates evaluation and rendering on visibility", {
 
   reset_probes()
 
+  withr::local_options(blockr.background_construction_delay = 0)
+
   board <- new_board(
     blocks = c(
       a = with_id(probe_source(), "a"),
@@ -286,6 +288,8 @@ test_that("a link change re-routes the pulled upstream", {
 
   reset_probes()
 
+  withr::local_options(blockr.background_construction_delay = 0)
+
   board <- new_board(
     blocks = c(
       a = with_id(probe_source(), "a"),
@@ -332,6 +336,8 @@ test_that("an off-screen data-observing block does not pull its upstream", {
 
   reset_probes()
 
+  withr::local_options(blockr.background_construction_delay = 0)
+
   board <- new_board(
     blocks = c(
       a = with_id(probe_source(), "a"),
@@ -365,6 +371,8 @@ test_that("an off-screen data-observing block does not pull its upstream", {
 test_that("an unrelated structural edit does not re-evaluate needed blocks", {
 
   reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
 
   board <- new_board(
     blocks = c(
@@ -410,6 +418,8 @@ test_that("adding a block does not re-evaluate existing needed blocks", {
 
   reset_probes()
 
+  withr::local_options(blockr.background_construction_delay = 0)
+
   board <- new_board(
     blocks = c(
       a = with_id(probe_source(), "a"),
@@ -453,6 +463,8 @@ test_that("a variadic block receives its inputs as values, not reactives", {
   reset_probes()
   probe_args$entry_classes <- NULL
 
+  withr::local_options(blockr.background_construction_delay = 0)
+
   board <- new_board(
     blocks = c(
       a = with_id(probe_source(), "a"),
@@ -484,6 +496,8 @@ test_that("a variadic block receives its inputs as values, not reactives", {
 test_that("an off-screen variadic block does not pull its inputs", {
 
   reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
 
   board <- new_board(
     blocks = c(
@@ -538,7 +552,7 @@ visible_b <- function(visibility, ...) {
   render_blocks(visibility, "b")
 }
 
-test_that("only the needed blocks are constructed before first paint", {
+test_that("the priority lane builds the needed set ahead of the backlog", {
 
   reset_probes()
 
@@ -546,24 +560,29 @@ test_that("only the needed blocks are constructed before first paint", {
     get_s3_method("board_server", ordered_board()),
     {
       session$flushReact()
-
-      expect_true(constructed("a"))
-      expect_true(constructed("b"))
-
-      expect_false(constructed("c"))
-      expect_false(constructed("d"))
-
       session$elapse(5000)
       session$flushReact()
 
-      expect_true(constructed("c"))
-      expect_true(constructed("d"))
+      built <- probe_construct$ids
+
+      expect_setequal(built, c("a", "b", "c", "d"))
+
+      # d is off the needed path; it builds last, after the needed set a, b, c,
+      # even though topo order (a, d, b, c) would otherwise place it second
+      expect_identical(built[[length(built)]], "d")
     },
-    args = list(x = ordered_board(), plugins = list(), callbacks = visible_b)
+    args = list(
+      x = ordered_board(),
+      plugins = list(),
+      callbacks = function(visibility, ...) {
+        require_blocks(visibility, "c")
+        render_blocks(visibility, "c")
+      }
+    )
   )
 })
 
-test_that("opening a view constructs its blocks without the background", {
+test_that("opening a view pulls its blocks ahead of a gated backlog", {
 
   reset_probes()
 
@@ -571,8 +590,12 @@ test_that("opening a view constructs its blocks without the background", {
     get_s3_method("board_server", ordered_board()),
     {
       session$flushReact()
+      session$elapse(5000)
+      session$flushReact()
 
+      expect_true(constructed("b"))
       expect_false(constructed("c"))
+      expect_false(constructed("d"))
 
       require_blocks(vis, "c")
       render_blocks(vis, "c")
@@ -581,7 +604,11 @@ test_that("opening a view constructs its blocks without the background", {
       expect_true(constructed("c"))
       expect_false(constructed("d"))
     },
-    args = list(x = ordered_board(), plugins = list(), callbacks = visible_b)
+    args = list(
+      x = ordered_board(),
+      plugins = list(),
+      callbacks = function(visibility, ...) require_blocks(visibility, "b")
+    )
   )
 })
 
@@ -772,12 +799,11 @@ test_that("the background waits for the front-end's rendered report", {
     get_s3_method("board_server", ordered_board()),
     {
       session$flushReact()
+      session$elapse(5000)
+      session$flushReact()
 
       expect_true(constructed("a"))
       expect_true(constructed("b"))
-
-      session$elapse(5000)
-      session$flushReact()
 
       expect_false(constructed("c"))
       expect_false(constructed("d"))
