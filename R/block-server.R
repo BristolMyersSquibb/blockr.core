@@ -288,6 +288,9 @@ block_server.block <- function(id, x, data = list(), block_id = id,
 
       gate <- cb_res
 
+      # Last successful evaluation, for the unchanged-inputs skip below.
+      last_eval <- new.env(parent = emptyenv())
+
       res <- reactive(
         {
           if (!isTRUE(reval_if(gate)) || !isTRUE(data_valid()) ||
@@ -296,17 +299,43 @@ block_server.block <- function(id, x, data = list(), block_id = id,
           }
 
           eval_data <- dat_eval()
+          eval_lang <- isolate(lang())
+
+          # Re-evaluate only when the interpolated expression or the input
+          # data actually changed. Spurious invalidations reach this reactive
+          # through board-wide transitions with the inputs untouched -- e.g. a
+          # view switch whose visibility updates land across several flushes,
+          # transiently collapsing and re-expanding the needed closure so that
+          # every needed slot (and with it the whole input chain) takes a real
+          # FALSE -> TRUE round trip. Upstream results are cached, so
+          # `eval_data` then holds the very same objects and identical()
+          # short-circuits on pointer equality. Without this guard each such
+          # transition re-ran the block expression, re-evaluating whole shared
+          # pipelines (data adapters included) on every first visit to a view.
+          if (isTRUE(last_eval$has) &&
+                identical(eval_lang, last_eval$lang) &&
+                identical(eval_data, last_eval$data)) {
+            log_debug("unchanged inputs for block ", block_id, ", skipping eval")
+            return(last_eval$result)
+          }
 
           log_debug("evaluating block ", block_id)
 
-          isolate(
+          result <- isolate(
             capture_conditions(
-              eval_impl(x, lang(), eval_data),
+              eval_impl(x, eval_lang, eval_data),
               cond,
               "eval",
               session = session
             )
           )
+
+          last_eval$has <- TRUE
+          last_eval$lang <- eval_lang
+          last_eval$data <- eval_data
+          last_eval$result <- result
+
+          result
         },
         domain = session
       )

@@ -489,7 +489,17 @@ construct_block <- function(id, rv, mod_ed, mod_ct, args, vis) {
 
   rv$blocks[[id]] <- list(block = blk, server = srv)
 
-  rv$eval[[id]] <- reactive(block_eval_status(rv, id, inputs_ready, srv))
+  # Install the eval-status reactive WITHOUT the complex assignment
+  # `rv$eval[[id]] <- ...`: that form desugars to a rebind of the `eval` key on
+  # `rv`, which invalidates EVERY reactive that read `rv$eval` -- i.e. every
+  # built block's inputs_ready (via input_ready()) -- so constructing one new
+  # block re-fired inputs_ready -> data_valid -> dat_eval -> res for the whole
+  # already-computed board and re-evaluated the shared upstream pipeline on
+  # every first visit to a view. Mutating the reactiveValues through a local
+  # binding keeps per-key granularity: only readers of THIS block's slot (its
+  # direct downstreams, waking up on the upstream's construction) are notified.
+  ev <- isolate(rv$eval)
+  ev[[id]] <- reactive(block_eval_status(rv, id, inputs_ready, srv))
 
   invisible()
 }
@@ -783,7 +793,13 @@ block_inputs_ready <- function(src_rv, blk, rv) {
 }
 
 input_ready <- function(from, rv) {
-  not_null(from) && identical(reval_if(rv$eval[[from]]), "ready")
+  # Fetch the container under isolate() so the caller does not depend on the
+  # `eval` key of `rv` (rebound on every block construction before the local-
+  # binding install in construct_block, and still guarded against here). The
+  # `[[from]]` read happens OUTSIDE the isolate, so the per-key dependency
+  # remains: a downstream still wakes when its upstream's status reactive is
+  # installed at construction, and still tracks that status thereafter.
+  not_null(from) && identical(reval_if(isolate(rv$eval)[[from]]), "ready")
 }
 
 block_eval_status <- function(rv, id, inputs_ready, srv) {
@@ -817,22 +833,30 @@ block_needed <- function(rv, id) {
 # thereafter that observer keeps it value-guarded. Reading THIS slot -- not
 # rv$needed() -- is what confines a needed-set change to the blocks whose
 # membership flipped, so a shared upstream block does not re-evaluate on a view
-# switch that only swaps leaves. The isolate() keeps lazy creation from taking a
-# dependency on the whole set; the caller depends on the returned slot instead.
+# switch that only swaps leaves.
+#
+# Both helpers fetch the container under isolate() and mutate it through a
+# local binding: `rv$needed_slots[[id]] <- ...` would rebind the `needed_slots`
+# key on `rv`, invalidating every reactive that touched the container (the same
+# whole-container churn this file fixes for `rv$eval` in construct_block).
+# Callers depend on the returned reactiveVal alone, never on the container; the
+# environment mutates by reference so all readers share the slots.
 block_needed_slot <- function(rv, id) {
-  slot <- rv$needed_slots[[id]]
+  slots <- isolate(rv$needed_slots)
+  slot <- slots[[id]]
   if (is.null(slot)) {
     n <- isolate(rv$needed())
     slot <- reactiveVal(isTRUE(n) || id %in% n)
-    rv$needed_slots[[id]] <- slot
+    slots[[id]] <- slot
   }
   slot
 }
 
 set_needed_slot <- function(rv, id, val) {
-  slot <- rv$needed_slots[[id]]
+  slots <- isolate(rv$needed_slots)
+  slot <- slots[[id]]
   if (is.null(slot)) {
-    rv$needed_slots[[id]] <- reactiveVal(val)
+    slots[[id]] <- reactiveVal(val)
   } else if (!identical(isolate(slot()), val)) {
     slot(val)
   }
@@ -882,10 +906,15 @@ destroy_rm_blocks <- function(ids, rv, sess, args) {
   rv$sources <- rv$sources[!names(rv$sources) %in% ids]
   rv$blocks <- rv$blocks[!names(rv$blocks) %in% ids]
 
+  # Local bindings for both containers: `rv$eval[[id]] <- NULL` would rebind
+  # the `eval` key on `rv` (see construct_block) and churn every reader.
+  ev <- isolate(rv$eval)
+  slots <- isolate(rv$needed_slots)
+
   for (id in ids) {
-    rv$eval[[id]] <- NULL
-    if (!is.null(rv$needed_slots[[id]])) {
-      rm(list = id, envir = rv$needed_slots)
+    ev[[id]] <- NULL
+    if (!is.null(slots[[id]])) {
+      rm(list = id, envir = slots)
     }
   }
 
