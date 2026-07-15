@@ -301,6 +301,14 @@ block_server.block <- function(id, x, data = list(), block_id = id,
           eval_data <- dat_eval()
           eval_lang <- isolate(lang())
 
+          # The eval trigger's VALUE joins the skip key below: a block can
+          # request re-evaluation with unchanged (expr, data) by returning a
+          # changed value from block_eval_trigger() -- plot blocks return the
+          # thematic / dark_mode option values so a theme flip re-renders the
+          # plot. The reactive dependency is registered inside dat_eval();
+          # here only the current value is read.
+          eval_trigger <- isolate(block_eval_trigger(x, session))
+
           # Re-evaluate only when the interpolated expression or the input
           # data actually changed. Spurious invalidations reach this reactive
           # through board-wide transitions with the inputs untouched -- e.g. a
@@ -314,7 +322,8 @@ block_server.block <- function(id, x, data = list(), block_id = id,
           # pipelines (data adapters included) on every first visit to a view.
           if (isTRUE(last_eval$has) &&
                 identical(eval_lang, last_eval$lang) &&
-                identical(eval_data, last_eval$data)) {
+                identical(eval_data, last_eval$data) &&
+                identical(eval_trigger, last_eval$trigger)) {
             log_debug("unchanged inputs for block ", block_id, ", skipping eval")
             return(last_eval$result)
           }
@@ -333,6 +342,7 @@ block_server.block <- function(id, x, data = list(), block_id = id,
           last_eval$has <- TRUE
           last_eval$lang <- eval_lang
           last_eval$data <- eval_data
+          last_eval$trigger <- eval_trigger
           last_eval$result <- result
 
           result
