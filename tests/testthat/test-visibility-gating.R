@@ -415,6 +415,61 @@ test_that("a needed round trip with unchanged inputs does not re-evaluate", {
   )
 })
 
+test_that("a view switch does not re-evaluate shared upstream left needed", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- new_board(
+    blocks = c(
+      src = with_id(probe_source(), "src"),
+      mid = with_id(probe_passthrough(), "mid"),
+      t1 = with_id(probe_passthrough(), "t1"),
+      t2 = with_id(probe_passthrough(), "t2")
+    ),
+    links = links(
+      new_link("src", "mid", "data"),
+      new_link("mid", "t1", "data"),
+      new_link("mid", "t2", "data")
+    )
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_true(evaluated("src"))
+      expect_true(evaluated("mid"))
+      expect_true(evaluated("t1"))
+
+      reset_probes()
+
+      # Switch to the sibling view: t1 leaves the needed set and t2 enters, but
+      # the shared upstream (src, mid) stays needed throughout. Only the newly
+      # visible leaf evaluates -- the upstream slots never flip, so nothing
+      # pulls the shared pipeline again.
+      vis$required[["t1"]](FALSE)
+      vis$required[["t2"]](TRUE)
+      render_blocks(vis, "t2")
+      session$flushReact()
+
+      expect_true(evaluated("t2"))
+      expect_false(evaluated("src"))
+      expect_false(evaluated("mid"))
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visibility, ...) {
+        require_blocks(visibility, "t1")
+        render_blocks(visibility, "t1")
+      }
+    )
+  )
+})
+
 test_that("an off-screen data-observing block does not pull its upstream", {
 
   reset_probes()

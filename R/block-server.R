@@ -324,7 +324,7 @@ block_server.block <- function(id, x, data = list(), block_id = id,
                 identical(eval_lang, last_eval$lang) &&
                 identical(eval_data, last_eval$data) &&
                 identical(eval_trigger, last_eval$trigger)) {
-            log_debug("unchanged inputs for block ", block_id, ", skipping eval")
+            log_debug("skipping block ", block_id, " (inputs unchanged)")
             return(last_eval$result)
           }
 
