@@ -14,6 +14,13 @@
   that is not fully configured holds the export back instead of emitting
   broken code
   ([\#269](https://github.com/BristolMyersSquibb/blockr.core/issues/269)).
+- With a finite `background_construction_delay`, the staggered builder
+  now prioritizes the on-screen view: each tick builds the next block
+  needed by the visible set before the rest of the backlog, so switching
+  view re-prioritizes construction toward what is now on screen and the
+  newly-visible blocks come up progressively instead of in one blocking
+  build
+  ([\#275](https://github.com/BristolMyersSquibb/blockr.core/issues/275)).
 
 ## blockr.core 0.1.3
 
