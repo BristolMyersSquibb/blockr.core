@@ -3,10 +3,23 @@
 ## blockr.core 0.1.4
 
 - The board callback now gates block construction, evaluation and
-  rendering through two per-block `reactiveValues` it receives as
+  rendering through per-block `reactiveVal` channels it receives as
   `visibility` – `required` (which blocks are needed) and `visible`
   (which are on screen) – in place of the single `visible`
   write-channel. Breaking for front-ends.
+- The `visibility` bundle carries a third channel, `frozen`, letting a
+  front-end freeze a block’s inputs server-side: setting
+  `visibility$frozen[[id]](TRUE)` – for example for a locked board that
+  shows outputs but hides controls – holds the block’s expression, state
+  readiness and serialized state at their last editable values and drops
+  the input trigger, so a forged `Shiny.setInputValue` (which still
+  fires the block’s own observer) reaches neither the expression, the
+  block’s status, a re-evaluation, nor a saved board. Externally
+  controllable inputs are held too – a high-priority observer reverts
+  any write while frozen – so a frozen block is fully read-only.
+  Upstream-data-driven re-evaluation still runs, and unfreezing resumes
+  normal input handling
+  ([\#231](https://github.com/BristolMyersSquibb/blockr.core/issues/231)).
 - `background_construction_delay` now accepts `Inf`, skipping the
   background construction pass so a block is built only once it becomes
   required. Code export (“Show code”) then marks every block required,

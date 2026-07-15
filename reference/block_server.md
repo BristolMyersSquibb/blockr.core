@@ -98,12 +98,12 @@ block_render_trigger(x, session = get_session())
 
 - visibility:
 
-  Visibility channel bundle – a list with two channels, `required` and
-  `visible`, each an environment of per-block `reactiveVal`s, supplied
-  by
+  Front-end channel bundle – a list with three channels, `required`,
+  `visible` and `frozen`, each an environment of per-block
+  `reactiveVal`s, supplied by
   [`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)
-  to gate rendering; `NULL` (the standalone default) leaves the block
-  ungated
+  to gate rendering and to freeze block inputs; `NULL` (the standalone
+  default) leaves the block ungated
 
 ## Value
 
@@ -171,18 +171,19 @@ generic. The
 [`block_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_ui.md)
 generic can then be used to control rendering of outputs.
 
-A front-end (such as blockr.dock) drives two per-block channels that
+A front-end (such as blockr.dock) drives per-block channels that
 [`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)
-hands to the board callback as `visibility`: `required` (which blocks it
-needs built and evaluated) and `visible` (which blocks it has arranged
-on screen). Requirements are a cause the front-end – and core-side
-features such as code export – declare; visibility is the effect the
-front-end reports back once it has painted a block. Rendering is gated
-on `visible`: the render observer is suspended while a block carries no
-visible slot and resumed once the front-end writes a non-empty string
-for it, starting suspended so nothing renders before the first report.
-Evaluation is gated on the *needed* set, the `required` blocks together
-with their upstream closure over
+hands to the board callback as `visibility`. Two of them gate what is
+built and shown: `required` (which blocks it needs built and evaluated)
+and `visible` (which blocks it has arranged on screen). Requirements are
+a cause the front-end – and core-side features such as code export –
+declare; visibility is the effect the front-end reports back once it has
+painted a block. Rendering is gated on `visible`: the render observer is
+suspended while a block carries no visible slot and resumed once the
+front-end writes a non-empty string for it, starting suspended so
+nothing renders before the first report. Evaluation is gated on the
+*needed* set, the `required` blocks together with their upstream closure
+over
 [`board_links()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
 (recomputed only when requirements or links change). A block's input
 data reactives stay unfulfilled (they
@@ -210,3 +211,18 @@ writing `required` every block is needed and behaviour is unchanged; the
 `gate_visibility`
 [`blockr_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_option.md)
 (default `TRUE`) turns gating off entirely.
+
+The same bundle carries a third channel, `frozen`, through which a
+front-end reports the blocks whose inputs it has hidden (for example a
+locked board that shows outputs but not controls). While frozen a block
+is read-only: its expression, state readiness and the state it exposes
+for serialization are held at the values last seen while editable, and
+the input trigger is dropped, so a forged client input (which still
+fires the block's own observer) reaches neither the expression, the
+block's status, a re-evaluation, nor a save. Externally controllable
+inputs (see
+[`external_ctrl_vars()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md))
+are held too – a high-priority observer reverts any write while frozen –
+so not even the programmatic control channel can drive a frozen block.
+Upstream data still flows through, and unfreezing resumes normal input
+handling.

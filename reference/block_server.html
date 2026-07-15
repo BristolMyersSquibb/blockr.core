@@ -161,10 +161,11 @@ standalone)</p></dd>
 
 
 <dt id="arg-visibility">visibility<a class="anchor" aria-label="anchor" href="#arg-visibility"></a></dt>
-<dd><p>Visibility channel bundle – a list with two channels,
-<code>required</code> and <code>visible</code>, each an environment of per-block <code>reactiveVal</code>s,
-supplied by <code><a href="board_server.html">board_server()</a></code> to gate rendering; <code>NULL</code> (the standalone
-default) leaves the block ungated</p></dd>
+<dd><p>Front-end channel bundle – a list with three channels,
+<code>required</code>, <code>visible</code> and <code>frozen</code>, each an environment of per-block
+<code>reactiveVal</code>s, supplied by <code><a href="board_server.html">board_server()</a></code> to gate rendering and to
+freeze block inputs; <code>NULL</code> (the standalone default) leaves the block
+ungated</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -213,10 +214,11 @@ user.</p>
 from output, the behavior of which can be customized via the
 <code><a href="block_ui.html">block_output()</a></code> generic. The <code><a href="block_ui.html">block_ui()</a></code> generic can then be used to
 control rendering of outputs.</p>
-<p>A front-end (such as blockr.dock) drives two per-block channels that
-<code><a href="board_server.html">board_server()</a></code> hands to the board callback as <code>visibility</code>: <code>required</code>
-(which blocks it needs built and evaluated) and <code>visible</code> (which blocks it
-has arranged on screen). Requirements are a cause the front-end – and
+<p>A front-end (such as blockr.dock) drives per-block channels that
+<code><a href="board_server.html">board_server()</a></code> hands to the board callback as <code>visibility</code>. Two of them
+gate what is built and shown: <code>required</code> (which blocks it needs built and
+evaluated) and <code>visible</code> (which blocks it has arranged on screen).
+Requirements are a cause the front-end – and
 core-side features such as code export – declare; visibility is the effect
 the front-end reports back once it has painted a block. Rendering is gated
 on <code>visible</code>: the render observer is suspended while a block carries no
@@ -245,6 +247,18 @@ the staggering and builds every block up front. With nothing writing
 <code>required</code> every block is needed and behaviour is unchanged; the
 <code>gate_visibility</code> <code><a href="blockr_option.html">blockr_option()</a></code> (default <code>TRUE</code>) turns gating off
 entirely.</p>
+<p>The same bundle carries a third channel, <code>frozen</code>, through which a
+front-end reports the blocks whose inputs it has hidden (for example a
+locked board that shows outputs but not controls). While frozen a block is
+read-only: its expression, state readiness and the state it exposes for
+serialization are held at the values last seen while editable, and the input
+trigger is dropped, so a forged client input (which still fires the block's
+own observer) reaches neither the expression, the block's status, a
+re-evaluation, nor a save. Externally controllable inputs (see
+<code><a href="block_name.html">external_ctrl_vars()</a></code>) are held too – a high-priority observer reverts any
+write while frozen – so not even the programmatic control channel can drive
+a frozen block. Upstream data still flows through, and unfreezing resumes
+normal input handling.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
