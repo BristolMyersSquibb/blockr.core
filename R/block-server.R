@@ -309,20 +309,20 @@ block_server.block <- function(id, x, data = list(), block_id = id,
           # here only the current value is read.
           eval_trigger <- isolate(block_eval_trigger(x, session))
 
-          # Re-evaluate only when the interpolated expression or the input
-          # data actually changed. Spurious invalidations reach this reactive
-          # through board-wide transitions with the inputs untouched -- e.g. a
-          # view switch whose visibility updates land across several flushes,
-          # transiently collapsing and re-expanding the needed closure so that
-          # every needed slot (and with it the whole input chain) takes a real
-          # FALSE -> TRUE round trip. Upstream results are cached, so
-          # `eval_data` then holds the very same objects and identical()
-          # short-circuits on pointer equality. Without this guard each such
-          # transition re-ran the block expression, re-evaluating whole shared
-          # pipelines (data adapters included) on every first visit to a view.
+          # Re-evaluate only when the expression, input data or eval trigger
+          # changed. Board-wide transitions invalidate this reactive with the
+          # inputs untouched -- e.g. a view switch lands its visibility across
+          # several flushes, so every needed slot takes a spurious FALSE -> TRUE
+          # round trip and the input chain re-pulls the same cached objects.
+          # Expression and data are compared by object identity: an unchanged
+          # reactive hands back its cached object, so this is O(1) whatever the
+          # size and side-steps identical()'s environment-sensitive walk of
+          # language objects. The trade is that a recomputed-but-equal, freshly
+          # allocated input re-evaluates rather than skipping. The eval trigger
+          # stays value-compared -- it is rebuilt on each read (see below).
           if (isTRUE(last_eval$has) &&
-                identical(eval_lang, last_eval$lang) &&
-                identical(eval_data, last_eval$data) &&
+                same_ref(eval_lang, last_eval$lang) &&
+                same_refs(eval_data, last_eval$data) &&
                 identical(eval_trigger, last_eval$trigger)) {
             log_debug("skipping block ", block_id, " (inputs unchanged)")
             return(last_eval$result)
@@ -340,6 +340,8 @@ block_server.block <- function(id, x, data = list(), block_id = id,
           )
 
           last_eval$has <- TRUE
+          # Keep the objects themselves (not just addresses) so they stay alive
+          # and their addresses cannot be reused by a later allocation.
           last_eval$lang <- eval_lang
           last_eval$data <- eval_data
           last_eval$trigger <- eval_trigger
@@ -509,6 +511,15 @@ state_ready_reactive <- function(id, x, state, sess) {
     },
     domain = sess
   )
+}
+
+same_ref <- function(x, y) {
+  identical(rlang::obj_address(x), rlang::obj_address(y))
+}
+
+same_refs <- function(x, y) {
+  identical(names(x), names(y)) &&
+    identical(chr_ply(x, rlang::obj_address), chr_ply(y, rlang::obj_address))
 }
 
 eval_impl <- function(x, expr, dat) {

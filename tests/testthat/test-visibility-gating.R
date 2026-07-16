@@ -57,7 +57,7 @@ probe_source <- function() {
 
 # Same probe source, different dataset (zero-arg on purpose: constructor
 # arguments double as block state). For tests where a re-routed input must
-# actually differ in value -- an input identical in value to the previous one
+# resolve to a different object -- an input that is the same object as before
 # is skipped by the unchanged-inputs guard in block_server().
 probe_source_alt <- function() {
   new_data_block(
@@ -322,8 +322,8 @@ test_that("a link change re-routes the pulled upstream", {
     blocks = c(
       a = with_id(probe_source(), "a"),
       # A different dataset than a's: the re-routed input must actually change
-      # for b to re-evaluate -- an input identical in value to the previous one
-      # is skipped (see the unchanged-inputs test below).
+      # for b to re-evaluate -- an input that is the same object as before is
+      # skipped (see the unchanged-inputs test below).
       c = with_id(probe_source_alt(), "c"),
       b = with_id(probe_passthrough(), "b")
     ),
@@ -465,6 +465,57 @@ test_that("a view switch does not re-evaluate shared upstream left needed", {
       callbacks = function(visibility, ...) {
         require_blocks(visibility, "t1")
         render_blocks(visibility, "t1")
+      }
+    )
+  )
+})
+
+test_that("a variadic block skips re-evaluation on unchanged inputs", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- new_board(
+    blocks = c(
+      a = with_id(probe_source(), "a"),
+      b = with_id(probe_source_alt(), "b"),
+      v = with_id(probe_variadic(), "v")
+    ),
+    links = links(new_link("a", "v", "1"), new_link("b", "v", "2"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_true(evaluated("a"))
+      expect_true(evaluated("b"))
+      expect_true(evaluated("v"))
+
+      reset_probes()
+
+      # A variadic block's `...args` are repackaged into a fresh list on every
+      # pull, but the element objects are the cached upstream results. Park the
+      # block across separate flushes and bring it back: the by-reference skip
+      # sees the same objects and nothing re-evaluates.
+      vis$required[["v"]](FALSE)
+      session$flushReact()
+
+      vis$required[["v"]](TRUE)
+      session$flushReact()
+
+      expect_false(evaluated("a"))
+      expect_false(evaluated("b"))
+      expect_false(evaluated("v"))
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visibility, ...) {
+        require_blocks(visibility, "v")
+        render_blocks(visibility, "v")
       }
     )
   )
