@@ -35,6 +35,12 @@
   Each tick's pacing delay now begins once the just-built block has flushed
   rather than while its reactive graph is still flushing, so pending user input
   is serviced within one tick instead of behind the entire backlog (#276).
+* Captured block conditions are no longer glue-interpolated when logged, so a
+  block whose warning or error text contains braces -- e.g. the `{summary_fun}`
+  / `{data}` placeholders in `tidyr::pivot_wider()`'s duplicate-value warning --
+  no longer aborts the reactive with "Failed to evaluate glue component". This
+  extends the `notify()` toast path's `use_glue = FALSE` treatment to the
+  `capture_conditions()` handlers and the `replay()` methods (#268).
 
 # blockr.core 0.1.3
 

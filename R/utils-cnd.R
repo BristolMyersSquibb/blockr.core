@@ -141,17 +141,17 @@ show_condition.error <- function(x) {
 #' @importFrom evaluate replay
 #' @export
 replay.message <- function(x) {
-  log_info(fmt_cnd_msg(x))
+  log_info(fmt_cnd_msg(x), use_glue = FALSE)
 }
 
 #' @export
 replay.warning <- function(x) {
-  log_warn(fmt_cnd_msg(x))
+  log_warn(fmt_cnd_msg(x), use_glue = FALSE)
 }
 
 #' @export
 replay.error <- function(x) {
-  log_error(fmt_cnd_msg(x))
+  log_error(fmt_cnd_msg(x), use_glue = FALSE)
 }
 
 msg_handler <- function(cond, conds) {
@@ -160,7 +160,7 @@ msg_handler <- function(cond, conds) {
     if ("message" %in% conds) {
       cond$message <- c(cond$message, list(as_blk_cnd(m)))
     }
-    log_info(fmt_cnd_msg(m))
+    log_info(fmt_cnd_msg(m), use_glue = FALSE)
     tryInvokeRestart("muffleMessage")
   }
 }
@@ -171,7 +171,7 @@ warn_handler <- function(cond, conds) {
     if ("warning" %in% conds) {
       cond$warning <- c(cond$warning, list(as_blk_cnd(w)))
     }
-    log_warn(fmt_cnd_msg(w))
+    log_warn(fmt_cnd_msg(w), use_glue = FALSE)
     tryInvokeRestart("muffleWarning")
   }
 }
@@ -182,7 +182,7 @@ err_handler <- function(cond, conds, err_val = NULL) {
     if ("error" %in% conds) {
       cond$error <- list(as_blk_cnd(e))
     }
-    log_error(fmt_cnd_msg(e))
+    log_error(fmt_cnd_msg(e), use_glue = FALSE)
     err_val
   }
 }
