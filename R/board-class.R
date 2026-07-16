@@ -319,7 +319,7 @@ rm_blocks.board <- function(x, rm, ..., session = get_session()) {
 
     # nolint start: object_usage_linter.
     blk <- intersect(rm, c(links$from, links$to))
-    lnk <- names(links[links$from %in% rm | links$to %in% rm])
+    lnk <- names(links[links_incident(links, rm)])
     # nolint end
 
     blockr_abort(

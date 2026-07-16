@@ -299,6 +299,10 @@ links_assign <- function(...) {
   validate_links(vec_assign(...))
 }
 
+links_incident <- function(x, ids) {
+  x$from %in% ids | x$to %in% ids
+}
+
 #' @rdname new_link
 #' @export
 validate_links <- function(x) {

@@ -51,15 +51,15 @@ blockr_ser(x, ...)
 
 \method{blockr_ser}{stacks}(x, ...)
 
-blockr_deser(x, ...)
+blockr_deser(x, ..., on_error = NULL)
 
 \method{blockr_deser}{list}(x, ...)
 
 \method{blockr_deser}{block}(x, data, ...)
 
-\method{blockr_deser}{blocks}(x, data, ...)
+\method{blockr_deser}{blocks}(x, data, ..., on_error = NULL)
 
-\method{blockr_deser}{board}(x, data, ...)
+\method{blockr_deser}{board}(x, data, ..., on_error = NULL)
 
 \method{blockr_deser}{link}(x, data, ...)
 
@@ -94,6 +94,18 @@ rather than aborting the save.}
 \item{option}{Board option value (\code{NULL} uses values provided by \code{x})}
 
 \item{board_id}{Board ID}
+
+\item{on_error}{How to handle a block that cannot be deserialized -- its
+constructor (or the package providing it) is unavailable, its payload cannot
+be reconstructed, or the round-trip class check fails. \code{"abort"} (the
+default) propagates the error, while \code{"drop"} omits the offending block
+(emitting a warning) and continues; board deserialization then prunes any
+links and stacks that reference a dropped block, so a board referencing a
+since-retired or no-longer-installed block type still loads. Board
+deserialization resolves \code{on_error} once and threads it to the contained
+blocks. The default is sourced from \code{blockr_option("deser_on_error", "abort")}, letting a deployment opt into dropping via
+\code{options(blockr.deser_on_error = "drop")} or the \code{BLOCKR_DESER_ON_ERROR}
+environment variable.}
 
 \item{data}{List valued data (converted from JSON)}
 }

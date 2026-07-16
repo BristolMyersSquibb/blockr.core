@@ -239,3 +239,148 @@ test_that("a board with variadic links round-trips and still evaluates", {
     args = list(x = restored)
   )
 })
+
+test_that("blocks deser drops offending blocks when on_error is drop", {
+
+  blks <- c(a = new_dataset_block("iris"), b = new_subset_block())
+
+  class_err <- blockr_ser(blks)
+  class_err$payload$b$object <- c("foo_block", class_err$payload$b$object)
+
+  expect_error(
+    blockr_deser(class_err),
+    class = "block_deser_class_error"
+  )
+
+  expect_error(
+    blockr_deser(class_err, on_error = "abort"),
+    class = "block_deser_class_error"
+  )
+
+  kept <- expect_output(
+    blockr_deser(class_err, on_error = "drop"),
+    "Dropping block b"
+  )
+
+  expect_true(is_blocks(kept))
+  expect_identical(names(kept), "a")
+
+  miss_pkg <- blockr_ser(blks)
+  miss_pkg$payload$b$constructor$package <- "some_imaginary_pkg"
+
+  expect_error(
+    blockr_deser(miss_pkg),
+    class = "blockr_deser_missing_pkg"
+  )
+
+  dropped_pkg <- expect_output(
+    blockr_deser(miss_pkg, on_error = "drop"),
+    "Dropping block b"
+  )
+
+  expect_identical(names(dropped_pkg), "a")
+
+  expect_error(blockr_deser(class_err, on_error = "nonsense"))
+})
+
+test_that("board deser prunes links and stacks referencing dropped blocks", {
+
+  board <- new_board(
+    c(
+      a = new_dataset_block("iris"),
+      b = new_subset_block(),
+      c = new_subset_block()
+    ),
+    links = links(from = "a", to = "b"),
+    stacks = list(with_a = new_stack(c("a", "b")), only_c = new_stack("c"))
+  )
+
+  ser <- blockr_ser(board)
+
+  for (id in c("b", "c")) {
+    ser$payload$blocks$payload[[id]]$object <- c(
+      "foo_block", ser$payload$blocks$payload[[id]]$object
+    )
+  }
+
+  expect_error(
+    blockr_deser(ser),
+    class = "block_deser_class_error"
+  )
+
+  res <- expect_output(
+    blockr_deser(ser, on_error = "drop"),
+    "Dropping block b"
+  )
+
+  expect_true(is_board(res))
+  expect_identical(board_block_ids(res), "a")
+  expect_length(board_links(res), 0L)
+
+  # with_a keeps its surviving member; only_c empties out and is removed
+  expect_identical(board_stack_ids(res), "with_a")
+  expect_identical(stack_blocks(board_stacks(res)[["with_a"]]), "a")
+})
+
+test_that("deser_on_error default is sourced from a blockr_option", {
+
+  blks <- c(a = new_dataset_block("iris"), b = new_subset_block())
+  ser <- blockr_ser(blks)
+  ser$payload$b$object <- c("foo_block", ser$payload$b$object)
+
+  withr::with_envvar(
+    c(BLOCKR_DESER_ON_ERROR = NA),
+    withr::with_options(
+      list(blockr.deser_on_error = NULL),
+      expect_error(blockr_deser(ser), class = "block_deser_class_error")
+    )
+  )
+
+  withr::with_options(
+    list(blockr.deser_on_error = "drop"),
+    {
+      opt_res <- expect_output(blockr_deser(ser), "Dropping block b")
+      expect_identical(names(opt_res), "a")
+    }
+  )
+
+  withr::with_envvar(
+    c(BLOCKR_DESER_ON_ERROR = "drop"),
+    {
+      env_res <- expect_output(blockr_deser(ser), "Dropping block b")
+      expect_identical(names(env_res), "a")
+    }
+  )
+})
+
+test_that("board deser resolves the option and threads it to blocks", {
+
+  board <- new_board(
+    c(a = new_dataset_block("iris"), b = new_subset_block()),
+    links = links(from = "a", to = "b"),
+    stacks = list(with_a = new_stack(c("a", "b")))
+  )
+
+  ser <- blockr_ser(board)
+  ser$payload$blocks$payload$b$object <- c(
+    "foo_block", ser$payload$blocks$payload$b$object
+  )
+
+  withr::with_envvar(
+    c(BLOCKR_DESER_ON_ERROR = NA),
+    withr::with_options(
+      list(blockr.deser_on_error = NULL),
+      expect_error(blockr_deser(ser), class = "block_deser_class_error")
+    )
+  )
+
+  res <- withr::with_options(
+    list(blockr.deser_on_error = "drop"),
+    expect_output(blockr_deser(ser), "Dropping block b")
+  )
+
+  expect_true(is_board(res))
+  expect_identical(board_block_ids(res), "a")
+  expect_length(board_links(res), 0L)
+  expect_identical(stack_blocks(board_stacks(res)[["with_a"]]), "a")
+})

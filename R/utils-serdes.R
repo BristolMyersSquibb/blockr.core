@@ -254,9 +254,21 @@ blockr_ser.stacks <- function(x, ...) {
   )
 }
 
+#' @param on_error How to handle a block that cannot be deserialized -- its
+#' constructor (or the package providing it) is unavailable, its payload cannot
+#' be reconstructed, or the round-trip class check fails. `"abort"` (the
+#' default) propagates the error, while `"drop"` omits the offending block
+#' (emitting a warning) and continues; board deserialization then prunes any
+#' links and stacks that reference a dropped block, so a board referencing a
+#' since-retired or no-longer-installed block type still loads. Board
+#' deserialization resolves `on_error` once and threads it to the contained
+#' blocks. The default is sourced from `blockr_option("deser_on_error",
+#' "abort")`, letting a deployment opt into dropping via
+#' `options(blockr.deser_on_error = "drop")` or the `BLOCKR_DESER_ON_ERROR`
+#' environment variable.
 #' @rdname blockr_ser
 #' @export
-blockr_deser <- function(x, ...) {
+blockr_deser <- function(x, ..., on_error = NULL) {
   UseMethod("blockr_deser")
 }
 
@@ -309,24 +321,63 @@ blockr_deser.block <- function(x, data, ...) {
 
 #' @rdname blockr_ser
 #' @export
-blockr_deser.blocks <- function(x, data, ...) {
-  as_blocks(
-    lapply(data[["payload"]], blockr_deser)
+blockr_deser.blocks <- function(x, data, ..., on_error = NULL) {
+
+  on_error <- resolve_deser_on_error(on_error)
+
+  payload <- data[["payload"]]
+
+  if (identical(on_error, "abort")) {
+    return(as_blocks(lapply(payload, blockr_deser)))
+  }
+
+  res <- map(deser_or_drop, payload, names(payload))
+  names(res) <- names(payload)
+
+  as_blocks(res[!lgl_ply(res, is.null)])
+}
+
+deser_or_drop <- function(x, id) {
+  tryCatch(
+    blockr_deser(x),
+    error = function(e) {
+      log_warn(
+        "Dropping block ", id, " during deserialization: ",
+        conditionMessage(e),
+        use_glue = FALSE
+      )
+      NULL
+    }
+  )
+}
+
+resolve_deser_on_error <- function(on_error) {
+  match.arg(
+    coal(on_error, blockr_option("deser_on_error", "abort")),
+    c("drop", "abort")
   )
 }
 
 #' @rdname blockr_ser
 #' @export
-blockr_deser.board <- function(x, data, ...) {
+blockr_deser.board <- function(x, data, ..., on_error = NULL) {
 
   stopifnot(
     all(c("constructor", "payload") %in% names(data))
   )
 
+  on_error <- resolve_deser_on_error(on_error)
+
   ctor <- blockr_deser(data[["constructor"]])
 
+  parts <- lapply(data[["payload"]], blockr_deser, ..., on_error = on_error)
+
+  if (identical(on_error, "drop")) {
+    parts <- drop_block_refs(parts, data[["payload"]][["blocks"]])
+  }
+
   args <- c(
-    lapply(data[["payload"]], blockr_deser),
+    parts,
     list(
       ctor = coal(ctor_name(ctor), ctor_fun(ctor)),
       pkg = ctor_pkg(ctor)
@@ -338,6 +389,37 @@ blockr_deser.board <- function(x, data, ...) {
   attr(res, "id") <- data[["id"]]
 
   res
+}
+
+drop_block_refs <- function(parts, blocks) {
+
+  dropped <- setdiff(names(blocks[["payload"]]), names(parts[["blocks"]]))
+
+  if (!length(dropped)) {
+    return(parts)
+  }
+
+  lnk <- parts[["links"]]
+  stk <- as.list(parts[["stacks"]])
+
+  before <- length(lnk) + sum(lengths(stk))
+
+  parts[["links"]] <- lnk[!links_incident(lnk, dropped)]
+
+  stk <- lapply(stk, rm_stack_members, dropped)
+  stk <- stk[lengths(stk) > 0L]
+  parts[["stacks"]] <- as_stacks(stk)
+
+  if (length(parts[["links"]]) + sum(lengths(stk)) < before) {
+    log_warn("Pruned links and stacks referencing dropped blocks.")
+  }
+
+  parts
+}
+
+rm_stack_members <- function(x, rm) {
+  stack_blocks(x) <- setdiff(stack_blocks(x), rm)
+  x
 }
 
 #' @rdname blockr_ser
