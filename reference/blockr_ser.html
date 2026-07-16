@@ -97,7 +97,7 @@ object can be re-created.</p>
 <span><span class="co"># S3 method for class 'stacks'</span></span>
 <span><span class="fu">blockr_ser</span><span class="op">(</span><span class="va">x</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">blockr_deser</span><span class="op">(</span><span class="va">x</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">blockr_deser</span><span class="op">(</span><span class="va">x</span>, <span class="va">...</span>, on_error <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'list'</span></span>
 <span><span class="fu">blockr_deser</span><span class="op">(</span><span class="va">x</span>, <span class="va">...</span><span class="op">)</span></span>
@@ -106,10 +106,10 @@ object can be re-created.</p>
 <span><span class="fu">blockr_deser</span><span class="op">(</span><span class="va">x</span>, <span class="va">data</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'blocks'</span></span>
-<span><span class="fu">blockr_deser</span><span class="op">(</span><span class="va">x</span>, <span class="va">data</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">blockr_deser</span><span class="op">(</span><span class="va">x</span>, <span class="va">data</span>, <span class="va">...</span>, on_error <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'board'</span></span>
-<span><span class="fu">blockr_deser</span><span class="op">(</span><span class="va">x</span>, <span class="va">data</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">blockr_deser</span><span class="op">(</span><span class="va">x</span>, <span class="va">data</span>, <span class="va">...</span>, on_error <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'link'</span></span>
 <span><span class="fu">blockr_deser</span><span class="op">(</span><span class="va">x</span>, <span class="va">data</span>, <span class="va">...</span><span class="op">)</span></span>
@@ -168,6 +168,20 @@ rather than aborting the save.</p></dd>
 
 <dt id="arg-board-id">board_id<a class="anchor" aria-label="anchor" href="#arg-board-id"></a></dt>
 <dd><p>Board ID</p></dd>
+
+
+<dt id="arg-on-error">on_error<a class="anchor" aria-label="anchor" href="#arg-on-error"></a></dt>
+<dd><p>How to handle a block that cannot be deserialized – its
+constructor (or the package providing it) is unavailable, its payload cannot
+be reconstructed, or the round-trip class check fails. <code>"abort"</code> (the
+default) propagates the error, while <code>"drop"</code> omits the offending block
+(emitting a warning) and continues; board deserialization then prunes any
+links and stacks that reference a dropped block, so a board referencing a
+since-retired or no-longer-installed block type still loads. Board
+deserialization resolves <code>on_error</code> once and threads it to the contained
+blocks. The default is sourced from <code>blockr_option("deser_on_error", "abort")</code>, letting a deployment opt into dropping via
+<code>options(blockr.deser_on_error = "drop")</code> or the <code>BLOCKR_DESER_ON_ERROR</code>
+environment variable.</p></dd>
 
 
 <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>

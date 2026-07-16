@@ -43,7 +43,7 @@ blockr_ser(x, ...)
 # S3 method for class 'stacks'
 blockr_ser(x, ...)
 
-blockr_deser(x, ...)
+blockr_deser(x, ..., on_error = NULL)
 
 # S3 method for class 'list'
 blockr_deser(x, ...)
@@ -52,10 +52,10 @@ blockr_deser(x, ...)
 blockr_deser(x, data, ...)
 
 # S3 method for class 'blocks'
-blockr_deser(x, data, ...)
+blockr_deser(x, data, ..., on_error = NULL)
 
 # S3 method for class 'board'
-blockr_deser(x, data, ...)
+blockr_deser(x, data, ..., on_error = NULL)
 
 # S3 method for class 'link'
 blockr_deser(x, data, ...)
@@ -113,6 +113,21 @@ blockr_deser(x, data, ...)
 - board_id:
 
   Board ID
+
+- on_error:
+
+  How to handle a block that cannot be deserialized – its constructor
+  (or the package providing it) is unavailable, its payload cannot be
+  reconstructed, or the round-trip class check fails. `"abort"` (the
+  default) propagates the error, while `"drop"` omits the offending
+  block (emitting a warning) and continues; board deserialization then
+  prunes any links and stacks that reference a dropped block, so a board
+  referencing a since-retired or no-longer-installed block type still
+  loads. Board deserialization resolves `on_error` once and threads it
+  to the contained blocks. The default is sourced from
+  `blockr_option("deser_on_error", "abort")`, letting a deployment opt
+  into dropping via `options(blockr.deser_on_error = "drop")` or the
+  `BLOCKR_DESER_ON_ERROR` environment variable.
 
 - data:
 

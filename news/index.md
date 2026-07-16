@@ -72,6 +72,19 @@
   input data are unchanged, so switching panel or view re-evaluates only
   the newly-visible block, not the entire shared upstream pipeline
   ([\#271](https://github.com/BristolMyersSquibb/blockr.core/issues/271)).
+- Board deserialization can degrade gracefully instead of aborting the
+  whole load when a block cannot be restored – its constructor or the
+  providing package is unavailable, its payload cannot be reconstructed,
+  or the round-trip class check fails.
+  [`blockr_deser()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_ser.md)
+  for `blocks` gains an `on_error` argument (`"abort"` or `"drop"`),
+  defaulting to `blockr_option("deser_on_error", "abort")` so a
+  deployment can opt into dropping offending blocks (with a warning) via
+  `options(blockr.deser_on_error = "drop")` or the
+  `BLOCKR_DESER_ON_ERROR` environment variable. Links and stacks
+  referencing a dropped block are pruned so the surrounding board still
+  loads
+  ([\#264](https://github.com/BristolMyersSquibb/blockr.core/issues/264)).
 
 ## blockr.core 0.1.3
 
