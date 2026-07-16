@@ -830,7 +830,7 @@ destroy_rm_blocks <- function(ids, rv, sess, args) {
   )
 
   for (id in ids) {
-    destroy_module(paste0("block_", id), session = sess)
+    sess$destroy(paste0("block_", id))
     remove_block_from_stack(rv$board, id, rv$board_id, sess)
   }
 
@@ -986,7 +986,7 @@ destroy_stacks <- function(ids, rv, sess) {
   stopifnot(all(lengths(rv$stacks[ids]) == 0L))
 
   for (id in ids) {
-    destroy_module(paste0("stack_", id), session = sess)
+    sess$destroy(paste0("stack_", id))
   }
 
   rv$stacks[ids] <- NULL

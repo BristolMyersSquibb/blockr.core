@@ -240,8 +240,6 @@ serve_board_srv <- function(id, default, loader, plugins, options, ...) {
 
   function(input, output, session) {
 
-    onStop(revert(trace_observe()), session)
-
     x <- resolve_board(default, loader, session$request, session, options)
     id <- coal(attr(x, "id"), id)
 
@@ -268,15 +266,6 @@ serve_board_srv <- function(id, default, loader, plugins, options, ...) {
     blockr_test_exports(x, res)
 
     invisible()
-  }
-}
-
-revert <- function(...) {
-  funs <- Filter(is.function, list(...))
-  function() {
-    invisible(
-      map(do.call, what = funs, MoreArgs = list(args = list()))
-    )
   }
 }
 

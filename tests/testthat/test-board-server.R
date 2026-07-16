@@ -1290,3 +1290,42 @@ test_that("board drops conditions of removed blocks", {
     args = list(x = board, plugins = list(manage_blocks()))
   )
 })
+
+test_that("a block re-added under a destroyed id reconstructs cleanly", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("iris"),
+      b = new_head_block()
+    ),
+    links = links(ab = new_link("a", "b", "data"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_identical(rv$eval$b(), "ready")
+      expect_identical(rv$blocks$b$server$result(), utils::head(datasets::iris))
+
+      board_update(list(blocks = list(rm = "b")))
+      session$flushReact()
+
+      expect_false("b" %in% names(rv$blocks))
+
+      board_update(
+        list(
+          blocks = list(add = c(b = new_head_block())),
+          links = list(add = links(ab2 = new_link("a", "b", "data")))
+        )
+      )
+      session$flushReact()
+
+      expect_identical(rv$eval$b(), "ready")
+      expect_identical(rv$blocks$b$server$result(), utils::head(datasets::iris))
+      expect_identical(nrow(rv$blocks$b$server$conditions()), 0L)
+    },
+    args = list(x = board, plugins = list(manage_blocks()))
+  )
+})
