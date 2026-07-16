@@ -179,3 +179,20 @@ write while frozen -- so not even the programmatic control channel can drive
 a frozen block. Upstream data still flows through, and unfreezing resumes
 normal input handling.
 }
+\section{Evaluation trigger}{
+
+\code{block_eval_trigger()} lets a block declare reactive state its evaluation
+depends on that is not visible in the block expression or its data inputs
+-- the \code{plot_block} method returns the \code{thematic} and \code{dark_mode} board
+options, so a theme change re-renders the plot. Its value joins the block's
+unchanged-inputs check: the block re-evaluates when its interpolated
+expression, its input data, \emph{or} the value returned here changes. Reading a
+reactive inside the method registers the dependency that wakes the block,
+but it is the returned value \emph{changing} -- not the method being re-run --
+that forces re-evaluation: returning a value equal to the previous one skips
+it, even if the reactives it read invalidated. To force re-evaluation on an
+event with no natural value, return a value that changes on it, such as an
+incrementing counter. The default method returns \code{NULL}, declaring no such
+dependency.
+}
+
