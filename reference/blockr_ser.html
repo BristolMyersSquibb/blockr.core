@@ -150,8 +150,12 @@ object can be re-created.</p>
 
 
 <dt id="arg-blocks">blocks<a class="anchor" aria-label="anchor" href="#arg-blocks"></a></dt>
-<dd><p>Block states (<code>NULL</code>, or a per-block <code>NULL</code> entry, defaults to
-values from the constructor scope)</p></dd>
+<dd><p>Block states keyed by block ID. A block that is <code>NULL</code>, or
+omitted from <code>blocks</code> altogether, defaults to values from its constructor
+scope. A partial snapshot is therefore valid: under deferred construction
+off-screen blocks are never built and carry no live state, so <code>blocks</code> may
+cover only the built subset – the rest serialize from their constructors
+rather than aborting the save.</p></dd>
 
 
 <dt id="arg-options">options<a class="anchor" aria-label="anchor" href="#arg-options"></a></dt>

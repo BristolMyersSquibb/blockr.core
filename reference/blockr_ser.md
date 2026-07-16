@@ -95,8 +95,12 @@ blockr_deser(x, data, ...)
 
 - blocks:
 
-  Block states (`NULL`, or a per-block `NULL` entry, defaults to values
-  from the constructor scope)
+  Block states keyed by block ID. A block that is `NULL`, or omitted
+  from `blocks` altogether, defaults to values from its constructor
+  scope. A partial snapshot is therefore valid: under deferred
+  construction off-screen blocks are never built and carry no live
+  state, so `blocks` may cover only the built subset – the rest
+  serialize from their constructors rather than aborting the save.
 
 - options:
 
