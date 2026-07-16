@@ -143,6 +143,40 @@ test_that("serialization", {
   )
 })
 
+test_that("a partial block-state snapshot serializes from constructor scope", {
+
+  blks <- blocks(
+    a = new_dataset_block("iris", "datasets"),
+    b = new_dataset_block("mtcars", "datasets")
+  )
+
+  full <- blockr_ser(
+    blks,
+    list(
+      a = list(dataset = "iris", package = "datasets"),
+      b = list(dataset = "mtcars", package = "datasets")
+    )
+  )
+
+  partial <- blockr_ser(
+    blks,
+    list(a = list(dataset = "iris", package = "datasets"))
+  )
+
+  expect_identical(partial, full)
+
+  expect_identical(
+    blks,
+    blockr_deser(partial),
+    ignore_function_env = TRUE
+  )
+
+  expect_error(
+    blockr_ser(blks, list(a = list(dataset = "iris"), z = list())),
+    "names\\(blocks\\)"
+  )
+})
+
 test_that("blockr_deser.list forwards `...` to per-class methods", {
 
   captured <- NULL

@@ -61,8 +61,12 @@ blockr_ser.block <- function(x, state = NULL, ...) {
   )
 }
 
-#' @param blocks Block states (`NULL`, or a per-block `NULL` entry, defaults to
-#' values from the constructor scope)
+#' @param blocks Block states keyed by block ID. A block that is `NULL`, or
+#' omitted from `blocks` altogether, defaults to values from its constructor
+#' scope. A partial snapshot is therefore valid: under deferred construction
+#' off-screen blocks are never built and carry no live state, so `blocks` may
+#' cover only the built subset -- the rest serialize from their constructors
+#' rather than aborting the save.
 #' @rdname blockr_ser
 #' @export
 blockr_ser.blocks <- function(x, blocks = NULL, ...) {
@@ -76,7 +80,7 @@ blockr_ser.blocks <- function(x, blocks = NULL, ...) {
     stopifnot(
       is.list(blocks),
       all(lgl_ply(blocks, function(b) is.null(b) || is.list(b))),
-      length(blocks) == length(x), setequal(names(blocks), names(x))
+      !is.null(names(blocks)), all(names(blocks) %in% names(x))
     )
 
     res <- Map(blockr_ser, x, blocks[names(x)])
