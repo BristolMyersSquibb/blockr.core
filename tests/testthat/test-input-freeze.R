@@ -56,12 +56,13 @@ new_multi_state_probe <- function(first = FALSE, second = FALSE) {
   )
 }
 
-test_that("each exposed state view tracks its own value", {
+test_that("each exposed read-only state field tracks its own value", {
 
-  # Regression: freeze_state_view() took `live`/`nm` as promises that reactive()
-  # only forced on first read, by which time the caller's `for (nm in views)`
-  # loop had finished -- so every view bound to the LAST one. Every state field
-  # then reported the last field's value, and that is what got serialized.
+  # Regression: freeze_readonly_field() took `live`/`nm` as promises that
+  # reactive() only forced on first read, by which time the caller's
+  # `for (nm in readonly)` loop had finished -- so every field bound to the
+  # LAST one. Every state field then reported the last field's value, and that
+  # is what got serialized.
 
   blk <- new_multi_state_probe()
 
