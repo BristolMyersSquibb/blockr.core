@@ -48,6 +48,15 @@
   pending user input is serviced within one tick instead of behind the
   entire backlog
   ([\#276](https://github.com/BristolMyersSquibb/blockr.core/issues/276)).
+- Captured block conditions are no longer glue-interpolated when logged,
+  so a block whose warning or error text contains braces – e.g. the
+  `{summary_fun}` / `{data}` placeholders in `tidyr::pivot_wider()`’s
+  duplicate-value warning – no longer aborts the reactive with “Failed
+  to evaluate glue component”. This extends the
+  [`notify()`](https://bristolmyerssquibb.github.io/blockr.core/reference/get_session.md)
+  toast path’s `use_glue = FALSE` treatment to the
+  `capture_conditions()` handlers and the `replay()` methods
+  ([\#268](https://github.com/BristolMyersSquibb/blockr.core/issues/268)).
 
 ## blockr.core 0.1.3
 
