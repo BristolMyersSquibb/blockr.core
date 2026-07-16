@@ -260,6 +260,24 @@ write while frozen – so not even the programmatic control channel can drive
 a frozen block. Upstream data still flows through, and unfreezing resumes
 normal input handling.</p>
     </div>
+    <div class="section level2">
+    <h2 id="evaluation-trigger">Evaluation trigger<a class="anchor" aria-label="anchor" href="#evaluation-trigger"></a></h2>
+
+
+<p><code>block_eval_trigger()</code> lets a block declare reactive state its evaluation
+depends on that is not visible in the block expression or its data inputs
+– the <code>plot_block</code> method returns the <code>thematic</code> and <code>dark_mode</code> board
+options, so a theme change re-renders the plot. Its value joins the block's
+unchanged-inputs check: the block re-evaluates when its interpolated
+expression, its input data, <em>or</em> the value returned here changes. Reading a
+reactive inside the method registers the dependency that wakes the block,
+but it is the returned value <em>changing</em> – not the method being re-run –
+that forces re-evaluation: returning a value equal to the previous one skips
+it, even if the reactives it read invalidated. To force re-evaluation on an
+event with no natural value, return a value that changes on it, such as an
+incrementing counter. The default method returns <code>NULL</code>, declaring no such
+dependency.</p>
+    </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
