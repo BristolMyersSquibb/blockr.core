@@ -2,6 +2,14 @@
 
 ## blockr.core 0.1.4
 
+- Cleanup of a removed block, stack or view now uses shiny’s public
+  `session$destroy(id)` (requires shiny \>= 1.14.0) rather than reaching
+  into undocumented shiny internals to tear down a module’s inputs,
+  outputs and observers. The exported `destroy_module()` and the
+  [`observe()`](https://rdrr.io/pkg/shiny/man/observe.html) trace hook
+  that captured per-module observers are removed; call
+  `session$destroy(id)` directly instead. Breaking
+  ([\#202](https://github.com/BristolMyersSquibb/blockr.core/issues/202)).
 - The board callback now gates block construction, evaluation and
   rendering through per-block `reactiveVal` channels it receives as
   `visibility` – `required` (which blocks are needed) and `visible`
