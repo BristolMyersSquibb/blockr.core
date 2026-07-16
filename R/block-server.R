@@ -651,7 +651,7 @@ freeze_exposed_state <- function(state, x, frozen, sess) {
   }
 
   ctrl <- intersect(fn_names, external_ctrl_vars(x))
-  views <- setdiff(fn_names, ctrl)
+  readonly <- setdiff(fn_names, ctrl)
 
   live <- state[fn_names]
 
@@ -669,14 +669,23 @@ freeze_exposed_state <- function(state, x, frozen, sess) {
     hold_ctrl_state(live[ctrl], frozen, snapshot, sess)
   }
 
-  for (nm in views) {
-    state[[nm]] <- freeze_state_view(live[[nm]], nm, frozen, snapshot, sess)
+  for (nm in readonly) {
+    state[[nm]] <- freeze_readonly_field(live[[nm]], nm, frozen, snapshot, sess)
   }
 
   state
 }
 
-freeze_state_view <- function(live, nm, frozen, snapshot, sess) {
+freeze_readonly_field <- function(live, nm, frozen, snapshot, sess) {
+
+  # `live` and `nm` MUST be forced here. The caller passes them from a
+  # `for (nm in readonly)` loop, and reactive() defers its body: without these
+  # forces the promises are only resolved on the first read, in the caller's
+  # frame, where the loop has long since finished -- so every field would bind
+  # to the LAST element of `readonly`. That aliased all of a block's state
+  # fields onto one value, which is what serialize_board() then wrote out.
+  force(live)
+  force(nm)
 
   reactive(
     if (frozen()) snapshot()[[nm]] else reval_if(live),

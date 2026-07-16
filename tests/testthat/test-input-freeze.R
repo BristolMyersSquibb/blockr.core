@@ -33,6 +33,67 @@ new_state_probe <- function(v = "published") {
   )
 }
 
+new_multi_state_probe <- function(first = FALSE, second = FALSE) {
+  new_transform_block(
+    function(id, data) {
+      moduleServer(
+        id,
+        function(input, output, session) {
+          first_rv <- reactiveVal(first)
+          second_rv <- reactiveVal(second)
+          observeEvent(input$first, first_rv(input$first))
+          observeEvent(input$second, second_rv(input$second))
+          list(
+            expr = reactive(quote(identity(data))),
+            state = list(first = first_rv, second = second_rv)
+          )
+        }
+      )
+    },
+    function(id) shiny::tagList(),
+    class = "multi_state_probe",
+    block_metadata = FALSE
+  )
+}
+
+test_that("each exposed read-only state field tracks its own value", {
+
+  # Regression: freeze_readonly_field() took `live`/`nm` as promises that
+  # reactive() only forced on first read, by which time the caller's
+  # `for (nm in readonly)` loop had finished -- so every field bound to the
+  # LAST one. Every state field then reported the last field's value, and that
+  # is what got serialized.
+
+  blk <- new_multi_state_probe()
+
+  testServer(
+    get_s3_method("block_server", blk),
+    {
+      session$flushReact()
+
+      scope <- session$makeScope("expr")
+
+      scope$setInputs(first = TRUE)
+      session$flushReact()
+
+      expect_true(reval_if(session$returned$state$first))
+      expect_false(reval_if(session$returned$state$second))
+
+      scope$setInputs(first = FALSE, second = TRUE)
+      session$flushReact()
+
+      expect_false(reval_if(session$returned$state$first))
+      expect_true(reval_if(session$returned$state$second))
+    },
+    args = list(
+      x = blk,
+      data = list(data = reactiveVal(datasets::BOD)),
+      block_id = "p",
+      visibility = make_vis("p")
+    )
+  )
+})
+
 test_that("the board exposes a per-block frozen channel", {
 
   board <- new_board(blocks = c(a = new_dataset_block("iris")))
