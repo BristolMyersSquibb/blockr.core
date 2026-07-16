@@ -678,6 +678,15 @@ freeze_exposed_state <- function(state, x, frozen, sess) {
 
 freeze_state_view <- function(live, nm, frozen, snapshot, sess) {
 
+  # `live` and `nm` MUST be forced here. The caller passes them from a
+  # `for (nm in views)` loop, and reactive() defers its body: without these
+  # forces the promises are only resolved on the first read, in the caller's
+  # frame, where the loop has long since finished -- so every view would bind
+  # to the LAST element of `views`. That aliased all of a block's state fields
+  # onto one value, which is what serialize_board() then wrote out.
+  force(live)
+  force(nm)
+
   reactive(
     if (frozen()) snapshot()[[nm]] else reval_if(live),
     domain = sess
