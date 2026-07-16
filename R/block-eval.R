@@ -53,6 +53,21 @@ pkg_export_env <- function(pkg, parent) {
   e
 }
 
+#' @section Evaluation trigger:
+#' `block_eval_trigger()` lets a block declare reactive state its evaluation
+#' depends on that is not visible in the block expression or its data inputs
+#' -- the `plot_block` method returns the `thematic` and `dark_mode` board
+#' options, so a theme change re-renders the plot. Its value joins the block's
+#' unchanged-inputs check: the block re-evaluates when its interpolated
+#' expression, its input data, *or* the value returned here changes. Reading a
+#' reactive inside the method registers the dependency that wakes the block,
+#' but it is the returned value *changing* -- not the method being re-run --
+#' that forces re-evaluation: returning a value equal to the previous one skips
+#' it, even if the reactives it read invalidated. To force re-evaluation on an
+#' event with no natural value, return a value that changes on it, such as an
+#' incrementing counter. The default method returns `NULL`, declaring no such
+#' dependency.
+#'
 #' @param session Shiny session object
 #' @rdname block_server
 #' @export

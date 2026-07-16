@@ -41,6 +41,12 @@
   no longer aborts the reactive with "Failed to evaluate glue component". This
   extends the `notify()` toast path's `use_glue = FALSE` treatment to the
   `capture_conditions()` handlers and the `replay()` methods (#268).
+* Switching the active panel or view no longer re-evaluates blocks whose needed
+  status is unchanged. Each block gates its data inputs and eval status on its
+  own per-block `needed` slot rather than the whole needed set, and skips
+  re-evaluation when its interpolated expression and input data are unchanged,
+  so switching panel or view re-evaluates only the newly-visible block, not the
+  entire shared upstream pipeline (#271).
 
 # blockr.core 0.1.3
 
