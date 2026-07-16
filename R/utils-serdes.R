@@ -254,9 +254,21 @@ blockr_ser.stacks <- function(x, ...) {
   )
 }
 
+#' @param on_error How to handle a block that cannot be deserialized -- its
+#' constructor (or the package providing it) is unavailable, its payload cannot
+#' be reconstructed, or the round-trip class check fails. `"abort"` (the
+#' default) propagates the error, while `"drop"` omits the offending block
+#' (emitting a warning) and continues; board deserialization then prunes any
+#' links and stacks that reference a dropped block, so a board referencing a
+#' since-retired or no-longer-installed block type still loads. Board
+#' deserialization resolves `on_error` once and threads it to the contained
+#' blocks. The default is sourced from `blockr_option("deser_on_error",
+#' "abort")`, letting a deployment opt into dropping via
+#' `options(blockr.deser_on_error = "drop")` or the `BLOCKR_DESER_ON_ERROR`
+#' environment variable.
 #' @rdname blockr_ser
 #' @export
-blockr_deser <- function(x, ...) {
+blockr_deser <- function(x, ..., on_error = NULL) {
   UseMethod("blockr_deser")
 }
 
@@ -307,21 +319,9 @@ blockr_deser.block <- function(x, data, ...) {
   do.call(ctor_fun(ctor), args)
 }
 
-#' @param on_error How to handle a block that cannot be deserialized -- its
-#' constructor (or the package providing it) is unavailable, its payload cannot
-#' be reconstructed, or the round-trip class check fails. `"abort"` (the
-#' default) propagates the error, while `"drop"` omits the offending block
-#' (emitting a warning) and continues; board deserialization then prunes any
-#' links and stacks that reference a dropped block, so a board referencing a
-#' since-retired or no-longer-installed block type still loads. Board
-#' deserialization resolves `on_error` once and threads it to the contained
-#' blocks. The default is sourced from `blockr_option("deser_on_error",
-#' "abort")`, letting a deployment opt into dropping via
-#' `options(blockr.deser_on_error = "drop")` or the `BLOCKR_DESER_ON_ERROR`
-#' environment variable.
 #' @rdname blockr_ser
 #' @export
-blockr_deser.blocks <- function(x, data, on_error = NULL, ...) {
+blockr_deser.blocks <- function(x, data, ..., on_error = NULL) {
 
   on_error <- resolve_deser_on_error(on_error)
 
@@ -360,7 +360,7 @@ resolve_deser_on_error <- function(on_error) {
 
 #' @rdname blockr_ser
 #' @export
-blockr_deser.board <- function(x, data, on_error = NULL, ...) {
+blockr_deser.board <- function(x, data, ..., on_error = NULL) {
 
   stopifnot(
     all(c("constructor", "payload") %in% names(data))
@@ -370,7 +370,7 @@ blockr_deser.board <- function(x, data, on_error = NULL, ...) {
 
   ctor <- blockr_deser(data[["constructor"]])
 
-  parts <- lapply(data[["payload"]], blockr_deser, on_error = on_error, ...)
+  parts <- lapply(data[["payload"]], blockr_deser, ..., on_error = on_error)
 
   if (identical(on_error, "drop")) {
     parts <- drop_block_refs(parts, data[["payload"]][["blocks"]])
@@ -404,7 +404,7 @@ drop_block_refs <- function(parts, blocks) {
 
   before <- length(lnk) + sum(lengths(stk))
 
-  parts[["links"]] <- lnk[!(lnk$from %in% dropped) & !(lnk$to %in% dropped)]
+  parts[["links"]] <- lnk[!links_incident(lnk, dropped)]
 
   stk <- lapply(stk, rm_stack_members, dropped)
   stk <- stk[lengths(stk) > 0L]

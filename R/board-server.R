@@ -894,7 +894,7 @@ destroy_rm_blocks <- function(ids, rv, sess, args) {
 
   update_block_links(
     rv,
-    rm = links[links$from %in% ids | links$to %in% ids]
+    rm = links[links_incident(links, ids)]
   )
 
   for (id in ids) {
@@ -1659,7 +1659,7 @@ augment_board_update.board <- function(upd, board, ...,
     links <- board_links(board)
 
     mis_lnk <- setdiff(
-      names(links[links$from %in% rm | links$to %in% rm]),
+      names(links[links_incident(links, rm)]),
       upd$links$rm
     )
 
