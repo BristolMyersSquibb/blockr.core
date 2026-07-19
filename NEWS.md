@@ -63,6 +63,13 @@
   `options(blockr.deser_on_error = "drop")` or the `BLOCKR_DESER_ON_ERROR`
   environment variable. Links and stacks referencing a dropped block are
   pruned so the surrounding board still loads (#264).
+* A `links$mod` board update that changes a link to a different value (for
+  example switching a `merge_block`'s input from `x` to `y`) now applies
+  instead of being silently discarded. Folding the modified link into the
+  `add` accumulator with base `c()` dropped the `links` class when the
+  accumulator was empty, so the downstream link setup ran without its
+  `to`/`input` arguments and aborted with `missing subscript`, rolling back
+  the whole update; it now concatenates with `vec_c()` (#287).
 
 # blockr.core 0.1.3
 

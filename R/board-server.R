@@ -1791,7 +1791,7 @@ apply_core_board_update <- function(rv, upd, session,
     cur_lnks <- board_links(rv$board)[names(upd$links$mod)]
     merged <- as_links(Map(update_link, cur_lnks, upd$links$mod))
 
-    upd$links$add <- c(upd$links$add, merged)
+    upd$links$add <- vec_c(upd$links$add, merged)
     upd$links$rm <- c(upd$links$rm, names(upd$links$mod))
   }
 
