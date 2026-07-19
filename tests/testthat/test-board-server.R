@@ -452,6 +452,35 @@ test_that("links$mod accepts partial-args deltas via update_link", {
   )
 })
 
+test_that("links$mod applies a value-changing delta (keeps links class)", {
+
+  board <- new_board(
+    blocks = c(a = new_dataset_block("iris"), m = new_merge_block()),
+    links = links(l1 = new_link("a", "m", "x"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      board_update(
+        list(links = list(mod = list(l1 = list(input = "y"))))
+      )
+
+      session$flushReact()
+
+      lnks <- board_links(rv$board)
+
+      expect_identical(names(lnks), "l1")
+      expect_identical(lnks$input, "y")
+      expect_identical(lnks$from, "a")
+      expect_identical(lnks$to, "m")
+    },
+    args = list(x = board)
+  )
+})
+
 test_that("stacks$mod merges deltas onto current stack via update_stack", {
 
   board <- new_board(
