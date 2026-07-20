@@ -22,6 +22,14 @@ test_that("scetter plot block constructor", {
 
       expect_identical(session$returned$state$x(), "Sepal.Length")
       expect_identical(session$returned$state$y(), "Sepal.Width")
+
+      expect_identical(
+        session$returned$expr(),
+        quote(
+          plot(.(data)[["Sepal.Length"]], .(data)[["Sepal.Width"]],
+               xlab = "Sepal.Length", ylab = "Sepal.Width")
+        )
+      )
     },
     args = list(data = function() iris)
   )
