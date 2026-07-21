@@ -27,7 +27,6 @@ Roxygen: list(markdown = TRUE, packages = c("roxy.shinylive"), roclets =
     c("collate", "namespace", "rd", "blockr.core::block_registration_roclet"))
 Imports:
     shiny (>= 1.14.0),
-    DT,
     bslib,
     bsicons,
     datasets,
@@ -62,7 +61,8 @@ Suggests:
     thematic,
     ids,
     ellmer,
-    tibble
+    tibble,
+    DT
 Config/testthat/edition: 3
 VignetteBuilder: quarto
 Collate:

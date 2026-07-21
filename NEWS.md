@@ -14,6 +14,11 @@
   and `tabular_board_options()` methods on a `tabular_display` sub-class and
   having users opt in via the option. Breaking for front-ends that relied on
   the DT preview by default (#129).
+* `DT` moves from Imports to Suggests. It now backs only the opt-in
+  `dt_display` preview and the `manage_links` / `manage_stacks` reference
+  plugins -- which typical front-ends (e.g. blockr.dock) replace with their
+  own UI -- so a bare core install no longer pulls it in. Install `DT`
+  alongside if you use either (#129).
 * Cleanup of a removed block, stack or view now uses shiny's public
   `session$destroy(id)` (requires shiny >= 1.14.0) rather than reaching into
   undocumented shiny internals to tear down a module's inputs, outputs and
