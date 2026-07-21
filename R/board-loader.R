@@ -95,22 +95,22 @@ is_board_loader <- function(x) {
 
 reload_param <- "__blockr_reload__"
 
+resolve_query <- function(request, session) {
+
+  search <- if (is.null(session)) {
+    request[["QUERY_STRING"]]
+  } else {
+    isolate(session$clientData$url_search)
+  }
+
+  parseQueryString(coal(search, ""))
+}
+
 #' @rdname board_loader
 #' @export
 local_loader <- function() {
 
   store <- new.env(parent = emptyenv())
-
-  read_query <- function(request, session) {
-
-    search <- if (is.null(session)) {
-      request[["QUERY_STRING"]]
-    } else {
-      isolate(session$clientData$url_search)
-    }
-
-    parseQueryString(coal(search, ""))
-  }
 
   query_string <- function(query) {
 
@@ -126,7 +126,7 @@ local_loader <- function() {
 
   write_token <- function(session, token) {
 
-    query <- read_query(NULL, session)
+    query <- resolve_query(NULL, session)
     query[[reload_param]] <- token
 
     updateQueryString(query_string(query), mode = "replace", session = session)
@@ -134,7 +134,7 @@ local_loader <- function() {
 
   resolve <- function(request, session, default) {
 
-    token <- read_query(request, session)[[reload_param]]
+    token <- resolve_query(request, session)[[reload_param]]
 
     if (is.null(token)) {
       return(NULL)
