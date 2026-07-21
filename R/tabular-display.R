@@ -139,7 +139,7 @@ tabular_trigger.minimal_display <- function(x, session) {
 
 #' @export
 tabular_options.minimal_display <- function(x, ...) {
-  combine_board_options(new_n_rows_option(...))
+  combine_board_options(new_n_rows_option(blockr_option("n_rows", 10L), ...))
 }
 
 #' @export

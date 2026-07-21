@@ -44,6 +44,15 @@ test_that("tabular options are display-specific board_options", {
     names(tabular_options(dt_display)),
     c("n_rows", "page_size", "filter_rows")
   )
+
+  expect_equal(
+    board_option_value(tabular_options(minimal_display)[["n_rows"]]),
+    10L
+  )
+  expect_equal(
+    board_option_value(tabular_options(dt_display)[["n_rows"]]),
+    50L
+  )
 })
 
 test_that("the minimal display renders a tibble preview and triggers", {
