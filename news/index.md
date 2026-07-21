@@ -30,6 +30,23 @@
   replace with their own UI – so a bare core install no longer pulls it
   in. Install `DT` alongside if you use either
   ([\#129](https://github.com/BristolMyersSquibb/blockr.core/issues/129)).
+- A board’s
+  [`blockr_app_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
+  and
+  [`blockr_app_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
+  methods now receive the request’s parsed URL query parameters as a
+  `query` argument, at both the GET and the websocket phase. A board
+  subclass reads it to make the rendered UI and the server URL-aware
+  from one source – for example opening on the view named by `?view=` –
+  so the initial render and the server agree without a custom loader.
+  The default `board` methods ignore it. Breaking for front-ends: a
+  [`blockr_app_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
+  /
+  [`blockr_app_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
+  method that forwards its `...` into the returned UI must add a `query`
+  formal, or the threaded argument lands in `...` and renders as stray
+  content
+  ([\#291](https://github.com/BristolMyersSquibb/blockr.core/issues/291)).
 - Cleanup of a removed block, stack or view now uses shiny’s public
   `session$destroy(id)` (requires shiny \>= 1.14.0) rather than reaching
   into undocumented shiny internals to tear down a module’s inputs,

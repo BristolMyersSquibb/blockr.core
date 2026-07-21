@@ -82,9 +82,9 @@ purposes during block development) or an entire board</p>
 <span></span>
 <span><span class="fu">custom_options</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">blockr_app_ui</span><span class="op">(</span><span class="va">id</span>, <span class="va">x</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">blockr_app_ui</span><span class="op">(</span><span class="va">id</span>, <span class="va">x</span>, <span class="va">...</span>, query <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">blockr_app_server</span><span class="op">(</span><span class="va">id</span>, <span class="va">x</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">blockr_app_server</span><span class="op">(</span><span class="va">id</span>, <span class="va">x</span>, <span class="va">...</span>, query <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">blockr_test_exports</span><span class="op">(</span><span class="va">x</span>, <span class="va">rv</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -120,6 +120,14 @@ purposes during block development) or an entire board</p>
 <dt id="arg-loader">loader<a class="anchor" aria-label="anchor" href="#arg-loader"></a></dt>
 <dd><p>A <code><a href="board_loader.html">board_loader()</a></code> resolving the board to build for each
 request; defaults to <code><a href="board_loader.html">local_loader()</a></code>, the in-process save/restore handoff</p></dd>
+
+
+<dt id="arg-query">query<a class="anchor" aria-label="anchor" href="#arg-query"></a></dt>
+<dd><p>Parsed URL query parameters (a named list) for the incoming
+request, passed to <code>blockr_app_ui()</code> and <code>blockr_app_server()</code> at both the
+GET and the websocket phase. A board subclass method reads it to make the
+rendered UI and the server URL-aware – for example picking an initial view
+from <code>query[["view"]]</code>; the default methods ignore it.</p></dd>
 
 
 <dt id="arg-rv">rv<a class="anchor" aria-label="anchor" href="#arg-rv"></a></dt>
