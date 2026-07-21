@@ -298,6 +298,66 @@ test_that("a user-changed block-backed board option survives save/restore", {
   )
 })
 
+test_that("resolve_query reads the query at both request phases", {
+
+  get <- resolve_query(list(QUERY_STRING = "view=sales&tab=2"), NULL)
+  expect_identical(get[["view"]], "sales")
+  expect_identical(get[["tab"]], "2")
+
+  ws <- resolve_query(NULL, list(clientData = list(url_search = "?view=sales")))
+  expect_identical(ws[["view"]], "sales")
+
+  expect_length(resolve_query(list(), NULL), 0L)
+  expect_length(
+    resolve_query(NULL, list(clientData = list(url_search = ""))),
+    0L
+  )
+})
+
+test_that("serve_board_ui threads the request query to blockr_app_ui", {
+
+  seen <- NULL
+
+  local_mocked_bindings(
+    blockr_app_ui = function(id, x, ..., query = list()) {
+      seen <<- query
+      NULL
+    }
+  )
+
+  ui <- serve_board_ui(
+    "app", new_board(), local_loader(), blockr_app_plugins, blockr_app_options
+  )
+  ui(list(QUERY_STRING = "view=sales&tab=2"))
+
+  expect_identical(seen[["view"]], "sales")
+  expect_identical(seen[["tab"]], "2")
+})
+
+test_that("serve_board_srv threads the session query to blockr_app_server", {
+
+  seen <- NULL
+
+  local_mocked_bindings(
+    resolve_query = function(request, session) {
+      if (is.null(session)) list() else list(view = "ops")
+    },
+    blockr_app_server = function(id, x, ..., query = list()) {
+      seen <<- query
+      list()
+    },
+    blockr_test_exports = function(x, rv, ...) invisible()
+  )
+
+  srv <- serve_board_srv(
+    "app", new_board(), local_loader(), blockr_app_plugins, blockr_app_options
+  )
+
+  testServer(srv, session$flushReact())
+
+  expect_identical(seen[["view"]], "ops")
+})
+
 test_that("preserve_board return validation", {
 
   with_mock_session(

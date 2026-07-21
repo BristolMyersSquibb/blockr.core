@@ -191,14 +191,19 @@ custom_options <- function(x) {
   }
 }
 
+#' @param query Parsed URL query parameters (a named list) for the incoming
+#' request, passed to `blockr_app_ui()` and `blockr_app_server()` at both the
+#' GET and the websocket phase. A board subclass method reads it to make the
+#' rendered UI and the server URL-aware -- for example picking an initial view
+#' from `query[["view"]]`; the default methods ignore it.
 #' @rdname serve
 #' @export
-blockr_app_ui <- function(id, x, ...) {
+blockr_app_ui <- function(id, x, ..., query = list()) {
   UseMethod("blockr_app_ui", x)
 }
 
 #' @export
-blockr_app_ui.board <- function(id, x, ...) {
+blockr_app_ui.board <- function(id, x, ..., query = list()) {
   bslib::page_fluid(
     theme = bslib::bs_theme(version = 5),
     board_ui(id, x, ...)
@@ -207,12 +212,12 @@ blockr_app_ui.board <- function(id, x, ...) {
 
 #' @rdname serve
 #' @export
-blockr_app_server <- function(id, x, ...) {
+blockr_app_server <- function(id, x, ..., query = list()) {
   UseMethod("blockr_app_server", x)
 }
 
 #' @export
-blockr_app_server.board <- function(id, x, ...) {
+blockr_app_server.board <- function(id, x, ..., query = list()) {
   board_server(id, x, ...)
 }
 
@@ -229,7 +234,15 @@ serve_board_ui <- function(id, default, loader, plugins, options, ...) {
 
     do.call(
       blockr_app_ui,
-      c(list(id, x, plugins = plugins(x), options = options(x)), args)
+      c(
+        list(
+          id, x,
+          query = resolve_query(request, NULL),
+          plugins = plugins(x),
+          options = options(x)
+        ),
+        args
+      )
     )
   }
 }
@@ -245,7 +258,15 @@ serve_board_srv <- function(id, default, loader, plugins, options, ...) {
 
     res <- do.call(
       blockr_app_server,
-      c(list(id, x, plugins = plugins(x), options = options(x)), args)
+      c(
+        list(
+          id, x,
+          query = resolve_query(session$request, session),
+          plugins = plugins(x),
+          options = options(x)
+        ),
+        args
+      )
     )
 
     board_refresh <- res[["board_refresh"]]

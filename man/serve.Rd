@@ -34,9 +34,9 @@ blockr_app_options(x)
 
 custom_options(x)
 
-blockr_app_ui(id, x, ...)
+blockr_app_ui(id, x, ..., query = list())
 
-blockr_app_server(id, x, ...)
+blockr_app_server(id, x, ..., query = list())
 
 blockr_test_exports(x, rv, ...)
 }
@@ -55,6 +55,12 @@ blockr_test_exports(x, rv, ...)
 
 \item{loader}{A \code{\link[=board_loader]{board_loader()}} resolving the board to build for each
 request; defaults to \code{\link[=local_loader]{local_loader()}}, the in-process save/restore handoff}
+
+\item{query}{Parsed URL query parameters (a named list) for the incoming
+request, passed to \code{blockr_app_ui()} and \code{blockr_app_server()} at both the
+GET and the websocket phase. A board subclass method reads it to make the
+rendered UI and the server URL-aware -- for example picking an initial view
+from \code{query[["view"]]}; the default methods ignore it.}
 
 \item{rv}{Board \code{\link[shiny:reactiveValues]{shiny::reactiveValues()}}}
 }
