@@ -9,11 +9,13 @@
 #' then fails to honor, or render through DT while its container is plain text.
 #'
 #' The active display is resolved from the `blockr.tabular_display` option (via
-#' [blockr_option()]) and defaults to `minimal_display`, a compact tibble
-#' preview of the top rows. `dt_display` reinstates the paginated, searchable
-#' DT table. Downstream packages provide further displays by defining methods
-#' for the four generics on their own `tabular_display` sub-class and having
-#' users opt in with `options(blockr.tabular_display = <display>)`.
+#' [blockr_option()]) and defaults to `minimal_display`, a compact preview of
+#' the top rows (tibble-formatted when the suggested tibble package is
+#' installed, base `print()` otherwise). `dt_display` reinstates the paginated,
+#' searchable DT table. Downstream packages provide further displays by
+#' defining methods for the four generics on their own `tabular_display`
+#' sub-class and having users opt in with
+#' `options(blockr.tabular_display = <display>)`.
 #'
 #' @param subclass Display sub-class string
 #' @param x Tabular display object
@@ -96,10 +98,15 @@ tabular_output.minimal_display <- function(x, result, block, session) {
   rows <- get_board_option_or_default("n_rows", board_options(block), session)
 
   renderPrint(
-    tibble::as_tibble(
-      as.data.frame(utils::head(result, rows)),
-      .name_repair = "minimal"
-    )
+    {
+      dat <- as.data.frame(utils::head(result, rows))
+
+      if (tibble_available()) {
+        tibble::as_tibble(dat, .name_repair = "minimal")
+      } else {
+        dat
+      }
+    }
   )
 }
 
@@ -145,6 +152,10 @@ tabular_options.dt_display <- function(x, ...) {
     new_page_size_option(...),
     new_filter_rows_option(...)
   )
+}
+
+tibble_available <- function() {
+  requireNamespace("tibble", quietly = TRUE)
 }
 
 dt_result <- function(result, block, session) {

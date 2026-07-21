@@ -65,9 +65,11 @@ then fails to honor, or render through DT while its container is plain text.
 }
 \details{
 The active display is resolved from the \code{blockr.tabular_display} option (via
-\code{\link[=blockr_option]{blockr_option()}}) and defaults to \code{minimal_display}, a compact tibble
-preview of the top rows. \code{dt_display} reinstates the paginated, searchable
-DT table. Downstream packages provide further displays by defining methods
-for the four generics on their own \code{tabular_display} sub-class and having
-users opt in with \verb{options(blockr.tabular_display = <display>)}.
+\code{\link[=blockr_option]{blockr_option()}}) and defaults to \code{minimal_display}, a compact preview of
+the top rows (tibble-formatted when the suggested tibble package is
+installed, base \code{print()} otherwise). \code{dt_display} reinstates the paginated,
+searchable DT table. Downstream packages provide further displays by
+defining methods for the four generics on their own \code{tabular_display}
+sub-class and having users opt in with
+\verb{options(blockr.tabular_display = <display>)}.
 }

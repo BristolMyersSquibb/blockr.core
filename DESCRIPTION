@@ -37,7 +37,6 @@ Imports:
     utils,
     jsonlite,
     vctrs,
-    tibble,
     generics,
     rlang,
     htmltools,
@@ -62,7 +61,8 @@ Suggests:
     scoutbaR,
     thematic,
     ids,
-    ellmer
+    ellmer,
+    tibble
 Config/testthat/edition: 3
 VignetteBuilder: quarto
 Collate:

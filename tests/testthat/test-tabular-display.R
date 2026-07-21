@@ -61,6 +61,22 @@ test_that("the minimal display renders a tibble preview and triggers", {
   )
 })
 
+test_that("the minimal display falls back to base print without tibble", {
+
+  local_mocked_bindings(tibble_available = function() FALSE)
+
+  blk <- new_dataset_block("iris")
+
+  with_mock_session(
+    {
+      out <- tabular_output(minimal_display, iris, blk, session)()
+
+      expect_no_match(out, "A tibble")
+      expect_match(out, "Sepal.Length")
+    }
+  )
+})
+
 test_that("the dt display renders and triggers when active", {
 
   withr::local_options(blockr.tabular_display = dt_display)
