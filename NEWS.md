@@ -6,14 +6,14 @@
   one object. The active display is read from the `blockr.tabular_display`
   option (via `blockr_option()`) and defaults to `minimal_display`, a
   compact preview of the top `n_rows` rows (tibble-formatted when the
-  suggested tibble package is installed). Set
-  `options(blockr.tabular_display = dt_display)` to restore the previous
-  paginated, searchable DT table. Data, parser and transform blocks render
-  through whichever display is active; downstream packages add their own by
-  defining `tabular_ui()`, `tabular_output()`, `tabular_render_trigger()`
-  and `tabular_board_options()` methods on a `tabular_display` sub-class and
-  having users opt in via the option. Breaking for front-ends that relied on
-  the DT preview by default (#129).
+  suggested tibble package is installed) that reflows to the width of its
+  panel. Set `options(blockr.tabular_display = dt_display)` to restore the
+  previous paginated, searchable DT table. Data, parser and transform
+  blocks render through whichever display is active; downstream packages
+  add their own by defining `tabular_ui()`, `tabular_output()`,
+  `tabular_trigger()` and `tabular_options()` methods on a `tabular_display`
+  sub-class and having users opt in via the option. Breaking for front-ends
+  that relied on the DT preview by default (#129).
 * `DT` moves from Imports to Suggests. It now backs only the opt-in
   `dt_display` preview and the `manage_links` / `manage_stacks` reference
   plugins -- which typical front-ends (e.g. blockr.dock) replace with their

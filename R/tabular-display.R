@@ -89,7 +89,18 @@ tabular_options <- function(x, ...) {
 
 #' @export
 tabular_ui.minimal_display <- function(x, id) {
-  verbatimTextOutput(id)
+  tagList(
+    tagAppendAttributes(
+      verbatimTextOutput(id),
+      class = "blockr-minimal-preview"
+    ),
+    htmltools::htmlDependency(
+      "blockr-minimal-preview",
+      pkg_version(),
+      src = pkg_file("assets", "js"),
+      script = "minimalPreviewWidth.js"
+    )
+  )
 }
 
 #' @export
@@ -97,15 +108,20 @@ tabular_output.minimal_display <- function(x, result, block, session) {
 
   rows <- get_board_option_or_default("n_rows", board_options(block), session)
 
-  renderPrint(
+  renderText(
     {
       dat <- as.data.frame(utils::head(result, rows))
 
-      if (tibble_available()) {
+      val <- if (tibble_available()) {
         tibble::as_tibble(dat, .name_repair = "minimal")
       } else {
         dat
       }
+
+      old <- options(width = minimal_preview_width(session))
+      on.exit(options(old), add = TRUE)
+
+      paste(utils::capture.output(print(val)), collapse = "\n")
     }
   )
 }
@@ -152,6 +168,13 @@ tabular_options.dt_display <- function(x, ...) {
     new_page_size_option(...),
     new_filter_rows_option(...)
   )
+}
+
+minimal_preview_width <- function(session, default = getOption("width", 80L)) {
+
+  cols <- session$input[["result_cols"]]
+
+  if (is.null(cols)) default else max(20L, as.integer(cols))
 }
 
 tibble_available <- function() {

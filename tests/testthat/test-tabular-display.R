@@ -33,7 +33,7 @@ test_that("block board options follow the active display", {
 
 test_that("tabular ui dispatches on the active display", {
 
-  expect_s3_class(tabular_ui(minimal_display, "id"), "shiny.tag")
+  expect_s3_class(tabular_ui(minimal_display, "id"), "shiny.tag.list")
   expect_s3_class(tabular_ui(dt_display, "id"), "shiny.tag.list")
 })
 
