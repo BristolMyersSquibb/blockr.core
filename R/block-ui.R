@@ -26,10 +26,9 @@
 #' @return Both `expr_ui()` and `block_ui()` are expected to return shiny UI
 #' (e.g. objects wrapped in a [shiny::tagList()]). For rendering the UI,
 #' `block_output()` is required to return the result of a shiny render function.
-#' For example, a transform block might show the resulting `data.frame` as an
-#' HTML table using the DT package. The corresponding `block_ui()` function
-#' would then contain UI created by [DT::dataTableOutput()] and rendering in
-#' `block_output()` would then be handled by [DT::renderDT()].
+#' For example, a plot block returns UI created by [shiny::plotOutput()] from
+#' `block_ui()`, with the matching [shiny::renderPlot()] returned by
+#' `block_output()`.
 #'
 #' @export
 block_ui <- function(id, x, ...) {

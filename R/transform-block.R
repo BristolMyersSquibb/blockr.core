@@ -22,25 +22,26 @@ new_transform_block <- function(server, ui, class, ctor = sys.parent(), ...) {
 
 #' @export
 block_output.transform_block <- function(x, result, session) {
-  dt_result(result, x, session)
+  tabular_output(tabular_display(), result, x, session)
 }
 
 #' @export
 block_ui.transform_block <- function(id, x, ...) {
   tagList(
-    DT::dataTableOutput(NS(id, "result"))
+    tabular_ui(tabular_display(), NS(id, "result"))
   )
 }
 
 #' @export
-block_render_trigger.transform_block <- dt_render_trigger
+#' @include tabular-display.R
+block_render_trigger.transform_block <- function(x, session = get_session()) {
+  tabular_trigger(tabular_display(), session)
+}
 
 #' @export
 board_options.transform_block <- function(x, ...) {
   combine_board_options(
-    new_n_rows_option(...),
-    new_page_size_option(...),
-    new_filter_rows_option(...),
+    tabular_options(tabular_display(), ...),
     NextMethod()
   )
 }

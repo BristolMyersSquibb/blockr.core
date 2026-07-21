@@ -98,6 +98,7 @@ reference:
   - board_loader
   - export_code
   - str_value
+  - tabular-display
   - chr_ply
   - set_names
   - is_scalar

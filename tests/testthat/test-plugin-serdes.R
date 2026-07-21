@@ -355,7 +355,7 @@ test_that("block-contributed board options survive save/restore", {
     get_s3_method("board_server", brd),
     {
       session$flushReact()
-      session$setInputs(page_size = "25")
+      session$setInputs(n_rows = "25")
       session$flushReact()
 
       ser_deser <- session$makeScope("preserve_board")
@@ -370,9 +370,9 @@ test_that("block-contributed board options survive save/restore", {
 
   restored <- blockr_deser(read_json(temp))
 
-  expect_true("page_size" %in% board_option_ids(restored))
+  expect_true("n_rows" %in% board_option_ids(restored))
   expect_identical(
-    board_option_value(blockr_app_options(restored)[["page_size"]]),
+    board_option_value(blockr_app_options(restored)[["n_rows"]]),
     25L
   )
 })
