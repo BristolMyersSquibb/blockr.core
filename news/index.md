@@ -94,6 +94,14 @@
   its `to`/`input` arguments and aborted with `missing subscript`,
   rolling back the whole update; it now concatenates with `vec_c()`
   ([\#287](https://github.com/BristolMyersSquibb/blockr.core/issues/287)).
+- A [`req()`](https://rdrr.io/pkg/shiny/man/req.html) – or any silent
+  flow-control throw with an empty message – evaluated while a block’s
+  conditions are captured is no longer recorded as a block error, so a
+  block that is merely not currently needed no longer flashes a
+  text-less red error band (and a false error count) in deployed apps.
+  Empty-message conditions are filtered by emptiness rather than class,
+  so a `validate(need(x, "msg"))` message still surfaces
+  ([\#289](https://github.com/BristolMyersSquibb/blockr.core/issues/289)).
 
 ## blockr.core 0.1.3
 
