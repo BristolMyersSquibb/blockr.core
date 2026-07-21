@@ -136,10 +136,9 @@ the output to be displayed by the UI portion defined via <code>block_ui()</code>
     <p>Both <code>expr_ui()</code> and <code>block_ui()</code> are expected to return shiny UI
 (e.g. objects wrapped in a <code><a href="https://rstudio.github.io/htmltools/reference/tagList.html" class="external-link">shiny::tagList()</a></code>). For rendering the UI,
 <code>block_output()</code> is required to return the result of a shiny render function.
-For example, a transform block might show the resulting <code>data.frame</code> as an
-HTML table using the DT package. The corresponding <code>block_ui()</code> function
-would then contain UI created by <code><a href="https://rdrr.io/pkg/DT/man/dataTableOutput.html" class="external-link">DT::dataTableOutput()</a></code> and rendering in
-<code>block_output()</code> would then be handled by <code><a href="https://rdrr.io/pkg/DT/man/dataTableOutput.html" class="external-link">DT::renderDT()</a></code>.</p>
+For example, a plot block returns UI created by <code><a href="https://rdrr.io/pkg/shiny/man/plotOutput.html" class="external-link">shiny::plotOutput()</a></code> from
+<code>block_ui()</code>, with the matching <code><a href="https://rdrr.io/pkg/shiny/man/renderPlot.html" class="external-link">shiny::renderPlot()</a></code> returned by
+<code>block_output()</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

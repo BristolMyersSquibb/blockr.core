@@ -447,6 +447,17 @@ Various tools and utilities.
 - [`str_value()`](https://bristolmyerssquibb.github.io/blockr.core/reference/str_value.md)
   : Compact rendering
 
+- [`new_tabular_display()`](https://bristolmyerssquibb.github.io/blockr.core/reference/tabular-display.md)
+  [`minimal_display`](https://bristolmyerssquibb.github.io/blockr.core/reference/tabular-display.md)
+  [`dt_display`](https://bristolmyerssquibb.github.io/blockr.core/reference/tabular-display.md)
+  [`is_tabular_display()`](https://bristolmyerssquibb.github.io/blockr.core/reference/tabular-display.md)
+  [`tabular_display()`](https://bristolmyerssquibb.github.io/blockr.core/reference/tabular-display.md)
+  [`tabular_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/tabular-display.md)
+  [`tabular_output()`](https://bristolmyerssquibb.github.io/blockr.core/reference/tabular-display.md)
+  [`tabular_trigger()`](https://bristolmyerssquibb.github.io/blockr.core/reference/tabular-display.md)
+  [`tabular_options()`](https://bristolmyerssquibb.github.io/blockr.core/reference/tabular-display.md)
+  : Tabular result display
+
 - [`chr_ply()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
   [`lgl_ply()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)
   [`int_ply()`](https://bristolmyerssquibb.github.io/blockr.core/reference/chr_ply.md)

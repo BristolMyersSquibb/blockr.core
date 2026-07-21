@@ -2,6 +2,34 @@
 
 ## blockr.core 0.1.4
 
+- Block result previews now dispatch through a *tabular display*: an S3
+  object bundling the output container, render function, render trigger
+  and board options for a single result class, kept in sync by living on
+  one object. The active display is read from the
+  `blockr.tabular_display` option (via
+  [`blockr_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_option.md))
+  and defaults to `minimal_display`, a compact preview of the top
+  `n_rows` rows (tibble-formatted when the suggested tibble package is
+  installed) that reflows to the width of its panel. Set
+  `options(blockr.tabular_display = dt_display)` to restore the previous
+  paginated, searchable DT table. Data, parser and transform blocks
+  render through whichever display is active; downstream packages add
+  their own by defining
+  [`tabular_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/tabular-display.md),
+  [`tabular_output()`](https://bristolmyerssquibb.github.io/blockr.core/reference/tabular-display.md),
+  [`tabular_trigger()`](https://bristolmyerssquibb.github.io/blockr.core/reference/tabular-display.md)
+  and
+  [`tabular_options()`](https://bristolmyerssquibb.github.io/blockr.core/reference/tabular-display.md)
+  methods on a `tabular_display` sub-class and having users opt in via
+  the option. Breaking for front-ends that relied on the DT preview by
+  default
+  ([\#129](https://github.com/BristolMyersSquibb/blockr.core/issues/129)).
+- `DT` moves from Imports to Suggests. It now backs only the opt-in
+  `dt_display` preview and the `manage_links` / `manage_stacks`
+  reference plugins – which typical front-ends (e.g. blockr.dock)
+  replace with their own UI – so a bare core install no longer pulls it
+  in. Install `DT` alongside if you use either
+  ([\#129](https://github.com/BristolMyersSquibb/blockr.core/issues/129)).
 - Cleanup of a removed block, stack or view now uses shiny’s public
   `session$destroy(id)` (requires shiny \>= 1.14.0) rather than reaching
   into undocumented shiny internals to tear down a module’s inputs,
