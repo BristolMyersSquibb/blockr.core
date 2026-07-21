@@ -118,7 +118,11 @@ tabular_output.minimal_display <- function(x, result, block, session) {
         dat
       }
 
-      old <- options(width = minimal_preview_width(session))
+      old <- options(
+        width = minimal_preview_width(session),
+        tibble.print_max = rows,
+        tibble.print_min = rows
+      )
       on.exit(options(old), add = TRUE)
 
       paste(utils::capture.output(print(val)), collapse = "\n")

@@ -56,6 +56,9 @@ test_that("the minimal display renders a tibble preview and triggers", {
       expect_type(render, "closure")
       expect_match(render(), "A tibble")
 
+      # n_rows (default 50) drives the visible rows, not tibble's own cap
+      expect_no_match(render(), "more rows")
+
       expect_silent(tabular_trigger(minimal_display, session))
     }
   )
