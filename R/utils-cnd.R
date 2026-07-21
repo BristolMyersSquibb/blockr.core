@@ -179,10 +179,22 @@ warn_handler <- function(cond, conds) {
 err_handler <- function(cond, conds, err_val = NULL) {
   stopifnot(is.environment(cond), is.character(conds))
   function(e) {
+
+    msg <- fmt_cnd_msg(e)
+
+    # Silent flow-control throws (req()) carry an empty message; recording one
+    # as an error paints a text-less red band. Gate on emptiness, not class:
+    # validate(need(x, "msg")) is also a shiny.silent.error and must surface.
+    if (all(!nzchar(msg))) {
+      return(err_val)
+    }
+
     if ("error" %in% conds) {
       cond$error <- list(as_blk_cnd(e))
     }
-    log_error(fmt_cnd_msg(e), use_glue = FALSE)
+
+    log_error(msg, use_glue = FALSE)
+
     err_val
   }
 }

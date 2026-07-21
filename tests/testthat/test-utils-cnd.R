@@ -78,6 +78,49 @@ test_that("conditions", {
   expect_identical(cnd, as_blk_cnd(cnd))
 })
 
+test_that("empty-message flow-control throws are not recorded as errors", {
+
+  # A req() / silent flow-control throw carries an empty message and must not
+  # be recorded as an error (it would paint a text-less red band). The
+  # discriminator is emptiness, not class -- validate(need(x, "msg")) is the
+  # same shiny.silent.error class and must keep surfacing.
+  with_mock_session(
+    {
+      vals <- reactiveValues(test = NULL)
+
+      res <- withr::with_options(
+        list(blockr.show_conditions = c("warning", "error")),
+        capture_conditions(
+          req(FALSE),
+          rv = vals,
+          slot = "test",
+          error_val = NULL
+        )
+      )
+
+      expect_null(res)
+      expect_length(vals$test$error, 0L)
+
+      res <- withr::with_options(
+        list(blockr.show_conditions = c("warning", "error")),
+        capture_conditions(
+          validate(need(FALSE, "Column not found")),
+          rv = vals,
+          slot = "test",
+          error_val = NULL
+        )
+      )
+
+      expect_null(res)
+      expect_length(vals$test$error, 1L)
+      expect_identical(
+        cnd_message(vals$test$error[[1L]]),
+        "Column not found"
+      )
+    }
+  )
+})
+
 test_that("captured condition messages with braces do not glue-interpolate", {
 
   # tidyr::pivot_wider() emits duplicate-value warnings whose text contains
