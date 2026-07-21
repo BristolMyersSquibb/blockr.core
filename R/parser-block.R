@@ -29,13 +29,13 @@ new_parser_block <- function(server, ui, class, ctor = sys.parent(),
 
 #' @export
 block_output.parser_block <- function(x, result, session) {
-  dt_result(result, x, session)
+  tabular_output(tabular_display(), result, x, session)
 }
 
 #' @export
 block_ui.parser_block <- function(id, x, ...) {
   tagList(
-    DT::dataTableOutput(NS(id, "result"))
+    tabular_ui(tabular_display(), NS(id, "result"))
   )
 }
 
@@ -44,15 +44,15 @@ is_file <- function(file) {
 }
 
 #' @export
-#' @include utils-dt.R
-block_render_trigger.parser_block <- dt_render_trigger
+#' @include tabular-display.R
+block_render_trigger.parser_block <- function(x, session = get_session()) {
+  tabular_render_trigger(tabular_display(), session)
+}
 
 #' @export
 board_options.parser_block <- function(x, ...) {
   combine_board_options(
-    new_n_rows_option(...),
-    new_page_size_option(...),
-    new_filter_rows_option(...),
+    tabular_board_options(tabular_display(), ...),
     NextMethod()
   )
 }

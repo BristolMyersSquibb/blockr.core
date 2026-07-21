@@ -82,7 +82,7 @@ Collate:
     'board-plugins.R'
     'board-server.R'
     'board-ui.R'
-    'utils-dt.R'
+    'tabular-display.R'
     'data-block.R'
     'data-dataset.R'
     'data-static.R'

@@ -1,5 +1,18 @@
 # blockr.core 0.1.4
 
+* Block result previews now dispatch through a *tabular display*: an S3
+  object bundling the output container, render function, render trigger
+  and board options for a single result class, kept in sync by living on
+  one object. The active display is read from the `blockr.tabular_display`
+  option (via `blockr_option()`) and defaults to `minimal_display`, a
+  dependency-free preview of the top `n_rows` rows. Set
+  `options(blockr.tabular_display = dt_display)` to restore the previous
+  paginated, searchable DT table. Data, parser and transform blocks render
+  through whichever display is active; downstream packages add their own by
+  defining `tabular_ui()`, `tabular_output()`, `tabular_render_trigger()`
+  and `tabular_board_options()` methods on a `tabular_display` sub-class and
+  having users opt in via the option. Breaking for front-ends that relied on
+  the DT preview by default (#129).
 * Cleanup of a removed block, stack or view now uses shiny's public
   `session$destroy(id)` (requires shiny >= 1.14.0) rather than reaching into
   undocumented shiny internals to tear down a module's inputs, outputs and
