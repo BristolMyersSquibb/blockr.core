@@ -79,10 +79,6 @@ reference:
     - new_transform_block
     - new_plot_block
     - new_text_block
-- subtitle: Result display
-  desc: How data, parser and transform blocks preview their result.
-  contents:
-    - tabular-display
 - title: Utilities
 - subtitle: Serialization
   desc: Serialization and deserialization utilities.
@@ -102,6 +98,7 @@ reference:
   - board_loader
   - export_code
   - str_value
+  - tabular-display
   - chr_ply
   - set_names
   - is_scalar

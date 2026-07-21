@@ -5,7 +5,7 @@
   and board options for a single result class, kept in sync by living on
   one object. The active display is read from the `blockr.tabular_display`
   option (via `blockr_option()`) and defaults to `minimal_display`, a
-  dependency-free preview of the top `n_rows` rows. Set
+  compact tibble preview of the top `n_rows` rows. Set
   `options(blockr.tabular_display = dt_display)` to restore the previous
   paginated, searchable DT table. Data, parser and transform blocks render
   through whichever display is active; downstream packages add their own by

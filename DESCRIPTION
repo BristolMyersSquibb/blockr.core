@@ -37,6 +37,7 @@ Imports:
     utils,
     jsonlite,
     vctrs,
+    tibble,
     generics,
     rlang,
     htmltools,

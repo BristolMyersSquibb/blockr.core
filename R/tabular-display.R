@@ -3,13 +3,13 @@
 #' How a data, parser or transform block previews its result is governed by a
 #' *tabular display*: an S3 object selecting a coherent set of methods for the
 #' output container (`tabular_ui()`), the render function (`tabular_output()`),
-#' the render trigger (`tabular_render_trigger()`) and the board options the
-#' preview relies on (`tabular_board_options()`). Bundling all four on one
+#' the render trigger (`tabular_trigger()`) and the board options the
+#' preview relies on (`tabular_options()`). Bundling all four on one
 #' object keeps them in sync: a display cannot declare a `page_size` option it
 #' then fails to honor, or render through DT while its container is plain text.
 #'
 #' The active display is resolved from the `blockr.tabular_display` option (via
-#' [blockr_option()]) and defaults to `minimal_display`, a dependency-free
+#' [blockr_option()]) and defaults to `minimal_display`, a compact tibble
 #' preview of the top rows. `dt_display` reinstates the paginated, searchable
 #' DT table. Downstream packages provide further displays by defining methods
 #' for the four generics on their own `tabular_display` sub-class and having
@@ -26,9 +26,9 @@
 #' @return `new_tabular_display()` and `tabular_display()` return a
 #' `tabular_display` object and `is_tabular_display()` a boolean.
 #' `tabular_ui()` returns shiny UI, `tabular_output()` the result of a shiny
-#' render function, `tabular_render_trigger()` is called for its reactive side
+#' render function, `tabular_trigger()` is called for its reactive side
 #' effect (invisibly returning the option values it depends on) and
-#' `tabular_board_options()` a [board_options][new_board_options] set.
+#' `tabular_options()` a [board_options][new_board_options] set.
 #'
 #' @name tabular-display
 #' @export
@@ -75,14 +75,14 @@ tabular_output <- function(x, result, block, session) {
 
 #' @rdname tabular-display
 #' @export
-tabular_render_trigger <- function(x, session) {
-  UseMethod("tabular_render_trigger")
+tabular_trigger <- function(x, session) {
+  UseMethod("tabular_trigger")
 }
 
 #' @rdname tabular-display
 #' @export
-tabular_board_options <- function(x, ...) {
-  UseMethod("tabular_board_options")
+tabular_options <- function(x, ...) {
+  UseMethod("tabular_options")
 }
 
 #' @export
@@ -95,19 +95,24 @@ tabular_output.minimal_display <- function(x, result, block, session) {
 
   rows <- get_board_option_or_default("n_rows", board_options(block), session)
 
-  renderPrint(utils::head(result, rows))
+  renderPrint(
+    tibble::as_tibble(
+      as.data.frame(utils::head(result, rows)),
+      .name_repair = "minimal"
+    )
+  )
 }
 
 #' @export
-tabular_render_trigger.minimal_display <- function(x, session) {
+tabular_trigger.minimal_display <- function(x, session) {
   invisible(
     get_board_option_values("n_rows", if_not_found = "null", session = session)
   )
 }
 
 #' @export
-tabular_board_options.minimal_display <- function(x, ...) {
-  new_n_rows_option(...)
+tabular_options.minimal_display <- function(x, ...) {
+  combine_board_options(new_n_rows_option(...))
 }
 
 #' @export
@@ -121,7 +126,7 @@ tabular_output.dt_display <- function(x, result, block, session) {
 }
 
 #' @export
-tabular_render_trigger.dt_display <- function(x, session) {
+tabular_trigger.dt_display <- function(x, session) {
   invisible(
     get_board_option_values(
       "n_rows",
@@ -134,7 +139,7 @@ tabular_render_trigger.dt_display <- function(x, session) {
 }
 
 #' @export
-tabular_board_options.dt_display <- function(x, ...) {
+tabular_options.dt_display <- function(x, ...) {
   combine_board_options(
     new_n_rows_option(...),
     new_page_size_option(...),

@@ -35,13 +35,13 @@ block_ui.transform_block <- function(id, x, ...) {
 #' @export
 #' @include tabular-display.R
 block_render_trigger.transform_block <- function(x, session = get_session()) {
-  tabular_render_trigger(tabular_display(), session)
+  tabular_trigger(tabular_display(), session)
 }
 
 #' @export
 board_options.transform_block <- function(x, ...) {
   combine_board_options(
-    tabular_board_options(tabular_display(), ...),
+    tabular_options(tabular_display(), ...),
     NextMethod()
   )
 }
