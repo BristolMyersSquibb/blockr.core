@@ -13,6 +13,11 @@
 \alias{arg_enum}
 \alias{arg_array}
 \alias{arg_object}
+\alias{new_block_arg}
+\alias{new_block_args}
+\alias{block_arg_description}
+\alias{block_arg_example}
+\alias{block_arg_type}
 \title{Argument specifications}
 \usage{
 new_arg_spec(description = NULL, example = NULL, type = NULL)
@@ -38,6 +43,16 @@ arg_enum(values, description = NULL, required = TRUE)
 arg_array(items, description = NULL, required = TRUE)
 
 arg_object(..., description = NULL, required = TRUE)
+
+new_block_arg(description = NULL, example = NULL, type = NULL)
+
+new_block_args(...)
+
+block_arg_description(x, ...)
+
+block_arg_example(x, ...)
+
+block_arg_type(x, ...)
 }
 \arguments{
 \item{description}{Human- and model-facing description of an argument value}
@@ -100,6 +115,11 @@ supplied as a list via the \code{examples} argument of \code{\link[=register_blo
 supersede that assembly; combining multiple per-argument examples is
 intentionally not supported, as there is no safe way to form coherent
 whole-block configurations from them.
+
+The former block-prefixed names -- \code{new_block_arg()}, \code{new_block_args()},
+\code{block_arg_description()}, \code{block_arg_example()} and \code{block_arg_type()} --
+remain as deprecated wrappers that warn once and forward to the functions
+above; update calls to the \code{arg_spec} family.
 }
 \examples{
 new_arg_specs(

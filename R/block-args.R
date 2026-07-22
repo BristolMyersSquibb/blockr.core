@@ -33,6 +33,11 @@
 #' intentionally not supported, as there is no safe way to form coherent
 #' whole-block configurations from them.
 #'
+#' The former block-prefixed names -- `new_block_arg()`, `new_block_args()`,
+#' `block_arg_description()`, `block_arg_example()` and `block_arg_type()` --
+#' remain as deprecated wrappers that warn once and forward to the functions
+#' above; update calls to the `arg_spec` family.
+#'
 #' @param description Human- and model-facing description of an argument value
 #' @param example A single worked value for an argument (or `NULL`)
 #' @param type Optional machine-readable type for the argument, built with the
@@ -537,5 +542,49 @@ conforms_object <- function(value, schema) {
       seq_along(value),
       function(i) conforms_to(value[[i]], props[[nms[[i]]]])
     )
+  )
+}
+
+#' @rdname new_arg_spec
+#' @export
+new_block_arg <- function(description = NULL, example = NULL, type = NULL) {
+  deprecate_arg_spec("new_block_arg", "new_arg_spec")
+  new_arg_spec(description = description, example = example, type = type)
+}
+
+#' @rdname new_arg_spec
+#' @export
+new_block_args <- function(...) {
+  deprecate_arg_spec("new_block_args", "new_arg_specs")
+  new_arg_specs(...)
+}
+
+#' @rdname new_arg_spec
+#' @export
+block_arg_description <- function(x, ...) {
+  deprecate_arg_spec("block_arg_description", "arg_spec_description")
+  arg_spec_description(x, ...)
+}
+
+#' @rdname new_arg_spec
+#' @export
+block_arg_example <- function(x, ...) {
+  deprecate_arg_spec("block_arg_example", "arg_spec_example")
+  arg_spec_example(x, ...)
+}
+
+#' @rdname new_arg_spec
+#' @export
+block_arg_type <- function(x, ...) {
+  deprecate_arg_spec("block_arg_type", "arg_spec_type")
+  arg_spec_type(x, ...)
+}
+
+deprecate_arg_spec <- function(old, new) {
+  blockr_warn(
+    "`{old}()` is deprecated; use `{new}()` instead.",
+    class = "deprecated_arg_spec",
+    frequency = "once",
+    frequency_id = paste0("blockr_deprecated_", old)
   )
 }

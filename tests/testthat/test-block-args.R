@@ -57,6 +57,54 @@ test_that("as_arg_specs dispatches by input type", {
   expect_error(as_arg_spec(1L))
 })
 
+test_that("deprecated block_arg aliases warn once and forward", {
+
+  withr::local_options(rlib_warning_verbosity = "verbose")
+
+  expect_warning(
+    a <- new_block_arg("rows", example = 10L),
+    class = "deprecated_arg_spec"
+  )
+  expect_s3_class(a, "arg_spec")
+  expect_identical(arg_spec_description(a), "rows")
+
+  expect_warning(
+    spec <- new_block_args(n = new_arg_spec("rows")),
+    class = "deprecated_arg_spec"
+  )
+  expect_s3_class(spec, "arg_specs")
+
+  expect_warning(
+    desc <- block_arg_description(new_arg_spec("rows")),
+    class = "deprecated_arg_spec"
+  )
+  expect_identical(desc, "rows")
+
+  expect_warning(
+    block_arg_example(new_arg_spec("x", example = 1L)),
+    class = "deprecated_arg_spec"
+  )
+  expect_warning(
+    block_arg_type(new_arg_spec("x", type = arg_integer())),
+    class = "deprecated_arg_spec"
+  )
+
+  withr::defer(unregister_blocks("ut_dep_arg"))
+
+  expect_warning(
+    register_block(
+      new_head_block,
+      name = "t",
+      description = "t",
+      uid = "ut_dep_arg",
+      arguments = new_block_args(direction = "head or tail")
+    ),
+    class = "deprecated_arg_spec"
+  )
+
+  expect_true("ut_dep_arg" %in% list_blocks())
+})
+
 test_that("bare and empty arguments normalize without warning", {
 
   expect_silent(
