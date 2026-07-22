@@ -233,7 +233,7 @@ new_demo_block <- function() NULL
   )
 })
 
-test_that("YAML arguments become a block_args spec, examples included", {
+test_that("YAML arguments become an arg_specs collection, examples included", {
 
   expect_identical(yaml_block_arguments(list()), character())
   expect_identical(yaml_block_arguments(list(arguments = list())), character())
@@ -250,18 +250,18 @@ test_that("YAML arguments become a block_args spec, examples included", {
     )
   )
 
-  expect_s3_class(spec, "block_args")
-  expect_identical(block_arg_description(spec[["x"]]), "d")
-  expect_identical(block_arg_example(spec[["x"]]), "e")
-  expect_identical(block_arg_type(spec[["x"]]), list(type = "integer"))
+  expect_s3_class(spec, "arg_specs")
+  expect_identical(arg_spec_description(spec[["x"]]), "d")
+  expect_identical(arg_spec_example(spec[["x"]]), "e")
+  expect_identical(arg_spec_type(spec[["x"]]), list(type = "integer"))
 
   desc_only <- yaml_block_arguments(
     list(arguments = list(x = list(description = "d")))
   )
 
-  expect_identical(block_arg_description(desc_only[["x"]]), "d")
-  expect_null(block_arg_example(desc_only[["x"]]))
-  expect_null(block_arg_type(desc_only[["x"]]))
+  expect_identical(arg_spec_description(desc_only[["x"]]), "d")
+  expect_null(arg_spec_example(desc_only[["x"]]))
+  expect_null(arg_spec_type(desc_only[["x"]]))
 })
 
 test_that("register_package_blocks is a no-op when no registry ships", {
@@ -291,10 +291,10 @@ test_that("register_package_blocks registers a subset and keeps examples", {
   args <- block_meta_arguments("dataset_block")
 
   expect_identical(
-    block_arg_description(args[["dataset"]]),
+    arg_spec_description(args[["dataset"]]),
     "Selects the dataset to use."
   )
-  expect_identical(block_arg_example(args[["dataset"]]), "iris")
+  expect_identical(arg_spec_example(args[["dataset"]]), "iris")
 
   expect_error(
     register_package_blocks(package = "blockr.core", which = "not_a_block")
@@ -336,9 +336,9 @@ test_that("core blocks register with types, guidance and keywords", {
 
   args <- block_meta_arguments("head_block")
 
-  expect_identical(block_arg_type(args[["n"]])[["type"]], "integer")
+  expect_identical(arg_spec_type(args[["n"]])[["type"]], "integer")
 
-  direction <- block_arg_type(args[["direction"]])
+  direction <- arg_spec_type(args[["direction"]])
   expect_identical(direction[["type"]], "string")
   expect_identical(as.character(direction[["enum"]]), c("head", "tail"))
 
@@ -346,8 +346,8 @@ test_that("core blocks register with types, guidance and keywords", {
   expect_gt(length(block_meta_keywords("head_block")), 0L)
 
   merge_args <- block_meta_arguments("merge_block")
-  expect_identical(block_arg_type(merge_args[["by"]])[["type"]], "array")
-  expect_identical(block_arg_type(merge_args[["all_x"]])[["type"]], "boolean")
+  expect_identical(arg_spec_type(merge_args[["by"]])[["type"]], "array")
+  expect_identical(arg_spec_type(merge_args[["all_x"]])[["type"]], "boolean")
 
   expect_true(is_string(block_meta_details("dataset_block")))
   expect_match(

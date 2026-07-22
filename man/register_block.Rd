@@ -69,7 +69,7 @@ blocks are uncategorized.}
 
 \item{icon}{Icon}
 
-\item{arguments}{Block argument specification, either a \code{\link[=new_block_args]{new_block_args()}}
+\item{arguments}{Block argument specification, either a \code{\link[=new_arg_specs]{new_arg_specs()}}
 object or a (possibly empty) named character vector of argument
 descriptions}
 
@@ -96,7 +96,7 @@ discovery, retrieved with \code{\link[=block_metadata]{block_metadata()}}}
 \item{block}{Block object}
 
 \item{...}{For \code{register_blocks()}, arguments forwarded to
-\code{register_block()}; for \code{new_block_args()}, named \code{new_block_arg()} objects
+\code{register_block()}; for \code{new_arg_specs()}, named \code{new_arg_spec()} objects
 (or strings), one per constructor formal}
 
 \item{blocks}{Character vector of registry IDs}
@@ -120,7 +120,7 @@ returns a character vector and a list of \code{block_registry_entry} object(s) f
 \code{available_blocks()}. \code{create_block()} returns a newly instantiated \code{block}
 object. A block's registered metadata is read with \code{\link[=block_metadata]{block_metadata()}} and the
 \verb{block_meta_*()} accessors, and its argument specification is built and read
-with \code{\link[=new_block_arg]{new_block_arg()}} and friends.
+with \code{\link[=new_arg_spec]{new_arg_spec()}} and friends.
 }
 \description{
 Listing of blocks is available via a block registry, which associates a block

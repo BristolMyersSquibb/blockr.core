@@ -38,7 +38,7 @@ block_registry <- new.env()
 #' @param category Useful to sort blocks by topics. If not specified,
 #'   blocks are uncategorized.
 #' @param icon Icon
-#' @param arguments Block argument specification, either a [new_block_args()]
+#' @param arguments Block argument specification, either a [new_arg_specs()]
 #'   object or a (possibly empty) named character vector of argument
 #'   descriptions
 #' @param details Optional longer human-facing description (e.g. for a help
@@ -74,7 +74,7 @@ block_registry <- new.env()
 #' `available_blocks()`. `create_block()` returns a newly instantiated `block`
 #' object. A block's registered metadata is read with [block_metadata()] and the
 #' `block_meta_*()` accessors, and its argument specification is built and read
-#' with [new_block_arg()] and friends.
+#' with [new_arg_spec()] and friends.
 #'
 #' @export
 register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
@@ -137,7 +137,7 @@ register_block <- function(ctor, name, description, classes = NULL, uid = NULL,
   ctor_ref <- if (is.null(ctor_name)) ctor else ctor_name
   ctor_pkg <- if (is.null(ctor_name)) NULL else package
 
-  user_spec <- is_block_args(arguments)
+  user_spec <- is_arg_specs(arguments)
   validate <- user_spec || length(examples) > 0L
 
   if (is.null(classes) || is.null(arguments) || validate) {
@@ -321,7 +321,7 @@ unregister_blocks <- function(uid = list_blocks()) {
 }
 
 #' @param ... For `register_blocks()`, arguments forwarded to
-#'   `register_block()`; for `new_block_args()`, named `new_block_arg()` objects
+#'   `register_block()`; for `new_arg_specs()`, named `new_arg_spec()` objects
 #'   (or strings), one per constructor formal
 #' @rdname register_block
 #' @export
@@ -507,10 +507,10 @@ yaml_block_arguments <- function(entry) {
   }
 
   do.call(
-    new_block_args,
+    new_arg_specs,
     lapply(
       args,
-      function(a) new_block_arg(a[["description"]], a[["example"]], a[["type"]])
+      function(a) new_arg_spec(a[["description"]], a[["example"]], a[["type"]])
     )
   )
 }

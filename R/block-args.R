@@ -1,15 +1,17 @@
-#' Block argument specification
+#' Argument specifications
 #'
-#' Block constructor arguments can be documented with a structured
-#' specification: each argument via `new_block_arg()` (a `description`, a single
+#' The named arguments of a constructor can be documented with a structured
+#' specification: each argument via `new_arg_spec()` (a `description`, a single
 #' worked `example`, and an optional machine-readable `type`), collected with
-#' `new_block_args()`. A bare named character vector of descriptions, and the
+#' `new_arg_specs()`. A bare named character vector of descriptions, and the
 #' empty `character()`, are also accepted and normalized into this form, so
-#' existing registrations are unaffected. A single argument's fields are read
-#' back with `block_arg_description()`, `block_arg_example()` and
-#' `block_arg_type()`; block-level metadata (the whole argument set, worked
-#' examples, guidance and keywords) is tabulated across blocks via
-#' [block_metadata()].
+#' existing specifications are unaffected. A single argument's fields are read
+#' back with `arg_spec_description()`, `arg_spec_example()` and
+#' `arg_spec_type()`. Blocks are the primary consumer -- a block's constructor
+#' arguments are specified via the `arguments` parameter of [register_block()]
+#' and tabulated across blocks via [block_metadata()] -- but nothing here is
+#' block-specific, and the same machinery documents the named formals of any
+#' constructor.
 #'
 #' An argument's `type` is described with a small, dependency-free subset of
 #' JSON Schema, built with the `arg_*()` constructors: `arg_string()`,
@@ -23,7 +25,7 @@
 #' Semantic intent (e.g. "a column in the upstream data", "an R expression") is
 #' carried in `description`, not in the type vocabulary.
 #'
-#' The complete worked configuration of a block is the assembly of its
+#' For a block, the complete worked configuration is the assembly of its
 #' per-argument examples, keyed by argument name. When arguments interact, or
 #' several few-shot examples are wanted, complete configurations are instead
 #' supplied as a list via the `examples` argument of [register_block()] and
@@ -36,24 +38,24 @@
 #' @param type Optional machine-readable type for the argument, built with the
 #'   `arg_*()` descriptor constructors. A plain JSON-Schema-subset list; worked
 #'   examples are validated against it
-#' @param x A `block_arg` object, or a bare string taken as its description
+#' @param x An `arg_spec` object, or a bare string taken as its description
 #' @param values Allowed string values, for `arg_enum()`
 #' @param items Element descriptor, for `arg_array()`
 #' @param required Whether the field is required, when nested in an
 #'   `arg_object()`
-#' @param ... For `new_block_args()`, the per-argument `block_arg` objects (or
+#' @param ... For `new_arg_specs()`, the per-argument `arg_spec` objects (or
 #'   bare description strings); for `arg_object()`, the named field descriptors;
-#'   ignored by the `block_arg_*()` getters
+#'   ignored by the `arg_spec_*()` getters
 #'
 #' @return
-#' `new_block_arg()` returns a `block_arg` and `new_block_args()` a `block_args`
+#' `new_arg_spec()` returns an `arg_spec` and `new_arg_specs()` an `arg_specs`
 #' collection. The `arg_*()` constructors each return a plain JSON-Schema node
-#' (a list). The `block_arg_*()` getters return the corresponding field of a
+#' (a list). The `arg_spec_*()` getters return the corresponding field of a
 #' single argument (resolving a bare description string too).
 #'
 #' @examples
-#' new_block_args(
-#'   n = new_block_arg(
+#' new_arg_specs(
+#'   n = new_arg_spec(
 #'     "Number of rows to return",
 #'     example = 5L,
 #'     type = arg_integer()
@@ -67,75 +69,75 @@
 #'   operator = arg_enum(c("&", "|"))
 #' )
 #'
-#' @name new_block_arg
+#' @name new_arg_spec
 #' @export
-new_block_arg <- function(description = NULL, example = NULL, type = NULL) {
+new_arg_spec <- function(description = NULL, example = NULL, type = NULL) {
 
   if (not_null(description) && !is_string(description)) {
     blockr_abort(
-      "A block argument `description` must be a string or `NULL`.",
-      class = "block_arg_invalid"
+      "An argument `description` must be a string or `NULL`.",
+      class = "arg_spec_invalid"
     )
   }
 
   structure(
     list(description = description, example = example, type = type),
-    class = "block_arg"
+    class = "arg_spec"
   )
 }
 
-#' @rdname new_block_arg
+#' @rdname new_arg_spec
 #' @export
-new_block_args <- function(...) {
-  as_block_args(list(...))
+new_arg_specs <- function(...) {
+  as_arg_specs(list(...))
 }
 
-block_args_obj <- function(x) {
-  structure(x, class = "block_args")
+arg_specs_obj <- function(x) {
+  structure(x, class = "arg_specs")
 }
 
-is_block_args <- function(x) inherits(x, "block_args")
+is_arg_specs <- function(x) inherits(x, "arg_specs")
 
-as_block_arg <- function(x, ...) {
-  UseMethod("as_block_arg")
+as_arg_spec <- function(x, ...) {
+  UseMethod("as_arg_spec")
 }
 
 #' @export
-as_block_arg.block_arg <- function(x, ...) {
+as_arg_spec.arg_spec <- function(x, ...) {
   x
 }
 
 #' @export
-as_block_arg.character <- function(x, ...) {
-  new_block_arg(description = x)
+as_arg_spec.character <- function(x, ...) {
+  new_arg_spec(description = x)
 }
 
-as_block_args <- function(x, ...) {
-  UseMethod("as_block_args")
+as_arg_specs <- function(x, ...) {
+  UseMethod("as_arg_specs")
 }
 
 #' @export
-as_block_args.block_args <- function(x, ...) {
+as_arg_specs.arg_specs <- function(x, ...) {
   x
 }
 
 #' @export
-as_block_args.list <- function(x, ...) {
+as_arg_specs.list <- function(x, ...) {
 
   nms <- names(x)
 
   if (length(x) && (is.null(nms) || any(!nzchar(nms)))) {
     blockr_abort(
-      "Every block argument must be named after a constructor formal.",
-      class = "block_args_unnamed"
+      "Every argument must be named after a constructor formal.",
+      class = "arg_specs_unnamed"
     )
   }
 
-  block_args_obj(lapply(x, as_block_arg))
+  arg_specs_obj(lapply(x, as_arg_spec))
 }
 
 #' @export
-as_block_args.character <- function(x, ...) {
+as_arg_specs.character <- function(x, ...) {
 
   examples <- attr(x, "examples")
 
@@ -149,13 +151,13 @@ as_block_args.character <- function(x, ...) {
     lapply(
       nms,
       function(nm) {
-        new_block_arg(description = x[[nm]], example = examples[[nm]])
+        new_arg_spec(description = x[[nm]], example = examples[[nm]])
       }
     ),
     nms
   )
 
-  block_args_obj(spec)
+  arg_specs_obj(spec)
 }
 
 normalize_arguments <- function(arguments, guidance) {
@@ -168,7 +170,7 @@ normalize_arguments <- function(arguments, guidance) {
   }
 
   list(
-    arguments = as_block_args(arguments),
+    arguments = as_arg_specs(arguments),
     guidance = coal(guidance, prompt, fail_all = FALSE)
   )
 }
@@ -292,7 +294,7 @@ as_legacy_arguments <- function(args, guidance, examples_list) {
 deprecate_legacy_arg_attrs <- function() {
   blockr_warn(
     "Passing block metadata as `examples`/`prompt` attributes on `arguments` ",
-    "is deprecated; use `new_block_args()` / `new_block_arg()` and the ",
+    "is deprecated; use `new_arg_specs()` / `new_arg_spec()` and the ",
     "`guidance` argument of `register_block()` instead.",
     class = "deprecated_arg_attrs",
     frequency = "once",
@@ -300,79 +302,79 @@ deprecate_legacy_arg_attrs <- function() {
   )
 }
 
-#' @rdname new_block_arg
+#' @rdname new_arg_spec
 #' @export
-block_arg_description <- function(x, ...) {
-  UseMethod("block_arg_description")
+arg_spec_description <- function(x, ...) {
+  UseMethod("arg_spec_description")
 }
 
 #' @export
-block_arg_description.block_arg <- function(x, ...) {
+arg_spec_description.arg_spec <- function(x, ...) {
   x[["description"]]
 }
 
 #' @export
-block_arg_description.default <- function(x, ...) {
-  block_arg_description(as_block_arg(x), ...)
+arg_spec_description.default <- function(x, ...) {
+  arg_spec_description(as_arg_spec(x), ...)
 }
 
-#' @rdname new_block_arg
+#' @rdname new_arg_spec
 #' @export
-block_arg_example <- function(x, ...) {
-  UseMethod("block_arg_example")
+arg_spec_example <- function(x, ...) {
+  UseMethod("arg_spec_example")
 }
 
 #' @export
-block_arg_example.block_arg <- function(x, ...) {
+arg_spec_example.arg_spec <- function(x, ...) {
   x[["example"]]
 }
 
 #' @export
-block_arg_example.default <- function(x, ...) {
-  block_arg_example(as_block_arg(x), ...)
+arg_spec_example.default <- function(x, ...) {
+  arg_spec_example(as_arg_spec(x), ...)
 }
 
-#' @rdname new_block_arg
+#' @rdname new_arg_spec
 #' @export
-block_arg_type <- function(x, ...) {
-  UseMethod("block_arg_type")
+arg_spec_type <- function(x, ...) {
+  UseMethod("arg_spec_type")
 }
 
 #' @export
-block_arg_type.block_arg <- function(x, ...) {
+arg_spec_type.arg_spec <- function(x, ...) {
   x[["type"]]
 }
 
 #' @export
-block_arg_type.default <- function(x, ...) {
-  block_arg_type(as_block_arg(x), ...)
+arg_spec_type.default <- function(x, ...) {
+  arg_spec_type(as_arg_spec(x), ...)
 }
 
-#' @rdname new_block_arg
+#' @rdname new_arg_spec
 #' @export
 arg_string <- function(description = NULL, required = TRUE) {
   arg_node(list(type = "string", description = description), required)
 }
 
-#' @rdname new_block_arg
+#' @rdname new_arg_spec
 #' @export
 arg_number <- function(description = NULL, required = TRUE) {
   arg_node(list(type = "number", description = description), required)
 }
 
-#' @rdname new_block_arg
+#' @rdname new_arg_spec
 #' @export
 arg_integer <- function(description = NULL, required = TRUE) {
   arg_node(list(type = "integer", description = description), required)
 }
 
-#' @rdname new_block_arg
+#' @rdname new_arg_spec
 #' @export
 arg_boolean <- function(description = NULL, required = TRUE) {
   arg_node(list(type = "boolean", description = description), required)
 }
 
-#' @rdname new_block_arg
+#' @rdname new_arg_spec
 #' @export
 arg_enum <- function(values, description = NULL, required = TRUE) {
 
@@ -389,7 +391,7 @@ arg_enum <- function(values, description = NULL, required = TRUE) {
   )
 }
 
-#' @rdname new_block_arg
+#' @rdname new_arg_spec
 #' @export
 arg_array <- function(items, description = NULL, required = TRUE) {
   arg_node(
@@ -398,7 +400,7 @@ arg_array <- function(items, description = NULL, required = TRUE) {
   )
 }
 
-#' @rdname new_block_arg
+#' @rdname new_arg_spec
 #' @export
 arg_object <- function(..., description = NULL, required = TRUE) {
 
