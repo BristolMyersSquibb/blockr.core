@@ -61,6 +61,6 @@ block_meta_examples(x, ...)
 
 `block_metadata()` returns a `data.frame`. The `block_meta_*()` getters
 return the named attribute: a string (or `NA`) for scalar fields, a
-character vector for `block_meta_keywords()`, a `block_args` object for
+character vector for `block_meta_keywords()`, an `arg_specs` object for
 `block_meta_arguments()`, and a list of worked configurations for
 `block_meta_examples()`.

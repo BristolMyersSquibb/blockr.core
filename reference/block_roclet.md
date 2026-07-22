@@ -74,7 +74,7 @@ Placed in the roxygen block above a block constructor:
   (each on its own line) supply an R expression – evaluated when
   documentation is generated – for a worked example value and an
   `arg_*()` type descriptor (see
-  [`new_block_arg()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md)).
+  [`new_arg_spec()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_arg_spec.md)).
   An explicit `[description] <text>` marker may replace the inline
   description. Optional and repeatable.
 

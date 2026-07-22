@@ -83,7 +83,7 @@ register_package_blocks(which = "all", package = pkg_name(), overwrite = TRUE)
 - arguments:
 
   Block argument specification, either a
-  [`new_block_args()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md)
+  [`new_arg_specs()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_arg_spec.md)
   object or a (possibly empty) named character vector of argument
   descriptions
 
@@ -131,9 +131,9 @@ register_package_blocks(which = "all", package = pkg_name(), overwrite = TRUE)
 
   For `register_blocks()`, arguments forwarded to `register_block()`;
   for
-  [`new_block_args()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md),
+  [`new_arg_specs()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_arg_spec.md),
   named
-  [`new_block_arg()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md)
+  [`new_arg_spec()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_arg_spec.md)
   objects (or strings), one per constructor formal
 
 - blocks:
@@ -169,7 +169,7 @@ instantiated `block` object. A block's registered metadata is read with
 [`block_metadata()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_metadata.md)
 and the `block_meta_*()` accessors, and its argument specification is
 built and read with
-[`new_block_arg()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md)
+[`new_arg_spec()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_arg_spec.md)
 and friends.
 
 ## Details

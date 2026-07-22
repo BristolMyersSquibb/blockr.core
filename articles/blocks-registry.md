@@ -187,7 +187,7 @@ available_blocks()[["dummy_block"]]
 #> attr(,"arguments")
 #> named list()
 #> attr(,"class")
-#> [1] "block_args"
+#> [1] "arg_specs"
 #> attr(,"examples")
 #> list()
 #> attr(,"class")

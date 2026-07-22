@@ -147,6 +147,38 @@
   Empty-message conditions are filtered by emptiness rather than class,
   so a `validate(need(x, "msg"))` message still surfaces
   ([\#289](https://github.com/BristolMyersSquibb/blockr.core/issues/289)).
+- The structured argument-spec API is renamed to a block-neutral stem,
+  so a non-block consumer – an extension documenting its externally
+  controllable variables – no longer reads as describing a block.
+  [`new_block_arg()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_arg_spec.md)
+  /
+  [`new_block_args()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_arg_spec.md)
+  become
+  [`new_arg_spec()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_arg_spec.md)
+  /
+  [`new_arg_specs()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_arg_spec.md)
+  (classes `arg_spec` / `arg_specs`), and the
+  [`block_arg_description()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_arg_spec.md)
+  /
+  [`block_arg_example()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_arg_spec.md)
+  /
+  [`block_arg_type()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_arg_spec.md)
+  getters become
+  [`arg_spec_description()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_arg_spec.md)
+  /
+  [`arg_spec_example()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_arg_spec.md)
+  /
+  [`arg_spec_type()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_arg_spec.md).
+  The `arg_*()` type constructors,
+  [`register_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)’s
+  `arguments` argument and the
+  [`block_meta_arguments()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_metadata.md)
+  accessor keep their names, being genuinely about a block’s arguments.
+  The old names remain as deprecated wrappers that warn once and forward
+  to the new ones, so existing
+  `register_block(arguments = new_block_args(...))` call sites keep
+  working; migrate them to the `arg_spec` family
+  ([\#295](https://github.com/BristolMyersSquibb/blockr.core/issues/295)).
 
 ## blockr.core 0.1.3
 
@@ -194,11 +226,11 @@ CRAN release: 2026-07-12
   extension packages register via the exported
   [`register_package_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md).
 - Block registry entries gain a structured argument spec
-  ([`new_block_args()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md),
-  [`new_block_arg()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md))
+  ([`new_block_args()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_arg_spec.md),
+  [`new_block_arg()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_arg_spec.md))
   with JSON-Schema-subset `type` descriptors
-  ([`arg_string()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md),
-  [`arg_enum()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_block_arg.md),
+  ([`arg_string()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_arg_spec.md),
+  [`arg_enum()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_arg_spec.md),
   …), read via
   [`block_metadata()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_metadata.md);
   [`registry_metadata()`](https://bristolmyerssquibb.github.io/blockr.core/reference/register_block.md)
