@@ -61,7 +61,7 @@ new_scatter_block <- function(x = character(), y = character(), ...) {
           list(
             expr = reactive(
               bbquote(
-                plot(.(data)[[.(x)]], data[[.(y)]], xlab = .(x_col),
+                plot(.(data)[[.(x)]], .(data)[[.(y)]], xlab = .(x_col),
                      ylab = .(y_col)),
                 list(x = x_col(), y = y_col(), x_col = x_col(),
                      y_col = y_col())
