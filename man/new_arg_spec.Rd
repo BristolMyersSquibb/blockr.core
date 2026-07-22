@@ -3,6 +3,8 @@
 \name{new_arg_spec}
 \alias{new_arg_spec}
 \alias{new_arg_specs}
+\alias{is_arg_specs}
+\alias{as_arg_specs}
 \alias{arg_spec_description}
 \alias{arg_spec_example}
 \alias{arg_spec_type}
@@ -23,6 +25,10 @@
 new_arg_spec(description = NULL, example = NULL, type = NULL)
 
 new_arg_specs(...)
+
+is_arg_specs(x)
+
+as_arg_specs(x, ...)
 
 arg_spec_description(x, ...)
 
@@ -67,7 +73,9 @@ examples are validated against it}
 bare description strings); for \code{arg_object()}, the named field descriptors;
 ignored by the \verb{arg_spec_*()} getters}
 
-\item{x}{An \code{arg_spec} object, or a bare string taken as its description}
+\item{x}{An \code{arg_spec} / \code{arg_specs} object, or a bare (optionally named)
+character vector or list of descriptions to coerce; \code{is_arg_specs()}
+accepts any object}
 
 \item{required}{Whether the field is required, when nested in an
 \code{arg_object()}}
@@ -80,7 +88,10 @@ ignored by the \verb{arg_spec_*()} getters}
 \code{new_arg_spec()} returns an \code{arg_spec} and \code{new_arg_specs()} an \code{arg_specs}
 collection. The \verb{arg_*()} constructors each return a plain JSON-Schema node
 (a list). The \verb{arg_spec_*()} getters return the corresponding field of a
-single argument (resolving a bare description string too).
+single argument (resolving a bare description string too). \code{is_arg_specs()}
+returns a boolean and \code{as_arg_specs()} coerces a named character vector or
+list to an \code{arg_specs}; a consuming package should test and coerce through
+these rather than reaching for the class name directly.
 }
 \description{
 The named arguments of a constructor can be documented with a structured

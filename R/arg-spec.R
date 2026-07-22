@@ -43,7 +43,9 @@
 #' @param type Optional machine-readable type for the argument, built with the
 #'   `arg_*()` descriptor constructors. A plain JSON-Schema-subset list; worked
 #'   examples are validated against it
-#' @param x An `arg_spec` object, or a bare string taken as its description
+#' @param x An `arg_spec` / `arg_specs` object, or a bare (optionally named)
+#'   character vector or list of descriptions to coerce; `is_arg_specs()`
+#'   accepts any object
 #' @param values Allowed string values, for `arg_enum()`
 #' @param items Element descriptor, for `arg_array()`
 #' @param required Whether the field is required, when nested in an
@@ -56,7 +58,10 @@
 #' `new_arg_spec()` returns an `arg_spec` and `new_arg_specs()` an `arg_specs`
 #' collection. The `arg_*()` constructors each return a plain JSON-Schema node
 #' (a list). The `arg_spec_*()` getters return the corresponding field of a
-#' single argument (resolving a bare description string too).
+#' single argument (resolving a bare description string too). `is_arg_specs()`
+#' returns a boolean and `as_arg_specs()` coerces a named character vector or
+#' list to an `arg_specs`; a consuming package should test and coerce through
+#' these rather than reaching for the class name directly.
 #'
 #' @examples
 #' new_arg_specs(
@@ -101,6 +106,8 @@ arg_specs_obj <- function(x) {
   structure(x, class = "arg_specs")
 }
 
+#' @rdname new_arg_spec
+#' @export
 is_arg_specs <- function(x) inherits(x, "arg_specs")
 
 as_arg_spec <- function(x, ...) {
@@ -117,6 +124,8 @@ as_arg_spec.character <- function(x, ...) {
   new_arg_spec(description = x)
 }
 
+#' @rdname new_arg_spec
+#' @export
 as_arg_specs <- function(x, ...) {
   UseMethod("as_arg_specs")
 }
