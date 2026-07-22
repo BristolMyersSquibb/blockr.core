@@ -33,7 +33,7 @@ reference:
     - block_ui
     - register_block
     - block_registration_roclet
-    - new_block_arg
+    - new_arg_spec
     - block_metadata
 - subtitle: Links
   desc: Utilities for creating an working with links

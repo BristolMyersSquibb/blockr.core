@@ -53,7 +53,7 @@ registry ID}
 \value{
 \code{block_metadata()} returns a \code{data.frame}. The \verb{block_meta_*()}
 getters return the named attribute: a string (or \code{NA}) for scalar fields, a
-character vector for \code{block_meta_keywords()}, a \code{block_args} object for
+character vector for \code{block_meta_keywords()}, an \code{arg_specs} object for
 \code{block_meta_arguments()}, and a list of worked configurations for
 \code{block_meta_examples()}.
 }

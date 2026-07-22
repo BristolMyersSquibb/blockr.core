@@ -19,7 +19,7 @@
 #'
 #' @return `block_metadata()` returns a `data.frame`. The `block_meta_*()`
 #'   getters return the named attribute: a string (or `NA`) for scalar fields, a
-#'   character vector for `block_meta_keywords()`, a `block_args` object for
+#'   character vector for `block_meta_keywords()`, an `arg_specs` object for
 #'   `block_meta_arguments()`, and a list of worked configurations for
 #'   `block_meta_examples()`.
 #'
@@ -103,7 +103,7 @@ catalog_column <- function(field, records, default_names) {
     icon = icon_column(records),
     package = scalar_column(records, "package", "local"),
     keywords = lapply(records, meta_default, "keywords", character()),
-    arguments = lapply(records, meta_default, "arguments", new_block_args()),
+    arguments = lapply(records, meta_default, "arguments", new_arg_specs()),
     examples = lapply(records, record_examples)
   )
 }
@@ -136,7 +136,7 @@ meta_default <- function(record, field, default) {
 
 record_examples <- function(record) {
   block_examples_list(
-    coal(record[["arguments"]], new_block_args(), fail_all = FALSE),
+    coal(record[["arguments"]], new_arg_specs(), fail_all = FALSE),
     coal(record[["examples"]], list(), fail_all = FALSE)
   )
 }
@@ -249,7 +249,7 @@ block_meta_keywords <- function(x, ...) {
 #' @rdname block_metadata
 #' @export
 block_meta_arguments <- function(x, ...) {
-  coal(block_metadata_record(x, ...)[["arguments"]], new_block_args(),
+  coal(block_metadata_record(x, ...)[["arguments"]], new_arg_specs(),
        fail_all = FALSE)
 }
 

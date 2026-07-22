@@ -104,6 +104,19 @@
   flashes a text-less red error band (and a false error count) in deployed
   apps. Empty-message conditions are filtered by emptiness rather than class,
   so a `validate(need(x, "msg"))` message still surfaces (#289).
+* The structured argument-spec API is renamed to a block-neutral stem, so a
+  non-block consumer -- an extension documenting its externally controllable
+  variables -- no longer reads as describing a block. `new_block_arg()` /
+  `new_block_args()` become `new_arg_spec()` / `new_arg_specs()` (classes
+  `arg_spec` / `arg_specs`), and the `block_arg_description()` /
+  `block_arg_example()` / `block_arg_type()` getters become
+  `arg_spec_description()` / `arg_spec_example()` / `arg_spec_type()`. The
+  `arg_*()` type constructors, `register_block()`'s `arguments` argument and the
+  `block_meta_arguments()` accessor keep their names, being genuinely about a
+  block's arguments. The old names remain as deprecated wrappers that warn once
+  and forward to the new ones, so existing
+  `register_block(arguments = new_block_args(...))` call sites keep working;
+  migrate them to the `arg_spec` family (#295).
 
 # blockr.core 0.1.3
 

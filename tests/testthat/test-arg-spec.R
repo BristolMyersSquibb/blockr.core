@@ -1,60 +1,108 @@
-test_that("new_block_arg and new_block_args constructors", {
+test_that("new_arg_spec and new_arg_specs constructors", {
 
-  a <- new_block_arg(description = "d", example = 1L, type = NULL)
+  a <- new_arg_spec(description = "d", example = 1L, type = NULL)
 
-  expect_s3_class(a, "block_arg")
+  expect_s3_class(a, "arg_spec")
   expect_identical(a[["description"]], "d")
   expect_identical(a[["example"]], 1L)
   expect_null(a[["type"]])
 
-  spec <- new_block_args(n = "just a description")
+  spec <- new_arg_specs(n = "just a description")
 
-  expect_s3_class(spec, "block_args")
-  expect_s3_class(spec[["n"]], "block_arg")
+  expect_s3_class(spec, "arg_specs")
+  expect_s3_class(spec[["n"]], "arg_spec")
   expect_identical(spec[["n"]][["description"]], "just a description")
 
-  expect_length(new_block_args(), 0L)
+  expect_length(new_arg_specs(), 0L)
 
-  expect_error(new_block_arg(description = 1L), class = "block_arg_invalid")
-  expect_error(new_block_args(new_block_arg("x")), class = "block_args_unnamed")
-  expect_error(new_block_args(n = 1L))
+  expect_error(new_arg_spec(description = 1L), class = "arg_spec_invalid")
+  expect_error(new_arg_specs(new_arg_spec("x")), class = "arg_specs_unnamed")
+  expect_error(new_arg_specs(n = 1L))
 })
 
-test_that("block_arg field getters expose the spec without indexing", {
+test_that("arg_spec field getters expose the spec without indexing", {
 
-  a <- new_block_arg(description = "rows", example = 10L, type = NULL)
+  a <- new_arg_spec(description = "rows", example = 10L, type = NULL)
 
-  expect_identical(block_arg_description(a), "rows")
-  expect_identical(block_arg_example(a), 10L)
-  expect_null(block_arg_type(a))
+  expect_identical(arg_spec_description(a), "rows")
+  expect_identical(arg_spec_example(a), 10L)
+  expect_null(arg_spec_type(a))
 
-  # a bare description string resolves through as_block_arg()
-  expect_identical(block_arg_description("just a description"),
+  # a bare description string resolves through as_arg_spec()
+  expect_identical(arg_spec_description("just a description"),
                    "just a description")
-  expect_null(block_arg_example("just a description"))
-  expect_error(block_arg_description(1L))
+  expect_null(arg_spec_example("just a description"))
+  expect_error(arg_spec_description(1L))
 
-  spec <- new_block_args(
-    n = new_block_arg("rows", example = 10L),
-    direction = new_block_arg("end", example = "tail")
+  spec <- new_arg_specs(
+    n = new_arg_spec("rows", example = 10L),
+    direction = new_arg_spec("end", example = "tail")
   )
 
   expect_identical(
-    vapply(spec, block_arg_description, character(1)),
+    vapply(spec, arg_spec_description, character(1)),
     c(n = "rows", direction = "end")
   )
 })
 
-test_that("as_block_args dispatches by input type", {
+test_that("as_arg_specs dispatches by input type", {
 
-  spec <- new_block_args(n = new_block_arg("rows"))
+  spec <- new_arg_specs(n = new_arg_spec("rows"))
 
-  expect_identical(as_block_args(spec), spec)
-  expect_s3_class(as_block_args(list(n = new_block_arg("rows"))), "block_args")
-  expect_s3_class(as_block_args(c(n = "rows")), "block_args")
+  expect_identical(as_arg_specs(spec), spec)
+  expect_s3_class(as_arg_specs(list(n = new_arg_spec("rows"))), "arg_specs")
+  expect_s3_class(as_arg_specs(c(n = "rows")), "arg_specs")
 
-  expect_error(as_block_args(1L))
-  expect_error(as_block_arg(1L))
+  expect_error(as_arg_specs(1L))
+  expect_error(as_arg_spec(1L))
+})
+
+test_that("deprecated block_arg aliases warn once and forward", {
+
+  withr::local_options(rlib_warning_verbosity = "verbose")
+
+  expect_warning(
+    a <- new_block_arg("rows", example = 10L),
+    class = "deprecated_arg_spec"
+  )
+  expect_s3_class(a, "arg_spec")
+  expect_identical(arg_spec_description(a), "rows")
+
+  expect_warning(
+    spec <- new_block_args(n = new_arg_spec("rows")),
+    class = "deprecated_arg_spec"
+  )
+  expect_s3_class(spec, "arg_specs")
+
+  expect_warning(
+    desc <- block_arg_description(new_arg_spec("rows")),
+    class = "deprecated_arg_spec"
+  )
+  expect_identical(desc, "rows")
+
+  expect_warning(
+    block_arg_example(new_arg_spec("x", example = 1L)),
+    class = "deprecated_arg_spec"
+  )
+  expect_warning(
+    block_arg_type(new_arg_spec("x", type = arg_integer())),
+    class = "deprecated_arg_spec"
+  )
+
+  withr::defer(unregister_blocks("ut_dep_arg"))
+
+  expect_warning(
+    register_block(
+      new_head_block,
+      name = "t",
+      description = "t",
+      uid = "ut_dep_arg",
+      arguments = new_block_args(direction = "head or tail")
+    ),
+    class = "deprecated_arg_spec"
+  )
+
+  expect_true("ut_dep_arg" %in% list_blocks())
 })
 
 test_that("bare and empty arguments normalize without warning", {
@@ -63,7 +111,7 @@ test_that("bare and empty arguments normalize without warning", {
     bare <- normalize_arguments(c(n = "rows", direction = "end"), NULL)
   )
 
-  expect_s3_class(bare[["arguments"]], "block_args")
+  expect_s3_class(bare[["arguments"]], "arg_specs")
   expect_identical(bare[["arguments"]][["n"]][["description"]], "rows")
   expect_null(bare[["guidance"]])
 
@@ -98,9 +146,9 @@ test_that("legacy examples/prompt attributes are absorbed with a deprecation", {
 
 test_that("per-argument examples assemble into one whole-block configuration", {
 
-  spec <- new_block_args(
-    n = new_block_arg("count", example = 10L),
-    direction = new_block_arg("end", example = "tail")
+  spec <- new_arg_specs(
+    n = new_arg_spec("count", example = 10L),
+    direction = new_arg_spec("end", example = "tail")
   )
 
   expect_identical(
@@ -111,7 +159,7 @@ test_that("per-argument examples assemble into one whole-block configuration", {
 
 test_that("block-level examples supersede the per-argument assembly", {
 
-  spec <- new_block_args(direction = new_block_arg("end", example = "head"))
+  spec <- new_arg_specs(direction = new_arg_spec("end", example = "head"))
 
   authored <- list(
     list(direction = "head"),
@@ -129,7 +177,7 @@ test_that("registration hard-validates the structured spec form", {
       name = "t",
       description = "t",
       uid = "ut_head_bad_arg",
-      arguments = new_block_args(not_a_formal = new_block_arg("x"))
+      arguments = new_arg_specs(not_a_formal = new_arg_spec("x"))
     ),
     class = "block_arg_unknown"
   )
@@ -140,8 +188,8 @@ test_that("registration hard-validates the structured spec form", {
       name = "t",
       description = "t",
       uid = "ut_head_bad_example",
-      arguments = new_block_args(
-        direction = new_block_arg("end", example = "sideways")
+      arguments = new_arg_specs(
+        direction = new_arg_spec("end", example = "sideways")
       )
     ),
     class = "block_example_invalid"
@@ -186,8 +234,8 @@ test_that("registration validates worked examples against declared types", {
       name = "Stateful",
       description = "d",
       uid = "stateful_block",
-      arguments = new_block_args(
-        state = new_block_arg(
+      arguments = new_arg_specs(
+        state = new_arg_spec(
           "the state",
           example = list(
             conditions = list(list(column = "Species")),
@@ -207,8 +255,8 @@ test_that("registration validates worked examples against declared types", {
       description = "d",
       uid = "stateful_block",
       overwrite = TRUE,
-      arguments = new_block_args(
-        state = new_block_arg(
+      arguments = new_arg_specs(
+        state = new_arg_spec(
           "the state",
           example = list(conditions = "not-a-list", operator = "&"),
           type = state_type
@@ -226,8 +274,8 @@ test_that("registration validates worked examples against declared types", {
       description = "d",
       uid = "stateful_block",
       overwrite = TRUE,
-      arguments = new_block_args(
-        state = new_block_arg("the state", type = list(type = "frobnicate"))
+      arguments = new_arg_specs(
+        state = new_arg_spec("the state", type = list(type = "frobnicate"))
       )
     ),
     class = "block_arg_type_invalid"
@@ -270,8 +318,8 @@ test_that("registry_metadata is deprecated but still projects legacy shape", {
     name = "Head",
     description = "First or last.",
     uid = "ut_head_legacy",
-    arguments = new_block_args(
-      direction = new_block_arg("head or tail", example = "tail")
+    arguments = new_arg_specs(
+      direction = new_arg_spec("head or tail", example = "tail")
     ),
     guidance = "Pick head for the first rows."
   )

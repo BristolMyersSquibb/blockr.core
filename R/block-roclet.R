@@ -33,7 +33,7 @@
 #'     `[example] <expr>` and `[type] <expr>` markers (each on its own line)
 #'     supply an R expression -- evaluated when documentation is generated --
 #'     for a worked example value and an `arg_*()` type descriptor (see
-#'     [new_block_arg()]). An explicit `[description] <text>` marker may replace
+#'     [new_arg_spec()]). An explicit `[description] <text>` marker may replace
 #'     the inline description. Optional and repeatable.}
 #'   \item{`@blockExamples <expr>`}{Block-level worked example configurations,
 #'     as an R expression -- evaluated when documentation is generated -- that

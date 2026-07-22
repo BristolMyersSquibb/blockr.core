@@ -70,7 +70,7 @@ test_that("block metadata", {
 
   expect_type(meta1$keywords, "list")
   expect_type(meta1$arguments, "list")
-  expect_s3_class(meta1$arguments[[1L]], "block_args")
+  expect_s3_class(meta1$arguments[[1L]], "arg_specs")
 
   sel <- block_metadata(new_dataset_block(), fields = c("name", "icon"))
 
@@ -86,15 +86,15 @@ test_that("construction-metadata accessors dispatch on id, entry and block", {
     name = "Head",
     description = "First or last rows.",
     uid = "ut_head_acc",
-    arguments = new_block_args(
-      n = new_block_arg("How many rows", example = 10L),
-      direction = new_block_arg("head or tail", example = "tail")
+    arguments = new_arg_specs(
+      n = new_arg_spec("How many rows", example = 10L),
+      direction = new_arg_spec("head or tail", example = "tail")
     ),
     guidance = "Use direction='tail' for the bottom rows.",
     keywords = c("first", "last", "top")
   )
 
-  expect_s3_class(block_meta_arguments("ut_head_acc"), "block_args")
+  expect_s3_class(block_meta_arguments("ut_head_acc"), "arg_specs")
   expect_identical(
     block_meta_examples("ut_head_acc"),
     list(list(n = 10L, direction = "tail"))
@@ -119,7 +119,7 @@ test_that("construction-metadata accessors dispatch on id, entry and block", {
   expect_identical(block_meta_guidance(blk), block_meta_guidance("head_block"))
 
   expect_identical(
-    vapply(block_meta_arguments("ut_head_acc"), block_arg_description,
+    vapply(block_meta_arguments("ut_head_acc"), arg_spec_description,
            character(1)),
     c(n = "How many rows", direction = "head or tail")
   )
@@ -138,7 +138,7 @@ test_that("construction accessors read the block's attached metadata", {
     description = "d",
     uid = "head_block",
     overwrite = TRUE,
-    arguments = new_block_args(n = new_block_arg("rows", example = 3L)),
+    arguments = new_arg_specs(n = new_arg_spec("rows", example = 3L)),
     guidance = "be careful"
   )
 
@@ -148,7 +148,7 @@ test_that("construction accessors read the block's attached metadata", {
 
   args <- block_meta_arguments(blk)
 
-  expect_identical(block_arg_description(args[["n"]]), "rows")
+  expect_identical(arg_spec_description(args[["n"]]), "rows")
   expect_identical(block_meta_guidance(blk), "be careful")
   expect_identical(block_meta_examples(blk), list(list(n = 3L)))
 })
@@ -192,7 +192,7 @@ test_that("block_metadata tabulates catalog fields with list-columns", {
 
   expect_type(meta$arguments, "list")
   expect_type(meta$keywords, "list")
-  expect_s3_class(meta$arguments[[1L]], "block_args")
+  expect_s3_class(meta$arguments[[1L]], "arg_specs")
 
   blk <- new_head_block()
   expect_identical(block_metadata(blk)$id, "head_block")
