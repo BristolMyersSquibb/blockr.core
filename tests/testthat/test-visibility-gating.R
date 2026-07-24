@@ -415,6 +415,118 @@ test_that("a needed round trip with unchanged inputs does not re-evaluate", {
   )
 })
 
+test_that("a dormant block reports stale when an upstream re-evaluates", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- new_board(
+    blocks = c(
+      s1 = with_id(probe_source(), "s1"),
+      s2 = with_id(probe_source_alt(), "s2"),
+      a = with_id(probe_passthrough(), "a"),
+      r = with_id(probe_passthrough(), "r")
+    ),
+    links = links(
+      sa = new_link("s1", "a", "data"),
+      ar = new_link("a", "r", "data")
+    )
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_true(evaluated("a"))
+      expect_true(evaluated("r"))
+      expect_identical(rv$eval[["r"]](), "ready")
+
+      # Park r off-screen: it drops out of the eval set and goes dormant, while
+      # a stays required (its panel is still open).
+      vis$required[["r"]](FALSE)
+      session$flushReact()
+
+      expect_identical(rv$eval[["r"]](), "dormant")
+
+      # Re-route a from s1 to s2 (a different dataset): a re-evaluates to a new
+      # result, breaking r's cached input -- but r is dormant and never re-runs.
+      reset_probes()
+
+      board_update(
+        list(
+          links = list(
+            rm = "sa",
+            add = links(s2a = new_link("s2", "a", "data"))
+          )
+        )
+      )
+      session$flushReact()
+
+      expect_true(evaluated("a"))
+      expect_false(evaluated("r"))
+
+      # r's reported status now reflects that its last-known result is stale.
+      expect_identical(rv$eval[["r"]](), "stale")
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visibility, ...) {
+        require_blocks(visibility, "a", "r")
+        render_blocks(visibility, "a", "r")
+      }
+    )
+  )
+})
+
+test_that("a dormant block whose upstreams are unchanged stays dormant", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- new_board(
+    blocks = c(
+      s = with_id(probe_source(), "s"),
+      a = with_id(probe_passthrough(), "a"),
+      r = with_id(probe_passthrough(), "r")
+    ),
+    links = links(
+      sa = new_link("s", "a", "data"),
+      ar = new_link("a", "r", "data")
+    )
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_identical(rv$eval[["r"]](), "ready")
+
+      # Park the whole chain, as a view switch does: r and its upstream a both
+      # go dormant. a's last result survives dormancy, so r's cached input still
+      # matches and r is not stale.
+      vis$required[["a"]](FALSE)
+      vis$required[["r"]](FALSE)
+      session$flushReact()
+
+      expect_identical(rv$eval[["a"]](), "dormant")
+      expect_identical(rv$eval[["r"]](), "dormant")
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visibility, ...) {
+        require_blocks(visibility, "a", "r")
+        render_blocks(visibility, "a", "r")
+      }
+    )
+  )
+})
+
 test_that("a view switch does not re-evaluate shared upstream left needed", {
 
   reset_probes()

@@ -117,6 +117,15 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
       # changed.
       rv$needed_slots <- new.env(parent = emptyenv())
 
+      # Board-wide monotonic eval clock: each block stamps its `evaluated`
+      # reactive from it (via the `eval_stamp` channel handed to block_server)
+      # on each evaluation, so the stamps are comparable and block_eval_status()
+      # can tell a dormant block that an upstream outran it. Built in one write
+      # -- reading `rv$eval_clock` here would be outside a reactive consumer.
+      eval_clock <- new.env(parent = emptyenv())
+      eval_clock$n <- 0L
+      rv$eval_clock <- eval_clock
+
       observe(
         {
           cur <- if (!gating_active(vis$required)) {
@@ -484,7 +493,11 @@ construct_block <- function(id, rv, mod_ed, mod_ct, args, vis) {
     c(
       list(paste0("block_", id), blk, rv$inputs[[id]], id, mod_ed, mod_ct),
       args,
-      list(inputs_ready = inputs_ready, visibility = vis)
+      list(
+        inputs_ready = inputs_ready,
+        visibility = vis,
+        eval_stamp = function() next_eval_stamp(rv)
+      )
     )
   )
 
@@ -806,6 +819,11 @@ input_ready <- function(from, rv) {
 block_eval_status <- function(rv, id, inputs_ready, srv) {
 
   if (!block_needed(rv, id)) {
+
+    if (block_stale(rv, id, srv)) {
+      return("stale")
+    }
+
     return("dormant")
   }
 
@@ -822,6 +840,43 @@ block_eval_status <- function(rv, id, inputs_ready, srv) {
   }
 
   "ready"
+}
+
+# The next tick of the board-wide eval clock, handed to each block as its
+# `eval_stamp` channel so it can stamp its own evaluations without reaching into
+# the (read-only) board itself.
+next_eval_stamp <- function(rv) {
+
+  clk <- isolate(rv$eval_clock)
+  clk$n <- clk$n + 1L
+  clk$n
+}
+
+# A dormant block is stale once a direct upstream evaluated more recently than
+# it did -- carrying a higher stamp on the board-wide eval clock. Depending on
+# the upstream stamps is what wakes the status (and the badge) on an upstream
+# change, without re-evaluating the dormant block or pulling its inputs. A block
+# that never evaluated (stamp 0) has no result to be stale.
+block_stale <- function(rv, id, srv) {
+
+  gen <- srv$evaluated()
+
+  if (identical(gen, 0L)) {
+    return(FALSE)
+  }
+
+  froms <- unlst(reactiveValuesToList(isolate(rv$sources[[id]])))
+
+  for (from in froms) {
+
+    up <- isolate(rv$blocks[[from]])[["server"]]
+
+    if (not_null(up) && isTRUE(up$evaluated() > gen)) {
+      return(TRUE)
+    }
+  }
+
+  FALSE
 }
 
 block_needed <- function(rv, id) {
