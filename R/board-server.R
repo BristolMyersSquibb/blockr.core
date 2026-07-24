@@ -257,8 +257,8 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
                 log_debug("preprocessing board update")
                 if (!preprocess_board_update(board_update, rv$board)) {
-                  log_debug("validating board links against board")
-                  validate_board_update_xrefs(upd, rv$board)
+                  log_debug("validating updated board")
+                  validate_board_update_result(upd, rv$board)
                 }
               }
             },
@@ -1278,7 +1278,7 @@ validate_board_update.board <- function(payload, board, ...,
                                         session = get_session()) {
 
   validate_board_update_structure(payload, board)
-  validate_board_update_xrefs(payload, board)
+  validate_board_update_result(payload, board)
 
   invisible(payload)
 }
@@ -1354,7 +1354,7 @@ validate_board_update_structure <- function(payload, board) {
   }
 
   if ("stacks" %in% names(payload)) {
-    validate_board_update_stacks(payload, board)
+    validate_board_update_stacks(payload$stacks, board)
   }
 
   invisible()
@@ -1528,6 +1528,24 @@ validate_mod_deltas <- function(mod, cur_ids, typ) {
   invisible()
 }
 
+merge_link_mods <- function(board, mod) {
+
+  if (!length(mod)) {
+    return(NULL)
+  }
+
+  as_links(Map(update_link, board_links(board)[names(mod)], mod))
+}
+
+merge_stack_mods <- function(board, mod) {
+
+  if (!length(mod)) {
+    return(NULL)
+  }
+
+  as_stacks(Map(update_stack, board_stacks(board)[names(mod)], mod))
+}
+
 combine_update_blocks <- function(upd, board) {
 
   all_blks <- board_blocks(board)
@@ -1549,52 +1567,80 @@ combine_update_blocks <- function(upd, board) {
   all_blks
 }
 
-validate_board_update_xrefs <- function(payload, board) {
+combine_update_links <- function(upd, board) {
+
+  all_lnks <- board_links(board)
+
+  if (!has_comp("links", upd)) {
+    return(all_lnks)
+  }
+
+  lnk <- upd$links
+
+  if (has_comp("rm", lnk)) {
+    all_lnks <- all_lnks[setdiff(names(all_lnks), lnk$rm)]
+  }
+
+  if (has_comp("mod", lnk)) {
+    all_lnks <- c(
+      all_lnks[setdiff(names(all_lnks), names(lnk$mod))],
+      merge_link_mods(board, lnk$mod)
+    )
+  }
+
+  if (has_comp("add", lnk)) {
+    all_lnks <- c(all_lnks, lnk$add)
+  }
+
+  all_lnks
+}
+
+combine_update_stacks <- function(upd, board) {
+
+  all_stks <- board_stacks(board)
+
+  if (!has_comp("stacks", upd)) {
+    return(all_stks)
+  }
+
+  stk <- upd$stacks
+
+  if (has_comp("rm", stk)) {
+    all_stks <- all_stks[setdiff(names(all_stks), stk$rm)]
+  }
+
+  if (has_comp("mod", stk)) {
+    all_stks <- c(
+      all_stks[setdiff(names(all_stks), names(stk$mod))],
+      merge_stack_mods(board, stk$mod)
+    )
+  }
+
+  if (has_comp("add", stk)) {
+    all_stks <- c(all_stks, stk$add)
+  }
+
+  all_stks
+}
+
+validate_board_update_result <- function(payload, board) {
 
   payload <- augment_board_update(payload, board)
 
-  if (has_comp("links", payload)) {
-    lnk <- payload$links
-  } else {
-    return(invisible())
+  blks <- combine_update_blocks(payload, board)
+
+  if (has_comps(c("add", "mod"), payload$links)) {
+    validate_board_blocks_links(blks, combine_update_links(payload, board))
   }
 
-  if (has_comps(c("add", "mod"), lnk)) {
-
-    all_lnks <- board_links(board)
-
-    if (has_comp("rm", lnk)) {
-      all_lnks <- all_lnks[setdiff(names(all_lnks), lnk$rm)]
-    }
-
-    if (has_comp("add", lnk)) {
-      all_lnks <- c(all_lnks, lnk$add)
-    }
-
-    if (has_comp("mod", lnk)) {
-      merged <- Map(
-        update_link,
-        board_links(board)[names(lnk$mod)],
-        lnk$mod
-      )
-      all_lnks <- c(
-        all_lnks[setdiff(names(all_lnks), names(lnk$mod))],
-        as_links(merged)
-      )
-    }
-
-    validate_board_blocks_links(
-      combine_update_blocks(payload, board),
-      all_lnks
-    )
+  if (has_comps(c("add", "mod"), payload$stacks)) {
+    validate_board_blocks_stacks(blks, combine_update_stacks(payload, board))
   }
 
   invisible()
 }
 
-validate_board_update_stacks <- function(upd, board) {
-
-  x <- upd$stacks
+validate_board_update_stacks <- function(x, board) {
 
   all_stks <- board_stacks(board)
 
@@ -1634,21 +1680,6 @@ validate_board_update_stacks <- function(upd, board) {
   if (has_comp("mod", x)) {
 
     validate_mod_deltas(x$mod, names(all_stks), "stacks")
-
-    merged <- Map(
-      update_stack,
-      board_stacks(board)[names(x$mod)],
-      x$mod
-    )
-
-    all_stks <- c(
-      all_stks[setdiff(names(all_stks), names(x$mod))],
-      as_stacks(merged)
-    )
-  }
-
-  if (has_comps(c("add", "mod"), x)) {
-    validate_board_blocks_stacks(combine_update_blocks(upd, board), all_stks)
   }
 
   invisible()
@@ -1679,9 +1710,9 @@ augment_board_update.board <- function(upd, board, ...,
     merged_stks <- board_stacks(board)
 
     if (length(upd$stacks$mod)) {
-      cur_for_mod <- board_stacks(board)[names(upd$stacks$mod)]
-      mod_stks <- Map(update_stack, cur_for_mod, upd$stacks$mod)
-      merged_stks[names(upd$stacks$mod)] <- as_stacks(mod_stks)
+      merged_stks[names(upd$stacks$mod)] <- merge_stack_mods(
+        board, upd$stacks$mod
+      )
     }
 
     if (length(upd$stacks$rm)) {
@@ -1801,10 +1832,10 @@ apply_core_board_update <- function(rv, upd, session,
 
   if (length(upd$links$mod)) {
 
-    cur_lnks <- board_links(rv$board)[names(upd$links$mod)]
-    merged <- as_links(Map(update_link, cur_lnks, upd$links$mod))
-
-    upd$links$add <- vec_c(upd$links$add, merged)
+    upd$links$add <- vec_c(
+      upd$links$add,
+      merge_link_mods(rv$board, upd$links$mod)
+    )
     upd$links$rm <- c(upd$links$rm, names(upd$links$mod))
   }
 
@@ -1843,10 +1874,7 @@ apply_core_board_update <- function(rv, upd, session,
 
     log_debug("modifying stack{?s} {names(upd$stacks$mod)}")
 
-    cur_stks <- board_stacks(rv$board)[names(upd$stacks$mod)]
-    upd$stacks$mod <- as_stacks(
-      Map(update_stack, cur_stks, upd$stacks$mod)
-    )
+    upd$stacks$mod <- merge_stack_mods(rv$board, upd$stacks$mod)
   }
 
   update_stack_blocks(

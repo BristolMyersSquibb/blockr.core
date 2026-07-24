@@ -867,6 +867,62 @@ test_that("validate_board_update handles block-rm orphan cleanup (#177)", {
   )
 })
 
+test_that("validate_board_update cascades stack membership on rm (#308)", {
+
+  brd <- new_board(
+    blocks = c(a = new_dataset_block("iris"), b = new_dataset_block("mtcars"),
+               c = new_dataset_block("airquality")),
+    stacks = c(s0 = new_stack(c("a", "c"), name = "S0"))
+  )
+
+  payload <- list(
+    blocks = list(rm = "a"),
+    stacks = list(add = stacks(s1 = new_stack("b", name = "S1")))
+  )
+
+  expect_identical(
+    augment_board_update(payload, brd)$stacks$mod$s0$blocks,
+    "c"
+  )
+
+  expect_identical(
+    validate_board_update(payload, brd),
+    payload
+  )
+
+  broken <- list(
+    stacks = list(add = stacks(s1 = new_stack("gone", name = "S1")))
+  )
+
+  expect_error(
+    validate_board_update(broken, brd),
+    class = "board_block_stack_name_mismatch"
+  )
+})
+
+test_that("validate_board_update stays within core references", {
+
+  brd <- new_board(
+    blocks = c(a = new_dataset_block("iris"), b = new_subset_block()),
+    links = links(ab = new_link("a", "b"))
+  )
+
+  # Core update validation checks only core references. Validating the whole
+  # board would fire a subclass validate_board method (e.g. dock view
+  # membership) on an intermediate the core update does not cascade.
+  seen <- FALSE
+  local_mocked_bindings(
+    validate_board = function(x, ...) {
+      seen <<- TRUE
+      x
+    }
+  )
+
+  validate_board_update(list(blocks = list(rm = "a")), brd)
+
+  expect_false(seen)
+})
+
 test_that("board server utils", {
 
   expect_identical(
