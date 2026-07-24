@@ -211,7 +211,7 @@ test_that("show code requires the whole board, gating export on config", {
       {
         for (id in c("a", "b")) {
           vis$required[[id]](TRUE)
-          vis$visible[[id]]("main")
+          vis$visible[[id]](TRUE)
         }
         session$flushReact()
 

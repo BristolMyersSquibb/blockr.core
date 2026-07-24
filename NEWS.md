@@ -47,6 +47,15 @@
   through per-block `reactiveVal` channels it receives as `visibility` --
   `required` (which blocks are needed) and `visible` (which are on screen) --
   in place of the single `visible` write-channel. Breaking for front-ends.
+* The `visible` channel is now logical, mirroring `required`: a front-end
+  writes `TRUE` once a block is painted, `FALSE` once it is built but off
+  screen, and leaves `NA` until it is first built (it previously carried the
+  rendered view id, or `NA_character_` off screen). The extra state lets a
+  front-end distinguish "never built" from "built, off screen" on this one
+  channel, so it no longer has to reset the slot to unbuilt when a card
+  leaves the screen -- which would erase the "was built" fact the render gate
+  needs. `is_visible()` is accordingly `isTRUE()` rather than `!is.na()`.
+  Breaking for front-ends that wrote a view id (#306).
 * The `visibility` bundle carries a third channel, `frozen`, letting a
   front-end freeze a block's inputs server-side: setting
   `visibility$frozen[[id]](TRUE)` -- for example for a locked board that shows

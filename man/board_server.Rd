@@ -34,9 +34,10 @@ additional observers. Each receives a \code{visibility} list with three channels
 \code{required}, \code{visible} and \code{frozen}, each an environment of per-block
 \code{reactiveVal}s (core keeps one per board block as blocks are added and
 removed). Declare a block needed with \code{visibility$required[[id]](TRUE)} (or
-\code{FALSE} for built but dormant) and report the view it is rendered into with
-\code{visibility$visible[[id]](view)} (or \code{NA_character_} for off screen); the
-board reads both to gate construction, evaluation and rendering. Set
+\code{FALSE} for built but dormant) and report whether it is currently painted
+with \code{visibility$visible[[id]](TRUE)} (or \code{FALSE} once built but off screen,
+leaving \code{NA} until it is first built); the board reads both to gate
+construction, evaluation and rendering. Set
 \code{visibility$frozen[[id]](TRUE)} to freeze a block's inputs (for example when
 its controls are hidden), so a forged input can no longer steer it.}
 

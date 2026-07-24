@@ -38,9 +38,10 @@ board_server <- function(id, x, ...) {
 #' `required`, `visible` and `frozen`, each an environment of per-block
 #' `reactiveVal`s (core keeps one per board block as blocks are added and
 #' removed). Declare a block needed with `visibility$required[[id]](TRUE)` (or
-#' `FALSE` for built but dormant) and report the view it is rendered into with
-#' `visibility$visible[[id]](view)` (or `NA_character_` for off screen); the
-#' board reads both to gate construction, evaluation and rendering. Set
+#' `FALSE` for built but dormant) and report whether it is currently painted
+#' with `visibility$visible[[id]](TRUE)` (or `FALSE` once built but off screen,
+#' leaving `NA` until it is first built); the board reads both to gate
+#' construction, evaluation and rendering. Set
 #' `visibility$frozen[[id]](TRUE)` to freeze a block's inputs (for example when
 #' its controls are hidden), so a forged input can no longer steer it.
 #' @param callback_location Location of callback invocation (before or after
@@ -653,7 +654,7 @@ add_vis_slots <- function(vis, ids) {
 
   for (id in ids) {
     vis$required[[id]] <- reactiveVal(NA)
-    vis$visible[[id]] <- reactiveVal(NA_character_)
+    vis$visible[[id]] <- reactiveVal(NA)
     vis$frozen[[id]] <- reactiveVal(FALSE)
   }
 
@@ -700,7 +701,7 @@ slot_needed <- function(id, required) {
 }
 
 is_visible <- function(x) {
-  !is.na(x)
+  isTRUE(x)
 }
 
 block_visible <- function(id, vis) {
@@ -729,7 +730,7 @@ validate_vis <- function(vis) {
   for (id in ls(vis$visible)) {
     if (!valid_visible(vis$visible[[id]]())) {
       blockr_abort(
-        "visible[[{id}]] must be a non-empty string or NA_character_",
+        "visible[[{id}]] must be TRUE, FALSE or NA",
         class = "invalid_visible"
       )
     }
@@ -752,7 +753,7 @@ valid_required <- function(x) {
 }
 
 valid_visible <- function(x) {
-  is.character(x) && length(x) == 1L && (is.na(x) || nzchar(x))
+  is.logical(x) && length(x) == 1L
 }
 
 valid_frozen <- function(x) {
