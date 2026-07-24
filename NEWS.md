@@ -19,6 +19,15 @@
   plugins -- which typical front-ends (e.g. blockr.dock) replace with their
   own UI -- so a bare core install no longer pulls it in. Install `DT`
   alongside if you use either (#129).
+* The default board plugin set (`board_plugins()`) no longer includes
+  the `manage_links` and `manage_stacks` editor plugins, which render
+  their tables through `DT`. Including them by default made a bare core
+  board fail with `there is no package called 'DT'` once `DT` became a
+  Suggest, breaking consumer test apps built on the default board. Add
+  them back with `c(board_plugins(x), manage_links(), manage_stacks())`
+  to restore interactive link and stack editing; both constructors now
+  raise a clear error when `DT` is missing. Breaking for front-ends that
+  relied on the core editors in the default board (#297).
 * A board's `blockr_app_ui()` and `blockr_app_server()` methods now receive the
   request's parsed URL query parameters as a `query` argument, at both the GET
   and the websocket phase. A board subclass reads it to make the rendered UI and

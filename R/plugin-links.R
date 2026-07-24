@@ -5,6 +5,11 @@
 #' alternate version of this plugin. The default implementation provides a
 #' table-based UI, presented in a modal.
 #'
+#' This plugin is not part of the default set returned by [board_plugins()];
+#' add it explicitly (e.g. `c(board_plugins(x), manage_links())`) to enable
+#' interactive link editing. Its table UI requires the suggested \pkg{DT}
+#' package.
+#'
 #' Updates are mediated via the [shiny::reactiveVal()] object passed as
 #' `update`, where link updates are communicated as list entry `stacks` with
 #' components `add`, `rm` or `mod`, where
@@ -23,6 +28,16 @@
 #'
 #' @export
 manage_links <- function(server = manage_links_server, ui = manage_links_ui) {
+
+  if (!pkg_avail("DT")) {
+    blockr_abort(
+      "The `manage_links` plugin requires the \"DT\" package. Install it ",
+      "with `install.packages(\"DT\")` or omit `manage_links()` from the ",
+      "board plugins.",
+      class = "manage_links_no_dt"
+    )
+  }
+
   new_plugin(server, ui, class = "manage_links")
 }
 
