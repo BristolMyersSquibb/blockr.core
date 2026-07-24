@@ -178,7 +178,7 @@ require_blocks <- function(vis, ...) {
 render_blocks <- function(vis, ...) {
 
   for (id in c(...)) {
-    vis$visible[[id]]("main")
+    vis$visible[[id]](TRUE)
   }
 
   invisible()
@@ -886,10 +886,11 @@ test_that("an infinite background delay never arms the scheduler", {
   )
 })
 
-test_that("is_visible is a non-NA check on the slot value", {
+test_that("is_visible is an isTRUE check on the slot value", {
 
-  expect_true(is_visible("main"))
-  expect_false(is_visible(NA_character_))
+  expect_true(is_visible(TRUE))
+  expect_false(is_visible(FALSE))
+  expect_false(is_visible(NA))
 })
 
 test_that("channel validators enforce the required and visible contracts", {
@@ -900,11 +901,12 @@ test_that("channel validators enforce the required and visible contracts", {
   expect_false(valid_required("x"))
   expect_false(valid_required(NA_character_))
 
-  expect_true(valid_visible("main"))
-  expect_true(valid_visible(NA_character_))
-  expect_false(valid_visible(""))
-  expect_false(valid_visible(NA))
-  expect_false(valid_visible(c("a", "b")))
+  expect_true(valid_visible(TRUE))
+  expect_true(valid_visible(FALSE))
+  expect_true(valid_visible(NA))
+  expect_false(valid_visible("main"))
+  expect_false(valid_visible(NA_character_))
+  expect_false(valid_visible(c(TRUE, FALSE)))
 })
 
 test_that("validate_vis hard-errors on an off-contract slot", {
@@ -920,7 +922,7 @@ test_that("validate_vis hard-errors on an off-contract slot", {
     expect_error(validate_vis(vis), class = "invalid_required")
 
     vis$required[["a"]](TRUE)
-    vis$visible[["a"]]("")
+    vis$visible[["a"]]("main")
     expect_error(validate_vis(vis), class = "invalid_visible")
   })
 })
@@ -963,12 +965,12 @@ test_that("required_fulfilled holds only when every required block is shown", {
     add_vis_slots(vis, c("a", "b"))
     vis$required[["a"]](TRUE)
     vis$required[["b"]](TRUE)
-    vis$visible[["a"]]("main")
-    vis$visible[["b"]]("main")
+    vis$visible[["a"]](TRUE)
+    vis$visible[["b"]](TRUE)
 
     expect_true(required_fulfilled(vis))
 
-    vis$visible[["b"]](NA_character_)
+    vis$visible[["b"]](FALSE)
     expect_false(required_fulfilled(vis))
 
     empty <- list(
