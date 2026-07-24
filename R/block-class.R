@@ -220,10 +220,13 @@ new_block <- function(server, ui, class, ctor = sys.parent(), ctor_pkg = NULL,
       block_metadata <- c(list(id = uid), block_metadata)
 
     } else if (!isFALSE(block_metadata)) {
+
       blockr_warn(
-        "No block metadata available for block {class[1L]}.",
+        "No registry entry for block {class[1L]}; using default metadata.",
         class = "missing_block_metadata"
       )
+
+      block_metadata <- block_default_metadata(class)
     }
   }
 

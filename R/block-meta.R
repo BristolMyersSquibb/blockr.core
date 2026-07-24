@@ -10,7 +10,9 @@
 #' (`block_meta_name()`, `block_meta_guidance()`, ...) returning that attribute
 #' for a single block. Missing fields are filled with display defaults in the
 #' data.frame; the getters instead return the stored value (or `NA` / an empty
-#' value).
+#' value). A block constructed for a class with no registry entry carries a
+#' class-derived default record, imputed at construction, so accessors degrade
+#' to those defaults rather than signalling a missing record.
 #'
 #' @param x A `block`, a `blocks` collection, a `block_registry_entry` or a
 #'   registry ID
@@ -52,7 +54,12 @@ block_metadata.default <- function(x, fields = "all", ...) {
 }
 
 block_default_name <- function(x) {
-  gsub("_", " ", class(x)[1L])
+
+  if (is_block(x)) {
+    x <- class(x)
+  }
+
+  gsub("_", " ", x[1L])
 }
 
 block_metadata_fields <- function() {
@@ -93,15 +100,13 @@ catalog_column <- function(field, records, default_names) {
     field,
     id = scalar_column(records, "id", NA_character_),
     name = name_column(records, default_names),
-    description = scalar_column(
-      records, "description", "No description available."
-    ),
+    description = scalar_column(records, "description", default_description()),
     details = scalar_column(records, "details", NA_character_),
     link = scalar_column(records, "link", NA_character_),
     guidance = scalar_column(records, "guidance", NA_character_),
     category = scalar_column(records, "category", default_category()),
     icon = icon_column(records),
-    package = scalar_column(records, "package", "local"),
+    package = scalar_column(records, "package", default_package()),
     keywords = lapply(records, meta_default, "keywords", character()),
     arguments = lapply(records, meta_default, "arguments", new_arg_specs()),
     examples = lapply(records, record_examples)
@@ -145,6 +150,26 @@ block_record_fields <- function() {
   c(registry_metadata_fields, "examples")
 }
 
+block_default_metadata <- function(class) {
+
+  category <- default_category()
+
+  list(
+    id = NA_character_,
+    name = block_default_name(class),
+    description = default_description(),
+    details = NA_character_,
+    link = NA_character_,
+    guidance = NA_character_,
+    keywords = character(),
+    category = category,
+    icon = default_icon(category),
+    arguments = new_arg_specs(),
+    package = default_package(),
+    examples = list()
+  )
+}
+
 block_metadata_record <- function(x, ...) {
   UseMethod("block_metadata_record")
 }
@@ -154,14 +179,11 @@ block_metadata_record.block <- function(x, ...) {
 
   record <- attr(x, "block_metadata")
 
-  if (!is.list(record)) {
-    blockr_abort(
-      "Block {class(x)[1L]} carries no metadata.",
-      class = "missing_block_metadata"
-    )
+  if (is.list(record)) {
+    record
+  } else {
+    block_default_metadata(class(x))
   }
-
-  record
 }
 
 #' @export

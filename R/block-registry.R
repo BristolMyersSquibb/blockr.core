@@ -233,6 +233,10 @@ default_icon <- function(category = default_category()) {
 #' @export
 default_category <- function() "uncategorized"
 
+default_description <- function() "No description available."
+
+default_package <- function() "local"
+
 bsicon_icons <- function() {
   get("icon_info", envir = asNamespace("bsicons"), mode = "list")$name
 }
@@ -429,7 +433,9 @@ registry_metadata <- function(blocks = list_blocks(), fields = "all") {
   if ("package" %in% fields) {
     res <- c(
       res,
-      list(package = chr_ply(lapply(reg, attr, "package"), coal, "local"))
+      list(
+        package = chr_ply(lapply(reg, attr, "package"), coal, default_package())
+      )
     )
   }
 

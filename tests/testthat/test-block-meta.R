@@ -197,3 +197,76 @@ test_that("block_metadata tabulates catalog fields with list-columns", {
   blk <- new_head_block()
   expect_identical(block_metadata(blk)$id, "head_block")
 })
+
+test_that("an unregistered block is imputed a class-derived default record", {
+
+  new_orphan_block <- function(block_metadata = NULL) {
+    new_transform_block(
+      function(id, data) {
+        moduleServer(
+          id,
+          function(input, output, session) {
+            list(
+              expr = reactive(quote(identity(data))),
+              state = list()
+            )
+          }
+        )
+      },
+      function(id) {
+        tagList()
+      },
+      block_metadata = block_metadata,
+      class = "ut_orphan_block"
+    )
+  }
+
+  expect_warning(
+    blk <- new_orphan_block(),
+    class = "missing_block_metadata"
+  )
+
+  expect_true(is.list(attr(blk, "block_metadata")))
+  expect_identical(
+    block_metadata_record(blk),
+    block_default_metadata(class(blk))
+  )
+  expect_named(
+    block_metadata_record(blk),
+    c("id", "name", "description", "details", "link", "guidance", "keywords",
+      "category", "icon", "arguments", "package", "examples")
+  )
+
+  meta <- block_metadata(blk)
+
+  expect_s3_class(meta, "data.frame")
+  expect_identical(nrow(meta), 1L)
+  expect_identical(meta$id, NA_character_)
+  expect_identical(meta$name, "ut orphan block")
+  expect_identical(meta$description, default_description())
+  expect_false(is.na(meta$icon))
+
+  expect_identical(block_meta_id(blk), NA_character_)
+  expect_identical(block_meta_name(blk), "ut orphan block")
+  expect_identical(block_meta_description(blk), default_description())
+  expect_identical(block_meta_category(blk), default_category())
+  expect_identical(block_meta_icon(blk), default_icon())
+  expect_identical(block_meta_keywords(blk), character())
+  expect_identical(block_meta_arguments(blk), new_arg_specs())
+
+  mixed <- suppressWarnings(
+    block_metadata(
+      blocks(good = new_dataset_block(), orphan = new_orphan_block())
+    )
+  )
+
+  expect_identical(nrow(mixed), 2L)
+  expect_identical(rownames(mixed), c("good", "orphan"))
+  expect_false(anyNA(mixed$icon))
+  expect_identical(mixed["orphan", "description"], default_description())
+
+  bare <- new_orphan_block(block_metadata = FALSE)
+
+  expect_false(is.list(attr(bare, "block_metadata")))
+  expect_identical(block_meta_name(bare), "ut orphan block")
+})
