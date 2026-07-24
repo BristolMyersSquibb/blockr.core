@@ -101,6 +101,15 @@
   pending user input is serviced within one tick instead of behind the
   entire backlog
   ([\#276](https://github.com/BristolMyersSquibb/blockr.core/issues/276)).
+- With a finite `background_construction_delay` (the default), a
+  downstream block’s data input no longer latches at `NULL` when its
+  input reactive runs before the upstream is built. The input read the
+  upstream server under
+  [`isolate()`](https://rdrr.io/pkg/shiny/man/isolate.html) and never
+  re-resolved once that server registered a moment later; it now
+  re-fires when the upstream is constructed, so the block picks up its
+  data instead of starving for the rest of the session
+  ([\#298](https://github.com/BristolMyersSquibb/blockr.core/issues/298)).
 - Captured block conditions are no longer glue-interpolated when logged,
   so a block whose warning or error text contains braces – e.g. the
   `{summary_fun}` / `{data}` placeholders in `tidyr::pivot_wider()`’s
