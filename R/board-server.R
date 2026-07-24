@@ -939,7 +939,19 @@ upstream_result <- function(key, src_rv, rv, to) {
 
       from <- src_rv[[key]]
 
-      srv <- if (is.null(from)) NULL else isolate(rv$blocks[[from]])[["server"]]
+      if (is.null(from)) {
+        return(NULL)
+      }
+
+      # Depend on the upstream's rv$eval slot -- installed when it is
+      # constructed -- so a downstream whose input runs before its upstream
+      # is registered re-resolves the server once that upstream appears,
+      # rather than latching the NULL it first saw. Mirrors input_ready();
+      # rv$blocks stays isolated to avoid a whole-container dependency that
+      # would re-fire every input on every block's construction.
+      rv$eval[[from]]
+
+      srv <- isolate(rv$blocks[[from]])[["server"]]
 
       if (is.null(srv)) NULL else srv$result()
     }
