@@ -95,6 +95,8 @@ The legacy board supports the following plugins :
 - `edit_block()`: Implements how a block attributes such as titles are processed and rendered.
 - `edit_stack()`: Implements how a stack attributes such as names are processed and rendered.
 
+Of these, `manage_links()` and `manage_stacks()` are not part of the default plugin set: their table editors rely on the suggested DT package, so a bare board omits them. Add them back when serving with `plugins = custom_plugins(list(manage_links(), manage_stacks()))`, as the bundled example apps do.
+
 ### Override a plugin's server and ui functions
 
 We will work from an example, we want to modify the `manage_blocks()` plugin to use the `scoutbaR` package to search for blocks to add.

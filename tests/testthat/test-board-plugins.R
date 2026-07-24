@@ -1,5 +1,7 @@
 test_that("plugins", {
 
+  skip_if_not_installed("DT")
+
   a <- preserve_board()
   b <- manage_blocks()
 

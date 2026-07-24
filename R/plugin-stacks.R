@@ -5,6 +5,11 @@
 #' alternate version of this plugin. The default implementation provides a
 #' table-based UI, presented in a modal.
 #'
+#' This plugin is not part of the default set returned by [board_plugins()];
+#' add it explicitly (e.g. `c(board_plugins(x), manage_stacks())`) to enable
+#' interactive stack editing. Its table UI requires the suggested \pkg{DT}
+#' package.
+#'
 #' Updates are mediated via the [shiny::reactiveVal()] object passed as
 #' `update`, where stack updates are communicated as list entry `stacks` with
 #' components `add`, `rm` or `mod`, where
@@ -24,6 +29,15 @@
 #' @export
 manage_stacks <- function(server = manage_stacks_server,
                           ui = manage_stacks_ui) {
+
+  if (!pkg_avail("DT")) {
+    blockr_abort(
+      "The `manage_stacks` plugin requires the \"DT\" package. Install it ",
+      "with `install.packages(\"DT\")` or omit `manage_stacks()` from the ",
+      "board plugins.",
+      class = "manage_stacks_no_dt"
+    )
+  }
 
   new_plugin(server, ui, class = "manage_stacks")
 }

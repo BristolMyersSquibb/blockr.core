@@ -28,7 +28,11 @@
 #' called for their side effects of throwing errors in case of validation
 #' failure. Inheritance checkers `is_plugin()`/`is_plugins()` return scalar
 #' logicals and finally, the convenience function `board_plugins()` returns a
-#' `plugins` object with all known plugins (or a selected subset thereof).
+#' `plugins` object with the default set of plugins (or a selected subset
+#' thereof). The `manage_links` and `manage_stacks` link/stack editors are not
+#' part of this default set (they require the suggested \pkg{DT} package); add
+#' them explicitly with `c(board_plugins(x), manage_links(), manage_stacks())`
+#' to restore interactive link and stack editing.
 #'
 #' @export
 new_plugin <- function(server, ui = NULL, validator = abort_not_null,
@@ -320,8 +324,6 @@ board_plugins.board <- function(x, which = NULL, ...) {
   plugins <- plugins(
     preserve_board(),
     manage_blocks(),
-    manage_links(),
-    manage_stacks(),
     notify_user(),
     generate_code(),
     edit_block(),

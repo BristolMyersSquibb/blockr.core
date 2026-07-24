@@ -60,7 +60,11 @@ validators \code{validate_plugin()}/\code{validate_plugins()}, which are typical
 called for their side effects of throwing errors in case of validation
 failure. Inheritance checkers \code{is_plugin()}/\code{is_plugins()} return scalar
 logicals and finally, the convenience function \code{board_plugins()} returns a
-\code{plugins} object with all known plugins (or a selected subset thereof).
+\code{plugins} object with the default set of plugins (or a selected subset
+thereof). The \code{manage_links} and \code{manage_stacks} link/stack editors are not
+part of this default set (they require the suggested \pkg{DT} package); add
+them explicitly with \code{c(board_plugins(x), manage_links(), manage_stacks())}
+to restore interactive link and stack editing.
 }
 \description{
 A core mechanism for extending or customizing UX aspects of the board module

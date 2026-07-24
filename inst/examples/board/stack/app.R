@@ -13,5 +13,6 @@ serve(
     ),
     stacks = list(ac = c("a", "c"))
   ),
-  "my_board"
+  "my_board",
+  plugins = custom_plugins(list(manage_links(), manage_stacks()))
 )

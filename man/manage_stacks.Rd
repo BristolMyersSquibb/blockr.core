@@ -36,6 +36,11 @@ alternate version of this plugin. The default implementation provides a
 table-based UI, presented in a modal.
 }
 \details{
+This plugin is not part of the default set returned by \code{\link[=board_plugins]{board_plugins()}};
+add it explicitly (e.g. \code{c(board_plugins(x), manage_stacks())}) to enable
+interactive stack editing. Its table UI requires the suggested \pkg{DT}
+package.
+
 Updates are mediated via the \code{\link[shiny:reactiveVal]{shiny::reactiveVal()}} object passed as
 \code{update}, where stack updates are communicated as list entry \code{stacks} with
 components \code{add}, \code{rm} or \code{mod}, where
