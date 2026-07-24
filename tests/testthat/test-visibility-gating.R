@@ -1029,3 +1029,54 @@ test_that("a zero background delay builds every block up front", {
     args = list(x = ordered_board(), plugins = list(), callbacks = visible_b)
   )
 })
+
+test_that("a downstream input recovers an upstream built after it ran", {
+
+  # Regression for the finite background_construction_delay race: an input
+  # reactive that runs before its upstream is registered in rv$blocks must
+  # re-resolve the server once that upstream is constructed, instead of latching
+  # the NULL it first saw. The wake rides the upstream's rv$eval slot, installed
+  # at its construction -- the same per-key signal input_ready() depends on.
+
+  latch_probe <- function(id) {
+    moduleServer(
+      id,
+      function(input, output, session) {
+
+        rv <- reactiveValues(blocks = list())
+        rv$eval <- reactiveValues()
+        rv$needed <- reactiveVal(TRUE)
+        rv$needed_slots <- new.env(parent = emptyenv())
+
+        src_rv <- reactiveValues()
+        src_rv[["data"]] <- "up"
+
+        input_res <- upstream_result("data", src_rv, rv, to = "down")
+
+        captured <- new.env(parent = emptyenv())
+        captured$val <- "unset"
+
+        observe(captured$val <- input_res())
+      }
+    )
+  }
+
+  testServer(
+    latch_probe,
+    {
+      session$flushReact()
+
+      expect_null(captured$val)
+
+      # Build the upstream, mirroring construct_block's install order: rebind
+      # rv$blocks, then install the eval slot through a local binding.
+      rv$blocks[["up"]] <- list(server = list(result = reactive("UPSTREAM")))
+      ev <- isolate(rv$eval)
+      ev[["up"]] <- reactive("ready")
+
+      session$flushReact()
+
+      expect_identical(captured$val, "UPSTREAM")
+    }
+  )
+})
