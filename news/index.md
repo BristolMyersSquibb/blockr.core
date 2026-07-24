@@ -80,6 +80,13 @@
   that is not fully configured holds the export back instead of emitting
   broken code
   ([\#269](https://github.com/BristolMyersSquibb/blockr.core/issues/269)).
+- Code export gates on the set of blocks that actually carry an
+  expression, not on eval status alone, so a board with unbuilt blocks
+  can no longer emit a script that assigns to a variable named `NA`.
+  “Show code” always opens the modal, which reports “Preparing code…”
+  while the board materializes and a not-ready note when a block is left
+  unconfigured, rather than silently producing nothing
+  ([\#300](https://github.com/BristolMyersSquibb/blockr.core/issues/300)).
 - [`blockr_ser()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_ser.md)
   accepts a partial block-state snapshot: a board block omitted from
   `blocks` (or mapped to `NULL`) serializes from its constructor scope
