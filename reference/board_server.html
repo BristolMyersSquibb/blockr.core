@@ -116,9 +116,10 @@ additional observers. Each receives a <code>visibility</code> list with three ch
 <code>required</code>, <code>visible</code> and <code>frozen</code>, each an environment of per-block
 <code>reactiveVal</code>s (core keeps one per board block as blocks are added and
 removed). Declare a block needed with <code>visibility$required[[id]](TRUE)</code> (or
-<code>FALSE</code> for built but dormant) and report the view it is rendered into with
-<code>visibility$visible[[id]](view)</code> (or <code>NA_character_</code> for off screen); the
-board reads both to gate construction, evaluation and rendering. Set
+<code>FALSE</code> for built but dormant) and report whether it is currently painted
+with <code>visibility$visible[[id]](TRUE)</code> (or <code>FALSE</code> once built but off screen,
+leaving <code>NA</code> until it is first built); the board reads both to gate
+construction, evaluation and rendering. Set
 <code>visibility$frozen[[id]](TRUE)</code> to freeze a block's inputs (for example when
 its controls are hidden), so a forged input can no longer steer it.</p></dd>
 

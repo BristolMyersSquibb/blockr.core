@@ -57,10 +57,11 @@ board_server(
   `reactiveVal`s (core keeps one per board block as blocks are added and
   removed). Declare a block needed with
   `visibility$required[[id]](TRUE)` (or `FALSE` for built but dormant)
-  and report the view it is rendered into with
-  `visibility$visible[[id]](view)` (or `NA_character_` for off screen);
-  the board reads both to gate construction, evaluation and rendering.
-  Set `visibility$frozen[[id]](TRUE)` to freeze a block's inputs (for
+  and report whether it is currently painted with
+  `visibility$visible[[id]](TRUE)` (or `FALSE` once built but off
+  screen, leaving `NA` until it is first built); the board reads both to
+  gate construction, evaluation and rendering. Set
+  `visibility$frozen[[id]](TRUE)` to freeze a block's inputs (for
   example when its controls are hidden), so a forged input can no longer
   steer it.
 
