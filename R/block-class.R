@@ -111,7 +111,7 @@
 #' input (`state`) provided. Until then -- including while an upstream is itself
 #' still pending -- neither the validator nor the block expression run and no
 #' output is produced. See [block_server()] for the resulting eval status
-#' (`dormant` / `waiting` / `unset` / `failed` / `ready`).
+#' (`dormant` / `stale` / `waiting` / `unset` / `failed` / `ready`).
 #'
 #' Other conditions (messages and warnings) may be thrown as will be caught
 #' and displayed to the user but they will not interrupt evaluation. Errors

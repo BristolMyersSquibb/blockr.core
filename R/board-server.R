@@ -805,6 +805,16 @@ input_ready <- function(from, rv) {
 block_eval_status <- function(rv, id, inputs_ready, srv) {
 
   if (!block_needed(rv, id)) {
+
+    # A dormant block reports `stale` on its own verdict (`input_stale`): a
+    # ready upstream's result no longer matches what it consumed, or a direct
+    # upstream is itself `stale` -- so a change flows through the whole
+    # downstream cone, one dependency hop at a time. Depending on the upstreams
+    # is what wakes this status (and the badge) without re-evaluating the block.
+    if (isTRUE(srv$input_stale())) {
+      return("stale")
+    }
+
     return("dormant")
   }
 
