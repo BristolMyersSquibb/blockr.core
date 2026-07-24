@@ -29,6 +29,7 @@ block_server(id, x, data = list(), ...)
   update = reactiveVal(),
   inputs_ready = reactive(TRUE),
   visibility = NULL,
+  eval_stamp = function() 0L,
   ...
 )
 
@@ -69,6 +70,10 @@ standalone)}
 \code{reactiveVal}s, supplied by \code{\link[=board_server]{board_server()}} to gate rendering and to
 freeze block inputs; \code{NULL} (the standalone default) leaves the block
 ungated}
+
+\item{eval_stamp}{Function returning the next tick of the board-wide eval
+clock, supplied by \code{\link[=board_server]{board_server()}} to stamp each evaluation so staleness of
+a dormant block can be derived; the standalone default is a no-op}
 }
 \value{
 Both \code{block_server()} and \code{expr_server()} return shiny server module
@@ -95,8 +100,8 @@ of the block expression server (handling the block-specific functionality,
 i.e. block user inputs and expression), and instantiation of the
 \code{edit_block} module (if passed from the parent scope).
 
-Each block carries an \emph{eval status} -- one of \code{dormant}, \code{waiting}, \code{unset},
-\code{failed} or \code{ready} -- which, together with its orthogonal front-end
+Each block carries an \emph{eval status} -- one of \code{dormant}, \code{stale}, \code{waiting},
+\code{unset}, \code{failed} or \code{ready} -- which, together with its orthogonal front-end
 visibility, determines its behaviour. The status separates the two input
 kinds (data
 inputs from links, user inputs from \code{state}) and a genuine failure:
@@ -104,6 +109,11 @@ inputs from links, user inputs from \code{state}) and a genuine failure:
 \item \code{dormant} -- not \emph{needed} (neither on screen nor feeding, transitively over
 \code{\link[=board_links]{board_links()}}, an on-screen block); inputs stay unfulfilled
 (\code{\link[shiny:req]{shiny::req()}} out) and nothing evaluates.
+\item \code{stale} -- dormant, but an upstream has produced a new result since the
+block last evaluated, so its last-known result is out of date. The block
+is not re-evaluated while dormant; the status only reports that the cached
+result no longer reflects its inputs, so a front-end can flag it (e.g. a
+muted node badge) without forcing a recompute.
 \item \code{waiting} -- needed, but a required \emph{data} input is missing: unconnected,
 below the required number of variadic \code{...args} inputs (one by default),
 or fed by an upstream block that is not itself \code{ready} (see

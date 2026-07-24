@@ -17,14 +17,19 @@
 #' i.e. block user inputs and expression), and instantiation of the
 #' `edit_block` module (if passed from the parent scope).
 #'
-#' Each block carries an *eval status* -- one of `dormant`, `waiting`, `unset`,
-#' `failed` or `ready` -- which, together with its orthogonal front-end
+#' Each block carries an *eval status* -- one of `dormant`, `stale`, `waiting`,
+#' `unset`, `failed` or `ready` -- which, together with its orthogonal front-end
 #' visibility, determines its behaviour. The status separates the two input
 #' kinds (data
 #' inputs from links, user inputs from `state`) and a genuine failure:
 #' * `dormant` -- not *needed* (neither on screen nor feeding, transitively over
 #'   [board_links()], an on-screen block); inputs stay unfulfilled
 #'   ([shiny::req()] out) and nothing evaluates.
+#' * `stale` -- dormant, but an upstream has produced a new result since the
+#'   block last evaluated, so its last-known result is out of date. The block
+#'   is not re-evaluated while dormant; the status only reports that the cached
+#'   result no longer reflects its inputs, so a front-end can flag it (e.g. a
+#'   muted node badge) without forcing a recompute.
 #' * `waiting` -- needed, but a required *data* input is missing: unconnected,
 #'   below the required number of variadic `...args` inputs (one by default),
 #'   or fed by an upstream block that is not itself `ready` (see
@@ -127,6 +132,9 @@ block_server <- function(id, x, data = list(), ...) {
 #' `reactiveVal`s, supplied by [board_server()] to gate rendering and to
 #' freeze block inputs; `NULL` (the standalone default) leaves the block
 #' ungated
+#' @param eval_stamp Function returning the next tick of the board-wide eval
+#' clock, supplied by [board_server()] to stamp each evaluation so staleness of
+#' a dormant block can be derived; the standalone default is a no-op
 #' @rdname block_server
 #' @export
 block_server.block <- function(id, x, data = list(), block_id = id,
@@ -134,7 +142,8 @@ block_server.block <- function(id, x, data = list(), block_id = id,
                                board = reactiveValues(),
                                update = reactiveVal(),
                                inputs_ready = reactive(TRUE),
-                               visibility = NULL, ...) {
+                               visibility = NULL,
+                               eval_stamp = function() 0L, ...) {
 
   dot_args <- list(...)
 
@@ -291,6 +300,12 @@ block_server.block <- function(id, x, data = list(), block_id = id,
       # Last successful evaluation, for the unchanged-inputs skip below.
       last_eval <- new.env(parent = emptyenv())
 
+      # Stamp of this block's last evaluation on the board-wide eval clock (0
+      # until it first evaluates). board_server derives staleness from it in
+      # block_eval_status(): a dormant block is stale once a direct upstream
+      # carries a higher stamp, i.e. evaluated more recently than this block.
+      evaluated <- reactiveVal(0L)
+
       res <- reactive(
         {
           if (!isTRUE(reval_if(gate)) || !isTRUE(data_valid()) ||
@@ -346,6 +361,12 @@ block_server.block <- function(id, x, data = list(), block_id = id,
           last_eval$data <- eval_data
           last_eval$trigger <- eval_trigger
           last_eval$result <- result
+
+          # Reaching here (past the unchanged-inputs skip) means the result
+          # changed: stamp this evaluation on the board-wide clock (via the
+          # board-supplied channel) so a dormant downstream can later tell it
+          # evaluated after this block did.
+          evaluated(eval_stamp())
 
           result
         },
@@ -421,6 +442,7 @@ block_server.block <- function(id, x, data = list(), block_id = id,
       c(
         list(
           result = res,
+          evaluated = evaluated,
           state_ready = state_ready,
           failed = failed,
           expr = lang,
