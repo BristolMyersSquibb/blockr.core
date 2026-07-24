@@ -30,6 +30,18 @@
   replace with their own UI – so a bare core install no longer pulls it
   in. Install `DT` alongside if you use either
   ([\#129](https://github.com/BristolMyersSquibb/blockr.core/issues/129)).
+- The default board plugin set
+  ([`board_plugins()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_plugin.md))
+  no longer includes the `manage_links` and `manage_stacks` editor
+  plugins, which render their tables through `DT`. Including them by
+  default made a bare core board fail with
+  `there is no package called 'DT'` once `DT` became a Suggest, breaking
+  consumer test apps built on the default board. Add them back with
+  `c(board_plugins(x), manage_links(), manage_stacks())` to restore
+  interactive link and stack editing; both constructors now raise a
+  clear error when `DT` is missing. Breaking for front-ends that relied
+  on the core editors in the default board
+  ([\#297](https://github.com/BristolMyersSquibb/blockr.core/issues/297)).
 - A board’s
   [`blockr_app_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   and
@@ -195,6 +207,15 @@
   `register_block(arguments = new_block_args(...))` call sites keep
   working; migrate them to the `arg_spec` family
   ([\#295](https://github.com/BristolMyersSquibb/blockr.core/issues/295)).
+- A block constructed for a class with no registry entry is now imputed
+  a class-derived default metadata record at construction (name from the
+  class, default category and icon) instead of being left without one.
+  It still warns, but the block is then self-describing:
+  [`block_metadata()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_metadata.md)
+  and the `block_meta_*()` accessors report those defaults rather than a
+  metadata read aborting – so a cosmetic lookup can no longer take down
+  a board whose registry has been curated
+  ([\#299](https://github.com/BristolMyersSquibb/blockr.core/issues/299)).
 
 ## blockr.core 0.1.3
 

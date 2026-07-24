@@ -9,7 +9,9 @@ columns. Each attribute additionally has a dedicated getter
 (block_meta_name(), block_meta_guidance(), ...) returning that attribute
 for a single block. Missing fields are filled with display defaults in the
 data.frame; the getters instead return the stored value (or NA / an empty
-value)."><meta property="og:description" content="Registry metadata for blocks is available both as a tabular overview and via
+value). A block constructed for a class with no registry entry carries a
+class-derived default record, imputed at construction, so accessors degrade
+to those defaults rather than signalling a missing record."><meta property="og:description" content="Registry metadata for blocks is available both as a tabular overview and via
 per-attribute accessors. block_metadata() returns a data.frame with one
 row per block – dispatching on a block, a blocks collection, a
 block_registry_entry or a registry ID – where scalar attributes are
@@ -19,7 +21,9 @@ columns. Each attribute additionally has a dedicated getter
 (block_meta_name(), block_meta_guidance(), ...) returning that attribute
 for a single block. Missing fields are filled with display defaults in the
 data.frame; the getters instead return the stored value (or NA / an empty
-value)."><script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.5.0/mermaid.min.js" integrity="sha512-3EZqKCkk3nMLmbrI7mfry81KH7dkzy/BoDfQrodwLQnS/RbsVlERdYP6J0oiJegRUxSOmx7Y35WNbVKSw7mipw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script></head><body>
+value). A block constructed for a class with no registry entry carries a
+class-derived default record, imputed at construction, so accessors degrade
+to those defaults rather than signalling a missing record."><script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.5.0/mermaid.min.js" integrity="sha512-3EZqKCkk3nMLmbrI7mfry81KH7dkzy/BoDfQrodwLQnS/RbsVlERdYP6J0oiJegRUxSOmx7Y35WNbVKSw7mipw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -78,7 +82,9 @@ columns. Each attribute additionally has a dedicated getter
 (<code>block_meta_name()</code>, <code>block_meta_guidance()</code>, ...) returning that attribute
 for a single block. Missing fields are filled with display defaults in the
 data.frame; the getters instead return the stored value (or <code>NA</code> / an empty
-value).</p>
+value). A block constructed for a class with no registry entry carries a
+class-derived default record, imputed at construction, so accessors degrade
+to those defaults rather than signalling a missing record.</p>
     </div>
 
     <div class="section level2">

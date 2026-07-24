@@ -281,7 +281,7 @@ new_identity_block <- function() {
 }
 
 blk <- new_identity_block()
-#> Warning: No block metadata available for block identity_block.
+#> Warning: No registry entry for block identity_block; using default metadata.
 is_block(blk)
 #> [1] TRUE
 

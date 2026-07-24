@@ -48,6 +48,12 @@ return `NULL`.
 
 ## Details
 
+This plugin is not part of the default set returned by
+[`board_plugins()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_plugin.md);
+add it explicitly (e.g. `c(board_plugins(x), manage_stacks())`) to
+enable interactive stack editing. Its table UI requires the suggested DT
+package.
+
 Updates are mediated via the
 [`shiny::reactiveVal()`](https://rdrr.io/pkg/shiny/man/reactiveVal.html)
 object passed as `update`, where stack updates are communicated as list

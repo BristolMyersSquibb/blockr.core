@@ -10,7 +10,10 @@ a subset of columns. Each attribute additionally has a dedicated getter
 (`block_meta_name()`, `block_meta_guidance()`, ...) returning that
 attribute for a single block. Missing fields are filled with display
 defaults in the data.frame; the getters instead return the stored value
-(or `NA` / an empty value).
+(or `NA` / an empty value). A block constructed for a class with no
+registry entry carries a class-derived default record, imputed at
+construction, so accessors degrade to those defaults rather than
+signalling a missing record.
 
 ## Usage
 

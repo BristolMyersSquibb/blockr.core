@@ -114,7 +114,9 @@
 <code><a href="../reference/edit_block.html">edit_block()</a></code>: Implements how a block attributes such as titles are processed and rendered.</li>
 <li>
 <code><a href="../reference/edit_stack.html">edit_stack()</a></code>: Implements how a stack attributes such as names are processed and rendered.</li>
-</ul></section><section class="level3"><h3 id="override-a-plugins-server-and-ui-functions">Override a plugin’s server and ui functions<a class="anchor" aria-label="anchor" href="#override-a-plugins-server-and-ui-functions"></a>
+</ul>
+<p>Of these, <code><a href="../reference/manage_links.html">manage_links()</a></code> and <code><a href="../reference/manage_stacks.html">manage_stacks()</a></code> are not part of the default plugin set: their table editors rely on the suggested DT package, so a bare board omits them. Add them back when serving with <code>plugins = custom_plugins(list(manage_links(), manage_stacks()))</code>, as the bundled example apps do.</p>
+</section><section class="level3"><h3 id="override-a-plugins-server-and-ui-functions">Override a plugin’s server and ui functions<a class="anchor" aria-label="anchor" href="#override-a-plugins-server-and-ui-functions"></a>
 </h3>
 <p>We will work from an example, we want to modify the <code><a href="../reference/manage_blocks.html">manage_blocks()</a></code> plugin to use the <code>scoutbaR</code> package to search for blocks to add.</p>
 <p>By default <code><a href="../reference/manage_blocks.html">manage_blocks()</a></code> uses <code><a href="../reference/manage_blocks.html">manage_blocks_ui()</a></code> and <code><a href="../reference/manage_blocks.html">manage_blocks_server()</a></code>, a good workflow is to start from those and implement our modifications.</p>

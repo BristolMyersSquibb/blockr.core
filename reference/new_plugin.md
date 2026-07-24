@@ -68,7 +68,12 @@ objects, respectively, as do `as_plugin()`/`as_plugins()` and validators
 their side effects of throwing errors in case of validation failure.
 Inheritance checkers `is_plugin()`/`is_plugins()` return scalar logicals
 and finally, the convenience function `board_plugins()` returns a
-`plugins` object with all known plugins (or a selected subset thereof).
+`plugins` object with the default set of plugins (or a selected subset
+thereof). The `manage_links` and `manage_stacks` link/stack editors are
+not part of this default set (they require the suggested DT package);
+add them explicitly with
+`c(board_plugins(x), manage_links(), manage_stacks())` to restore
+interactive link and stack editing.
 
 ## Examples
 
@@ -78,14 +83,14 @@ plg <- board_plugins(new_board())
 is_plugins(plg)
 #> [1] TRUE
 names(plg)
-#> [1] "preserve_board" "manage_blocks"  "manage_links"   "manage_stacks" 
-#> [5] "notify_user"    "generate_code"  "edit_block"     "edit_stack"    
+#> [1] "preserve_board" "manage_blocks"  "notify_user"    "generate_code" 
+#> [5] "edit_block"     "edit_stack"    
 
 plg[1:3]
 #> <plugins[3]>
 #> preserve_board: <preserve_board<plugin>>
 #> manage_blocks: <manage_blocks<plugin>>
-#> manage_links: <manage_links<plugin>>
+#> notify_user: <notify_user<plugin>>
 
 is_plugin(plg[["preserve_board"]])
 #> [1] TRUE

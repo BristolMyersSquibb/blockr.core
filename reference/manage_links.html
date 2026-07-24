@@ -102,7 +102,11 @@ component (i.e. <code>manage_links_server()</code>) is expected to return <code>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Updates are mediated via the <code><a href="https://rdrr.io/pkg/shiny/man/reactiveVal.html" class="external-link">shiny::reactiveVal()</a></code> object passed as
+    <p>This plugin is not part of the default set returned by <code><a href="new_plugin.html">board_plugins()</a></code>;
+add it explicitly (e.g. <code>c(board_plugins(x), manage_links())</code>) to enable
+interactive link editing. Its table UI requires the suggested <span class="pkg">DT</span>
+package.</p>
+<p>Updates are mediated via the <code><a href="https://rdrr.io/pkg/shiny/man/reactiveVal.html" class="external-link">shiny::reactiveVal()</a></code> object passed as
 <code>update</code>, where link updates are communicated as list entry <code>stacks</code> with
 components <code>add</code>, <code>rm</code> or <code>mod</code>, where</p><ul><li><p><code>add</code> is either <code>NULL</code> or a <code>links</code> object (link IDs may not already
 exists),</p></li>

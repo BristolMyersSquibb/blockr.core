@@ -53,6 +53,16 @@ The legacy board supports the following plugins :
   Implements how a stack attributes such as names are processed and
   rendered.
 
+Of these,
+[`manage_links()`](https://bristolmyerssquibb.github.io/blockr.core/reference/manage_links.md)
+and
+[`manage_stacks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/manage_stacks.md)
+are not part of the default plugin set: their table editors rely on the
+suggested DT package, so a bare board omits them. Add them back when
+serving with
+`plugins = custom_plugins(list(manage_links(), manage_stacks()))`, as
+the bundled example apps do.
+
 ### Override a plugin’s server and ui functions
 
 We will work from an example, we want to modify the
