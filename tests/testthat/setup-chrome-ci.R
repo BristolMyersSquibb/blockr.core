@@ -16,25 +16,42 @@ withr::local_options(
 # gate fails on. `app$stop()` only ends the shinytest2 session; the shared
 # browser stays alive until R exits, so its scratch is never reclaimed. At the
 # end of the suite, close the browser (a clean shutdown reclaims its scratch),
-# then sweep anything that still leaked -- but only what this run created, so a
-# shared `$TMPDIR` on a developer machine keeps its other dirs.
+# then sweep anything that still leaked.
+#
+# On CI the sweep is unconditional. Closing the browser waits for its main
+# process, but a Chrome helper (crashpad, zygote) can drop a fresh scratch dir
+# a moment later -- past a snapshot taken here -- so settle first, then remove
+# every match. A throwaway runner has no unrelated dirs to protect. Locally,
+# keep the conservative `setdiff(before)` so a shared `$TMPDIR` retains its own.
 local({
 
   pat <- "^(com\\.google\\.Chrome|org\\.chromium\\.Chromium)"
   tmp_parent <- dirname(tempdir())
   before <- list.files(tmp_parent, pattern = pat)
+  on_ci <- nzchar(Sys.getenv("CI"))
 
   withr::defer(
     {
-      if (isTRUE(chromote::has_default_chromote_object())) {
+      had_browser <- isTRUE(chromote::has_default_chromote_object())
+
+      if (had_browser) {
         try(chromote::default_chromote_object()$close(), silent = TRUE)
       }
 
+      if (on_ci) {
+
+        if (had_browser) {
+          Sys.sleep(2)
+        }
+
+        leaked <- list.files(tmp_parent, pattern = pat)
+
+      } else {
+        leaked <- setdiff(list.files(tmp_parent, pattern = pat), before)
+      }
+
       unlink(
-        file.path(
-          tmp_parent,
-          setdiff(list.files(tmp_parent, pattern = pat), before)
-        ),
+        file.path(tmp_parent, leaked),
         recursive = TRUE,
         force = TRUE
       )
