@@ -54,6 +54,12 @@
   export ("Show code") then marks every block required, so the exported
   script covers the whole board; an off-screen block that is not fully
   configured holds the export back instead of emitting broken code (#269).
+* Code export gates on the set of blocks that actually carry an expression,
+  not on eval status alone, so a board with unbuilt blocks can no longer emit
+  a script that assigns to a variable named `NA`. "Show code" always opens the
+  modal, which reports "Preparing code..." while the board materializes and a
+  not-ready note when a block is left unconfigured, rather than silently
+  producing nothing (#300).
 * `blockr_ser()` accepts a partial block-state snapshot: a board block omitted
   from `blocks` (or mapped to `NULL`) serializes from its constructor scope
   instead of aborting with `length(blocks) == length(x)`. Saving a board under

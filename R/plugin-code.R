@@ -38,16 +38,20 @@ generate_code_server <- function(id, board, visibility = NULL, ...) {
     id,
     function(input, output, session) {
 
-      code <- reactive(
-        if (isTRUE(code_export_ready(board))) {
-          export_wrapped_code(
-            lst_xtr_reval(board$blocks, "server", "expr"),
-            board$board
-          )
+      output$code_out <- renderUI(
+        {
+          state <- code_export_state(board)
+
+          script <- if (identical(state, "ready")) {
+            export_wrapped_code(
+              lst_xtr_reval(board$blocks, "server", "expr"),
+              board$board
+            )
+          }
+
+          code_modal_body(state, script)
         }
       )
-
-      output$code_out <- renderUI(code_modal_body(code()))
 
       observeEvent(
         input$code_mod,
@@ -83,34 +87,45 @@ generate_code_ui <- function(id, board) {
   )
 }
 
-code_export_ready <- function(board) {
+code_export_state <- function(board) {
 
+  ids <- board_block_ids(board$board)
   status <- reactiveValuesToList(board$eval)
 
-  if (!setequal(names(status), board_block_ids(board$board))) {
-    return(FALSE)
+  if (!setequal(names(board$blocks), ids) || !setequal(names(status), ids)) {
+    return("pending")
   }
 
-  all(chr_ply(status, reval_if) %in% c("ready", "dormant"))
+  if (all(chr_ply(status, reval_if) %in% c("ready", "dormant"))) {
+    return("ready")
+  }
+
+  "blocked"
 }
 
-code_modal_body <- function(script) {
+code_modal_body <- function(state, script = NULL) {
 
-  if (is.null(script)) {
+  if (identical(state, "ready")) {
     return(
       div(
-        class = "text-muted",
-        paste(
-          "The board is not ready. Finish configuring all blocks",
-          "before exporting code."
-        )
+        class = "text-decoration-none position-relative",
+        pre(paste0(script, collapse = "\n"))
       )
     )
   }
 
+  if (identical(state, "pending")) {
+    return(
+      div(class = "text-muted", "Preparing code...")
+    )
+  }
+
   div(
-    class = "text-decoration-none position-relative",
-    pre(paste0(script, collapse = "\n"))
+    class = "text-muted",
+    paste(
+      "The board is not ready. Finish configuring all blocks",
+      "before exporting code."
+    )
   )
 }
 
@@ -121,7 +136,12 @@ require_all_blocks <- function(board, visibility) {
   }
 
   for (id in board_block_ids(board$board)) {
-    visibility$required[[id]](TRUE)
+
+    slot <- visibility$required[[id]]
+
+    if (not_null(slot)) {
+      slot(TRUE)
+    }
   }
 
   invisible()
