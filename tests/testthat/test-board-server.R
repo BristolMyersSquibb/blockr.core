@@ -861,9 +861,11 @@ test_that("validate_board_update handles block-rm orphan cleanup (#177)", {
     links = list(mod = list(lnk1 = list(input = "data")))
   )
 
+  # Modifying a link that still points at the removed block leaves it referenced
+  # once the augment cascade drops it, so the apply's rm_blocks() guard rejects.
   expect_error(
     validate_board_update(payload_mod, brd),
-    class = "board_block_link_name_mismatch"
+    class = "invalid_removal_of_used_block"
   )
 })
 
@@ -900,27 +902,27 @@ test_that("validate_board_update cascades stack membership on rm (#308)", {
   )
 })
 
-test_that("validate_board_update stays within core references", {
+test_that("validate_board_update validates the applied board", {
 
   brd <- new_board(
     blocks = c(a = new_dataset_block("iris"), b = new_subset_block()),
     links = links(ab = new_link("a", "b"))
   )
 
-  # Core update validation checks only core references. Validating the whole
-  # board would fire a subclass validate_board method (e.g. dock view
-  # membership) on an intermediate the core update does not cascade.
-  seen <- FALSE
+  # Update validation applies the augmented delta to a scratch board and
+  # validates the result, so a subclass validate_board method (e.g. dock view
+  # membership) sees the fully-cascaded board rather than an intermediate.
+  seen <- NULL
   local_mocked_bindings(
     validate_board = function(x, ...) {
-      seen <<- TRUE
+      seen <<- board_block_ids(x)
       x
     }
   )
 
   validate_board_update(list(blocks = list(rm = "a")), brd)
 
-  expect_false(seen)
+  expect_identical(seen, "b")
 })
 
 test_that("board server utils", {
@@ -1097,8 +1099,12 @@ test_that("board_update lifecycle runs augment before apply and resets", {
 
       expect_true(any(call_log == "augment"))
       expect_true(any(call_log == "apply"))
+
+      # Validation now also runs apply_board_update (validate-by-apply), so
+      # augment and apply interleave; the first augment still precedes the first
+      # apply, and the applied board reflects the augmented payload (below).
       expect_lt(
-        max(which(call_log == "augment")),
+        min(which(call_log == "augment")),
         min(which(call_log == "apply"))
       )
 
@@ -1151,13 +1157,34 @@ test_that("apply_board_update splices board_server `...` as named args", {
   )
 })
 
-test_that("apply_board_update.board returns the supplied board unchanged", {
+test_that("apply_board_update.board applies the core delta", {
 
-  brd <- new_board()
+  brd <- new_board(
+    blocks = c(a = new_dataset_block("iris"), b = new_subset_block()),
+    links = links(ab = new_link("a", "b"))
+  )
+
   expect_identical(apply_board_update(brd, list()), brd)
+
+  added <- apply_board_update(
+    brd,
+    list(blocks = list(add = as_blocks(c(c = new_subset_block()))))
+  )
+
+  expect_identical(board_block_ids(added), c("a", "b", "c"))
+
+  # Block removal folds in the incident-link cascade produced by augment, so
+  # rm_blocks() sees the block already free of every link.
+  removed <- apply_board_update(
+    brd,
+    augment_board_update(list(blocks = list(rm = "a")), brd)
+  )
+
+  expect_identical(board_block_ids(removed), "b")
+  expect_length(board_link_ids(removed), 0L)
 })
 
-test_that("apply_board_update runs after core has settled rv state", {
+test_that("apply_board_update composes the core apply via NextMethod", {
 
   reset_ext_methods()
 
@@ -1166,8 +1193,9 @@ test_that("apply_board_update runs after core has settled rv state", {
   register_ext_method(
     "apply_board_update",
     function(board, upd, ...) {
+      board <- NextMethod()
       observed <<- board_block_ids(board)
-      NextMethod()
+      board
     }
   )
 
@@ -1183,6 +1211,7 @@ test_that("apply_board_update runs after core has settled rv state", {
       session$flushReact()
 
       expect_identical(observed, "a")
+      expect_identical(board_block_ids(rv$board), "a")
     },
     args = list(
       x = ext_board,
@@ -1271,8 +1300,10 @@ test_that("rejected board update records validate-phase failure each time", {
 
 test_that("apply-phase failure records apply outcome", {
 
+  # apply_board_update() now also runs during validation, so fail a reactive
+  # side effect that only the apply observer reaches.
   local_mocked_bindings(
-    apply_board_update = function(board, upd, ...) {
+    update_stack_blocks = function(...) {
       stop("apply boom")
     }
   )
