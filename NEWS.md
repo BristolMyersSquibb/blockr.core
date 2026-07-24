@@ -123,6 +123,13 @@
   and forward to the new ones, so existing
   `register_block(arguments = new_block_args(...))` call sites keep working;
   migrate them to the `arg_spec` family (#295).
+* A block constructed for a class with no registry entry is now imputed a
+  class-derived default metadata record at construction (name from the class,
+  default category and icon) instead of being left without one. It still warns,
+  but the block is then self-describing: `block_metadata()` and the
+  `block_meta_*()` accessors report those defaults rather than a metadata read
+  aborting -- so a cosmetic lookup can no longer take down a board whose
+  registry has been curated (#299).
 
 # blockr.core 0.1.3
 
