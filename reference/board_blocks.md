@@ -22,14 +22,7 @@ board_links(x) <- value
 
 board_link_ids(x)
 
-modify_board_links(
-  x,
-  add = NULL,
-  rm = NULL,
-  mod = NULL,
-  ...,
-  session = get_session()
-)
+modify_board_links(x, add = NULL, rm = NULL, ..., session = get_session())
 
 board_stacks(x)
 
@@ -89,7 +82,7 @@ clear_board(x)
 
 - mod:
 
-  Link/stacks to modify
+  Stacks to modify
 
 - blocks, stacks:
 
@@ -127,8 +120,8 @@ corresponding replacement function `board_links<-()`. If only links IDs
 are of interest, this is available as `board_link_ids()`, which is short
 for `names(board_links(x))`. A (generic) convenience function for all
 kinds of updates to board links in one is available as
-`modify_board_links()`. With arguments `add`, `rm` and `mod`, links can
-be added, removed or modified in one go.
+`modify_board_links()`. With arguments `add` and `rm`, links can be
+added or removed in one go.
 
 ## Stacks
 

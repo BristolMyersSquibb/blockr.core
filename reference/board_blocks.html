@@ -73,14 +73,7 @@ modifying board options are documented in <code><a href="new_board_options.html"
 <span></span>
 <span><span class="fu">board_link_ids</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">modify_board_links</span><span class="op">(</span></span>
-<span>  <span class="va">x</span>,</span>
-<span>  add <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  rm <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  mod <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  <span class="va">...</span>,</span>
-<span>  session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
+<span><span class="fu">modify_board_links</span><span class="op">(</span><span class="va">x</span>, add <span class="op">=</span> <span class="cn">NULL</span>, rm <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span>, session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">board_stacks</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span></span>
@@ -141,7 +134,7 @@ modifying board options are documented in <code><a href="new_board_options.html"
 
 
 <dt id="arg-mod">mod<a class="anchor" aria-label="anchor" href="#arg-mod"></a></dt>
-<dd><p>Link/stacks to modify</p></dd>
+<dd><p>Stacks to modify</p></dd>
 
 
 <dt id="arg-blocks-stacks">blocks, stacks<a class="anchor" aria-label="anchor" href="#arg-blocks-stacks"></a></dt>
@@ -184,8 +177,7 @@ corresponding replacement function <code>board_links&lt;-()</code>. If only link
 of interest, this is available as <code>board_link_ids()</code>, which is short for
 <code>names(board_links(x))</code>. A (generic) convenience function for all kinds of
 updates to board links in one is available as <code>modify_board_links()</code>. With
-arguments <code>add</code>, <code>rm</code> and <code>mod</code>, links can be added, removed or modified in
-one go.</p>
+arguments <code>add</code> and <code>rm</code>, links can be added or removed in one go.</p>
     </div>
     <div class="section level2">
     <h2 id="stacks">Stacks<a class="anchor" aria-label="anchor" href="#stacks"></a></h2>

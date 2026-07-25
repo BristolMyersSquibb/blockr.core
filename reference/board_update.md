@@ -76,16 +76,23 @@ thrown here aborts the update before apply runs.
 
 ## Apply
 
-The default `.board` method returns the supplied board unchanged — the
-core apply path (block / link / stack mutation, block UI insertion /
-removal) is not routed through this generic. Subclass methods receive a
-plain `board` snapshot (no reactive surface) and return a `board`, which
-the final observer assigns back to `rv$board`. For piecemeal
-customization of the core apply path itself, override the relevant
-sub-generic
-([`modify_board_links()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md),
-[`insert_block_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_ui.md),
-etc.) instead.
+The default `.board` method applies the core delta to the supplied board
+and returns it: added blocks are appended, link and stack deltas are
+folded in through
+[`modify_board_links()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
+/
+[`modify_board_stacks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md),
+and removed blocks are dropped last (once the earlier steps have freed
+them of every link and stack). Subclass methods compose with
+[`NextMethod()`](https://rdrr.io/r/base/UseMethod.html) to layer their
+own payload slots on top of the core-updated board (blockr.dock, for
+instance, cascades view membership), so a single `apply_board_update()`
+call yields the full board for any subclass. The board handed in is a
+plain `board` snapshot with no reactive surface; the returned `board` is
+what the final observer assigns back to `rv$board`. The reactive side
+effects that mirror the delta — block UI insertion / removal, server
+construction / teardown, link and stack wiring — run around this single
+reduce.
 
 Errors thrown from either augment or apply are caught by the observer,
 reported via
