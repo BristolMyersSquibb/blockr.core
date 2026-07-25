@@ -357,8 +357,7 @@ rm_blocks.board <- function(x, rm, ..., session = get_session()) {
 #' of interest, this is available as `board_link_ids()`, which is short for
 #' `names(board_links(x))`. A (generic) convenience function for all kinds of
 #' updates to board links in one is available as `modify_board_links()`. With
-#' arguments `add`, `rm` and `mod`, links can be added, removed or modified in
-#' one go.
+#' arguments `add` and `rm`, links can be added or removed in one go.
 #'
 #' @rdname board_blocks
 #' @export
@@ -382,13 +381,13 @@ board_link_ids <- function(x) {
 }
 
 #' @param add Links/stacks to add
-#' @param mod Link/stacks to modify
+#' @param mod Stacks to modify
 #' @rdname board_blocks
 #' @export
-modify_board_links <- function(x, add = NULL, rm = NULL, mod = NULL, ...,
+modify_board_links <- function(x, add = NULL, rm = NULL, ...,
                                session = get_session()) {
 
-  if (!length(add) && !length(rm) && !length(mod)) {
+  if (!length(add) && !length(rm)) {
     return(x)
   }
 
@@ -396,8 +395,8 @@ modify_board_links <- function(x, add = NULL, rm = NULL, mod = NULL, ...,
 }
 
 #' @export
-modify_board_links.board <- function(x, add = NULL, rm = NULL, mod = NULL,
-                                     ..., session = get_session()) {
+modify_board_links.board <- function(x, add = NULL, rm = NULL, ...,
+                                     session = get_session()) {
 
   links <- board_links(x)
 
@@ -416,10 +415,6 @@ modify_board_links.board <- function(x, add = NULL, rm = NULL, mod = NULL,
   if (length(rm)) {
     stopifnot(is.character(rm), all(rm %in% names(links)))
     links <- links[!names(links) %in% rm]
-  }
-
-  if (length(mod)) {
-    links[names(mod)] <- mod
   }
 
   board_links(x) <- c(links, add)

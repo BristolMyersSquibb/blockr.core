@@ -1,5 +1,14 @@
 # blockr.core 0.1.4
 
+* `apply_board_update()` is now a real reducer rather than a no-op: its
+  default `.board` method applies the core delta (block, link and stack
+  mutations) to the supplied board and returns it, and update validation
+  now checks that applying the delta yields a valid board instead of
+  re-deriving the merged references. Extensions overriding
+  `apply_board_update()` must compose with `NextMethod()` to pick up the
+  core apply before layering their own payload slots (as blockr.dock does
+  for views). Breaking for front-ends that override the apply generic
+  (#311).
 * Block result previews now dispatch through a *tabular display*: an S3
   object bundling the output container, render function, render trigger
   and board options for a single result class, kept in sync by living on
