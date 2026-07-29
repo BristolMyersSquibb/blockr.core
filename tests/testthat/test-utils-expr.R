@@ -106,3 +106,26 @@ test_that("bbquote", {
   expect_error(.("a"), class = "dot_should_not_be_called")
   expect_error(..("a"), class = "dots_should_not_be_called")
 })
+
+test_that("bbquote survives an expression that defines a function", {
+
+  # A `function` definition is a 4-element call whose last slot is its
+  # srcref, and that slot is NULL whenever the code was parsed WITHOUT
+  # srcrefs -- which is what an installed package does (keep.source = FALSE)
+  # and what load_all() does not. Deleting a NULL element used to shorten
+  # the call below its names and abort, so bquoting such an expression
+  # worked in every dev session and crashed in production.
+  fn <- parse(text = "local({ f <- function(v, w) v; f(.(x), 1) })",
+              keep.source = FALSE)[[1L]]
+
+  expect_identical(as.list(fn[[2L]][[2L]][[3L]])[[4L]], NULL)
+
+  out <- bbquote(fn, list(x = 1))
+
+  expect_true(is.call(out))
+  expect_identical(eval(out), 1)
+
+  # An unresolved slot still survives the walk as a `.()` placeholder.
+  out <- bbquote(fn, list())
+  expect_identical(out[[2L]][[3L]][[2L]], quote(.(x)))
+})

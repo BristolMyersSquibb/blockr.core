@@ -81,7 +81,16 @@ bbquote <- function(expr, where = parent.frame(), splice = FALSE) {
       if (nchar(names_e[i]) && is_dots(e_list[[i]])) {
         names_e[i] <- ""
       } else {
-        e_list[[i]] <- process_splices(e_list[[i]])
+        # `e_list[[i]] <- NULL` DELETES the element; single-bracket
+        # assignment of a one-element list replaces it. A call element is
+        # legitimately NULL: the srcref slot of a `function` definition is
+        # NULL whenever the code was parsed without srcrefs, which is what
+        # an INSTALLED package does (keep.source = FALSE) and load_all()
+        # does not. Deleting it left names one longer than the call and
+        # aborted with "'names' attribute [4] must be the same length as
+        # the vector [3]" -- so bquoting any expression that defines a
+        # function worked in every dev session and crashed in production.
+        e_list[i] <- list(process_splices(e_list[[i]]))
       }
     }
 
