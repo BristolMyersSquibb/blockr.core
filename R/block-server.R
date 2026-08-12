@@ -29,7 +29,8 @@
 #'   block last evaluated, so its last-known result is out of date. The block
 #'   is not re-evaluated while dormant; the status only reports that the cached
 #'   result no longer reflects its inputs, so a front-end can flag it (e.g. a
-#'   muted node badge) without forcing a recompute.
+#'   muted node badge) without forcing a recompute. A consumer that needs the
+#'   block current asks for it through [board_server()]'s `evaluate` channel.
 #' * `waiting` -- needed, but a required *data* input is missing: unconnected,
 #'   below the required number of variadic `...args` inputs (one by default),
 #'   or fed by an upstream block that is not itself `ready` (see
@@ -305,40 +306,47 @@ block_server.block <- function(id, x, data = list(), block_id = id,
       #  * dormant -- nothing to read (a dormant block's `result()` would
       #    re-enter its guarded, req()-ing pipeline). It is either itself
       #    `stale` (propagate) or fine.
-      input_stale <- reactive(
-        {
-          if (!isTRUE(last_eval$has)) {
-            return(FALSE)
-          }
+      # A plain function rather than a reactive: `last_eval` is written while
+      # the block is needed and this verdict is read while it is not, and no
+      # reactive source has to change in between -- a re-evaluation triggered by
+      # the block itself (an evaluation request, or the block being put back on
+      # screen) refreshes `consumed` silently. A reactive would answer that from
+      # its cache and keep reporting stale on a block it had just brought
+      # current. Its reads register with the status reactive that calls it, so
+      # the verdict is recomputed exactly when the status is.
+      input_stale <- function() {
 
-          srcs <- isolate(board$sources[[block_id]])
-
-          if (is.null(srcs)) {
-            return(FALSE)
-          }
-
-          for (from in unlst(reactiveValuesToList(srcs))) {
-
-            status <- reval_if(board$eval[[from]])
-
-            if (identical(status, "stale")) {
-              return(TRUE)
-            }
-
-            if (!identical(status, "ready")) {
-              next
-            }
-
-            cur <- upstream_result_now(from, board)
-
-            if (not_null(cur) && !same_ref(cur, last_eval$consumed[[from]])) {
-              return(TRUE)
-            }
-          }
-
-          FALSE
+        if (!isTRUE(last_eval$has)) {
+          return(FALSE)
         }
-      )
+
+        srcs <- isolate(board$sources[[block_id]])
+
+        if (is.null(srcs)) {
+          return(FALSE)
+        }
+
+        for (from in unlst(reactiveValuesToList(srcs))) {
+
+          status <- reval_if(board$eval[[from]])
+
+          if (identical(status, "stale")) {
+            return(TRUE)
+          }
+
+          if (!identical(status, "ready")) {
+            next
+          }
+
+          cur <- upstream_result_now(from, board)
+
+          if (not_null(cur) && !same_ref(cur, last_eval$consumed[[from]])) {
+            return(TRUE)
+          }
+        }
+
+        FALSE
+      }
 
       res <- reactive(
         {

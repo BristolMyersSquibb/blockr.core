@@ -39,7 +39,9 @@ with \code{visibility$visible[[id]](TRUE)} (or \code{FALSE} once built but off s
 leaving \code{NA} until it is first built); the board reads both to gate
 construction, evaluation and rendering. Set
 \code{visibility$frozen[[id]](TRUE)} to freeze a block's inputs (for example when
-its controls are hidden), so a forged input can no longer steer it.}
+its controls are hidden), so a forged input can no longer steer it. A
+callback also receives the \code{update} and \code{evaluate} channels (see
+\link{board_update} and the Evaluation requests section).}
 
 \item{callback_location}{Location of callback invocation (before or after
 plugins)}
@@ -67,5 +69,27 @@ per-block \code{server$conditions} reactives (see \code{\link[=block_server]{blo
 consumer reads a single reactive — the whole board, or one block's frame
 for fine-grained updates — rather than walking nested condition state. The
 default \code{\link[=notify_user]{notify_user()}} plugin renders its toasts from this source.
+}
+
+\section{Evaluation requests}{
+
+Deferred evaluation leaves a block that nothing currently needs holding its
+last run — not only its result, but the conditions it reports. Callbacks
+receive an \code{evaluate} channel alongside \code{update} (a \code{\link[shiny:reactiveVal]{shiny::reactiveVal()}})
+for bringing such a block up to date without putting it on screen. Write the
+IDs of the blocks to evaluate and core joins them, together with their
+upstream closure over \code{\link[=board_links]{board_links()}} (without which they cannot produce a
+result), to the eval set for as long as it takes them to run: each publishes
+a current result and current conditions, then drops back out and reports
+\code{dormant} again. The channel is orthogonal to the \code{required} visibility
+channel, so a request neither competes with the front-end's gating nor
+leaves a block latched into the eval set, and nothing about what is on
+screen changes.
+
+Core resets the reactive to \code{NULL} once every requested block has run — or
+has reported why it cannot, such as an unconnected data input or a user
+input that was never set. That reset is what tells a caller the conditions
+it now reads are current. Requesting a block that is already in the eval set
+does nothing, and IDs that do not resolve to a board block are dropped.
 }
 

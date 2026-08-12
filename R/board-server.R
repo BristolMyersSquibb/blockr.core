@@ -18,6 +18,26 @@
 #' for fine-grained updates — rather than walking nested condition state. The
 #' default [notify_user()] plugin renders its toasts from this source.
 #'
+#' @section Evaluation requests:
+#' Deferred evaluation leaves a block that nothing currently needs holding its
+#' last run — not only its result, but the conditions it reports. Callbacks
+#' receive an `evaluate` channel alongside `update` (a [shiny::reactiveVal()])
+#' for bringing such a block up to date without putting it on screen. Write the
+#' IDs of the blocks to evaluate and core joins them, together with their
+#' upstream closure over [board_links()] (without which they cannot produce a
+#' result), to the eval set for as long as it takes them to run: each publishes
+#' a current result and current conditions, then drops back out and reports
+#' `dormant` again. The channel is orthogonal to the `required` visibility
+#' channel, so a request neither competes with the front-end's gating nor
+#' leaves a block latched into the eval set, and nothing about what is on
+#' screen changes.
+#'
+#' Core resets the reactive to `NULL` once every requested block has run — or
+#' has reported why it cannot, such as an unconnected data input or a user
+#' input that was never set. That reset is what tells a caller the conditions
+#' it now reads are current. Requesting a block that is already in the eval set
+#' does nothing, and IDs that do not resolve to a board block are dropped.
+#'
 #' @param x Board
 #' @param id Parent namespace
 #' @param ... Generic consistency
@@ -43,7 +63,9 @@ board_server <- function(id, x, ...) {
 #' leaving `NA` until it is first built); the board reads both to gate
 #' construction, evaluation and rendering. Set
 #' `visibility$frozen[[id]](TRUE)` to freeze a block's inputs (for example when
-#' its controls are hidden), so a forged input can no longer steer it.
+#' its controls are hidden), so a forged input can no longer steer it. A
+#' callback also receives the `update` and `evaluate` channels (see
+#' [board_update] and the Evaluation requests section).
 #' @param callback_location Location of callback invocation (before or after
 #' plugins)
 #' @rdname board_server
@@ -117,12 +139,25 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
       # changed.
       rv$needed_slots <- new.env(parent = emptyenv())
 
+      # The `evaluate` channel handed to callbacks: block IDs written here join
+      # the needed set below (with their upstream closure, without which they
+      # cannot produce a result) until the observer further down finds them
+      # evaluated and resets the channel, dropping them back out.
+      board_evaluate <- reactiveVal()
+
+      eval_requested <- reactive(
+        eval_request_blocks(board_evaluate(), rv$board)
+      )
+
       observe(
         {
           cur <- if (!gating_active(vis$required)) {
             TRUE
           } else {
-            upstream_blocks(required_now(vis$required), rv$board)
+            union(
+              upstream_blocks(required_now(vis$required), rv$board),
+              eval_requested()
+            )
           }
 
           old <- isolate(rv$needed())
@@ -141,6 +176,24 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
           # whose membership actually flipped invalidate their readers.
           for (id in board_block_ids(rv$board)) {
             set_needed_slot(rv, id, isTRUE(cur) || id %in% cur)
+          }
+        }
+      )
+
+      observe(
+        {
+          if (!length(board_evaluate())) {
+            return(invisible())
+          }
+
+          # Reading a block's status is what pulls its evaluation: the status
+          # consults `failed()`, which reads the block result, and an input that
+          # is not ready reads its upstream's status in turn, so the pull
+          # cascades up the chain. A block that is not built yet, or not in the
+          # eval set yet, holds the request open -- either read invalidates this
+          # observer once it changes.
+          if (!any(lgl_ply(eval_requested(), block_awaits_eval, rv))) {
+            board_evaluate(NULL)
           }
         }
       )
@@ -169,7 +222,11 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
       cb_args <- c(
         rv_ro,
-        list(update = board_update, visibility = vis),
+        list(
+          update = board_update,
+          evaluate = board_evaluate,
+          visibility = vis
+        ),
         dot_args,
         list(session = session)
       )
@@ -746,6 +803,29 @@ valid_visible <- function(x) {
 
 valid_frozen <- function(x) {
   is.logical(x) && length(x) == 1L && !is.na(x)
+}
+
+eval_request_blocks <- function(ids, board) {
+
+  if (!length(ids)) {
+    return(character())
+  }
+
+  known <- intersect(ids, board_block_ids(board))
+  unknown <- setdiff(ids, known)
+
+  if (length(unknown)) {
+    log_warn("ignoring evaluation request for unknown block{?s} {unknown}")
+  }
+
+  upstream_blocks(known, board)
+}
+
+block_awaits_eval <- function(id, rv) {
+
+  status <- reval_if(rv$eval[[id]])
+
+  is.null(status) || status %in% c("dormant", "stale")
 }
 
 needed_block_ids <- function(rv, required) {

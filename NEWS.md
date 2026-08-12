@@ -170,6 +170,15 @@
   front-end can render it distinctly (e.g. a muted node badge); previously such
   a block was indistinguishable from an up-to-date dormant one, so a break
   introduced upstream stayed hidden until the block was visited (#310).
+* Callbacks registered with `board_server()` now receive an `evaluate` channel
+  alongside `update`. Writing block IDs to it joins those blocks, and their
+  upstream closure, to the eval set until they have run and published a current
+  result and current conditions, after which they drop back out and core resets
+  the channel. It brings a dormant block up to date without making it visible:
+  previously the only lever was the front-end's `required` channel, which
+  extensions never receive and which latches the block into the eval set, so a
+  consumer had no way to tell whether a change it had just made broke an
+  off-screen block (#318).
 
 # blockr.core 0.1.3
 
