@@ -202,7 +202,7 @@ Ahead of validation, a block must have its inputs available: every required
 input (\code{state}) provided. Until then -- including while an upstream is itself
 still pending -- neither the validator nor the block expression run and no
 output is produced. See \code{\link[=block_server]{block_server()}} for the resulting eval status
-(\code{dormant} / \code{waiting} / \code{unset} / \code{failed} / \code{ready}).
+(\code{dormant} / \code{stale} / \code{waiting} / \code{unset} / \code{failed} / \code{ready}).
 
 Other conditions (messages and warnings) may be thrown as will be caught
 and displayed to the user but they will not interrupt evaluation. Errors

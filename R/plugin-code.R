@@ -96,7 +96,7 @@ code_export_state <- function(board) {
     return("pending")
   }
 
-  if (all(chr_ply(status, reval_if) %in% c("ready", "dormant"))) {
+  if (all(chr_ply(status, reval_if) %in% c("ready", "dormant", "stale"))) {
     return("ready")
   }
 
