@@ -123,11 +123,11 @@ block-specific functionality, i.e. block user inputs and expression),
 and instantiation of the `edit_block` module (if passed from the parent
 scope).
 
-Each block carries an *eval status* – one of `dormant`, `waiting`,
-`unset`, `failed` or `ready` – which, together with its orthogonal
-front-end visibility, determines its behaviour. The status separates the
-two input kinds (data inputs from links, user inputs from `state`) and a
-genuine failure:
+Each block carries an *eval status* – one of `dormant`, `stale`,
+`waiting`, `unset`, `failed` or `ready` – which, together with its
+orthogonal front-end visibility, determines its behaviour. The status
+separates the two input kinds (data inputs from links, user inputs from
+`state`) and a genuine failure:
 
 - `dormant` – not *needed* (neither on screen nor feeding, transitively
   over
@@ -135,6 +135,12 @@ genuine failure:
   an on-screen block); inputs stay unfulfilled
   ([`shiny::req()`](https://rdrr.io/pkg/shiny/man/req.html) out) and
   nothing evaluates.
+
+- `stale` – dormant, but an upstream has produced a new result since the
+  block last evaluated, so its last-known result is out of date. The
+  block is not re-evaluated while dormant; the status only reports that
+  the cached result no longer reflects its inputs, so a front-end can
+  flag it (e.g. a muted node badge) without forcing a recompute.
 
 - `waiting` – needed, but a required *data* input is missing:
   unconnected, below the required number of variadic `...args` inputs

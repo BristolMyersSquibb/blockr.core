@@ -277,7 +277,7 @@ error.</p>
 input (<code>state</code>) provided. Until then – including while an upstream is itself
 still pending – neither the validator nor the block expression run and no
 output is produced. See <code><a href="block_server.html">block_server()</a></code> for the resulting eval status
-(<code>dormant</code> / <code>waiting</code> / <code>unset</code> / <code>failed</code> / <code>ready</code>).</p>
+(<code>dormant</code> / <code>stale</code> / <code>waiting</code> / <code>unset</code> / <code>failed</code> / <code>ready</code>).</p>
 <p>Other conditions (messages and warnings) may be thrown as will be caught
 and displayed to the user but they will not interrupt evaluation. Errors
 are safe in that they will be caught as well but the will interrupt

@@ -183,13 +183,18 @@ functionality, including data input validation (if available), instantiation
 of the block expression server (handling the block-specific functionality,
 i.e. block user inputs and expression), and instantiation of the
 <code>edit_block</code> module (if passed from the parent scope).</p>
-<p>Each block carries an <em>eval status</em> – one of <code>dormant</code>, <code>waiting</code>, <code>unset</code>,
-<code>failed</code> or <code>ready</code> – which, together with its orthogonal front-end
+<p>Each block carries an <em>eval status</em> – one of <code>dormant</code>, <code>stale</code>, <code>waiting</code>,
+<code>unset</code>, <code>failed</code> or <code>ready</code> – which, together with its orthogonal front-end
 visibility, determines its behaviour. The status separates the two input
 kinds (data
 inputs from links, user inputs from <code>state</code>) and a genuine failure:</p><ul><li><p><code>dormant</code> – not <em>needed</em> (neither on screen nor feeding, transitively over
 <code><a href="board_blocks.html">board_links()</a></code>, an on-screen block); inputs stay unfulfilled
 (<code><a href="https://rdrr.io/pkg/shiny/man/req.html" class="external-link">shiny::req()</a></code> out) and nothing evaluates.</p></li>
+<li><p><code>stale</code> – dormant, but an upstream has produced a new result since the
+block last evaluated, so its last-known result is out of date. The block
+is not re-evaluated while dormant; the status only reports that the cached
+result no longer reflects its inputs, so a front-end can flag it (e.g. a
+muted node badge) without forcing a recompute.</p></li>
 <li><p><code>waiting</code> – needed, but a required <em>data</em> input is missing: unconnected,
 below the required number of variadic <code>...args</code> inputs (one by default),
 or fed by an upstream block that is not itself <code>ready</code> (see

@@ -240,6 +240,15 @@
   metadata read aborting – so a cosmetic lookup can no longer take down
   a board whose registry has been curated
   ([\#299](https://github.com/BristolMyersSquibb/blockr.core/issues/299)).
+- Blocks now carry a sixth eval status, `stale`. A dormant block (built
+  but not currently needed, so not evaluating) whose upstream has
+  produced a new result since it last evaluated reports `stale` rather
+  than `dormant`, flagging that its last-known result is out of date
+  without forcing a re-evaluation. A front-end can render it distinctly
+  (e.g. a muted node badge); previously such a block was
+  indistinguishable from an up-to-date dormant one, so a break
+  introduced upstream stayed hidden until the block was visited
+  ([\#310](https://github.com/BristolMyersSquibb/blockr.core/issues/310)).
 
 ## blockr.core 0.1.3
 
