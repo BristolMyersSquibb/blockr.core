@@ -2,13 +2,14 @@
 
 Inside
 [`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)
-every state change flows through one `board_update` reactive. Core
-registers two observers framing the change: an initial one that
-validates the payload and runs `augment_board_update()` for auto-fixups,
-and a final one that runs `apply_board_update()` and resets the
-reactive. Plugins or callbacks may register their own observers in
-between, provided they use a *finite* priority — the highest and lowest
-reactive priorities are reserved for core.
+every state change, and every request a consumer makes of the board,
+flows through one `board_update` reactive. Core registers two observers
+framing the change: an initial one that validates the payload and runs
+`augment_board_update()` for auto-fixups, and a final one that runs
+`apply_board_update()` and resets the reactive. Plugins or callbacks may
+register their own observers in between, provided they use a *finite*
+priority — the highest and lowest reactive priorities are reserved for
+core.
 
 ## Usage
 
@@ -66,6 +67,25 @@ The default `.board` method runs a structural check on the payload
 link endpoints and stack members resolve in the post-update merged view.
 Unknown top-level keys are passed through, so subclass payload slots
 reach subclass augment / apply methods.
+
+## Request components
+
+Two components carry a request rather than a state change: `evaluate`, a
+character vector of block IDs to evaluate once, and `require`, a list
+with `add` / `rm` character vectors claiming and releasing blocks that
+are to stay evaluated. Both put the named blocks (and their upstream
+closure) into the eval set without touching what the front-end shows —
+see the Evaluation requests section of
+[`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)
+— and both resolve their IDs against the post-update block set, so a
+payload may add a block and ask for it in one go. They are applied after
+the state delta, so a payload that edits a block and evaluates it sees
+the edit.
+
+A locked board (see
+[`is_board_locked()`](https://bristolmyerssquibb.github.io/blockr.core/reference/locked-board.md))
+still accepts a payload of request components alone; one that also
+carries a state change is dropped whole rather than applied in part.
 
 ## Augment
 

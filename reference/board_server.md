@@ -63,7 +63,10 @@ board_server(
   gate construction, evaluation and rendering. Set
   `visibility$frozen[[id]](TRUE)` to freeze a block's inputs (for
   example when its controls are hidden), so a forged input can no longer
-  steer it.
+  steer it. A callback also receives the `update` channel (see
+  [board_update](https://bristolmyerssquibb.github.io/blockr.core/reference/board_update.md)),
+  through which it can request block evaluation (see the Evaluation
+  requests section).
 
 - callback_location:
 
@@ -88,3 +91,29 @@ frame for fine-grained updates — rather than walking nested condition
 state. The default
 [`notify_user()`](https://bristolmyerssquibb.github.io/blockr.core/reference/notify_user.md)
 plugin renders its toasts from this source.
+
+## Evaluation requests
+
+Deferred evaluation leaves a block that nothing currently needs holding
+its last run — not only its result, but the conditions it reports.
+Anything that can reach the
+[`board_update()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_update.md)
+channel can ask for such a block to be brought up to date, without
+putting it on screen, through the `evaluate` and `require` payload
+components. Both name blocks, and core joins them, together with their
+upstream closure over
+[`board_links()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
+(without which they cannot produce a result), to the eval set. They
+differ only in who lets go: an `evaluate` request is a one-off that core
+drops once the block has run, while a `require` claim is held until the
+requester removes it.
+
+Requests are orthogonal to the `required` visibility channel, so neither
+competes with the front-end's gating, and nothing about what is on
+screen changes. Because they carry no state change, they are also the
+one part of a payload a locked board still accepts.
+
+Core drops a one-off request once the block has run — or has reported
+why it cannot, such as an unconnected data input or a user input that
+was never set. Requesting a block that is already in the eval set does
+nothing.

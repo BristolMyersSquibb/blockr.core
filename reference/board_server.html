@@ -121,7 +121,9 @@ with <code>visibility$visible[[id]](TRUE)</code> (or <code>FALSE</code> once bui
 leaving <code>NA</code> until it is first built); the board reads both to gate
 construction, evaluation and rendering. Set
 <code>visibility$frozen[[id]](TRUE)</code> to freeze a block's inputs (for example when
-its controls are hidden), so a forged input can no longer steer it.</p></dd>
+its controls are hidden), so a forged input can no longer steer it. A
+callback also receives the <code>update</code> channel (see <a href="board_update.html">board_update</a>), through
+which it can request block evaluation (see the Evaluation requests section).</p></dd>
 
 
 <dt id="arg-callback-location">callback_location<a class="anchor" aria-label="anchor" href="#arg-callback-location"></a></dt>
@@ -146,6 +148,27 @@ per-block <code>server$conditions</code> reactives (see <code><a href="block_ser
 consumer reads a single reactive — the whole board, or one block's frame
 for fine-grained updates — rather than walking nested condition state. The
 default <code><a href="notify_user.html">notify_user()</a></code> plugin renders its toasts from this source.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="evaluation-requests">Evaluation requests<a class="anchor" aria-label="anchor" href="#evaluation-requests"></a></h2>
+
+
+<p>Deferred evaluation leaves a block that nothing currently needs holding its
+last run — not only its result, but the conditions it reports. Anything that
+can reach the <code><a href="board_update.html">board_update()</a></code> channel can ask for such a block to be brought
+up to date, without putting it on screen, through the <code>evaluate</code> and
+<code>require</code> payload components. Both name blocks, and core joins them, together
+with their upstream closure over <code><a href="board_blocks.html">board_links()</a></code> (without which they cannot
+produce a result), to the eval set. They differ only in who lets go: an
+<code>evaluate</code> request is a one-off that core drops once the block has run, while
+a <code>require</code> claim is held until the requester removes it.</p>
+<p>Requests are orthogonal to the <code>required</code> visibility channel, so neither
+competes with the front-end's gating, and nothing about what is on screen
+changes. Because they carry no state change, they are also the one part of a
+payload a locked board still accepts.</p>
+<p>Core drops a one-off request once the block has run — or has reported why it
+cannot, such as an unconnected data input or a user input that was never set.
+Requesting a block that is already in the eval set does nothing.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

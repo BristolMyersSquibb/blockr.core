@@ -249,6 +249,20 @@
   indistinguishable from an up-to-date dormant one, so a break
   introduced upstream stayed hidden until the block was visited
   ([\#310](https://github.com/BristolMyersSquibb/blockr.core/issues/310)).
+- Board updates gain two request components, `evaluate` and `require`,
+  for evaluating a dormant block without making it visible. Both name
+  blocks that are joined, with their upstream closure, to the eval set
+  so they publish a current result and current conditions; core drops an
+  `evaluate` request once the block has run, while a `require` claim
+  (`list(add =, rm =)`) is held until released. Previously the only
+  lever was the front-end’s `required` channel, which extensions never
+  receive and which latches the block into the eval set, so a consumer
+  had no way to tell whether a change it had just made broke an
+  off-screen block. Since they carry no state change, request components
+  are also the one part of a payload a locked board still accepts, and a
+  payload rejected for being locked now records an outcome in
+  `board$last_update` instead of being dropped silently
+  ([\#318](https://github.com/BristolMyersSquibb/blockr.core/issues/318)).
 
 ## blockr.core 0.1.3
 

@@ -33,6 +33,7 @@ block_server(
   board = reactiveValues(),
   update = reactiveVal(),
   inputs_ready = reactive(TRUE),
+  needed = reactive(TRUE),
   visibility = NULL,
   ...
 )
@@ -96,6 +97,13 @@ block_render_trigger(x, session = get_session())
   [`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md);
   defaults to always-ready when a block server is run standalone)
 
+- needed:
+
+  Reactive flag signaling whether the block is currently in the eval set
+  (supplied by
+  [`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md);
+  defaults to always-needed when a block server is run standalone)
+
 - visibility:
 
   Front-end channel bundle – a list with three channels, `required`,
@@ -140,7 +148,10 @@ separates the two input kinds (data inputs from links, user inputs from
   block last evaluated, so its last-known result is out of date. The
   block is not re-evaluated while dormant; the status only reports that
   the cached result no longer reflects its inputs, so a front-end can
-  flag it (e.g. a muted node badge) without forcing a recompute.
+  flag it (e.g. a muted node badge) without forcing a recompute. A
+  consumer that needs the block current asks for it with a
+  [`board_update()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_update.md)
+  `evaluate` request.
 
 - `waiting` – needed, but a required *data* input is missing:
   unconnected, below the required number of variadic `...args` inputs
