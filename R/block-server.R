@@ -128,6 +128,9 @@ block_server <- function(id, x, data = list(), ...) {
 #' inputs are all connected to ready upstream blocks (supplied by
 #' [board_server()]; defaults to always-ready when a block server is run
 #' standalone)
+#' @param needed Reactive flag signaling whether the block is currently in the
+#' eval set (supplied by [board_server()]; defaults to always-needed when a
+#' block server is run standalone)
 #' @param visibility Front-end channel bundle -- a list with three channels,
 #' `required`, `visible` and `frozen`, each an environment of per-block
 #' `reactiveVal`s, supplied by [board_server()] to gate rendering and to
@@ -140,6 +143,7 @@ block_server.block <- function(id, x, data = list(), block_id = id,
                                board = reactiveValues(),
                                update = reactiveVal(),
                                inputs_ready = reactive(TRUE),
+                               needed = reactive(TRUE),
                                visibility = NULL, ...) {
 
   dot_args <- list(...)
@@ -306,47 +310,50 @@ block_server.block <- function(id, x, data = list(), block_id = id,
       #  * dormant -- nothing to read (a dormant block's `result()` would
       #    re-enter its guarded, req()-ing pipeline). It is either itself
       #    `stale` (propagate) or fine.
-      # A plain function rather than a reactive: `last_eval` is written while
-      # the block is needed and this verdict is read while it is not, and no
-      # reactive source has to change in between -- a re-evaluation triggered by
-      # the block itself (an evaluation request, or the block being put back on
-      # screen) refreshes `consumed` silently. A reactive would answer that from
-      # its cache and keep reporting stale on a block it had just brought
-      # current. Its reads register with the status reactive that calls it, so
-      # the verdict is recomputed exactly when the status is.
-      input_stale <- function() {
-
-        if (!isTRUE(last_eval$has)) {
-          return(FALSE)
-        }
-
-        srcs <- isolate(board$sources[[block_id]])
-
-        if (is.null(srcs)) {
-          return(FALSE)
-        }
-
-        for (from in unlst(reactiveValuesToList(srcs))) {
-
-          status <- reval_if(board$eval[[from]])
-
-          if (identical(status, "stale")) {
-            return(TRUE)
+      input_stale <- reactive(
+        {
+          # Only meaningful while the block is dormant: a needed block
+          # evaluates, so it is current by definition. The dependency is also
+          # what makes a fresh verdict due -- `last_eval` is a plain
+          # environment, so the re-evaluation that refreshes `consumed`
+          # invalidates nothing, and dropping back out of the eval set is
+          # exactly when the comparison has to be redone.
+          if (isTRUE(needed())) {
+            return(FALSE)
           }
 
-          if (!identical(status, "ready")) {
-            next
+          if (!isTRUE(last_eval$has)) {
+            return(FALSE)
           }
 
-          cur <- upstream_result_now(from, board)
+          srcs <- isolate(board$sources[[block_id]])
 
-          if (not_null(cur) && !same_ref(cur, last_eval$consumed[[from]])) {
-            return(TRUE)
+          if (is.null(srcs)) {
+            return(FALSE)
           }
+
+          for (from in unlst(reactiveValuesToList(srcs))) {
+
+            status <- reval_if(board$eval[[from]])
+
+            if (identical(status, "stale")) {
+              return(TRUE)
+            }
+
+            if (!identical(status, "ready")) {
+              next
+            }
+
+            cur <- upstream_result_now(from, board)
+
+            if (not_null(cur) && !same_ref(cur, last_eval$consumed[[from]])) {
+              return(TRUE)
+            }
+          }
+
+          FALSE
         }
-
-        FALSE
-      }
+      )
 
       res <- reactive(
         {

@@ -28,6 +28,7 @@ block_server(id, x, data = list(), ...)
   board = reactiveValues(),
   update = reactiveVal(),
   inputs_ready = reactive(TRUE),
+  needed = reactive(TRUE),
   visibility = NULL,
   ...
 )
@@ -63,6 +64,10 @@ block_render_trigger(x, session = get_session())
 inputs are all connected to ready upstream blocks (supplied by
 \code{\link[=board_server]{board_server()}}; defaults to always-ready when a block server is run
 standalone)}
+
+\item{needed}{Reactive flag signaling whether the block is currently in the
+eval set (supplied by \code{\link[=board_server]{board_server()}}; defaults to always-needed when a
+block server is run standalone)}
 
 \item{visibility}{Front-end channel bundle -- a list with three channels,
 \code{required}, \code{visible} and \code{frozen}, each an environment of per-block

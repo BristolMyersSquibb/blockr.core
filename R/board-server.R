@@ -527,13 +527,14 @@ construct_block <- function(id, rv, mod_ed, mod_ct, args, vis) {
   update_block_links(rv, links[links$to == id])
 
   inputs_ready <- reactive(block_inputs_ready(src_rv, blk, rv))
+  needed <- reactive(block_needed(rv, id))
 
   srv <- do.call(
     block_server,
     c(
       list(paste0("block_", id), blk, rv$inputs[[id]], id, mod_ed, mod_ct),
       args,
-      list(inputs_ready = inputs_ready, visibility = vis)
+      list(inputs_ready = inputs_ready, needed = needed, visibility = vis)
     )
   )
 
