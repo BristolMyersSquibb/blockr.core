@@ -28,6 +28,7 @@ block_server(id, x, data = list(), ...)
   board = reactiveValues(),
   update = reactiveVal(),
   inputs_ready = reactive(TRUE),
+  needed = reactive(TRUE),
   visibility = NULL,
   ...
 )
@@ -63,6 +64,10 @@ block_render_trigger(x, session = get_session())
 inputs are all connected to ready upstream blocks (supplied by
 \code{\link[=board_server]{board_server()}}; defaults to always-ready when a block server is run
 standalone)}
+
+\item{needed}{Reactive flag signaling whether the block is currently in the
+eval set (supplied by \code{\link[=board_server]{board_server()}}; defaults to always-needed when a
+block server is run standalone)}
 
 \item{visibility}{Front-end channel bundle -- a list with three channels,
 \code{required}, \code{visible} and \code{frozen}, each an environment of per-block
@@ -108,7 +113,8 @@ inputs from links, user inputs from \code{state}) and a genuine failure:
 block last evaluated, so its last-known result is out of date. The block
 is not re-evaluated while dormant; the status only reports that the cached
 result no longer reflects its inputs, so a front-end can flag it (e.g. a
-muted node badge) without forcing a recompute.
+muted node badge) without forcing a recompute. A consumer that needs the
+block current asks for it with a \code{\link[=board_update]{board_update()}} \code{evaluate} request.
 \item \code{waiting} -- needed, but a required \emph{data} input is missing: unconnected,
 below the required number of variadic \code{...args} inputs (one by default),
 or fed by an upstream block that is not itself \code{ready} (see

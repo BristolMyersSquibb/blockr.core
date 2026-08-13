@@ -39,7 +39,9 @@ with \code{visibility$visible[[id]](TRUE)} (or \code{FALSE} once built but off s
 leaving \code{NA} until it is first built); the board reads both to gate
 construction, evaluation and rendering. Set
 \code{visibility$frozen[[id]](TRUE)} to freeze a block's inputs (for example when
-its controls are hidden), so a forged input can no longer steer it.}
+its controls are hidden), so a forged input can no longer steer it. A
+callback also receives the \code{update} channel (see \link{board_update}), through
+which it can request block evaluation (see the Evaluation requests section).}
 
 \item{callback_location}{Location of callback invocation (before or after
 plugins)}
@@ -67,5 +69,27 @@ per-block \code{server$conditions} reactives (see \code{\link[=block_server]{blo
 consumer reads a single reactive — the whole board, or one block's frame
 for fine-grained updates — rather than walking nested condition state. The
 default \code{\link[=notify_user]{notify_user()}} plugin renders its toasts from this source.
+}
+
+\section{Evaluation requests}{
+
+Deferred evaluation leaves a block that nothing currently needs holding its
+last run — not only its result, but the conditions it reports. Anything that
+can reach the \code{\link[=board_update]{board_update()}} channel can ask for such a block to be brought
+up to date, without putting it on screen, through the \code{evaluate} and
+\code{require} payload components. Both name blocks, and core joins them, together
+with their upstream closure over \code{\link[=board_links]{board_links()}} (without which they cannot
+produce a result), to the eval set. They differ only in who lets go: an
+\code{evaluate} request is a one-off that core drops once the block has run, while
+a \code{require} claim is held until the requester removes it.
+
+Requests are orthogonal to the \code{required} visibility channel, so neither
+competes with the front-end's gating, and nothing about what is on screen
+changes. Because they carry no state change, they are also the one part of a
+payload a locked board still accepts.
+
+Core drops a one-off request once the block has run — or has reported why it
+cannot, such as an unconnected data input or a user input that was never set.
+Requesting a block that is already in the eval set does nothing.
 }
 

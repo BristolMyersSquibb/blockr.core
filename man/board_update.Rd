@@ -31,8 +31,9 @@ the (possibly extended) payload. \code{\link[=apply_board_update]{apply_board_up
 \code{board}.
 }
 \description{
-Inside \code{\link[=board_server]{board_server()}} every state change flows through one
-\code{board_update} reactive. Core registers two observers framing the
+Inside \code{\link[=board_server]{board_server()}} every state change, and every request a
+consumer makes of the board, flows through one \code{board_update}
+reactive. Core registers two observers framing the
 change: an initial one that validates the payload and runs
 \code{\link[=augment_board_update]{augment_board_update()}} for auto-fixups, and a final one that runs
 \code{\link[=apply_board_update]{apply_board_update()}} and resets the reactive. Plugins or
@@ -56,6 +57,24 @@ The default \code{.board} method runs a structural check on the payload
 that link endpoints and stack members resolve in the post-update
 merged view. Unknown top-level keys are passed through, so subclass
 payload slots reach subclass augment / apply methods.
+}
+
+\section{Request components}{
+
+Two components carry a request rather than a state change:
+\code{evaluate}, a character vector of block IDs to evaluate once, and
+\code{require}, a list with \code{add} / \code{rm} character vectors claiming and
+releasing blocks that are to stay evaluated. Both put the named
+blocks (and their upstream closure) into the eval set without
+touching what the front-end shows — see the Evaluation requests
+section of \code{\link[=board_server]{board_server()}} — and both resolve their IDs against
+the post-update block set, so a payload may add a block and ask for
+it in one go. They are applied after the state delta, so a payload
+that edits a block and evaluates it sees the edit.
+
+A locked board (see \code{\link[=is_board_locked]{is_board_locked()}}) still accepts a payload of
+request components alone; one that also carries a state change is
+dropped whole rather than applied in part.
 }
 
 \section{Augment}{

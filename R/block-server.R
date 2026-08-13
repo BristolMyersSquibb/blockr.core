@@ -29,7 +29,8 @@
 #'   block last evaluated, so its last-known result is out of date. The block
 #'   is not re-evaluated while dormant; the status only reports that the cached
 #'   result no longer reflects its inputs, so a front-end can flag it (e.g. a
-#'   muted node badge) without forcing a recompute.
+#'   muted node badge) without forcing a recompute. A consumer that needs the
+#'   block current asks for it with a [board_update()] `evaluate` request.
 #' * `waiting` -- needed, but a required *data* input is missing: unconnected,
 #'   below the required number of variadic `...args` inputs (one by default),
 #'   or fed by an upstream block that is not itself `ready` (see
@@ -127,6 +128,9 @@ block_server <- function(id, x, data = list(), ...) {
 #' inputs are all connected to ready upstream blocks (supplied by
 #' [board_server()]; defaults to always-ready when a block server is run
 #' standalone)
+#' @param needed Reactive flag signaling whether the block is currently in the
+#' eval set (supplied by [board_server()]; defaults to always-needed when a
+#' block server is run standalone)
 #' @param visibility Front-end channel bundle -- a list with three channels,
 #' `required`, `visible` and `frozen`, each an environment of per-block
 #' `reactiveVal`s, supplied by [board_server()] to gate rendering and to
@@ -139,6 +143,7 @@ block_server.block <- function(id, x, data = list(), block_id = id,
                                board = reactiveValues(),
                                update = reactiveVal(),
                                inputs_ready = reactive(TRUE),
+                               needed = reactive(TRUE),
                                visibility = NULL, ...) {
 
   dot_args <- list(...)
@@ -307,6 +312,16 @@ block_server.block <- function(id, x, data = list(), block_id = id,
       #    `stale` (propagate) or fine.
       input_stale <- reactive(
         {
+          # Only meaningful while the block is dormant: a needed block
+          # evaluates, so it is current by definition. The dependency is also
+          # what makes a fresh verdict due -- `last_eval` is a plain
+          # environment, so the re-evaluation that refreshes `consumed`
+          # invalidates nothing, and dropping back out of the eval set is
+          # exactly when the comparison has to be redone.
+          if (isTRUE(needed())) {
+            return(FALSE)
+          }
+
           if (!isTRUE(last_eval$has)) {
             return(FALSE)
           }
