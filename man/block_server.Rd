@@ -109,7 +109,7 @@ block last evaluated, so its last-known result is out of date. The block
 is not re-evaluated while dormant; the status only reports that the cached
 result no longer reflects its inputs, so a front-end can flag it (e.g. a
 muted node badge) without forcing a recompute. A consumer that needs the
-block current asks for it through \code{\link[=board_server]{board_server()}}'s \code{evaluate} channel.
+block current asks for it with a \code{\link[=board_update]{board_update()}} \code{evaluate} request.
 \item \code{waiting} -- needed, but a required \emph{data} input is missing: unconnected,
 below the required number of variadic \code{...args} inputs (one by default),
 or fed by an upstream block that is not itself \code{ready} (see

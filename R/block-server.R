@@ -30,7 +30,7 @@
 #'   is not re-evaluated while dormant; the status only reports that the cached
 #'   result no longer reflects its inputs, so a front-end can flag it (e.g. a
 #'   muted node badge) without forcing a recompute. A consumer that needs the
-#'   block current asks for it through [board_server()]'s `evaluate` channel.
+#'   block current asks for it with a [board_update()] `evaluate` request.
 #' * `waiting` -- needed, but a required *data* input is missing: unconnected,
 #'   below the required number of variadic `...args` inputs (one by default),
 #'   or fed by an upstream block that is not itself `ready` (see

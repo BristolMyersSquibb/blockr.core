@@ -91,24 +91,27 @@ probe_passthrough <- function() {
   )
 }
 
-# A block whose own expression is driven from outside the board, standing in
-# for a block edited while it sits off screen (the board update path writes the
-# same state reactiveVals).
-probe_select <- function(col) {
+# Externally controllable, so a board update `mod` delta can edit its
+# expression -- standing in for a consumer editing a block that sits off screen.
+probe_select <- function(col = "demand") {
   new_transform_block(
     function(id, data) {
       moduleServer(
         id,
         function(input, output, session) {
+
+          sel <- reactiveVal(col)
+
           list(
-            expr = reactive(bquote(subset(data, select = .(as.name(col()))))),
-            state = list(col = col)
+            expr = reactive(bquote(subset(data, select = .(as.name(sel()))))),
+            state = list(col = sel)
           )
         }
       )
     },
     function(id) shiny::tagList(),
     class = "probe_block",
+    external_ctrl = TRUE,
     block_metadata = FALSE
   )
 }
@@ -743,7 +746,7 @@ test_that("an evaluation request brings a stale block current", {
 
   withr::local_options(blockr.background_construction_delay = 0)
 
-  eval_channel <- NULL
+  upd_channel <- NULL
 
   board <- new_board(
     blocks = c(
@@ -785,7 +788,7 @@ test_that("an evaluation request brings a stale block current", {
 
       reset_probes()
 
-      eval_channel("r")
+      upd_channel(list(evaluate = "r"))
       session$flushReact()
 
       # The request pulls in a, the unevaluated upstream r needs for a result,
@@ -797,7 +800,7 @@ test_that("an evaluation request brings a stale block current", {
       expect_identical(rv$eval[["r"]](), "dormant")
 
       # The request is spent, and nothing about what is on screen changed.
-      expect_null(eval_channel())
+      expect_length(rv$evaluating(), 0L)
 
       expect_false(vis$required[["r"]]())
       expect_false(vis$visible[["r"]]())
@@ -806,8 +809,8 @@ test_that("an evaluation request brings a stale block current", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, evaluate, ...) {
-        eval_channel <<- evaluate
+      callbacks = function(visibility, update, ...) {
+        upd_channel <<- update
         require_blocks(visibility, "s1", "s2", "a", "r")
         render_blocks(visibility, "s1", "s2", "a", "r")
       }
@@ -815,21 +818,27 @@ test_that("an evaluation request brings a stale block current", {
   )
 })
 
+select_board <- function() {
+  new_board(
+    blocks = c(
+      s = with_id(probe_source(), "s"),
+      r = with_id(probe_select(), "r")
+    ),
+    links = links(sr = new_link("s", "r", "data"))
+  )
+}
+
+edit_col <- function(value) {
+  list(blocks = list(mod = list(r = list(col = value))))
+}
+
 test_that("an evaluation request evaluates a block edited while dormant", {
 
   reset_probes()
 
   withr::local_options(blockr.background_construction_delay = 0)
 
-  col <- reactiveVal("demand")
-
-  board <- new_board(
-    blocks = c(
-      s = with_id(probe_source(), "s"),
-      r = with_id(probe_select(col), "r")
-    ),
-    links = links(sr = new_link("s", "r", "data"))
-  )
+  board <- select_board()
 
   testServer(
     get_s3_method("board_server", board),
@@ -848,14 +857,14 @@ test_that("an evaluation request evaluates a block edited while dormant", {
 
       # Break r by editing r itself. Nothing upstream changed, so it is not
       # stale, and its conditions still report the last (clean) run.
-      col("nope")
+      board_update(edit_col("nope"))
       session$flushReact()
 
       expect_false(evaluated("r"))
       expect_identical(rv$eval[["r"]](), "dormant")
       expect_equal(nrow(block_conditions(rv, "r", "error")), 0L)
 
-      board_evaluate("r")
+      board_update(list(evaluate = "r"))
       session$flushReact()
 
       # The request runs r off screen: the error it now raises is reported,
@@ -864,8 +873,52 @@ test_that("an evaluation request evaluates a block edited while dormant", {
       expect_equal(nrow(block_conditions(rv, "r", "error")), 1L)
 
       expect_identical(rv$eval[["r"]](), "dormant")
-      expect_null(board_evaluate())
+      expect_length(rv$evaluating(), 0L)
       expect_false(rendered("r"))
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visibility, ...) {
+        require_blocks(visibility, "s", "r")
+        render_blocks(visibility, "s", "r")
+      }
+    )
+  )
+})
+
+test_that("an edit and a request in one payload evaluate the edit", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- select_board()
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      park_blocks(vis, "r")
+      session$flushReact()
+
+      reset_probes()
+
+      # Requests apply after the state delta, so the block evaluates what the
+      # same payload just made of it, not what it replaced.
+      board_update(c(edit_col("nope"), list(evaluate = "r")))
+      session$flushReact()
+
+      expect_true(evaluated("r"))
+      expect_equal(nrow(block_conditions(rv, "r", "error")), 1L)
+
+      # Repairing it the same way clears the report again.
+      board_update(c(edit_col("Time"), list(evaluate = "r")))
+      session$flushReact()
+
+      expect_equal(nrow(block_conditions(rv, "r", "error")), 0L)
+      expect_identical(rv$eval[["r"]](), "dormant")
     },
     args = list(
       x = board,
@@ -907,7 +960,7 @@ test_that("an evaluation request builds the blocks it needs", {
 
       # An unbuilt block holds the request open until it has been built and has
       # run, rather than the request being spent on a block that cannot report.
-      board_evaluate("r")
+      board_update(list(evaluate = "r"))
       session$flushReact()
 
       expect_true(constructed("a"))
@@ -915,7 +968,7 @@ test_that("an evaluation request builds the blocks it needs", {
 
       expect_true(evaluated("r"))
       expect_identical(rv$eval[["r"]](), "dormant")
-      expect_null(board_evaluate())
+      expect_length(rv$evaluating(), 0L)
     },
     args = list(
       x = board,
@@ -928,7 +981,105 @@ test_that("an evaluation request builds the blocks it needs", {
   )
 })
 
-test_that("an evaluation request for an unknown block is dropped", {
+test_that("a required claim holds a block until it is released", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- new_board(
+    blocks = c(
+      s = with_id(probe_source(), "s"),
+      r = with_id(probe_passthrough(), "r")
+    ),
+    links = links(sr = new_link("s", "r", "data"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      park_blocks(vis, "r")
+      session$flushReact()
+
+      expect_identical(rv$eval[["r"]](), "dormant")
+
+      reset_probes()
+
+      # A claim, unlike a one-off request, survives evaluation.
+      board_update(list(require = list(add = "r")))
+      session$flushReact()
+
+      expect_identical(rv$eval[["r"]](), "ready")
+
+      for (i in 1:3) session$flushReact()
+
+      expect_identical(rv$eval[["r"]](), "ready")
+      expect_setequal(rv$required_blocks(), "r")
+
+      # Releasing it hands the block back to the front-end's gating, which
+      # parked it.
+      board_update(list(require = list(rm = "r")))
+      session$flushReact()
+
+      expect_identical(rv$eval[["r"]](), "dormant")
+      expect_length(rv$required_blocks(), 0L)
+      expect_false(rendered("r"))
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visibility, ...) {
+        require_blocks(visibility, "s", "r")
+        render_blocks(visibility, "s", "r")
+      }
+    )
+  )
+})
+
+test_that("a request for a block added in the same payload is honoured", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- new_board(
+    blocks = c(s = with_id(probe_source(), "s")),
+    links = links()
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      new <- as_blocks(list(r = with_id(probe_passthrough(), "r")))
+
+      board_update(
+        list(
+          blocks = list(add = new),
+          links = list(add = links(sr = new_link("s", "r", "data"))),
+          evaluate = "r"
+        )
+      )
+      session$flushReact()
+
+      expect_true(evaluated("r"))
+      expect_length(rv$evaluating(), 0L)
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visibility, ...) {
+        require_blocks(visibility, "s")
+        render_blocks(visibility, "s")
+      }
+    )
+  )
+})
+
+test_that("a request naming an unknown block is rejected", {
 
   reset_probes()
 
@@ -944,10 +1095,19 @@ test_that("an evaluation request for an unknown block is dropped", {
     {
       session$flushReact()
 
-      board_evaluate("nope")
+      board_update(list(evaluate = "nope"))
       session$flushReact()
 
-      expect_null(board_evaluate())
+      expect_false(rv$last_update$ok)
+      expect_identical(rv$last_update$phase, "validate")
+      expect_length(rv$evaluating(), 0L)
+
+      board_update(list(require = list(add = "nope")))
+      session$flushReact()
+
+      expect_false(rv$last_update$ok)
+      expect_length(rv$required_blocks(), 0L)
+
       expect_setequal(rv$needed(), "a")
     },
     args = list(

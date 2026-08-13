@@ -20,23 +20,23 @@
 #'
 #' @section Evaluation requests:
 #' Deferred evaluation leaves a block that nothing currently needs holding its
-#' last run — not only its result, but the conditions it reports. Callbacks
-#' receive an `evaluate` channel alongside `update` (a [shiny::reactiveVal()])
-#' for bringing such a block up to date without putting it on screen. Write the
-#' IDs of the blocks to evaluate and core joins them, together with their
-#' upstream closure over [board_links()] (without which they cannot produce a
-#' result), to the eval set for as long as it takes them to run: each publishes
-#' a current result and current conditions, then drops back out and reports
-#' `dormant` again. The channel is orthogonal to the `required` visibility
-#' channel, so a request neither competes with the front-end's gating nor
-#' leaves a block latched into the eval set, and nothing about what is on
-#' screen changes.
+#' last run — not only its result, but the conditions it reports. Anything that
+#' can reach the [board_update()] channel can ask for such a block to be brought
+#' up to date, without putting it on screen, through the `evaluate` and
+#' `require` payload components. Both name blocks, and core joins them, together
+#' with their upstream closure over [board_links()] (without which they cannot
+#' produce a result), to the eval set. They differ only in who lets go: an
+#' `evaluate` request is a one-off that core drops once the block has run, while
+#' a `require` claim is held until the requester removes it.
 #'
-#' Core resets the reactive to `NULL` once every requested block has run — or
-#' has reported why it cannot, such as an unconnected data input or a user
-#' input that was never set. That reset is what tells a caller the conditions
-#' it now reads are current. Requesting a block that is already in the eval set
-#' does nothing, and IDs that do not resolve to a board block are dropped.
+#' Requests are orthogonal to the `required` visibility channel, so neither
+#' competes with the front-end's gating, and nothing about what is on screen
+#' changes. Because they carry no state change, they are also the one part of a
+#' payload a locked board still accepts.
+#'
+#' Core drops a one-off request once the block has run — or has reported why it
+#' cannot, such as an unconnected data input or a user input that was never set.
+#' Requesting a block that is already in the eval set does nothing.
 #'
 #' @param x Board
 #' @param id Parent namespace
@@ -64,8 +64,8 @@ board_server <- function(id, x, ...) {
 #' construction, evaluation and rendering. Set
 #' `visibility$frozen[[id]](TRUE)` to freeze a block's inputs (for example when
 #' its controls are hidden), so a forged input can no longer steer it. A
-#' callback also receives the `update` and `evaluate` channels (see
-#' [board_update] and the Evaluation requests section).
+#' callback also receives the `update` channel (see [board_update]), through
+#' which it can request block evaluation (see the Evaluation requests section).
 #' @param callback_location Location of callback invocation (before or after
 #' plugins)
 #' @rdname board_server
@@ -139,24 +139,22 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
       # changed.
       rv$needed_slots <- new.env(parent = emptyenv())
 
-      # The `evaluate` channel handed to callbacks: block IDs written here join
-      # the needed set below (with their upstream closure, without which they
-      # cannot produce a result) until the observer further down finds them
-      # evaluated and resets the channel, dropping them back out.
-      board_evaluate <- reactiveVal()
-
-      eval_requested <- reactive(
-        eval_request_blocks(board_evaluate(), rv$board)
-      )
+      # The two request sets fed by the `evaluate` and `require` board update
+      # components. Both join the needed set below; they differ in who lets go.
+      # Core drops an `evaluating` entry once that block has had its evaluation
+      # pass (see the observer below), while a `required_blocks` entry stays
+      # until its requester removes it.
+      rv$evaluating <- reactiveVal(character())
+      rv$required_blocks <- reactiveVal(character())
 
       observe(
         {
           cur <- if (!gating_active(vis$required)) {
             TRUE
           } else {
-            union(
-              upstream_blocks(required_now(vis$required), rv$board),
-              eval_requested()
+            upstream_blocks(
+              union(required_now(vis$required), requested_blocks(rv)),
+              rv$board
             )
           }
 
@@ -182,7 +180,9 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
       observe(
         {
-          if (!length(board_evaluate())) {
+          pending <- rv$evaluating()
+
+          if (!length(pending)) {
             return(invisible())
           }
 
@@ -190,10 +190,12 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
           # consults `failed()`, which reads the block result, and an input that
           # is not ready reads its upstream's status in turn, so the pull
           # cascades up the chain. A block that is not built yet, or not in the
-          # eval set yet, holds the request open -- either read invalidates this
-          # observer once it changes.
-          if (!any(lgl_ply(eval_requested(), block_awaits_eval, rv))) {
-            board_evaluate(NULL)
+          # eval set yet, stays pending -- either read invalidates this observer
+          # once it changes.
+          keep <- pending[lgl_ply(pending, eval_pending, rv)]
+
+          if (length(keep) < length(pending)) {
+            rv$evaluating(keep)
           }
         }
       )
@@ -222,11 +224,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
       cb_args <- c(
         rv_ro,
-        list(
-          update = board_update,
-          evaluate = board_evaluate,
-          visibility = vis
-        ),
+        list(update = board_update, visibility = vis),
         dot_args,
         list(session = session)
       )
@@ -301,9 +299,15 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
           tryCatch(
             {
-              if (is_board_locked(rv$board)) {
+              # A lock stops the board being edited, not evaluated: a payload of
+              # request components alone carries no state change and goes
+              # through. One that carries any is dropped whole, rather than
+              # applied in part.
+              if (is_board_locked(rv$board) &&
+                    !all(names(upd) %in% update_request_components())) {
 
                 log_debug("rejecting board update on locked board")
+                record_update_outcome(FALSE, "validate", "Board is locked.")
                 board_update(NULL)
 
               } else {
@@ -805,27 +809,25 @@ valid_frozen <- function(x) {
   is.logical(x) && length(x) == 1L && !is.na(x)
 }
 
-eval_request_blocks <- function(ids, board) {
-
-  if (!length(ids)) {
-    return(character())
-  }
-
-  known <- intersect(ids, board_block_ids(board))
-  unknown <- setdiff(ids, known)
-
-  if (length(unknown)) {
-    log_warn("ignoring evaluation request for unknown block{?s} {unknown}")
-  }
-
-  upstream_blocks(known, board)
+requested_blocks <- function(rv) {
+  union(rv$evaluating(), rv$required_blocks())
 }
 
-block_awaits_eval <- function(id, rv) {
+# A block owes an evaluation pass while anything it needs for a result -- itself
+# or an upstream -- is unbuilt or still out of the eval set.
+eval_pending <- function(id, rv) {
+  any(lgl_ply(upstream_blocks(id, rv$board), block_deferred, rv))
+}
+
+block_deferred <- function(id, rv) {
 
   status <- reval_if(rv$eval[[id]])
 
   is.null(status) || status %in% c("dormant", "stale")
+}
+
+update_request_components <- function() {
+  c("evaluate", "require")
 }
 
 needed_block_ids <- function(rv, required) {
@@ -989,6 +991,9 @@ destroy_rm_blocks <- function(ids, rv, sess) {
       rm(list = id, envir = slots)
     }
   }
+
+  rv$evaluating(setdiff(isolate(rv$evaluating()), ids))
+  rv$required_blocks(setdiff(isolate(rv$required_blocks()), ids))
 
   invisible()
 }
@@ -1240,8 +1245,9 @@ add_blocks_to_stacks <- function(rv, add, session) {
 
 #' Board update
 #'
-#' Inside [board_server()] every state change flows through one
-#' `board_update` reactive. Core registers two observers framing the
+#' Inside [board_server()] every state change, and every request a
+#' consumer makes of the board, flows through one `board_update`
+#' reactive. Core registers two observers framing the
 #' change: an initial one that validates the payload and runs
 #' [augment_board_update()] for auto-fixups, and a final one that runs
 #' [apply_board_update()] and resets the reactive. Plugins or
@@ -1263,6 +1269,22 @@ add_blocks_to_stacks <- function(rv, add, session) {
 #' that link endpoints and stack members resolve in the post-update
 #' merged view. Unknown top-level keys are passed through, so subclass
 #' payload slots reach subclass augment / apply methods.
+#'
+#' @section Request components:
+#' Two components carry a request rather than a state change:
+#' `evaluate`, a character vector of block IDs to evaluate once, and
+#' `require`, a list with `add` / `rm` character vectors claiming and
+#' releasing blocks that are to stay evaluated. Both put the named
+#' blocks (and their upstream closure) into the eval set without
+#' touching what the front-end shows — see the Evaluation requests
+#' section of [board_server()] — and both resolve their IDs against
+#' the post-update block set, so a payload may add a block and ask for
+#' it in one go. They are applied after the state delta, so a payload
+#' that edits a block and evaluates it sees the edit.
+#'
+#' A locked board (see [is_board_locked()]) still accepts a payload of
+#' request components alone; one that also carries a state change is
+#' dropped whole rather than applied in part.
 #'
 #' @section Augment:
 #' The default `.board` method inserts implied link removals and stack
@@ -1427,6 +1449,90 @@ validate_board_update_structure <- function(payload, board) {
 
   if ("stacks" %in% names(payload)) {
     validate_board_update_stacks(payload$stacks, board)
+  }
+
+  # Both request components name blocks, and a payload may add the very block it
+  # asks for, so they resolve against the post-update block set.
+  if (any(update_request_components() %in% names(payload))) {
+
+    ids <- updated_block_ids(payload, board)
+
+    if ("evaluate" %in% names(payload)) {
+      validate_board_update_evaluate(payload$evaluate, ids)
+    }
+
+    if ("require" %in% names(payload)) {
+      validate_board_update_require(payload$require, ids)
+    }
+  }
+
+  invisible()
+}
+
+updated_block_ids <- function(payload, board) {
+
+  ids <- board_block_ids(board)
+
+  if (!"blocks" %in% names(payload)) {
+    return(ids)
+  }
+
+  union(setdiff(ids, payload$blocks$rm), names(payload$blocks$add))
+}
+
+validate_board_update_evaluate <- function(x, ids) {
+
+  if (!is.character(x)) {
+    blockr_abort(
+      "Expecting a board update `evaluate` component to be specified as a ",
+      "character vector.",
+      class = "board_update_evaluate_type_invalid"
+    )
+  }
+
+  unknown <- setdiff(x, ids)
+
+  if (length(unknown)) {
+    blockr_abort(
+      "Requested evaluation of unknown block{?s} {unknown}.",
+      class = "board_update_evaluate_unknown_id"
+    )
+  }
+
+  invisible()
+}
+
+validate_board_update_require <- function(x, ids) {
+
+  exp_cmp <- c("rm", "add")
+
+  if (!is.list(x) || length(names(x)) != length(x) ||
+        !all(names(x) %in% exp_cmp)) {
+    blockr_abort(
+      "Expecting a board update `require` component to consist of components ",
+      "{exp_cmp}.",
+      class = "board_update_require_components_invalid"
+    )
+  }
+
+  for (cmp in intersect(exp_cmp, names(x))) {
+
+    if (!(is.null(x[[cmp]]) || is.character(x[[cmp]]))) {
+      blockr_abort(
+        "Expecting a board update `require` {cmp} component be specified as a ",
+        "character vector (or NULL).",
+        class = "board_update_require_component_invalid"
+      )
+    }
+  }
+
+  unknown <- setdiff(c(x$add, x$rm), ids)
+
+  if (length(unknown)) {
+    blockr_abort(
+      "Requested evaluation of unknown block{?s} {unknown}.",
+      class = "board_update_require_unknown_id"
+    )
   }
 
   invisible()
@@ -1911,6 +2017,30 @@ apply_core_board_update <- function(rv, upd, session,
   }
 
   update_stack_blocks(rv, stk, edit_stack, edit_plugin_args, session)
+
+  # Last, so that a payload which edits a block and asks for it in one go
+  # evaluates the edit rather than what it replaced.
+  apply_eval_requests(rv, upd)
+
+  invisible()
+}
+
+apply_eval_requests <- function(rv, upd) {
+
+  if (length(upd$require$rm)) {
+    log_debug("releasing block{?s} {upd$require$rm}")
+    rv$required_blocks(setdiff(isolate(rv$required_blocks()), upd$require$rm))
+  }
+
+  if (length(upd$require$add)) {
+    log_debug("requiring block{?s} {upd$require$add}")
+    rv$required_blocks(union(isolate(rv$required_blocks()), upd$require$add))
+  }
+
+  if (length(upd$evaluate)) {
+    log_debug("requesting evaluation of block{?s} {upd$evaluate}")
+    rv$evaluating(union(isolate(rv$evaluating()), upd$evaluate))
+  }
 
   invisible()
 }

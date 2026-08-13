@@ -42,6 +42,63 @@ test_that("a locked board drops structural board updates", {
   )
 })
 
+test_that("a locked board records the outcome of what it dropped", {
+
+  withr::local_options(blockr.locked = TRUE)
+
+  board <- new_board()
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      board_update(
+        list(blocks = list(add = as_blocks(new_dataset_block())))
+      )
+
+      session$flushReact()
+
+      expect_false(rv$last_update$ok)
+      expect_identical(rv$last_update$phase, "validate")
+    },
+    args = list(x = board, plugins = list(manage_blocks()))
+  )
+})
+
+test_that("a locked board still accepts evaluation requests", {
+
+  withr::local_options(blockr.locked = TRUE)
+
+  board <- new_board(blocks = c(a = new_dataset_block("BOD")))
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      # A request carries no state change, so the lock does not apply to it.
+      board_update(list(require = list(add = "a")))
+      session$flushReact()
+
+      expect_setequal(rv$required_blocks(), "a")
+      expect_true(rv$last_update$ok)
+
+      # Mixed with one that does, the payload is dropped whole.
+      board_update(
+        list(
+          blocks = list(add = as_blocks(list(b = new_dataset_block("BOD")))),
+          require = list(rm = "a")
+        )
+      )
+      session$flushReact()
+
+      expect_false(rv$last_update$ok)
+      expect_length(board_blocks(rv$board), 1L)
+      expect_setequal(rv$required_blocks(), "a")
+    },
+    args = list(x = board, plugins = list())
+  )
+})
+
 test_that("an unlocked board applies structural board updates", {
 
   board <- new_board()
