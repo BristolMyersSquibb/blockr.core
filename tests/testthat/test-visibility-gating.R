@@ -10,6 +10,9 @@ probe_args$entry_classes <- NULL
 probe_construct <- new.env()
 probe_construct$ids <- character()
 
+probe_push <- new.env()
+probe_push$ids <- character()
+
 registerS3method(
   "block_output", "probe_block",
   function(x, result, session) {
@@ -66,6 +69,30 @@ probe_source_alt <- function() {
         id,
         function(input, output, session) {
           list(expr = reactive(quote(datasets::ChickWeight)), state = list())
+        }
+      )
+    },
+    function(id) shiny::tagList(),
+    class = "probe_block",
+    block_metadata = FALSE
+  )
+}
+
+probe_ui_ready <- function() {
+  new_data_block(
+    function(id, ui_ready) {
+      moduleServer(
+        id,
+        function(input, output, session) {
+
+          observe(
+            {
+              req(ui_ready())
+              probe_push$ids <- c(probe_push$ids, session$ns(NULL))
+            }
+          )
+
+          list(expr = reactive(quote(datasets::BOD)), state = list())
         }
       )
     },
@@ -169,6 +196,7 @@ reset_probes <- function() {
   probe_render$ids <- character()
   probe_eval$ids <- character()
   probe_construct$ids <- character()
+  probe_push$ids <- character()
 }
 
 # Drives the background builder synchronously: the production scheduler paces
@@ -185,6 +213,10 @@ rendered <- function(id) {
 
 evaluated <- function(id) {
   id %in% probe_eval$ids
+}
+
+pushed <- function(id) {
+  any(endsWith(probe_push$ids, paste0("block_", id, "-expr")))
 }
 
 constructed <- function(id) {
@@ -310,6 +342,62 @@ test_that("a producer gates evaluation and rendering on visibility", {
         render_blocks(visibility, "b")
       }
     )
+  )
+})
+
+test_that("ui_ready follows the visible channel of a needed block", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- new_board(
+    blocks = c(
+      a = with_id(probe_ui_ready(), "a"),
+      b = with_id(probe_passthrough(), "b")
+    ),
+    links = links(new_link(from = "a", to = "b"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_true(evaluated("a"))
+      expect_false(rendered("a"))
+      expect_false(pushed("a"))
+
+      render_blocks(vis, "a")
+      session$flushReact()
+
+      expect_true(pushed("a"))
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visibility, ...) {
+        require_blocks(visibility, "b")
+        render_blocks(visibility, "b")
+      }
+    )
+  )
+})
+
+test_that("ui_ready is always set with nothing gating visibility", {
+
+  reset_probes()
+
+  board <- new_board(blocks = c(a = with_id(probe_ui_ready(), "a")))
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_true(pushed("a"))
+    },
+    args = list(x = board, plugins = list())
   )
 })
 

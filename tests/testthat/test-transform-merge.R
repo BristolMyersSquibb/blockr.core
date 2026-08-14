@@ -28,7 +28,53 @@ test_that("merge block constructor", {
     },
     args = list(
       x = function() band_members,
-      y = function() band_instruments
+      y = function() band_instruments,
+      ui_ready = function() TRUE
+    )
+  )
+})
+
+test_that("merge block holds its control update until the UI is ready", {
+
+  pushed <- new.env()
+  pushed$n <- 0L
+
+  record_push <- function(...) {
+
+    args <- list(...)
+
+    pushed$n <- pushed$n + 1L
+    pushed$choices <- args$choices
+    pushed$selected <- args$selected
+
+    invisible()
+  }
+
+  local_mocked_bindings(
+    updateSelectInput = record_push,
+    .package = "blockr.core"
+  )
+
+  ready <- reactiveVal(FALSE)
+
+  testServer(
+    block_expr_server(new_merge_block(by = "name")),
+    {
+      session$flushReact()
+
+      expect_identical(pushed$n, 0L)
+
+      ready(TRUE)
+      session$flushReact()
+
+      expect_identical(pushed$n, 1L)
+      expect_identical(pushed$choices, "name")
+      expect_identical(pushed$selected, "name")
+    },
+    args = list(
+      x = function() band_members,
+      y = function() band_instruments,
+      ui_ready = ready
     )
   )
 })

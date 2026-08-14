@@ -74,6 +74,10 @@ block server is run standalone)}
 \code{reactiveVal}s, supplied by \code{\link[=board_server]{board_server()}} to gate rendering and to
 freeze block inputs; \code{NULL} (the standalone default) leaves the block
 ungated}
+
+\item{ui_ready}{Reactive flag signaling whether the front-end has the block
+UI on screen, forwarded to block server functions that declare a \code{ui_ready}
+argument; defaults to always-ready when a block server is run standalone}
 }
 \value{
 Both \code{block_server()} and \code{expr_server()} return shiny server module
@@ -176,6 +180,20 @@ the staggering and builds every block up front. With nothing writing
 \code{required} every block is needed and behaviour is unchanged; the
 \code{gate_visibility} \code{\link[=blockr_option]{blockr_option()}} (default \code{TRUE}) turns gating off
 entirely.
+
+The \code{visible} channel also drives the point at which a block may talk to its
+own controls. A block server that ships state to the client with
+\code{\link[shiny:updateSelectInput]{shiny::updateSelectInput()}} and friends cannot do so at module start: on a
+front-end that defers panels the block is built (because something needs its
+result) long before its UI exists, the update addresses an unbound input and
+shiny drops the message, and nothing re-sends it. A block opts into the
+handshake by declaring a \code{ui_ready} argument on its server function --
+reserved, like \code{...args}, so it is not mistaken for a data input --
+whereupon \code{\link[=expr_server]{expr_server()}} hands it a reactive that is \code{TRUE} while the
+front-end reports the block on screen (and constantly \code{TRUE} when nothing
+gates visibility). Guarding the pushes with \code{req(ui_ready())} holds them
+until the controls exist and re-sends them whenever the block returns to
+screen. Core's \code{merge_block}, \code{scatter_block} and \code{head_block} use it.
 
 The same bundle carries a third channel, \code{frozen}, through which a
 front-end reports the blocks whose inputs it has hidden (for example a

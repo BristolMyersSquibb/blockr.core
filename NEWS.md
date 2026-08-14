@@ -191,6 +191,20 @@
   is `NULL` under `keep.source = FALSE` -- any expression defining a function,
   but only once the package was installed rather than loaded with `load_all()`
   (#323).
+* Block servers can opt into a UI-readiness handshake by declaring a `ui_ready`
+  argument, which `expr_server()` fills with a reactive that is `TRUE` while
+  the front-end reports the block on screen. Controls whose state reaches the
+  client through `update*Input()` were pushed at module start, but a front-end
+  that defers panels builds an off-screen block (because something downstream
+  needs its result) long before its UI exists, so shiny dropped the message
+  against an unbound input and nothing re-sent it: a block on a non-startup
+  view came up with blank controls while computing correctly. Guarding the
+  pushes with `req(ui_ready())` holds them until the controls exist and
+  re-sends them whenever the block returns to screen. Like `...args`, the
+  argument is reserved and counts towards neither `block_inputs()` nor
+  `block_arity()`. Adopted by `merge_block`, `scatter_block` and `head_block`
+  -- the last two also pushed their column choices and row bound before first
+  paint, so they misbehaved on the startup view too (#317).
 
 # blockr.core 0.1.3
 

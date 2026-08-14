@@ -27,7 +27,7 @@
 #' @export
 new_scatter_block <- function(x = character(), y = character(), ...) {
   new_plot_block(
-    function(id, data) {
+    function(id, data, ui_ready) {
       moduleServer(
         id,
         function(input, output, session) {
@@ -41,8 +41,10 @@ new_scatter_block <- function(x = character(), y = character(), ...) {
           observeEvent(input$ycol, y_col(input$ycol))
 
           observeEvent(
-            cols(),
+            list(ui_ready(), cols()),
             {
+              req(ui_ready())
+
               updateSelectInput(
                 session,
                 inputId = "xcol",

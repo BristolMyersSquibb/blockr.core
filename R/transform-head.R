@@ -29,7 +29,7 @@ new_head_block <- function(n = 6L, direction = c("head", "tail"), ...) {
   direction <- match.arg(direction)
 
   new_transform_block(
-    function(id, data) {
+    function(id, data, ui_ready) {
       moduleServer(
         id,
         function(input, output, session) {
@@ -41,13 +41,17 @@ new_head_block <- function(n = 6L, direction = c("head", "tail"), ...) {
           observeEvent(input$tail, til(input$tail))
 
           observeEvent(
-            nrow(data()),
-            updateNumericInput(
-              inputId = "n",
-              value = nrw(),
-              min = 1L,
-              max = nrow(data())
-            )
+            list(ui_ready(), nrow(data())),
+            {
+              req(ui_ready())
+
+              updateNumericInput(
+                inputId = "n",
+                value = nrw(),
+                min = 1L,
+                max = nrow(data())
+              )
+            }
           )
 
           list(

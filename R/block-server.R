@@ -92,6 +92,20 @@
 #' `gate_visibility` [blockr_option()] (default `TRUE`) turns gating off
 #' entirely.
 #'
+#' The `visible` channel also drives the point at which a block may talk to its
+#' own controls. A block server that ships state to the client with
+#' [shiny::updateSelectInput()] and friends cannot do so at module start: on a
+#' front-end that defers panels the block is built (because something needs its
+#' result) long before its UI exists, the update addresses an unbound input and
+#' shiny drops the message, and nothing re-sends it. A block opts into the
+#' handshake by declaring a `ui_ready` argument on its server function --
+#' reserved, like `...args`, so it is not mistaken for a data input --
+#' whereupon [expr_server()] hands it a reactive that is `TRUE` while the
+#' front-end reports the block on screen (and constantly `TRUE` when nothing
+#' gates visibility). Guarding the pushes with `req(ui_ready())` holds them
+#' until the controls exist and re-sends them whenever the block returns to
+#' screen. Core's `merge_block`, `scatter_block` and `head_block` use it.
+#'
 #' The same bundle carries a third channel, `frozen`, through which a
 #' front-end reports the blocks whose inputs it has hidden (for example a
 #' locked board that shows outputs but not controls). While frozen a block is
@@ -136,6 +150,9 @@ block_server <- function(id, x, data = list(), ...) {
 #' `reactiveVal`s, supplied by [board_server()] to gate rendering and to
 #' freeze block inputs; `NULL` (the standalone default) leaves the block
 #' ungated
+#' @param ui_ready Reactive flag signaling whether the front-end has the block
+#' UI on screen, forwarded to block server functions that declare a `ui_ready`
+#' argument; defaults to always-ready when a block server is run standalone
 #' @rdname block_server
 #' @export
 block_server.block <- function(id, x, data = list(), block_id = id,
@@ -161,8 +178,18 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         status = NULL
       )
 
+      gated <- is_board(isolate(board$board)) &&
+        isTRUE(blockr_option("gate_visibility", TRUE)) &&
+        not_null(visibility)
+
+      ui_ready <- if (gated) {
+        reactive(block_ui_ready(block_id, visibility))
+      } else {
+        reactive(TRUE)
+      }
+
       exp <- check_expr_val(
-        expr_server(x, data),
+        expr_server(x, data, ui_ready = ui_ready),
         x
       )
 
@@ -454,10 +481,6 @@ block_server.block <- function(id, x, data = list(), block_id = id,
           !failed()
       )
 
-      gated <- is_board(isolate(board$board)) &&
-        isTRUE(blockr_option("gate_visibility", TRUE)) &&
-        not_null(visibility)
-
       render_obs <- output_render_observer(x, block_ready, inputs_ready,
                                            state_ready, res, cond, session,
                                            suspended = gated)
@@ -521,8 +544,15 @@ expr_server <- function(x, data, ...) {
 }
 
 #' @export
-expr_server.block <- function(x, data, ...) {
-  do.call(block_expr_server(x), c(list(id = "expr"), data))
+expr_server.block <- function(x, data, ui_ready = reactive(TRUE), ...) {
+
+  srv <- block_expr_server(x)
+
+  ready <- if ("ui_ready" %in% names(formals(srv))) {
+    list(ui_ready = ui_ready)
+  }
+
+  do.call(srv, c(list(id = "expr"), data, ready))
 }
 
 validate_block_reactive <- function(id, x, dat, cond, sess, inputs_ready) {
@@ -697,8 +727,7 @@ render_gate_observer <- function(id, visibility, render_obs, sess) {
 
   observe(
     {
-      do_render <- !gating_active(visibility$required) ||
-        block_visible(id, visibility)
+      do_render <- block_ui_ready(id, visibility)
 
       if (do_render) render_obs$resume() else render_obs$suspend()
 

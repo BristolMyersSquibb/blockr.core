@@ -39,7 +39,7 @@ new_merge_block <- function(by = character(), all_x = FALSE, all_y = FALSE,
   }
 
   new_transform_block(
-    function(id, x, y) {
+    function(id, x, y, ui_ready) {
       moduleServer(
         id,
         function(input, output, session) {
@@ -64,12 +64,16 @@ new_merge_block <- function(by = character(), all_x = FALSE, all_y = FALSE,
           cols <- reactive(by_choices(x(), y()))
 
           observe(
-            updateSelectInput(
-              session,
-              inputId = "by",
-              choices = cols(),
-              selected = sels()
-            )
+            {
+              req(ui_ready())
+
+              updateSelectInput(
+                session,
+                inputId = "by",
+                choices = cols(),
+                selected = sels()
+              )
+            }
           )
 
           list(

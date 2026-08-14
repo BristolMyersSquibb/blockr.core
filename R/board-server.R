@@ -762,6 +762,10 @@ block_frozen <- function(id, vis) {
   isTRUE(vis$frozen[[id]]())
 }
 
+block_ui_ready <- function(id, vis) {
+  !gating_active(vis$required) || block_visible(id, vis)
+}
+
 required_fulfilled <- function(vis) {
   all(lgl_ply(required_now(vis$required), block_visible, vis))
 }
