@@ -106,3 +106,47 @@ test_that("bbquote", {
   expect_error(.("a"), class = "dot_should_not_be_called")
   expect_error(..("a"), class = "dots_should_not_be_called")
 })
+
+test_that("bbquote keeps NULL call elements", {
+
+  expect_identical(
+    bbquote(func(a, NULL), list()),
+    quote(func(a, NULL))
+  )
+
+  expect_identical(
+    bbquote(list(a = NULL, b = .(x)), list(x = 1L)),
+    quote(list(a = NULL, b = 1L))
+  )
+
+  expect_identical(
+    bbquote(func(inner(NULL, .(x))), list(x = 1L)),
+    quote(func(inner(NULL, 1L)))
+  )
+})
+
+test_that("bbquote handles a function definition parsed without srcrefs", {
+
+  # A `function` call carries its srcref as a fourth element, and that slot is
+  # NULL whenever the code was parsed without srcrefs -- what an installed
+  # package does (`keep.source = FALSE`) and what `load_all()` does not.
+  expr <- parse(
+    text = "local({ f <- function(v, w) v; f(.(x), 1L) })",
+    keep.source = FALSE
+  )[[1L]]
+
+  fn_def <- as.list(expr[[2L]][[2L]][[3L]])
+
+  expect_length(fn_def, 4L)
+  expect_null(fn_def[[4L]])
+
+  expect_identical(eval(bbquote(expr, list(x = 1L))), 1L)
+
+  expect_identical(bbquote(expr, list())[[2L]][[3L]][[2L]], quote(.(x)))
+})
+
+test_that("bbquote preserves missing arguments", {
+
+  expect_identical(bbquote(x[.(i), ], list(i = 1L)), quote(x[1L, ]))
+  expect_identical(bbquote(x[, .(j)], list(j = 2L)), quote(x[, 2L]))
+})
