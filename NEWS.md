@@ -2,15 +2,18 @@
 
 * A link edit arriving as a `links$mod` board update is now applied in place
   rather than folded into an add plus a removal. Where the edit keeps the
-  link's input slot -- a retarget that changes only `from` -- the target
-  block's existing input reactive is pointed at the new source, so only that
-  input re-fires. The fold previously tore the wiring down and rebuilt it,
-  which on a variadic target meant dropping and recreating every one of its
-  `...args` reactives, re-firing all of the block's data inputs for a single
-  link's edit. An edit that moves the link to another slot (a changed `to` or
-  `input`) still rewires. Correspondingly, `modify_board_links()` gains a
-  `mod` argument that replaces links in place, keeping each one's position
-  (#316).
+  link's input slot -- `to` and `input` unchanged -- the existing slot is
+  pointed at the new source, so the target block's input wiring survives the
+  edit. The fold previously tore that wiring down and rebuilt it, which on a
+  variadic target meant `sync_dot_args()` discarding and recreating every one
+  of the block's `...args` reactives and invalidating its dot-arg name
+  derivation. A genuine retarget re-evaluates the target block once either
+  way, so that part is unchanged; what the fold added on top was the rebuild,
+  plus a re-evaluation for a mod that leaves the wiring untouched -- that one
+  is now free, on fixed and variadic targets alike. An edit that moves the
+  link (a changed `to` or `input`) still rewires. Correspondingly,
+  `modify_board_links()` gains a `mod` argument that replaces links in place,
+  keeping each one's position (#316).
 * `apply_board_update()` is now a real reducer rather than a no-op: its
   default `.board` method applies the core delta (block, link and stack
   mutations) to the supplied board and returns it, and update validation

@@ -526,6 +526,52 @@ test_that("links$mod retargets a variadic input without rebuilding dot args", {
   )
 })
 
+test_that("links$mod that leaves the wiring alone costs no re-evaluation", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      b = new_dataset_block("BOD"),
+      c = new_rbind_block()
+    ),
+    links = links(l1 = new_link("a", "c"), l2 = new_link("b", "c"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      n_eval <- 0L
+
+      observe({
+        try(rv$blocks[["c"]]$server$result(), silent = TRUE)
+        n_eval <<- n_eval + 1L
+      })
+
+      session$flushReact()
+      n_eval <- 0L
+
+      board_update(
+        list(links = list(mod = list(l1 = list(from = "a"))))
+      )
+
+      session$flushReact()
+
+      expect_identical(n_eval, 0L)
+
+      board_update(
+        list(links = list(mod = list(l1 = list(from = "b"))))
+      )
+
+      session$flushReact()
+
+      expect_identical(n_eval, 1L)
+    },
+    args = list(x = board)
+  )
+})
+
 test_that("links$mod re-parents a link by tearing down the old slot", {
 
   board <- new_board(

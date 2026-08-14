@@ -1318,10 +1318,11 @@ add_blocks_to_stacks <- function(rv, add, session) {
 #' around this single reduce.
 #'
 #' A link `mod` that leaves the link in the input slot it already
-#' occupies — a retarget changing only `from` — is applied in place,
-#' so the target block's input wiring survives the edit and only the
-#' retargeted input re-fires. One that moves the link (a changed `to`
-#' or `input`) is rewired instead. A front-end editing a link should
+#' occupies — `to` and `input` unchanged — is applied in place, so the
+#' target block's input wiring survives the edit: the slot is pointed
+#' at the new source rather than the block's inputs being torn down and
+#' rebuilt. One that moves the link (a changed `to` or `input`) is
+#' rewired instead. A front-end editing a link should
 #' therefore submit a `mod` rather than a matched `rm` plus `add` pair
 #' naming the same ID, which rewires either way.
 #'
