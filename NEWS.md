@@ -182,6 +182,15 @@
   also the one part of a payload a locked board still accepts, and a payload
   rejected for being locked now records an outcome in `board$last_update`
   instead of being dropped silently (#318).
+* The `bbquote()` walk no longer drops `NULL` elements from a call. Assigning
+  the recursive step's result with `[[<-` deleted the element whenever it was
+  `NULL`, leaving the call shorter than its names and aborting with an `'names'
+  attribute [4] must be the same length as the vector [3]` error (or, for a
+  named `NULL`, `subscript out of bounds`). This hit any expression carrying a
+  literal `NULL` argument, and -- because a `function` definition's srcref slot
+  is `NULL` under `keep.source = FALSE` -- any expression defining a function,
+  but only once the package was installed rather than loaded with `load_all()`
+  (#323).
 
 # blockr.core 0.1.3
 

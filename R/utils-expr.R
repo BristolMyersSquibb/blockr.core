@@ -81,7 +81,8 @@ bbquote <- function(expr, where = parent.frame(), splice = FALSE) {
       if (nchar(names_e[i]) && is_dots(e_list[[i]])) {
         names_e[i] <- ""
       } else {
-        e_list[[i]] <- process_splices(e_list[[i]])
+        # Assigning NULL via `[[<-` would delete the element; `[<-` replaces it
+        e_list[i] <- list(process_splices(e_list[[i]]))
       }
     }
 
