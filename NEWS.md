@@ -174,14 +174,16 @@
   evaluating a dormant block without making it visible. Both name blocks that
   are joined, with their upstream closure, to the eval set so they publish a
   current result and current conditions; core drops an `evaluate` request once
-  the block has run, while a `require` claim (`list(add =, rm =)`) is held until
-  released. Previously the only lever was the front-end's `required` channel,
-  which extensions never receive and which latches the block into the eval set,
-  so a consumer had no way to tell whether a change it had just made broke an
-  off-screen block. Since they carry no state change, request components are
-  also the one part of a payload a locked board still accepts, and a payload
-  rejected for being locked now records an outcome in `board$last_update`
-  instead of being dropped silently (#318).
+  the block has run, while a `require` claim is held until released. Claims are
+  keyed by owner (`list(<owner> = list(set =, add =, rm =))`, conventionally
+  labelled `session$ns("...")`), so two consumers may hold the same block
+  without either releasing the other's claim. Previously the only lever was the
+  front-end's `required` channel, which extensions never receive and which
+  latches the block into the eval set, so a consumer had no way to tell whether
+  a change it had just made broke an off-screen block. Since they carry no state
+  change, request components are also the one part of a payload a locked board
+  still accepts, and a payload rejected for being locked now records an outcome
+  in `board$last_update` instead of being dropped silently (#318).
 * The `bbquote()` walk no longer drops `NULL` elements from a call. Assigning
   the recursive step's result with `[[<-` deleted the element whenever it was
   `NULL`, leaving the call shorter than its names and aborting with an `'names'

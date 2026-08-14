@@ -1008,7 +1008,7 @@ test_that("a required claim holds a block until it is released", {
       reset_probes()
 
       # A claim, unlike a one-off request, survives evaluation.
-      board_update(list(require = list(add = "r")))
+      board_update(list(require = list(consumer = list(set = "r"))))
       session$flushReact()
 
       expect_identical(rv$eval[["r"]](), "ready")
@@ -1016,11 +1016,11 @@ test_that("a required claim holds a block until it is released", {
       for (i in 1:3) session$flushReact()
 
       expect_identical(rv$eval[["r"]](), "ready")
-      expect_setequal(rv$required_blocks(), "r")
+      expect_identical(rv$required_blocks(), list(consumer = "r"))
 
       # Releasing it hands the block back to the front-end's gating, which
       # parked it.
-      board_update(list(require = list(rm = "r")))
+      board_update(list(require = list(consumer = list(set = character()))))
       session$flushReact()
 
       expect_identical(rv$eval[["r"]](), "dormant")
@@ -1033,6 +1033,122 @@ test_that("a required claim holds a block until it is released", {
       callbacks = function(visibility, ...) {
         require_blocks(visibility, "s", "r")
         render_blocks(visibility, "s", "r")
+      }
+    )
+  )
+})
+
+test_that("one owner's release leaves another owner's claim standing", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- new_board(
+    blocks = c(
+      s = with_id(probe_source(), "s"),
+      r = with_id(probe_passthrough(), "r")
+    ),
+    links = links(sr = new_link("s", "r", "data"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      park_blocks(vis, "r")
+      session$flushReact()
+
+      expect_identical(rv$eval[["r"]](), "dormant")
+
+      board_update(list(require = list(one = list(set = "r"))))
+      session$flushReact()
+
+      board_update(list(require = list(two = list(add = "r"))))
+      session$flushReact()
+
+      expect_identical(rv$required_blocks(), list(one = "r", two = "r"))
+      expect_identical(rv$eval[["r"]](), "ready")
+
+      # The block is held by two owners, so the first letting go does not
+      # release the second's claim.
+      board_update(list(require = list(one = list(set = character()))))
+      session$flushReact()
+
+      expect_identical(rv$required_blocks(), list(two = "r"))
+      expect_identical(rv$eval[["r"]](), "ready")
+
+      # Releasing the last block an owner holds drops the owner, whether it
+      # says so with `rm` or by setting an empty set.
+      board_update(list(require = list(two = list(rm = "r"))))
+      session$flushReact()
+
+      expect_length(rv$required_blocks(), 0L)
+      expect_identical(rv$eval[["r"]](), "dormant")
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visibility, ...) {
+        require_blocks(visibility, "s", "r")
+        render_blocks(visibility, "s", "r")
+      }
+    )
+  )
+})
+
+test_that("removing a claimed block prunes it from every owner", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- new_board(
+    blocks = c(
+      s = with_id(probe_source(), "s"),
+      r = with_id(probe_passthrough(), "r")
+    ),
+    links = links(sr = new_link("s", "r", "data"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      board_update(
+        list(
+          require = list(
+            one = list(set = c("s", "r")),
+            two = list(set = "r")
+          )
+        )
+      )
+      session$flushReact()
+
+      board_update(list(blocks = list(rm = "r")))
+      session$flushReact()
+
+      # An owner left holding nothing is dropped, so a stale claim cannot
+      # outlive the block it named.
+      expect_identical(rv$required_blocks(), list(one = "s"))
+      expect_setequal(rv$needed(), "s")
+
+      # The owner that lost its block still releases cleanly: `rm` names a
+      # block the board no longer has, and that must not reject the payload.
+      board_update(list(require = list(two = list(rm = "r"))))
+      session$flushReact()
+
+      expect_true(rv$last_update$ok)
+      expect_identical(rv$required_blocks(), list(one = "s"))
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visibility, ...) {
+        require_blocks(visibility, "s")
+        render_blocks(visibility, "s")
       }
     )
   )
@@ -1102,7 +1218,14 @@ test_that("a request naming an unknown block is rejected", {
       expect_identical(rv$last_update$phase, "validate")
       expect_length(rv$evaluating(), 0L)
 
-      board_update(list(require = list(add = "nope")))
+      board_update(list(require = list(consumer = list(set = "nope"))))
+      session$flushReact()
+
+      expect_false(rv$last_update$ok)
+      expect_length(rv$required_blocks(), 0L)
+
+      # A claim with no owner to release it is refused as well.
+      board_update(list(require = list(list(set = "a"))))
       session$flushReact()
 
       expect_false(rv$last_update$ok)

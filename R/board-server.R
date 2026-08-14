@@ -27,7 +27,37 @@
 #' with their upstream closure over [board_links()] (without which they cannot
 #' produce a result), to the eval set. They differ only in who lets go: an
 #' `evaluate` request is a one-off that core drops once the block has run, while
-#' a `require` claim is held until the requester removes it.
+#' a `require` claim is held until its owner releases it.
+#'
+#' Claims are keyed by owner, the `require` component mapping each owner to a
+#' delta over the blocks it holds, so several consumers may hold the same block
+#' and none of them writes another's claim:
+#'
+#' ```r
+#' update(
+#'   list(
+#'     require = set_names(
+#'       list(list(set = board_block_ids(board$board))),
+#'       session$ns("preview")
+#'     )
+#'   )
+#' )
+#' ```
+#'
+#' A delta is `set`, `add` and `rm`, of which `set` states that owner's entire
+#' set at once and cannot be combined with the other two. Releasing everything
+#' is `set = character()`; releasing part of a claim is `rm`, which — unlike
+#' `set` and `add` — may name a block the board no longer has, so a release
+#' cannot be rejected by a removal that raced it. Restating a set repairs a
+#' release that never arrived, rather than letting it accumulate.
+#'
+#' Core cannot infer the owner — the write and its effect are separated by a
+#' flush — so the label travels in the payload. Nothing keys off shiny's
+#' namespacing, but taking the label from `session$ns()` as above is what keeps
+#' owners unique without a registry, and lets one module hold two independent
+#' claims under two labels. A claim outlives the module that made it: core
+#' drops a claimed block once it leaves the board, but an owner that goes away
+#' without releasing holds what it held for the rest of the session.
 #'
 #' Requests are orthogonal to the `required` visibility channel, so neither
 #' competes with the front-end's gating, and nothing about what is on screen
@@ -142,10 +172,10 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
       # The two request sets fed by the `evaluate` and `require` board update
       # components. Both join the needed set below; they differ in who lets go.
       # Core drops an `evaluating` entry once that block has had its evaluation
-      # pass (see the observer below), while a `required_blocks` entry stays
-      # until its requester removes it.
+      # pass (see the observer below), while `required_blocks` holds one entry
+      # per claim owner until that owner releases it.
       rv$evaluating <- reactiveVal(character())
-      rv$required_blocks <- reactiveVal(character())
+      rv$required_blocks <- reactiveVal(list())
 
       observe(
         {
@@ -811,7 +841,7 @@ valid_frozen <- function(x) {
 }
 
 requested_blocks <- function(rv) {
-  union(rv$evaluating(), rv$required_blocks())
+  union(rv$evaluating(), unlst(rv$required_blocks()))
 }
 
 # A block owes an evaluation pass while anything it needs for a result -- itself
@@ -994,7 +1024,9 @@ destroy_rm_blocks <- function(ids, rv, sess) {
   }
 
   rv$evaluating(setdiff(isolate(rv$evaluating()), ids))
-  rv$required_blocks(setdiff(isolate(rv$required_blocks()), ids))
+  rv$required_blocks(
+    filter_empty(lapply(isolate(rv$required_blocks()), setdiff, ids))
+  )
 
   invisible()
 }
@@ -1274,13 +1306,17 @@ add_blocks_to_stacks <- function(rv, add, session) {
 #' @section Request components:
 #' Two components carry a request rather than a state change:
 #' `evaluate`, a character vector of block IDs to evaluate once, and
-#' `require`, a list with `add` / `rm` character vectors claiming and
-#' releasing blocks that are to stay evaluated. Both put the named
-#' blocks (and their upstream closure) into the eval set without
-#' touching what the front-end shows — see the Evaluation requests
-#' section of [board_server()] — and both resolve their IDs against
-#' the post-update block set, so a payload may add a block and ask for
-#' it in one go. They are applied after the state delta, so a payload
+#' `require`, a list of per-owner deltas over the blocks that are to
+#' stay evaluated. Each delta is `set`, `add` and `rm` — `set` states
+#' that owner's whole set and is exclusive with the other two — so no
+#' owner writes another's claim. Both components put the named blocks
+#' (and their upstream closure) into the eval set without touching what
+#' the front-end shows — see the Evaluation requests section of
+#' [board_server()] — and both resolve their IDs against the
+#' post-update block set, so a payload may add a block and ask for it
+#' in one go. A `require` `rm` is the exception, naming blocks to
+#' release rather than to evaluate, and so may name one the board no
+#' longer has. They are applied after the state delta, so a payload
 #' that edits a block and evaluates it sees the edit.
 #'
 #' A locked board (see [is_board_locked()]) still accepts a payload of
@@ -1441,15 +1477,15 @@ validate_board_update_structure <- function(payload, board) {
   }
 
   if ("blocks" %in% names(payload)) {
-    validate_board_update_blocks(payload$blocks, board)
+    validate_board_update_blocks(payload[["blocks"]], board)
   }
 
   if ("links" %in% names(payload)) {
-    validate_board_update_links(payload$links, board)
+    validate_board_update_links(payload[["links"]], board)
   }
 
   if ("stacks" %in% names(payload)) {
-    validate_board_update_stacks(payload$stacks, board)
+    validate_board_update_stacks(payload[["stacks"]], board)
   }
 
   # Both request components name blocks, and a payload may add the very block it
@@ -1459,11 +1495,11 @@ validate_board_update_structure <- function(payload, board) {
     ids <- updated_block_ids(payload, board)
 
     if ("evaluate" %in% names(payload)) {
-      validate_board_update_evaluate(payload$evaluate, ids)
+      validate_board_update_evaluate(payload[["evaluate"]], ids)
     }
 
     if ("require" %in% names(payload)) {
-      validate_board_update_require(payload$require, ids)
+      validate_board_update_require(payload[["require"]], ids)
     }
   }
 
@@ -1478,7 +1514,7 @@ updated_block_ids <- function(payload, board) {
     return(ids)
   }
 
-  union(setdiff(ids, payload$blocks$rm), names(payload$blocks$add))
+  union(setdiff(ids, payload[["blocks"]]$rm), names(payload[["blocks"]]$add))
 }
 
 validate_board_update_evaluate <- function(x, ids) {
@@ -1505,33 +1541,72 @@ validate_board_update_evaluate <- function(x, ids) {
 
 validate_board_update_require <- function(x, ids) {
 
-  exp_cmp <- c("rm", "add")
+  if (!is.list(x) || length(names(x)) != length(x) ||
+        !all(nzchar(names(x))) || anyDuplicated(names(x)) != 0L) {
+    blockr_abort(
+      "Expecting a board update `require` component to be specified as a list ",
+      "of per-owner claim deltas with unique nonempty names.",
+      class = "board_update_require_owners_invalid"
+    )
+  }
+
+  for (owner in names(x)) {
+    validate_claim_delta(x[[owner]], owner, ids)
+  }
+
+  invisible()
+}
+
+validate_claim_delta <- function(x, owner, ids) {
+
+  exp_cmp <- c("set", "add", "rm")
 
   if (!is.list(x) || length(names(x)) != length(x) ||
         !all(names(x) %in% exp_cmp)) {
     blockr_abort(
-      "Expecting a board update `require` component to consist of components ",
+      "Expecting the claim of owner {owner} to consist of components ",
       "{exp_cmp}.",
       class = "board_update_require_components_invalid"
     )
   }
 
-  for (cmp in intersect(exp_cmp, names(x))) {
+  for (cmp in names(x)) {
 
     if (!(is.null(x[[cmp]]) || is.character(x[[cmp]]))) {
       blockr_abort(
-        "Expecting a board update `require` {cmp} component be specified as a ",
-        "character vector (or NULL).",
+        "Expecting the {cmp} component of the claim of owner {owner} to be ",
+        "specified as a character vector (or NULL).",
         class = "board_update_require_component_invalid"
       )
     }
   }
 
-  unknown <- setdiff(c(x$add, x$rm), ids)
+  if ("set" %in% names(x) && any(c("add", "rm") %in% names(x))) {
+    blockr_abort(
+      "Expecting the claim of owner {owner} to state a whole set via `set` or ",
+      "a delta via `add` and `rm`, but not both.",
+      class = "board_update_require_set_delta_clash"
+    )
+  }
+
+  both <- intersect(x$add, x$rm)
+
+  if (length(both)) {
+    blockr_abort(
+      "Expecting the claim of owner {owner} to either add or remove ",
+      "{qty(both)}block{?s} {both}.",
+      class = "board_update_require_add_rm_clash"
+    )
+  }
+
+  # Only a claim has to name blocks that exist -- a release commonly follows
+  # the very removal that made it necessary.
+  unknown <- setdiff(c(x$set, x$add), ids)
 
   if (length(unknown)) {
     blockr_abort(
-      "Requested evaluation of unknown block{?s} {unknown}.",
+      "Owner {owner} requested evaluation of unknown {qty(unknown)}",
+      "block{?s} {unknown}.",
       class = "board_update_require_unknown_id"
     )
   }
@@ -1786,27 +1861,29 @@ augment_board_update <- function(upd, board, ...,
 augment_board_update.board <- function(upd, board, ...,
                                        session = get_session()) {
 
-  if ("blocks" %in% names(upd) && "rm" %in% names(upd$blocks)) {
+  if ("blocks" %in% names(upd) && "rm" %in% names(upd[["blocks"]])) {
 
-    rm <- upd$blocks$rm
+    rm <- upd[["blocks"]]$rm
 
     links <- board_links(board)
 
     mis_lnk <- setdiff(
       names(links[links_incident(links, rm)]),
-      upd$links$rm
+      upd[["links"]]$rm
     )
 
     merged_stks <- board_stacks(board)
 
-    if (length(upd$stacks$mod)) {
-      merged_stks[names(upd$stacks$mod)] <- merge_stack_mods(
-        board, upd$stacks$mod
+    if (length(upd[["stacks"]]$mod)) {
+      merged_stks[names(upd[["stacks"]]$mod)] <- merge_stack_mods(
+        board, upd[["stacks"]]$mod
       )
     }
 
-    if (length(upd$stacks$rm)) {
-      merged_stks <- merged_stks[setdiff(names(merged_stks), upd$stacks$rm)]
+    if (length(upd[["stacks"]]$rm)) {
+      merged_stks <- merged_stks[
+        setdiff(names(merged_stks), upd[["stacks"]]$rm)
+      ]
     }
 
     affected <- merged_stks[
@@ -1826,33 +1903,33 @@ augment_board_update.board <- function(upd, board, ...,
 
   add_lnk <- NULL
 
-  if ("links" %in% names(upd) && "add" %in% names(upd$links)) {
+  if ("links" %in% names(upd) && "add" %in% names(upd[["links"]])) {
 
-    tmp <- complete_unary_inputs(upd$links$add, board_blocks(board))
+    tmp <- complete_unary_inputs(upd[["links"]]$add, board_blocks(board))
 
-    if (!identical(tmp$input, upd$links$add$input)) {
+    if (!identical(tmp$input, upd[["links"]]$add$input)) {
       add_lnk <- tmp
     }
   }
 
   if (length(mis_lnk)) {
     log_debug("adding link removal{?s} for {mis_lnk}")
-    upd$links$rm <- c(mis_lnk, upd$links$rm)
+    upd[["links"]]$rm <- c(mis_lnk, upd[["links"]]$rm)
   }
 
   if (length(upd_stk)) {
     log_debug("adding stack update{?s} for {names(upd_stk)}")
-    upd$stacks$mod <- c(
+    upd[["stacks"]]$mod <- c(
       upd_stk,
-      upd$stacks$mod[setdiff(names(upd$stacks$mod), names(upd_stk))]
+      upd[["stacks"]]$mod[setdiff(names(upd[["stacks"]]$mod), names(upd_stk))]
     )
   }
 
   if (length(add_lnk)) {
     log_debug("adding link input update{?s} for {names(add_lnk)}")
-    upd$links$add <- c(
+    upd[["links"]]$add <- c(
       add_lnk,
-      upd$links$add[setdiff(names(upd$links$add), names(add_lnk))]
+      upd[["links"]]$add[setdiff(names(upd[["links"]]$add), names(add_lnk))]
     )
   }
 
@@ -1870,29 +1947,29 @@ apply_board_update <- function(board, upd, ...,
 apply_board_update.board <- function(board, upd, ...,
                                      session = get_session()) {
 
-  if (length(upd$blocks$add)) {
-    board_blocks(board) <- c(board_blocks(board), upd$blocks$add)
+  if (length(upd[["blocks"]]$add)) {
+    board_blocks(board) <- c(board_blocks(board), upd[["blocks"]]$add)
   }
 
-  add <- upd$links$add
-  rm <- upd$links$rm
+  add <- upd[["links"]]$add
+  rm <- upd[["links"]]$rm
 
-  if (length(upd$links$mod)) {
-    add <- vec_c(add, merge_link_mods(board, upd$links$mod))
-    rm <- c(rm, names(upd$links$mod))
+  if (length(upd[["links"]]$mod)) {
+    add <- vec_c(add, merge_link_mods(board, upd[["links"]]$mod))
+    rm <- c(rm, names(upd[["links"]]$mod))
   }
 
   board <- modify_board_links(board, add, rm, ..., session = session)
 
   board <- modify_board_stacks(
-    board, upd$stacks$add, upd$stacks$rm,
-    merge_stack_mods(board, upd$stacks$mod),
+    board, upd[["stacks"]]$add, upd[["stacks"]]$rm,
+    merge_stack_mods(board, upd[["stacks"]]$mod),
     ...,
     session = session
   )
 
-  if (length(upd$blocks$rm)) {
-    board <- rm_blocks(board, upd$blocks$rm, ..., session = session)
+  if (length(upd[["blocks"]]$rm)) {
+    board <- rm_blocks(board, upd[["blocks"]]$rm, ..., session = session)
   }
 
   board
@@ -1905,19 +1982,19 @@ apply_core_board_update <- function(rv, upd, session,
 
   ns <- session$ns
 
-  lnk_add <- upd$links$add
-  lnk_rm <- upd$links$rm
+  lnk_add <- upd[["links"]]$add
+  lnk_rm <- upd[["links"]]$rm
 
-  if (length(upd$links$mod)) {
-    lnk_add <- vec_c(lnk_add, merge_link_mods(rv$board, upd$links$mod))
-    lnk_rm <- c(lnk_rm, names(upd$links$mod))
+  if (length(upd[["links"]]$mod)) {
+    lnk_add <- vec_c(lnk_add, merge_link_mods(rv$board, upd[["links"]]$mod))
+    lnk_rm <- c(lnk_rm, names(upd[["links"]]$mod))
   }
 
   # Links into a block that is added or removed in this update are wired by
   # construct_block() / dropped by destroy_rm_blocks(); the reactive link delta
   # below only touches links between surviving blocks. Resolve it (and the stack
   # mod deltas) against the pre-update board before the reduce rewrites it.
-  lifecycle_blocks <- c(names(upd$blocks$add), upd$blocks$rm)
+  lifecycle_blocks <- c(names(upd[["blocks"]]$add), upd[["blocks"]]$rm)
   between_survivors <- function(x) {
     if (length(x)) x[!field(x, "to") %in% lifecycle_blocks] else x
   }
@@ -1927,7 +2004,7 @@ apply_core_board_update <- function(rv, upd, session,
   lnk_add <- between_survivors(lnk_add)
   lnk_rm <- between_survivors(cur_links[intersect(lnk_rm, names(cur_links))])
 
-  stk <- upd$stacks
+  stk <- upd[["stacks"]]
 
   if (length(stk$mod)) {
     stk$mod <- merge_stack_mods(rv$board, stk$mod)
@@ -1936,14 +2013,14 @@ apply_core_board_update <- function(rv, upd, session,
   # Tear down removed blocks before the reduce drops them from the board: the
   # remove_block_ui() method (e.g. blockr.dock's) asserts the block is still
   # present and reads it to locate the live panel it detaches.
-  if (length(upd$blocks$rm)) {
+  if (length(upd[["blocks"]]$rm)) {
 
-    log_debug("removing block{?s} {names(upd$blocks$rm)}")
+    log_debug("removing block{?s} {upd[['blocks']]$rm}")
 
     do.call(
       remove_block_ui,
       c(
-        list(ns(NULL), rv$board, upd$blocks$rm),
+        list(ns(NULL), rv$board, upd[["blocks"]]$rm),
         dot_args,
         list(
           edit_ui = edit_block,
@@ -1953,9 +2030,9 @@ apply_core_board_update <- function(rv, upd, session,
       )
     )
 
-    destroy_rm_blocks(upd$blocks$rm, rv, session)
+    destroy_rm_blocks(upd[["blocks"]]$rm, rv, session)
 
-    rm_vis_slots(vis, upd$blocks$rm)
+    rm_vis_slots(vis, upd[["blocks"]]$rm)
   }
 
   rv$board <- do.call(
@@ -1965,16 +2042,16 @@ apply_core_board_update <- function(rv, upd, session,
 
   stopifnot(is_board(rv$board))
 
-  if (length(upd$blocks$add)) {
+  if (length(upd[["blocks"]]$add)) {
 
-    log_debug("adding block{?s} {names(upd$blocks$add)}")
+    log_debug("adding block{?s} {names(upd[['blocks']]$add)}")
 
-    add_vis_slots(vis, names(upd$blocks$add))
+    add_vis_slots(vis, names(upd[["blocks"]]$add))
 
     do.call(
       insert_block_ui,
       c(
-        list(ns(NULL), rv$board, upd$blocks$add),
+        list(ns(NULL), rv$board, upd[["blocks"]]$add),
         dot_args,
         list(
           edit_ui = edit_block,
@@ -1984,17 +2061,17 @@ apply_core_board_update <- function(rv, upd, session,
       )
     )
 
-    construct_blocks(names(upd$blocks$add), rv, edit_block, ctrl_block,
+    construct_blocks(names(upd[["blocks"]]$add), rv, edit_block, ctrl_block,
                      edit_plugin_args, vis)
   }
 
-  if (length(upd$blocks$mod)) {
+  if (length(upd[["blocks"]]$mod)) {
 
-    log_debug("modifying block{?s} {names(upd$blocks$mod)}")
+    log_debug("modifying block{?s} {names(upd[['blocks']]$mod)}")
 
-    for (blk_id in names(upd$blocks$mod)) {
+    for (blk_id in names(upd[["blocks"]]$mod)) {
 
-      delta <- upd$blocks$mod[[blk_id]]
+      delta <- upd[["blocks"]]$mod[[blk_id]]
 
       if (length(delta)) {
         construct_block(blk_id, rv, edit_block, ctrl_block, edit_plugin_args,
@@ -2028,22 +2105,36 @@ apply_core_board_update <- function(rv, upd, session,
 
 apply_eval_requests <- function(rv, upd) {
 
-  if (length(upd$require$rm)) {
-    log_debug("releasing block{?s} {upd$require$rm}")
-    rv$required_blocks(setdiff(isolate(rv$required_blocks()), upd$require$rm))
+  req <- upd[["require"]]
+
+  if (length(req)) {
+
+    log_debug("updating block claims of owner{?s} {names(req)}")
+
+    claims <- isolate(rv$required_blocks())
+
+    for (owner in names(req)) {
+      claims[[owner]] <- apply_claim_delta(claims[[owner]], req[[owner]])
+    }
+
+    rv$required_blocks(filter_empty(claims))
   }
 
-  if (length(upd$require$add)) {
-    log_debug("requiring block{?s} {upd$require$add}")
-    rv$required_blocks(union(isolate(rv$required_blocks()), upd$require$add))
-  }
-
-  if (length(upd$evaluate)) {
-    log_debug("requesting evaluation of block{?s} {upd$evaluate}")
-    rv$evaluating(union(isolate(rv$evaluating()), upd$evaluate))
+  if (length(upd[["evaluate"]])) {
+    log_debug("requesting evaluation of block{?s} {upd[['evaluate']]}")
+    rv$evaluating(union(isolate(rv$evaluating()), upd[["evaluate"]]))
   }
 
   invisible()
+}
+
+apply_claim_delta <- function(cur, delta) {
+
+  if ("set" %in% names(delta)) {
+    return(delta$set)
+  }
+
+  union(setdiff(cur, delta$rm), delta$add)
 }
 
 preprocess_board_update <- function(update, board) {
