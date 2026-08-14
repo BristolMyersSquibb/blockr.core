@@ -1,3 +1,13 @@
+# blockr.core 0.1.5
+
+* `bbquote()` no longer drops `NULL` elements while walking a call. Assigning
+  the result of the recursive step with `[[<-` deleted the element whenever it
+  was `NULL`, leaving the call shorter than its names and aborting. This hit any
+  expression containing a literal `NULL` argument, and — because a `function`
+  definition's srcref slot is `NULL` under `keep.source = FALSE` — any
+  expression defining a function, but only once the package was installed
+  (#323).
+
 # blockr.core 0.1.4
 
 * `apply_board_update()` is now a real reducer rather than a no-op: its

@@ -129,3 +129,16 @@ test_that("bbquote survives an expression that defines a function", {
   out <- bbquote(fn, list())
   expect_identical(out[[2L]][[3L]][[2L]], quote(.(x)))
 })
+
+test_that("bbquote keeps NULL call elements", {
+
+  # `f(data, NULL)` is an ordinary shape in a block expression. A named NULL
+  # used to fail differently again ("subscript out of bounds"), because
+  # deleting an element shifts the indices the loop is still walking.
+  expect_identical(bbquote(f(x, NULL), list()), quote(f(x, NULL)))
+
+  expect_identical(
+    bbquote(list(a = NULL, b = .(x)), list(x = 1)),
+    quote(list(a = NULL, b = 1))
+  )
+})
