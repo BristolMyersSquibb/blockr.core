@@ -1008,7 +1008,7 @@ test_that("a required claim holds a block until it is released", {
       reset_probes()
 
       # A claim, unlike a one-off request, survives evaluation.
-      board_update(list(require = list(consumer = "r")))
+      board_update(list(require = list(consumer = list(set = "r"))))
       session$flushReact()
 
       expect_identical(rv$eval[["r"]](), "ready")
@@ -1020,7 +1020,7 @@ test_that("a required claim holds a block until it is released", {
 
       # Releasing it hands the block back to the front-end's gating, which
       # parked it.
-      board_update(list(require = list(consumer = character())))
+      board_update(list(require = list(consumer = list(set = character()))))
       session$flushReact()
 
       expect_identical(rv$eval[["r"]](), "dormant")
@@ -1062,10 +1062,10 @@ test_that("one owner's release leaves another owner's claim standing", {
 
       expect_identical(rv$eval[["r"]](), "dormant")
 
-      board_update(list(require = list(one = "r")))
+      board_update(list(require = list(one = list(set = "r"))))
       session$flushReact()
 
-      board_update(list(require = list(two = "r")))
+      board_update(list(require = list(two = list(add = "r"))))
       session$flushReact()
 
       expect_identical(rv$required_blocks(), list(one = "r", two = "r"))
@@ -1073,15 +1073,15 @@ test_that("one owner's release leaves another owner's claim standing", {
 
       # The block is held by two owners, so the first letting go does not
       # release the second's claim.
-      board_update(list(require = list(one = character())))
+      board_update(list(require = list(one = list(set = character()))))
       session$flushReact()
 
       expect_identical(rv$required_blocks(), list(two = "r"))
       expect_identical(rv$eval[["r"]](), "ready")
 
-      # An owner states its whole set, and mapping it to NULL is the same
-      # release as mapping it to no blocks.
-      board_update(list(require = list(two = NULL)))
+      # Releasing the last block an owner holds drops the owner, whether it
+      # says so with `rm` or by setting an empty set.
+      board_update(list(require = list(two = list(rm = "r"))))
       session$flushReact()
 
       expect_length(rv$required_blocks(), 0L)
@@ -1117,7 +1117,14 @@ test_that("removing a claimed block prunes it from every owner", {
     {
       session$flushReact()
 
-      board_update(list(require = list(one = c("s", "r"), two = "r")))
+      board_update(
+        list(
+          require = list(
+            one = list(set = c("s", "r")),
+            two = list(set = "r")
+          )
+        )
+      )
       session$flushReact()
 
       board_update(list(blocks = list(rm = "r")))
@@ -1127,6 +1134,14 @@ test_that("removing a claimed block prunes it from every owner", {
       # outlive the block it named.
       expect_identical(rv$required_blocks(), list(one = "s"))
       expect_setequal(rv$needed(), "s")
+
+      # The owner that lost its block still releases cleanly: `rm` names a
+      # block the board no longer has, and that must not reject the payload.
+      board_update(list(require = list(two = list(rm = "r"))))
+      session$flushReact()
+
+      expect_true(rv$last_update$ok)
+      expect_identical(rv$required_blocks(), list(one = "s"))
     },
     args = list(
       x = board,
@@ -1203,14 +1218,14 @@ test_that("a request naming an unknown block is rejected", {
       expect_identical(rv$last_update$phase, "validate")
       expect_length(rv$evaluating(), 0L)
 
-      board_update(list(require = list(consumer = "nope")))
+      board_update(list(require = list(consumer = list(set = "nope"))))
       session$flushReact()
 
       expect_false(rv$last_update$ok)
       expect_length(rv$required_blocks(), 0L)
 
       # A claim with no owner to release it is refused as well.
-      board_update(list(require = list("a")))
+      board_update(list(require = list(list(set = "a"))))
       session$flushReact()
 
       expect_false(rv$last_update$ok)

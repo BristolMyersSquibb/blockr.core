@@ -76,7 +76,7 @@ test_that("a locked board still accepts evaluation requests", {
       session$flushReact()
 
       # A request carries no state change, so the lock does not apply to it.
-      board_update(list(require = list(consumer = "a")))
+      board_update(list(require = list(consumer = list(set = "a"))))
       session$flushReact()
 
       expect_identical(rv$required_blocks(), list(consumer = "a"))
@@ -86,7 +86,7 @@ test_that("a locked board still accepts evaluation requests", {
       board_update(
         list(
           blocks = list(add = as_blocks(list(b = new_dataset_block("BOD")))),
-          require = list(consumer = character())
+          require = list(consumer = list(set = character()))
         )
       )
       session$flushReact()

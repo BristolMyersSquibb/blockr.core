@@ -83,28 +83,34 @@ produce a result), to the eval set. They differ only in who lets go: an
 \code{evaluate} request is a one-off that core drops once the block has run, while
 a \code{require} claim is held until its owner releases it.
 
-Claims are keyed by owner, the \code{require} component being a list of block IDs
-named by whoever needs them, so several consumers may hold the same block and
-none of them writes another's claim:
+Claims are keyed by owner, the \code{require} component mapping each owner to a
+delta over the blocks it holds, so several consumers may hold the same block
+and none of them writes another's claim:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{update(
   list(
     require = set_names(
-      list(board_block_ids(board$board)),
-      session$ns("code_export")
+      list(list(set = board_block_ids(board$board))),
+      session$ns("preview")
     )
   )
 )
 }\if{html}{\out{</div>}}
 
-Each value states that owner's entire current set rather than a delta, so an
-owner releases everything it holds by naming itself with \code{character()} (or
-\code{NULL}), and a release that never arrives is repaired by that owner's next
-payload rather than accumulating. Core cannot infer the owner — the write and
-its effect are separated by a flush — so the label travels in the payload.
-Nothing keys off shiny's namespacing, but taking the label from
-\code{session$ns()} as above is what keeps owners unique without a registry, and
-lets one module hold two independent claims under two labels.
+A delta is \code{set}, \code{add} and \code{rm}, of which \code{set} states that owner's entire
+set at once and cannot be combined with the other two. Releasing everything
+is \code{set = character()}; releasing part of a claim is \code{rm}, which — unlike
+\code{set} and \code{add} — may name a block the board no longer has, so a release
+cannot be rejected by a removal that raced it. Restating a set repairs a
+release that never arrived, rather than letting it accumulate.
+
+Core cannot infer the owner — the write and its effect are separated by a
+flush — so the label travels in the payload. Nothing keys off shiny's
+namespacing, but taking the label from \code{session$ns()} as above is what keeps
+owners unique without a registry, and lets one module hold two independent
+claims under two labels. A claim outlives the module that made it: core
+drops a claimed block once it leaves the board, but an owner that goes away
+without releasing holds what it held for the rest of the session.
 
 Requests are orthogonal to the \code{required} visibility channel, so neither
 competes with the front-end's gating, and nothing about what is on screen

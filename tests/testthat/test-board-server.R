@@ -804,7 +804,7 @@ test_that("update validation", {
 
   expect_error(
     validate_board_update(
-      list(require = list("a")),
+      list(require = list(list(set = "a"))),
       new_board(blocks(a = new_dataset_block()))
     ),
     class = "board_update_require_owners_invalid"
@@ -812,7 +812,7 @@ test_that("update validation", {
 
   expect_error(
     validate_board_update(
-      list(require = set_names(list("a"), "")),
+      list(require = set_names(list(list(set = "a")), "")),
       new_board(blocks(a = new_dataset_block()))
     ),
     class = "board_update_require_owners_invalid"
@@ -820,7 +820,12 @@ test_that("update validation", {
 
   expect_error(
     validate_board_update(
-      list(require = set_names(list("a", "a"), c("owner", "owner"))),
+      list(
+        require = set_names(
+          list(list(set = "a"), list(add = "a")),
+          c("board-code_export", "board-code_export")
+        )
+      ),
       new_board(blocks(a = new_dataset_block()))
     ),
     class = "board_update_require_owners_invalid"
@@ -828,18 +833,59 @@ test_that("update validation", {
 
   expect_error(
     validate_board_update(
-      list(require = list(owner = 1L)),
+      list(require = list(owner = "a")),
       new_board(blocks(a = new_dataset_block()))
     ),
-    class = "board_update_require_claim_invalid"
+    class = "board_update_require_components_invalid"
   )
 
   expect_error(
     validate_board_update(
-      list(require = list(owner = "b")),
+      list(require = list(owner = list(claim = "a"))),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_require_components_invalid"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(require = list(owner = list(set = 1L))),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_require_component_invalid"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(require = list(owner = list(set = "a", add = "a"))),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_require_set_delta_clash"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(require = list(owner = list(add = "a", rm = "a"))),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_require_add_rm_clash"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(require = list(owner = list(add = "b"))),
       new_board(blocks(a = new_dataset_block()))
     ),
     class = "board_update_require_unknown_id"
+  )
+
+  # Releasing is the one direction that may name a block the board no longer
+  # has, so a removal that races a release cannot reject the payload.
+  expect_silent(
+    validate_board_update(
+      list(require = list(owner = list(rm = "b"))),
+      new_board(blocks(a = new_dataset_block()))
+    )
   )
 })
 

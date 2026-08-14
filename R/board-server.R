@@ -29,29 +29,35 @@
 #' `evaluate` request is a one-off that core drops once the block has run, while
 #' a `require` claim is held until its owner releases it.
 #'
-#' Claims are keyed by owner, the `require` component being a list of block IDs
-#' named by whoever needs them, so several consumers may hold the same block and
-#' none of them writes another's claim:
+#' Claims are keyed by owner, the `require` component mapping each owner to a
+#' delta over the blocks it holds, so several consumers may hold the same block
+#' and none of them writes another's claim:
 #'
 #' ```r
 #' update(
 #'   list(
 #'     require = set_names(
-#'       list(board_block_ids(board$board)),
-#'       session$ns("code_export")
+#'       list(list(set = board_block_ids(board$board))),
+#'       session$ns("preview")
 #'     )
 #'   )
 #' )
 #' ```
 #'
-#' Each value states that owner's entire current set rather than a delta, so an
-#' owner releases everything it holds by naming itself with `character()` (or
-#' `NULL`), and a release that never arrives is repaired by that owner's next
-#' payload rather than accumulating. Core cannot infer the owner — the write and
-#' its effect are separated by a flush — so the label travels in the payload.
-#' Nothing keys off shiny's namespacing, but taking the label from
-#' `session$ns()` as above is what keeps owners unique without a registry, and
-#' lets one module hold two independent claims under two labels.
+#' A delta is `set`, `add` and `rm`, of which `set` states that owner's entire
+#' set at once and cannot be combined with the other two. Releasing everything
+#' is `set = character()`; releasing part of a claim is `rm`, which — unlike
+#' `set` and `add` — may name a block the board no longer has, so a release
+#' cannot be rejected by a removal that raced it. Restating a set repairs a
+#' release that never arrived, rather than letting it accumulate.
+#'
+#' Core cannot infer the owner — the write and its effect are separated by a
+#' flush — so the label travels in the payload. Nothing keys off shiny's
+#' namespacing, but taking the label from `session$ns()` as above is what keeps
+#' owners unique without a registry, and lets one module hold two independent
+#' claims under two labels. A claim outlives the module that made it: core
+#' drops a claimed block once it leaves the board, but an owner that goes away
+#' without releasing holds what it held for the rest of the session.
 #'
 #' Requests are orthogonal to the `required` visibility channel, so neither
 #' competes with the front-end's gating, and nothing about what is on screen
@@ -1300,16 +1306,18 @@ add_blocks_to_stacks <- function(rv, add, session) {
 #' @section Request components:
 #' Two components carry a request rather than a state change:
 #' `evaluate`, a character vector of block IDs to evaluate once, and
-#' `require`, a list of the block IDs that are to stay evaluated, named
-#' by claim owner. Each `require` value replaces that owner's claim, an
-#' empty one (`character()` or `NULL`) releasing it, so no owner writes
-#' another's. Both put the named blocks (and their upstream closure)
-#' into the eval set without touching what the front-end shows — see
-#' the Evaluation requests section of [board_server()] — and both
-#' resolve their IDs against the post-update block set, so a payload
-#' may add a block and ask for it in one go. They are applied after the
-#' state delta, so a payload that edits a block and evaluates it sees
-#' the edit.
+#' `require`, a list of per-owner deltas over the blocks that are to
+#' stay evaluated. Each delta is `set`, `add` and `rm` — `set` states
+#' that owner's whole set and is exclusive with the other two — so no
+#' owner writes another's claim. Both components put the named blocks
+#' (and their upstream closure) into the eval set without touching what
+#' the front-end shows — see the Evaluation requests section of
+#' [board_server()] — and both resolve their IDs against the
+#' post-update block set, so a payload may add a block and ask for it
+#' in one go. A `require` `rm` is the exception, naming blocks to
+#' release rather than to evaluate, and so may name one the board no
+#' longer has. They are applied after the state delta, so a payload
+#' that edits a block and evaluates it sees the edit.
 #'
 #' A locked board (see [is_board_locked()]) still accepts a payload of
 #' request components alone; one that also carries a state change is
@@ -1537,35 +1545,73 @@ validate_board_update_require <- function(x, ids) {
         !all(nzchar(names(x))) || anyDuplicated(names(x)) != 0L) {
     blockr_abort(
       "Expecting a board update `require` component to be specified as a list ",
-      "of claimed block IDs, named by owner with unique nonempty names.",
+      "of per-owner claim deltas with unique nonempty names.",
       class = "board_update_require_owners_invalid"
     )
   }
 
-  invalid <- names(x)[!lgl_ply(x, valid_claim)]
-
-  if (length(invalid)) {
-    blockr_abort(
-      "Expecting the blocks claimed by owner{?s} {invalid} to be specified as ",
-      "a character vector (or NULL).",
-      class = "board_update_require_claim_invalid"
-    )
-  }
-
-  unknown <- setdiff(unlst(x), ids)
-
-  if (length(unknown)) {
-    blockr_abort(
-      "Requested evaluation of unknown block{?s} {unknown}.",
-      class = "board_update_require_unknown_id"
-    )
+  for (owner in names(x)) {
+    validate_claim_delta(x[[owner]], owner, ids)
   }
 
   invisible()
 }
 
-valid_claim <- function(x) {
-  is.null(x) || is.character(x)
+validate_claim_delta <- function(x, owner, ids) {
+
+  exp_cmp <- c("set", "add", "rm")
+
+  if (!is.list(x) || length(names(x)) != length(x) ||
+        !all(names(x) %in% exp_cmp)) {
+    blockr_abort(
+      "Expecting the claim of owner {owner} to consist of components ",
+      "{exp_cmp}.",
+      class = "board_update_require_components_invalid"
+    )
+  }
+
+  for (cmp in names(x)) {
+
+    if (!(is.null(x[[cmp]]) || is.character(x[[cmp]]))) {
+      blockr_abort(
+        "Expecting the {cmp} component of the claim of owner {owner} to be ",
+        "specified as a character vector (or NULL).",
+        class = "board_update_require_component_invalid"
+      )
+    }
+  }
+
+  if ("set" %in% names(x) && any(c("add", "rm") %in% names(x))) {
+    blockr_abort(
+      "Expecting the claim of owner {owner} to state a whole set via `set` or ",
+      "a delta via `add` and `rm`, but not both.",
+      class = "board_update_require_set_delta_clash"
+    )
+  }
+
+  both <- intersect(x$add, x$rm)
+
+  if (length(both)) {
+    blockr_abort(
+      "Expecting the claim of owner {owner} to either add or remove ",
+      "{qty(both)}block{?s} {both}.",
+      class = "board_update_require_add_rm_clash"
+    )
+  }
+
+  # Only a claim has to name blocks that exist -- a release commonly follows
+  # the very removal that made it necessary.
+  unknown <- setdiff(c(x$set, x$add), ids)
+
+  if (length(unknown)) {
+    blockr_abort(
+      "Owner {owner} requested evaluation of unknown {qty(unknown)}",
+      "block{?s} {unknown}.",
+      class = "board_update_require_unknown_id"
+    )
+  }
+
+  invisible()
 }
 
 has_comp <- function(comp, x) {
@@ -2057,17 +2103,19 @@ apply_core_board_update <- function(rv, upd, session,
 
 apply_eval_requests <- function(rv, upd) {
 
-  if (length(upd$require)) {
+  req <- upd[["require"]]
 
-    log_debug("updating block claims of owner{?s} {names(upd$require)}")
+  if (length(req)) {
 
-    # Each value is that owner's whole set, so a per-owner overwrite rather
-    # than a union, and either spelling of "holds nothing" leaves no entry.
-    rv$required_blocks(
-      filter_empty(
-        utils::modifyList(isolate(rv$required_blocks()), upd$require)
-      )
-    )
+    log_debug("updating block claims of owner{?s} {names(req)}")
+
+    claims <- isolate(rv$required_blocks())
+
+    for (owner in names(req)) {
+      claims[[owner]] <- apply_claim_delta(claims[[owner]], req[[owner]])
+    }
+
+    rv$required_blocks(filter_empty(claims))
   }
 
   if (length(upd$evaluate)) {
@@ -2076,6 +2124,15 @@ apply_eval_requests <- function(rv, upd) {
   }
 
   invisible()
+}
+
+apply_claim_delta <- function(cur, delta) {
+
+  if ("set" %in% names(delta)) {
+    return(delta$set)
+  }
+
+  union(setdiff(cur, delta$rm), delta$add)
 }
 
 preprocess_board_update <- function(update, board) {

@@ -63,16 +63,18 @@ payload slots reach subclass augment / apply methods.
 
 Two components carry a request rather than a state change:
 \code{evaluate}, a character vector of block IDs to evaluate once, and
-\code{require}, a list of the block IDs that are to stay evaluated, named
-by claim owner. Each \code{require} value replaces that owner's claim, an
-empty one (\code{character()} or \code{NULL}) releasing it, so no owner writes
-another's. Both put the named blocks (and their upstream closure)
-into the eval set without touching what the front-end shows — see
-the Evaluation requests section of \code{\link[=board_server]{board_server()}} — and both
-resolve their IDs against the post-update block set, so a payload
-may add a block and ask for it in one go. They are applied after the
-state delta, so a payload that edits a block and evaluates it sees
-the edit.
+\code{require}, a list of per-owner deltas over the blocks that are to
+stay evaluated. Each delta is \code{set}, \code{add} and \code{rm} — \code{set} states
+that owner's whole set and is exclusive with the other two — so no
+owner writes another's claim. Both components put the named blocks
+(and their upstream closure) into the eval set without touching what
+the front-end shows — see the Evaluation requests section of
+\code{\link[=board_server]{board_server()}} — and both resolve their IDs against the
+post-update block set, so a payload may add a block and ask for it
+in one go. A \code{require} \code{rm} is the exception, naming blocks to
+release rather than to evaluate, and so may name one the board no
+longer has. They are applied after the state delta, so a payload
+that edits a block and evaluates it sees the edit.
 
 A locked board (see \code{\link[=is_board_locked]{is_board_locked()}}) still accepts a payload of
 request components alone; one that also carries a state change is
