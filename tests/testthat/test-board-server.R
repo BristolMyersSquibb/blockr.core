@@ -481,6 +481,115 @@ test_that("links$mod applies a value-changing delta (keeps links class)", {
   )
 })
 
+test_that("links$mod retargets a variadic input without rebuilding dot args", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("iris"),
+      b = new_dataset_block("mtcars"),
+      c = new_rbind_block()
+    ),
+    links = links(l1 = new_link("a", "c"), l2 = new_link("b", "c"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      args <- rv$inputs[["c"]][["...args"]]
+      store <- .subset2(args, "store")
+
+      dot_args <- function() {
+        set_names(
+          lapply(isolate(raw_keys(args)), activeBindingFunction, env = store),
+          isolate(raw_keys(args))
+        )
+      }
+
+      before <- dot_args()
+
+      expect_length(before, 2L)
+
+      board_update(
+        list(links = list(mod = list(l1 = list(from = "b"))))
+      )
+
+      session$flushReact()
+
+      expect_identical(board_links(rv$board)$from, c("b", "b"))
+      expect_identical(rv$sources[["c"]][["l1"]], "b")
+
+      expect_identical(dot_args(), before)
+    },
+    args = list(x = board)
+  )
+})
+
+test_that("links$mod re-parents a link by tearing down the old slot", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("iris"),
+      b = new_head_block(),
+      c = new_head_block()
+    ),
+    links = links(l1 = new_link("a", "b", "data"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      board_update(
+        list(links = list(mod = list(l1 = list(to = "c"))))
+      )
+
+      session$flushReact()
+
+      lnks <- board_links(rv$board)
+
+      expect_identical(names(lnks), "l1")
+      expect_identical(lnks$to, "c")
+
+      expect_null(rv$sources[["b"]][["data"]])
+      expect_identical(rv$sources[["c"]][["data"]], "a")
+    },
+    args = list(x = board)
+  )
+})
+
+test_that("links$mod renames a variadic dot arg", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("iris"),
+      b = new_dataset_block("mtcars"),
+      c = new_rbind_block()
+    ),
+    links = links(l1 = new_link("a", "c"), l2 = new_link("b", "c"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      board_update(
+        list(links = list(mod = list(l2 = list(input = "second"))))
+      )
+
+      session$flushReact()
+
+      expect_identical(board_links(rv$board)$input, c("", "second"))
+      expect_identical(names(rv$inputs[["c"]][["...args"]]), c("", "second"))
+      expect_identical(rv$sources[["c"]][["l2"]], "b")
+    },
+    args = list(x = board)
+  )
+})
+
 test_that("stacks$mod merges deltas onto current stack via update_stack", {
 
   board <- new_board(

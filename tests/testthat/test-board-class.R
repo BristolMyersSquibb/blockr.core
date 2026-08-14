@@ -277,3 +277,30 @@ test_that("editing a link via add + rm overlap preserves its position", {
   expect_identical(names(board_links(edited)), c("ac", "bc"))
   expect_identical(board_links(edited)[["ac"]][["input"]], "x")
 })
+
+test_that("modify_board_links() replaces a link in place", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      b = new_dataset_block("BOD"),
+      c = new_rbind_block()
+    ),
+    links = links(
+      ac = new_link("a", "c", "left"),
+      bc = new_link("b", "c")
+    )
+  )
+
+  edited <- modify_board_links(
+    board,
+    mod = links(ac = new_link("b", "c", "left"))
+  )
+
+  expect_identical(names(board_links(edited)), c("ac", "bc"))
+  expect_identical(board_links(edited)[["ac"]][["from"]], "b")
+
+  expect_error(
+    modify_board_links(board, mod = links(xy = new_link("a", "c")))
+  )
+})

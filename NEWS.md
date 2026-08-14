@@ -1,5 +1,16 @@
 # blockr.core 0.1.4
 
+* A link edit arriving as a `links$mod` board update is now applied in place
+  rather than folded into an add plus a removal. Where the edit keeps the
+  link's input slot -- a retarget that changes only `from` -- the target
+  block's existing input reactive is pointed at the new source, so only that
+  input re-fires. The fold previously tore the wiring down and rebuilt it,
+  which on a variadic target meant dropping and recreating every one of its
+  `...args` reactives, re-firing all of the block's data inputs for a single
+  link's edit. An edit that moves the link to another slot (a changed `to` or
+  `input`) still rewires. Correspondingly, `modify_board_links()` gains a
+  `mod` argument that replaces links in place, keeping each one's position
+  (#316).
 * `apply_board_update()` is now a real reducer rather than a no-op: its
   default `.board` method applies the core delta (block, link and stack
   mutations) to the supplied board and returns it, and update validation

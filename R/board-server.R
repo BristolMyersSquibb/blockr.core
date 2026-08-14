@@ -1036,6 +1036,11 @@ link_slot_key <- function(rv, to, id, input) {
   if (input %in% block_inputs(board_blocks(rv$board)[[to]])) input else id
 }
 
+reuses_link_slot <- function(old, new) {
+  field(old, "to") == field(new, "to") &
+    field(old, "input") == field(new, "input")
+}
+
 setup_link <- function(rv, id, from, to, input) {
 
   rv$sources[[to]][[link_slot_key(rv, to, id, input)]] <- from
@@ -1102,7 +1107,7 @@ sync_dot_args <- function(rv, to, lnks) {
   invisible()
 }
 
-update_block_links <- function(rv, add = NULL, rm = NULL) {
+update_block_links <- function(rv, add = NULL, rm = NULL, mod = NULL) {
 
   todo <- as.list(rm)
 
@@ -1110,7 +1115,10 @@ update_block_links <- function(rv, add = NULL, rm = NULL) {
     do.call(destroy_link, c(list(rv, i), todo[[i]]))
   }
 
-  todo <- as.list(add)
+  # A modified link keeps the slot it already occupies, so pointing that slot
+  # at the new source re-fires the one input reading it -- no teardown, and no
+  # dot-arg resync of the sibling links into the same block.
+  todo <- c(as.list(add), as.list(mod))
 
   for (i in names(todo)) {
     do.call(setup_link, c(list(rv, i), todo[[i]]))
@@ -1308,6 +1316,14 @@ add_blocks_to_stacks <- function(rv, add, session) {
 #' reactive side effects that mirror the delta — block UI insertion /
 #' removal, server construction / teardown, link and stack wiring — run
 #' around this single reduce.
+#'
+#' A link `mod` that leaves the link in the input slot it already
+#' occupies — a retarget changing only `from` — is applied in place,
+#' so the target block's input wiring survives the edit and only the
+#' retargeted input re-fires. One that moves the link (a changed `to`
+#' or `input`) is rewired instead. A front-end editing a link should
+#' therefore submit a `mod` rather than a matched `rm` plus `add` pair
+#' naming the same ID, which rewires either way.
 #'
 #' Errors thrown from either augment or apply are caught by the
 #' observer, reported via [notify()], and the reactive is reset so the
@@ -1874,15 +1890,12 @@ apply_board_update.board <- function(board, upd, ...,
     board_blocks(board) <- c(board_blocks(board), upd$blocks$add)
   }
 
-  add <- upd$links$add
-  rm <- upd$links$rm
-
-  if (length(upd$links$mod)) {
-    add <- vec_c(add, merge_link_mods(board, upd$links$mod))
-    rm <- c(rm, names(upd$links$mod))
-  }
-
-  board <- modify_board_links(board, add, rm, ..., session = session)
+  board <- modify_board_links(
+    board, upd$links$add, upd$links$rm,
+    merge_link_mods(board, upd$links$mod),
+    ...,
+    session = session
+  )
 
   board <- modify_board_stacks(
     board, upd$stacks$add, upd$stacks$rm,
@@ -1907,10 +1920,17 @@ apply_core_board_update <- function(rv, upd, session,
 
   lnk_add <- upd$links$add
   lnk_rm <- upd$links$rm
+  lnk_mod <- NULL
 
   if (length(upd$links$mod)) {
-    lnk_add <- vec_c(lnk_add, merge_link_mods(rv$board, upd$links$mod))
-    lnk_rm <- c(lnk_rm, names(upd$links$mod))
+
+    merged <- merge_link_mods(rv$board, upd$links$mod)
+    in_slot <- reuses_link_slot(board_links(rv$board)[names(merged)], merged)
+
+    lnk_mod <- merged[in_slot]
+
+    lnk_add <- vec_c(lnk_add, merged[!in_slot])
+    lnk_rm <- c(lnk_rm, names(merged)[!in_slot])
   }
 
   # Links into a block that is added or removed in this update are wired by
@@ -1925,6 +1945,7 @@ apply_core_board_update <- function(rv, upd, session,
   cur_links <- board_links(rv$board)
 
   lnk_add <- between_survivors(lnk_add)
+  lnk_mod <- between_survivors(lnk_mod)
   lnk_rm <- between_survivors(cur_links[intersect(lnk_rm, names(cur_links))])
 
   stk <- upd$stacks
@@ -2004,7 +2025,7 @@ apply_core_board_update <- function(rv, upd, session,
     }
   }
 
-  if (length(lnk_add) || length(lnk_rm)) {
+  if (length(lnk_add) || length(lnk_rm) || length(lnk_mod)) {
 
     if (length(lnk_add)) {
       log_debug("adding link{?s} {names(lnk_add)}")
@@ -2014,7 +2035,11 @@ apply_core_board_update <- function(rv, upd, session,
       log_debug("removing link{?s} {names(lnk_rm)}")
     }
 
-    update_block_links(rv, lnk_add, lnk_rm)
+    if (length(lnk_mod)) {
+      log_debug("modifying link{?s} {names(lnk_mod)}")
+    }
+
+    update_block_links(rv, lnk_add, lnk_rm, lnk_mod)
   }
 
   update_stack_blocks(rv, stk, edit_stack, edit_plugin_args, session)

@@ -34,7 +34,14 @@ board_links(x) <- value
 
 board_link_ids(x)
 
-modify_board_links(x, add = NULL, rm = NULL, ..., session = get_session())
+modify_board_links(
+  x,
+  add = NULL,
+  rm = NULL,
+  mod = NULL,
+  ...,
+  session = get_session()
+)
 
 board_stacks(x)
 
@@ -78,7 +85,7 @@ clear_board(x)
 
 \item{add}{Links/stacks to add}
 
-\item{mod}{Stacks to modify}
+\item{mod}{Links/stacks to modify}
 
 \item{blocks, stacks}{Sets of blocks/stacks}
 }
@@ -119,7 +126,9 @@ corresponding replacement function \verb{board_links<-()}. If only links IDs are
 of interest, this is available as \code{board_link_ids()}, which is short for
 \code{names(board_links(x))}. A (generic) convenience function for all kinds of
 updates to board links in one is available as \code{modify_board_links()}. With
-arguments \code{add} and \code{rm}, links can be added or removed in one go.
+arguments \code{add}, \code{rm} and \code{mod}, links can be added, removed or replaced in
+one go, where a link passed as \code{mod} keeps the position of the link it
+replaces.
 }
 
 \section{Stacks}{

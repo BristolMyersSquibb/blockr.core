@@ -102,6 +102,14 @@ reactive side effects that mirror the delta — block UI insertion /
 removal, server construction / teardown, link and stack wiring — run
 around this single reduce.
 
+A link \code{mod} that leaves the link in the input slot it already
+occupies — a retarget changing only \code{from} — is applied in place,
+so the target block's input wiring survives the edit and only the
+retargeted input re-fires. One that moves the link (a changed \code{to}
+or \code{input}) is rewired instead. A front-end editing a link should
+therefore submit a \code{mod} rather than a matched \code{rm} plus \code{add} pair
+naming the same ID, which rewires either way.
+
 Errors thrown from either augment or apply are caught by the
 observer, reported via \code{\link[=notify]{notify()}}, and the reactive is reset so the
 app keeps running.
