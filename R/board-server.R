@@ -1477,15 +1477,15 @@ validate_board_update_structure <- function(payload, board) {
   }
 
   if ("blocks" %in% names(payload)) {
-    validate_board_update_blocks(payload$blocks, board)
+    validate_board_update_blocks(payload[["blocks"]], board)
   }
 
   if ("links" %in% names(payload)) {
-    validate_board_update_links(payload$links, board)
+    validate_board_update_links(payload[["links"]], board)
   }
 
   if ("stacks" %in% names(payload)) {
-    validate_board_update_stacks(payload$stacks, board)
+    validate_board_update_stacks(payload[["stacks"]], board)
   }
 
   # Both request components name blocks, and a payload may add the very block it
@@ -1495,11 +1495,11 @@ validate_board_update_structure <- function(payload, board) {
     ids <- updated_block_ids(payload, board)
 
     if ("evaluate" %in% names(payload)) {
-      validate_board_update_evaluate(payload$evaluate, ids)
+      validate_board_update_evaluate(payload[["evaluate"]], ids)
     }
 
     if ("require" %in% names(payload)) {
-      validate_board_update_require(payload$require, ids)
+      validate_board_update_require(payload[["require"]], ids)
     }
   }
 
@@ -1514,7 +1514,7 @@ updated_block_ids <- function(payload, board) {
     return(ids)
   }
 
-  union(setdiff(ids, payload$blocks$rm), names(payload$blocks$add))
+  union(setdiff(ids, payload[["blocks"]]$rm), names(payload[["blocks"]]$add))
 }
 
 validate_board_update_evaluate <- function(x, ids) {
@@ -1861,27 +1861,29 @@ augment_board_update <- function(upd, board, ...,
 augment_board_update.board <- function(upd, board, ...,
                                        session = get_session()) {
 
-  if ("blocks" %in% names(upd) && "rm" %in% names(upd$blocks)) {
+  if ("blocks" %in% names(upd) && "rm" %in% names(upd[["blocks"]])) {
 
-    rm <- upd$blocks$rm
+    rm <- upd[["blocks"]]$rm
 
     links <- board_links(board)
 
     mis_lnk <- setdiff(
       names(links[links_incident(links, rm)]),
-      upd$links$rm
+      upd[["links"]]$rm
     )
 
     merged_stks <- board_stacks(board)
 
-    if (length(upd$stacks$mod)) {
-      merged_stks[names(upd$stacks$mod)] <- merge_stack_mods(
-        board, upd$stacks$mod
+    if (length(upd[["stacks"]]$mod)) {
+      merged_stks[names(upd[["stacks"]]$mod)] <- merge_stack_mods(
+        board, upd[["stacks"]]$mod
       )
     }
 
-    if (length(upd$stacks$rm)) {
-      merged_stks <- merged_stks[setdiff(names(merged_stks), upd$stacks$rm)]
+    if (length(upd[["stacks"]]$rm)) {
+      merged_stks <- merged_stks[
+        setdiff(names(merged_stks), upd[["stacks"]]$rm)
+      ]
     }
 
     affected <- merged_stks[
@@ -1901,33 +1903,33 @@ augment_board_update.board <- function(upd, board, ...,
 
   add_lnk <- NULL
 
-  if ("links" %in% names(upd) && "add" %in% names(upd$links)) {
+  if ("links" %in% names(upd) && "add" %in% names(upd[["links"]])) {
 
-    tmp <- complete_unary_inputs(upd$links$add, board_blocks(board))
+    tmp <- complete_unary_inputs(upd[["links"]]$add, board_blocks(board))
 
-    if (!identical(tmp$input, upd$links$add$input)) {
+    if (!identical(tmp$input, upd[["links"]]$add$input)) {
       add_lnk <- tmp
     }
   }
 
   if (length(mis_lnk)) {
     log_debug("adding link removal{?s} for {mis_lnk}")
-    upd$links$rm <- c(mis_lnk, upd$links$rm)
+    upd[["links"]]$rm <- c(mis_lnk, upd[["links"]]$rm)
   }
 
   if (length(upd_stk)) {
     log_debug("adding stack update{?s} for {names(upd_stk)}")
-    upd$stacks$mod <- c(
+    upd[["stacks"]]$mod <- c(
       upd_stk,
-      upd$stacks$mod[setdiff(names(upd$stacks$mod), names(upd_stk))]
+      upd[["stacks"]]$mod[setdiff(names(upd[["stacks"]]$mod), names(upd_stk))]
     )
   }
 
   if (length(add_lnk)) {
     log_debug("adding link input update{?s} for {names(add_lnk)}")
-    upd$links$add <- c(
+    upd[["links"]]$add <- c(
       add_lnk,
-      upd$links$add[setdiff(names(upd$links$add), names(add_lnk))]
+      upd[["links"]]$add[setdiff(names(upd[["links"]]$add), names(add_lnk))]
     )
   }
 
@@ -1945,29 +1947,29 @@ apply_board_update <- function(board, upd, ...,
 apply_board_update.board <- function(board, upd, ...,
                                      session = get_session()) {
 
-  if (length(upd$blocks$add)) {
-    board_blocks(board) <- c(board_blocks(board), upd$blocks$add)
+  if (length(upd[["blocks"]]$add)) {
+    board_blocks(board) <- c(board_blocks(board), upd[["blocks"]]$add)
   }
 
-  add <- upd$links$add
-  rm <- upd$links$rm
+  add <- upd[["links"]]$add
+  rm <- upd[["links"]]$rm
 
-  if (length(upd$links$mod)) {
-    add <- vec_c(add, merge_link_mods(board, upd$links$mod))
-    rm <- c(rm, names(upd$links$mod))
+  if (length(upd[["links"]]$mod)) {
+    add <- vec_c(add, merge_link_mods(board, upd[["links"]]$mod))
+    rm <- c(rm, names(upd[["links"]]$mod))
   }
 
   board <- modify_board_links(board, add, rm, ..., session = session)
 
   board <- modify_board_stacks(
-    board, upd$stacks$add, upd$stacks$rm,
-    merge_stack_mods(board, upd$stacks$mod),
+    board, upd[["stacks"]]$add, upd[["stacks"]]$rm,
+    merge_stack_mods(board, upd[["stacks"]]$mod),
     ...,
     session = session
   )
 
-  if (length(upd$blocks$rm)) {
-    board <- rm_blocks(board, upd$blocks$rm, ..., session = session)
+  if (length(upd[["blocks"]]$rm)) {
+    board <- rm_blocks(board, upd[["blocks"]]$rm, ..., session = session)
   }
 
   board
@@ -1980,19 +1982,19 @@ apply_core_board_update <- function(rv, upd, session,
 
   ns <- session$ns
 
-  lnk_add <- upd$links$add
-  lnk_rm <- upd$links$rm
+  lnk_add <- upd[["links"]]$add
+  lnk_rm <- upd[["links"]]$rm
 
-  if (length(upd$links$mod)) {
-    lnk_add <- vec_c(lnk_add, merge_link_mods(rv$board, upd$links$mod))
-    lnk_rm <- c(lnk_rm, names(upd$links$mod))
+  if (length(upd[["links"]]$mod)) {
+    lnk_add <- vec_c(lnk_add, merge_link_mods(rv$board, upd[["links"]]$mod))
+    lnk_rm <- c(lnk_rm, names(upd[["links"]]$mod))
   }
 
   # Links into a block that is added or removed in this update are wired by
   # construct_block() / dropped by destroy_rm_blocks(); the reactive link delta
   # below only touches links between surviving blocks. Resolve it (and the stack
   # mod deltas) against the pre-update board before the reduce rewrites it.
-  lifecycle_blocks <- c(names(upd$blocks$add), upd$blocks$rm)
+  lifecycle_blocks <- c(names(upd[["blocks"]]$add), upd[["blocks"]]$rm)
   between_survivors <- function(x) {
     if (length(x)) x[!field(x, "to") %in% lifecycle_blocks] else x
   }
@@ -2002,7 +2004,7 @@ apply_core_board_update <- function(rv, upd, session,
   lnk_add <- between_survivors(lnk_add)
   lnk_rm <- between_survivors(cur_links[intersect(lnk_rm, names(cur_links))])
 
-  stk <- upd$stacks
+  stk <- upd[["stacks"]]
 
   if (length(stk$mod)) {
     stk$mod <- merge_stack_mods(rv$board, stk$mod)
@@ -2011,14 +2013,14 @@ apply_core_board_update <- function(rv, upd, session,
   # Tear down removed blocks before the reduce drops them from the board: the
   # remove_block_ui() method (e.g. blockr.dock's) asserts the block is still
   # present and reads it to locate the live panel it detaches.
-  if (length(upd$blocks$rm)) {
+  if (length(upd[["blocks"]]$rm)) {
 
-    log_debug("removing block{?s} {names(upd$blocks$rm)}")
+    log_debug("removing block{?s} {upd[['blocks']]$rm}")
 
     do.call(
       remove_block_ui,
       c(
-        list(ns(NULL), rv$board, upd$blocks$rm),
+        list(ns(NULL), rv$board, upd[["blocks"]]$rm),
         dot_args,
         list(
           edit_ui = edit_block,
@@ -2028,9 +2030,9 @@ apply_core_board_update <- function(rv, upd, session,
       )
     )
 
-    destroy_rm_blocks(upd$blocks$rm, rv, session)
+    destroy_rm_blocks(upd[["blocks"]]$rm, rv, session)
 
-    rm_vis_slots(vis, upd$blocks$rm)
+    rm_vis_slots(vis, upd[["blocks"]]$rm)
   }
 
   rv$board <- do.call(
@@ -2040,16 +2042,16 @@ apply_core_board_update <- function(rv, upd, session,
 
   stopifnot(is_board(rv$board))
 
-  if (length(upd$blocks$add)) {
+  if (length(upd[["blocks"]]$add)) {
 
-    log_debug("adding block{?s} {names(upd$blocks$add)}")
+    log_debug("adding block{?s} {names(upd[['blocks']]$add)}")
 
-    add_vis_slots(vis, names(upd$blocks$add))
+    add_vis_slots(vis, names(upd[["blocks"]]$add))
 
     do.call(
       insert_block_ui,
       c(
-        list(ns(NULL), rv$board, upd$blocks$add),
+        list(ns(NULL), rv$board, upd[["blocks"]]$add),
         dot_args,
         list(
           edit_ui = edit_block,
@@ -2059,17 +2061,17 @@ apply_core_board_update <- function(rv, upd, session,
       )
     )
 
-    construct_blocks(names(upd$blocks$add), rv, edit_block, ctrl_block,
+    construct_blocks(names(upd[["blocks"]]$add), rv, edit_block, ctrl_block,
                      edit_plugin_args, vis)
   }
 
-  if (length(upd$blocks$mod)) {
+  if (length(upd[["blocks"]]$mod)) {
 
-    log_debug("modifying block{?s} {names(upd$blocks$mod)}")
+    log_debug("modifying block{?s} {names(upd[['blocks']]$mod)}")
 
-    for (blk_id in names(upd$blocks$mod)) {
+    for (blk_id in names(upd[["blocks"]]$mod)) {
 
-      delta <- upd$blocks$mod[[blk_id]]
+      delta <- upd[["blocks"]]$mod[[blk_id]]
 
       if (length(delta)) {
         construct_block(blk_id, rv, edit_block, ctrl_block, edit_plugin_args,
@@ -2118,9 +2120,9 @@ apply_eval_requests <- function(rv, upd) {
     rv$required_blocks(filter_empty(claims))
   }
 
-  if (length(upd$evaluate)) {
-    log_debug("requesting evaluation of block{?s} {upd$evaluate}")
-    rv$evaluating(union(isolate(rv$evaluating()), upd$evaluate))
+  if (length(upd[["evaluate"]])) {
+    log_debug("requesting evaluation of block{?s} {upd[['evaluate']]}")
+    rv$evaluating(union(isolate(rv$evaluating()), upd[["evaluate"]]))
   }
 
   invisible()

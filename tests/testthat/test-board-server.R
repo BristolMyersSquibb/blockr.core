@@ -889,6 +889,29 @@ test_that("update validation", {
   )
 })
 
+test_that("a subclass payload slot is not taken for a core component", {
+
+  board <- new_board(blocks(a = new_dataset_block()))
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      # Unknown top-level keys reach subclass methods untouched, and `$`
+      # partial-matches, so a slot whose name extends a core one would be
+      # applied here without ever having been validated.
+      board_update(list(evaluate_all = "nope", require_all = "nope"))
+      session$flushReact()
+
+      expect_true(rv$last_update$ok)
+      expect_length(rv$evaluating(), 0L)
+      expect_length(rv$required_blocks(), 0L)
+    },
+    args = list(x = board, plugins = list())
+  )
+})
+
 test_that("public validate_board_update", {
 
   brd <- new_board(
