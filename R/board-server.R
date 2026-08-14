@@ -27,7 +27,31 @@
 #' with their upstream closure over [board_links()] (without which they cannot
 #' produce a result), to the eval set. They differ only in who lets go: an
 #' `evaluate` request is a one-off that core drops once the block has run, while
-#' a `require` claim is held until the requester removes it.
+#' a `require` claim is held until its owner releases it.
+#'
+#' Claims are keyed by owner, the `require` component being a list of block IDs
+#' named by whoever needs them, so several consumers may hold the same block and
+#' none of them writes another's claim:
+#'
+#' ```r
+#' update(
+#'   list(
+#'     require = set_names(
+#'       list(board_block_ids(board$board)),
+#'       session$ns("code_export")
+#'     )
+#'   )
+#' )
+#' ```
+#'
+#' Each value states that owner's entire current set rather than a delta, so an
+#' owner releases everything it holds by naming itself with `character()` (or
+#' `NULL`), and a release that never arrives is repaired by that owner's next
+#' payload rather than accumulating. Core cannot infer the owner — the write and
+#' its effect are separated by a flush — so the label travels in the payload.
+#' Nothing keys off shiny's namespacing, but taking the label from
+#' `session$ns()` as above is what keeps owners unique without a registry, and
+#' lets one module hold two independent claims under two labels.
 #'
 #' Requests are orthogonal to the `required` visibility channel, so neither
 #' competes with the front-end's gating, and nothing about what is on screen
@@ -142,10 +166,10 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
       # The two request sets fed by the `evaluate` and `require` board update
       # components. Both join the needed set below; they differ in who lets go.
       # Core drops an `evaluating` entry once that block has had its evaluation
-      # pass (see the observer below), while a `required_blocks` entry stays
-      # until its requester removes it.
+      # pass (see the observer below), while `required_blocks` holds one entry
+      # per claim owner until that owner releases it.
       rv$evaluating <- reactiveVal(character())
-      rv$required_blocks <- reactiveVal(character())
+      rv$required_blocks <- reactiveVal(list())
 
       observe(
         {
@@ -811,7 +835,7 @@ valid_frozen <- function(x) {
 }
 
 requested_blocks <- function(rv) {
-  union(rv$evaluating(), rv$required_blocks())
+  union(rv$evaluating(), unlst(rv$required_blocks()))
 }
 
 # A block owes an evaluation pass while anything it needs for a result -- itself
@@ -994,7 +1018,9 @@ destroy_rm_blocks <- function(ids, rv, sess) {
   }
 
   rv$evaluating(setdiff(isolate(rv$evaluating()), ids))
-  rv$required_blocks(setdiff(isolate(rv$required_blocks()), ids))
+  rv$required_blocks(
+    filter_empty(lapply(isolate(rv$required_blocks()), setdiff, ids))
+  )
 
   invisible()
 }
@@ -1274,14 +1300,16 @@ add_blocks_to_stacks <- function(rv, add, session) {
 #' @section Request components:
 #' Two components carry a request rather than a state change:
 #' `evaluate`, a character vector of block IDs to evaluate once, and
-#' `require`, a list with `add` / `rm` character vectors claiming and
-#' releasing blocks that are to stay evaluated. Both put the named
-#' blocks (and their upstream closure) into the eval set without
-#' touching what the front-end shows — see the Evaluation requests
-#' section of [board_server()] — and both resolve their IDs against
-#' the post-update block set, so a payload may add a block and ask for
-#' it in one go. They are applied after the state delta, so a payload
-#' that edits a block and evaluates it sees the edit.
+#' `require`, a list of the block IDs that are to stay evaluated, named
+#' by claim owner. Each `require` value replaces that owner's claim, an
+#' empty one (`character()` or `NULL`) releasing it, so no owner writes
+#' another's. Both put the named blocks (and their upstream closure)
+#' into the eval set without touching what the front-end shows — see
+#' the Evaluation requests section of [board_server()] — and both
+#' resolve their IDs against the post-update block set, so a payload
+#' may add a block and ask for it in one go. They are applied after the
+#' state delta, so a payload that edits a block and evaluates it sees
+#' the edit.
 #'
 #' A locked board (see [is_board_locked()]) still accepts a payload of
 #' request components alone; one that also carries a state change is
@@ -1505,29 +1533,26 @@ validate_board_update_evaluate <- function(x, ids) {
 
 validate_board_update_require <- function(x, ids) {
 
-  exp_cmp <- c("rm", "add")
-
   if (!is.list(x) || length(names(x)) != length(x) ||
-        !all(names(x) %in% exp_cmp)) {
+        !all(nzchar(names(x))) || anyDuplicated(names(x)) != 0L) {
     blockr_abort(
-      "Expecting a board update `require` component to consist of components ",
-      "{exp_cmp}.",
-      class = "board_update_require_components_invalid"
+      "Expecting a board update `require` component to be specified as a list ",
+      "of claimed block IDs, named by owner with unique nonempty names.",
+      class = "board_update_require_owners_invalid"
     )
   }
 
-  for (cmp in intersect(exp_cmp, names(x))) {
+  invalid <- names(x)[!lgl_ply(x, valid_claim)]
 
-    if (!(is.null(x[[cmp]]) || is.character(x[[cmp]]))) {
-      blockr_abort(
-        "Expecting a board update `require` {cmp} component be specified as a ",
-        "character vector (or NULL).",
-        class = "board_update_require_component_invalid"
-      )
-    }
+  if (length(invalid)) {
+    blockr_abort(
+      "Expecting the blocks claimed by owner{?s} {invalid} to be specified as ",
+      "a character vector (or NULL).",
+      class = "board_update_require_claim_invalid"
+    )
   }
 
-  unknown <- setdiff(c(x$add, x$rm), ids)
+  unknown <- setdiff(unlst(x), ids)
 
   if (length(unknown)) {
     blockr_abort(
@@ -1537,6 +1562,10 @@ validate_board_update_require <- function(x, ids) {
   }
 
   invisible()
+}
+
+valid_claim <- function(x) {
+  is.null(x) || is.character(x)
 }
 
 has_comp <- function(comp, x) {
@@ -2028,14 +2057,17 @@ apply_core_board_update <- function(rv, upd, session,
 
 apply_eval_requests <- function(rv, upd) {
 
-  if (length(upd$require$rm)) {
-    log_debug("releasing block{?s} {upd$require$rm}")
-    rv$required_blocks(setdiff(isolate(rv$required_blocks()), upd$require$rm))
-  }
+  if (length(upd$require)) {
 
-  if (length(upd$require$add)) {
-    log_debug("requiring block{?s} {upd$require$add}")
-    rv$required_blocks(union(isolate(rv$required_blocks()), upd$require$add))
+    log_debug("updating block claims of owner{?s} {names(upd$require)}")
+
+    # Each value is that owner's whole set, so a per-owner overwrite rather
+    # than a union, and either spelling of "holds nothing" leaves no entry.
+    rv$required_blocks(
+      filter_empty(
+        utils::modifyList(isolate(rv$required_blocks()), upd$require)
+      )
+    )
   }
 
   if (length(upd$evaluate)) {

@@ -801,6 +801,46 @@ test_that("update validation", {
     ),
     class = "board_block_stack_name_mismatch"
   )
+
+  expect_error(
+    validate_board_update(
+      list(require = list("a")),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_require_owners_invalid"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(require = set_names(list("a"), "")),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_require_owners_invalid"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(require = set_names(list("a", "a"), c("owner", "owner"))),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_require_owners_invalid"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(require = list(owner = 1L)),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_require_claim_invalid"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(require = list(owner = "b")),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_require_unknown_id"
+  )
 })
 
 test_that("public validate_board_update", {
