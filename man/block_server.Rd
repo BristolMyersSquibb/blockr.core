@@ -33,7 +33,7 @@ block_server(id, x, data = list(), ...)
   ...
 )
 
-expr_server(x, data, ...)
+expr_server(x, data, ui_ready = reactive(TRUE), ...)
 
 block_render_trigger(x, session = get_session())
 }

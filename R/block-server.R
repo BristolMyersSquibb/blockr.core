@@ -539,7 +539,7 @@ block_server.block <- function(id, x, data = list(), block_id = id,
 
 #' @rdname block_server
 #' @export
-expr_server <- function(x, data, ...) {
+expr_server <- function(x, data, ui_ready = reactive(TRUE), ...) {
   UseMethod("expr_server")
 }
 
