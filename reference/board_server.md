@@ -105,8 +105,38 @@ upstream closure over
 [`board_links()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
 (without which they cannot produce a result), to the eval set. They
 differ only in who lets go: an `evaluate` request is a one-off that core
-drops once the block has run, while a `require` claim is held until the
-requester removes it.
+drops once the block has run, while a `require` claim is held until its
+owner releases it.
+
+Claims are keyed by owner, the `require` component mapping each owner to
+a delta over the blocks it holds, so several consumers may hold the same
+block and none of them writes another's claim:
+
+    update(
+      list(
+        require = set_names(
+          list(list(set = board_block_ids(board$board))),
+          session$ns("preview")
+        )
+      )
+    )
+
+A delta is `set`, `add` and `rm`, of which `set` states that owner's
+entire set at once and cannot be combined with the other two. Releasing
+everything is `set = character()`; releasing part of a claim is `rm`,
+which — unlike `set` and `add` — may name a block the board no longer
+has, so a release cannot be rejected by a removal that raced it.
+Restating a set repairs a release that never arrived, rather than
+letting it accumulate.
+
+Core cannot infer the owner — the write and its effect are separated by
+a flush — so the label travels in the payload. Nothing keys off shiny's
+namespacing, but taking the label from `session$ns()` as above is what
+keeps owners unique without a registry, and lets one module hold two
+independent claims under two labels. A claim outlives the module that
+made it: core drops a claimed block once it leaves the board, but an
+owner that goes away without releasing holds what it held for the rest
+of the session.
 
 Requests are orthogonal to the `required` visibility channel, so neither
 competes with the front-end's gating, and nothing about what is on

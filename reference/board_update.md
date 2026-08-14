@@ -71,16 +71,19 @@ reach subclass augment / apply methods.
 ## Request components
 
 Two components carry a request rather than a state change: `evaluate`, a
-character vector of block IDs to evaluate once, and `require`, a list
-with `add` / `rm` character vectors claiming and releasing blocks that
-are to stay evaluated. Both put the named blocks (and their upstream
-closure) into the eval set without touching what the front-end shows —
-see the Evaluation requests section of
+character vector of block IDs to evaluate once, and `require`, a list of
+per-owner deltas over the blocks that are to stay evaluated. Each delta
+is `set`, `add` and `rm` — `set` states that owner's whole set and is
+exclusive with the other two — so no owner writes another's claim. Both
+components put the named blocks (and their upstream closure) into the
+eval set without touching what the front-end shows — see the Evaluation
+requests section of
 [`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)
 — and both resolve their IDs against the post-update block set, so a
-payload may add a block and ask for it in one go. They are applied after
-the state delta, so a payload that edits a block and evaluates it sees
-the edit.
+payload may add a block and ask for it in one go. A `require` `rm` is
+the exception, naming blocks to release rather than to evaluate, and so
+may name one the board no longer has. They are applied after the state
+delta, so a payload that edits a block and evaluates it sees the edit.
 
 A locked board (see
 [`is_board_locked()`](https://bristolmyerssquibb.github.io/blockr.core/reference/locked-board.md))
