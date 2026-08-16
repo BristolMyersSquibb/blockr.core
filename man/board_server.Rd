@@ -141,6 +141,12 @@ asking for a block that is already built does nothing. The request joins
 neither the eval set nor the front-end's \code{required} channel, so it cannot
 turn a lazily evaluating board into an eagerly evaluating one.
 
+A block that the same payload adds, or that an \code{evaluate} or \code{require} names,
+is already constructed — the add builds it directly, and evaluation demand
+joins the needed set, which the background constructor builds. Pairing
+\code{construct} with either is redundant rather than wrong. The component covers
+what neither does: a block that must exist while nothing needs it evaluated.
+
 The named blocks are built in the flush that applies the payload, which is
 the work \code{background_construction_delay} otherwise paces out. A caller that
 wants that pacing sends several smaller payloads rather than one.
