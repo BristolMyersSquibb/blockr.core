@@ -41,7 +41,8 @@ construction, evaluation and rendering. Set
 \code{visibility$frozen[[id]](TRUE)} to freeze a block's inputs (for example when
 its controls are hidden), so a forged input can no longer steer it. A
 callback also receives the \code{update} channel (see \link{board_update}), through
-which it can request block evaluation (see the Evaluation requests section).}
+which it can request block evaluation or construction (see the Evaluation
+requests and Construction requests sections).}
 
 \item{callback_location}{Location of callback invocation (before or after
 plugins)}
@@ -77,19 +78,19 @@ Deferred evaluation leaves a block that nothing currently needs holding its
 last run — not only its result, but the conditions it reports. Anything that
 can reach the \code{\link[=board_update]{board_update()}} channel can ask for such a block to be brought
 up to date, without putting it on screen, through the \code{evaluate} and
-\code{require} payload components. Both name blocks, and core joins them, together
+\code{sustain} payload components. Both name blocks, and core joins them, together
 with their upstream closure over \code{\link[=board_links]{board_links()}} (without which they cannot
 produce a result), to the eval set. They differ only in who lets go: an
 \code{evaluate} request is a one-off that core drops once the block has run, while
-a \code{require} claim is held until its owner releases it.
+a \code{sustain} claim is held until its owner releases it.
 
-Claims are keyed by owner, the \code{require} component mapping each owner to a
+Claims are keyed by owner, the \code{sustain} component mapping each owner to a
 delta over the blocks it holds, so several consumers may hold the same block
 and none of them writes another's claim:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{update(
   list(
-    require = set_names(
+    sustain = set_names(
       list(list(set = board_block_ids(board$board))),
       session$ns("preview")
     )
@@ -120,5 +121,34 @@ payload a locked board still accepts.
 Core drops a one-off request once the block has run — or has reported why it
 cannot, such as an unconnected data input or a user input that was never set.
 Requesting a block that is already in the eval set does nothing.
+}
+
+\section{Construction requests}{
+
+Evaluation implies construction, but not the reverse: a consumer that needs a
+block merely \emph{present} — the code export reads each block's expression and
+none of their results — had to make it run as well. The \code{construct} payload
+component asks for construction on its own. Like \code{evaluate} it is a bare
+character vector of block IDs, and the blocks it names are built in
+dependency order and left \code{dormant}:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{update(list(construct = board_block_ids(board$board)))
+}\if{html}{\out{</div>}}
+
+Nothing is retained. Once a block is built it stays built, so unlike the two
+evaluation components there is no owner to name and nothing to hand back, and
+asking for a block that is already built does nothing. The request joins
+neither the eval set nor the front-end's \code{required} channel, so it cannot
+turn a lazily evaluating board into an eagerly evaluating one.
+
+A block that the same payload adds, or that an \code{evaluate} or \code{sustain} names,
+is already constructed — the add builds it directly, and evaluation demand
+joins the needed set, which the background constructor builds. Pairing
+\code{construct} with either is redundant rather than wrong. The component covers
+what neither does: a block that must exist while nothing needs it evaluated.
+
+The named blocks are built in the flush that applies the payload, which is
+the work \code{background_construction_delay} otherwise paces out. A caller that
+wants that pacing sends several smaller payloads rather than one.
 }
 

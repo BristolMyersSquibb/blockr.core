@@ -64,7 +64,7 @@ test_that("a locked board records the outcome of what it dropped", {
   )
 })
 
-test_that("a locked board still accepts evaluation requests", {
+test_that("a locked board still accepts block requests", {
 
   withr::local_options(blockr.locked = TRUE)
 
@@ -76,24 +76,29 @@ test_that("a locked board still accepts evaluation requests", {
       session$flushReact()
 
       # A request carries no state change, so the lock does not apply to it.
-      board_update(list(require = list(consumer = list(set = "a"))))
+      board_update(list(sustain = list(consumer = list(set = "a"))))
       session$flushReact()
 
-      expect_identical(rv$required_blocks(), list(consumer = "a"))
+      expect_identical(rv$claims(), list(consumer = "a"))
+      expect_true(rv$last_update$ok)
+
+      board_update(list(construct = "a"))
+      session$flushReact()
+
       expect_true(rv$last_update$ok)
 
       # Mixed with one that does, the payload is dropped whole.
       board_update(
         list(
           blocks = list(add = as_blocks(list(b = new_dataset_block("BOD")))),
-          require = list(consumer = list(set = character()))
+          sustain = list(consumer = list(set = character()))
         )
       )
       session$flushReact()
 
       expect_false(rv$last_update$ok)
       expect_length(board_blocks(rv$board), 1L)
-      expect_identical(rv$required_blocks(), list(consumer = "a"))
+      expect_identical(rv$claims(), list(consumer = "a"))
     },
     args = list(x = board, plugins = list())
   )
