@@ -893,7 +893,7 @@ test_that("update validation", {
       list(evaluate = 1L),
       new_board(blocks(a = new_dataset_block()))
     ),
-    class = "board_update_evaluate_type_invalid"
+    class = "board_update_request_type_invalid"
   )
 
   expect_error(
@@ -901,7 +901,7 @@ test_that("update validation", {
       list(construct = 1L),
       new_board(blocks(a = new_dataset_block()))
     ),
-    class = "board_update_construct_type_invalid"
+    class = "board_update_request_type_invalid"
   )
 
   expect_error(
@@ -909,7 +909,7 @@ test_that("update validation", {
       list(construct = "b"),
       new_board(blocks(a = new_dataset_block()))
     ),
-    class = "board_update_construct_unknown_id"
+    class = "board_update_request_unknown_id"
   )
 
   # Resolving against the post-update block set is what lets one payload add a

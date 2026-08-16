@@ -1565,7 +1565,7 @@ validate_block_id_request <- function(x, ids, cmp) {
     blockr_abort(
       "Expecting a board update `{cmp}` component to be specified as a ",
       "character vector.",
-      class = paste0("board_update_", cmp, "_type_invalid")
+      class = "board_update_request_type_invalid"
     )
   }
 
@@ -1574,7 +1574,7 @@ validate_block_id_request <- function(x, ids, cmp) {
   if (length(unknown)) {
     blockr_abort(
       "Cannot {cmp} unknown {qty(unknown)}block{?s} {unknown}.",
-      class = paste0("board_update_", cmp, "_unknown_id")
+      class = "board_update_request_unknown_id"
     )
   }
 
