@@ -63,9 +63,9 @@ payload slots reach subclass augment / apply methods.
 
 Three components carry a request rather than a state change:
 \code{evaluate}, a character vector of block IDs to evaluate once;
-\code{require}, a list of per-owner deltas over the blocks that are to
+\code{sustain}, a list of per-owner deltas over the blocks that are to
 stay evaluated; and \code{construct}, a character vector of block IDs to
-build without evaluating. Each \code{require} delta is \code{set}, \code{add} and
+build without evaluating. Each \code{sustain} delta is \code{set}, \code{add} and
 \code{rm} — \code{set} states that owner's whole set and is exclusive with the
 other two — so no owner writes another's claim. The two evaluation
 components put the named blocks (and their upstream closure) into
@@ -73,7 +73,7 @@ the eval set while \code{construct} leaves them \code{dormant}, and none of
 the three touches what the front-end shows — see the Evaluation
 requests and Construction requests sections of \code{\link[=board_server]{board_server()}}.
 All three resolve their IDs against the post-update block set, so a
-payload may add a block and ask for it in one go. A \code{require} \code{rm}
+payload may add a block and ask for it in one go. A \code{sustain} \code{rm}
 is the exception, naming blocks to release rather than to evaluate,
 and so may name one the board no longer has. They are applied after
 the state delta, so a payload that edits a block and evaluates it

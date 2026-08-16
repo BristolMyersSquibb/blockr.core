@@ -804,86 +804,86 @@ test_that("update validation", {
 
   expect_error(
     validate_board_update(
-      list(require = list(list(set = "a"))),
+      list(sustain = list(list(set = "a"))),
       new_board(blocks(a = new_dataset_block()))
     ),
-    class = "board_update_require_owners_invalid"
+    class = "board_update_sustain_owners_invalid"
   )
 
   expect_error(
     validate_board_update(
-      list(require = set_names(list(list(set = "a")), "")),
+      list(sustain = set_names(list(list(set = "a")), "")),
       new_board(blocks(a = new_dataset_block()))
     ),
-    class = "board_update_require_owners_invalid"
+    class = "board_update_sustain_owners_invalid"
   )
 
   expect_error(
     validate_board_update(
       list(
-        require = set_names(
+        sustain = set_names(
           list(list(set = "a"), list(add = "a")),
           c("board-code_export", "board-code_export")
         )
       ),
       new_board(blocks(a = new_dataset_block()))
     ),
-    class = "board_update_require_owners_invalid"
+    class = "board_update_sustain_owners_invalid"
   )
 
   expect_error(
     validate_board_update(
-      list(require = list(owner = "a")),
+      list(sustain = list(owner = "a")),
       new_board(blocks(a = new_dataset_block()))
     ),
-    class = "board_update_require_components_invalid"
+    class = "board_update_sustain_components_invalid"
   )
 
   expect_error(
     validate_board_update(
-      list(require = list(owner = list(claim = "a"))),
+      list(sustain = list(owner = list(claim = "a"))),
       new_board(blocks(a = new_dataset_block()))
     ),
-    class = "board_update_require_components_invalid"
+    class = "board_update_sustain_components_invalid"
   )
 
   expect_error(
     validate_board_update(
-      list(require = list(owner = list(set = 1L))),
+      list(sustain = list(owner = list(set = 1L))),
       new_board(blocks(a = new_dataset_block()))
     ),
-    class = "board_update_require_component_invalid"
+    class = "board_update_sustain_component_invalid"
   )
 
   expect_error(
     validate_board_update(
-      list(require = list(owner = list(set = "a", add = "a"))),
+      list(sustain = list(owner = list(set = "a", add = "a"))),
       new_board(blocks(a = new_dataset_block()))
     ),
-    class = "board_update_require_set_delta_clash"
+    class = "board_update_sustain_set_delta_clash"
   )
 
   expect_error(
     validate_board_update(
-      list(require = list(owner = list(add = "a", rm = "a"))),
+      list(sustain = list(owner = list(add = "a", rm = "a"))),
       new_board(blocks(a = new_dataset_block()))
     ),
-    class = "board_update_require_add_rm_clash"
+    class = "board_update_sustain_add_rm_clash"
   )
 
   expect_error(
     validate_board_update(
-      list(require = list(owner = list(add = "b"))),
+      list(sustain = list(owner = list(add = "b"))),
       new_board(blocks(a = new_dataset_block()))
     ),
-    class = "board_update_require_unknown_id"
+    class = "board_update_sustain_unknown_id"
   )
 
   # Releasing is the one direction that may name a block the board no longer
   # has, so a removal that races a release cannot reject the payload.
   expect_silent(
     validate_board_update(
-      list(require = list(owner = list(rm = "b"))),
+      list(sustain = list(owner = list(rm = "b"))),
       new_board(blocks(a = new_dataset_block()))
     )
   )
@@ -937,12 +937,12 @@ test_that("a subclass payload slot is not taken for a core component", {
       # Unknown top-level keys reach subclass methods untouched, and `$`
       # partial-matches, so a slot whose name extends a core one would be
       # applied here without ever having been validated.
-      board_update(list(evaluate_all = "nope", require_all = "nope"))
+      board_update(list(evaluate_all = "nope", sustain_all = "nope"))
       session$flushReact()
 
       expect_true(rv$last_update$ok)
       expect_length(rv$evaluating(), 0L)
-      expect_length(rv$required_blocks(), 0L)
+      expect_length(rv$claims(), 0L)
     },
     args = list(x = board, plugins = list())
   )
