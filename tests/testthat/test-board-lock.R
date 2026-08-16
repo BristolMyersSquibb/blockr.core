@@ -64,7 +64,7 @@ test_that("a locked board records the outcome of what it dropped", {
   )
 })
 
-test_that("a locked board still accepts evaluation requests", {
+test_that("a locked board still accepts block requests", {
 
   withr::local_options(blockr.locked = TRUE)
 
@@ -80,6 +80,11 @@ test_that("a locked board still accepts evaluation requests", {
       session$flushReact()
 
       expect_identical(rv$required_blocks(), list(consumer = "a"))
+      expect_true(rv$last_update$ok)
+
+      board_update(list(construct = "a"))
+      session$flushReact()
+
       expect_true(rv$last_update$ok)
 
       # Mixed with one that does, the payload is dropped whole.

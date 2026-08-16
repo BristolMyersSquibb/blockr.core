@@ -1195,6 +1195,59 @@ test_that("a request for a block added in the same payload is honoured", {
   )
 })
 
+test_that("a construction request builds a block without evaluating it", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = Inf)
+
+  board <- new_board(
+    blocks = c(
+      s = with_id(probe_source(), "s"),
+      a = with_id(probe_passthrough(), "a"),
+      r = with_id(probe_passthrough(), "r")
+    ),
+    links = links(
+      sa = new_link("s", "a", "data"),
+      ar = new_link("a", "r", "data")
+    )
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_true(constructed("s"))
+      expect_false(constructed("r"))
+
+      board_update(list(construct = c("s", "r")))
+      session$flushReact()
+
+      expect_true(constructed("r"))
+      expect_false(evaluated("r"))
+      expect_identical(rv$eval[["r"]](), "dormant")
+
+      # Construction is not demand: `r` stays out of the eval set, `a` -- which
+      # it would need for a result -- stays unbuilt, and `s` is not rebuilt.
+      expect_setequal(rv$needed(), "s")
+      expect_identical(probe_construct$ids, c("s", "r"))
+
+      # Nor does the request touch the channel the front-end owns, which is what
+      # keeps it from flipping an ungated board into gated mode.
+      expect_true(is.na(vis$required[["r"]]()))
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visibility, ...) {
+        require_blocks(visibility, "s")
+        render_blocks(visibility, "s")
+      }
+    )
+  )
+})
+
 test_that("a request naming an unknown block is rejected", {
 
   reset_probes()
@@ -1217,6 +1270,12 @@ test_that("a request naming an unknown block is rejected", {
       expect_false(rv$last_update$ok)
       expect_identical(rv$last_update$phase, "validate")
       expect_length(rv$evaluating(), 0L)
+
+      board_update(list(construct = "nope"))
+      session$flushReact()
+
+      expect_false(rv$last_update$ok)
+      expect_identical(rv$last_update$phase, "validate")
 
       board_update(list(require = list(consumer = list(set = "nope"))))
       session$flushReact()

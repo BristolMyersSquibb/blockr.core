@@ -887,6 +887,42 @@ test_that("update validation", {
       new_board(blocks(a = new_dataset_block()))
     )
   )
+
+  expect_error(
+    validate_board_update(
+      list(evaluate = 1L),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_evaluate_type_invalid"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(construct = 1L),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_construct_type_invalid"
+  )
+
+  expect_error(
+    validate_board_update(
+      list(construct = "b"),
+      new_board(blocks(a = new_dataset_block()))
+    ),
+    class = "board_update_construct_unknown_id"
+  )
+
+  # Resolving against the post-update block set is what lets one payload add a
+  # block and ask for it.
+  expect_silent(
+    validate_board_update(
+      list(
+        blocks = list(add = as_blocks(list(b = new_dataset_block()))),
+        construct = "b"
+      ),
+      new_board(blocks(a = new_dataset_block()))
+    )
+  )
 })
 
 test_that("a subclass payload slot is not taken for a core component", {

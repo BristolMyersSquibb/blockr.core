@@ -68,6 +68,28 @@
 #' cannot, such as an unconnected data input or a user input that was never set.
 #' Requesting a block that is already in the eval set does nothing.
 #'
+#' @section Construction requests:
+#' Evaluation implies construction, but not the reverse: a consumer that needs a
+#' block merely *present* — the code export reads each block's expression and
+#' none of their results — had to make it run as well. The `construct` payload
+#' component asks for construction on its own. Like `evaluate` it is a bare
+#' character vector of block IDs, and the blocks it names are built in
+#' dependency order and left `dormant`:
+#'
+#' ```r
+#' update(list(construct = board_block_ids(board$board)))
+#' ```
+#'
+#' Nothing is retained. Once a block is built it stays built, so unlike the two
+#' evaluation components there is no owner to name and nothing to hand back, and
+#' asking for a block that is already built does nothing. The request joins
+#' neither the eval set nor the front-end's `required` channel, so it cannot
+#' turn a lazily evaluating board into an eagerly evaluating one.
+#'
+#' The named blocks are built in the flush that applies the payload, which is
+#' the work `background_construction_delay` otherwise paces out. A caller that
+#' wants that pacing sends several smaller payloads rather than one.
+#'
 #' @param x Board
 #' @param id Parent namespace
 #' @param ... Generic consistency
@@ -95,7 +117,8 @@ board_server <- function(id, x, ...) {
 #' `visibility$frozen[[id]](TRUE)` to freeze a block's inputs (for example when
 #' its controls are hidden), so a forged input can no longer steer it. A
 #' callback also receives the `update` channel (see [board_update]), through
-#' which it can request block evaluation (see the Evaluation requests section).
+#' which it can request block evaluation or construction (see the Evaluation
+#' requests and Construction requests sections).
 #' @param callback_location Location of callback invocation (before or after
 #' plugins)
 #' @rdname board_server
@@ -857,8 +880,12 @@ block_deferred <- function(id, rv) {
   is.null(status) || status %in% c("dormant", "stale")
 }
 
+id_request_components <- function() {
+  c("evaluate", "construct")
+}
+
 update_request_components <- function() {
-  c("evaluate", "require")
+  c(id_request_components(), "require")
 }
 
 needed_block_ids <- function(rv, required) {
@@ -1304,20 +1331,23 @@ add_blocks_to_stacks <- function(rv, add, session) {
 #' payload slots reach subclass augment / apply methods.
 #'
 #' @section Request components:
-#' Two components carry a request rather than a state change:
-#' `evaluate`, a character vector of block IDs to evaluate once, and
+#' Three components carry a request rather than a state change:
+#' `evaluate`, a character vector of block IDs to evaluate once;
 #' `require`, a list of per-owner deltas over the blocks that are to
-#' stay evaluated. Each delta is `set`, `add` and `rm` — `set` states
-#' that owner's whole set and is exclusive with the other two — so no
-#' owner writes another's claim. Both components put the named blocks
-#' (and their upstream closure) into the eval set without touching what
-#' the front-end shows — see the Evaluation requests section of
-#' [board_server()] — and both resolve their IDs against the
-#' post-update block set, so a payload may add a block and ask for it
-#' in one go. A `require` `rm` is the exception, naming blocks to
-#' release rather than to evaluate, and so may name one the board no
-#' longer has. They are applied after the state delta, so a payload
-#' that edits a block and evaluates it sees the edit.
+#' stay evaluated; and `construct`, a character vector of block IDs to
+#' build without evaluating. Each `require` delta is `set`, `add` and
+#' `rm` — `set` states that owner's whole set and is exclusive with the
+#' other two — so no owner writes another's claim. The two evaluation
+#' components put the named blocks (and their upstream closure) into
+#' the eval set while `construct` leaves them `dormant`, and none of
+#' the three touches what the front-end shows — see the Evaluation
+#' requests and Construction requests sections of [board_server()].
+#' All three resolve their IDs against the post-update block set, so a
+#' payload may add a block and ask for it in one go. A `require` `rm`
+#' is the exception, naming blocks to release rather than to evaluate,
+#' and so may name one the board no longer has. They are applied after
+#' the state delta, so a payload that edits a block and evaluates it
+#' sees the edit.
 #'
 #' A locked board (see [is_board_locked()]) still accepts a payload of
 #' request components alone; one that also carries a state change is
@@ -1488,14 +1518,14 @@ validate_board_update_structure <- function(payload, board) {
     validate_board_update_stacks(payload[["stacks"]], board)
   }
 
-  # Both request components name blocks, and a payload may add the very block it
-  # asks for, so they resolve against the post-update block set.
+  # Every request component names blocks, and a payload may add the very block
+  # it asks for, so they resolve against the post-update block set.
   if (any(update_request_components() %in% names(payload))) {
 
     ids <- updated_block_ids(payload, board)
 
-    if ("evaluate" %in% names(payload)) {
-      validate_board_update_evaluate(payload[["evaluate"]], ids)
+    for (cmp in intersect(id_request_components(), names(payload))) {
+      validate_block_id_request(payload[[cmp]], ids, cmp)
     }
 
     if ("require" %in% names(payload)) {
@@ -1517,13 +1547,13 @@ updated_block_ids <- function(payload, board) {
   union(setdiff(ids, payload[["blocks"]]$rm), names(payload[["blocks"]]$add))
 }
 
-validate_board_update_evaluate <- function(x, ids) {
+validate_block_id_request <- function(x, ids, cmp) {
 
   if (!is.character(x)) {
     blockr_abort(
-      "Expecting a board update `evaluate` component to be specified as a ",
+      "Expecting a board update `{cmp}` component to be specified as a ",
       "character vector.",
-      class = "board_update_evaluate_type_invalid"
+      class = paste0("board_update_", cmp, "_type_invalid")
     )
   }
 
@@ -1531,8 +1561,8 @@ validate_board_update_evaluate <- function(x, ids) {
 
   if (length(unknown)) {
     blockr_abort(
-      "Requested evaluation of unknown block{?s} {unknown}.",
-      class = "board_update_evaluate_unknown_id"
+      "Cannot {cmp} unknown {qty(unknown)}block{?s} {unknown}.",
+      class = paste0("board_update_", cmp, "_unknown_id")
     )
   }
 
@@ -2098,6 +2128,9 @@ apply_core_board_update <- function(rv, upd, session,
 
   # Last, so that a payload which edits a block and asks for it in one go
   # evaluates the edit rather than what it replaced.
+  construct_blocks(upd[["construct"]], rv, edit_block, ctrl_block,
+                   edit_plugin_args, vis)
+
   apply_eval_requests(rv, upd)
 
   invisible()

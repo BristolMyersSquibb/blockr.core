@@ -1,5 +1,16 @@
 # blockr.core 0.1.4
 
+* Board updates gain a third request component, `construct`, a character vector
+  of block IDs to build without evaluating. Construction previously followed
+  evaluation as a side effect, so a consumer that needed a block merely present
+  -- the code export reads each block's expression and none of their results --
+  had to make it run as well, holding the whole board in the eval set for as
+  long as it needed the expressions. Unlike `evaluate` and `require` it retains
+  no state: a built block stays built, so there is no owner to name and nothing
+  to release, and requesting a block that is already built does nothing. The
+  request joins neither the eval set nor the front-end's `required` channel, so
+  it cannot turn a lazily evaluating board into an eagerly evaluating one
+  (#333).
 * `apply_board_update()` is now a real reducer rather than a no-op: its
   default `.board` method applies the core delta (block, link and stack
   mutations) to the supplied board and returns it, and update validation
