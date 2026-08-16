@@ -1248,6 +1248,59 @@ test_that("a construction request builds a block without evaluating it", {
   )
 })
 
+test_that("overlapping requests union rather than clash", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = Inf)
+
+  board <- new_board(
+    blocks = c(
+      s = with_id(probe_source(), "s"),
+      r = with_id(probe_passthrough(), "r")
+    ),
+    links = links(sr = new_link("s", "r", "data"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      board_update(
+        list(
+          construct = "r",
+          evaluate = "r",
+          sustain = list(one = list(set = "r"))
+        )
+      )
+      session$flushReact()
+
+      expect_true(rv$last_update$ok)
+      expect_true(constructed("r"))
+      expect_identical(rv$eval[["r"]](), "ready")
+      expect_identical(rv$claims(), list(one = "r"))
+      expect_length(rv$evaluating(), 0L)
+
+      # A second consumer cannot know what the first holds, so a one-off over
+      # a block someone else claims must not be rejected either.
+      board_update(list(evaluate = "r"))
+      session$flushReact()
+
+      expect_true(rv$last_update$ok)
+      expect_identical(rv$claims(), list(one = "r"))
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visibility, ...) {
+        require_blocks(visibility, "s")
+        render_blocks(visibility, "s")
+      }
+    )
+  )
+})
+
 test_that("a request naming an unknown block is rejected", {
 
   reset_probes()

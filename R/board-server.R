@@ -1355,6 +1355,12 @@ add_blocks_to_stacks <- function(rv, add, session) {
 #' the state delta, so a payload that edits a block and evaluates it
 #' sees the edit.
 #'
+#' The three are independent sets rather than alternatives: a payload
+#' may name one block in several of them and core takes the union.
+#' Overlap is redundant rather than rejected, which it has to be —
+#' claims are per-owner, so a consumer asking for a block cannot know
+#' that another owner already holds it.
+#'
 #' A locked board (see [is_board_locked()]) still accepts a payload of
 #' request components alone; one that also carries a state change is
 #' dropped whole rather than applied in part.
