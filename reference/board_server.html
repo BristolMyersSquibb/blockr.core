@@ -123,7 +123,8 @@ construction, evaluation and rendering. Set
 <code>visibility$frozen[[id]](TRUE)</code> to freeze a block's inputs (for example when
 its controls are hidden), so a forged input can no longer steer it. A
 callback also receives the <code>update</code> channel (see <a href="board_update.html">board_update</a>), through
-which it can request block evaluation (see the Evaluation requests section).</p></dd>
+which it can request block evaluation or construction (see the Evaluation
+requests and Construction requests sections).</p></dd>
 
 
 <dt id="arg-callback-location">callback_location<a class="anchor" aria-label="anchor" href="#arg-callback-location"></a></dt>
@@ -157,17 +158,17 @@ default <code><a href="notify_user.html">notify_user()</a></code> plugin renders
 last run — not only its result, but the conditions it reports. Anything that
 can reach the <code><a href="board_update.html">board_update()</a></code> channel can ask for such a block to be brought
 up to date, without putting it on screen, through the <code>evaluate</code> and
-<code>require</code> payload components. Both name blocks, and core joins them, together
+<code>sustain</code> payload components. Both name blocks, and core joins them, together
 with their upstream closure over <code><a href="board_blocks.html">board_links()</a></code> (without which they cannot
 produce a result), to the eval set. They differ only in who lets go: an
 <code>evaluate</code> request is a one-off that core drops once the block has run, while
-a <code>require</code> claim is held until its owner releases it.</p>
-<p>Claims are keyed by owner, the <code>require</code> component mapping each owner to a
+a <code>sustain</code> claim is held until its owner releases it.</p>
+<p>Claims are keyed by owner, the <code>sustain</code> component mapping each owner to a
 delta over the blocks it holds, so several consumers may hold the same block
 and none of them writes another's claim:</p>
 <p></p><div class="sourceCode r"><pre><code><span><span class="fu"><a href="https://rdrr.io/r/stats/update.html" class="external-link">update</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>    require <span class="op">=</span> <span class="fu"><a href="../reference/set_names.html">set_names</a></span><span class="op">(</span></span>
+<span>    sustain <span class="op">=</span> <span class="fu"><a href="../reference/set_names.html">set_names</a></span><span class="op">(</span></span>
 <span>      <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>set <span class="op">=</span> <span class="fu"><a href="../reference/board_blocks.html">board_block_ids</a></span><span class="op">(</span><span class="va">board</span><span class="op">$</span><span class="va">board</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>      <span class="va">session</span><span class="op">$</span><span class="fu">ns</span><span class="op">(</span><span class="st">"preview"</span><span class="op">)</span></span>
 <span>    <span class="op">)</span></span>
@@ -193,6 +194,31 @@ payload a locked board still accepts.</p>
 <p>Core drops a one-off request once the block has run — or has reported why it
 cannot, such as an unconnected data input or a user input that was never set.
 Requesting a block that is already in the eval set does nothing.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="construction-requests">Construction requests<a class="anchor" aria-label="anchor" href="#construction-requests"></a></h2>
+
+
+<p>Evaluation implies construction, but not the reverse: a consumer that needs a
+block merely <em>present</em> — the code export reads each block's expression and
+none of their results — had to make it run as well. The <code>construct</code> payload
+component asks for construction on its own. Like <code>evaluate</code> it is a bare
+character vector of block IDs, and the blocks it names are built in
+dependency order and left <code>dormant</code>:</p>
+<p></p><div class="sourceCode r"><pre><code><span><span class="fu"><a href="https://rdrr.io/r/stats/update.html" class="external-link">update</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>construct <span class="op">=</span> <span class="fu"><a href="../reference/board_blocks.html">board_block_ids</a></span><span class="op">(</span><span class="va">board</span><span class="op">$</span><span class="va">board</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
+<p>Nothing is retained. Once a block is built it stays built, so unlike the two
+evaluation components there is no owner to name and nothing to hand back, and
+asking for a block that is already built does nothing. The request joins
+neither the eval set nor the front-end's <code>required</code> channel, so it cannot
+turn a lazily evaluating board into an eagerly evaluating one.</p>
+<p>A block that the same payload adds, or that an <code>evaluate</code> or <code>sustain</code> names,
+is already constructed — the add builds it directly, and evaluation demand
+joins the needed set, which the background constructor builds. Pairing
+<code>construct</code> with either is redundant rather than wrong. The component covers
+what neither does: a block that must exist while nothing needs it evaluated.</p>
+<p>The named blocks are built in the flush that applies the payload, which is
+the work <code>background_construction_delay</code> otherwise paces out. A caller that
+wants that pacing sends several smaller payloads rather than one.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

@@ -2,6 +2,19 @@
 
 ## blockr.core 0.1.4
 
+- Board updates gain a third request component, `construct`, a character
+  vector of block IDs to build without evaluating. Construction
+  previously followed evaluation as a side effect, so a consumer that
+  needed a block merely present – the code export reads each block’s
+  expression and none of their results – had to make it run as well,
+  holding the whole board in the eval set for as long as it needed the
+  expressions. Unlike `evaluate` and `sustain` it retains no state: a
+  built block stays built, so there is no owner to name and nothing to
+  release, and requesting a block that is already built does nothing.
+  The request joins neither the eval set nor the front-end’s `required`
+  channel, so it cannot turn a lazily evaluating board into an eagerly
+  evaluating one
+  ([\#333](https://github.com/BristolMyersSquibb/blockr.core/issues/333)).
 - [`apply_board_update()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_update.md)
   is now a real reducer rather than a no-op: its default `.board` method
   applies the core delta (block, link and stack mutations) to the
@@ -249,11 +262,11 @@
   indistinguishable from an up-to-date dormant one, so a break
   introduced upstream stayed hidden until the block was visited
   ([\#310](https://github.com/BristolMyersSquibb/blockr.core/issues/310)).
-- Board updates gain two request components, `evaluate` and `require`,
+- Board updates gain two request components, `evaluate` and `sustain`,
   for evaluating a dormant block without making it visible. Both name
   blocks that are joined, with their upstream closure, to the eval set
   so they publish a current result and current conditions; core drops an
-  `evaluate` request once the block has run, while a `require` claim is
+  `evaluate` request once the block has run, while a `sustain` claim is
   held until released. Claims are keyed by owner
   (`list(<owner> = list(set =, add =, rm =))`, conventionally labelled
   `session$ns("...")`), so two consumers may hold the same block without

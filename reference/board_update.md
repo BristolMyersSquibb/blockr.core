@@ -70,20 +70,29 @@ reach subclass augment / apply methods.
 
 ## Request components
 
-Two components carry a request rather than a state change: `evaluate`, a
-character vector of block IDs to evaluate once, and `require`, a list of
-per-owner deltas over the blocks that are to stay evaluated. Each delta
-is `set`, `add` and `rm` — `set` states that owner's whole set and is
-exclusive with the other two — so no owner writes another's claim. Both
-components put the named blocks (and their upstream closure) into the
-eval set without touching what the front-end shows — see the Evaluation
-requests section of
-[`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)
-— and both resolve their IDs against the post-update block set, so a
-payload may add a block and ask for it in one go. A `require` `rm` is
+Three components carry a request rather than a state change: `evaluate`,
+a character vector of block IDs to evaluate once; `sustain`, a list of
+per-owner deltas over the blocks that are to stay evaluated; and
+`construct`, a character vector of block IDs to build without
+evaluating. Each `sustain` delta is `set`, `add` and `rm` — `set` states
+that owner's whole set and is exclusive with the other two — so no owner
+writes another's claim. The two evaluation components put the named
+blocks (and their upstream closure) into the eval set while `construct`
+leaves them `dormant`, and none of the three touches what the front-end
+shows — see the Evaluation requests and Construction requests sections
+of
+[`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md).
+All three resolve their IDs against the post-update block set, so a
+payload may add a block and ask for it in one go. A `sustain` `rm` is
 the exception, naming blocks to release rather than to evaluate, and so
 may name one the board no longer has. They are applied after the state
 delta, so a payload that edits a block and evaluates it sees the edit.
+
+The three are independent sets rather than alternatives: a payload may
+name one block in several of them and core takes the union. Overlap is
+redundant rather than rejected, which it has to be — claims are
+per-owner, so a consumer asking for a block cannot know that another
+owner already holds it.
 
 A locked board (see
 [`is_board_locked()`](https://bristolmyerssquibb.github.io/blockr.core/reference/locked-board.md))
