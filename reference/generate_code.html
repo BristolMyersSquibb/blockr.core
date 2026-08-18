@@ -70,7 +70,7 @@ by offering a download button, by providing this functionality as a
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">generate_code</span><span class="op">(</span>server <span class="op">=</span> <span class="va">generate_code_server</span>, ui <span class="op">=</span> <span class="va">generate_code_ui</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">generate_code_server</span><span class="op">(</span><span class="va">id</span>, <span class="va">board</span>, visibility <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">generate_code_server</span><span class="op">(</span><span class="va">id</span>, <span class="va">board</span>, <span class="va">update</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">generate_code_ui</span><span class="op">(</span><span class="va">id</span>, <span class="va">board</span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -91,13 +91,8 @@ by offering a download button, by providing this functionality as a
 <dd><p>Reactive values object</p></dd>
 
 
-<dt id="arg-visibility">visibility<a class="anchor" aria-label="anchor" href="#arg-visibility"></a></dt>
-<dd><p>Visibility channel bundle (supplied by <code><a href="board_server.html">board_server()</a></code>).
-On a gated board, "Show code" marks every block <code>required</code>, so the exported
-script covers the whole board and not only what is on screen; an off-screen
-block that is not fully configured then holds the export back rather than
-emitting broken code. <code>NULL</code> (the standalone default) leaves the board
-untouched.</p></dd>
+<dt id="arg-update">update<a class="anchor" aria-label="anchor" href="#arg-update"></a></dt>
+<dd><p>Reactive value object to initiate board updates</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
@@ -110,6 +105,19 @@ untouched.</p></dd>
 <code>generate_code()</code>, while the UI component (e.g. <code>generate_code_ui()</code>) is
 expected to return shiny UI (i.e. <code><a href="https://rstudio.github.io/htmltools/reference/tagList.html" class="external-link">shiny::tagList()</a></code>) and the server
 component (i.e. <code>generate_code_server()</code>) is expected to return <code>NULL</code>.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Opening the modal asks for every block on the board to be built, through the
+<code>construct</code> board update component (see the "Evaluation requests" section of
+<code><a href="board_server.html">board_server()</a></code>), because the script is assembled from block expressions and
+an unbuilt block carries none. Nothing is evaluated: a board that defers its
+off-screen blocks stays deferred, and the front-end's gating is untouched.</p>
+<p>Export is held back while a block is not fully configured, or while one
+reports an error from its last run — either would put code into the script
+that does not reproduce the board. A block that has never run reports
+neither, so the modal offers to evaluate the board, which is a one-off that
+leaves the blocks dormant again but has them report what they found.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

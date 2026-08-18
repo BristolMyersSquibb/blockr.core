@@ -15,6 +15,22 @@
   channel, so it cannot turn a lazily evaluating board into an eagerly
   evaluating one
   ([\#333](https://github.com/BristolMyersSquibb/blockr.core/issues/333)).
+- Showing the generated code no longer writes the front-end’s `required`
+  channel. A block parked with `required[[id]](FALSE)` was overwritten
+  and never restored, so a single “Show code” turned a lazily evaluating
+  board into an eagerly evaluating one for the rest of the session, with
+  nothing left to release it. The export asks for construction alone
+  through the `construct` board update component, since the script is
+  assembled from block expressions and needs its blocks built rather
+  than run: a board that defers its off-screen blocks now stays deferred
+  while the code is shown. Export is held back by what a block reports
+  about itself – user inputs that were never set, or an error from its
+  last run – rather than by eval status, and the modal offers a one-off
+  evaluation so that a block which has never run can report either way.
+  The `generate_code` plugin server takes `update` in place of
+  `visibility`, which is breaking for a front-end that supplies its own
+  [`generate_code_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/generate_code.md)
+  ([\#320](https://github.com/BristolMyersSquibb/blockr.core/issues/320)).
 - [`apply_board_update()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_update.md)
   is now a real reducer rather than a no-op: its default `.board` method
   applies the core delta (block, link and stack mutations) to the
@@ -124,10 +140,10 @@
   ([\#231](https://github.com/BristolMyersSquibb/blockr.core/issues/231)).
 - `background_construction_delay` now accepts `Inf`, skipping the
   background construction pass so a block is built only once it becomes
-  required. Code export (“Show code”) then marks every block required,
-  so the exported script covers the whole board; an off-screen block
-  that is not fully configured holds the export back instead of emitting
-  broken code
+  required. Code export (“Show code”) then claims every block on the
+  board, so the exported script covers the whole board; an off-screen
+  block that is not fully configured holds the export back instead of
+  emitting broken code
   ([\#269](https://github.com/BristolMyersSquibb/blockr.core/issues/269)).
 - Code export gates on the set of blocks that actually carry an
   expression, not on eval status alone, so a board with unbuilt blocks

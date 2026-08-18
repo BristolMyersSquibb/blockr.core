@@ -12,7 +12,7 @@ functionality as a `generate_code` module.
 ``` r
 generate_code(server = generate_code_server, ui = generate_code_ui)
 
-generate_code_server(id, board, visibility = NULL, ...)
+generate_code_server(id, board, update, ...)
 
 generate_code_ui(id, board)
 ```
@@ -31,15 +31,9 @@ generate_code_ui(id, board)
 
   Reactive values object
 
-- visibility:
+- update:
 
-  Visibility channel bundle (supplied by
-  [`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)).
-  On a gated board, "Show code" marks every block `required`, so the
-  exported script covers the whole board and not only what is on screen;
-  an off-screen block that is not fully configured then holds the export
-  back rather than emitting broken code. `NULL` (the standalone default)
-  leaves the board untouched.
+  Reactive value object to initiate board updates
 
 - ...:
 
@@ -53,3 +47,21 @@ expected to return shiny UI (i.e.
 [`shiny::tagList()`](https://rstudio.github.io/htmltools/reference/tagList.html))
 and the server component (i.e. `generate_code_server()`) is expected to
 return `NULL`.
+
+## Details
+
+Opening the modal asks for every block on the board to be built, through
+the `construct` board update component (see the "Evaluation requests"
+section of
+[`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)),
+because the script is assembled from block expressions and an unbuilt
+block carries none. Nothing is evaluated: a board that defers its
+off-screen blocks stays deferred, and the front-end's gating is
+untouched.
+
+Export is held back while a block is not fully configured, or while one
+reports an error from its last run — either would put code into the
+script that does not reproduce the board. A block that has never run
+reports neither, so the modal offers to evaluate the board, which is a
+one-off that leaves the blocks dormant again but has them report what
+they found.
