@@ -7,6 +7,18 @@
 #' by offering a download button, by providing this functionality as a
 #' `generate_code` module.
 #'
+#' Opening the modal asks for every block on the board to be built, through the
+#' `construct` board update component (see the "Evaluation requests" section of
+#' [board_server()]), because the script is assembled from block expressions and
+#' an unbuilt block carries none. Nothing is evaluated: a board that defers its
+#' off-screen blocks stays deferred, and the front-end's gating is untouched.
+#'
+#' Export is held back while a block is not fully configured, or while one
+#' reports an error from its last run — either would put code into the script
+#' that does not reproduce the board. A block that has never run reports
+#' neither, so the modal offers to evaluate the board, which is a one-off that
+#' leaves the blocks dormant again but has them report what they found.
+#'
 #' @param server,ui Server/UI for the plugin module
 #'
 #' @return A plugin container inheriting from `generate_code` is returned by
@@ -23,17 +35,12 @@ generate_code <- function(server = generate_code_server,
 
 #' @param id Namespace ID
 #' @param board Reactive values object
-#' @param visibility Visibility channel bundle (supplied by [board_server()]).
-#' On a gated board, "Show code" marks every block `required`, so the exported
-#' script covers the whole board and not only what is on screen; an off-screen
-#' block that is not fully configured then holds the export back rather than
-#' emitting broken code. `NULL` (the standalone default) leaves the board
-#' untouched.
+#' @param update Reactive value object to initiate board updates
 #' @param ... Extra arguments passed from parent scope
 #'
 #' @rdname generate_code
 #' @export
-generate_code_server <- function(id, board, visibility = NULL, ...) {
+generate_code_server <- function(id, board, update, ...) {
   moduleServer(
     id,
     function(input, output, session) {
@@ -56,18 +63,15 @@ generate_code_server <- function(id, board, visibility = NULL, ...) {
       observeEvent(
         input$code_mod,
         {
-          require_all_blocks(board, visibility)
+          update(list(construct = board_block_ids(board$board)))
 
-          showModal(
-            modalDialog(
-              title = "Generated code",
-              uiOutput(session$ns("code_out")),
-              easyClose = TRUE,
-              footer = NULL,
-              size = "l"
-            )
-          )
+          showModal(code_modal(session$ns))
         }
+      )
+
+      observeEvent(
+        input$code_eval,
+        update(list(evaluate = board_block_ids(board$board)))
       )
 
       NULL
@@ -87,20 +91,43 @@ generate_code_ui <- function(id, board) {
   )
 }
 
+code_modal <- function(ns) {
+  modalDialog(
+    title = "Generated code",
+    uiOutput(ns("code_out")),
+    easyClose = TRUE,
+    footer = tagList(
+      actionButton(ns("code_eval"), "Evaluate blocks", class = "btn-secondary"),
+      modalButton("Close")
+    ),
+    size = "l"
+  )
+}
+
 code_export_state <- function(board) {
 
   ids <- board_block_ids(board$board)
-  status <- reactiveValuesToList(board$eval)
 
-  if (!setequal(names(board$blocks), ids) || !setequal(names(status), ids)) {
+  if (!setequal(names(board$blocks), ids)) {
     return("pending")
   }
 
-  if (all(chr_ply(status, reval_if) %in% c("ready", "dormant", "stale"))) {
-    return("ready")
+  ready <- lgl_ply(board$blocks, block_state_ready)
+
+  if (!all(ready) || nrow(export_block_errors(board)) > 0L) {
+    return("blocked")
   }
 
-  "blocked"
+  "ready"
+}
+
+block_state_ready <- function(blk) {
+  isTRUE(reval_if(blk$server$state_ready))
+}
+
+export_block_errors <- function(board) {
+  cnd <- reval_if(board$conditions)
+  cnd[cnd$severity == "error", ]
 }
 
 code_modal_body <- function(state, script = NULL) {
@@ -123,26 +150,8 @@ code_modal_body <- function(state, script = NULL) {
   div(
     class = "text-muted",
     paste(
-      "The board is not ready. Finish configuring all blocks",
-      "before exporting code."
+      "The board is not ready. Finish configuring all blocks, and fix any",
+      "block reporting an error, before exporting code."
     )
   )
-}
-
-require_all_blocks <- function(board, visibility) {
-
-  if (is.null(visibility) || !gating_active(visibility$required)) {
-    return(invisible())
-  }
-
-  for (id in board_block_ids(board$board)) {
-
-    slot <- visibility$required[[id]]
-
-    if (not_null(slot)) {
-      slot(TRUE)
-    }
-  }
-
-  invisible()
 }

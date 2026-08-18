@@ -445,7 +445,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
       call_plugin_server(
         "generate_code",
-        server_args = c(read_plugin_args, list(visibility = vis)),
+        server_args = edit_plugin_args,
         plugins = plugins
       )
 
