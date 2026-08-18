@@ -10,9 +10,10 @@ serve(
     )
   ),
   "my_board",
-  callbacks = function(board, visibility, ...) {
+  callbacks = function(board, visibility, update, ...) {
 
-    visibility$required[["a"]](TRUE)
+    visibility$gate("front-end")
+    update(list(sustain = list(`front-end` = list(set = "a"))))
     visibility$visible[["a"]](TRUE)
 
     shiny::exportTestValues(
