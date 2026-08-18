@@ -77,7 +77,10 @@ In case of variadic blocks (i.e. blocks that take a variable number of
 inputs like for example a block providing \code{\link[base:rbind]{base::rbind()}}-like
 functionality), \code{block_arity()} returns \code{NA} and the special block server
 function argument \code{...args}, signalling variadic behavior is stripped from
-\code{block_inputs()}.
+\code{block_inputs()}. A second reserved server function argument, \code{ui_ready}
+(see \code{\link[=expr_server]{expr_server()}}), carries the front-end readiness of the block UI
+rather than data and is stripped from \code{block_inputs()} and \code{block_arity()}
+as well.
 }
 
 \section{External control}{

@@ -175,6 +175,38 @@ test_that("block utils", {
   expect_s3_class(c(blk, lst), "blocks")
 })
 
+test_that("ui_ready is not counted as a block data input", {
+
+  new_ready_block <- function() {
+    new_transform_block(
+      function(id, data, ui_ready) {
+        moduleServer(
+          id,
+          function(input, output, session) {
+            list(expr = reactive(quote(identity(data))), state = list())
+          }
+        )
+      },
+      function(id) {
+        tagList()
+      },
+      dat_valid = function(data) {
+        stopifnot(is.data.frame(data))
+      },
+      class = "ready_block",
+      block_metadata = list()
+    )
+  }
+
+  expect_identical(block_inputs(new_ready_block()), "data")
+  expect_identical(block_arity(new_ready_block()), 1L)
+
+  expect_identical(
+    server_data_args(function(id, x, ui_ready, y) {}),
+    c("x", "y")
+  )
+})
+
 test_that("Without package blocks can print", {
   blk <- new_dummy_block <- function(text = "Hello World", ...) {
     new_data_block(

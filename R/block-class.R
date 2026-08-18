@@ -332,7 +332,7 @@ validate_block_ui <- function(ui) {
 
 validate_data_validator <- function(validator, server) {
 
-  server_args <- setdiff(names(formals(server)), "id")
+  server_args <- server_data_args(server)
 
   if (!length(server_args) && not_null(validator)) {
     blockr_abort(
@@ -549,7 +549,10 @@ c.block <- function(...) {
 #' inputs like for example a block providing [base::rbind()]-like
 #' functionality), `block_arity()` returns `NA` and the special block server
 #' function argument `...args`, signalling variadic behavior is stripped from
-#' `block_inputs()`.
+#' `block_inputs()`. A second reserved server function argument, `ui_ready`
+#' (see [expr_server()]), carries the front-end readiness of the block UI
+#' rather than data and is stripped from `block_inputs()` and `block_arity()`
+#' as well.
 #'
 #' @section External control:
 #' Blocks can expose constructor inputs for programmatic control from outside
@@ -706,7 +709,11 @@ block_inputs.block <- function(x) {
 }
 
 block_expr_inputs <- function(x) {
-  setdiff(names(formals(block_expr_server(x))), "id")
+  server_data_args(block_expr_server(x))
+}
+
+server_data_args <- function(server) {
+  setdiff(names(formals(server)), c("id", "ui_ready"))
 }
 
 block_ctor_inputs <- function(x) {

@@ -31,7 +31,7 @@ test_that("scetter plot block constructor", {
         )
       )
     },
-    args = list(data = function() iris)
+    args = list(data = function() iris, ui_ready = function() TRUE)
   )
 
   testServer(
@@ -47,5 +47,45 @@ test_that("scetter plot block constructor", {
       )
     },
     args = list(x = blk, data = list(data = function() iris))
+  )
+})
+
+test_that("scatter block holds its control updates until the UI is ready", {
+
+  pushed <- new.env()
+  pushed$ids <- character()
+
+  record_push <- function(...) {
+
+    args <- list(...)
+
+    pushed$ids <- c(pushed$ids, args$inputId)
+    pushed[[args$inputId]] <- args$choices
+
+    invisible()
+  }
+
+  local_mocked_bindings(
+    updateSelectInput = record_push,
+    .package = "blockr.core"
+  )
+
+  ready <- reactiveVal(FALSE)
+
+  testServer(
+    block_expr_server(new_scatter_block("Sepal.Length", "Sepal.Width")),
+    {
+      session$flushReact()
+
+      expect_identical(pushed$ids, character())
+
+      ready(TRUE)
+      session$flushReact()
+
+      expect_identical(pushed$ids, c("xcol", "ycol"))
+      expect_identical(pushed$xcol, colnames(iris))
+      expect_identical(pushed$ycol, colnames(iris))
+    },
+    args = list(data = function() iris, ui_ready = ready)
   )
 })
