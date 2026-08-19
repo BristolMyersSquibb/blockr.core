@@ -2056,10 +2056,7 @@ test_that("core requires the open stacks and every unstacked block", {
 
   reset_probes()
 
-  withr::local_options(
-    blockr.gate_stacks = TRUE,
-    blockr.background_construction_delay = 0
-  )
+  withr::local_options(blockr.background_construction_delay = 0)
 
   board <- stacked_board()
 
@@ -2068,19 +2065,28 @@ test_that("core requires the open stacks and every unstacked block", {
     {
       session$flushReact()
 
-      # Core renders the first stack open and the rest collapsed, so what it
-      # requires holds before the accordion has reported anything -- but paint
-      # is still the accordion's to report.
-      expect_setequal(required_now(vis$required), c("a", "b", "e"))
-      expect_setequal(rv$needed(), c("a", "b", "e"))
-      expect_true(is.na(vis$visible[["a"]]()))
+      # Nothing is gated until the accordion reports which stacks it rendered
+      # open, so a board that renders a different UI is left alone entirely.
+      expect_false(gating_active(vis$required))
+      expect_true(rv$needed())
 
       report_open_stacks(session, "s1")
       session$flushReact()
 
-      expect_true(evaluated("a"))
-      expect_true(rendered("b"))
-      expect_true(rendered("e"))
+      expect_setequal(required_now(vis$required), c("a", "b", "e"))
+      expect_setequal(rv$needed(), c("a", "b", "e"))
+
+      expect_true(block_visible("b", vis))
+      expect_false(block_visible("c", vis))
+      expect_false(block_visible("d", vis))
+
+      # A mock session has no client until the test plays one, so the blocks of
+      # the collapsed stack have already run by now -- what a real session
+      # never does, since the accordion has reported before the callback is set
+      # up (the browser test below covers that). What is pinned here is that
+      # they stop: nothing pulls them again once the report lands.
+      reset_probes()
+      session$flushReact()
 
       expect_false(evaluated("c"))
       expect_false(rendered("c"))
@@ -2096,10 +2102,7 @@ test_that("expanding a stack requires its blocks and collapsing parks them", {
 
   reset_probes()
 
-  withr::local_options(
-    blockr.gate_stacks = TRUE,
-    blockr.background_construction_delay = 0
-  )
+  withr::local_options(blockr.background_construction_delay = 0)
 
   board <- stacked_board()
 
@@ -2141,10 +2144,7 @@ test_that("a fully collapsed accordion is not read as one yet to report", {
 
   reset_probes()
 
-  withr::local_options(
-    blockr.gate_stacks = TRUE,
-    blockr.background_construction_delay = 0
-  )
+  withr::local_options(blockr.background_construction_delay = 0)
 
   board <- stacked_board()
 
@@ -2153,9 +2153,9 @@ test_that("a fully collapsed accordion is not read as one yet to report", {
     {
       session$flushReact()
 
-      # Both states read as a NULL input: the first is what core rendered, the
-      # second the user having collapsed everything.
-      expect_setequal(required_now(vis$required), c("a", "b", "e"))
+      # Both states read as a NULL input: the accordion yet to report, and the
+      # user having collapsed everything.
+      expect_false(gating_active(vis$required))
 
       report_open_stacks(session)
       session$flushReact()
@@ -2171,10 +2171,7 @@ test_that("a board without stacks requires every block", {
 
   reset_probes()
 
-  withr::local_options(
-    blockr.gate_stacks = TRUE,
-    blockr.background_construction_delay = 0
-  )
+  withr::local_options(blockr.background_construction_delay = 0)
 
   board <- new_board(
     blocks = c(
@@ -2201,17 +2198,23 @@ test_that("a board without stacks requires every block", {
   )
 })
 
-test_that("stack gating leaves the board ungated unless asked for", {
+test_that("the gate_visibility option disables stack gating", {
 
   reset_probes()
 
-  withr::local_options(blockr.background_construction_delay = 0)
+  withr::local_options(
+    blockr.gate_visibility = FALSE,
+    blockr.background_construction_delay = 0
+  )
 
   board <- stacked_board()
 
   testServer(
     get_s3_method("board_server", board),
     {
+      session$flushReact()
+
+      report_open_stacks(session, "s1")
       session$flushReact()
 
       expect_false(gating_active(vis$required))
@@ -2281,10 +2284,7 @@ test_that("a front-end's own callbacks displace core's stack tracking", {
 
   reset_probes()
 
-  withr::local_options(
-    blockr.gate_stacks = TRUE,
-    blockr.background_construction_delay = 0
-  )
+  withr::local_options(blockr.background_construction_delay = 0)
 
   board <- stacked_board()
 

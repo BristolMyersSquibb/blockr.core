@@ -1,6 +1,6 @@
 library(blockr.core)
 
-options(blockr.gate_stacks = TRUE, blockr.background_construction_delay = 0)
+options(blockr.background_construction_delay = 0)
 
 serve(
   new_board(

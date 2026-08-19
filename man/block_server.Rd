@@ -185,12 +185,11 @@ hidden from the first render and any stack can be collapsed afterwards.
 \code{gate_stacks()} reads that accordion back, marking the blocks of every open
 stack plus every unstacked block required and parking the rest, so
 collapsing a stack stops its blocks evaluating and expanding one starts them
-again. It is \code{\link[=board_server]{board_server()}}'s default \code{callbacks} value, so a board driven
-by another front-end -- which passes its own callbacks -- leaves core
-tracking nothing at all. Whether it gates is the \code{gate_stacks}
-\code{\link[=blockr_option]{blockr_option()}}, \code{FALSE} by default because turning it on is a behaviour
-change: expanding a stack starts the computation rather than revealing a
-finished one.
+again. It is \code{\link[=board_server]{board_server()}}'s default \code{callbacks} value, and it gates
+nothing until the accordion has reported, so a board driven by another
+front-end -- which passes its own callbacks, and whose UI never binds that
+input anyway -- is left alone. Turning it off is the \code{gate_visibility}
+option above, which already governs whether anything gates at all.
 
 The same bundle carries a third channel, \code{frozen}, through which a
 front-end reports the blocks whose inputs it has hidden (for example a

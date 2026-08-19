@@ -57,7 +57,7 @@ test_that("dummy stack ui tests", {
   )
 })
 
-test_that("the accordion is board-namespaced and opens the first stack", {
+test_that("the accordion is board-namespaced and names its panels", {
 
   x <- new_board(
     blocks = c(
@@ -69,8 +69,7 @@ test_that("the accordion is board-namespaced and opens the first stack", {
 
   acc <- stack_ui("brd", x)[[1L]]
 
-  # Both the container ID and which stack starts open are read back by
-  # board_server() under the gate_stacks option.
+  # Container ID and panel values are what gate_stacks() reads back.
   expect_identical(acc$attribs$id, "brd-stacks")
 
   items <- htmltools::tagQuery(acc)$find(".accordion-item")$selectedTags()
@@ -78,12 +77,5 @@ test_that("the accordion is board-namespaced and opens the first stack", {
   expect_identical(
     chr_xtr(lst_xtr(items, "attribs"), "data-value"),
     c("brd-stack_s1", "brd-stack_s2")
-  )
-
-  open <- htmltools::tagQuery(acc)$find(".accordion-collapse.show")
-
-  expect_identical(
-    chr_xtr(lst_xtr(open$selectedTags(), "attribs"), "id"),
-    "stack-accordion-panel-brd-stack_s1"
   )
 })

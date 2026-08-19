@@ -18,7 +18,7 @@ board_server(id, x, ...)
   ...
 )
 
-gate_stacks(active = blockr_option("gate_stacks", FALSE))
+gate_stacks()
 }
 \arguments{
 \item{id}{Parent namespace}
@@ -50,15 +50,13 @@ requests and Construction requests sections).
 Core's own front-end drives these channels through a callback like any
 other: \code{gate_stacks()} reads the stack accordion (see \code{\link[=stack_ui]{stack_ui()}}) and is
 the default, so a board that renders core's UI gates on its stacks and one
-that does not simply passes its own callbacks and core tracks nothing. A
-consumer that wants both keeps it in the list rather than replacing it --
+that does not is left alone -- it passes its own callbacks, and the
+accordion input the callback waits on is never bound. A consumer that wants
+both keeps it in the list rather than replacing it --
 \code{callbacks = list(gate_stacks(), my_callback)}.}
 
 \item{callback_location}{Location of callback invocation (before or after
 plugins)}
-
-\item{active}{Whether the callback gates on the accordion (defaulting to the
-\code{gate_stacks} \code{\link[=blockr_option]{blockr_option()}})}
 }
 \value{
 A \code{board_server()} implementation (such as the default for the

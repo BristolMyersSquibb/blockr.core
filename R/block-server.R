@@ -100,12 +100,11 @@
 #' `gate_stacks()` reads that accordion back, marking the blocks of every open
 #' stack plus every unstacked block required and parking the rest, so
 #' collapsing a stack stops its blocks evaluating and expanding one starts them
-#' again. It is [board_server()]'s default `callbacks` value, so a board driven
-#' by another front-end -- which passes its own callbacks -- leaves core
-#' tracking nothing at all. Whether it gates is the `gate_stacks`
-#' [blockr_option()], `FALSE` by default because turning it on is a behaviour
-#' change: expanding a stack starts the computation rather than revealing a
-#' finished one.
+#' again. It is [board_server()]'s default `callbacks` value, and it gates
+#' nothing until the accordion has reported, so a board driven by another
+#' front-end -- which passes its own callbacks, and whose UI never binds that
+#' input anyway -- is left alone. Turning it off is the `gate_visibility`
+#' option above, which already governs whether anything gates at all.
 #'
 #' The same bundle carries a third channel, `frozen`, through which a
 #' front-end reports the blocks whose inputs it has hidden (for example a

@@ -90,8 +90,7 @@ implementation may be provided for board sub-classes.
 \details{
 The accordion container carries the board-namespaced ID \code{stacks}, which is
 what makes \code{\link[bslib:accordion]{bslib::accordion()}} wire it as a Shiny input reporting the
-stacks a user has expanded. The first stack is open on initial render and
-the rest are collapsed. Reading that input back is what the \code{gate_stacks}
-\code{\link[=blockr_option]{blockr_option()}} turns on (see \code{\link[=board_server]{board_server()}}), so a board whose
-\code{stack_ui()} method departs from either convention should leave it off.
+stacks a user has expanded, which is what \code{\link[=gate_stacks]{gate_stacks()}} reads back to
+gate evaluation and rendering (see \code{\link[=board_server]{board_server()}}). A board whose
+\code{stack_ui()} method renders no such input is simply never gated by it.
 }
