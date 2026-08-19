@@ -1,5 +1,21 @@
 # blockr.core 0.1.4
 
+* Core's own board UI can now drive visibility. Stacks render as an accordion
+  which opens one stack and collapses the rest, so on a stacked board part of
+  what is on screen was hidden from the first render while every block
+  evaluated and rendered regardless -- nothing read the input `bslib` had
+  already wired for reporting which stacks are open. Under the new
+  `gate_stacks` [blockr_option()] the board server marks the blocks of every
+  open stack plus every unstacked block required and parks the rest, so
+  collapsing a stack stops its blocks evaluating and expanding one starts them
+  again. Parked rather than dropped: a collapsed stack's blocks stay built, so
+  re-expanding shows them without a rebuild. Which stack starts open is derived
+  server-side rather than awaited from the client, since core renders it. The
+  option defaults to `FALSE` because turning it on is a behaviour change:
+  expanding a stack starts the computation rather than revealing a finished
+  one. The accordion container ID moves from `<board>_stacks` to the
+  board-namespaced `<board>-stacks`, which is what makes it readable from the
+  board module (#338).
 * Board updates gain a third request component, `construct`, a character vector
   of block IDs to build without evaluating. Construction previously followed
   evaluation as a side effect, so a consumer that needed a block merely present

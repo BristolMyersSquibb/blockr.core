@@ -124,7 +124,9 @@ board_server <- function(id, x, ...) {
 #' its controls are hidden), so a forged input can no longer steer it. A
 #' callback also receives the `update` channel (see [board_update]), through
 #' which it can request block evaluation or construction (see the Evaluation
-#' requests and Construction requests sections).
+#' requests and Construction requests sections). Core's own stack accordion can
+#' drive the same channels -- see the `gate_stacks` [blockr_option()] in
+#' [block_server()].
 #' @param callback_location Location of callback invocation (before or after
 #' plugins)
 #' @rdname board_server
@@ -205,6 +207,10 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
       # owner until that owner releases it.
       rv$evaluating <- reactiveVal(character())
       rv$claims <- reactiveVal(list())
+
+      if (isTRUE(blockr_option("gate_stacks", FALSE))) {
+        setup_stack_gating(rv, vis, input, session)
+      }
 
       observe(
         {
@@ -823,6 +829,63 @@ block_frozen <- function(id, vis) {
 
 required_fulfilled <- function(vis) {
   all(lgl_ply(required_now(vis$required), block_visible, vis))
+}
+
+setup_stack_gating <- function(rv, vis, input, session) {
+  observe(show_open_stacks(rv, vis, input, session))
+}
+
+show_open_stacks <- function(rv, vis, input, session) {
+
+  shown <- shown_block_ids(rv$board, open_stack_ids(input, rv$board, session))
+
+  # A collapsed stack's blocks are parked rather than dropped: `FALSE` keeps
+  # them built and ready to show again, where an `NA` slot would leave them
+  # unbuilt. Paint stays the accordion's to report -- until it has spoken core
+  # knows what it asked to be shown but not what the client has put on screen,
+  # and saying otherwise would let the backlog build against first paint.
+  for (id in ls(vis$required)) {
+
+    vis$required[[id]](id %in% shown)
+
+    if (stacks_reported(input)) {
+      vis$visible[[id]](id %in% shown)
+    }
+  }
+
+  invisible()
+}
+
+open_stack_ids <- function(input, board, session) {
+
+  # Read before the branch below can skip it: this is what wakes the observer
+  # when the accordion first reports, including a report of nothing.
+  open <- input[["stacks"]]
+
+  if (!stacks_reported(input)) {
+    return(default_open_stacks(board_stacks(board)))
+  }
+
+  ids <- board_stack_ids(board)
+
+  ids[chr_ply(paste0("stack_", ids), session$ns) %in% open]
+}
+
+# The accordion input reads NULL both before it has bound and once the user has
+# collapsed every stack; only the registered input name tells the two apart.
+stacks_reported <- function(input) {
+  "stacks" %in% names(input)
+}
+
+shown_block_ids <- function(board, open) {
+
+  collapsed <- setdiff(board_stack_ids(board), open)
+
+  available_stack_blocks(
+    board,
+    board_stacks(board)[collapsed],
+    board_block_ids(board)
+  )
 }
 
 validate_vis <- function(vis) {

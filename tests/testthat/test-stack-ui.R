@@ -56,3 +56,34 @@ test_that("dummy stack ui tests", {
     remove_block_from_stack(x, "a", "board", MockShinySession$new())
   )
 })
+
+test_that("the accordion is board-namespaced and opens the first stack", {
+
+  x <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      b = new_dataset_block("ChickWeight")
+    ),
+    stacks = list(s1 = "a", s2 = "b")
+  )
+
+  acc <- stack_ui("brd", x)[[1L]]
+
+  # Both the container ID and which stack starts open are read back by
+  # board_server() under the gate_stacks option.
+  expect_identical(acc$attribs$id, "brd-stacks")
+
+  items <- htmltools::tagQuery(acc)$find(".accordion-item")$selectedTags()
+
+  expect_identical(
+    chr_xtr(lst_xtr(items, "attribs"), "data-value"),
+    c("brd-stack_s1", "brd-stack_s2")
+  )
+
+  open <- htmltools::tagQuery(acc)$find(".accordion-collapse.show")
+
+  expect_identical(
+    chr_xtr(lst_xtr(open$selectedTags(), "attribs"), "id"),
+    "stack-accordion-panel-brd-stack_s1"
+  )
+})

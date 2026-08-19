@@ -42,7 +42,9 @@ construction, evaluation and rendering. Set
 its controls are hidden), so a forged input can no longer steer it. A
 callback also receives the \code{update} channel (see \link{board_update}), through
 which it can request block evaluation or construction (see the Evaluation
-requests and Construction requests sections).}
+requests and Construction requests sections). Core's own stack accordion can
+drive the same channels -- see the \code{gate_stacks} \code{\link[=blockr_option]{blockr_option()}} in
+\code{\link[=block_server]{block_server()}}.}
 
 \item{callback_location}{Location of callback invocation (before or after
 plugins)}

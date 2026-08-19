@@ -12,6 +12,13 @@
 #' All are S3 generics with implementations for `board` and alternative
 #' implementation may be provided for board sub-classes.
 #'
+#' The accordion container carries the board-namespaced ID `stacks`, which is
+#' what makes [bslib::accordion()] wire it as a Shiny input reporting the
+#' stacks a user has expanded. The first stack is open on initial render and
+#' the rest are collapsed. Reading that input back is what the `gate_stacks`
+#' [blockr_option()] turns on (see [board_server()]), so a board whose
+#' `stack_ui()` method departs from either convention should leave it off.
+#'
 #' @param id Parent namespace
 #' @param x Object
 #' @param ... Generic consistency
@@ -45,17 +52,20 @@ stack_ui.board <- function(id, x, stacks = NULL, edit_ui = NULL, ...) {
 
   stopifnot(is_stacks(stacks))
 
-  cont_id <- paste0(id, "_stacks")
+  ns <- NS(id)
+
+  cont_id <- ns("stacks")
 
   log_debug("setting up stack ui container: ", cont_id)
-
-  ns <- NS(id)
 
   tagList(
     do.call(
       bslib::accordion,
       c(
-        list(id = cont_id),
+        list(
+          id = cont_id,
+          open = chr_ply(paste0("stack_", default_open_stacks(stacks)), ns)
+        ),
         map(
           stack_ui,
           chr_ply(paste0("stack_", names(stacks)), ns),
@@ -71,6 +81,13 @@ stack_ui.board <- function(id, x, stacks = NULL, edit_ui = NULL, ...) {
       script = "moveBlockUi.js"
     )
   )
+}
+
+# Stated rather than left to bslib (which opens the first panel of an accordion
+# it is not told about), so that board_server() can derive the opening claim of
+# the stack gate from the same rule instead of waiting for the client.
+default_open_stacks <- function(x) {
+  utils::head(names(x), 1L)
 }
 
 #' @rdname stack_ui
@@ -128,7 +145,7 @@ insert_stack_ui.board <- function(id, x, board, edit_ui = NULL,
   x <- as_stacks(x)
 
   insertUI(
-    paste0("#", id, "_stacks"),
+    paste0("#", NS(id, "stacks")),
     "beforeEnd",
     map(
       stack_ui,
