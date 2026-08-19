@@ -107,6 +107,7 @@ Collate:
     'plugin-stacks.R'
     'reactives.R'
     'stack-class.R'
+    'stack-gate.R'
     'stack-ui.R'
     'stacks-class.R'
     'str-value.R'

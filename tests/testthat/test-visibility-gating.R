@@ -2276,3 +2276,36 @@ test_that("collapsing a stack parks its blocks in the browser", {
     "dormant"
   )
 })
+
+test_that("a front-end's own callbacks displace core's stack tracking", {
+
+  reset_probes()
+
+  withr::local_options(
+    blockr.gate_stacks = TRUE,
+    blockr.background_construction_delay = 0
+  )
+
+  board <- stacked_board()
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      # The board renders stacks and the option is on, yet core tracks nothing:
+      # what gates is whatever the supplied callbacks do.
+      expect_false(gating_active(vis$required))
+      expect_true(rv$needed())
+
+      for (id in c("a", "b", "c", "d", "e")) {
+        expect_true(evaluated(id))
+      }
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(...) NULL
+    )
+  )
+})

@@ -177,18 +177,20 @@ the staggering and builds every block up front. With nothing writing
 \code{gate_visibility} \code{\link[=blockr_option]{blockr_option()}} (default \code{TRUE}) turns gating off
 entirely.
 
-Core's own board UI can drive those channels instead of a front-end. Stacks
+Core's own board UI drives those channels through a callback, on the same
+footing as a front-end rather than built into the board server. Stacks
 render as a \code{\link[bslib:accordion]{bslib::accordion()}} which opens one stack and collapses the
 rest (see \code{\link[=stack_ui]{stack_ui()}}), so on a stacked board part of what is on screen is
-hidden from the first render and any stack can be collapsed afterwards. The
-\code{gate_stacks} \code{\link[=blockr_option]{blockr_option()}} (default \code{FALSE}) makes \code{\link[=board_server]{board_server()}}
-read that accordion back, marking the blocks of every open stack plus every
-unstacked block required and parking the rest, so collapsing a stack stops
-its blocks evaluating and expanding one starts them again. It is off by
-default because turning it on is a behaviour change -- expanding a stack
-starts the computation rather than revealing a finished one -- and because
-it belongs to core's own board UI: a front-end that drives \code{required} itself
-would be writing the same channel.
+hidden from the first render and any stack can be collapsed afterwards.
+\code{gate_stacks()} reads that accordion back, marking the blocks of every open
+stack plus every unstacked block required and parking the rest, so
+collapsing a stack stops its blocks evaluating and expanding one starts them
+again. It is \code{\link[=board_server]{board_server()}}'s default \code{callbacks} value, so a board driven
+by another front-end -- which passes its own callbacks -- leaves core
+tracking nothing at all. Whether it gates is the \code{gate_stacks}
+\code{\link[=blockr_option]{blockr_option()}}, \code{FALSE} by default because turning it on is a behaviour
+change: expanding a stack starts the computation rather than revealing a
+finished one.
 
 The same bundle carries a third channel, \code{frozen}, through which a
 front-end reports the blocks whose inputs it has hidden (for example a

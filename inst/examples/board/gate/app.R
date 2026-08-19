@@ -17,13 +17,16 @@ serve(
     stacks = list(s1 = c("a", "b"), s2 = c("c", "d"))
   ),
   "my_board",
-  callbacks = function(board, ...) {
+  callbacks = list(
+    gate_stacks(),
+    function(board, ...) {
 
-    shiny::exportTestValues(
-      status_b = reval_if(board$eval[["b"]]),
-      status_d = reval_if(board$eval[["d"]])
-    )
+      shiny::exportTestValues(
+        status_b = reval_if(board$eval[["b"]]),
+        status_d = reval_if(board$eval[["d"]])
+      )
 
-    NULL
-  }
+      NULL
+    }
+  )
 )
