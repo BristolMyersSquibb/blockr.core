@@ -33,20 +33,20 @@ gate_stacks()
 and registry sourced options)}
 
 \item{callbacks}{Single (or list of) callback function(s) registering
-<<<<<<< HEAD
-additional observers. Each receives a \code{visibility} list with three channels,
-\code{required}, \code{visible} and \code{frozen}, each an environment of per-block
-\code{reactiveVal}s (core keeps one per board block as blocks are added and
-removed). Declare a block needed with \code{visibility$required[[id]](TRUE)} (or
-\code{FALSE} for built but dormant) and report whether it is currently painted
-with \code{visibility$visible[[id]](TRUE)} (or \code{FALSE} once built but off screen,
-leaving \code{NA} until it is first built); the board reads both to gate
-construction, evaluation and rendering. Set
-\code{visibility$frozen[[id]](TRUE)} to freeze a block's inputs (for example when
-its controls are hidden), so a forged input can no longer steer it. A
-callback also receives the \code{update} channel (see \link{board_update}), through
-which it can request block evaluation or construction (see the Evaluation
-requests and Construction requests sections).
+additional observers. Each receives a \code{visibility} list carrying a board-wide
+\code{gate} \code{reactiveVal} alongside the per-block channels \code{visible} and \code{frozen},
+environments of \code{reactiveVal}s (core keeps one per board block as blocks are
+added and removed). A front-end declares that it drives visibility by writing
+its owner label, \code{visibility$gate("dock")}; until something does, every block
+is needed. What it needs evaluated then travels as a \code{sustain} claim under
+that label through the \code{update} channel it also receives (see \link{board_update}
+and the Evaluation requests section), and what it needs merely built as a
+\code{construct} request. Report whether a block is currently painted with
+\code{visibility$visible[[id]](TRUE)} (or \code{FALSE} once built but off screen,
+leaving \code{NA} until it is first built); the board gates rendering on it, and
+holds background construction until every claimed block is reported painted.
+Set \code{visibility$frozen[[id]](TRUE)} to freeze a block's inputs (for example
+when its controls are hidden), so a forged input can no longer steer it.
 
 Core's own front-end drives these channels through a callback like any
 other: \code{gate_stacks()} reads the stack accordion (see \code{\link[=stack_ui]{stack_ui()}}) and is
@@ -55,23 +55,6 @@ that does not is left alone -- it passes its own callbacks, and the
 accordion input the callback waits on is never bound. A consumer that wants
 both keeps it in the list rather than replacing it --
 \code{callbacks = list(gate_stacks(), my_callback)}.}
-=======
-additional observers. Each receives a \code{visibility} list carrying a board-wide
-\code{gate} \code{reactiveVal} alongside the per-block channels \code{visible} and \code{frozen},
-environments of \code{reactiveVal}s (core keeps one per board block as blocks are
-added and removed). A front-end declares that it drives visibility by writing
-its owner label, \code{visibility$gate("dock")}, as it is set up; until something
-does, every block is needed. What it needs evaluated then travels as a
-\code{sustain} claim under that label through the \code{update} channel it also
-receives (see \link{board_update} and the Evaluation requests section), and what
-it needs merely built as a \code{construct} request. Report whether a block is
-currently painted with \code{visibility$visible[[id]](TRUE)} (or \code{FALSE} once
-built but off screen, leaving \code{NA} until it is first built); the board gates
-rendering on it, and holds background construction until every claimed block
-is reported painted. Set \code{visibility$frozen[[id]](TRUE)} to freeze a block's
-inputs (for example when its controls are hidden), so a forged input can no
-longer steer it.}
->>>>>>> 780518d (Fold front-end demand into the one multi-owner claim set)
 
 \item{callback_location}{Location of callback invocation (before or after
 plugins)}
