@@ -229,6 +229,26 @@ writing `required` every block is needed and behaviour is unchanged; the
 [`blockr_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_option.md)
 (default `TRUE`) turns gating off entirely.
 
+Core's own board UI drives those channels through a callback, on the
+same footing as a front-end rather than built into the board server.
+Stacks render as a
+[`bslib::accordion()`](https://rstudio.github.io/bslib/reference/accordion.html)
+which opens one stack and collapses the rest (see
+[`stack_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/stack_ui.md)),
+so on a stacked board part of what is on screen is hidden from the first
+render and any stack can be collapsed afterwards.
+[`gate_stacks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)
+reads that accordion back, marking the blocks of every open stack plus
+every unstacked block required and parking the rest, so collapsing a
+stack stops its blocks evaluating and expanding one starts them again.
+It is
+[`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)'s
+default `callbacks` value, and it gates nothing until the accordion has
+reported, so a board driven by another front-end – which passes its own
+callbacks, and whose UI never binds that input anyway – is left alone.
+Turning it off is the `gate_visibility` option above, which already
+governs whether anything gates at all.
+
 The same bundle carries a third channel, `frozen`, through which a
 front-end reports the blocks whose inputs it has hidden (for example a
 locked board that shows outputs but not controls). While frozen a block

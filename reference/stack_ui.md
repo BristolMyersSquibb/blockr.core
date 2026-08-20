@@ -107,3 +107,16 @@ invisibly and where the former call
 and the latter modify the DOM via
 [shiny::session](https://rdrr.io/pkg/shiny/man/session.html) custom
 messages.
+
+## Details
+
+The accordion container carries the board-namespaced ID `stacks`, which
+is what makes
+[`bslib::accordion()`](https://rstudio.github.io/bslib/reference/accordion.html)
+wire it as a Shiny input reporting the stacks a user has expanded, which
+is what
+[`gate_stacks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)
+reads back to gate evaluation and rendering (see
+[`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)).
+A board whose `stack_ui()` method renders no such input is simply never
+gated by it.

@@ -55,7 +55,7 @@ additional observers."><script src="https://cdnjs.cloudflare.com/ajax/libs/merma
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Board server</h1>
-      <small class="dont-index">Source: <a href="https://github.com/BristolMyersSquibb/blockr.core/blob/main/R/board-server.R" class="external-link"><code>R/board-server.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/BristolMyersSquibb/blockr.core/blob/main/R/board-server.R" class="external-link"><code>R/board-server.R</code></a>, <a href="https://github.com/BristolMyersSquibb/blockr.core/blob/main/R/stack-gate.R" class="external-link"><code>R/stack-gate.R</code></a></small>
       <div class="d-none name"><code>board_server.Rd</code></div>
     </div>
 
@@ -79,10 +79,12 @@ additional observers.</p>
 <span>  <span class="va">x</span>,</span>
 <span>  plugins <span class="op">=</span> <span class="fu"><a href="new_plugin.html">board_plugins</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span>,</span>
 <span>  options <span class="op">=</span> <span class="fu"><a href="board_blocks.html">board_options</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span>,</span>
-<span>  callbacks <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  callbacks <span class="op">=</span> <span class="fu">gate_stacks</span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  callback_location <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"end"</span>, <span class="st">"start"</span><span class="op">)</span>,</span>
 <span>  <span class="va">...</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">gate_stacks</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -124,7 +126,14 @@ construction, evaluation and rendering. Set
 its controls are hidden), so a forged input can no longer steer it. A
 callback also receives the <code>update</code> channel (see <a href="board_update.html">board_update</a>), through
 which it can request block evaluation or construction (see the Evaluation
-requests and Construction requests sections).</p></dd>
+requests and Construction requests sections).</p>
+<p>Core's own front-end drives these channels through a callback like any
+other: <code>gate_stacks()</code> reads the stack accordion (see <code><a href="stack_ui.html">stack_ui()</a></code>) and is
+the default, so a board that renders core's UI gates on its stacks and one
+that does not is left alone – it passes its own callbacks, and the
+accordion input the callback waits on is never bound. A consumer that wants
+both keeps it in the list rather than replacing it –
+<code>callbacks = list(gate_stacks(), my_callback)</code>.</p></dd>
 
 
 <dt id="arg-callback-location">callback_location<a class="anchor" aria-label="anchor" href="#arg-callback-location"></a></dt>

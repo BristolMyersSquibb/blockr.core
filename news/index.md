@@ -2,6 +2,30 @@
 
 ## blockr.core 0.1.4
 
+- Core’s own board UI now drives visibility, through a board callback
+  like any other front-end rather than from inside the board server.
+  Stacks render as an accordion which opens one stack and collapses the
+  rest, so on a stacked board part of what is on screen was hidden from
+  the first render while every block evaluated and rendered regardless –
+  nothing read the input `bslib` had already wired for reporting which
+  stacks are open. The new
+  [`gate_stacks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)
+  callback marks the blocks of every open stack plus every unstacked
+  block required and parks the rest, so collapsing a stack stops its
+  blocks evaluating and expanding one starts them again. Parked rather
+  than dropped: a collapsed stack’s blocks stay built, so re-expanding
+  shows them without a rebuild. It is
+  [`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)’s
+  default `callbacks` value and gates nothing until that accordion
+  reports, so a board driven by another front-end – which passes its own
+  callbacks, and whose UI never binds the input – is left alone; a
+  consumer that wants both keeps it in the list,
+  `callbacks = list(gate_stacks(), my_callback)`. The `gate_visibility`
+  option turns it off along with all other gating. The accordion
+  container ID moves from `<board>_stacks` to the board-namespaced
+  `<board>-stacks`, which is what makes it readable from the board
+  module
+  ([\#338](https://github.com/BristolMyersSquibb/blockr.core/issues/338)).
 - Board updates gain a third request component, `construct`, a character
   vector of block IDs to build without evaluating. Construction
   previously followed evaluation as a side effect, so a consumer that

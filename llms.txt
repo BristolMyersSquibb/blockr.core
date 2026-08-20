@@ -234,6 +234,7 @@ Utilities for creating an working with boards
   [`clear_board()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
   : Board utils
 - [`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)
+  [`gate_stacks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)
   : Board server
 - [`board_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_ui.md)
   [`insert_block_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_ui.md)

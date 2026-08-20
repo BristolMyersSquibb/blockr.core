@@ -170,6 +170,14 @@ implementation may be provided for board sub-classes.</p>
 and where the former call <code><a href="https://rdrr.io/pkg/shiny/man/insertUI.html" class="external-link">shiny::insertUI()</a></code>/<code><a href="https://rdrr.io/pkg/shiny/man/insertUI.html" class="external-link">shiny::removeUI()</a></code> and the
 latter modify the DOM via <a href="https://rdrr.io/pkg/shiny/man/session.html" class="external-link">shiny::session</a> custom messages.</p>
     </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>The accordion container carries the board-namespaced ID <code>stacks</code>, which is
+what makes <code><a href="https://rstudio.github.io/bslib/reference/accordion.html" class="external-link">bslib::accordion()</a></code> wire it as a Shiny input reporting the
+stacks a user has expanded, which is what <code><a href="board_server.html">gate_stacks()</a></code> reads back to
+gate evaluation and rendering (see <code><a href="board_server.html">board_server()</a></code>). A board whose
+<code>stack_ui()</code> method renders no such input is simply never gated by it.</p>
+    </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
