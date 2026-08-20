@@ -1,19 +1,34 @@
 # blockr.core 0.1.4
 
+* Evaluation demand is now one multi-owner set rather than two channels. The
+  front-end's per-block `required` channel is gone: what it needs evaluated is
+  a `sustain` claim held under an owner label like any other consumer's, and
+  what it needs merely built is a `construct` request. Core no longer
+  distinguishes a front-end's demand from a code export's, and because no owner
+  writes another's claim, the channel cannot silently become multi-writer the
+  way `required` did. The three jobs the tri-state used to do in one slot are
+  now separate: gating activation is an explicit declaration a front-end makes
+  by writing its owner label into the new board-wide `visibility$gate` channel
+  -- inferring it from claims instead would let a consumer asking about one
+  block park every other block on an ungated board -- and construction demand is
+  the `construct` component. Reporting paint on `visible` is unchanged, and the
+  background pass still holds until every block the gating front-end claims is
+  reported painted. Breaking for any front-end that drives
+  `visibility$required` (#321).
 * Core's own board UI now drives visibility, through a board callback like any
   other front-end rather than from inside the board server. Stacks render as an
   accordion which opens one stack and collapses the rest, so on a stacked board
   part of what is on screen was hidden from the first render while every block
   evaluated and rendered regardless -- nothing read the input `bslib` had
   already wired for reporting which stacks are open. The new `gate_stacks()`
-  callback marks the blocks of every open stack plus every unstacked block
-  required and parks the rest, so collapsing a stack stops its blocks
-  evaluating and expanding one starts them again. Parked rather than dropped: a
-  collapsed stack's blocks stay built, so re-expanding shows them without a
-  rebuild. It is `board_server()`'s default `callbacks` value and gates nothing
-  until that accordion reports, so a board driven by another front-end -- which
-  passes its own callbacks, and whose UI never binds the input -- is left
-  alone; a consumer that wants both keeps it in the list,
+  callback claims the blocks of every open stack plus every unstacked block and
+  parks the rest, so collapsing a stack stops its blocks evaluating and
+  expanding one starts them again. Parked rather than dropped: a collapsed
+  stack's blocks stay built through a `construct` request, so re-expanding shows
+  them without a rebuild. It is `board_server()`'s default `callbacks` value and
+  gates nothing until that accordion reports, so a board driven by another
+  front-end -- which passes its own callbacks, and whose UI never binds the
+  input -- is left alone; a consumer that wants both keeps it in the list,
   `callbacks = list(gate_stacks(), my_callback)`. The `gate_visibility` option
   turns it off along with all other gating. The accordion container ID moves
   from `<board>_stacks` to the board-namespaced `<board>-stacks`, which is what
@@ -26,11 +41,10 @@
   long as it needed the expressions. Unlike `evaluate` and `sustain` it retains
   no state: a built block stays built, so there is no owner to name and nothing
   to release, and requesting a block that is already built does nothing. The
-  request joins neither the eval set nor the front-end's `required` channel, so
-  it cannot turn a lazily evaluating board into an eagerly evaluating one
-  (#333).
-* Showing the generated code no longer writes the front-end's `required`
-  channel. A block parked with `required[[id]](FALSE)` was overwritten and
+  request joins neither the eval set nor the gate declaration, so it cannot
+  turn a lazily evaluating board into an eagerly evaluating one (#333).
+* Showing the generated code no longer writes the front-end's own demand
+  channel. A block the front-end had parked was overwritten and
   never restored, so a single "Show code" turned a lazily evaluating board
   into an eagerly evaluating one for the rest of the session, with nothing
   left to release it. The export asks for construction alone through the

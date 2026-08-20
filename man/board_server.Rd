@@ -33,19 +33,20 @@ gate_stacks()
 and registry sourced options)}
 
 \item{callbacks}{Single (or list of) callback function(s) registering
-additional observers. Each receives a \code{visibility} list with three channels,
-\code{required}, \code{visible} and \code{frozen}, each an environment of per-block
-\code{reactiveVal}s (core keeps one per board block as blocks are added and
-removed). Declare a block needed with \code{visibility$required[[id]](TRUE)} (or
-\code{FALSE} for built but dormant) and report whether it is currently painted
-with \code{visibility$visible[[id]](TRUE)} (or \code{FALSE} once built but off screen,
-leaving \code{NA} until it is first built); the board reads both to gate
-construction, evaluation and rendering. Set
-\code{visibility$frozen[[id]](TRUE)} to freeze a block's inputs (for example when
-its controls are hidden), so a forged input can no longer steer it. A
-callback also receives the \code{update} channel (see \link{board_update}), through
-which it can request block evaluation or construction (see the Evaluation
-requests and Construction requests sections).
+additional observers. Each receives a \code{visibility} list carrying a board-wide
+\code{gate} \code{reactiveVal} alongside the per-block channels \code{visible} and \code{frozen},
+environments of \code{reactiveVal}s (core keeps one per board block as blocks are
+added and removed). A front-end declares that it drives visibility by writing
+its owner label, \code{visibility$gate("dock")}; until something does, every block
+is needed. What it needs evaluated then travels as a \code{sustain} claim under
+that label through the \code{update} channel it also receives (see \link{board_update}
+and the Evaluation requests section), and what it needs merely built as a
+\code{construct} request. Report whether a block is currently painted with
+\code{visibility$visible[[id]](TRUE)} (or \code{FALSE} once built but off screen,
+leaving \code{NA} until it is first built); the board gates rendering on it, and
+holds background construction until every claimed block is reported painted.
+Set \code{visibility$frozen[[id]](TRUE)} to freeze a block's inputs (for example
+when its controls are hidden), so a forged input can no longer steer it.
 
 Core's own front-end drives these channels through a callback like any
 other: \code{gate_stacks()} reads the stack accordion (see \code{\link[=stack_ui]{stack_ui()}}) and is
@@ -124,10 +125,13 @@ claims under two labels. A claim outlives the module that made it: core
 drops a claimed block once it leaves the board, but an owner that goes away
 without releasing holds what it held for the rest of the session.
 
-Requests are orthogonal to the \code{required} visibility channel, so neither
-competes with the front-end's gating, and nothing about what is on screen
-changes. Because they carry no state change, they are also the one part of a
-payload a locked board still accepts.
+A claim asks for evaluation and nothing else: nothing about what is on
+screen changes. The front-end is an owner like any other -- it holds a claim
+under the label it declared as \code{visibility$gate()} (see \code{\link[=block_server]{block_server()}}) --
+so core never distinguishes its demand from anyone else's, and a consumer
+claiming a block cannot park what the front-end is showing. Because claims
+carry no state change, they are also the one part of a payload a locked
+board still accepts.
 
 Core drops a one-off request once the block has run — or has reported why it
 cannot, such as an unconnected data input or a user input that was never set.
@@ -149,8 +153,8 @@ dependency order and left \code{dormant}:
 Nothing is retained. Once a block is built it stays built, so unlike the two
 evaluation components there is no owner to name and nothing to hand back, and
 asking for a block that is already built does nothing. The request joins
-neither the eval set nor the front-end's \code{required} channel, so it cannot
-turn a lazily evaluating board into an eagerly evaluating one.
+neither the eval set nor the gate declaration, so it cannot turn a lazily
+evaluating board into an eagerly evaluating one.
 
 A block that the same payload adds, or that an \code{evaluate} or \code{sustain} names,
 is already constructed — the add builds it directly, and evaluation demand

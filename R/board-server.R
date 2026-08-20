@@ -59,10 +59,13 @@
 #' drops a claimed block once it leaves the board, but an owner that goes away
 #' without releasing holds what it held for the rest of the session.
 #'
-#' Requests are orthogonal to the `required` visibility channel, so neither
-#' competes with the front-end's gating, and nothing about what is on screen
-#' changes. Because they carry no state change, they are also the one part of a
-#' payload a locked board still accepts.
+#' A claim asks for evaluation and nothing else: nothing about what is on
+#' screen changes. The front-end is an owner like any other -- it holds a claim
+#' under the label it declared as `visibility$gate()` (see [block_server()]) --
+#' so core never distinguishes its demand from anyone else's, and a consumer
+#' claiming a block cannot park what the front-end is showing. Because claims
+#' carry no state change, they are also the one part of a payload a locked
+#' board still accepts.
 #'
 #' Core drops a one-off request once the block has run — or has reported why it
 #' cannot, such as an unconnected data input or a user input that was never set.
@@ -83,8 +86,8 @@
 #' Nothing is retained. Once a block is built it stays built, so unlike the two
 #' evaluation components there is no owner to name and nothing to hand back, and
 #' asking for a block that is already built does nothing. The request joins
-#' neither the eval set nor the front-end's `required` channel, so it cannot
-#' turn a lazily evaluating board into an eagerly evaluating one.
+#' neither the eval set nor the gate declaration, so it cannot turn a lazily
+#' evaluating board into an eagerly evaluating one.
 #'
 #' A block that the same payload adds, or that an `evaluate` or `sustain` names,
 #' is already constructed — the add builds it directly, and evaluation demand
@@ -112,19 +115,20 @@ board_server <- function(id, x, ...) {
 #' @param options Board options (`NULL` defaults to the union of board, block
 #' and registry sourced options)
 #' @param callbacks Single (or list of) callback function(s) registering
-#' additional observers. Each receives a `visibility` list with three channels,
-#' `required`, `visible` and `frozen`, each an environment of per-block
-#' `reactiveVal`s (core keeps one per board block as blocks are added and
-#' removed). Declare a block needed with `visibility$required[[id]](TRUE)` (or
-#' `FALSE` for built but dormant) and report whether it is currently painted
-#' with `visibility$visible[[id]](TRUE)` (or `FALSE` once built but off screen,
-#' leaving `NA` until it is first built); the board reads both to gate
-#' construction, evaluation and rendering. Set
-#' `visibility$frozen[[id]](TRUE)` to freeze a block's inputs (for example when
-#' its controls are hidden), so a forged input can no longer steer it. A
-#' callback also receives the `update` channel (see [board_update]), through
-#' which it can request block evaluation or construction (see the Evaluation
-#' requests and Construction requests sections).
+#' additional observers. Each receives a `visibility` list carrying a board-wide
+#' `gate` `reactiveVal` alongside the per-block channels `visible` and `frozen`,
+#' environments of `reactiveVal`s (core keeps one per board block as blocks are
+#' added and removed). A front-end declares that it drives visibility by writing
+#' its owner label, `visibility$gate("dock")`; until something does, every block
+#' is needed. What it needs evaluated then travels as a `sustain` claim under
+#' that label through the `update` channel it also receives (see [board_update]
+#' and the Evaluation requests section), and what it needs merely built as a
+#' `construct` request. Report whether a block is currently painted with
+#' `visibility$visible[[id]](TRUE)` (or `FALSE` once built but off screen,
+#' leaving `NA` until it is first built); the board gates rendering on it, and
+#' holds background construction until every claimed block is reported painted.
+#' Set `visibility$frozen[[id]](TRUE)` to freeze a block's inputs (for example
+#' when its controls are hidden), so a forged input can no longer steer it.
 #'
 #' Core's own front-end drives these channels through a callback like any
 #' other: `gate_stacks()` reads the stack accordion (see [stack_ui()]) and is
@@ -178,7 +182,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
       rv$eval <- reactiveValues()
 
       vis <- list(
-        required = new.env(parent = emptyenv()),
+        gate = reactiveVal(NULL),
         visible = new.env(parent = emptyenv()),
         frozen = new.env(parent = emptyenv())
       )
@@ -210,19 +214,24 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
       # components. Both join the needed set below; they differ in who lets go.
       # Core drops an `evaluating` entry once that block has had its evaluation
       # pass (see the observer below), while `claims` holds one entry per claim
-      # owner until that owner releases it.
+      # owner until that owner releases it. The front-end is one such owner.
       rv$evaluating <- reactiveVal(character())
       rv$claims <- reactiveVal(list())
 
+      # A gating front-end declares itself as it is set up but states its
+      # opening claim through a payload, which only applies at the end of that
+      # flush. Holding nothing and not having spoken yet are the same empty
+      # claim, so the difference is latched here: until it resolves, the
+      # background pass must not build a backlog that may be about to race the
+      # first paint.
+      rv$gate_claimed <- reactiveVal(FALSE)
+
       observe(
         {
-          cur <- if (!gating_active(vis$required)) {
+          cur <- if (!gating_active(vis)) {
             TRUE
           } else {
-            upstream_blocks(
-              union(required_now(vis$required), requested_blocks(rv)),
-              rv$board
-            )
+            upstream_blocks(requested_blocks(rv), rv$board)
           }
 
           old <- isolate(rv$needed())
@@ -669,7 +678,7 @@ construct_needed_blocks <- function(rv, mod_ed, mod_ct, args, vis) {
 
   observe(
     {
-      need <- needed_block_ids(rv, vis$required)
+      need <- needed_block_ids(rv)
       construct_blocks(need, rv, mod_ed, mod_ct, args, vis)
     }
   )
@@ -692,7 +701,7 @@ construct_blocks_in_background <- function(rv, mod_ed, mod_ct, args, vis) {
 
         started <<- TRUE
 
-        if (!isolate(gating_active(vis$required))) {
+        if (!isolate(gating_active(vis))) {
 
           construct_blocks(board_block_ids(rv$board), rv, mod_ed, mod_ct,
                            args, vis)
@@ -718,7 +727,7 @@ construct_blocks_in_background <- function(rv, mod_ed, mod_ct, args, vis) {
       }
 
       needed <- isolate(
-        intersect(remaining, needed_block_ids(rv, vis$required))
+        intersect(remaining, needed_block_ids(rv))
       )
 
       if (length(needed)) {
@@ -730,7 +739,7 @@ construct_blocks_in_background <- function(rv, mod_ed, mod_ct, args, vis) {
         return(invisible())
       }
 
-      if (gating_active(vis$required) && !required_fulfilled(vis)) {
+      if (gating_active(vis) && !gate_fulfilled(vis, rv)) {
         return(invisible())
       }
 
@@ -770,7 +779,6 @@ background_construction_delay <- function() {
 add_vis_slots <- function(vis, ids) {
 
   for (id in ids) {
-    vis$required[[id]] <- reactiveVal(NA)
     vis$visible[[id]] <- reactiveVal(NA)
     vis$frozen[[id]] <- reactiveVal(FALSE)
   }
@@ -780,10 +788,9 @@ add_vis_slots <- function(vis, ids) {
 
 rm_vis_slots <- function(vis, ids) {
 
-  gone <- intersect(ids, ls(vis$required))
+  gone <- intersect(ids, ls(vis$visible))
 
   if (length(gone)) {
-    rm(list = gone, envir = vis$required)
     rm(list = gone, envir = vis$visible)
     rm(list = gone, envir = vis$frozen)
   }
@@ -791,30 +798,8 @@ rm_vis_slots <- function(vis, ids) {
   invisible()
 }
 
-gating_active <- function(required) {
-  isTRUE(blockr_option("gate_visibility", TRUE)) && has_required(required)
-}
-
-has_required <- function(required) {
-  length(ever_required(required)) > 0L
-}
-
-ever_required <- function(required) {
-  ids <- ls(required)
-  ids[lgl_ply(ids, slot_declared, required)]
-}
-
-slot_declared <- function(id, required) {
-  !is.na(required[[id]]())
-}
-
-required_now <- function(required) {
-  ids <- ls(required)
-  ids[lgl_ply(ids, slot_needed, required)]
-}
-
-slot_needed <- function(id, required) {
-  isTRUE(required[[id]]())
+gating_active <- function(vis) {
+  isTRUE(blockr_option("gate_visibility", TRUE)) && not_null(vis$gate())
 }
 
 is_visible <- function(x) {
@@ -829,19 +814,21 @@ block_frozen <- function(id, vis) {
   isTRUE(vis$frozen[[id]]())
 }
 
-required_fulfilled <- function(vis) {
-  all(lgl_ply(required_now(vis$required), block_visible, vis))
+# Only the gating front-end's own claim is compared against paint: a claim held
+# by anyone else names blocks nobody is putting on screen, and holding the
+# backlog for one would stall it for the rest of the session.
+gate_fulfilled <- function(vis, rv) {
+  isTRUE(rv$gate_claimed()) &&
+    all(lgl_ply(rv$claims()[[vis$gate()]], block_visible, vis))
 }
 
 validate_vis <- function(vis) {
 
-  for (id in ls(vis$required)) {
-    if (!valid_required(vis$required[[id]]())) {
-      blockr_abort(
-        "required[[{id}]] must be TRUE, FALSE or NA",
-        class = "invalid_required"
-      )
-    }
+  if (!valid_gate(vis$gate())) {
+    blockr_abort(
+      "gate must be a string or NULL",
+      class = "invalid_gate"
+    )
   }
 
   for (id in ls(vis$visible)) {
@@ -865,8 +852,8 @@ validate_vis <- function(vis) {
   invisible()
 }
 
-valid_required <- function(x) {
-  is.logical(x) && length(x) == 1L
+valid_gate <- function(x) {
+  is.null(x) || (is_string(x) && !is.na(x) && nzchar(x))
 }
 
 valid_visible <- function(x) {
@@ -902,7 +889,7 @@ update_request_components <- function() {
   c(id_request_components(), "sustain")
 }
 
-needed_block_ids <- function(rv, required) {
+needed_block_ids <- function(rv) {
 
   need <- rv$needed()
 
@@ -910,7 +897,7 @@ needed_block_ids <- function(rv, required) {
     return(board_block_ids(rv$board))
   }
 
-  union(need, ever_required(required))
+  need
 }
 
 block_inputs_ready <- function(src_rv, blk, rv) {
@@ -2151,12 +2138,12 @@ apply_core_board_update <- function(rv, upd, session,
   construct_blocks(upd[["construct"]], rv, edit_block, ctrl_block,
                    edit_plugin_args, vis)
 
-  apply_eval_requests(rv, upd)
+  apply_eval_requests(rv, upd, vis)
 
   invisible()
 }
 
-apply_eval_requests <- function(rv, upd) {
+apply_eval_requests <- function(rv, upd, vis) {
 
   deltas <- upd[["sustain"]]
 
@@ -2171,6 +2158,10 @@ apply_eval_requests <- function(rv, upd) {
     }
 
     rv$claims(filter_empty(claims))
+
+    if (isTRUE(vis$gate() %in% names(deltas))) {
+      rv$gate_claimed(TRUE)
+    }
   }
 
   if (length(upd[["evaluate"]])) {
