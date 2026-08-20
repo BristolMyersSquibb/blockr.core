@@ -2153,6 +2153,12 @@ stacked_board <- function() {
 
 # Mirrors what bslib's accordion input reports: the panel values of the open
 # stacks, and NULL rather than an empty vector once none are open.
+# What core's own stack-gating callback holds: a claim like any other owner's,
+# under the label gate_stacks() takes from the board session.
+stack_claim <- function(rv, session) {
+  rv$claims()[[stack_gate_owner(session)]]
+}
+
 report_open_stacks <- function(session, ...) {
 
   ids <- c(...)
@@ -2177,13 +2183,13 @@ test_that("core requires the open stacks and every unstacked block", {
 
       # Nothing is gated until the accordion reports which stacks it rendered
       # open, so a board that renders a different UI is left alone entirely.
-      expect_false(gating_active(vis$required))
+      expect_false(gating_active(vis))
       expect_true(rv$needed())
 
       report_open_stacks(session, "s1")
       session$flushReact()
 
-      expect_setequal(required_now(vis$required), c("a", "b", "e"))
+      expect_setequal(stack_claim(rv, session), c("a", "b", "e"))
       expect_setequal(rv$needed(), c("a", "b", "e"))
 
       expect_true(block_visible("b", vis))
@@ -2225,7 +2231,7 @@ test_that("expanding a stack requires its blocks and collapsing parks them", {
       session$flushReact()
 
       expect_setequal(
-        required_now(vis$required),
+        stack_claim(rv, session),
         c("a", "b", "c", "d", "e")
       )
 
@@ -2235,12 +2241,12 @@ test_that("expanding a stack requires its blocks and collapsing parks them", {
       report_open_stacks(session, "s2")
       session$flushReact()
 
-      expect_setequal(required_now(vis$required), c("c", "d", "e"))
+      expect_setequal(stack_claim(rv, session), c("c", "d", "e"))
       expect_setequal(rv$needed(), c("c", "d", "e"))
 
       # Parked rather than dropped: still built, so re-expanding shows them
       # without a rebuild.
-      expect_setequal(ever_required(vis$required), board_block_ids(rv$board))
+      expect_setequal(names(rv$blocks), board_block_ids(rv$board))
       expect_true(constructed("a"))
 
       expect_false(block_visible("a", vis))
@@ -2265,12 +2271,12 @@ test_that("a fully collapsed accordion is not read as one yet to report", {
 
       # Both states read as a NULL input: the accordion yet to report, and the
       # user having collapsed everything.
-      expect_false(gating_active(vis$required))
+      expect_false(gating_active(vis))
 
       report_open_stacks(session)
       session$flushReact()
 
-      expect_setequal(required_now(vis$required), "e")
+      expect_setequal(stack_claim(rv, session), "e")
       expect_setequal(rv$needed(), "e")
     },
     args = list(x = board, plugins = list())
@@ -2299,7 +2305,7 @@ test_that("a board without stacks requires every block", {
       report_open_stacks(session)
       session$flushReact()
 
-      expect_setequal(required_now(vis$required), c("a", "b"))
+      expect_setequal(stack_claim(rv, session), c("a", "b"))
 
       expect_true(evaluated("b"))
       expect_true(rendered("b"))
@@ -2327,7 +2333,7 @@ test_that("the gate_visibility option disables stack gating", {
       report_open_stacks(session, "s1")
       session$flushReact()
 
-      expect_false(gating_active(vis$required))
+      expect_false(gating_active(vis))
       expect_true(rv$needed())
 
       for (id in c("a", "b", "c", "d", "e")) {
@@ -2405,7 +2411,7 @@ test_that("a front-end's own callbacks displace core's stack tracking", {
 
       # The board renders stacks and the option is on, yet core tracks nothing:
       # what gates is whatever the supplied callbacks do.
-      expect_false(gating_active(vis$required))
+      expect_false(gating_active(vis))
       expect_true(rv$needed())
 
       for (id in c("a", "b", "c", "d", "e")) {
