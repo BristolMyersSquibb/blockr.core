@@ -87,3 +87,10 @@ into/from stacks via \code{add_block_to_stack()}/\code{remove_block_from_stack()
 All are S3 generics with implementations for \code{board} and alternative
 implementation may be provided for board sub-classes.
 }
+\details{
+The accordion container carries the board-namespaced ID \code{stacks}, which is
+what makes \code{\link[bslib:accordion]{bslib::accordion()}} wire it as a Shiny input reporting the
+stacks a user has expanded, which is what \code{\link[=gate_stacks]{gate_stacks()}} reads back to
+gate evaluation and rendering (see \code{\link[=board_server]{board_server()}}). A board whose
+\code{stack_ui()} method renders no such input is simply never gated by it.
+}

@@ -125,13 +125,21 @@ board_server <- function(id, x, ...) {
 #' callback also receives the `update` channel (see [board_update]), through
 #' which it can request block evaluation or construction (see the Evaluation
 #' requests and Construction requests sections).
+#'
+#' Core's own front-end drives these channels through a callback like any
+#' other: `gate_stacks()` reads the stack accordion (see [stack_ui()]) and is
+#' the default, so a board that renders core's UI gates on its stacks and one
+#' that does not is left alone -- it passes its own callbacks, and the
+#' accordion input the callback waits on is never bound. A consumer that wants
+#' both keeps it in the list rather than replacing it --
+#' `callbacks = list(gate_stacks(), my_callback)`.
 #' @param callback_location Location of callback invocation (before or after
 #' plugins)
 #' @rdname board_server
 #' @export
 board_server.board <- function(id, x, plugins = board_plugins(x),
                                options = board_options(x),
-                               callbacks = list(),
+                               callbacks = gate_stacks(),
                                callback_location = c("end", "start"),
                                ...) {
 

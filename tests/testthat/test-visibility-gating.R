@@ -2023,3 +2023,289 @@ test_that("a downstream input recovers an upstream built after it ran", {
     }
   )
 })
+
+stacked_board <- function() {
+  new_board(
+    blocks = c(
+      a = with_id(probe_source(), "a"),
+      b = with_id(probe_passthrough(), "b"),
+      c = with_id(probe_source(), "c"),
+      d = with_id(probe_passthrough(), "d"),
+      e = with_id(probe_source(), "e")
+    ),
+    links = links(
+      new_link(from = "a", to = "b"),
+      new_link(from = "c", to = "d")
+    ),
+    stacks = list(s1 = c("a", "b"), s2 = c("c", "d"))
+  )
+}
+
+# Mirrors what bslib's accordion input reports: the panel values of the open
+# stacks, and NULL rather than an empty vector once none are open.
+report_open_stacks <- function(session, ...) {
+
+  ids <- c(...)
+
+  session$setInputs(
+    stacks = if (length(ids)) chr_ply(paste0("stack_", ids), session$ns)
+  )
+}
+
+test_that("core requires the open stacks and every unstacked block", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- stacked_board()
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      # Nothing is gated until the accordion reports which stacks it rendered
+      # open, so a board that renders a different UI is left alone entirely.
+      expect_false(gating_active(vis$required))
+      expect_true(rv$needed())
+
+      report_open_stacks(session, "s1")
+      session$flushReact()
+
+      expect_setequal(required_now(vis$required), c("a", "b", "e"))
+      expect_setequal(rv$needed(), c("a", "b", "e"))
+
+      expect_true(block_visible("b", vis))
+      expect_false(block_visible("c", vis))
+      expect_false(block_visible("d", vis))
+
+      # A mock session has no client until the test plays one, so the blocks of
+      # the collapsed stack have already run by now -- what a real session
+      # never does, since the accordion has reported before the callback is set
+      # up (the browser test below covers that). What is pinned here is that
+      # they stop: nothing pulls them again once the report lands.
+      reset_probes()
+      session$flushReact()
+
+      expect_false(evaluated("c"))
+      expect_false(rendered("c"))
+
+      expect_false(evaluated("d"))
+      expect_false(rendered("d"))
+    },
+    args = list(x = board, plugins = list())
+  )
+})
+
+test_that("expanding a stack requires its blocks and collapsing parks them", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- stacked_board()
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      report_open_stacks(session, "s1", "s2")
+      session$flushReact()
+
+      expect_setequal(
+        required_now(vis$required),
+        c("a", "b", "c", "d", "e")
+      )
+
+      expect_true(evaluated("c"))
+      expect_true(rendered("d"))
+
+      report_open_stacks(session, "s2")
+      session$flushReact()
+
+      expect_setequal(required_now(vis$required), c("c", "d", "e"))
+      expect_setequal(rv$needed(), c("c", "d", "e"))
+
+      # Parked rather than dropped: still built, so re-expanding shows them
+      # without a rebuild.
+      expect_setequal(ever_required(vis$required), board_block_ids(rv$board))
+      expect_true(constructed("a"))
+
+      expect_false(block_visible("a", vis))
+      expect_false(block_visible("b", vis))
+    },
+    args = list(x = board, plugins = list())
+  )
+})
+
+test_that("a fully collapsed accordion is not read as one yet to report", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- stacked_board()
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      # Both states read as a NULL input: the accordion yet to report, and the
+      # user having collapsed everything.
+      expect_false(gating_active(vis$required))
+
+      report_open_stacks(session)
+      session$flushReact()
+
+      expect_setequal(required_now(vis$required), "e")
+      expect_setequal(rv$needed(), "e")
+    },
+    args = list(x = board, plugins = list())
+  )
+})
+
+test_that("a board without stacks requires every block", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- new_board(
+    blocks = c(
+      a = with_id(probe_source(), "a"),
+      b = with_id(probe_passthrough(), "b")
+    ),
+    links = links(new_link(from = "a", to = "b"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      report_open_stacks(session)
+      session$flushReact()
+
+      expect_setequal(required_now(vis$required), c("a", "b"))
+
+      expect_true(evaluated("b"))
+      expect_true(rendered("b"))
+    },
+    args = list(x = board, plugins = list())
+  )
+})
+
+test_that("the gate_visibility option disables stack gating", {
+
+  reset_probes()
+
+  withr::local_options(
+    blockr.gate_visibility = FALSE,
+    blockr.background_construction_delay = 0
+  )
+
+  board <- stacked_board()
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      report_open_stacks(session, "s1")
+      session$flushReact()
+
+      expect_false(gating_active(vis$required))
+      expect_true(rv$needed())
+
+      for (id in c("a", "b", "c", "d", "e")) {
+        expect_true(evaluated(id))
+        expect_true(rendered(id))
+      }
+    },
+    args = list(x = board, plugins = list())
+  )
+})
+
+test_that("collapsing a stack parks its blocks in the browser", {
+
+  skip_on_cran()
+
+  app_path <- system.file("examples", "board", "gate", "app.R",
+                          package = "blockr.core")
+
+  app <- try(
+    shinytest2::AppDriver$new(
+      app_path,
+      name = "gate",
+      seed = 42,
+      load_timeout = 30 * 1000
+    )
+  )
+
+  testthat::skip_if(
+    inherits(app, "try-error"),
+    "Cannot start shinytest2 stack gating app."
+  )
+
+  on.exit(app$stop())
+
+  # What bslib reports is the panel `data-value`, which core rebuilds from the
+  # stack IDs it holds -- a round trip no mock session exercises.
+  expect_identical(app$get_value(export = "my_board-status_b"), "ready")
+  expect_identical(app$get_value(export = "my_board-status_d"), "dormant")
+
+  expect_identical(app$get_text("#my_board-block_d-result"), "")
+
+  app$click(
+    selector = "#stack-accordion-item-my_board-stack_s2 .accordion-button"
+  )
+
+  expect_identical(
+    app$wait_for_value(export = "my_board-status_d", ignore = list("dormant")),
+    "ready"
+  )
+
+  expect_match(app$get_text("#my_board-block_d-result"), "Chick", fixed = TRUE)
+
+  app$click(
+    selector = "#stack-accordion-item-my_board-stack_s1 .accordion-button"
+  )
+
+  expect_identical(
+    app$wait_for_value(export = "my_board-status_b", ignore = list("ready")),
+    "dormant"
+  )
+})
+
+test_that("a front-end's own callbacks displace core's stack tracking", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- stacked_board()
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      # The board renders stacks and the option is on, yet core tracks nothing:
+      # what gates is whatever the supplied callbacks do.
+      expect_false(gating_active(vis$required))
+      expect_true(rv$needed())
+
+      for (id in c("a", "b", "c", "d", "e")) {
+        expect_true(evaluated(id))
+      }
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(...) NULL
+    )
+  )
+})

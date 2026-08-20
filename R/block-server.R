@@ -92,6 +92,20 @@
 #' `gate_visibility` [blockr_option()] (default `TRUE`) turns gating off
 #' entirely.
 #'
+#' Core's own board UI drives those channels through a callback, on the same
+#' footing as a front-end rather than built into the board server. Stacks
+#' render as a [bslib::accordion()] which opens one stack and collapses the
+#' rest (see [stack_ui()]), so on a stacked board part of what is on screen is
+#' hidden from the first render and any stack can be collapsed afterwards.
+#' `gate_stacks()` reads that accordion back, marking the blocks of every open
+#' stack plus every unstacked block required and parking the rest, so
+#' collapsing a stack stops its blocks evaluating and expanding one starts them
+#' again. It is [board_server()]'s default `callbacks` value, and it gates
+#' nothing until the accordion has reported, so a board driven by another
+#' front-end -- which passes its own callbacks, and whose UI never binds that
+#' input anyway -- is left alone. Turning it off is the `gate_visibility`
+#' option above, which already governs whether anything gates at all.
+#'
 #' The same bundle carries a third channel, `frozen`, through which a
 #' front-end reports the blocks whose inputs it has hidden (for example a
 #' locked board that shows outputs but not controls). While frozen a block is
