@@ -1871,9 +1871,25 @@ validate_board_update_stacks <- function(x, board) {
     all_stks <- all_stks[setdiff(names(all_stks), x$rm)]
   }
 
+  cur_ids <- names(all_stks)
+
+  # Membership as plain vectors, so the disjointness check below can be made
+  # against the state this update LEAVES. `mod` deltas are partial constructor
+  # arguments, so `blocks` is the only key that says anything about it -- named
+  # but empty means an emptied stack, which is why the test is on the NAME.
+  memb <- lapply(all_stks, stack_blocks)
+
+  if (has_comp("mod", x)) {
+    for (id in intersect(names(x$mod), names(memb))) {
+      if ("blocks" %in% names(x$mod[[id]])) {
+        memb[[id]] <- as.character(unlist(x$mod[[id]][["blocks"]]))
+      }
+    }
+  }
+
   if (has_comp("add", x)) {
 
-    if (any(names(x$add) %in% names(all_stks))) {
+    if (any(names(x$add) %in% cur_ids)) {
       blockr_abort(
         "Expecting the newly added stacks to have a unique ID.",
         class = "board_update_stacks_add_invalid"
@@ -1889,12 +1905,26 @@ validate_board_update_stacks <- function(x, board) {
 
     validate_stacks(x$add)
 
-    all_stks <- c(all_stks, x$add)
+    # NOT `c(all_stks, x$add)`: concatenating validates the RAW union, so a
+    # block moving into a new stack -- leaving its old one through a `mod` in
+    # the same update -- would be rejected for sitting in two at once. That
+    # board is one `apply_board_update()` never builds: it removes, then
+    # modifies, then adds. The move has to travel as one update (an
+    # intermediate board with the block in neither, or in both, does not
+    # validate either), so the check is on the post-`mod` membership.
+    if (!stack_blocks_unique(c(memb, lapply(x$add, stack_blocks)))) {
+      blockr_abort(
+        "Blocks cannot be in mutliple stacks at the same time.",
+        class = "stacks_blocks_invalid"
+      )
+    }
+
+    cur_ids <- c(cur_ids, names(x$add))
   }
 
   if (has_comp("mod", x)) {
 
-    validate_mod_deltas(x$mod, names(all_stks), "stacks")
+    validate_mod_deltas(x$mod, cur_ids, "stacks")
   }
 
   invisible()

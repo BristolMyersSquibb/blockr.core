@@ -802,6 +802,36 @@ test_that("update validation", {
     class = "board_block_stack_name_mismatch"
   )
 
+  # blocks moving into a NEW stack leave their old one in the same update: an
+  # intermediate board with them in both never exists, so validation reads the
+  # membership `mod` leaves behind rather than the raw union
+  expect_silent(
+    validate_board_update(
+      list(
+        stacks = list(
+          mod = list(one = list(blocks = "b")),
+          add = stacks(two = "a")
+        )
+      ),
+      new_board(
+        blocks(a = new_dataset_block(), b = new_dataset_block()),
+        stacks = stacks(one = c("a", "b"))
+      )
+    )
+  )
+
+  # ...and one that does NOT free them is still a block in two stacks
+  expect_error(
+    validate_board_update(
+      list(stacks = list(add = stacks(two = "a"))),
+      new_board(
+        blocks(a = new_dataset_block(), b = new_dataset_block()),
+        stacks = stacks(one = c("a", "b"))
+      )
+    ),
+    class = "stacks_blocks_invalid"
+  )
+
   expect_error(
     validate_board_update(
       list(sustain = list(list(set = "a"))),
