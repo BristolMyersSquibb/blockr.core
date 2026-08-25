@@ -64,6 +64,7 @@ Suggests:
     tibble,
     DT
 Config/testthat/edition: 3
+Config/Needs/roxygenize: roxy.shinylive
 VignetteBuilder: quarto
 Collate:
     'arg-spec.R'
