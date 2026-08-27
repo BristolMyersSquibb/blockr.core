@@ -2141,6 +2141,37 @@ test_that("expanding a stack requires its blocks and collapsing parks them", {
   )
 })
 
+test_that("a dormant block stays quiescent when its result is read", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- stacked_board()
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      report_open_stacks(session, "s1")
+      session$flushReact()
+
+      reset_probes()
+
+      # The needed set otherwise reaches a block through its data reads, which
+      # a source block has none of: reading `c` evaluated it, where the same
+      # read on `d` settles on NULL through its unfulfilled inputs.
+      expect_null(isolate(rv$blocks[["c"]]$server$result()))
+      expect_null(isolate(rv$blocks[["d"]]$server$result()))
+
+      expect_false(evaluated("c"))
+      expect_false(evaluated("d"))
+    },
+    args = list(x = board, plugins = list())
+  )
+})
+
 test_that("a fully collapsed accordion is not read as one yet to report", {
 
   reset_probes()
@@ -2259,6 +2290,13 @@ test_that("collapsing a stack parks its blocks in the browser", {
   )
 
   on.exit(app$stop())
+
+  # The collapsed stack's data block never runs, not even once: what core
+  # renders open is declared before the first flush rather than waited for.
+  expect_identical(
+    app$get_value(export = "my_board-evaluated"),
+    "datasets::BOD"
+  )
 
   # What bslib reports is the panel `data-value`, which core rebuilds from the
   # stack IDs it holds -- a round trip no mock session exercises.

@@ -2,6 +2,17 @@ library(blockr.core)
 
 options(blockr.background_construction_delay = 0)
 
+evaluated <- new.env()
+evaluated$exprs <- character()
+
+registerS3method(
+  "block_eval", "dataset_block",
+  function(x, expr, env, ...) {
+    evaluated$exprs <- c(evaluated$exprs, deparse1(expr))
+    NextMethod()
+  }
+)
+
 serve(
   new_board(
     blocks = c(
@@ -22,6 +33,7 @@ serve(
     function(board, ...) {
 
       shiny::exportTestValues(
+        evaluated = paste(sort(unique(evaluated$exprs)), collapse = " "),
         status_b = reval_if(board$eval[["b"]]),
         status_d = reval_if(board$eval[["d"]])
       )

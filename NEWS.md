@@ -9,6 +9,12 @@
   `gate_stacks()` declares it as the board server is set up, leaving the
   client's report to refine that rather than establish it. A board with no
   stacks binds no accordion input and is left ungated, as before (#343).
+* A dormant block with no data inputs is now as quiescent as any other. The
+  needed set reaches a block through its data reads, of which a source block
+  has none, so anything reading its result -- the block card's summary, for
+  one -- evaluated it while parked. Such a block now reports a `NULL` result
+  while it is not needed, which is where a dormant block with inputs already
+  lands through its unfulfilled data (#343).
 * Core's own board UI now drives visibility, through a board callback like any
   other front-end rather than from inside the board server. Stacks render as an
   accordion which opens one stack and collapses the rest, so on a stacked board

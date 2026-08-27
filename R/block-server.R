@@ -376,8 +376,14 @@ block_server.block <- function(id, x, data = list(), block_id = id,
 
       res <- reactive(
         {
-          if (!isTRUE(reval_if(gate)) || !isTRUE(data_valid()) ||
-                !isTRUE(state_ready())) {
+          # The needed set otherwise reaches a block only through its data
+          # reads (see upstream_result()), which leaves one with no data inputs
+          # ungated: any reader of its result -- the card summary, say --
+          # evaluates it while dormant. Reported as a `NULL` result, which is
+          # what a dormant block with inputs already settles on through
+          # `data_valid()` below.
+          if (!isTRUE(needed()) || !isTRUE(reval_if(gate)) ||
+                !isTRUE(data_valid()) || !isTRUE(state_ready())) {
             return(NULL)
           }
 
