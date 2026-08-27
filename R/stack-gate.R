@@ -4,10 +4,35 @@ gate_stacks <- function() {
 
   function(board, visibility, session = get_session(), ...) {
 
+    brd <- isolate(board$board)
+
+    # A stackless board renders an accordion that never binds as an input, so
+    # nothing would ever arrive to refine a declaration made on its behalf and
+    # it would stay parked for the session.
+    if (has_length(board_stack_ids(brd))) {
+      seed_open_stacks(brd, visibility)
+    }
+
     observe(show_open_stacks(board, visibility, session))
 
     NULL
   }
+}
+
+# Declared before the first flush, because a board with no gate declared is one
+# where every block is needed: a collapsed stack's blocks would otherwise
+# evaluate once in the window before the accordion reports. Paint stays the
+# client's to report -- claiming it here as well would let the construction
+# backlog build against first paint.
+seed_open_stacks <- function(board, vis) {
+
+  shown <- shown_block_ids(board, default_open_stacks(board_stacks(board)))
+
+  for (id in ls(vis$required)) {
+    vis$required[[id]](id %in% shown)
+  }
+
+  invisible()
 }
 
 show_open_stacks <- function(board, vis, session) {
@@ -15,8 +40,9 @@ show_open_stacks <- function(board, vis, session) {
   open <- session$input[["stacks"]]
 
   # Read before this returns, so the observer wakes when the accordion first
-  # reports. Until it does, core leaves every block alone: a board that renders
-  # its own UI never binds the accordion, and then nothing here should gate it.
+  # reports. Until it does, what stands is the declaration seeded above -- and
+  # for a board that renders its own UI and never binds the accordion, nothing
+  # at all.
   if (!stacks_reported(session)) {
     return(invisible())
   }

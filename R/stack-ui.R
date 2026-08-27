@@ -17,6 +17,9 @@
 #' stacks a user has expanded, which is what [gate_stacks()] reads back to
 #' gate evaluation and rendering (see [board_server()]). A board whose
 #' `stack_ui()` method renders no such input is simply never gated by it.
+#' Which stacks start open is stated here rather than left to
+#' [bslib::accordion()], so that the gate can declare the same set before the
+#' client has reported anything.
 #'
 #' @param id Parent namespace
 #' @param x Object
@@ -61,7 +64,10 @@ stack_ui.board <- function(id, x, stacks = NULL, edit_ui = NULL, ...) {
     do.call(
       bslib::accordion,
       c(
-        list(id = cont_id),
+        list(
+          id = cont_id,
+          open = chr_ply(paste0("stack_", default_open_stacks(stacks)), ns)
+        ),
         map(
           stack_ui,
           chr_ply(paste0("stack_", names(stacks)), ns),
@@ -77,6 +83,13 @@ stack_ui.board <- function(id, x, stacks = NULL, edit_ui = NULL, ...) {
       script = "moveBlockUi.js"
     )
   )
+}
+
+# Stated rather than left to bslib, which opens the first panel of an accordion
+# it is not told about, so that gate_stacks() can declare the same set without
+# waiting for the client to report it.
+default_open_stacks <- function(x) {
+  utils::head(names(x), 1L)
 }
 
 #' @rdname stack_ui

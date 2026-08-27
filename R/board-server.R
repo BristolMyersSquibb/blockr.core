@@ -129,10 +129,12 @@ board_server <- function(id, x, ...) {
 #' Core's own front-end drives these channels through a callback like any
 #' other: `gate_stacks()` reads the stack accordion (see [stack_ui()]) and is
 #' the default, so a board that renders core's UI gates on its stacks and one
-#' that does not is left alone -- it passes its own callbacks, and the
-#' accordion input the callback waits on is never bound. A consumer that wants
-#' both keeps it in the list rather than replacing it --
-#' `callbacks = list(gate_stacks(), my_callback)`.
+#' that does not is left alone -- it passes its own callbacks. A consumer that
+#' wants both keeps it in the list rather than replacing it --
+#' `callbacks = list(gate_stacks(), my_callback)`, which is for a front-end
+#' that does render the accordion: on a stacked board the gate declares the
+#' initially open stacks before the first flush and reads that input only to
+#' refine the declaration.
 #' @param callback_location Location of callback invocation (before or after
 #' plugins)
 #' @rdname board_server
