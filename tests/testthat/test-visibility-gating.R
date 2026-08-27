@@ -2338,7 +2338,7 @@ test_that("a board without stacks requires every block", {
       # An accordion with no panels binds no input, so there would be nothing
       # to refine a declaration made here -- it is left ungated instead, which
       # costs nothing on a board where every block is unstacked anyway.
-      expect_false(gating_active(vis$required))
+      expect_false(gating_active(vis))
       expect_true(rv$needed())
 
       report_open_stacks(session)
