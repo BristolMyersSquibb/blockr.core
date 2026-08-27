@@ -94,7 +94,8 @@ new_merge_block <- function(by = character(), all_x = FALSE, all_y = FALSE,
         selectInput(
           inputId = NS(id, "by"),
           label = "By columns",
-          choices = list(),
+          choices = by,
+          selected = by,
           multiple = TRUE
         ),
         checkboxGroupInput(

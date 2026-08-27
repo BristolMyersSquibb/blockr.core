@@ -32,3 +32,25 @@ test_that("merge block constructor", {
     )
   )
 })
+
+test_that("merge block ui carries by", {
+
+  selected_by <- function(blk) {
+
+    opts <- htmltools::tagQuery(expr_ui("blk", blk))$find(
+      "#blk-expr-by"
+    )$selectedTags()[[1L]]$children[[1L]]
+
+    regmatches(
+      opts,
+      gregexpr("(?<=value=\")[^\"]+(?=\"[^>]*selected)", opts, perl = TRUE)
+    )[[1L]]
+  }
+
+  expect_identical(selected_by(new_merge_block()), character())
+
+  expect_identical(
+    selected_by(new_merge_block(by = c("name", "plays"))),
+    c("name", "plays")
+  )
+})
