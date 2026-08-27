@@ -17,6 +17,17 @@
 #' are provided as S3 generics with implementations for `board` and can be
 #' extended if so desired.
 #'
+#' Which blocks the initial page UI carries is the front-end's to decide, and
+#' `initial_block_ids()` is where it says so: the set named there is what
+#' `board_ui()` paints up front, with the `board` method answering every block.
+#' A front-end that paints fewer inserts the rest later through
+#' `insert_block_ui()`, the single verb by which a block's UI enters the DOM --
+#' at a first visit to an area built off screen just as when a block is added
+#' at runtime. The board server seeds its build ledger from the same
+#' declaration and marks a block built as it inserts one, so the set is stated
+#' once rather than repeated server-side; see [board_server()] for that ledger
+#' and for what a front-end that builds UI of its own owes it.
+#'
 #' @param id Namespace ID
 #' @param x Board
 #' @param ... Generic consistency
@@ -26,6 +37,7 @@
 #' (`insert_block_ui()` and `remove_block_ui()`) are called for their side
 #' effects (which includes UI updates such as [shiny::insertUI()],
 #' [shiny::removeUI()]) and return the board object passed as `x` invisibly.
+#' An `initial_block_ids()` method returns a character vector of block IDs.
 #'
 #' @export
 board_ui <- function(id, x, ...) {
@@ -48,6 +60,7 @@ board_ui.board <- function(id, x, plugins = board_plugins(x), options = NULL,
       block_ui(
         id,
         x,
+        initial_block_ids(x),
         edit_ui = get_plugin("edit_block", plugins),
         ctrl_ui = get_plugin("ctrl_block", plugins)
       )
@@ -137,6 +150,18 @@ block_ui.board <- function(id, x, blocks = NULL, edit_ui = NULL, ctrl_ui = NULL,
       map(block_card, blocks, names(blocks), MoreArgs = args)
     )
   )
+}
+
+#' @rdname board_ui
+#' @export
+initial_block_ids <- function(x, ...) {
+  UseMethod("initial_block_ids", x)
+}
+
+#' @rdname board_ui
+#' @export
+initial_block_ids.board <- function(x, ...) {
+  board_block_ids(x)
 }
 
 #' @param blocks (Additional) blocks (or IDs) for which to generate the UI

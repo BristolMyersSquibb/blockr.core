@@ -5,6 +5,8 @@
 \alias{board_ui}
 \alias{board_ui.board}
 \alias{board_ui.NULL}
+\alias{initial_block_ids}
+\alias{initial_block_ids.board}
 \alias{insert_block_ui}
 \alias{insert_block_ui.board}
 \alias{remove_block_ui}
@@ -20,6 +22,10 @@ board_ui(id, x, ...)
 \method{board_ui}{board}(id, x, plugins = board_plugins(x), options = NULL, ...)
 
 \method{board_ui}{`NULL`}(id, x, ...)
+
+initial_block_ids(x, ...)
+
+\method{initial_block_ids}{board}(x, ...)
 
 insert_block_ui(id, x, blocks = NULL, ..., session = get_session())
 
@@ -55,6 +61,7 @@ A \code{board_ui()} implementation is expected to return \link[shiny:tag]{shiny:
 (\code{insert_block_ui()} and \code{remove_block_ui()}) are called for their side
 effects (which includes UI updates such as \code{\link[shiny:insertUI]{shiny::insertUI()}},
 \code{\link[shiny:removeUI]{shiny::removeUI()}}) and return the board object passed as \code{x} invisibly.
+An \code{initial_block_ids()} method returns a character vector of block IDs.
 }
 \description{
 As counterpart to \code{\link[=board_server]{board_server()}}, \code{board_ui()} is responsible for rendering
@@ -74,4 +81,15 @@ Dynamic UI updates are handled by functions \code{insert_block_ui()} and
 from \code{board} UI, whenever blocks are added or removed. These update functions
 are provided as S3 generics with implementations for \code{board} and can be
 extended if so desired.
+
+Which blocks the initial page UI carries is the front-end's to decide, and
+\code{initial_block_ids()} is where it says so: the set named there is what
+\code{board_ui()} paints up front, with the \code{board} method answering every block.
+A front-end that paints fewer inserts the rest later through
+\code{insert_block_ui()}, the single verb by which a block's UI enters the DOM --
+at a first visit to an area built off screen just as when a block is added
+at runtime. The board server seeds its build ledger from the same
+declaration and marks a block built as it inserts one, so the set is stated
+once rather than repeated server-side; see \code{\link[=board_server]{board_server()}} for that ledger
+and for what a front-end that builds UI of its own owes it.
 }

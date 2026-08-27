@@ -96,12 +96,34 @@
 #' the work `background_construction_delay` otherwise paces out. A caller that
 #' wants that pacing sends several smaller payloads rather than one.
 #'
+#' @section Block UI build ledger:
+#' The `visible` channel carries three states, and the middle one is a ledger of
+#' which blocks have UI in the DOM: `NA` for a block whose UI was never built,
+#' `FALSE` for one built but not on screen and `TRUE` for one the front-end
+#' reports painted. Only the last opens the render gate; the other two are what
+#' a front-end that builds block UI lazily needs in order to tell what is left
+#' to build. Reading them back is `built_block_ids()`, the set of blocks whose
+#' UI exists. That read is isolated, so a caller can take it from inside an
+#' observer without depending on every block's slot.
+#'
+#' Core keeps the ledger for the UI it puts in the page itself: the blocks named
+#' by `initial_block_ids()` (see [board_ui()]) are marked built as the board
+#' server starts, and a block added at runtime is marked built once
+#' `insert_block_ui()` has returned. A front-end that builds block UI of its own
+#' owes the ledger the same report -- `visibility$visible[[id]](FALSE)` as that
+#' UI enters the DOM -- and core may rely on it. Marking is one-way: a block
+#' already in the ledger is left as it stands, so nothing demotes a painted
+#' block back to unbuilt.
+#'
 #' @param x Board
 #' @param id Parent namespace
+#' @param visibility Per-block visibility channels, as handed to a board
+#' callback
 #' @param ... Generic consistency
 #'
 #' @return A `board_server()` implementation (such as the default for the
-#' `board` base class) is expected to return a [shiny::moduleServer()].
+#' `board` base class) is expected to return a [shiny::moduleServer()], while
+#' `built_block_ids()` returns a character vector of block IDs.
 #'
 #' @export
 board_server <- function(id, x, ...) {
@@ -118,13 +140,14 @@ board_server <- function(id, x, ...) {
 #' removed). Declare a block needed with `visibility$required[[id]](TRUE)` (or
 #' `FALSE` for built but dormant) and report whether it is currently painted
 #' with `visibility$visible[[id]](TRUE)` (or `FALSE` once built but off screen,
-#' leaving `NA` until it is first built); the board reads both to gate
-#' construction, evaluation and rendering. Set
-#' `visibility$frozen[[id]](TRUE)` to freeze a block's inputs (for example when
-#' its controls are hidden), so a forged input can no longer steer it. A
-#' callback also receives the `update` channel (see [board_update]), through
-#' which it can request block evaluation or construction (see the Evaluation
-#' requests and Construction requests sections).
+#' leaving `NA` until it is first built, see the Block UI build ledger
+#' section); the board reads both to gate construction, evaluation and
+#' rendering. Set `visibility$frozen[[id]](TRUE)` to freeze a block's inputs
+#' (for example when its controls are hidden), so a forged input can no longer
+#' steer it. A callback also receives the `update` channel (see
+#' [board_update]), through which it can request block evaluation or
+#' construction (see the Evaluation requests and Construction requests
+#' sections).
 #'
 #' Core's own front-end drives these channels through a callback like any
 #' other: `gate_stacks()` reads the stack accordion (see [stack_ui()]) and is
@@ -186,6 +209,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
       )
 
       add_vis_slots(vis, isolate(board_block_ids(rv$board)))
+      mark_ui_built(vis, initial_block_ids(x))
 
       rv_ro <- list(board = make_read_only(rv))
 
@@ -793,6 +817,23 @@ rm_vis_slots <- function(vis, ids) {
   invisible()
 }
 
+#' @rdname board_server
+#' @export
+built_block_ids <- function(visibility) {
+  isolate(declared_ids(visibility$visible))
+}
+
+mark_ui_built <- function(vis, ids) {
+
+  for (id in intersect(ids, ls(vis$visible))) {
+    if (is.na(isolate(vis$visible[[id]]()))) {
+      vis$visible[[id]](FALSE)
+    }
+  }
+
+  invisible()
+}
+
 gating_active <- function(required) {
   isTRUE(blockr_option("gate_visibility", TRUE)) && has_required(required)
 }
@@ -802,12 +843,16 @@ has_required <- function(required) {
 }
 
 ever_required <- function(required) {
-  ids <- ls(required)
-  ids[lgl_ply(ids, slot_declared, required)]
+  declared_ids(required)
 }
 
-slot_declared <- function(id, required) {
-  !is.na(required[[id]]())
+declared_ids <- function(slots) {
+  ids <- ls(slots)
+  ids[lgl_ply(ids, slot_declared, slots)]
+}
+
+slot_declared <- function(id, slots) {
+  !is.na(slots[[id]]())
 }
 
 required_now <- function(required) {
@@ -2112,6 +2157,8 @@ apply_core_board_update <- function(rv, upd, session,
         )
       )
     )
+
+    mark_ui_built(vis, names(upd[["blocks"]]$add))
 
     construct_blocks(names(upd[["blocks"]]$add), rv, edit_block, ctrl_block,
                      edit_plugin_args, vis)
