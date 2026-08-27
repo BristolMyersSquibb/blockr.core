@@ -1,7 +1,7 @@
 make_vis <- function(ids, frozen = character()) {
 
   vis <- list(
-    required = new.env(parent = emptyenv()),
+    gate = reactiveVal(NULL),
     visible = new.env(parent = emptyenv()),
     frozen = new.env(parent = emptyenv())
   )

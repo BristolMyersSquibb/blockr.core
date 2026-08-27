@@ -191,11 +191,32 @@ constructed <- function(id) {
   id %in% probe_construct$ids
 }
 
-require_blocks <- function(vis, ...) {
+# The front-end under test: it declares itself the gating owner and states its
+# demand as a `sustain` claim under that label, exactly as any other consumer
+# would. Each helper writes the payload channel once, since a second write
+# before the next flush would clobber the first.
+front_end <- "front-end"
 
-  for (id in c(...)) {
-    vis$required[[id]](TRUE)
-  }
+claim <- function(...) {
+  set_names(list(list(...)), front_end)
+}
+
+gate_blocks <- function(vis, update, ...) {
+
+  vis$gate(front_end)
+  require_blocks(update, ...)
+}
+
+require_blocks <- function(update, ...) {
+
+  update(list(sustain = claim(add = c(...))))
+
+  invisible()
+}
+
+release_blocks <- function(update, ...) {
+
+  update(list(sustain = claim(rm = c(...))))
 
   invisible()
 }
@@ -209,14 +230,26 @@ render_blocks <- function(vis, ...) {
   invisible()
 }
 
-park_blocks <- function(vis, ...) {
+park_blocks <- function(update, vis, ...) {
+
+  release_blocks(update, ...)
 
   for (id in c(...)) {
-    vis$required[[id]](FALSE)
     vis$visible[[id]](FALSE)
   }
 
   invisible()
+}
+
+claimed <- function(rv) {
+  rv$claims()[[front_end]]
+}
+
+# The front-end holds a claim like any other owner, so a test about what
+# consumers hold reads past its entry rather than the whole set.
+consumer_claims <- function(rv) {
+  claims <- rv$claims()
+  claims[setdiff(names(claims), front_end)]
 }
 
 block_conditions <- function(rv, id, severity) {
@@ -278,7 +311,7 @@ test_that("a producer gates evaluation and rendering on visibility", {
     {
       session$flushReact()
 
-      expect_setequal(required_now(vis$required), "b")
+      expect_setequal(claimed(rv), "b")
 
       expect_true(evaluated("b"))
       expect_true(rendered("b"))
@@ -292,7 +325,7 @@ test_that("a producer gates evaluation and rendering on visibility", {
       expect_false(evaluated("d"))
       expect_false(rendered("d"))
 
-      require_blocks(vis, "c", "d")
+      require_blocks(board_update, "c", "d")
       render_blocks(vis, "c", "d")
       session$flushReact()
 
@@ -305,8 +338,8 @@ test_that("a producer gates evaluation and rendering on visibility", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "b")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "b")
         render_blocks(visibility, "b")
       }
     )
@@ -344,8 +377,8 @@ test_that("the gate_visibility option disables gating", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "b")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "b")
         render_blocks(visibility, "b")
       }
     )
@@ -395,8 +428,8 @@ test_that("a link change re-routes the pulled upstream", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "b")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "b")
         render_blocks(visibility, "b")
       }
     )
@@ -408,8 +441,6 @@ test_that("a needed round trip with unchanged inputs does not re-evaluate", {
   reset_probes()
 
   withr::local_options(blockr.background_construction_delay = 0)
-
-  vis_env <- NULL
 
   board <- new_board(
     blocks = c(
@@ -431,13 +462,13 @@ test_that("a needed round trip with unchanged inputs does not re-evaluate", {
 
       # Park the chain, as a view switch whose visibility updates land across
       # several flushes does: b goes un-needed, taking a with it ...
-      vis_env$required[["b"]](FALSE)
+      release_blocks(board_update, "b")
       session$flushReact()
 
       # ... and comes back. Nothing upstream changed, so nothing re-evaluates:
       # the unchanged-inputs guard returns the cached results instead of
       # re-running the block expressions.
-      vis_env$required[["b"]](TRUE)
+      require_blocks(board_update, "b")
       session$flushReact()
 
       expect_false(evaluated("a"))
@@ -446,9 +477,8 @@ test_that("a needed round trip with unchanged inputs does not re-evaluate", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        vis_env <<- visibility
-        require_blocks(visibility, "b")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "b")
         render_blocks(visibility, "b")
       }
     )
@@ -485,7 +515,7 @@ test_that("a dormant block reports stale when an upstream re-evaluates", {
 
       # Park r off-screen: it drops out of the eval set and goes dormant, while
       # a stays required (its panel is still open).
-      vis$required[["r"]](FALSE)
+      release_blocks(board_update, "r")
       session$flushReact()
 
       expect_identical(rv$eval[["r"]](), "dormant")
@@ -513,8 +543,8 @@ test_that("a dormant block reports stale when an upstream re-evaluates", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "a", "r")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "a", "r")
         render_blocks(visibility, "a", "r")
       }
     )
@@ -549,8 +579,7 @@ test_that("a dormant block whose upstreams are unchanged stays dormant", {
       # Park the whole chain, as a view switch does: r and its upstream a both
       # go dormant. a's last result survives dormancy, so r's cached input still
       # matches and r is not stale.
-      vis$required[["a"]](FALSE)
-      vis$required[["r"]](FALSE)
+      release_blocks(board_update, "a", "r")
       session$flushReact()
 
       expect_identical(rv$eval[["a"]](), "dormant")
@@ -559,8 +588,8 @@ test_that("a dormant block whose upstreams are unchanged stays dormant", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "a", "r")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "a", "r")
         render_blocks(visibility, "a", "r")
       }
     )
@@ -596,8 +625,7 @@ test_that("staleness propagates to the whole dormant downstream cone", {
       expect_identical(rv$eval[["r"]](), "ready")
 
       # Park b and r off-screen; a stays required so it re-evaluates below.
-      vis$required[["b"]](FALSE)
-      vis$required[["r"]](FALSE)
+      release_blocks(board_update, "b", "r")
       session$flushReact()
 
       expect_identical(rv$eval[["b"]](), "dormant")
@@ -622,8 +650,8 @@ test_that("staleness propagates to the whole dormant downstream cone", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "a", "b", "r")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "a", "b", "r")
         render_blocks(visibility, "a", "b", "r")
       }
     )
@@ -653,7 +681,7 @@ test_that("re-routing a dormant block's input marks it stale", {
       expect_identical(rv$eval[["r"]](), "ready")
 
       # Park r; a and b stay required (both ready).
-      vis$required[["r"]](FALSE)
+      release_blocks(board_update, "r")
       session$flushReact()
 
       expect_identical(rv$eval[["r"]](), "dormant")
@@ -675,8 +703,8 @@ test_that("re-routing a dormant block's input marks it stale", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "a", "b", "r")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "a", "b", "r")
         render_blocks(visibility, "a", "b", "r")
       }
     )
@@ -703,7 +731,7 @@ test_that("a stale block that re-evaluates is dormant when parked again", {
     {
       session$flushReact()
 
-      vis$required[["r"]](FALSE)
+      release_blocks(board_update, "r")
       session$flushReact()
 
       board_update(
@@ -719,12 +747,12 @@ test_that("a stale block that re-evaluates is dormant when parked again", {
       # again, so parking it a second time leaves it dormant. Neither b's result
       # nor its status changed in between, so the verdict has to be recomputed
       # off r's own last evaluation.
-      require_blocks(vis, "r")
+      require_blocks(board_update, "r")
       session$flushReact()
 
       expect_identical(rv$eval[["r"]](), "ready")
 
-      vis$required[["r"]](FALSE)
+      release_blocks(board_update, "r")
       session$flushReact()
 
       expect_identical(rv$eval[["r"]](), "dormant")
@@ -732,8 +760,8 @@ test_that("a stale block that re-evaluates is dormant when parked again", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "a", "b", "r")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "a", "b", "r")
         render_blocks(visibility, "a", "b", "r")
       }
     )
@@ -770,7 +798,7 @@ test_that("an evaluation request brings a stale block current", {
 
       # Park the whole a -> r chain off screen, then re-route a to a different
       # dataset: neither re-evaluates, both report the break as stale.
-      park_blocks(vis, "a", "r")
+      park_blocks(board_update, vis, "a", "r")
       session$flushReact()
 
       board_update(
@@ -802,7 +830,7 @@ test_that("an evaluation request brings a stale block current", {
       # The request is spent, and nothing about what is on screen changed.
       expect_length(rv$evaluating(), 0L)
 
-      expect_false(vis$required[["r"]]())
+      expect_false("r" %in% claimed(rv))
       expect_false(vis$visible[["r"]]())
       expect_false(rendered("r"))
     },
@@ -811,7 +839,7 @@ test_that("an evaluation request brings a stale block current", {
       plugins = list(),
       callbacks = function(visibility, update, ...) {
         upd_channel <<- update
-        require_blocks(visibility, "s1", "s2", "a", "r")
+        gate_blocks(visibility, update, "s1", "s2", "a", "r")
         render_blocks(visibility, "s1", "s2", "a", "r")
       }
     )
@@ -848,7 +876,7 @@ test_that("an evaluation request evaluates a block edited while dormant", {
       expect_identical(rv$eval[["r"]](), "ready")
       expect_equal(nrow(block_conditions(rv, "r", "error")), 0L)
 
-      park_blocks(vis, "r")
+      park_blocks(board_update, vis, "r")
       session$flushReact()
 
       expect_identical(rv$eval[["r"]](), "dormant")
@@ -879,8 +907,8 @@ test_that("an evaluation request evaluates a block edited while dormant", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "s", "r")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "s", "r")
         render_blocks(visibility, "s", "r")
       }
     )
@@ -900,7 +928,7 @@ test_that("an edit and a request in one payload evaluate the edit", {
     {
       session$flushReact()
 
-      park_blocks(vis, "r")
+      park_blocks(board_update, vis, "r")
       session$flushReact()
 
       reset_probes()
@@ -923,8 +951,8 @@ test_that("an edit and a request in one payload evaluate the edit", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "s", "r")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "s", "r")
         render_blocks(visibility, "s", "r")
       }
     )
@@ -973,8 +1001,8 @@ test_that("an evaluation request builds the blocks it needs", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "s")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "s")
         render_blocks(visibility, "s")
       }
     )
@@ -1000,7 +1028,7 @@ test_that("a required claim holds a block until it is released", {
     {
       session$flushReact()
 
-      park_blocks(vis, "r")
+      park_blocks(board_update, vis, "r")
       session$flushReact()
 
       expect_identical(rv$eval[["r"]](), "dormant")
@@ -1016,7 +1044,7 @@ test_that("a required claim holds a block until it is released", {
       for (i in 1:3) session$flushReact()
 
       expect_identical(rv$eval[["r"]](), "ready")
-      expect_identical(rv$claims(), list(consumer = "r"))
+      expect_identical(consumer_claims(rv), list(consumer = "r"))
 
       # Releasing it hands the block back to the front-end's gating, which
       # parked it.
@@ -1024,14 +1052,14 @@ test_that("a required claim holds a block until it is released", {
       session$flushReact()
 
       expect_identical(rv$eval[["r"]](), "dormant")
-      expect_length(rv$claims(), 0L)
+      expect_length(consumer_claims(rv), 0L)
       expect_false(rendered("r"))
     },
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "s", "r")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "s", "r")
         render_blocks(visibility, "s", "r")
       }
     )
@@ -1057,7 +1085,7 @@ test_that("one owner's release leaves another owner's claim standing", {
     {
       session$flushReact()
 
-      park_blocks(vis, "r")
+      park_blocks(board_update, vis, "r")
       session$flushReact()
 
       expect_identical(rv$eval[["r"]](), "dormant")
@@ -1068,7 +1096,7 @@ test_that("one owner's release leaves another owner's claim standing", {
       board_update(list(sustain = list(two = list(add = "r"))))
       session$flushReact()
 
-      expect_identical(rv$claims(), list(one = "r", two = "r"))
+      expect_identical(consumer_claims(rv), list(one = "r", two = "r"))
       expect_identical(rv$eval[["r"]](), "ready")
 
       # The block is held by two owners, so the first letting go does not
@@ -1076,7 +1104,7 @@ test_that("one owner's release leaves another owner's claim standing", {
       board_update(list(sustain = list(one = list(set = character()))))
       session$flushReact()
 
-      expect_identical(rv$claims(), list(two = "r"))
+      expect_identical(consumer_claims(rv), list(two = "r"))
       expect_identical(rv$eval[["r"]](), "ready")
 
       # Releasing the last block an owner holds drops the owner, whether it
@@ -1084,15 +1112,100 @@ test_that("one owner's release leaves another owner's claim standing", {
       board_update(list(sustain = list(two = list(rm = "r"))))
       session$flushReact()
 
-      expect_length(rv$claims(), 0L)
+      expect_length(consumer_claims(rv), 0L)
       expect_identical(rv$eval[["r"]](), "dormant")
     },
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "s", "r")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "s", "r")
         render_blocks(visibility, "s", "r")
+      }
+    )
+  )
+})
+
+test_that("a consumer claim does not gate an ungated board", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- new_board(
+    blocks = c(
+      s = with_id(probe_source(), "s"),
+      a = with_id(probe_passthrough(), "a"),
+      b = with_id(probe_passthrough(), "b")
+    ),
+    links = links(
+      sa = new_link("s", "a", "data"),
+      sb = new_link("s", "b", "data")
+    )
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      board_update(list(sustain = list(consumer = list(set = "a"))))
+      session$flushReact()
+
+      # Nothing declared a gate, so a claim is a no-op: it says what one
+      # consumer wants evaluated, never that everything else may be parked.
+      # Inferring the gate from claims instead would leave b -- which nobody
+      # asked for -- dormant and blank on a board that has no front-end.
+      expect_true(rv$needed())
+      expect_identical(rv$eval[["b"]](), "ready")
+      expect_true(rendered("b"))
+    },
+    args = list(x = board, plugins = list())
+  )
+})
+
+test_that("a consumer cannot release what the front-end holds", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- new_board(
+    blocks = c(
+      s = with_id(probe_source(), "s"),
+      r = with_id(probe_passthrough(), "r")
+    ),
+    links = links(sr = new_link("s", "r", "data"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_identical(claimed(rv), "r")
+
+      # A consumer holds the block the front-end is showing and then lets go.
+      # Sharing one channel, its write landed on the front-end's own state and
+      # its release took the front-end's demand with it; as one owner among
+      # several it can do neither.
+      board_update(list(sustain = list(consumer = list(set = "r"))))
+      session$flushReact()
+
+      board_update(list(sustain = list(consumer = list(set = character()))))
+      session$flushReact()
+
+      expect_identical(claimed(rv), "r")
+      expect_length(consumer_claims(rv), 0L)
+      expect_setequal(rv$needed(), c("s", "r"))
+      expect_identical(rv$eval[["r"]](), "ready")
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "r")
+        render_blocks(visibility, "r")
       }
     )
   )
@@ -1132,7 +1245,7 @@ test_that("removing a claimed block prunes it from every owner", {
 
       # An owner left holding nothing is dropped, so a stale claim cannot
       # outlive the block it named.
-      expect_identical(rv$claims(), list(one = "s"))
+      expect_identical(consumer_claims(rv), list(one = "s"))
       expect_setequal(rv$needed(), "s")
 
       # The owner that lost its block still releases cleanly: `rm` names a
@@ -1141,13 +1254,13 @@ test_that("removing a claimed block prunes it from every owner", {
       session$flushReact()
 
       expect_true(rv$last_update$ok)
-      expect_identical(rv$claims(), list(one = "s"))
+      expect_identical(consumer_claims(rv), list(one = "s"))
     },
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "s")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "s")
         render_blocks(visibility, "s")
       }
     )
@@ -1187,8 +1300,8 @@ test_that("a request for a block added in the same payload is honoured", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "s")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "s")
         render_blocks(visibility, "s")
       }
     )
@@ -1233,15 +1346,15 @@ test_that("a construction request builds a block without evaluating it", {
       expect_setequal(rv$needed(), "s")
       expect_identical(probe_construct$ids, c("s", "r"))
 
-      # Nor does the request touch the channel the front-end owns, which is what
-      # keeps it from flipping an ungated board into gated mode.
-      expect_true(is.na(vis$required[["r"]]()))
+      # Nor does the request join the claim the front-end holds, which is what
+      # keeps it from parking what is on screen.
+      expect_identical(claimed(rv), "s")
     },
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "s")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "s")
         render_blocks(visibility, "s")
       }
     )
@@ -1279,7 +1392,7 @@ test_that("overlapping requests union rather than clash", {
       expect_true(rv$last_update$ok)
       expect_true(constructed("r"))
       expect_identical(rv$eval[["r"]](), "ready")
-      expect_identical(rv$claims(), list(one = "r"))
+      expect_identical(consumer_claims(rv), list(one = "r"))
       expect_length(rv$evaluating(), 0L)
 
       # A second consumer cannot know what the first holds, so a one-off over
@@ -1288,13 +1401,13 @@ test_that("overlapping requests union rather than clash", {
       session$flushReact()
 
       expect_true(rv$last_update$ok)
-      expect_identical(rv$claims(), list(one = "r"))
+      expect_identical(consumer_claims(rv), list(one = "r"))
     },
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "s")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "s")
         render_blocks(visibility, "s")
       }
     )
@@ -1334,22 +1447,22 @@ test_that("a request naming an unknown block is rejected", {
       session$flushReact()
 
       expect_false(rv$last_update$ok)
-      expect_length(rv$claims(), 0L)
+      expect_length(consumer_claims(rv), 0L)
 
       # A claim with no owner to release it is refused as well.
       board_update(list(sustain = list(list(set = "a"))))
       session$flushReact()
 
       expect_false(rv$last_update$ok)
-      expect_length(rv$claims(), 0L)
+      expect_length(consumer_claims(rv), 0L)
 
       expect_setequal(rv$needed(), "a")
     },
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "a")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "a")
         render_blocks(visibility, "a")
       }
     )
@@ -1391,8 +1504,7 @@ test_that("a view switch does not re-evaluate shared upstream left needed", {
       # the shared upstream (src, mid) stays needed throughout. Only the newly
       # visible leaf evaluates -- the upstream slots never flip, so nothing
       # pulls the shared pipeline again.
-      vis$required[["t1"]](FALSE)
-      vis$required[["t2"]](TRUE)
+      board_update(list(sustain = claim(add = "t2", rm = "t1")))
       render_blocks(vis, "t2")
       session$flushReact()
 
@@ -1403,8 +1515,8 @@ test_that("a view switch does not re-evaluate shared upstream left needed", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "t1")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "t1")
         render_blocks(visibility, "t1")
       }
     )
@@ -1441,10 +1553,10 @@ test_that("a variadic block skips re-evaluation on unchanged inputs", {
       # pull, but the element objects are the cached upstream results. Park the
       # block across separate flushes and bring it back: the by-reference skip
       # sees the same objects and nothing re-evaluates.
-      vis$required[["v"]](FALSE)
+      release_blocks(board_update, "v")
       session$flushReact()
 
-      vis$required[["v"]](TRUE)
+      require_blocks(board_update, "v")
       session$flushReact()
 
       expect_false(evaluated("a"))
@@ -1454,8 +1566,8 @@ test_that("a variadic block skips re-evaluation on unchanged inputs", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "v")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "v")
         render_blocks(visibility, "v")
       }
     )
@@ -1490,8 +1602,8 @@ test_that("an off-screen data-observing block does not pull its upstream", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "c")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "c")
         render_blocks(visibility, "c")
       }
     )
@@ -1536,8 +1648,8 @@ test_that("an unrelated structural edit does not re-evaluate needed blocks", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "b")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "b")
         render_blocks(visibility, "b")
       }
     )
@@ -1580,8 +1692,8 @@ test_that("adding a block does not re-evaluate existing needed blocks", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "b")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "b")
         render_blocks(visibility, "b")
       }
     )
@@ -1615,8 +1727,8 @@ test_that("a variadic block receives its inputs as values, not reactives", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "c")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "c")
         render_blocks(visibility, "c")
       }
     )
@@ -1653,8 +1765,8 @@ test_that("an off-screen variadic block does not pull its inputs", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "e")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "e")
         render_blocks(visibility, "e")
       }
     )
@@ -1677,8 +1789,8 @@ ordered_board <- function() {
   )
 }
 
-visible_b <- function(visibility, ...) {
-  require_blocks(visibility, "b")
+visible_b <- function(visibility, update, ...) {
+  gate_blocks(visibility, update, "b")
   render_blocks(visibility, "b")
 }
 
@@ -1704,8 +1816,8 @@ test_that("the priority lane builds the needed set ahead of the backlog", {
     args = list(
       x = ordered_board(),
       plugins = list(),
-      callbacks = function(visibility, ...) {
-        require_blocks(visibility, "c")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "c")
         render_blocks(visibility, "c")
       }
     )
@@ -1727,7 +1839,7 @@ test_that("opening a view pulls its blocks ahead of a gated backlog", {
       expect_false(constructed("c"))
       expect_false(constructed("d"))
 
-      require_blocks(vis, "c")
+      require_blocks(board_update, "c")
       render_blocks(vis, "c")
       session$flushReact()
 
@@ -1737,7 +1849,9 @@ test_that("opening a view pulls its blocks ahead of a gated backlog", {
     args = list(
       x = ordered_board(),
       plugins = list(),
-      callbacks = function(visibility, ...) require_blocks(visibility, "b")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "b")
+      }
     )
   )
 })
@@ -1789,7 +1903,7 @@ test_that("an infinite background delay never fills in the background", {
       expect_false(constructed("c"))
       expect_false(constructed("d"))
 
-      require_blocks(vis, "c")
+      require_blocks(board_update, "c")
       render_blocks(vis, "c")
       session$flushReact()
 
@@ -1834,13 +1948,14 @@ test_that("is_visible is an isTRUE check on the slot value", {
   expect_false(is_visible(NA))
 })
 
-test_that("channel validators enforce the required and visible contracts", {
+test_that("channel validators enforce the gate and visible contracts", {
 
-  expect_true(valid_required(TRUE))
-  expect_true(valid_required(FALSE))
-  expect_true(valid_required(NA))
-  expect_false(valid_required("x"))
-  expect_false(valid_required(NA_character_))
+  expect_true(valid_gate(NULL))
+  expect_true(valid_gate("dock"))
+  expect_false(valid_gate(NA_character_))
+  expect_false(valid_gate(""))
+  expect_false(valid_gate(c("a", "b")))
+  expect_false(valid_gate(TRUE))
 
   expect_true(valid_visible(TRUE))
   expect_true(valid_visible(FALSE))
@@ -1854,71 +1969,64 @@ test_that("validate_vis hard-errors on an off-contract slot", {
 
   isolate({
     vis <- list(
-      required = new.env(parent = emptyenv()),
+      gate = reactiveVal(NULL),
       visible = new.env(parent = emptyenv())
     )
     add_vis_slots(vis, "a")
 
-    vis$required[["a"]](1L)
-    expect_error(validate_vis(vis), class = "invalid_required")
+    vis$gate(1L)
+    expect_error(validate_vis(vis), class = "invalid_gate")
 
-    vis$required[["a"]](TRUE)
+    vis$gate("dock")
     vis$visible[["a"]]("main")
     expect_error(validate_vis(vis), class = "invalid_visible")
   })
 })
 
-test_that("required_now returns the TRUE-required blocks", {
+test_that("gating activates on the declaration, not on a claim", {
 
   isolate({
-    req <- new.env(parent = emptyenv())
-    req$a <- reactiveVal(TRUE)
-    req$b <- reactiveVal(FALSE)
-    req$c <- reactiveVal(NA)
-    req$d <- reactiveVal(TRUE)
+    vis <- list(gate = reactiveVal(NULL))
 
-    expect_setequal(required_now(req), c("a", "d"))
-    expect_length(required_now(new.env(parent = emptyenv())), 0L)
+    expect_false(gating_active(vis))
+
+    vis$gate("dock")
+    expect_true(gating_active(vis))
+
+    withr::local_options(blockr.gate_visibility = FALSE)
+    expect_false(gating_active(vis))
   })
 })
 
-test_that("ever_required and has_required track declared (non-NA) slots", {
-
-  isolate({
-    req <- new.env(parent = emptyenv())
-    req$a <- reactiveVal(TRUE)
-    req$b <- reactiveVal(FALSE)
-    req$c <- reactiveVal(NA)
-
-    expect_setequal(ever_required(req), c("a", "b"))
-    expect_true(has_required(req))
-    expect_false(has_required(new.env(parent = emptyenv())))
-  })
-})
-
-test_that("required_fulfilled holds only when every required block is shown", {
+test_that("gate_fulfilled tracks the gating owner's claim alone", {
 
   isolate({
     vis <- list(
-      required = new.env(parent = emptyenv()),
+      gate = reactiveVal("dock"),
       visible = new.env(parent = emptyenv())
     )
-    add_vis_slots(vis, c("a", "b"))
-    vis$required[["a"]](TRUE)
-    vis$required[["b"]](TRUE)
+    add_vis_slots(vis, c("a", "b", "c"))
+
+    rv <- reactiveValues(
+      claims = reactiveVal(list(dock = c("a", "b"))),
+      gate_claimed = reactiveVal(TRUE)
+    )
     vis$visible[["a"]](TRUE)
     vis$visible[["b"]](TRUE)
 
-    expect_true(required_fulfilled(vis))
+    expect_true(gate_fulfilled(vis, rv))
 
     vis$visible[["b"]](FALSE)
-    expect_false(required_fulfilled(vis))
+    expect_false(gate_fulfilled(vis, rv))
 
-    empty <- list(
-      required = new.env(parent = emptyenv()),
-      visible = new.env(parent = emptyenv())
-    )
-    expect_true(required_fulfilled(empty))
+    # Another owner's claim on an off-screen block never lands on screen, so
+    # holding the backlog for it would stall it for good.
+    vis$visible[["b"]](TRUE)
+    rv$claims(list(dock = c("a", "b"), consumer = "c"))
+    expect_true(gate_fulfilled(vis, rv))
+
+    rv$claims(list())
+    expect_true(gate_fulfilled(vis, rv))
   })
 })
 
@@ -1948,7 +2056,9 @@ test_that("the background waits for the front-end's rendered report", {
     args = list(
       x = ordered_board(),
       plugins = list(),
-      callbacks = function(visibility, ...) require_blocks(visibility, "b")
+      callbacks = function(visibility, update, ...) {
+        gate_blocks(visibility, update, "b")
+      }
     )
   )
 })
@@ -2043,6 +2153,12 @@ stacked_board <- function() {
 
 # Mirrors what bslib's accordion input reports: the panel values of the open
 # stacks, and NULL rather than an empty vector once none are open.
+# What core's own stack-gating callback holds: a claim like any other owner's,
+# under the label gate_stacks() takes from the board session.
+stack_claim <- function(rv, session) {
+  rv$claims()[[stack_gate_owner(session)]]
+}
+
 report_open_stacks <- function(session, ...) {
 
   ids <- c(...)
@@ -2068,8 +2184,8 @@ test_that("core requires the open stacks and every unstacked block", {
       # Declared from what core renders open, before the client has reported
       # anything: with no gate in place every block is needed, and the
       # collapsed stack's would evaluate once in that window.
-      expect_true(gating_active(vis$required))
-      expect_setequal(required_now(vis$required), c("a", "b", "e"))
+      expect_true(gating_active(vis))
+      expect_setequal(stack_claim(rv, session), c("a", "b", "e"))
 
       expect_false(evaluated("c"))
       expect_false(rendered("c"))
@@ -2077,7 +2193,7 @@ test_that("core requires the open stacks and every unstacked block", {
       report_open_stacks(session, "s1")
       session$flushReact()
 
-      expect_setequal(required_now(vis$required), c("a", "b", "e"))
+      expect_setequal(stack_claim(rv, session), c("a", "b", "e"))
       expect_setequal(rv$needed(), c("a", "b", "e"))
 
       expect_true(block_visible("b", vis))
@@ -2116,7 +2232,7 @@ test_that("expanding a stack requires its blocks and collapsing parks them", {
       session$flushReact()
 
       expect_setequal(
-        required_now(vis$required),
+        stack_claim(rv, session),
         c("a", "b", "c", "d", "e")
       )
 
@@ -2126,12 +2242,12 @@ test_that("expanding a stack requires its blocks and collapsing parks them", {
       report_open_stacks(session, "s2")
       session$flushReact()
 
-      expect_setequal(required_now(vis$required), c("c", "d", "e"))
+      expect_setequal(stack_claim(rv, session), c("c", "d", "e"))
       expect_setequal(rv$needed(), c("c", "d", "e"))
 
       # Parked rather than dropped: still built, so re-expanding shows them
       # without a rebuild.
-      expect_setequal(ever_required(vis$required), board_block_ids(rv$board))
+      expect_setequal(names(rv$blocks), board_block_ids(rv$board))
       expect_true(constructed("a"))
 
       expect_false(block_visible("a", vis))
@@ -2188,12 +2304,12 @@ test_that("a fully collapsed accordion is not read as one yet to report", {
       # Both states read as a NULL input: the accordion yet to report, and the
       # user having collapsed everything. What separates them is that the
       # first stands on what core rendered open.
-      expect_setequal(required_now(vis$required), c("a", "b", "e"))
+      expect_setequal(stack_claim(rv, session), c("a", "b", "e"))
 
       report_open_stacks(session)
       session$flushReact()
 
-      expect_setequal(required_now(vis$required), "e")
+      expect_setequal(stack_claim(rv, session), "e")
       expect_setequal(rv$needed(), "e")
     },
     args = list(x = board, plugins = list())
@@ -2222,13 +2338,13 @@ test_that("a board without stacks requires every block", {
       # An accordion with no panels binds no input, so there would be nothing
       # to refine a declaration made here -- it is left ungated instead, which
       # costs nothing on a board where every block is unstacked anyway.
-      expect_false(gating_active(vis$required))
+      expect_false(gating_active(vis))
       expect_true(rv$needed())
 
       report_open_stacks(session)
       session$flushReact()
 
-      expect_setequal(required_now(vis$required), c("a", "b"))
+      expect_setequal(stack_claim(rv, session), c("a", "b"))
 
       expect_true(evaluated("b"))
       expect_true(rendered("b"))
@@ -2256,7 +2372,7 @@ test_that("the gate_visibility option disables stack gating", {
       report_open_stacks(session, "s1")
       session$flushReact()
 
-      expect_false(gating_active(vis$required))
+      expect_false(gating_active(vis))
       expect_true(rv$needed())
 
       for (id in c("a", "b", "c", "d", "e")) {
@@ -2341,7 +2457,7 @@ test_that("a front-end's own callbacks displace core's stack tracking", {
 
       # The board renders stacks and the option is on, yet core tracks nothing:
       # what gates is whatever the supplied callbacks do.
-      expect_false(gating_active(vis$required))
+      expect_false(gating_active(vis))
       expect_true(rv$needed())
 
       for (id in c("a", "b", "c", "d", "e")) {

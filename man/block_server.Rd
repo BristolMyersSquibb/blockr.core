@@ -69,11 +69,11 @@ standalone)}
 eval set (supplied by \code{\link[=board_server]{board_server()}}; defaults to always-needed when a
 block server is run standalone)}
 
-\item{visibility}{Front-end channel bundle -- a list with three channels,
-\code{required}, \code{visible} and \code{frozen}, each an environment of per-block
-\code{reactiveVal}s, supplied by \code{\link[=board_server]{board_server()}} to gate rendering and to
-freeze block inputs; \code{NULL} (the standalone default) leaves the block
-ungated}
+\item{visibility}{Front-end channel bundle -- a \code{gate} \code{reactiveVal} naming
+the front-end driving visibility, plus \code{visible} and \code{frozen}, each an
+environment of per-block \code{reactiveVal}s, supplied by \code{\link[=board_server]{board_server()}} to
+gate rendering and to freeze block inputs; \code{NULL} (the standalone default)
+leaves the block ungated}
 }
 \value{
 Both \code{block_server()} and \code{expr_server()} return shiny server module
@@ -143,39 +143,49 @@ from output, the behavior of which can be customized via the
 \code{\link[=block_output]{block_output()}} generic. The \code{\link[=block_ui]{block_ui()}} generic can then be used to
 control rendering of outputs.
 
-A front-end (such as blockr.dock) drives per-block channels that
-\code{\link[=board_server]{board_server()}} hands to the board callback as \code{visibility}. Two of them
-gate what is built and shown: \code{required} (which blocks it needs built and
-evaluated) and \code{visible} (which blocks it has arranged on screen).
-Requirements are a cause the front-end -- and
-core-side features such as code export -- declare; visibility is the effect
-the front-end reports back once it has painted a block. Rendering is gated
-on \code{visible}: the render observer is suspended while a block carries no
-visible slot and resumed once the front-end writes a non-empty string for
-it, starting suspended so nothing renders before the first report.
-Evaluation is gated on the \emph{needed} set, the \code{required} blocks together with
-their upstream closure over \code{\link[=board_links]{board_links()}} (recomputed only when
-requirements or links change). A block's input data reactives stay
-unfulfilled (they \code{\link[shiny:req]{shiny::req()}} out) unless the block is needed, so a block
-that is neither required nor feeding a required block pulls no input and
-stays fully quiescent: its result reactive, and any observer its expression
-server registers on the incoming data, all short-circuit and do nothing. A
-needed but off-screen block (one feeding a required block) evaluates but
-does not render. Block-server \emph{construction} is prioritized the same way:
-the needed set is instantiated first so that first paint waits only for the
-required blocks and their upstreams, and the remaining block servers are
-built progressively in the background. That background pass holds until the
-front-end reports every required block as visible, so it never competes with
-first paint. A \code{required} slot of \code{FALSE} keeps a block built but dormant
-(ever required, not needed now); an absent slot leaves it unbuilt. Until a
+A front-end (such as blockr.dock) declares that it will drive visibility by
+writing an owner label into the \code{gate} channel of the \code{visibility} bundle
+that \code{\link[=board_server]{board_server()}} hands to the board callback. That declaration, and
+nothing else, is what flips the board from evaluating everything to
+evaluating only what is needed; with no front-end every block is needed and
+behaviour is unchanged, and the \code{gate_visibility} \code{\link[=blockr_option]{blockr_option()}} (default
+\code{TRUE}) turns gating off entirely. It is written synchronously, while the
+callback is set up, because it has to be in hand before the first flush
+decides what to construct.
+
+Which blocks the front-end needs evaluated is not a channel of its own: it
+is a \code{sustain} claim held under that same owner label, leaving the front-end
+one owner among several rather than a special case core can distinguish from
+a code export or an extension (see the Evaluation requests section of
+\code{\link[=board_server]{board_server()}}). Blocks it wants built without being evaluated -- a card
+it has created off screen, say -- are a \code{construct} request.
+
+Evaluation is gated on the \emph{needed} set, the claimed blocks together with
+their upstream closure over \code{\link[=board_links]{board_links()}} (recomputed only when claims or
+links change). A block's input data reactives stay unfulfilled (they
+\code{\link[shiny:req]{shiny::req()}} out) unless the block is needed, so a block that is neither
+claimed nor feeding a claimed block pulls no input and stays fully
+quiescent: its result reactive, and any observer its expression server
+registers on the incoming data, all short-circuit and do nothing. A needed
+but off-screen block (one feeding a claimed block) evaluates but does not
+render.
+
+Rendering is gated on \code{visible}, the per-block channel through which the
+front-end reports what it has painted -- the effect, where a claim is the
+cause. The render observer is suspended while a block carries no visible
+slot and resumed once the front-end reports it painted, starting suspended
+so nothing renders before the first report.
+
+Block-server \emph{construction} is prioritized the same way: the needed set is
+instantiated first so that first paint waits only for the claimed blocks and
+their upstreams, and the remaining block servers are built progressively in
+the background. That background pass holds until the front-end reports every
+block it claims as visible, so it never competes with first paint. Until a
 block is built it is absent from the \code{board$blocks} handed to plugins and
 callbacks, which simply see it appear once constructed. The background
 cadence is set by the \code{background_construction_delay} \code{\link[=blockr_option]{blockr_option()}}
 (milliseconds between successive blocks, default 50); a value of 0 disables
-the staggering and builds every block up front. With nothing writing
-\code{required} every block is needed and behaviour is unchanged; the
-\code{gate_visibility} \code{\link[=blockr_option]{blockr_option()}} (default \code{TRUE}) turns gating off
-entirely.
+the staggering and builds every block up front.
 
 Core's own board UI drives those channels through a callback, on the same
 footing as a front-end rather than built into the board server. Stacks
