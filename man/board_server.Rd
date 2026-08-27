@@ -3,6 +3,7 @@
 \name{board_server}
 \alias{board_server}
 \alias{board_server.board}
+\alias{built_block_ids}
 \alias{gate_stacks}
 \title{Board server}
 \usage{
@@ -17,6 +18,8 @@ board_server(id, x, ...)
   callback_location = c("end", "start"),
   ...
 )
+
+built_block_ids(visibility)
 
 gate_stacks()
 }
@@ -39,13 +42,14 @@ additional observers. Each receives a \code{visibility} list with three channels
 removed). Declare a block needed with \code{visibility$required[[id]](TRUE)} (or
 \code{FALSE} for built but dormant) and report whether it is currently painted
 with \code{visibility$visible[[id]](TRUE)} (or \code{FALSE} once built but off screen,
-leaving \code{NA} until it is first built); the board reads both to gate
-construction, evaluation and rendering. Set
-\code{visibility$frozen[[id]](TRUE)} to freeze a block's inputs (for example when
-its controls are hidden), so a forged input can no longer steer it. A
-callback also receives the \code{update} channel (see \link{board_update}), through
-which it can request block evaluation or construction (see the Evaluation
-requests and Construction requests sections).
+leaving \code{NA} until it is first built, see the Block UI build ledger
+section); the board reads both to gate construction, evaluation and
+rendering. Set \code{visibility$frozen[[id]](TRUE)} to freeze a block's inputs
+(for example when its controls are hidden), so a forged input can no longer
+steer it. A callback also receives the \code{update} channel (see
+\link{board_update}), through which it can request block evaluation or
+construction (see the Evaluation requests and Construction requests
+sections).
 
 Core's own front-end drives these channels through a callback like any
 other: \code{gate_stacks()} reads the stack accordion (see \code{\link[=stack_ui]{stack_ui()}}) and is
@@ -59,10 +63,14 @@ refine the declaration.}
 
 \item{callback_location}{Location of callback invocation (before or after
 plugins)}
+
+\item{visibility}{Per-block visibility channels, as handed to a board
+callback}
 }
 \value{
 A \code{board_server()} implementation (such as the default for the
-\code{board} base class) is expected to return a \code{\link[shiny:moduleServer]{shiny::moduleServer()}}.
+\code{board} base class) is expected to return a \code{\link[shiny:moduleServer]{shiny::moduleServer()}}, while
+\code{built_block_ids()} returns a character vector of block IDs.
 }
 \description{
 A call to \code{board_server()}, dispatched on objects inheriting from \code{board},
@@ -163,5 +171,26 @@ what neither does: a block that must exist while nothing needs it evaluated.
 The named blocks are built in the flush that applies the payload, which is
 the work \code{background_construction_delay} otherwise paces out. A caller that
 wants that pacing sends several smaller payloads rather than one.
+}
+
+\section{Block UI build ledger}{
+
+The \code{visible} channel carries three states, and the middle one is a ledger of
+which blocks have UI in the DOM: \code{NA} for a block whose UI was never built,
+\code{FALSE} for one built but not on screen and \code{TRUE} for one the front-end
+reports painted. Only the last opens the render gate; the other two are what
+a front-end that builds block UI lazily needs in order to tell what is left
+to build. Reading them back is \code{built_block_ids()}, the set of blocks whose
+UI exists. That read is isolated, so a caller can take it from inside an
+observer without depending on every block's slot.
+
+Core keeps the ledger for the UI it puts in the page itself: the blocks named
+by \code{initial_block_ids()} (see \code{\link[=board_ui]{board_ui()}}) are marked built as the board
+server starts, and a block added at runtime is marked built once
+\code{insert_block_ui()} has returned. A front-end that builds block UI of its own
+owes the ledger the same report -- \code{visibility$visible[[id]](FALSE)} as that
+UI enters the DOM -- and core may rely on it. Marking is one-way: a block
+already in the ledger is left as it stands, so nothing demotes a painted
+block back to unbuilt.
 }
 

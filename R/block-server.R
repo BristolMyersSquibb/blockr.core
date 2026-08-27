@@ -66,8 +66,10 @@
 #' core-side features such as code export -- declare; visibility is the effect
 #' the front-end reports back once it has painted a block. Rendering is gated
 #' on `visible`: the render observer is suspended while a block carries no
-#' visible slot and resumed once the front-end writes a non-empty string for
-#' it, starting suspended so nothing renders before the first report.
+#' visible slot and resumed once the front-end writes `TRUE` for it, starting
+#' suspended so nothing renders before the first report. Between the two sits
+#' `FALSE`, the record that a block's UI has been built but is off screen (see
+#' the Block UI build ledger section of [board_server()]).
 #' Evaluation is gated on the *needed* set, the `required` blocks together with
 #' their upstream closure over [board_links()] (recomputed only when
 #' requirements or links change). A block's input data reactives stay

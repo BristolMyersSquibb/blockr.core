@@ -151,8 +151,10 @@ Requirements are a cause the front-end -- and
 core-side features such as code export -- declare; visibility is the effect
 the front-end reports back once it has painted a block. Rendering is gated
 on \code{visible}: the render observer is suspended while a block carries no
-visible slot and resumed once the front-end writes a non-empty string for
-it, starting suspended so nothing renders before the first report.
+visible slot and resumed once the front-end writes \code{TRUE} for it, starting
+suspended so nothing renders before the first report. Between the two sits
+\code{FALSE}, the record that a block's UI has been built but is off screen (see
+the Block UI build ledger section of \code{\link[=board_server]{board_server()}}).
 Evaluation is gated on the \emph{needed} set, the \code{required} blocks together with
 their upstream closure over \code{\link[=board_links]{board_links()}} (recomputed only when
 requirements or links change). A block's input data reactives stay

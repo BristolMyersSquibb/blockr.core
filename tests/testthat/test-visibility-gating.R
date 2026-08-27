@@ -2355,3 +2355,123 @@ test_that("a front-end's own callbacks displace core's stack tracking", {
     )
   )
 })
+
+test_that("the board server seeds the build ledger from initial_block_ids", {
+
+  reset_probes()
+
+  board <- new_board(
+    blocks = c(
+      a = with_id(probe_source(), "a"),
+      b = with_id(probe_passthrough(), "b")
+    ),
+    links = links(new_link(from = "a", to = "b"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_setequal(built_block_ids(vis), c("a", "b"))
+      expect_identical(isolate(vis$visible[["a"]]()), FALSE)
+    },
+    args = list(x = board, plugins = list())
+  )
+})
+
+test_that("a board that paints fewer leaves the rest out of the ledger", {
+
+  reset_probes()
+
+  registerS3method(
+    "initial_block_ids", "test_lazy_board",
+    function(x, ...) "a",
+    envir = asNamespace("blockr.core")
+  )
+
+  board <- new_board(
+    blocks = c(
+      a = with_id(probe_source(), "a"),
+      b = with_id(probe_passthrough(), "b")
+    ),
+    links = links(new_link(from = "a", to = "b")),
+    class = "test_lazy_board"
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_identical(built_block_ids(vis), "a")
+      expect_true(is.na(isolate(vis$visible[["b"]]())))
+    },
+    args = list(x = board, plugins = list())
+  )
+})
+
+test_that("a block added at runtime joins the build ledger", {
+
+  reset_probes()
+
+  board <- new_board(blocks = c(a = with_id(probe_source(), "a")))
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_identical(built_block_ids(vis), "a")
+
+      board_update(
+        list(blocks = list(add = as_blocks(c(b = new_dataset_block("iris")))))
+      )
+
+      session$flushReact()
+
+      expect_setequal(built_block_ids(vis), c("a", "b"))
+      expect_identical(isolate(vis$visible[["b"]]()), FALSE)
+    },
+    args = list(x = board, plugins = list())
+  )
+})
+
+test_that("marking a block built never demotes one already in the ledger", {
+
+  isolate({
+    vis <- list(
+      required = new.env(parent = emptyenv()),
+      visible = new.env(parent = emptyenv()),
+      frozen = new.env(parent = emptyenv())
+    )
+    add_vis_slots(vis, c("a", "b", "c"))
+
+    vis$visible[["b"]](TRUE)
+    vis$visible[["c"]](FALSE)
+
+    mark_ui_built(vis, c("a", "b", "c", "gone"))
+
+    expect_identical(isolate(vis$visible[["a"]]()), FALSE)
+    expect_true(isolate(vis$visible[["b"]]()))
+    expect_identical(isolate(vis$visible[["c"]]()), FALSE)
+
+    expect_setequal(built_block_ids(vis), c("a", "b", "c"))
+  })
+})
+
+test_that("built_block_ids reads only the non-NA slots", {
+
+  isolate({
+    vis <- list(visible = new.env(parent = emptyenv()))
+
+    vis$visible[["a"]] <- reactiveVal(NA)
+    vis$visible[["b"]] <- reactiveVal(FALSE)
+    vis$visible[["c"]] <- reactiveVal(TRUE)
+
+    expect_setequal(built_block_ids(vis), c("b", "c"))
+
+    empty <- list(visible = new.env(parent = emptyenv()))
+    expect_length(built_block_ids(empty), 0L)
+  })
+})

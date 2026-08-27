@@ -1,5 +1,15 @@
 # blockr.core 0.1.4
 
+* Which blocks a board's initial page UI carries is now the front-end's to
+  declare, through the new `initial_block_ids()` generic, rather than something
+  each `board_ui()` method hardcodes. The `board` method answers with every
+  block, so core's own UI is unchanged; a front-end that paints fewer names
+  that set in one place. The board server seeds its build ledger -- the `FALSE`
+  middle state of the `visible` channel, which until now only a front-end wrote
+  and nothing in core read -- from the same declaration, and marks a block
+  built as `insert_block_ui()` puts it in the page. Reading that ledger back is
+  the new `built_block_ids()`, so a front-end which builds block UI lazily no
+  longer has to infer it (#349).
 * A block in a collapsed stack no longer evaluates once at load. Which stacks
   render open is core's own decision, but it was left to `bslib`'s default of
   opening the first panel, so the board server knew nothing about what was on
