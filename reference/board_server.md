@@ -75,9 +75,11 @@ gate_stacks()
   [`stack_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/stack_ui.md))
   and is the default, so a board that renders core's UI gates on its
   stacks and one that does not is left alone – it passes its own
-  callbacks, and the accordion input the callback waits on is never
-  bound. A consumer that wants both keeps it in the list rather than
-  replacing it – `callbacks = list(gate_stacks(), my_callback)`.
+  callbacks. A consumer that wants both keeps it in the list rather than
+  replacing it – `callbacks = list(gate_stacks(), my_callback)`, which
+  is for a front-end that does render the accordion: on a stacked board
+  the gate declares the initially open stacks before the first flush and
+  reads that input only to refine the declaration.
 
 - callback_location:
 

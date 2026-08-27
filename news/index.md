@@ -2,6 +2,26 @@
 
 ## blockr.core 0.1.4
 
+- A block in a collapsed stack no longer evaluates once at load. Which
+  stacks render open is core’s own decision, but it was left to
+  `bslib`’s default of opening the first panel, so the board server knew
+  nothing about what was on screen until the accordion had reported –
+  and a board with no gate declared is one where every block is needed,
+  so whatever got built in that window ran. The
+  [`stack_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/stack_ui.md)
+  method now states the open set explicitly and
+  [`gate_stacks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)
+  declares it as the board server is set up, leaving the client’s report
+  to refine that rather than establish it. A board with no stacks binds
+  no accordion input and is left ungated, as before
+  ([\#343](https://github.com/BristolMyersSquibb/blockr.core/issues/343)).
+- A dormant block with no data inputs is now as quiescent as any other.
+  The needed set reaches a block through its data reads, of which a
+  source block has none, so anything reading its result – the block
+  card’s summary, for one – evaluated it while parked. Such a block now
+  reports a `NULL` result while it is not needed, which is where a
+  dormant block with inputs already lands through its unfulfilled data
+  ([\#343](https://github.com/BristolMyersSquibb/blockr.core/issues/343)).
 - Core’s own board UI now drives visibility, through a board callback
   like any other front-end rather than from inside the board server.
   Stacks render as an accordion which opens one stack and collapses the

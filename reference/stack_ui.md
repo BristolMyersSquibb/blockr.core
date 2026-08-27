@@ -119,4 +119,7 @@ is what
 reads back to gate evaluation and rendering (see
 [`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)).
 A board whose `stack_ui()` method renders no such input is simply never
-gated by it.
+gated by it. Which stacks start open is stated here rather than left to
+[`bslib::accordion()`](https://rstudio.github.io/bslib/reference/accordion.html),
+so that the gate can declare the same set before the client has reported
+anything.

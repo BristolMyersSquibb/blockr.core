@@ -176,7 +176,10 @@ latter modify the DOM via <a href="https://rdrr.io/pkg/shiny/man/session.html" c
 what makes <code><a href="https://rstudio.github.io/bslib/reference/accordion.html" class="external-link">bslib::accordion()</a></code> wire it as a Shiny input reporting the
 stacks a user has expanded, which is what <code><a href="board_server.html">gate_stacks()</a></code> reads back to
 gate evaluation and rendering (see <code><a href="board_server.html">board_server()</a></code>). A board whose
-<code>stack_ui()</code> method renders no such input is simply never gated by it.</p>
+<code>stack_ui()</code> method renders no such input is simply never gated by it.
+Which stacks start open is stated here rather than left to
+<code><a href="https://rstudio.github.io/bslib/reference/accordion.html" class="external-link">bslib::accordion()</a></code>, so that the gate can declare the same set before the
+client has reported anything.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
