@@ -2065,10 +2065,14 @@ test_that("core requires the open stacks and every unstacked block", {
     {
       session$flushReact()
 
-      # Nothing is gated until the accordion reports which stacks it rendered
-      # open, so a board that renders a different UI is left alone entirely.
-      expect_false(gating_active(vis$required))
-      expect_true(rv$needed())
+      # Declared from what core renders open, before the client has reported
+      # anything: with no gate in place every block is needed, and the
+      # collapsed stack's would evaluate once in that window.
+      expect_true(gating_active(vis$required))
+      expect_setequal(required_now(vis$required), c("a", "b", "e"))
+
+      expect_false(evaluated("c"))
+      expect_false(rendered("c"))
 
       report_open_stacks(session, "s1")
       session$flushReact()
@@ -2080,13 +2084,10 @@ test_that("core requires the open stacks and every unstacked block", {
       expect_false(block_visible("c", vis))
       expect_false(block_visible("d", vis))
 
-      # A mock session has no client until the test plays one, so the blocks of
-      # the collapsed stack have already run by now -- what a real session
-      # never does, since the accordion has reported before the callback is set
-      # up (the browser test below covers that). What is pinned here is that
-      # they stop: nothing pulls them again once the report lands.
-      reset_probes()
-      session$flushReact()
+      # Paint is the client's to report, so the open stack's blocks run only
+      # once it has; the collapsed stack's never do.
+      expect_true(evaluated("b"))
+      expect_true(rendered("b"))
 
       expect_false(evaluated("c"))
       expect_false(rendered("c"))
@@ -2154,8 +2155,9 @@ test_that("a fully collapsed accordion is not read as one yet to report", {
       session$flushReact()
 
       # Both states read as a NULL input: the accordion yet to report, and the
-      # user having collapsed everything.
-      expect_false(gating_active(vis$required))
+      # user having collapsed everything. What separates them is that the
+      # first stands on what core rendered open.
+      expect_setequal(required_now(vis$required), c("a", "b", "e"))
 
       report_open_stacks(session)
       session$flushReact()
@@ -2185,6 +2187,12 @@ test_that("a board without stacks requires every block", {
     get_s3_method("board_server", board),
     {
       session$flushReact()
+
+      # An accordion with no panels binds no input, so there would be nothing
+      # to refine a declaration made here -- it is left ungated instead, which
+      # costs nothing on a board where every block is unstacked anyway.
+      expect_false(gating_active(vis$required))
+      expect_true(rv$needed())
 
       report_open_stacks(session)
       session$flushReact()
