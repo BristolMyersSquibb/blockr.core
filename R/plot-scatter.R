@@ -1,5 +1,5 @@
 #' @section Scatter block:
-#' Mainly for demonstration purposes, this block draws a scattter plot using
+#' Mainly for demonstration purposes, this block draws a scatter plot using
 #' [base::plot()]. In its current simplistic implementation, apart from axis
 #' labels (fixed to the corresponding column names), no further plotting
 #' options are available and for any "production" application, a more

@@ -24,7 +24,7 @@ library(blockr.core)
 
 `blockr.core` is built on top of Shiny. At its heart, a __block__ is nothing more than a specialized Shiny __module__ that returns two additional values:
 
-- **An expression** (called "expr"), a reactive expression defining a blocks computation. This allows R code to be exported and  data analyses to be recreated, outside of blockr and a reactive context.
+- **An expression** (called "expr"), a reactive expression defining a block's computation. This allows R code to be exported and data analyses to be recreated, outside of blockr and a reactive context.
 - **A state object** (called "state"), a list of reactive values tracking user inputs. This allows blocks to separate user-defined state from inputs specified by blocks.
 
 ```{r, echo=FALSE}

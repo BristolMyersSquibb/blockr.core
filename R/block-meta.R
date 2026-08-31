@@ -12,7 +12,7 @@
 #' data.frame; the getters instead return the stored value (or `NA` / an empty
 #' value). A block constructed for a class with no registry entry carries a
 #' class-derived default record, imputed at construction, so accessors degrade
-#' to those defaults rather than signalling a missing record.
+#' to those defaults rather than signaling a missing record.
 #'
 #' @param x A `block`, a `blocks` collection, a `block_registry_entry` or a
 #'   registry ID

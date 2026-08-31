@@ -243,7 +243,7 @@
   current result and current conditions; core drops an `evaluate` request once
   the block has run, while a `sustain` claim is held until released. Claims are
   keyed by owner (`list(<owner> = list(set =, add =, rm =))`, conventionally
-  labelled `session$ns("...")`), so two consumers may hold the same block
+  labeled `session$ns("...")`), so two consumers may hold the same block
   without either releasing the other's claim. Previously the only lever was the
   front-end's `required` channel, which extensions never receive and which
   latches the block into the eval set, so a consumer had no way to tell whether
@@ -371,7 +371,7 @@
 * Export `export_code()` to make it easier for third-party `generate_code()`
   plugin implementations.
 * Use `evaluate::evaluate()` to capture plots.
-* Add `new_fixed_block()` for applying a fixed (i.e. non-paramtetrized)
+* Add `new_fixed_block()` for applying a fixed (i.e. non-parametrized)
   transformation to data input.
 * Board server callbacks are invoked with an additional argument `session`.
 * Export assertion utilities such as `is_string()`, `is_count()`, etc.

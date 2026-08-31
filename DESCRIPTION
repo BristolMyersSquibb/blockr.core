@@ -23,6 +23,7 @@ URL: https://bristolmyerssquibb.github.io/blockr.core/
 BugReports: https://github.com/BristolMyersSquibb/blockr.core/issues
 License: GPL (>= 3)
 Encoding: UTF-8
+Language: en-US
 Roxygen: list(markdown = TRUE, packages = c("roxy.shinylive"), roclets =
     c("collate", "namespace", "rd", "blockr.core::block_registration_roclet"))
 Imports:
@@ -62,7 +63,8 @@ Suggests:
     ids,
     ellmer,
     tibble,
-    DT
+    DT,
+    spelling
 Config/testthat/edition: 3
 Config/Needs/roxygenize: roxy.shinylive
 VignetteBuilder: quarto

@@ -18,7 +18,7 @@
 #' This is the blockr extension point for token-dense renderings such as a
 #' board summary. A home package surfaces a subclass's state by defining a
 #' `str_value()` method, typically extending the parent's via [NextMethod()]
-#' (the way `format.dock_stack()` appends a stack colour). [print()] and
+#' (the way `format.dock_stack()` appends a stack color). [print()] and
 #' [format()] are unaffected and remain the full, multi-line tier.
 #'
 #' @param x Object to render.

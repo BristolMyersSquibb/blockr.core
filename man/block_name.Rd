@@ -76,7 +76,7 @@ The set of explicit (named) data inputs for a block is available as
 In case of variadic blocks (i.e. blocks that take a variable number of
 inputs like for example a block providing \code{\link[base:rbind]{base::rbind()}}-like
 functionality), \code{block_arity()} returns \code{NA} and the special block server
-function argument \code{...args}, signalling variadic behavior is stripped from
+function argument \code{...args}, signaling variadic behavior is stripped from
 \code{block_inputs()}.
 }
 

@@ -548,7 +548,7 @@ c.block <- function(...) {
 #' In case of variadic blocks (i.e. blocks that take a variable number of
 #' inputs like for example a block providing [base::rbind()]-like
 #' functionality), `block_arity()` returns `NA` and the special block server
-#' function argument `...args`, signalling variadic behavior is stripped from
+#' function argument `...args`, signaling variadic behavior is stripped from
 #' `block_inputs()`.
 #'
 #' @section External control:

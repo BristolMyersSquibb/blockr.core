@@ -399,7 +399,7 @@ test_that("conforms_to checks R values against a descriptor", {
   expect_false(conforms_to(list(x = "a", z = 1L), obj))
 })
 
-test_that("descriptors serialise to JSON Schema that ellmer reads back", {
+test_that("descriptors serialize to JSON Schema that ellmer reads back", {
 
   skip_if_not_installed("ellmer")
 

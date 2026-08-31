@@ -52,7 +52,7 @@ Blocks can be joined together using a __DAG__ (direct acyclic graph) to create p
 blockr targets two main user groups:
 
 - __non developers__ are empowered to create insightful data workflows using pre-built blocks that can be __easily__ connected, all without writing a single line of code.
-- __developers__ are provided with a set of tools to create new blocks and extend blockr, thereby enhancing the entire framework and fostering __collaboration__ within teams and organisations.
+- __developers__ are provided with a set of tools to create new blocks and extend blockr, thereby enhancing the entire framework and fostering __collaboration__ within teams and organizations.
 
 
 ## Key features

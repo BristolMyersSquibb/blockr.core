@@ -6,11 +6,11 @@
 #' as an example for a transform block that takes exactly two data inputs `x`
 #' and `y` to produce a single `data.frame` as output.
 #'
-#' @param by Column(s) tp join on
+#' @param by Column(s) to join on
 #' @param all_x,all_y Join type, see [base::merge()]
 #'
 #' @block merge block
-#' @blockDescr Joining or datasets
+#' @blockDescr Joining or merging datasets
 #' @blockCategory transform
 #' @blockIcon union
 #' @blockGuidance Joins the two inputs with `base::merge()`. `by` names the

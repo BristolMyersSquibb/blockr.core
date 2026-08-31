@@ -23,7 +23,7 @@ ctrl_block_ui(id, x)
 input name). \code{block_name} is included by the default \code{block_server.block}
 even though it is not part of the block's \code{expr_server} state.}
 
-\item{data}{Input data paseed as list of reactive values}
+\item{data}{Input data passed as list of reactive values}
 
 \item{eval}{Reactive that evaluates the block expression against input
 data. May be used to validate that the new values produce a successful

@@ -50,7 +50,7 @@ blockr targets two main user groups:
   writing a single line of code.
 - **developers** are provided with a set of tools to create new blocks
   and extend blockr, thereby enhancing the entire framework and
-  fostering **collaboration** within teams and organisations.
+  fostering **collaboration** within teams and organizations.
 
 ## Key features
 
