@@ -121,13 +121,13 @@ expressions:
 
 ``` r
 
-test_that("incorrect colours throw an error", {
+test_that("incorrect colors throw an error", {
     testServer(
         app = new_test_block()$expr_server,
         expr = {
             session$setInputs(number = 2)
 
-            # Set invalid colour
+            # Set invalid color
             session$setInputs(color = "Ooops")
 
             # Check that an error is thrown

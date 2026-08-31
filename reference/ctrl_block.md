@@ -44,7 +44,7 @@ ctrl_block_ui(id, x)
 
 - data:
 
-  Input data paseed as list of reactive values
+  Input data passed as list of reactive values
 
 - eval:
 

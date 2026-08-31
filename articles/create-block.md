@@ -17,7 +17,7 @@ nothing more than a specialized Shiny **module** that returns two
 additional values:
 
 - **An expression** (called “expr”), a reactive expression defining a
-  blocks computation. This allows R code to be exported and data
+  block’s computation. This allows R code to be exported and data
   analyses to be recreated, outside of blockr and a reactive context.
 - **A state object** (called “state”), a list of reactive values
   tracking user inputs. This allows blocks to separate user-defined

@@ -339,7 +339,7 @@
   so they publish a current result and current conditions; core drops an
   `evaluate` request once the block has run, while a `sustain` claim is
   held until released. Claims are keyed by owner
-  (`list(<owner> = list(set =, add =, rm =))`, conventionally labelled
+  (`list(<owner> = list(set =, add =, rm =))`, conventionally labeled
   `session$ns("...")`), so two consumers may hold the same block without
   either releasing the other’s claim. Previously the only lever was the
   front-end’s `required` channel, which extensions never receive and
@@ -543,7 +543,7 @@ CRAN release: 2025-12-06
   to capture plots.
 - Add
   [`new_fixed_block()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_transform_block.md)
-  for applying a fixed (i.e. non-paramtetrized) transformation to data
+  for applying a fixed (i.e. non-parametrized) transformation to data
   input.
 - Board server callbacks are invoked with an additional argument
   `session`.

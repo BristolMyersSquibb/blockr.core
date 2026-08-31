@@ -86,7 +86,7 @@ The set of explicit (named) data inputs for a block is available as
 variable number of inputs like for example a block providing
 [`base::rbind()`](https://rdrr.io/r/base/cbind.html)-like
 functionality), `block_arity()` returns `NA` and the special block
-server function argument `...args`, signalling variadic behavior is
+server function argument `...args`, signaling variadic behavior is
 stripped from `block_inputs()`.
 
 ## External control

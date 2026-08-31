@@ -52,7 +52,7 @@ This is the blockr extension point for token-dense renderings such as a
 board summary. A home package surfaces a subclass's state by defining a
 `str_value()` method, typically extending the parent's via
 [`NextMethod()`](https://rdrr.io/r/base/UseMethod.html) (the way
-`format.dock_stack()` appends a stack colour).
+`format.dock_stack()` appends a stack color).
 [`print()`](https://rdrr.io/r/base/print.html) and
 [`format()`](https://rdrr.io/r/base/format.html) are unaffected and
 remain the full, multi-line tier.

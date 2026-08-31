@@ -32,7 +32,7 @@ as we’ll show further below.
 The legacy board supports the following plugins :
 
 - [`manage_blocks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/manage_blocks.md):
-  Implements the way **blocks** are created, removed, appened…
+  Implements the way **blocks** are created, removed, appended…
 - [`manage_links()`](https://bristolmyerssquibb.github.io/blockr.core/reference/manage_links.md):
   Implements how **blocks** are connected. Linking **block** A to
   **block** B means that **block** A passes its output data to **block**

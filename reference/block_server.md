@@ -133,7 +133,7 @@ scope).
 
 Each block carries an *eval status* – one of `dormant`, `stale`,
 `waiting`, `unset`, `failed` or `ready` – which, together with its
-orthogonal front-end visibility, determines its behaviour. The status
+orthogonal front-end visibility, determines its behavior. The status
 separates the two input kinds (data inputs from links, user inputs from
 `state`) and a genuine failure:
 
@@ -224,7 +224,7 @@ constructed. The background cadence is set by the
 [`blockr_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_option.md)
 (milliseconds between successive blocks, default 50); a value of 0
 disables the staggering and builds every block up front. With nothing
-writing `required` every block is needed and behaviour is unchanged; the
+writing `required` every block is needed and behavior is unchanged; the
 `gate_visibility`
 [`blockr_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_option.md)
 (default `TRUE`) turns gating off entirely.

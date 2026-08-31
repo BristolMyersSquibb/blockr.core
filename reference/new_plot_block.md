@@ -65,8 +65,8 @@ support this type of decoupling.
 
 ## Scatter block
 
-Mainly for demonstration purposes, this block draws a scattter plot
-using [`base::plot()`](https://rdrr.io/r/base/plot.html). In its current
+Mainly for demonstration purposes, this block draws a scatter plot using
+[`base::plot()`](https://rdrr.io/r/base/plot.html). In its current
 simplistic implementation, apart from axis labels (fixed to the
 corresponding column names), no further plotting options are available
 and for any "production" application, a more sophisticated (set of)

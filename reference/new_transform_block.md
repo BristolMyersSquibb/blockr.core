@@ -60,7 +60,7 @@ new_subset_block(subset = "", select = "", ...)
 
 - by:
 
-  Column(s) tp join on
+  Column(s) to join on
 
 - all_x, all_y:
 
