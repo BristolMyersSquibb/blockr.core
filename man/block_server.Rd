@@ -102,7 +102,7 @@ i.e. block user inputs and expression), and instantiation of the
 
 Each block carries an \emph{eval status} -- one of \code{dormant}, \code{stale}, \code{waiting},
 \code{unset}, \code{failed} or \code{ready} -- which, together with its orthogonal front-end
-visibility, determines its behaviour. The status separates the two input
+visibility, determines its behavior. The status separates the two input
 kinds (data
 inputs from links, user inputs from \code{state}) and a genuine failure:
 \itemize{
@@ -173,7 +173,7 @@ callbacks, which simply see it appear once constructed. The background
 cadence is set by the \code{background_construction_delay} \code{\link[=blockr_option]{blockr_option()}}
 (milliseconds between successive blocks, default 50); a value of 0 disables
 the staggering and builds every block up front. With nothing writing
-\code{required} every block is needed and behaviour is unchanged; the
+\code{required} every block is needed and behavior is unchanged; the
 \code{gate_visibility} \code{\link[=blockr_option]{blockr_option()}} (default \code{TRUE}) turns gating off
 entirely.
 

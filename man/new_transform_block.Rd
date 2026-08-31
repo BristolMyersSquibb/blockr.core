@@ -41,7 +41,7 @@ for internal use or when defining constructors for virtual classes)}
 
 \item{direction}{Either "head" or "tail"}
 
-\item{by}{Column(s) tp join on}
+\item{by}{Column(s) to join on}
 
 \item{all_x, all_y}{Join type, see \code{\link[base:merge]{base::merge()}}}
 

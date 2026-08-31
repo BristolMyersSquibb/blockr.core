@@ -86,7 +86,7 @@ Most major features of a __board__ are implemented through what we call __plugin
 
 The legacy board supports the following plugins :
 
-- `manage_blocks()`: Implements the way __blocks__ are created, removed, appened...
+- `manage_blocks()`: Implements the way __blocks__ are created, removed, appended...
 - `manage_links()`: Implements how __blocks__ are connected. Linking __block__ A to __block__ B means that __block__ A passes its output data to __block__ B.
 - `manage_stacks()`: Implements how __blocks__ can be grouped using __stacks__.
 - `preserve_board()`: Implements how __boards__ can be saved and restored.

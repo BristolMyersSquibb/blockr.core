@@ -34,7 +34,7 @@ ctrl_block <- function(server = ctrl_block_server, ui = ctrl_block_ui) {
 #' @param vars Reactive state values (list of `reactiveVal` objects keyed by
 #' input name). `block_name` is included by the default `block_server.block`
 #' even though it is not part of the block's `expr_server` state.
-#' @param data Input data paseed as list of reactive values
+#' @param data Input data passed as list of reactive values
 #' @param eval Reactive that evaluates the block expression against input
 #' data. May be used to validate that the new values produce a successful
 #' evaluation.

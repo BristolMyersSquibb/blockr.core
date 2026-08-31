@@ -70,5 +70,5 @@ for a single block. Missing fields are filled with display defaults in the
 data.frame; the getters instead return the stored value (or \code{NA} / an empty
 value). A block constructed for a class with no registry entry carries a
 class-derived default record, imputed at construction, so accessors degrade
-to those defaults rather than signalling a missing record.
+to those defaults rather than signaling a missing record.
 }
