@@ -22,6 +22,8 @@ Description: A framework for data manipulation and visualization using a
 URL: https://bristolmyerssquibb.github.io/blockr.core/
 BugReports: https://github.com/BristolMyersSquibb/blockr.core/issues
 License: GPL (>= 3)
+Remotes:
+    nbenn/typedjson
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE, packages = c("roxy.shinylive"), roclets =
     c("collate", "namespace", "rd", "blockr.core::block_registration_roclet"))
@@ -34,7 +36,6 @@ Imports:
     graphics,
     methods,
     utils,
-    jsonlite,
     vctrs,
     generics,
     rlang,
@@ -45,7 +46,8 @@ Imports:
     cli,
     glue,
     yaml,
-    later
+    later,
+    typedjson
 Suggests:
     testthat (>= 3.0.0),
     memuse,

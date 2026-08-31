@@ -451,6 +451,33 @@ test_that("serialize_board uses constructor state for a not-yet-built block", {
   )
 })
 
+test_that("typed state survives the file round trip", {
+
+  state <- list(
+    version = 1,
+    tokens = c(10, 20, 5),
+    cost = NA_real_,
+    stamp = as.Date("2026-01-01"),
+    labels = c(a = 1.5),
+    empty = character()
+  )
+
+  temp <- withr::local_tempfile(fileext = ".json")
+  writeLines(write_json(state), temp)
+
+  expect_identical(read_json(temp), state)
+})
+
+test_that("a link input matching a JSON token stays a string", {
+
+  lnk <- new_link("a", "b", "Inf")
+
+  temp <- withr::local_tempfile(fileext = ".json")
+  writeLines(write_json(blockr_ser(lnk)), temp)
+
+  expect_identical(blockr_deser(read_json(temp))$input, "Inf")
+})
+
 test_that("dummy ser/deser ui test", {
   expect_s3_class(preserve_board_ui("ser_deser", new_board()), "shiny.tag.list")
 })
