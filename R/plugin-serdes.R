@@ -74,11 +74,7 @@ preserve_board_server <- function(id, board, ...) {
 }
 
 read_json <- function(x) {
-  jsonlite::fromJSON(
-    x,
-    simplifyDataFrame = FALSE,
-    simplifyMatrix = FALSE
-  )
+  typedjson::json_read(x)
 }
 
 #' @param x The current `board` object
@@ -181,7 +177,7 @@ write_board_to_disk <- function(rv, ..., session = get_session()) {
 }
 
 write_json <- function(x) {
-  jsonlite::toJSON(x, null = "null")
+  typedjson::json_write_str(x)
 }
 
 check_ser_deser_val <- function(val) {

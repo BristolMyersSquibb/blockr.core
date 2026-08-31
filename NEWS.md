@@ -1,5 +1,23 @@
 # blockr.core 0.1.4
 
+* Board files are now written and read by `typedjson` rather than
+  `jsonlite::toJSON()`/`fromJSON()`, so typed data stored in block state
+  survives the round trip. JSON has one number type, no typed `NA` and no
+  place for attributes, so a double came back an integer, an all-`NA` vector
+  lost its type, and names, `Date` and factor classes were dropped. Core's own
+  objects were unaffected because `blockr_deser()` rebuilds them through a
+  constructor that re-imposes the types the document could not carry, but
+  anything an extension stored in `state` has no such route back and arrived
+  changed. Both directions of the format change were measured: a document
+  written by the old pair reads back identically under the new one, and a
+  document written by the new one still reads under the old, so saved boards
+  keep loading either way (#351).
+* A link input equal to `"Inf"`, `"NA"` or `"NaN"` now restores as the string
+  it was. The old reader decoded those tokens back to the numeric or logical
+  values they usually encode, so a contractually-character field came back
+  non-character and aborted the restore. Strings are now escaped where they
+  could be mistaken for a token, which removes the ambiguity rather than
+  papering over it field by field (#136).
 * The `format.block()` method now takes a `state` argument, so a caller
   holding a block's live state can render that instead of the values it was
   constructed with. The state section came from the constructor frame, which

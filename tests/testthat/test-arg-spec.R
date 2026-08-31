@@ -408,7 +408,7 @@ test_that("descriptors serialize to JSON Schema that ellmer reads back", {
     operator   = arg_enum(c("&", "|"))
   )
 
-  js <- as.character(jsonlite::toJSON(d, auto_unbox = TRUE))
+  js <- typedjson::json_write_str(d, typed = FALSE)
 
   expect_match(js, '"required":["conditions","operator"]', fixed = TRUE)
   expect_match(js, '"enum":["&","|"]', fixed = TRUE)
