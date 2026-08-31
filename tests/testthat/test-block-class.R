@@ -141,6 +141,28 @@ test_that("block class", {
   expect_snapshot(print(x))
 })
 
+test_that("format.block() renders live state when passed one", {
+
+  blk <- new_dataset_block("iris")
+
+  expect_identical(
+    sub("^Initial block state:$", "Block state:", format(blk)),
+    format(blk, state = initial_block_state(blk))
+  )
+
+  expect_snapshot(
+    print(blk, state = list(dataset = "mtcars", package = "datasets"))
+  )
+
+  expect_error(format(blk, state = list(dataset = "mtcars")))
+  expect_error(format(blk, state = c(dataset = "mtcars", package = "datasets")))
+
+  expect_identical(
+    format(new_rbind_block(), state = list()),
+    format(new_rbind_block())
+  )
+})
+
 test_that("blocks report controllability in str_value()", {
 
   expect_identical(

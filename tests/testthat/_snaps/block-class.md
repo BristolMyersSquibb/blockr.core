@@ -11,6 +11,19 @@
        $ package: chr "datasets"
       Constructor: blockr.core::new_dataset_block()
 
+# format.block() renders live state when passed one
+
+    Code
+      print(blk, state = list(dataset = "mtcars", package = "datasets"))
+    Output
+      <dataset_block<data_block<block>>>
+      Name: "Dataset"
+      No data inputs
+      Block state:
+       $ dataset: chr "mtcars"
+       $ package: chr "datasets"
+      Constructor: blockr.core::new_dataset_block()
+
 # Without package blocks can print
 
     Code

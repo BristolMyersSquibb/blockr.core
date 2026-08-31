@@ -749,7 +749,7 @@ block_arity <- function(x) {
 }
 
 #' @export
-format.block <- function(x, ...) {
+format.block <- function(x, ..., state = NULL) {
 
   out <- ""
 
@@ -774,12 +774,22 @@ format.block <- function(x, ...) {
 
   out <- c(out, dat)
 
-  if (length(block_ctor_inputs(x))) {
+  inputs <- block_ctor_inputs(x)
 
-    args <- initial_block_state(x)
+  if (length(inputs)) {
+
+    if (is.null(state)) {
+      args <- initial_block_state(x)
+      lbl <- "Initial block state:"
+    } else {
+      stopifnot(is.list(state), all(inputs %in% names(state)))
+      args <- state[inputs]
+      lbl <- "Block state:"
+    }
+
     args <- trimws(utils::capture.output(utils::str(args))[-1L], "right")
 
-    out <- c(out, "Initial block state:", args)
+    out <- c(out, lbl, args)
 
   } else {
 

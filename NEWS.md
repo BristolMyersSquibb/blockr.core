@@ -1,5 +1,14 @@
 # blockr.core 0.1.4
 
+* The `format.block()` method now takes a `state` argument, so a caller
+  holding a block's live state can render that instead of the values it was
+  constructed with. The state section came from the constructor frame, which
+  is fixed at construction, so a block taken off a running board rendered its
+  load-time values however long ago a `blocks$mod` delta or an edit in the
+  block's own UI had moved them on. This mirrors `blockr_ser.block()`, which
+  already takes live state and falls back to the constructor scope when it is
+  absent. The section label states which of the two is shown, and the
+  default remains the constructor values (#352).
 * A block in a collapsed stack no longer evaluates once at load. Which stacks
   render open is core's own decision, but it was left to `bslib`'s default of
   opening the first panel, so the board server knew nothing about what was on
