@@ -490,7 +490,7 @@ test_that("prepending works on a board that holds no links yet", {
   )
 })
 
-test_that("only a bare TRUE is accepted as a logical anchor", {
+test_that("an anchor is TRUE or a vector of link IDs or positions", {
 
   board <- new_board(
     blocks = c(
@@ -504,8 +504,14 @@ test_that("only a bare TRUE is accepted as a logical anchor", {
   add <- links(xc = new_link("a", "c"))
 
   # A named TRUE reaches vctrs as a mask, where it silently reads as the
-  # first position.
-  for (val in list(c(xc = TRUE), c(xc = FALSE), FALSE, NA)) {
+  # first position; a list or factor resolves fine there but is wider than
+  # what the payload validator accepts.
+  vals <- list(
+    c(xc = TRUE), c(xc = FALSE), FALSE, NA,
+    list(xc = "ac"), structure(factor("ac"), names = "xc")
+  )
+
+  for (val in vals) {
     expect_error(
       modify_board_links(board, add = add, before = val),
       class = "links_insert_names_invalid"

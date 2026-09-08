@@ -389,7 +389,8 @@ board_link_ids <- function(x) {
 #' @param before,after Where to place links passed as `add`, either `TRUE`
 #' to place all of them relative to the whole link set, or a vector named by
 #' link ID (of a link in `add`) holding the ID of the link to sit next to or
-#' its position. Anchors are resolved against the links as they are on entry,
+#' its position, given as a character or numeric vector. Anchors are resolved
+#' against the links as they are on entry,
 #' before `rm` is applied, so a link can be placed relative to one the same
 #' call removes. Named entries override a `TRUE` on the other argument, and
 #' links in `add` covered by neither are appended.
@@ -473,13 +474,15 @@ splice_links <- function(links, add, ids, new, before = NULL, after = NULL) {
 
   anchors <- function(x, arg) {
 
-    if (identical(x, TRUE)) {
+    if (!length(x) || identical(x, TRUE)) {
       return(NULL)
     }
 
-    # Anything else logical would reach `vec_as_location2()` as a mask, where
-    # a lone `TRUE` silently reads as position 1.
-    if (is.logical(x)) {
+    # Entries go one at a time to `vec_as_location2()`, which is happy to take
+    # a list or a factor and reads a lone `TRUE` as a mask for position 1.
+    # Holding the documented contract here keeps this in step with
+    # `validate_link_placement()`, which a payload passes through first.
+    if (!is.character(x) && !is.numeric(x)) {
       blockr_abort(
         "Expecting `{arg}` to be `TRUE` or a vector of link IDs or positions.",
         class = "links_insert_names_invalid"

@@ -89,7 +89,8 @@ clear_board(x)
 \item{before, after}{Where to place links passed as \code{add}, either \code{TRUE}
 to place all of them relative to the whole link set, or a vector named by
 link ID (of a link in \code{add}) holding the ID of the link to sit next to or
-its position. Anchors are resolved against the links as they are on entry,
+its position, given as a character or numeric vector. Anchors are resolved
+against the links as they are on entry,
 before \code{rm} is applied, so a link can be placed relative to one the same
 call removes. Named entries override a \code{TRUE} on the other argument, and
 links in \code{add} covered by neither are appended.}
