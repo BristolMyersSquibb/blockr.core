@@ -34,7 +34,15 @@ board_links(x) <- value
 
 board_link_ids(x)
 
-modify_board_links(x, add = NULL, rm = NULL, ..., session = get_session())
+modify_board_links(
+  x,
+  add = NULL,
+  rm = NULL,
+  ...,
+  before = NULL,
+  after = NULL,
+  session = get_session()
+)
 
 board_stacks(x)
 
@@ -78,6 +86,13 @@ clear_board(x)
 
 \item{add}{Links/stacks to add}
 
+\item{before, after}{Where to place links passed as \code{add}, as vectors named
+by link ID (of a link in \code{add}), holding either the ID of the link to sit
+next to or its position. Anchors are resolved against the links as they
+are on entry, before \code{rm} is applied, so a link can be placed
+relative to one the same call removes. Links in \code{add} named in neither are
+appended.}
+
 \item{mod}{Stacks to modify}
 
 \item{blocks, stacks}{Sets of blocks/stacks}
@@ -119,7 +134,10 @@ corresponding replacement function \verb{board_links<-()}. If only links IDs are
 of interest, this is available as \code{board_link_ids()}, which is short for
 \code{names(board_links(x))}. A (generic) convenience function for all kinds of
 updates to board links in one is available as \code{modify_board_links()}. With
-arguments \code{add} and \code{rm}, links can be added or removed in one go.
+arguments \code{add} and \code{rm}, links can be added or removed in one go. Added
+links are appended unless \code{before} or \code{after} places them, which matters
+for a variadic target block, where the order of the links pointing at it
+is the order of its \code{...} arguments.
 }
 
 \section{Stacks}{

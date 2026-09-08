@@ -357,7 +357,10 @@ rm_blocks.board <- function(x, rm, ..., session = get_session()) {
 #' of interest, this is available as `board_link_ids()`, which is short for
 #' `names(board_links(x))`. A (generic) convenience function for all kinds of
 #' updates to board links in one is available as `modify_board_links()`. With
-#' arguments `add` and `rm`, links can be added or removed in one go.
+#' arguments `add` and `rm`, links can be added or removed in one go. Added
+#' links are appended unless `before` or `after` places them, which matters
+#' for a variadic target block, where the order of the links pointing at it
+#' is the order of its `...` arguments.
 #'
 #' @rdname board_blocks
 #' @export
@@ -382,9 +385,16 @@ board_link_ids <- function(x) {
 
 #' @param add Links/stacks to add
 #' @param mod Stacks to modify
+#' @param before,after Where to place links passed as `add`, as vectors named
+#' by link ID (of a link in `add`), holding either the ID of the link to sit
+#' next to or its position. Anchors are resolved against the links as they
+#' are on entry, before `rm` is applied, so a link can be placed
+#' relative to one the same call removes. Links in `add` named in neither are
+#' appended.
 #' @rdname board_blocks
 #' @export
 modify_board_links <- function(x, add = NULL, rm = NULL, ...,
+                               before = NULL, after = NULL,
                                session = get_session()) {
 
   if (!length(add) && !length(rm)) {
@@ -396,30 +406,83 @@ modify_board_links <- function(x, add = NULL, rm = NULL, ...,
 
 #' @export
 modify_board_links.board <- function(x, add = NULL, rm = NULL, ...,
+                                     before = NULL, after = NULL,
                                      session = get_session()) {
 
   links <- board_links(x)
+  ids <- names(links)
 
   if (is_links(rm)) {
     rm <- names(rm)
   }
 
-  keep <- intersect(names(add), rm)
+  new <- names(add)
+  keep <- intersect(new, rm)
+  drop <- setdiff(rm, keep)
+
+  # Removals are applied before the in-place assignment below: `[<-.links`
+  # validates the whole object, so a link this call also removes is still
+  # there to collide with the input the replacement claims. Reachable from an
+  # ordinary payload, as `apply_board_update()` folds `links$mod` into `add`
+  # plus `rm` under one ID and may pair that with a `links$rm`.
+  if (length(drop)) {
+    stopifnot(is.character(drop), all(drop %in% ids))
+    links <- links[!names(links) %in% drop]
+  }
 
   if (length(keep)) {
     links[keep] <- add[keep]
     add <- add[setdiff(names(add), keep)]
-    rm <- setdiff(rm, keep)
   }
 
-  if (length(rm)) {
-    stopifnot(is.character(rm), all(rm %in% names(links)))
-    links <- links[!names(links) %in% rm]
-  }
-
-  board_links(x) <- c(links, add)
+  board_links(x) <- splice_links(links, add, ids, new, before, after)
 
   x
+}
+
+# Ranks the surviving links by their position on entry and the added ones past
+# the end, then moves anchored links to just shy of the anchor so that ties
+# (several links anchored to the same one) settle in `add` order. Anchors are
+# named by `ids` (the links on entry, removals included) and `before`/`after`
+# by `new` (the links this call adds, in-place edits included).
+splice_links <- function(links, add, ids, new, before = NULL, after = NULL) {
+
+  res <- c(links, add)
+
+  if (!length(before) && !length(after)) {
+    return(res)
+  }
+
+  both <- intersect(names(before), names(after))
+
+  if (length(both)) {
+    blockr_abort(
+      "Cannot place link{?s} {both} both before and after another link.",
+      class = "links_insert_position_clash"
+    )
+  }
+
+  anchors <- function(x, arg) {
+
+    if (length(names(x)) != length(x) || !all(names(x) %in% new)) {
+      blockr_abort(
+        "Expecting `{arg}` to be named by the IDs of links being added.",
+        class = "links_insert_names_invalid"
+      )
+    }
+
+    int_ply(x, vec_as_location2, length(ids), ids, arg = arg)
+  }
+
+  rank <- set_names(
+    c(match(names(links), ids), length(ids) + seq_along(add)),
+    names(res)
+  )
+
+  rank[names(before)] <- anchors(before, "before") - 0.5
+  rank[names(after)] <- anchors(after, "after") + 0.5
+
+  res[order(rank, seq_along(rank))]
 }
 
 #' @section Stacks:

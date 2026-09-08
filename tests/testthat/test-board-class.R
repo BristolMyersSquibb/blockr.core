@@ -277,3 +277,158 @@ test_that("editing a link via add + rm overlap preserves its position", {
   expect_identical(names(board_links(edited)), c("ac", "bc"))
   expect_identical(board_links(edited)[["ac"]][["input"]], "x")
 })
+
+test_that("added links can be placed before or after another link", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      b = new_dataset_block("BOD"),
+      c = new_rbind_block()
+    ),
+    links = links(
+      ac = new_link("a", "c"),
+      bc = new_link("b", "c")
+    )
+  )
+
+  place <- function(...) {
+    names(
+      board_links(
+        modify_board_links(board, add = links(xc = new_link("a", "c")), ...)
+      )
+    )
+  }
+
+  expect_identical(place(), c("ac", "bc", "xc"))
+  expect_identical(place(before = c(xc = "ac")), c("xc", "ac", "bc"))
+  expect_identical(place(after = c(xc = "ac")), c("ac", "xc", "bc"))
+  expect_identical(place(before = c(xc = "bc")), c("ac", "xc", "bc"))
+  expect_identical(place(after = c(xc = "bc")), c("ac", "bc", "xc"))
+
+  # Positions are an alternative spelling of the same anchors.
+  expect_identical(place(before = c(xc = 1L)), place(before = c(xc = "ac")))
+  expect_identical(place(after = c(xc = 2L)), place(after = c(xc = "bc")))
+
+  # Several links anchored to the same one keep the order they arrive in.
+  expect_identical(
+    names(
+      board_links(
+        modify_board_links(
+          board,
+          add = links(xc = new_link("a", "c"), yc = new_link("b", "c")),
+          before = c(xc = "bc", yc = "bc")
+        )
+      )
+    ),
+    c("ac", "xc", "yc", "bc")
+  )
+})
+
+test_that("splicing a block into a link preserves variadic input order", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      z = new_dataset_block("BOD"),
+      b = new_head_block(),
+      m = new_rbind_block()
+    ),
+    links = links(
+      ac = new_link("a", "m"),
+      zm = new_link("z", "m")
+    )
+  )
+
+  sources <- function(x) {
+    lnk <- board_links(x)
+    field(lnk[field(lnk, "to") == "m"], "from")
+  }
+
+  expect_identical(sources(board), c("a", "z"))
+
+  splice <- function(...) {
+    modify_board_links(
+      board,
+      add = links(ab = new_link("a", "b", "data"), bm = new_link("b", "m")),
+      rm = "ac",
+      ...
+    )
+  }
+
+  # Appending is what re-orders the target block's inputs.
+  expect_identical(sources(splice()), c("z", "b"))
+
+  # The link being removed is a legitimate anchor: it is still there when
+  # anchors are resolved.
+  expect_identical(sources(splice(after = c(bm = "ac"))), c("b", "z"))
+  expect_identical(sources(splice(before = c(bm = "ac"))), c("b", "z"))
+})
+
+test_that("link placement rejects contradictory or unknown anchors", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      b = new_dataset_block("BOD"),
+      c = new_rbind_block()
+    ),
+    links = links(ac = new_link("a", "c"), bc = new_link("b", "c"))
+  )
+
+  add <- links(xc = new_link("a", "c"))
+
+  expect_error(
+    modify_board_links(
+      board, add = add, before = c(xc = "ac"), after = c(xc = "bc")
+    ),
+    class = "links_insert_position_clash"
+  )
+
+  expect_error(
+    modify_board_links(board, add = add, after = c(bc = "ac")),
+    class = "links_insert_names_invalid"
+  )
+
+  expect_error(
+    modify_board_links(board, add = add, after = "ac"),
+    class = "links_insert_names_invalid"
+  )
+
+  expect_error(
+    modify_board_links(board, add = add, after = c(xc = "nope")),
+    class = "vctrs_error_subscript_oob"
+  )
+
+  expect_error(
+    modify_board_links(board, add = add, after = c(xc = 5L)),
+    class = "vctrs_error_subscript_oob"
+  )
+})
+
+test_that("link removal is applied before the add + rm overlap assignment", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      z = new_dataset_block("BOD"),
+      h = new_head_block(),
+      k = new_head_block()
+    ),
+    links = links(
+      old = new_link("a", "h", "data"),
+      keepme = new_link("z", "k", "data")
+    )
+  )
+
+  # Here `keepme` claims the input `old` currently holds; the payload removes
+  # `old` in the same call, so the end state is valid.
+  edited <- modify_board_links(
+    board,
+    add = links(keepme = new_link("z", "h", "data")),
+    rm = c("old", "keepme")
+  )
+
+  expect_identical(names(board_links(edited)), "keepme")
+  expect_identical(board_links(edited)[["keepme"]][["to"]], "h")
+})
