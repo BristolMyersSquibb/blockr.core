@@ -3,9 +3,12 @@
 * Links can now be placed rather than only appended. The `modify_board_links()`
   arguments `before` and `after`, mirrored by `links$before` / `links$after` in
   a board update payload, name where a link passed as `add` should sit, as
-  either the ID of the link to sit next to or its position. Anchors resolve
-  against the links as they are before `rm` is applied, so a link can be placed
-  relative to one the same call removes. This matters for a variadic target,
+  either the ID of the link to sit next to or its position. Passing `TRUE`
+  instead places every added link against the whole set, so `before = TRUE`
+  prepends and `after = TRUE` appends, which is also the one spelling of
+  "first" that holds on a board with no links yet. Anchors resolve against the
+  links as they are before `rm` is applied, so a link can be placed relative to
+  one the same call removes. This matters for a variadic target,
   whose `...` argument order is the order of the links pointing at it: splicing
   a block into an existing wire drops one link and adds two, and appending the
   replacement moved the target's inputs out from under it, silently reordering

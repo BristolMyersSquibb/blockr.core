@@ -1750,3 +1750,44 @@ test_that("splicing a block into a link keeps the target's ...args order", {
     args = list(x = board, plugins = list(manage_blocks()))
   )
 })
+
+test_that("a board update payload takes TRUE as a link anchor", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      b = new_dataset_block("BOD"),
+      c = new_rbind_block()
+    ),
+    links = links(ac = new_link("a", "c"), bc = new_link("b", "c"))
+  )
+
+  payload <- function(...) {
+    list(links = list(add = links(xc = new_link("a", "c")), ...))
+  }
+
+  expect_silent(validate_board_update(payload(before = TRUE), board,
+                                      session = NULL))
+
+  expect_identical(
+    board_link_ids(apply_board_update(board, payload(before = TRUE))),
+    c("xc", "ac", "bc")
+  )
+
+  expect_identical(
+    board_link_ids(apply_board_update(board, payload(after = TRUE))),
+    board_link_ids(apply_board_update(board, payload()))
+  )
+
+  expect_error(
+    validate_board_update(payload(before = TRUE, after = TRUE), board,
+                          session = NULL),
+    class = "board_update_links_before_after_clash"
+  )
+
+  expect_error(
+    validate_board_update(payload(before = c(xc = TRUE)), board,
+                          session = NULL),
+    class = "board_update_links_before_invalid"
+  )
+})

@@ -432,3 +432,83 @@ test_that("link removal is applied before the add + rm overlap assignment", {
   expect_identical(names(board_links(edited)), "keepme")
   expect_identical(board_links(edited)[["keepme"]][["to"]], "h")
 })
+
+test_that("a bare TRUE places added links against the whole link set", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      b = new_dataset_block("BOD"),
+      c = new_rbind_block()
+    ),
+    links = links(ac = new_link("a", "c"), bc = new_link("b", "c"))
+  )
+
+  one <- links(xc = new_link("a", "c"))
+  two <- links(xc = new_link("a", "c"), yc = new_link("b", "c"))
+
+  place <- function(add, ...) {
+    names(board_links(modify_board_links(board, add = add, ...)))
+  }
+
+  # Appending is the default, so `after = TRUE` says it out loud.
+  expect_identical(place(one, after = TRUE), place(one))
+  expect_identical(place(one, after = TRUE), c("ac", "bc", "xc"))
+
+  expect_identical(place(one, before = TRUE), c("xc", "ac", "bc"))
+  expect_identical(place(two, before = TRUE), c("xc", "yc", "ac", "bc"))
+
+  # A named anchor is laid over the blanket rather than fighting it.
+  expect_identical(
+    place(two, before = TRUE, after = c(yc = "ac")),
+    c("xc", "ac", "yc", "bc")
+  )
+
+  expect_error(
+    modify_board_links(board, add = one, before = TRUE, after = TRUE),
+    class = "links_insert_position_clash"
+  )
+})
+
+test_that("prepending works on a board that holds no links yet", {
+
+  board <- new_board(
+    blocks = c(a = new_dataset_block("BOD"), c = new_rbind_block())
+  )
+
+  add <- links(ac = new_link("a", "c"))
+
+  expect_identical(
+    names(board_links(modify_board_links(board, add = add, before = TRUE))),
+    "ac"
+  )
+
+  # A position has nothing to resolve against when there are no links.
+  expect_error(
+    modify_board_links(board, add = add, before = c(ac = 1L)),
+    class = "vctrs_error_subscript_oob"
+  )
+})
+
+test_that("only a bare TRUE is accepted as a logical anchor", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      b = new_dataset_block("BOD"),
+      c = new_rbind_block()
+    ),
+    links = links(ac = new_link("a", "c"), bc = new_link("b", "c"))
+  )
+
+  add <- links(xc = new_link("a", "c"))
+
+  # A named TRUE reaches vctrs as a mask, where it silently reads as the
+  # first position.
+  for (val in list(c(xc = TRUE), c(xc = FALSE), FALSE, NA)) {
+    expect_error(
+      modify_board_links(board, add = add, before = val),
+      class = "links_insert_names_invalid"
+    )
+  }
+})

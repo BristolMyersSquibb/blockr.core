@@ -360,7 +360,8 @@ rm_blocks.board <- function(x, rm, ..., session = get_session()) {
 #' arguments `add` and `rm`, links can be added or removed in one go. Added
 #' links are appended unless `before` or `after` places them, which matters
 #' for a variadic target block, where the order of the links pointing at it
-#' is the order of its `...` arguments.
+#' is the order of its `...` arguments. Passing `before = TRUE` prepends and
+#' `after = TRUE` appends, while naming a link or a position inserts.
 #'
 #' @rdname board_blocks
 #' @export
@@ -385,12 +386,13 @@ board_link_ids <- function(x) {
 
 #' @param add Links/stacks to add
 #' @param mod Stacks to modify
-#' @param before,after Where to place links passed as `add`, as vectors named
-#' by link ID (of a link in `add`), holding either the ID of the link to sit
-#' next to or its position. Anchors are resolved against the links as they
-#' are on entry, before `rm` is applied, so a link can be placed
-#' relative to one the same call removes. Links in `add` named in neither are
-#' appended.
+#' @param before,after Where to place links passed as `add`, either `TRUE`
+#' to place all of them relative to the whole link set, or a vector named by
+#' link ID (of a link in `add`) holding the ID of the link to sit next to or
+#' its position. Anchors are resolved against the links as they are on entry,
+#' before `rm` is applied, so a link can be placed relative to one the same
+#' call removes. Named entries override a `TRUE` on the other argument, and
+#' links in `add` covered by neither are appended.
 #' @rdname board_blocks
 #' @export
 modify_board_links <- function(x, add = NULL, rm = NULL, ...,
@@ -453,6 +455,13 @@ splice_links <- function(links, add, ids, new, before = NULL, after = NULL) {
     return(res)
   }
 
+  if (identical(before, TRUE) && identical(after, TRUE)) {
+    blockr_abort(
+      "Cannot place added links both before and after the whole link set.",
+      class = "links_insert_position_clash"
+    )
+  }
+
   both <- intersect(names(before), names(after))
 
   if (length(both)) {
@@ -464,9 +473,23 @@ splice_links <- function(links, add, ids, new, before = NULL, after = NULL) {
 
   anchors <- function(x, arg) {
 
+    if (identical(x, TRUE)) {
+      return(NULL)
+    }
+
+    # Anything else logical would reach `vec_as_location2()` as a mask, where
+    # a lone `TRUE` silently reads as position 1.
+    if (is.logical(x)) {
+      blockr_abort(
+        "Expecting `{arg}` to be `TRUE` or a vector of link IDs or positions.",
+        class = "links_insert_names_invalid"
+      )
+    }
+
     if (length(names(x)) != length(x) || !all(names(x) %in% new)) {
       blockr_abort(
-        "Expecting `{arg}` to be named by the IDs of links being added.",
+        "Expecting `{arg}` to be `TRUE` or named by the IDs of links being ",
+        "added.",
         class = "links_insert_names_invalid"
       )
     }
@@ -474,13 +497,32 @@ splice_links <- function(links, add, ids, new, before = NULL, after = NULL) {
     int_ply(x, vec_as_location2, length(ids), ids, arg = arg)
   }
 
+  bef <- anchors(before, "before")
+  aft <- anchors(after, "after")
+
   rank <- set_names(
     c(match(names(links), ids), length(ids) + seq_along(add)),
     names(res)
   )
 
-  rank[names(before)] <- anchors(before, "before") - 0.5
-  rank[names(after)] <- anchors(after, "after") + 0.5
+  # A bare `TRUE` is the resting place for every added link, so it is laid
+  # down first and the anchored ones are moved over it. It is also the one
+  # spelling of "first" that survives a board with no links to be first among.
+  if (identical(before, TRUE)) {
+    rank[new] <- 0.5
+  }
+
+  if (identical(after, TRUE)) {
+    rank[new] <- length(ids) + 0.5
+  }
+
+  if (length(bef)) {
+    rank[names(before)] <- bef - 0.5
+  }
+
+  if (length(aft)) {
+    rank[names(after)] <- aft + 0.5
+  }
 
   res[order(rank, seq_along(rank))]
 }

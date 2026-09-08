@@ -1793,6 +1793,13 @@ validate_board_update_links <- function(x, board) {
 
   if (has_comp("before", x) && has_comp("after", x)) {
 
+    if (identical(x$before, TRUE) && identical(x$after, TRUE)) {
+      blockr_abort(
+        "Cannot place added links both before and after the whole link set.",
+        class = "board_update_links_before_after_clash"
+      )
+    }
+
     both <- intersect(names(x$before), names(x$after))
 
     if (length(both)) {
@@ -1814,10 +1821,16 @@ validate_link_placement <- function(x, add_ids, all_ids, cmp) {
 
   err_class <- paste0("board_update_links_", cmp, "_invalid")
 
+  # A bare `TRUE` places every added link relative to the whole link set and
+  # so names nothing to check.
+  if (identical(x, TRUE)) {
+    return(invisible())
+  }
+
   if (length(names(x)) != length(x) || !all(names(x) %in% add_ids)) {
     blockr_abort(
-      "Expecting a board update `{cmp}` component to be named by the IDs of ",
-      "links being added.",
+      "Expecting a board update `{cmp}` component to be `TRUE` or named by ",
+      "the IDs of links being added.",
       class = err_class
     )
   }
@@ -1830,8 +1843,8 @@ validate_link_placement <- function(x, add_ids, all_ids, cmp) {
     unknown <- x[x < 1 | x > length(all_ids)]
   } else {
     blockr_abort(
-      "Expecting a board update `{cmp}` component to be specified as a ",
-      "character or integer vector.",
+      "Expecting a board update `{cmp}` component to be specified as `TRUE` ",
+      "or a character or integer vector.",
       class = err_class
     )
   }
