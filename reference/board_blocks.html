@@ -73,7 +73,15 @@ modifying board options are documented in <code><a href="new_board_options.html"
 <span></span>
 <span><span class="fu">board_link_ids</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">modify_board_links</span><span class="op">(</span><span class="va">x</span>, add <span class="op">=</span> <span class="cn">NULL</span>, rm <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span>, session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu">modify_board_links</span><span class="op">(</span></span>
+<span>  <span class="va">x</span>,</span>
+<span>  add <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  rm <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  <span class="va">...</span>,</span>
+<span>  before <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  after <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  session <span class="op">=</span> <span class="fu"><a href="get_session.html">get_session</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">board_stacks</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span></span>
@@ -133,6 +141,18 @@ modifying board options are documented in <code><a href="new_board_options.html"
 <dd><p>Links/stacks to add</p></dd>
 
 
+<dt id="arg-before-after">before, after<a class="anchor" aria-label="anchor" href="#arg-before-after"></a></dt>
+<dd><p>Where to place links passed as <code>add</code>, either <code>TRUE</code>
+to place all of them relative to the whole link set, or a vector named by
+link ID (of a link in <code>add</code>) holding the ID of the link to sit next to or
+its position among the links into the same block, given as a character or
+numeric vector. Anchors are resolved against the links as they are on entry,
+before <code>rm</code> is applied, so a link can be placed relative to one the same
+call removes. Named entries override a <code>TRUE</code> on the other argument, and
+links in <code>add</code> covered by neither are appended. Only a variadic target
+reads the resulting order; see the Links section.</p></dd>
+
+
 <dt id="arg-mod">mod<a class="anchor" aria-label="anchor" href="#arg-mod"></a></dt>
 <dd><p>Stacks to modify</p></dd>
 
@@ -177,7 +197,15 @@ corresponding replacement function <code>board_links&lt;-()</code>. If only link
 of interest, this is available as <code>board_link_ids()</code>, which is short for
 <code>names(board_links(x))</code>. A (generic) convenience function for all kinds of
 updates to board links in one is available as <code>modify_board_links()</code>. With
-arguments <code>add</code> and <code>rm</code>, links can be added or removed in one go.</p>
+arguments <code>add</code> and <code>rm</code>, links can be added or removed in one go. Added
+links are appended unless <code>before</code> or <code>after</code> places them, which matters
+for a variadic target block, where the order of the links pointing at it
+is the order of its <code>...</code> arguments. Passing <code>before = TRUE</code> prepends and
+<code>after = TRUE</code> appends, while naming a link or a position inserts. Placing
+a link that points at a fixed-arity block is allowed but inert, as such a
+block selects its inputs by link <code>input</code> rather than by order. A position
+therefore counts within the links into the placed link's own target, not
+within the board-wide link vector, which interleaves every target.</p>
     </div>
     <div class="section level2">
     <h2 id="stacks">Stacks<a class="anchor" aria-label="anchor" href="#stacks"></a></h2>

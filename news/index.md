@@ -2,6 +2,38 @@
 
 ## blockr.core 0.1.4
 
+- Links can now be placed rather than only appended. The
+  [`modify_board_links()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
+  arguments `before` and `after`, mirrored by `links$before` /
+  `links$after` in a board update payload, name where a link passed as
+  `add` should sit, as either the ID of the link to sit next to or its
+  position among the links into the same block. Board links are one flat
+  vector interleaving every target, so a board-wide index would name
+  nothing a block can observe. Passing `TRUE` instead places every added
+  link against the whole set, so `before = TRUE` prepends and
+  `after = TRUE` appends, which is also the one spelling of “first” that
+  holds on a board with no links yet. Anchors resolve against the links
+  as they are before `rm` is applied, so a link can be placed relative
+  to one the same call removes. This matters for a variadic target,
+  whose `...` argument order is the order of the links pointing at it:
+  splicing a block into an existing wire drops one link and adds two,
+  and appending the replacement moved the target’s inputs out from under
+  it, silently reordering its rows. Holding the position previously
+  meant reusing the removed link’s ID, so the inserted wire could not be
+  given an ID of its own
+  ([\#358](https://github.com/BristolMyersSquibb/blockr.core/issues/358)).
+
+- Removing and editing links in one update no longer aborts on a link
+  the same update removes. The overlap between `add` and `rm`, which is
+  how
+  [`apply_board_update()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_update.md)
+  folds a `links$mod` delta in, was assigned in place before the
+  removals were applied, and that assignment validates the whole link
+  set – so an edit claiming an input that a to-be-removed link still
+  held failed validation even though the end state was sound. Removals
+  are now applied first
+  ([\#358](https://github.com/BristolMyersSquibb/blockr.core/issues/358)).
+
 - Board files are now written and read by `typedjson` rather than
   [`jsonlite::toJSON()`](https://jeroen.r-universe.dev/jsonlite/reference/fromJSON.html)/`fromJSON()`,
   so typed data stored in block state survives the round trip. JSON has
@@ -17,6 +49,7 @@
   back identically under the new one, and a document written by the new
   one still reads under the old, so saved boards keep loading either way
   ([\#351](https://github.com/BristolMyersSquibb/blockr.core/issues/351)).
+
 - A link input equal to `"Inf"`, `"NA"` or `"NaN"` now restores as the
   string it was. The old reader decoded those tokens back to the numeric
   or logical values they usually encode, so a contractually-character
@@ -24,6 +57,7 @@
   escaped where they could be mistaken for a token, which removes the
   ambiguity rather than papering over it field by field
   ([\#136](https://github.com/BristolMyersSquibb/blockr.core/issues/136)).
+
 - The `format.block()` method now takes a `state` argument, so a caller
   holding a block’s live state can render that instead of the values it
   was constructed with. The state section came from the constructor
@@ -35,6 +69,7 @@
   when it is absent. The section label states which of the two is shown,
   and the default remains the constructor values
   ([\#352](https://github.com/BristolMyersSquibb/blockr.core/issues/352)).
+
 - A block in a collapsed stack no longer evaluates once at load. Which
   stacks render open is core’s own decision, but it was left to
   `bslib`’s default of opening the first panel, so the board server knew
@@ -48,6 +83,7 @@
   to refine that rather than establish it. A board with no stacks binds
   no accordion input and is left ungated, as before
   ([\#343](https://github.com/BristolMyersSquibb/blockr.core/issues/343)).
+
 - A dormant block with no data inputs is now as quiescent as any other.
   The needed set reaches a block through its data reads, of which a
   source block has none, so anything reading its result – the block
@@ -55,6 +91,7 @@
   reports a `NULL` result while it is not needed, which is where a
   dormant block with inputs already lands through its unfulfilled data
   ([\#343](https://github.com/BristolMyersSquibb/blockr.core/issues/343)).
+
 - Core’s own board UI now drives visibility, through a board callback
   like any other front-end rather than from inside the board server.
   Stacks render as an accordion which opens one stack and collapses the
@@ -79,6 +116,7 @@
   `<board>-stacks`, which is what makes it readable from the board
   module
   ([\#338](https://github.com/BristolMyersSquibb/blockr.core/issues/338)).
+
 - Board updates gain a third request component, `construct`, a character
   vector of block IDs to build without evaluating. Construction
   previously followed evaluation as a side effect, so a consumer that
@@ -92,6 +130,7 @@
   channel, so it cannot turn a lazily evaluating board into an eagerly
   evaluating one
   ([\#333](https://github.com/BristolMyersSquibb/blockr.core/issues/333)).
+
 - Showing the generated code no longer writes the front-end’s `required`
   channel. A block parked with `required[[id]](FALSE)` was overwritten
   and never restored, so a single “Show code” turned a lazily evaluating
@@ -108,6 +147,7 @@
   `visibility`, which is breaking for a front-end that supplies its own
   [`generate_code_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/generate_code.md)
   ([\#320](https://github.com/BristolMyersSquibb/blockr.core/issues/320)).
+
 - [`apply_board_update()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_update.md)
   is now a real reducer rather than a no-op: its default `.board` method
   applies the core delta (block, link and stack mutations) to the
@@ -121,6 +161,7 @@
   does for views). Breaking for front-ends that override the apply
   generic
   ([\#311](https://github.com/BristolMyersSquibb/blockr.core/issues/311)).
+
 - Block result previews now dispatch through a *tabular display*: an S3
   object bundling the output container, render function, render trigger
   and board options for a single result class, kept in sync by living on
@@ -143,12 +184,14 @@
   the option. Breaking for front-ends that relied on the DT preview by
   default
   ([\#129](https://github.com/BristolMyersSquibb/blockr.core/issues/129)).
+
 - `DT` moves from Imports to Suggests. It now backs only the opt-in
   `dt_display` preview and the `manage_links` / `manage_stacks`
   reference plugins – which typical front-ends (e.g. blockr.dock)
   replace with their own UI – so a bare core install no longer pulls it
   in. Install `DT` alongside if you use either
   ([\#129](https://github.com/BristolMyersSquibb/blockr.core/issues/129)).
+
 - The default board plugin set
   ([`board_plugins()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_plugin.md))
   no longer includes the `manage_links` and `manage_stacks` editor
@@ -161,6 +204,7 @@
   clear error when `DT` is missing. Breaking for front-ends that relied
   on the core editors in the default board
   ([\#297](https://github.com/BristolMyersSquibb/blockr.core/issues/297)).
+
 - A board’s
   [`blockr_app_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   and
@@ -178,6 +222,7 @@
   formal, or the threaded argument lands in `...` and renders as stray
   content
   ([\#291](https://github.com/BristolMyersSquibb/blockr.core/issues/291)).
+
 - Cleanup of a removed block, stack or view now uses shiny’s public
   `session$destroy(id)` (requires shiny \>= 1.14.0) rather than reaching
   into undocumented shiny internals to tear down a module’s inputs,
@@ -186,11 +231,13 @@
   that captured per-module observers are removed; call
   `session$destroy(id)` directly instead. Breaking
   ([\#202](https://github.com/BristolMyersSquibb/blockr.core/issues/202)).
+
 - The board callback now gates block construction, evaluation and
   rendering through per-block `reactiveVal` channels it receives as
   `visibility` – `required` (which blocks are needed) and `visible`
   (which are on screen) – in place of the single `visible`
   write-channel. Breaking for front-ends.
+
 - The `visible` channel is now logical, mirroring `required`: a
   front-end writes `TRUE` once a block is painted, `FALSE` once it is
   built but off screen, and leaves `NA` until it is first built (it
@@ -202,6 +249,7 @@
   accordingly [`isTRUE()`](https://rdrr.io/r/base/Logic.html) rather
   than `!is.na()`. Breaking for front-ends that wrote a view id
   ([\#306](https://github.com/BristolMyersSquibb/blockr.core/issues/306)).
+
 - The `visibility` bundle carries a third channel, `frozen`, letting a
   front-end freeze a block’s inputs server-side: setting
   `visibility$frozen[[id]](TRUE)` – for example for a locked board that
@@ -215,6 +263,7 @@
   Upstream-data-driven re-evaluation still runs, and unfreezing resumes
   normal input handling
   ([\#231](https://github.com/BristolMyersSquibb/blockr.core/issues/231)).
+
 - `background_construction_delay` now accepts `Inf`, skipping the
   background construction pass so a block is built only once it becomes
   required. Code export (“Show code”) then claims every block on the
@@ -222,6 +271,7 @@
   block that is not fully configured holds the export back instead of
   emitting broken code
   ([\#269](https://github.com/BristolMyersSquibb/blockr.core/issues/269)).
+
 - Code export gates on the set of blocks that actually carry an
   expression, not on eval status alone, so a board with unbuilt blocks
   can no longer emit a script that assigns to a variable named `NA`.
@@ -229,6 +279,7 @@
   while the board materializes and a not-ready note when a block is left
   unconfigured, rather than silently producing nothing
   ([\#300](https://github.com/BristolMyersSquibb/blockr.core/issues/300)).
+
 - [`blockr_ser()`](https://bristolmyerssquibb.github.io/blockr.core/reference/blockr_ser.md)
   accepts a partial block-state snapshot: a board block omitted from
   `blocks` (or mapped to `NULL`) serializes from its constructor scope
@@ -237,6 +288,7 @@
   and carry no live state, no longer fails – unbuilt blocks round-trip
   from their constructors rather than being dropped
   ([\#279](https://github.com/BristolMyersSquibb/blockr.core/issues/279)).
+
 - With a finite `background_construction_delay`, the staggered builder
   now prioritizes the on-screen view: each tick builds the next block
   needed by the visible set before the rest of the backlog, so switching
@@ -244,12 +296,14 @@
   newly-visible blocks come up progressively instead of in one blocking
   build
   ([\#275](https://github.com/BristolMyersSquibb/blockr.core/issues/275)).
+
 - The staggered builder no longer monopolizes the event loop while it
   runs. Each tick’s pacing delay now begins once the just-built block
   has flushed rather than while its reactive graph is still flushing, so
   pending user input is serviced within one tick instead of behind the
   entire backlog
   ([\#276](https://github.com/BristolMyersSquibb/blockr.core/issues/276)).
+
 - With a finite `background_construction_delay` (the default), a
   downstream block’s data input no longer latches at `NULL` when its
   input reactive runs before the upstream is built. The input read the
@@ -259,6 +313,7 @@
   re-fires when the upstream is constructed, so the block picks up its
   data instead of starving for the rest of the session
   ([\#298](https://github.com/BristolMyersSquibb/blockr.core/issues/298)).
+
 - Captured block conditions are no longer glue-interpolated when logged,
   so a block whose warning or error text contains braces – e.g. the
   `{summary_fun}` / `{data}` placeholders in `tidyr::pivot_wider()`’s
@@ -268,6 +323,7 @@
   toast path’s `use_glue = FALSE` treatment to the
   `capture_conditions()` handlers and the `replay()` methods
   ([\#268](https://github.com/BristolMyersSquibb/blockr.core/issues/268)).
+
 - Switching the active panel or view no longer re-evaluates blocks whose
   needed status is unchanged. Each block gates its data inputs and eval
   status on its own per-block `needed` slot rather than the whole needed
@@ -275,6 +331,7 @@
   input data are unchanged, so switching panel or view re-evaluates only
   the newly-visible block, not the entire shared upstream pipeline
   ([\#271](https://github.com/BristolMyersSquibb/blockr.core/issues/271)).
+
 - Board deserialization can degrade gracefully instead of aborting the
   whole load when a block cannot be restored – its constructor or the
   providing package is unavailable, its payload cannot be reconstructed,
@@ -288,6 +345,7 @@
   referencing a dropped block are pruned so the surrounding board still
   loads
   ([\#264](https://github.com/BristolMyersSquibb/blockr.core/issues/264)).
+
 - A `links$mod` board update that changes a link to a different value
   (for example switching a `merge_block`’s input from `x` to `y`) now
   applies instead of being silently discarded. Folding the modified link
@@ -297,6 +355,7 @@
   its `to`/`input` arguments and aborted with `missing subscript`,
   rolling back the whole update; it now concatenates with `vec_c()`
   ([\#287](https://github.com/BristolMyersSquibb/blockr.core/issues/287)).
+
 - A [`req()`](https://rdrr.io/pkg/shiny/man/req.html) – or any silent
   flow-control throw with an empty message – evaluated while a block’s
   conditions are captured is no longer recorded as a block error, so a
@@ -305,6 +364,7 @@
   Empty-message conditions are filtered by emptiness rather than class,
   so a `validate(need(x, "msg"))` message still surfaces
   ([\#289](https://github.com/BristolMyersSquibb/blockr.core/issues/289)).
+
 - The structured argument-spec API is renamed to a block-neutral stem,
   so a non-block consumer – an extension documenting its externally
   controllable variables – no longer reads as describing a block.
@@ -337,6 +397,7 @@
   `register_block(arguments = new_block_args(...))` call sites keep
   working; migrate them to the `arg_spec` family
   ([\#295](https://github.com/BristolMyersSquibb/blockr.core/issues/295)).
+
 - A block constructed for a class with no registry entry is now imputed
   a class-derived default metadata record at construction (name from the
   class, default category and icon) instead of being left without one.
@@ -346,6 +407,7 @@
   metadata read aborting – so a cosmetic lookup can no longer take down
   a board whose registry has been curated
   ([\#299](https://github.com/BristolMyersSquibb/blockr.core/issues/299)).
+
 - Blocks now carry a sixth eval status, `stale`. A dormant block (built
   but not currently needed, so not evaluating) whose upstream has
   produced a new result since it last evaluated reports `stale` rather
@@ -355,6 +417,7 @@
   indistinguishable from an up-to-date dormant one, so a break
   introduced upstream stayed hidden until the block was visited
   ([\#310](https://github.com/BristolMyersSquibb/blockr.core/issues/310)).
+
 - Board updates gain two request components, `evaluate` and `sustain`,
   for evaluating a dormant block without making it visible. Both name
   blocks that are joined, with their upstream closure, to the eval set
@@ -372,6 +435,7 @@
   for being locked now records an outcome in `board$last_update` instead
   of being dropped silently
   ([\#318](https://github.com/BristolMyersSquibb/blockr.core/issues/318)).
+
 - The
   [`bbquote()`](https://bristolmyerssquibb.github.io/blockr.core/reference/bbquote.md)
   walk no longer drops `NULL` elements from a call. Assigning the
