@@ -1,5 +1,29 @@
 # blockr.core 0.1.4
 
+* Links can now be placed rather than only appended. The `modify_board_links()`
+  arguments `before` and `after`, mirrored by `links$before` / `links$after` in
+  a board update payload, name where a link passed as `add` should sit, as
+  either the ID of the link to sit next to or its position among the links
+  into the same block. Board links are one flat vector interleaving every
+  target, so a board-wide index would name nothing a block can observe. Passing `TRUE`
+  instead places every added link against the whole set, so `before = TRUE`
+  prepends and `after = TRUE` appends, which is also the one spelling of
+  "first" that holds on a board with no links yet. Anchors resolve against the
+  links as they are before `rm` is applied, so a link can be placed relative to
+  one the same call removes. This matters for a variadic target,
+  whose `...` argument order is the order of the links pointing at it: splicing
+  a block into an existing wire drops one link and adds two, and appending the
+  replacement moved the target's inputs out from under it, silently reordering
+  its rows. Holding the position previously meant reusing the removed link's
+  ID, so the inserted wire could not be given an ID of its own (#358).
+* Removing and editing links in one update no longer aborts on a link the same
+  update removes. The overlap between `add` and `rm`, which is how
+  `apply_board_update()` folds a `links$mod` delta in, was assigned in place
+  before the removals were applied, and that assignment validates the whole
+  link set -- so an edit claiming an input that a to-be-removed link still held
+  failed validation even though the end state was sound. Removals are now
+  applied first (#358).
+
 * Board files are now written and read by `typedjson` rather than
   `jsonlite::toJSON()`/`fromJSON()`, so typed data stored in block state
   survives the round trip. JSON has one number type, no typed `NA` and no

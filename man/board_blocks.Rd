@@ -34,7 +34,15 @@ board_links(x) <- value
 
 board_link_ids(x)
 
-modify_board_links(x, add = NULL, rm = NULL, ..., session = get_session())
+modify_board_links(
+  x,
+  add = NULL,
+  rm = NULL,
+  ...,
+  before = NULL,
+  after = NULL,
+  session = get_session()
+)
 
 board_stacks(x)
 
@@ -78,6 +86,16 @@ clear_board(x)
 
 \item{add}{Links/stacks to add}
 
+\item{before, after}{Where to place links passed as \code{add}, either \code{TRUE}
+to place all of them relative to the whole link set, or a vector named by
+link ID (of a link in \code{add}) holding the ID of the link to sit next to or
+its position among the links into the same block, given as a character or
+numeric vector. Anchors are resolved against the links as they are on entry,
+before \code{rm} is applied, so a link can be placed relative to one the same
+call removes. Named entries override a \code{TRUE} on the other argument, and
+links in \code{add} covered by neither are appended. Only a variadic target
+reads the resulting order; see the Links section.}
+
 \item{mod}{Stacks to modify}
 
 \item{blocks, stacks}{Sets of blocks/stacks}
@@ -119,7 +137,15 @@ corresponding replacement function \verb{board_links<-()}. If only links IDs are
 of interest, this is available as \code{board_link_ids()}, which is short for
 \code{names(board_links(x))}. A (generic) convenience function for all kinds of
 updates to board links in one is available as \code{modify_board_links()}. With
-arguments \code{add} and \code{rm}, links can be added or removed in one go.
+arguments \code{add} and \code{rm}, links can be added or removed in one go. Added
+links are appended unless \code{before} or \code{after} places them, which matters
+for a variadic target block, where the order of the links pointing at it
+is the order of its \code{...} arguments. Passing \code{before = TRUE} prepends and
+\code{after = TRUE} appends, while naming a link or a position inserts. Placing
+a link that points at a fixed-arity block is allowed but inert, as such a
+block selects its inputs by link \code{input} rather than by order. A position
+therefore counts within the links into the placed link's own target, not
+within the board-wide link vector, which interleaves every target.
 }
 
 \section{Stacks}{

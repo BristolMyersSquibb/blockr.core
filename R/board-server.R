@@ -1495,10 +1495,18 @@ validate_board_update_structure <- function(payload, board) {
       )
     }
 
-    if (!length(names(x)) == length(x) || !all(names(x) %in% exp_cmp)) {
+    # Only links carry an order that survives into block inputs, so placement
+    # of added entries is offered for links alone.
+    cmp <- exp_cmp
+
+    if (identical(typ, "links")) {
+      cmp <- c(cmp, "before", "after")
+    }
+
+    if (!length(names(x)) == length(x) || !all(names(x) %in% cmp)) {
       blockr_abort(
-        "Expecting a board update component to consist of components ",
-        "{exp_cmp}. Please remove {setdiff(names(x), exp_cmp)}.",
+        "Expecting a board update {typ} component to consist of components ",
+        "{cmp}. Please remove {setdiff(names(x), cmp)}.",
         class = "board_update_component_components_invalid"
       )
     }
@@ -1779,6 +1787,90 @@ validate_board_update_links <- function(x, board) {
     validate_mod_deltas(x$mod, cur_ids, "links")
   }
 
+  # Placement can name anything this payload adds, including a link it edits:
+  # `apply_board_update()` folds `mod` into `add` before placing them.
+  placeable <- x$add
+
+  if (has_comp("mod", x)) {
+    placeable <- vec_c(placeable, merge_link_mods(board, x$mod))
+  }
+
+  for (cmp in c("before", "after")) {
+    validate_link_placement(x[[cmp]], placeable, board_links(board), cmp)
+  }
+
+  if (has_comp("before", x) && has_comp("after", x)) {
+
+    if (identical(x$before, TRUE) && identical(x$after, TRUE)) {
+      blockr_abort(
+        "Cannot place added links both before and after the whole link set.",
+        class = "board_update_links_before_after_clash"
+      )
+    }
+
+    both <- intersect(names(x$before), names(x$after))
+
+    if (length(both)) {
+      blockr_abort(
+        "Cannot place link{?s} {both} both before and after another link.",
+        class = "board_update_links_before_after_clash"
+      )
+    }
+  }
+
+  invisible()
+}
+
+validate_link_placement <- function(x, placeable, cur, cmp) {
+
+  if (!length(x)) {
+    return(invisible())
+  }
+
+  err_class <- paste0("board_update_links_", cmp, "_invalid")
+
+  # A bare `TRUE` places every added link relative to the whole link set and
+  # so names nothing to check.
+  if (identical(x, TRUE)) {
+    return(invisible())
+  }
+
+  if (length(names(x)) != length(x) || !all(names(x) %in% names(placeable))) {
+    blockr_abort(
+      "Expecting a board update `{cmp}` component to be `TRUE` or named by ",
+      "the IDs of links being added.",
+      class = err_class
+    )
+  }
+
+  # Anchors resolve against the pre-removal links, so a link being removed by
+  # the same payload is a legitimate anchor. An ID names one board-wide, while
+  # a position counts within the links sharing the placed link's target.
+  if (is.character(x)) {
+    unknown <- setdiff(x, names(cur))
+  } else if (is.numeric(x)) {
+    grp_size <- function(id) {
+      sum(field(cur, "to") == field(placeable[id], "to"))
+    }
+    sizes <- int_ply(names(x), grp_size)
+    unknown <- x[x < 1 | x > sizes]
+  } else {
+    blockr_abort(
+      "Expecting a board update `{cmp}` component to be specified as `TRUE` ",
+      "or a character or integer vector.",
+      class = err_class
+    )
+  }
+
+  if (length(unknown)) {
+    blockr_abort(
+      "Expecting a board update `{cmp}` anchor to name a current link, or a ",
+      "position among the links into the same block. Please check ",
+      "{as.character(unknown)}.",
+      class = err_class
+    )
+  }
+
   invisible()
 }
 
@@ -2011,7 +2103,12 @@ apply_board_update.board <- function(board, upd, ...,
     rm <- c(rm, names(upd[["links"]]$mod))
   }
 
-  board <- modify_board_links(board, add, rm, ..., session = session)
+  board <- modify_board_links(
+    board, add, rm, ...,
+    before = upd[["links"]]$before,
+    after = upd[["links"]]$after,
+    session = session
+  )
 
   board <- modify_board_stacks(
     board, upd[["stacks"]]$add, upd[["stacks"]]$rm,

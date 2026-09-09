@@ -1590,3 +1590,245 @@ test_that("a block re-added under a destroyed id reconstructs cleanly", {
     args = list(x = board, plugins = list(manage_blocks()))
   )
 })
+
+test_that("link placement travels through a board update payload", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      z = new_dataset_block("BOD"),
+      b = new_head_block(),
+      m = new_rbind_block()
+    ),
+    links = links(ac = new_link("a", "m"), zm = new_link("z", "m"))
+  )
+
+  payload <- function(...) {
+    list(
+      links = list(
+        add = links(
+          ab = new_link("a", "b", "data"),
+          bm = new_link("b", "m")
+        ),
+        rm = "ac",
+        ...
+      )
+    )
+  }
+
+  spliced <- payload(after = c(bm = "ac"))
+
+  expect_silent(validate_board_update(spliced, board, session = NULL))
+
+  lnk <- board_links(apply_board_update(board, spliced))
+
+  expect_identical(names(lnk), c("bm", "zm", "ab"))
+  expect_identical(field(lnk[field(lnk, "to") == "m"], "from"), c("b", "z"))
+
+  # Without a placement the added link is appended, as before.
+  expect_identical(
+    names(board_links(apply_board_update(board, payload()))),
+    c("zm", "ab", "bm")
+  )
+
+  expect_error(
+    validate_board_update(payload(before = c(zm = "ac")), board,
+                          session = NULL),
+    class = "board_update_links_before_invalid"
+  )
+
+  expect_error(
+    validate_board_update(payload(after = c(bm = "nope")), board,
+                          session = NULL),
+    class = "board_update_links_after_invalid"
+  )
+
+  expect_error(
+    validate_board_update(payload(after = c(bm = 7L)), board, session = NULL),
+    class = "board_update_links_after_invalid"
+  )
+
+  expect_error(
+    validate_board_update(payload(after = list(bm = "ac")), board,
+                          session = NULL),
+    class = "board_update_links_after_invalid"
+  )
+
+  expect_error(
+    validate_board_update(
+      payload(before = c(bm = "ac"), after = c(bm = "zm")), board,
+      session = NULL
+    ),
+    class = "board_update_links_before_after_clash"
+  )
+
+  # Placement is a links-only component.
+  expect_error(
+    validate_board_update(
+      list(blocks = list(add = blocks(q = new_dataset_block()),
+                         after = c(q = "a"))),
+      board
+    ),
+    class = "board_update_component_components_invalid"
+  )
+})
+
+test_that("a payload pairing a link mod with a link rm applies", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      z = new_dataset_block("BOD"),
+      h = new_head_block(),
+      k = new_head_block()
+    ),
+    links = links(
+      old = new_link("a", "h", "data"),
+      keepme = new_link("z", "k", "data")
+    )
+  )
+
+  # Re-pointing `keepme` at the input `old` holds is only valid once `old` is
+  # gone, and the same payload removes it.
+  upd <- list(links = list(mod = list(keepme = list(to = "h")), rm = "old"))
+
+  expect_silent(validate_board_update(upd, board, session = NULL))
+
+  lnk <- board_links(apply_board_update(board, upd))
+
+  expect_identical(names(lnk), "keepme")
+  expect_identical(lnk[["keepme"]][["to"]], "h")
+})
+
+test_that("splicing a block into a link keeps the target's ...args order", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_static_block(datasets::iris[1:2, ]),
+      z = new_static_block(datasets::iris[5:6, ]),
+      m = new_rbind_block()
+    ),
+    links = links(ac = new_link("a", "m"), zm = new_link("z", "m"))
+  )
+
+  rows <- function(x) x$Sepal.Length
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_identical(
+        rows(rv$blocks$m$server$result()),
+        datasets::iris$Sepal.Length[c(1L, 2L, 5L, 6L)]
+      )
+
+      # Splice `b` into the `a -> m` wire, holding the slot that wire had.
+      board_update(
+        list(
+          blocks = list(add = c(b = new_head_block())),
+          links = list(
+            add = links(
+              ab = new_link("a", "b", "data"),
+              bm = new_link("b", "m")
+            ),
+            rm = "ac",
+            after = c(bm = "ac")
+          )
+        )
+      )
+      session$flushReact()
+
+      expect_identical(board_link_ids(rv$board), c("bm", "zm", "ab"))
+      expect_identical(isolate(length(rv$inputs$m[["...args"]])), 2L)
+
+      expect_identical(
+        rows(rv$blocks$m$server$result()),
+        datasets::iris$Sepal.Length[c(1L, 2L, 5L, 6L)]
+      )
+    },
+    args = list(x = board, plugins = list(manage_blocks()))
+  )
+})
+
+test_that("a board update payload takes TRUE as a link anchor", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      b = new_dataset_block("BOD"),
+      c = new_rbind_block()
+    ),
+    links = links(ac = new_link("a", "c"), bc = new_link("b", "c"))
+  )
+
+  payload <- function(...) {
+    list(links = list(add = links(xc = new_link("a", "c")), ...))
+  }
+
+  expect_silent(validate_board_update(payload(before = TRUE), board,
+                                      session = NULL))
+
+  expect_identical(
+    board_link_ids(apply_board_update(board, payload(before = TRUE))),
+    c("xc", "ac", "bc")
+  )
+
+  expect_identical(
+    board_link_ids(apply_board_update(board, payload(after = TRUE))),
+    board_link_ids(apply_board_update(board, payload()))
+  )
+
+  expect_error(
+    validate_board_update(payload(before = TRUE, after = TRUE), board,
+                          session = NULL),
+    class = "board_update_links_before_after_clash"
+  )
+
+  expect_error(
+    validate_board_update(payload(before = c(xc = TRUE)), board,
+                          session = NULL),
+    class = "board_update_links_before_invalid"
+  )
+})
+
+test_that("a payload can place a link it modifies, bounded by its target", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      z = new_dataset_block("BOD"),
+      b = new_dataset_block("BOD"),
+      h = new_head_block(),
+      m = new_rbind_block()
+    ),
+    links = links(
+      ah = new_link("a", "h", "data"),
+      am = new_link("a", "m"),
+      zm = new_link("z", "m")
+    )
+  )
+
+  # `apply_board_update()` folds `mod` into `add`, so a modified link is
+  # placeable and the validator has to agree.
+  upd <- list(
+    links = list(mod = list(zm = list(from = "b")), before = c(zm = 1L))
+  )
+
+  expect_silent(validate_board_update(upd, board, session = NULL))
+
+  lnk <- board_links(apply_board_update(board, upd))
+
+  expect_identical(field(lnk[field(lnk, "to") == "m"], "from"), c("b", "a"))
+
+  # Three links on the board, but only two into `m`.
+  expect_error(
+    validate_board_update(
+      list(links = list(mod = list(zm = list(from = "b")),
+                        before = c(zm = 3L))),
+      board,
+      session = NULL
+    ),
+    class = "board_update_links_before_invalid"
+  )
+})
