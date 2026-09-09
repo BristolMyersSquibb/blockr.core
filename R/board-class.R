@@ -361,7 +361,9 @@ rm_blocks.board <- function(x, rm, ..., session = get_session()) {
 #' links are appended unless `before` or `after` places them, which matters
 #' for a variadic target block, where the order of the links pointing at it
 #' is the order of its `...` arguments. Passing `before = TRUE` prepends and
-#' `after = TRUE` appends, while naming a link or a position inserts.
+#' `after = TRUE` appends, while naming a link or a position inserts. Placing
+#' a link that points at a fixed-arity block is allowed but inert, as such a
+#' block selects its inputs by link `input` rather than by order.
 #'
 #' @rdname board_blocks
 #' @export
@@ -393,7 +395,8 @@ board_link_ids <- function(x) {
 #' against the links as they are on entry,
 #' before `rm` is applied, so a link can be placed relative to one the same
 #' call removes. Named entries override a `TRUE` on the other argument, and
-#' links in `add` covered by neither are appended.
+#' links in `add` covered by neither are appended. Only a variadic target
+#' reads the resulting order; see the Links section.
 #' @rdname board_blocks
 #' @export
 modify_board_links <- function(x, add = NULL, rm = NULL, ...,

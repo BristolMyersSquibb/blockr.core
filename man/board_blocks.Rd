@@ -93,7 +93,8 @@ its position, given as a character or numeric vector. Anchors are resolved
 against the links as they are on entry,
 before \code{rm} is applied, so a link can be placed relative to one the same
 call removes. Named entries override a \code{TRUE} on the other argument, and
-links in \code{add} covered by neither are appended.}
+links in \code{add} covered by neither are appended. Only a variadic target
+reads the resulting order; see the Links section.}
 
 \item{mod}{Stacks to modify}
 
@@ -140,7 +141,9 @@ arguments \code{add} and \code{rm}, links can be added or removed in one go. Add
 links are appended unless \code{before} or \code{after} places them, which matters
 for a variadic target block, where the order of the links pointing at it
 is the order of its \code{...} arguments. Passing \code{before = TRUE} prepends and
-\code{after = TRUE} appends, while naming a link or a position inserts.
+\code{after = TRUE} appends, while naming a link or a position inserts. Placing
+a link that points at a fixed-arity block is allowed but inert, as such a
+block selects its inputs by link \code{input} rather than by order.
 }
 
 \section{Stacks}{
