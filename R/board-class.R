@@ -363,7 +363,9 @@ rm_blocks.board <- function(x, rm, ..., session = get_session()) {
 #' is the order of its `...` arguments. Passing `before = TRUE` prepends and
 #' `after = TRUE` appends, while naming a link or a position inserts. Placing
 #' a link that points at a fixed-arity block is allowed but inert, as such a
-#' block selects its inputs by link `input` rather than by order.
+#' block selects its inputs by link `input` rather than by order. A position
+#' therefore counts within the links into the placed link's own target, not
+#' within the board-wide link vector, which interleaves every target.
 #'
 #' @rdname board_blocks
 #' @export
@@ -391,8 +393,8 @@ board_link_ids <- function(x) {
 #' @param before,after Where to place links passed as `add`, either `TRUE`
 #' to place all of them relative to the whole link set, or a vector named by
 #' link ID (of a link in `add`) holding the ID of the link to sit next to or
-#' its position, given as a character or numeric vector. Anchors are resolved
-#' against the links as they are on entry,
+#' its position among the links into the same block, given as a character or
+#' numeric vector. Anchors are resolved against the links as they are on entry,
 #' before `rm` is applied, so a link can be placed relative to one the same
 #' call removes. Named entries override a `TRUE` on the other argument, and
 #' links in `add` covered by neither are appended. Only a variadic target
@@ -415,8 +417,9 @@ modify_board_links.board <- function(x, add = NULL, rm = NULL, ...,
                                      before = NULL, after = NULL,
                                      session = get_session()) {
 
-  links <- board_links(x)
-  ids <- names(links)
+  cur <- board_links(x)
+  links <- cur
+  ids <- names(cur)
 
   if (is_links(rm)) {
     rm <- names(rm)
@@ -441,7 +444,7 @@ modify_board_links.board <- function(x, add = NULL, rm = NULL, ...,
     add <- add[setdiff(names(add), keep)]
   }
 
-  board_links(x) <- splice_links(links, add, ids, new, before, after)
+  board_links(x) <- splice_links(links, add, cur, new, before, after)
 
   x
 }
@@ -450,10 +453,12 @@ modify_board_links.board <- function(x, add = NULL, rm = NULL, ...,
 # the end, then moves anchored links to just shy of the anchor so that ties
 # (several links anchored to the same one) settle in `add` order. Anchors are
 # named by `ids` (the links on entry, removals included) and `before`/`after`
-# by `new` (the links this call adds, in-place edits included).
-splice_links <- function(links, add, ids, new, before = NULL, after = NULL) {
+# by `new` (the links this call adds, in-place edits included), with `cur`
+# holding the links as they were on entry.
+splice_links <- function(links, add, cur, new, before = NULL, after = NULL) {
 
   res <- c(links, add)
+  ids <- names(cur)
 
   if (!length(before) && !length(after)) {
     return(res)
@@ -473,6 +478,20 @@ splice_links <- function(links, add, ids, new, before = NULL, after = NULL) {
       "Cannot place link{?s} {both} both before and after another link.",
       class = "links_insert_position_clash"
     )
+  }
+
+  # An ID names a link outright, but a position counts within the links that
+  # share the added link's target: the board-wide vector is one flat sequence
+  # and only a block's own slice of it is an order the block can observe.
+  locate <- function(val, id, arg) {
+
+    if (is.character(val)) {
+      return(vec_as_location2(val, length(ids), ids, arg = arg))
+    }
+
+    grp <- ids[field(cur, "to") == field(res[id], "to")]
+
+    match(grp[[vec_as_location2(val, length(grp), grp, arg = arg)]], ids)
   }
 
   anchors <- function(x, arg) {
@@ -500,7 +519,7 @@ splice_links <- function(links, add, ids, new, before = NULL, after = NULL) {
       )
     }
 
-    int_ply(x, vec_as_location2, length(ids), ids, arg = arg)
+    int_ply(seq_along(x), function(i) locate(x[[i]], names(x)[[i]], arg))
   }
 
   bef <- anchors(before, "before")

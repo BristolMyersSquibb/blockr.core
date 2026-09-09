@@ -518,3 +518,80 @@ test_that("an anchor is TRUE or a vector of link IDs or positions", {
     )
   }
 })
+
+test_that("a positional anchor counts within the target's own links", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      z = new_dataset_block("BOD"),
+      b = new_dataset_block("BOD"),
+      h = new_head_block(),
+      m = new_rbind_block()
+    ),
+    links = links(
+      ah = new_link("a", "h", "data"),
+      am = new_link("a", "m"),
+      zm = new_link("z", "m")
+    )
+  )
+
+  # Board order is ah, am, zm, so the links into `m` sit at 2 and 3.
+  sources <- function(...) {
+    lnk <- board_links(
+      modify_board_links(board, add = links(bm = new_link("b", "m")), ...)
+    )
+    field(lnk[field(lnk, "to") == "m"], "from")
+  }
+
+  expect_identical(sources(after = c(bm = 1L)), c("a", "b", "z"))
+  expect_identical(sources(after = c(bm = 2L)), c("a", "z", "b"))
+  expect_identical(sources(before = c(bm = 1L)), c("b", "a", "z"))
+  expect_identical(sources(before = c(bm = 2L)), c("a", "b", "z"))
+
+  # Naming the link and naming its position are the same statement.
+  expect_identical(sources(after = c(bm = 1L)), sources(after = c(bm = "am")))
+  expect_identical(sources(after = c(bm = 2L)), sources(after = c(bm = "zm")))
+
+  # Bounds are the target's links, so 3 is out of range even though the
+  # board holds three links.
+  expect_length(board_link_ids(board), 3L)
+  expect_error(sources(after = c(bm = 3L)), class = "vctrs_error_subscript_oob")
+
+})
+
+test_that("positional anchors keep two variadic targets apart", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      z = new_dataset_block("BOD"),
+      b = new_dataset_block("BOD"),
+      m = new_rbind_block(),
+      n = new_rbind_block()
+    ),
+    links = links(
+      am = new_link("a", "m"),
+      an = new_link("a", "n"),
+      zm = new_link("z", "m"),
+      zn = new_link("z", "n")
+    )
+  )
+
+  # Board order interleaves the two targets: am, an, zm, zn. Position 1 for a
+  # link into `n` is therefore `an`, which sits second on the board.
+  res <- modify_board_links(
+    board,
+    add = links(bn = new_link("b", "n")),
+    after = c(bn = 1L)
+  )
+
+  expect_identical(board_link_ids(res), c("am", "an", "bn", "zm", "zn"))
+
+  lnk <- board_links(res)
+
+  from <- function(to) field(lnk[field(lnk, "to") == to], "from")
+
+  expect_identical(from("n"), c("a", "b", "z"))
+  expect_identical(from("m"), c("a", "z"))
+})

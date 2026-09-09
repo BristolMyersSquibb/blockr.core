@@ -3,7 +3,9 @@
 * Links can now be placed rather than only appended. The `modify_board_links()`
   arguments `before` and `after`, mirrored by `links$before` / `links$after` in
   a board update payload, name where a link passed as `add` should sit, as
-  either the ID of the link to sit next to or its position. Passing `TRUE`
+  either the ID of the link to sit next to or its position among the links
+  into the same block. Board links are one flat vector interleaving every
+  target, so a board-wide index would name nothing a block can observe. Passing `TRUE`
   instead places every added link against the whole set, so `before = TRUE`
   prepends and `after = TRUE` appends, which is also the one spelling of
   "first" that holds on a board with no links yet. Anchors resolve against the

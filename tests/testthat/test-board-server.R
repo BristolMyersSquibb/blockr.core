@@ -1791,3 +1791,44 @@ test_that("a board update payload takes TRUE as a link anchor", {
     class = "board_update_links_before_invalid"
   )
 })
+
+test_that("a payload can place a link it modifies, bounded by its target", {
+
+  board <- new_board(
+    blocks = c(
+      a = new_dataset_block("BOD"),
+      z = new_dataset_block("BOD"),
+      b = new_dataset_block("BOD"),
+      h = new_head_block(),
+      m = new_rbind_block()
+    ),
+    links = links(
+      ah = new_link("a", "h", "data"),
+      am = new_link("a", "m"),
+      zm = new_link("z", "m")
+    )
+  )
+
+  # `apply_board_update()` folds `mod` into `add`, so a modified link is
+  # placeable and the validator has to agree.
+  upd <- list(
+    links = list(mod = list(zm = list(from = "b")), before = c(zm = 1L))
+  )
+
+  expect_silent(validate_board_update(upd, board, session = NULL))
+
+  lnk <- board_links(apply_board_update(board, upd))
+
+  expect_identical(field(lnk[field(lnk, "to") == "m"], "from"), c("b", "a"))
+
+  # Three links on the board, but only two into `m`.
+  expect_error(
+    validate_board_update(
+      list(links = list(mod = list(zm = list(from = "b")),
+                        before = c(zm = 3L))),
+      board,
+      session = NULL
+    ),
+    class = "board_update_links_before_invalid"
+  )
+})
