@@ -69,7 +69,10 @@
 #'
 #' Core drops a one-off request once the block has run — or has reported why it
 #' cannot, such as an unconnected data input or a user input that was never set.
-#' Requesting a block that is already in the eval set does nothing.
+#' Either way the block has been checked against everything it depends on, so
+#' it reads `dormant` once it leaves the eval set, until one of those changes
+#' (see [block_server()]). Requesting a block that is already in the eval set
+#' does nothing.
 #'
 #' @section Construction requests:
 #' Evaluation implies construction, but not the reverse: a consumer that needs a
@@ -261,11 +264,10 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
           }
 
           # Reading a block's status is what pulls its evaluation: the status
-          # consults `failed()`, which reads the block result, and an input that
-          # is not ready reads its upstream's status in turn, so the pull
-          # cascades up the chain. A block that is not built yet, or not in the
-          # eval set yet, stays pending -- either read invalidates this observer
-          # once it changes.
+          # reads the block result, and an input that is not ready reads its
+          # upstream's status in turn, so the pull cascades up the chain. A
+          # block that is not built yet, or not in the eval set yet, stays
+          # pending -- either read invalidates this observer once it changes.
           keep <- pending[lgl_ply(pending, eval_pending, rv)]
 
           if (length(keep) < length(pending)) {
@@ -967,7 +969,7 @@ block_deferred <- function(id, rv) {
 
   status <- reval_if(rv$eval[[id]])
 
-  is.null(status) || status %in% c("dormant", "stale")
+  is.null(status) || status %in% c("unevaluated", "dormant", "stale")
 }
 
 id_request_components <- function() {
@@ -1023,19 +1025,16 @@ input_ready <- function(from, rv) {
 
 block_eval_status <- function(rv, id, inputs_ready, srv) {
 
+  # A block out of the eval set reports on its own last check, which it
+  # compares against what that check read. Depending on what it compares is
+  # what wakes this status (and the badge) without re-evaluating the block.
   if (!block_needed(rv, id)) {
-
-    # A dormant block reports `stale` on its own verdict (`input_stale`): a
-    # ready upstream's result no longer matches what it consumed, or a direct
-    # upstream is itself `stale` -- so a change flows through the whole
-    # downstream cone, one dependency hop at a time. Depending on the upstreams
-    # is what wakes this status (and the badge) without re-evaluating the block.
-    if (isTRUE(srv$input_stale())) {
-      return("stale")
-    }
-
-    return("dormant")
+    return(srv$dormant_status())
   }
+
+  # Reading the result is what checks a needed block: it runs, or records why
+  # it cannot. Either way that is the verdict it reports on once parked.
+  srv$result()
 
   if (!inputs_ready()) {
     return("waiting")

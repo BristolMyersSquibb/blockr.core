@@ -162,17 +162,17 @@ test_that("show code builds the board without evaluating or gating it", {
       vis$visible[["a"]](TRUE)
       session$flushReact()
 
-      expect_identical(reval_if(rv$eval[["b"]]), "dormant")
+      expect_identical(reval_if(rv$eval[["b"]]), "unevaluated")
       expect_false("c" %in% names(rv$blocks))
 
       session$setInputs(`generate_code-code_mod` = 1)
       session$flushReact()
 
-      # The deferred block is built for its expression, and stays dormant: the
-      # export needs blocks present, not run
+      # The deferred block is built for its expression, and is left
+      # unevaluated: the export needs blocks present, not run
       expect_true("c" %in% names(rv$blocks))
-      expect_identical(reval_if(rv$eval[["c"]]), "dormant")
-      expect_identical(reval_if(rv$eval[["b"]]), "dormant")
+      expect_identical(reval_if(rv$eval[["c"]]), "unevaluated")
+      expect_identical(reval_if(rv$eval[["b"]]), "unevaluated")
 
       # The front-end's eager set is left exactly as it was, and the export adds
       # none of its own
@@ -259,9 +259,9 @@ test_that("show code requires the whole board, gating export on config", {
   expect_false(grepl("`NA` <-", configured$pending_body, fixed = TRUE))
 
   # After "Show code", the whole board is built and exports cleanly -- while
-  # `m` stays dormant, since building it is all the export needed
+  # `m` is left unevaluated, since building it is all the export needed
   expect_identical(configured$state, "ready")
-  expect_identical(configured$status, "dormant")
+  expect_identical(configured$status, "unevaluated")
   expect_match(configured$script, "merge")
   expect_false(grepl("`NA` <-", configured$script, fixed = TRUE))
 
@@ -270,7 +270,7 @@ test_that("show code requires the whole board, gating export on config", {
   unconfigured <- drive(new_merge_block())
 
   expect_identical(unconfigured$state, "blocked")
-  expect_identical(unconfigured$status, "dormant")
+  expect_identical(unconfigured$status, "unevaluated")
 })
 
 test_that("dummy add/rm block ui test", {
@@ -311,8 +311,8 @@ test_that("showing code builds a deferred block in the browser", {
     c("a", "b")
   )
 
-  # Built for its expression, and left dormant rather than evaluated
-  expect_identical(app$get_value(export = "my_board-status_b"), "dormant")
+  # Built for its expression, and left unevaluated
+  expect_identical(app$get_value(export = "my_board-status_b"), "unevaluated")
 
   # The construct request lands before the modal output is rendered and sent,
   # so wait on the script itself rather than on the block having been built

@@ -116,6 +116,86 @@ probe_select <- function(col = "demand") {
   )
 }
 
+# Builds its expression from its input data, as some extension blocks do, so
+# the expression cannot be rebuilt while the block is out of the eval set.
+probe_data_expr <- function(n = 1L) {
+  new_transform_block(
+    function(id, data) {
+      moduleServer(
+        id,
+        function(input, output, session) {
+
+          rows <- reactiveVal(n)
+
+          list(
+            expr = reactive(
+              bquote(utils::head(data, .(min(rows(), nrow(data())))))
+            ),
+            state = list(n = rows)
+          )
+        }
+      )
+    },
+    function(id) shiny::tagList(),
+    class = "probe_block",
+    external_ctrl = TRUE,
+    block_metadata = FALSE
+  )
+}
+
+probe_valid <- new.env()
+probe_valid$runs <- 0L
+
+# Validated, with a user input that may be left unset.
+probe_validated <- function(n = integer()) {
+  new_transform_block(
+    function(id, data) {
+      moduleServer(
+        id,
+        function(input, output, session) {
+
+          rows <- reactiveVal(n)
+
+          list(
+            expr = reactive(bquote(utils::head(data, .(rows())))),
+            state = list(n = rows)
+          )
+        }
+      )
+    },
+    function(id) shiny::tagList(),
+    dat_valid = function(data) {
+      probe_valid$runs <- probe_valid$runs + 1L
+    },
+    class = "probe_block",
+    block_metadata = FALSE
+  )
+}
+
+probe_trigger <- new.env()
+probe_trigger$value <- reactiveVal(1L)
+
+registerS3method(
+  "block_eval_trigger", "probe_trigger_block",
+  function(x, session = get_session()) probe_trigger$value()
+)
+
+probe_triggered <- function() {
+  new_transform_block(
+    function(id, data) {
+      moduleServer(
+        id,
+        function(input, output, session) {
+          list(expr = reactive(quote(identity(data))), state = list())
+        }
+      )
+    },
+    function(id) shiny::tagList(),
+    class = c("probe_trigger_block", "probe_block"),
+    block_metadata = FALSE
+  )
+}
+
 probe_data_observer <- function() {
   new_transform_block(
     function(id, data) {
@@ -882,13 +962,14 @@ test_that("an evaluation request evaluates a block edited while dormant", {
 
       reset_probes()
 
-      # Break r by editing r itself. Nothing upstream changed, so it is not
-      # stale, and its conditions still report the last (clean) run.
+      # Break r by editing r itself. It does not re-run, so its conditions
+      # still report the last (clean) run, but it reads stale: that run did
+      # not see the edit.
       board_update(edit_col("nope"))
       session$flushReact()
 
       expect_false(evaluated("r"))
-      expect_identical(rv$eval[["r"]](), "dormant")
+      expect_identical(rv$eval[["r"]](), "stale")
       expect_equal(nrow(block_conditions(rv, "r", "error")), 0L)
 
       board_update(list(evaluate = "r"))
@@ -953,6 +1034,497 @@ test_that("an edit and a request in one payload evaluate the edit", {
       callbacks = function(visibility, ...) {
         render_blocks(visibility, "s", "r")
         declare_eager("s", "r")
+      }
+    )
+  )
+})
+
+test_that("an edit to a parked block marks its downstream cone stale", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- new_board(
+    blocks = c(
+      s = with_id(probe_source(), "s"),
+      r = with_id(probe_select(), "r"),
+      d = with_id(probe_passthrough(), "d")
+    ),
+    links = links(
+      sr = new_link("s", "r", "data"),
+      rd = new_link("r", "d", "data")
+    )
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      park_blocks(board_update, vis, "r", "d")
+      session$flushReact()
+
+      expect_identical(rv$eval[["r"]](), "dormant")
+      expect_identical(rv$eval[["d"]](), "dormant")
+
+      reset_probes()
+
+      board_update(edit_col("Time"))
+      session$flushReact()
+
+      # Neither re-runs, and nothing upstream of r changed, but d consumed what
+      # r's last run produced, which the edit has overtaken.
+      expect_false(evaluated("r"))
+      expect_false(evaluated("d"))
+
+      expect_identical(rv$eval[["r"]](), "stale")
+      expect_identical(rv$eval[["d"]](), "stale")
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visibility, ...) {
+        render_blocks(visibility, "s", "r", "d")
+        declare_eager("s", "r", "d")
+      }
+    )
+  )
+})
+
+test_that("a block that was never needed is unevaluated until it runs", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- new_board(
+    blocks = c(
+      s = with_id(probe_source(), "s"),
+      a = with_id(probe_passthrough(), "a"),
+      r = with_id(probe_passthrough(), "r")
+    ),
+    links = links(
+      sa = new_link("s", "a", "data"),
+      ar = new_link("a", "r", "data")
+    )
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      # Built by the background pass, but never needed, so there is no run
+      # for either to be current with.
+      expect_true(constructed("r"))
+      expect_false(evaluated("a"))
+      expect_false(evaluated("r"))
+
+      expect_identical(rv$eval[["a"]](), "unevaluated")
+      expect_identical(rv$eval[["r"]](), "unevaluated")
+
+      # Declared parked, which changes nothing about either block, but re-runs
+      # the eval-set observer, so a request is read before it joins the eval
+      # set. It must be held open then, not dropped as though r had run.
+      park_blocks(board_update, vis, "a", "r")
+      session$flushReact()
+
+      expect_identical(rv$eval[["r"]](), "unevaluated")
+
+      board_update(list(evaluate = "r"))
+      session$flushReact()
+
+      expect_true(evaluated("a"))
+      expect_true(evaluated("r"))
+
+      expect_identical(rv$eval[["a"]](), "dormant")
+      expect_identical(rv$eval[["r"]](), "dormant")
+      expect_length(rv$evaluating(), 0L)
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visibility, ...) {
+        render_blocks(visibility, "s")
+        declare_eager("s")
+      }
+    )
+  )
+})
+
+test_that("finding that a block cannot run counts as a check", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- new_board(
+    blocks = c(
+      s = with_id(probe_source(), "s"),
+      t = with_id(probe_source_alt(), "t"),
+      w = with_id(probe_passthrough(), "w"),
+      m = new_merge_block()
+    ),
+    links = links(
+      sm = new_link("s", "m", "x"),
+      tm = new_link("t", "m", "y")
+    )
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_identical(rv$eval[["w"]](), "waiting")
+      expect_identical(rv$eval[["m"]](), "unset")
+
+      park_blocks(board_update, vis, "w", "m")
+      session$flushReact()
+
+      # Neither has ever run, but each was checked and found unable to, which
+      # still holds.
+      expect_false(evaluated("w"))
+
+      expect_identical(rv$eval[["w"]](), "dormant")
+      expect_identical(rv$eval[["m"]](), "dormant")
+
+      # A request settles on that same verdict rather than holding out for a
+      # run that cannot happen.
+      board_update(list(evaluate = "w"))
+      session$flushReact()
+
+      expect_length(rv$evaluating(), 0L)
+      expect_identical(rv$eval[["w"]](), "dormant")
+
+      # Connecting the missing input is a change the check did not see.
+      board_update(
+        list(links = list(add = links(sw = new_link("s", "w", "data"))))
+      )
+      session$flushReact()
+
+      expect_false(evaluated("w"))
+      expect_identical(rv$eval[["w"]](), "stale")
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visibility, ...) {
+        render_blocks(visibility, "s", "t", "w", "m")
+        declare_eager("s", "t", "w", "m")
+      }
+    )
+  )
+})
+
+test_that("checking a block with an unset user input does not validate it", {
+
+  reset_probes()
+
+  probe_valid$runs <- 0L
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- new_board(
+    blocks = c(
+      s = with_id(probe_source(), "s"),
+      v = with_id(probe_validated(), "v")
+    ),
+    links = links(sv = new_link("s", "v", "data"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_identical(rv$eval[["v"]](), "unset")
+      expect_identical(probe_valid$runs, 0L)
+    },
+    args = list(x = board, plugins = list())
+  )
+})
+
+test_that("rewiring a parked block marks it stale", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- new_board(
+    blocks = c(
+      a = with_id(probe_source(), "a"),
+      b = with_id(probe_source_alt(), "b"),
+      r1 = with_id(probe_passthrough(), "r1"),
+      r2 = with_id(probe_passthrough(), "r2")
+    ),
+    links = links(
+      ar1 = new_link("a", "r1", "data"),
+      ar2 = new_link("a", "r2", "data")
+    )
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      park_blocks(board_update, vis, "b", "r1", "r2")
+      session$flushReact()
+
+      expect_identical(rv$eval[["b"]](), "dormant")
+      expect_identical(rv$eval[["r1"]](), "dormant")
+      expect_identical(rv$eval[["r2"]](), "dormant")
+
+      reset_probes()
+
+      # One loses its input, the other is fed by a block that is itself parked,
+      # so has no fresh result to compare. Neither is what the last run saw.
+      board_update(
+        list(
+          links = list(
+            rm = c("ar1", "ar2"),
+            add = links(br2 = new_link("b", "r2", "data"))
+          )
+        )
+      )
+      session$flushReact()
+
+      expect_false(evaluated("r1"))
+      expect_false(evaluated("r2"))
+
+      expect_identical(rv$eval[["r1"]](), "stale")
+      expect_identical(rv$eval[["r2"]](), "stale")
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visibility, ...) {
+        render_blocks(visibility, "a", "b", "r1", "r2")
+        declare_eager("a", "b", "r1", "r2")
+      }
+    )
+  )
+})
+
+test_that("a block stays stale once its changed upstream is parked", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- new_board(
+    blocks = c(
+      s1 = with_id(probe_source(), "s1"),
+      s2 = with_id(probe_source_alt(), "s2"),
+      a = with_id(probe_passthrough(), "a"),
+      r = with_id(probe_passthrough(), "r")
+    ),
+    links = links(
+      s1a = new_link("s1", "a", "data"),
+      ar = new_link("a", "r", "data")
+    )
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      park_blocks(board_update, vis, "r")
+      session$flushReact()
+
+      board_update(
+        list(
+          links = list(
+            rm = "s1a",
+            add = links(s2a = new_link("s2", "a", "data"))
+          )
+        )
+      )
+      session$flushReact()
+
+      expect_identical(rv$eval[["r"]](), "stale")
+
+      # Parking a leaves it current, but r has still not seen what a now holds.
+      park_blocks(board_update, vis, "a")
+      session$flushReact()
+
+      expect_identical(rv$eval[["a"]](), "dormant")
+      expect_identical(rv$eval[["r"]](), "stale")
+
+      reset_probes()
+
+      board_update(list(evaluate = "r"))
+      session$flushReact()
+
+      expect_true(evaluated("r"))
+      expect_identical(rv$eval[["r"]](), "dormant")
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visibility, ...) {
+        render_blocks(visibility, "s1", "s2", "a", "r")
+        declare_eager("s1", "s2", "a", "r")
+      }
+    )
+  )
+})
+
+test_that("a request for an upstream alone leaves its downstream stale", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- new_board(
+    blocks = c(
+      s1 = with_id(probe_source(), "s1"),
+      s2 = with_id(probe_source_alt(), "s2"),
+      a = with_id(probe_passthrough(), "a"),
+      r = with_id(probe_passthrough(), "r")
+    ),
+    links = links(
+      s1a = new_link("s1", "a", "data"),
+      ar = new_link("a", "r", "data")
+    )
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      park_blocks(board_update, vis, "a", "r")
+      session$flushReact()
+
+      board_update(
+        list(
+          links = list(
+            rm = "s1a",
+            add = links(s2a = new_link("s2", "a", "data"))
+          )
+        )
+      )
+      session$flushReact()
+
+      expect_identical(rv$eval[["a"]](), "stale")
+      expect_identical(rv$eval[["r"]](), "stale")
+
+      reset_probes()
+
+      board_update(list(evaluate = "a"))
+      session$flushReact()
+
+      expect_true(evaluated("a"))
+      expect_false(evaluated("r"))
+
+      expect_identical(rv$eval[["a"]](), "dormant")
+      expect_identical(rv$eval[["r"]](), "stale")
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visibility, ...) {
+        render_blocks(visibility, "s1", "s2", "a", "r")
+        declare_eager("s1", "s2", "a", "r")
+      }
+    )
+  )
+})
+
+test_that("a block built from its input data is compared on its state", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- new_board(
+    blocks = c(
+      s = with_id(probe_source(), "s"),
+      p = with_id(probe_data_expr(), "p")
+    ),
+    links = links(sp = new_link("s", "p", "data"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      expect_identical(rv$eval[["p"]](), "ready")
+
+      # Parked, p's expression cannot be rebuilt, as its data is withheld.
+      # That is no edit, so p reads dormant, and a request leaves it there.
+      park_blocks(board_update, vis, "p")
+      session$flushReact()
+
+      expect_identical(rv$eval[["p"]](), "dormant")
+
+      board_update(list(evaluate = "p"))
+      session$flushReact()
+
+      expect_length(rv$evaluating(), 0L)
+      expect_identical(rv$eval[["p"]](), "dormant")
+
+      reset_probes()
+
+      board_update(list(blocks = list(mod = list(p = list(n = 2L)))))
+      session$flushReact()
+
+      expect_false(evaluated("p"))
+      expect_identical(rv$eval[["p"]](), "stale")
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visibility, ...) {
+        render_blocks(visibility, "s", "p")
+        declare_eager("s", "p")
+      }
+    )
+  )
+})
+
+test_that("an eval trigger that moves while a block is parked marks it stale", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  probe_trigger$value(1L)
+
+  board <- new_board(
+    blocks = c(
+      s = with_id(probe_source(), "s"),
+      t = with_id(probe_triggered(), "t")
+    ),
+    links = links(st = new_link("s", "t", "data"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      park_blocks(board_update, vis, "t")
+      session$flushReact()
+
+      expect_identical(rv$eval[["t"]](), "dormant")
+
+      probe_trigger$value(2L)
+      session$flushReact()
+
+      expect_identical(rv$eval[["t"]](), "stale")
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visibility, ...) {
+        render_blocks(visibility, "s", "t")
+        declare_eager("s", "t")
       }
     )
   )
@@ -1338,7 +1910,7 @@ test_that("a construction request builds a block without evaluating it", {
 
       expect_true(constructed("r"))
       expect_false(evaluated("r"))
-      expect_identical(rv$eval[["r"]](), "dormant")
+      expect_identical(rv$eval[["r"]](), "unevaluated")
 
       # Construction is not demand: `r` stays out of the eval set, `a` -- which
       # it would need for a result -- stays unbuilt, and `s` is not rebuilt.
@@ -2537,7 +3109,7 @@ test_that("collapsing a stack parks its blocks in the browser", {
   # What bslib reports is the panel `data-value`, which core rebuilds from the
   # stack IDs it holds -- a round trip no mock session exercises.
   expect_identical(app$get_value(export = "my_board-status_b"), "ready")
-  expect_identical(app$get_value(export = "my_board-status_d"), "dormant")
+  expect_identical(app$get_value(export = "my_board-status_d"), "unevaluated")
 
   expect_identical(app$get_text("#my_board-block_d-result"), "")
 
@@ -2546,7 +3118,10 @@ test_that("collapsing a stack parks its blocks in the browser", {
   )
 
   expect_identical(
-    app$wait_for_value(export = "my_board-status_d", ignore = list("dormant")),
+    app$wait_for_value(
+      export = "my_board-status_d",
+      ignore = list("unevaluated")
+    ),
     "ready"
   )
 

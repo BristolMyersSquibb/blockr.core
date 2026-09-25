@@ -101,21 +101,33 @@ of the block expression server (handling the block-specific functionality,
 i.e. block user inputs and expression), and instantiation of the
 \code{edit_block} module (if passed from the parent scope).
 
-Each block carries an \emph{eval status} -- one of \code{dormant}, \code{stale}, \code{waiting},
-\code{unset}, \code{failed} or \code{ready} -- which, together with its orthogonal front-end
-visibility, determines its behavior. The status separates the two input
-kinds (data
-inputs from links, user inputs from \code{state}) and a genuine failure:
+Each block carries an \emph{eval status} -- one of \code{unevaluated}, \code{dormant},
+\code{stale}, \code{waiting}, \code{unset}, \code{failed} or \code{ready} -- which, together with its
+orthogonal front-end visibility, determines its behavior. The first three
+are for a block that is not \emph{needed} (neither on screen nor feeding,
+transitively over \code{\link[=board_links]{board_links()}}, an on-screen block): its inputs stay
+unfulfilled (\code{\link[shiny:req]{shiny::req()}} out) and nothing evaluates, so what the block
+reports is what it found when last \emph{checked}. A needed block is checked as
+it evaluates, and as much when it finds that it cannot. The other four
+separate the two input kinds (data inputs from links, user inputs from
+\code{state}) and a genuine failure:
 \itemize{
-\item \code{dormant} -- not \emph{needed} (neither on screen nor feeding, transitively over
-\code{\link[=board_links]{board_links()}}, an on-screen block); inputs stay unfulfilled
-(\code{\link[shiny:req]{shiny::req()}} out) and nothing evaluates.
-\item \code{stale} -- dormant, but an upstream has produced a new result since the
-block last evaluated, so its last-known result is out of date. The block
-is not re-evaluated while dormant; the status only reports that the cached
-result no longer reflects its inputs, so a front-end can flag it (e.g. a
-muted node badge) without forcing a recompute. A consumer that needs the
-block current asks for it with a \code{\link[=board_update]{board_update()}} \code{evaluate} request.
+\item \code{unevaluated} -- not needed, and never checked, so there is nothing to
+report: no result, and no word on whether it can run.
+\item \code{dormant} -- not needed, and nothing it depends on has changed since it
+was last checked, so what that check found is current. A block found
+unable to run reads \code{dormant} too, with the reason among its conditions.
+\item \code{stale} -- not needed, and something it depends on has changed since it
+was last checked: its expression or eval trigger, which blocks feed its
+data inputs, or what one of those holds. An upstream that is itself
+\code{stale} or \code{unevaluated} counts as changed, so a change reaches the whole
+downstream cone. The block is not re-evaluated; the status only reports
+that what its last check found is out of date, so a front-end can flag it
+(e.g. a muted node badge) without forcing a recompute. A consumer that
+needs the block current asks for it with a \code{\link[=board_update]{board_update()}} \code{evaluate}
+request. An expression built from the input data cannot be rebuilt while
+those are withheld, so for such a block the \code{state} it is built from is
+compared instead.
 \item \code{waiting} -- needed, but a required \emph{data} input is missing: unconnected,
 below the required number of variadic \code{...args} inputs (one by default),
 or fed by an upstream block that is not itself \code{ready} (see

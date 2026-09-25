@@ -15,6 +15,19 @@
   bundle handed to callbacks keeps its per-block `visible` and `frozen`
   channels, and reporting paint on `visible` is unchanged. Breaking for any
   front-end that drives `visibility$required` (#321).
+* Blocks gain a seventh eval status, `unevaluated`, and a block out of the
+  eval set that reads `dormant` is now current. It used to read `dormant`
+  whether its last run still held, it had been edited since, or it had never
+  run, so a consumer could not tell which off-screen blocks needed a run. A
+  block now reads `unevaluated` until it is first checked, and `stale` once
+  anything its last check read has changed: its own expression or eval
+  trigger, which blocks feed its data inputs, or what one of those holds.
+  Finding that a block cannot run, because a data input is missing or a user
+  input unset, counts as a check, so such a block reads `dormant` with the
+  reason in its conditions. The upstream half of the old check skipped any
+  upstream that was out of the eval set too, so a block lost its `stale` flag
+  as soon as the upstream that changed was parked again, and a link removed
+  from under it, or re-routed to another parked block, went unnoticed (#362).
 * Links can now be placed rather than only appended. The `modify_board_links()`
   arguments `before` and `after`, mirrored by `links$before` / `links$after` in
   a board update payload, name where a link passed as `add` should sit, as

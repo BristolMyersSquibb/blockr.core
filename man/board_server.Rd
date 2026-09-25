@@ -149,7 +149,10 @@ also the one part of a payload a locked board still accepts.
 
 Core drops a one-off request once the block has run — or has reported why it
 cannot, such as an unconnected data input or a user input that was never set.
-Requesting a block that is already in the eval set does nothing.
+Either way the block has been checked against everything it depends on, so
+it reads \code{dormant} once it leaves the eval set, until one of those changes
+(see \code{\link[=block_server]{block_server()}}). Requesting a block that is already in the eval set
+does nothing.
 }
 
 \section{Construction requests}{
