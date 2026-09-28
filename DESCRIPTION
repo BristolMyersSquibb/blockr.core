@@ -22,8 +22,6 @@ Description: A framework for data manipulation and visualization using a
 URL: https://bristolmyerssquibb.github.io/blockr.core/
 BugReports: https://github.com/BristolMyersSquibb/blockr.core/issues
 License: GPL (>= 3)
-Remotes:
-    nbenn/typedjson
 Encoding: UTF-8
 Language: en-US
 Roxygen: list(markdown = TRUE, packages = c("roxy.shinylive"), roclets =
