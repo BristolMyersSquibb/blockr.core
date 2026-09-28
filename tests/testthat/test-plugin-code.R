@@ -158,10 +158,7 @@ test_that("show code builds the board without evaluating or gating it", {
   testServer(
     get_s3_method("board_server", board),
     {
-      vis$gate("front-end")
-      board_update(
-        list(sustain = list(`front-end` = list(set = "a")), construct = "b")
-      )
+      board_update(list(construct = "b"))
       vis$visible[["a"]](TRUE)
       session$flushReact()
 
@@ -190,7 +187,11 @@ test_that("show code builds the board without evaluating or gating it", {
       expect_identical(rv$claims(), list(`front-end` = "a"))
       expect_identical(reval_if(rv$eval[["c"]]), "dormant")
     },
-    args = list(x = board, plugins = board_plugins(board, "generate_code"))
+    args = list(
+      x = board,
+      plugins = board_plugins(board, "generate_code"),
+      callbacks = function(...) gate_claim("front-end", "a")
+    )
   )
 })
 
@@ -214,11 +215,6 @@ test_that("show code requires the whole board, gating export on config", {
     testServer(
       get_s3_method("board_server", board),
       {
-        vis$gate("front-end")
-        board_update(
-          list(sustain = list(`front-end` = list(set = c("a", "b"))))
-        )
-
         for (id in c("a", "b")) {
           vis$visible[[id]](TRUE)
         }
@@ -246,7 +242,11 @@ test_that("show code requires the whole board, gating export on config", {
           )
         )
       },
-      args = list(x = board, plugins = board_plugins(board, "generate_code"))
+      args = list(
+        x = board,
+        plugins = board_plugins(board, "generate_code"),
+        callbacks = function(...) gate_claim("front-end", c("a", "b"))
+      )
     )
 
     out

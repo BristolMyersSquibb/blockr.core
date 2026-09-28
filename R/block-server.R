@@ -59,21 +59,22 @@
 #' control rendering of outputs.
 #'
 #' A front-end (such as blockr.dock) declares that it will drive visibility by
-#' writing an owner label into the `gate` channel of the `visibility` bundle
-#' that [board_server()] hands to the board callback. That declaration, and
-#' nothing else, is what flips the board from evaluating everything to
-#' evaluating only what is needed; with no front-end every block is needed and
-#' behaviour is unchanged, and the `gate_visibility` [blockr_option()] (default
-#' `TRUE`) turns gating off entirely. It is written synchronously, while the
-#' callback is set up, because it has to be in hand before the first flush
-#' decides what to construct.
+#' returning a [gate_claim()] from the callback it registers with
+#' [board_server()], naming its owner label and the blocks it needs evaluated
+#' from the start. That declaration, and nothing else, is what flips the board
+#' from evaluating everything to evaluating only what is needed; a board whose
+#' callbacks declare nothing has every block needed and behaves as it always
+#' has, and the `gate_visibility` [blockr_option()] (default `TRUE`) turns
+#' gating off entirely. Core reads the declaration as it runs the callbacks and
+#' seeds the opening claim there and then, before the first flush decides what
+#' to construct -- which no board update could do, since a payload only applies
+#' at the end of the flush it is written in.
 #'
-#' Which blocks the front-end needs evaluated is not a channel of its own: it
-#' is a `sustain` claim held under that same owner label, leaving the front-end
-#' one owner among several rather than a special case core can distinguish from
-#' a code export or an extension (see the Evaluation requests section of
-#' [board_server()]). Blocks it wants built without being evaluated -- a card
-#' it has created off screen, say -- are a `construct` request.
+#' Which blocks the front-end needs evaluated from then on is not a channel of
+#' its own: it is a `sustain` claim held under that same owner label, leaving
+#' the front-end one owner among several rather than a special case core can
+#' distinguish from a code export or an extension (see the Evaluation requests
+#' section of [board_server()]).
 #'
 #' Evaluation is gated on the *needed* set, the claimed blocks together with
 #' their upstream closure over [board_links()] (recomputed only when claims or
@@ -107,19 +108,19 @@
 #' render as a [bslib::accordion()] which opens one stack and collapses the
 #' rest (see [stack_ui()]), so on a stacked board part of what is on screen is
 #' hidden from the first render and any stack can be collapsed afterwards.
-#' `gate_stacks()` reads that accordion back, marking the blocks of every open
-#' stack plus every unstacked block required and parking the rest, so
+#' The `gate_stacks()` callback reads that accordion back, claiming the blocks
+#' of every open stack plus every unstacked block and parking the rest, so
 #' collapsing a stack stops its blocks evaluating and expanding one starts them
 #' again. It is [board_server()]'s default `callbacks` value. Which stacks
 #' render open is core's own decision (see [stack_ui()]), so on a stacked board
-#' the callback declares that set as the board server is set up, before the
-#' first flush: a board with no gate declared is one where every block is
-#' needed, and a collapsed stack's blocks would evaluate once in that window.
-#' The accordion's report then refines the declaration rather than establishing
-#' it. A board with no stacks binds no such input and has nothing to park, so
-#' it is left ungated, as is a board driven by another front-end -- which
-#' passes its own callbacks. Turning it off is the `gate_visibility` option
-#' above, which already governs whether anything gates at all.
+#' the callback declares that set as its opening claim: a board with no gate
+#' declared is one where every block is needed, and a collapsed stack's blocks
+#' would otherwise evaluate once before the accordion reports. The accordion's
+#' report then refines the claim rather than establishing it. A board with no
+#' stacks binds no such input and has nothing to park, so it is left ungated, as
+#' is a board driven by another front-end -- which passes its own callbacks.
+#' Turning it off is the `gate_visibility` option above, which already governs
+#' whether anything gates at all.
 #'
 #' The same bundle carries a third channel, `frozen`, through which a
 #' front-end reports the blocks whose inputs it has hidden (for example a

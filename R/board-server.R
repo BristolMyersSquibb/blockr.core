@@ -61,8 +61,8 @@
 #'
 #' A claim asks for evaluation and nothing else: nothing about what is on
 #' screen changes. The front-end is an owner like any other -- it holds a claim
-#' under the label it declared as `visibility$gate()` (see [block_server()]) --
-#' so core never distinguishes its demand from anyone else's, and a consumer
+#' under the label it declared with [gate_claim()] (see [block_server()]) -- so
+#' core never distinguishes its demand from any other owner's, and a consumer
 #' claiming a block cannot park what the front-end is showing. Because claims
 #' carry no state change, they are also the one part of a payload a locked
 #' board still accepts.
@@ -115,20 +115,23 @@ board_server <- function(id, x, ...) {
 #' @param options Board options (`NULL` defaults to the union of board, block
 #' and registry sourced options)
 #' @param callbacks Single (or list of) callback function(s) registering
-#' additional observers. Each receives a `visibility` list carrying a board-wide
-#' `gate` `reactiveVal` alongside the per-block channels `visible` and `frozen`,
-#' environments of `reactiveVal`s (core keeps one per board block as blocks are
-#' added and removed). A front-end declares that it drives visibility by writing
-#' its owner label, `visibility$gate("dock")`; until something does, every block
-#' is needed. What it needs evaluated then travels as a `sustain` claim under
-#' that label through the `update` channel it also receives (see [board_update]
-#' and the Evaluation requests section), and what it needs merely built as a
-#' `construct` request. Report whether a block is currently painted with
-#' `visibility$visible[[id]](TRUE)` (or `FALSE` once built but off screen,
-#' leaving `NA` until it is first built); the board gates rendering on it, and
-#' holds background construction until every claimed block is reported painted.
-#' Set `visibility$frozen[[id]](TRUE)` to freeze a block's inputs (for example
-#' when its controls are hidden), so a forged input can no longer steer it.
+#' additional observers. A callback that drives visibility declares itself the
+#' gating front-end by returning `gate_claim(owner, blocks)`, on its own or as
+#' one element of a list whose other elements are passed on to plugins as
+#' usual; core seeds `blocks` as that owner's claim before the first flush, and
+#' at most one callback may declare. With no declaration every block is needed.
+#' What the front-end needs evaluated from then on travels as a `sustain` claim
+#' under the same owner label through the `update` channel each callback
+#' receives (see [board_update] and the Evaluation requests section). Each
+#' callback also receives a `visibility` list of the per-block channels
+#' `visible` and `frozen`, environments of `reactiveVal`s (core keeps one per
+#' board block as blocks are added and removed). Report whether a block is
+#' currently painted with `visibility$visible[[id]](TRUE)` (or `FALSE` once
+#' built but off screen, leaving `NA` until it is first built); the board gates
+#' rendering on it, and holds background construction until every claimed block
+#' is reported painted. Set `visibility$frozen[[id]](TRUE)` to freeze a block's
+#' inputs (for example when its controls are hidden), so a forged input can no
+#' longer steer it.
 #'
 #' Core's own front-end drives these channels through a callback like any
 #' other: `gate_stacks()` reads the stack accordion (see [stack_ui()]) and is
@@ -136,9 +139,8 @@ board_server <- function(id, x, ...) {
 #' that does not is left alone -- it passes its own callbacks. A consumer that
 #' wants both keeps it in the list rather than replacing it --
 #' `callbacks = list(gate_stacks(), my_callback)`, which is for a front-end
-#' that does render the accordion: on a stacked board the gate declares the
-#' initially open stacks before the first flush and reads that input only to
-#' refine the declaration.
+#' that does render the accordion: on a stacked board it declares the initially
+#' open stacks as its opening claim and reads that input only to refine it.
 #' @param callback_location Location of callback invocation (before or after
 #' plugins)
 #' @rdname board_server
@@ -220,14 +222,6 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
       rv$evaluating <- reactiveVal(character())
       rv$claims <- reactiveVal(list())
 
-      # A gating front-end declares itself as it is set up but states its
-      # opening claim through a payload, which only applies at the end of that
-      # flush. Holding nothing and not having spoken yet are the same empty
-      # claim, so the difference is latched here: until it resolves, the
-      # background pass must not build a backlog that may be about to race the
-      # first paint.
-      rv$gate_claimed <- reactiveVal(FALSE)
-
       observe(
         {
           cur <- if (!gating_active(vis)) {
@@ -295,23 +289,16 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
       board_update <- reactiveVal()
 
-      cb_res <- set_names(
-        vector("list", length(callbacks)),
-        names(callbacks)
-      )
-
       cb_args <- c(
         rv_ro,
-        list(update = board_update, visibility = vis),
+        list(update = board_update, visibility = vis[c("visible", "frozen")]),
         dot_args,
         list(session = session)
       )
 
       if (identical(callback_location, "start")) {
 
-        for (i in seq_along(callbacks)) {
-          cb_res[[i]] <- do.call(callbacks[[i]], cb_args)
-        }
+        cb_res <- run_callbacks(callbacks, cb_args, rv, vis)
 
         if (length(cb_res) == 1L) {
           cb_res <- cb_res[[1L]]
@@ -470,9 +457,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
       if (identical(callback_location, "end")) {
 
-        for (i in seq_along(callbacks)) {
-          cb_res[[i]] <- do.call(callbacks[[i]], cb_args)
-        }
+        cb_res <- run_callbacks(callbacks, cb_args, rv, vis)
 
         dot_args <- c(dot_args, cb_res)
       }
@@ -820,8 +805,7 @@ block_frozen <- function(id, vis) {
 # by anyone else names blocks nobody is putting on screen, and holding the
 # backlog for one would stall it for the rest of the session.
 gate_fulfilled <- function(vis, rv) {
-  isTRUE(rv$gate_claimed()) &&
-    all(lgl_ply(rv$claims()[[vis$gate()]], block_visible, vis))
+  all(lgl_ply(rv$claims()[[vis$gate()]], block_visible, vis))
 }
 
 validate_vis <- function(vis) {
@@ -856,6 +840,107 @@ validate_vis <- function(vis) {
 
 valid_gate <- function(x) {
   is.null(x) || (is_string(x) && !is.na(x) && nzchar(x))
+}
+
+#' @param owner Label under which the gating front-end holds its claim, as it
+#' would name itself in a `sustain` component
+#' @param blocks Block IDs the front-end needs evaluated from the start
+#' @rdname board_server
+#' @export
+gate_claim <- function(owner, blocks = character()) {
+
+  if (is.null(owner) || !valid_gate(owner)) {
+    blockr_abort(
+      "Expecting a gate claim owner to be a nonempty string.",
+      class = "gate_claim_owner_invalid"
+    )
+  }
+
+  if (!is.character(blocks)) {
+    blockr_abort(
+      "Expecting a gate claim to name its blocks as a character vector.",
+      class = "gate_claim_blocks_invalid"
+    )
+  }
+
+  structure(list(owner = owner, blocks = blocks), class = "gate_claim")
+}
+
+is_gate_claim <- function(x) {
+  inherits(x, "gate_claim")
+}
+
+run_callbacks <- function(callbacks, args, rv, vis) {
+
+  res <- lapply(callbacks, do.call, args)
+
+  seed_gate_claim(res, rv, vis)
+
+  Filter(Negate(is.null), lapply(res, drop_gate_claim))
+}
+
+# A callback returns its declaration on its own, or alongside the values it
+# hands on to plugins; either way the declaration is core's to read, not a
+# value to splice into their arguments.
+callback_gate_claims <- function(res) {
+
+  if (is_gate_claim(res)) {
+    return(list(res))
+  }
+
+  if (is.list(res) && !is.object(res)) {
+    return(Filter(is_gate_claim, res))
+  }
+
+  list()
+}
+
+drop_gate_claim <- function(res) {
+
+  if (is_gate_claim(res)) {
+    return(NULL)
+  }
+
+  if (is.list(res) && !is.object(res)) {
+    return(Filter(Negate(is_gate_claim), res))
+  }
+
+  res
+}
+
+seed_gate_claim <- function(res, rv, vis) {
+
+  claims <- do.call(c, lapply(res, callback_gate_claims))
+
+  if (!length(claims)) {
+    return(invisible())
+  }
+
+  if (length(claims) > 1L) {
+    blockr_abort(
+      "Expecting at most one callback to declare itself the gating ",
+      "front-end, but {length(claims)} did: {chr_xtr(claims, 'owner')}.",
+      class = "gate_claim_ambiguous"
+    )
+  }
+
+  claim <- claims[[1L]]
+
+  validate_claim_delta(
+    list(set = claim$blocks),
+    claim$owner,
+    isolate(board_block_ids(rv$board))
+  )
+
+  vis$gate(claim$owner)
+
+  # Setup runs outside any reactive consumer, where reading a reactiveValues
+  # field errors in a live session (a mock one evaluates inside isolate()).
+  isolate(
+    rv$claims(filter_empty(set_names(list(claim$blocks), claim$owner)))
+  )
+
+  invisible()
 }
 
 valid_visible <- function(x) {
@@ -2237,12 +2322,12 @@ apply_core_board_update <- function(rv, upd, session,
   construct_blocks(upd[["construct"]], rv, edit_block, ctrl_block,
                    edit_plugin_args, vis)
 
-  apply_eval_requests(rv, upd, vis)
+  apply_eval_requests(rv, upd)
 
   invisible()
 }
 
-apply_eval_requests <- function(rv, upd, vis) {
+apply_eval_requests <- function(rv, upd) {
 
   deltas <- upd[["sustain"]]
 
@@ -2257,10 +2342,6 @@ apply_eval_requests <- function(rv, upd, vis) {
     }
 
     rv$claims(filter_empty(claims))
-
-    if (isTRUE(vis$gate() %in% names(deltas))) {
-      rv$gate_claimed(TRUE)
-    }
   }
 
   if (length(upd[["evaluate"]])) {

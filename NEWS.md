@@ -2,19 +2,20 @@
 
 * Evaluation demand is now one multi-owner set rather than two channels. The
   front-end's per-block `required` channel is gone: what it needs evaluated is
-  a `sustain` claim held under an owner label like any other consumer's, and
-  what it needs merely built is a `construct` request. Core no longer
-  distinguishes a front-end's demand from a code export's, and because no owner
-  writes another's claim, the channel cannot silently become multi-writer the
-  way `required` did. The three jobs the tri-state used to do in one slot are
-  now separate: gating activation is an explicit declaration a front-end makes
-  by writing its owner label into the new board-wide `visibility$gate` channel
-  -- inferring it from claims instead would let a consumer asking about one
-  block park every other block on an ungated board -- and construction demand is
-  the `construct` component. Reporting paint on `visible` is unchanged, and the
-  background pass still holds until every block the gating front-end claims is
-  reported painted. Breaking for any front-end that drives
-  `visibility$required` (#321).
+  a `sustain` claim held under an owner label like any other consumer's. Core
+  no longer distinguishes a front-end's demand from a code export's, and
+  because no owner writes another's claim, the channel cannot silently become
+  multi-writer the way `required` did. Whether a board gates is now declared
+  rather than inferred from whether anything had written demand: a front-end's
+  callback returns `gate_claim(owner, blocks)`, and core seeds `blocks` as that
+  owner's claim as it runs the callbacks, before the first flush decides what
+  to construct -- which no board update can do, since a payload applies at the
+  end of the flush it is written in. A board whose callbacks declare nothing
+  is not gated, so a consumer claiming one block cannot park every other block
+  on it. The `visibility` bundle handed to callbacks keeps its per-block
+  `visible` and `frozen` channels, and reporting paint on `visible` is
+  unchanged. Breaking for any front-end that drives `visibility$required`
+  (#321).
 * Links can now be placed rather than only appended. The `modify_board_links()`
   arguments `before` and `after`, mirrored by `links$before` / `links$after` in
   a board update payload, name where a link passed as `add` should sit, as
@@ -90,8 +91,7 @@
   callback claims the blocks of every open stack plus every unstacked block and
   parks the rest, so collapsing a stack stops its blocks evaluating and
   expanding one starts them again. Parked rather than dropped: a collapsed
-  stack's blocks stay built through a `construct` request, so re-expanding shows
-  them without a rebuild. It is `board_server()`'s default `callbacks` value, so
+  stack's blocks stay built, so re-expanding shows them without a rebuild. It is `board_server()`'s default `callbacks` value, so
   a board driven by another front-end -- which passes its own callbacks, and
   whose UI never binds the input -- is left alone; a consumer that wants both
   keeps it in the list,

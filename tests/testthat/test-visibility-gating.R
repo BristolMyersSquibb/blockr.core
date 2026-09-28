@@ -191,20 +191,19 @@ constructed <- function(id) {
   id %in% probe_construct$ids
 }
 
-# The front-end under test: it declares itself the gating owner and states its
-# demand as a `sustain` claim under that label, exactly as any other consumer
-# would. Each helper writes the payload channel once, since a second write
-# before the next flush would clobber the first.
+# The front-end under test: its callback declares itself the gating owner by
+# returning its opening claim, and it states demand from then on as a `sustain`
+# claim under that label, exactly as any other consumer would. Each payload
+# helper writes the channel once, since a second write before the next flush
+# would clobber the first.
 front_end <- "front-end"
 
 claim <- function(...) {
   set_names(list(list(...)), front_end)
 }
 
-gate_blocks <- function(vis, update, ...) {
-
-  vis$gate(front_end)
-  require_blocks(update, ...)
+gate_blocks <- function(...) {
+  gate_claim(front_end, c(...))
 }
 
 require_blocks <- function(update, ...) {
@@ -338,9 +337,9 @@ test_that("a producer gates evaluation and rendering on visibility", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "b")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "b")
+        gate_blocks("b")
       }
     )
   )
@@ -377,9 +376,9 @@ test_that("the gate_visibility option disables gating", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "b")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "b")
+        gate_blocks("b")
       }
     )
   )
@@ -428,9 +427,9 @@ test_that("a link change re-routes the pulled upstream", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "b")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "b")
+        gate_blocks("b")
       }
     )
   )
@@ -477,9 +476,9 @@ test_that("a needed round trip with unchanged inputs does not re-evaluate", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "b")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "b")
+        gate_blocks("b")
       }
     )
   )
@@ -543,9 +542,9 @@ test_that("a dormant block reports stale when an upstream re-evaluates", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "a", "r")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "a", "r")
+        gate_blocks("a", "r")
       }
     )
   )
@@ -588,9 +587,9 @@ test_that("a dormant block whose upstreams are unchanged stays dormant", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "a", "r")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "a", "r")
+        gate_blocks("a", "r")
       }
     )
   )
@@ -650,9 +649,9 @@ test_that("staleness propagates to the whole dormant downstream cone", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "a", "b", "r")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "a", "b", "r")
+        gate_blocks("a", "b", "r")
       }
     )
   )
@@ -703,9 +702,9 @@ test_that("re-routing a dormant block's input marks it stale", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "a", "b", "r")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "a", "b", "r")
+        gate_blocks("a", "b", "r")
       }
     )
   )
@@ -760,9 +759,9 @@ test_that("a stale block that re-evaluates is dormant when parked again", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "a", "b", "r")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "a", "b", "r")
+        gate_blocks("a", "b", "r")
       }
     )
   )
@@ -839,8 +838,8 @@ test_that("an evaluation request brings a stale block current", {
       plugins = list(),
       callbacks = function(visibility, update, ...) {
         upd_channel <<- update
-        gate_blocks(visibility, update, "s1", "s2", "a", "r")
         render_blocks(visibility, "s1", "s2", "a", "r")
+        gate_blocks("s1", "s2", "a", "r")
       }
     )
   )
@@ -907,9 +906,9 @@ test_that("an evaluation request evaluates a block edited while dormant", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "s", "r")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "s", "r")
+        gate_blocks("s", "r")
       }
     )
   )
@@ -951,9 +950,9 @@ test_that("an edit and a request in one payload evaluate the edit", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "s", "r")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "s", "r")
+        gate_blocks("s", "r")
       }
     )
   )
@@ -1001,9 +1000,9 @@ test_that("an evaluation request builds the blocks it needs", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "s")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "s")
+        gate_blocks("s")
       }
     )
   )
@@ -1058,9 +1057,9 @@ test_that("a required claim holds a block until it is released", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "s", "r")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "s", "r")
+        gate_blocks("s", "r")
       }
     )
   )
@@ -1118,9 +1117,9 @@ test_that("one owner's release leaves another owner's claim standing", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "s", "r")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "s", "r")
+        gate_blocks("s", "r")
       }
     )
   )
@@ -1203,9 +1202,9 @@ test_that("a consumer cannot release what the front-end holds", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "r")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "r")
+        gate_blocks("r")
       }
     )
   )
@@ -1259,9 +1258,9 @@ test_that("removing a claimed block prunes it from every owner", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "s")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "s")
+        gate_blocks("s")
       }
     )
   )
@@ -1300,9 +1299,9 @@ test_that("a request for a block added in the same payload is honoured", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "s")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "s")
+        gate_blocks("s")
       }
     )
   )
@@ -1353,9 +1352,9 @@ test_that("a construction request builds a block without evaluating it", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "s")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "s")
+        gate_blocks("s")
       }
     )
   )
@@ -1406,9 +1405,9 @@ test_that("overlapping requests union rather than clash", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "s")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "s")
+        gate_blocks("s")
       }
     )
   )
@@ -1461,9 +1460,9 @@ test_that("a request naming an unknown block is rejected", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "a")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "a")
+        gate_blocks("a")
       }
     )
   )
@@ -1515,9 +1514,9 @@ test_that("a view switch does not re-evaluate shared upstream left needed", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "t1")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "t1")
+        gate_blocks("t1")
       }
     )
   )
@@ -1566,9 +1565,9 @@ test_that("a variadic block skips re-evaluation on unchanged inputs", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "v")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "v")
+        gate_blocks("v")
       }
     )
   )
@@ -1602,9 +1601,9 @@ test_that("an off-screen data-observing block does not pull its upstream", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "c")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "c")
+        gate_blocks("c")
       }
     )
   )
@@ -1648,9 +1647,9 @@ test_that("an unrelated structural edit does not re-evaluate needed blocks", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "b")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "b")
+        gate_blocks("b")
       }
     )
   )
@@ -1692,9 +1691,9 @@ test_that("adding a block does not re-evaluate existing needed blocks", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "b")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "b")
+        gate_blocks("b")
       }
     )
   )
@@ -1727,9 +1726,9 @@ test_that("a variadic block receives its inputs as values, not reactives", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "c")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "c")
+        gate_blocks("c")
       }
     )
   )
@@ -1765,9 +1764,9 @@ test_that("an off-screen variadic block does not pull its inputs", {
     args = list(
       x = board,
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "e")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "e")
+        gate_blocks("e")
       }
     )
   )
@@ -1789,9 +1788,9 @@ ordered_board <- function() {
   )
 }
 
-visible_b <- function(visibility, update, ...) {
-  gate_blocks(visibility, update, "b")
+visible_b <- function(visibility, ...) {
   render_blocks(visibility, "b")
+  gate_blocks("b")
 }
 
 test_that("the priority lane builds the needed set ahead of the backlog", {
@@ -1816,9 +1815,9 @@ test_that("the priority lane builds the needed set ahead of the backlog", {
     args = list(
       x = ordered_board(),
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "c")
+      callbacks = function(visibility, ...) {
         render_blocks(visibility, "c")
+        gate_blocks("c")
       }
     )
   )
@@ -1849,8 +1848,8 @@ test_that("opening a view pulls its blocks ahead of a gated backlog", {
     args = list(
       x = ordered_board(),
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "b")
+      callbacks = function(...) {
+        gate_blocks("b")
       }
     )
   )
@@ -2007,10 +2006,7 @@ test_that("gate_fulfilled tracks the gating owner's claim alone", {
     )
     add_vis_slots(vis, c("a", "b", "c"))
 
-    rv <- reactiveValues(
-      claims = reactiveVal(list(dock = c("a", "b"))),
-      gate_claimed = reactiveVal(TRUE)
-    )
+    rv <- reactiveValues(claims = reactiveVal(list(dock = c("a", "b"))))
     vis$visible[["a"]](TRUE)
     vis$visible[["b"]](TRUE)
 
@@ -2028,6 +2024,130 @@ test_that("gate_fulfilled tracks the gating owner's claim alone", {
     rv$claims(list())
     expect_true(gate_fulfilled(vis, rv))
   })
+})
+
+test_that("a declared opening claim is in place before the first flush", {
+
+  reset_probes()
+
+  local_mocked_bindings(schedule_construction = drive_construction)
+
+  claims_at_first_flush <- NULL
+
+  testServer(
+    get_s3_method("board_server", ordered_board()),
+    {
+      session$flushReact()
+
+      # Seeded as the callbacks run, so the first construction pass already
+      # has it: only the claim and its upstream are built ahead of the backlog,
+      # and nothing outside the claim evaluates.
+      expect_identical(claims_at_first_flush, list(`front-end` = "b"))
+      expect_identical(probe_construct$ids[1:2], c("a", "b"))
+
+      expect_true(evaluated("b"))
+      expect_false(evaluated("c"))
+      expect_false(evaluated("d"))
+    },
+    args = list(
+      x = ordered_board(),
+      plugins = list(),
+      callbacks = list(
+        function(visibility, ...) {
+          render_blocks(visibility, "b")
+          gate_blocks("b")
+        },
+        function(board, ...) {
+          observe(claims_at_first_flush <<- board$claims(), priority = Inf)
+          NULL
+        }
+      )
+    )
+  )
+})
+
+test_that("a declaration travels alongside a callback's plugin arguments", {
+
+  testServer(
+    get_s3_method("board_server", ordered_board()),
+    {
+      session$flushReact()
+
+      expect_identical(rv$claims(), list(`front-end` = "b"))
+
+      expect_identical(session$returned$extra, 42)
+      expect_false(any(c("owner", "blocks") %in% names(session$returned)))
+      expect_false(any(lgl_ply(session$returned, is_gate_claim)))
+    },
+    args = list(
+      x = ordered_board(),
+      plugins = list(),
+      callbacks = function(...) list(extra = 42, gate_blocks("b")),
+      callback_location = "start"
+    )
+  )
+})
+
+test_that("callbacks cannot write the gate, only declare it", {
+
+  seen <- NULL
+
+  testServer(
+    get_s3_method("board_server", ordered_board()),
+    {
+      session$flushReact()
+
+      expect_setequal(seen, c("visible", "frozen"))
+      expect_false(gating_active(vis))
+    },
+    args = list(
+      x = ordered_board(),
+      plugins = list(),
+      callbacks = function(visibility, ...) {
+        seen <<- names(visibility)
+        NULL
+      }
+    )
+  )
+})
+
+test_that("at most one callback declares itself the gating front-end", {
+
+  expect_error(
+    testServer(
+      get_s3_method("board_server", ordered_board()),
+      session$flushReact(),
+      args = list(
+        x = ordered_board(),
+        plugins = list(),
+        callbacks = list(
+          function(...) gate_claim("one", "b"),
+          function(...) gate_claim("two", "c")
+        )
+      )
+    ),
+    class = "gate_claim_ambiguous"
+  )
+})
+
+test_that("a declared opening claim is validated as any claim is", {
+
+  expect_error(
+    testServer(
+      get_s3_method("board_server", ordered_board()),
+      session$flushReact(),
+      args = list(
+        x = ordered_board(),
+        plugins = list(),
+        callbacks = function(...) gate_claim("front-end", "nope")
+      )
+    ),
+    class = "board_update_sustain_unknown_id"
+  )
+
+  expect_error(gate_claim(""), class = "gate_claim_owner_invalid")
+  expect_error(gate_claim(NA_character_), class = "gate_claim_owner_invalid")
+  expect_error(gate_claim("fe", 1L), class = "gate_claim_blocks_invalid")
 })
 
 test_that("the background waits for the front-end's rendered report", {
@@ -2056,8 +2176,8 @@ test_that("the background waits for the front-end's rendered report", {
     args = list(
       x = ordered_board(),
       plugins = list(),
-      callbacks = function(visibility, update, ...) {
-        gate_blocks(visibility, update, "b")
+      callbacks = function(...) {
+        gate_blocks("b")
       }
     )
   )

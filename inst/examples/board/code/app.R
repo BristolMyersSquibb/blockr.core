@@ -10,10 +10,8 @@ serve(
     )
   ),
   "my_board",
-  callbacks = function(board, visibility, update, ...) {
+  callbacks = function(board, visibility, ...) {
 
-    visibility$gate("front-end")
-    update(list(sustain = list(`front-end` = list(set = "a"))))
     visibility$visible[["a"]](TRUE)
 
     shiny::exportTestValues(
@@ -21,6 +19,6 @@ serve(
       status_b = reval_if(board$eval[["b"]])
     )
 
-    NULL
+    gate_claim("front-end", "a")
   }
 )
