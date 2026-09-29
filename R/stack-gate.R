@@ -6,20 +6,20 @@ gate_stacks <- function() {
 
     observe(show_open_stacks(board, visibility, update, session))
 
-    open_stacks_claim(isolate(board$board), session)
+    open_stacks_eager(isolate(board$board), session)
   }
 }
 
 # A stackless board renders an accordion that never binds as an input, so
-# nothing would ever arrive to refine a claim made on its behalf and it would
-# stay parked for the session; it is left ungated instead.
-open_stacks_claim <- function(board, session) {
+# nothing would ever arrive to refine an eager set declared on its behalf and
+# it would stay parked for the session; it is left eager instead.
+open_stacks_eager <- function(board, session) {
 
   if (!has_length(board_stack_ids(board))) {
     return(NULL)
   }
 
-  gate_claim(
+  eager(
     stack_gate_owner(session),
     shown_block_ids(board, default_open_stacks(board_stacks(board)))
   )
@@ -30,7 +30,7 @@ show_open_stacks <- function(board, vis, update, session) {
   open <- session$input[["stacks"]]
 
   # Read before this returns, so the observer wakes when the accordion first
-  # reports. Until it does, what stands is the claim the callback declared --
+  # reports. Until it does, what stands is the set the callback declared --
   # and for a board that renders its own UI and never binds the accordion,
   # nothing at all.
   if (!stacks_reported(session)) {
@@ -42,7 +42,7 @@ show_open_stacks <- function(board, vis, update, session) {
 
   shown <- shown_block_ids(brd, open_stack_ids(open, brd, session))
 
-  update(list(sustain = set_names(list(list(set = shown)), owner)))
+  update(list(eager = set_names(list(list(set = shown)), owner)))
 
   for (id in ls(vis$visible)) {
     vis$visible[[id]](id %in% shown)

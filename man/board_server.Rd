@@ -3,7 +3,7 @@
 \name{board_server}
 \alias{board_server}
 \alias{board_server.board}
-\alias{gate_claim}
+\alias{eager}
 \alias{gate_stacks}
 \title{Board server}
 \usage{
@@ -19,7 +19,7 @@ board_server(id, x, ...)
   ...
 )
 
-gate_claim(owner, blocks = character())
+eager(owner, blocks = character())
 
 gate_stacks()
 }
@@ -36,38 +36,40 @@ gate_stacks()
 and registry sourced options)}
 
 \item{callbacks}{Single (or list of) callback function(s) registering
-additional observers. A callback that drives visibility declares itself the
-gating front-end by returning \code{gate_claim(owner, blocks)}, on its own or as
-one element of a list whose other elements are passed on to plugins as
-usual; core seeds \code{blocks} as that owner's claim before the first flush, and
-at most one callback may declare. With no declaration every block is needed.
-What the front-end needs evaluated from then on travels as a \code{sustain} claim
-under the same owner label through the \code{update} channel each callback
-receives (see \link{board_update} and the Evaluation requests section). Each
-callback also receives a \code{visibility} list of the per-block channels
-\code{visible} and \code{frozen}, environments of \code{reactiveVal}s (core keeps one per
-board block as blocks are added and removed). Report whether a block is
-currently painted with \code{visibility$visible[[id]](TRUE)} (or \code{FALSE} once
-built but off screen, leaving \code{NA} until it is first built); the board gates
-rendering on it, and holds background construction until every claimed block
-is reported painted. Set \code{visibility$frozen[[id]](TRUE)} to freeze a block's
-inputs (for example when its controls are hidden), so a forged input can no
-longer steer it.
+additional observers. A board is eager by default: it evaluates every block.
+A callback makes it lazy by returning \code{eager(owner, blocks)}, on its own or
+as one element of a list whose other elements are passed on to plugins as
+usual. Core then evaluates only the blocks some owner holds eager, and what
+feeds them; it seeds \code{blocks} as that owner's eager set before the first
+flush, and at most one callback may return one. Changes from then on travel
+as an \code{eager} component under the same owner label through the \code{update}
+channel each callback receives (see \link{board_update} and the Evaluation
+requests section). Each callback also receives a \code{visibility} list of the
+per-block channels \code{visible} and \code{frozen}, environments of \code{reactiveVal}s
+(core keeps one per board block as blocks are added and removed). Report
+whether a block is currently painted with \code{visibility$visible[[id]](TRUE)}
+(or \code{FALSE} once built but off screen, leaving \code{NA} until it is first
+built); the board renders a block only once it is reported painted, and
+holds background construction until every block the front-end holds eager
+is. Set \code{visibility$frozen[[id]](TRUE)} to freeze a block's inputs (for
+example when its controls are hidden), so a forged input can no longer steer
+it.
 
 Core's own front-end drives these channels through a callback like any
 other: \code{gate_stacks()} reads the stack accordion (see \code{\link[=stack_ui]{stack_ui()}}) and is
-the default, so a board that renders core's UI gates on its stacks and one
-that does not is left alone -- it passes its own callbacks. A consumer that
-wants both keeps it in the list rather than replacing it --
+the default, so a stacked board that renders core's UI is lazy, and a board
+that does not render it is left alone -- it passes its own callbacks. A
+consumer that wants both keeps it in the list rather than replacing it --
 \code{callbacks = list(gate_stacks(), my_callback)}, which is for a front-end
-that does render the accordion: on a stacked board it declares the initially
-open stacks as its opening claim and reads that input only to refine it.}
+that does render the accordion: on a stacked board it returns the blocks of
+the initially open stacks as its eager set, and reads that input only to
+refine it.}
 
 \item{callback_location}{Location of callback invocation (before or after
 plugins)}
 
-\item{owner}{Label under which the gating front-end holds its claim, as it
-would name itself in a \code{sustain} component}
+\item{owner}{Label under which the front-end holds its blocks eager, as it
+would name itself in an \code{eager} component}
 
 \item{blocks}{Block IDs the front-end needs evaluated from the start}
 }
@@ -101,20 +103,20 @@ default \code{\link[=notify_user]{notify_user()}} plugin renders its toasts from
 Deferred evaluation leaves a block that nothing currently needs holding its
 last run — not only its result, but the conditions it reports. Anything that
 can reach the \code{\link[=board_update]{board_update()}} channel can ask for such a block to be brought
-up to date, without putting it on screen, through the \code{evaluate} and
-\code{sustain} payload components. Both name blocks, and core joins them, together
-with their upstream closure over \code{\link[=board_links]{board_links()}} (without which they cannot
+up to date, without putting it on screen, through the \code{evaluate} and \code{eager}
+payload components. Both name blocks, and core joins them, together with
+their upstream closure over \code{\link[=board_links]{board_links()}} (without which they cannot
 produce a result), to the eval set. They differ only in who lets go: an
-\code{evaluate} request is a one-off that core drops once the block has run, while
-a \code{sustain} claim is held until its owner releases it.
+\code{evaluate} request is a one-off that core drops once the block has run,
+while a block held \code{eager} stays evaluated until its owner releases it.
 
-Claims are keyed by owner, the \code{sustain} component mapping each owner to a
-delta over the blocks it holds, so several consumers may hold the same block
-and none of them writes another's claim:
+Eager blocks are keyed by owner, the \code{eager} component mapping each owner to
+a delta over the blocks it holds, so several consumers may hold the same
+block and none of them overwrites another's set:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{update(
   list(
-    sustain = set_names(
+    eager = set_names(
       list(list(set = board_block_ids(board$board))),
       session$ns("preview")
     )
@@ -124,26 +126,26 @@ and none of them writes another's claim:
 
 A delta is \code{set}, \code{add} and \code{rm}, of which \code{set} states that owner's entire
 set at once and cannot be combined with the other two. Releasing everything
-is \code{set = character()}; releasing part of a claim is \code{rm}, which — unlike
-\code{set} and \code{add} — may name a block the board no longer has, so a release
-cannot be rejected by a removal that raced it. Restating a set repairs a
-release that never arrived, rather than letting it accumulate.
+is \code{set = character()}; releasing some blocks is \code{rm}, which — unlike \code{set}
+and \code{add} — may name a block the board no longer has, so a release cannot be
+rejected by a removal that raced it. Restating a set repairs a release that
+never arrived, rather than letting it accumulate.
 
 Core cannot infer the owner — the write and its effect are separated by a
 flush — so the label travels in the payload. Nothing keys off shiny's
 namespacing, but taking the label from \code{session$ns()} as above is what keeps
 owners unique without a registry, and lets one module hold two independent
-claims under two labels. A claim outlives the module that made it: core
-drops a claimed block once it leaves the board, but an owner that goes away
-without releasing holds what it held for the rest of the session.
+sets under two labels. An owner's set outlives the module that made it: core
+drops a block from every set once it leaves the board, but an owner that
+goes away without releasing holds what it held for the rest of the session.
 
-A claim asks for evaluation and nothing else: nothing about what is on
-screen changes. The front-end is an owner like any other -- it holds a claim
-under the label it declared with \code{\link[=gate_claim]{gate_claim()}} (see \code{\link[=block_server]{block_server()}}) -- so
-core never distinguishes its demand from any other owner's, and a consumer
-claiming a block cannot park what the front-end is showing. Because claims
-carry no state change, they are also the one part of a payload a locked
-board still accepts.
+Holding a block eager asks for evaluation and nothing else: nothing about
+what is on screen changes. The front-end is an owner like any other -- it
+holds its blocks eager under the label it declared with \code{\link[=eager]{eager()}} (see
+\code{\link[=block_server]{block_server()}}) -- so core never distinguishes its demand from any other
+owner's, and a consumer holding a block eager cannot park what the
+front-end is showing. Because these requests carry no state change, they are
+also the one part of a payload a locked board still accepts.
 
 Core drops a one-off request once the block has run — or has reported why it
 cannot, such as an unconnected data input or a user input that was never set.
@@ -165,10 +167,10 @@ dependency order and left \code{dormant}:
 Nothing is retained. Once a block is built it stays built, so unlike the two
 evaluation components there is no owner to name and nothing to hand back, and
 asking for a block that is already built does nothing. The request joins
-neither the eval set nor the gate declaration, so it cannot turn a lazily
+neither the eval set nor any owner's eager set, so it cannot turn a lazily
 evaluating board into an eagerly evaluating one.
 
-A block that the same payload adds, or that an \code{evaluate} or \code{sustain} names,
+A block that the same payload adds, or that an \code{evaluate} or \code{eager} names,
 is already constructed — the add builds it directly, and evaluation demand
 joins the needed set, which the background constructor builds. Pairing
 \code{construct} with either is redundant rather than wrong. The component covers

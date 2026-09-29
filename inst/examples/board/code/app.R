@@ -19,6 +19,6 @@ serve(
       status_b = reval_if(board$eval[["b"]])
     )
 
-    gate_claim("front-end", "a")
+    eager("front-end", "a")
   }
 )

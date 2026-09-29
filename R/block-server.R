@@ -58,47 +58,46 @@
 #' [block_output()] generic. The [block_ui()] generic can then be used to
 #' control rendering of outputs.
 #'
-#' A front-end (such as blockr.dock) declares that it will drive visibility by
-#' returning a [gate_claim()] from the callback it registers with
-#' [board_server()], naming its owner label and the blocks it needs evaluated
-#' from the start. That declaration, and nothing else, is what flips the board
-#' from evaluating everything to evaluating only what is needed; a board whose
-#' callbacks declare nothing has every block needed and behaves as it always
-#' has, and the `gate_visibility` [blockr_option()] (default `TRUE`) turns
-#' gating off entirely. Core reads the declaration as it runs the callbacks and
-#' seeds the opening claim there and then, before the first flush decides what
-#' to construct -- which no board update could do, since a payload only applies
-#' at the end of the flush it is written in.
+#' A board is eager by default: every block is needed, so every block
+#' evaluates. A front-end (such as blockr.dock) makes it lazy by returning
+#' [eager()] from the callback it registers with [board_server()], naming its
+#' owner label and the blocks it needs evaluated from the start. From then on
+#' only the blocks some owner holds eager are needed, together with what feeds
+#' them. A board whose callbacks return no such value stays eager, and setting
+#' the `gate_visibility` [blockr_option()] (default `TRUE`) to `FALSE` keeps
+#' every board eager. Core reads the declaration as it runs the callbacks and
+#' seeds the opening eager set there and then, before the first flush decides
+#' what to construct -- which no board update could do, since a payload only
+#' applies at the end of the flush it is written in.
 #'
 #' Which blocks the front-end needs evaluated from then on is not a channel of
-#' its own: it is a `sustain` claim held under that same owner label, leaving
-#' the front-end one owner among several rather than a special case core can
-#' distinguish from a code export or an extension (see the Evaluation requests
-#' section of [board_server()]).
+#' its own: it travels as an `eager` component under that same owner label,
+#' leaving the front-end one owner among several rather than a special case
+#' core can distinguish from a code export or an extension (see the Evaluation
+#' requests section of [board_server()]).
 #'
-#' Evaluation is gated on the *needed* set, the claimed blocks together with
-#' their upstream closure over [board_links()] (recomputed only when claims or
-#' links change). A block's input data reactives stay unfulfilled (they
+#' Evaluation follows the *needed* set, the blocks held eager together with
+#' their upstream closure over [board_links()] (recomputed only when eager sets
+#' or links change). A block's input data reactives stay unfulfilled (they
 #' [shiny::req()] out) unless the block is needed, so a block that is neither
-#' claimed nor feeding a claimed block pulls no input and stays fully
-#' quiescent: its result reactive, and any observer its expression server
-#' registers on the incoming data, all short-circuit and do nothing. A needed
-#' but off-screen block (one feeding a claimed block) evaluates but does not
-#' render.
+#' held eager nor feeding one pulls no input and stays fully quiescent: its
+#' result reactive, and any observer its expression server registers on the
+#' incoming data, all short-circuit and do nothing. A needed but off-screen
+#' block (one feeding a block held eager) evaluates but does not render.
 #'
-#' Rendering is gated on `visible`, the per-block channel through which the
-#' front-end reports what it has painted -- the effect, where a claim is the
-#' cause. The render observer is suspended while a block carries no visible
-#' slot and resumed once the front-end reports it painted, starting suspended
-#' so nothing renders before the first report.
+#' Rendering follows `visible`, the per-block channel through which the
+#' front-end reports what it has painted -- the effect, where holding a block
+#' eager is the cause. The render observer is suspended while a block carries
+#' no visible slot and resumed once the front-end reports it painted, starting
+#' suspended so nothing renders before the first report.
 #'
 #' Block-server *construction* is prioritized the same way: the needed set is
-#' instantiated first so that first paint waits only for the claimed blocks and
-#' their upstreams, and the remaining block servers are built progressively in
-#' the background. That background pass holds until the front-end reports every
-#' block it claims as visible, so it never competes with first paint. Until a
-#' block is built it is absent from the `board$blocks` handed to plugins and
-#' callbacks, which simply see it appear once constructed. The background
+#' instantiated first so that first paint waits only for the blocks held eager
+#' and their upstreams, and the remaining block servers are built progressively
+#' in the background. That background pass holds until the front-end reports
+#' every block it holds eager as visible, so it never competes with first paint.
+#' Until a block is built it is absent from the `board$blocks` handed to plugins
+#' and callbacks, which simply see it appear once constructed. The background
 #' cadence is set by the `background_construction_delay` [blockr_option()]
 #' (milliseconds between successive blocks, default 50); a value of 0 disables
 #' the staggering and builds every block up front.
@@ -108,19 +107,19 @@
 #' render as a [bslib::accordion()] which opens one stack and collapses the
 #' rest (see [stack_ui()]), so on a stacked board part of what is on screen is
 #' hidden from the first render and any stack can be collapsed afterwards.
-#' The `gate_stacks()` callback reads that accordion back, claiming the blocks
-#' of every open stack plus every unstacked block and parking the rest, so
-#' collapsing a stack stops its blocks evaluating and expanding one starts them
-#' again. It is [board_server()]'s default `callbacks` value. Which stacks
+#' The `gate_stacks()` callback reads that accordion back, holding the blocks
+#' of every open stack plus every unstacked block eager and parking the rest,
+#' so collapsing a stack stops its blocks evaluating and expanding one starts
+#' them again. It is [board_server()]'s default `callbacks` value. Which stacks
 #' render open is core's own decision (see [stack_ui()]), so on a stacked board
-#' the callback declares that set as its opening claim: a board with no gate
-#' declared is one where every block is needed, and a collapsed stack's blocks
-#' would otherwise evaluate once before the accordion reports. The accordion's
-#' report then refines the claim rather than establishing it. A board with no
-#' stacks binds no such input and has nothing to park, so it is left ungated, as
-#' is a board driven by another front-end -- which passes its own callbacks.
-#' Turning it off is the `gate_visibility` option above, which already governs
-#' whether anything gates at all.
+#' the callback returns that set as its opening eager set: an eager board
+#' evaluates every block, and a collapsed stack's blocks would otherwise
+#' evaluate once before the accordion reports. The accordion's report then
+#' refines the set rather than establishing it. A board with no stacks binds no
+#' such input and has nothing to park, so this callback leaves it eager; a
+#' board driven by another front-end never runs it, since it passes its own
+#' callbacks. Setting the `gate_visibility` option to `FALSE` keeps this board
+#' eager too.
 #'
 #' The same bundle carries a third channel, `frozen`, through which a
 #' front-end reports the blocks whose inputs it has hidden (for example a
@@ -161,11 +160,12 @@ block_server <- function(id, x, data = list(), ...) {
 #' @param needed Reactive flag signaling whether the block is currently in the
 #' eval set (supplied by [board_server()]; defaults to always-needed when a
 #' block server is run standalone)
-#' @param visibility Front-end channel bundle -- a `gate` `reactiveVal` naming
-#' the front-end driving visibility, plus `visible` and `frozen`, each an
-#' environment of per-block `reactiveVal`s, supplied by [board_server()] to
-#' gate rendering and to freeze block inputs; `NULL` (the standalone default)
-#' leaves the block ungated
+#' @param visibility Front-end channel bundle -- a `gate` `reactiveVal` holding
+#' the owner label of the front-end that made the board lazy, plus `visible`
+#' and `frozen`, each an environment of per-block `reactiveVal`s, supplied by
+#' [board_server()] to hold rendering until a block is painted and to freeze
+#' block inputs; `NULL` (the standalone default) renders the block as soon as
+#' it is ready
 #' @rdname block_server
 #' @export
 block_server.block <- function(id, x, data = list(), block_id = id,

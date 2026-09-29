@@ -174,23 +174,23 @@ test_that("show code builds the board without evaluating or gating it", {
       expect_identical(reval_if(rv$eval[["c"]]), "dormant")
       expect_identical(reval_if(rv$eval[["b"]]), "dormant")
 
-      # The front-end's claim is left exactly as it was, and the export adds
+      # The front-end's eager set is left exactly as it was, and the export adds
       # none of its own
-      expect_identical(rv$claims(), list(`front-end` = "a"))
+      expect_identical(rv$eager_blocks(), list(`front-end` = "a"))
 
       session$setInputs(`generate_code-code_eval` = 1)
       session$flushReact()
 
       # The one-off runs them and hands them back, leaving nothing held beyond
-      # the front-end's own claim
+      # the front-end's own eager set
       expect_length(rv$evaluating(), 0L)
-      expect_identical(rv$claims(), list(`front-end` = "a"))
+      expect_identical(rv$eager_blocks(), list(`front-end` = "a"))
       expect_identical(reval_if(rv$eval[["c"]]), "dormant")
     },
     args = list(
       x = board,
       plugins = board_plugins(board, "generate_code"),
-      callbacks = function(...) gate_claim("front-end", "a")
+      callbacks = function(...) eager("front-end", "a")
     )
   )
 })
@@ -245,7 +245,7 @@ test_that("show code requires the whole board, gating export on config", {
       args = list(
         x = board,
         plugins = board_plugins(board, "generate_code"),
-        callbacks = function(...) gate_claim("front-end", c("a", "b"))
+        callbacks = function(...) eager("front-end", c("a", "b"))
       )
     )
 
