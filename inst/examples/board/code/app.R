@@ -12,7 +12,6 @@ serve(
   "my_board",
   callbacks = function(board, visibility, ...) {
 
-    visibility$required[["a"]](TRUE)
     visibility$visible[["a"]](TRUE)
 
     shiny::exportTestValues(
@@ -20,6 +19,6 @@ serve(
       status_b = reval_if(board$eval[["b"]])
     )
 
-    NULL
+    eager("front-end", "a")
   }
 )

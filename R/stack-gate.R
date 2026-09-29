@@ -2,64 +2,57 @@
 #' @export
 gate_stacks <- function() {
 
-  function(board, visibility, session = get_session(), ...) {
+  function(board, visibility, update, session = get_session(), ...) {
 
-    brd <- isolate(board$board)
+    observe(show_open_stacks(board, visibility, update, session))
 
-    # A stackless board renders an accordion that never binds as an input, so
-    # nothing would ever arrive to refine a declaration made on its behalf and
-    # it would stay parked for the session.
-    if (has_length(board_stack_ids(brd))) {
-      seed_open_stacks(brd, visibility)
-    }
-
-    observe(show_open_stacks(board, visibility, session))
-
-    NULL
+    open_stacks_eager(isolate(board$board), session)
   }
 }
 
-# Declared before the first flush, because a board with no gate declared is one
-# where every block is needed: a collapsed stack's blocks would otherwise
-# evaluate once in the window before the accordion reports. Paint stays the
-# client's to report -- claiming it here as well would let the construction
-# backlog build against first paint.
-seed_open_stacks <- function(board, vis) {
+# A stackless board renders an accordion that never binds as an input, so
+# nothing would ever arrive to refine an eager set declared on its behalf and
+# it would stay parked for the session; it is left eager instead.
+open_stacks_eager <- function(board, session) {
 
-  shown <- shown_block_ids(board, default_open_stacks(board_stacks(board)))
-
-  for (id in ls(vis$required)) {
-    vis$required[[id]](id %in% shown)
+  if (!has_length(board_stack_ids(board))) {
+    return(NULL)
   }
 
-  invisible()
+  eager(
+    stack_gate_owner(session),
+    shown_block_ids(board, default_open_stacks(board_stacks(board)))
+  )
 }
 
-show_open_stacks <- function(board, vis, session) {
+show_open_stacks <- function(board, vis, update, session) {
 
   open <- session$input[["stacks"]]
 
   # Read before this returns, so the observer wakes when the accordion first
-  # reports. Until it does, what stands is the declaration seeded above -- and
-  # for a board that renders its own UI and never binds the accordion, nothing
-  # at all.
+  # reports. Until it does, what stands is the set the callback declared --
+  # and for a board that renders its own UI and never binds the accordion,
+  # nothing at all.
   if (!stacks_reported(session)) {
     return(invisible())
   }
 
   brd <- board$board
+  owner <- stack_gate_owner(session)
 
   shown <- shown_block_ids(brd, open_stack_ids(open, brd, session))
 
-  # A collapsed stack's blocks are parked rather than dropped: `FALSE` keeps
-  # them built and ready to show again, where an `NA` slot would leave them
-  # unbuilt.
-  for (id in ls(vis$required)) {
-    vis$required[[id]](id %in% shown)
+  update(list(eager = set_names(list(list(set = shown)), owner)))
+
+  for (id in ls(vis$visible)) {
     vis$visible[[id]](id %in% shown)
   }
 
   invisible()
+}
+
+stack_gate_owner <- function(session) {
+  session$ns("gate_stacks")
 }
 
 # The accordion input reads NULL both before it has bound and once the user has

@@ -22,21 +22,21 @@
 #' Deferred evaluation leaves a block that nothing currently needs holding its
 #' last run — not only its result, but the conditions it reports. Anything that
 #' can reach the [board_update()] channel can ask for such a block to be brought
-#' up to date, without putting it on screen, through the `evaluate` and
-#' `sustain` payload components. Both name blocks, and core joins them, together
-#' with their upstream closure over [board_links()] (without which they cannot
+#' up to date, without putting it on screen, through the `evaluate` and `eager`
+#' payload components. Both name blocks, and core joins them, together with
+#' their upstream closure over [board_links()] (without which they cannot
 #' produce a result), to the eval set. They differ only in who lets go: an
-#' `evaluate` request is a one-off that core drops once the block has run, while
-#' a `sustain` claim is held until its owner releases it.
+#' `evaluate` request is a one-off that core drops once the block has run,
+#' while a block held `eager` stays evaluated until its owner releases it.
 #'
-#' Claims are keyed by owner, the `sustain` component mapping each owner to a
-#' delta over the blocks it holds, so several consumers may hold the same block
-#' and none of them writes another's claim:
+#' Eager blocks are keyed by owner, the `eager` component mapping each owner to
+#' a delta over the blocks it holds, so several consumers may hold the same
+#' block and none of them overwrites another's set:
 #'
 #' ```r
 #' update(
 #'   list(
-#'     sustain = set_names(
+#'     eager = set_names(
 #'       list(list(set = board_block_ids(board$board))),
 #'       session$ns("preview")
 #'     )
@@ -46,23 +46,26 @@
 #'
 #' A delta is `set`, `add` and `rm`, of which `set` states that owner's entire
 #' set at once and cannot be combined with the other two. Releasing everything
-#' is `set = character()`; releasing part of a claim is `rm`, which — unlike
-#' `set` and `add` — may name a block the board no longer has, so a release
-#' cannot be rejected by a removal that raced it. Restating a set repairs a
-#' release that never arrived, rather than letting it accumulate.
+#' is `set = character()`; releasing some blocks is `rm`, which — unlike `set`
+#' and `add` — may name a block the board no longer has, so a release cannot be
+#' rejected by a removal that raced it. Restating a set repairs a release that
+#' never arrived, rather than letting it accumulate.
 #'
 #' Core cannot infer the owner — the write and its effect are separated by a
 #' flush — so the label travels in the payload. Nothing keys off shiny's
 #' namespacing, but taking the label from `session$ns()` as above is what keeps
 #' owners unique without a registry, and lets one module hold two independent
-#' claims under two labels. A claim outlives the module that made it: core
-#' drops a claimed block once it leaves the board, but an owner that goes away
-#' without releasing holds what it held for the rest of the session.
+#' sets under two labels. An owner's set outlives the module that made it: core
+#' drops a block from every set once it leaves the board, but an owner that
+#' goes away without releasing holds what it held for the rest of the session.
 #'
-#' Requests are orthogonal to the `required` visibility channel, so neither
-#' competes with the front-end's gating, and nothing about what is on screen
-#' changes. Because they carry no state change, they are also the one part of a
-#' payload a locked board still accepts.
+#' Holding a block eager asks for evaluation and nothing else: nothing about
+#' what is on screen changes. The front-end is an owner like any other -- it
+#' holds its blocks eager under the label it declared with [eager()] (see
+#' [block_server()]) -- so core never distinguishes its demand from any other
+#' owner's, and a consumer holding a block eager cannot park what the
+#' front-end is showing. Because these requests carry no state change, they are
+#' also the one part of a payload a locked board still accepts.
 #'
 #' Core drops a one-off request once the block has run — or has reported why it
 #' cannot, such as an unconnected data input or a user input that was never set.
@@ -83,10 +86,10 @@
 #' Nothing is retained. Once a block is built it stays built, so unlike the two
 #' evaluation components there is no owner to name and nothing to hand back, and
 #' asking for a block that is already built does nothing. The request joins
-#' neither the eval set nor the front-end's `required` channel, so it cannot
-#' turn a lazily evaluating board into an eagerly evaluating one.
+#' neither the eval set nor any owner's eager set, so it cannot turn a lazily
+#' evaluating board into an eagerly evaluating one.
 #'
-#' A block that the same payload adds, or that an `evaluate` or `sustain` names,
+#' A block that the same payload adds, or that an `evaluate` or `eager` names,
 #' is already constructed — the add builds it directly, and evaluation demand
 #' joins the needed set, which the background constructor builds. Pairing
 #' `construct` with either is redundant rather than wrong. The component covers
@@ -112,29 +115,34 @@ board_server <- function(id, x, ...) {
 #' @param options Board options (`NULL` defaults to the union of board, block
 #' and registry sourced options)
 #' @param callbacks Single (or list of) callback function(s) registering
-#' additional observers. Each receives a `visibility` list with three channels,
-#' `required`, `visible` and `frozen`, each an environment of per-block
-#' `reactiveVal`s (core keeps one per board block as blocks are added and
-#' removed). Declare a block needed with `visibility$required[[id]](TRUE)` (or
-#' `FALSE` for built but dormant) and report whether it is currently painted
-#' with `visibility$visible[[id]](TRUE)` (or `FALSE` once built but off screen,
-#' leaving `NA` until it is first built); the board reads both to gate
-#' construction, evaluation and rendering. Set
-#' `visibility$frozen[[id]](TRUE)` to freeze a block's inputs (for example when
-#' its controls are hidden), so a forged input can no longer steer it. A
-#' callback also receives the `update` channel (see [board_update]), through
-#' which it can request block evaluation or construction (see the Evaluation
-#' requests and Construction requests sections).
+#' additional observers. A board is eager by default: it evaluates every block.
+#' A callback makes it lazy by returning `eager(owner, blocks)`, on its own or
+#' as one element of a list whose other elements are passed on to plugins as
+#' usual. Core then evaluates only the blocks some owner holds eager, and what
+#' feeds them; it seeds `blocks` as that owner's eager set before the first
+#' flush, and at most one callback may return one. Changes from then on travel
+#' as an `eager` component under the same owner label through the `update`
+#' channel each callback receives (see [board_update] and the Evaluation
+#' requests section). Each callback also receives a `visibility` list of the
+#' per-block channels `visible` and `frozen`, environments of `reactiveVal`s
+#' (core keeps one per board block as blocks are added and removed). Report
+#' whether a block is currently painted with `visibility$visible[[id]](TRUE)`
+#' (or `FALSE` once built but off screen, leaving `NA` until it is first
+#' built); the board renders a block only once it is reported painted, and
+#' holds background construction until every block the front-end holds eager
+#' is. Set `visibility$frozen[[id]](TRUE)` to freeze a block's inputs (for
+#' example when its controls are hidden), so a forged input can no longer steer
+#' it.
 #'
 #' Core's own front-end drives these channels through a callback like any
 #' other: `gate_stacks()` reads the stack accordion (see [stack_ui()]) and is
-#' the default, so a board that renders core's UI gates on its stacks and one
-#' that does not is left alone -- it passes its own callbacks. A consumer that
-#' wants both keeps it in the list rather than replacing it --
+#' the default, so a stacked board that renders core's UI is lazy, and a board
+#' that does not render it is left alone -- it passes its own callbacks. A
+#' consumer that wants both keeps it in the list rather than replacing it --
 #' `callbacks = list(gate_stacks(), my_callback)`, which is for a front-end
-#' that does render the accordion: on a stacked board the gate declares the
-#' initially open stacks before the first flush and reads that input only to
-#' refine the declaration.
+#' that does render the accordion: on a stacked board it returns the blocks of
+#' the initially open stacks as its eager set, and reads that input only to
+#' refine it.
 #' @param callback_location Location of callback invocation (before or after
 #' plugins)
 #' @rdname board_server
@@ -180,7 +188,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
       rv$eval <- reactiveValues()
 
       vis <- list(
-        required = new.env(parent = emptyenv()),
+        gate = reactiveVal(NULL),
         visible = new.env(parent = emptyenv()),
         frozen = new.env(parent = emptyenv())
       )
@@ -208,23 +216,20 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
       # changed.
       rv$needed_slots <- new.env(parent = emptyenv())
 
-      # The two request sets fed by the `evaluate` and `sustain` board update
+      # The two request sets fed by the `evaluate` and `eager` board update
       # components. Both join the needed set below; they differ in who lets go.
       # Core drops an `evaluating` entry once that block has had its evaluation
-      # pass (see the observer below), while `claims` holds one entry per claim
-      # owner until that owner releases it.
+      # pass (see the observer below), while `eager_blocks` holds each owner's
+      # set until that owner releases it. The front-end is one such owner.
       rv$evaluating <- reactiveVal(character())
-      rv$claims <- reactiveVal(list())
+      rv$eager_blocks <- reactiveVal(list())
 
       observe(
         {
-          cur <- if (!gating_active(vis$required)) {
+          cur <- if (!gating_active(vis)) {
             TRUE
           } else {
-            upstream_blocks(
-              union(required_now(vis$required), requested_blocks(rv)),
-              rv$board
-            )
+            upstream_blocks(requested_blocks(rv), rv$board)
           }
 
           old <- isolate(rv$needed())
@@ -286,23 +291,16 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
       board_update <- reactiveVal()
 
-      cb_res <- set_names(
-        vector("list", length(callbacks)),
-        names(callbacks)
-      )
-
       cb_args <- c(
         rv_ro,
-        list(update = board_update, visibility = vis),
+        list(update = board_update, visibility = vis[c("visible", "frozen")]),
         dot_args,
         list(session = session)
       )
 
       if (identical(callback_location, "start")) {
 
-        for (i in seq_along(callbacks)) {
-          cb_res[[i]] <- do.call(callbacks[[i]], cb_args)
-        }
+        cb_res <- run_callbacks(callbacks, cb_args, rv, vis)
 
         if (length(cb_res) == 1L) {
           cb_res <- cb_res[[1L]]
@@ -461,9 +459,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
       if (identical(callback_location, "end")) {
 
-        for (i in seq_along(callbacks)) {
-          cb_res[[i]] <- do.call(callbacks[[i]], cb_args)
-        }
+        cb_res <- run_callbacks(callbacks, cb_args, rv, vis)
 
         dot_args <- c(dot_args, cb_res)
       }
@@ -671,7 +667,7 @@ construct_needed_blocks <- function(rv, mod_ed, mod_ct, args, vis) {
 
   observe(
     {
-      need <- needed_block_ids(rv, vis$required)
+      need <- needed_block_ids(rv)
       construct_blocks(need, rv, mod_ed, mod_ct, args, vis)
     }
   )
@@ -694,7 +690,7 @@ construct_blocks_in_background <- function(rv, mod_ed, mod_ct, args, vis) {
 
         started <<- TRUE
 
-        if (!isolate(gating_active(vis$required))) {
+        if (!isolate(gating_active(vis))) {
 
           construct_blocks(board_block_ids(rv$board), rv, mod_ed, mod_ct,
                            args, vis)
@@ -720,7 +716,7 @@ construct_blocks_in_background <- function(rv, mod_ed, mod_ct, args, vis) {
       }
 
       needed <- isolate(
-        intersect(remaining, needed_block_ids(rv, vis$required))
+        intersect(remaining, needed_block_ids(rv))
       )
 
       if (length(needed)) {
@@ -732,7 +728,7 @@ construct_blocks_in_background <- function(rv, mod_ed, mod_ct, args, vis) {
         return(invisible())
       }
 
-      if (gating_active(vis$required) && !required_fulfilled(vis)) {
+      if (gating_active(vis) && !gate_fulfilled(vis, rv)) {
         return(invisible())
       }
 
@@ -772,7 +768,6 @@ background_construction_delay <- function() {
 add_vis_slots <- function(vis, ids) {
 
   for (id in ids) {
-    vis$required[[id]] <- reactiveVal(NA)
     vis$visible[[id]] <- reactiveVal(NA)
     vis$frozen[[id]] <- reactiveVal(FALSE)
   }
@@ -782,10 +777,9 @@ add_vis_slots <- function(vis, ids) {
 
 rm_vis_slots <- function(vis, ids) {
 
-  gone <- intersect(ids, ls(vis$required))
+  gone <- intersect(ids, ls(vis$visible))
 
   if (length(gone)) {
-    rm(list = gone, envir = vis$required)
     rm(list = gone, envir = vis$visible)
     rm(list = gone, envir = vis$frozen)
   }
@@ -793,30 +787,8 @@ rm_vis_slots <- function(vis, ids) {
   invisible()
 }
 
-gating_active <- function(required) {
-  isTRUE(blockr_option("gate_visibility", TRUE)) && has_required(required)
-}
-
-has_required <- function(required) {
-  length(ever_required(required)) > 0L
-}
-
-ever_required <- function(required) {
-  ids <- ls(required)
-  ids[lgl_ply(ids, slot_declared, required)]
-}
-
-slot_declared <- function(id, required) {
-  !is.na(required[[id]]())
-}
-
-required_now <- function(required) {
-  ids <- ls(required)
-  ids[lgl_ply(ids, slot_needed, required)]
-}
-
-slot_needed <- function(id, required) {
-  isTRUE(required[[id]]())
+gating_active <- function(vis) {
+  isTRUE(blockr_option("gate_visibility", TRUE)) && not_null(vis$gate())
 }
 
 is_visible <- function(x) {
@@ -831,19 +803,20 @@ block_frozen <- function(id, vis) {
   isTRUE(vis$frozen[[id]]())
 }
 
-required_fulfilled <- function(vis) {
-  all(lgl_ply(required_now(vis$required), block_visible, vis))
+# Only the front-end's own eager blocks are compared against paint: those held
+# by anyone else are blocks nobody is putting on screen, and holding the
+# backlog for them would stall it for the rest of the session.
+gate_fulfilled <- function(vis, rv) {
+  all(lgl_ply(rv$eager_blocks()[[vis$gate()]], block_visible, vis))
 }
 
 validate_vis <- function(vis) {
 
-  for (id in ls(vis$required)) {
-    if (!valid_required(vis$required[[id]]())) {
-      blockr_abort(
-        "required[[{id}]] must be TRUE, FALSE or NA",
-        class = "invalid_required"
-      )
-    }
+  if (!valid_gate(vis$gate())) {
+    blockr_abort(
+      "gate must be a string or NULL",
+      class = "invalid_gate"
+    )
   }
 
   for (id in ls(vis$visible)) {
@@ -867,8 +840,109 @@ validate_vis <- function(vis) {
   invisible()
 }
 
-valid_required <- function(x) {
-  is.logical(x) && length(x) == 1L
+valid_gate <- function(x) {
+  is.null(x) || (is_string(x) && !is.na(x) && nzchar(x))
+}
+
+#' @param owner Label under which the front-end holds its blocks eager, as it
+#' would name itself in an `eager` component
+#' @param blocks Block IDs the front-end needs evaluated from the start
+#' @rdname board_server
+#' @export
+eager <- function(owner, blocks = character()) {
+
+  if (is.null(owner) || !valid_gate(owner)) {
+    blockr_abort(
+      "Expecting the owner of eager blocks to be a nonempty string.",
+      class = "eager_owner_invalid"
+    )
+  }
+
+  if (!is.character(blocks)) {
+    blockr_abort(
+      "Expecting eager blocks to be named by a character vector.",
+      class = "eager_blocks_invalid"
+    )
+  }
+
+  structure(list(owner = owner, blocks = blocks), class = "eager_blocks")
+}
+
+is_eager_blocks <- function(x) {
+  inherits(x, "eager_blocks")
+}
+
+run_callbacks <- function(callbacks, args, rv, vis) {
+
+  res <- lapply(callbacks, do.call, args)
+
+  seed_eager_blocks(res, rv, vis)
+
+  Filter(Negate(is.null), lapply(res, drop_eager_blocks))
+}
+
+# A callback returns its declaration on its own, or alongside the values it
+# hands on to plugins; either way the declaration is core's to read, not a
+# value to splice into their arguments.
+callback_eager_blocks <- function(res) {
+
+  if (is_eager_blocks(res)) {
+    return(list(res))
+  }
+
+  if (is.list(res) && !is.object(res)) {
+    return(Filter(is_eager_blocks, res))
+  }
+
+  list()
+}
+
+drop_eager_blocks <- function(res) {
+
+  if (is_eager_blocks(res)) {
+    return(NULL)
+  }
+
+  if (is.list(res) && !is.object(res)) {
+    return(Filter(Negate(is_eager_blocks), res))
+  }
+
+  res
+}
+
+seed_eager_blocks <- function(res, rv, vis) {
+
+  declared <- do.call(c, lapply(res, callback_eager_blocks))
+
+  if (!length(declared)) {
+    return(invisible())
+  }
+
+  if (length(declared) > 1L) {
+    blockr_abort(
+      "Expecting at most one callback to return eager blocks, but ",
+      "{length(declared)} did: {chr_xtr(declared, 'owner')}.",
+      class = "eager_declaration_ambiguous"
+    )
+  }
+
+  decl <- declared[[1L]]
+
+  validate_eager_delta(
+    list(set = decl$blocks),
+    decl$owner,
+    isolate(board_block_ids(rv$board))
+  )
+
+  vis$gate(decl$owner)
+
+  # Setup runs outside any reactive consumer, where reading a reactiveValues
+  # field errors in a live session (a mock one evaluates inside isolate()).
+  isolate(
+    rv$eager_blocks(filter_empty(set_names(list(decl$blocks), decl$owner)))
+  )
+
+  invisible()
 }
 
 valid_visible <- function(x) {
@@ -880,7 +954,7 @@ valid_frozen <- function(x) {
 }
 
 requested_blocks <- function(rv) {
-  union(rv$evaluating(), unlst(rv$claims()))
+  union(rv$evaluating(), unlst(rv$eager_blocks()))
 }
 
 # A block owes an evaluation pass while anything it needs for a result -- itself
@@ -901,10 +975,10 @@ id_request_components <- function() {
 }
 
 update_request_components <- function() {
-  c(id_request_components(), "sustain")
+  c(id_request_components(), "eager")
 }
 
-needed_block_ids <- function(rv, required) {
+needed_block_ids <- function(rv) {
 
   need <- rv$needed()
 
@@ -912,7 +986,7 @@ needed_block_ids <- function(rv, required) {
     return(board_block_ids(rv$board))
   }
 
-  union(need, ever_required(required))
+  need
 }
 
 block_inputs_ready <- function(src_rv, blk, rv) {
@@ -1067,8 +1141,8 @@ destroy_rm_blocks <- function(ids, rv, sess) {
   }
 
   rv$evaluating(setdiff(isolate(rv$evaluating()), ids))
-  rv$claims(
-    filter_empty(lapply(isolate(rv$claims()), setdiff, ids))
+  rv$eager_blocks(
+    filter_empty(lapply(isolate(rv$eager_blocks()), setdiff, ids))
   )
 
   invisible()
@@ -1349,17 +1423,17 @@ add_blocks_to_stacks <- function(rv, add, session) {
 #' @section Request components:
 #' Three components carry a request rather than a state change:
 #' `evaluate`, a character vector of block IDs to evaluate once;
-#' `sustain`, a list of per-owner deltas over the blocks that are to
+#' `eager`, a list of per-owner deltas over the blocks that are to
 #' stay evaluated; and `construct`, a character vector of block IDs to
-#' build without evaluating. Each `sustain` delta is `set`, `add` and
+#' build without evaluating. Each `eager` delta is `set`, `add` and
 #' `rm` — `set` states that owner's whole set and is exclusive with the
-#' other two — so no owner writes another's claim. The two evaluation
+#' other two — so no owner overwrites another's set. The two evaluation
 #' components put the named blocks (and their upstream closure) into
 #' the eval set while `construct` leaves them `dormant`, and none of
 #' the three touches what the front-end shows — see the Evaluation
 #' requests and Construction requests sections of [board_server()].
 #' All three resolve their IDs against the post-update block set, so a
-#' payload may add a block and ask for it in one go. A `sustain` `rm`
+#' payload may add a block and ask for it in one go. An `eager` `rm`
 #' is the exception, naming blocks to release rather than to evaluate,
 #' and so may name one the board no longer has. They are applied after
 #' the state delta, so a payload that edits a block and evaluates it
@@ -1368,8 +1442,8 @@ add_blocks_to_stacks <- function(rv, add, session) {
 #' The three are independent sets rather than alternatives: a payload
 #' may name one block in several of them and core takes the union.
 #' Overlap is redundant rather than rejected, which it has to be —
-#' claims are per-owner, so a consumer asking for a block cannot know
-#' that another owner already holds it.
+#' eager sets are per-owner, so a consumer asking for a block cannot
+#' know that another owner already holds it.
 #'
 #' A locked board (see [is_board_locked()]) still accepts a payload of
 #' request components alone; one that also carries a state change is
@@ -1558,8 +1632,8 @@ validate_board_update_structure <- function(payload, board) {
       validate_block_id_request(payload[[cmp]], ids, cmp)
     }
 
-    if ("sustain" %in% names(payload)) {
-      validate_board_update_sustain(payload[["sustain"]], ids)
+    if ("eager" %in% names(payload)) {
+      validate_board_update_eager(payload[["eager"]], ids)
     }
   }
 
@@ -1599,34 +1673,34 @@ validate_block_id_request <- function(x, ids, cmp) {
   invisible()
 }
 
-validate_board_update_sustain <- function(x, ids) {
+validate_board_update_eager <- function(x, ids) {
 
   if (!is.list(x) || length(names(x)) != length(x) ||
         !all(nzchar(names(x))) || anyDuplicated(names(x)) != 0L) {
     blockr_abort(
-      "Expecting a board update `sustain` component to be specified as a list ",
-      "of per-owner claim deltas with unique nonempty names.",
-      class = "board_update_sustain_owners_invalid"
+      "Expecting a board update `eager` component to be specified as a list ",
+      "of per-owner deltas with unique nonempty names.",
+      class = "board_update_eager_owners_invalid"
     )
   }
 
   for (owner in names(x)) {
-    validate_claim_delta(x[[owner]], owner, ids)
+    validate_eager_delta(x[[owner]], owner, ids)
   }
 
   invisible()
 }
 
-validate_claim_delta <- function(x, owner, ids) {
+validate_eager_delta <- function(x, owner, ids) {
 
   exp_cmp <- c("set", "add", "rm")
 
   if (!is.list(x) || length(names(x)) != length(x) ||
         !all(names(x) %in% exp_cmp)) {
     blockr_abort(
-      "Expecting the claim of owner {owner} to consist of components ",
+      "Expecting the `eager` delta of owner {owner} to consist of components ",
       "{exp_cmp}.",
-      class = "board_update_sustain_components_invalid"
+      class = "board_update_eager_components_invalid"
     )
   }
 
@@ -1634,18 +1708,18 @@ validate_claim_delta <- function(x, owner, ids) {
 
     if (!(is.null(x[[cmp]]) || is.character(x[[cmp]]))) {
       blockr_abort(
-        "Expecting the {cmp} component of the claim of owner {owner} to be ",
-        "specified as a character vector (or NULL).",
-        class = "board_update_sustain_component_invalid"
+        "Expecting the {cmp} component of the `eager` delta of owner {owner} ",
+        "to be specified as a character vector (or NULL).",
+        class = "board_update_eager_component_invalid"
       )
     }
   }
 
   if ("set" %in% names(x) && any(c("add", "rm") %in% names(x))) {
     blockr_abort(
-      "Expecting the claim of owner {owner} to state a whole set via `set` or ",
-      "a delta via `add` and `rm`, but not both.",
-      class = "board_update_sustain_set_delta_clash"
+      "Expecting the `eager` delta of owner {owner} to state a whole set via ",
+      "`set` or a change via `add` and `rm`, but not both.",
+      class = "board_update_eager_set_delta_clash"
     )
   }
 
@@ -1653,21 +1727,21 @@ validate_claim_delta <- function(x, owner, ids) {
 
   if (length(both)) {
     blockr_abort(
-      "Expecting the claim of owner {owner} to either add or remove ",
+      "Expecting the `eager` delta of owner {owner} to either add or remove ",
       "{qty(both)}block{?s} {both}.",
-      class = "board_update_sustain_add_rm_clash"
+      class = "board_update_eager_add_rm_clash"
     )
   }
 
-  # Only a claim has to name blocks that exist -- a release commonly follows
-  # the very removal that made it necessary.
+  # Only `set` and `add` have to name blocks that exist -- a release commonly
+  # follows the very removal that made it necessary.
   unknown <- setdiff(c(x$set, x$add), ids)
 
   if (length(unknown)) {
     blockr_abort(
       "Owner {owner} requested evaluation of unknown {qty(unknown)}",
       "block{?s} {unknown}.",
-      class = "board_update_sustain_unknown_id"
+      class = "board_update_eager_unknown_id"
     )
   }
 
@@ -2257,19 +2331,19 @@ apply_core_board_update <- function(rv, upd, session,
 
 apply_eval_requests <- function(rv, upd) {
 
-  deltas <- upd[["sustain"]]
+  deltas <- upd[["eager"]]
 
   if (length(deltas)) {
 
-    log_debug("updating block claims of owner{?s} {names(deltas)}")
+    log_debug("updating eager blocks of owner{?s} {names(deltas)}")
 
-    claims <- isolate(rv$claims())
+    held <- isolate(rv$eager_blocks())
 
     for (owner in names(deltas)) {
-      claims[[owner]] <- apply_claim_delta(claims[[owner]], deltas[[owner]])
+      held[[owner]] <- apply_eager_delta(held[[owner]], deltas[[owner]])
     }
 
-    rv$claims(filter_empty(claims))
+    rv$eager_blocks(filter_empty(held))
   }
 
   if (length(upd[["evaluate"]])) {
@@ -2280,7 +2354,7 @@ apply_eval_requests <- function(rv, upd) {
   invisible()
 }
 
-apply_claim_delta <- function(cur, delta) {
+apply_eager_delta <- function(cur, delta) {
 
   if ("set" %in% names(delta)) {
     return(delta$set)

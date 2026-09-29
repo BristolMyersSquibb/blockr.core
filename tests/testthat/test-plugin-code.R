@@ -158,9 +158,8 @@ test_that("show code builds the board without evaluating or gating it", {
   testServer(
     get_s3_method("board_server", board),
     {
-      vis$required[["a"]](TRUE)
+      board_update(list(construct = "b"))
       vis$visible[["a"]](TRUE)
-      vis$required[["b"]](FALSE)
       session$flushReact()
 
       expect_identical(reval_if(rv$eval[["b"]]), "dormant")
@@ -175,20 +174,24 @@ test_that("show code builds the board without evaluating or gating it", {
       expect_identical(reval_if(rv$eval[["c"]]), "dormant")
       expect_identical(reval_if(rv$eval[["b"]]), "dormant")
 
-      # Neither the front-end's gating channel nor the claim set is touched
-      expect_false(vis$required[["b"]]())
-      expect_true(is.na(vis$required[["c"]]()))
-      expect_length(rv$claims(), 0L)
+      # The front-end's eager set is left exactly as it was, and the export adds
+      # none of its own
+      expect_identical(rv$eager_blocks(), list(`front-end` = "a"))
 
       session$setInputs(`generate_code-code_eval` = 1)
       session$flushReact()
 
-      # The one-off runs them and hands them back, leaving nothing held
+      # The one-off runs them and hands them back, leaving nothing held beyond
+      # the front-end's own eager set
       expect_length(rv$evaluating(), 0L)
-      expect_length(rv$claims(), 0L)
+      expect_identical(rv$eager_blocks(), list(`front-end` = "a"))
       expect_identical(reval_if(rv$eval[["c"]]), "dormant")
     },
-    args = list(x = board, plugins = board_plugins(board, "generate_code"))
+    args = list(
+      x = board,
+      plugins = board_plugins(board, "generate_code"),
+      callbacks = function(...) eager("front-end", "a")
+    )
   )
 })
 
@@ -213,9 +216,9 @@ test_that("show code requires the whole board, gating export on config", {
       get_s3_method("board_server", board),
       {
         for (id in c("a", "b")) {
-          vis$required[[id]](TRUE)
           vis$visible[[id]](TRUE)
         }
+
         session$flushReact()
 
         read_only <- function() {
@@ -239,7 +242,11 @@ test_that("show code requires the whole board, gating export on config", {
           )
         )
       },
-      args = list(x = board, plugins = board_plugins(board, "generate_code"))
+      args = list(
+        x = board,
+        plugins = board_plugins(board, "generate_code"),
+        callbacks = function(...) eager("front-end", c("a", "b"))
+      )
     )
 
     out

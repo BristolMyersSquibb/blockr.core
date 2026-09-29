@@ -69,11 +69,12 @@ standalone)}
 eval set (supplied by \code{\link[=board_server]{board_server()}}; defaults to always-needed when a
 block server is run standalone)}
 
-\item{visibility}{Front-end channel bundle -- a list with three channels,
-\code{required}, \code{visible} and \code{frozen}, each an environment of per-block
-\code{reactiveVal}s, supplied by \code{\link[=board_server]{board_server()}} to gate rendering and to
-freeze block inputs; \code{NULL} (the standalone default) leaves the block
-ungated}
+\item{visibility}{Front-end channel bundle -- a \code{gate} \code{reactiveVal} holding
+the owner label of the front-end that made the board lazy, plus \code{visible}
+and \code{frozen}, each an environment of per-block \code{reactiveVal}s, supplied by
+\code{\link[=board_server]{board_server()}} to hold rendering until a block is painted and to freeze
+block inputs; \code{NULL} (the standalone default) renders the block as soon as
+it is ready}
 }
 \value{
 Both \code{block_server()} and \code{expr_server()} return shiny server module
@@ -143,58 +144,68 @@ from output, the behavior of which can be customized via the
 \code{\link[=block_output]{block_output()}} generic. The \code{\link[=block_ui]{block_ui()}} generic can then be used to
 control rendering of outputs.
 
-A front-end (such as blockr.dock) drives per-block channels that
-\code{\link[=board_server]{board_server()}} hands to the board callback as \code{visibility}. Two of them
-gate what is built and shown: \code{required} (which blocks it needs built and
-evaluated) and \code{visible} (which blocks it has arranged on screen).
-Requirements are a cause the front-end -- and
-core-side features such as code export -- declare; visibility is the effect
-the front-end reports back once it has painted a block. Rendering is gated
-on \code{visible}: the render observer is suspended while a block carries no
-visible slot and resumed once the front-end writes a non-empty string for
-it, starting suspended so nothing renders before the first report.
-Evaluation is gated on the \emph{needed} set, the \code{required} blocks together with
-their upstream closure over \code{\link[=board_links]{board_links()}} (recomputed only when
-requirements or links change). A block's input data reactives stay
-unfulfilled (they \code{\link[shiny:req]{shiny::req()}} out) unless the block is needed, so a block
-that is neither required nor feeding a required block pulls no input and
-stays fully quiescent: its result reactive, and any observer its expression
-server registers on the incoming data, all short-circuit and do nothing. A
-needed but off-screen block (one feeding a required block) evaluates but
-does not render. Block-server \emph{construction} is prioritized the same way:
-the needed set is instantiated first so that first paint waits only for the
-required blocks and their upstreams, and the remaining block servers are
-built progressively in the background. That background pass holds until the
-front-end reports every required block as visible, so it never competes with
-first paint. A \code{required} slot of \code{FALSE} keeps a block built but dormant
-(ever required, not needed now); an absent slot leaves it unbuilt. Until a
-block is built it is absent from the \code{board$blocks} handed to plugins and
-callbacks, which simply see it appear once constructed. The background
+A board is eager by default: every block is needed, so every block
+evaluates. A front-end (such as blockr.dock) makes it lazy by returning
+\code{\link[=eager]{eager()}} from the callback it registers with \code{\link[=board_server]{board_server()}}, naming its
+owner label and the blocks it needs evaluated from the start. From then on
+only the blocks some owner holds eager are needed, together with what feeds
+them. A board whose callbacks return no such value stays eager, and setting
+the \code{gate_visibility} \code{\link[=blockr_option]{blockr_option()}} (default \code{TRUE}) to \code{FALSE} keeps
+every board eager. Core reads the declaration as it runs the callbacks and
+seeds the opening eager set there and then, before the first flush decides
+what to construct -- which no board update could do, since a payload only
+applies at the end of the flush it is written in.
+
+Which blocks the front-end needs evaluated from then on is not a channel of
+its own: it travels as an \code{eager} component under that same owner label,
+leaving the front-end one owner among several rather than a special case
+core can distinguish from a code export or an extension (see the Evaluation
+requests section of \code{\link[=board_server]{board_server()}}).
+
+Evaluation follows the \emph{needed} set, the blocks held eager together with
+their upstream closure over \code{\link[=board_links]{board_links()}} (recomputed only when eager sets
+or links change). A block's input data reactives stay unfulfilled (they
+\code{\link[shiny:req]{shiny::req()}} out) unless the block is needed, so a block that is neither
+held eager nor feeding one pulls no input and stays fully quiescent: its
+result reactive, and any observer its expression server registers on the
+incoming data, all short-circuit and do nothing. A needed but off-screen
+block (one feeding a block held eager) evaluates but does not render.
+
+Rendering follows \code{visible}, the per-block channel through which the
+front-end reports what it has painted -- the effect, where holding a block
+eager is the cause. The render observer is suspended while a block carries
+no visible slot and resumed once the front-end reports it painted, starting
+suspended so nothing renders before the first report.
+
+Block-server \emph{construction} is prioritized the same way: the needed set is
+instantiated first so that first paint waits only for the blocks held eager
+and their upstreams, and the remaining block servers are built progressively
+in the background. That background pass holds until the front-end reports
+every block it holds eager as visible, so it never competes with first paint.
+Until a block is built it is absent from the \code{board$blocks} handed to plugins
+and callbacks, which simply see it appear once constructed. The background
 cadence is set by the \code{background_construction_delay} \code{\link[=blockr_option]{blockr_option()}}
 (milliseconds between successive blocks, default 50); a value of 0 disables
-the staggering and builds every block up front. With nothing writing
-\code{required} every block is needed and behavior is unchanged; the
-\code{gate_visibility} \code{\link[=blockr_option]{blockr_option()}} (default \code{TRUE}) turns gating off
-entirely.
+the staggering and builds every block up front.
 
 Core's own board UI drives those channels through a callback, on the same
 footing as a front-end rather than built into the board server. Stacks
 render as a \code{\link[bslib:accordion]{bslib::accordion()}} which opens one stack and collapses the
 rest (see \code{\link[=stack_ui]{stack_ui()}}), so on a stacked board part of what is on screen is
 hidden from the first render and any stack can be collapsed afterwards.
-\code{gate_stacks()} reads that accordion back, marking the blocks of every open
-stack plus every unstacked block required and parking the rest, so
-collapsing a stack stops its blocks evaluating and expanding one starts them
-again. It is \code{\link[=board_server]{board_server()}}'s default \code{callbacks} value. Which stacks
+The \code{gate_stacks()} callback reads that accordion back, holding the blocks
+of every open stack plus every unstacked block eager and parking the rest,
+so collapsing a stack stops its blocks evaluating and expanding one starts
+them again. It is \code{\link[=board_server]{board_server()}}'s default \code{callbacks} value. Which stacks
 render open is core's own decision (see \code{\link[=stack_ui]{stack_ui()}}), so on a stacked board
-the callback declares that set as the board server is set up, before the
-first flush: a board with no gate declared is one where every block is
-needed, and a collapsed stack's blocks would evaluate once in that window.
-The accordion's report then refines the declaration rather than establishing
-it. A board with no stacks binds no such input and has nothing to park, so
-it is left ungated, as is a board driven by another front-end -- which
-passes its own callbacks. Turning it off is the \code{gate_visibility} option
-above, which already governs whether anything gates at all.
+the callback returns that set as its opening eager set: an eager board
+evaluates every block, and a collapsed stack's blocks would otherwise
+evaluate once before the accordion reports. The accordion's report then
+refines the set rather than establishing it. A board with no stacks binds no
+such input and has nothing to park, so this callback leaves it eager; a
+board driven by another front-end never runs it, since it passes its own
+callbacks. Setting the \code{gate_visibility} option to \code{FALSE} keeps this board
+eager too.
 
 The same bundle carries a third channel, \code{frozen}, through which a
 front-end reports the blocks whose inputs it has hidden (for example a
