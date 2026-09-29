@@ -101,14 +101,15 @@ default \code{\link[=notify_user]{notify_user()}} plugin renders its toasts from
 \section{Evaluation requests}{
 
 Deferred evaluation leaves a block that nothing currently needs holding its
-last run — not only its result, but the conditions it reports. Anything that
-can reach the \code{\link[=board_update]{board_update()}} channel can ask for such a block to be brought
-up to date, without putting it on screen, through the \code{evaluate} and \code{eager}
-payload components. Both name blocks, and core joins them, together with
-their upstream closure over \code{\link[=board_links]{board_links()}} (without which they cannot
-produce a result), to the eval set. They differ only in who lets go: an
-\code{evaluate} request is a one-off that core drops once the block has run,
-while a block held \code{eager} stays evaluated until its owner releases it.
+last check — the status it reached, its result and the conditions it
+reports (see \code{\link[=block_server]{block_server()}}). Anything that can reach the \code{\link[=board_update]{board_update()}}
+channel can ask for such a block to be brought up to date, without putting it
+on screen, through the \code{evaluate} and \code{eager} payload components. Both name
+blocks, and core joins them, together with their upstream closure over
+\code{\link[=board_links]{board_links()}} (without which they cannot produce a result), to the eval
+set. They differ only in who lets go: an \code{evaluate} request is a one-off that
+core drops once the block has run, while a block held \code{eager} stays evaluated
+until its owner releases it.
 
 Eager blocks are keyed by owner, the \code{eager} component mapping each owner to
 a delta over the blocks it holds, so several consumers may hold the same
@@ -149,7 +150,12 @@ also the one part of a payload a locked board still accepts.
 
 Core drops a one-off request once the block has run — or has reported why it
 cannot, such as an unconnected data input or a user input that was never set.
-Requesting a block that is already in the eval set does nothing.
+Either way the block has been checked against everything it depends on, so
+once it leaves the eval set it goes on reporting what that check found, until
+one of those changes (see \code{\link[=block_server]{block_server()}}). A request for a parked block
+that is current is spent at once, since its status already reports what a
+run would find, and requesting a block that is already in the eval set does
+nothing.
 }
 
 \section{Construction requests}{
@@ -159,7 +165,7 @@ block merely \emph{present} — the code export reads each block's expression an
 none of their results — had to make it run as well. The \code{construct} payload
 component asks for construction on its own. Like \code{evaluate} it is a bare
 character vector of block IDs, and the blocks it names are built in
-dependency order and left \code{dormant}:
+dependency order and left \code{unevaluated}:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{update(list(construct = board_block_ids(board$board)))
 }\if{html}{\out{</div>}}
