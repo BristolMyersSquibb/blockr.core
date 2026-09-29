@@ -1600,6 +1600,72 @@ test_that("a block checked off screen reports why it cannot run", {
   )
 })
 
+test_that("a parked block returns the result its last check left", {
+
+  reset_probes()
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  board <- new_board(
+    blocks = c(
+      s1 = with_id(probe_source(), "s1"),
+      s2 = with_id(probe_source_alt(), "s2"),
+      r = with_id(probe_passthrough(), "r"),
+      w = with_id(probe_passthrough(), "w")
+    ),
+    links = links(s1r = new_link("s1", "r", "data"))
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      held <- rv$blocks[["r"]]$server$result()
+
+      expect_identical(held, datasets::BOD)
+
+      park_blocks(board_update, vis, "r", "w")
+      session$flushReact()
+
+      reset_probes()
+
+      # Reading it runs nothing: it is what the status reports on.
+      expect_identical(rv$eval[["r"]](), "ready")
+      expect_identical(rv$blocks[["r"]]$server$result(), held)
+      expect_false(evaluated("r"))
+
+      # Once stale it still returns what it last found, while its status says
+      # that is out of date.
+      board_update(
+        list(
+          links = list(
+            rm = "s1r",
+            add = links(s2r = new_link("s2", "r", "data"))
+          )
+        )
+      )
+      session$flushReact()
+
+      expect_identical(rv$eval[["r"]](), "stale")
+      expect_identical(rv$blocks[["r"]]$server$result(), held)
+      expect_false(evaluated("r"))
+
+      # A block last found unable to run holds no result.
+      expect_identical(rv$eval[["w"]](), "waiting")
+      expect_null(rv$blocks[["w"]]$server$result())
+    },
+    args = list(
+      x = board,
+      plugins = list(),
+      callbacks = function(visibility, ...) {
+        render_blocks(visibility, "s1", "s2", "r", "w")
+        declare_eager("s1", "s2", "r", "w")
+      }
+    )
+  )
+})
+
 test_that("a block that is not built yet reads unevaluated", {
 
   reset_probes()
@@ -3088,8 +3154,9 @@ test_that("a parked block stays quiescent when its result is read", {
       reset_probes()
 
       # The needed set otherwise reaches a block through its data reads, which
-      # a source block has none of: reading `c` evaluated it, where the same
-      # read on `d` settles on NULL through its unfulfilled inputs.
+      # a source block has none of: reading `c` evaluated it, where `d` settled
+      # on NULL through its unfulfilled inputs. Neither has been checked, so
+      # neither holds a result.
       expect_null(isolate(rv$blocks[["c"]]$server$result()))
       expect_null(isolate(rv$blocks[["d"]]$server$result()))
 

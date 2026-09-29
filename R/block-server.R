@@ -25,10 +25,11 @@
 #' feeding a block that is, as described below -- is checked afresh whenever its
 #' status or result is read. One that is not, a *parked* block, keeps its inputs
 #' unfulfilled ([shiny::req()] out) and evaluates nothing: it reports what its
-#' last check found, for as long as nothing the check read has changed. Needed
-#' or parked, a block that is current reads the same. Four statuses are what a
-#' check can find, separating the two input kinds (data inputs from links, user
-#' inputs from `state`) and a genuine failure:
+#' last check found, and its result is the one that check left, for as long as
+#' nothing the check read has changed. Needed or parked, a block that is current
+#' reads the same. Four statuses are what a check can find, separating the two
+#' input kinds (data inputs from links, user inputs from `state`) and a genuine
+#' failure:
 #' * `waiting` -- a required *data* input is missing: unconnected, below the
 #'   required number of variadic `...args` inputs (one by default), or fed by an
 #'   upstream block that is not itself `ready` (see `allow_empty_state`).
@@ -98,9 +99,10 @@
 #' or links change). A block's input data reactives stay unfulfilled (they
 #' [shiny::req()] out) unless the block is needed, so a block that is neither
 #' held eager nor feeding one pulls no input and stays fully quiescent: its
-#' result reactive, and any observer its expression server registers on the
-#' incoming data, all short-circuit and do nothing. A needed but off-screen
-#' block (one feeding a block held eager) evaluates but does not render.
+#' result reactive hands back what the last check left, and any observer its
+#' expression server registers on the incoming data short-circuits and does
+#' nothing. A needed but off-screen block (one feeding a block held eager)
+#' evaluates but does not render.
 #'
 #' Rendering follows `visible`, the per-block channel through which the
 #' front-end reports what it has painted -- the effect, where holding a block
@@ -395,10 +397,10 @@ block_server.block <- function(id, x, data = list(), block_id = id,
           # The needed set otherwise reaches a block only through its data
           # reads (see upstream_result()), which leaves one with no data inputs
           # ungated: any reader of its result -- the card summary, say -- would
-          # evaluate it out of the eval set. Reported as a `NULL` result while
-          # parked instead.
+          # evaluate it out of the eval set. It is handed what the last check
+          # left instead, as the reader of any parked block is.
           if (!isTRUE(needed())) {
-            return(NULL)
+            return(last_check$result)
           }
 
           # State goes ahead of validation, which never runs on unset user

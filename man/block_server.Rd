@@ -109,10 +109,11 @@ finding that it cannot run. A block that is \emph{needed} -- held eager, or
 feeding a block that is, as described below -- is checked afresh whenever its
 status or result is read. One that is not, a \emph{parked} block, keeps its inputs
 unfulfilled (\code{\link[shiny:req]{shiny::req()}} out) and evaluates nothing: it reports what its
-last check found, for as long as nothing the check read has changed. Needed
-or parked, a block that is current reads the same. Four statuses are what a
-check can find, separating the two input kinds (data inputs from links, user
-inputs from \code{state}) and a genuine failure:
+last check found, and its result is the one that check left, for as long as
+nothing the check read has changed. Needed or parked, a block that is current
+reads the same. Four statuses are what a check can find, separating the two
+input kinds (data inputs from links, user inputs from \code{state}) and a genuine
+failure:
 \itemize{
 \item \code{waiting} -- a required \emph{data} input is missing: unconnected, below the
 required number of variadic \code{...args} inputs (one by default), or fed by an
@@ -186,9 +187,10 @@ their upstream closure over \code{\link[=board_links]{board_links()}} (recompute
 or links change). A block's input data reactives stay unfulfilled (they
 \code{\link[shiny:req]{shiny::req()}} out) unless the block is needed, so a block that is neither
 held eager nor feeding one pulls no input and stays fully quiescent: its
-result reactive, and any observer its expression server registers on the
-incoming data, all short-circuit and do nothing. A needed but off-screen
-block (one feeding a block held eager) evaluates but does not render.
+result reactive hands back what the last check left, and any observer its
+expression server registers on the incoming data short-circuits and does
+nothing. A needed but off-screen block (one feeding a block held eager)
+evaluates but does not render.
 
 Rendering follows \code{visible}, the per-block channel through which the
 front-end reports what it has painted -- the effect, where holding a block

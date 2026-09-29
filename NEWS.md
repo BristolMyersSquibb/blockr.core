@@ -31,6 +31,8 @@
   `stale` flag as soon as the upstream that changed was parked again, and a
   link removed from under it, or re-routed to another parked block, went
   unnoticed (#362).
+* A parked block's result is now the one its last check left, where it used to
+  be `NULL`, so it goes with the status the block reports (#363).
 * The reason a block cannot run is now recorded by the check that finds it,
   rather than when the block renders, so a block checked off screen by an
   `evaluate` request carries it, and one fixed off screen drops it once it
