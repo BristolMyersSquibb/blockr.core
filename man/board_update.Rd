@@ -69,7 +69,7 @@ build without evaluating. Each \code{eager} delta is \code{set}, \code{add} and
 \code{rm} — \code{set} states that owner's whole set and is exclusive with the
 other two — so no owner overwrites another's set. The two evaluation
 components put the named blocks (and their upstream closure) into
-the eval set while \code{construct} leaves them \code{dormant}, and none of
+the eval set while \code{construct} leaves them \code{unevaluated}, and none of
 the three touches what the front-end shows — see the Evaluation
 requests and Construction requests sections of \code{\link[=board_server]{board_server()}}.
 All three resolve their IDs against the post-update block set, so a

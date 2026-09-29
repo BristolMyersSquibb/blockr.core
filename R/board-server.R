@@ -20,14 +20,15 @@
 #'
 #' @section Evaluation requests:
 #' Deferred evaluation leaves a block that nothing currently needs holding its
-#' last run — not only its result, but the conditions it reports. Anything that
-#' can reach the [board_update()] channel can ask for such a block to be brought
-#' up to date, without putting it on screen, through the `evaluate` and `eager`
-#' payload components. Both name blocks, and core joins them, together with
-#' their upstream closure over [board_links()] (without which they cannot
-#' produce a result), to the eval set. They differ only in who lets go: an
-#' `evaluate` request is a one-off that core drops once the block has run,
-#' while a block held `eager` stays evaluated until its owner releases it.
+#' last check — the status it reached, its result and the conditions it
+#' reports (see [block_server()]). Anything that can reach the [board_update()]
+#' channel can ask for such a block to be brought up to date, without putting it
+#' on screen, through the `evaluate` and `eager` payload components. Both name
+#' blocks, and core joins them, together with their upstream closure over
+#' [board_links()] (without which they cannot produce a result), to the eval
+#' set. They differ only in who lets go: an `evaluate` request is a one-off that
+#' core drops once the block has run, while a block held `eager` stays evaluated
+#' until its owner releases it.
 #'
 #' Eager blocks are keyed by owner, the `eager` component mapping each owner to
 #' a delta over the blocks it holds, so several consumers may hold the same
@@ -70,9 +71,11 @@
 #' Core drops a one-off request once the block has run — or has reported why it
 #' cannot, such as an unconnected data input or a user input that was never set.
 #' Either way the block has been checked against everything it depends on, so
-#' it reads `dormant` once it leaves the eval set, until one of those changes
-#' (see [block_server()]). Requesting a block that is already in the eval set
-#' does nothing.
+#' once it leaves the eval set it goes on reporting what that check found, until
+#' one of those changes (see [block_server()]). A request for a parked block
+#' that is current is spent at once, since its status already reports what a
+#' run would find, and requesting a block that is already in the eval set does
+#' nothing.
 #'
 #' @section Construction requests:
 #' Evaluation implies construction, but not the reverse: a consumer that needs a
@@ -80,7 +83,7 @@
 #' none of their results — had to make it run as well. The `construct` payload
 #' component asks for construction on its own. Like `evaluate` it is a bare
 #' character vector of block IDs, and the blocks it names are built in
-#' dependency order and left `dormant`:
+#' dependency order and left `unevaluated`:
 #'
 #' ```r
 #' update(list(construct = board_block_ids(board$board)))
@@ -190,6 +193,8 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
       rv$eval <- reactiveValues()
 
+      add_eval_slots(rv, isolate(board_block_ids(rv$board)))
+
       vis <- list(
         gate = reactiveVal(NULL),
         visible = new.env(parent = emptyenv()),
@@ -266,8 +271,9 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
           # Reading a block's status is what pulls its evaluation: the status
           # reads the block result, and an input that is not ready reads its
           # upstream's status in turn, so the pull cascades up the chain. A
-          # block that is not built yet, or not in the eval set yet, stays
-          # pending -- either read invalidates this observer once it changes.
+          # block with no current check -- unbuilt, never checked or stale --
+          # stays pending, and the read invalidates this observer once that
+          # changes.
           keep <- pending[lgl_ply(pending, eval_pending, rv)]
 
           if (length(keep) < length(pending)) {
@@ -617,7 +623,7 @@ construct_block <- function(id, rv, mod_ed, mod_ct, args, vis) {
   # binding keeps per-key granularity: only readers of THIS block's slot (its
   # direct downstreams, waking up on the upstream's construction) are notified.
   ev <- isolate(rv$eval)
-  ev[[id]] <- reactive(block_eval_status(rv, id, inputs_ready, srv))
+  ev[[id]] <- srv$status
 
   invisible()
 }
@@ -765,6 +771,24 @@ schedule_construction <- function(pace, session) {
 
 background_construction_delay <- function() {
   as.numeric(blockr_option("background_construction_delay", 50L))
+}
+
+# A block reads `unevaluated` until it is built. Its placeholder is replaced by
+# construct_block() the same way a removal drops it, since replacing the slot is
+# what wakes a reader of it.
+add_eval_slots <- function(rv, ids) {
+
+  ev <- isolate(rv$eval)
+
+  for (id in ids) {
+    ev[[id]] <- unbuilt_status
+  }
+
+  invisible()
+}
+
+unbuilt_status <- function() {
+  "unevaluated"
 }
 
 add_vis_slots <- function(vis, ids) {
@@ -960,7 +984,8 @@ requested_blocks <- function(rv) {
 }
 
 # A block owes an evaluation pass while anything it needs for a result -- itself
-# or an upstream -- is unbuilt or still out of the eval set.
+# or an upstream -- has no current check to report: it reads `unevaluated`,
+# which covers a block that is not built yet, or `stale`.
 eval_pending <- function(id, rv) {
   any(lgl_ply(upstream_blocks(id, rv$board), block_deferred, rv))
 }
@@ -969,7 +994,7 @@ block_deferred <- function(id, rv) {
 
   status <- reval_if(rv$eval[[id]])
 
-  is.null(status) || status %in% c("unevaluated", "dormant", "stale")
+  is.null(status) || status %in% c("unevaluated", "stale")
 }
 
 id_request_components <- function() {
@@ -1018,37 +1043,9 @@ input_ready <- function(from, rv) {
   # `eval` key of `rv` (rebound on every block construction before the local-
   # binding install in construct_block, and still guarded against here). The
   # `[[from]]` read happens OUTSIDE the isolate, so the per-key dependency
-  # remains: a downstream still wakes when its upstream's status reactive is
-  # installed at construction, and still tracks that status thereafter.
+  # remains: a downstream still wakes when its upstream's status reactive
+  # replaces the placeholder at construction, and tracks that status thereafter.
   not_null(from) && identical(reval_if(isolate(rv$eval)[[from]]), "ready")
-}
-
-block_eval_status <- function(rv, id, inputs_ready, srv) {
-
-  # A block out of the eval set reports on its own last check, which it
-  # compares against what that check read. Depending on what it compares is
-  # what wakes this status (and the badge) without re-evaluating the block.
-  if (!block_needed(rv, id)) {
-    return(srv$dormant_status())
-  }
-
-  # Reading the result is what checks a needed block: it runs, or records why
-  # it cannot. Either way that is the verdict it reports on once parked.
-  srv$result()
-
-  if (!inputs_ready()) {
-    return("waiting")
-  }
-
-  if (!isTRUE(srv$state_ready())) {
-    return("unset")
-  }
-
-  if (isTRUE(srv$failed())) {
-    return("failed")
-  }
-
-  "ready"
 }
 
 block_needed <- function(rv, id) {
@@ -1164,7 +1161,7 @@ upstream_result <- function(key, src_rv, rv, to) {
         return(NULL)
       }
 
-      # Depend on the upstream's rv$eval slot -- installed when it is
+      # Depend on the upstream's rv$eval slot -- replaced when it is
       # constructed -- so a downstream whose input runs before its upstream
       # is registered re-resolves the server once that upstream appears,
       # rather than latching the NULL it first saw. Mirrors input_ready();
@@ -1428,7 +1425,7 @@ add_blocks_to_stacks <- function(rv, add, session) {
 #' `rm` — `set` states that owner's whole set and is exclusive with the
 #' other two — so no owner overwrites another's set. The two evaluation
 #' components put the named blocks (and their upstream closure) into
-#' the eval set while `construct` leaves them `dormant`, and none of
+#' the eval set while `construct` leaves them `unevaluated`, and none of
 #' the three touches what the front-end shows — see the Evaluation
 #' requests and Construction requests sections of [board_server()].
 #' All three resolve their IDs against the post-update block set, so a
@@ -2268,6 +2265,7 @@ apply_core_board_update <- function(rv, upd, session,
 
     log_debug("adding block{?s} {names(upd[['blocks']]$add)}")
 
+    add_eval_slots(rv, names(upd[["blocks"]]$add))
     add_vis_slots(vis, names(upd[["blocks"]]$add))
 
     do.call(

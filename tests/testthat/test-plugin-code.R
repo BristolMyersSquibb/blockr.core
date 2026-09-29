@@ -185,7 +185,7 @@ test_that("show code builds the board without evaluating or gating it", {
       # the front-end's own eager set
       expect_length(rv$evaluating(), 0L)
       expect_identical(rv$eager_blocks(), list(`front-end` = "a"))
-      expect_identical(reval_if(rv$eval[["c"]]), "dormant")
+      expect_identical(reval_if(rv$eval[["c"]]), "ready")
     },
     args = list(
       x = board,

@@ -17,36 +17,21 @@
 #' i.e. block user inputs and expression), and instantiation of the
 #' `edit_block` module (if passed from the parent scope).
 #'
-#' Each block carries an *eval status* -- one of `unevaluated`, `dormant`,
-#' `stale`, `waiting`, `unset`, `failed` or `ready` -- which, together with its
-#' orthogonal front-end visibility, determines its behavior. The first three
-#' are for a block that is not *needed* (neither on screen nor feeding,
-#' transitively over [board_links()], an on-screen block): its inputs stay
-#' unfulfilled ([shiny::req()] out) and nothing evaluates, so what the block
-#' reports is what it found when last *checked*. A needed block is checked as
-#' it evaluates, and as much when it finds that it cannot. The other four
-#' separate the two input kinds (data inputs from links, user inputs from
-#' `state`) and a genuine failure:
-#' * `unevaluated` -- not needed, and never checked, so there is nothing to
-#'   report: no result, and no word on whether it can run.
-#' * `dormant` -- not needed, and nothing it depends on has changed since it
-#'   was last checked, so what that check found is current. A block found
-#'   unable to run reads `dormant` too, with the reason among its conditions.
-#' * `stale` -- not needed, and something it depends on has changed since it
-#'   was last checked: its expression or eval trigger, which blocks feed its
-#'   data inputs, or what one of those holds. An upstream that is itself
-#'   `stale` or `unevaluated` counts as changed, so a change reaches the whole
-#'   downstream cone. The block is not re-evaluated; the status only reports
-#'   that what its last check found is out of date, so a front-end can flag it
-#'   (e.g. a muted node badge) without forcing a recompute. A consumer that
-#'   needs the block current asks for it with a [board_update()] `evaluate`
-#'   request. An expression built from the input data cannot be rebuilt while
-#'   those are withheld, so for such a block the `state` it is built from is
-#'   compared instead.
-#' * `waiting` -- needed, but a required *data* input is missing: unconnected,
-#'   below the required number of variadic `...args` inputs (one by default),
-#'   or fed by an upstream block that is not itself `ready` (see
-#'   `allow_empty_state`).
+#' Each block carries an *eval status* -- one of `unevaluated`, `stale`,
+#' `waiting`, `unset`, `failed` or `ready` -- which, together with its
+#' orthogonal front-end visibility, determines its behavior. The status is what
+#' the block's last *check* found, a check being a run of the block or the
+#' finding that it cannot run. A block that is *needed* -- held eager, or
+#' feeding a block that is, as described below -- is checked afresh whenever its
+#' status or result is read. One that is not, a *parked* block, keeps its inputs
+#' unfulfilled ([shiny::req()] out) and evaluates nothing: it reports what its
+#' last check found, for as long as nothing the check read has changed. Needed
+#' or parked, a block that is current reads the same. Four statuses are what a
+#' check can find, separating the two input kinds (data inputs from links, user
+#' inputs from `state`) and a genuine failure:
+#' * `waiting` -- a required *data* input is missing: unconnected, below the
+#'   required number of variadic `...args` inputs (one by default), or fed by an
+#'   upstream block that is not itself `ready` (see `allow_empty_state`).
 #' * `unset` -- data inputs are ready, but a required *user* input (`state`
 #'   value) has not been provided (unless permitted by `allow_empty_state`).
 #' * `failed` -- all inputs are present, but the block cannot produce a result:
@@ -55,15 +40,35 @@
 #' * `ready` -- evaluation succeeded and a result (possibly a legitimate `NULL`)
 #'   is available for downstream blocks to consume.
 #'
+#' A parked block reads one of the other two when it has no current check to
+#' report on:
+#' * `stale` -- something the last check read has changed since: the block's
+#'   expression or eval trigger, which blocks feed its data inputs, or what one
+#'   of those holds. An upstream that is itself `stale` or `unevaluated` counts
+#'   as changed, so a change reaches the whole downstream cone. The block is not
+#'   re-evaluated; the status only reports that what its last check found is
+#'   out of date, so a front-end can flag it (e.g. a muted node badge) without
+#'   forcing a recompute. An expression built from the input data cannot be
+#'   rebuilt while those are withheld, so for such a block the `state` it is
+#'   built from is compared instead.
+#' * `unevaluated` -- the block has never been checked, which includes a board
+#'   block that is not built yet.
+#'
+#' A consumer that needs a parked block current asks for it with a
+#' [board_update()] `evaluate` request. Once none of the blocks it asked for
+#' reads `stale` or `unevaluated`, what they report is current.
+#'
 #' A block reaches `ready` only once its upstreams have, so an unconnected or
 #' pending block holds its whole downstream chain `waiting` without any of them
 #' evaluating against missing data. Output rendering follows the status: the
 #' block output is shown only while `ready` and cleared otherwise, so a block
 #' leaving `ready` never displays a stale result. While not `ready` the block
 #' surfaces a condition explaining why -- a `status`-phase note for `waiting`
-#' and `unset`, or the raised error for `failed`. Conditions raised during
-#' validation and evaluation are caught and returned to be surfaced to the app
-#' user.
+#' and `unset`, or the raised error for `failed`. The note is recorded by the
+#' check that finds the block unable to run, so a block checked off screen
+#' carries it too, and the check that runs the block clears it. Conditions
+#' raised during validation and evaluation are caught and returned to be
+#' surfaced to the app user.
 #'
 #' Block-level user inputs (provided by the expression module) are separated
 #' from output, the behavior of which can be customized via the
@@ -343,17 +348,18 @@ block_server.block <- function(id, x, data = list(), block_id = id,
       # Last successful evaluation, for the unchanged-inputs skip below.
       last_eval <- new.env(parent = emptyenv())
 
-      # What the block was last checked against while needed, whether the check
-      # ran it or found that it cannot run: its expression, state and eval
-      # trigger, which block feeds each data input, what each of those held,
-      # and the result the check left.
+      # The last check of the block while needed, which either ran it or found
+      # that it cannot run. It keeps what the check read -- expression, state
+      # and eval trigger, which block feeds each data input and what each of
+      # those held -- and what it found: the status it reached and the result
+      # it left, both of which the block holds once it leaves the eval set.
       last_check <- new.env(parent = emptyenv())
 
-      record_check <- function(result, lang, trigger) {
+      record_check <- function(status, result, lang, trigger, reason = NULL) {
 
         sources <- isolate(block_sources(block_id, board))
 
-        last_check$has <- TRUE
+        last_check$status <- status
         last_check$lang <- lang
         last_check$state <- isolate(lapply(state, state_value))
         last_check$trigger <- trigger
@@ -361,98 +367,66 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         last_check$consumed <- lapply(sources, upstream_last_result, board)
         last_check$result <- result
 
+        isolate(explain_block_status(cond, reason))
+
         result
       }
 
-      # An expression built from input data cannot be rebuilt while the block
-      # is out of the eval set, as its inputs req() out. The state it is built
-      # from is where an edit lands, so that is compared instead.
-      own_changed <- function() {
-
-        if (!identical(block_eval_trigger(x, session), last_check$trigger)) {
-          return(TRUE)
-        }
-
-        cur <- tryCatch(lang(), error = identity)
-
-        if (!inherits(cur, "shiny.silent.error")) {
-          return(!same_ref(cur, last_check$lang))
-        }
-
-        cur <- lapply(state, state_value)
-        withheld <- lgl_ply(cur, inherits, "shiny.silent.error")
-
-        !same_refs(cur[!withheld], last_check$state[!withheld])
+      # Finding that the block cannot run is a check as much as running it. The
+      # expression and trigger are read as a run reads them, so an edit
+      # re-checks the block rather than leaving it to read `stale` once it
+      # leaves the eval set.
+      record_blocked <- function(status, reason = NULL) {
+        record_check(
+          status,
+          NULL,
+          tryCatch(lang(), error = identity),
+          block_eval_trigger(x, session),
+          reason
+        )
       }
 
-      # What the block reports while out of the eval set, read by board_server
-      # in block_eval_status(). It is `stale` once anything its last check read
-      # has changed. An upstream counts as changed when it no longer holds what
-      # this block consumed from it, or is itself `stale` or `unevaluated`,
-      # which carries a change down the whole cone one hop at a time.
-      dormant_status <- reactive(
-        {
-          # A needed block is checked as it runs, so is current by definition.
-          # The dependency is also what makes a fresh verdict due: `last_check`
-          # is a plain environment, so the check that refreshes it invalidates
-          # nothing, and dropping back out of the eval set is exactly when the
-          # comparison has to be redone.
-          if (isTRUE(needed())) {
-            return(NULL)
-          }
-
-          if (!isTRUE(last_check$has)) {
-            return("unevaluated")
-          }
-
-          if (own_changed()) {
-            return("stale")
-          }
-
-          sources <- block_sources(block_id, board)
-
-          if (!identical(sources, last_check$sources)) {
-            return("stale")
-          }
-
-          consumed <- last_check$consumed
-
-          for (i in seq_along(sources)) {
-            if (upstream_changed(sources[[i]], consumed[[i]], board)) {
-              return("stale")
-            }
-          }
-
-          "dormant"
-        }
-      )
+      eval_status <- function() {
+        if (length(isolate(cond$eval$error))) "failed" else "ready"
+      }
 
       res <- reactive(
         {
           # The needed set otherwise reaches a block only through its data
           # reads (see upstream_result()), which leaves one with no data inputs
-          # ungated: any reader of its result -- the card summary, say --
-          # evaluates it while dormant. Reported as a `NULL` result, which is
-          # what a dormant block with inputs already settles on through its
-          # unfulfilled data.
+          # ungated: any reader of its result -- the card summary, say -- would
+          # evaluate it out of the eval set. Reported as a `NULL` result while
+          # parked instead.
           if (!isTRUE(needed())) {
             return(NULL)
           }
 
-          # Finding that the block cannot run is a check as much as running it.
           # State goes ahead of validation, which never runs on unset user
-          # inputs. The expression and trigger are read as a run reads them, so
-          # an edit re-checks the block rather than leaving it to read `stale`
-          # once it leaves the eval set.
-          if (!isTRUE(reval_if(gate)) || !isTRUE(state_ready()) ||
-                !isTRUE(data_valid())) {
+          # inputs.
+          if (!inputs_ready()) {
             return(
-              record_check(
-                NULL,
-                tryCatch(lang(), error = identity),
-                block_eval_trigger(x, session)
+              record_blocked(
+                "waiting",
+                "This block is waiting for its data input to be connected."
               )
             )
+          }
+
+          if (!isTRUE(state_ready())) {
+            return(
+              record_blocked(
+                "unset",
+                "This block is waiting for its inputs to be set."
+              )
+            )
+          }
+
+          if (!isTRUE(data_valid())) {
+            return(record_blocked("failed"))
+          }
+
+          if (!isTRUE(reval_if(gate))) {
+            return(record_blocked(eval_status()))
           }
 
           eval_data <- dat_eval()
@@ -482,7 +456,14 @@ block_server.block <- function(id, x, data = list(), block_id = id,
                 same_refs(eval_data, last_eval$data) &&
                 identical(eval_trigger, last_eval$trigger)) {
             log_debug("skipping block ", block_id, " (inputs unchanged)")
-            return(record_check(last_eval$result, eval_lang, eval_trigger))
+            return(
+              record_check(
+                eval_status(),
+                last_eval$result,
+                eval_lang,
+                eval_trigger
+              )
+            )
           }
 
           log_debug("evaluating block ", block_id)
@@ -505,39 +486,91 @@ block_server.block <- function(id, x, data = list(), block_id = id,
           last_eval$trigger <- eval_trigger
           last_eval$result <- result
 
-          record_check(result, eval_lang, eval_trigger)
+          record_check(eval_status(), result, eval_lang, eval_trigger)
         },
         domain = session
       )
 
-      failed <- reactive(
-        {
-          if (!inputs_ready() || !isTRUE(state_ready())) {
-            return(FALSE)
-          }
+      # An expression built from input data cannot be rebuilt while the block
+      # is out of the eval set, as its inputs req() out. The state it is built
+      # from is where an edit lands, so that is compared instead.
+      own_changed <- function() {
 
-          if (!isTRUE(data_valid())) {
+        if (!identical(block_eval_trigger(x, session), last_check$trigger)) {
+          return(TRUE)
+        }
+
+        cur <- tryCatch(lang(), error = identity)
+
+        if (!inherits(cur, "shiny.silent.error")) {
+          return(!same_ref(cur, last_check$lang))
+        }
+
+        cur <- lapply(state, state_value)
+        withheld <- lgl_ply(cur, inherits, "shiny.silent.error")
+
+        !same_refs(cur[!withheld], last_check$state[!withheld])
+      }
+
+      # An upstream counts as changed when it no longer holds what this block
+      # consumed from it, or is itself `stale` or `unevaluated`, which carries a
+      # change down the whole cone one hop at a time.
+      inputs_changed <- function() {
+
+        sources <- block_sources(block_id, board)
+
+        if (!identical(sources, last_check$sources)) {
+          return(TRUE)
+        }
+
+        consumed <- last_check$consumed
+
+        for (i in seq_along(sources)) {
+          if (upstream_changed(sources[[i]], consumed[[i]], board)) {
             return(TRUE)
           }
+        }
 
-          res()
+        FALSE
+      }
 
-          length(cond$eval$error) > 0L
+      # A needed block is checked afresh as its status is read, since reading
+      # its result runs it or records why it cannot. A parked block reports on
+      # its last check instead, until anything that check read has changed. The
+      # dependency on needed() is also what makes a fresh verdict due:
+      # `last_check` is a plain environment, so the check that refreshes it
+      # invalidates nothing, and dropping back out of the eval set is exactly
+      # when the comparison has to be redone.
+      status <- reactive(
+        {
+          if (isTRUE(needed())) {
+            res()
+            return(last_check$status)
+          }
+
+          if (is.null(last_check$status)) {
+            return("unevaluated")
+          }
+
+          if (own_changed() || inputs_changed()) {
+            return("stale")
+          }
+
+          last_check$status
         },
         domain = session
       )
 
       block_ready <- reactive(
-        isTRUE(reval_if(gate)) && inputs_ready() && isTRUE(state_ready()) &&
-          !failed()
+        isTRUE(reval_if(gate)) && identical(status(), "ready"),
+        domain = session
       )
 
       gated <- is_board(isolate(board$board)) &&
         isTRUE(blockr_option("gate_visibility", TRUE)) &&
         not_null(visibility)
 
-      render_obs <- output_render_observer(x, block_ready, inputs_ready,
-                                           state_ready, res, cond, session,
+      render_obs <- output_render_observer(x, block_ready, res, cond, session,
                                            suspended = gated)
 
       if (gated) {
@@ -580,9 +613,8 @@ block_server.block <- function(id, x, data = list(), block_id = id,
         list(
           result = res,
           last_result = function() last_check$result,
-          dormant_status = dormant_status,
+          status = status,
           state_ready = state_ready,
-          failed = failed,
           expr = lang,
           state = exposed_state,
           conditions = conditions
@@ -744,37 +776,22 @@ block_render_trigger.block <- function(x, session = get_session()) {
   NULL
 }
 
-output_render_observer <- function(x, ready, inputs_ready, state_ready, res,
-                                   cond, sess, suspended = FALSE) {
+output_render_observer <- function(x, ready, res, cond, sess,
+                                   suspended = FALSE) {
 
   observe(
     {
       block_render_trigger(x, sess)
 
       if (isTRUE(ready())) {
-
         sess$output$result <- capture_conditions(
           block_output(x, res(), sess),
           cond,
           "render",
           session = sess
         )
-
-        isolate(explain_block_status(cond, NULL))
-
       } else {
-
         sess$output$result <- NULL
-
-        reason <- if (!inputs_ready()) {
-          "This block is waiting for its data input to be connected."
-        } else if (!isTRUE(state_ready())) {
-          "This block is waiting for its inputs to be set."
-        } else {
-          NULL
-        }
-
-        isolate(explain_block_status(cond, reason))
       }
     },
     domain = sess,

@@ -48,5 +48,5 @@ Export is held back while a block is not fully configured, or while one
 reports an error from its last run — either would put code into the script
 that does not reproduce the board. A block that has never run reports
 neither, so the modal offers to evaluate the board, which is a one-off that
-leaves the blocks dormant again but has them report what they found.
+leaves the blocks parked again, reporting what they found.
 }

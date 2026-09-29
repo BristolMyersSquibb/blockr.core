@@ -34,6 +34,7 @@ serve(
 
       shiny::exportTestValues(
         evaluated = paste(sort(unique(evaluated$exprs)), collapse = " "),
+        needed = paste(sort(board$needed()), collapse = " "),
         status_b = reval_if(board$eval[["b"]]),
         status_d = reval_if(board$eval[["d"]])
       )

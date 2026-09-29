@@ -101,37 +101,22 @@ of the block expression server (handling the block-specific functionality,
 i.e. block user inputs and expression), and instantiation of the
 \code{edit_block} module (if passed from the parent scope).
 
-Each block carries an \emph{eval status} -- one of \code{unevaluated}, \code{dormant},
-\code{stale}, \code{waiting}, \code{unset}, \code{failed} or \code{ready} -- which, together with its
-orthogonal front-end visibility, determines its behavior. The first three
-are for a block that is not \emph{needed} (neither on screen nor feeding,
-transitively over \code{\link[=board_links]{board_links()}}, an on-screen block): its inputs stay
-unfulfilled (\code{\link[shiny:req]{shiny::req()}} out) and nothing evaluates, so what the block
-reports is what it found when last \emph{checked}. A needed block is checked as
-it evaluates, and as much when it finds that it cannot. The other four
-separate the two input kinds (data inputs from links, user inputs from
-\code{state}) and a genuine failure:
+Each block carries an \emph{eval status} -- one of \code{unevaluated}, \code{stale},
+\code{waiting}, \code{unset}, \code{failed} or \code{ready} -- which, together with its
+orthogonal front-end visibility, determines its behavior. The status is what
+the block's last \emph{check} found, a check being a run of the block or the
+finding that it cannot run. A block that is \emph{needed} -- held eager, or
+feeding a block that is, as described below -- is checked afresh whenever its
+status or result is read. One that is not, a \emph{parked} block, keeps its inputs
+unfulfilled (\code{\link[shiny:req]{shiny::req()}} out) and evaluates nothing: it reports what its
+last check found, for as long as nothing the check read has changed. Needed
+or parked, a block that is current reads the same. Four statuses are what a
+check can find, separating the two input kinds (data inputs from links, user
+inputs from \code{state}) and a genuine failure:
 \itemize{
-\item \code{unevaluated} -- not needed, and never checked, so there is nothing to
-report: no result, and no word on whether it can run.
-\item \code{dormant} -- not needed, and nothing it depends on has changed since it
-was last checked, so what that check found is current. A block found
-unable to run reads \code{dormant} too, with the reason among its conditions.
-\item \code{stale} -- not needed, and something it depends on has changed since it
-was last checked: its expression or eval trigger, which blocks feed its
-data inputs, or what one of those holds. An upstream that is itself
-\code{stale} or \code{unevaluated} counts as changed, so a change reaches the whole
-downstream cone. The block is not re-evaluated; the status only reports
-that what its last check found is out of date, so a front-end can flag it
-(e.g. a muted node badge) without forcing a recompute. A consumer that
-needs the block current asks for it with a \code{\link[=board_update]{board_update()}} \code{evaluate}
-request. An expression built from the input data cannot be rebuilt while
-those are withheld, so for such a block the \code{state} it is built from is
-compared instead.
-\item \code{waiting} -- needed, but a required \emph{data} input is missing: unconnected,
-below the required number of variadic \code{...args} inputs (one by default),
-or fed by an upstream block that is not itself \code{ready} (see
-\code{allow_empty_state}).
+\item \code{waiting} -- a required \emph{data} input is missing: unconnected, below the
+required number of variadic \code{...args} inputs (one by default), or fed by an
+upstream block that is not itself \code{ready} (see \code{allow_empty_state}).
 \item \code{unset} -- data inputs are ready, but a required \emph{user} input (\code{state}
 value) has not been provided (unless permitted by \code{allow_empty_state}).
 \item \code{failed} -- all inputs are present, but the block cannot produce a result:
@@ -141,15 +126,37 @@ raised. The offending condition is surfaced through the block conditions.
 is available for downstream blocks to consume.
 }
 
+A parked block reads one of the other two when it has no current check to
+report on:
+\itemize{
+\item \code{stale} -- something the last check read has changed since: the block's
+expression or eval trigger, which blocks feed its data inputs, or what one
+of those holds. An upstream that is itself \code{stale} or \code{unevaluated} counts
+as changed, so a change reaches the whole downstream cone. The block is not
+re-evaluated; the status only reports that what its last check found is
+out of date, so a front-end can flag it (e.g. a muted node badge) without
+forcing a recompute. An expression built from the input data cannot be
+rebuilt while those are withheld, so for such a block the \code{state} it is
+built from is compared instead.
+\item \code{unevaluated} -- the block has never been checked, which includes a board
+block that is not built yet.
+}
+
+A consumer that needs a parked block current asks for it with a
+\code{\link[=board_update]{board_update()}} \code{evaluate} request. Once none of the blocks it asked for
+reads \code{stale} or \code{unevaluated}, what they report is current.
+
 A block reaches \code{ready} only once its upstreams have, so an unconnected or
 pending block holds its whole downstream chain \code{waiting} without any of them
 evaluating against missing data. Output rendering follows the status: the
 block output is shown only while \code{ready} and cleared otherwise, so a block
 leaving \code{ready} never displays a stale result. While not \code{ready} the block
 surfaces a condition explaining why -- a \code{status}-phase note for \code{waiting}
-and \code{unset}, or the raised error for \code{failed}. Conditions raised during
-validation and evaluation are caught and returned to be surfaced to the app
-user.
+and \code{unset}, or the raised error for \code{failed}. The note is recorded by the
+check that finds the block unable to run, so a block checked off screen
+carries it too, and the check that runs the block clears it. Conditions
+raised during validation and evaluation are caught and returned to be
+surfaced to the app user.
 
 Block-level user inputs (provided by the expression module) are separated
 from output, the behavior of which can be customized via the
