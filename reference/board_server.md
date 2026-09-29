@@ -25,6 +25,8 @@ board_server(
   ...
 )
 
+eager(owner, blocks = character())
+
 gate_stacks()
 ```
 
@@ -54,36 +56,50 @@ gate_stacks()
 - callbacks:
 
   Single (or list of) callback function(s) registering additional
-  observers. Each receives a `visibility` list with three channels,
-  `required`, `visible` and `frozen`, each an environment of per-block
-  `reactiveVal`s (core keeps one per board block as blocks are added and
-  removed). Declare a block needed with
-  `visibility$required[[id]](TRUE)` (or `FALSE` for built but dormant)
-  and report whether it is currently painted with
-  `visibility$visible[[id]](TRUE)` (or `FALSE` once built but off
-  screen, leaving `NA` until it is first built); the board reads both to
-  gate construction, evaluation and rendering. Set
+  observers. A board is eager by default: it evaluates every block. A
+  callback makes it lazy by returning `eager(owner, blocks)`, on its own
+  or as one element of a list whose other elements are passed on to
+  plugins as usual. Core then evaluates only the blocks some owner holds
+  eager, and what feeds them; it seeds `blocks` as that owner's eager
+  set before the first flush, and at most one callback may return one.
+  Changes from then on travel as an `eager` component under the same
+  owner label through the `update` channel each callback receives (see
+  [board_update](https://bristolmyerssquibb.github.io/blockr.core/reference/board_update.md)
+  and the Evaluation requests section). Each callback also receives a
+  `visibility` list of the per-block channels `visible` and `frozen`,
+  environments of `reactiveVal`s (core keeps one per board block as
+  blocks are added and removed). Report whether a block is currently
+  painted with `visibility$visible[[id]](TRUE)` (or `FALSE` once built
+  but off screen, leaving `NA` until it is first built); the board
+  renders a block only once it is reported painted, and holds background
+  construction until every block the front-end holds eager is. Set
   `visibility$frozen[[id]](TRUE)` to freeze a block's inputs (for
   example when its controls are hidden), so a forged input can no longer
-  steer it. A callback also receives the `update` channel (see
-  [board_update](https://bristolmyerssquibb.github.io/blockr.core/reference/board_update.md)),
-  through which it can request block evaluation or construction (see the
-  Evaluation requests and Construction requests sections).
+  steer it.
 
   Core's own front-end drives these channels through a callback like any
   other: `gate_stacks()` reads the stack accordion (see
   [`stack_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/stack_ui.md))
-  and is the default, so a board that renders core's UI gates on its
-  stacks and one that does not is left alone – it passes its own
+  and is the default, so a stacked board that renders core's UI is lazy,
+  and a board that does not render it is left alone – it passes its own
   callbacks. A consumer that wants both keeps it in the list rather than
   replacing it – `callbacks = list(gate_stacks(), my_callback)`, which
   is for a front-end that does render the accordion: on a stacked board
-  the gate declares the initially open stacks before the first flush and
-  reads that input only to refine the declaration.
+  it returns the blocks of the initially open stacks as its eager set,
+  and reads that input only to refine it.
 
 - callback_location:
 
   Location of callback invocation (before or after plugins)
+
+- owner:
+
+  Label under which the front-end holds its blocks eager, as it would
+  name itself in an `eager` component
+
+- blocks:
+
+  Block IDs the front-end needs evaluated from the start
 
 ## Value
 
@@ -112,22 +128,22 @@ its last run — not only its result, but the conditions it reports.
 Anything that can reach the
 [`board_update()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_update.md)
 channel can ask for such a block to be brought up to date, without
-putting it on screen, through the `evaluate` and `sustain` payload
+putting it on screen, through the `evaluate` and `eager` payload
 components. Both name blocks, and core joins them, together with their
 upstream closure over
 [`board_links()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
 (without which they cannot produce a result), to the eval set. They
 differ only in who lets go: an `evaluate` request is a one-off that core
-drops once the block has run, while a `sustain` claim is held until its
-owner releases it.
+drops once the block has run, while a block held `eager` stays evaluated
+until its owner releases it.
 
-Claims are keyed by owner, the `sustain` component mapping each owner to
-a delta over the blocks it holds, so several consumers may hold the same
-block and none of them writes another's claim:
+Eager blocks are keyed by owner, the `eager` component mapping each
+owner to a delta over the blocks it holds, so several consumers may hold
+the same block and none of them overwrites another's set:
 
     update(
       list(
-        sustain = set_names(
+        eager = set_names(
           list(list(set = board_block_ids(board$board))),
           session$ns("preview")
         )
@@ -136,24 +152,28 @@ block and none of them writes another's claim:
 
 A delta is `set`, `add` and `rm`, of which `set` states that owner's
 entire set at once and cannot be combined with the other two. Releasing
-everything is `set = character()`; releasing part of a claim is `rm`,
-which — unlike `set` and `add` — may name a block the board no longer
-has, so a release cannot be rejected by a removal that raced it.
-Restating a set repairs a release that never arrived, rather than
-letting it accumulate.
+everything is `set = character()`; releasing some blocks is `rm`, which
+— unlike `set` and `add` — may name a block the board no longer has, so
+a release cannot be rejected by a removal that raced it. Restating a set
+repairs a release that never arrived, rather than letting it accumulate.
 
 Core cannot infer the owner — the write and its effect are separated by
 a flush — so the label travels in the payload. Nothing keys off shiny's
 namespacing, but taking the label from `session$ns()` as above is what
 keeps owners unique without a registry, and lets one module hold two
-independent claims under two labels. A claim outlives the module that
-made it: core drops a claimed block once it leaves the board, but an
-owner that goes away without releasing holds what it held for the rest
-of the session.
+independent sets under two labels. An owner's set outlives the module
+that made it: core drops a block from every set once it leaves the
+board, but an owner that goes away without releasing holds what it held
+for the rest of the session.
 
-Requests are orthogonal to the `required` visibility channel, so neither
-competes with the front-end's gating, and nothing about what is on
-screen changes. Because they carry no state change, they are also the
+Holding a block eager asks for evaluation and nothing else: nothing
+about what is on screen changes. The front-end is an owner like any
+other – it holds its blocks eager under the label it declared with
+`eager()` (see
+[`block_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_server.md))
+– so core never distinguishes its demand from any other owner's, and a
+consumer holding a block eager cannot park what the front-end is
+showing. Because these requests carry no state change, they are also the
 one part of a payload a locked board still accepts.
 
 Core drops a one-off request once the block has run — or has reported
@@ -175,11 +195,10 @@ names are built in dependency order and left `dormant`:
 Nothing is retained. Once a block is built it stays built, so unlike the
 two evaluation components there is no owner to name and nothing to hand
 back, and asking for a block that is already built does nothing. The
-request joins neither the eval set nor the front-end's `required`
-channel, so it cannot turn a lazily evaluating board into an eagerly
-evaluating one.
+request joins neither the eval set nor any owner's eager set, so it
+cannot turn a lazily evaluating board into an eagerly evaluating one.
 
-A block that the same payload adds, or that an `evaluate` or `sustain`
+A block that the same payload adds, or that an `evaluate` or `eager`
 names, is already constructed — the add builds it directly, and
 evaluation demand joins the needed set, which the background constructor
 builds. Pairing `construct` with either is redundant rather than wrong.

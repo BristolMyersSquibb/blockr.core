@@ -2,6 +2,24 @@
 
 ## blockr.core 0.1.4
 
+- Evaluation demand is now one multi-owner set rather than two channels.
+  The front-end’s per-block `required` channel is gone: the blocks it
+  needs evaluated are held `eager` under an owner label, like any other
+  consumer’s. Core no longer distinguishes a front-end’s demand from a
+  code export’s, and because no owner overwrites another’s set, it
+  cannot silently become multi-writer the way `required` did. A board is
+  eager by default and turns lazy only when a front-end says so: its
+  callback returns `eager(owner, blocks)`, and core seeds `blocks` as
+  that owner’s eager set as it runs the callbacks, before the first
+  flush decides what to construct – which no board update can do, since
+  a payload applies at the end of the flush it is written in. Where no
+  callback returns one the board stays eager, so a consumer holding one
+  block eager cannot park every other block. The `visibility` bundle
+  handed to callbacks keeps its per-block `visible` and `frozen`
+  channels, and reporting paint on `visible` is unchanged. Breaking for
+  any front-end that drives `visibility$required`
+  ([\#321](https://github.com/BristolMyersSquibb/blockr.core/issues/321)).
+
 - Links can now be placed rather than only appended. The
   [`modify_board_links()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
   arguments `before` and `after`, mirrored by `links$before` /
@@ -74,14 +92,14 @@
   stacks render open is core’s own decision, but it was left to
   `bslib`’s default of opening the first panel, so the board server knew
   nothing about what was on screen until the accordion had reported –
-  and a board with no gate declared is one where every block is needed,
-  so whatever got built in that window ran. The
+  and a board nothing has made lazy is eager, so whatever got built in
+  that window ran. The
   [`stack_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/stack_ui.md)
   method now states the open set explicitly and
   [`gate_stacks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)
   declares it as the board server is set up, leaving the client’s report
   to refine that rather than establish it. A board with no stacks binds
-  no accordion input and is left ungated, as before
+  no accordion input and stays eager, as before
   ([\#343](https://github.com/BristolMyersSquibb/blockr.core/issues/343)).
 
 - A dormant block with no data inputs is now as quiescent as any other.
@@ -100,21 +118,20 @@
   nothing read the input `bslib` had already wired for reporting which
   stacks are open. The new
   [`gate_stacks()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)
-  callback marks the blocks of every open stack plus every unstacked
-  block required and parks the rest, so collapsing a stack stops its
-  blocks evaluating and expanding one starts them again. Parked rather
-  than dropped: a collapsed stack’s blocks stay built, so re-expanding
-  shows them without a rebuild. It is
+  callback holds the blocks of every open stack plus every unstacked
+  block eager and parks the rest, so collapsing a stack stops its blocks
+  evaluating and expanding one starts them again. Parked rather than
+  dropped: a collapsed stack’s blocks stay built, so re-expanding shows
+  them without a rebuild. It is
   [`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md)’s
-  default `callbacks` value and gates nothing until that accordion
-  reports, so a board driven by another front-end – which passes its own
-  callbacks, and whose UI never binds the input – is left alone; a
-  consumer that wants both keeps it in the list,
-  `callbacks = list(gate_stacks(), my_callback)`. The `gate_visibility`
-  option turns it off along with all other gating. The accordion
-  container ID moves from `<board>_stacks` to the board-namespaced
-  `<board>-stacks`, which is what makes it readable from the board
-  module
+  default `callbacks` value, so a board driven by another front-end –
+  which passes its own callbacks, and whose UI never binds the input –
+  is left alone; a consumer that wants both keeps it in the list,
+  `callbacks = list(gate_stacks(), my_callback)`. Setting the
+  `gate_visibility` option to `FALSE` keeps the board eager, as it does
+  for every other front-end. The accordion container ID moves from
+  `<board>_stacks` to the board-namespaced `<board>-stacks`, which is
+  what makes it readable from the board module
   ([\#338](https://github.com/BristolMyersSquibb/blockr.core/issues/338)).
 
 - Board updates gain a third request component, `construct`, a character
@@ -123,18 +140,18 @@
   needed a block merely present – the code export reads each block’s
   expression and none of their results – had to make it run as well,
   holding the whole board in the eval set for as long as it needed the
-  expressions. Unlike `evaluate` and `sustain` it retains no state: a
+  expressions. Unlike `evaluate` and `eager` it retains no state: a
   built block stays built, so there is no owner to name and nothing to
   release, and requesting a block that is already built does nothing.
-  The request joins neither the eval set nor the front-end’s `required`
-  channel, so it cannot turn a lazily evaluating board into an eagerly
-  evaluating one
+  The request joins neither the eval set nor any owner’s eager set, so
+  it cannot turn a lazily evaluating board into an eagerly evaluating
+  one
   ([\#333](https://github.com/BristolMyersSquibb/blockr.core/issues/333)).
 
-- Showing the generated code no longer writes the front-end’s `required`
-  channel. A block parked with `required[[id]](FALSE)` was overwritten
-  and never restored, so a single “Show code” turned a lazily evaluating
-  board into an eagerly evaluating one for the rest of the session, with
+- Showing the generated code no longer writes the front-end’s own demand
+  channel. A block the front-end had parked was overwritten and never
+  restored, so a single “Show code” turned a lazily evaluating board
+  into an eagerly evaluating one for the rest of the session, with
   nothing left to release it. The export asks for construction alone
   through the `construct` board update component, since the script is
   assembled from block expressions and needs its blocks built rather
@@ -266,10 +283,10 @@
 
 - `background_construction_delay` now accepts `Inf`, skipping the
   background construction pass so a block is built only once it becomes
-  required. Code export (“Show code”) then claims every block on the
-  board, so the exported script covers the whole board; an off-screen
-  block that is not fully configured holds the export back instead of
-  emitting broken code
+  required. Code export (“Show code”) then asks for every block on the
+  board to be built, so the exported script covers the whole board; an
+  off-screen block that is not fully configured holds the export back
+  instead of emitting broken code
   ([\#269](https://github.com/BristolMyersSquibb/blockr.core/issues/269)).
 
 - Code export gates on the set of blocks that actually carry an
@@ -418,15 +435,15 @@
   introduced upstream stayed hidden until the block was visited
   ([\#310](https://github.com/BristolMyersSquibb/blockr.core/issues/310)).
 
-- Board updates gain two request components, `evaluate` and `sustain`,
-  for evaluating a dormant block without making it visible. Both name
-  blocks that are joined, with their upstream closure, to the eval set
-  so they publish a current result and current conditions; core drops an
-  `evaluate` request once the block has run, while a `sustain` claim is
-  held until released. Claims are keyed by owner
+- Board updates gain two request components, `evaluate` and `eager`, for
+  evaluating a dormant block without making it visible. Both name blocks
+  that are joined, with their upstream closure, to the eval set so they
+  publish a current result and current conditions; core drops an
+  `evaluate` request once the block has run, while a block held `eager`
+  stays evaluated until released. Eager sets are keyed by owner
   (`list(<owner> = list(set =, add =, rm =))`, conventionally labeled
   `session$ns("...")`), so two consumers may hold the same block without
-  either releasing the other’s claim. Previously the only lever was the
+  either releasing the other’s. Previously the only lever was the
   front-end’s `required` channel, which extensions never receive and
   which latches the block into the eval set, so a consumer had no way to
   tell whether a change it had just made broke an off-screen block.
