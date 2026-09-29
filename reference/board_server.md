@@ -124,7 +124,9 @@ plugin renders its toasts from this source.
 ## Evaluation requests
 
 Deferred evaluation leaves a block that nothing currently needs holding
-its last run — not only its result, but the conditions it reports.
+its last check — the status it reached, its result and the conditions it
+reports (see
+[`block_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_server.md)).
 Anything that can reach the
 [`board_update()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_update.md)
 channel can ask for such a block to be brought up to date, without
@@ -178,8 +180,13 @@ one part of a payload a locked board still accepts.
 
 Core drops a one-off request once the block has run — or has reported
 why it cannot, such as an unconnected data input or a user input that
-was never set. Requesting a block that is already in the eval set does
-nothing.
+was never set. Either way the block has been checked against everything
+it depends on, so once it leaves the eval set it goes on reporting what
+that check found, until one of those changes (see
+[`block_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_server.md)).
+A request for a parked block that is current is spent at once, since its
+status already reports what a run would find, and requesting a block
+that is already in the eval set does nothing.
 
 ## Construction requests
 
@@ -188,7 +195,7 @@ needs a block merely *present* — the code export reads each block's
 expression and none of their results — had to make it run as well. The
 `construct` payload component asks for construction on its own. Like
 `evaluate` it is a bare character vector of block IDs, and the blocks it
-names are built in dependency order and left `dormant`:
+names are built in dependency order and left `unevaluated`:
 
     update(list(construct = board_block_ids(board$board)))
 

@@ -20,6 +20,35 @@
   any front-end that drives `visibility$required`
   ([\#321](https://github.com/BristolMyersSquibb/blockr.core/issues/321)).
 
+- A block out of the eval set now reports what its last check found, and
+  the `dormant` status goes. It used to read `dormant` whether its last
+  run still held, failed, found it could not run, had been overtaken by
+  an edit or had never happened, so a consumer could not tell which
+  parked blocks needed a run. A check runs a needed block or finds that
+  it cannot run, and records what it read – the block’s expression,
+  state and eval trigger, which blocks feed its data inputs and what
+  each of those held – together with the status it reached and the
+  result it left. A parked block reads that status (`ready`, `failed`,
+  `waiting` or `unset`) while nothing the check read has changed,
+  `stale` once something has, and the new `unevaluated` without a check,
+  which also covers a block that is not built yet. Code that matches on
+  `dormant` has to read these instead. The upstream half of the old
+  `stale` check skipped any upstream that was itself parked, so a block
+  lost its `stale` flag as soon as the upstream that changed was parked
+  again, and a link removed from under it, or re-routed to another
+  parked block, went unnoticed
+  ([\#362](https://github.com/BristolMyersSquibb/blockr.core/issues/362)).
+
+- A parked block’s result is now the one its last check left, where it
+  used to be `NULL`, so it goes with the status the block reports
+  ([\#363](https://github.com/BristolMyersSquibb/blockr.core/issues/363)).
+
+- The reason a block cannot run is now recorded by the check that finds
+  it, rather than when the block renders, so a block checked off screen
+  by an `evaluate` request carries it, and one fixed off screen drops it
+  once it runs
+  ([\#362](https://github.com/BristolMyersSquibb/blockr.core/issues/362)).
+
 - Links can now be placed rather than only appended. The
   [`modify_board_links()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md)
   arguments `before` and `after`, mirrored by `links$before` /
@@ -102,12 +131,11 @@
   no accordion input and stays eager, as before
   ([\#343](https://github.com/BristolMyersSquibb/blockr.core/issues/343)).
 
-- A dormant block with no data inputs is now as quiescent as any other.
+- A parked block with no data inputs is now as quiescent as any other.
   The needed set reaches a block through its data reads, of which a
   source block has none, so anything reading its result – the block
-  card’s summary, for one – evaluated it while parked. Such a block now
-  reports a `NULL` result while it is not needed, which is where a
-  dormant block with inputs already lands through its unfulfilled data
+  card’s summary, for one – evaluated it while parked. Reading it now
+  evaluates nothing, as for any parked block
   ([\#343](https://github.com/BristolMyersSquibb/blockr.core/issues/343)).
 
 - Core’s own board UI now drives visibility, through a board callback
@@ -425,18 +453,17 @@
   a board whose registry has been curated
   ([\#299](https://github.com/BristolMyersSquibb/blockr.core/issues/299)).
 
-- Blocks now carry a sixth eval status, `stale`. A dormant block (built
-  but not currently needed, so not evaluating) whose upstream has
-  produced a new result since it last evaluated reports `stale` rather
-  than `dormant`, flagging that its last-known result is out of date
-  without forcing a re-evaluation. A front-end can render it distinctly
-  (e.g. a muted node badge); previously such a block was
-  indistinguishable from an up-to-date dormant one, so a break
-  introduced upstream stayed hidden until the block was visited
+- Blocks now carry an eval status `stale`. A parked block (built but not
+  currently needed, so not evaluating) whose upstream has produced a new
+  result since it last evaluated reports `stale`, flagging that its
+  last-known result is out of date without forcing a re-evaluation. A
+  front-end can render it distinctly (e.g. a muted node badge);
+  previously such a block read `dormant` like an up-to-date one, so a
+  break introduced upstream stayed hidden until the block was visited
   ([\#310](https://github.com/BristolMyersSquibb/blockr.core/issues/310)).
 
 - Board updates gain two request components, `evaluate` and `eager`, for
-  evaluating a dormant block without making it visible. Both name blocks
+  evaluating a parked block without making it visible. Both name blocks
   that are joined, with their upstream closure, to the eval set so they
   publish a current result and current conditions; core drops an
   `evaluate` request once the block has run, while a block held `eager`

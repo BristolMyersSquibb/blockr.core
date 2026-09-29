@@ -78,9 +78,9 @@ evaluating. Each `eager` delta is `set`, `add` and `rm` — `set` states
 that owner's whole set and is exclusive with the other two — so no owner
 overwrites another's set. The two evaluation components put the named
 blocks (and their upstream closure) into the eval set while `construct`
-leaves them `dormant`, and none of the three touches what the front-end
-shows — see the Evaluation requests and Construction requests sections
-of
+leaves them `unevaluated`, and none of the three touches what the
+front-end shows — see the Evaluation requests and Construction requests
+sections of
 [`board_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_server.md).
 All three resolve their IDs against the post-update block set, so a
 payload may add a block and ask for it in one go. An `eager` `rm` is the

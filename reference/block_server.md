@@ -132,32 +132,25 @@ block-specific functionality, i.e. block user inputs and expression),
 and instantiation of the `edit_block` module (if passed from the parent
 scope).
 
-Each block carries an *eval status* – one of `dormant`, `stale`,
+Each block carries an *eval status* – one of `unevaluated`, `stale`,
 `waiting`, `unset`, `failed` or `ready` – which, together with its
-orthogonal front-end visibility, determines its behavior. The status
-separates the two input kinds (data inputs from links, user inputs from
-`state`) and a genuine failure:
+orthogonal front-end visibility, determines its behavior. The status is
+what the block's last *check* found, a check being a run of the block or
+the finding that it cannot run. A block that is *needed* – held eager,
+or feeding a block that is, as described below – is checked afresh
+whenever its status or result is read. One that is not, a *parked*
+block, keeps its inputs unfulfilled
+([`shiny::req()`](https://rdrr.io/pkg/shiny/man/req.html) out) and
+evaluates nothing: it reports what its last check found, and its result
+is the one that check left, for as long as nothing the check read has
+changed. Needed or parked, a block that is current reads the same. Four
+statuses are what a check can find, separating the two input kinds (data
+inputs from links, user inputs from `state`) and a genuine failure:
 
-- `dormant` – not *needed* (neither on screen nor feeding, transitively
-  over
-  [`board_links()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_blocks.md),
-  an on-screen block); inputs stay unfulfilled
-  ([`shiny::req()`](https://rdrr.io/pkg/shiny/man/req.html) out) and
-  nothing evaluates.
-
-- `stale` – dormant, but an upstream has produced a new result since the
-  block last evaluated, so its last-known result is out of date. The
-  block is not re-evaluated while dormant; the status only reports that
-  the cached result no longer reflects its inputs, so a front-end can
-  flag it (e.g. a muted node badge) without forcing a recompute. A
-  consumer that needs the block current asks for it with a
-  [`board_update()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_update.md)
-  `evaluate` request.
-
-- `waiting` – needed, but a required *data* input is missing:
-  unconnected, below the required number of variadic `...args` inputs
-  (one by default), or fed by an upstream block that is not itself
-  `ready` (see `allow_empty_state`).
+- `waiting` – a required *data* input is missing: unconnected, below the
+  required number of variadic `...args` inputs (one by default), or fed
+  by an upstream block that is not itself `ready` (see
+  `allow_empty_state`).
 
 - `unset` – data inputs are ready, but a required *user* input (`state`
   value) has not been provided (unless permitted by
@@ -172,6 +165,28 @@ separates the two input kinds (data inputs from links, user inputs from
 - `ready` – evaluation succeeded and a result (possibly a legitimate
   `NULL`) is available for downstream blocks to consume.
 
+A parked block reads one of the other two when it has no current check
+to report on:
+
+- `stale` – something the last check read has changed since: the block's
+  expression or eval trigger, which blocks feed its data inputs, or what
+  one of those holds. An upstream that is itself `stale` or
+  `unevaluated` counts as changed, so a change reaches the whole
+  downstream cone. The block is not re-evaluated; the status only
+  reports that what its last check found is out of date, so a front-end
+  can flag it (e.g. a muted node badge) without forcing a recompute. An
+  expression built from the input data cannot be rebuilt while those are
+  withheld, so for such a block the `state` it is built from is compared
+  instead.
+
+- `unevaluated` – the block has never been checked, which includes a
+  board block that is not built yet.
+
+A consumer that needs a parked block current asks for it with a
+[`board_update()`](https://bristolmyerssquibb.github.io/blockr.core/reference/board_update.md)
+`evaluate` request. Once none of the blocks it asked for reads `stale`
+or `unevaluated`, what they report is current.
+
 A block reaches `ready` only once its upstreams have, so an unconnected
 or pending block holds its whole downstream chain `waiting` without any
 of them evaluating against missing data. Output rendering follows the
@@ -179,8 +194,10 @@ status: the block output is shown only while `ready` and cleared
 otherwise, so a block leaving `ready` never displays a stale result.
 While not `ready` the block surfaces a condition explaining why – a
 `status`-phase note for `waiting` and `unset`, or the raised error for
-`failed`. Conditions raised during validation and evaluation are caught
-and returned to be surfaced to the app user.
+`failed`. The note is recorded by the check that finds the block unable
+to run, so a block checked off screen carries it too, and the check that
+runs the block clears it. Conditions raised during validation and
+evaluation are caught and returned to be surfaced to the app user.
 
 Block-level user inputs (provided by the expression module) are
 separated from output, the behavior of which can be customized via the
@@ -219,10 +236,11 @@ their upstream closure over
 reactives stay unfulfilled (they
 [`shiny::req()`](https://rdrr.io/pkg/shiny/man/req.html) out) unless the
 block is needed, so a block that is neither held eager nor feeding one
-pulls no input and stays fully quiescent: its result reactive, and any
-observer its expression server registers on the incoming data, all
-short-circuit and do nothing. A needed but off-screen block (one feeding
-a block held eager) evaluates but does not render.
+pulls no input and stays fully quiescent: its result reactive hands back
+what the last check left, and any observer its expression server
+registers on the incoming data short-circuits and does nothing. A needed
+but off-screen block (one feeding a block held eager) evaluates but does
+not render.
 
 Rendering follows `visible`, the per-block channel through which the
 front-end reports what it has painted – the effect, where holding a

@@ -145,7 +145,7 @@ build without evaluating. Each <code>eager</code> delta is <code>set</code>, <co
 <code>rm</code> — <code>set</code> states that owner's whole set and is exclusive with the
 other two — so no owner overwrites another's set. The two evaluation
 components put the named blocks (and their upstream closure) into
-the eval set while <code>construct</code> leaves them <code>dormant</code>, and none of
+the eval set while <code>construct</code> leaves them <code>unevaluated</code>, and none of
 the three touches what the front-end shows — see the Evaluation
 requests and Construction requests sections of <code><a href="board_server.html">board_server()</a></code>.
 All three resolve their IDs against the post-update block set, so a

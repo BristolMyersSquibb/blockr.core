@@ -182,14 +182,15 @@ default <code><a href="notify_user.html">notify_user()</a></code> plugin renders
 
 
 <p>Deferred evaluation leaves a block that nothing currently needs holding its
-last run — not only its result, but the conditions it reports. Anything that
-can reach the <code><a href="board_update.html">board_update()</a></code> channel can ask for such a block to be brought
-up to date, without putting it on screen, through the <code>evaluate</code> and <code>eager</code>
-payload components. Both name blocks, and core joins them, together with
-their upstream closure over <code><a href="board_blocks.html">board_links()</a></code> (without which they cannot
-produce a result), to the eval set. They differ only in who lets go: an
-<code>evaluate</code> request is a one-off that core drops once the block has run,
-while a block held <code>eager</code> stays evaluated until its owner releases it.</p>
+last check — the status it reached, its result and the conditions it
+reports (see <code><a href="block_server.html">block_server()</a></code>). Anything that can reach the <code><a href="board_update.html">board_update()</a></code>
+channel can ask for such a block to be brought up to date, without putting it
+on screen, through the <code>evaluate</code> and <code>eager</code> payload components. Both name
+blocks, and core joins them, together with their upstream closure over
+<code><a href="board_blocks.html">board_links()</a></code> (without which they cannot produce a result), to the eval
+set. They differ only in who lets go: an <code>evaluate</code> request is a one-off that
+core drops once the block has run, while a block held <code>eager</code> stays evaluated
+until its owner releases it.</p>
 <p>Eager blocks are keyed by owner, the <code>eager</code> component mapping each owner to
 a delta over the blocks it holds, so several consumers may hold the same
 block and none of them overwrites another's set:</p>
@@ -223,7 +224,12 @@ front-end is showing. Because these requests carry no state change, they are
 also the one part of a payload a locked board still accepts.</p>
 <p>Core drops a one-off request once the block has run — or has reported why it
 cannot, such as an unconnected data input or a user input that was never set.
-Requesting a block that is already in the eval set does nothing.</p>
+Either way the block has been checked against everything it depends on, so
+once it leaves the eval set it goes on reporting what that check found, until
+one of those changes (see <code><a href="block_server.html">block_server()</a></code>). A request for a parked block
+that is current is spent at once, since its status already reports what a
+run would find, and requesting a block that is already in the eval set does
+nothing.</p>
     </div>
     <div class="section level2">
     <h2 id="construction-requests">Construction requests<a class="anchor" aria-label="anchor" href="#construction-requests"></a></h2>
@@ -234,7 +240,7 @@ block merely <em>present</em> — the code export reads each block's expression 
 none of their results — had to make it run as well. The <code>construct</code> payload
 component asks for construction on its own. Like <code>evaluate</code> it is a bare
 character vector of block IDs, and the blocks it names are built in
-dependency order and left <code>dormant</code>:</p>
+dependency order and left <code>unevaluated</code>:</p>
 <p></p><div class="sourceCode r"><pre><code><span><span class="fu"><a href="https://rdrr.io/r/stats/update.html" class="external-link">update</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>construct <span class="op">=</span> <span class="fu"><a href="../reference/board_blocks.html">board_block_ids</a></span><span class="op">(</span><span class="va">board</span><span class="op">$</span><span class="va">board</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
 <p>Nothing is retained. Once a block is built it stays built, so unlike the two
 evaluation components there is no owner to name and nothing to hand back, and

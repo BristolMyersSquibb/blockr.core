@@ -191,23 +191,21 @@ functionality, including data input validation (if available), instantiation
 of the block expression server (handling the block-specific functionality,
 i.e. block user inputs and expression), and instantiation of the
 <code>edit_block</code> module (if passed from the parent scope).</p>
-<p>Each block carries an <em>eval status</em> – one of <code>dormant</code>, <code>stale</code>, <code>waiting</code>,
-<code>unset</code>, <code>failed</code> or <code>ready</code> – which, together with its orthogonal front-end
-visibility, determines its behavior. The status separates the two input
-kinds (data
-inputs from links, user inputs from <code>state</code>) and a genuine failure:</p><ul><li><p><code>dormant</code> – not <em>needed</em> (neither on screen nor feeding, transitively over
-<code><a href="board_blocks.html">board_links()</a></code>, an on-screen block); inputs stay unfulfilled
-(<code><a href="https://rdrr.io/pkg/shiny/man/req.html" class="external-link">shiny::req()</a></code> out) and nothing evaluates.</p></li>
-<li><p><code>stale</code> – dormant, but an upstream has produced a new result since the
-block last evaluated, so its last-known result is out of date. The block
-is not re-evaluated while dormant; the status only reports that the cached
-result no longer reflects its inputs, so a front-end can flag it (e.g. a
-muted node badge) without forcing a recompute. A consumer that needs the
-block current asks for it with a <code><a href="board_update.html">board_update()</a></code> <code>evaluate</code> request.</p></li>
-<li><p><code>waiting</code> – needed, but a required <em>data</em> input is missing: unconnected,
-below the required number of variadic <code>...args</code> inputs (one by default),
-or fed by an upstream block that is not itself <code>ready</code> (see
-<code>allow_empty_state</code>).</p></li>
+<p>Each block carries an <em>eval status</em> – one of <code>unevaluated</code>, <code>stale</code>,
+<code>waiting</code>, <code>unset</code>, <code>failed</code> or <code>ready</code> – which, together with its
+orthogonal front-end visibility, determines its behavior. The status is what
+the block's last <em>check</em> found, a check being a run of the block or the
+finding that it cannot run. A block that is <em>needed</em> – held eager, or
+feeding a block that is, as described below – is checked afresh whenever its
+status or result is read. One that is not, a <em>parked</em> block, keeps its inputs
+unfulfilled (<code><a href="https://rdrr.io/pkg/shiny/man/req.html" class="external-link">shiny::req()</a></code> out) and evaluates nothing: it reports what its
+last check found, and its result is the one that check left, for as long as
+nothing the check read has changed. Needed or parked, a block that is current
+reads the same. Four statuses are what a check can find, separating the two
+input kinds (data inputs from links, user inputs from <code>state</code>) and a genuine
+failure:</p><ul><li><p><code>waiting</code> – a required <em>data</em> input is missing: unconnected, below the
+required number of variadic <code>...args</code> inputs (one by default), or fed by an
+upstream block that is not itself <code>ready</code> (see <code>allow_empty_state</code>).</p></li>
 <li><p><code>unset</code> – data inputs are ready, but a required <em>user</em> input (<code>state</code>
 value) has not been provided (unless permitted by <code>allow_empty_state</code>).</p></li>
 <li><p><code>failed</code> – all inputs are present, but the block cannot produce a result:
@@ -215,15 +213,32 @@ the data validator (<code><a href="block_name.html">validate_data_inputs()</a></
 raised. The offending condition is surfaced through the block conditions.</p></li>
 <li><p><code>ready</code> – evaluation succeeded and a result (possibly a legitimate <code>NULL</code>)
 is available for downstream blocks to consume.</p></li>
-</ul><p>A block reaches <code>ready</code> only once its upstreams have, so an unconnected or
+</ul><p>A parked block reads one of the other two when it has no current check to
+report on:</p><ul><li><p><code>stale</code> – something the last check read has changed since: the block's
+expression or eval trigger, which blocks feed its data inputs, or what one
+of those holds. An upstream that is itself <code>stale</code> or <code>unevaluated</code> counts
+as changed, so a change reaches the whole downstream cone. The block is not
+re-evaluated; the status only reports that what its last check found is
+out of date, so a front-end can flag it (e.g. a muted node badge) without
+forcing a recompute. An expression built from the input data cannot be
+rebuilt while those are withheld, so for such a block the <code>state</code> it is
+built from is compared instead.</p></li>
+<li><p><code>unevaluated</code> – the block has never been checked, which includes a board
+block that is not built yet.</p></li>
+</ul><p>A consumer that needs a parked block current asks for it with a
+<code><a href="board_update.html">board_update()</a></code> <code>evaluate</code> request. Once none of the blocks it asked for
+reads <code>stale</code> or <code>unevaluated</code>, what they report is current.</p>
+<p>A block reaches <code>ready</code> only once its upstreams have, so an unconnected or
 pending block holds its whole downstream chain <code>waiting</code> without any of them
 evaluating against missing data. Output rendering follows the status: the
 block output is shown only while <code>ready</code> and cleared otherwise, so a block
 leaving <code>ready</code> never displays a stale result. While not <code>ready</code> the block
 surfaces a condition explaining why – a <code>status</code>-phase note for <code>waiting</code>
-and <code>unset</code>, or the raised error for <code>failed</code>. Conditions raised during
-validation and evaluation are caught and returned to be surfaced to the app
-user.</p>
+and <code>unset</code>, or the raised error for <code>failed</code>. The note is recorded by the
+check that finds the block unable to run, so a block checked off screen
+carries it too, and the check that runs the block clears it. Conditions
+raised during validation and evaluation are caught and returned to be
+surfaced to the app user.</p>
 <p>Block-level user inputs (provided by the expression module) are separated
 from output, the behavior of which can be customized via the
 <code><a href="block_ui.html">block_output()</a></code> generic. The <code><a href="block_ui.html">block_ui()</a></code> generic can then be used to
@@ -249,9 +264,10 @@ their upstream closure over <code><a href="board_blocks.html">board_links()</a><
 or links change). A block's input data reactives stay unfulfilled (they
 <code><a href="https://rdrr.io/pkg/shiny/man/req.html" class="external-link">shiny::req()</a></code> out) unless the block is needed, so a block that is neither
 held eager nor feeding one pulls no input and stays fully quiescent: its
-result reactive, and any observer its expression server registers on the
-incoming data, all short-circuit and do nothing. A needed but off-screen
-block (one feeding a block held eager) evaluates but does not render.</p>
+result reactive hands back what the last check left, and any observer its
+expression server registers on the incoming data short-circuits and does
+nothing. A needed but off-screen block (one feeding a block held eager)
+evaluates but does not render.</p>
 <p>Rendering follows <code>visible</code>, the per-block channel through which the
 front-end reports what it has painted – the effect, where holding a block
 eager is the cause. The render observer is suspended while a block carries
