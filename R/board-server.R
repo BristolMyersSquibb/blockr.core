@@ -232,6 +232,12 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
       rv$evaluating <- reactiveVal(character())
       rv$eager_blocks <- reactiveVal(list())
 
+      # The front-end's own set, which is what it puts on screen, or `TRUE` for
+      # every block on a board no front-end gates.
+      rv$front_end_eager <- reactive(
+        if (gating_active(vis)) rv$eager_blocks()[[vis$gate()]] else TRUE
+      )
+
       observe(
         {
           cur <- if (!gating_active(vis)) {

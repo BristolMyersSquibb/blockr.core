@@ -67,7 +67,8 @@
 #' surfaces a condition explaining why -- a `status`-phase note for `waiting`
 #' and `unset`, or the raised error for `failed`. The note is recorded by the
 #' check that finds the block unable to run, so a block checked off screen
-#' carries it too, and the check that runs the block clears it. Conditions
+#' carries it too, and the check that runs the block clears it. The default
+#' [notify_user()] plugin toasts it only for a block on screen. Conditions
 #' raised during validation and evaluation are caught and returned to be
 #' surfaced to the app user.
 #'

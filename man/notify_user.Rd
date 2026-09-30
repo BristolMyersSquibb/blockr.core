@@ -37,3 +37,10 @@ conditions and clearing ones that are no longer active via
 are tracked individually, so that a single block's change touches only its
 own notifications rather than re-processing the whole board.
 }
+\details{
+A \code{status}-phase note, which says why a block cannot run (see
+\code{\link[=block_server]{block_server()}}), is toasted only for a block on screen, taken to be one the
+front-end holds eager, or any block on a board no front-end gates. Any check
+records the note, including one of a block nobody is looking at, where a
+toast would stay until the block is fixed.
+}

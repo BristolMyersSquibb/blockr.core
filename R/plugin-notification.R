@@ -8,6 +8,12 @@
 #' are tracked individually, so that a single block's change touches only its
 #' own notifications rather than re-processing the whole board.
 #'
+#' A `status`-phase note, which says why a block cannot run (see
+#' [block_server()]), is toasted only for a block on screen, taken to be one the
+#' front-end holds eager, or any block on a board no front-end gates. Any check
+#' records the note, including one of a block nobody is looking at, where a
+#' toast would stay until the block is fixed.
+#'
 #' @param server,ui Server/UI for the plugin module
 #'
 #' @return A plugin container inheriting from `notify_user` is returned by
@@ -79,10 +85,16 @@ block_notif_observer <- function(block_id, board, session) {
 
   shown <- character()
 
-  obs <- observeEvent(
-    conditions(),
+  obs <- observe(
     {
-      frame <- notif_frame(conditions(), session)
+      cnds <- conditions()
+
+      # Only a block carrying a status note depends on the front-end's set.
+      if (any(cnds$phase == "status") && !front_end_holds(block_id, board)) {
+        cnds <- cnds[cnds$phase != "status", , drop = FALSE]
+      }
+
+      frame <- notif_frame(cnds, session)
 
       for (key in setdiff(shown, frame$key)) {
         notify_remove(key, session)
@@ -93,8 +105,7 @@ block_notif_observer <- function(block_id, board, session) {
       }
 
       shown <<- frame$key
-    },
-    ignoreNULL = FALSE
+    }
   )
 
   list(
@@ -107,6 +118,13 @@ block_notif_observer <- function(block_id, board, session) {
       }
     }
   )
+}
+
+front_end_holds <- function(block_id, board) {
+
+  held <- board$front_end_eager()
+
+  isTRUE(held) || block_id %in% held
 }
 
 notif_frame <- function(conditions, session = get_session()) {

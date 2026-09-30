@@ -247,3 +247,222 @@ test_that("notif_frame collapses a block's duplicate keys to one row", {
     }
   )
 })
+
+test_that("notify_user toasts a status note while the front-end holds it", {
+
+  rec <- record_notifications()
+
+  local_mocked_bindings(
+    showNotification = function(ui, ..., id = NULL, session = NULL) {
+      rec$events <- c(rec$events, paste0("show:", id))
+      id
+    },
+    removeNotification = function(id, session = NULL) {
+      rec$events <- c(rec$events, paste0("remove:", id))
+      invisible()
+    }
+  )
+
+  cond_a <- reactiveVal(
+    rbind(
+      cnd_row("a", "warning", "w1", "waiting", phase = "status"),
+      cnd_row("a", "error", "e1", "boom")
+    )
+  )
+
+  held <- reactiveVal(character())
+
+  board <- reactiveValues(
+    blocks = list(a = list(server = list(conditions = cond_a))),
+    front_end_eager = held
+  )
+
+  testServer(
+    notify_user_server,
+    {
+      session$flushReact()
+      expect_identical(rec$events, "show:a-error-e1")
+
+      rec$events <- character()
+
+      held("a")
+      session$flushReact()
+      expect_identical(rec$events, "show:a-warning-w1")
+
+      rec$events <- character()
+
+      held(character())
+      session$flushReact()
+      expect_identical(rec$events, "remove:a-warning-w1")
+
+      rec$events <- character()
+
+      # A board no front-end gates puts every block on screen.
+      held(TRUE)
+      session$flushReact()
+      expect_identical(rec$events, "show:a-warning-w1")
+    },
+    args = list(board = board)
+  )
+})
+
+test_that("notify_user reads the front-end's set only for a status note", {
+
+  local_mocked_bindings(
+    showNotification = function(ui, ..., id = NULL, session = NULL) id,
+    removeNotification = function(id, session = NULL) invisible()
+  )
+
+  reads <- new.env(parent = emptyenv())
+  reads$a <- 0L
+  reads$b <- 0L
+
+  val_a <- reactiveVal(cnd_row("a", "warning", "wa", "A", phase = "status"))
+  val_b <- reactiveVal(cnd_row("b", "error", "eb", "B"))
+
+  cond_a <- function() {
+    reads$a <- reads$a + 1L
+    val_a()
+  }
+
+  cond_b <- function() {
+    reads$b <- reads$b + 1L
+    val_b()
+  }
+
+  held <- reactiveVal(character())
+
+  board <- reactiveValues(
+    blocks = list(
+      a = list(server = list(conditions = cond_a)),
+      b = list(server = list(conditions = cond_b))
+    ),
+    front_end_eager = held
+  )
+
+  testServer(
+    notify_user_server,
+    {
+      session$flushReact()
+
+      reads_a <- reads$a
+      reads_b <- reads$b
+
+      held("a")
+      session$flushReact()
+
+      expect_gt(reads$a, reads_a)
+      expect_identical(reads$b, reads_b)
+    },
+    args = list(board = board)
+  )
+})
+
+test_that("notify_user leaves a status note untoasted for a block off screen", {
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  rec <- record_notifications()
+
+  local_mocked_bindings(
+    showNotification = function(ui, ..., id = NULL, session = NULL) {
+      rec$events <- c(rec$events, paste0("show:", id))
+      id
+    },
+    removeNotification = function(id, session = NULL) {
+      rec$events <- c(rec$events, paste0("remove:", id))
+      invisible()
+    }
+  )
+
+  board <- new_board(
+    blocks = c(s = new_dataset_block("iris"), w = new_head_block())
+  )
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+
+      # Checked on request while never on screen, w records why it cannot run,
+      # and that stays unannounced.
+      board_update(list(evaluate = "w"))
+      session$flushReact()
+
+      cnds <- rv$conditions()
+
+      expect_identical(rv$eval[["w"]](), "waiting")
+      expect_true(any(cnds$block == "w" & cnds$phase == "status"))
+      expect_identical(rec$events, character())
+
+      board_update(list(eager = list(`front-end` = list(add = "w"))))
+      session$flushReact()
+
+      expect_length(rec$events, 1L)
+      expect_match(rec$events, "^show:w-warning-")
+
+      rec$events <- character()
+
+      board_update(list(eager = list(`front-end` = list(rm = "w"))))
+      session$flushReact()
+
+      expect_length(rec$events, 1L)
+      expect_match(rec$events, "^remove:w-warning-")
+    },
+    args = list(
+      x = board,
+      plugins = board_plugins(board, which = "notify_user"),
+      callbacks = function(visibility, ...) {
+        visibility$visible[["s"]](TRUE)
+        eager("front-end", "s")
+      }
+    )
+  )
+})
+
+test_that("notify_user toasts every status note on an ungated board", {
+
+  withr::local_options(blockr.background_construction_delay = 0)
+
+  rec <- record_notifications()
+
+  local_mocked_bindings(
+    showNotification = function(ui, ..., id = NULL, session = NULL) {
+      rec$events <- c(rec$events, paste0("show:", id))
+      id
+    },
+    removeNotification = function(id, session = NULL) {
+      rec$events <- c(rec$events, paste0("remove:", id))
+      invisible()
+    }
+  )
+
+  board <- new_board(
+    blocks = c(s = new_dataset_block("iris"), w = new_head_block())
+  )
+
+  args <- list(x = board, plugins = board_plugins(board, which = "notify_user"))
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+      expect_match(rec$events, "^show:w-warning-")
+    },
+    args = args
+  )
+
+  rec$events <- character()
+
+  # A declared front-end does not gate with gating switched off.
+  withr::local_options(blockr.gate_visibility = FALSE)
+
+  testServer(
+    get_s3_method("board_server", board),
+    {
+      session$flushReact()
+      expect_match(rec$events, "^show:w-warning-")
+    },
+    args = c(args, list(callbacks = function(...) eager("front-end", "s")))
+  )
+})

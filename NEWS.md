@@ -36,7 +36,9 @@
 * The reason a block cannot run is now recorded by the check that finds it,
   rather than when the block renders, so a block checked off screen by an
   `evaluate` request carries it, and one fixed off screen drops it once it
-  runs (#362).
+  runs (#362). The `notify_user()` plugin still toasts it only for a block on
+  screen, now taken to be one the front-end holds eager rather than one that
+  rendered (#370).
 * Links can now be placed rather than only appended. The `modify_board_links()`
   arguments `before` and `after`, mirrored by `links$before` / `links$after` in
   a board update payload, name where a link passed as `add` should sit, as
