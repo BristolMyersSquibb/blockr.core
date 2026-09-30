@@ -8,6 +8,10 @@
   `names()` and `length()` read as before. Breaking for a block server that
   reads data from `...args` directly, which now receives a reactive in its
   place (#361).
+* The `trim_rv()` export is gone. It removed a key from a `reactiveValues()`
+  object by reaching into shiny's internals, while a collection from the
+  `reactives` package, such as `reactives::reactive_vals()`, drops one with
+  `x[[key]] <- NULL` (#361).
 * Evaluation demand is now one multi-owner set rather than two channels. The
   front-end's per-block `required` channel is gone: the blocks it needs
   evaluated are held `eager` under an owner label, like any other consumer's.
