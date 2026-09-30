@@ -5,6 +5,7 @@ probe_eval <- new.env()
 probe_eval$ids <- character()
 
 probe_args <- new.env()
+probe_args$entry_reactive <- NULL
 probe_args$entry_classes <- NULL
 
 probe_construct <- new.env()
@@ -224,8 +225,11 @@ probe_variadic <- function() {
             {
               ks <- names(...args)
               req(length(ks) > 0)
+              probe_args$entry_reactive <- lgl_ply(
+                ks, function(k) is.reactive(...args[[k]])
+              )
               probe_args$entry_classes <- chr_ply(
-                ks, function(k) class(...args[[k]])[1L]
+                ks, function(k) class(...args[[k]]())[1L]
               )
             }
           )
@@ -2457,9 +2461,10 @@ test_that("adding a block does not re-evaluate existing needed blocks", {
   )
 })
 
-test_that("a variadic block receives its inputs as values, not reactives", {
+test_that("a variadic block receives reactives that return its inputs", {
 
   reset_probes()
+  probe_args$entry_reactive <- NULL
   probe_args$entry_classes <- NULL
 
   withr::local_options(blockr.background_construction_delay = 0)
@@ -2478,6 +2483,7 @@ test_that("a variadic block receives its inputs as values, not reactives", {
     {
       session$flushReact()
 
+      expect_identical(probe_args$entry_reactive, c(TRUE, TRUE))
       expect_length(probe_args$entry_classes, 2)
       expect_setequal(probe_args$entry_classes, "data.frame")
     },
@@ -2975,12 +2981,11 @@ test_that("a downstream input recovers an upstream built after it ran", {
       function(input, output, session) {
 
         rv <- reactiveValues(blocks = list())
-        rv$eval <- reactiveValues()
+        rv$eval <- reactives()
         rv$needed <- reactiveVal(TRUE)
-        rv$needed_slots <- new.env(parent = emptyenv())
+        rv$needed_slots <- reactive_vals()
 
-        src_rv <- reactiveValues()
-        src_rv[["data"]] <- "up"
+        src_rv <- reactive_vals(data = "up")
 
         input_res <- upstream_result("data", src_rv, rv, to = "down")
 

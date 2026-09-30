@@ -52,6 +52,10 @@ generate_plugin_args <- function(board, ..., mode = c("edit", "read")) {
 # reactiveExpr both become read-only reactives, since callers only read them.
 snapshot_reactives <- function(x) {
 
+  if (is_reactives(x)) {
+    return(reactives::snapshot_reactives(x))
+  }
+
   if (is.reactivevalues(x)) {
     vals <- lapply(isolate(reactiveValuesToList(x)), snapshot_reactives)
     return(withReactiveDomain(NULL, do.call(reactiveValues, vals)))

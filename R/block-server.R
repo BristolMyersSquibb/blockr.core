@@ -728,7 +728,7 @@ block_sources <- function(id, rv) {
     return(NULL)
   }
 
-  unlst(reactiveValuesToList(srcs), use_names = TRUE)
+  unlst(slot_values(srcs), use_names = TRUE)
 }
 
 # Reading the status first is what brings a needed upstream up to date, so the

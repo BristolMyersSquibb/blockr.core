@@ -1,5 +1,13 @@
 # blockr.core 0.1.4
 
+* The `...args` argument of a variadic block's server is now a collection from
+  the `reactives` package, and reading one of its slots returns the reactive
+  for that input rather than its data, the way fixed data inputs arrive. The
+  data of an input is `...args[[1]]()` or `...args$x()`, and
+  `reactives::slot_values(...args)` returns the data of every input, while
+  `names()` and `length()` read as before. Breaking for a block server that
+  reads data from `...args` directly, which now receives a reactive in its
+  place (#361).
 * Evaluation demand is now one multi-owner set rather than two channels. The
   front-end's per-block `required` channel is gone: the blocks it needs
   evaluated are held `eager` under an owner label, like any other consumer's.

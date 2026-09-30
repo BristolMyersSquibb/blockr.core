@@ -17,8 +17,8 @@ test_that("rbind block constructor", {
       x = blk,
       data = list(
         ...args = reactives(
-          function() iris[1:3, ],
-          function() iris[4:6, ]
+          reactive(iris[1:3, ]),
+          reactive(iris[4:6, ])
         )
       )
     )
@@ -37,8 +37,8 @@ test_that("rbind block constructor", {
       x = blk,
       data = list(
         ...args = reactives(
-          a = function() iris[1:3, ],
-          b = function() iris[4:6, ]
+          a = reactive(iris[1:3, ]),
+          b = reactive(iris[4:6, ])
         )
       )
     )
@@ -57,9 +57,31 @@ test_that("rbind block constructor", {
       x = blk,
       data = list(
         ...args = reactives(
-          function() iris[1:3, ],
-          a = function() iris[4:6, ]
+          reactive(iris[1:3, ]),
+          a = reactive(iris[4:6, ])
         )
+      )
+    )
+  )
+})
+
+test_that("a reactiveValues() object still works as `...args`", {
+
+  blk <- new_rbind_block()
+
+  testServer(
+    get_s3_method("block_server", blk),
+    {
+      session$flushReact()
+      expect_identical(
+        session$returned$result(),
+        rbind(a = iris[1:3, ], b = iris[4:6, ])
+      )
+    },
+    args = list(
+      x = blk,
+      data = list(
+        ...args = reactiveValues(a = iris[1:3, ], b = iris[4:6, ])
       )
     )
   )
@@ -153,8 +175,8 @@ test_that("positional ...args follow container order, not any sort", {
       x = blk,
       data = list(
         ...args = reactives(
-          function() iris[4:6, ],
-          function() iris[1:3, ]
+          reactive(iris[4:6, ]),
+          reactive(iris[1:3, ])
         )
       )
     )

@@ -34,13 +34,15 @@
 #' extra argument `data`, while a block that performs [base::merge()] requires
 #' two extra arguments, e.g. `x` and `y`. Finally, a variadic block, e.g.
 #' a block implementing something like [base::rbind()], needs to accommodate for
-#' an arbitrary number of inputs. This is achieved by passing a container
-#' object as `...args` and thus such a variadic block needs `...args` as part
-#' of the server function signature. The container mirrors
-#' [shiny::reactiveValues()] for reads (`names()`, `[[`, `$` and `as.list()`),
-#' and accessing a slot yields the value of its (lazily evaluated) input. The
-#' fixed per-data input arguments are instead passed as [shiny::reactive()] or
-#' [shiny::reactiveVal()] objects.
+#' an arbitrary number of inputs. This is achieved by passing a
+#' [reactives::reactives()] collection as `...args` and thus such a variadic
+#' block needs `...args` as part of the server function signature. The fixed
+#' per-data input arguments are passed as [shiny::reactive()] or
+#' [shiny::reactiveVal()] objects, and each slot of the collection holds such a
+#' reactive for one input: reading a slot, as in `...args[[1]]` or
+#' `...args$x`, returns the reactive, and calling it returns the input's data.
+#' The inputs are listed by `names()` and counted by `length()`, and
+#' [reactives::slot_values()] returns the data of all of them.
 #'
 #' The server function may implement arbitrary shiny logic and is expected to
 #' return a list with components `expr` and `state`. The expression corresponds

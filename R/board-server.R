@@ -191,7 +191,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
         conditions = NULL
       )
 
-      rv$eval <- reactiveValues()
+      rv$eval <- reactives()
 
       add_eval_slots(rv, isolate(board_block_ids(rv$board)))
 
@@ -213,7 +213,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
 
       rv$needed <- reactiveVal(TRUE)
 
-      # Per-block `needed` slots: an env of reactiveVals, one per block, kept in
+      # Per-block `needed` slots: reactiveVals, one per block, kept in
       # step with the whole-set rv$needed() below. A block's data-input and
       # eval-status reactives read ONLY their own slot (see block_needed()), not
       # the whole set, so a view switch that flips which LEAF blocks are needed
@@ -222,7 +222,7 @@ board_server.board <- function(id, x, plugins = board_plugins(x),
       # set, so any switch re-fired every block's inputs and re-evaluated the
       # whole shared pipeline (and everything downstream) even though no data
       # changed.
-      rv$needed_slots <- new.env(parent = emptyenv())
+      rv$needed_slots <- reactive_vals()
 
       # The two request sets fed by the `evaluate` and `eager` board update
       # components. Both join the needed set below; they differ in who lets go.
@@ -581,7 +581,7 @@ construct_block <- function(id, rv, mod_ed, mod_ct, args, vis) {
 
   blk <- board_blocks(rv$board)[[id]]
 
-  rv$sources[[id]] <- reactiveValues()
+  rv$sources[[id]] <- reactive_vals()
   src_rv <- rv$sources[[id]]
 
   inpts <- set_names(
@@ -619,7 +619,7 @@ construct_block <- function(id, rv, mod_ed, mod_ct, args, vis) {
   # built block's inputs_ready (via input_ready()) -- so constructing one new
   # block re-fired inputs_ready -> data_valid -> dat_eval -> res for the whole
   # already-computed board and re-evaluated the shared upstream pipeline on
-  # every first visit to a view. Mutating the reactiveValues through a local
+  # every first visit to a view. Mutating the collection through a local
   # binding keeps per-key granularity: only readers of THIS block's slot (its
   # direct downstreams, waking up on the upstream's construction) are notified.
   ev <- isolate(rv$eval)
@@ -779,9 +779,10 @@ background_construction_delay <- function() {
 add_eval_slots <- function(rv, ids) {
 
   ev <- isolate(rv$eval)
+  unbuilt <- reactive(unbuilt_status())
 
   for (id in ids) {
-    ev[[id]] <- unbuilt_status
+    ev[[id]] <- unbuilt
   }
 
   invisible()
@@ -1018,7 +1019,7 @@ needed_block_ids <- function(rv) {
 
 block_inputs_ready <- function(src_rv, blk, rv) {
 
-  src <- reactiveValuesToList(src_rv)
+  src <- slot_values(src_rv)
   fixed <- block_inputs(blk)
   required <- setdiff(fixed, block_optional_inputs(blk))
 
@@ -1064,11 +1065,13 @@ block_needed <- function(rv, id) {
 # local binding: `rv$needed_slots[[id]] <- ...` would rebind the `needed_slots`
 # key on `rv`, invalidating every reactive that touched the container (the same
 # whole-container churn this file fixes for `rv$eval` in construct_block).
-# Callers depend on the returned reactiveVal alone, never on the container; the
-# environment mutates by reference so all readers share the slots.
+# Callers depend on the returned reactiveVal alone, never on the container, so
+# the slot is read under isolate() too: reading a slot subscribes to it, and a
+# reader that creates its own slot would invalidate itself. The collection
+# mutates by reference so all readers share the slots.
 block_needed_slot <- function(rv, id) {
   slots <- isolate(rv$needed_slots)
-  slot <- slots[[id]]
+  slot <- isolate(slots[[id]])
   if (is.null(slot)) {
     n <- isolate(rv$needed())
     slot <- reactiveVal(isTRUE(n) || id %in% n)
@@ -1079,7 +1082,7 @@ block_needed_slot <- function(rv, id) {
 
 set_needed_slot <- function(rv, id, val) {
   slots <- isolate(rv$needed_slots)
-  slot <- slots[[id]]
+  slot <- isolate(slots[[id]])
   if (is.null(slot)) {
     slots[[id]] <- reactiveVal(val)
   } else if (!identical(isolate(slot()), val)) {
@@ -1131,9 +1134,7 @@ destroy_rm_blocks <- function(ids, rv, sess) {
 
   for (id in ids) {
     ev[[id]] <- NULL
-    if (!is.null(slots[[id]])) {
-      rm(list = id, envir = slots)
-    }
+    slots[[id]] <- NULL
   }
 
   rv$evaluating(setdiff(isolate(rv$evaluating()), ids))
@@ -1155,11 +1156,13 @@ upstream_result <- function(key, src_rv, rv, to) {
       # input reactive and force a re-evaluation of unchanged upstream data.
       req(block_needed(rv, to))
 
-      from <- src_rv[[key]]
+      slot <- src_rv[[key]]
 
-      if (is.null(from)) {
+      if (is.null(slot)) {
         return(NULL)
       }
+
+      from <- slot()
 
       # Depend on the upstream's rv$eval slot -- replaced when it is
       # constructed -- so a downstream whose input runs before its upstream
@@ -1183,20 +1186,23 @@ link_slot_key <- function(rv, to, id, input) {
 
 setup_link <- function(rv, id, from, to, input) {
 
-  rv$sources[[to]][[link_slot_key(rv, to, id, input)]] <- from
+  src <- rv$sources[[to]]
+  key <- link_slot_key(rv, to, id, input)
+  slot <- isolate(src[[key]])
+
+  if (is.null(slot)) {
+    src[[key]] <- reactiveVal(from)
+  } else {
+    slot(from)
+  }
 
   invisible()
 }
 
 destroy_link <- function(rv, id, from, to, input) {
 
-  src_rv <- rv$sources[[to]]
-
-  if (input %in% block_inputs(board_blocks(rv$board)[[to]])) {
-    src_rv[[input]] <- NULL
-  } else {
-    trim_rv(src_rv, id)
-  }
+  src <- rv$sources[[to]]
+  src[[link_slot_key(rv, to, id, input)]] <- NULL
 
   invisible()
 }
@@ -1226,8 +1232,11 @@ sync_dot_args <- function(rv, to, lnks) {
   args <- rv$inputs[[to]][["...args"]]
   src_rv <- rv$sources[[to]]
 
-  for (key in isolate(raw_keys(args))) {
-    drop_reactive(args, key)
+  # Unnamed slots have no name to remove them by, hence by position. Reading
+  # length() subscribes, so it is isolated here and when appending below, or an
+  # observer syncing the slots would invalidate itself.
+  for (i in seq_len(isolate(length(args)))) {
+    args[[1L]] <- NULL
   }
 
   ids <- names(lnks)
@@ -1238,9 +1247,9 @@ sync_dot_args <- function(rv, to, lnks) {
     slot <- upstream_result(ids[[i]], src_rv, rv, to)
 
     if (nzchar(inputs[[i]])) {
-      set_reactive(args, inputs[[i]], slot)
+      args[[inputs[[i]]]] <- slot
     } else {
-      append_reactive(args, slot)
+      args[[isolate(length(args)) + 1L]] <- slot
     }
   }
 
