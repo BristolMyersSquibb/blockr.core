@@ -1,17 +1,17 @@
 # blockr.core 0.1.4
 
-* The `...args` argument of a variadic block's server is now a collection from
-  the `reactives` package, and reading one of its slots returns the reactive
-  for that input rather than its data, the way fixed data inputs arrive. The
-  data of an input is `...args[[1]]()` or `...args$x()`, and
-  `reactives::slot_values(...args)` returns the data of every input, while
-  `names()` and `length()` read as before. Breaking for a block server that
-  reads data from `...args` directly, which now receives a reactive in its
-  place (#361).
+* The `...args` argument of a variadic block's server is now a
+  `reactives::reactive_exprs()` collection rather than an internal class.
+  Reading an input with `...args[[1]]` or `...args$x` still returns its data,
+  and `names()` and `length()` read as before, while `...args[1]` returns the
+  input's reactive and `reactives::as_values(...args)` the data of every input.
+  Breaking for a block server that calls `as.list(...args)`, which now returns
+  the inputs' reactives rather than their data, or that writes a value into
+  `...args`, which is now an error (#361).
 * The `trim_rv()` export is gone. It removed a key from a `reactiveValues()`
   object by reaching into shiny's internals, while a collection from the
   `reactives` package, such as `reactives::reactive_vals()`, drops one with
-  `x[[key]] <- NULL` (#361).
+  `x[key] <- NULL` (#361).
 * Evaluation demand is now one multi-owner set rather than two channels. The
   front-end's per-block `required` channel is gone: the blocks it needs
   evaluated are held `eager` under an owner label, like any other consumer's.

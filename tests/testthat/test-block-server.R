@@ -288,8 +288,8 @@ test_that("an unconnected block is waiting and explains why", {
     {
       session$flushReact()
 
-      expect_identical(rv$eval$a(), "ready")
-      expect_identical(rv$eval$b(), "waiting")
+      expect_identical(rv$eval$a, "ready")
+      expect_identical(rv$eval$b, "waiting")
 
       expect_identical(rv$blocks$a$server$result(), datasets::iris)
       expect_null(rv$blocks$b$server$result())
@@ -316,14 +316,14 @@ test_that("a waiting block evaluates once its input is connected", {
     get_s3_method("board_server", board),
     {
       session$flushReact()
-      expect_identical(rv$eval$b(), "waiting")
+      expect_identical(rv$eval$b, "waiting")
 
       board_update(
         list(links = list(add = links(ab = new_link("a", "b", "data"))))
       )
       session$flushReact()
 
-      expect_identical(rv$eval$b(), "ready")
+      expect_identical(rv$eval$b, "ready")
       expect_identical(
         rv$blocks$b$server$result(),
         utils::head(datasets::iris)
@@ -350,8 +350,8 @@ test_that("a waiting upstream holds its downstream waiting (cascade)", {
     {
       session$flushReact()
 
-      expect_identical(rv$eval$b(), "waiting")
-      expect_identical(rv$eval$c(), "waiting")
+      expect_identical(rv$eval$b, "waiting")
+      expect_identical(rv$eval$c, "waiting")
       expect_false("error" %in% rv$conditions()$severity)
 
       board_update(
@@ -359,8 +359,8 @@ test_that("a waiting upstream holds its downstream waiting (cascade)", {
       )
       session$flushReact()
 
-      expect_identical(rv$eval$b(), "ready")
-      expect_identical(rv$eval$c(), "ready")
+      expect_identical(rv$eval$b, "ready")
+      expect_identical(rv$eval$c, "ready")
       expect_identical(
         rv$blocks$c$server$result(),
         utils::head(datasets::iris)
@@ -385,13 +385,13 @@ test_that("a block returns to waiting when its input is disconnected", {
     {
       session$flushReact()
 
-      expect_identical(rv$eval$b(), "ready")
+      expect_identical(rv$eval$b, "ready")
       expect_identical(rv$blocks$b$server$result(), utils::head(datasets::iris))
 
       board_update(list(links = list(rm = "ab")))
       session$flushReact()
 
-      expect_identical(rv$eval$b(), "waiting")
+      expect_identical(rv$eval$b, "waiting")
       expect_null(rv$blocks$b$server$result())
     },
     args = list(x = board)
@@ -454,7 +454,7 @@ test_that("a block whose expression errors is failed, not ready", {
     {
       session$flushReact()
 
-      expect_identical(rv$eval$b(), "failed")
+      expect_identical(rv$eval$b, "failed")
       expect_null(rv$blocks$b$server$result())
 
       cnds <- rv$blocks$b$server$conditions()

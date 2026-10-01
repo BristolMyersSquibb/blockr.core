@@ -35,14 +35,15 @@
 #' two extra arguments, e.g. `x` and `y`. Finally, a variadic block, e.g.
 #' a block implementing something like [base::rbind()], needs to accommodate for
 #' an arbitrary number of inputs. This is achieved by passing a
-#' [reactives::reactives()] collection as `...args` and thus such a variadic
-#' block needs `...args` as part of the server function signature. The fixed
-#' per-data input arguments are passed as [shiny::reactive()] or
-#' [shiny::reactiveVal()] objects, and each slot of the collection holds such a
-#' reactive for one input: reading a slot, as in `...args[[1]]` or
-#' `...args$x`, returns the reactive, and calling it returns the input's data.
-#' The inputs are listed by `names()` and counted by `length()`, and
-#' [reactives::slot_values()] returns the data of all of them.
+#' [reactives::reactive_exprs()] collection as `...args` and thus such a
+#' variadic block needs `...args` as part of the server function signature.
+#' The fixed per-data input arguments are passed as [shiny::reactive()] or
+#' [shiny::reactiveVal()] objects, while each slot of the collection holds the
+#' reactive for one input: reading a slot with `[[` or `$`, as in `...args[[1]]`
+#' or `...args$x`, returns the input's data, and reading it with `[`, as in
+#' `...args[1]`, returns the reactive. The inputs are listed by `names()` and
+#' counted by `length()`, `as.list()` returns their reactives and
+#' [reactives::as_values()] the data of all of them.
 #'
 #' The server function may implement arbitrary shiny logic and is expected to
 #' return a list with components `expr` and `state`. The expression corresponds

@@ -16,7 +16,7 @@ test_that("rbind block constructor", {
     args = list(
       x = blk,
       data = list(
-        ...args = reactives(
+        ...args = reactive_exprs(
           reactive(iris[1:3, ]),
           reactive(iris[4:6, ])
         )
@@ -36,7 +36,7 @@ test_that("rbind block constructor", {
     args = list(
       x = blk,
       data = list(
-        ...args = reactives(
+        ...args = reactive_exprs(
           a = reactive(iris[1:3, ]),
           b = reactive(iris[4:6, ])
         )
@@ -56,7 +56,7 @@ test_that("rbind block constructor", {
     args = list(
       x = blk,
       data = list(
-        ...args = reactives(
+        ...args = reactive_exprs(
           reactive(iris[1:3, ]),
           a = reactive(iris[4:6, ])
         )
@@ -174,7 +174,7 @@ test_that("positional ...args follow container order, not any sort", {
     args = list(
       x = blk,
       data = list(
-        ...args = reactives(
+        ...args = reactive_exprs(
           reactive(iris[4:6, ]),
           reactive(iris[1:3, ])
         )
@@ -245,7 +245,7 @@ test_that("a variadic block below its input minimum is waiting", {
     {
       session$flushReact()
 
-      expect_identical(rv$eval$b(), "waiting")
+      expect_identical(rv$eval$b, "waiting")
       expect_null(rv$blocks$b$server$result())
       expect_false("error" %in% rv$blocks$b$server$conditions()$severity)
 
@@ -254,7 +254,7 @@ test_that("a variadic block below its input minimum is waiting", {
       )
       session$flushReact()
 
-      expect_identical(rv$eval$b(), "ready")
+      expect_identical(rv$eval$b, "ready")
       expect_identical(rv$blocks$b$server$result(), datasets::iris)
     },
     args = list(x = board)

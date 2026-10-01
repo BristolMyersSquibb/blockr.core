@@ -728,14 +728,14 @@ block_sources <- function(id, rv) {
     return(NULL)
   }
 
-  unlst(slot_values(srcs), use_names = TRUE)
+  unlst(as_values(srcs), use_names = TRUE)
 }
 
 # Reading the status first is what brings a needed upstream up to date, so the
 # result read after it is what its latest check left.
 upstream_changed <- function(from, consumed, rv) {
 
-  status <- reval_if(rv$eval[[from]])
+  status <- rv$eval[[from]]
 
   if (isTRUE(status %in% c("stale", "unevaluated"))) {
     return(TRUE)

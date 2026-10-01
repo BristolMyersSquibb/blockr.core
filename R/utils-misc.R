@@ -331,7 +331,7 @@ dot_arg_refs <- function(x) {
 # block_server() as a `reactiveValues()` object.
 dot_arg_values <- function(x) {
 
-  vals <- if (is.reactivevalues(x)) reactiveValuesToList(x) else slot_values(x)
+  vals <- if (is.reactivevalues(x)) reactiveValuesToList(x) else as_values(x)
 
   set_names(vals, unname(dot_arg_refs(x)))
 }
