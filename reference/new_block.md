@@ -151,17 +151,23 @@ requires two extra arguments, e.g. `x` and `y`. Finally, a variadic
 block, e.g. a block implementing something like
 [`base::rbind()`](https://rdrr.io/r/base/cbind.html), needs to
 accommodate for an arbitrary number of inputs. This is achieved by
-passing a container object as `...args` and thus such a variadic block
-needs `...args` as part of the server function signature. The container
-mirrors
-[`shiny::reactiveValues()`](https://rdrr.io/pkg/shiny/man/reactiveValues.html)
-for reads ([`names()`](https://rdrr.io/r/base/names.html), `[[`, `$` and
-[`as.list()`](https://rdrr.io/r/base/list.html)), and accessing a slot
-yields the value of its (lazily evaluated) input. The fixed per-data
-input arguments are instead passed as
+passing a
+[`reactives::reactive_exprs()`](https://nbenn.github.io/reactives/reference/reactives.html)
+collection as `...args` and thus such a variadic block needs `...args`
+as part of the server function signature. The fixed per-data input
+arguments are passed as
 [`shiny::reactive()`](https://rdrr.io/pkg/shiny/man/reactive.html) or
 [`shiny::reactiveVal()`](https://rdrr.io/pkg/shiny/man/reactiveVal.html)
-objects.
+objects, while each slot of the collection holds the reactive for one
+input: reading a slot with `[[` or `$`, as in `...args[[1]]` or
+`...args$x`, returns the input's data, and reading it with `[`, as in
+`...args[1]`, returns the reactive. The inputs are listed by
+[`names()`](https://rdrr.io/r/base/names.html) and counted by
+[`length()`](https://rdrr.io/r/base/length.html),
+[`as.list()`](https://rdrr.io/r/base/list.html) returns their reactives
+and
+[`reactives::as_values()`](https://nbenn.github.io/reactives/reference/reactives.html)
+the data of all of them.
 
 The server function may implement arbitrary shiny logic and is expected
 to return a list with components `expr` and `state`. The expression

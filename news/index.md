@@ -2,6 +2,27 @@
 
 ## blockr.core 0.1.4
 
+- The `...args` argument of a variadic block’s server is now a
+  [`reactives::reactive_exprs()`](https://nbenn.github.io/reactives/reference/reactives.html)
+  collection rather than an internal class. Reading an input with
+  `...args[[1]]` or `...args$x` still returns its data, and
+  [`names()`](https://rdrr.io/r/base/names.html) and
+  [`length()`](https://rdrr.io/r/base/length.html) read as before, while
+  `...args[1]` returns the input’s reactive and
+  `reactives::as_values(...args)` the data of every input. Breaking for
+  a block server that calls `as.list(...args)`, which now returns the
+  inputs’ reactives rather than their data, or that writes a value into
+  `...args`, which is now an error
+  ([\#361](https://github.com/BristolMyersSquibb/blockr.core/issues/361)).
+
+- The `trim_rv()` export is gone. It removed a key from a
+  [`reactiveValues()`](https://rdrr.io/pkg/shiny/man/reactiveValues.html)
+  object by reaching into shiny’s internals, while a collection from the
+  `reactives` package, such as
+  [`reactives::reactive_vals()`](https://nbenn.github.io/reactives/reference/reactives.html),
+  drops one with `x[key] <- NULL`
+  ([\#361](https://github.com/BristolMyersSquibb/blockr.core/issues/361)).
+
 - Evaluation demand is now one multi-owner set rather than two channels.
   The front-end’s per-block `required` channel is gone: the blocks it
   needs evaluated are held `eager` under an owner label, like any other
@@ -562,11 +583,9 @@ CRAN release: 2026-07-12
   and predicate
   [`has_external_ctrl()`](https://bristolmyerssquibb.github.io/blockr.core/reference/block_name.md)
   expose a component’s externally controllable variables.
-- New exported
-  [`trim_rv()`](https://bristolmyerssquibb.github.io/blockr.core/reference/trim_rv.md)
-  fully removes entries from a `reactiveValues` object (assigning `NULL`
-  leaves the key behind); unlinking a variadic argument now drops it
-  outright.
+- New exported `trim_rv()` fully removes entries from a `reactiveValues`
+  object (assigning `NULL` leaves the key behind); unlinking a variadic
+  argument now drops it outright.
 - The
   [`str_value()`](https://bristolmyerssquibb.github.io/blockr.core/reference/str_value.md)
   compact printer, with matching
