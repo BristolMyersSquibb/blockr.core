@@ -38,9 +38,9 @@ serve.block <- function(x, id = "block", ..., data = list()) {
       return(reactiveVal(x))
     }
 
-    const <- function(val) function() val
+    const <- function(val) reactive(val)
 
-    do.call(reactives, lapply(x, const))
+    do.call(reactive_exprs, lapply(x, const))
   }
 
   if (...length() && !length(data)) {

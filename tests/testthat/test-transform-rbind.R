@@ -16,9 +16,9 @@ test_that("rbind block constructor", {
     args = list(
       x = blk,
       data = list(
-        ...args = reactives(
-          function() iris[1:3, ],
-          function() iris[4:6, ]
+        ...args = reactive_exprs(
+          reactive(iris[1:3, ]),
+          reactive(iris[4:6, ])
         )
       )
     )
@@ -36,9 +36,9 @@ test_that("rbind block constructor", {
     args = list(
       x = blk,
       data = list(
-        ...args = reactives(
-          a = function() iris[1:3, ],
-          b = function() iris[4:6, ]
+        ...args = reactive_exprs(
+          a = reactive(iris[1:3, ]),
+          b = reactive(iris[4:6, ])
         )
       )
     )
@@ -56,10 +56,32 @@ test_that("rbind block constructor", {
     args = list(
       x = blk,
       data = list(
-        ...args = reactives(
-          function() iris[1:3, ],
-          a = function() iris[4:6, ]
+        ...args = reactive_exprs(
+          reactive(iris[1:3, ]),
+          a = reactive(iris[4:6, ])
         )
+      )
+    )
+  )
+})
+
+test_that("a reactiveValues() object still works as `...args`", {
+
+  blk <- new_rbind_block()
+
+  testServer(
+    get_s3_method("block_server", blk),
+    {
+      session$flushReact()
+      expect_identical(
+        session$returned$result(),
+        rbind(a = iris[1:3, ], b = iris[4:6, ])
+      )
+    },
+    args = list(
+      x = blk,
+      data = list(
+        ...args = reactiveValues(a = iris[1:3, ], b = iris[4:6, ])
       )
     )
   )
@@ -152,9 +174,9 @@ test_that("positional ...args follow container order, not any sort", {
     args = list(
       x = blk,
       data = list(
-        ...args = reactives(
-          function() iris[4:6, ],
-          function() iris[1:3, ]
+        ...args = reactive_exprs(
+          reactive(iris[4:6, ]),
+          reactive(iris[1:3, ])
         )
       )
     )
@@ -223,7 +245,7 @@ test_that("a variadic block below its input minimum is waiting", {
     {
       session$flushReact()
 
-      expect_identical(rv$eval$b(), "waiting")
+      expect_identical(rv$eval$b, "waiting")
       expect_null(rv$blocks$b$server$result())
       expect_false("error" %in% rv$blocks$b$server$conditions()$severity)
 
@@ -232,7 +254,7 @@ test_that("a variadic block below its input minimum is waiting", {
       )
       session$flushReact()
 
-      expect_identical(rv$eval$b(), "ready")
+      expect_identical(rv$eval$b, "ready")
       expect_identical(rv$blocks$b$server$result(), datasets::iris)
     },
     args = list(x = board)

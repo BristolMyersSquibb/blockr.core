@@ -106,4 +106,3 @@ reference:
   - blockr_abort
   - generate_plugin_args
   - bbquote
-  - trim_rv

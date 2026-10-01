@@ -22,6 +22,8 @@ Description: A framework for data manipulation and visualization using a
 URL: https://bristolmyerssquibb.github.io/blockr.core/
 BugReports: https://github.com/BristolMyersSquibb/blockr.core/issues
 License: GPL (>= 3)
+Remotes:
+    nbenn/reactives
 Encoding: UTF-8
 Language: en-US
 Roxygen: list(markdown = TRUE, packages = c("roxy.shinylive"), roclets =
@@ -46,7 +48,8 @@ Imports:
     glue,
     yaml,
     later,
-    typedjson
+    typedjson,
+    reactives
 Suggests:
     testthat (>= 3.0.0),
     memuse,
@@ -108,7 +111,6 @@ Collate:
     'plugin-serdes.R'
     'plugin-stack.R'
     'plugin-stacks.R'
-    'reactives.R'
     'stack-class.R'
     'stack-gate.R'
     'stack-ui.R'

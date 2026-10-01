@@ -23,8 +23,8 @@ test_that("glue block constructor", {
     args = list(
       x = blk,
       data = list(
-        ...args = reactives(
-          data = function() mtcars
+        ...args = reactive_exprs(
+          data = reactive(mtcars)
         )
       )
     )

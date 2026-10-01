@@ -327,8 +327,13 @@ dot_arg_refs <- function(x) {
   set_names(arg_refs(nms), nms)
 }
 
+# Released downstream packages test their blocks by passing `...args` to
+# block_server() as a `reactiveValues()` object.
 dot_arg_values <- function(x) {
-  set_names(as.list(x), unname(dot_arg_refs(x)))
+
+  vals <- if (is.reactivevalues(x)) reactiveValuesToList(x) else as_values(x)
+
+  set_names(vals, unname(dot_arg_refs(x)))
 }
 
 exprs_to_lang <- function(exprs) {

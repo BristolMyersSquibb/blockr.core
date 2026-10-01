@@ -4,6 +4,8 @@
 #' @importFrom grDevices col2rgb
 #' @importFrom graphics plot
 #' @importFrom methods is
+#' @importFrom reactives reactive_exprs reactive_vals as_values is_reactives
+#' @importFrom reactives append_reactive
 NULL
 
 # `datasets` has no function exports (only lazy data), so @importFrom

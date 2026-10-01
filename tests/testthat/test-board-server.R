@@ -1508,7 +1508,7 @@ test_that("board combines per-block conditions and exposes them per block", {
       # block b evaluates against ready data but its expression raises, so it
       # is `failed` with an eval-phase error; a stays healthy
       expect_identical(nrow(rv$blocks$a$server$conditions()), 0L)
-      expect_identical(rv$eval$b(), "failed")
+      expect_identical(rv$eval$b, "failed")
 
       b_cond <- rv$blocks$b$server$conditions()
 
@@ -1539,7 +1539,7 @@ test_that("board drops conditions of removed blocks", {
     {
       session$flushReact()
 
-      expect_identical(rv$eval$b(), "failed")
+      expect_identical(rv$eval$b, "failed")
       expect_identical(nrow(rv$conditions()), 1L)
 
       board_update(list(blocks = list(rm = "b")))
@@ -1567,7 +1567,7 @@ test_that("a block re-added under a destroyed id reconstructs cleanly", {
     {
       session$flushReact()
 
-      expect_identical(rv$eval$b(), "ready")
+      expect_identical(rv$eval$b, "ready")
       expect_identical(rv$blocks$b$server$result(), utils::head(datasets::iris))
 
       board_update(list(blocks = list(rm = "b")))
@@ -1583,7 +1583,7 @@ test_that("a block re-added under a destroyed id reconstructs cleanly", {
       )
       session$flushReact()
 
-      expect_identical(rv$eval$b(), "ready")
+      expect_identical(rv$eval$b, "ready")
       expect_identical(rv$blocks$b$server$result(), utils::head(datasets::iris))
       expect_identical(nrow(rv$blocks$b$server$conditions()), 0L)
     },
