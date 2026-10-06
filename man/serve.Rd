@@ -43,7 +43,10 @@ blockr_test_exports(x, rv, ...)
 \arguments{
 \item{x}{Object}
 
-\item{...}{Generic consistency}
+\item{...}{Generic consistency. For a board, \code{serve()} passes further
+arguments to both \code{blockr_app_ui()} and \code{blockr_app_server()}, so a method
+that does something with its \code{...} has to tell its own arguments from those
+meant for the other.}
 
 \item{id}{Board namespace ID}
 

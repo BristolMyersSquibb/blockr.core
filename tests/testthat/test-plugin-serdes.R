@@ -358,6 +358,33 @@ test_that("serve_board_srv threads the session query to blockr_app_server", {
   expect_identical(seen[["view"]], "ops")
 })
 
+test_that("serve passes a board's extra arguments to the UI and the server", {
+
+  ui_args <- NULL
+  srv_args <- NULL
+
+  local_mocked_bindings(
+    shinyApp = function(ui, server) list(ui = ui, server = server),
+    blockr_app_ui = function(id, x, ..., query = list()) {
+      ui_args <<- list(...)
+      NULL
+    },
+    blockr_app_server = function(id, x, ..., query = list()) {
+      srv_args <<- list(...)
+      list()
+    },
+    blockr_test_exports = function(x, rv, ...) invisible()
+  )
+
+  app <- serve(new_board(), navbar = "items")
+
+  app$ui(list())
+  testServer(app$server, session$flushReact())
+
+  expect_identical(ui_args[["navbar"]], "items")
+  expect_identical(srv_args[["navbar"]], "items")
+})
+
 test_that("preserve_board return validation", {
 
   with_mock_session(
