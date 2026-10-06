@@ -45,7 +45,10 @@ blockr_test_exports(x, rv, ...)
 
 - ...:
 
-  Generic consistency
+  Generic consistency. For a board, `serve()` passes further arguments
+  to both `blockr_app_ui()` and `blockr_app_server()`, so a method that
+  does something with its `...` has to tell its own arguments from those
+  meant for the other.
 
 - id:
 

@@ -98,7 +98,10 @@ purposes during block development) or an entire board</p>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
-<dd><p>Generic consistency</p></dd>
+<dd><p>Generic consistency. For a board, <code>serve()</code> passes further
+arguments to both <code>blockr_app_ui()</code> and <code>blockr_app_server()</code>, so a method
+that does something with its <code>...</code> has to tell its own arguments from those
+meant for the other.</p></dd>
 
 
 <dt id="arg-id">id<a class="anchor" aria-label="anchor" href="#arg-id"></a></dt>
