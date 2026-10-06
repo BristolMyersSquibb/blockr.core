@@ -5,7 +5,10 @@
 #' purposes during block development) or an entire board
 #'
 #' @param x Object
-#' @param ... Generic consistency
+#' @param ... Generic consistency. For a board, `serve()` passes further
+#' arguments to both `blockr_app_ui()` and `blockr_app_server()`, so a method
+#' that does something with its `...` has to tell its own arguments from those
+#' meant for the other.
 #'
 #' @examplesShinylive
 #' webr::install("blockr.core", repos = "https://cynkra.github.io/blockr.webR/")
@@ -123,7 +126,7 @@ serve.board <- function(x, id = rand_names(), plugins = blockr_app_plugins,
   validate_board_loader(loader)
 
   shinyApp(
-    serve_board_ui(id, x, loader, plugins, options),
+    serve_board_ui(id, x, loader, plugins, options, ...),
     serve_board_srv(id, x, loader, plugins, options, ...)
   )
 }

@@ -1,5 +1,11 @@
 # blockr.core 0.1.4
 
+* The extra arguments of `serve()` for a board now reach `blockr_app_ui()` as
+  well as `blockr_app_server()`, so a board subclass can take an app-level
+  argument, such as a navbar, in both methods. Breaking for front-ends: a
+  `blockr_app_ui()` method that forwards its `...` into the returned UI now
+  gets the arguments an app passes for the server as well, and has to tell
+  them from its own (#380).
 * The `...args` argument of a variadic block's server is now a
   `reactives::reactive_exprs()` collection rather than an internal class.
   Reading an input with `...args[[1]]` or `...args$x` still returns its data,
