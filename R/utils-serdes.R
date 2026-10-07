@@ -145,7 +145,7 @@ blockr_ser.board_option <- function(x, option = NULL, ...) {
   }
 
   ctor <- board_option_ctor(x)
-  name <- setdiff(names(formals(ctor)), c("...", "category"))
+  name <- setdiff(names(formals(ctor)), c("...", "category", "label"))
 
   if (is.null(names(val))) {
 
@@ -182,7 +182,13 @@ blockr_ser.board_option <- function(x, option = NULL, ...) {
 
   list(
     object = class(x),
-    payload = c(val, list(category = board_option_category(x))),
+    payload = c(
+      val,
+      list(
+        category = board_option_category(x),
+        label = board_option_label(x)
+      )
+    ),
     constructor = blockr_ser(ctor)
   )
 }

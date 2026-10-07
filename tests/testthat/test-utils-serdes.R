@@ -143,6 +143,17 @@ test_that("serialization", {
   )
 })
 
+test_that("a board option keeps the label it was given", {
+
+  opt <- new_n_rows_option(label = "Rows")
+
+  expect_identical(
+    blockr_deser(blockr_ser(opt)),
+    opt,
+    ignore_function_env = TRUE
+  )
+})
+
 test_that("a partial block-state snapshot serializes from constructor scope", {
 
   blks <- blocks(
