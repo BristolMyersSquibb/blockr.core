@@ -143,6 +143,26 @@ test_that("serialization", {
   )
 })
 
+test_that("a board option keeps the label it was given", {
+
+  opt <- new_n_rows_option(label = "Rows")
+
+  expect_identical(
+    blockr_deser(blockr_ser(opt)),
+    opt,
+    ignore_function_env = TRUE
+  )
+
+  new_test_opt <- function(value = 1, ...) {
+    new_board_option("test_opt", value, ui = function(id) tagList(), ...)
+  }
+
+  ser <- blockr_ser(new_test_opt())
+
+  expect_false("label" %in% names(ser[["payload"]]))
+  expect_null(board_option_label(blockr_deser(ser)))
+})
+
 test_that("a partial block-state snapshot serializes from constructor scope", {
 
   blks <- blocks(

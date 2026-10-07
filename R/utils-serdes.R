@@ -145,7 +145,7 @@ blockr_ser.board_option <- function(x, option = NULL, ...) {
   }
 
   ctor <- board_option_ctor(x)
-  name <- setdiff(names(formals(ctor)), c("...", "category"))
+  name <- setdiff(names(formals(ctor)), c("...", "category", "label"))
 
   if (is.null(names(val))) {
 
@@ -180,9 +180,17 @@ blockr_ser.board_option <- function(x, option = NULL, ...) {
     )
   }
 
+  label <- board_option_label(x)
+
   list(
     object = class(x),
-    payload = c(val, list(category = board_option_category(x))),
+    payload = c(
+      val,
+      list(category = board_option_category(x)),
+      # An unset label is left out, so that a constructor which comes to
+      # label its option supplies the label when the board is restored.
+      if (not_null(label)) list(label = label)
+    ),
     constructor = blockr_ser(ctor)
   )
 }

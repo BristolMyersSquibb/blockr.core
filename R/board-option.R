@@ -5,6 +5,9 @@
 #' @param update_trigger Shiny `input` entry/entries that trigger an update
 #' @param transform (Optional) transform function
 #' @param category (Optional) string-valued category
+#' @param label (Optional) string-valued label, the name a UI can show the
+#'   option by outside its own `ui`, as in a list of options. Constructors such
+#'   as `new_n_rows_option()` label their input with it as well.
 #' @param ctor,pkg Constructor information (used for serialization)
 
 #' @rdname new_board_options
@@ -13,8 +16,8 @@ new_board_option <- function(id, default, ui,
                              server = function(board, ..., session) {},
                              update_trigger = id,
                              transform = identity,
-                             category = NULL, ctor = sys.parent(),
-                             pkg = NULL) {
+                             category = NULL, label = NULL,
+                             ctor = sys.parent(), pkg = NULL) {
 
   res <- structure(
     list(ui = ui, server = server, transform = transform),
@@ -22,6 +25,7 @@ new_board_option <- function(id, default, ui,
     id = id,
     trigger = update_trigger,
     category = category,
+    label = label,
     ctor = resolve_ctor(ctor, pkg),
     class = c(paste0(id, "_option"), "board_option")
   )
@@ -81,6 +85,13 @@ board_option_default <- function(x) {
 board_option_category <- function(x) {
   stopifnot(is_board_option(x))
   attr(x, "category")
+}
+
+#' @rdname new_board_options
+#' @export
+board_option_label <- function(x) {
+  stopifnot(is_board_option(x))
+  attr(x, "label")
 }
 
 #' @rdname new_board_options
@@ -150,6 +161,15 @@ validate_board_option.default <- function(x) {
     blockr_abort(
       "Expecting a board option ID to be string-valued.",
       class = "board_option_component_id_invalid"
+    )
+  }
+
+  label <- board_option_label(x)
+
+  if (!(is.null(label) || is_string(label))) {
+    blockr_abort(
+      "Expecting a board option label to be `NULL` or string-valued.",
+      class = "board_option_component_label_invalid"
     )
   }
 
@@ -241,7 +261,7 @@ c.board_option <- function(...) {
 #' @rdname new_board_options
 #' @export
 new_board_name_option <- function(value = NULL, category = "Board options",
-                                  ...) {
+                                  label = "Board name", ...) {
 
   new_board_option(
     id = "board_name",
@@ -256,7 +276,7 @@ new_board_name_option <- function(value = NULL, category = "Board options",
         ),
         textInput(
           NS(id, "board_name"),
-          "Board name",
+          label,
           value
         )
       )
@@ -286,6 +306,7 @@ new_board_name_option <- function(value = NULL, category = "Board options",
       )
     },
     category = category,
+    label = label,
     ...
   )
 }
@@ -308,7 +329,8 @@ validate_board_option.board_name_option <- function(x) {
 #' @rdname new_board_options
 #' @export
 new_n_rows_option <- function(value = blockr_option("n_rows", 50L),
-                              category = "Table options", ...) {
+                              category = "Table options",
+                              label = "Preview rows", ...) {
 
   new_board_option(
     id = "n_rows",
@@ -316,7 +338,7 @@ new_n_rows_option <- function(value = blockr_option("n_rows", 50L),
     ui = function(id) {
       numericInput(
         NS(id, "n_rows"),
-        "Preview rows",
+        label,
         value,
         min = 1L,
         step = 1L
@@ -336,6 +358,7 @@ new_n_rows_option <- function(value = blockr_option("n_rows", 50L),
     },
     transform = function(x) as.integer(x),
     category = category,
+    label = label,
     ...
   )
 }
@@ -358,7 +381,8 @@ validate_board_option.n_rows_option <- function(x) {
 #' @rdname new_board_options
 #' @export
 new_page_size_option <- function(value = blockr_option("page_size", 5L),
-                                 category = "Table options", ...) {
+                                 category = "Table options",
+                                 label = "Preview page size", ...) {
 
   new_board_option(
     id = "page_size",
@@ -366,7 +390,7 @@ new_page_size_option <- function(value = blockr_option("page_size", 5L),
     ui = function(id) {
       selectInput(
         NS(id, "page_size"),
-        "Preview page size",
+        label,
         c(5, 10, 25, 50, 100),
         value
       )
@@ -385,6 +409,7 @@ new_page_size_option <- function(value = blockr_option("page_size", 5L),
     },
     transform = function(x) as.integer(x),
     category = category,
+    label = label,
     ...
   )
 }
@@ -408,7 +433,8 @@ validate_board_option.page_size_option <- function(x) {
 #' @export
 new_filter_rows_option <- function(value = blockr_option("filter_rows",
                                                          FALSE),
-                                   category = "Table options", ...) {
+                                   category = "Table options",
+                                   label = "Enable preview search", ...) {
 
   new_board_option(
     id = "filter_rows",
@@ -416,7 +442,7 @@ new_filter_rows_option <- function(value = blockr_option("filter_rows",
     ui = function(id) {
       bslib::input_switch(
         NS(id, "filter_rows"),
-        "Enable preview search",
+        label,
         value
       )
     },
@@ -433,6 +459,7 @@ new_filter_rows_option <- function(value = blockr_option("filter_rows",
       )
     },
     category = category,
+    label = label,
     ...
   )
 }
@@ -455,7 +482,8 @@ validate_board_option.filter_rows_option <- function(x) {
 #' @rdname new_board_options
 #' @export
 new_thematic_option <- function(value = blockr_option("thematic", NULL),
-                                category = "Theme options", ...) {
+                                category = "Theme options",
+                                label = "Enable thematic", ...) {
 
   new_board_option(
     id = "thematic",
@@ -464,7 +492,7 @@ new_thematic_option <- function(value = blockr_option("thematic", NULL),
       if (pkg_avail("thematic")) {
         bslib::input_switch(
           NS(id, "thematic"),
-          "Enable thematic",
+          label,
           coal(value, FALSE)
         )
       }
@@ -482,6 +510,7 @@ new_thematic_option <- function(value = blockr_option("thematic", NULL),
       )
     },
     category = category,
+    label = label,
     ...
   )
 }
@@ -511,7 +540,8 @@ validate_board_option.thematic_option <- function(x) {
 #' @rdname new_board_options
 #' @export
 new_dark_mode_option <- function(value = blockr_option("dark_mode", NULL),
-                                 category = "Theme options", ...) {
+                                 category = "Theme options",
+                                 label = "Light/dark mode", ...) {
 
   if (isTRUE(value)) {
     value <- "dark"
@@ -535,7 +565,7 @@ new_dark_mode_option <- function(value = blockr_option("dark_mode", NULL),
           mode = value
         ),
         tags$label(
-          "Light/dark mode",
+          label,
           style = "vertical-align: top; margin-top: 3px;"
         )
       )
@@ -552,6 +582,7 @@ new_dark_mode_option <- function(value = blockr_option("dark_mode", NULL),
       )
     },
     category = category,
+    label = label,
     ...
   )
 }
@@ -576,7 +607,9 @@ validate_board_option.dark_mode_option <- function(x) {
 new_show_conditions_option <- function(value = blockr_option("show_conditions",
                                                              c("warning",
                                                                "error")),
-                                       category = "Board options", ...) {
+                                       category = "Board options",
+                                       label = "Message types to display",
+                                       ...) {
 
   new_board_option(
     id = "show_conditions",
@@ -584,7 +617,7 @@ new_show_conditions_option <- function(value = blockr_option("show_conditions",
     ui = function(id) {
       selectInput(
         NS(id, "show_conditions"),
-        "Message types to display",
+        label,
         c("message", "warning", "error"),
         value,
         multiple = TRUE
@@ -603,6 +636,7 @@ new_show_conditions_option <- function(value = blockr_option("show_conditions",
       )
     },
     category = category,
+    label = label,
     ...
   )
 }
@@ -631,7 +665,7 @@ default_chat <- function(system_prompt = NULL, params = NULL) {
 #' @rdname new_board_options
 #' @export
 new_llm_model_option <- function(value = NULL, category = "Board options",
-                                 ...) {
+                                 label = "LLM Model", ...) {
 
   if (!(is.null(value) || is_string(value))) {
     blockr_abort(
@@ -682,7 +716,7 @@ new_llm_model_option <- function(value = NULL, category = "Board options",
       }
       selectInput(
         NS(id, "llm_model"),
-        "LLM Model",
+        label,
         names(options),
         value
       )
@@ -712,6 +746,7 @@ new_llm_model_option <- function(value = NULL, category = "Board options",
     },
     update_trigger = if (is.function(options)) NULL else "llm_model",
     category = category,
+    label = label,
     ...
   )
 }

@@ -76,6 +76,57 @@ test_that("opt utils", {
   expect_snapshot(opt)
 })
 
+test_that("a board option can carry a label", {
+
+  new_test_opt <- function(value = "test", ...) {
+    new_board_option(
+      "test",
+      value,
+      ui = function(id) textInput(NS(id, "test"), "Test", value),
+      ...
+    )
+  }
+
+  expect_null(board_option_label(new_test_opt()))
+  expect_identical(board_option_label(new_test_opt(label = "Test")), "Test")
+
+  expect_error(
+    new_test_opt(label = 1L),
+    class = "board_option_component_label_invalid"
+  )
+})
+
+test_that("core board options label their input with their label", {
+
+  chat_fun <- function(system_prompt = NULL, params = NULL) NULL
+
+  withr::local_options(
+    blockr.chat_function = list(chat1 = chat_fun, chat2 = chat_fun)
+  )
+
+  ctors <- c(
+    "new_board_name_option", "new_n_rows_option", "new_page_size_option",
+    "new_filter_rows_option", "new_thematic_option", "new_dark_mode_option",
+    "new_show_conditions_option", "new_llm_model_option"
+  )
+
+  for (ctor in ctors) {
+
+    def <- do.call(ctor, list())
+    opt <- do.call(ctor, list(label = "My label"))
+
+    expect_true(is_string(board_option_label(def)), info = ctor)
+    expect_identical(board_option_label(opt), "My label", info = ctor)
+
+    ui <- with_mocked_bindings(
+      board_option_ui(opt, "opt"),
+      pkg_avail = function(...) TRUE
+    )
+
+    expect_match(as.character(ui), "My label", fixed = TRUE, info = ctor)
+  }
+})
+
 test_that("board name opt", {
 
   expect_true(is_board_option(new_board_name_option()))
