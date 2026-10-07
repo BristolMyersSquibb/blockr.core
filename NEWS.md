@@ -1,11 +1,12 @@
 # blockr.core 0.1.4
 
-* Board options can carry a label, the name a UI can show an option by
-  outside its own `ui`, such as in a list of options. It is set by the `label`
-  argument of `new_board_option()`, stored like the category and read by
+* Board options carry a label, the name a UI can show an option by outside
+  its own `ui`, such as in a list of options. It is set by the `label`
+  argument of `new_board_option()`, which defaults to the ID in sentence case
+  ("Data dir" for `data_dir`), stored like the category and read by
   `board_option_label()`. Core's own option constructors take a `label`
   argument too and name their input by it, so each name is written once. A
-  saved board keeps the labels its options were given (#374).
+  saved board keeps the labels of its options (#374).
 * The extra arguments of `serve()` for a board now reach `blockr_app_ui()` as
   well as `blockr_app_server()`, so a board subclass can take an app-level
   argument, such as a navbar, in both methods. Breaking for front-ends: a

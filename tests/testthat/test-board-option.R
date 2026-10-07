@@ -76,19 +76,23 @@ test_that("opt utils", {
   expect_snapshot(opt)
 })
 
-test_that("a board option can carry a label", {
+test_that("a board option's label defaults to its ID in sentence case", {
 
   new_test_opt <- function(value = "test", ...) {
     new_board_option(
-      "test",
+      "test_opt",
       value,
-      ui = function(id) textInput(NS(id, "test"), "Test", value),
+      ui = function(id) textInput(NS(id, "test_opt"), "Test", value),
       ...
     )
   }
 
-  expect_null(board_option_label(new_test_opt()))
-  expect_identical(board_option_label(new_test_opt(label = "Test")), "Test")
+  expect_identical(board_option_label(new_test_opt()), "Test opt")
+
+  expect_identical(
+    board_option_label(new_test_opt(label = "My label")),
+    "My label"
+  )
 
   expect_error(
     new_test_opt(label = 1L),
@@ -112,10 +116,8 @@ test_that("core board options label their input with their label", {
 
   for (ctor in ctors) {
 
-    def <- do.call(ctor, list())
     opt <- do.call(ctor, list(label = "My label"))
 
-    expect_true(is_string(board_option_label(def)), info = ctor)
     expect_identical(board_option_label(opt), "My label", info = ctor)
 
     ui <- with_mocked_bindings(

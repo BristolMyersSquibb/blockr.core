@@ -6,8 +6,9 @@
 #' @param transform (Optional) transform function
 #' @param category (Optional) string-valued category
 #' @param label (Optional) string-valued label, the name a UI can show the
-#'   option by outside its own `ui`, as in a list of options. Constructors such
-#'   as `new_n_rows_option()` label their input with it as well.
+#'   option by outside its own `ui`, as in a list of options. If `NULL`, the ID
+#'   in sentence case, such as "Data dir" for `data_dir`. Constructors such as
+#'   `new_n_rows_option()` label their input with it as well.
 #' @param ctor,pkg Constructor information (used for serialization)
 
 #' @rdname new_board_options
@@ -25,7 +26,7 @@ new_board_option <- function(id, default, ui,
     id = id,
     trigger = update_trigger,
     category = category,
-    label = label,
+    label = coal(label, id_to_sentence_case(id)),
     ctor = resolve_ctor(ctor, pkg),
     class = c(paste0(id, "_option"), "board_option")
   )
@@ -164,15 +165,6 @@ validate_board_option.default <- function(x) {
     )
   }
 
-  label <- board_option_label(x)
-
-  if (!(is.null(label) || is_string(label))) {
-    blockr_abort(
-      "Expecting a board option label to be `NULL` or string-valued.",
-      class = "board_option_component_label_invalid"
-    )
-  }
-
   trigger <- board_option_trigger(x)
 
   if (!is.null(trigger) && (!is.character(trigger) || !length(trigger))) {
@@ -218,6 +210,13 @@ validate_board_option.default <- function(x) {
     blockr_abort(
       "Expecting a board option transform to have a single argument `x`.",
       class = "board_option_component_transform_invalid"
+    )
+  }
+
+  if (!is_string(board_option_label(x))) {
+    blockr_abort(
+      "Expecting a board option label to be string-valued.",
+      class = "board_option_component_label_invalid"
     )
   }
 

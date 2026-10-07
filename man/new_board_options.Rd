@@ -206,8 +206,9 @@ combine_board_options(...)
 \item{category}{(Optional) string-valued category}
 
 \item{label}{(Optional) string-valued label, the name a UI can show the
-option by outside its own \code{ui}, as in a list of options. Constructors such
-as \code{new_n_rows_option()} label their input with it as well.}
+option by outside its own \code{ui}, as in a list of options. If \code{NULL}, the ID
+in sentence case, such as "Data dir" for \code{data_dir}. Constructors such as
+\code{new_n_rows_option()} label their input with it as well.}
 
 \item{ctor, pkg}{Constructor information (used for serialization)}
 
