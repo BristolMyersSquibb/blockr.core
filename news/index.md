@@ -2,6 +2,18 @@
 
 ## blockr.core 0.1.4
 
+- Board options carry a label, the name a UI can show an option by
+  outside its own `ui`, such as in a list of options. It is set by the
+  `label` argument of
+  [`new_board_option()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md),
+  which defaults to the ID in sentence case (“Data dir” for `data_dir`),
+  stored like the category and read by
+  [`board_option_label()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md).
+  Core’s own option constructors take a `label` argument too and name
+  their input by it, so each name is written once. A saved board keeps
+  the labels of its options
+  ([\#374](https://github.com/BristolMyersSquibb/blockr.core/issues/374)).
+
 - The extra arguments of
   [`serve()`](https://bristolmyerssquibb.github.io/blockr.core/reference/serve.md)
   for a board now reach

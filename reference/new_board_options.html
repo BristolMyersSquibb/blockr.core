@@ -79,6 +79,7 @@ is available as S3 generic. Inheritance checking is available as
 <span>  update_trigger <span class="op">=</span> <span class="va">id</span>,</span>
 <span>  transform <span class="op">=</span> <span class="va">identity</span>,</span>
 <span>  category <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  label <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  ctor <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sys.parent.html" class="external-link">sys.parent</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  pkg <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span>
@@ -100,6 +101,8 @@ is available as S3 generic. Inheritance checking is available as
 <span></span>
 <span><span class="fu">board_option_category</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span></span>
+<span><span class="fu">board_option_label</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
+<span></span>
 <span><span class="fu">board_option_ui</span><span class="op">(</span><span class="va">x</span>, id <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">board_option_server</span><span class="op">(</span><span class="va">x</span>, <span class="va">...</span><span class="op">)</span></span>
@@ -113,45 +116,61 @@ is available as S3 generic. Inheritance checking is available as
 <span><span class="co"># Default S3 method</span></span>
 <span><span class="fu">validate_board_option</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">new_board_name_option</span><span class="op">(</span>value <span class="op">=</span> <span class="cn">NULL</span>, category <span class="op">=</span> <span class="st">"Board options"</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">new_board_name_option</span><span class="op">(</span></span>
+<span>  value <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  category <span class="op">=</span> <span class="st">"Board options"</span>,</span>
+<span>  label <span class="op">=</span> <span class="st">"Board name"</span>,</span>
+<span>  <span class="va">...</span></span>
+<span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">new_n_rows_option</span><span class="op">(</span></span>
 <span>  value <span class="op">=</span> <span class="fu"><a href="blockr_option.html">blockr_option</a></span><span class="op">(</span><span class="st">"n_rows"</span>, <span class="fl">50L</span><span class="op">)</span>,</span>
 <span>  category <span class="op">=</span> <span class="st">"Table options"</span>,</span>
+<span>  label <span class="op">=</span> <span class="st">"Preview rows"</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">new_page_size_option</span><span class="op">(</span></span>
 <span>  value <span class="op">=</span> <span class="fu"><a href="blockr_option.html">blockr_option</a></span><span class="op">(</span><span class="st">"page_size"</span>, <span class="fl">5L</span><span class="op">)</span>,</span>
 <span>  category <span class="op">=</span> <span class="st">"Table options"</span>,</span>
+<span>  label <span class="op">=</span> <span class="st">"Preview page size"</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">new_filter_rows_option</span><span class="op">(</span></span>
 <span>  value <span class="op">=</span> <span class="fu"><a href="blockr_option.html">blockr_option</a></span><span class="op">(</span><span class="st">"filter_rows"</span>, <span class="cn">FALSE</span><span class="op">)</span>,</span>
 <span>  category <span class="op">=</span> <span class="st">"Table options"</span>,</span>
+<span>  label <span class="op">=</span> <span class="st">"Enable preview search"</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">new_thematic_option</span><span class="op">(</span></span>
 <span>  value <span class="op">=</span> <span class="fu"><a href="blockr_option.html">blockr_option</a></span><span class="op">(</span><span class="st">"thematic"</span>, <span class="cn">NULL</span><span class="op">)</span>,</span>
 <span>  category <span class="op">=</span> <span class="st">"Theme options"</span>,</span>
+<span>  label <span class="op">=</span> <span class="st">"Enable thematic"</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">new_dark_mode_option</span><span class="op">(</span></span>
 <span>  value <span class="op">=</span> <span class="fu"><a href="blockr_option.html">blockr_option</a></span><span class="op">(</span><span class="st">"dark_mode"</span>, <span class="cn">NULL</span><span class="op">)</span>,</span>
 <span>  category <span class="op">=</span> <span class="st">"Theme options"</span>,</span>
+<span>  label <span class="op">=</span> <span class="st">"Light/dark mode"</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">new_show_conditions_option</span><span class="op">(</span></span>
 <span>  value <span class="op">=</span> <span class="fu"><a href="blockr_option.html">blockr_option</a></span><span class="op">(</span><span class="st">"show_conditions"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"warning"</span>, <span class="st">"error"</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  category <span class="op">=</span> <span class="st">"Board options"</span>,</span>
+<span>  label <span class="op">=</span> <span class="st">"Message types to display"</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">new_llm_model_option</span><span class="op">(</span>value <span class="op">=</span> <span class="cn">NULL</span>, category <span class="op">=</span> <span class="st">"Board options"</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">new_llm_model_option</span><span class="op">(</span></span>
+<span>  value <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  category <span class="op">=</span> <span class="st">"Board options"</span>,</span>
+<span>  label <span class="op">=</span> <span class="st">"LLM Model"</span>,</span>
+<span>  <span class="va">...</span></span>
+<span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">new_board_options</span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span>
 <span></span>
@@ -233,6 +252,13 @@ is available as S3 generic. Inheritance checking is available as
 
 <dt id="arg-category">category<a class="anchor" aria-label="anchor" href="#arg-category"></a></dt>
 <dd><p>(Optional) string-valued category</p></dd>
+
+
+<dt id="arg-label">label<a class="anchor" aria-label="anchor" href="#arg-label"></a></dt>
+<dd><p>(Optional) string-valued label, the name a UI can show the
+option by outside its own <code>ui</code>, as in a list of options. If <code>NULL</code>, the ID
+in sentence case, such as "Data dir" for <code>data_dir</code>. Constructors such as
+<code>new_n_rows_option()</code> label their input with it as well.</p></dd>
 
 
 <dt id="arg-ctor-pkg">ctor, pkg<a class="anchor" aria-label="anchor" href="#arg-ctor-pkg"></a></dt>

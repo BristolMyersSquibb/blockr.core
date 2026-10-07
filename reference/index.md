@@ -167,6 +167,7 @@ Utilities for creating an working with boards
   [`board_option_trigger()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
   [`board_option_default()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
   [`board_option_category()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
+  [`board_option_label()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
   [`board_option_ui()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
   [`board_option_server()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)
   [`board_option_transform()`](https://bristolmyerssquibb.github.io/blockr.core/reference/new_board_options.md)

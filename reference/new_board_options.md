@@ -22,6 +22,7 @@ new_board_option(
   update_trigger = id,
   transform = identity,
   category = NULL,
+  label = NULL,
   ctor = sys.parent(),
   pkg = NULL
 )
@@ -43,6 +44,8 @@ board_option_default(x)
 
 board_option_category(x)
 
+board_option_label(x)
+
 board_option_ui(x, id = NULL)
 
 board_option_server(x, ...)
@@ -56,45 +59,61 @@ board_option_ctor(x)
 # Default S3 method
 validate_board_option(x)
 
-new_board_name_option(value = NULL, category = "Board options", ...)
+new_board_name_option(
+  value = NULL,
+  category = "Board options",
+  label = "Board name",
+  ...
+)
 
 new_n_rows_option(
   value = blockr_option("n_rows", 50L),
   category = "Table options",
+  label = "Preview rows",
   ...
 )
 
 new_page_size_option(
   value = blockr_option("page_size", 5L),
   category = "Table options",
+  label = "Preview page size",
   ...
 )
 
 new_filter_rows_option(
   value = blockr_option("filter_rows", FALSE),
   category = "Table options",
+  label = "Enable preview search",
   ...
 )
 
 new_thematic_option(
   value = blockr_option("thematic", NULL),
   category = "Theme options",
+  label = "Enable thematic",
   ...
 )
 
 new_dark_mode_option(
   value = blockr_option("dark_mode", NULL),
   category = "Theme options",
+  label = "Light/dark mode",
   ...
 )
 
 new_show_conditions_option(
   value = blockr_option("show_conditions", c("warning", "error")),
   category = "Board options",
+  label = "Message types to display",
   ...
 )
 
-new_llm_model_option(value = NULL, category = "Board options", ...)
+new_llm_model_option(
+  value = NULL,
+  category = "Board options",
+  label = "LLM Model",
+  ...
+)
 
 new_board_options(...)
 
@@ -175,6 +194,13 @@ combine_board_options(...)
 - category:
 
   (Optional) string-valued category
+
+- label:
+
+  (Optional) string-valued label, the name a UI can show the option by
+  outside its own `ui`, as in a list of options. If `NULL`, the ID in
+  sentence case, such as "Data dir" for `data_dir`. Constructors such as
+  `new_n_rows_option()` label their input with it as well.
 
 - ctor, pkg:
 
