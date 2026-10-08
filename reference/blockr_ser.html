@@ -173,7 +173,7 @@ rather than aborting the save.</p></dd>
 <dt id="arg-on-error">on_error<a class="anchor" aria-label="anchor" href="#arg-on-error"></a></dt>
 <dd><p>How to handle a block that cannot be deserialized – its
 constructor (or the package providing it) is unavailable, its payload cannot
-be reconstructed, or the round-trip class check fails. <code>"abort"</code> (the
+be reconstructed, or the re-created object is not a block. <code>"abort"</code> (the
 default) propagates the error, while <code>"drop"</code> omits the offending block
 (emitting a warning) and continues; board deserialization then prunes any
 links and stacks that reference a dropped block, so a board referencing a
@@ -206,6 +206,13 @@ new sessions (such as environments).</p>
 <p>During deserialization, <code>blockr_deser()</code> forwards <code>...</code> to the dispatched
 per-class method. This lets callers (and outer methods deserializing nested
 objects) thread additional context down to inner deserializers.</p>
+<p>The class vector written to <code>object</code> selects the <code>blockr_deser()</code> method,
+but the re-created object only has to keep the kind of object it names: the
+last class with a <code>blockr_deser()</code> method of its own, such as <code>block</code> for any
+block. Classes in front of it may differ from the ones written, so a package
+can rename or drop classes of its blocks without breaking saved boards. An
+object re-created as another kind raises an error of class
+<code>block_deser_class_error</code>.</p>
     </div>
 
     <div class="section level2">
