@@ -15,6 +15,14 @@
 #' per-class method. This lets callers (and outer methods deserializing nested
 #' objects) thread additional context down to inner deserializers.
 #'
+#' The class vector written to `object` selects the `blockr_deser()` method,
+#' but the re-created object only has to keep the kind of object it names: the
+#' last class with a `blockr_deser()` method of its own, such as `block` for any
+#' block. Classes in front of it may differ from the ones written, so a package
+#' can rename or drop classes of its blocks without breaking saved boards. An
+#' object re-created as another kind raises an error of class
+#' `block_deser_class_error`.
+#'
 #' @param x Object to (de)serialize
 #' @param ... Generic consistency
 #'
@@ -262,7 +270,7 @@ blockr_ser.stacks <- function(x, ...) {
 
 #' @param on_error How to handle a block that cannot be deserialized -- its
 #' constructor (or the package providing it) is unavailable, its payload cannot
-#' be reconstructed, or the round-trip class check fails. `"abort"` (the
+#' be reconstructed, or the re-created object is not a block. `"abort"` (the
 #' default) propagates the error, while `"drop"` omits the offending block
 #' (emitting a warning) and continues; board deserialization then prunes any
 #' links and stacks that reference a dropped block, so a board referencing a
@@ -292,15 +300,40 @@ blockr_deser.list <- function(x, ...) {
     ...
   )
 
-  if (!identical(class(res), cls)) {
+  if (identical(class(res), cls)) {
+    return(res)
+  }
+
+  kind <- deser_kind(cls)
+
+  if (!inherits(res, kind)) {
     blockr_abort(
-      "Could not deserialize object: expected {qty(cls)} class{?es} {cls}, ",
-      "but received {qty(res)} {class(res)}.",
+      "Could not deserialize object: expected an object of class {kind}, ",
+      "but received {qty(class(res))}class{?es} {class(res)}.",
       class = "block_deser_class_error"
     )
   }
 
   res
+}
+
+# The kind a saved class vector names is its last class with a `blockr_deser()`
+# method of its own, such as `block`, leaving out the `list` that vctrs-based
+# objects end in. Only the kind has to survive a rebuild: the classes in front
+# of it are the producing package's to rename or drop.
+deser_kind <- function(cls) {
+
+  has_method <- lgl_ply(
+    cls,
+    function(x) {
+      x != "list" &&
+        not_null(utils::getS3method("blockr_deser", x, optional = TRUE))
+    }
+  )
+
+  cls <- cls[has_method]
+
+  cls[length(cls)]
 }
 
 #' @param data List valued data (converted from JSON)
