@@ -1,5 +1,11 @@
 # blockr.core 0.1.4
 
+* Restoring a board no longer requires each object to come back with exactly
+  the classes saved for it, only as the same kind of object: the last saved
+  class with a `blockr_deser()` method of its own, such as `block` for any
+  block. A package can therefore rename or drop classes of its blocks without
+  breaking saved boards, where until now a block that lost a class it was saved
+  with failed to load (#379).
 * Board options carry a label, the name a UI can show an option by outside
   its own `ui`, such as in a list of options. It is set by the `label`
   argument of `new_board_option()`, which defaults to the ID in sentence case

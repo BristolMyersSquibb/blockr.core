@@ -97,7 +97,7 @@ rather than aborting the save.}
 
 \item{on_error}{How to handle a block that cannot be deserialized -- its
 constructor (or the package providing it) is unavailable, its payload cannot
-be reconstructed, or the round-trip class check fails. \code{"abort"} (the
+be reconstructed, or the re-created object is not a block. \code{"abort"} (the
 default) propagates the error, while \code{"drop"} omits the offending block
 (emitting a warning) and continues; board deserialization then prunes any
 links and stacks that reference a dropped block, so a board referencing a
@@ -132,6 +132,14 @@ new sessions (such as environments).
 During deserialization, \code{blockr_deser()} forwards \code{...} to the dispatched
 per-class method. This lets callers (and outer methods deserializing nested
 objects) thread additional context down to inner deserializers.
+
+The class vector written to \code{object} selects the \code{blockr_deser()} method,
+but the re-created object only has to keep the kind of object it names: the
+last class with a \code{blockr_deser()} method of its own, such as \code{block} for any
+block. Classes in front of it may differ from the ones written, so a package
+can rename or drop classes of its blocks without breaking saved boards. An
+object re-created as another kind raises an error of class
+\code{block_deser_class_error}.
 }
 \examples{
 blk <- new_dataset_block("iris")

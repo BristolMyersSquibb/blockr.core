@@ -1,3 +1,7 @@
+# A constructor that no longer returns a block: the one class change
+# deserialization refuses
+not_a_block <- blockr_ser(new_blockr_ctor(function(...) list()))
+
 test_that("serialization", {
 
   blk_1 <- new_dataset_block("iris", "datasets")
@@ -110,15 +114,6 @@ test_that("serialization", {
     class = "blockr_deser_missing_pkg"
   )
 
-  ser_2 <- blockr_ser(blk_1)
-
-  ser_2$object <- c("foo_block", ser_2$object)
-
-  expect_error(
-    blockr_deser(ser_2),
-    class = "block_deser_class_error"
-  )
-
   new_test_opt <- function(val1 = 1, val2 = "2", ...) {
     new_board_option(
       "test_opt",
@@ -141,6 +136,28 @@ test_that("serialization", {
     blockr_ser(opt, option = list(val1 = 3, val2 = "4", val3 = "boom")),
     class = "option_value_arg_name_mismatch"
   )
+})
+
+test_that("deserialization checks the kind of object, not its classes", {
+
+  blk <- new_dataset_block("iris", "datasets")
+
+  ser <- blockr_ser(blk)
+  ser$object <- c("foo_block", "bar_block", ser$object[-1L])
+
+  expect_identical(blockr_deser(ser), blk, ignore_function_env = TRUE)
+
+  board <- new_board(blocks(a = blk))
+
+  ser <- blockr_ser(board)
+  ser$object <- c("foo_board", ser$object)
+
+  expect_identical(blockr_deser(ser), board, ignore_function_env = TRUE)
+
+  ser <- blockr_ser(blk)
+  ser$constructor <- not_a_block
+
+  expect_error(blockr_deser(ser), class = "block_deser_class_error")
 })
 
 test_that("a board option keeps the label it was given", {
@@ -256,7 +273,7 @@ test_that("blocks deser drops offending blocks when on_error is drop", {
   blks <- c(a = new_dataset_block("iris"), b = new_subset_block())
 
   class_err <- blockr_ser(blks)
-  class_err$payload$b$object <- c("foo_block", class_err$payload$b$object)
+  class_err$payload$b$constructor <- not_a_block
 
   expect_error(
     blockr_deser(class_err),
@@ -309,9 +326,7 @@ test_that("board deser prunes links and stacks referencing dropped blocks", {
   ser <- blockr_ser(board)
 
   for (id in c("b", "c")) {
-    ser$payload$blocks$payload[[id]]$object <- c(
-      "foo_block", ser$payload$blocks$payload[[id]]$object
-    )
+    ser$payload$blocks$payload[[id]]$constructor <- not_a_block
   }
 
   expect_error(
@@ -337,7 +352,7 @@ test_that("deser_on_error default is sourced from a blockr_option", {
 
   blks <- c(a = new_dataset_block("iris"), b = new_subset_block())
   ser <- blockr_ser(blks)
-  ser$payload$b$object <- c("foo_block", ser$payload$b$object)
+  ser$payload$b$constructor <- not_a_block
 
   withr::with_envvar(
     c(BLOCKR_DESER_ON_ERROR = NA),
@@ -373,9 +388,7 @@ test_that("board deser resolves the option and threads it to blocks", {
   )
 
   ser <- blockr_ser(board)
-  ser$payload$blocks$payload$b$object <- c(
-    "foo_block", ser$payload$blocks$payload$b$object
-  )
+  ser$payload$blocks$payload$b$constructor <- not_a_block
 
   withr::with_envvar(
     c(BLOCKR_DESER_ON_ERROR = NA),
