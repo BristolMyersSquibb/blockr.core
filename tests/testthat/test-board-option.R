@@ -197,6 +197,77 @@ test_that("board dark_mode opt", {
     new_dark_mode_option(-1L),
     class = "board_options_dark_mode_invalid"
   )
+
+  opt <- new_dark_mode_option()
+
+  expect_identical(board_option_label(opt), "Dark mode")
+
+  # The box reports TRUE or FALSE, while stored values stay strings or NULL
+  expect_identical(board_option_value(opt, TRUE), "dark")
+  expect_identical(board_option_value(opt, FALSE), "light")
+  expect_identical(board_option_value(opt, "light"), "light")
+  expect_null(board_option_value(opt))
+})
+
+test_that("the switches and the dark mode toggle are Shiny's checkbox", {
+
+  opts <- list(
+    new_filter_rows_option(TRUE),
+    new_thematic_option(),
+    new_dark_mode_option("dark")
+  )
+
+  for (opt in opts) {
+
+    id <- board_option_id(opt)
+
+    ui <- with_mocked_bindings(
+      board_option_ui(opt, "opt"),
+      pkg_avail = function(...) TRUE
+    )
+
+    box <- htmltools::tagQuery(ui)$find("input")$selectedTags()
+
+    expect_length(box, 1L)
+
+    box <- box[[1L]]
+
+    expect_identical(htmltools::tagGetAttribute(box, "type"), "checkbox")
+    expect_identical(htmltools::tagGetAttribute(box, "id"), NS("opt", id))
+
+    expect_identical(
+      not_null(htmltools::tagGetAttribute(box, "checked")),
+      !identical(id, "thematic"),
+      info = id
+    )
+
+    deps <- chr_xtr(htmltools::findDependencies(ui), "name")
+
+    expect_false(any(grepl("bslib", deps)), info = id)
+  }
+})
+
+test_that("dark mode sets the scheme in the page's head", {
+
+  dark_mode_ui <- function(value) {
+
+    ui <- board_option_ui(new_dark_mode_option(value), "opt")
+
+    list(
+      head = htmltools::findDependencies(ui)[[1L]]$head,
+      box = htmltools::tagQuery(ui)$find("input")$selectedTags()[[1L]]
+    )
+  }
+
+  dark <- dark_mode_ui("dark")
+
+  expect_match(dark$head, "\"data-bs-theme\", \"dark\")", fixed = TRUE)
+  expect_null(htmltools::tagGetAttribute(dark$box, "data-follow-system"))
+
+  unset <- dark_mode_ui(NULL)
+
+  expect_match(unset$head, "prefers-color-scheme: dark", fixed = TRUE)
+  expect_true(htmltools::tagHasAttribute(unset$box, "data-follow-system"))
 })
 
 test_that("board show_conditions opt", {
@@ -311,4 +382,148 @@ test_that("a board option has a compact str_value()", {
 
   expect_identical(str_value(llm), "llm_model: Default chat function")
   expect_identical(str_value(llm), format(llm))
+})
+
+dark_mode_app <- function(name, ...) {
+
+  app_path <- system.file("examples", "board", "dark", "app.R",
+                          package = "blockr.core")
+
+  try(
+    shinytest2::AppDriver$new(
+      app_path,
+      name = name,
+      seed = 42,
+      load_timeout = 30 * 1000,
+      ...
+    )
+  )
+}
+
+test_that("a dark board is dark from its first paint, with no bslib", {
+
+  skip_on_cran()
+
+  app <- dark_mode_app("dark", options = list(blockr.dark_mode = "dark"))
+
+  testthat::skip_if(
+    inherits(app, "try-error"),
+    "Cannot start shinytest2 dark mode app."
+  )
+
+  on.exit(app$stop())
+
+  scheme <- "document.documentElement.dataset.bsTheme"
+  box <- "document.getElementById('my_board-dark_mode')"
+
+  # No script of bslib's on the page to take a message or set the scheme
+  expect_false(
+    app$get_js("Array.from(document.scripts).some(s => /bslib/.test(s.src))")
+  )
+
+  # Dark as the body starts, so before any of it can be painted
+  expect_identical(app$get_js("window.schemeAtBody"), "dark")
+  expect_true(app$get_js(paste0(box, ".checked")))
+
+  # A click switches the page before any message from the server can arrive,
+  # and the option follows
+  expect_identical(app$get_js(paste0(box, ".click(); ", scheme)), "light")
+
+  expect_identical(
+    app$wait_for_value(export = "my_board-dark_mode", ignore = list("dark")),
+    "light"
+  )
+
+  # A value set on the server reaches the box and the page
+  app$set_inputs(`my_board-set_mode` = "dark", allow_no_input_binding_ = TRUE)
+  app$wait_for_js(paste(scheme, "=== 'dark'"))
+
+  expect_true(app$get_js(paste0(box, ".checked")))
+  expect_identical(app$get_value(export = "my_board-dark_mode"), "dark")
+})
+
+test_that("an unset dark mode follows the system until a value is chosen", {
+
+  skip_on_cran()
+
+  app <- dark_mode_app("dark-unset")
+
+  testthat::skip_if(
+    inherits(app, "try-error"),
+    "Cannot start shinytest2 dark mode app."
+  )
+
+  on.exit(app$stop())
+
+  scheme <- "document.documentElement.dataset.bsTheme"
+  box <- "document.getElementById('my_board-dark_mode').checked"
+
+  chrome <- app$get_chromote_session()
+
+  emulate <- function(mode) {
+    chrome$Emulation$setEmulatedMedia(
+      features = list(list(name = "prefers-color-scheme", value = mode))
+    )
+  }
+
+  # Headless Chrome starts with a light system
+  expect_identical(app$get_js("window.schemeAtBody"), "light")
+  expect_false(app$get_js(box))
+  expect_null(app$get_value(export = "my_board-dark_mode"))
+
+  # The page and the box follow the system, and the option takes its value, as
+  # it did with bslib's toggle
+  emulate("dark")
+  app$wait_for_js(paste(scheme, "=== 'dark'"))
+
+  expect_true(app$get_js(box))
+  expect_identical(app$wait_for_value(export = "my_board-dark_mode"), "dark")
+
+  emulate("light")
+  app$wait_for_js(paste(scheme, "=== 'light'"))
+
+  expect_false(app$get_js(box))
+  expect_identical(
+    app$wait_for_value(export = "my_board-dark_mode", ignore = list("dark")),
+    "light"
+  )
+
+  # A value chosen on the page holds while the system changes
+  app$click(selector = "#my_board-dark_mode")
+
+  expect_identical(
+    app$wait_for_value(export = "my_board-dark_mode", ignore = list("light")),
+    "dark"
+  )
+
+  app$run_js(
+    paste(
+      "window.changes = 0;",
+      "window.matchMedia('(prefers-color-scheme: dark)')",
+      ".addEventListener('change', () => window.changes++);"
+    )
+  )
+
+  emulate("dark")
+  app$wait_for_js("window.changes >= 1")
+  emulate("light")
+  app$wait_for_js("window.changes >= 2")
+
+  expect_identical(app$get_js(scheme), "dark")
+  expect_true(app$get_js(box))
+  expect_identical(app$get_value(export = "my_board-dark_mode"), "dark")
+
+  # Loaded with a dark system, the page is dark as the body starts, and Shiny
+  # reads the box ticked
+  emulate("dark")
+  app$run_js("window.stale = true;")
+  chrome$Page$reload()
+
+  app$wait_for_js(
+    "!window.stale && !!window.Shiny?.shinyapp?.isConnected()"
+  )
+
+  expect_identical(app$get_js("window.schemeAtBody"), "dark")
+  expect_true(app$get_js(box))
+  expect_true(app$get_js("Shiny.shinyapp.$initialInput['my_board-dark_mode']"))
 })
