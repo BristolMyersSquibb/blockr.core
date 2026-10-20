@@ -38,3 +38,22 @@ test_that("head block constructor", {
     )
   )
 })
+
+test_that("the head block's tail switch is Shiny's checkbox", {
+
+  ui <- expr_ui("x", new_head_block(direction = "tail"))
+
+  box <- Filter(
+    function(x) identical(htmltools::tagGetAttribute(x, "type"), "checkbox"),
+    htmltools::tagQuery(ui)$find("input")$selectedTags()
+  )
+
+  expect_length(box, 1L)
+  expect_identical(htmltools::tagGetAttribute(box[[1L]], "id"), "x-expr-tail")
+  expect_true(htmltools::tagHasAttribute(box[[1L]], "checked"))
+
+  # A head block on a board with no bslib of its own brings none
+  deps <- chr_xtr(htmltools::findDependencies(ui), "name")
+
+  expect_false(any(grepl("bslib", deps)))
+})

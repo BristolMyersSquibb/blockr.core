@@ -74,8 +74,8 @@ new_head_block <- function(n = 6L, direction = c("head", "tail"), ...) {
           value = n,
           min = 1L
         ),
-        bslib::input_switch(
-          id = NS(id, "tail"),
+        checkboxInput(
+          inputId = NS(id, "tail"),
           label = "Tail",
           value = isTRUE(direction == "tail")
         )
