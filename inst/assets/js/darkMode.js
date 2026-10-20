@@ -19,8 +19,11 @@
     return document.documentElement.getAttribute("data-bs-theme");
   }
 
+  // Shiny reports a plot's colours, which thematic reads, again only on this
+  // event or a resize, the one bslib's toggle sent.
   function apply(mode) {
     document.documentElement.setAttribute("data-bs-theme", mode);
+    $(document).trigger("shiny:themechange");
   }
 
   // A value from a box or from the server. One that differs from the page's

@@ -424,6 +424,10 @@ test_that("a dark board is dark from its first paint, with no bslib", {
   # Dark as the body starts, so before any of it can be painted
   expect_identical(app$get_js("window.schemeAtBody"), "dark")
   expect_true(app$get_js(paste0(box, ".checked")))
+  expect_identical(
+    app$get_value(export = "my_board-plot_bg"),
+    "rgb(16, 24, 32)"
+  )
 
   # A click switches the page before any message from the server can arrive,
   # and the option follows
@@ -432,6 +436,15 @@ test_that("a dark board is dark from its first paint, with no bslib", {
   expect_identical(
     app$wait_for_value(export = "my_board-dark_mode", ignore = list("dark")),
     "light"
+  )
+
+  # Shiny reports the plot's new colours, which thematic reads
+  expect_identical(
+    app$wait_for_value(
+      export = "my_board-plot_bg",
+      ignore = list(NULL, "rgb(16, 24, 32)")
+    ),
+    "rgb(255, 255, 255)"
   )
 
   # A value set on the server reaches the box and the page
