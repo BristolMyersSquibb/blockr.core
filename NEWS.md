@@ -4,7 +4,7 @@
   checkbox and set it with `updateCheckboxInput()`, where they drew bslib's
   switch and dark mode toggle, which a value set on the server reached only
   through bslib's script. On a page without it, they now still show such a
-  value. Dark mode is labelled "Dark mode" by default and keeps its values,
+  value. Dark mode is labeled "Dark mode" by default and keeps its values,
   "light", "dark" or `NULL`, so saved boards load as before. A script of its
   own keeps the page's scheme, `data-bs-theme` on `<html>`: a line in the
   page's head sets it before the first paint, from the option's value or, when
