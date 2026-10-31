@@ -1,6 +1,6 @@
 on:
   pull_request:
-    branches: main
+    branches: [main, js-state]
   merge_group:
 
 name: ci
@@ -19,13 +19,9 @@ jobs:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       BLOCKR_PAT: ${{ secrets.BLOCKR_PAT }}
 
+  # Lists no downstream until one has a js-state branch of its own. The job
+  # stays for revdep / revdep-all, a required check, which passes with none.
   revdep:
     uses: BristolMyersSquibb/blockr.ci/.github/workflows/revdep.yaml@main
-    with:
-      revdep-packages: |
-        BristolMyersSquibb/blockr.dock
-        BristolMyersSquibb/blockr.dag
-        BristolMyersSquibb/blockr.assistant
-        BristolMyersSquibb/blockr.session
     secrets:
       BLOCKR_PAT: ${{ secrets.BLOCKR_PAT }}
