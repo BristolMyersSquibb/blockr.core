@@ -129,7 +129,7 @@ new_thematic_option(
 new_dark_mode_option(
   value = blockr_option("dark_mode", NULL),
   category = "Theme options",
-  label = "Light/dark mode",
+  label = "Dark mode",
   ...
 )
 

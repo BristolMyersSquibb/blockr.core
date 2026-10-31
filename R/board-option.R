@@ -439,7 +439,7 @@ new_filter_rows_option <- function(value = blockr_option("filter_rows",
     id = "filter_rows",
     default = value,
     ui = function(id) {
-      bslib::input_switch(
+      checkboxInput(
         NS(id, "filter_rows"),
         label,
         value
@@ -449,10 +449,10 @@ new_filter_rows_option <- function(value = blockr_option("filter_rows",
       observeEvent(
         get_board_option_or_null("filter_rows", session),
         {
-          bslib::toggle_switch(
+          updateCheckboxInput(
+            session,
             "filter_rows",
-            value = get_board_option_value("filter_rows", session),
-            session = session
+            value = get_board_option_value("filter_rows", session)
           )
         }
       )
@@ -489,7 +489,7 @@ new_thematic_option <- function(value = blockr_option("thematic", NULL),
     default = value,
     ui = function(id) {
       if (pkg_avail("thematic")) {
-        bslib::input_switch(
+        checkboxInput(
           NS(id, "thematic"),
           label,
           coal(value, FALSE)
@@ -500,10 +500,10 @@ new_thematic_option <- function(value = blockr_option("thematic", NULL),
       observeEvent(
         get_board_option_or_null("thematic", session),
         {
-          bslib::toggle_switch(
+          updateCheckboxInput(
+            session,
             "thematic",
-            value = get_board_option_value("thematic", session),
-            session = session
+            value = get_board_option_value("thematic", session)
           )
         }
       )
@@ -540,7 +540,7 @@ validate_board_option.thematic_option <- function(x) {
 #' @export
 new_dark_mode_option <- function(value = blockr_option("dark_mode", NULL),
                                  category = "Theme options",
-                                 label = "Light/dark mode", ...) {
+                                 label = "Dark mode", ...) {
 
   if (isTRUE(value)) {
     value <- "dark"
@@ -558,14 +558,17 @@ new_dark_mode_option <- function(value = blockr_option("dark_mode", NULL),
     id = "dark_mode",
     default = value,
     ui = function(id) {
-      span(
-        bslib::input_dark_mode(
-          id = NS(id, "dark_mode"),
-          mode = value
-        ),
-        tags$label(
-          label,
-          style = "vertical-align: top; margin-top: 3px;"
+      tagList(
+        dark_mode_dep(value),
+        tagAppendAttributes(
+          checkboxInput(
+            NS(id, "dark_mode"),
+            label,
+            identical(value, "dark")
+          ),
+          class = "blockr-dark-mode",
+          `data-follow-system` = if (is.null(value)) NA,
+          .cssSelector = "input"
         )
       )
     },
@@ -573,16 +576,58 @@ new_dark_mode_option <- function(value = blockr_option("dark_mode", NULL),
       observeEvent(
         get_board_option_or_null("dark_mode", session),
         {
-          bslib::toggle_dark_mode(
-            mode = get_board_option_value("dark_mode", session),
-            session = session
+          mode <- get_board_option_value("dark_mode", session)
+          updateCheckboxInput(
+            session,
+            "dark_mode",
+            value = identical(mode, "dark")
           )
+          session$sendCustomMessage("blockr-dark-mode", mode)
         }
       )
+    },
+    transform = function(x) {
+      if (isTRUE(x)) {
+        "dark"
+      } else if (isFALSE(x)) {
+        "light"
+      } else {
+        x
+      }
     },
     category = category,
     label = label,
     ...
+  )
+}
+
+# The script that keeps the page's scheme, `data-bs-theme` on `<html>`, with
+# the option, and the line that sets the scheme before the first paint: from
+# the option's value or, when unset, from the system setting. The line goes in
+# the dependency rather than in `tags$head()`, which a front-end loses when it
+# renders the option's UI to HTML ahead of the page, keeping only its
+# dependencies, as blockr.dock's options sidebar does.
+dark_mode_dep <- function(mode) {
+
+  if (is.null(mode)) {
+    mode <- paste(
+      "window.matchMedia(\"(prefers-color-scheme: dark)\").matches",
+      "? \"dark\" : \"light\""
+    )
+  } else {
+    mode <- paste0("\"", mode, "\"")
+  }
+
+  htmltools::htmlDependency(
+    "dark-mode-option",
+    pkg_version(),
+    src = pkg_file("assets", "js"),
+    script = "darkMode.js",
+    head = paste0(
+      "<script>document.documentElement.setAttribute(\"data-bs-theme\", ",
+      mode,
+      ");</script>"
+    )
   )
 }
 
