@@ -93,7 +93,7 @@ test_that("deprecated block_arg aliases warn once and forward", {
 
   expect_warning(
     register_block(
-      new_head_block,
+      new_class_head_block,
       name = "t",
       description = "t",
       uid = "ut_dep_arg",
@@ -173,7 +173,7 @@ test_that("registration hard-validates the structured spec form", {
 
   expect_error(
     register_block(
-      new_head_block,
+      new_class_head_block,
       name = "t",
       description = "t",
       uid = "ut_head_bad_arg",
@@ -184,7 +184,7 @@ test_that("registration hard-validates the structured spec form", {
 
   expect_error(
     register_block(
-      new_head_block,
+      new_class_head_block,
       name = "t",
       description = "t",
       uid = "ut_head_bad_example",
@@ -201,23 +201,14 @@ test_that("registration hard-validates the structured spec form", {
 
 test_that("registration validates worked examples against declared types", {
 
-  new_stateful_block <- function(state = list(), ...) {
-    new_transform_block(
-      function(id, data) {
-        moduleServer(
-          id,
-          function(input, output, session) {
-            list(expr = reactive(quote(identity(data))), state = list())
-          }
-        )
-      },
-      function(id) {
-        tagList()
-      },
-      class = "stateful_block",
-      ...
+  new_stateful_block <- block_constructor(
+    new_block_class(
+      "stateful_block",
+      inputs = "data",
+      expr = function(state = list()) bbquote(.(data)),
+      ui = js_module("stateful-block.js")
     )
-  }
+  )
 
   state_type <- arg_object(
     conditions = arg_array(arg_object(column = arg_string())),
@@ -247,7 +238,7 @@ test_that("registration validates worked examples against declared types", {
     )
   )
 
-  # malformed-but-constructible: conditions is a string, not an array
+  # malformed-but-runnable: conditions is a string, not an array
   expect_error(
     register_block(
       new_stateful_block,
@@ -288,17 +279,28 @@ test_that("block-level examples validate without a user-supplied spec", {
 
   expect_no_error(
     register_block(
-      new_dataset_block,
+      new_class_head_block,
       name = "t",
       description = "t",
       uid = "ut_ex_only",
-      examples = list(list(dataset = "iris"))
+      examples = list(list(n = 3L, direction = "tail"))
     )
   )
 
   expect_error(
     register_block(
-      new_head_block,
+      new_class_merge_block,
+      name = "t",
+      description = "t",
+      uid = "ut_ex_only_bad",
+      examples = list(list(by = 1, sideways = TRUE))
+    ),
+    class = "block_example_unknown"
+  )
+
+  expect_error(
+    register_block(
+      new_class_head_block,
       name = "t",
       description = "t",
       uid = "ut_ex_only_bad",
@@ -306,35 +308,6 @@ test_that("block-level examples validate without a user-supplied spec", {
     ),
     class = "block_example_invalid"
   )
-})
-
-test_that("registry_metadata is deprecated but still projects legacy shape", {
-
-  withr::local_options(rlib_warning_verbosity = "verbose")
-  withr::defer(unregister_blocks("ut_head_legacy"))
-
-  register_block(
-    new_head_block,
-    name = "Head",
-    description = "First or last.",
-    uid = "ut_head_legacy",
-    arguments = new_arg_specs(
-      direction = new_arg_spec("head or tail", example = "tail")
-    ),
-    guidance = "Pick head for the first rows."
-  )
-
-  expect_warning(
-    args <- registry_metadata("ut_head_legacy", "arguments"),
-    class = "deprecated_registry_metadata"
-  )
-
-  args <- args[[1L]]
-
-  expect_type(args, "character")
-  expect_identical(as.character(args), "head or tail")
-  expect_identical(attr(args, "examples"), list(direction = "tail"))
-  expect_identical(attr(args, "prompt"), "Pick head for the first rows.")
 })
 
 test_that("arg type descriptor constructors build JSON-Schema nodes", {

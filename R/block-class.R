@@ -1,424 +1,580 @@
-#' Blocks
+#' Block classes
 #'
-#' Steps in a data analysis pipeline are represented by blocks. Each block
-#' combines data input with user inputs to produce an output. In order to
-#' create a block, which is implemented as a shiny module, we require a server
-#' function, a function that produces some UI and a class vector.
+#' A block class is a value made by `new_block_class()`, holding everything
+#' that is the same for every block of the class, and the constructor that app
+#' scripts call is a function that `block_constructor()` makes from it. A
+#' package exports both: the class, from whose fields another class can be
+#' built, and the constructor.
 #'
-#' A block constructor may have arguments, which taken together define the
-#' block state. It is good practice to expose all user-selectable arguments of
-#' a block (i.e. everything excluding the "data" input) as block arguments such
-#' that block can be fully initialized via the constructor. Some default values
-#' are required such that blocks can be constructed via constructor calls
-#' without arguments. Where it is sensible to do so, specific default values
-#' are acceptable, but if in any way data dependent, defaults should map to
-#' an "empty" input. For example, a block that provides [utils::head()]
-#' functionality, one such argument could be `n` and a reasonable default value
-#' could be `6L` (in line with corresponding default S3 method implementation).
-#' On the other hand, a block that performs a [base::merge()] operation might
-#' expose a `by` argument, but a general purpose default value (that does not
-#' depend on the data) is not possible. Therefore, [new_merge_block()] has
-#' `by = character()`.
+#' Every class has an `expr`, a function whose formals are the state args and
+#' whose body checks them, as a constructor checks its args, and returns what
+#' interpolation makes the block expression from (see [interpolate()]): a call,
+#' a string, a function of the data inputs or an object of a class that
+#' inherits from `blockr_expr`, such as what [bbquote()] returns. An arg
+#' without a default starts unset and stays out of the block's state until
+#' something sets it. A body that uses an unset arg, or signals `invalid()`
+#' with a message, makes R run nothing and report the block as `invalid`, and
+#' a body that can do without an unset arg tests it with [missing()]. Called
+#' without args, `expr` gives the state a new block starts with.
 #'
-#' The return value of a block constructor should be the result of a call to
-#' `new_block()` and `...` should be contained in the constructor signature
-#' such that general block arguments (e.g. `name`) are available from the
-#' constructor.
+#' The data inputs, apart from the state args, are given as `inputs`: a
+#' character vector names them, such as `"data"`, `c("x", "y")` or `"..."` for
+#' a variadic block, a list from [alist()] gives them as formals, and a
+#' function gives them as its formals and checks them in its body, as
+#' `function(data) stopifnot(is.data.frame(data))` does. No input has a
+#' default. A class names its UI module with `js_module()`, which keeps the
+#' module's path in the package's `inst/` and the package whose code calls it,
+#' for R to resolve when it serves the module, and which resolves the path
+#' against the working directory outside a package. A class further takes a
+#' named list of `requests`, functions for what its UI asks of R (see
+#' [block_request()]), the coercion that makes an output from a result, as
+#' `output`, and the constructors of the board options its code reads, as
+#' `options`. A field a class leaves out is `NULL`.
 #'
-#' @section Server:
-#' The server function (passed as `server`) is expected to be a function that
-#' returns a [shiny::moduleServer()]. This function is expected to have at
-#' least an argument `id` (string-valued), which will be used as the module ID.
-#' Further arguments may be used in the function signature, one for each "data"
-#' input. A block implementing [utils::head()] for example could have a single
-#' extra argument `data`, while a block that performs [base::merge()] requires
-#' two extra arguments, e.g. `x` and `y`. Finally, a variadic block, e.g.
-#' a block implementing something like [base::rbind()], needs to accommodate for
-#' an arbitrary number of inputs. This is achieved by passing a
-#' `reactives::reactive_exprs()` collection as `...args` and thus such a
-#' variadic block needs `...args` as part of the server function signature.
-#' The fixed per-data input arguments are passed as [shiny::reactive()] or
-#' [shiny::reactiveVal()] objects, while each slot of the collection holds the
-#' reactive for one input: reading a slot with `[[` or `$`, as in `...args[[1]]`
-#' or `...args$x`, returns the input's data, and reading it with `[`, as in
-#' `...args[1]`, returns the reactive. The inputs are listed by `names()` and
-#' counted by `length()`, `as.list()` returns their reactives and
-#' `reactives::as_values()` the data of all of them.
+#' A class is checked once, when it is defined: no state arg is `...`,
+#' `block_name` or `visible`, no input or board option shares the name of a
+#' state arg or of each other, the arguments of each request name inputs,
+#' state args or board options, but for parameters, which have a default, and
+#' for the `file` of a request wrapped in [action()], and `expr`, called
+#' without args, cannot run yet or returns a call, a string, a function whose
+#' formals are the inputs or an object of a class that inherits from
+#' `blockr_expr`, holding no function.
 #'
-#' The server function may implement arbitrary shiny logic and is expected to
-#' return a list with components `expr` and `state`. The expression corresponds
-#' to the R code necessary to perform the block task and is expected to be
-#' a reactive quoted expression. It should contain user-chosen values for all
-#' user inputs and placeholders for all data inputs (using the same names for
-#' data inputs as in the server function signature). Such an expression for a
-#' [base::merge()] block could be created using [base::bquote()] as
+#' The constructor has the formals of `expr`, a `block_name` and a `visible`,
+#' and no `...`, so a misspelled state arg fails as an unused argument. It
+#' calls `expr` with its args and returns a block, a list of the state that
+#' the checks in `expr` left in the frame it ran in, which leaves out an arg
+#' that is still unset. A block holds its name, which defaults to one made
+#' from its class's name by `default_block_name()`, and core's attribute
+#' `visible`, which says which of the block's sections show, and refers to its
+#' class, which every block of the class shares.
 #'
-#' ```r
-#' bquote(
-#'   merge(x, y, by = .(cols)),
-#'   list(cols = current_val())
-#' }
-#' ```
+#' @section Block vectors:
+#' Multiple blocks can be combined into a `blocks` object, a container for
+#' an (ordered) set of blocks. Block IDs are handled at the `blocks` level
+#' which will ensure uniqueness.
 #'
-#' where `current_val()` is a reactive that evaluates to the current user
-#' selection of the `by` columns. This should then be wrapped in a
-#' [shiny::reactive()] call such that `current_val()` can be evaluated whenever
-#' the current expression is required.
-#'
-#' The `state` component is expected to be a named list with either reactive or
-#' "static" values. In most cases, components of `state` will be reactives,
-#' but it might make sense in some scenarios to have constructor arguments that
-#' are not exposed via UI components but are fixed at construction time. An
-#' example for this could be the `dataset_block` implementation where we have
-#' constructor arguments `dataset` and `package`, but only expose `dataset`
-#' as UI element. This means that `package` is fixed at construction time.
-#' Nevertheless, `package` is required as state component, as this is used for
-#' re-creating blocks from saved state.
-#'
-#' State component names are required to match block constructor arguments and
-#' re-creating saved objects basically calls the block constructor with values
-#' obtained from block state.
-#'
-#' @section UI:
-#' Block UI is generated using the function passed as `ui` to the `new_block`
-#' constructor. This function is required to take a single argument `id` and
-#' shiny UI components have to be namespaced such that they are nested within
-#' this ID (i.e. by creating IDs as `shiny::NS(id, "some_value")`). Some care
-#' has to be taken to properly initialize inputs with constructor values. As a
-#' rule of thumb, input elements exposed to the UI should have corresponding
-#' block constructor arguments such that blocks can be created with a given
-#' initial state.
-#'
-#' Block UI should be limited to displaying and arranging user inputs to set
-#' block arguments.
-#'
-#' @section Sub-classing:
-#' In addition to the specific class of a block, the core package uses virtual
-#' classes to group together blocks with similar behavior (e.g.
-#' `transform_block`) and makes use of this inheritance structure in S3
-#' dispatch for methods like [block_eval()]. This pattern is not required but
-#' encouraged.
-#'
-#' @section Initialization/evaluation:
-#' Some control over when a block is considered "ready for evaluation" is
-#' available via arguments `dat_valid` and `allow_empty_state`. Data input
-#' validation can optionally be performed by passing a predicate function with
-#' the same arguments as in the server function (not including `id`) and the
-#' block expression will not be evaluated as long as this function throws an
-#' error.
-#'
-#' Ahead of validation, a block must have its inputs available: every required
-#' *data* input connected to a ready upstream (variadic blocks need at least the
-#' `...args` minimum declared via `allow_empty_state`) and every required *user*
-#' input (`state`) provided. Until then -- including while an upstream is itself
-#' still pending -- neither the validator nor the block expression run and no
-#' output is produced.
-#'
-#' Other conditions (messages and warnings) may be thrown as will be caught
-#' and displayed to the user but they will not interrupt evaluation. Errors
-#' are safe in that they will be caught as well but the will interrupt
-#' evaluation as long as block data input does not satisfy validation.
-#'
-#' @param server A function returning [shiny::moduleServer()]
-#' @param ui A function with a single argument (`ns`) returning a `shiny.tag`
-#' @param class Block subclass
-#' @param ctor String-valued constructor name or function/frame number (mostly
-#'   for internal use or when defining constructors for virtual classes)
-#' @param ctor_pkg String-valued package name when passing a string-valued
-#'   constructor name or `NULL`
-#' @param dat_valid (Optional) input data validator
-#' @param block_name Block name
-#' @param allow_empty_state Relaxes the block's readiness requirements. By
-#' default every data input must be connected and a variadic block needs at
-#' least one `...args` input. As `TRUE`, `FALSE` or a character vector of
-#' `state` names it relaxes *user* inputs (which `state` values may be empty).
-#' A `list(input = ..., data = ...)` also relaxes *data* inputs: `input` takes
-#' the same `TRUE`/`FALSE`/character form, while `data` names non-variadic data
-#' inputs that may stay unconnected and, via a `...args` entry, overrides the
-#' required number of variadic inputs, e.g.
-#' `list(input = "n", data = list("y", ...args = 2))`
-#' @param expr_type Expression type (experimental)
-#' @param external_ctrl Set up external control (experimental)
-#' @param block_metadata Block metadata
-#' @param ... Further (metadata) attributes
+#' @param name Class name, which leads the class vector of every block of the
+#'   class
+#' @param inputs Data inputs, as a character vector of names, a list of formals
+#'   or a function of them
+#' @param expr Function of the state args that returns what interpolation
+#'   makes the block expression from
+#' @param ui The class's UI module, made by `js_module()`
+#' @param requests Named list of request functions
+#' @param output Coercion that makes an output from a result
+#' @param options List of board option constructors
 #'
 #' @examples
-#' new_identity_block <- function() {
-#'   new_transform_block(
-#'     function(id, data) {
-#'       moduleServer(
-#'         id,
-#'         function(input, output, session) {
-#'           list(
-#'             expr = reactive(quote(identity(data))),
-#'             state = list()
-#'           )
-#'         }
-#'       )
-#'     },
-#'     function(id) {
-#'       shiny::tagList()
-#'     },
-#'     class = "identity_block"
-#'   )
-#' }
+#' head_block <- new_block_class(
+#'   "head_block",
+#'   inputs = function(data) stopifnot(is.data.frame(data)),
+#'   expr = function(n = 6L, direction = c("head", "tail")) {
+#'     direction <- match.arg(direction)
+#'     fn <- if (direction == "tail") quote(utils::tail) else quote(utils::head)
+#'     bbquote(.(fn)(.(data), n = .(n)))
+#'   },
+#'   ui = js_module("head-block.js"),
+#'   requests = list(n_max = function(data) nrow(data))
+#' )
 #'
-#' blk <- new_identity_block()
+#' new_head_block <- block_constructor(head_block)
+#'
+#' blk <- new_head_block(n = 10L)
+#' blk
+#'
+#' is_block_class(head_block)
 #' is_block(blk)
 #'
-#' @return Both `new_block()` and `as_block()` return an object inheriting from
-#' `block`, while `is_block()` returns a boolean indicating whether an object
-#' inherits from `block` or not. Block vectors, created using `blocks()`,
-#' `as_blocks()`, or by combining multiple blocks using [base::c()] all inherit
-#' from `blocks` and `is_blocks()` returns a boolean indicating whether an
-#' object
-#' inherits from `blocks` or not.
+#' blks <- c(a = new_head_block(), b = new_head_block(direction = "tail"))
+#'
+#' is_blocks(blks)
+#' names(blks)
+#'
+#' @return The class constructor `new_block_class()` returns an object of class
+#' `block_class` and `block_constructor()` a function of class
+#' `block_constructor`, which returns a block, an object inheriting from
+#' `block`, as does `as_block()`. A UI module made by `js_module()` is an
+#' object of class `js_module`, while `invalid()` signals a condition of class
+#' `invalid` and returns nothing. The predicates `is_block_class()` and
+#' `is_block()` return a scalar logical. Block vectors, created using
+#' `blocks()`, `as_blocks()`, or by combining multiple blocks using [base::c()]
+#' all inherit from `blocks` and `is_blocks()` returns a scalar logical.
 #'
 #' @export
-new_block <- function(server, ui, class, ctor = sys.parent(), ctor_pkg = NULL,
-                      dat_valid = NULL, allow_empty_state = FALSE,
-                      block_name = default_block_name,
-                      expr_type = c("quoted", "bquoted"),
-                      external_ctrl = FALSE, block_metadata = NULL, ...) {
+new_block_class <- function(name, inputs = NULL, expr, ui, requests = NULL,
+                            output = NULL, options = NULL) {
 
-  stopifnot(
-    is.character(class), length(class) > 0L,
-    is_bool(external_ctrl) || is.character(external_ctrl)
-  )
-
-  expr_type <- match.arg(expr_type)
-
-  if (missing(ui)) {
-    ui <- function(id) {
-      tagList()
-    }
+  if (!is_string(name)) {
+    blockr_abort(
+      "A block class name is expected to be a string.",
+      class = "block_class_name_invalid"
+    )
   }
 
-  if (is.null(block_name)) {
-    block_name <- default_block_name
-  }
-
-  class <- c(class, "block")
-
-  if (is.function(block_name)) {
-    block_name <- block_name(class)
-  }
-
-  stopifnot(is_string(block_name))
-
-  if (is.null(block_metadata) || isFALSE(block_metadata)) {
-
-    uid <- registry_id_from_block(class)
-
-    if (length(uid)) {
-
-      block_metadata <- lapply(
-        set_names(nm = block_record_fields()),
-        get_attr,
-        get_registry_entry(uid)
-      )
-
-      block_metadata <- c(list(id = uid), block_metadata)
-
-    } else if (!isFALSE(block_metadata)) {
-
-      blockr_warn(
-        "No registry entry for block {class[1L]}; using default metadata.",
-        class = "missing_block_metadata"
-      )
-
-      block_metadata <- block_default_metadata(class)
-    }
-  }
-
-  validate_block(
-    new_vctr(
+  validate_block_class(
+    structure(
       list(
-        expr_server = server,
-        expr_ui = ui,
-        dat_valid = dat_valid
+        class = c(name, "block"),
+        inputs = inputs,
+        expr = expr,
+        ui = ui,
+        requests = requests,
+        output = output,
+        options = options
       ),
-      ...,
-      ctor = resolve_ctor(ctor, ctor_pkg),
-      block_name = block_name,
-      allow_empty_state = allow_empty_state,
-      expr_type = expr_type,
-      external_ctrl = external_ctrl,
-      block_metadata = block_metadata,
-      class = class
-    ),
-    ui_eval = TRUE
+      class = "block_class"
+    )
   )
 }
 
-internal_block_attributes <- function() {
-  c(
-    "ctor",
-    "class",
-    "allow_empty_state",
-    "expr_type",
-    "external_ctrl",
-    "block_metadata"
+#' @param x Object
+#' @rdname new_block_class
+#' @export
+is_block_class <- function(x) {
+  inherits(x, "block_class")
+}
+
+#' @param cls Block class
+#' @rdname new_block_class
+#' @export
+block_constructor <- function(cls) {
+
+  if (!is_block_class(cls)) {
+    blockr_abort(
+      "A block constructor is made from a block class.",
+      class = "block_class_invalid"
+    )
+  }
+
+  ctor <- function() {
+    new_class_block(cls, environment())
+  }
+
+  formals(ctor) <- c(
+    formals(cls[["expr"]]),
+    alist(block_name = NULL, visible = NULL)
+  )
+
+  structure(
+    ctor,
+    block_class = cls,
+    class = c("block_constructor", "function")
   )
 }
 
-#' @rdname new_block
+#' @param path Path of the module, relative to the package's `inst/`
+#' @param package The package whose code names the module (`NULL` outside a
+#'   package)
+#' @rdname new_block_class
+#' @export
+js_module <- function(path, package = pkg_name(parent.frame())) {
+
+  if (!is_string(path)) {
+    blockr_abort(
+      "A module path is expected to be a string.",
+      class = "js_module_path_invalid"
+    )
+  }
+
+  if (is.null(package)) {
+    path <- normalizePath(path, mustWork = FALSE)
+  } else if (!is_string(package)) {
+    blockr_abort(
+      "A module's package is expected to be a string or `NULL`.",
+      class = "js_module_package_invalid"
+    )
+  }
+
+  structure(list(path = path, package = package), class = "js_module")
+}
+
+#' @param message Why the state cannot run
+#' @rdname new_block_class
+#' @export
+invalid <- function(message) {
+
+  if (!is_string(message)) {
+    blockr_abort(
+      "The message of `invalid()` is expected to be a string.",
+      class = "invalid_message_invalid"
+    )
+  }
+
+  stop(
+    structure(
+      class = c("invalid", "error", "condition"),
+      list(message = message, call = NULL)
+    )
+  )
+}
+
+is_js_module <- function(x) {
+  inherits(x, "js_module")
+}
+
+validate_block_class <- function(x) {
+
+  validate_class_inputs(x[["inputs"]])
+
+  if (!is.function(x[["expr"]])) {
+    blockr_abort(
+      "A block class's `expr` is expected to be a function.",
+      class = "block_class_expr_invalid"
+    )
+  }
+
+  if (!is_js_module(x[["ui"]])) {
+    blockr_abort(
+      "A block class's `ui` is expected to be made by `js_module()`.",
+      class = "block_class_ui_invalid"
+    )
+  }
+
+  if (!is.null(x[["output"]]) && !is.function(x[["output"]])) {
+    blockr_abort(
+      "A block class's `output` is expected to be a function.",
+      class = "block_class_output_invalid"
+    )
+  }
+
+  validate_class_options(x[["options"]])
+
+  inputs <- class_inputs(x)
+  args <- class_state_args(x)
+  opts <- class_option_ids(x)
+
+  reserved <- intersect(args, c("...", "block_name", "visible"))
+
+  if (length(reserved)) {
+    blockr_abort(
+      "A block class cannot have {qty(reserved)}state arg{?s} {reserved}.",
+      class = "block_class_args_invalid"
+    )
+  }
+
+  known <- c(inputs, args, opts)
+  clash <- unique(known[duplicated(known)])
+
+  if (length(clash)) {
+    blockr_abort(
+      "A block class needs distinct names for its inputs, state args and ",
+      "board options, but repeats {clash}.",
+      class = "block_class_args_invalid"
+    )
+  }
+
+  validate_class_requests(x[["requests"]], known)
+  validate_initial_expr(x[["expr"]], inputs)
+
+  x
+}
+
+validate_class_inputs <- function(inputs) {
+
+  if (is.null(inputs)) {
+    return(invisible())
+  }
+
+  if (!is.character(inputs) && !is.list(inputs) && !is.function(inputs)) {
+    blockr_abort(
+      "Block inputs are expected to be names, formals or a function of them.",
+      class = "block_class_inputs_invalid"
+    )
+  }
+
+  nms <- if (is.character(inputs)) inputs else names(input_formals(inputs))
+
+  if (length(inputs) && (is.null(nms) || anyNA(nms) || any(!nzchar(nms)) ||
+                           anyDuplicated(nms))) {
+    blockr_abort(
+      "Block inputs are expected to have unique, non-empty names.",
+      class = "block_class_inputs_invalid"
+    )
+  }
+
+  if (!all(lgl_ply(input_formals(inputs), is_empty_arg))) {
+    blockr_abort(
+      "Block inputs cannot have defaults.",
+      class = "block_class_inputs_invalid"
+    )
+  }
+
+  invisible()
+}
+
+validate_class_options <- function(options) {
+
+  if (is.null(options)) {
+    return(invisible())
+  }
+
+  if (!is.list(options) || !all(lgl_ply(options, is.function)) ||
+        !all(lgl_ply(lapply(options, do.call, list()), is_board_option))) {
+    blockr_abort(
+      "The `options` of a block class are expected to be a list of board ",
+      "option constructors.",
+      class = "block_class_options_invalid"
+    )
+  }
+
+  invisible()
+}
+
+validate_class_requests <- function(requests, known) {
+
+  if (is.null(requests)) {
+    return(invisible())
+  }
+
+  nms <- names(requests)
+
+  if (!is.list(requests) || !all(lgl_ply(requests, is.function)) ||
+        (length(requests) && (is.null(nms) || any(!nzchar(nms)) ||
+                                anyDuplicated(nms)))) {
+    blockr_abort(
+      "The `requests` of a block class are expected to be a list of ",
+      "functions with unique names.",
+      class = "block_class_requests_invalid"
+    )
+  }
+
+  for (nm in nms) {
+
+    fmls <- formals(requests[[nm]])
+    params <- setdiff(names(fmls), c(known, request_file_arg(requests[[nm]])))
+    bare <- params[lgl_ply(fmls[params], is_empty_arg)]
+
+    if (length(bare)) {
+      blockr_abort(
+        "Request {nm} takes {bare} without a default, which {qty(bare)}",
+        "{?is/are} neither an input, a state arg nor a board option of its ",
+        "class.",
+        class = "block_class_requests_invalid"
+      )
+    }
+  }
+
+  invisible()
+}
+
+validate_initial_expr <- function(expr, inputs) {
+
+  res <- tryCatch(
+    expr(),
+    error = function(e) if (is_invalid_cnd(e)) NULL else stop(e)
+  )
+
+  if (!is.null(res) && !is.call(res) && !is.name(res) &&
+        !is.character(res) && !is.function(res) &&
+        !inherits(res, "blockr_expr")) {
+    blockr_abort(
+      "A block class's `expr()` is expected to return a call, a string, a ",
+      "function or a `blockr_expr`, not an object of class {class(res)}.",
+      class = "block_class_expr_invalid"
+    )
+  }
+
+  if (is.function(res) && !identical(formal_names(res), inputs)) {
+    blockr_abort(
+      "A function returned by `expr()` is expected to have the block's ",
+      "inputs {inputs} as its formals.",
+      class = "block_class_expr_invalid"
+    )
+  }
+
+  if (!is.function(res) && holds_function(res)) {
+    blockr_abort(
+      "What `expr()` returns may not hold a function, as base `bquote()` ",
+      "puts in for an input's `.(data)`, which `bbquote()` keeps instead.",
+      class = "block_class_expr_invalid"
+    )
+  }
+
+  invisible()
+}
+
+holds_function <- function(x) {
+
+  if (is.function(x)) {
+    return(TRUE)
+  }
+
+  if (!is.call(x)) {
+    return(FALSE)
+  }
+
+  for (i in seq_along(x)) {
+    if (!is_empty_arg(x[[i]]) && holds_function(x[[i]])) {
+      return(TRUE)
+    }
+  }
+
+  FALSE
+}
+
+is_empty_arg <- function(x) {
+  identical(x, quote(expr = ))
+}
+
+formal_names <- function(fun) {
+  coal(names(formals(fun)), character(), fail_all = FALSE)
+}
+
+input_formals <- function(inputs) {
+
+  if (is.function(inputs)) {
+    return(formals(inputs))
+  }
+
+  if (is.list(inputs)) inputs
+}
+
+class_inputs <- function(cls) {
+
+  inputs <- cls[["inputs"]]
+
+  if (is.character(inputs)) {
+    return(inputs)
+  }
+
+  coal(names(input_formals(inputs)), character(), fail_all = FALSE)
+}
+
+class_state_args <- function(cls) {
+  formal_names(cls[["expr"]])
+}
+
+class_board_options <- function(cls) {
+  lapply(cls[["options"]], do.call, list())
+}
+
+class_option_ids <- function(cls) {
+  chr_ply(class_board_options(cls), board_option_id)
+}
+
+is_invalid_cnd <- function(cnd) {
+  inherits(cnd, "invalid") || is_missing_arg_error(cnd)
+}
+
+is_missing_arg_error <- function(cnd) {
+  inherits(cnd, "missingArgError") ||
+    (inherits(cnd, "error") &&
+       grepl(missing_arg_pattern(), conditionMessage(cnd)))
+}
+
+missing_arg_pattern <- function() {
+
+  msg <- gettext("argument \"%s\" is missing, with no default", domain = "R")
+  parts <- strsplit(msg, "%s", fixed = TRUE)[[1L]]
+
+  paste0(
+    "^",
+    paste(gsub("([][{}()+*^$|\\\\.?])", "\\\\\\1", parts), collapse = ".+"),
+    "$"
+  )
+}
+
+new_class_block <- function(cls, env) {
+
+  args <- class_state_args(cls)
+  given <- args[!lgl_ply(args, arg_is_missing, env)]
+
+  block_name <- coal(
+    env[["block_name"]],
+    default_block_name(cls[["class"]]),
+    fail_all = FALSE
+  )
+
+  if (!is_string(block_name)) {
+    blockr_abort(
+      "Expecting a string-valued block name.",
+      class = "block_name_invalid"
+    )
+  }
+
+  visible <- env[["visible"]]
+
+  if (!is.null(visible) && !is.character(visible)) {
+    blockr_abort(
+      "Expecting `visible` to be a character vector.",
+      class = "block_visible_invalid"
+    )
+  }
+
+  structure(
+    expr_state(cls, mget(given, envir = env)),
+    block_name = block_name,
+    visible = visible,
+    block_class = cls,
+    class = cls[["class"]]
+  )
+}
+
+arg_is_missing <- function(arg, env) {
+  eval(call("missing", as.name(arg)), env)
+}
+
+expr_state <- function(cls, args) {
+
+  frame <- NULL
+  expr <- cls[["expr"]]
+
+  body(expr) <- bquote(
+    {
+      .(function(env) frame <<- env)(environment())
+      .(body(expr))
+    }
+  )
+
+  tryCatch(
+    do.call(expr, args, quote = TRUE),
+    error = function(e) if (!is_invalid_cnd(e)) stop(e)
+  )
+
+  fmls <- formals(expr)
+  nms <- formal_names(expr)
+
+  keep <- !lgl_ply(fmls, is_empty_arg) |
+    !lgl_ply(nms, arg_is_missing, frame)
+
+  mget(nms[keep], envir = frame)
+}
+
+block_class <- function(x) {
+  attr(x, "block_class", exact = TRUE)
+}
+
+constructor_class <- function(ctor) {
+
+  if (!inherits(ctor, "block_constructor")) {
+    blockr_abort(
+      "Expecting a block constructor made by `block_constructor()`.",
+      class = "block_constructor_invalid"
+    )
+  }
+
+  attr(ctor, "block_class", exact = TRUE)
+}
+
+block_state <- function(x) {
+
+  res <- unclass(x)
+  attributes(res) <- NULL
+  names(res) <- names(x)
+
+  res
+}
+
+#' @param class A block class's class vector
+#' @rdname new_block_class
 #' @export
 default_block_name <- function(class) {
   res <- gsub("_", " ", sub("_block$", "", class[1L]))
   paste0(toupper(substr(res, 1L, 1L)), substring(res, 2L))
 }
 
-validate_block_server <- function(server) {
-
-  if (!is.function(server)) {
-    blockr_abort(
-      "A block server component is expected to be a function.",
-      class = "block_server_function_invalid"
-    )
-  }
-
-  args <- names(formals(server))
-
-  if (!identical(args[1L], "id")) {
-    blockr_abort(
-      "A block server function is expected to have an argument `id` in ",
-      "first postion.",
-      class = "block_server_arg_id_invalid"
-    )
-  }
-
-  if ("..." %in% args) {
-    blockr_abort(
-      "Variadic blocks are supported not by passing arguments as `...` ",
-      "but using a special argument `...args`.",
-      class = "block_server_dots_invalid"
-    )
-  }
-
-  invisible(server)
-}
-
-validate_block_ui <- function(ui) {
-
-  if (!is.function(ui)) {
-    blockr_abort(
-      "A block UI component is expected to be a function.",
-      class = "block_ui_function_invalid"
-    )
-  }
-
-  if (!identical(names(formals(ui)), "id")) {
-    blockr_abort(
-      "A block UI function is expected to have a single argument `id`.",
-      class = "block_ui_arg_id_invalid"
-    )
-  }
-
-  invisible(ui)
-}
-
-validate_data_validator <- function(validator, server) {
-
-  server_args <- setdiff(names(formals(server)), "id")
-
-  if (!length(server_args) && not_null(validator)) {
-    blockr_abort(
-      "A nullary server function cannot accompany a data input validator.",
-      class = "block_validator_nullary_invalid"
-    )
-  }
-
-  if (not_null(validator)) {
-
-    if (!is.function(validator)) {
-      blockr_abort(
-        "Data input validator is expected to be a function.",
-        class = "block_validator_function_invalid"
-      )
-    }
-
-    val_args <- names(formals(validator))
-
-    if (!identical(server_args, val_args)) {
-      blockr_abort(
-        "Server args {server_args} do not match validator args {val_args}.",
-        class = "block_validator_args_invalid"
-      )
-    }
-  }
-
-  invisible(validator)
-}
-
-validate_allow_empty_state <- function(x) {
-
-  spec <- attr(x, "allow_empty_state")
-
-  if (!is.list(spec)) {
-    return(invisible(x))
-  }
-
-  nms <- names(spec)
-
-  if (length(spec) &&
-        (is.null(nms) || any(!nzchar(nms)) ||
-           length(setdiff(nms, c("input", "data"))))) {
-    blockr_abort(
-      "A list-valued `allow_empty_state` may only contain `input` and ",
-      "`data` entries.",
-      class = "allow_empty_state_invalid"
-    )
-  }
-
-  data <- spec[["data"]]
-
-  if (is.null(data)) {
-    return(invisible(x))
-  }
-
-  dnms <- coal(names(data), character(length(data)))
-  is_args <- dnms == "...args"
-
-  if (sum(is_args) > 1L) {
-    blockr_abort(
-      "`allow_empty_state$data` accepts at most one `...args` entry.",
-      class = "allow_empty_state_invalid"
-    )
-  }
-
-  if (any(is_args)) {
-
-    if (!is.na(block_arity(x))) {
-      blockr_abort(
-        "A `...args` entry in `allow_empty_state$data` is only valid for a ",
-        "variadic block (one with a `...args` server argument).",
-        class = "allow_empty_state_invalid"
-      )
-    }
-
-    if (!is_count(data[[which(is_args)]])) {
-      blockr_abort(
-        "The `...args` entry in `allow_empty_state$data` is expected to be a ",
-        "single non-negative number.",
-        class = "allow_empty_state_invalid"
-      )
-    }
-  }
-
-  unknown <- setdiff(unlst(data[!is_args]), block_inputs(x))
-
-  if (length(unknown)) {
-    blockr_abort(
-      "`allow_empty_state$data` names unknown block inputs {unknown}.",
-      class = "allow_empty_state_invalid"
-    )
-  }
-
-  invisible(x)
-}
-
-validate_block <- function(x, ui_eval = FALSE) {
+validate_block <- function(x, ...) {
 
   if (!is_block(x)) {
     blockr_abort(
@@ -441,12 +597,14 @@ validate_block <- function(x, ui_eval = FALSE) {
     )
   }
 
-  ctor <- block_ctor(x)
+  if (is_legacy_block(x)) {
+    return(validate_legacy_block(x, ...))
+  }
 
-  if (!is_blockr_ctor(ctor)) {
+  if (!is_block_class(block_class(x))) {
     blockr_abort(
-      "Expecting a block constructor to inherit from `blockr_ctor`.",
-      class = "block_ctor_invalid"
+      "Expecting a block to refer to its block class.",
+      class = "block_class_invalid"
     )
   }
 
@@ -457,37 +615,18 @@ validate_block <- function(x, ui_eval = FALSE) {
     )
   }
 
-  srv <- block_expr_server(x)
-
-  validate_block_server(srv)
-  validate_block_ui(block_expr_ui(x))
-  validate_data_validator(block_data_validator(x), srv)
-  validate_allow_empty_state(x)
-
-  if (isTRUE(ui_eval)) {
-
-    ui <- block_expr_ui(x)(NS("block", "expr"))
-
-    if (!inherits(ui, "shiny.tag", "shiny.tag.list", agg = any)) {
-      blockr_abort(
-        "A block UI function is expected to return a shiny UI object, i.e. ",
-        "either a `shiny.tag` or a `shiny.tag.list`.",
-        class = "block_ui_eval_invalid"
-      )
-    }
-  }
-
   x
 }
 
-#' @param x An object inheriting from `"block"`
-#' @rdname new_block
+#' @rdname new_block_class
 #' @export
 is_block <- function(x) {
   inherits(x, "block")
 }
 
-#' @rdname new_block
+#' @param ... For `blocks()`, the blocks to combine, and otherwise generic
+#'   consistency
+#' @rdname new_block_class
 #' @export
 as_block <- function(x, ...) {
   UseMethod("as_block")
@@ -526,28 +665,14 @@ c.block <- function(...) {
 #' @section Input validation:
 #' Data input validation is available via `validate_data_inputs()` which uses
 #' the (optional) validator function passed to [new_block()] at construction
-#' time. This mechanism can be used to prevent premature evaluation of the
-#' block expression as this might lead to unexpected errors.
+#' time. A block class checks its data inputs in the body of a function given
+#' as its `inputs` instead (see [new_block_class()]).
 #'
-#' @section Block arity/inputs:
-#' The set of explicit (named) data inputs for a block is available as
-#' `block_inputs()`, while the block arity can be queried with `block_arity()`.
-#' In case of variadic blocks (i.e. blocks that take a variable number of
-#' inputs like for example a block providing [base::rbind()]-like
-#' functionality), `block_arity()` returns `NA` and the special block server
-#' function argument `...args`, signaling variadic behavior is stripped from
-#' `block_inputs()`.
-#'
-#' @section External control:
-#' Blocks can expose constructor inputs for programmatic control from outside
-#' the block server (see the `external_ctrl` argument to [new_block()]). The
-#' generic `external_ctrl_vars()` resolves this declaration into the concrete
-#' set of controllable variable names:
-#' `TRUE` expands to all constructor inputs, `FALSE` to none and a character
-#' vector is taken as a (validated) subset. For blocks, `"block_name"` is
-#' always included as every block can be renamed. The predicate
-#' `has_external_ctrl()` reports whether this set is non-empty (always `TRUE`
-#' for blocks).
+#' @section Block arity:
+#' The number of data inputs of a block is available as `block_arity()`, which
+#' reads the inputs of the block's class. In case of variadic blocks (i.e.
+#' blocks that take a variable number of inputs like for example a block
+#' providing [base::rbind()]-like functionality), `block_arity()` returns `NA`.
 #'
 #' @param x An object inheriting from `"block"`
 #'
@@ -555,92 +680,20 @@ c.block <- function(...) {
 #' blk <- new_dataset_block()
 #' block_name(blk)
 #'
-#' block_inputs(new_dataset_block())
 #' block_arity(new_dataset_block())
-#'
-#' block_inputs(new_merge_block())
 #' block_arity(new_merge_block())
-#'
-#' block_inputs(new_rbind_block())
 #' block_arity(new_rbind_block())
-#'
-#' external_ctrl_vars(new_dataset_block())
-#' has_external_ctrl(new_dataset_block())
 #'
 #' @return Return types vary among the set of exported utilities:
 #' * `block_name()`: string valued block name,
 #' * `validate_data_inputs()`: `NULL` if no validator is set and the result of
 #'   the validator function otherwise,
-#' * `block_inputs()`: a (possibly empty) character vector of data input names,
-#' * `block_arity()`: a scalar integer with `NA` in case of variadic behavior,
-#' * `external_ctrl_vars()`: a character vector of externally controllable
-#'   variable names (always including `"block_name"` for blocks),
-#' * `has_external_ctrl()`: a scalar logical.
+#' * `block_arity()`: a scalar integer with `NA` in case of variadic behavior.
 #'
 #' @export
 block_name <- function(x) {
   stopifnot(is_block(x))
   attr(x, "block_name")
-}
-
-block_ctor <- function(x) {
-  stopifnot(is_block(x))
-  attr(x, "ctor")
-}
-
-block_expr_server <- function(x) {
-  x[["expr_server"]]
-}
-
-block_expr_ui <- function(x) {
-  x[["expr_ui"]]
-}
-
-block_data_validator <- function(x) {
-  x[["dat_valid"]]
-}
-
-block_has_data_validator <- function(x) {
-  not_null(block_data_validator(x))
-}
-
-#' @param data Data input values
-#' @rdname block_name
-#' @export
-validate_data_inputs <- function(x, data) {
-
-  if (block_has_data_validator(x)) {
-    return(do.call(block_data_validator(x), data))
-  }
-
-  NULL
-}
-
-#' @rdname block_name
-#' @export
-block_inputs <- function(x) {
-  UseMethod("block_inputs", x)
-}
-
-#' @export
-block_inputs.block <- function(x) {
-  setdiff(block_expr_inputs(x), "...args")
-}
-
-block_expr_inputs <- function(x) {
-  setdiff(names(formals(block_expr_server(x))), "id")
-}
-
-block_ctor_inputs <- function(x) {
-  setdiff(names(formals(block_ctor(x))), "...")
-}
-
-initial_block_state <- function(x) {
-  lapply(
-    set_names(nm = block_ctor_inputs(x)),
-    get,
-    envir = environment(block_expr_server(x))
-  )
 }
 
 #' @rdname block_name
@@ -653,17 +706,38 @@ block_arity <- function(x) {
     )
   }
 
-  args <- block_expr_inputs(x)
+  if (is_legacy_block(x)) {
+    return(legacy_block_arity(x))
+  }
 
-  if ("...args" %in% args) {
+  inputs <- block_data_inputs(x)
+
+  if ("..." %in% inputs) {
     return(NA_integer_)
   }
 
-  length(args)
+  length(inputs)
 }
 
-#' @export
-format.block <- function(x, ..., state = NULL) {
+block_data_inputs <- function(x) {
+
+  if (is_legacy_block(x)) {
+    return(legacy_block_inputs(x))
+  }
+
+  class_inputs(block_class(x))
+}
+
+block_state_args <- function(x) {
+
+  if (is_legacy_block(x)) {
+    return(block_ctor_inputs(x))
+  }
+
+  class_state_args(block_class(x))
+}
+
+format_block_head <- function(x) {
 
   out <- ""
 
@@ -671,54 +745,42 @@ format.block <- function(x, ..., state = NULL) {
     out <- paste0("<", cl, out, ">")
   }
 
-  out <- c(
-    out,
-    paste0("Name: \"", attr(x, "block_name"), "\"")
-  )
-
   arity <- block_arity(x)
 
   if (is.na(arity)) {
     dat <- "Indefinite arity"
   } else if (arity > 0L) {
-    dat <- paste0("Data inputs: ", paste_enum(block_inputs(x), quotes = "\""))
+    dat <- paste0(
+      "Data inputs: ",
+      paste_enum(block_data_inputs(x), quotes = "\"")
+    )
   } else {
     dat <- "No data inputs"
   }
 
-  out <- c(out, dat)
+  c(out, paste0("Name: \"", block_name(x), "\""), dat)
+}
 
-  inputs <- block_ctor_inputs(x)
+format_block_state <- function(state) {
+  trimws(utils::capture.output(utils::str(state))[-1L], "right")
+}
 
-  if (length(inputs)) {
+#' @export
+format.block <- function(x, ...) {
 
-    if (is.null(state)) {
-      args <- initial_block_state(x)
-      lbl <- "Initial block state:"
-    } else {
-      stopifnot(is.list(state), all(inputs %in% names(state)))
-      args <- state[inputs]
-      lbl <- "Block state:"
-    }
-
-    args <- trimws(utils::capture.output(utils::str(args))[-1L], "right")
-
-    out <- c(out, lbl, args)
-
-  } else {
-
-    out <- c(out, "Stateless block")
+  if (is_legacy_block(x)) {
+    return(format_legacy_block(x, ...))
   }
 
-  ctor <- block_ctor(x)
+  state <- block_state(x)
 
-  if (is.null(ctor_name(ctor))) {
-    ctor <- "<local function>"
+  if (length(state)) {
+    lines <- c("Block state:", format_block_state(state))
   } else {
-    ctor <- paste0(ctor_pkg(ctor), "::", ctor_name(ctor), "()")
+    lines <- "Stateless block"
   }
 
-  c(out, paste("Constructor:", ctor))
+  c(format_block_head(x), lines)
 }
 
 #' @export
@@ -728,15 +790,63 @@ print.block <- function(x, ...) {
 }
 
 #' @export
+format.block_class <- function(x, ...) {
+
+  inputs <- class_inputs(x)
+  args <- class_state_args(x)
+  requests <- names(x[["requests"]])
+  ui <- x[["ui"]]
+
+  c(
+    paste0("<block_class> ", x[["class"]][1L]),
+    if (length(inputs)) {
+      paste0("Data inputs: ", paste_enum(inputs, quotes = "\""))
+    },
+    if (length(args)) {
+      paste0("State args: ", paste_enum(args, quotes = "\""))
+    },
+    if (length(requests)) {
+      paste0("Requests: ", paste_enum(requests, quotes = "\""))
+    },
+    paste0(
+      "UI: ",
+      ui[["path"]],
+      if (not_null(ui[["package"]])) paste0(" (", ui[["package"]], ")")
+    )
+  )
+}
+
+#' @export
+print.block_class <- function(x, ...) {
+  cat(format(x, ...), sep = "\n")
+  invisible(x)
+}
+
+#' @export
+format.block_constructor <- function(x, ...) {
+
+  usage <- deparse(args(x))
+
+  c(
+    paste0("<block_constructor> ", constructor_class(x)[["class"]][1L]),
+    usage[-length(usage)]
+  )
+}
+
+#' @export
+print.block_constructor <- function(x, ...) {
+  cat(format(x, ...), sep = "\n")
+  invisible(x)
+}
+
+#' @export
 str_value.block <- function(x, ...) {
 
   out <- paste0("<", class(x)[1L], ">")
 
-  args <- block_ctor_inputs(x)
+  args <- block_state_args(x)
 
   if (length(args)) {
-    ctrl <- external_ctrl_vars(x)
-    args <- ifelse(args %in% ctrl, paste0(args, "*"), args)
     out <- paste0(out, " ", paste0(args, collapse = ", "))
   }
 
@@ -751,39 +861,10 @@ str.block <- function(object, ...) {
 
 #' @export
 board_options.block <- function(x, ...) {
-  new_board_options()
-}
 
-block_expr_type <- function(x) {
-  stopifnot(is_block(x))
-  attr(x, "expr_type")
-}
-
-#' @rdname block_name
-#' @export
-external_ctrl_vars <- function(x) {
-  UseMethod("external_ctrl_vars")
-}
-
-#' @export
-external_ctrl_vars.block <- function(x) {
-
-  res <- attr(x, "external_ctrl")
-
-  user <- if (isTRUE(res)) {
-    block_ctor_inputs(x)
-  } else if (isFALSE(res)) {
-    character()
-  } else {
-    stopifnot(is.character(res), all(res %in% block_ctor_inputs(x)))
-    res
+  if (is_legacy_block(x)) {
+    return(new_board_options())
   }
 
-  union(user, "block_name")
-}
-
-#' @rdname block_name
-#' @export
-has_external_ctrl <- function(x) {
-  length(external_ctrl_vars(x)) > 0
+  as_board_options(class_board_options(block_class(x)))
 }

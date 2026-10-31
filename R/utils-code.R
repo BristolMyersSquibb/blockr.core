@@ -1,38 +1,49 @@
 #' Utilities for code export
 #'
-#' To facilitate code export, this utility performs much of the heavy lifting
-#' to properly arrange and scope block-level expressions.
+#' A script holds each block expression assigned to its block id. Since every
+#' block expression holds the ids of the blocks upstream of it (see
+#' [interpolate()]), `export_code()` needs no board: it assigns each block
+#' expression to its block id, in the order its caller gives, which puts every
+#' block after those it reads where the caller passes them in topological
+#' order, as [topo_sort()] gives it.
 #'
-#' @param expressions Block expressions
-#' @param board Board object
+#' @param x Block expressions, a list named by block id
 #'
-#' @return String containing properly arranged block expressions.
+#' @examples
+#' export_code(
+#'   list(
+#'     a = quote(datasets::BOD),
+#'     b = quote(utils::head(a, n = 3L))
+#'   )
+#' )
+#'
+#' @return A list of calls, each assigning a block expression to its block id,
+#' named by block id.
 #'
 #' @export
-export_code <- function(expressions, board) {
+export_code <- function(x) {
 
-  lnks <- board_links(board)
+  ids <- names(x)
+  named <- !length(x) ||
+    (not_null(ids) && all(nzchar(ids)) && !anyDuplicated(ids))
 
-  arg_map <- lapply(
-    split(as.list(lnks), lnks$to),
-    function(x) {
-      set_names(
-        lapply(lst_xtr(x, "from"), as.name),
-        arg_refs(chr_xtr(x, "input"))
-      )
-    }
-  )
+  if (!is.list(x) || !named) {
+    blockr_abort(
+      "Block expressions are expected as a list named by unique block ids.",
+      class = "export_code_ids_invalid"
+    )
+  }
 
-  expr_type <- set_names(
-    chr_ply(board_blocks(board), block_expr_type),
-    board_block_ids(board)
-  )
+  if (!all(lgl_ply(x, is.language))) {
+    blockr_abort(
+      "Block expressions are expected to be calls or names.",
+      class = "export_code_exprs_invalid"
+    )
+  }
 
-  ordering <- topo_sort(as.matrix(board))
+  set_names(map(assign_block_expr, ids, x), ids)
+}
 
-  list(
-    exprs = expressions[ordering],
-    args = set_names(arg_map[ordering], ordering),
-    types = expr_type[ordering]
-  )
+assign_block_expr <- function(id, expr) {
+  call("<-", as.name(id), expr)
 }

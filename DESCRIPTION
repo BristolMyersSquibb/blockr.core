@@ -42,7 +42,8 @@ Imports:
     shinyFiles,
     cli,
     glue,
-    yaml
+    yaml,
+    jsonlite
 Suggests:
     testthat (>= 3.0.0),
     memuse,

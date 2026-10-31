@@ -80,8 +80,8 @@ test_that("a blocks container has a compact str_value()", {
     str_value(board_blocks(brd)),
     paste(
       "<blocks[2]>",
-      "  a: <dataset_block> dataset*, package",
-      "  b: <subset_block> subset*, select*",
+      "  a: <dataset_block> dataset, package",
+      "  b: <subset_block> subset, select",
       sep = "\n"
     )
   )
@@ -94,8 +94,8 @@ test_that("a blocks container has a compact str_value()", {
     out,
     c(
       " <blocks[2]>",
-      "  a: <dataset_block> dataset*, package",
-      "  b: <subset_block> subset*, select*"
+      "  a: <dataset_block> dataset, package",
+      "  b: <subset_block> subset, select"
     )
   )
   expect_false(res$visible)
@@ -115,6 +115,6 @@ test_that("str_value() of a blocks container is extensible via NextMethod()", {
 
   expect_identical(
     str_value(blk),
-    "<test_sub_blocks[1]>\n  a: <dataset_block> dataset*, package\n[extra]"
+    "<test_sub_blocks[1]>\n  a: <dataset_block> dataset, package\n[extra]"
   )
 })

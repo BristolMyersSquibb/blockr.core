@@ -1,38 +1,42 @@
-# block class
+# a block class holds its fields
 
     Code
-      print(x)
+      print(head_class)
     Output
-      <dataset_block<data_block<block>>>
-      Name: "Dataset"
-      No data inputs
-      Initial block state:
-       $ dataset: chr(0)
-       $ package: chr "datasets"
-      Constructor: blockr.core::new_dataset_block()
+      <block_class> head_block
+      Data inputs: "data"
+      State args: "n" and "direction"
+      Requests: "n_max"
+      UI: head-block.js
 
-# format.block() renders live state when passed one
+# blocks of a class print, combine and report their state args
 
     Code
-      print(blk, state = list(dataset = "mtcars", package = "datasets"))
+      print(blk)
     Output
-      <dataset_block<data_block<block>>>
-      Name: "Dataset"
-      No data inputs
+      <head_block<block>>
+      Name: "Head"
+      Data inputs: "data"
       Block state:
-       $ dataset: chr "mtcars"
-       $ package: chr "datasets"
-      Constructor: blockr.core::new_dataset_block()
+       $ n        : int 6
+       $ direction: chr "head"
 
-# Without package blocks can print
+---
 
     Code
-      blk()
+      print(new_class_rbind_block())
     Output
-      <dummy_block<data_block<block>>>
-      Name: "Dummy"
-      No data inputs
-      Initial block state:
-       $ text: chr "Hello World"
-      Constructor: <local function>
+      <rbind_block<block>>
+      Name: "Rbind"
+      Indefinite arity
+      Stateless block
+
+---
+
+    Code
+      print(new_class_head_block)
+    Output
+      <block_constructor> head_block
+      function (n = 6L, direction = c("head", "tail"), block_name = NULL, 
+          visible = NULL) 
 

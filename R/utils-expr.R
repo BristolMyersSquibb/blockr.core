@@ -1,30 +1,23 @@
 #' Quoting utilities
 #'
-#' Block expressions in blockr are evaluated in a 2-step manner: first in the
-#' context of arguments supplied by the user via UI elements and in a second
-#' step in the context of input data. The function [base::bquote()] does not
-#' allow for terms wrapped in `.()` or `..()` to be missing and this makes it
-#' incompatible with this 2-step approach. A drop-in replacement, provided as
-#' `bbquote()` addresses this shortcoming.
-#'
-#' A block like `new_head_block()` is expected to return an expression of the
-#' form `utils::head(data, n = 10L)`, which will then be evaluated in an
-#' environment where he have a name `data` bound to some dataset. In order to
-#' perform some manipulations of such block expressions it is required to
-#' somehow mark the terms that correspond to input data and for that we can
-#' use the syntax introduced by [base::bquote()]. What we would prefer to have
-#' as block expression therefore is not the above, but something like
-#' `utils::head(.(data), n = 10L)`, as this affords us more possibilities for
-#' performing substitutions (and therefore generates cleaner code).
-#'
-#' In order to interpolate certain arguments in a first step, we unfortunately
-#' cannot use [base::bquote()], but we can use `bbquote()` instead to generate
-#' the desired expression.
+#' A block class's `expr` writes the data inputs of the block expression as
+#' placeholders, `.(data)`, and its state args as values, `.(n)`, with
+#' `bbquote()`, which returns an object of class `bquoted_expr`, and
+#' interpolation then puts the upstream block ids in place of the placeholders
+#' (see [interpolate()]). The `bbquote()` function fills in only the values
+#' named in `where`, by default the frame it is called from, which for a class's
+#' `expr` is the frame holding its state args, and leaves `.(data)` for
+#' interpolation, while [base::bquote()] would try to fill in `.(data)` as well
+#' and fail, or put in a function such as [utils::data()]. A placeholder keeps
+#' an input apart from a column of the same name where a function evaluates an
+#' argument in the data, so that
+#' `bbquote(subset(.(data), threshold > .(threshold)))` keeps a column called
+#' `threshold`.
 #'
 #' ```r
-#' bquote(utils::head(.(data), n = .(n)), list(n = 10L))
-#' #> Error in eval(e[[2L]], where) : object 'data' not found
-#' bbquote(utils::head(.(data), n = .(n)), list(n = 10L))
+#' n <- 10L
+#' bbquote(utils::head(.(data), n = .(n)))
+#' #> <bquoted_expr>
 #' #> utils::head(.(data), n = 10L)
 #' ```
 #'
@@ -37,9 +30,11 @@
 #' bbquote(c(.(a), ..(bc)), list(a = "a"))
 #' bbquote(c(.(a), ..(bc)), list(a = "a", bc = c("b", "c")), splice = TRUE)
 #'
-#' @return A language object in the same way as returned by [base::bquote()].
-#' Functions `.()` and `..()` throw errors when invoked an only exist to mask
-#' check notes "no visible global function definition" for their use.
+#' @return A `bquoted_expr`, a call of class `c("bquoted_expr", "blockr_expr")`,
+#' where [base::bquote()] returns a call. A result that is not a call, such as
+#' a name, is returned as is. Functions `.()` and `..()` throw errors when
+#' invoked and only exist to mask check notes "no visible global function
+#' definition" for their use.
 #'
 #' @export
 bbquote <- function(expr, where = parent.frame(), splice = FALSE) {
@@ -148,8 +143,10 @@ bbquote <- function(expr, where = parent.frame(), splice = FALSE) {
     }
   }
 
-  process_splices(
-    eval(call("bquote", expr_sub, subst_list, splice = splice))
+  new_bquoted_expr(
+    process_splices(
+      eval(call("bquote", expr_sub, subst_list, splice = splice))
+    )
   )
 }
 

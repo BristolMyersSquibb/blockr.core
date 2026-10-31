@@ -1,32 +1,39 @@
-test_that("code generation", {
+test_that("code export assigns each block expression to its block id", {
 
-  board <- new_board(
-    blocks = c(
-      a = new_dataset_block("BOD"),
-      b = new_dataset_block("ChickWeight"),
-      c = new_merge_block(by = "Time")
-    ),
-    links = links(
-      from = c("a", "b"),
-      to = c("c", "c"),
-      input = c("x", "y")
-    )
-  )
-
-  code_exp <- export_code(
+  code <- export_code(
     list(
       a = quote(datasets::BOD),
       b = quote(datasets::ChickWeight),
-      c = quote(merge(x, y, by = "Time"))
-    ),
-    board
+      c = quote(merge(a, b, by = "Time"))
+    )
   )
 
-  expect_type(code_exp, "list")
-  expect_length(code_exp, 3L)
-  expect_named(code_exp, c("exprs", "args", "types"))
+  expect_named(code, c("a", "b", "c"))
+  expect_identical(code[["a"]], quote(a <- datasets::BOD))
+  expect_identical(code[["c"]], quote(c <- merge(a, b, by = "Time")))
 
-  expect_named(code_exp[["exprs"]], c("a", "b", "c"), ignore.order = TRUE)
-  expect_named(code_exp[["args"]], names(code_exp[["exprs"]]))
-  expect_named(code_exp[["types"]], names(code_exp[["exprs"]]))
+  expect_named(
+    export_code(list(c = quote(f(a)), a = quote(g()))),
+    c("c", "a")
+  )
+
+  expect_length(export_code(list()), 0L)
+
+  env <- new.env()
+
+  for (assignment in code) {
+    eval(assignment, env)
+  }
+
+  expect_identical(
+    get("c", envir = env),
+    merge(datasets::BOD, datasets::ChickWeight, by = "Time")
+  )
+
+  expect_error(export_code(list(quote(a))), class = "export_code_ids_invalid")
+  expect_error(
+    export_code(list(a = quote(a), a = quote(b))),
+    class = "export_code_ids_invalid"
+  )
+  expect_error(export_code(list(a = 1)), class = "export_code_exprs_invalid")
 })

@@ -12,6 +12,31 @@
   methods of `serve()` and the test helpers on a mock Shiny session. The
   constructors and accessors of board objects, `new_block()`, `block_eval()`,
   the block registry, serialization and `export_code()` stay (#418).
+* A block class is a value made by `new_block_class()`, holding what every
+  block of the class shares: its data inputs, the `expr` from whose result
+  interpolation makes the block expression, the UI module `js_module()` names,
+  its requests, the coercion of its output and its board options. The
+  constructor that app scripts call is made from it by `block_constructor()`
+  and keeps as a block's state what the checks in `expr` leave. The
+  `interpolate()` generic turns what `expr` returns into the block expression,
+  `bbquote()` returns a `bquoted_expr`, whose placeholders it fills in with the
+  upstream ids, and `evaluate_block()` evaluates a block from its class, state
+  and upstream results through `block_eval()`, whose method in core keeps what
+  an expression draws. A state reads `invalid` where `expr` signals
+  `invalid()` or uses an unset arg. With them come `block_summary()`,
+  `block_migrate()`, `block_request()` with `volatile()` and `action()`, and
+  `expect_block_fixture()`, which tests a class without Shiny (#421).
+* Registration reads a block class from its constructor and builds no block.
+  It keeps one entry per class under the registry id `{pkg}-{name}`, holding
+  what R needs to evaluate a block and resolve its requests, and drops the
+  `classes` argument of `register_block()`. Core's built-in blocks, still
+  made by `new_block()`, are not registered until they are block classes too.
+  Gone are `external_ctrl_vars()`, `has_external_ctrl()`, `block_inputs()`,
+  `block_metadata()`, the `block_meta_*()` accessors and `registry_metadata()`,
+  the `expr_type`, `external_ctrl` and `block_metadata` arguments of
+  `new_block()`, and the `*` by which `str_value()` flagged externally
+  controlled args, while `export_code()` assigns each block expression to its
+  block id in the order it is given, needing no board (#421).
 
 # blockr.core 0.1.4
 

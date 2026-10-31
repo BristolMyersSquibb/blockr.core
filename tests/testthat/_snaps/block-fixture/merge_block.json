@@ -1,0 +1,19 @@
+{
+  "states": [
+    {
+      "by": "Time"
+    },
+    {
+      "by": "Time",
+      "all_x": true
+    }
+  ],
+  "requests": [
+    {
+      "name": "shared",
+      "args": {},
+      "options": {},
+      "answer": ["Time", "demand"]
+    }
+  ]
+}

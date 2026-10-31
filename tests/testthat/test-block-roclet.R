@@ -235,8 +235,8 @@ new_demo_block <- function() NULL
 
 test_that("YAML arguments become an arg_specs collection, examples included", {
 
-  expect_identical(yaml_block_arguments(list()), character())
-  expect_identical(yaml_block_arguments(list(arguments = list())), character())
+  expect_null(yaml_block_arguments(list()))
+  expect_null(yaml_block_arguments(list(arguments = list())))
 
   spec <- yaml_block_arguments(
     list(
@@ -272,35 +272,6 @@ test_that("register_package_blocks is a no-op when no registry ships", {
   expect_identical(list_blocks(), before)
 })
 
-test_that("register_package_blocks registers a subset and keeps examples", {
-
-  curr <- list_blocks()
-
-  withr::defer(
-    {
-      unregister_blocks()
-      register_core_blocks(curr)
-    }
-  )
-
-  unregister_blocks()
-  register_package_blocks(package = "blockr.core", which = "new_dataset_block")
-
-  expect_identical(list_blocks(), "dataset_block")
-
-  args <- block_meta_arguments("dataset_block")
-
-  expect_identical(
-    arg_spec_description(args[["dataset"]]),
-    "Selects the dataset to use."
-  )
-  expect_identical(arg_spec_example(args[["dataset"]]), "iris")
-
-  expect_error(
-    register_package_blocks(package = "blockr.core", which = "not_a_block")
-  )
-})
-
 test_that("the shipped core registry is complete", {
 
   file <- system.file("registry/blocks.yml", package = "blockr.core")
@@ -329,33 +300,5 @@ test_that("the shipped core registry is complete", {
   expect_match(
     reg[["new_dataset_block"]][["link"]],
     "/reference/new_data_block\\.html$"
-  )
-})
-
-test_that("core blocks register with types, guidance and keywords", {
-
-  args <- block_meta_arguments("head_block")
-
-  expect_identical(arg_spec_type(args[["n"]])[["type"]], "integer")
-
-  direction <- arg_spec_type(args[["direction"]])
-  expect_identical(direction[["type"]], "string")
-  expect_identical(as.character(direction[["enum"]]), c("head", "tail"))
-
-  expect_true(is_string(block_meta_guidance("head_block")))
-  expect_gt(length(block_meta_keywords("head_block")), 0L)
-
-  merge_args <- block_meta_arguments("merge_block")
-  expect_identical(arg_spec_type(merge_args[["by"]])[["type"]], "array")
-  expect_identical(arg_spec_type(merge_args[["all_x"]])[["type"]], "boolean")
-
-  expect_true(is_string(block_meta_details("dataset_block")))
-  expect_match(
-    block_meta_link("dataset_block"),
-    "/reference/new_data_block\\.html$"
-  )
-  expect_identical(
-    block_meta_examples("merge_block"),
-    list(list(all_x = TRUE, all_y = FALSE), list(all_x = TRUE, all_y = TRUE))
   )
 })
