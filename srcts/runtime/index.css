@@ -1,0 +1,24 @@
+/*
+ * Core's stylesheet, which Tailwind CSS builds into inst/js/blockr-core.css,
+ * holds every utility of core's client. Utilities spread over several
+ * stylesheets would override each other by the order those load in, so that
+ * `bc:hidden` in a later one would beat `bc:md:block` in an earlier one. A
+ * module's own stylesheet references this one, with
+ * `@reference "../../runtime/index.css";`, to use them in `@apply` without
+ * repeating them.
+ *
+ * - Utilities take core's prefix, as in `bc:flex`, and so does the theme, whose
+ *   variables, such as `--bc-color-blue-500`, a front-end or a UI kit may set to
+ *   restyle core.
+ * - Preflight, Tailwind's reset of the whole page, is left out, so that nothing
+ *   core loads styles another package's elements.
+ * - Utilities sit outside any cascade layer, since a page's other CSS, such as
+ *   Bootstrap's, sits outside one too and would win over them otherwise, as its
+ *   `label { display: inline-block; }` would over `bc:block`.
+ */
+@layer theme;
+@import "tailwindcss/theme.css" layer(theme) prefix(bc);
+@import "tailwindcss/utilities.css" source(none);
+@source "../**/*.ts";
+@source not "../build";
+@source not "../**/*.test.ts";
