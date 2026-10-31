@@ -33,6 +33,8 @@ test_that("every message R sends is written from R values as in its fixture", {
 
     expect_length(values[[name]], length(expected))
 
+    # Not expect_equal(), whose tolerance takes a number marked with `I()` for
+    # the same number unmarked, which would let a scalar pass for an array.
     for (i in seq_along(expected)) {
       expect_identical(
         read_json_strictly(encode_message(values[[name]][[i]])),
