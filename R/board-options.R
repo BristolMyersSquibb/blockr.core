@@ -12,13 +12,13 @@
 #' @examples
 #' opt <- new_board_options(
 #'    new_board_name_option(),
-#'    new_page_size_option()
+#'    new_n_rows_option()
 #'  )
 #'
 #' is_board_options(opt)
 #' names(opt)
 #'
-#' opt[["page_size"]]
+#' opt[["n_rows"]]
 #'
 #' @return All of `new_board_options()` and `as_board_options()` return a
 #' `board_options` object, as does the validator `validate_board_options()`,
@@ -45,7 +45,6 @@ default_board_options <- function(...) {
   new_board_options(
     new_board_name_option(...),
     new_show_conditions_option(...),
-    new_thematic_option(...),
     new_dark_mode_option(...)
   )
 }
@@ -141,205 +140,6 @@ board_option_values <- function(x) {
   )
 }
 
-#' @rdname board_ui
-#' @export
-board_ui.board_options <- function(id, x, ...) {
-  do.call(tagList, lapply(x, board_option_ui, id))
-}
-
-board_option_to_userdata <- function(x, ..., session = get_session()) {
-
-  stopifnot(is_board_option(x))
-
-  id <- board_option_id(x)
-  rv <- reactiveVal(board_option_value(x))
-
-  res <- board_option_server(x, ..., session = session)
-  trg <- board_option_trigger(x)
-
-  if (inherits(res, "Observer")) {
-    res <- list(res)
-  } else if (is.null(res)) {
-    res <- list()
-  }
-
-  res <- Filter(not_null, res)
-
-  if (!is.list(res) || any(lgl_ply(res, Negate(inherits), "Observer"))) {
-    blockr_abort(
-      "Expecting a `board_option` server function to return either a ",
-      "single or list of observers.",
-      class = "invalid_board_option_server_return_value"
-    )
-  }
-
-  if (not_null(trg)) {
-
-    board_rv <- list(...)$board
-
-    exp <- as.call(
-      c(
-        quote(`{`),
-        lapply(trg, function(v) substitute(session$input[[v]], list(v = v)))
-      )
-    )
-
-    obs <- list(
-      observeEvent(
-        exp,
-        {
-          if (is_scalar(trg)) {
-            new <- board_option_value(x, session$input[[trg]])
-          } else {
-            new <- board_option_value(
-              x,
-              lapply(set_names(nm = trg), function(v) session$input[[v]])
-            )
-          }
-
-          cur <- rv()
-
-          if (!identical(new, cur)) {
-            set_board_option_value(id, new, board_rv$board, session)
-          }
-        },
-        event.quoted = TRUE,
-        ignoreInit = TRUE
-      )
-    )
-  } else {
-    obs <- list()
-  }
-
-  attr(rv, "observers") <- c(obs, res)
-
-  env <- session$userData
-
-  if (!exists("board_options", envir = env, inherits = FALSE)) {
-    assign("board_options", list(), envir = env, inherits = FALSE)
-  }
-
-  env$board_options[[id]] <- rv
-
-  invisible()
-}
-
-board_options_to_userdata <- function(options, ...) {
-
-  stopifnot(is_board_options(options))
-
-  for (opt in options) {
-    board_option_to_userdata(opt, ...)
-  }
-
-  invisible()
-}
-
-#' @param opt Option name
-#' @param session Shiny session
-#' @rdname new_board_options
-#' @export
-get_board_option_value <- function(opt, session = get_session()) {
-  rv <- get_board_opt_rv_from_userdata(opt, session)
-  rv()
-}
-
-get_board_opts_from_userdata <- function(session = get_session()) {
-
-  env <- session$userData
-
-  stopifnot(is.environment(env))
-
-  if (!exists("board_options", envir = env, inherits = FALSE)) {
-    assign("board_options", list(), envir = env, inherits = FALSE)
-  }
-
-  env$board_options
-}
-
-get_board_opt_rv_from_userdata <- function(opt, session = get_session()) {
-
-  stopifnot(is_string(opt))
-
-  opts <- get_board_opts_from_userdata(session)
-
-  if (!opt %in% names(opts)) {
-    blockr_abort(
-      "Could not find option {opt}.",
-      class = "board_option_not_found"
-    )
-  }
-
-  opts[[opt]]
-}
-
-#' @param val New value
-#' @param board Board the option belongs to, used to resolve the lock
-#' state (see [is_board_locked()]).
-#' @rdname new_board_options
-#' @export
-set_board_option_value <- function(opt, val, board, session = get_session()) {
-
-  if (is_board_locked(board)) {
-    log_debug("ignoring write to option {opt} on locked board")
-    return(invisible(val))
-  }
-
-  log_debug("setting option {opt}")
-
-  rv <- get_board_opt_rv_from_userdata(opt, session)
-  rv(val)
-
-  invisible(val)
-}
-
-#' @param opts Board options
-#' @rdname new_board_options
-#' @export
-get_board_option_or_default <- function(opt, opts = default_board_options(),
-                                        session = get_session()) {
-  tryCatch(
-    get_board_option_value(opt, session),
-    board_option_not_found = function(e) {
-      board_option_value(opts[[opt]])
-    }
-  )
-}
-
-#' @rdname new_board_options
-#' @export
-get_board_option_or_null <- function(opt, session = get_session()) {
-
-  if (is.null(session)) {
-    return(NULL)
-  }
-
-  tryCatch(
-    get_board_option_value(opt, session),
-    board_option_not_found = function(e) NULL
-  )
-}
-
-#' @param if_not_found Behavior in case an option is not found
-#' @rdname new_board_options
-#' @export
-get_board_option_values <- function(..., opts = default_board_options(),
-                                    if_not_found = c("error", "default",
-                                                     "null"),
-                                    session = get_session()) {
-
-  fun <- switch(
-    match.arg(if_not_found),
-    error = get_board_option_value,
-    default = function(opt, session) {
-      get_board_option_or_default(opt, opts, session)
-    },
-    null = get_board_option_or_null
-  )
-
-  lapply(set_names(nm = c(...)), fun, session = session)
-}
-
 #' @export
 format.board_options <- function(x, ...) {
   c(
@@ -382,20 +182,10 @@ c.board_options <- function(...) {
 }
 
 #' @export
-`[<-.board_options` <- function(x, i, ..., value) {
-  validate_board_options(NextMethod())
-}
-
-#' @export
 `[[.board_options` <- function(x, i, ...) {
   validate_board_option(
     .subset2(x, vec_as_location2(i, length(x), names(x)))
   )
-}
-
-#' @export
-`[[<-.board_options` <- function(x, i, ..., value) {
-  validate_board_options(NextMethod())
 }
 
 opts_slice <- function(...) {

@@ -2,66 +2,29 @@
 % Please edit documentation in R/board-class.R
 \name{board_blocks}
 \alias{board_blocks}
-\alias{board_blocks<-}
 \alias{board_block_ids}
-\alias{rm_blocks}
 \alias{board_links}
-\alias{board_links<-}
 \alias{board_link_ids}
-\alias{modify_board_links}
 \alias{board_stacks}
-\alias{board_stacks<-}
 \alias{board_stack_ids}
-\alias{modify_board_stacks}
 \alias{board_options}
-\alias{board_options<-}
 \alias{board_option_ids}
 \alias{available_stack_blocks}
-\alias{clear_board}
 \title{Board utils}
 \usage{
 board_blocks(x)
 
-board_blocks(x) <- value
-
 board_block_ids(x)
-
-rm_blocks(x, rm, ..., session = get_session())
 
 board_links(x)
 
-board_links(x) <- value
-
 board_link_ids(x)
-
-modify_board_links(
-  x,
-  add = NULL,
-  rm = NULL,
-  ...,
-  before = NULL,
-  after = NULL,
-  session = get_session()
-)
 
 board_stacks(x)
 
-board_stacks(x) <- value
-
 board_stack_ids(x)
 
-modify_board_stacks(
-  x,
-  add = NULL,
-  rm = NULL,
-  mod = NULL,
-  ...,
-  session = get_session()
-)
-
 board_options(x)
-
-board_options(x) <- value
 
 board_option_ids(x)
 
@@ -70,100 +33,51 @@ available_stack_blocks(
   stacks = board_stacks(x),
   blocks = board_stack_ids(x)
 )
-
-clear_board(x)
 }
 \arguments{
 \item{x}{Board}
 
-\item{value}{Replacement value}
-
-\item{rm}{Block/link/stack IDs to remove}
-
-\item{...}{Further arguments they may be passed from the board server context}
-
-\item{session}{Shiny session object}
-
-\item{add}{Links/stacks to add}
-
-\item{before, after}{Where to place links passed as \code{add}, either \code{TRUE}
-to place all of them relative to the whole link set, or a vector named by
-link ID (of a link in \code{add}) holding the ID of the link to sit next to or
-its position among the links into the same block, given as a character or
-numeric vector. Anchors are resolved against the links as they are on entry,
-before \code{rm} is applied, so a link can be placed relative to one the same
-call removes. Named entries override a \code{TRUE} on the other argument, and
-links in \code{add} covered by neither are appended. Only a variadic target
-reads the resulting order; see the Links section.}
-
-\item{mod}{Stacks to modify}
-
 \item{blocks, stacks}{Sets of blocks/stacks}
 }
 \value{
-Functions for retrieving, as well as updating components
-(\code{board_blocks()}/\code{board_links()}/\code{board_stacks()}/\code{board_options()} and
-\verb{board_blocks<-()}/\verb{board_links<-()}/\verb{board_stacks<-()}/\verb{board_options<-()})
-return corresponding objects (i.e. \code{blocks}, \code{links}, \code{stacks} and
-\code{board_options}), while ID getters (\code{board_block_ids()}, \code{board_link_ids()},
+Functions for retrieving components (\code{board_blocks()},
+\code{board_links()}, \code{board_stacks()} and \code{board_options()}) return objects of
+the corresponding classes \code{blocks}, \code{links}, \code{stacks} and \code{board_options},
+while ID getters (\code{board_block_ids()}, \code{board_link_ids()},
 \code{board_stack_ids()} and \code{board_option_ids()}) return character vectors, as
-does \code{available_stack_blocks()}. Convenience functions \code{rm_blocks()},
-\code{modify_board_links()} and \code{modify_board_stacks()} return an updated \code{board}
-object.
+does \code{available_stack_blocks()}.
 }
 \description{
-A set of utility functions is available for querying and manipulating board
-components (i.e. blocks, links and stacks). Functions for retrieving and
-modifying board options are documented in \code{\link[=new_board_options]{new_board_options()}}.
+A set of utility functions is available for querying board components,
+such as blocks, links and stacks. Functions for working with board options
+are documented in \code{\link[=new_board_options]{new_board_options()}}.
 }
 \section{Blocks}{
 
-Board blocks can be retrieved using \code{board_blocks()} and updated with the
-corresponding replacement function \verb{board_blocks<-()}. If just the current
+Board blocks can be retrieved using \code{board_blocks()}. If just the current
 board IDs are of interest, \code{board_block_ids()} is available as short for
-\code{names(board_blocks(x))}. In order to remove block(s) from a board, the
-(generic) convenience function \code{rm_blocks()} is exported, which takes care
-(in the default implementation for \code{board}) of also updating links and
-stacks accordingly. The more basic replacement function \verb{board_blocks<-()}
-might fail at validation of the updated board object if an inconsistent
-state results from an update (e.g. a block referenced by a stack is no
-longer available).
+\code{names(board_blocks(x))}.
 }
 
 \section{Links}{
 
-Board links can be retrieved using \code{board_links()} and updated with the
-corresponding replacement function \verb{board_links<-()}. If only links IDs are
+Board links can be retrieved using \code{board_links()}. If only links IDs are
 of interest, this is available as \code{board_link_ids()}, which is short for
-\code{names(board_links(x))}. A (generic) convenience function for all kinds of
-updates to board links in one is available as \code{modify_board_links()}. With
-arguments \code{add} and \code{rm}, links can be added or removed in one go. Added
-links are appended unless \code{before} or \code{after} places them, which matters
-for a variadic target block, where the order of the links pointing at it
-is the order of its \code{...} arguments. Passing \code{before = TRUE} prepends and
-\code{after = TRUE} appends, while naming a link or a position inserts. Placing
-a link that points at a fixed-arity block is allowed but inert, as such a
-block selects its inputs by link \code{input} rather than by order. A position
-therefore counts within the links into the placed link's own target, not
-within the board-wide link vector, which interleaves every target.
+\code{names(board_links(x))}.
 }
 
 \section{Stacks}{
 
-Board stacks can be retrieved using \code{board_stacks()} and updated with the
-corresponding replacement function \verb{board_stacks<-()}. If only the stack IDs
+Board stacks can be retrieved using \code{board_stacks()}. If only the stack IDs
 are of interest, this is available as \code{board_stack_ids()}, which is short
-for \code{names(board_stacks(x))}. A (generic) convenience function to update
-stacks is available as \code{modify_board_stacks()}, which can add, remove and
-modify stacks depending on arguments passed as \code{add}, \code{rm} and \code{mod}. If
-block IDs that are not already associated with a stack (i.e. "free" blocks)
-are of interest, this is available as \code{available_stack_blocks()}.
+for \code{names(board_stacks(x))}. If block IDs that are not already associated
+with a stack (i.e. "free" blocks) are of interest, this is available as
+\code{available_stack_blocks()}.
 }
 
 \section{Options}{
 
-Board options can be retrieved using \code{board_options()} and updated with the
-corresponding replacement function \verb{board_options<-()}.  If only the option
+Board options can be retrieved using \code{board_options()}. If only the option
 IDs are of interest, this is available as \code{board_option_ids()}, which calls
 \code{\link[=board_option_id]{board_option_id()}} on each board option.
 }

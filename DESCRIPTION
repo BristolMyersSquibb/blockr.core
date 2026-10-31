@@ -22,12 +22,10 @@ Description: A framework for data manipulation and visualization using a
 URL: https://bristolmyerssquibb.github.io/blockr.core/
 BugReports: https://github.com/BristolMyersSquibb/blockr.core/issues
 License: GPL (>= 3)
-Remotes:
-    nbenn/reactives
 Encoding: UTF-8
 Language: en-US
-Roxygen: list(markdown = TRUE, packages = c("roxy.shinylive"), roclets =
-    c("collate", "namespace", "rd", "blockr.core::block_registration_roclet"))
+Roxygen: list(markdown = TRUE, roclets = c("collate", "namespace", "rd",
+    "blockr.core::block_registration_roclet"))
 Imports:
     shiny (>= 1.14.0),
     bslib,
@@ -40,102 +38,23 @@ Imports:
     vctrs,
     generics,
     rlang,
-    htmltools,
     evaluate,
     shinyFiles,
-    digest,
     cli,
     glue,
-    yaml,
-    later,
-    typedjson,
-    reactives
+    yaml
 Suggests:
     testthat (>= 3.0.0),
     memuse,
     withr,
-    shinytest2,
-    chromote,
-    roxy.shinylive,
     roxygen2,
     knitr,
     rmarkdown,
     quarto,
-    scoutbaR,
-    thematic,
     ids,
     ellmer,
-    tibble,
-    DT,
+    typedjson,
     spelling
 Config/testthat/edition: 3
-Config/Needs/roxygenize: roxy.shinylive
 VignetteBuilder: quarto
-Collate:
-    'arg-spec.R'
-    'block-class.R'
-    'block-eval.R'
-    'block-meta.R'
-    'block-registry.R'
-    'block-roclet.R'
-    'block-server.R'
-    'block-ui.R'
-    'blocks-class.R'
-    'board-class.R'
-    'board-loader.R'
-    'board-lock.R'
-    'board-option.R'
-    'board-options.R'
-    'board-plugins.R'
-    'board-server.R'
-    'board-ui.R'
-    'tabular-display.R'
-    'data-block.R'
-    'data-dataset.R'
-    'data-static.R'
-    'file-block.R'
-    'file-browser.R'
-    'file-upload.R'
-    'link-class.R'
-    'links-class.R'
-    'parser-block.R'
-    'parser-csv.R'
-    'plot-block.R'
-    'plot-scatter.R'
-    'plugin-block.R'
-    'plugin-blocks.R'
-    'plugin-code.R'
-    'plugin-control.R'
-    'plugin-links.R'
-    'plugin-notification.R'
-    'plugin-serdes.R'
-    'plugin-stack.R'
-    'plugin-stacks.R'
-    'stack-class.R'
-    'stack-gate.R'
-    'stack-ui.R'
-    'stacks-class.R'
-    'str-value.R'
-    'text-block.R'
-    'text-glue.R'
-    'transform-block.R'
-    'transform-fixed.R'
-    'transform-head.R'
-    'transform-merge.R'
-    'transform-rbind.R'
-    'transform-subset.R'
-    'utils-assertions.R'
-    'utils-cnd.R'
-    'utils-code.R'
-    'utils-expr.R'
-    'utils-graph.R'
-    'utils-logging.R'
-    'utils-misc.R'
-    'utils-pkg.R'
-    'utils-ply.R'
-    'utils-serdes.R'
-    'utils-serve.R'
-    'utils-shiny.R'
-    'utils-tests.R'
-    'zzz-onload.R'
 Config/roxygen2/version: 8.0.0

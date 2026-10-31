@@ -2,92 +2,31 @@
 % Please edit documentation in R/utils-serve.R
 \name{serve}
 \alias{serve}
-\alias{serve.block}
-\alias{serve.board}
-\alias{blockr_app_plugins}
-\alias{custom_plugins}
 \alias{blockr_app_options}
-\alias{custom_options}
-\alias{blockr_app_ui}
-\alias{blockr_app_server}
-\alias{blockr_test_exports}
 \title{Serve object}
 \usage{
 serve(x, ...)
 
-\method{serve}{block}(x, id = "block", ..., data = list())
-
-\method{serve}{board}(
-  x,
-  id = rand_names(),
-  plugins = blockr_app_plugins,
-  options = blockr_app_options,
-  loader = local_loader(),
-  ...
-)
-
-blockr_app_plugins(x)
-
-custom_plugins(x)
-
 blockr_app_options(x)
-
-custom_options(x)
-
-blockr_app_ui(id, x, ..., query = list())
-
-blockr_app_server(id, x, ..., query = list())
-
-blockr_test_exports(x, rv, ...)
 }
 \arguments{
 \item{x}{Object}
 
-\item{...}{Generic consistency. For a board, \code{serve()} passes further
-arguments to both \code{blockr_app_ui()} and \code{blockr_app_server()}, so a method
-that does something with its \code{...} has to tell its own arguments from those
-meant for the other.}
-
-\item{id}{Board namespace ID}
-
-\item{data}{Data inputs}
-
-\item{plugins}{Board plugins}
-
-\item{options}{Board options}
-
-\item{loader}{A \code{\link[=board_loader]{board_loader()}} resolving the board to build for each
-request; defaults to \code{\link[=local_loader]{local_loader()}}, the in-process save/restore handoff}
-
-\item{query}{Parsed URL query parameters (a named list) for the incoming
-request, passed to \code{blockr_app_ui()} and \code{blockr_app_server()} at both the
-GET and the websocket phase. A board subclass method reads it to make the
-rendered UI and the server URL-aware -- for example picking an initial view
-from \code{query[["view"]]}; the default methods ignore it.}
-
-\item{rv}{Board \code{\link[shiny:reactiveValues]{shiny::reactiveValues()}}}
+\item{...}{Generic consistency}
 }
 \value{
-The generic \code{serve()} is expected to return the result of a call to
-\code{\link[shiny:shinyApp]{shiny::shinyApp()}}.
+A \code{serve()} method is expected to return an app, such as the result
+of a call to \code{\link[shiny:shinyApp]{shiny::shinyApp()}}, while \code{blockr_app_options()} returns a
+\code{board_options} object.
 }
 \description{
-Intended as entry point to start up a shiny app, the generic function
-\code{serve()} can be dispatched either on a single block (mainly for previewing
-purposes during block development) or an entire board
+Intended as entry point to start up an app, the generic function \code{serve()}
+dispatches on the object to serve, such as an entire board or a single block
+(for previewing it during block development). No methods are currently
+provided.
 }
-\section{Examples in Shinylive}{
-\describe{
-  \item{example-1}{
-    \href{https://shinylive.io/r/app/#code=NobwRAdghgtgpmAXGKAHVA6ASmANGAYwHsIAXOMpMAdzgCMAnRRASwgGdSoAbbgCgA6YOtyIEA1gwzEGcIbgAEs1EXYKAvAqEALUqVTtEAeiMEAnhElQMAcxaltAVzoYWRIyLGSMtOliNCAJQCENwsjFAMZnyeElIycMEccAwAbnCCEAoKEHDUAPrwDDZw+bHigmAAKizwQbgh2QAmUFwaCmGcmdnZAB7tLVzscKSGiABCAPIAIg1ZPWYDrVDDo8wAwtosEgDqcCw2uo0KSYFgAL4AukA}{Open in Shinylive}
-    \if{html}{\out{<iframe class="iframe_shinylive" src="https://shinylive.io/r/app/#code=NobwRAdghgtgpmAXGKAHVA6ASmANGAYwHsIAXOMpMAdzgCMAnRRASwgGdSoAbbgCgA6YOtyIEA1gwzEGcIbgAEs1EXYKAvAqEALUqVTtEAeiMEAnhElQMAcxaltAVzoYWRIyLGSMtOliNCAJQCENwsjFAMZnyeElIycMEccAwAbnCCEAoKEHDUAPrwDDZw+bHigmAAKizwQbgh2QAmUFwaCmGcmdnZAB7tLVzscKSGiABCAPIAIg1ZPWYDrVDDo8wAwtosEgDqcCw2uo0KSYFgAL4AukA" style="height: 800px; width: 100vw; max-width: 1400px; border: 1px solid rgba(0,0,0,0.175); border-radius: .375rem; position: absolute; left: 50\%; margin-top: 30px; transform: translateX(-50\%); z-index: 1"></iframe>}}
-    \if{html}{\out{<a style='height: 800px; display: block;'></a>}}
-  }
-  \item{example-2}{
-    \href{https://shinylive.io/r/app/#code=NobwRAdghgtgpmAXGKAHVA6ASmANGAYwHsIAXOMpMAdzgCMAnRRASwgGdSoAbbgCgA6YOtyIEA1gwzEGcIbgAEs1EXYKAvAqEALUqVTtEAeiMEAnhElQMAcxaltAVzoYWRIyLGSMtOliNCAJQCENwsjFAMZnyeElIycMEccAwAbnCCEAoKEHDUAPp0RJEAJpnZ2bHiapoE5RXZUBo5efklUFzscKSFohKCYABCAPIAIkG4IQ2VzbkF7Z3dvV4DAMLaLBIA6nAsNroTU9MEs63wDDZwy-1CACos8EFH2YGTWRVhljUKdc8VUCdNHN8p9xAMoPItIRIUIAB6Hd4NOiAloFUEDOgw6F4KFmJ6IhSvP6cAHVZphTh8AHNX4oLEEIJJF4hQJgAC+AF0gA}{Open in Shinylive}
-    \if{html}{\out{<iframe class="iframe_shinylive" src="https://shinylive.io/r/app/#code=NobwRAdghgtgpmAXGKAHVA6ASmANGAYwHsIAXOMpMAdzgCMAnRRASwgGdSoAbbgCgA6YOtyIEA1gwzEGcIbgAEs1EXYKAvAqEALUqVTtEAeiMEAnhElQMAcxaltAVzoYWRIyLGSMtOliNCAJQCENwsjFAMZnyeElIycMEccAwAbnCCEAoKEHDUAPp0RJEAJpnZ2bHiapoE5RXZUBo5efklUFzscKSFohKCYABCAPIAIkG4IQ2VzbkF7Z3dvV4DAMLaLBIA6nAsNroTU9MEs63wDDZwy-1CACos8EFH2YGTWRVhljUKdc8VUCdNHN8p9xAMoPItIRIUIAB6Hd4NOiAloFUEDOgw6F4KFmJ6IhSvP6cAHVZphTh8AHNX4oLEEIJJF4hQJgAC+AF0gA" style="height: 800px; width: 100vw; max-width: 1400px; border: 1px solid rgba(0,0,0,0.175); border-radius: .375rem; position: absolute; left: 50\%; margin-top: 30px; transform: translateX(-50\%); z-index: 1"></iframe>}}
-    \if{html}{\out{<a style='height: 800px; display: block;'></a>}}
-  }
+\details{
+The board options an app offers are collected by \code{blockr_app_options()}
+from the board, its blocks and all registered blocks, keeping the first
+option for each ID.
 }
-}
-

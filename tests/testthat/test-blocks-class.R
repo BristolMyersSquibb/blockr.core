@@ -9,29 +9,9 @@ test_that("blocks utils", {
   expect_length(ab, 2L)
   expect_named(ab)
 
-  names(ab) <- c("a", "b")
+  ab <- c(a = a, b = b)
 
   expect_named(ab, c("a", "b"))
-
-  names(ab)[2] <- "c"
-
-  expect_named(ab, c("a", "c"))
-
-  expect_error(
-    names(ab)[1] <- "c",
-    class = "blocks_names_unique_invalid"
-  )
-
-  expect_error(
-    names(ab) <- c("a", "a"),
-    class = "blocks_names_unique_invalid"
-  )
-
-  names(ab) <- NULL
-
-  expect_named(ab, c("", ""))
-
-  names(ab) <- c("a", "b")
 
   expect_snapshot(print(ab))
 
@@ -43,37 +23,12 @@ test_that("blocks utils", {
   expect_length(abc, 3L)
   expect_named(abc, c("a", "b", "c"))
 
-  abc["c"] <- NULL
-
-  expect_identical(abc, ab)
-
   expect_error(
-    abc["c"] <- NULL
+    c(abc, c = c),
+    class = "blocks_names_invalid"
   )
 
-  abc <- c(ab, c = c)
-
-  expect_error(
-    abc["c"] <- c,
-    class = "blocks_assignment_name_invalid"
-  )
-
-  abc["c"] <- blocks(c = c)
-
-  expect_identical(abc, c(ab, c = c))
-
-  abc["c"] <- list(c = c)
-
-  expect_identical(abc, c(ab, c = c))
-
-  expect_error(
-    abc["c"] <- list(d = c),
-    class = "blocks_assignment_name_invalid"
-  )
-
-  abc[["c"]] <- c
-
-  expect_identical(abc, c(ab, c = c))
+  expect_identical(abc[c("a", "b")], ab)
 
   expect_s3_class(abc["c"], "blocks")
   expect_length(abc["c"], 1L)

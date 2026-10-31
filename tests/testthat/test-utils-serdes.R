@@ -115,11 +115,7 @@ test_that("serialization", {
   )
 
   new_test_opt <- function(val1 = 1, val2 = "2", ...) {
-    new_board_option(
-      "test_opt",
-      list(val1 = val1, val2 = val2),
-      ui = function(id) tagList()
-    )
+    new_board_option("test_opt", list(val1 = val1, val2 = val2))
   }
 
   opt <- new_test_opt()
@@ -232,7 +228,7 @@ test_that("blockr_deser.list forwards `...` to per-class methods", {
   expect_null(captured)
 })
 
-test_that("a board with variadic links round-trips and still evaluates", {
+test_that("a board with variadic links round-trips", {
 
   board <- new_board(
     blocks = c(
@@ -250,21 +246,6 @@ test_that("a board with variadic links round-trips and still evaluates", {
     board,
     blockr_deser(blockr_ser(board)),
     ignore_function_env = TRUE
-  )
-
-  restored <- blockr_deser(blockr_ser(board))
-
-  testServer(
-    get_s3_method("board_server", restored),
-    {
-      session$flushReact()
-
-      expect_identical(
-        rv$blocks$c$server$result(),
-        rbind(datasets::BOD, datasets::BOD)
-      )
-    },
-    args = list(x = restored)
   )
 })
 

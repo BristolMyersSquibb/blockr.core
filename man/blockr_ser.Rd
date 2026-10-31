@@ -7,7 +7,6 @@
 \alias{blockr_ser.board_options}
 \alias{blockr_ser.blockr_ctor}
 \alias{blockr_ser.board_option}
-\alias{blockr_ser.llm_model_option}
 \alias{blockr_ser.board}
 \alias{blockr_ser.link}
 \alias{blockr_ser.links}
@@ -38,8 +37,6 @@ blockr_ser(x, ...)
 \method{blockr_ser}{blockr_ctor}(x, ...)
 
 \method{blockr_ser}{board_option}(x, option = NULL, ...)
-
-\method{blockr_ser}{llm_model_option}(x, option = NULL, ...)
 
 \method{blockr_ser}{board}(x, board_id = NULL, ...)
 
@@ -80,14 +77,11 @@ blockr_deser(x, ..., on_error = NULL)
 
 \item{...}{Generic consistency}
 
-\item{state}{Object state (as returned from an \code{expr_server})}
+\item{state}{Object state (as returned from a block server)}
 
 \item{blocks}{Block states keyed by block ID. A block that is \code{NULL}, or
 omitted from \code{blocks} altogether, defaults to values from its constructor
-scope. A partial snapshot is therefore valid: under deferred construction
-off-screen blocks are never built and carry no live state, so \code{blocks} may
-cover only the built subset -- the rest serialize from their constructors
-rather than aborting the save.}
+scope, so \code{blocks} may cover only a subset of blocks.}
 
 \item{options}{Board option values (\code{NULL} uses values provided by \code{x})}
 

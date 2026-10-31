@@ -1,8 +1,7 @@
 #' Vector-valued links (i.e. `links` objects) manage IDs that are unique (with
 #' empty strings being the only exception). These are either user-supplied or
-#' generated automatically (via random strings) and operations like renaming,
-#' concatenation and sub-assignments are guaranteed to not allow duplicated
-#' IDs.
+#' generated automatically (via random strings) and operations like
+#' concatenation are guaranteed to not allow duplicated IDs.
 #'
 #' In addition to unique IDs, `links` objects are guaranteed to be consistent
 #' in that it is not possible to have multiple links pointing to the same
@@ -104,23 +103,6 @@ names.links <- function(x) {
 }
 
 #' @export
-`names<-.links` <- function(x, value) {
-
-  if (is.null(value)) {
-    value <- rep("", length(x))
-  } else if (anyDuplicated(value) != 0L) {
-    blockr_abort(
-      "IDs are required to be unique.",
-      class = "links_names_unique_invalid"
-    )
-  }
-
-  field(x, "id") <- value
-
-  x
-}
-
-#' @export
 format.links <- function(x, ...) {
   res <- chr_ply(as.list(x), format, length = 2L, use_names = TRUE)
   res[2L, ]
@@ -159,35 +141,6 @@ c.links <- function(...) {
 }
 
 #' @export
-`[<-.links` <- function(x, i, ..., value) {
-
-  i <- vec_as_location(i, length(x), names(x))
-
-  if (is.null(value)) {
-    return(links_slice(x, -i))
-  }
-
-  value <- list_to_list_of_links(value)
-
-  trg_ids <- field(links_slice(x, i), "id")
-
-  if (is.null(names(value))) {
-    names(value) <- trg_ids
-  }
-
-  new_ids <- names(value)
-
-  if (!setequal(new_ids, trg_ids)) {
-    blockr_abort(
-      "Replacing IDs {trg_ids} with {new_ids} is not allowed.",
-      class = "links_assignment_name_invalid"
-    )
-  }
-
-  links_assign(x, i, as_links(value[trg_ids]))
-}
-
-#' @export
 `[[.links` <- function(x, i, ...) {
 
   res <- vec_proxy(
@@ -195,15 +148,6 @@ c.links <- function(...) {
   )
 
   as_link(res[, colnames(res) != "id"])
-}
-
-#' @export
-`[[<-.links` <- function(x, i, ..., value) {
-
-  i <- vec_as_location2(i, length(x), names(x))
-  val <- set_names(list(as_link(value)), names(x)[i])
-
-  links_assign(x, i, as_links(val))
 }
 
 #' @export
@@ -293,10 +237,6 @@ as.list.links <- function(x, ...) {
 
 links_slice <- function(...) {
   validate_links(vec_slice(...))
-}
-
-links_assign <- function(...) {
-  validate_links(vec_assign(...))
 }
 
 links_incident <- function(x, ids) {

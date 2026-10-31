@@ -1,60 +1,5 @@
 test_that("conditions", {
 
-  with_mock_session(
-    {
-      vals <- reactiveValues(test = NULL)
-
-      res <- withr::with_options(
-        list(blockr.show_conditions = c("warning", "error")),
-        capture_conditions(
-          {
-            message("hello")
-            warning("test1")
-            warning("test2")
-            stop("bye")
-          },
-          rv = vals,
-          slot = "test",
-          error_val = NULL
-        )
-      )
-
-      expect_null(res)
-
-      cnds <- vals$test
-
-      expect_named(cnds, c("warning", "error"), ignore.order = TRUE)
-
-      expect_length(cnds$warning, 2L)
-      expect_length(cnds$error, 1L)
-
-      res <- withr::with_options(
-        list(blockr.show_conditions = c("message", "warning", "error")),
-        capture_conditions(
-          {
-            message("hello")
-            warning("test1")
-            warning("test2")
-            stop("bye")
-          },
-          rv = vals,
-          slot = "test",
-          error_val = NULL
-        )
-      )
-
-      expect_null(res)
-
-      cnds <- vals$test
-
-      expect_named(cnds, c("message", "warning", "error"), ignore.order = TRUE)
-
-      expect_length(cnds$message, 1L)
-      expect_length(cnds$warning, 2L)
-      expect_length(cnds$error, 1L)
-    }
-  )
-
   test_val <- "world"
 
   expect_error(
@@ -71,148 +16,15 @@ test_that("conditions", {
     blockr_inform("hello {test_val}", class = "test_message"),
     class = "test_message"
   )
-
-  cnd <- new_blk_cnd("xyz")
-
-  expect_s3_class(cnd, "blk_cnd")
-  expect_identical(cnd, as_blk_cnd(cnd))
 })
 
-test_that("empty-message flow-control throws are not recorded as errors", {
-
-  # A req() / silent flow-control throw carries an empty message and must not
-  # be recorded as an error (it would paint a text-less red band). The
-  # discriminator is emptiness, not class -- validate(need(x, "msg")) is the
-  # same shiny.silent.error class and must keep surfacing.
-  with_mock_session(
-    {
-      vals <- reactiveValues(test = NULL)
-
-      res <- withr::with_options(
-        list(blockr.show_conditions = c("warning", "error")),
-        capture_conditions(
-          req(FALSE),
-          rv = vals,
-          slot = "test",
-          error_val = NULL
-        )
-      )
-
-      expect_null(res)
-      expect_length(vals$test$error, 0L)
-
-      res <- withr::with_options(
-        list(blockr.show_conditions = c("warning", "error")),
-        capture_conditions(
-          validate(need(FALSE, "Column not found")),
-          rv = vals,
-          slot = "test",
-          error_val = NULL
-        )
-      )
-
-      expect_null(res)
-      expect_length(vals$test$error, 1L)
-      expect_identical(
-        cnd_message(vals$test$error[[1L]]),
-        "Column not found"
-      )
-    }
-  )
-})
-
-test_that("captured condition messages with braces do not glue-interpolate", {
+test_that("replayed condition messages with braces do not glue-interpolate", {
 
   # tidyr::pivot_wider() emits duplicate-value warnings whose text contains
-  # literal `{summary_fun}`/`{data}` placeholders. Captured condition messages
-  # are already-formatted text and must never be run through glue, or the
-  # missing object aborts the whole reactive.
+  # literal `{summary_fun}`/`{data}` placeholders. Replayed condition messages
+  # are already-formatted text and must never be run through glue.
   brace_msg <- "Use `values_fn = {summary_fun}` to summarise duplicates."
-
-  with_mock_session(
-    {
-      vals <- reactiveValues(test = NULL)
-
-      expect_no_error(
-        withr::with_options(
-          list(blockr.show_conditions = c("message", "warning", "error")),
-          capture_conditions(
-            {
-              message(brace_msg)
-              warning(brace_msg)
-              stop(brace_msg)
-            },
-            rv = vals,
-            slot = "test",
-            error_val = NULL
-          )
-        )
-      )
-
-      expect_identical(cnd_message(vals$test$warning[[1L]]), brace_msg)
-      expect_identical(cnd_message(vals$test$error[[1L]]), brace_msg)
-    }
-  )
 
   expect_no_error(replay(simpleWarning(brace_msg)))
   expect_no_error(replay(simpleError(brace_msg)))
-})
-
-test_that("blk_cnd data api", {
-
-  cnd <- new_blk_cnd("xyz")
-
-  expect_s3_class(cnd, "blk_cnd")
-  expect_true(is_blk_cnd(cnd))
-  expect_false(is_blk_cnd("xyz"))
-
-  expect_identical(cnd_message(cnd), "xyz")
-  expect_identical(cnd_id(cnd), attr(cnd, "id"))
-  expect_null(cnd_id("xyz"))
-
-  expect_identical(cnd, as_blk_cnd(cnd))
-})
-
-test_that("blk_cnds flattens a cond", {
-
-  empty <- blk_cnds(list())
-
-  expect_s3_class(empty, "data.frame")
-  expect_identical(nrow(empty), 0L)
-  expect_named(empty, c("block", "phase", "severity", "message", "id"))
-  expect_identical(empty, empty_conditions_frame())
-
-  expect_identical(
-    nrow(blk_cnds(list(eval = NULL, render = NULL), block = "a")),
-    0L
-  )
-
-  cond <- list(
-    state = list(error = list(new_blk_cnd("state bad"))),
-    eval = list(
-      warning = list(new_blk_cnd("w1"), new_blk_cnd("w2")),
-      error = list(new_blk_cnd("boom"))
-    ),
-    block = list(message = list(new_blk_cnd("hi")))
-  )
-
-  res <- blk_cnds(cond, block = "blk1")
-
-  expect_named(res, c("block", "phase", "severity", "message", "id"))
-  expect_identical(nrow(res), 5L)
-  expect_setequal(unique(res$block), "blk1")
-  expect_setequal(res$severity, c("error", "warning", "message"))
-
-  eval_warn <- res[res$phase == "eval" & res$severity == "warning", ]
-  expect_setequal(eval_warn$message, c("w1", "w2"))
-
-  expect_identical(
-    res$id,
-    chr_ply(res$message, function(m) cnd_id(new_blk_cnd(m)))
-  )
-
-  expect_identical(
-    res$id[res$message == "boom"],
-    cnd_id(new_blk_cnd("boom"))
-  )
 })

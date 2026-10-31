@@ -49,11 +49,9 @@ A set of blocks, optionally connected via links and grouped into stacks
 are organized as a \code{board} object. Boards are constructed using \code{new_board()}
 and inheritance can be tested with \code{is_board()}, while validation is
 available as (generic function) \code{validate_board()}. This central data
-structure can be extended by adding further attributes and sub-classes. S3
-dispatch is used in many places to control how the UI looks and feels and
-using this extension mechanism, UI aspects can be customized to user
-requirements. Several utilities are available for retrieving and modifying
-block attributes (see \code{\link[=board_blocks]{board_blocks()}}).
+structure can be extended by adding further attributes and sub-classes.
+Several utilities are available for retrieving board components (see
+\code{\link[=board_blocks]{board_blocks()}}).
 }
 \examples{
 brd <- new_board(

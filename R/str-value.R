@@ -7,13 +7,13 @@
 #' full, multi-line tier. The [utils::str()] methods are thin wrappers that
 #' display `str_value()`.
 #'
-#' A scalar object (a `block`, `stack`, `link`, `board_option` or `plugin`)
-#' renders as a single line; a container (`blocks`, `stacks`, `links`,
-#' `board_options`, `plugins`) and a whole `board` render as one element per
-#' line below a `<class[n]>` header. The `block` method lists a block's
-#' constructor inputs, marking the externally controllable ones (those
-#' reported by [external_ctrl_vars()]) with a trailing `*`; the `stack`
-#' method shows the stack name and its member block ids.
+#' A scalar object (a `block`, `stack`, `link` or `board_option`) renders as
+#' a single line; a container (`blocks`, `stacks`, `links`, `board_options`)
+#' and a whole `board` render as one element per line below a `<class[n]>`
+#' header. The `block` method lists a block's constructor inputs, marking the
+#' externally controllable ones (those reported by [external_ctrl_vars()])
+#' with a trailing `*`; the `stack` method shows the stack name and its member
+#' block ids.
 #'
 #' This is the blockr extension point for token-dense renderings such as a
 #' board summary. A home package surfaces a subclass's state by defining a

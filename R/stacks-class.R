@@ -6,8 +6,8 @@
 #'
 #' Stack container objects (`stacks` objects) can be created with `stacks()`
 #' or `as_stacks()` and inheritance can be tested via `is_stacks()`. Further
-#' basic operations such as concatenation, subsetting and sub-assignments is
-#' available by means of base R generics.
+#' basic operations such as concatenation and subsetting are available by means
+#' of base R generics.
 #'
 #' @rdname new_stack
 #' @export
@@ -170,23 +170,6 @@ as.list.stacks <- function(x, ...) {
 }
 
 #' @export
-`names<-.stacks` <- function(x, value) {
-
-  if (is.null(value)) {
-    value <- rep("", length(x))
-  } else if (anyDuplicated(value) != 0L) {
-    blockr_abort(
-      "IDs are required to be unique.",
-      class = "stacks_names_unique_invalid"
-    )
-  }
-
-  attr(x, "names") <- value
-
-  x
-}
-
-#' @export
 vec_restore.stacks <- function(x, to, ...) {
   validate_stacks(NextMethod())
 }
@@ -212,50 +195,4 @@ c.stacks <- function(...) {
   )
 
   as_stacks(res)
-}
-
-#' @export
-`[<-.stacks` <- function(x, i, ..., value) {
-
-  i <- vec_as_location(i, length(x), names(x))
-
-  if (is.null(value)) {
-    return(stacks_slice(x, -i))
-  }
-
-  value <- as_stacks(value)
-
-  trg_ids <- names(x)[i]
-
-  if (is.null(names(value))) {
-    names(value) <- trg_ids
-  }
-
-  new_ids <- names(value)
-
-  if (!setequal(new_ids, trg_ids)) {
-    blockr_abort(
-      "Replacing IDs {trg_ids} with {new_ids} is not allowed.",
-      class = "stacks_assignment_name_invalid"
-    )
-  }
-
-  stacks_assign(x, i, value[trg_ids])
-}
-
-#' @export
-`[[<-.stacks` <- function(x, i, ..., value) {
-
-  i <- vec_as_location2(i, length(x), names(x))
-  val <- set_names(list(as_stack(value)), names(x)[i])
-
-  stacks_assign(x, i, as_stacks(val))
-}
-
-stacks_slice <- function(...) {
-  validate_stacks(vec_slice(...))
-}
-
-stacks_assign <- function(...) {
-  validate_stacks(vec_assign(...))
 }

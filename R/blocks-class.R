@@ -11,11 +11,6 @@
 #'
 #' names(blks)
 #'
-#' tryCatch(
-#'   names(blks["a"]) <- "b",
-#'   error = function(e) conditionMessage(e)
-#' )
-#'
 #' @rdname new_block
 #' @export
 blocks <- function(...) {
@@ -77,23 +72,6 @@ as.list.blocks <- function(x, ...) {
 }
 
 #' @export
-`names<-.blocks` <- function(x, value) {
-
-  if (is.null(value)) {
-    value <- rep("", length(x))
-  } else if (anyDuplicated(value) != 0L) {
-    blockr_abort(
-      "IDs are required to be unique.",
-      class = "blocks_names_unique_invalid"
-    )
-  }
-
-  attr(x, "names") <- value
-
-  x
-}
-
-#' @export
 format.blocks <- function(x, ...) {
 
   out <- lapply(x, format)
@@ -150,55 +128,6 @@ c.blocks <- function(...) {
   )
 
   as_blocks(res)
-}
-
-#' @export
-`[<-.blocks` <- function(x, i, ..., value) {
-
-  i <- vec_as_location(i, length(x), names(x))
-
-  if (is.null(value)) {
-    return(blocks_slice(x, -i))
-  }
-
-  value <- as_blocks(value)
-
-  trg_ids <- names(x)[i]
-
-  if (is.null(names(value))) {
-    names(value) <- trg_ids
-  }
-
-  new_ids <- names(value)
-
-  if (!setequal(new_ids, trg_ids)) {
-    blockr_abort(
-      paste0(
-        "Replacing IDs ", paste_enum(trg_ids), " with ", paste_enum(new_ids),
-        " is not allowed."
-      ),
-      class = "blocks_assignment_name_invalid"
-    )
-  }
-
-  blocks_assign(x, i, value[trg_ids])
-}
-
-#' @export
-`[[<-.blocks` <- function(x, i, ..., value) {
-
-  i <- vec_as_location2(i, length(x), names(x))
-  val <- set_names(list(as_block(value)), names(x)[i])
-
-  blocks_assign(x, i, as_blocks(val))
-}
-
-blocks_slice <- function(...) {
-  validate_blocks(vec_slice(...))
-}
-
-blocks_assign <- function(...) {
-  validate_blocks(vec_assign(...))
 }
 
 validate_blocks <- function(x) {

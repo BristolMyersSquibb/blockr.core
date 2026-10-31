@@ -2,7 +2,6 @@
 % Please edit documentation in R/block-class.R
 \name{block_name}
 \alias{block_name}
-\alias{block_name<-}
 \alias{validate_data_inputs}
 \alias{block_inputs}
 \alias{block_arity}
@@ -11,8 +10,6 @@
 \title{Block utilities}
 \usage{
 block_name(x)
-
-block_name(x) <- value
 
 validate_data_inputs(x, data)
 
@@ -27,15 +24,12 @@ has_external_ctrl(x)
 \arguments{
 \item{x}{An object inheriting from \code{"block"}}
 
-\item{value}{New value}
-
 \item{data}{Data input values}
 }
 \value{
 Return types vary among the set of exported utilities:
 \itemize{
 \item \code{block_name()}: string valued block name,
-\item \verb{block_name<-()}: \code{x} (invisibly),
 \item \code{validate_data_inputs()}: \code{NULL} if no validator is set and the result of
 the validator function otherwise,
 \item \code{block_inputs()}: a (possibly empty) character vector of data input names,
@@ -55,10 +49,9 @@ with blocks in lacking, please consider opening an
 \section{Block name}{
 
 Each block can have a name (by default constructed from the class vector)
-intended for users to easily identify different blocks. This name can freely
-be changed during the lifetime of a block and no uniqueness restrictions are
-in place. The current block name can be retrieved with \code{block_name()} and
-set as \code{block_name(x) <- "some name"}.
+intended for users to easily identify different blocks. No uniqueness
+restrictions are in place and the block name can be retrieved with
+\code{block_name()}.
 }
 
 \section{Input validation}{
@@ -83,9 +76,9 @@ function argument \code{...args}, signaling variadic behavior is stripped from
 \section{External control}{
 
 Blocks can expose constructor inputs for programmatic control from outside
-the block server (see the \code{external_ctrl} argument to \code{\link[=new_block]{new_block()}} and the
-\code{\link[=ctrl_block]{ctrl_block()}} plugin). \code{external_ctrl_vars()} is a generic that resolves
-this declaration into the concrete set of controllable variable names:
+the block server (see the \code{external_ctrl} argument to \code{\link[=new_block]{new_block()}}). The
+generic \code{external_ctrl_vars()} resolves this declaration into the concrete
+set of controllable variable names:
 \code{TRUE} expands to all constructor inputs, \code{FALSE} to none and a character
 vector is taken as a (validated) subset. For blocks, \code{"block_name"} is
 always included as every block can be renamed. The predicate
@@ -95,8 +88,6 @@ for blocks).
 
 \examples{
 blk <- new_dataset_block()
-block_name(blk)
-block_name(blk) <- "My dataset block"
 block_name(blk)
 
 block_inputs(new_dataset_block())

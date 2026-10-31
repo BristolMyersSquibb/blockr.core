@@ -10,8 +10,7 @@
 #'
 #' Individual stacks can be created using `new_stack()` or `as_stack()` and
 #' inheritance can be tested with `is_stack()`. Attributes can be retrieved
-#' (and modified) with `stack_blocks()`/`stack_blocks<-()` and
-#' `stack_name()`/`stack_name<-()`, while validation is available as
+#' with `stack_blocks()` and `stack_name()`, while validation is available as
 #' (generic) `validate_stack()`.
 #'
 #' @param blocks Set of blocks
@@ -25,13 +24,12 @@
 #'
 #' stack_blocks(stk)
 #' stack_name(stk)
-#' stack_name(stk) <- "Alphabet start"
 #'
 #' stks <- c(start = stk, cont = new_stack(letters[6:10], "Alphabet cont."))
 #' names(stks)
 #'
 #' tryCatch(
-#'   stack_blocks(stks[[2]]) <- letters[4:8],
+#'   c(stks, new_stack(letters[4:8])),
 #'   error = function(e) conditionMessage(e)
 #' )
 #'
@@ -39,9 +37,7 @@
 #' `stacks()`/`as_stacks()` results in `stack` and `stacks` objects,
 #' respectively, while inheritance testing via `is_stack()` and `is_stacks()`
 #' returns scalar logicals. Attribute getters `stack_name()` and
-#' `stack_blocks()` return scalar and vector-valued character vectors while
-#' setters `stack_name()<-` and `stack_blocks()<-` return modified stack
-#' objects.
+#' `stack_blocks()` return scalar and vector-valued character vectors.
 #'
 #' @export
 new_stack <- function(blocks = character(), name = default_stack_name, ...,
@@ -96,66 +92,10 @@ stack_blocks <- function(x) {
   as.character(x)
 }
 
-#' @param value Replacement value
-#' @rdname new_stack
-#' @export
-`stack_blocks<-` <- function(x, value) {
-  vec_restore(new_stack(value), x)
-}
-
 #' @rdname new_stack
 #' @export
 stack_name <- function(x, name) {
   attr(x, "name")
-}
-
-#' @rdname new_stack
-#' @export
-`stack_name<-` <- function(x, value) {
-  attr(x, "name") <- value
-  x
-}
-
-#' @section Partial-arg updates:
-#' `update_stack()` is an S3 generic that produces a modified stack by
-#' merging a named-list `delta` of constructor argument values onto an
-#' existing stack. The default `.stack` method reconstructs the object
-#' via its stored constructor, treating the underlying character vector
-#' (block IDs) as `blocks` and every other attribute as a named
-#' constructor argument. Sub-class owners (e.g. `dock_stack` adding
-#' `color`) only need to register a method when their constructor
-#' deviates from this convention. The reserved delta key `blocks`
-#' replaces the member block IDs; every other key updates the named
-#' attribute.
-#'
-#' @param delta A named list of constructor argument values to apply on
-#' top of `x`'s current fields.
-#'
-#' @rdname new_stack
-#' @export
-update_stack <- function(x, delta) {
-  UseMethod("update_stack")
-}
-
-#' @export
-update_stack.stack <- function(x, delta) {
-
-  ctor <- attr(x, "ctor")
-
-  reserved <- c("class", "ctor")
-  attrs <- attributes(x)
-  attrs <- attrs[setdiff(names(attrs), reserved)]
-
-  args <- c(list(blocks = stack_blocks(x)), attrs)
-  args[names(delta)] <- delta
-
-  do.call(
-    ctor_fun(ctor),
-    c(
-      args,
-      list(ctor = coal(ctor_name(ctor), ctor_fun(ctor)), pkg = ctor_pkg(ctor))
-    )
-  )
 }
 
 #' @rdname new_stack
