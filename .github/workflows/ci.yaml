@@ -9,6 +9,7 @@ jobs:
   ci:
     uses: BristolMyersSquibb/blockr.ci/.github/workflows/ci.yaml@main
     with:
+      typescript-dir: '.'
       lintr-exclusions: |
         vignettes/create-block.qmd
         vignettes/extend-blockr.qmd

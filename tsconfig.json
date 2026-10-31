@@ -1,0 +1,10 @@
+{
+  // Type-checks core's client and its toolchain as two projects, so that the
+  // client, which runs in the browser, sees none of Node's types. Run:
+  // npm run typecheck
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.client.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}
