@@ -296,3 +296,20 @@ test_that("misc", {
     "block"
   )
 })
+
+test_that("a constructor called as a value resolves as a local function", {
+
+  new_test_option <- function() {
+    value <- base::identity(1L)
+    new_board_option("test_opt", value)
+  }
+
+  opt <- do.call(new_test_option, list())
+
+  expect_s3_class(opt, "board_option")
+  expect_null(ctor_name(board_option_ctor(opt)))
+
+  opts <- lapply(list(new_n_rows_option), do.call, list())
+
+  expect_identical(board_option_id(opts[[1L]]), "n_rows")
+})

@@ -357,10 +357,12 @@ resolve_ctor <- function(ctor, ctor_pkg = NULL) {
 
     if (ctor < 0L) {
       func <- rlang::caller_fn(-ctor)
-      call <- as.character(rlang::caller_call(-ctor)[[1L]])
+      head <- rlang::caller_call(-ctor)[[1L]]
+      call <- if (is_named_call_head(head)) as.character(head) else character()
     } else {
       func <- sys.function(ctor)
-      call <- deparse(sys.call(ctor)[[1L]])
+      head <- sys.call(ctor)[[1L]]
+      call <- if (is_named_call_head(head)) deparse(head) else character()
     }
 
     if (any(grepl("::", call, fixed = TRUE))) {
@@ -409,6 +411,15 @@ resolve_ctor <- function(ctor, ctor_pkg = NULL) {
   }
 
   new_blockr_ctor(try, ctor, ctor_pkg)
+}
+
+is_named_call_head <- function(x) {
+
+  if (is.name(x)) {
+    return(TRUE)
+  }
+
+  is.call(x) && is.name(x[[1L]]) && as.character(x[[1L]]) %in% c("::", ":::")
 }
 
 #' @rdname rand_names
