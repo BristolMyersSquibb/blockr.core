@@ -2,6 +2,23 @@
 
 ## blockr.core 0.1.4
 
+- The dark mode, preview search and thematic board options draw Shiny’s
+  checkbox and set it with
+  [`updateCheckboxInput()`](https://rdrr.io/pkg/shiny/man/updateCheckboxInput.html),
+  where they drew bslib’s switch and dark mode toggle, which a value set
+  on the server reached only through bslib’s script. On a page without
+  it, they now still show such a value. The head block’s “Tail” switch
+  is Shiny’s checkbox as well, so none of core’s blocks or board options
+  puts bslib on a page. Dark mode is labeled “Dark mode” by default and
+  keeps its values, “light”, “dark” or `NULL`, so saved boards load as
+  before. A script of its own keeps the page’s scheme, `data-bs-theme`
+  on `<html>`: a line in the page’s head sets it before the first paint,
+  from the option’s value or, when unset, from the system setting, which
+  the page then follows until a value is chosen. Unlike with bslib’s
+  toggle, a page whose option has a value no longer changes scheme with
+  the system setting
+  ([\#387](https://github.com/BristolMyersSquibb/blockr.core/issues/387)).
+
 - Restoring a board no longer requires each object to come back with
   exactly the classes saved for it, only as the same kind of object: the
   last saved class with a
