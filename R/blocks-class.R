@@ -1,7 +1,8 @@
 #' @section Block vectors:
 #' Multiple blocks can be combined into a `blocks` object, a container for
-#' an (ordered) set of blocks. Block IDs are handled at the `blocks` level
-#' which will ensure uniqueness.
+#' an (ordered) set of blocks. Block IDs are handled at the `blocks` level,
+#' which ensures that they are unique and, as every ID, strings that are
+#' neither empty nor made of digits alone.
 #'
 #' @examples
 #' blks <- c(a = new_dataset_block(), b = new_subset_block())
@@ -148,12 +149,14 @@ validate_blocks <- function(x) {
 
   ids <- names(x)
 
-  if (length(ids) != length(x) || any(is.na(ids) | !nchar(ids))) {
+  if (length(ids) != length(x)) {
     blockr_abort(
       "Block IDs are required to be nonempty strings.",
       class = "blocks_names_invalid"
     )
   }
+
+  validate_ids(ids, "Block", "blocks_names_invalid")
 
   if (anyDuplicated(ids) != 0) {
     blockr_abort(

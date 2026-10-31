@@ -8,11 +8,20 @@
 #' Several utilities are available for retrieving board components (see
 #' [board_blocks()]).
 #'
+#' A board has an ID, which identifies it, and a name, which the user calls it
+#' by. Unless given, the ID is drawn at random by [rand_names()] and the name
+#' is the ID in sentence case. Every ID, a board's as well as a block's, a
+#' link's or a stack's, is a string that is neither empty nor made of digits
+#' alone, since a JavaScript object puts keys that look like integers first,
+#' and the constructors refuse any other.
+#'
 #' @param blocks Set of blocks
 #' @param links Set of links
 #' @param stacks Set of stacks
 #' @param options Board-level user settings
 #' @param ... Further (metadata) attributes
+#' @param id Board ID
+#' @param name Board name, which `NULL` sets to the ID in sentence case
 #' @param ctor,pkg Constructor information (used for serialization)
 #' @param class Board sub-class
 #'
@@ -22,10 +31,12 @@
 #'      a = new_dataset_block(),
 #'      b = new_subset_block()
 #'   ),
-#'   list(from = "a", to = "b")
+#'   list(from = "a", to = "b"),
+#'   id = "my_board"
 #' )
 #'
 #' is_board(brd)
+#' board_name(brd)
 #'
 #' @return The board constructor `new_board()` returns a `board` object, as does
 #' the validator `validate_board()`, which typically is called for side effects
@@ -35,7 +46,10 @@
 #' @export
 new_board <- function(blocks = list(), links = list(), stacks = list(),
                       options = default_board_options(), ...,
+                      id = rand_names(), name = NULL,
                       ctor = NULL, pkg = NULL, class = character()) {
+
+  validate_board_id(id)
 
   blocks <- as_blocks(blocks)
   links <- as_links(links)
@@ -53,10 +67,26 @@ new_board <- function(blocks = list(), links = list(), stacks = list(),
         options = options,
         ...
       ),
+      id = id,
+      name = coal(name, id_to_sentence_case(id)),
       ctor = resolve_ctor(forward_ctor(ctor), pkg),
       class = c(class, "board")
     )
   )
+}
+
+validate_board_id <- function(x) {
+
+  if (!is_string(x)) {
+    blockr_abort(
+      "Expecting the board ID to be a string.",
+      class = "board_id_invalid"
+    )
+  }
+
+  validate_ids(x, "Board", "board_id_invalid")
+
+  invisible(x)
 }
 
 complete_unary_inputs <- function(x, blocks) {
@@ -164,6 +194,15 @@ validate_board.board <- function(x) {
     )
   }
 
+  validate_board_id(board_id(x))
+
+  if (!is_string(board_name(x))) {
+    blockr_abort(
+      "Expecting the board name to be a string.",
+      class = "board_name_invalid"
+    )
+  }
+
   blks <- validate_blocks(board_blocks(x))
 
   validate_board_blocks_links(blks, validate_links(board_links(x)))
@@ -235,12 +274,16 @@ is_acyclic.board <- function(x) {
 #'
 #' board_options(brd)
 #'
+#' board_id(brd)
+#' board_name(brd)
+#'
 #' @return Functions for retrieving components (`board_blocks()`,
 #' `board_links()`, `board_stacks()` and `board_options()`) return objects of
 #' the corresponding classes `blocks`, `links`, `stacks` and `board_options`,
 #' while ID getters (`board_block_ids()`, `board_link_ids()`,
 #' `board_stack_ids()` and `board_option_ids()`) return character vectors, as
-#' does `available_stack_blocks()`.
+#' does `available_stack_blocks()`, and `board_id()` and `board_name()` return
+#' strings.
 #'
 #' @export
 board_blocks <- function(x) {
@@ -326,6 +369,24 @@ available_stack_blocks <- function(x, stacks = board_stacks(x),
   Reduce(setdiff, lapply(stacks, as.character), blocks)
 }
 
+#' @section ID and name:
+#' The board's ID, which identifies it, is available as `board_id()`, and its
+#' name, which the user calls it by, as `board_name()`.
+#'
+#' @rdname board_blocks
+#' @export
+board_id <- function(x) {
+  stopifnot(is_board(x))
+  attr(x, "id", exact = TRUE)
+}
+
+#' @rdname board_blocks
+#' @export
+board_name <- function(x) {
+  stopifnot(is_board(x))
+  attr(x, "name", exact = TRUE)
+}
+
 #' @export
 block_inputs.board <- function(x) {
   lapply(set_names(board_blocks(x), board_block_ids(x)), block_inputs)
@@ -350,6 +411,12 @@ format.board <- function(x, ...) {
   for (cl in rev(class(x))) {
     out <- paste0("<", cl, out, ">")
   }
+
+  out <- c(
+    out,
+    paste0("ID: \"", board_id(x), "\""),
+    paste0("Name: \"", board_name(x), "\"")
+  )
 
   blk <- board_blocks(x)
 
@@ -416,7 +483,7 @@ print.board <- function(x, ...) {
 #' @export
 str_value.board <- function(x, ...) {
   paste(
-    paste0("<", class(x)[1L], ">"),
+    paste0("<", class(x)[1L], "> \"", board_name(x), "\""),
     str_value(board_blocks(x)),
     str_value(board_links(x)),
     str_value(board_stacks(x)),

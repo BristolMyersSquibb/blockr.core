@@ -1,6 +1,7 @@
 #' Similar to [`blocks`](new_block()) and [`links`][new_link()], multiple
 #' stacks can be handled using `stacks` container objects. These hand out
-#' (and guarantee) unique IDs (implemented as [base::names()]) and ensure
+#' (and guarantee) unique IDs (implemented as [base::names()]), which as every
+#' ID are strings that are neither empty nor made of digits alone, and ensure
 #' further consistency criteria, such as disallowing membership in multiple
 #' stacks at the same time for a given block.
 #'
@@ -63,12 +64,14 @@ validate_stacks <- function(x) {
 
   ids <- names(x)
 
-  if (length(ids) != length(x) || any(is.na(ids) | !nchar(ids))) {
+  if (length(ids) != length(x)) {
     blockr_abort(
       "Stack IDs are required to be nonempty strings.",
       class = "stacks_names_invalid"
     )
   }
+
+  validate_ids(ids, "Stack", "stacks_names_invalid")
 
   if (anyDuplicated(ids) != 0) {
     blockr_abort(

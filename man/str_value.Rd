@@ -34,7 +34,7 @@ and a whole \code{board} render as one element per line below a \verb{<class[n]>
 header. The \code{block} method lists a block's constructor inputs, marking the
 externally controllable ones (those reported by \code{\link[=external_ctrl_vars]{external_ctrl_vars()}})
 with a trailing \code{*}; the \code{stack} method shows the stack name and its member
-block ids.
+block ids, and the \code{board} method shows the board name in its header.
 
 This is the blockr extension point for token-dense renderings such as a
 board summary. A home package surfaces a subclass's state by defining a

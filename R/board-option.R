@@ -167,35 +167,6 @@ c.board_option <- function(...) {
 
 #' @rdname new_board_options
 #' @export
-new_board_name_option <- function(value = NULL, category = "Board options",
-                                  label = "Board name", ...) {
-
-  new_board_option(
-    id = "board_name",
-    default = value,
-    category = category,
-    label = label,
-    ...
-  )
-}
-
-#' @export
-validate_board_option.board_name_option <- function(x) {
-
-  val <- board_option_value(NextMethod())
-
-  if (!(is_string(val) || is.null(val))) {
-    blockr_abort(
-      "Expecting `board_name` to be `NULL` or string-valued.",
-      class = "board_name_option_invalid"
-    )
-  }
-
-  invisible(x)
-}
-
-#' @rdname new_board_options
-#' @export
 new_n_rows_option <- function(value = blockr_option("n_rows", 50L),
                               category = "Table options",
                               label = "Preview rows", ...) {

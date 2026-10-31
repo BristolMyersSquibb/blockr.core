@@ -1,17 +1,16 @@
 test_that("board opts", {
 
   opts1 <- new_board_options(
-    new_board_name_option(),
     new_n_rows_option(),
     new_dark_mode_option()
   )
 
   expect_s3_class(opts1, "board_options")
-  expect_length(opts1, 3L)
-  expect_named(opts1, c("board_name", "n_rows", "dark_mode"))
+  expect_length(opts1, 2L)
+  expect_named(opts1, c("n_rows", "dark_mode"))
 
   expect_s3_class(opts1[[1]], "board_option")
-  expect_s3_class(opts1[["board_name"]], "board_option")
+  expect_s3_class(opts1[["n_rows"]], "board_option")
 
   expect_error(
     new_board_options(new_n_rows_option(), new_n_rows_option()),
@@ -21,20 +20,14 @@ test_that("board opts", {
   opts2 <- c(new_show_conditions_option(), opts1)
 
   expect_s3_class(opts2, "board_options")
-  expect_length(opts2, 4L)
-  expect_named(
-    opts2,
-    c("show_conditions", "board_name", "n_rows", "dark_mode")
-  )
+  expect_length(opts2, 3L)
+  expect_named(opts2, c("show_conditions", "n_rows", "dark_mode"))
 
   opts3 <- c(opts1, new_show_conditions_option())
 
   expect_s3_class(opts3, "board_options")
-  expect_length(opts3, 4L)
-  expect_named(
-    opts3,
-    c("board_name", "n_rows", "dark_mode", "show_conditions")
-  )
+  expect_length(opts3, 3L)
+  expect_named(opts3, c("n_rows", "dark_mode", "show_conditions"))
 })
 
 test_that("opt ser/deser", {
@@ -58,7 +51,6 @@ test_that("opt ser/deser", {
   }
 
   opts <- list(
-    new_board_name_option("foo"),
     new_dark_mode_option("dark"),
     new_show_conditions_option(character()),
     new_show_conditions_option("error"),
@@ -82,11 +74,11 @@ test_that("a board options container has a compact str_value()", {
   lines <- strsplit(res, "\n")[[1L]]
 
   expect_length(res, 1L)
-  expect_identical(lines[1L], "<board_options[3]>")
-  expect_length(lines, 4L)
-  expect_true(any(startsWith(lines[-1L], "  board_name: ")))
+  expect_identical(lines[1L], "<board_options[2]>")
+  expect_length(lines, 3L)
+  expect_true(any(startsWith(lines[-1L], "  show_conditions: ")))
 
   expect_identical(str_value(new_board_options()), "<board_options[0]>")
 
-  expect_identical(capture.output(str(opts))[1L], " <board_options[3]>")
+  expect_identical(capture.output(str(opts))[1L], " <board_options[2]>")
 })

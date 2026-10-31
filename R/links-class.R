@@ -1,7 +1,7 @@
-#' Vector-valued links (i.e. `links` objects) manage IDs that are unique (with
-#' empty strings being the only exception). These are either user-supplied or
-#' generated automatically (via random strings) and operations like
-#' concatenation are guaranteed to not allow duplicated IDs.
+#' Vector-valued links (i.e. `links` objects) manage IDs that are unique and,
+#' as every ID, strings that are neither empty nor made of digits alone. These
+#' are either user-supplied or generated automatically (via random strings) and
+#' operations like concatenation are guaranteed to not allow duplicated IDs.
 #'
 #' In addition to unique IDs, `links` objects are guaranteed to be consistent
 #' in that it is not possible to have multiple links pointing to the same
@@ -281,6 +281,8 @@ validate_links <- function(x) {
   for (y in as.list(x)) {
     validate_link(y)
   }
+
+  validate_ids(field(x, "id"), "Link", "links_names_invalid")
 
   if (any_dup(field(x, "id")) != 0L) {
     blockr_abort(

@@ -91,3 +91,24 @@ filter_all_zero_len <- function(x) {
 }
 
 filter_empty <- function(x) Filter(Negate(is_empty), x)
+
+# The IDs of a board, its blocks, links and stacks may be neither empty nor made
+# of digits alone, since a JS object puts keys that look like integers first,
+# whatever the order they were inserted in.
+validate_ids <- function(ids, what, class) {
+
+  bad <- is.na(ids) | !nzchar(ids) | grepl("^[0-9]+$", ids)
+
+  if (any(bad)) {
+
+    ids <- encodeString(ids[bad], quote = "\"")
+
+    blockr_abort(
+      "{what} IDs are required to be strings that are neither empty nor ",
+      "made of digits alone, which does not hold for {ids}.",
+      class = class
+    )
+  }
+
+  invisible()
+}

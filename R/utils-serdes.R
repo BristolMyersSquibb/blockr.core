@@ -23,6 +23,11 @@
 #' object re-created as another kind raises an error of class
 #' `block_deser_class_error`.
 #'
+#' A board is written with its ID and name next to its payload. For a board
+#' written by blockr.core 0.1.4, `blockr_deser()` reads the name off its
+#' `board_name` board option instead, and draws an ID where the board holds
+#' none.
+#'
 #' @param x Object to (de)serialize
 #' @param ... Generic consistency
 #'
@@ -198,13 +203,9 @@ blockr_ser.board_option <- function(x, option = NULL, ...) {
   )
 }
 
-#' @param board_id Board ID
 #' @rdname blockr_ser
 #' @export
-blockr_ser.board <- function(x, board_id = NULL, ...) {
-
-  stopifnot(is.null(board_id) || is_string(board_id))
-
+blockr_ser.board <- function(x, ...) {
   list(
     object = class(x),
     payload = Map(
@@ -212,7 +213,8 @@ blockr_ser.board <- function(x, board_id = NULL, ...) {
     ),
     constructor = blockr_ser(board_ctor(x)),
     version = as.character(pkg_version()),
-    id = board_id
+    id = board_id(x),
+    name = board_name(x)
   )
 }
 
@@ -395,25 +397,44 @@ blockr_deser.board <- function(x, data, ..., on_error = NULL) {
 
   ctor <- blockr_deser(data[["constructor"]])
 
-  parts <- lapply(data[["payload"]], blockr_deser, ..., on_error = on_error)
+  payload <- data[["payload"]]
+  name <- data[["name"]]
+
+  # A board written by blockr.core 0.1.4 holds its name as the value of its
+  # `board_name` board option, which no longer exists, and its ID only where
+  # the app that saved it passed one, so that one is drawn otherwise.
+  opts <- payload[["options"]][["payload"]]
+  is_name <- lgl_ply(
+    opts,
+    function(opt) "board_name_option" %in% opt[["object"]]
+  )
+
+  if (any(is_name)) {
+    name <- coal(
+      name,
+      opts[[which(is_name)[1L]]][["payload"]][["value"]],
+      fail_all = FALSE
+    )
+    payload[["options"]][["payload"]] <- opts[!is_name]
+  }
+
+  parts <- lapply(payload, blockr_deser, ..., on_error = on_error)
 
   if (identical(on_error, "drop")) {
-    parts <- drop_block_refs(parts, data[["payload"]][["blocks"]])
+    parts <- drop_block_refs(parts, payload[["blocks"]])
   }
 
   args <- c(
     parts,
     list(
+      id = coal(data[["id"]], rand_names()),
+      name = name,
       ctor = coal(ctor_name(ctor), ctor_fun(ctor)),
       pkg = ctor_pkg(ctor)
     )
   )
 
-  res <- do.call(ctor_fun(ctor), args)
-
-  attr(res, "id") <- data[["id"]]
-
-  res
+  do.call(ctor_fun(ctor), args)
 }
 
 drop_block_refs <- function(parts, blocks) {

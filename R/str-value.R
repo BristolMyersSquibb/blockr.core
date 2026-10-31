@@ -13,7 +13,7 @@
 #' header. The `block` method lists a block's constructor inputs, marking the
 #' externally controllable ones (those reported by [external_ctrl_vars()])
 #' with a trailing `*`; the `stack` method shows the stack name and its member
-#' block ids.
+#' block ids, and the `board` method shows the board name in its header.
 #'
 #' This is the blockr extension point for token-dense renderings such as a
 #' board summary. A home package surfaces a subclass's state by defining a

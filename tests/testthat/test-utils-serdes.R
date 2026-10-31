@@ -156,6 +156,69 @@ test_that("deserialization checks the kind of object, not its classes", {
   expect_error(blockr_deser(ser), class = "block_deser_class_error")
 })
 
+test_that("a board keeps its ID and name through serialization", {
+
+  board <- new_board(
+    c(a = new_dataset_block("iris")),
+    id = "sales_review",
+    name = "Q3 numbers"
+  )
+
+  ser <- blockr_ser(board)
+
+  expect_identical(ser[["id"]], "sales_review")
+  expect_identical(ser[["name"]], "Q3 numbers")
+
+  res <- blockr_deser(ser)
+
+  expect_identical(board_id(res), "sales_review")
+  expect_identical(board_name(res), "Q3 numbers")
+})
+
+test_that("a board saved by blockr.core 0.1.4 keeps its name and ID", {
+
+  board <- new_board(c(a = new_dataset_block("iris")), id = "sales_review")
+
+  # As blockr.core 0.1.4 wrote it: the name as the value of a `board_name`
+  # board option, and the ID only where the app passed one
+  ser <- blockr_ser(board)
+  ser[["name"]] <- NULL
+
+  name_opt <- list(
+    object = c("board_name_option", "board_option"),
+    payload = list(
+      value = "Q3 numbers",
+      category = "Board options",
+      label = "Board name"
+    ),
+    constructor = list(
+      object = "blockr_ctor",
+      constructor = "new_board_name_option",
+      package = "blockr.core",
+      version = "0.1.4"
+    )
+  )
+
+  ser$payload$options$payload <- c(list(name_opt), ser$payload$options$payload)
+
+  res <- blockr_deser(ser)
+
+  expect_identical(board_id(res), "sales_review")
+  expect_identical(board_name(res), "Q3 numbers")
+  expect_identical(board_option_ids(res), board_option_ids(board))
+
+  ser$payload$options$payload[[1L]]$payload$value <- NULL
+
+  expect_identical(board_name(blockr_deser(ser)), "Sales review")
+
+  ser["id"] <- list(NULL)
+
+  res <- blockr_deser(ser)
+
+  expect_true(is_string(board_id(res)))
+  expect_identical(board_name(res), id_to_sentence_case(board_id(res)))
+})
+
 test_that("a board option keeps the label it was given", {
 
   opt <- new_n_rows_option(label = "Rows")

@@ -72,6 +72,36 @@ test_that("blocks utils", {
   )
 })
 
+test_that("block IDs are neither empty nor made of digits alone", {
+
+  a <- new_dataset_block()
+
+  expect_error(
+    c(a = a, `1` = new_subset_block()),
+    "\"1\"",
+    class = "blocks_names_invalid"
+  )
+
+  expect_error(
+    blocks(`01` = a),
+    "\"01\"",
+    class = "blocks_names_invalid"
+  )
+
+  expect_error(
+    validate_blocks(
+      structure(
+        list(a),
+        names = "",
+        class = c("blocks", "vctrs_vctr", "list")
+      )
+    ),
+    class = "blocks_names_invalid"
+  )
+
+  expect_named(blocks(a1 = a, `1a` = new_subset_block()), c("a1", "1a"))
+})
+
 test_that("a blocks container has a compact str_value()", {
 
   brd <- new_board(blocks = c(a = new_dataset_block(), b = new_subset_block()))

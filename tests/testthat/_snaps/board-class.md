@@ -4,6 +4,8 @@
       print(board)
     Output
       <board>
+      ID: "my_board"
+      Name: "My board"
       
       Blocks[5]:
       
@@ -62,8 +64,7 @@
       Blocks: "b" and "c"
       
       Options:
-      <board_options[3]>
-        board_name: NULL
+      <board_options[2]>
         show_conditions: warning, error
         dark_mode: NULL
 

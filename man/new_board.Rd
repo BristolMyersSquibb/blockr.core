@@ -12,6 +12,8 @@ new_board(
   stacks = list(),
   options = default_board_options(),
   ...,
+  id = rand_names(),
+  name = NULL,
   ctor = NULL,
   pkg = NULL,
   class = character()
@@ -31,6 +33,10 @@ is_board(x)
 \item{options}{Board-level user settings}
 
 \item{...}{Further (metadata) attributes}
+
+\item{id}{Board ID}
+
+\item{name}{Board name, which \code{NULL} sets to the ID in sentence case}
 
 \item{ctor, pkg}{Constructor information (used for serialization)}
 
@@ -53,15 +59,25 @@ structure can be extended by adding further attributes and sub-classes.
 Several utilities are available for retrieving board components (see
 \code{\link[=board_blocks]{board_blocks()}}).
 }
+\details{
+A board has an ID, which identifies it, and a name, which the user calls it
+by. Unless given, the ID is drawn at random by \code{\link[=rand_names]{rand_names()}} and the name
+is the ID in sentence case. Every ID, a board's as well as a block's, a
+link's or a stack's, is a string that is neither empty nor made of digits
+alone, since a JavaScript object puts keys that look like integers first,
+and the constructors refuse any other.
+}
 \examples{
 brd <- new_board(
   c(
      a = new_dataset_block(),
      b = new_subset_block()
   ),
-  list(from = "a", to = "b")
+  list(from = "a", to = "b"),
+  id = "my_board"
 )
 
 is_board(brd)
+board_name(brd)
 
 }

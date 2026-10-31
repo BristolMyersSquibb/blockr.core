@@ -99,6 +99,25 @@ test_that("links class", {
   )
 })
 
+test_that("link IDs are neither empty nor made of digits alone", {
+
+  expect_error(
+    links(ab = new_link("a", "b"), `3` = new_link("b", "c")),
+    "\"3\"",
+    class = "links_names_invalid"
+  )
+
+  expect_error(
+    validate_links(
+      structure(
+        list(id = "", from = "a", to = "b", input = ""),
+        class = c("links", "vctrs_rcrd", "vctrs_vctr")
+      )
+    ),
+    class = "links_names_invalid"
+  )
+})
+
 test_that("a links container has a compact str_value()", {
 
   lks <- as_links(

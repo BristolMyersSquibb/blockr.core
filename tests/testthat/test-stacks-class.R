@@ -78,6 +78,28 @@ test_that("stacks class", {
   expect_named(stkss, c("a", "b", "c", "d"))
 })
 
+test_that("stack IDs are neither empty nor made of digits alone", {
+
+  x <- new_stack(letters[1:2], "stack a")
+
+  expect_error(
+    stacks(a = x, `2` = new_stack("c")),
+    "\"2\"",
+    class = "stacks_names_invalid"
+  )
+
+  expect_error(
+    validate_stacks(
+      structure(
+        list(x),
+        names = "",
+        class = c("stacks", "vctrs_vctr", "list")
+      )
+    ),
+    class = "stacks_names_invalid"
+  )
+})
+
 test_that("a stacks container has a compact str_value()", {
 
   stk <- stacks(s1 = new_stack(c("a", "b"), name = "my stack"))

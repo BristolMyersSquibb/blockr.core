@@ -12,6 +12,16 @@
   methods of `serve()` and the test helpers on a mock Shiny session. The
   constructors and accessors of board objects, `new_block()`, `block_eval()`,
   the block registry, serialization and `export_code()` stay (#418).
+* Boards have an ID and a name, which `new_board()` takes as `id` and `name`
+  and `board_id()` and `board_name()` read. The ID, which `serve()` took until
+  now, is drawn with `rand_names()` unless given. The name takes the place of
+  the `board_name` board option, which is gone with `new_board_name_option()`,
+  and defaults to the ID in sentence case, as the board option did. Every ID,
+  a board's, a block's, a link's or a stack's, is a string that is neither
+  empty nor made of digits alone, and the constructors refuse any other,
+  naming it. For a board saved by blockr.core 0.1.4, `blockr_deser()` reads
+  the name off its `board_name` board option and the ID off the `id` saved
+  next to it, drawing one where that is `null` (#427).
 
 # blockr.core 0.1.4
 
