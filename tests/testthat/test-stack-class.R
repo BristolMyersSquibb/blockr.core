@@ -46,7 +46,7 @@ test_that("stack class", {
     class = "stack_block_duplicates"
   )
 
-  stack_name(x) <- "my stack"
+  x <- new_stack(letters[1:5], "my stack")
 
   expect_snapshot(print(x))
 

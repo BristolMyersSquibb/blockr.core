@@ -1,3 +1,18 @@
+# blockr.core 0.2.0
+
+* R no longer runs a board. The board and block servers are gone, with
+  `board_server()`, `block_server()`, the plugins and the `callbacks` through
+  which a front-end hooked into the board server, and so are the generics that
+  draw UI, such as `board_ui()`, `block_ui()`, `block_output()`,
+  `blockr_app_ui()` and `blockr_app_server()`, the tabular display, the Shiny
+  UIs and servers of board options and the `thematic`, `page_size`,
+  `filter_rows` and `llm_model` board options. Since nothing changes a board in
+  R, the setters and modifiers of board objects, such as `board_blocks<-()`
+  and `modify_board_links()`, are gone as well, as are the board loaders, the
+  methods of `serve()` and the test helpers on a mock Shiny session. The
+  constructors and accessors of board objects, `new_block()`, `block_eval()`,
+  the block registry, serialization and `export_code()` stay (#418).
+
 # blockr.core 0.1.4
 
 * Restoring a board no longer requires each object to come back with exactly

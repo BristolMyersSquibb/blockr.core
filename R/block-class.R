@@ -35,7 +35,7 @@
 #' two extra arguments, e.g. `x` and `y`. Finally, a variadic block, e.g.
 #' a block implementing something like [base::rbind()], needs to accommodate for
 #' an arbitrary number of inputs. This is achieved by passing a
-#' [reactives::reactive_exprs()] collection as `...args` and thus such a
+#' `reactives::reactive_exprs()` collection as `...args` and thus such a
 #' variadic block needs `...args` as part of the server function signature.
 #' The fixed per-data input arguments are passed as [shiny::reactive()] or
 #' [shiny::reactiveVal()] objects, while each slot of the collection holds the
@@ -43,7 +43,7 @@
 #' or `...args$x`, returns the input's data, and reading it with `[`, as in
 #' `...args[1]`, returns the reactive. The inputs are listed by `names()` and
 #' counted by `length()`, `as.list()` returns their reactives and
-#' [reactives::as_values()] the data of all of them.
+#' `reactives::as_values()` the data of all of them.
 #'
 #' The server function may implement arbitrary shiny logic and is expected to
 #' return a list with components `expr` and `state`. The expression corresponds
@@ -90,15 +90,14 @@
 #' initial state.
 #'
 #' Block UI should be limited to displaying and arranging user inputs to set
-#' block arguments. For outputs, use generics [block_output()] and
-#' [block_ui()].
+#' block arguments.
 #'
 #' @section Sub-classing:
 #' In addition to the specific class of a block, the core package uses virtual
 #' classes to group together blocks with similar behavior (e.g.
 #' `transform_block`) and makes use of this inheritance structure in S3
-#' dispatch for methods like [block_output()] and [block_ui()]. This pattern is
-#' not required but encouraged.
+#' dispatch for methods like [block_eval()]. This pattern is not required but
+#' encouraged.
 #'
 #' @section Initialization/evaluation:
 #' Some control over when a block is considered "ready for evaluation" is
@@ -113,8 +112,7 @@
 #' `...args` minimum declared via `allow_empty_state`) and every required *user*
 #' input (`state`) provided. Until then -- including while an upstream is itself
 #' still pending -- neither the validator nor the block expression run and no
-#' output is produced. See [block_server()] for the resulting eval status
-#' (`unevaluated` / `stale` / `waiting` / `unset` / `failed` / `ready`).
+#' output is produced.
 #'
 #' Other conditions (messages and warnings) may be thrown as will be caught
 #' and displayed to the user but they will not interrupt evaluation. Errors
@@ -159,7 +157,7 @@
 #'       )
 #'     },
 #'     function(id) {
-#'       htmltools::tagList()
+#'       shiny::tagList()
 #'     },
 #'     class = "identity_block"
 #'   )
@@ -250,19 +248,6 @@ new_block <- function(server, ui, class, ctor = sys.parent(), ctor_pkg = NULL,
       class = class
     ),
     ui_eval = TRUE
-  )
-}
-
-static_block_arguments <- function() {
-  c(
-    "server",
-    "ui",
-    "class",
-    "dat_valid",
-    "allow_empty_state",
-    "expr_type",
-    "external_ctrl",
-    "block_metadata"
   )
 }
 
@@ -481,7 +466,7 @@ validate_block <- function(x, ui_eval = FALSE) {
 
   if (isTRUE(ui_eval)) {
 
-    ui <- expr_ui("block", x)
+    ui <- block_expr_ui(x)(NS("block", "expr"))
 
     if (!inherits(ui, "shiny.tag", "shiny.tag.list", agg = any)) {
       blockr_abort(
@@ -534,10 +519,9 @@ c.block <- function(...) {
 #'
 #' @section Block name:
 #' Each block can have a name (by default constructed from the class vector)
-#' intended for users to easily identify different blocks. This name can freely
-#' be changed during the lifetime of a block and no uniqueness restrictions are
-#' in place. The current block name can be retrieved with `block_name()` and
-#' set as `block_name(x) <- "some name"`.
+#' intended for users to easily identify different blocks. No uniqueness
+#' restrictions are in place and the block name can be retrieved with
+#' `block_name()`.
 #'
 #' @section Input validation:
 #' Data input validation is available via `validate_data_inputs()` which uses
@@ -556,9 +540,9 @@ c.block <- function(...) {
 #'
 #' @section External control:
 #' Blocks can expose constructor inputs for programmatic control from outside
-#' the block server (see the `external_ctrl` argument to [new_block()] and the
-#' [ctrl_block()] plugin). `external_ctrl_vars()` is a generic that resolves
-#' this declaration into the concrete set of controllable variable names:
+#' the block server (see the `external_ctrl` argument to [new_block()]). The
+#' generic `external_ctrl_vars()` resolves this declaration into the concrete
+#' set of controllable variable names:
 #' `TRUE` expands to all constructor inputs, `FALSE` to none and a character
 #' vector is taken as a (validated) subset. For blocks, `"block_name"` is
 #' always included as every block can be renamed. The predicate
@@ -569,8 +553,6 @@ c.block <- function(...) {
 #'
 #' @examples
 #' blk <- new_dataset_block()
-#' block_name(blk)
-#' block_name(blk) <- "My dataset block"
 #' block_name(blk)
 #'
 #' block_inputs(new_dataset_block())
@@ -587,7 +569,6 @@ c.block <- function(...) {
 #'
 #' @return Return types vary among the set of exported utilities:
 #' * `block_name()`: string valued block name,
-#' * `block_name<-()`: `x` (invisibly),
 #' * `validate_data_inputs()`: `NULL` if no validator is set and the result of
 #'   the validator function otherwise,
 #' * `block_inputs()`: a (possibly empty) character vector of data input names,
@@ -600,15 +581,6 @@ c.block <- function(...) {
 block_name <- function(x) {
   stopifnot(is_block(x))
   attr(x, "block_name")
-}
-
-#' @param value New value
-#' @rdname block_name
-#' @export
-`block_name<-` <- function(x, value) {
-  stopifnot(is_block(x), is_string(value))
-  attr(x, "block_name") <- value
-  invisible(x)
 }
 
 block_ctor <- function(x) {
@@ -630,59 +602,6 @@ block_data_validator <- function(x) {
 
 block_has_data_validator <- function(x) {
   not_null(block_data_validator(x))
-}
-
-parse_allow_empty_state <- function(x) {
-
-  empty_state <- FALSE
-  optional_inputs <- character()
-  min_args <- 1L
-
-  if (is.list(x)) {
-
-    if (not_null(x[["input"]])) {
-      empty_state <- x[["input"]]
-    }
-
-    data <- x[["data"]]
-    nms <- coal(names(data), character(length(data)))
-    is_args <- nms == "...args"
-
-    optional_inputs <- unlst(data[!is_args])
-
-    if (any(is_args)) {
-      min_args <- as.integer(data[[which(is_args)[1L]]])
-    }
-
-  } else if (not_null(x)) {
-    empty_state <- x
-  }
-
-  if (!length(empty_state)) {
-    empty_state <- FALSE
-  }
-
-  if (!length(optional_inputs)) {
-    optional_inputs <- character()
-  }
-
-  list(
-    empty_state = empty_state,
-    optional_inputs = optional_inputs,
-    min_args = min_args
-  )
-}
-
-block_allow_empty_state <- function(x) {
-  parse_allow_empty_state(attr(x, "allow_empty_state"))[["empty_state"]]
-}
-
-block_optional_inputs <- function(x) {
-  parse_allow_empty_state(attr(x, "allow_empty_state"))[["optional_inputs"]]
-}
-
-block_min_args <- function(x) {
-  parse_allow_empty_state(attr(x, "allow_empty_state"))[["min_args"]]
 }
 
 #' @param data Data input values
@@ -721,14 +640,6 @@ initial_block_state <- function(x) {
     set_names(nm = block_ctor_inputs(x)),
     get,
     envir = environment(block_expr_server(x))
-  )
-}
-
-block_base_attrs <- function() {
-  setdiff(
-    names(formals(new_block)),
-    c("server", "ui", "class", "ctor", "ctor_pkg", "dat_valid",
-      "allow_empty_state")
   )
 }
 

@@ -9,24 +9,17 @@
 \alias{as_board_option}
 \alias{as_board_option.board_option}
 \alias{board_option_id}
-\alias{board_option_trigger}
 \alias{board_option_default}
 \alias{board_option_category}
 \alias{board_option_label}
-\alias{board_option_ui}
-\alias{board_option_server}
 \alias{board_option_transform}
 \alias{board_option_value}
 \alias{board_option_ctor}
 \alias{validate_board_option.default}
 \alias{new_board_name_option}
 \alias{new_n_rows_option}
-\alias{new_page_size_option}
-\alias{new_filter_rows_option}
-\alias{new_thematic_option}
 \alias{new_dark_mode_option}
 \alias{new_show_conditions_option}
-\alias{new_llm_model_option}
 \alias{new_board_options}
 \alias{default_board_options}
 \alias{is_board_options}
@@ -37,11 +30,6 @@
 \alias{as_board_options.board}
 \alias{validate_board_options}
 \alias{board_option_values}
-\alias{get_board_option_value}
-\alias{set_board_option_value}
-\alias{get_board_option_or_default}
-\alias{get_board_option_or_null}
-\alias{get_board_option_values}
 \alias{combine_board_options}
 \title{Board options}
 \usage{
@@ -50,10 +38,6 @@ board_ctor(x)
 new_board_option(
   id,
   default,
-  ui,
-  server = function(board, ..., session) {
- },
-  update_trigger = id,
   transform = identity,
   category = NULL,
   label = NULL,
@@ -71,17 +55,11 @@ as_board_option(x, ...)
 
 board_option_id(x)
 
-board_option_trigger(x)
-
 board_option_default(x)
 
 board_option_category(x)
 
 board_option_label(x)
-
-board_option_ui(x, id = NULL)
-
-board_option_server(x, ...)
 
 board_option_transform(x)
 
@@ -105,27 +83,6 @@ new_n_rows_option(
   ...
 )
 
-new_page_size_option(
-  value = blockr_option("page_size", 5L),
-  category = "Table options",
-  label = "Preview page size",
-  ...
-)
-
-new_filter_rows_option(
-  value = blockr_option("filter_rows", FALSE),
-  category = "Table options",
-  label = "Enable preview search",
-  ...
-)
-
-new_thematic_option(
-  value = blockr_option("thematic", NULL),
-  category = "Theme options",
-  label = "Enable thematic",
-  ...
-)
-
 new_dark_mode_option(
   value = blockr_option("dark_mode", NULL),
   category = "Theme options",
@@ -137,13 +94,6 @@ new_show_conditions_option(
   value = blockr_option("show_conditions", c("warning", "error")),
   category = "Board options",
   label = "Message types to display",
-  ...
-)
-
-new_llm_model_option(
-  value = NULL,
-  category = "Board options",
-  label = "LLM Model",
   ...
 )
 
@@ -167,25 +117,6 @@ validate_board_options(x)
 
 board_option_values(x)
 
-get_board_option_value(opt, session = get_session())
-
-set_board_option_value(opt, val, board, session = get_session())
-
-get_board_option_or_default(
-  opt,
-  opts = default_board_options(),
-  session = get_session()
-)
-
-get_board_option_or_null(opt, session = get_session())
-
-get_board_option_values(
-  ...,
-  opts = default_board_options(),
-  if_not_found = c("error", "default", "null"),
-  session = get_session()
-)
-
 combine_board_options(...)
 }
 \arguments{
@@ -195,39 +126,19 @@ combine_board_options(...)
 
 \item{default}{Default value}
 
-\item{ui}{Option UI}
-
-\item{server}{(Optional) option server}
-
-\item{update_trigger}{Shiny \code{input} entry/entries that trigger an update}
-
 \item{transform}{(Optional) transform function}
 
 \item{category}{(Optional) string-valued category}
 
 \item{label}{(Optional) string-valued label, the name a UI can show the
-option by outside its own \code{ui}, as in a list of options. If \code{NULL}, the ID
-in sentence case, such as "Data dir" for \code{data_dir}. Constructors such as
-\code{new_n_rows_option()} label their input with it as well.}
+option by, as in a list of options. If \code{NULL}, the ID in sentence case,
+such as "Data dir" for \code{data_dir}.}
 
 \item{ctor, pkg}{Constructor information (used for serialization)}
 
 \item{...}{Options passed as individual arguments}
 
 \item{value}{Option value}
-
-\item{opt}{Option name}
-
-\item{session}{Shiny session}
-
-\item{val}{New value}
-
-\item{board}{Board the option belongs to, used to resolve the lock
-state (see \code{\link[=is_board_locked]{is_board_locked()}}).}
-
-\item{opts}{Board options}
-
-\item{if_not_found}{Behavior in case an option is not found}
 }
 \value{
 All of \code{new_board_options()} and \code{as_board_options()} return a
@@ -247,12 +158,12 @@ is available as S3 generic. Inheritance checking is available as
 \examples{
 opt <- new_board_options(
    new_board_name_option(),
-   new_page_size_option()
+   new_n_rows_option()
  )
 
 is_board_options(opt)
 names(opt)
 
-opt[["page_size"]]
+opt[["n_rows"]]
 
 }

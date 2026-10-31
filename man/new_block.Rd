@@ -121,7 +121,7 @@ extra argument \code{data}, while a block that performs \code{\link[base:merge]{
 two extra arguments, e.g. \code{x} and \code{y}. Finally, a variadic block, e.g.
 a block implementing something like \code{\link[base:rbind]{base::rbind()}}, needs to accommodate for
 an arbitrary number of inputs. This is achieved by passing a
-\code{\link[reactives:reactive_exprs]{reactives::reactive_exprs()}} collection as \code{...args} and thus such a
+\code{reactives::reactive_exprs()} collection as \code{...args} and thus such a
 variadic block needs \code{...args} as part of the server function signature.
 The fixed per-data input arguments are passed as \code{\link[shiny:reactive]{shiny::reactive()}} or
 \code{\link[shiny:reactiveVal]{shiny::reactiveVal()}} objects, while each slot of the collection holds the
@@ -129,7 +129,7 @@ reactive for one input: reading a slot with \code{[[} or \code{$}, as in \code{.
 or \code{...args$x}, returns the input's data, and reading it with \code{[}, as in
 \code{...args[1]}, returns the reactive. The inputs are listed by \code{names()} and
 counted by \code{length()}, \code{as.list()} returns their reactives and
-\code{\link[reactives:as_values]{reactives::as_values()}} the data of all of them.
+\code{reactives::as_values()} the data of all of them.
 
 The server function may implement arbitrary shiny logic and is expected to
 return a list with components \code{expr} and \code{state}. The expression corresponds
@@ -177,8 +177,7 @@ block constructor arguments such that blocks can be created with a given
 initial state.
 
 Block UI should be limited to displaying and arranging user inputs to set
-block arguments. For outputs, use generics \code{\link[=block_output]{block_output()}} and
-\code{\link[=block_ui]{block_ui()}}.
+block arguments.
 }
 
 \section{Sub-classing}{
@@ -186,8 +185,8 @@ block arguments. For outputs, use generics \code{\link[=block_output]{block_outp
 In addition to the specific class of a block, the core package uses virtual
 classes to group together blocks with similar behavior (e.g.
 \code{transform_block}) and makes use of this inheritance structure in S3
-dispatch for methods like \code{\link[=block_output]{block_output()}} and \code{\link[=block_ui]{block_ui()}}. This pattern is
-not required but encouraged.
+dispatch for methods like \code{\link[=block_eval]{block_eval()}}. This pattern is not required but
+encouraged.
 }
 
 \section{Initialization/evaluation}{
@@ -204,8 +203,7 @@ Ahead of validation, a block must have its inputs available: every required
 \code{...args} minimum declared via \code{allow_empty_state}) and every required \emph{user}
 input (\code{state}) provided. Until then -- including while an upstream is itself
 still pending -- neither the validator nor the block expression run and no
-output is produced. See \code{\link[=block_server]{block_server()}} for the resulting eval status
-(\code{unevaluated} / \code{stale} / \code{waiting} / \code{unset} / \code{failed} / \code{ready}).
+output is produced.
 
 Other conditions (messages and warnings) may be thrown as will be caught
 and displayed to the user but they will not interrupt evaluation. Errors
@@ -235,7 +233,7 @@ new_identity_block <- function() {
       )
     },
     function(id) {
-      htmltools::tagList()
+      shiny::tagList()
     },
     class = "identity_block"
   )
@@ -250,10 +248,5 @@ is_block(blks)
 is_blocks(blks)
 
 names(blks)
-
-tryCatch(
-  names(blks["a"]) <- "b",
-  error = function(e) conditionMessage(e)
-)
 
 }

@@ -20,13 +20,10 @@ A logical flag.
 }
 \description{
 A board can be deployed read-only by setting the \code{blockr.locked}
-option (see \code{\link[=blockr_option]{blockr_option()}}). Locking is enforced server-side, not
-by UI hiding: a forged \code{Shiny.setInputValue} bypasses any
-\code{display: none} and fires the underlying observer, so the refusal has
-to happen on the server. While locked, the two channels every
-mutation funnels through -- the \code{board_update} lifecycle (see
-\code{\link[=board_update]{board_update()}}) and \code{\link[=set_board_option_value]{set_board_option_value()}} -- refuse to apply
-changes.
+option (see \code{\link[=blockr_option]{blockr_option()}}). Locking has to be enforced
+server-side, not by UI hiding: a forged \code{Shiny.setInputValue}
+bypasses any \code{display: none}, so the refusal has to happen on the
+server.
 }
 \details{
 \code{is_board_locked()} reports whether a board is locked and dispatches

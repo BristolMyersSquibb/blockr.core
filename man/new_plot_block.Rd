@@ -32,15 +32,13 @@ Blocks for data visualization using base R graphics can be created via
 \code{new_plot_block()}.
 }
 \details{
-Due to the current block evaluation procedure, where block evaluation is
-separated from block "rendering" (via  \code{\link[shiny:renderPlot]{shiny::renderPlot()}}) integration of
-base R graphics requires some mechanism to achieve this decoupling. This
-is implemented by adding a \code{plot} attribute to the result of
-\code{\link[=block_eval]{block_eval()}}, generated with \code{\link[grDevices:recordPlot]{grDevices::recordPlot()}} and containing the
-required information to re-create the plot at a later time. As part of
-\code{\link[=block_output]{block_output()}}, the attribute is retrieved and passed to
-\code{\link[grDevices:replayPlot]{grDevices::replayPlot()}}. Consequently, any block that inherits from
-\code{plot_block} is required to support this type of decoupling.
+Base R graphics draw as a side effect of evaluation, which is separated
+from showing a block's result. The \code{\link[=block_eval]{block_eval()}} method for \code{plot_block}
+therefore evaluates the block expression with \code{\link[evaluate:evaluate]{evaluate::evaluate()}} and
+returns the plots recorded along the way, which contain the required
+information to re-create a plot at a later time. Consequently, any block
+that inherits from \code{plot_block} is required to support this type of
+decoupling.
 }
 \section{Scatter block}{
 

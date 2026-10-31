@@ -3,7 +3,6 @@ test_that("opt utils", {
   opt <- new_board_option(
     "test",
     "test",
-    ui = function(id) textInput(NS(id, "test"), "Test", "test"),
     ctor = "new_board_option",
     pkg = "blockr.core"
   )
@@ -24,51 +23,7 @@ test_that("opt utils", {
 
   expect_error(
     validate_board_option(
-      structure(list(), id = "test", trigger = 1L, class = "board_option")
-    ),
-    class = "board_option_component_trigger_invalid"
-  )
-
-  expect_error(
-    validate_board_option(
-      structure(list(ui = "test"), id = "test", class = "board_option")
-    ),
-    class = "board_option_component_ui_invalid"
-  )
-
-  expect_error(
-    validate_board_option(
-      structure(
-        list(ui = function(id) id, server = "test"),
-        id = "test",
-        class = "board_option"
-      )
-    ),
-    class = "board_option_component_server_invalid"
-  )
-
-  expect_error(
-    validate_board_option(
-      structure(
-        list(ui = function(id) id, server = function(id) id),
-        id = "test",
-        class = "board_option"
-      )
-    ),
-    class = "board_option_component_server_invalid"
-  )
-
-  expect_error(
-    validate_board_option(
-      structure(
-        list(
-          ui = function(id) id,
-          server = function(board, ..., session) { },
-          transform = "test"
-        ),
-        id = "test",
-        class = "board_option"
-      )
+      structure(list(transform = "test"), id = "test", class = "board_option")
     ),
     class = "board_option_component_transform_invalid"
   )
@@ -79,12 +34,7 @@ test_that("opt utils", {
 test_that("a board option's label defaults to its ID in sentence case", {
 
   new_test_opt <- function(value = "test", ...) {
-    new_board_option(
-      "test_opt",
-      value,
-      ui = function(id) textInput(NS(id, "test_opt"), "Test", value),
-      ...
-    )
+    new_board_option("test_opt", value, ...)
   }
 
   expect_identical(board_option_label(new_test_opt()), "Test opt")
@@ -100,18 +50,11 @@ test_that("a board option's label defaults to its ID in sentence case", {
   )
 })
 
-test_that("core board options label their input with their label", {
-
-  chat_fun <- function(system_prompt = NULL, params = NULL) NULL
-
-  withr::local_options(
-    blockr.chat_function = list(chat1 = chat_fun, chat2 = chat_fun)
-  )
+test_that("core board options take a label", {
 
   ctors <- c(
-    "new_board_name_option", "new_n_rows_option", "new_page_size_option",
-    "new_filter_rows_option", "new_thematic_option", "new_dark_mode_option",
-    "new_show_conditions_option", "new_llm_model_option"
+    "new_board_name_option", "new_n_rows_option", "new_dark_mode_option",
+    "new_show_conditions_option"
   )
 
   for (ctor in ctors) {
@@ -119,13 +62,6 @@ test_that("core board options label their input with their label", {
     opt <- do.call(ctor, list(label = "My label"))
 
     expect_identical(board_option_label(opt), "My label", info = ctor)
-
-    ui <- with_mocked_bindings(
-      board_option_ui(opt, "opt"),
-      pkg_avail = function(...) TRUE
-    )
-
-    expect_match(as.character(ui), "My label", fixed = TRUE, info = ctor)
   }
 })
 
@@ -146,44 +82,6 @@ test_that("board n_rows opt", {
   expect_error(
     new_n_rows_option(-1L),
     class = "board_options_n_rows_invalid"
-  )
-})
-
-test_that("board page_size opt", {
-
-  expect_true(is_board_option(new_page_size_option()))
-
-  expect_error(
-    new_page_size_option(-1L),
-    class = "board_options_page_size_invalid"
-  )
-})
-
-test_that("board filter_rows opt", {
-
-  expect_true(is_board_option(new_filter_rows_option()))
-
-  expect_error(
-    new_filter_rows_option(-1L),
-    class = "board_options_filter_rows_invalid"
-  )
-})
-
-test_that("board thematic opt", {
-
-  expect_true(is_board_option(new_thematic_option()))
-
-  expect_error(
-    new_thematic_option(-1L),
-    class = "board_options_thematic_invalid"
-  )
-
-  expect_error(
-    with_mocked_bindings(
-      new_thematic_option(TRUE),
-      pkg_avail = function(...) FALSE
-    ),
-    class = "thematic_not_installed"
   )
 })
 
@@ -209,90 +107,6 @@ test_that("board show_conditions opt", {
   )
 })
 
-test_that("llm model opt", {
-
-  opt0 <- withr::with_options(
-    list(blockr.chat_function = default_chat),
-    new_llm_model_option()
-  )
-
-  expect_null(board_option_ui(opt0, "chat"))
-
-  chat_fun <- function(system_prompt = NULL, params = NULL) {
-    list(system_prompt = system_prompt, params = params)
-  }
-
-  opt1 <- withr::with_options(
-    list(blockr.chat_function = chat_fun),
-    new_llm_model_option()
-  )
-
-  expect_null(board_option_ui(opt1, "chat"))
-  expect_null(board_option_server(opt1, board = "foo"))
-  expect_null(board_option_trigger(opt1))
-
-  expect_identical(board_option_value(opt1), chat_fun)
-
-  withr::with_options(
-    list(blockr.chat_function = chat_fun),
-    expect_snapshot(opt1)
-  )
-
-  opt2 <- withr::with_options(
-    list(blockr.chat_function = list(chat1 = chat_fun, chat2 = chat_fun)),
-    new_llm_model_option()
-  )
-
-  expect_s3_class(board_option_ui(opt2, "chat"), "shiny.tag")
-
-  withr::with_options(
-    list(blockr.chat_function = list(chat1 = chat_fun, chat2 = chat_fun)),
-    expect_snapshot(opt2)
-  )
-
-  sess <- MockShinySession$new()
-  sess$setInputs(llm_model = "chat1")
-
-  board_option_to_userdata(opt2, session = sess)
-
-  expect_s3_class(board_option_server(opt2, session = sess), "Observer")
-
-  res <- board_option_value(opt2)
-  fun <- attr(res, "chat_name")
-
-  expect_identical(fun, "chat1")
-
-  opt3 <- withr::with_options(
-    list(blockr.chat_function = list(chat1 = chat_fun, chat2 = chat_fun)),
-    new_llm_model_option("chat2")
-  )
-
-  expect_true(is_board_option(opt3))
-
-  opt4 <- withr::with_options(
-    list(blockr.chat_function = list(chat1 = chat_fun)),
-    new_llm_model_option("chat1")
-  )
-
-  expect_true(is_board_option(opt4))
-
-  expect_error(
-    withr::with_options(
-      list(blockr.chat_function = identity),
-      new_llm_model_option()
-    ),
-    class = "board_options_llm_model_invalid"
-  )
-
-  expect_error(
-    withr::with_options(
-      list(blockr.chat_function = "test"),
-      new_llm_model_option()
-    ),
-    class = "board_options_llm_model_invalid"
-  )
-})
-
 test_that("a board option has a compact str_value()", {
 
   opt <- new_board_name_option("My board")
@@ -301,14 +115,4 @@ test_that("a board option has a compact str_value()", {
   expect_identical(str_value(opt), format(opt))
 
   expect_identical(capture.output(str(opt)), " board_name: My board")
-
-  chat_fun <- function(system_prompt = NULL, params = NULL) NULL
-
-  llm <- withr::with_options(
-    list(blockr.chat_function = chat_fun),
-    new_llm_model_option()
-  )
-
-  expect_identical(str_value(llm), "llm_model: Default chat function")
-  expect_identical(str_value(llm), format(llm))
 })

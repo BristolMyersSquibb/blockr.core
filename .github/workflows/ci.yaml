@@ -11,10 +11,8 @@ jobs:
     with:
       lintr-exclusions: |
         vignettes/create-block.qmd
-        vignettes/extend-blockr.qmd
         vignettes/blocks-registry.qmd
         vignettes/get-started.qmd
-        vignettes/testing-blocks.qmd
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       BLOCKR_PAT: ${{ secrets.BLOCKR_PAT }}

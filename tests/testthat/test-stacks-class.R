@@ -50,19 +50,9 @@ test_that("stacks class", {
     class = "stacks_blocks_invalid"
   )
 
-  names(stk) <- c("a", "b")
+  stk <- stacks(a = x, b = y)
 
   expect_named(stk, c("a", "b"))
-
-  expect_error(
-    names(stk) <- c("a", "a"),
-    class = "stacks_names_unique_invalid"
-  )
-
-  expect_error(
-    names(stk)[1] <- "b",
-    class = "stacks_names_unique_invalid"
-  )
 
   expect_snapshot(print(stk))
 
@@ -86,26 +76,6 @@ test_that("stacks class", {
   expect_true(is_stacks(as_stacks(stkss)))
   expect_length(as_stacks(stkss), 4)
   expect_named(stkss, c("a", "b", "c", "d"))
-
-  orig <- stacks(a = x, b = y)
-  modi <- orig
-
-  modi["b"] <- stacks(b = y)
-
-  expect_identical(orig, modi)
-
-  modi["b"] <- list(b = y)
-
-  expect_identical(orig, modi)
-
-  expect_error(
-    modi["b"] <- y,
-    class = "stacks_assignment_name_invalid"
-  )
-
-  modi[["b"]] <- y
-
-  expect_identical(orig, modi)
 })
 
 test_that("a stacks container has a compact str_value()", {

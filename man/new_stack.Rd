@@ -5,10 +5,7 @@
 \alias{default_stack_name}
 \alias{is_stack}
 \alias{stack_blocks}
-\alias{stack_blocks<-}
 \alias{stack_name}
-\alias{stack_name<-}
-\alias{update_stack}
 \alias{validate_stack}
 \alias{as_stack}
 \alias{stacks}
@@ -31,13 +28,7 @@ is_stack(x)
 
 stack_blocks(x)
 
-stack_blocks(x) <- value
-
 stack_name(x, name)
-
-stack_name(x) <- value
-
-update_stack(x, delta)
 
 validate_stack(x)
 
@@ -61,20 +52,13 @@ as_stacks(x, ...)
 \item{class}{(Optional) stack sub-class}
 
 \item{x}{Stack object}
-
-\item{value}{Replacement value}
-
-\item{delta}{A named list of constructor argument values to apply on
-top of \code{x}'s current fields.}
 }
 \value{
 Construction and coercion via \code{new_stack()}/\code{as_stack()} and
 \code{stacks()}/\code{as_stacks()} results in \code{stack} and \code{stacks} objects,
 respectively, while inheritance testing via \code{is_stack()} and \code{is_stacks()}
 returns scalar logicals. Attribute getters \code{stack_name()} and
-\code{stack_blocks()} return scalar and vector-valued character vectors while
-setters \verb{stack_name()<-} and \verb{stack_blocks()<-} return modified stack
-objects.
+\code{stack_blocks()} return scalar and vector-valued character vectors.
 }
 \description{
 Multiple (related) blocks can be grouped together into stacks. Such a
@@ -87,42 +71,26 @@ coupled with sub-classing.
 
 Stack container objects (\code{stacks} objects) can be created with \code{stacks()}
 or \code{as_stacks()} and inheritance can be tested via \code{is_stacks()}. Further
-basic operations such as concatenation, subsetting and sub-assignments is
-available by means of base R generics.
+basic operations such as concatenation and subsetting are available by means
+of base R generics.
 }
 \details{
 Individual stacks can be created using \code{new_stack()} or \code{as_stack()} and
 inheritance can be tested with \code{is_stack()}. Attributes can be retrieved
-(and modified) with \code{stack_blocks()}/\verb{stack_blocks<-()} and
-\code{stack_name()}/\verb{stack_name<-()}, while validation is available as
+with \code{stack_blocks()} and \code{stack_name()}, while validation is available as
 (generic) \code{validate_stack()}.
 }
-\section{Partial-arg updates}{
-
-\code{update_stack()} is an S3 generic that produces a modified stack by
-merging a named-list \code{delta} of constructor argument values onto an
-existing stack. The default \code{.stack} method reconstructs the object
-via its stored constructor, treating the underlying character vector
-(block IDs) as \code{blocks} and every other attribute as a named
-constructor argument. Sub-class owners (e.g. \code{dock_stack} adding
-\code{color}) only need to register a method when their constructor
-deviates from this convention. The reserved delta key \code{blocks}
-replaces the member block IDs; every other key updates the named
-attribute.
-}
-
 \examples{
 stk <- new_stack(letters[1:5], "Alphabet 1")
 
 stack_blocks(stk)
 stack_name(stk)
-stack_name(stk) <- "Alphabet start"
 
 stks <- c(start = stk, cont = new_stack(letters[6:10], "Alphabet cont."))
 names(stks)
 
 tryCatch(
-  stack_blocks(stks[[2]]) <- letters[4:8],
+  c(stks, new_stack(letters[4:8])),
   error = function(e) conditionMessage(e)
 )
 

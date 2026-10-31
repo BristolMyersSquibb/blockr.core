@@ -44,7 +44,7 @@ blockr_ser <- function(x, ...) {
   UseMethod("blockr_ser")
 }
 
-#' @param state Object state (as returned from an `expr_server`)
+#' @param state Object state (as returned from a block server)
 #' @rdname blockr_ser
 #' @export
 blockr_ser.block <- function(x, state = NULL, ...) {
@@ -71,10 +71,7 @@ blockr_ser.block <- function(x, state = NULL, ...) {
 
 #' @param blocks Block states keyed by block ID. A block that is `NULL`, or
 #' omitted from `blocks` altogether, defaults to values from its constructor
-#' scope. A partial snapshot is therefore valid: under deferred construction
-#' off-screen blocks are never built and carry no live state, so `blocks` may
-#' cover only the built subset -- the rest serialize from their constructors
-#' rather than aborting the save.
+#' scope, so `blocks` may cover only a subset of blocks.
 #' @rdname blockr_ser
 #' @export
 blockr_ser.blocks <- function(x, blocks = NULL, ...) {
@@ -198,17 +195,6 @@ blockr_ser.board_option <- function(x, option = NULL, ...) {
       )
     ),
     constructor = blockr_ser(ctor)
-  )
-}
-
-#' @rdname blockr_ser
-#' @export
-blockr_ser.llm_model_option <- function(x, option = NULL, ...) {
-  NextMethod(
-    option = coal(
-      attr(coal(option, board_option_value(x)), "chat_name"),
-      list()
-    )
   )
 }
 
@@ -445,7 +431,7 @@ drop_block_refs <- function(parts, blocks) {
 
   parts[["links"]] <- lnk[!links_incident(lnk, dropped)]
 
-  stk <- lapply(stk, rm_stack_members, dropped)
+  stk <- lapply(stk, setdiff, dropped)
   stk <- stk[lengths(stk) > 0L]
   parts[["stacks"]] <- as_stacks(stk)
 
@@ -454,11 +440,6 @@ drop_block_refs <- function(parts, blocks) {
   }
 
   parts
-}
-
-rm_stack_members <- function(x, rm) {
-  stack_blocks(x) <- setdiff(stack_blocks(x), rm)
-  x
 }
 
 #' @rdname blockr_ser

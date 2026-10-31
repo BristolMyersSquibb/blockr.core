@@ -34,54 +34,6 @@ test_that("links class", {
   expect_s3_class(lnks, "links")
   expect_named(lnks, c("x", "y"))
 
-  names(lnks) <- NULL
-
-  expect_named(lnks, c("", ""))
-
-  expect_error(
-    names(lnks) <- c("x", "x"),
-    class = "links_names_unique_invalid"
-  )
-
-  names(lnks) <- c("x", "y")
-
-  expect_error(
-    names(lnks)[1] <- "y",
-    class = "links_names_unique_invalid"
-  )
-
-  expect_named(lnks, c("x", "y"))
-
-  lnks[1] <- list(from = "a", to = "d")
-  expect_identical(lnks[["x"]], as_link(list(from = "a", to = "d")))
-
-  lnks[1] <- new_link(from = "a", to = "d")
-  expect_identical(lnks[["x"]], as_link(list(from = "a", to = "d")))
-
-  lnks[1] <- links(x = new_link(from = "a", to = "d"))
-  expect_identical(lnks[["x"]], as_link(list(from = "a", to = "d")))
-
-  expect_error(
-    lnks[1] <- links(y = new_link(from = "a", to = "d")),
-    class = "links_assignment_name_invalid"
-  )
-
-  lnks[1] <- data.frame(from = "a", to = "d")
-  expect_identical(lnks[["x"]], as_link(list(from = "a", to = "d")))
-
-  lnks[[1]] <- list(from = "a", to = "d")
-  expect_identical(lnks[["x"]], as_link(list(from = "a", to = "d")))
-
-  lnks[[1]] <- new_link(from = "a", to = "d")
-  expect_identical(lnks[["x"]], as_link(list(from = "a", to = "d")))
-
-  expect_error(
-    lnks[[1]] <- links(x = new_link(from = "a", to = "d"))
-  )
-
-  lnks[[1]] <- data.frame(from = "a", to = "d")
-  expect_identical(lnks[["x"]], as_link(list(from = "a", to = "d")))
-
   expect_identical(as_links(lnks), lnks)
   expect_identical(as_links(as.list(lnks)), lnks)
   expect_identical(as_links(as.data.frame(lnks)), lnks)

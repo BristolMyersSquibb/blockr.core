@@ -17,10 +17,6 @@ navbar:
       href: articles/create-block.html
     - text: Browse for blocks
       href: articles/blocks-registry.html
-    - text: Extend blockr
-      href: articles/extend-blockr.html
-    - text: Testing blocks
-      href: articles/testing-blocks.html
 
 reference:
 - title: Board objects
@@ -29,8 +25,7 @@ reference:
   contents:
     - new_block
     - block_name
-    - block_server
-    - block_ui
+    - block_eval
     - register_block
     - block_registration_roclet
     - new_arg_spec
@@ -43,34 +38,13 @@ reference:
   desc: Utilities for creating an working with stacks
   contents:
     - new_stack
-    - stack_ui
 - subtitle: Board
   desc: Utilities for creating an working with boards
   contents:
     - new_board
     - board_blocks
-    - board_server
-    - board_ui
     - new_board_options
-    - board_update
     - locked-board
-- title: Board plugins
-- subtitle: Utilities
-  desc: Tools for creating and working with board plugins.
-  contents:
-  - new_plugin
-- subtitle: Instances
-  desc: Plugin implementations provided by the core.
-  contents:
-  - manage_blocks
-  - manage_links
-  - manage_stacks
-  - edit_block
-  - edit_stack
-  - generate_code
-  - notify_user
-  - preserve_board
-  - ctrl_block
 - title: Block classes
   contents:
     - new_data_block
@@ -95,14 +69,10 @@ reference:
   - rand_names
   - blockr_option
   - serve
-  - board_loader
   - export_code
   - str_value
-  - tabular-display
   - chr_ply
   - set_names
   - is_scalar
-  - get_session
   - blockr_abort
-  - generate_plugin_args
   - bbquote

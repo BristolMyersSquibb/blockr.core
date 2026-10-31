@@ -1,13 +1,10 @@
 #' Locked boards
 #'
 #' A board can be deployed read-only by setting the `blockr.locked`
-#' option (see [blockr_option()]). Locking is enforced server-side, not
-#' by UI hiding: a forged `Shiny.setInputValue` bypasses any
-#' `display: none` and fires the underlying observer, so the refusal has
-#' to happen on the server. While locked, the two channels every
-#' mutation funnels through -- the `board_update` lifecycle (see
-#' [board_update()]) and [set_board_option_value()] -- refuse to apply
-#' changes.
+#' option (see [blockr_option()]). Locking has to be enforced
+#' server-side, not by UI hiding: a forged `Shiny.setInputValue`
+#' bypasses any `display: none`, so the refusal has to happen on the
+#' server.
 #'
 #' `is_board_locked()` reports whether a board is locked and dispatches
 #' on the board, so a subclass can source the state however it likes

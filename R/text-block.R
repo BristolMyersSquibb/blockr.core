@@ -13,15 +13,3 @@
 new_text_block <- function(server, ui, class, ctor = sys.parent(), ...) {
   new_block(server, ui, c(class, "text_block"), ctor, ...)
 }
-
-#' @export
-block_output.text_block <- function(x, result, session) {
-  renderUI(markdown(result))
-}
-
-#' @export
-block_ui.text_block <- function(id, x, ...) {
-  tagList(
-    uiOutput(NS(id, "result"))
-  )
-}

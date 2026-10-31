@@ -402,6 +402,7 @@ test_that("conforms_to checks R values against a descriptor", {
 test_that("descriptors serialize to JSON Schema that ellmer reads back", {
 
   skip_if_not_installed("ellmer")
+  skip_if_not_installed("typedjson")
 
   d <- arg_object(
     conditions = arg_array(arg_object(column = arg_string())),

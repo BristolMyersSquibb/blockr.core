@@ -4,11 +4,9 @@
 #' are organized as a `board` object. Boards are constructed using `new_board()`
 #' and inheritance can be tested with `is_board()`, while validation is
 #' available as (generic function) `validate_board()`. This central data
-#' structure can be extended by adding further attributes and sub-classes. S3
-#' dispatch is used in many places to control how the UI looks and feels and
-#' using this extension mechanism, UI aspects can be customized to user
-#' requirements. Several utilities are available for retrieving and modifying
-#' block attributes (see [board_blocks()]).
+#' structure can be extended by adding further attributes and sub-classes.
+#' Several utilities are available for retrieving board components (see
+#' [board_blocks()]).
 #'
 #' @param blocks Set of blocks
 #' @param links Set of links
@@ -190,23 +188,6 @@ is_board <- function(x) {
 }
 
 #' @export
-sort.board <- function(x, decreasing = FALSE, ...) {
-
-  res <- topo_sort(as.matrix(x))
-  ids <- board_block_ids(x)
-
-  ind <- match(res, ids)
-
-  if (isTRUE(decreasing)) {
-    ind <- rev(ind)
-  }
-
-  board_blocks(x) <- board_blocks(x)[ind]
-
-  x
-}
-
-#' @export
 as.matrix.board <- function(x, ...) {
 
   block_ids <- board_block_ids(x)
@@ -223,21 +204,14 @@ is_acyclic.board <- function(x) {
 
 #' Board utils
 #'
-#' A set of utility functions is available for querying and manipulating board
-#' components (i.e. blocks, links and stacks). Functions for retrieving and
-#' modifying board options are documented in [new_board_options()].
+#' A set of utility functions is available for querying board components,
+#' such as blocks, links and stacks. Functions for working with board options
+#' are documented in [new_board_options()].
 #'
 #' @section Blocks:
-#' Board blocks can be retrieved using `board_blocks()` and updated with the
-#' corresponding replacement function `board_blocks<-()`. If just the current
+#' Board blocks can be retrieved using `board_blocks()`. If just the current
 #' board IDs are of interest, `board_block_ids()` is available as short for
-#' `names(board_blocks(x))`. In order to remove block(s) from a board, the
-#' (generic) convenience function `rm_blocks()` is exported, which takes care
-#' (in the default implementation for `board`) of also updating links and
-#' stacks accordingly. The more basic replacement function `board_blocks<-()`
-#' might fail at validation of the updated board object if an inconsistent
-#' state results from an update (e.g. a block referenced by a stack is no
-#' longer available).
+#' `names(board_blocks(x))`.
 #'
 #' @param x Board
 #'
@@ -261,29 +235,17 @@ is_acyclic.board <- function(x) {
 #'
 #' board_options(brd)
 #'
-#' @return Functions for retrieving, as well as updating components
-#' (`board_blocks()`/`board_links()`/`board_stacks()`/`board_options()` and
-#' `board_blocks<-()`/`board_links<-()`/`board_stacks<-()`/`board_options<-()`)
-#' return corresponding objects (i.e. `blocks`, `links`, `stacks` and
-#' `board_options`), while ID getters (`board_block_ids()`, `board_link_ids()`,
+#' @return Functions for retrieving components (`board_blocks()`,
+#' `board_links()`, `board_stacks()` and `board_options()`) return objects of
+#' the corresponding classes `blocks`, `links`, `stacks` and `board_options`,
+#' while ID getters (`board_block_ids()`, `board_link_ids()`,
 #' `board_stack_ids()` and `board_option_ids()`) return character vectors, as
-#' does `available_stack_blocks()`. Convenience functions `rm_blocks()`,
-#' `modify_board_links()` and `modify_board_stacks()` return an updated `board`
-#' object.
+#' does `available_stack_blocks()`.
 #'
 #' @export
 board_blocks <- function(x) {
   stopifnot(is_board(x))
   x[["blocks"]]
-}
-
-#' @param value Replacement value
-#' @rdname board_blocks
-#' @export
-`board_blocks<-` <- function(x, value) {
-  stopifnot(is_board(x))
-  x[["blocks"]] <- value
-  validate_board(x)
 }
 
 #' @rdname board_blocks
@@ -292,80 +254,10 @@ board_block_ids <- function(x) {
   names(board_blocks(x))
 }
 
-#' @param rm Block/link/stack IDs to remove
-#' @param ... Further arguments they may be passed from the board server context
-#' @param session Shiny session object
-#'
-#' @rdname board_blocks
-#' @export
-rm_blocks <- function(x, rm, ..., session = get_session()) {
-  UseMethod("rm_blocks", x)
-}
-
-#' @export
-rm_blocks.board <- function(x, rm, ..., session = get_session()) {
-
-  if (is_blocks(rm)) {
-    rm <- names(rm)
-  }
-
-  blocks <- board_blocks(x)
-
-  stopifnot(is.character(rm), all(rm %in% names(blocks)))
-
-  links <- board_links(x)
-
-  if (any(rm %in% c(links$from, links$to))) {
-
-    # nolint start: object_usage_linter.
-    blk <- intersect(rm, c(links$from, links$to))
-    lnk <- names(links[links_incident(links, rm)])
-    # nolint end
-
-    blockr_abort(
-      "Cannot remove {qty(blk)} block{?s} {blk} which participate in ",
-      "{qty(lnk)} link{?s} {lnk}.",
-      class = "invalid_removal_of_used_block"
-    )
-  }
-
-  stacks <- board_stacks(x)
-  stck_blks <- lapply(stacks, stack_blocks)
-
-  if (any(rm %in% unlst(stck_blks))) {
-
-    # nolint start: object_usage_linter.
-    blk <- intersect(rm, unlst(stck_blks))
-    stk <- lengths(lapply(stck_blks, intersect, rm))
-    # nolint end
-
-    blockr_abort(
-      "Cannot remove {qty(blk)} block{?s} {blk} which participate in ",
-      "{qty(stk)} stack{?s} {stk}.",
-      class = "invalid_removal_of_used_block"
-    )
-  }
-
-  board_blocks(x) <- blocks[!names(blocks) %in% rm]
-
-  x
-}
-
 #' @section Links:
-#' Board links can be retrieved using `board_links()` and updated with the
-#' corresponding replacement function `board_links<-()`. If only links IDs are
+#' Board links can be retrieved using `board_links()`. If only links IDs are
 #' of interest, this is available as `board_link_ids()`, which is short for
-#' `names(board_links(x))`. A (generic) convenience function for all kinds of
-#' updates to board links in one is available as `modify_board_links()`. With
-#' arguments `add` and `rm`, links can be added or removed in one go. Added
-#' links are appended unless `before` or `after` places them, which matters
-#' for a variadic target block, where the order of the links pointing at it
-#' is the order of its `...` arguments. Passing `before = TRUE` prepends and
-#' `after = TRUE` appends, while naming a link or a position inserts. Placing
-#' a link that points at a fixed-arity block is allowed but inert, as such a
-#' block selects its inputs by link `input` rather than by order. A position
-#' therefore counts within the links into the placed link's own target, not
-#' within the board-wide link vector, which interleaves every target.
+#' `names(board_links(x))`.
 #'
 #' @rdname board_blocks
 #' @export
@@ -376,191 +268,16 @@ board_links <- function(x) {
 
 #' @rdname board_blocks
 #' @export
-`board_links<-` <- function(x, value) {
-  stopifnot(is_board(x))
-  x[["links"]] <- value
-  validate_board(x)
-}
-
-#' @rdname board_blocks
-#' @export
 board_link_ids <- function(x) {
   names(board_links(x))
 }
 
-#' @param add Links/stacks to add
-#' @param mod Stacks to modify
-#' @param before,after Where to place links passed as `add`, either `TRUE`
-#' to place all of them relative to the whole link set, or a vector named by
-#' link ID (of a link in `add`) holding the ID of the link to sit next to or
-#' its position among the links into the same block, given as a character or
-#' numeric vector. Anchors are resolved against the links as they are on entry,
-#' before `rm` is applied, so a link can be placed relative to one the same
-#' call removes. Named entries override a `TRUE` on the other argument, and
-#' links in `add` covered by neither are appended. Only a variadic target
-#' reads the resulting order; see the Links section.
-#' @rdname board_blocks
-#' @export
-modify_board_links <- function(x, add = NULL, rm = NULL, ...,
-                               before = NULL, after = NULL,
-                               session = get_session()) {
-
-  if (!length(add) && !length(rm)) {
-    return(x)
-  }
-
-  UseMethod("modify_board_links", x)
-}
-
-#' @export
-modify_board_links.board <- function(x, add = NULL, rm = NULL, ...,
-                                     before = NULL, after = NULL,
-                                     session = get_session()) {
-
-  cur <- board_links(x)
-  links <- cur
-  ids <- names(cur)
-
-  if (is_links(rm)) {
-    rm <- names(rm)
-  }
-
-  new <- names(add)
-  keep <- intersect(new, rm)
-  drop <- setdiff(rm, keep)
-
-  # Removals are applied before the in-place assignment below: `[<-.links`
-  # validates the whole object, so a link this call also removes is still
-  # there to collide with the input the replacement claims. Reachable from an
-  # ordinary payload, as `apply_board_update()` folds `links$mod` into `add`
-  # plus `rm` under one ID and may pair that with a `links$rm`.
-  if (length(drop)) {
-    stopifnot(is.character(drop), all(drop %in% ids))
-    links <- links[!names(links) %in% drop]
-  }
-
-  if (length(keep)) {
-    links[keep] <- add[keep]
-    add <- add[setdiff(names(add), keep)]
-  }
-
-  board_links(x) <- splice_links(links, add, cur, new, before, after)
-
-  x
-}
-
-# Ranks the surviving links by their position on entry and the added ones past
-# the end, then moves anchored links to just shy of the anchor so that ties
-# (several links anchored to the same one) settle in `add` order. Anchors are
-# named by `ids` (the links on entry, removals included) and `before`/`after`
-# by `new` (the links this call adds, in-place edits included), with `cur`
-# holding the links as they were on entry.
-splice_links <- function(links, add, cur, new, before = NULL, after = NULL) {
-
-  res <- c(links, add)
-  ids <- names(cur)
-
-  if (!length(before) && !length(after)) {
-    return(res)
-  }
-
-  if (identical(before, TRUE) && identical(after, TRUE)) {
-    blockr_abort(
-      "Cannot place added links both before and after the whole link set.",
-      class = "links_insert_position_clash"
-    )
-  }
-
-  both <- intersect(names(before), names(after))
-
-  if (length(both)) {
-    blockr_abort(
-      "Cannot place link{?s} {both} both before and after another link.",
-      class = "links_insert_position_clash"
-    )
-  }
-
-  # An ID names a link outright, but a position counts within the links that
-  # share the added link's target: the board-wide vector is one flat sequence
-  # and only a block's own slice of it is an order the block can observe.
-  locate <- function(val, id, arg) {
-
-    if (is.character(val)) {
-      return(vec_as_location2(val, length(ids), ids, arg = arg))
-    }
-
-    grp <- ids[field(cur, "to") == field(res[id], "to")]
-
-    match(grp[[vec_as_location2(val, length(grp), grp, arg = arg)]], ids)
-  }
-
-  anchors <- function(x, arg) {
-
-    if (!length(x) || identical(x, TRUE)) {
-      return(NULL)
-    }
-
-    # Entries go one at a time to `vec_as_location2()`, which is happy to take
-    # a list or a factor and reads a lone `TRUE` as a mask for position 1.
-    # Holding the documented contract here keeps this in step with
-    # `validate_link_placement()`, which a payload passes through first.
-    if (!is.character(x) && !is.numeric(x)) {
-      blockr_abort(
-        "Expecting `{arg}` to be `TRUE` or a vector of link IDs or positions.",
-        class = "links_insert_names_invalid"
-      )
-    }
-
-    if (length(names(x)) != length(x) || !all(names(x) %in% new)) {
-      blockr_abort(
-        "Expecting `{arg}` to be `TRUE` or named by the IDs of links being ",
-        "added.",
-        class = "links_insert_names_invalid"
-      )
-    }
-
-    int_ply(seq_along(x), function(i) locate(x[[i]], names(x)[[i]], arg))
-  }
-
-  bef <- anchors(before, "before")
-  aft <- anchors(after, "after")
-
-  rank <- set_names(
-    c(match(names(links), ids), length(ids) + seq_along(add)),
-    names(res)
-  )
-
-  # A bare `TRUE` is the resting place for every added link, so it is laid
-  # down first and the anchored ones are moved over it. It is also the one
-  # spelling of "first" that survives a board with no links to be first among.
-  if (identical(before, TRUE)) {
-    rank[new] <- 0.5
-  }
-
-  if (identical(after, TRUE)) {
-    rank[new] <- length(ids) + 0.5
-  }
-
-  if (length(bef)) {
-    rank[names(before)] <- bef - 0.5
-  }
-
-  if (length(aft)) {
-    rank[names(after)] <- aft + 0.5
-  }
-
-  res[order(rank, seq_along(rank))]
-}
-
 #' @section Stacks:
-#' Board stacks can be retrieved using `board_stacks()` and updated with the
-#' corresponding replacement function `board_stacks<-()`. If only the stack IDs
+#' Board stacks can be retrieved using `board_stacks()`. If only the stack IDs
 #' are of interest, this is available as `board_stack_ids()`, which is short
-#' for `names(board_stacks(x))`. A (generic) convenience function to update
-#' stacks is available as `modify_board_stacks()`, which can add, remove and
-#' modify stacks depending on arguments passed as `add`, `rm` and `mod`. If
-#' block IDs that are not already associated with a stack (i.e. "free" blocks)
-#' are of interest, this is available as `available_stack_blocks()`.
+#' for `names(board_stacks(x))`. If block IDs that are not already associated
+#' with a stack (i.e. "free" blocks) are of interest, this is available as
+#' `available_stack_blocks()`.
 #'
 #' @rdname board_blocks
 #' @export
@@ -571,57 +288,12 @@ board_stacks <- function(x) {
 
 #' @rdname board_blocks
 #' @export
-`board_stacks<-` <- function(x, value) {
-  stopifnot(is_board(x))
-  x[["stacks"]] <- value
-  validate_board(x)
-}
-
-#' @rdname board_blocks
-#' @export
 board_stack_ids <- function(x) {
   names(board_stacks(x))
 }
 
-#' @rdname board_blocks
-#' @export
-modify_board_stacks <- function(x, add = NULL, rm = NULL, mod = NULL, ...,
-                                session = get_session()) {
-
-  if (!length(add) && !length(rm) && !length(mod)) {
-    return(x)
-  }
-
-  UseMethod("modify_board_stacks", x)
-}
-
-#' @export
-modify_board_stacks.board <- function(x, add = NULL, rm = NULL, mod = NULL,
-                                      ..., session = get_session()) {
-
-  stacks <- board_stacks(x)
-
-  if (is_stacks(rm)) {
-    rm <- names(rm)
-  }
-
-  if (length(rm)) {
-    stopifnot(is.character(rm), all(rm %in% names(stacks)))
-    stacks <- stacks[!names(stacks) %in% rm]
-  }
-
-  if (length(mod)) {
-    stacks[names(mod)] <- mod
-  }
-
-  board_stacks(x) <- c(stacks, add)
-
-  x
-}
-
 #' @section Options:
-#' Board options can be retrieved using `board_options()` and updated with the
-#' corresponding replacement function `board_options<-()`.  If only the option
+#' Board options can be retrieved using `board_options()`. If only the option
 #' IDs are of interest, this is available as `board_option_ids()`, which calls
 #' [board_option_id()] on each board option.
 #'
@@ -636,14 +308,6 @@ board_options.board <- function(x) {
   res <- x[["options"]]
   validate_board_options(res)
   res
-}
-
-#' @rdname board_blocks
-#' @export
-`board_options<-` <- function(x, value) {
-  stopifnot(is_board(x))
-  x[["options"]] <- validate_board_options(value)
-  x
 }
 
 #' @rdname board_blocks
@@ -764,17 +428,4 @@ str_value.board <- function(x, ...) {
 #' @export
 str.board <- function(object, ...) {
   cat_str_value(object, ...)
-}
-
-#' @rdname board_blocks
-#' @export
-clear_board <- function(x) {
-
-  stopifnot(is_board(x))
-
-  res <- modify_board_stacks(x, rm = board_stacks(x))
-  res <- modify_board_links(res, rm = board_links(res))
-  res <- rm_blocks(res, board_blocks(res))
-
-  res
 }

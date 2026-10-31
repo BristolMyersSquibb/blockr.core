@@ -19,29 +19,3 @@
 new_transform_block <- function(server, ui, class, ctor = sys.parent(), ...) {
   new_block(server, ui, c(class, "transform_block"), ctor, ...)
 }
-
-#' @export
-block_output.transform_block <- function(x, result, session) {
-  tabular_output(tabular_display(), result, x, session)
-}
-
-#' @export
-block_ui.transform_block <- function(id, x, ...) {
-  tagList(
-    tabular_ui(tabular_display(), NS(id, "result"))
-  )
-}
-
-#' @export
-#' @include tabular-display.R
-block_render_trigger.transform_block <- function(x, session = get_session()) {
-  tabular_trigger(tabular_display(), session)
-}
-
-#' @export
-board_options.transform_block <- function(x, ...) {
-  combine_board_options(
-    tabular_options(tabular_display(), ...),
-    NextMethod()
-  )
-}

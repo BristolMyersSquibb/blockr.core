@@ -198,10 +198,6 @@ reval <- function(x) x()
 #' @export
 reval_if <- function(x) if (is.function(x)) x() else x
 
-lst_xtr_reval <- function(x, ...) {
-  lapply(lst_xtr(x, ...), reval)
-}
-
 #' @param recursive,use_names See [base::unlist()]
 #' @rdname set_names
 #' @export
@@ -327,15 +323,6 @@ dot_arg_refs <- function(x) {
   set_names(arg_refs(nms), nms)
 }
 
-# Released downstream packages test their blocks by passing `...args` to
-# block_server() as a `reactiveValues()` object.
-dot_arg_values <- function(x) {
-
-  vals <- if (is.reactivevalues(x)) reactiveValuesToList(x) else as_values(x)
-
-  set_names(vals, unname(dot_arg_refs(x)))
-}
-
 exprs_to_lang <- function(exprs) {
 
   if (rlang::is_syntactic_literal(exprs)) {
@@ -353,10 +340,6 @@ exprs_to_lang <- function(exprs) {
   stopifnot(typeof(exprs) == "language")
 
   exprs
-}
-
-starts_with <- function(x, prefix) {
-  x[startsWith(x, prefix)]
 }
 
 #' @param ctor Function (either a string, a function or number used to index

@@ -15,7 +15,6 @@ export_code(expressions, board)
 String containing properly arranged block expressions.
 }
 \description{
-To facilitate other means of code export than implemented by the default
-\code{\link[=generate_code]{generate_code()}} plugin, this utility performs much of the heavy lifting
+To facilitate code export, this utility performs much of the heavy lifting
 to properly arrange and scope block-level expressions.
 }
