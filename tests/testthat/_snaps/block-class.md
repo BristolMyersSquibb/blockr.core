@@ -7,7 +7,7 @@
       Data inputs: "data"
       State args: "n" and "direction"
       Requests: "n_max"
-      UI: head-block.js
+      UI: head-block.js (blockr.core)
 
 # blocks of a class print, combine and report their state args
 
