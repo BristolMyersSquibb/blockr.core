@@ -188,23 +188,6 @@ is_board <- function(x) {
 }
 
 #' @export
-sort.board <- function(x, decreasing = FALSE, ...) {
-
-  res <- topo_sort(as.matrix(x))
-  ids <- board_block_ids(x)
-
-  ind <- match(res, ids)
-
-  if (isTRUE(decreasing)) {
-    ind <- rev(ind)
-  }
-
-  x[["blocks"]] <- board_blocks(x)[ind]
-
-  x
-}
-
-#' @export
 as.matrix.board <- function(x, ...) {
 
   block_ids <- board_block_ids(x)

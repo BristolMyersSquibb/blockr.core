@@ -52,6 +52,17 @@ replay.error <- function(x) {
   log_error(fmt_cnd_msg(x), use_glue = FALSE)
 }
 
+try_catch_continue <- function(expr, message, warning, error) {
+  tryCatch(
+    withCallingHandlers(
+      expr,
+      message = message,
+      warning = warning
+    ),
+    error = error
+  )
+}
+
 glue_plur <- function(..., envir = parent.frame()) {
   cli::pluralize(..., .envir = envir)
 }

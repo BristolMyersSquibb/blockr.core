@@ -22,42 +22,6 @@ test_that("board constructor", {
   expect_s3_class(board, "board")
   expect_snapshot(print(board))
 
-  srt_inc <- sort(board)
-
-  expect_true(
-    match("a", board_block_ids(srt_inc)) < match("d", board_block_ids(srt_inc))
-  )
-
-  expect_true(
-    match("b", board_block_ids(srt_inc)) < match("d", board_block_ids(srt_inc))
-  )
-
-  expect_true(
-    match("b", board_block_ids(srt_inc)) < match("c", board_block_ids(srt_inc))
-  )
-
-  expect_true(
-    match("c", board_block_ids(srt_inc)) < match("d", board_block_ids(srt_inc))
-  )
-
-  srt_dec <- sort(board, decreasing = TRUE)
-
-  expect_true(
-    match("a", board_block_ids(srt_dec)) > match("d", board_block_ids(srt_dec))
-  )
-
-  expect_true(
-    match("b", board_block_ids(srt_dec)) > match("d", board_block_ids(srt_dec))
-  )
-
-  expect_true(
-    match("b", board_block_ids(srt_dec)) > match("c", board_block_ids(srt_dec))
-  )
-
-  expect_true(
-    match("c", board_block_ids(srt_dec)) > match("d", board_block_ids(srt_dec))
-  )
-
   expect_true(is_acyclic(board))
 
   expect_error(

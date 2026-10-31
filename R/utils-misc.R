@@ -323,6 +323,25 @@ dot_arg_refs <- function(x) {
   set_names(arg_refs(nms), nms)
 }
 
+exprs_to_lang <- function(exprs) {
+
+  if (rlang::is_syntactic_literal(exprs)) {
+    return(exprs)
+  }
+
+  if (is.expression(exprs)) {
+    exprs <- as.list(exprs)
+  }
+
+  if (is.list(exprs)) {
+    exprs <- as.call(c(quote(`{`), exprs))
+  }
+
+  stopifnot(typeof(exprs) == "language")
+
+  exprs
+}
+
 #' @param ctor Function (either a string, a function or number used to index
 #' the call stack
 #' @param ctor_pkg The package where `ctor` is defined (either a string or
