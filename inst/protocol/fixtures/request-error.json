@@ -1,0 +1,31 @@
+{
+  "description": "A request of the dataset block's class, which lists the datasets of the package that its state arg package names, for a package that is not installed. The request fails with the phase request, which leaves the status of a as it was.",
+  "client": [
+    {
+      "id": "24",
+      "kind": "request",
+      "registry_id": "blockr.core-dataset_block",
+      "block": "a",
+      "name": "datasets",
+      "args": { "package": "nopkg" },
+      "reads": []
+    }
+  ],
+  "r": [
+    [
+      {
+        "id": "24",
+        "status": "error",
+        "conditions": [
+          {
+            "severity": "error",
+            "class": ["packageNotFoundError", "error", "condition"],
+            "phase": "request",
+            "message": "there is no package called ‘nopkg’"
+          }
+        ],
+        "omitted": { "warning": 0, "message": 0 }
+      }
+    ]
+  ]
+}

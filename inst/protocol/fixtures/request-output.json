@@ -1,0 +1,27 @@
+{
+  "description": "A request of an output class, as a chart's renderer on another board asks for a download of what it shows, sending the bitmap the browser drew as the request's binary body. It names the output it belongs to by block and revision, and carries the board option values and parameters that output was asked with, and R runs it with the result the output was made from.",
+  "client": [
+    {
+      "id": "29",
+      "kind": "request",
+      "output": { "block": "h", "revision": 9 },
+      "name": "download",
+      "args": { "format": "pptx" },
+      "options": {},
+      "params": {},
+      "body": { "type": "image/png" }
+    }
+  ],
+  "r": [
+    [
+      {
+        "id": "29",
+        "status": "ok",
+        "body": {
+          "type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+          "name": "chart.pptx"
+        }
+      }
+    ]
+  ]
+}

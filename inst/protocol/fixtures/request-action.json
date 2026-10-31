@@ -1,0 +1,18 @@
+{
+  "description": "An action of the upload block's class, which receives the file the user picked as the request's body, keeps it where its package decides and answers with the path that the UI submits into the block's state. R runs an action once per call and the client never keeps its answer.",
+  "client": [
+    {
+      "id": "25",
+      "kind": "request",
+      "registry_id": "blockr.core-upload_block",
+      "block": "u",
+      "name": "upload",
+      "args": {},
+      "reads": [],
+      "body": { "type": "text/csv", "name": "sales.csv" }
+    }
+  ],
+  "r": [
+    [{ "id": "25", "status": "ok", "value": ["uploads/3f9a2c/sales.csv"] }]
+  ]
+}

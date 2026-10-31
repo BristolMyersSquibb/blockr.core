@@ -1,0 +1,28 @@
+{
+  "description": "An evaluation of the merge block c whose recipe names b at revision 7, a result that R does not hold, since it holds b at revision 5. R replies missing, naming what it lacks, and the client has b evaluated again where 7 is still its current revision and reads ready, then asks again.",
+  "client": [
+    {
+      "id": "22",
+      "kind": "evaluate",
+      "block": "c",
+      "revision": 10,
+      "recipe": {
+        "registry_id": "blockr.core-merge_block",
+        "state": { "by": ["Species"], "all_x": false, "all_y": false },
+        "inputs": [
+          { "input": "x", "block": "a", "revision": 2 },
+          { "input": "y", "block": "b", "revision": 7 }
+        ]
+      }
+    }
+  ],
+  "r": [
+    [
+      {
+        "id": "22",
+        "status": "missing",
+        "missing": [{ "block": "b", "revision": 7 }]
+      }
+    ]
+  ]
+}

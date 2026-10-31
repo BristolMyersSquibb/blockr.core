@@ -1,0 +1,35 @@
+{
+  "description": "An evaluation of the variadic rbind block e of the sample board, whose recipe carries its inputs in link order, each positional link's input empty.",
+  "client": [
+    {
+      "id": "19",
+      "kind": "evaluate",
+      "block": "e",
+      "revision": 7,
+      "recipe": {
+        "registry_id": "blockr.core-rbind_block",
+        "state": {},
+        "inputs": [
+          { "input": "", "block": "b", "revision": 3 },
+          { "input": "", "block": "d", "revision": 6 }
+        ]
+      }
+    }
+  ],
+  "r": [
+    [
+      {
+        "id": "19",
+        "status": "ok",
+        "block": "e",
+        "revision": 7,
+        "expr": "rbind(b, d)",
+        "summary": "<data.frame> [9 × 5]",
+        "conditions": [],
+        "omitted": { "warning": 0, "message": 0 },
+        "stdout": "",
+        "stderr": ""
+      }
+    ]
+  ]
+}

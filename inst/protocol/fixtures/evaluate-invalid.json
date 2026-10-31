@@ -1,0 +1,42 @@
+{
+  "description": "An evaluation of the merge block c after the user cleared by, an arg without a default, which the state then leaves unset. Its class's expr uses it, so R runs nothing and replies invalid, naming the arg, and builds no block expression.",
+  "client": [
+    {
+      "id": "21",
+      "kind": "evaluate",
+      "block": "c",
+      "revision": 9,
+      "recipe": {
+        "registry_id": "blockr.core-merge_block",
+        "state": { "all_x": false, "all_y": false },
+        "inputs": [
+          { "input": "x", "block": "a", "revision": 2 },
+          { "input": "y", "block": "b", "revision": 3 }
+        ]
+      }
+    }
+  ],
+  "r": [
+    [
+      {
+        "id": "21",
+        "status": "invalid",
+        "block": "c",
+        "revision": 9,
+        "expr": null,
+        "summary": null,
+        "conditions": [
+          {
+            "severity": "error",
+            "class": ["evalError", "missingArgError", "error", "condition"],
+            "phase": "expr",
+            "message": "argument \"by\" is missing, with no default"
+          }
+        ],
+        "omitted": { "warning": 0, "message": 0 },
+        "stdout": "",
+        "stderr": ""
+      }
+    ]
+  ]
+}

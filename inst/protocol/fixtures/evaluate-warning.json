@@ -1,0 +1,39 @@
+{
+  "description": "An evaluation of the subset block d of the sample board, whose block expression warns as it runs. The reply carries the warning with its class vector and the phase that raised it, block_eval().",
+  "client": [
+    {
+      "id": "18",
+      "kind": "evaluate",
+      "block": "d",
+      "revision": 6,
+      "recipe": {
+        "registry_id": "blockr.core-subset_block",
+        "state": { "subset": "log(Sepal.Width - 3) > 0", "select": "" },
+        "inputs": [{ "input": "data", "block": "a", "revision": 2 }]
+      }
+    }
+  ],
+  "r": [
+    [
+      {
+        "id": "18",
+        "status": "ok",
+        "block": "d",
+        "revision": 6,
+        "expr": "subset(a, log(Sepal.Width - 3) > 0)",
+        "summary": "<data.frame> [3 × 5]",
+        "conditions": [
+          {
+            "severity": "warning",
+            "class": ["simpleWarning", "warning", "condition"],
+            "phase": "block_eval",
+            "message": "NaNs produced"
+          }
+        ],
+        "omitted": { "warning": 0, "message": 0 },
+        "stdout": "",
+        "stderr": ""
+      }
+    ]
+  ]
+}
