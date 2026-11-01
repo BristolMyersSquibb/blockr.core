@@ -23,13 +23,17 @@ reference:
 - subtitle: Blocks
   desc: Data analysis pipelines are decomposed into steps, each represented by a block.
   contents:
-    - new_block
+    - new_block_class
+    - interpolate
+    - bbquote
+    - evaluate_block
+    - block_request
+    - expect_block_fixture
     - block_name
-    - block_eval
     - register_block
     - block_registration_roclet
     - new_arg_spec
-    - block_metadata
+    - new_block
 - subtitle: Links
   desc: Utilities for creating an working with links
   contents:
@@ -75,4 +79,3 @@ reference:
   - set_names
   - is_scalar
   - blockr_abort
-  - bbquote

@@ -109,7 +109,6 @@ new_merge_block <- function(by = character(), all_x = FALSE, all_y = FALSE,
     dat_valid = function(x, y) {
       stopifnot(is.data.frame(x), is.data.frame(y))
     },
-    expr_type = "bquoted",
     class = "merge_block",
     ...
   )

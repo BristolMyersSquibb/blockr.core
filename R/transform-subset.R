@@ -120,8 +120,6 @@ new_subset_block <- function(subset = "", select = "", ...) {
       stopifnot(is.data.frame(data))
     },
     allow_empty_state = TRUE,
-    expr_type = "bquoted",
-    external_ctrl = TRUE,
     class = "subset_block",
     ...
   )

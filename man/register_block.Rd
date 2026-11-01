@@ -10,7 +10,6 @@
 \alias{unregister_blocks}
 \alias{register_blocks}
 \alias{available_blocks}
-\alias{registry_metadata}
 \alias{create_block}
 \alias{register_package_blocks}
 \title{Block registry}
@@ -19,7 +18,6 @@ register_block(
   ctor,
   name,
   description,
-  classes = NULL,
   uid = NULL,
   category = NULL,
   icon = NULL,
@@ -49,20 +47,16 @@ register_blocks(...)
 
 available_blocks()
 
-registry_metadata(blocks = list_blocks(), fields = "all")
-
 create_block(id, ...)
 
 register_package_blocks(which = "all", package = pkg_name(), overwrite = TRUE)
 }
 \arguments{
-\item{ctor}{Block constructor}
+\item{ctor}{Block constructor, made by \code{\link[=block_constructor]{block_constructor()}}, or its name}
 
 \item{name, description}{Metadata describing the block}
 
-\item{classes}{Block classes}
-
-\item{uid}{Unique ID for a registry entry}
+\item{uid}{The name part of the registry id}
 
 \item{category}{Useful to sort blocks by topics. If not specified,
 blocks are uncategorized.}
@@ -79,29 +73,24 @@ popover), complementing the short \code{description}}
 \item{link}{Optional URL to a block's help or documentation page}
 
 \item{guidance}{Optional model-facing construction guidance (do/don't rules,
-enums, pitfalls), distinct from the human-facing \code{details}. Retrieved with
-\code{\link[=block_metadata]{block_metadata()}}}
+enums, pitfalls), distinct from the human-facing \code{details}}
 
 \item{examples}{Optional list of complete worked configurations (each a
 named list keyed by argument name); supersedes the per-argument example
-assembly. Retrieved with \code{\link[=block_metadata]{block_metadata()}}}
+assembly}
 
 \item{keywords}{Optional character vector of free-text search terms for block
-discovery, retrieved with \code{\link[=block_metadata]{block_metadata()}}}
+discovery}
 
 \item{package}{Package where constructor is defined (or \code{NULL})}
 
 \item{overwrite}{Overwrite existing entry}
 
-\item{block}{Block object}
+\item{block}{A block or a block class}
 
 \item{...}{For \code{register_blocks()}, arguments forwarded to
 \code{register_block()}; for \code{new_arg_specs()}, named \code{new_arg_spec()} objects
 (or strings), one per constructor formal}
-
-\item{blocks}{Character vector of registry IDs}
-
-\item{fields}{Metadata fields}
 
 \item{id}{Block ID as reported by \code{list_blocks()}}
 
@@ -115,35 +104,43 @@ effects and return \code{block_registry_entry} object(s) invisibly, while
 \code{unregister_blocks()} returns \code{NULL} (invisibly). \code{register_package_blocks()}
 registers the blocks a package declares in its YAML registry (written by the
 \code{\link[=block_registration_roclet]{block_registration_roclet()}}), likewise returning their entries invisibly.
-Listing via \code{list_blocks()}
-returns a character vector and a list of \code{block_registry_entry} object(s) for
-\code{available_blocks()}. \code{create_block()} returns a newly instantiated \code{block}
-object. A block's registered metadata is read with \code{\link[=block_metadata]{block_metadata()}} and the
-\verb{block_meta_*()} accessors, and its argument specification is built and read
-with \code{\link[=new_arg_spec]{new_arg_spec()}} and friends.
+Listing via \code{list_blocks()} returns a character vector and a list of
+\code{block_registry_entry} object(s) for \code{available_blocks()}. Block
+construction via \code{create_block()} returns a newly instantiated \code{block}
+object, and the lookup \code{registry_id_from_block()} returns the registry id of
+a block's class, or an empty character vector for a class that is not
+registered. A block's argument specification is built and
+read with \code{\link[=new_arg_spec]{new_arg_spec()}} and friends.
 }
 \description{
-Listing of blocks is available via a block registry, which associates a block
-constructor with metadata in order to provide a browsable block directory.
-Every constructor is identified by a unique ID (uid), which by default is
-generated from the class vector (first element). If the class vector is not
-provided during registration, an object is instantiated (by calling the
-constructor with arguments \code{ctor} and \code{ctor_pkg} only) to derive this
-information. Block constructors therefore should be callable without block-
-specific arguments.
+Listing of blocks is available via a block registry, which holds each block
+class under its registry id, with the metadata registration gives it, in
+order to provide a browsable block directory and so that R evaluates a
+block, and resolves its class's requests, without building a block. A block
+class is registered by its constructor, made by \code{\link[=block_constructor]{block_constructor()}}, from
+which registration reads the class, and the registry keeps one entry per
+class, which \code{registry_id_from_block()} finds by the class a block refers
+to.
 }
 \details{
-Due to current requirements for serialization/deserialization, we keep track
-the constructor that was used for block instantiation. This works most
-reliable whenever a block constructor is an exported function from a package
-as this function is guaranteed to be available in a new session (give the
-package is installed in an appropriate version). While it is possible to
-register a block passing a "local" function as \code{ctor}, this may introduce
-failure modes that are less obvious (for example when such a constructor
-calls another function that is only defined within the scope of the session).
-It is therefore encouraged to only rely on exported function constructors.
-These can also be passed as strings and together with the value of \code{package},
-the corresponding function can easily be retrieved in any session.
+A registry id is \code{{pkg}-{name}}, such as \code{blockr.core-head_block}, for a
+constructor registered by name, which comes with its package, where the
+name defaults to the constructor's name without \code{new_} and \code{uid} sets it,
+for a package that renames a constructor and wants its saved boards to keep
+working. A constructor registered as a function is from no package, and its
+id is its name alone, which defaults to the name of its class, and which may
+not hold a \code{-}, so that it cannot equal a package's.
+
+An entry holds, beside the metadata, the block class, its constructor, its
+data inputs, its UI module and the JSON Schema of the block's state that the
+module ships beside it, as \verb{<name>.schema.json} for a module \verb{<name>.js},
+as its text, of class \code{json}, whose properties must be the state args where
+it ships one, a description of each request, with the inputs and state args
+it names, the ids of the board options it reads, named by the arguments
+that take their values, and whether it is volatile or an action, and the
+state a new block starts with, from \code{expr} called without args. The arg
+specs default to every state arg, and their examples are checked by calling
+\code{expr} with them.
 
 Blocks can be registered (i.e. added to the registry) via \code{register_block()}
 with scalar-valued arguments and \code{register_blocks()}, where arguments may be
@@ -154,11 +151,23 @@ which provides a set of (named) \code{block_registry_entry} objects. Finally,
 block construction via a registry ID is available as \code{create_block()}.
 }
 \examples{
+new_identity_block <- block_constructor(
+  new_block_class(
+    "identity_block",
+    inputs = "data",
+    expr = function() bbquote(.(data)),
+    ui = js_module("identity-block.js")
+  )
+)
+
 blks <- list_blocks()
-register_block("new_dataset_block", "Test", "Registry test",
-               uid = "test_block", package = "blockr.core")
+register_block(new_identity_block, "Identity", "Returns its input")
 
 new <- setdiff(list_blocks(), blks)
+new
+
+registry_id_from_block(new_identity_block())
+
 unregister_blocks(new)
 setequal(list_blocks(), blks)
 

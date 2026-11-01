@@ -84,7 +84,7 @@ test_that("board constructor", {
     class = "board_inheritance_invalid"
   )
 
-  inps <- block_inputs(board)
+  inps <- lapply(board_blocks(board), block_data_inputs)
 
   expect_type(inps, "list")
   expect_true(all(lgl_ply(inps, is.character)))
@@ -139,11 +139,6 @@ test_that("blocks, links and stacks without an ID take part in no link", {
 
   expect_true(is_acyclic(board))
   expect_identical(topo_sort(board), c("a", "b"))
-
-  expect_error(
-    export_code(list(), board),
-    class = "export_code_block_id_missing"
-  )
 
   expect_error(
     new_board(
@@ -201,7 +196,7 @@ test_that("a board has a compact str_value()", {
   expect_length(res, 1L)
   expect_identical(lines[1L], "<board> \"My board\"")
   expect_true("<blocks[2]>" %in% lines)
-  expect_true("  a: <dataset_block> dataset*, package" %in% lines)
+  expect_true("  a: <dataset_block> dataset, package" %in% lines)
   expect_true("<links[0]>" %in% lines)
   expect_true("<stacks[1]>" %in% lines)
   expect_true("  s1: <stack> \"my stack\": a, b" %in% lines)
@@ -225,4 +220,42 @@ test_that("empty variadic link inputs stay unnamed", {
   )
 
   expect_identical(board_links(board)$input, c("", ""))
+})
+
+test_that("boards check links against the inputs of block classes", {
+
+  board <- new_board(
+    c(
+      a = new_dataset_block(),
+      b = new_class_head_block(),
+      c = new_class_merge_block(),
+      d = new_class_rbind_block()
+    ),
+    links(
+      from = c("a", "a", "b", "a", "b"),
+      to = c("b", "c", "c", "d", "d"),
+      input = c("", "x", "y", "", "b2")
+    )
+  )
+
+  lnks <- board_links(board)
+
+  expect_identical(lnks$input[lnks$to == "b"], "data")
+  expect_identical(lnks$input[lnks$to == "d"], c("", "b2"))
+
+  expect_error(
+    new_board(
+      c(a = new_dataset_block(), b = new_class_merge_block()),
+      links(from = "a", to = "b", input = "z")
+    ),
+    class = "board_block_link_input_mismatch"
+  )
+
+  expect_error(
+    new_board(
+      c(a = new_dataset_block(), b = new_class_head_block()),
+      links(from = c("a", "a"), to = c("b", "b"), input = c("data", "other"))
+    ),
+    class = "board_block_link_arity_mismatch"
+  )
 })

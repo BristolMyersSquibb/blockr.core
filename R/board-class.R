@@ -82,7 +82,7 @@ complete_unary_inputs <- function(x, blocks) {
 
   to_complete <- x$to %in% ids & (is.na(x$input) | nchar(x$input) == 0L)
 
-  inputs <- lapply(blocks[unique(x$to[to_complete])], block_inputs)
+  inputs <- lapply(blocks[unique(x$to[to_complete])], block_data_inputs)
 
   x$input[to_complete] <- chr_ply(inputs[x$to[to_complete]], identity)
 
@@ -119,7 +119,7 @@ validate_board_blocks_links <- function(blocks, links) {
     }
   }
 
-  inputs <- lapply(blocks[!is.na(arity)], block_inputs)
+  inputs <- lapply(blocks[!is.na(arity)], block_data_inputs)
 
   for (i in intersect(links$to, names(inputs))) {
 
@@ -385,11 +385,6 @@ board_id <- function(x) {
 board_name <- function(x) {
   stopifnot(is_board(x))
   attr(x, "name", exact = TRUE)
-}
-
-#' @export
-block_inputs.board <- function(x) {
-  lapply(set_names(board_blocks(x), board_block_ids(x)), block_inputs)
 }
 
 #' @rdname new_board_options

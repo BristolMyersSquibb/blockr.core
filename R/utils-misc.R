@@ -561,5 +561,3 @@ format_head <- function(x, n = 3L) {
 
   format(x)
 }
-
-get_attr <- function(i, x) attr(x, i, exact = TRUE)

@@ -1,19 +1,4 @@
-#' @section Block vectors:
-#' Multiple blocks can be combined into a `blocks` object, a container for
-#' an (ordered) set of blocks. Block IDs are handled at the `blocks` level,
-#' which ensures that those given are unique and, as every ID, strings that
-#' are neither empty nor made of digits alone. A block passed without a name
-#' has no ID, which the client mints when it opens the board.
-#'
-#' @examples
-#' blks <- c(a = new_dataset_block(), b = new_subset_block())
-#'
-#' is_block(blks)
-#' is_blocks(blks)
-#'
-#' names(blks)
-#'
-#' @rdname new_block
+#' @rdname new_block_class
 #' @export
 blocks <- function(...) {
 
@@ -28,13 +13,13 @@ blocks <- function(...) {
   )
 }
 
-#' @rdname new_block
+#' @rdname new_block_class
 #' @export
 is_blocks <- function(x) {
   inherits(x, "blocks")
 }
 
-#' @rdname new_block
+#' @rdname new_block_class
 #' @export
 as_blocks <- function(x, ...) {
   UseMethod("as_blocks")

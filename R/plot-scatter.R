@@ -91,7 +91,6 @@ new_scatter_block <- function(x = character(), y = character(), ...) {
     dat_valid = function(data) {
       stopifnot(is.data.frame(data) || is.matrix(data))
     },
-    expr_type = "bquoted",
     class = "scatter_block",
     ...
   )

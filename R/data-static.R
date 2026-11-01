@@ -29,8 +29,6 @@ new_static_block <- function(data, ...) {
     },
     class = "static_block",
     allow_empty_state = TRUE,
-    external_ctrl = FALSE,
-    block_metadata = list(),
     ...
   )
 }
