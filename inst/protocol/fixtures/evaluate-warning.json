@@ -20,7 +20,6 @@
         "status": "ok",
         "block": "d",
         "revision": 6,
-        "expr": "subset(a, log(Sepal.Width - 3) > 0)",
         "summary": "<data.frame> [3 × 5]",
         "conditions": [
           {

@@ -187,7 +187,6 @@ protocol_r_values <- function() {
       list(
         proto_evaluated(
           "17", "c", 4L,
-          expr = "merge(a, b, by = \"Species\", all.x = FALSE, all.y = FALSE)",
           summary = "<data.frame> [300 × 9]"
         )
       )
@@ -196,7 +195,6 @@ protocol_r_values <- function() {
       list(
         proto_evaluated(
           "18", "d", 6L,
-          expr = "subset(a, log(Sepal.Width - 3) > 0)",
           summary = "<data.frame> [3 × 5]",
           conditions = list(
             proto_condition(
@@ -213,7 +211,6 @@ protocol_r_values <- function() {
       list(
         proto_evaluated(
           "19", "e", 7L,
-          expr = "rbind(b, d)",
           summary = "<data.frame> [9 × 5]"
         )
       )
@@ -223,7 +220,6 @@ protocol_r_values <- function() {
         proto_evaluated(
           "20", "d", 8L,
           status = "error",
-          expr = "subset(a, Sepal.Widht > 4)",
           conditions = list(
             proto_condition(
               "error",
@@ -255,7 +251,6 @@ protocol_r_values <- function() {
       list(
         proto_evaluated(
           "30", "w", 12L,
-          expr = "readr::write_csv(c, \"exports/iris.csv\")",
           summary = "<data.frame> [300 × 9]"
         )
       )
@@ -273,14 +268,12 @@ protocol_r_values <- function() {
       list(
         proto_evaluated(
           "11", "a", 2L,
-          expr = "datasets::iris",
           summary = "<data.frame> [150 × 5]"
         )
       ),
       list(
         proto_evaluated(
           "12", "b", 3L,
-          expr = "utils::head(a, n = 6L)",
           summary = "<data.frame> [6 × 5]"
         )
       ),
@@ -953,14 +946,13 @@ proto_none <- function() {
   obj(warning = 0L, message = 0L)
 }
 
-proto_evaluated <- function(id, block, revision, status = "ok", expr = NULL,
+proto_evaluated <- function(id, block, revision, status = "ok",
                             summary = NULL, conditions = list()) {
   obj(
     id = id,
     status = status,
     block = block,
     revision = revision,
-    expr = expr,
     summary = summary,
     conditions = conditions,
     omitted = proto_none(),

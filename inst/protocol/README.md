@@ -16,7 +16,7 @@ A message is a JSON array, of requests from the client or of replies and progres
 |---|---|---|
 | `hello` | start the session ([The handshake](#the-handshake)) | with everything the client needs before it draws a board, the opening board included |
 | `open` | load the packages that a board the client opens names ([Opening a board](#opening-a-board)) | with what the client needs to draw their blocks |
-| `evaluate` | evaluate a block from its recipe ([Evaluating a block](#evaluating-a-block)) | with the block's status, block expression, summary and conditions |
+| `evaluate` | evaluate a block from its recipe ([Evaluating a block](#evaluating-a-block)) | with the block's status, summary and conditions |
 | `request` | run a function that an object registers in R ([Requests](#requests)) | with its answer |
 | `output` | make a block's output ([Outputs](#outputs)) | with the output |
 | `cancel` | drop a request ([Cancelling](#cancelling)) | `cancelled` to that request |
@@ -106,17 +106,16 @@ An `evaluate` names the block and its revision and carries the recipe:
 
 The recipe's `inputs` name the upstream results that the block's data inputs bind, each by the input it feeds, as `{ "input": "x", "block": "a", "revision": 2 }`, in the order of the class's inputs, and a variadic block's in link order, where a positional link's input is empty ([Links](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.1#links)). An input that R binds itself, for a block that `serve()` serves alone, is named by the input alone, as `{ "input": "data" }`.
 
-R looks the class up by its registry id, runs the checks of a function the class gives as `inputs` with the linked results, calls its `expr` with the state, interpolates what it returns into the block expression, with the upstream ids in it, and evaluates that with `block_eval()`, with each upstream result bound to its id ([Evaluation](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.5#evaluation)). It keeps the result under the block's id, with its revision, its block expression and the block's registry id, which an output and an output class's request need, and keeps the block's previous result while the next computes. It replies with what the client shows about the block:
+R looks the class up by its registry id, runs the checks of a function the class gives as `inputs` with the linked results, calls its `expr` with the state, interpolates what it returns into the block expression, with the upstream ids in it, and evaluates that with `block_eval()`, with each upstream result bound to its id ([Evaluation](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.5#evaluation)). It keeps the result under the block's id, with its revision, its block expression and the block's registry id, which an output, an output class's request and an extension's request that reads the block need, and keeps the block's previous result while the next computes. It replies with what the client shows about the block, which holds no code, since exporting a block's code is blockr.code's, through a request of its own ([Requests](#requests)):
 
 | Field | Holds |
 |---|---|
 | `block`, `revision` | as the request named them |
-| `expr` | the block expression that R built, without the assignment to the block's id that an exported script adds, or `null` where it built none |
 | `summary` | the result's summary from `result_summary()`, such as `"<data.frame> [150 × 5]"`, or `null` where there is no result or its summary failed |
 | `conditions`, `omitted` | the conditions raised, and how many of each severity the reply leaves out ([Conditions](#conditions)) |
 | `stdout`, `stderr` | the standard output and error, each bounded |
 
-The status is `invalid` where the class's `expr` or its `block_eval()` method signals `invalid()`, with its message, or `expr` uses an arg that the state leaves unset, naming it, all before the block expression runs, so that R runs nothing. It is `error` where an error is raised before a result exists, as when the checks of the inputs fail or the block expression does, and `ok` otherwise, also where `result_summary()` fails, which only leaves `summary` out and reports its error.
+The status is `invalid` where the class's `expr` or its `block_eval()` method signals `invalid()`, with its message, or `expr` uses an arg that the state leaves unset, naming it, all before the block expression runs, so that R runs nothing. It is `error` where an error is raised before a result exists, as when the checks of the inputs fail or the block expression does, and `ok` otherwise, also where `result_summary()` fails, which leaves `summary` null and reports its error.
 
 ### Conditions
 

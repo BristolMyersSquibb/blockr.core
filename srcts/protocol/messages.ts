@@ -176,9 +176,6 @@ export interface EvaluateReply {
   status: "ok" | "error" | "invalid";
   block: BlockId;
   revision: number;
-  // The block expression that R built, without the assignment to the block's
-  // id that an exported script adds, or null where it built none.
-  expr: string | null;
   // The result's summary from `result_summary()`, or null where there is no
   // result or its summary failed.
   summary: string | null;

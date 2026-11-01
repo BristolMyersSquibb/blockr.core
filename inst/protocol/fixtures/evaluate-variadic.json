@@ -23,7 +23,6 @@
         "status": "ok",
         "block": "e",
         "revision": 7,
-        "expr": "rbind(b, d)",
         "summary": "<data.frame> [9 × 5]",
         "conditions": [],
         "omitted": { "warning": 0, "message": 0 },

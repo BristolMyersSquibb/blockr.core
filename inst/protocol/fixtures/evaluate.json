@@ -1,5 +1,5 @@
 {
-  "description": "An evaluation of the merge block c of the sample board, whose recipe carries its inputs by the input each feeds, in the order of the class's inputs, as the upstream block and revision whose result R binds. R keeps the result under c with its revision, and replies with the block expression it built and the result's summary.",
+  "description": "An evaluation of the merge block c of the sample board, whose recipe carries its inputs by the input each feeds, in the order of the class's inputs, as the upstream block and revision whose result R binds. R keeps the result under c with its revision and the block expression it built, which blockr.code's code export reads in R, and replies with the result's summary.",
   "client": [
     {
       "id": "17",
@@ -23,7 +23,6 @@
         "status": "ok",
         "block": "c",
         "revision": 4,
-        "expr": "merge(a, b, by = \"Species\", all.x = FALSE, all.y = FALSE)",
         "summary": "<data.frame> [300 × 9]",
         "conditions": [],
         "omitted": { "warning": 0, "message": 0 },

@@ -27,7 +27,6 @@
         "status": "ok",
         "block": "w",
         "revision": 12,
-        "expr": "readr::write_csv(c, \"exports/iris.csv\")",
         "summary": "<data.frame> [300 × 9]",
         "conditions": [],
         "omitted": { "warning": 0, "message": 0 },

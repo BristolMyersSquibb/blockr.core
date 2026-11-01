@@ -1,5 +1,5 @@
 {
-  "description": "An evaluation of the subset block d after the user mistyped a column, so that its block expression fails as it runs. The status is error, and the block reads failed, while the reply still carries the block expression R built.",
+  "description": "An evaluation of the subset block d after the user mistyped a column, so that its block expression fails as it runs. The status is error, and the block reads failed.",
   "client": [
     {
       "id": "20",
@@ -20,7 +20,6 @@
         "status": "error",
         "block": "d",
         "revision": 8,
-        "expr": "subset(a, Sepal.Widht > 4)",
         "summary": null,
         "conditions": [
           {

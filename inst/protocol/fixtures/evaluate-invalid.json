@@ -1,5 +1,5 @@
 {
-  "description": "An evaluation of the merge block c after the user cleared by, an arg without a default, which the state then leaves unset. Its class's expr uses it, so R runs nothing and replies invalid, naming the arg, and builds no block expression.",
+  "description": "An evaluation of the merge block c after the user cleared by, an arg without a default, which the state then leaves unset. Its class's expr uses it, so R runs nothing and replies invalid, naming the arg.",
   "client": [
     {
       "id": "21",
@@ -23,7 +23,6 @@
         "status": "invalid",
         "block": "c",
         "revision": 9,
-        "expr": null,
         "summary": null,
         "conditions": [
           {
