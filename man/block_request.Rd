@@ -2,12 +2,12 @@
 % Please edit documentation in R/block-request.R
 \name{block_request}
 \alias{block_request}
-\alias{new_request}
+\alias{new_block_request}
 \title{Block class requests}
 \usage{
 block_request(x, name, inputs = list(), args = list(), options = list())
 
-new_request(fun, options = NULL, volatile = FALSE, action = FALSE)
+new_block_request(fun, options = NULL, volatile = FALSE, action = FALSE)
 }
 \arguments{
 \item{x}{A registry id or a block class}
@@ -19,7 +19,7 @@ new_request(fun, options = NULL, volatile = FALSE, action = FALSE)
 \item{args}{Values of the state args and parameters by name}
 
 \item{options}{For \code{block_request()}, the values of the board options the
-request reads, by id, and for \code{new_request()}, the constructor of the
+request reads, by id, and for \code{new_block_request()}, the constructor of the
 board option it reads, or a list of constructors named by the arguments
 that take their values}
 
@@ -29,23 +29,23 @@ that take their values}
 }
 \value{
 The answer of the request for \code{block_request()}, while
-\code{new_request()} returns an object of class \code{block_request}.
+\code{new_block_request()} returns an object of class \code{block_request}.
 }
 \description{
 A request is a function that a block class's UI calls through its host for
 whatever it needs from R, such as the maximum of a numeric input, which
 never enters the block's state. A class names its requests in its
 \code{requests} field (see \code{\link[=new_block_class]{new_block_class()}}), each a function or an object
-made by \code{new_request()}, which says what else R and the client need to know
-about it, and \code{block_request()} calls one with its arguments bound by name:
-an input to the result of the upstream block that feeds it, a variadic
-block's \code{...} to its inputs in link order, named by their links' inputs, a
-state arg to the value \code{args} holds for it, which is left missing where
-\code{args} holds none, and any other argument to a parameter that \code{args} holds,
-where its default applies otherwise.
+made by \code{new_block_request()}, which says what else R and the client need
+to know about it, and \code{block_request()} calls one with its arguments bound
+by name: an input to the result of the upstream block that feeds it, a
+variadic block's \code{...} to its inputs in link order, named by their links'
+inputs, a state arg to the value \code{args} holds for it, which is left missing
+where \code{args} holds none, and any other argument to a parameter that \code{args}
+holds, where its default applies otherwise.
 }
 \details{
-A request reads board options only where \code{new_request()} names them, by
+A request reads board options only where \code{new_block_request()} names them, by
 their constructors. Given one constructor, the request takes the board
 option's value in its argument \code{options}, and given a named list of them,
 it takes each value in the argument of that name. A value comes whole,
@@ -71,12 +71,12 @@ dir_block <- new_block_class(
   expr = function(path = character()) bbquote(readLines(.(path))),
   ui = js_module("dir-block.js"),
   requests = list(
-    files = new_request(
+    files = new_block_request(
       function(options, pattern = "") list.files(options, pattern),
       options = new_dir_option,
       volatile = TRUE
     ),
-    preview = new_request(
+    preview = new_block_request(
       function(path, dir, n = 3L) readLines(file.path(dir, path), n),
       options = list(dir = new_dir_option)
     )

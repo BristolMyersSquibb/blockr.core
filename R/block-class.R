@@ -27,7 +27,7 @@
 #' for R to resolve when it serves the module, and which resolves the path
 #' against the working directory outside a package. A class further takes a
 #' named list of `requests`, for what its UI asks of R, each a function or made
-#' by [new_request()], which names the board options it reads (see
+#' by [new_block_request()], which names the board options it reads (see
 #' [block_request()]), and the coercion that makes an output from a result, as
 #' `output`. A field a class leaves out is `NULL`.
 #'
@@ -64,7 +64,7 @@
 #'   makes the block expression from
 #' @param ui The class's UI module, made by `js_module()`
 #' @param requests Named list of requests, each a function or made by
-#'   [new_request()]
+#'   [new_block_request()]
 #' @param output Coercion that makes an output from a result
 #'
 #' @examples
@@ -115,7 +115,7 @@ new_block_class <- function(name, inputs = NULL, expr, ui, requests = NULL,
   }
 
   if (is.list(requests)) {
-    requests <- lapply(requests, as_request)
+    requests <- lapply(requests, as_block_request)
   }
 
   validate_block_class(
@@ -313,12 +313,12 @@ validate_class_requests <- function(requests, known) {
 
   nms <- names(requests)
 
-  if (!is.list(requests) || !all(lgl_ply(requests, is_request)) ||
+  if (!is.list(requests) || !all(lgl_ply(requests, is_block_request)) ||
         (length(requests) && (is.null(nms) || any(!nzchar(nms)) ||
                                 anyDuplicated(nms)))) {
     blockr_abort(
       "The `requests` of a block class are expected to be a list of ",
-      "functions or requests made by `new_request()`, with unique names.",
+      "functions or requests made by `new_block_request()`, with unique names.",
       class = "block_class_requests_invalid"
     )
   }

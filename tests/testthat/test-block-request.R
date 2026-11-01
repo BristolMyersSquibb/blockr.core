@@ -55,16 +55,16 @@ test_that("a request takes the values of the board options it reads", {
     expr = function() bbquote(.(data)),
     ui = js_module("opts.js"),
     requests = list(
-      page = new_request(
+      page = new_block_request(
         function(data, options) utils::head(data, options),
         options = new_n_rows_option
       ),
-      shown = new_request(
+      shown = new_block_request(
         function(rows, conds) list(rows = rows, conds = conds),
         options = list(rows = new_n_rows_option,
                        conds = new_show_conditions_option)
       ),
-      unset = new_request(
+      unset = new_block_request(
         function(rows) missing(rows),
         options = list(rows = new_n_rows_option)
       )
@@ -126,11 +126,11 @@ test_that("a variadic block's request takes its inputs as ...", {
   )
 })
 
-test_that("a request made by new_request() says what it reads and does", {
+test_that("a request made by new_block_request() says what it reads and does", {
 
   f <- function(options, path = "") path
 
-  req <- new_request(f, options = new_n_rows_option, volatile = TRUE)
+  req <- new_block_request(f, options = new_n_rows_option, volatile = TRUE)
 
   expect_s3_class(req, "block_request")
   expect_identical(req$fun, f)
@@ -140,16 +140,16 @@ test_that("a request made by new_request() says what it reads and does", {
   expect_false(req$action)
 
   expect_identical(
-    new_request(f, options = list(path = new_n_rows_option))$options,
+    new_block_request(f, options = list(path = new_n_rows_option))$options,
     list(path = new_n_rows_option)
   )
 
-  plain <- new_request(function(data) nrow(data))
+  plain <- new_block_request(function(data) nrow(data))
 
   expect_null(plain$options)
   expect_identical(request_option_ids(plain), character())
 
-  act <- new_request(function(file) file, action = TRUE)
+  act <- new_block_request(function(file) file, action = TRUE)
 
   expect_identical(request_file_arg(act), "file")
   expect_identical(request_file_arg(req), character())
@@ -159,20 +159,20 @@ test_that("a request made by new_request() says what it reads and does", {
     print(act)
   })
 
-  expect_error(new_request("x"), class = "block_request_invalid")
+  expect_error(new_block_request("x"), class = "block_request_invalid")
 
   expect_error(
-    new_request(f, options = "n_rows"),
+    new_block_request(f, options = "n_rows"),
     class = "block_request_invalid"
   )
 
   expect_error(
-    new_request(f, options = list(new_n_rows_option)),
+    new_block_request(f, options = list(new_n_rows_option)),
     class = "block_request_invalid"
   )
 
   expect_error(
-    new_request(
+    new_block_request(
       f,
       options = list(path = new_n_rows_option, path = new_dark_mode_option)
     ),
@@ -180,11 +180,14 @@ test_that("a request made by new_request() says what it reads and does", {
   )
 
   expect_error(
-    new_request(function(path) path, options = new_n_rows_option),
+    new_block_request(function(path) path, options = new_n_rows_option),
     class = "block_request_invalid"
   )
 
-  expect_error(new_request(f, volatile = NA), class = "block_request_invalid")
+  expect_error(
+    new_block_request(f, volatile = NA),
+    class = "block_request_invalid"
+  )
 })
 
 test_that("a registry entry describes each request", {
@@ -195,12 +198,12 @@ test_that("a registry entry describes each request", {
     expr = function(column = NULL) bbquote(.(data)),
     ui = js_module("req.js"),
     requests = list(
-      values = new_request(
+      values = new_block_request(
         function(data, column, rows, limit = 10L) NULL,
         options = list(rows = new_n_rows_option)
       ),
-      dirs = new_request(function(path = "") NULL, volatile = TRUE),
-      upload = new_request(function(file, column) NULL, action = TRUE)
+      dirs = new_block_request(function(path = "") NULL, volatile = TRUE),
+      upload = new_block_request(function(file, column) NULL, action = TRUE)
     )
   )
 

@@ -49,7 +49,7 @@ makes the block expression from}
 \item{ui}{The class's UI module, made by \code{js_module()}}
 
 \item{requests}{Named list of requests, each a function or made by
-\code{\link[=new_request]{new_request()}}}
+\code{\link[=new_block_request]{new_block_request()}}}
 
 \item{output}{Coercion that makes an output from a result}
 
@@ -109,7 +109,7 @@ module's path in the package's \verb{inst/} and the package whose code calls it,
 for R to resolve when it serves the module, and which resolves the path
 against the working directory outside a package. A class further takes a
 named list of \code{requests}, for what its UI asks of R, each a function or made
-by \code{\link[=new_request]{new_request()}}, which names the board options it reads (see
+by \code{\link[=new_block_request]{new_block_request()}}, which names the board options it reads (see
 \code{\link[=block_request]{block_request()}}), and the coercion that makes an output from a result, as
 \code{output}. A field a class leaves out is \code{NULL}.
 

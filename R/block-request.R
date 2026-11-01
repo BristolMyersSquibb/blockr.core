@@ -4,15 +4,15 @@
 #' whatever it needs from R, such as the maximum of a numeric input, which
 #' never enters the block's state. A class names its requests in its
 #' `requests` field (see [new_block_class()]), each a function or an object
-#' made by `new_request()`, which says what else R and the client need to know
-#' about it, and `block_request()` calls one with its arguments bound by name:
-#' an input to the result of the upstream block that feeds it, a variadic
-#' block's `...` to its inputs in link order, named by their links' inputs, a
-#' state arg to the value `args` holds for it, which is left missing where
-#' `args` holds none, and any other argument to a parameter that `args` holds,
-#' where its default applies otherwise.
+#' made by `new_block_request()`, which says what else R and the client need
+#' to know about it, and `block_request()` calls one with its arguments bound
+#' by name: an input to the result of the upstream block that feeds it, a
+#' variadic block's `...` to its inputs in link order, named by their links'
+#' inputs, a state arg to the value `args` holds for it, which is left missing
+#' where `args` holds none, and any other argument to a parameter that `args`
+#' holds, where its default applies otherwise.
 #'
-#' A request reads board options only where `new_request()` names them, by
+#' A request reads board options only where `new_block_request()` names them, by
 #' their constructors. Given one constructor, the request takes the board
 #' option's value in its argument `options`, and given a named list of them,
 #' it takes each value in the argument of that name. A value comes whole,
@@ -33,7 +33,7 @@
 #' @param inputs Upstream results by data input
 #' @param args Values of the state args and parameters by name
 #' @param options For `block_request()`, the values of the board options the
-#'   request reads, by id, and for `new_request()`, the constructor of the
+#'   request reads, by id, and for `new_block_request()`, the constructor of the
 #'   board option it reads, or a list of constructors named by the arguments
 #'   that take their values
 #' @param fun The request's function
@@ -49,12 +49,12 @@
 #'   expr = function(path = character()) bbquote(readLines(.(path))),
 #'   ui = js_module("dir-block.js"),
 #'   requests = list(
-#'     files = new_request(
+#'     files = new_block_request(
 #'       function(options, pattern = "") list.files(options, pattern),
 #'       options = new_dir_option,
 #'       volatile = TRUE
 #'     ),
-#'     preview = new_request(
+#'     preview = new_block_request(
 #'       function(path, dir, n = 3L) readLines(file.path(dir, path), n),
 #'       options = list(dir = new_dir_option)
 #'     )
@@ -70,7 +70,7 @@
 #'               options = list(dir = pkg))
 #'
 #' @return The answer of the request for `block_request()`, while
-#' `new_request()` returns an object of class `block_request`.
+#' `new_block_request()` returns an object of class `block_request`.
 #'
 #' @export
 block_request <- function(x, name, inputs = list(), args = list(),
@@ -102,8 +102,8 @@ block_request <- function(x, name, inputs = list(), args = list(),
 
 #' @rdname block_request
 #' @export
-new_request <- function(fun, options = NULL, volatile = FALSE,
-                        action = FALSE) {
+new_block_request <- function(fun, options = NULL, volatile = FALSE,
+                              action = FALSE) {
 
   if (!is.function(fun)) {
     blockr_abort(
@@ -175,12 +175,12 @@ print.block_request <- function(x, ...) {
   invisible(x)
 }
 
-is_request <- function(x) {
+is_block_request <- function(x) {
   inherits(x, "block_request")
 }
 
-as_request <- function(x) {
-  if (is.function(x)) new_request(x) else x
+as_block_request <- function(x) {
+  if (is.function(x)) new_block_request(x) else x
 }
 
 is_option_ctors <- function(x) {

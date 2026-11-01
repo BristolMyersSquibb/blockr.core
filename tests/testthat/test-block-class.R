@@ -89,7 +89,7 @@ test_that("new_block_class() checks a class once", {
     new_block_class(
       "x_block", "data", function(options = 1) "data", ui,
       requests = list(
-        page = new_request(function(options) options, new_n_rows_option)
+        page = new_block_request(function(options) options, new_n_rows_option)
       )
     ),
     class = "block_class_requests_invalid"
@@ -99,7 +99,10 @@ test_that("new_block_class() checks a class once", {
     new_block_class(
       "x_block", "data", expr, ui,
       requests = list(
-        page = new_request(function(data) data, list(data = new_n_rows_option))
+        page = new_block_request(
+          function(data) data,
+          options = list(data = new_n_rows_option)
+        )
       )
     ),
     class = "block_class_requests_invalid"
@@ -109,7 +112,7 @@ test_that("new_block_class() checks a class once", {
     new_block_class(
       "x_block", "data", expr, ui,
       requests = list(
-        upload = new_request(
+        upload = new_block_request(
           function(file) file,
           options = list(file = new_n_rows_option),
           action = TRUE
@@ -141,11 +144,11 @@ test_that("new_block_class() checks a class once", {
       "x_block", "data", function(n = 1L) bbquote(utils::head(.(data), .(n))),
       ui,
       requests = list(
-        cols = new_request(
+        cols = new_block_request(
           function(data, n, rows, limit = 10L) names(data),
           options = list(rows = new_n_rows_option)
         ),
-        upload = new_request(function(file, n) file, action = TRUE)
+        upload = new_block_request(function(file, n) file, action = TRUE)
       )
     ),
     "block_class"
@@ -362,11 +365,11 @@ test_that("a block's board options are those its requests read", {
       expr = function() bbquote(.(data)),
       ui = js_module("opts.js"),
       requests = list(
-        page = new_request(
+        page = new_block_request(
           function(data, options) utils::head(data, options),
           options = new_n_rows_option
         ),
-        rows = new_request(
+        rows = new_block_request(
           function(data, n, dark) min(nrow(data), n),
           options = list(n = new_n_rows_option, dark = new_dark_mode_option)
         )

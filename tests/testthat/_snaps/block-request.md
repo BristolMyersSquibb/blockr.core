@@ -1,4 +1,4 @@
-# a request made by new_request() says what it reads and does
+# a request made by new_block_request() says what it reads and does
 
     Code
       print(req)

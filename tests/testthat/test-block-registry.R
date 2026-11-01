@@ -166,7 +166,7 @@ test_that("a registry entry's board options are those its requests read", {
     expr = function() bbquote(.(data)),
     ui = js_module("opts.js"),
     requests = list(
-      page = new_request(
+      page = new_block_request(
         function(data, rows) utils::head(data, rows),
         options = list(rows = new_n_rows_option)
       )
