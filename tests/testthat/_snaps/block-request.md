@@ -3,11 +3,11 @@
     Code
       print(req)
     Output
-      <blockr_request> volatile
+      <block_request> volatile
       Arguments: "options" (board option) and "path"
     Code
       print(act)
     Output
-      <blockr_request> action
+      <block_request> action
       Arguments: "file"
 

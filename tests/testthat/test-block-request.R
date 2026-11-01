@@ -132,7 +132,7 @@ test_that("a request made by new_request() says what it reads and does", {
 
   req <- new_request(f, options = new_n_rows_option, volatile = TRUE)
 
-  expect_s3_class(req, "blockr_request")
+  expect_s3_class(req, "block_request")
   expect_identical(req$fun, f)
   expect_identical(req$options, list(options = new_n_rows_option))
   expect_identical(request_option_ids(req), c(options = "n_rows"))

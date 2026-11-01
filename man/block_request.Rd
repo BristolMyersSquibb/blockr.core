@@ -29,7 +29,7 @@ that take their values}
 }
 \value{
 The answer of the request for \code{block_request()}, while
-\code{new_request()} returns an object of class \code{blockr_request}.
+\code{new_request()} returns an object of class \code{block_request}.
 }
 \description{
 A request is a function that a block class's UI calls through its host for

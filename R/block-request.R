@@ -70,7 +70,7 @@
 #'               options = list(dir = pkg))
 #'
 #' @return The answer of the request for `block_request()`, while
-#' `new_request()` returns an object of class `blockr_request`.
+#' `new_request()` returns an object of class `block_request`.
 #'
 #' @export
 block_request <- function(x, name, inputs = list(), args = list(),
@@ -144,19 +144,19 @@ new_request <- function(fun, options = NULL, volatile = FALSE,
 
   structure(
     list(fun = fun, options = options, volatile = volatile, action = action),
-    class = "blockr_request"
+    class = "block_request"
   )
 }
 
 #' @export
-format.blockr_request <- function(x, ...) {
+format.block_request <- function(x, ...) {
 
   args <- formal_names(x[["fun"]])
   read <- args %in% request_option_args(x)
   kind <- c("volatile", "action")[c(x[["volatile"]], x[["action"]])]
 
   c(
-    paste(c("<blockr_request>", kind), collapse = " "),
+    paste(c("<block_request>", kind), collapse = " "),
     if (length(args)) {
       paste0(
         "Arguments: ",
@@ -170,13 +170,13 @@ format.blockr_request <- function(x, ...) {
 }
 
 #' @export
-print.blockr_request <- function(x, ...) {
+print.block_request <- function(x, ...) {
   cat(format(x, ...), sep = "\n")
   invisible(x)
 }
 
 is_request <- function(x) {
-  inherits(x, "blockr_request")
+  inherits(x, "block_request")
 }
 
 as_request <- function(x) {
