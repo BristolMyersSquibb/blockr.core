@@ -1,5 +1,5 @@
 {
-  "description": "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, where each module is served, the renderers R picked, the blockr options core's client reads, with background_evaluation_delay at its default Inf, which R writes as null, no lock, and the opening board.",
+  "description": "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, where each module is served, the renderers R picked, the blockr options core's client reads, with background_evaluation_delay at its default Inf, which R writes as null, no lock, and the opening board that the app script built. R mints no ids, so that board holds its blocks, links and stacks as arrays, each entry with the id the script gave it, and the link from a to f, which the script gave none, and the board itself, which the script gave a name but no id, without one. The client keys the collections and mints the missing ids as it opens the board.",
   "client": [
     {
       "id": "1",
@@ -311,57 +311,62 @@
         },
         "lock": null,
         "board": {
-          "id": "curious_otter",
           "front_end": { "id": "blockr.core-basic", "state": {}, "attrs": {} },
           "name": "Iris review",
-          "blocks": {
-            "a": {
+          "blocks": [
+            {
+              "id": "a",
               "registry_id": "blockr.core-dataset_block",
               "state": { "dataset": "iris", "package": "datasets" },
               "name": "Iris",
               "attrs": {}
             },
-            "b": {
+            {
+              "id": "b",
               "registry_id": "blockr.core-head_block",
               "state": { "n": 6, "direction": "head" },
               "name": "Head",
               "attrs": {}
             },
-            "c": {
+            {
+              "id": "c",
               "registry_id": "blockr.core-merge_block",
               "state": { "by": ["Species"], "all_x": false, "all_y": false },
               "name": "Merge",
               "attrs": {}
             },
-            "d": {
+            {
+              "id": "d",
               "registry_id": "blockr.core-subset_block",
               "state": { "subset": "log(Sepal.Width - 3) > 0", "select": "" },
               "name": "Wide sepals",
               "attrs": {}
             },
-            "e": {
+            {
+              "id": "e",
               "registry_id": "blockr.core-rbind_block",
               "state": {},
               "name": "Bind",
               "attrs": {}
             },
-            "f": {
+            {
+              "id": "f",
               "registry_id": "blockr.core-scatter_block",
               "state": { "x": "Sepal.Length", "y": "Sepal.Width" },
               "name": "Scatter",
               "attrs": { "visible": ["outputs"] }
             }
-          },
-          "links": {
-            "ab": { "from": "a", "to": "b", "input": "data" },
-            "ac": { "from": "a", "to": "c", "input": "x" },
-            "bc": { "from": "b", "to": "c", "input": "y" },
-            "ad": { "from": "a", "to": "d", "input": "data" },
-            "be": { "from": "b", "to": "e", "input": "" },
-            "de": { "from": "d", "to": "e", "input": "" },
-            "af": { "from": "a", "to": "f", "input": "data" }
-          },
-          "stacks": { "s1": { "name": "Input", "blocks": ["a", "b"] } },
+          ],
+          "links": [
+            { "id": "ab", "from": "a", "to": "b", "input": "data" },
+            { "id": "ac", "from": "a", "to": "c", "input": "x" },
+            { "id": "bc", "from": "b", "to": "c", "input": "y" },
+            { "id": "ad", "from": "a", "to": "d", "input": "data" },
+            { "id": "be", "from": "b", "to": "e", "input": "" },
+            { "id": "de", "from": "d", "to": "e", "input": "" },
+            { "from": "a", "to": "f", "input": "data" }
+          ],
+          "stacks": [{ "id": "s1", "name": "Input", "blocks": ["a", "b"] }],
           "options": { "n_rows": 50, "show_conditions": ["warning", "error"] }
         }
       }

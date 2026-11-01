@@ -87,22 +87,21 @@ protocol_r_values <- function() {
     hello = list(
       list(
         proto_hello_reply(
-          block_registry = proto_registry(),
+          block_registry = proto_registry(
+            "dataset_block", "head_block", "merge_block", "subset_block",
+            "rbind_block", "scatter_block", "upload_block"
+          ),
           lock = NULL,
           board = proto_board()
         )
       )
     ),
-    `hello-board` = list(
+    `hello-packages` = list(
       list(
         proto_hello_reply(
           block_registry = proto_registry("dataset_block", "head_block"),
           lock = NULL,
-          board = proto_reopened_board(),
-          saved = obj(blockr.core = "0.2.0", blockr.dm = "0.1.0"),
-          dropped = list(
-            obj(object = "block", id = "g", package = "blockr.dm")
-          )
+          board = proto_app_board()
         )
       )
     ),
@@ -122,21 +121,30 @@ protocol_r_values <- function() {
           renderers = proto_renderers()["blockr.core-basic_table"],
           lock = NULL,
           board = obj(
-            id = "brisk_finch",
             front_end = proto_basic(),
-            name = "Head",
-            blocks = obj(
-              a = proto_block(
+            blocks = list(
+              proto_block(
                 "blockr.core-head_block",
                 obj(n = 6L, direction = "head"),
                 "Head"
               )
             ),
-            links = obj(),
-            stacks = obj(),
+            links = list(),
+            stacks = list(),
             options = obj(n_rows = 50L)
           ),
           bound = I("data")
+        )
+      )
+    ),
+    `hello-file` = list(
+      list(
+        proto_hello_reply(
+          block_registry = proto_registry("dataset_block", "subset_block"),
+          lock = NULL,
+          # R passes the file's text on as it is, as a string of class json,
+          # which encode_message() writes here from R values.
+          file = encode_message(proto_served_file())
         )
       )
     ),
@@ -146,15 +154,18 @@ protocol_r_values <- function() {
           obj(
             id = "2",
             status = "ok",
-            packages = obj(blockr.core = "0.2.0"),
-            block_registry = proto_registry()
+            packages = obj(blockr.core = "0.2.0", blockr.io = "0.2.0"),
+            block_registry = proto_registry(
+              "dataset_block", "head_block", "write_block"
+            )
           ),
-          proto_served(),
-          obj(
-            lock = NULL,
-            board = proto_opened_board(),
-            saved = obj(blockr.core = "0.2.0"),
-            dropped = list()
+          proto_served(
+            startup_modules = list(
+              obj(
+                package = "blockr.io",
+                module = "blockr.io/startup.js?v=9d1b3e66"
+              )
+            )
           )
         )
       )
@@ -424,8 +435,8 @@ proto_pptx <- function() {
   )
 }
 
-proto_hello_reply <- function(block_registry, lock, board,
-                              renderers = proto_renderers(), ...) {
+proto_hello_reply <- function(block_registry, lock, ...,
+                              renderers = proto_renderers()) {
 
   served <- proto_served()
   served$renderers <- renderers
@@ -440,13 +451,13 @@ proto_hello_reply <- function(block_registry, lock, board,
       block_registry = block_registry
     ),
     served,
-    obj(lock = lock, board = board, ...)
+    obj(lock = lock, ...)
   )
 }
 
 # What the replies to `hello` and `open` of a core app say of the modules that
 # R serves and of the blockr options its client reads.
-proto_served <- function() {
+proto_served <- function(startup_modules = list()) {
   obj(
     front_ends = obj(
       `blockr.core-basic` = obj(
@@ -454,7 +465,7 @@ proto_served <- function() {
         css = proto_js("basic.css", "6a9b2c4e")
       )
     ),
-    startup_modules = list(),
+    startup_modules = startup_modules,
     modules = obj(),
     renderers = proto_renderers(),
     blockr_options = obj(
@@ -510,8 +521,8 @@ proto_request <- function(inputs = character(), state_args = character(),
   )
 }
 
-# The entries of core's block classes, as R sends them in the block registry,
-# by registry id.
+# The entries of the block classes named, of core's and one of blockr.io's, as
+# R sends them in the block registry, by registry id.
 proto_registry <- function(...) {
 
   entries <- list(
@@ -734,12 +745,42 @@ proto_registry <- function(...) {
       state = obj(),
       arguments = obj(),
       requests = obj(upload = proto_request(action = TRUE))
+    ),
+    # A class of blockr.io, which R registers once an open has it load the
+    # package.
+    write_block = obj(
+      id = "blockr.io-write_block",
+      name = "write block",
+      description = "Write data to a file",
+      keywords = I(c("write", "export", "save", "file")),
+      category = "output",
+      icon = proto_icon("floppy"),
+      inputs = I("..."),
+      module = "blockr.io/write-block.js?v=4c2e8a17",
+      schema = obj(
+        type = "object",
+        properties = obj(
+          directory = proto_string(),
+          filename = proto_string(),
+          format = obj(enum = I(c("csv", "xlsx", "parquet"))),
+          auto_write = obj(type = "boolean"),
+          args = obj(type = "object")
+        ),
+        additionalProperties = FALSE
+      ),
+      state = obj(
+        directory = "",
+        filename = "",
+        format = "csv",
+        auto_write = FALSE,
+        args = obj()
+      ),
+      arguments = obj(),
+      requests = obj()
     )
   )
 
-  if (...length()) {
-    entries <- entries[c(...)]
-  }
+  entries <- entries[c(...)]
 
   set_names(unname(entries), chr_xtr(entries, "id"))
 }
@@ -748,85 +789,104 @@ proto_basic <- function() {
   obj(id = "blockr.core-basic", state = obj(), attrs = obj())
 }
 
-proto_block <- function(registry_id, state, name, attrs = obj()) {
-  obj(registry_id = registry_id, state = state, name = name, attrs = attrs)
+# An object of a board, with its id first where it has one.
+proto_block <- function(registry_id, state, name, attrs = obj(), id = NULL) {
+  c(
+    proto_id(id),
+    obj(registry_id = registry_id, state = state, name = name, attrs = attrs)
+  )
 }
 
-proto_link <- function(from, to, input) {
-  obj(from = from, to = to, input = input)
+proto_link <- function(from, to, input, id = NULL) {
+  c(proto_id(id), obj(from = from, to = to, input = input))
+}
+
+proto_stack <- function(name, blocks, id = NULL) {
+  c(proto_id(id), obj(name = name, blocks = I(blocks)))
+}
+
+proto_id <- function(id) {
+  if (is.null(id)) list() else list(id = id)
 }
 
 # The sample board, which the fixtures of evaluations, requests and outputs
-# refer to.
+# refer to, as R sends the one an app script built: its collections as arrays,
+# the link from a to f without an id, since the script gave it none, as it gave
+# the board none.
 proto_board <- function() {
   obj(
-    id = "curious_otter",
     front_end = proto_basic(),
     name = "Iris review",
-    blocks = obj(
-      a = proto_block(
+    blocks = list(
+      proto_block(
         "blockr.core-dataset_block",
         obj(dataset = "iris", package = "datasets"),
-        "Iris"
+        "Iris",
+        id = "a"
       ),
-      b = proto_block(
+      proto_block(
         "blockr.core-head_block",
         obj(n = 6L, direction = "head"),
-        "Head"
+        "Head",
+        id = "b"
       ),
-      c = proto_block(
+      proto_block(
         "blockr.core-merge_block",
         obj(by = I("Species"), all_x = FALSE, all_y = FALSE),
-        "Merge"
+        "Merge",
+        id = "c"
       ),
-      d = proto_block(
+      proto_block(
         "blockr.core-subset_block",
         obj(subset = "log(Sepal.Width - 3) > 0", select = ""),
-        "Wide sepals"
+        "Wide sepals",
+        id = "d"
       ),
-      e = proto_block("blockr.core-rbind_block", obj(), "Bind"),
-      f = proto_block(
+      proto_block("blockr.core-rbind_block", obj(), "Bind", id = "e"),
+      proto_block(
         "blockr.core-scatter_block",
         obj(x = "Sepal.Length", y = "Sepal.Width"),
         "Scatter",
-        obj(visible = I("outputs"))
+        obj(visible = I("outputs")),
+        id = "f"
       )
     ),
-    links = obj(
-      ab = proto_link("a", "b", "data"),
-      ac = proto_link("a", "c", "x"),
-      bc = proto_link("b", "c", "y"),
-      ad = proto_link("a", "d", "data"),
-      be = proto_link("b", "e", ""),
-      de = proto_link("d", "e", ""),
-      af = proto_link("a", "f", "data")
+    links = list(
+      proto_link("a", "b", "data", id = "ab"),
+      proto_link("a", "c", "x", id = "ac"),
+      proto_link("b", "c", "y", id = "bc"),
+      proto_link("a", "d", "data", id = "ad"),
+      proto_link("b", "e", "", id = "be"),
+      proto_link("d", "e", "", id = "de"),
+      proto_link("a", "f", "data")
     ),
-    stacks = obj(s1 = obj(name = "Input", blocks = I(c("a", "b")))),
+    stacks = list(proto_stack("Input", c("a", "b"), id = "s1")),
     options = obj(n_rows = 50L, show_conditions = I(c("warning", "error")))
   )
 }
 
-# The board that the client of the fixture hello-board sent, as R opened it
-# without the dm block g.
-proto_reopened_board <- function() {
+# The opening board of the small app of the fixture hello-packages.
+proto_app_board <- function() {
   obj(
     id = "quiet_heron",
     front_end = proto_basic(),
     name = "Penguins",
-    blocks = obj(
-      a = proto_block(
+    blocks = list(
+      proto_block(
         "blockr.core-dataset_block",
         obj(dataset = "penguins", package = "datasets"),
-        "Penguins"
+        "Penguins",
+        id = "a"
       ),
-      b = proto_block(
+      proto_block(
         "blockr.core-head_block",
         obj(n = 10L, direction = "tail"),
-        "Tail"
+        "Tail",
+        id = "b"
       )
     ),
-    links = obj(ab = proto_link("a", "b", "data")),
-    stacks = obj(s1 = obj(name = "Data", blocks = I("a"))),
+    links = list(proto_link("a", "b", "data", id = "ab")),
+    stacks = list(),
     options = obj(n_rows = 25L, show_conditions = I("error"))
   )
 }
@@ -838,46 +898,54 @@ proto_locked_board <- function() {
     id = "steady_lynx",
     front_end = proto_basic(),
     name = "Iris report",
-    blocks = obj(
-      a = proto_block(
+    blocks = list(
+      proto_block(
         "blockr.core-dataset_block",
         obj(dataset = "iris", package = "datasets"),
         "Iris",
-        obj(visible = I("outputs"))
+        obj(visible = I("outputs")),
+        id = "a"
       ),
-      b = proto_block(
+      proto_block(
         "blockr.core-head_block",
         obj(n = 6L, direction = "head"),
         "Head",
-        obj(visible = I(c("inputs", "outputs")))
+        obj(visible = I(c("inputs", "outputs"))),
+        id = "b"
       )
     ),
-    links = obj(ab = proto_link("a", "b", "data")),
-    stacks = obj(),
+    links = list(proto_link("a", "b", "data", id = "ab")),
+    stacks = list(),
     options = obj(n_rows = 50L, show_conditions = I(c("warning", "error")))
   )
 }
 
-proto_opened_board <- function() {
+# The saved file that the app of the fixture hello-file serves, whose board
+# holds its collections keyed by id, as the client wrote it.
+proto_served_file <- function() {
   obj(
-    id = "amber_tapir",
-    front_end = proto_basic(),
-    name = "Cars",
-    blocks = obj(
-      a = proto_block(
-        "blockr.core-dataset_block",
-        obj(dataset = "mtcars", package = "datasets"),
-        "Cars"
+    format = 1L,
+    packages = obj(blockr.core = "0.2.0"),
+    board = obj(
+      id = "amber_tapir",
+      front_end = proto_basic(),
+      name = "Cars",
+      blocks = obj(
+        a = proto_block(
+          "blockr.core-dataset_block",
+          obj(dataset = "mtcars", package = "datasets"),
+          "Cars"
+        ),
+        b = proto_block(
+          "blockr.core-subset_block",
+          obj(subset = "cyl == 6", select = "mpg"),
+          "Six cylinders"
+        )
       ),
-      b = proto_block(
-        "blockr.core-subset_block",
-        obj(subset = "cyl == 6", select = "mpg"),
-        "Six cylinders"
-      )
-    ),
-    links = obj(ab = proto_link("a", "b", "data")),
-    stacks = obj(),
-    options = obj(n_rows = 50L, show_conditions = I(c("warning", "error")))
+      links = obj(ab = proto_link("a", "b", "data")),
+      stacks = obj(),
+      options = obj(n_rows = 50L, show_conditions = I(c("warning", "error")))
+    )
   )
 }
 

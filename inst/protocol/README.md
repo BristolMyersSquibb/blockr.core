@@ -14,8 +14,8 @@ A message is a JSON array, of requests from the client or of replies and progres
 
 | Kind | Asks R to | R replies |
 |---|---|---|
-| `hello` | start the session ([The handshake](#the-handshake)) | with everything the client needs before it draws a board |
-| `open` | open a saved board ([Opening a board](#opening-a-board)) | as to a `hello` |
+| `hello` | start the session ([The handshake](#the-handshake)) | with everything the client needs before it draws a board, the opening board included |
+| `open` | load the packages that a board the client opens names ([Opening a board](#opening-a-board)) | with what the client needs to draw their blocks |
 | `evaluate` | evaluate a block from its recipe ([Evaluating a block](#evaluating-a-block)) | with the block's status, block expression, summary and conditions |
 | `request` | run a function that an object registers in R ([Requests](#requests)) | with its answer |
 | `output` | make a block's output ([Outputs](#outputs)) | with the output |
@@ -42,7 +42,7 @@ A connection starts with a `hello`, after MCP's `initialize`: the client names t
 |---|---|
 | `protocol` | the version the client speaks, as `"1.0"` |
 | `capabilities` | the capabilities it speaks, as `["cancel", "interrupt", "progress"]` |
-| `file` | optional, the text of a saved file, from a client that holds a board already (below) |
+| `packages` | optional, the packages that a board the client holds already names, as its saved file lists them, for R to load (below) |
 
 R replies `ok` with:
 
@@ -50,7 +50,7 @@ R replies `ok` with:
 |---|---|
 | `protocol` | the version R speaks |
 | `capabilities` | the capabilities R speaks |
-| `packages` | the version of every package that the reply's block classes, front-ends, startup modules, modules and renderers come from, by package |
+| `packages` | the version of every package that R has loaded and that the reply's block classes, front-ends, startup modules, modules and renderers come from, by package |
 | `block_registry` | the block registry's entries, by registry id, each as `RegistryEntry` in [`srcts/types/registry.ts`](../../srcts/types/registry.ts) gives it ([Registration](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.5#registration)) |
 | `front_ends` | where each front-end's module is served, by the front-end's id, as `{ "module": "...", "css": "..." }` |
 | `startup_modules` | the startup module of every package R has loaded that declares one, each as `{ "package": "...", "module": "...", "css": "..." }`, in the order of the packages' R dependencies, so that each package's comes after those of the packages it depends on ([Startup modules](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#startup-modules)) |
@@ -58,9 +58,8 @@ R replies `ok` with:
 | `renderers` | the renderers R picked, by the renderer's id, each with the output class it draws in `class` or the board option in `option` ([Renderers](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#renderers)) |
 | `blockr_options` | the values of the blockr options that the client reads, by package ([Blockr options](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.3#blockr-options)) |
 | `lock` | the blocks that a locked board leaves open, as `{ "open": ["f"] }`, or `null` where the app locks nothing ([Locked boards](#locked-boards)) |
-| `board` | the opening board, which the app script built or a file given to `serve()` holds, as `Board` in [`srcts/types/board.ts`](../../srcts/types/board.ts) gives it ([The board](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.1#the-board)) |
+| `board` or `file` | the opening board: in `board`, the board that the app script built, as `OpeningBoard` in [`srcts/types/board.ts`](../../srcts/types/board.ts) gives it (below), and in `file`, the saved file that `serve()` was given, as R read it ([Files](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.4#files)) |
 | `bound` | only for a block that `serve()` serves alone, the inputs that R binds itself to the data it was given, as `["data"]`, which the client counts as linked and names in a recipe by the input alone ([Data passed to `serve()`](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.3#data-passed-to-serve)) |
-| `saved`, `dropped` | only where the `hello` carried a board that R opened, as the reply to an `open` has them |
 
 A module's URL, like its stylesheet's in `css`, which a module without one leaves out, is R's to choose, and holds a hash of the file's content, so that a changed file is never read from a browser's cache. The client imports each URL once, and loads the stylesheet with its module.
 
@@ -74,28 +73,23 @@ Both sides use only the capabilities that both named, so that a capability can a
 
 R replies with the version it speaks whatever the client named, and the client, on a major other than its own, stops and says what to do, such as reload the page.
 
-A client that holds a board already, as when the server ended its session while the page lived on, sends it with its `hello`, as a saved file's text in `file`. R opens it as it opens one that an `open` carries, so that the packages it names are loaded and the block classes it defines registered before any recipe names them, and replies with the board as it opened it in place of the app script's, with `saved` and `dropped`, except on a locked board, which ignores it ([Locked boards](#locked-boards)). The client keeps its own board and its undo history, since R opens the same board in the same app, and opens the board R returned only where R dropped something, saying what, while a package that R loaded at another version makes the client ask for the page to be reloaded.
+R mints no ids, so a board that an app script built reaches the client with its blocks, links and stacks as arrays, in their order, each entry with its `id` where the script gave one, and its own `id` and `name` where it has them ([Ids](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.1#ids)). A saved file holds every id, and R passes the one that `serve()` was given on as it is, having read nothing of it but the packages it names, which it loads when the app starts. The client opens either as it opens any board ([Opening a board](#opening-a-board)), keying a board's collections and minting each id that R sent none for.
+
+A client that holds a board already, as when the server ended its session while the page lived on, keeps it and its undo history, and names in its `hello` the packages that the board names, as its saved file would list them, so that R loads them before any recipe names their block classes, except on a locked board, which ignores them ([Locked boards](#locked-boards)). R sends the opening board all the same, which that client does not open. A package that R has loaded at another version than before makes the client ask for the page to be reloaded.
 
 A new session holds no results, so after its `hello` the client queues every demanded block again, with everything upstream. It answers none of the requests that the session before it held either, so the client sends again every output and every request of a block class or an output class still waiting for its reply, and rejects an evaluation with parameters, an action, and a board option's or an extension's request still waiting, which may have run and may write ([Scheduling](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.10#scheduling)).
 
 ## Opening a board
 
-The store's `open()` sends an `open`, which carries a saved board of either stack as the file's text, in `file`, for R to parse ([Files](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.4#files)). R opens it as it opens every board it did not build itself ([The opening board](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.3#the-opening-board)), forgets every block ([Forgetting blocks](#forgetting-blocks)), and replies `ok` as to a `hello`, without `protocol`, `capabilities` and `bound`, and with:
+The client opens every board itself: a saved file that the user opens or that a startup module names, which the store's `open()` opens, and the opening board that R sends ([Board updates](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.2#opening-a-board)). R holds no board, and does nothing for one but load the packages it names, so that their block classes are registered before any recipe names them, and send the client what it needs to draw their blocks. So an `open` carries only the packages that the board names, as its saved file lists them:
 
 | Field | Holds |
 |---|---|
-| `board` | the board as R opened it, with the front-end's state as the file holds it |
-| `saved` | the version of each package that the file records, by package, which R reads for a file from today's stack off the constructor nearest each package's state, so that each package's migration in the client knows what it reads |
-| `dropped` | what R could not rebuild, each named with the package to install (below) |
+| `packages` | the packages that the board names, as `["blockr.core", "blockr.io"]` |
 
-R drops what it cannot rebuild ([Objects that cannot be rebuilt](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.1#objects-that-cannot-be-rebuilt)), and names each in `dropped`:
+R loads the ones it has installed and not loaded yet, forgets every block ([Forgetting blocks](#forgetting-blocks)), and replies `ok` with the fields of the reply to a `hello` that say what it has loaded, `packages`, `block_registry`, `front_ends`, `startup_modules`, `modules`, `renderers` and `blockr_options`, for every package it has loaded, whichever request loaded it. A package it could not load is missing from `packages`, and a class it could not register from `block_registry`.
 
-| Entry | For |
-|---|---|
-| `{ "object": "block", "id": "g", "package": "blockr.dm" }` | a block whose package is not installed or no longer has its class, which takes its links and its places in stacks with it, or, without `package`, a block of a class from no package that is not registered |
-| `{ "object": "option", "id": "data_dir", "package": "blockr.io" }` | a board option whose package is not installed or no longer has it |
-| `{ "object": "front_end", "id": "blockr.dock-dock", "package": "blockr.dock" }` | a front-end whose package is missing, in whose place the board names core's basic front-end, `blockr.core-basic` |
-| `{ "key": ["views"], "package": "blockr.dock" }` | a key of the front-end's state, by its path there, of a package that is missing |
+The client then initializes the startup modules of the packages it has not, drops each block whose class the block registry lacks, with its links and its places in stacks, naming the package to install from its registry id, and each key of the front-end's state, attribute and board option value that no package registered, runs the migration of every package whose version the file records differs from the one R loaded, gives each board option that the board lacks the value its definition gives, and replaces its board ([The front-end's state and attributes](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.2#the-front-ends-state-and-attributes)). A file of today's stack is converted to a saved file before it is opened, outside core.
 
 A locked board refuses every `open` ([Locked boards](#locked-boards)).
 
@@ -118,11 +112,11 @@ R looks the class up by its registry id, runs the checks of a function the class
 |---|---|
 | `block`, `revision` | as the request named them |
 | `expr` | the block expression that R built, without the assignment to the block's id that an exported script adds, or `null` where it built none |
-| `summary` | the result's summary from `block_summary()`, such as `"<data.frame> [150 × 5]"`, or `null` where there is no result |
+| `summary` | the result's summary from `result_summary()`, such as `"<data.frame> [150 × 5]"`, or `null` where there is no result or its summary failed |
 | `conditions`, `omitted` | the conditions raised, and how many of each severity the reply leaves out ([Conditions](#conditions)) |
 | `stdout`, `stderr` | the standard output and error, each bounded |
 
-The status is `invalid` where the class's `expr` or its `block_eval()` method signals `invalid()`, with its message, or `expr` uses an arg that the state leaves unset, naming it, all before the block expression runs, so that R runs nothing. It is `error` where an error is raised, as when the checks of the inputs fail or the block expression does, and `ok` otherwise.
+The status is `invalid` where the class's `expr` or its `block_eval()` method signals `invalid()`, with its message, or `expr` uses an arg that the state leaves unset, naming it, all before the block expression runs, so that R runs nothing. It is `error` where an error is raised before a result exists, as when the checks of the inputs fail or the block expression does, and `ok` otherwise, also where `result_summary()` fails, which only leaves `summary` out and reports its error.
 
 ### Conditions
 
@@ -138,7 +132,7 @@ The status is `invalid` where the class's `expr` or its `block_eval()` method si
 | `inputs` | the body of the function that the class gives as `inputs`, which checks the data |
 | `expr` | the class's `expr`, which builds the block expression, and interpolation |
 | `block_eval` | `block_eval()`, which runs the block expression |
-| `block_summary` | `block_summary()`, which describes the result |
+| `result_summary` | `result_summary()`, which describes the result |
 | `output` | the coercion that makes an output, in the reply to an `output` |
 | `request` | the request's function, in the reply to a `request` |
 | `status` | the client's scheduler, for a block that is `waiting`, which R never writes |
@@ -227,20 +221,20 @@ When blocks leave the board, the client sends a `forget` naming them, as `{ "kin
 
 An app locks a board when it starts, through the blockr option `locked`, which an app sets as `blockr.locked` and a deployment as `BLOCKR_LOCKED`, and the lock stays as the app set it, so that nothing a client sends can loosen it ([Locked boards](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.9#locked-boards)). A locked board loads no other board and keeps everything core keeps in it, its name and its blocks, links, stacks and board options, as the app built them, and every block keeps its opening state but those whose inputs show, as core's attribute `visible` says on the board the app script built. R writes `visible` into each block of the opening board whose script set none, so that it shows only its output, and sends the lock with its reply to `hello`, as the blocks it leaves open, `{ "open": ["b"] }`, or `null` where the app locks nothing. The client keeps to it: its store refuses every opening of a board and every delta that the lock does not leave open, and a front-end draws no control for one.
 
-That stops only a client that plays by the rules, so R holds the lock in what it runs, comparing nothing a client sends. When the app starts, it builds from the opening board every block's class and the ids its inputs bind to, and for a locked block the block expression it evaluates, so that a locked block's state and the bindings of its inputs are fixed together. A locked block whose opening state cannot run keeps the `invalid()` that building it signalled, and R replies `invalid` with it to every evaluation of the block. In a locked session:
+That stops only a client that plays by the rules, so R holds the lock in what it runs, comparing nothing a client sends. When the app starts, it builds from the opening board every block's class and the ids its inputs bind to, and for a locked block the block expression it evaluates, so that a locked block's state and the bindings of its inputs are fixed together. Since it holds the lock by block id, R refuses to lock a board with a block that the script gave no id, which only the client would mint. A locked block whose opening state cannot run keeps the `invalid()` that building it signalled, and R replies `invalid` with it to every evaluation of the block. In a locked session:
 
 - It evaluates a locked block with the block expression it built at startup, and a block left open with a block expression it builds from the request's state and the class and bindings it built at startup, reading from the request only the block's id, refusing one that the opening board lacks, the revisions of the inputs, and the state and parameters of a block left open.
 - It answers a block class's request for a locked block, as its `block` names it, with the block's opening state, whatever `args` holds, binding the inputs as it built them at startup, and takes only the parameters from the request.
 - It takes the board option values from the opening board for every request that carries them, a block class's request, an output and an output class's request, whatever the request holds.
 - It runs a block class's action only for a block left open.
-- It opens no board, refusing every `open` and ignoring a board that a `hello` carries, so that a client starting a new session keeps its own board, and with it a reader's choices in the blocks left open.
+- It loads no package that the app did not, refusing every `open` and ignoring the packages that a `hello` names, while a client starting a new session keeps its own board, and with it a reader's choices in the blocks left open.
 - It runs a board option's or an extension's request only where it was declared to run on a locked board.
 
 Anything else R refuses with an `error` whose condition names the lock and has no phase, while it makes outputs, and answers the requests of their output classes, as before, with the opening board option values.
 
 ## Decoding
 
-R decodes everything the client sends, each message and the saved file that a `hello` or an `open` carries, as `decode_message()` does, with yyjsonr, into plain values only: strings, numbers, logicals, lists and typed atomic vectors, never closures, calls, symbols or environments, so that nothing becomes code by being decoded and `bquote()` keeps a value a value. That is the protocol's only safety, since a block may still parse a string into code, so keeping the R process within bounds is the deployment's job. An array of one type becomes an atomic vector, an array of several types a list, an object a named list, and a string stays a string, while no array of objects becomes a data frame, no array of arrays a matrix, and a string in an array of numbers stays a string, where yyjsonr's defaults would read `"NA"` there as a missing number. A whole number too large for an R integer becomes a double. The client sends each message as text, and R decodes it itself, since Shiny's own decoding leaves every array a list and flattens a message that is itself an array.
+R decodes every message that the client sends, as `decode_message()` does, with yyjsonr, into plain values only: strings, numbers, logicals, lists and typed atomic vectors, never closures, calls, symbols or environments, so that nothing becomes code by being decoded and `bquote()` keeps a value a value. That is the protocol's only safety, since a block may still parse a string into code, so keeping the R process within bounds is the deployment's job. An array of one type becomes an atomic vector, an array of several types a list, an object a named list, and a string stays a string, while no array of objects becomes a data frame, no array of arrays a matrix, and a string in an array of numbers stays a string, where yyjsonr's defaults would read `"NA"` there as a missing number. A whole number too large for an R integer becomes a double. The client sends each message as text, and R decodes it itself, since Shiny's own decoding leaves every array a list and flattens a message that is itself an array.
 
 A block class's `expr` gets the state as R decoded it, so its author writes `expr` against this decoding, as a Shiny author writes against an input's value. Each value, as a block's state holds it, decodes as:
 
@@ -265,7 +259,7 @@ So an arg that is a vector arrives as an atomic vector, of length one too, and a
 
 ## Encoding
 
-R writes what it sends with yyjsonr as well, as `encode_message()` does, which marks its text as JSON, so that Shiny's `session$sendCustomMessage()` sends it as it is. R's lack of scalars stays in R ([Principles](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1#principles)), so R writes every vector of length one bare, and marks with `I()` a value that has to stay an array, by the schema that gives its shape. An object is a named list, an empty one a named empty list, and `NULL` is written as `null`, as are `NA`, `NaN` and infinite numbers, so that a blockr option at `Inf` reaches the client as `null`, while a named atomic vector is written as an array without its names. A request's answer is the exception, which `encode_answer()` writes with every vector as an array ([Requests](#requests)). A string of class `json` goes in as it is, so that R sends JSON it holds as text, such as the opening board, without reading it.
+R writes what it sends with yyjsonr as well, as `encode_message()` does, which marks its text as JSON, so that Shiny's `session$sendCustomMessage()` sends it as it is. R's lack of scalars stays in R ([Principles](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1#principles)), so R writes every vector of length one bare, and marks with `I()` a value that has to stay an array, by the schema that gives its shape. An object is a named list, an empty one a named empty list, and `NULL` is written as `null`, as are `NA`, `NaN` and infinite numbers, so that a blockr option at `Inf` reaches the client as `null`, while a named atomic vector is written as an array without its names. A request's answer is the exception, which `encode_answer()` writes with every vector as an array ([Requests](#requests)). A string of class `json` goes in as it is, so that R passes on JSON it holds as text, such as the saved file that `serve()` was given, without decoding it.
 
 ## Fixtures
 
@@ -273,11 +267,12 @@ Each file in [`fixtures/`](fixtures/) holds a message that the client sends, in 
 
 | Fixture | Shows |
 |---|---|
-| [`hello`](fixtures/hello.json) | the handshake of a core app |
-| [`hello-board`](fixtures/hello-board.json) | a `hello` that carries the client's board, from which R drops a block |
-| [`hello-locked`](fixtures/hello-locked.json) | the handshake of a locked app, which ignores the board that the `hello` carries |
+| [`hello`](fixtures/hello.json) | the handshake of a core app, whose opening board lacks some ids |
+| [`hello-packages`](fixtures/hello-packages.json) | a `hello` that names the packages of the board the client holds |
+| [`hello-locked`](fixtures/hello-locked.json) | the handshake of a locked app, which ignores the packages that the `hello` names |
 | [`hello-block`](fixtures/hello-block.json) | the handshake of an app that serves a block alone, with `bound` |
-| [`open`](fixtures/open.json) | opening a saved board |
+| [`hello-file`](fixtures/hello-file.json) | the handshake of an app that serves a saved file |
+| [`open`](fixtures/open.json) | loading the packages of a board that the client opens |
 | [`open-locked`](fixtures/open-locked.json) | an `open` that a locked board refuses |
 | [`evaluate`](fixtures/evaluate.json) | an evaluation of a block with two inputs |
 | [`evaluate-warning`](fixtures/evaluate-warning.json) | an evaluation that raises a warning |
@@ -300,4 +295,4 @@ Each file in [`fixtures/`](fixtures/) holds a message that the client sends, in 
 | [`cancel`](fixtures/cancel.json) | cancelling a request |
 | [`forget`](fixtures/forget.json) | forgetting blocks |
 
-R's test suite decodes each message that the client sends, and each saved file in one, and checks that it holds plain values only, and writes each message that R sends from R values, which [`helper-protocol.R`](../../tests/testthat/helper-protocol.R) gives, and checks that it holds the same JSON as its fixture, arrays and objects alike ([`test-protocol.R`](../../tests/testthat/test-protocol.R)). The JS test suite type-checks every fixture as a value of the types of its messages, and each saved file in one as a saved board, so that a fixture fails on a field that its type lacks as it does on one that its type requires and the fixture leaves out ([`fixtures.test.ts`](../../srcts/protocol/fixtures.test.ts)). Both check that the fixtures of the handshake speak their side's protocol version. A message whose shape changes changes its fixture, its R values and its types together, or a suite fails.
+R's test suite decodes each message that the client sends and checks that it holds plain values only, and writes each message that R sends from R values, which [`helper-protocol.R`](../../tests/testthat/helper-protocol.R) gives, and checks that it holds the same JSON as its fixture, arrays and objects alike ([`test-protocol.R`](../../tests/testthat/test-protocol.R)). The JS test suite type-checks every fixture as a value of the types of its messages, so that a fixture fails on a field that its type lacks as it does on one that its type requires and the fixture leaves out ([`fixtures.test.ts`](../../srcts/protocol/fixtures.test.ts)). Both check that the fixtures of the handshake speak their side's protocol version. A message whose shape changes changes its fixture, its R values and its types together, or a suite fails.

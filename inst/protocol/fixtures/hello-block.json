@@ -1,5 +1,5 @@
 {
-  "description": "The handshake of an app that serves a block alone, as serve(new_head_block(), data = list(data = iris)) does. R replies with a board of the one block, and binds its input data to the data it was given itself, which bound names, so that the client counts the input as linked and names it in a recipe by the input alone.",
+  "description": "The handshake of an app that serves a block alone, as serve(new_head_block(), data = list(data = iris)) does. R replies with a board of the one block, which has no id, as the board has neither an id nor a name, for the client to mint, and binds the block's input data to the data it was given itself, which bound names, so that the client counts the input as linked and names it in a recipe by the input alone.",
   "client": [
     {
       "id": "1",
@@ -80,19 +80,17 @@
         },
         "lock": null,
         "board": {
-          "id": "brisk_finch",
           "front_end": { "id": "blockr.core-basic", "state": {}, "attrs": {} },
-          "name": "Head",
-          "blocks": {
-            "a": {
+          "blocks": [
+            {
               "registry_id": "blockr.core-head_block",
               "state": { "n": 6, "direction": "head" },
               "name": "Head",
               "attrs": {}
             }
-          },
-          "links": {},
-          "stacks": {},
+          ],
+          "links": [],
+          "stacks": [],
           "options": { "n_rows": 50 }
         },
         "bound": ["data"]

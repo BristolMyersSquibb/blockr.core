@@ -1,11 +1,7 @@
 {
-  "description": "An open on a locked board, which loads no other board, so R refuses it with an error that names the lock. R raises the condition itself, so it has no phase.",
+  "description": "An open on a locked board, which loads no other board, so R refuses it with an error that names the lock, and loads none of the packages. R raises the condition itself, so it has no phase.",
   "client": [
-    {
-      "id": "2",
-      "kind": "open",
-      "file": "{\"format\":1,\"packages\":{\"blockr.core\":\"0.2.0\"},\"board\":{\"id\":\"amber_tapir\",\"front_end\":{\"id\":\"blockr.core-basic\",\"state\":{},\"attrs\":{}},\"name\":\"Cars\",\"blocks\":{\"a\":{\"registry_id\":\"blockr.core-dataset_block\",\"state\":{\"dataset\":\"mtcars\",\"package\":\"datasets\"},\"name\":\"Cars\",\"attrs\":{}},\"b\":{\"registry_id\":\"blockr.core-subset_block\",\"state\":{\"subset\":\"cyl == 6\",\"select\":\"mpg\"},\"name\":\"Six cylinders\",\"attrs\":{}}},\"links\":{\"ab\":{\"from\":\"a\",\"to\":\"b\",\"input\":\"data\"}},\"stacks\":{},\"options\":{\"n_rows\":50,\"show_conditions\":[\"warning\",\"error\"]}}}"
-    }
+    { "id": "2", "kind": "open", "packages": ["blockr.core", "blockr.io"] }
   ],
   "r": [
     [

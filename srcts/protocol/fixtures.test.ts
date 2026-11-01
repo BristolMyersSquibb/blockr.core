@@ -10,22 +10,22 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
-import { beforeAll, describe, expect, test } from "vitest";
+import { beforeAll, expect, test } from "vitest";
 import { PROTOCOL_VERSION } from "./messages.ts";
 import type { Fixture } from "./messages.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const fixtures = join(root, "inst", "protocol", "fixtures");
 const messages = join(root, "srcts", "protocol", "messages.ts");
-const board = join(root, "srcts", "types", "board.ts");
 
 // The type of each fixture, by its file's name, since a fixture's replies say
 // nothing of the kind of request they answer.
 const types: Record<string, string> = {
   hello: "Fixture<[HelloRequest], [[HelloReply]]>",
-  "hello-board": "Fixture<[HelloRequest], [[HelloReply]]>",
+  "hello-packages": "Fixture<[HelloRequest], [[HelloReply]]>",
   "hello-locked": "Fixture<[HelloRequest], [[HelloReply]]>",
   "hello-block": "Fixture<[HelloRequest], [[HelloReply]]>",
+  "hello-file": "Fixture<[HelloRequest], [[HelloReply]]>",
   open: "Fixture<[OpenRequest], [[OpenReply]]>",
   "open-locked": "Fixture<[OpenRequest], [[ErrorReply]]>",
   evaluate: "Fixture<[EvaluateRequest], [[EvaluateReply]]>",
@@ -65,15 +65,6 @@ function text(name: string): string {
 
 function read(name: string): Fixture {
   return JSON.parse(text(name)) as Fixture;
-}
-
-// The saved files that a fixture's requests carry, by where each sits.
-function files(name: string): [string, string][] {
-  return read(name).client.flatMap((request, i) =>
-    "file" in request && request.file !== undefined
-      ? [[`client[${String(i)}].file`, request.file] as [string, string]]
-      : [],
-  );
 }
 
 // Fixtures that break the types, each in one way, made from the cancel
@@ -174,10 +165,6 @@ beforeAll(() => {
     const type = types[name];
     if (type === undefined) continue;
     modules.set(path(name), declaration(type, messages, text(name)));
-    for (const [at, file] of files(name)) {
-      const json = JSON.stringify(JSON.parse(file), null, 2);
-      modules.set(path(`${name}/${at}`), declaration("SavedBoard", board, json));
-    }
   }
 
   for (const [what, [fixture]] of Object.entries(breaks)) {
@@ -192,14 +179,8 @@ test("every fixture has a type to be checked against", () => {
   expect(names).toEqual(Object.keys(types).sort());
 });
 
-describe.each(names)("%s", (name) => {
-  test("meets the types of its messages", () => {
-    expect(diagnostics.get(path(name))).toEqual([]);
-  });
-
-  test.each(files(name))("carries in %s a saved board", (at) => {
-    expect(diagnostics.get(path(`${name}/${at}`))).toEqual([]);
-  });
+test.each(names)("%s meets the types of its messages", (name) => {
+  expect(diagnostics.get(path(name))).toEqual([]);
 });
 
 test.each(Object.entries(breaks))(

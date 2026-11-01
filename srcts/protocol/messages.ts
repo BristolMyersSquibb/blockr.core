@@ -2,7 +2,13 @@
 // inst/protocol/README.md gives them, which the fixtures in
 // inst/protocol/fixtures are checked against.
 
-import type { Board, BlockId, OptionId, RegistryId } from "../types/board.ts";
+import type {
+  BlockId,
+  OpeningBoard,
+  OptionId,
+  RegistryId,
+  SavedBoard,
+} from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 
@@ -65,17 +71,18 @@ export interface HelloRequest {
   kind: "hello";
   protocol: string;
   capabilities: Capability[];
-  // The text of a saved file, from a client that holds a board already, as
-  // when the server ended its session while the page lived on.
-  file?: string;
+  // The packages that a board the client holds already names, as when the
+  // server ended its session while the page lived on, for R to load.
+  packages?: string[];
 }
 
-export interface HelloReply {
+export type HelloReply = {
   id: string;
   status: "ok";
   protocol: string;
   capabilities: Capability[];
-  // The versions of the packages that the client needs to know of.
+  // The version of each package that R has loaded and the client needs to know
+  // of.
   packages: Record<string, string>;
   block_registry: Record<RegistryId, RegistryEntry>;
   // Where each front-end's module is served, by the front-end's id.
@@ -90,15 +97,14 @@ export interface HelloReply {
   // The values of the blockr options that the client reads, by package.
   blockr_options: Record<string, Record<string, Json>>;
   lock: Lock | null;
-  board: Board;
   // For a block that `serve()` serves alone, the inputs that R binds itself
   // to the data it was given, which the client counts as linked.
   bound?: string[];
-  // For a board that the hello carried and R opened, as an open reply has
-  // them.
-  saved?: Record<string, string>;
-  dropped?: Dropped[];
-}
+} & (
+  // The opening board, as R sends the one an app script built, or as the saved
+  // file that `serve()` was given holds it, which R passes on as it is.
+  { board: OpeningBoard; file?: never } | { file: SavedBoard; board?: never }
+);
 
 // A renderer that R picked for an output class or for a board option.
 export type Renderer = { module: string; css?: string } & (
@@ -111,31 +117,27 @@ export interface Lock {
   open: BlockId[];
 }
 
-// Opening a board
+// Opening a board, which the client does itself, having R load the packages
+// that the board names
 
 export interface OpenRequest {
   id: string;
   kind: "open";
-  // The text of a saved file, of either stack.
-  file: string;
+  packages: string[];
 }
 
-export interface OpenReply
-  extends Omit<
-    HelloReply,
-    "protocol" | "capabilities" | "bound" | "saved" | "dropped"
-  > {
-  // The version of each package that the file records.
-  saved: Record<string, string>;
-  dropped: Dropped[];
-}
-
-// What R dropped as it opened a board, each object or key of the front-end's
-// state named with the package to install. A block of a class defined outside
-// a package names none.
-export type Dropped =
-  | { object: "block" | "option" | "front_end"; id: string; package?: string }
-  | { key: string[]; package: string };
+export type OpenReply = Pick<
+  HelloReply,
+  | "id"
+  | "status"
+  | "packages"
+  | "block_registry"
+  | "front_ends"
+  | "startup_modules"
+  | "modules"
+  | "renderers"
+  | "blockr_options"
+>;
 
 // Evaluating a block
 
@@ -177,7 +179,8 @@ export interface EvaluateReply {
   // The block expression that R built, without the assignment to the block's
   // id that an exported script adds, or null where it built none.
   expr: string | null;
-  // The result's summary, or null where there is no result.
+  // The result's summary from `result_summary()`, or null where there is no
+  // result or its summary failed.
   summary: string | null;
   conditions: Condition[];
   omitted: Omitted;
@@ -201,7 +204,7 @@ export type Phase =
   | "expr"
   | "inputs"
   | "block_eval"
-  | "block_summary"
+  | "result_summary"
   | "output"
   | "request"
   | "status";

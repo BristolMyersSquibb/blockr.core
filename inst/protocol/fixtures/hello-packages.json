@@ -1,12 +1,12 @@
 {
-  "description": "A new session of a page whose session the server ended: the client sends the board it holds with its hello, as a saved file's text, and R opens it as it opens one that an open carries. R no longer has blockr.dm installed, so it drops the dm block g, with its link and its place in the stack, and replies with the board as it opened it, the package versions the file records and what it dropped, which makes the client open R's board in place of its own.",
+  "description": "A new session of a page whose session the server ended while the page lived on. The client holds a board already, which it keeps, so its hello names the packages that board names, as its saved file would list them, for R to load before any recipe names their block classes. R no longer has blockr.dm installed, so it loads blockr.core alone, and the client drops the board's dm block, naming blockr.dm, which the reply's packages lack. R sends the opening board of the app all the same, which the client does not open, since it keeps its own.",
   "client": [
     {
       "id": "1",
       "kind": "hello",
       "protocol": "1.0",
       "capabilities": ["cancel", "interrupt", "progress"],
-      "file": "{\"format\":1,\"packages\":{\"blockr.core\":\"0.2.0\",\"blockr.dm\":\"0.1.0\"},\"board\":{\"id\":\"quiet_heron\",\"front_end\":{\"id\":\"blockr.core-basic\",\"state\":{},\"attrs\":{}},\"name\":\"Penguins\",\"blocks\":{\"a\":{\"registry_id\":\"blockr.core-dataset_block\",\"state\":{\"dataset\":\"penguins\",\"package\":\"datasets\"},\"name\":\"Penguins\",\"attrs\":{}},\"b\":{\"registry_id\":\"blockr.core-head_block\",\"state\":{\"n\":10,\"direction\":\"tail\"},\"name\":\"Tail\",\"attrs\":{}},\"g\":{\"registry_id\":\"blockr.dm-dm_block\",\"state\":{\"tables\":[\"penguins\"]},\"name\":\"Model\",\"attrs\":{}}},\"links\":{\"ab\":{\"from\":\"a\",\"to\":\"b\",\"input\":\"data\"},\"ag\":{\"from\":\"a\",\"to\":\"g\",\"input\":\"\"}},\"stacks\":{\"s1\":{\"name\":\"Data\",\"blocks\":[\"a\",\"g\"]}},\"options\":{\"n_rows\":25,\"show_conditions\":[\"error\"]}}}"
+      "packages": ["blockr.core", "blockr.dm"]
     }
   ],
   "r": [
@@ -132,26 +132,26 @@
           "id": "quiet_heron",
           "front_end": { "id": "blockr.core-basic", "state": {}, "attrs": {} },
           "name": "Penguins",
-          "blocks": {
-            "a": {
+          "blocks": [
+            {
+              "id": "a",
               "registry_id": "blockr.core-dataset_block",
               "state": { "dataset": "penguins", "package": "datasets" },
               "name": "Penguins",
               "attrs": {}
             },
-            "b": {
+            {
+              "id": "b",
               "registry_id": "blockr.core-head_block",
               "state": { "n": 10, "direction": "tail" },
               "name": "Tail",
               "attrs": {}
             }
-          },
-          "links": { "ab": { "from": "a", "to": "b", "input": "data" } },
-          "stacks": { "s1": { "name": "Data", "blocks": ["a"] } },
+          ],
+          "links": [{ "id": "ab", "from": "a", "to": "b", "input": "data" }],
+          "stacks": [],
           "options": { "n_rows": 25, "show_conditions": ["error"] }
-        },
-        "saved": { "blockr.core": "0.2.0", "blockr.dm": "0.1.0" },
-        "dropped": [{ "object": "block", "id": "g", "package": "blockr.dm" }]
+        }
       }
     ]
   ]

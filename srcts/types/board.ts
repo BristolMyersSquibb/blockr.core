@@ -61,11 +61,26 @@ export interface Stack {
   blocks: BlockId[];
 }
 
-// A saved board, the file that the client writes and R opens: the board, the
-// version of the file format, and the version of every package that the
-// board's block classes, its front-end and its front-end's state come from.
+// A saved board, the file that only the client writes: the board, the version
+// of the file format, and the version of every package that the board's block
+// classes, its front-end and its front-end's state come from.
 export interface SavedBoard {
   format: number;
   packages: Record<string, string>;
   board: Board;
+}
+
+// The opening board that an app script built, as R sends it. R mints no ids, so
+// it holds the blocks, links and stacks as arrays, in their order, each with
+// its id where the script gave one, and the board's own id and name where it
+// has them. The client keys the collections and mints each missing id as it
+// opens the board.
+export interface OpeningBoard {
+  id?: string;
+  front_end: FrontEnd;
+  name?: string;
+  blocks: (Block & { id?: BlockId })[];
+  links: (Link & { id?: LinkId })[];
+  stacks: (Stack & { id?: StackId })[];
+  options: Record<OptionId, Json>;
 }

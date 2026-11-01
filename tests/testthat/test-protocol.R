@@ -11,15 +11,6 @@ test_that("every message the client sends decodes into plain values", {
     client <- decode_message(protocol_fixture(name))$client
 
     expect_true(is_plain(client), label = name)
-
-    for (request in client) {
-      if (length(request$file)) {
-        expect_true(
-          is_plain(decode_message(request$file)),
-          label = paste(name, "file")
-        )
-      }
-    }
   }
 })
 

@@ -1,18 +1,14 @@
 {
-  "description": "Opening a saved file in place of the board on the page, as store.open() does. R opens it, forgetting every block, and replies as to a hello but without the protocol and capabilities, with the board as it opened it, the version of each package that the file records, which each package's migration in the client reads, and what it dropped, here nothing.",
+  "description": "Opening a saved board in place of the board on the page, which the client does itself. It sends R only the packages the board names, as its saved file lists them, and R loads the ones it has not, here blockr.io, which registers its write block, forgets every block, and replies with what the client needs to draw the blocks of every package it has loaded: their versions, the block registry, blockr.io's startup module and the rest. The client then drops what no registered class or package covers, runs the migrations of the packages whose version the file records differs from the one R loaded, and replaces its board.",
   "client": [
-    {
-      "id": "2",
-      "kind": "open",
-      "file": "{\"format\":1,\"packages\":{\"blockr.core\":\"0.2.0\"},\"board\":{\"id\":\"amber_tapir\",\"front_end\":{\"id\":\"blockr.core-basic\",\"state\":{},\"attrs\":{}},\"name\":\"Cars\",\"blocks\":{\"a\":{\"registry_id\":\"blockr.core-dataset_block\",\"state\":{\"dataset\":\"mtcars\",\"package\":\"datasets\"},\"name\":\"Cars\",\"attrs\":{}},\"b\":{\"registry_id\":\"blockr.core-subset_block\",\"state\":{\"subset\":\"cyl == 6\",\"select\":\"mpg\"},\"name\":\"Six cylinders\",\"attrs\":{}}},\"links\":{\"ab\":{\"from\":\"a\",\"to\":\"b\",\"input\":\"data\"}},\"stacks\":{},\"options\":{\"n_rows\":50,\"show_conditions\":[\"warning\",\"error\"]}}}"
-    }
+    { "id": "2", "kind": "open", "packages": ["blockr.core", "blockr.io"] }
   ],
   "r": [
     [
       {
         "id": "2",
         "status": "ok",
-        "packages": { "blockr.core": "0.2.0" },
+        "packages": { "blockr.core": "0.2.0", "blockr.io": "0.2.0" },
         "block_registry": {
           "blockr.core-dataset_block": {
             "id": "blockr.core-dataset_block",
@@ -93,188 +89,35 @@
               "n_max": { "inputs": ["data"], "state_args": [], "options": [] }
             }
           },
-          "blockr.core-merge_block": {
-            "id": "blockr.core-merge_block",
-            "name": "merge block",
-            "description": "Joining or merging datasets",
-            "keywords": [
-              "merge",
-              "join",
-              "inner join",
-              "outer join",
-              "left join",
-              "right join"
-            ],
-            "category": "transform",
-            "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-union\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
-            "inputs": ["x", "y"],
-            "module": "blockr.core/merge-block.js?v=77d0a9e3",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "by": { "type": "array", "items": { "type": "string" } },
-                "all_x": { "type": "boolean" },
-                "all_y": { "type": "boolean" }
-              },
-              "required": ["all_x", "all_y"],
-              "additionalProperties": false
-            },
-            "state": { "all_x": false, "all_y": false },
-            "arguments": {
-              "by": {
-                "description": "Shared key column(s) to join on.",
-                "type": { "type": "array", "items": { "type": "string" } }
-              },
-              "all_x": {
-                "description": "Keep unmatched rows from the first input.",
-                "type": { "type": "boolean" }
-              },
-              "all_y": {
-                "description": "Keep unmatched rows from the second input.",
-                "type": { "type": "boolean" }
-              }
-            },
-            "requests": {
-              "shared": {
-                "inputs": ["x", "y"],
-                "state_args": [],
-                "options": []
-              }
-            }
-          },
-          "blockr.core-subset_block": {
-            "id": "blockr.core-subset_block",
-            "name": "subset block",
-            "description": "Row and column subsetting",
-            "keywords": [
-              "filter",
-              "subset",
-              "select",
-              "rows",
-              "columns",
-              "where"
-            ],
-            "category": "transform",
-            "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-funnel\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
-            "inputs": ["data"],
-            "module": "blockr.core/subset-block.js?v=2b6f04d9",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "subset": { "type": "string" },
-                "select": { "type": "string" }
-              },
-              "required": ["subset", "select"],
-              "additionalProperties": false
-            },
-            "state": { "subset": "", "select": "" },
-            "arguments": {
-              "subset": {
-                "description": "Logical row-filter expression, as a string.",
-                "example": "Sepal.Width > 3",
-                "type": { "type": "string" }
-              },
-              "select": {
-                "description": "Column-selection expression, as a string.",
-                "example": "Species",
-                "type": { "type": "string" }
-              }
-            },
-            "requests": {}
-          },
-          "blockr.core-rbind_block": {
-            "id": "blockr.core-rbind_block",
-            "name": "rbind block",
-            "description": "Row-binding of datasets",
-            "keywords": [
-              "rbind",
-              "bind",
-              "concatenate",
-              "rows",
-              "append",
-              "union"
-            ],
-            "category": "transform",
-            "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-chevron-bar-expand\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
+          "blockr.io-write_block": {
+            "id": "blockr.io-write_block",
+            "name": "write block",
+            "description": "Write data to a file",
+            "keywords": ["write", "export", "save", "file"],
+            "category": "output",
+            "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-floppy\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
             "inputs": ["..."],
-            "module": "blockr.core/rbind-block.js?v=e8c1d6a2",
-            "schema": {
-              "type": "object",
-              "properties": {},
-              "additionalProperties": false
-            },
-            "state": {},
-            "arguments": {},
-            "requests": {}
-          },
-          "blockr.core-scatter_block": {
-            "id": "blockr.core-scatter_block",
-            "name": "scatter plot block",
-            "description": "Scatter plotting",
-            "keywords": [
-              "scatter",
-              "scatter plot",
-              "chart",
-              "visualization",
-              "points"
-            ],
-            "category": "plot",
-            "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-dice-5\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
-            "inputs": ["data"],
-            "module": "blockr.core/scatter-block.js?v=41a7e0bf",
+            "module": "blockr.io/write-block.js?v=4c2e8a17",
             "schema": {
               "type": "object",
               "properties": {
-                "x": { "type": "string" },
-                "y": { "type": "string" }
+                "directory": { "type": "string" },
+                "filename": { "type": "string" },
+                "format": { "enum": ["csv", "xlsx", "parquet"] },
+                "auto_write": { "type": "boolean" },
+                "args": { "type": "object" }
               },
               "additionalProperties": false
             },
-            "state": {},
-            "arguments": {
-              "x": {
-                "description": "Column for the horizontal axis.",
-                "example": "Sepal.Length",
-                "type": { "type": "string" }
-              },
-              "y": {
-                "description": "Column for the vertical axis.",
-                "example": "Sepal.Width",
-                "type": { "type": "string" }
-              }
+            "state": {
+              "directory": "",
+              "filename": "",
+              "format": "csv",
+              "auto_write": false,
+              "args": {}
             },
-            "requests": {
-              "columns": {
-                "inputs": ["data"],
-                "state_args": [],
-                "options": []
-              }
-            }
-          },
-          "blockr.core-upload_block": {
-            "id": "blockr.core-upload_block",
-            "name": "data upload block",
-            "description": "Upload data",
-            "keywords": ["upload", "file", "import", "data", "session"],
-            "category": "input",
-            "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-upload\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
-            "inputs": [],
-            "module": "blockr.core/upload-block.js?v=d5932c60",
-            "schema": {
-              "type": "object",
-              "properties": { "file": { "type": "string" } },
-              "additionalProperties": false
-            },
-            "state": {},
             "arguments": {},
-            "requests": {
-              "upload": {
-                "inputs": [],
-                "state_args": [],
-                "options": [],
-                "action": true
-              }
-            }
+            "requests": {}
           }
         },
         "front_ends": {
@@ -283,7 +126,12 @@
             "css": "blockr.core/basic.css?v=6a9b2c4e"
           }
         },
-        "startup_modules": [],
+        "startup_modules": [
+          {
+            "package": "blockr.io",
+            "module": "blockr.io/startup.js?v=9d1b3e66"
+          }
+        ],
         "modules": {},
         "renderers": {
           "blockr.core-basic_table": {
@@ -305,32 +153,7 @@
             "evaluation_queue": 2,
             "background_evaluation_delay": null
           }
-        },
-        "lock": null,
-        "board": {
-          "id": "amber_tapir",
-          "front_end": { "id": "blockr.core-basic", "state": {}, "attrs": {} },
-          "name": "Cars",
-          "blocks": {
-            "a": {
-              "registry_id": "blockr.core-dataset_block",
-              "state": { "dataset": "mtcars", "package": "datasets" },
-              "name": "Cars",
-              "attrs": {}
-            },
-            "b": {
-              "registry_id": "blockr.core-subset_block",
-              "state": { "subset": "cyl == 6", "select": "mpg" },
-              "name": "Six cylinders",
-              "attrs": {}
-            }
-          },
-          "links": { "ab": { "from": "a", "to": "b", "input": "data" } },
-          "stacks": {},
-          "options": { "n_rows": 50, "show_conditions": ["warning", "error"] }
-        },
-        "saved": { "blockr.core": "0.2.0" },
-        "dropped": []
+        }
       }
     ]
   ]
