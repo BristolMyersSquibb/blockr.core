@@ -9,7 +9,7 @@ test_that("a fixture lists states and records request answers", {
 
   expect_block_fixture(
     merge_class,
-    states = list(list(by = "Time"), list(by = "Time", all_x = TRUE)),
+    states = list(list(by = I("Time")), list(by = "Time", all_x = TRUE)),
     inputs = list(x = datasets::BOD, y = datasets::BOD),
     requests = list(list(name = "shared"))
   )
@@ -54,17 +54,7 @@ test_that("sample inputs get ids", {
   )
 })
 
-test_that("request answers are written with every vector as an array", {
-
-  boxed <- box_vectors(list(a = 1L, b = list(c = "x", d = NULL)))
-
-  expect_s3_class(boxed$a, "AsIs")
-  expect_s3_class(boxed$b$c, "AsIs")
-  expect_null(boxed$b$d)
-
-  json <- jsonlite::toJSON(boxed, auto_unbox = TRUE, null = "null")
-
-  expect_identical(as.character(json), '{"a":[1],"b":{"c":["x"],"d":null}}')
+test_that("empty args and options are written as objects", {
 
   expect_identical(
     as_json_object(list()),

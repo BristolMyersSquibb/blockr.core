@@ -42,10 +42,11 @@ the package's \verb{tests/testthat/}, which the module tests read. A change to
 what a request answers then fails the test until the snapshot is accepted.
 }
 \details{
-The fixture is a JSON object holding the \code{states}, each written with a
-value of length one bare, and the \code{requests}, each with its \code{name}, the
-\code{args} and \code{options} it was called with, and its \code{answer}, written with
-every vector as an array, as R writes a request's answer.
+The fixture is a JSON object holding the \code{states}, each written as R writes
+a message, with a value of length one bare but where \code{\link[=I]{I()}} keeps it an
+array, and the \code{requests}, each with its \code{name}, the \code{args} and \code{options}
+it was called with, and its \code{answer}, written with every vector as an
+array, as R writes a request's answer.
 
 In a test file, such as \code{tests/testthat/test-head-block.R}:
 

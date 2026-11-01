@@ -22,12 +22,13 @@ block_registry <- new.env()
 #' An entry holds, beside the metadata, the block class, its constructor, its
 #' data inputs, its UI module and the JSON Schema of the block's state that the
 #' module ships beside it, as `<name>.schema.json` for a module `<name>.js`,
-#' whose properties must be the state args where it ships one, a description
-#' of each request, with the inputs and state args it names, the ids of the
-#' board options it reads, named by the arguments that take their values, and
-#' whether it is volatile or an action, and the state a new block starts with,
-#' from `expr` called without args. The arg specs default to every state arg,
-#' and their examples are checked by calling `expr` with them.
+#' as its text, of class `json`, whose properties must be the state args where
+#' it ships one, a description of each request, with the inputs and state args
+#' it names, the ids of the board options it reads, named by the arguments
+#' that take their values, and whether it is volatile or an action, and the
+#' state a new block starts with, from `expr` called without args. The arg
+#' specs default to every state arg, and their examples are checked by calling
+#' `expr` with them.
 #'
 #' Blocks can be registered (i.e. added to the registry) via `register_block()`
 #' with scalar-valued arguments and `register_blocks()`, where arguments may be
@@ -246,9 +247,14 @@ class_schema <- function(cls) {
     return(NULL)
   }
 
-  schema <- jsonlite::read_json(path)
+  # Kept as the module ships it, for R to pass on without decoding it again,
+  # which would write an array of length one bare
+  schema <- structure(
+    paste(readLines(path, warn = FALSE, encoding = "UTF-8"), collapse = "\n"),
+    class = "json"
+  )
 
-  props <- names(schema[["properties"]])
+  props <- names(decode_message(schema)[["properties"]])
   args <- class_state_args(cls)
 
   if (!setequal(coal(props, character(), fail_all = FALSE), args)) {

@@ -1,7 +1,9 @@
 {
   "states": [
     {
-      "by": "Time"
+      "by": [
+        "Time"
+      ]
     },
     {
       "by": "Time",
@@ -13,7 +15,7 @@
       "name": "shared",
       "args": {},
       "options": {},
-      "answer": ["Time", "demand"]
+      "answer": ["Time","demand"]
     }
   ]
 }

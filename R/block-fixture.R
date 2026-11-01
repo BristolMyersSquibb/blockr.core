@@ -11,10 +11,11 @@
 #' the package's `tests/testthat/`, which the module tests read. A change to
 #' what a request answers then fails the test until the snapshot is accepted.
 #'
-#' The fixture is a JSON object holding the `states`, each written with a
-#' value of length one bare, and the `requests`, each with its `name`, the
-#' `args` and `options` it was called with, and its `answer`, written with
-#' every vector as an array, as R writes a request's answer.
+#' The fixture is a JSON object holding the `states`, each written as R writes
+#' a message, with a value of length one bare but where [I()] keeps it an
+#' array, and the `requests`, each with its `name`, the `args` and `options`
+#' it was called with, and its `answer`, written with every vector as an
+#' array, as R writes a request's answer.
 #'
 #' In a test file, such as `tests/testthat/test-head-block.R`:
 #'
@@ -59,15 +60,12 @@ expect_block_fixture <- function(x, states, inputs = list(), requests = list(),
   on.exit(unlink(file))
 
   writeLines(
-    jsonlite::toJSON(
+    json_str(
       list(
         states = lapply(states, as_json_object),
         requests = lapply(requests, record_request, cls, inputs)
       ),
       auto_unbox = TRUE,
-      digits = NA,
-      null = "null",
-      na = "null",
       pretty = TRUE
     ),
     file
@@ -126,7 +124,7 @@ record_request <- function(call, cls, inputs) {
     name = call[["name"]],
     args = as_json_object(args),
     options = as_json_object(options),
-    answer = box_vectors(
+    answer = encode_answer(
       block_request(cls, call[["name"]], inputs, args, options)
     )
   )
@@ -136,24 +134,6 @@ as_json_object <- function(x) {
 
   if (!length(x)) {
     return(set_names(list(), character()))
-  }
-
-  x
-}
-
-box_vectors <- function(x) {
-
-  if (is.data.frame(x)) {
-    return(x)
-  }
-
-  if (is.list(x)) {
-    x[] <- lapply(x, box_vectors)
-    return(x)
-  }
-
-  if (is.atomic(x) && !is.null(x)) {
-    return(I(x))
   }
 
   x

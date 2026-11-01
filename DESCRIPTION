@@ -43,7 +43,6 @@ Imports:
     cli,
     glue,
     yaml,
-    jsonlite,
     yyjsonr (>= 0.1.22)
 Suggests:
     testthat (>= 3.0.0),

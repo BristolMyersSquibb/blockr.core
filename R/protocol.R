@@ -38,11 +38,12 @@ encode_answer <- function(x) {
   json_str(x, auto_unbox = FALSE)
 }
 
-json_str <- function(x, auto_unbox) {
+json_str <- function(x, auto_unbox, pretty = FALSE) {
   structure(
     yyjsonr::write_json_str(
       x,
       opts = yyjsonr::opts_write_json(
+        pretty = pretty,
         auto_unbox = auto_unbox,
         json_verbatim = TRUE
       )

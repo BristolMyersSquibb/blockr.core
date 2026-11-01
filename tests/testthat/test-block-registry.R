@@ -140,7 +140,10 @@ test_that("registration reads the schema the module ships", {
 
   expect_identical(
     entry$schema,
-    list(type = "object", properties = list(n = list(type = "integer")))
+    structure(
+      '{"type": "object", "properties": {"n": {"type": "integer"}}}',
+      class = "json"
+    )
   )
 
   writeLines(
