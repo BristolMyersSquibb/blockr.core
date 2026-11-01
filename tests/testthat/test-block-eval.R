@@ -209,19 +209,19 @@ test_that("an evaluation is a classed object that prints", {
   expect_error(new_block_evaluation("ok", expr = 1))
 })
 
-test_that("block_summary() gives a result's class and dimensions", {
+test_that("result_summary() gives a result's class and dimensions", {
 
   expect_identical(
-    block_summary(datasets::mtcars),
+    result_summary(datasets::mtcars),
     "<data.frame> [32 \u00d7 11]"
   )
-  expect_identical(block_summary(1:10), "<integer> [10]")
-  expect_identical(block_summary(factor(c("a", "b"))), "<factor> [2]")
-  expect_identical(block_summary(NULL), "<NULL>")
-  expect_identical(block_summary(sum), "<builtin>")
-  expect_identical(block_summary(new.env()), "<environment>")
+  expect_identical(result_summary(1:10), "<integer> [10]")
+  expect_identical(result_summary(factor(c("a", "b"))), "<factor> [2]")
+  expect_identical(result_summary(NULL), "<NULL>")
+  expect_identical(result_summary(sum), "<builtin>")
+  expect_identical(result_summary(new.env()), "<environment>")
   expect_identical(
-    block_summary(matrix(1, 1000, 2)),
+    result_summary(matrix(1, 1000, 2)),
     "<double> [1,000 \u00d7 2]"
   )
 })

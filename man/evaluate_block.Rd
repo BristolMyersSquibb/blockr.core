@@ -5,8 +5,8 @@
 \alias{block_eval}
 \alias{block_eval.block}
 \alias{eval_env}
-\alias{block_summary}
-\alias{block_summary.default}
+\alias{result_summary}
+\alias{result_summary.default}
 \alias{block_migrate}
 \alias{block_migrate.block}
 \title{Block evaluation}
@@ -19,9 +19,9 @@ block_eval(x, expr, env, ...)
 
 eval_env(data)
 
-block_summary(result)
+result_summary(result)
 
-\method{block_summary}{default}(result)
+\method{result_summary}{default}(result)
 
 block_migrate(x, version)
 
@@ -57,7 +57,7 @@ The evaluation \code{evaluate_block()} returns an object of class
 \code{block_evaluation}, a list holding its \code{status}, \code{"ok"}, \code{"invalid"} or
 \code{"error"}, the block expression as \code{expr}, the \code{result}, its \code{summary} and
 the \code{conditions} raised, where what was not reached is \code{NULL}. The result
-is what \code{block_eval()} returns, while \code{block_summary()} returns a string,
+is what \code{block_eval()} returns, while \code{result_summary()} returns a string,
 \code{block_migrate()} a state and \code{eval_env()} an environment.
 }
 \description{
@@ -67,7 +67,7 @@ class, \code{evaluate_block()} runs the checks of a function given as the class'
 \code{inputs} with the upstream results, calls the class's \code{expr} with the
 state, interpolates what it returns into the block expression (see
 \code{\link[=interpolate]{interpolate()}}) and runs that with the generic \code{block_eval()}, before
-describing the result with the generic \code{block_summary()}.
+describing the result with the generic \code{result_summary()}.
 }
 \details{
 An \code{invalid()} that \code{expr} or a \code{block_eval()} method signals, or an unset
@@ -76,7 +76,7 @@ nothing and report the status \code{invalid}, while a failed check in \code{inpu
 or any other error, reports \code{error}, and a block that runs reports \code{ok}.
 Every condition raised on the way is recorded with its severity, its class,
 its message and the phase that raised it: \code{inputs}, \code{expr}, which covers
-interpolation, \code{block_eval} or \code{block_summary}. Warnings and messages are
+interpolation, \code{block_eval} or \code{result_summary}. Warnings and messages are
 recorded rather than signaled.
 
 The \code{block_eval()} generic runs the block expression, \code{expr}, in \code{env},
@@ -88,7 +88,7 @@ package adds a method where its class runs otherwise, deciding whether and
 how the block expression runs, never what it computes. Each evaluation
 environment is created by \code{eval_env()}.
 
-The \code{block_summary()} generic describes a result in a few words, such as
+The \code{result_summary()} generic describes a result in a few words, such as
 \verb{<data.frame> [150 x 5]}, dispatching on the result's class, so that a
 package describes its results wherever they appear. The \code{block_migrate()}
 generic maps a state that an older version of the class's package saved to
@@ -109,6 +109,6 @@ evaluate_block(head_block, list(n = 3L), list(data = "a"),
 evaluate_block(head_block, list(n = 3L, m = 2L), list(data = "a"),
                list(a = datasets::iris))
 
-block_summary(datasets::mtcars)
+result_summary(datasets::mtcars)
 
 }

@@ -23,7 +23,7 @@
   upstream ids, and `evaluate_block()` evaluates a block from its class, state
   and upstream results through `block_eval()`. A state reads `invalid` where
   `expr` signals `invalid()` or uses an unset arg. With them come
-  `block_summary()`, `block_migrate()`, `block_request()` with `volatile()`
+  `result_summary()`, `block_migrate()`, `block_request()` with `volatile()`
   and `action()`, and `expect_block_fixture()`, which tests a class without
   Shiny (#421).
 * Registration reads a block class from its constructor and builds no block.

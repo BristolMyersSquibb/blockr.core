@@ -6,7 +6,7 @@
 #' `inputs` with the upstream results, calls the class's `expr` with the
 #' state, interpolates what it returns into the block expression (see
 #' [interpolate()]) and runs that with the generic `block_eval()`, before
-#' describing the result with the generic `block_summary()`.
+#' describing the result with the generic `result_summary()`.
 #'
 #' An `invalid()` that `expr` or a `block_eval()` method signals, or an unset
 #' arg that the body of `expr` uses or interpolation fills in, makes R run
@@ -14,7 +14,7 @@
 #' or any other error, reports `error`, and a block that runs reports `ok`.
 #' Every condition raised on the way is recorded with its severity, its class,
 #' its message and the phase that raised it: `inputs`, `expr`, which covers
-#' interpolation, `block_eval` or `block_summary`. Warnings and messages are
+#' interpolation, `block_eval` or `result_summary`. Warnings and messages are
 #' recorded rather than signaled.
 #'
 #' The `block_eval()` generic runs the block expression, `expr`, in `env`,
@@ -26,7 +26,7 @@
 #' how the block expression runs, never what it computes. Each evaluation
 #' environment is created by `eval_env()`.
 #'
-#' The `block_summary()` generic describes a result in a few words, such as
+#' The `result_summary()` generic describes a result in a few words, such as
 #' `<data.frame> [150 x 5]`, dispatching on the result's class, so that a
 #' package describes its results wherever they appear. The `block_migrate()`
 #' generic maps a state that an older version of the class's package saved to
@@ -59,13 +59,13 @@
 #' evaluate_block(head_block, list(n = 3L, m = 2L), list(data = "a"),
 #'                list(a = datasets::iris))
 #'
-#' block_summary(datasets::mtcars)
+#' result_summary(datasets::mtcars)
 #'
 #' @return The evaluation `evaluate_block()` returns an object of class
 #' `block_evaluation`, a list holding its `status`, `"ok"`, `"invalid"` or
 #' `"error"`, the block expression as `expr`, the `result`, its `summary` and
 #' the `conditions` raised, where what was not reached is `NULL`. The result
-#' is what `block_eval()` returns, while `block_summary()` returns a string,
+#' is what `block_eval()` returns, while `result_summary()` returns a string,
 #' `block_migrate()` a state and `eval_env()` an environment.
 #'
 #' @export
@@ -117,7 +117,7 @@ evaluate_block <- function(x, state = list(), inputs = list(),
     )
   }
 
-  summary <- run_phase("block_summary", block_summary(ran[["value"]]))
+  summary <- run_phase("result_summary", result_summary(ran[["value"]]))
 
   new_block_evaluation(
     "ok",
@@ -358,13 +358,13 @@ pkg_export_env <- function(pkg, parent) {
 #' @param result A block's result
 #' @rdname evaluate_block
 #' @export
-block_summary <- function(result) {
-  UseMethod("block_summary")
+result_summary <- function(result) {
+  UseMethod("result_summary")
 }
 
 #' @rdname evaluate_block
 #' @export
-block_summary.default <- function(result) {
+result_summary.default <- function(result) {
 
   res <- paste0("<", type_desc(result), ">")
   dims <- dim_desc(result)
