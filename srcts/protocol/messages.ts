@@ -228,8 +228,7 @@ export interface BlockClassRequest {
   args: Record<string, Json>;
   // The results it reads, by the input each feeds.
   reads: RecipeInput[];
-  // The values of the board options that its function names, where it names
-  // any.
+  // The values of the board options that it reads, where it reads any.
   options?: Record<OptionId, Json>;
   body?: Body;
   option?: never;

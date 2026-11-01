@@ -159,7 +159,7 @@ The fields:
 |---|---|
 | `args` | what the request's function takes by name: for a block class's request, the state args its function names, which the host fills in from the block's state where the module passes none, and the parameters the UI gives it |
 | `reads` | the results it reads, a block class's by the input each feeds, as a recipe's inputs are, and an extension's by block and revision alone |
-| `options` | the values of the board options its function names, since R holds none: for a block class's request where it names any, and for an output class's request those its output was asked with |
+| `options` | the values of the board options it reads, since R holds none: for a block class's request where it reads any, and for an output class's request those its output was asked with |
 | `params` | the parameters that the output of an output class's request was asked with |
 | `body` | optional, a binary body that the request carries ([Binary bodies](#binary-bodies)), such as the file an upload action receives |
 
@@ -174,10 +174,10 @@ What R runs for the client comes in these flavors, which differ in who defines a
 | Evaluation | The block's class, through its `expr` and `block_eval()` | The scheduler, for demand and one-time evaluations | Its reply sets the block's status, and R keeps the result | No | From the block expression R built at startup, for a locked block |
 | Evaluation with parameters | A `block_eval()` method of the block's class, such as the write block's | A one-time evaluation with parameters, such as a save button's | No, it runs once per call | Yes | With its parameters only for a block left open |
 | Output | The coercion of the output class that the block's class names | Core, for whatever draws the output | The last output, by revision, board options, `info` and parameters | No | With the opening board option values |
-| Output class's request | The output class, as the package that defines it registers it | A renderer of the class, through its output host | Its answer, by block, revision, name, args, board options and parameters, unless the class wraps it in `volatile()` | No | With the opening board option values |
+| Output class's request | The output class, as the package that defines it registers it | A renderer of the class, through its output host | Its answer, by block, revision, name, args, board options and parameters, unless the class makes it volatile | No | With the opening board option values |
 | Block class's request | The class's `requests` | The block's UI, through its host | Its answer, by registry id, name, args, board options and the revisions read | No | With a locked block's opening state and the opening board option values |
-| Volatile request | A request that the class wraps in `volatile()` | The block's UI, through its host | No | No | As a block class's request |
-| Action | A request that the class wraps in `action()`, such as an upload | The block's UI, through its host | No, it runs once per call | Yes | Only for a block left open |
+| Volatile request | A request that the class makes with `new_request(volatile = TRUE)` | The block's UI, through its host | No | No | As a block class's request |
+| Action | A request that the class makes with `new_request(action = TRUE)`, such as an upload | The block's UI, through its host | No, it runs once per call | Yes | Only for a block left open |
 | Board option's request | The board option, as the package that ships it registers it | The board option's UI or renderer, through its `OptionHost` | No | Yes | Only where the board option declares that it may run there |
 | Extension's request | The extension, as its package registers it | The extension, through `CoreApi` | No | Yes | Only where the extension declares that it may run there |
 
