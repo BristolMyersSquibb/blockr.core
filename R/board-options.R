@@ -11,7 +11,7 @@
 #'
 #' @examples
 #' opt <- new_board_options(
-#'    new_board_name_option(),
+#'    new_dark_mode_option(),
 #'    new_n_rows_option()
 #'  )
 #'
@@ -43,7 +43,6 @@ new_board_options <- function(...) {
 #' @export
 default_board_options <- function(...) {
   new_board_options(
-    new_board_name_option(...),
     new_show_conditions_option(...),
     new_dark_mode_option(...)
   )

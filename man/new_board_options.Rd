@@ -16,7 +16,6 @@
 \alias{board_option_value}
 \alias{board_option_ctor}
 \alias{validate_board_option.default}
-\alias{new_board_name_option}
 \alias{new_n_rows_option}
 \alias{new_dark_mode_option}
 \alias{new_show_conditions_option}
@@ -68,13 +67,6 @@ board_option_value(x, value = board_option_default(x))
 board_option_ctor(x)
 
 \method{validate_board_option}{default}(x)
-
-new_board_name_option(
-  value = NULL,
-  category = "Board options",
-  label = "Board name",
-  ...
-)
 
 new_n_rows_option(
   value = blockr_option("n_rows", 50L),
@@ -157,7 +149,7 @@ is available as S3 generic. Inheritance checking is available as
 }
 \examples{
 opt <- new_board_options(
-   new_board_name_option(),
+   new_dark_mode_option(),
    new_n_rows_option()
  )
 

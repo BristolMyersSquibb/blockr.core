@@ -38,7 +38,7 @@ blockr_ser(x, ...)
 
 \method{blockr_ser}{board_option}(x, option = NULL, ...)
 
-\method{blockr_ser}{board}(x, board_id = NULL, ...)
+\method{blockr_ser}{board}(x, ...)
 
 \method{blockr_ser}{link}(x, ...)
 
@@ -87,8 +87,6 @@ scope, so \code{blocks} may cover only a subset of blocks.}
 
 \item{option}{Board option value (\code{NULL} uses values provided by \code{x})}
 
-\item{board_id}{Board ID}
-
 \item{on_error}{How to handle a block that cannot be deserialized -- its
 constructor (or the package providing it) is unavailable, its payload cannot
 be reconstructed, or the re-created object is not a block. \code{"abort"} (the
@@ -134,6 +132,10 @@ block. Classes in front of it may differ from the ones written, so a package
 can rename or drop classes of its blocks without breaking saved boards. An
 object re-created as another kind raises an error of class
 \code{block_deser_class_error}.
+
+A board is written with its ID and name next to its payload, either of which
+is \code{NULL} where it has none. For a board written by blockr.core 0.1.4,
+\code{blockr_deser()} reads the name off its \code{board_name} board option instead.
 }
 \examples{
 blk <- new_dataset_block("iris")

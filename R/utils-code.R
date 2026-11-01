@@ -23,13 +23,26 @@
 #' @export
 export_code <- function(x) {
 
-  ids <- names(x)
-  named <- !length(x) ||
-    (not_null(ids) && all(nzchar(ids)) && !anyDuplicated(ids))
-
-  if (!is.list(x) || !named) {
+  if (!is.list(x)) {
     blockr_abort(
-      "Block expressions are expected as a list named by unique block ids.",
+      "Block expressions are expected as a list named by block id.",
+      class = "export_code_ids_invalid"
+    )
+  }
+
+  ids <- coal(names(x), character(length(x)), fail_all = FALSE)
+
+  if (!all(nzchar(ids))) {
+    blockr_abort(
+      "Exporting code requires every block to have an ID.",
+      class = "export_code_block_id_missing"
+    )
+  }
+
+  if (anyDuplicated(ids)) {
+    blockr_abort(
+      "Block IDs are expected to be unique, but repeat ",
+      "{unique(ids[duplicated(ids)])}.",
       class = "export_code_ids_invalid"
     )
   }

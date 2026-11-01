@@ -10,6 +10,8 @@
 \alias{board_options}
 \alias{board_option_ids}
 \alias{available_stack_blocks}
+\alias{board_id}
+\alias{board_name}
 \title{Board utils}
 \usage{
 board_blocks(x)
@@ -33,6 +35,10 @@ available_stack_blocks(
   stacks = board_stacks(x),
   blocks = board_stack_ids(x)
 )
+
+board_id(x)
+
+board_name(x)
 }
 \arguments{
 \item{x}{Board}
@@ -45,7 +51,8 @@ Functions for retrieving components (\code{board_blocks()},
 the corresponding classes \code{blocks}, \code{links}, \code{stacks} and \code{board_options},
 while ID getters (\code{board_block_ids()}, \code{board_link_ids()},
 \code{board_stack_ids()} and \code{board_option_ids()}) return character vectors, as
-does \code{available_stack_blocks()}.
+does \code{available_stack_blocks()}, and \code{board_id()} and \code{board_name()} return
+a string, or \code{NULL} where the board has none.
 }
 \description{
 A set of utility functions is available for querying board components,
@@ -82,6 +89,13 @@ IDs are of interest, this is available as \code{board_option_ids()}, which calls
 \code{\link[=board_option_id]{board_option_id()}} on each board option.
 }
 
+\section{ID and name}{
+
+The board's ID, which identifies it, is available as \code{board_id()}, and its
+name, which the user calls it by, as \code{board_name()}. Where the script left
+either out, it is \code{NULL} until the client fills it in.
+}
+
 \examples{
 brd <- new_board(
   c(
@@ -101,5 +115,8 @@ board_stacks(brd)
 board_stack_ids(brd)
 
 board_options(brd)
+
+board_id(brd)
+board_name(brd)
 
 }

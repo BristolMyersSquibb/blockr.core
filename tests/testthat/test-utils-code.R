@@ -30,7 +30,10 @@ test_that("code export assigns each block expression to its block id", {
     merge(datasets::BOD, datasets::ChickWeight, by = "Time")
   )
 
-  expect_error(export_code(list(quote(a))), class = "export_code_ids_invalid")
+  expect_error(
+    export_code(list(a = quote(f()), quote(a))),
+    class = "export_code_block_id_missing"
+  )
   expect_error(
     export_code(list(a = quote(a), a = quote(b))),
     class = "export_code_ids_invalid"

@@ -6,15 +6,7 @@ blocks <- function(...) {
 
   args <- lapply(args, as_block)
 
-  if (is.null(names(args))) {
-    names(args) <- rand_names(n = length(args))
-  }
-
-  miss <- is.na(names(args)) | names(args) == ""
-
-  if (any(miss)) {
-    names(args)[miss] <- rand_names(names(args)[!miss], sum(miss))
-  }
+  names(args) <- ids_or_empty(names(args), length(args))
 
   validate_blocks(
     new_vctr(args, class = "blocks")
@@ -60,9 +52,16 @@ as.list.blocks <- function(x, ...) {
 
 #' @export
 format.blocks <- function(x, ...) {
+  format_collection(x)
+}
 
-  out <- lapply(x, format)
-  out <- Map(c, names(x), lapply(out, function(x) paste0(" ", x)))
+format_collection <- function(x) {
+
+  out <- Map(
+    function(id, lines) c(id[nzchar(id)], paste0(" ", lines)),
+    ids_or_empty(names(x), length(x)),
+    lapply(x, format)
+  )
   out <- lapply(out, c, "")
   out <- unlst(out)
 
@@ -133,14 +132,10 @@ validate_blocks <- function(x) {
     )
   }
 
-  ids <- names(x)
+  ids <- ids_or_empty(names(x), length(x))
+  ids <- ids[nzchar(ids)]
 
-  if (length(ids) != length(x) || any(is.na(ids) | !nchar(ids))) {
-    blockr_abort(
-      "Block IDs are required to be nonempty strings.",
-      class = "blocks_names_invalid"
-    )
-  }
+  validate_ids(ids, "Block", "blocks_names_invalid")
 
   if (anyDuplicated(ids) != 0) {
     blockr_abort(

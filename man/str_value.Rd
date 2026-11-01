@@ -31,8 +31,9 @@ display \code{str_value()}.
 A scalar object (a \code{block}, \code{stack}, \code{link} or \code{board_option}) renders as
 a single line; a container (\code{blocks}, \code{stacks}, \code{links}, \code{board_options})
 and a whole \code{board} render as one element per line below a \verb{<class[n]>}
-header. The \code{block} method lists a block's state args, and the \code{stack}
-method shows the stack name and its member block ids.
+header. The \code{block} method lists a block's state args, the \code{stack}
+method shows the stack name and its member block ids, and the \code{board}
+method shows the board name in its header.
 
 This is the blockr extension point for token-dense renderings such as a
 board summary. A home package surfaces a subclass's state by defining a

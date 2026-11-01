@@ -1,8 +1,10 @@
 #' Similar to [`blocks`](new_block()) and [`links`][new_link()], multiple
-#' stacks can be handled using `stacks` container objects. These hand out
-#' (and guarantee) unique IDs (implemented as [base::names()]) and ensure
-#' further consistency criteria, such as disallowing membership in multiple
-#' stacks at the same time for a given block.
+#' stacks can be handled using `stacks` container objects. These guarantee
+#' that the IDs given (implemented as [base::names()]) are unique and, as every
+#' ID, strings that are neither empty nor made of digits alone, while a stack
+#' passed without a name has no ID, which the client mints when it opens the
+#' board. They ensure further consistency criteria, such as disallowing
+#' membership in multiple stacks at the same time for a given block.
 #'
 #' Stack container objects (`stacks` objects) can be created with `stacks()`
 #' or `as_stacks()` and inheritance can be tested via `is_stacks()`. Further
@@ -17,15 +19,7 @@ stacks <- function(...) {
 
   args <- lapply(args, as_stack)
 
-  if (is.null(names(args))) {
-    names(args) <- rand_names(n = length(args))
-  }
-
-  miss <- is.na(names(args)) | names(args) == ""
-
-  if (any(miss)) {
-    names(args)[miss] <- rand_names(names(args)[!miss], sum(miss))
-  }
+  names(args) <- ids_or_empty(names(args), length(args))
 
   validate_stacks(
     new_vctr(args, class = "stacks")
@@ -61,14 +55,10 @@ validate_stacks <- function(x) {
     )
   }
 
-  ids <- names(x)
+  ids <- ids_or_empty(names(x), length(x))
+  ids <- ids[nzchar(ids)]
 
-  if (length(ids) != length(x) || any(is.na(ids) | !nchar(ids))) {
-    blockr_abort(
-      "Stack IDs are required to be nonempty strings.",
-      class = "stacks_names_invalid"
-    )
-  }
+  validate_ids(ids, "Stack", "stacks_names_invalid")
 
   if (anyDuplicated(ids) != 0) {
     blockr_abort(
@@ -104,17 +94,7 @@ stack_blocks_unique <- function(x) {
 
 #' @export
 format.stacks <- function(x, ...) {
-
-  out <- lapply(x, format)
-  out <- Map(c, names(x), lapply(out, function(x) paste0(" ", x)))
-  out <- lapply(out, c, "")
-  out <- unlst(out)
-
-  c(
-    paste0("<", class(x)[1L], "[", length(x), "]>"),
-    if (length(x)) "",
-    out[-length(out)]
-  )
+  format_collection(x)
 }
 
 #' @export

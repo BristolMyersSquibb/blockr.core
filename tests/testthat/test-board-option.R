@@ -53,8 +53,7 @@ test_that("a board option's label defaults to its ID in sentence case", {
 test_that("core board options take a label", {
 
   ctors <- c(
-    "new_board_name_option", "new_n_rows_option", "new_dark_mode_option",
-    "new_show_conditions_option"
+    "new_n_rows_option", "new_dark_mode_option", "new_show_conditions_option"
   )
 
   for (ctor in ctors) {
@@ -63,16 +62,6 @@ test_that("core board options take a label", {
 
     expect_identical(board_option_label(opt), "My label", info = ctor)
   }
-})
-
-test_that("board name opt", {
-
-  expect_true(is_board_option(new_board_name_option()))
-
-  expect_error(
-    new_board_name_option(1L),
-    class = "board_name_option_invalid"
-  )
 })
 
 test_that("board n_rows opt", {
@@ -109,10 +98,10 @@ test_that("board show_conditions opt", {
 
 test_that("a board option has a compact str_value()", {
 
-  opt <- new_board_name_option("My board")
+  opt <- new_n_rows_option(10L)
 
-  expect_identical(str_value(opt), "board_name: My board")
+  expect_identical(str_value(opt), "n_rows: 10")
   expect_identical(str_value(opt), format(opt))
 
-  expect_identical(capture.output(str(opt)), " board_name: My board")
+  expect_identical(capture.output(str(opt)), " n_rows: 10")
 })

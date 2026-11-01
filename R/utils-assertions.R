@@ -91,3 +91,32 @@ filter_all_zero_len <- function(x) {
 }
 
 filter_empty <- function(x) Filter(Negate(is_empty), x)
+
+# R mints no IDs: an object that a script leaves without one gets it from the
+# client, and until then its name in a collection is empty.
+ids_or_empty <- function(ids, n) {
+  ids <- coal(ids, character(n))
+  ids[is.na(ids)] <- ""
+  ids
+}
+
+# The IDs of a board, its blocks, links and stacks may be neither empty nor made
+# of digits alone, since a JS object puts keys that look like integers first,
+# whatever the order they were inserted in.
+validate_ids <- function(ids, what, class) {
+
+  bad <- is.na(ids) | !nzchar(ids) | grepl("^[0-9]+$", ids)
+
+  if (any(bad)) {
+
+    ids <- encodeString(ids[bad], quote = "\"")
+
+    blockr_abort(
+      "{what} IDs are required to be strings that are neither empty nor ",
+      "made of digits alone, which does not hold for {ids}.",
+      class = class
+    )
+  }
+
+  invisible()
+}

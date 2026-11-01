@@ -12,13 +12,25 @@
   methods of `serve()` and the test helpers on a mock Shiny session. The
   constructors and accessors of board objects, `new_block()`, `block_eval()`,
   the block registry, serialization and `export_code()` stay (#418).
+* Boards have an ID and a name, which `new_board()` takes as `id` and `name`
+  and `board_id()` and `board_name()` read. The ID takes the place of the one
+  `serve()` took until now, and the name that of the `board_name` board
+  option, which is gone with `new_board_name_option()`. R no longer mints IDs:
+  a board, block, link or stack that a script leaves without one has none,
+  where `rand_names()` used to draw it, and the client mints it when it opens
+  the board, as it names a board without a name after its ID. An ID that is
+  given, a board's, a block's, a link's or a stack's, is a string that is
+  neither empty nor made of digits alone, and the constructors refuse any
+  other, naming it. For a board saved by blockr.core 0.1.4, `blockr_deser()`
+  reads the name off its `board_name` board option and the ID off the `id`
+  saved next to it (#427).
 * A block class is a value made by `new_block_class()`, holding what every
   block of the class shares: its data inputs, the `expr` from whose result
   interpolation makes the block expression, the UI module `js_module()` names,
   its requests, which name the board options they read, and the coercion of
-  its output. The
-  constructor that app scripts call is made from it by `block_constructor()`
-  and keeps as a block's state what the checks in `expr` leave. The
+  its output. The constructor that app scripts call is made from it by
+  `block_constructor()` and keeps as a block's state what the checks in `expr`
+  leave. The
   `interpolate()` generic turns what `expr` returns into the block expression,
   `bbquote()` returns a `bquoted_expr`, whose placeholders it fills in with the
   upstream ids, and `evaluate_block()` evaluates a block from its class, state

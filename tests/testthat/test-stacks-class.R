@@ -31,13 +31,6 @@ test_that("stacks class", {
 
   expect_error(
     validate_stacks(
-      structure(list(x), class = c("stacks", "vctrs_vctr", "list"))
-    ),
-    class = "stacks_names_invalid"
-  )
-
-  expect_error(
-    validate_stacks(
       structure(list(a = x, a = y), class = c("stacks", "vctrs_vctr", "list"))
     ),
     class = "stacks_names_invalid"
@@ -76,6 +69,26 @@ test_that("stacks class", {
   expect_true(is_stacks(as_stacks(stkss)))
   expect_length(as_stacks(stkss), 4)
   expect_named(stkss, c("a", "b", "c", "d"))
+})
+
+test_that("a stack may lack an ID, but one given is not made of digits", {
+
+  x <- new_stack(letters[1:2], "stack a")
+
+  expect_named(stacks(x, b = new_stack("c")), c("", "b"))
+
+  expect_s3_class(
+    validate_stacks(
+      structure(list(x), class = c("stacks", "vctrs_vctr", "list"))
+    ),
+    "stacks"
+  )
+
+  expect_error(
+    stacks(a = x, `2` = new_stack("c")),
+    "\"2\"",
+    class = "stacks_names_invalid"
+  )
 })
 
 test_that("a stacks container has a compact str_value()", {

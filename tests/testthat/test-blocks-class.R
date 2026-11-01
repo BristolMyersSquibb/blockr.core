@@ -54,20 +54,38 @@ test_that("blocks utils", {
   expect_error(
     validate_blocks(
       structure(
-        list(a),
+        list(a = a, a = b),
         class = c("blocks", "vctrs_vctr", "list")
       )
     ),
     class = "blocks_names_invalid"
   )
+})
+
+test_that("a block may lack an ID, but one given is not made of digits", {
+
+  a <- new_dataset_block()
+
+  expect_named(blocks(a, new_subset_block()), c("", ""))
+  expect_named(c(a = a, new_subset_block()), c("a", ""))
+  expect_named(blocks(a1 = a, `1a` = new_subset_block()), c("a1", "1a"))
+
+  expect_s3_class(
+    validate_blocks(
+      structure(list(a), class = c("blocks", "vctrs_vctr", "list"))
+    ),
+    "blocks"
+  )
 
   expect_error(
-    validate_blocks(
-      structure(
-        list(a = a, a = b),
-        class = c("blocks", "vctrs_vctr", "list")
-      )
-    ),
+    c(a = a, `1` = new_subset_block()),
+    "\"1\"",
+    class = "blocks_names_invalid"
+  )
+
+  expect_error(
+    blocks(`01` = a),
+    "\"01\"",
     class = "blocks_names_invalid"
   )
 })

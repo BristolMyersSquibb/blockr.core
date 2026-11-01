@@ -99,6 +99,25 @@ test_that("links class", {
   )
 })
 
+test_that("a link may lack an ID, but one given is not made of digits", {
+
+  expect_identical(
+    names(links(new_link("a", "b"), bc = new_link("b", "c"))),
+    c("", "bc")
+  )
+
+  expect_identical(
+    names(links(from = c("a", "b"), to = c("c", "c"))),
+    c("", "")
+  )
+
+  expect_error(
+    links(ab = new_link("a", "b"), `3` = new_link("b", "c")),
+    "\"3\"",
+    class = "links_names_invalid"
+  )
+})
+
 test_that("a links container has a compact str_value()", {
 
   lks <- as_links(

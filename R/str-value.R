@@ -10,8 +10,9 @@
 #' A scalar object (a `block`, `stack`, `link` or `board_option`) renders as
 #' a single line; a container (`blocks`, `stacks`, `links`, `board_options`)
 #' and a whole `board` render as one element per line below a `<class[n]>`
-#' header. The `block` method lists a block's state args, and the `stack`
-#' method shows the stack name and its member block ids.
+#' header. The `block` method lists a block's state args, the `stack`
+#' method shows the stack name and its member block ids, and the `board`
+#' method shows the board name in its header.
 #'
 #' This is the blockr extension point for token-dense renderings such as a
 #' board summary. A home package surfaces a subclass's state by defining a
@@ -53,11 +54,15 @@ cat_str_value <- function(object, ...) {
 str_value_collection <- function(x, vals, ids = names(x)) {
 
   items <- if (length(x)) {
-    if (is.null(ids)) paste0("  ", vals) else paste0("  ", ids, ": ", vals)
+    if (is.null(ids)) paste0("  ", vals) else paste0("  ", id_prefix(ids), vals)
   }
 
   paste(
     c(paste0("<", class(x)[1L], "[", length(x), "]>"), items),
     collapse = "\n"
   )
+}
+
+id_prefix <- function(ids) {
+  ifelse(nzchar(ids), paste0(ids, ": "), "")
 }
