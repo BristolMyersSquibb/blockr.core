@@ -1,0 +1,160 @@
+{
+  "description": "Opening a saved board in place of the board on the page, which the client does itself. It sends R only the packages the board names, as its saved file lists them, and R loads the ones it has not, here blockr.io, which registers its write block, forgets every block, and replies with what the client needs to draw the blocks of every package it has loaded: their versions, the block registry, blockr.io's startup module and the rest. The client then drops what no registered class or package covers, runs the migrations of the packages whose version the file records differs from the one R loaded, and replaces its board.",
+  "client": [
+    { "id": "2", "kind": "open", "packages": ["blockr.core", "blockr.io"] }
+  ],
+  "r": [
+    [
+      {
+        "id": "2",
+        "status": "ok",
+        "packages": { "blockr.core": "0.2.0", "blockr.io": "0.2.0" },
+        "block_registry": {
+          "blockr.core-dataset_block": {
+            "id": "blockr.core-dataset_block",
+            "name": "dataset block",
+            "description": "Choose a dataset from a package",
+            "keywords": ["dataset", "data", "import", "package", "source"],
+            "category": "input",
+            "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-database\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
+            "inputs": [],
+            "module": "blockr.core/dataset-block.js?v=5e0c8b1d",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "dataset": { "type": "string" },
+                "package": { "type": "string" }
+              },
+              "required": ["package"],
+              "additionalProperties": false
+            },
+            "state": { "package": "datasets" },
+            "arguments": {
+              "dataset": {
+                "description": "Selects the dataset to use.",
+                "example": "iris",
+                "type": { "type": "string" }
+              },
+              "package": {
+                "description": "R package to source the dataset from.",
+                "example": "datasets",
+                "type": { "type": "string" }
+              }
+            },
+            "requests": {
+              "datasets": {
+                "inputs": [],
+                "state_args": ["package"],
+                "options": [],
+                "volatile": true
+              }
+            }
+          },
+          "blockr.core-head_block": {
+            "id": "blockr.core-head_block",
+            "name": "head/tail block",
+            "description": "Data head/tail",
+            "details": "Row-subsetting the first or last `n` rows of a `data.frame` (as provided by [utils::head()] and [utils::tail()]) is implemented as `head_block`.",
+            "url": "https://bristolmyerssquibb.github.io/blockr.core/reference/new_transform_block.html",
+            "guidance": "Keeps the first or last `n` rows of the input with `utils::head()` / `utils::tail()`. `direction` chooses the end: \"head\" for the first rows, \"tail\" for the last.",
+            "keywords": ["head", "tail", "first", "last", "rows", "limit"],
+            "category": "transform",
+            "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-eye\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
+            "inputs": ["data"],
+            "module": "blockr.core/head-block.js?v=9a41f2c7",
+            "css": "blockr.core/head-block.css?v=c03e7b58",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "n": { "type": "integer", "minimum": 0 },
+                "direction": { "enum": ["head", "tail"] }
+              },
+              "required": ["n", "direction"],
+              "additionalProperties": false
+            },
+            "state": { "n": 6, "direction": "head" },
+            "arguments": {
+              "n": {
+                "description": "Number of rows to keep.",
+                "example": 10,
+                "type": { "type": "integer" }
+              },
+              "direction": {
+                "description": "Row end to keep, either head (first) or tail (last).",
+                "example": "tail",
+                "type": { "type": "string", "enum": ["head", "tail"] }
+              }
+            },
+            "requests": {
+              "n_max": { "inputs": ["data"], "state_args": [], "options": [] }
+            }
+          },
+          "blockr.io-write_block": {
+            "id": "blockr.io-write_block",
+            "name": "write block",
+            "description": "Write data to a file",
+            "keywords": ["write", "export", "save", "file"],
+            "category": "output",
+            "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-floppy\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
+            "inputs": ["..."],
+            "module": "blockr.io/write-block.js?v=4c2e8a17",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "directory": { "type": "string" },
+                "filename": { "type": "string" },
+                "format": { "enum": ["csv", "xlsx", "parquet"] },
+                "auto_write": { "type": "boolean" },
+                "args": { "type": "object" }
+              },
+              "additionalProperties": false
+            },
+            "state": {
+              "directory": "",
+              "filename": "",
+              "format": "csv",
+              "auto_write": false,
+              "args": {}
+            },
+            "arguments": {},
+            "requests": {}
+          }
+        },
+        "front_ends": {
+          "blockr.core-basic": {
+            "module": "blockr.core/basic.js?v=0f3d8e21",
+            "css": "blockr.core/basic.css?v=6a9b2c4e"
+          }
+        },
+        "startup_modules": [
+          {
+            "package": "blockr.io",
+            "module": "blockr.io/startup.js?v=9d1b3e66"
+          }
+        ],
+        "modules": {},
+        "renderers": {
+          "blockr.core-basic_table": {
+            "module": "blockr.core/basic-table.js?v=b7e2a915",
+            "class": "table_output"
+          },
+          "blockr.core-basic_text": {
+            "module": "blockr.core/basic-text.js?v=3c8f61d0",
+            "class": "text_output"
+          },
+          "blockr.core-basic_plot": {
+            "module": "blockr.core/basic-plot.js?v=f19d4a73",
+            "class": "plot_output"
+          }
+        },
+        "blockr_options": {
+          "blockr.core": {
+            "gate_visibility": true,
+            "evaluation_queue": 2,
+            "background_evaluation_delay": null
+          }
+        }
+      }
+    ]
+  ]
+}

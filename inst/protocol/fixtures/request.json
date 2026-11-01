@@ -1,0 +1,15 @@
+{
+  "description": "A request of the head block's class, n_max, which the UI of b sends for the maximum of its numeric input. It reads the result of a, which feeds the input data, and R answers as it writes every answer, with every vector as an array.",
+  "client": [
+    {
+      "id": "23",
+      "kind": "request",
+      "registry_id": "blockr.core-head_block",
+      "block": "b",
+      "name": "n_max",
+      "args": {},
+      "reads": [{ "input": "data", "block": "a", "revision": 2 }]
+    }
+  ],
+  "r": [[{ "id": "23", "status": "ok", "value": [150] }]]
+}

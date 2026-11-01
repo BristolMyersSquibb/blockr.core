@@ -1,0 +1,5 @@
+{
+  "description": "A cancel of the evaluation of c with id 17, after its revision moved. Where both sides named the capability cancel, R drops it if it has not started and replies cancelled to it, while one that started replies as it would have, which the client drops.",
+  "client": [{ "kind": "cancel", "request": "17" }],
+  "r": [[{ "id": "17", "status": "cancelled" }]]
+}

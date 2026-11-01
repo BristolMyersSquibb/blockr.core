@@ -1,0 +1,38 @@
+{
+  "description": "An evaluation of the subset block d after the user mistyped a column, so that its block expression fails as it runs. The status is error, and the block reads failed.",
+  "client": [
+    {
+      "id": "20",
+      "kind": "evaluate",
+      "block": "d",
+      "revision": 8,
+      "recipe": {
+        "registry_id": "blockr.core-subset_block",
+        "state": { "subset": "Sepal.Widht > 4", "select": "" },
+        "inputs": [{ "input": "data", "block": "a", "revision": 2 }]
+      }
+    }
+  ],
+  "r": [
+    [
+      {
+        "id": "20",
+        "status": "error",
+        "block": "d",
+        "revision": 8,
+        "summary": null,
+        "conditions": [
+          {
+            "severity": "error",
+            "class": ["simpleError", "error", "condition"],
+            "phase": "block_eval",
+            "message": "object 'Sepal.Widht' not found"
+          }
+        ],
+        "omitted": { "warning": 0, "message": 0 },
+        "stdout": "",
+        "stderr": ""
+      }
+    ]
+  ]
+}
