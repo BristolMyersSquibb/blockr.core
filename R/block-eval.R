@@ -55,79 +55,79 @@
 #'   ui = js_module("head-block.js")
 #' )
 #'
-#' res <- evaluate_block(head_block, list(n = 3L), list(data = "a"),
-#'                       list(a = datasets::iris))
-#'
-#' res$status
-#' res$expr
-#' res$summary
+#' evaluate_block(head_block, list(n = 3L), list(data = "a"),
+#'                list(a = datasets::iris))
 #'
 #' evaluate_block(head_block, list(n = 3L, m = 2L), list(data = "a"),
-#'                list(a = datasets::iris))$status
+#'                list(a = datasets::iris))
 #'
 #' block_summary(datasets::mtcars)
 #'
-#' @return The evaluation `evaluate_block()` returns a list holding its
-#' `status`, `"ok"`, `"invalid"` or `"error"`, the block expression as `expr`,
-#' the `result`, its `summary` and the `conditions` raised, where what was not
-#' reached is `NULL`. The result is what `block_eval()` returns, while
-#' `block_summary()` returns a string, `block_migrate()` a state and
-#' `eval_env()` an environment.
+#' @return The evaluation `evaluate_block()` returns an object of class
+#' `block_evaluation`, a list holding its `status`, `"ok"`, `"invalid"` or
+#' `"error"`, the block expression as `expr`, the `result`, its `summary` and
+#' the `conditions` raised, where what was not reached is `NULL`. The result
+#' is what `block_eval()` returns, while `block_summary()` returns a string,
+#' `block_migrate()` a state and `eval_env()` an environment.
 #'
 #' @export
 evaluate_block <- function(x, state = list(), inputs = list(),
                            results = list(), ...) {
 
   cls <- as_block_class(x)
-  run <- new_evaluation()
-
   data <- input_results(class_inputs(cls), inputs, results)
 
-  if (is.function(cls[["inputs"]])) {
+  checks <- run_phase(
+    "inputs",
+    if (is.function(cls[["inputs"]])) do.call(cls[["inputs"]], data)
+  )
 
-    res <- run_phase(run, "inputs", do.call(cls[["inputs"]], data))
-
-    if (inherits(res, "phase_failure")) {
-      return(evaluation(run, "error"))
-    }
+  if (phase_failed(checks)) {
+    return(new_block_evaluation("error", conditions = checks[["conditions"]]))
   }
 
-  res <- run_phase(
-    run,
+  built <- run_phase(
     "expr",
     interpolate(do.call(cls[["expr"]], state, quote = TRUE), inputs)
   )
 
-  if (inherits(res, "phase_failure")) {
-    return(evaluation(run, failure_status(res)))
+  conditions <- c(checks[["conditions"]], built[["conditions"]])
+
+  if (phase_failed(built)) {
+    return(new_block_evaluation(phase_status(built), conditions = conditions))
   }
 
-  run[["expr"]] <- res
-
-  res <- run_phase(
-    run,
+  ran <- run_phase(
     "block_eval",
     block_eval(
       structure(state, class = cls[["class"]]),
-      run[["expr"]],
+      built[["value"]],
       eval_env(results[unique(unlst(inputs, recursive = TRUE))]),
       ...
     )
   )
 
-  if (inherits(res, "phase_failure")) {
-    return(evaluation(run, failure_status(res)))
+  conditions <- c(conditions, ran[["conditions"]])
+
+  if (phase_failed(ran)) {
+    return(
+      new_block_evaluation(
+        phase_status(ran),
+        expr = built[["value"]],
+        conditions = conditions
+      )
+    )
   }
 
-  run[["result"]] <- res
+  summary <- run_phase("block_summary", block_summary(ran[["value"]]))
 
-  res <- run_phase(run, "block_summary", block_summary(run[["result"]]))
-
-  if (!inherits(res, "phase_failure")) {
-    run[["summary"]] <- res
-  }
-
-  evaluation(run, "ok")
+  new_block_evaluation(
+    "ok",
+    expr = built[["value"]],
+    result = ran[["value"]],
+    summary = summary[["value"]],
+    conditions = c(conditions, summary[["conditions"]])
+  )
 }
 
 as_block_class <- function(x) {
@@ -178,24 +178,72 @@ input_results <- function(names, inputs, results) {
   res
 }
 
-new_evaluation <- function() {
+new_block_evaluation <- function(status, expr = NULL, result = NULL,
+                                 summary = NULL, conditions = list()) {
 
-  res <- new.env(parent = emptyenv())
-  res[["conditions"]] <- list()
+  stopifnot(
+    is_string(status), status %in% c("ok", "invalid", "error"),
+    is.null(expr) || is.language(expr),
+    is.null(summary) || is_string(summary),
+    is.list(conditions)
+  )
 
-  res
+  structure(
+    list(
+      status = status,
+      expr = expr,
+      result = result,
+      summary = summary,
+      conditions = conditions
+    ),
+    class = "block_evaluation"
+  )
 }
 
-run_phase <- function(run, phase, expr) {
+#' @export
+format.block_evaluation <- function(x, ...) {
+
+  cnds <- x[["conditions"]]
+
+  c(
+    paste0("<block_evaluation> ", x[["status"]]),
+    if (not_null(x[["expr"]])) {
+      paste0("Block expression: ", deparse1(x[["expr"]]))
+    },
+    if (not_null(x[["summary"]])) {
+      paste0("Summary: ", x[["summary"]])
+    },
+    if (length(cnds)) {
+      c(
+        "Conditions:",
+        paste0(
+          "  ", chr_xtr(cnds, "severity"), " in ", chr_xtr(cnds, "phase"),
+          ": ", chr_xtr(cnds, "message")
+        )
+      )
+    }
+  )
+}
+
+#' @export
+print.block_evaluation <- function(x, ...) {
+  cat(format(x, ...), sep = "\n")
+  invisible(x)
+}
+
+run_phase <- function(phase, expr) {
+
+  log <- new.env(parent = emptyenv())
+  log[["conditions"]] <- list()
 
   record <- function(cnd) {
-    run[["conditions"]] <- c(
-      run[["conditions"]],
+    log[["conditions"]] <- c(
+      log[["conditions"]],
       list(condition_record(cnd, phase))
     )
   }
 
-  try_catch_continue(
+  value <- try_catch_continue(
     expr,
     message = function(m) {
       record(m)
@@ -207,9 +255,33 @@ run_phase <- function(run, phase, expr) {
     },
     error = function(e) {
       record(e)
-      structure(list(phase = phase, condition = e), class = "phase_failure")
+      log[["error"]] <- e
+      NULL
     }
   )
+
+  list(
+    phase = phase,
+    value = value,
+    conditions = log[["conditions"]],
+    error = log[["error"]]
+  )
+}
+
+phase_failed <- function(x) {
+  not_null(x[["error"]])
+}
+
+phase_status <- function(x) {
+
+  cnd <- x[["error"]]
+
+  if (inherits(cnd, "invalid") ||
+        (identical(x[["phase"]], "expr") && is_missing_arg_error(cnd))) {
+    return("invalid")
+  }
+
+  "error"
 }
 
 condition_record <- function(cnd, phase) {
@@ -227,28 +299,6 @@ condition_record <- function(cnd, phase) {
     class = class(cnd),
     phase = phase,
     message = sub("\n$", "", conditionMessage(cnd))
-  )
-}
-
-failure_status <- function(failure) {
-
-  cnd <- failure[["condition"]]
-
-  if (inherits(cnd, "invalid") ||
-        (identical(failure[["phase"]], "expr") && is_missing_arg_error(cnd))) {
-    return("invalid")
-  }
-
-  "error"
-}
-
-evaluation <- function(run, status) {
-  list(
-    status = status,
-    expr = run[["expr"]],
-    result = run[["result"]],
-    summary = run[["summary"]],
-    conditions = run[["conditions"]]
   )
 }
 

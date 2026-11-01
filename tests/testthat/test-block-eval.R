@@ -218,6 +218,23 @@ test_that("core's block_eval() method keeps what an expression draws", {
   expect_null(attr(res$result, "rerun"))
 })
 
+test_that("an evaluation is a classed object that prints", {
+
+  res <- evaluate_block(head_class, list(n = 2L), list(data = "a"),
+                        list(a = datasets::iris))
+
+  expect_s3_class(res, "block_evaluation")
+  expect_snapshot(print(res))
+
+  res <- evaluate_block(merge_class, list(), list(x = "a", y = "b"),
+                        list(a = datasets::BOD, b = datasets::BOD))
+
+  expect_snapshot(print(res))
+
+  expect_error(new_block_evaluation("done"))
+  expect_error(new_block_evaluation("ok", expr = 1))
+})
+
 test_that("block_summary() gives a result's class and dimensions", {
 
   expect_identical(

@@ -53,12 +53,12 @@ one-time evaluation}
 \item{version}{The version of the class's package that saved the state}
 }
 \value{
-The evaluation \code{evaluate_block()} returns a list holding its
-\code{status}, \code{"ok"}, \code{"invalid"} or \code{"error"}, the block expression as \code{expr},
-the \code{result}, its \code{summary} and the \code{conditions} raised, where what was not
-reached is \code{NULL}. The result is what \code{block_eval()} returns, while
-\code{block_summary()} returns a string, \code{block_migrate()} a state and
-\code{eval_env()} an environment.
+The evaluation \code{evaluate_block()} returns an object of class
+\code{block_evaluation}, a list holding its \code{status}, \code{"ok"}, \code{"invalid"} or
+\code{"error"}, the block expression as \code{expr}, the \code{result}, its \code{summary} and
+the \code{conditions} raised, where what was not reached is \code{NULL}. The result
+is what \code{block_eval()} returns, while \code{block_summary()} returns a string,
+\code{block_migrate()} a state and \code{eval_env()} an environment.
 }
 \description{
 A block is evaluated from its class, its state and the results of the
@@ -105,15 +105,11 @@ head_block <- new_block_class(
   ui = js_module("head-block.js")
 )
 
-res <- evaluate_block(head_block, list(n = 3L), list(data = "a"),
-                      list(a = datasets::iris))
-
-res$status
-res$expr
-res$summary
+evaluate_block(head_block, list(n = 3L), list(data = "a"),
+               list(a = datasets::iris))
 
 evaluate_block(head_block, list(n = 3L, m = 2L), list(data = "a"),
-               list(a = datasets::iris))$status
+               list(a = datasets::iris))
 
 block_summary(datasets::mtcars)
 
