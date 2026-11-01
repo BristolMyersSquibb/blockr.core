@@ -1,0 +1,21 @@
+{
+  "description": "A request of a board option, as blockr.io's data directory lists the server's directories, which R resolves by the board option's id.",
+  "client": [
+    {
+      "id": "26",
+      "kind": "request",
+      "option": "data_dir",
+      "name": "list_dir",
+      "args": { "path": "~" }
+    }
+  ],
+  "r": [
+    [
+      {
+        "id": "26",
+        "status": "ok",
+        "value": { "path": ["/home/analyst"], "dirs": ["data", "projects"] }
+      }
+    ]
+  ]
+}

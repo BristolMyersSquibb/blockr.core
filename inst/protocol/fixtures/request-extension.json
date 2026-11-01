@@ -1,0 +1,25 @@
+{
+  "description": "A request of an extension, as blockr.code's code export asks for the script of a and b, which R resolves by the extension's id and runs with the results it reads and the block expression R built for each.",
+  "client": [
+    {
+      "id": "27",
+      "kind": "request",
+      "extension": "blockr.code-code",
+      "name": "script",
+      "args": {},
+      "reads": [
+        { "block": "a", "revision": 2 },
+        { "block": "b", "revision": 3 }
+      ]
+    }
+  ],
+  "r": [
+    [
+      {
+        "id": "27",
+        "status": "ok",
+        "value": ["a <- datasets::iris", "b <- utils::head(a, n = 6L)"]
+      }
+    ]
+  ]
+}

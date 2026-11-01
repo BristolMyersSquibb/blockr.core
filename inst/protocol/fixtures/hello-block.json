@@ -1,0 +1,100 @@
+{
+  "description": "The handshake of an app that serves a block alone, as serve(new_head_block(), data = list(data = iris)) does. R replies with a board of the one block, which has no id, as the board has neither an id nor a name, for the client to mint, and binds the block's input data to the data it was given itself, which bound names, so that the client counts the input as linked and names it in a recipe by the input alone.",
+  "client": [
+    {
+      "id": "1",
+      "kind": "hello",
+      "protocol": "1.0",
+      "capabilities": ["cancel", "interrupt", "progress"]
+    }
+  ],
+  "r": [
+    [
+      {
+        "id": "1",
+        "status": "ok",
+        "protocol": "1.0",
+        "capabilities": ["cancel", "progress"],
+        "packages": { "blockr.core": "0.2.0" },
+        "block_registry": {
+          "blockr.core-head_block": {
+            "id": "blockr.core-head_block",
+            "name": "head/tail block",
+            "description": "Data head/tail",
+            "details": "Row-subsetting the first or last `n` rows of a `data.frame` (as provided by [utils::head()] and [utils::tail()]) is implemented as `head_block`.",
+            "url": "https://bristolmyerssquibb.github.io/blockr.core/reference/new_transform_block.html",
+            "guidance": "Keeps the first or last `n` rows of the input with `utils::head()` / `utils::tail()`. `direction` chooses the end: \"head\" for the first rows, \"tail\" for the last.",
+            "keywords": ["head", "tail", "first", "last", "rows", "limit"],
+            "category": "transform",
+            "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-eye\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
+            "inputs": ["data"],
+            "module": "blockr.core/head-block.js?v=9a41f2c7",
+            "css": "blockr.core/head-block.css?v=c03e7b58",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "n": { "type": "integer", "minimum": 0 },
+                "direction": { "enum": ["head", "tail"] }
+              },
+              "required": ["n", "direction"],
+              "additionalProperties": false
+            },
+            "state": { "n": 6, "direction": "head" },
+            "arguments": {
+              "n": {
+                "description": "Number of rows to keep.",
+                "example": 10,
+                "type": { "type": "integer" }
+              },
+              "direction": {
+                "description": "Row end to keep, either head (first) or tail (last).",
+                "example": "tail",
+                "type": { "type": "string", "enum": ["head", "tail"] }
+              }
+            },
+            "requests": {
+              "n_max": { "inputs": ["data"], "state_args": [], "options": [] }
+            }
+          }
+        },
+        "front_ends": {
+          "blockr.core-basic": {
+            "module": "blockr.core/basic.js?v=0f3d8e21",
+            "css": "blockr.core/basic.css?v=6a9b2c4e"
+          }
+        },
+        "startup_modules": [],
+        "modules": {},
+        "renderers": {
+          "blockr.core-basic_table": {
+            "module": "blockr.core/basic-table.js?v=b7e2a915",
+            "class": "table_output"
+          }
+        },
+        "blockr_options": {
+          "blockr.core": {
+            "gate_visibility": true,
+            "evaluation_queue": 2,
+            "background_evaluation_delay": null
+          }
+        },
+        "lock": null,
+        "board": {
+          "front_end": { "id": "blockr.core-basic", "state": {}, "attrs": {} },
+          "blocks": [
+            {
+              "registry_id": "blockr.core-head_block",
+              "state": { "n": 6, "direction": "head" },
+              "name": "Head",
+              "attrs": {}
+            }
+          ],
+          "links": [],
+          "stacks": [],
+          "options": { "n_rows": 50 }
+        },
+        "bound": ["data"]
+      }
+    ]
+  ]
+}

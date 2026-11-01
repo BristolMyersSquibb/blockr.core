@@ -1,0 +1,5 @@
+{
+  "description": "A forget of d and e, which left the board. R drops their results and every queued request that evaluates or reads one of them, here the output of e with id 34, replying cancelled to each.",
+  "client": [{ "kind": "forget", "blocks": ["d", "e"] }],
+  "r": [[{ "id": "34", "status": "cancelled" }]]
+}

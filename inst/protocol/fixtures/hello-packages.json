@@ -1,0 +1,158 @@
+{
+  "description": "A new session of a page whose session the server ended while the page lived on. The client holds a board already, which it keeps, so its hello names the packages that board names, as its saved file would list them, for R to load before any recipe names their block classes. R no longer has blockr.dm installed, so it loads blockr.core alone, and the client drops the board's dm block, naming blockr.dm, which the reply's packages lack. R sends the opening board of the app all the same, which the client does not open, since it keeps its own.",
+  "client": [
+    {
+      "id": "1",
+      "kind": "hello",
+      "protocol": "1.0",
+      "capabilities": ["cancel", "interrupt", "progress"],
+      "packages": ["blockr.core", "blockr.dm"]
+    }
+  ],
+  "r": [
+    [
+      {
+        "id": "1",
+        "status": "ok",
+        "protocol": "1.0",
+        "capabilities": ["cancel", "progress"],
+        "packages": { "blockr.core": "0.2.0" },
+        "block_registry": {
+          "blockr.core-dataset_block": {
+            "id": "blockr.core-dataset_block",
+            "name": "dataset block",
+            "description": "Choose a dataset from a package",
+            "keywords": ["dataset", "data", "import", "package", "source"],
+            "category": "input",
+            "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-database\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
+            "inputs": [],
+            "module": "blockr.core/dataset-block.js?v=5e0c8b1d",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "dataset": { "type": "string" },
+                "package": { "type": "string" }
+              },
+              "required": ["package"],
+              "additionalProperties": false
+            },
+            "state": { "package": "datasets" },
+            "arguments": {
+              "dataset": {
+                "description": "Selects the dataset to use.",
+                "example": "iris",
+                "type": { "type": "string" }
+              },
+              "package": {
+                "description": "R package to source the dataset from.",
+                "example": "datasets",
+                "type": { "type": "string" }
+              }
+            },
+            "requests": {
+              "datasets": {
+                "inputs": [],
+                "state_args": ["package"],
+                "options": [],
+                "volatile": true
+              }
+            }
+          },
+          "blockr.core-head_block": {
+            "id": "blockr.core-head_block",
+            "name": "head/tail block",
+            "description": "Data head/tail",
+            "details": "Row-subsetting the first or last `n` rows of a `data.frame` (as provided by [utils::head()] and [utils::tail()]) is implemented as `head_block`.",
+            "url": "https://bristolmyerssquibb.github.io/blockr.core/reference/new_transform_block.html",
+            "guidance": "Keeps the first or last `n` rows of the input with `utils::head()` / `utils::tail()`. `direction` chooses the end: \"head\" for the first rows, \"tail\" for the last.",
+            "keywords": ["head", "tail", "first", "last", "rows", "limit"],
+            "category": "transform",
+            "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-eye\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
+            "inputs": ["data"],
+            "module": "blockr.core/head-block.js?v=9a41f2c7",
+            "css": "blockr.core/head-block.css?v=c03e7b58",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "n": { "type": "integer", "minimum": 0 },
+                "direction": { "enum": ["head", "tail"] }
+              },
+              "required": ["n", "direction"],
+              "additionalProperties": false
+            },
+            "state": { "n": 6, "direction": "head" },
+            "arguments": {
+              "n": {
+                "description": "Number of rows to keep.",
+                "example": 10,
+                "type": { "type": "integer" }
+              },
+              "direction": {
+                "description": "Row end to keep, either head (first) or tail (last).",
+                "example": "tail",
+                "type": { "type": "string", "enum": ["head", "tail"] }
+              }
+            },
+            "requests": {
+              "n_max": { "inputs": ["data"], "state_args": [], "options": [] }
+            }
+          }
+        },
+        "front_ends": {
+          "blockr.core-basic": {
+            "module": "blockr.core/basic.js?v=0f3d8e21",
+            "css": "blockr.core/basic.css?v=6a9b2c4e"
+          }
+        },
+        "startup_modules": [],
+        "modules": {},
+        "renderers": {
+          "blockr.core-basic_table": {
+            "module": "blockr.core/basic-table.js?v=b7e2a915",
+            "class": "table_output"
+          },
+          "blockr.core-basic_text": {
+            "module": "blockr.core/basic-text.js?v=3c8f61d0",
+            "class": "text_output"
+          },
+          "blockr.core-basic_plot": {
+            "module": "blockr.core/basic-plot.js?v=f19d4a73",
+            "class": "plot_output"
+          }
+        },
+        "blockr_options": {
+          "blockr.core": {
+            "gate_visibility": true,
+            "evaluation_queue": 2,
+            "background_evaluation_delay": null
+          }
+        },
+        "lock": null,
+        "board": {
+          "id": "quiet_heron",
+          "front_end": { "id": "blockr.core-basic", "state": {}, "attrs": {} },
+          "name": "Penguins",
+          "blocks": [
+            {
+              "id": "a",
+              "registry_id": "blockr.core-dataset_block",
+              "state": { "dataset": "penguins", "package": "datasets" },
+              "name": "Penguins",
+              "attrs": {}
+            },
+            {
+              "id": "b",
+              "registry_id": "blockr.core-head_block",
+              "state": { "n": 10, "direction": "tail" },
+              "name": "Tail",
+              "attrs": {}
+            }
+          ],
+          "links": [{ "id": "ab", "from": "a", "to": "b", "input": "data" }],
+          "stacks": [],
+          "options": { "n_rows": 25, "show_conditions": ["error"] }
+        }
+      }
+    ]
+  ]
+}
