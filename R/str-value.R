@@ -13,7 +13,7 @@
 #' header. The `block` method lists a block's constructor inputs, marking the
 #' externally controllable ones (those reported by [external_ctrl_vars()])
 #' with a trailing `*`; the `stack` method shows the stack name and its member
-#' block ids.
+#' block ids, and the `board` method shows the board name in its header.
 #'
 #' This is the blockr extension point for token-dense renderings such as a
 #' board summary. A home package surfaces a subclass's state by defining a
@@ -55,11 +55,15 @@ cat_str_value <- function(object, ...) {
 str_value_collection <- function(x, vals, ids = names(x)) {
 
   items <- if (length(x)) {
-    if (is.null(ids)) paste0("  ", vals) else paste0("  ", ids, ": ", vals)
+    if (is.null(ids)) paste0("  ", vals) else paste0("  ", id_prefix(ids), vals)
   }
 
   paste(
     c(paste0("<", class(x)[1L], "[", length(x), "]>"), items),
     collapse = "\n"
   )
+}
+
+id_prefix <- function(ids) {
+  ifelse(nzchar(ids), paste0(ids, ": "), "")
 }

@@ -214,8 +214,10 @@ evaluation as long as block data input does not satisfy validation.
 \section{Block vectors}{
 
 Multiple blocks can be combined into a \code{blocks} object, a container for
-an (ordered) set of blocks. Block IDs are handled at the \code{blocks} level
-which will ensure uniqueness.
+an (ordered) set of blocks. Block IDs are handled at the \code{blocks} level,
+which ensures that those given are unique and, as every ID, strings that
+are neither empty nor made of digits alone. A block passed without a name
+has no ID, which the client mints when it opens the board.
 }
 
 \examples{

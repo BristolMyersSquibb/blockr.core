@@ -69,8 +69,9 @@ characters (all among \code{chars} and start/end with \code{prefix}/\code{suffix
 guaranteed to be unique and not present among values passed as \code{old_names}.
 }
 \description{
-Randomly generated unique IDs are used throughout the package, created by
-\code{rand_names()}. If random strings are required that may not clash with a set
+Random unique strings are created by \code{rand_names()}, which the package no
+longer uses for the IDs of boards, blocks, links and stacks, since the client
+mints those. If random strings are required that may not clash with a set
 of existing values, this can be guaranteed by passing them as \code{old_names}.
 A \code{\link[=blockr_option]{blockr_option()}} \code{rand_id} can be set to swap out the function responsible
 for ID generation.

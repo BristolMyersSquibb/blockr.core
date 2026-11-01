@@ -156,6 +156,87 @@ test_that("deserialization checks the kind of object, not its classes", {
   expect_error(blockr_deser(ser), class = "block_deser_class_error")
 })
 
+test_that("a board keeps its ID and name through serialization", {
+
+  board <- new_board(
+    c(a = new_dataset_block("iris")),
+    id = "sales_review",
+    name = "Q3 numbers"
+  )
+
+  ser <- blockr_ser(board)
+
+  expect_identical(ser[["id"]], "sales_review")
+  expect_identical(ser[["name"]], "Q3 numbers")
+
+  res <- blockr_deser(ser)
+
+  expect_identical(board_id(res), "sales_review")
+  expect_identical(board_name(res), "Q3 numbers")
+})
+
+test_that("a board saved by blockr.core 0.1.4 keeps its name and ID", {
+
+  board <- new_board(c(a = new_dataset_block("iris")), id = "sales_review")
+
+  # As blockr.core 0.1.4 wrote it: the name as the value of a `board_name`
+  # board option, and the ID only where the app passed one
+  ser <- blockr_ser(board)
+  ser[["name"]] <- NULL
+
+  name_opt <- list(
+    object = c("board_name_option", "board_option"),
+    payload = list(
+      value = "Q3 numbers",
+      category = "Board options",
+      label = "Board name"
+    ),
+    constructor = list(
+      object = "blockr_ctor",
+      constructor = "new_board_name_option",
+      package = "blockr.core",
+      version = "0.1.4"
+    )
+  )
+
+  ser$payload$options$payload <- c(list(name_opt), ser$payload$options$payload)
+
+  res <- blockr_deser(ser)
+
+  expect_identical(board_id(res), "sales_review")
+  expect_identical(board_name(res), "Q3 numbers")
+  expect_identical(board_option_ids(res), board_option_ids(board))
+
+  ser$payload$options$payload[[1L]]$payload$value <- NULL
+  ser["id"] <- list(NULL)
+
+  res <- blockr_deser(ser)
+
+  expect_null(board_id(res))
+  expect_null(board_name(res))
+})
+
+test_that("objects without an ID round-trip without one", {
+
+  board <- new_board(
+    c(a = new_dataset_block("iris"), b = new_head_block(), new_head_block()),
+    links = links(from = "a", to = "b"),
+    stacks = list(new_stack("a"))
+  )
+
+  ser <- blockr_ser(board)
+
+  expect_true(all(c("id", "name") %in% names(ser)))
+  expect_null(ser[["id"]])
+  expect_null(ser[["name"]])
+
+  expect_identical(blockr_deser(ser), board, ignore_function_env = TRUE)
+
+  lnks <- links(new_link("a", "b"), bc = new_link("b", "c"))
+
+  expect_identical(blockr_deser(blockr_ser(lnks)), lnks)
+})
+
 test_that("a board option keeps the label it was given", {
 
   opt <- new_n_rows_option(label = "Rows")

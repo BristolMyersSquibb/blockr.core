@@ -12,6 +12,18 @@
   methods of `serve()` and the test helpers on a mock Shiny session. The
   constructors and accessors of board objects, `new_block()`, `block_eval()`,
   the block registry, serialization and `export_code()` stay (#418).
+* Boards have an ID and a name, which `new_board()` takes as `id` and `name`
+  and `board_id()` and `board_name()` read. The ID takes the place of the one
+  `serve()` took until now, and the name that of the `board_name` board
+  option, which is gone with `new_board_name_option()`. R no longer mints IDs:
+  a board, block, link or stack that a script leaves without one has none,
+  where `rand_names()` used to draw it, and the client mints it when it opens
+  the board, as it names a board without a name after its ID. An ID that is
+  given, a board's, a block's, a link's or a stack's, is a string that is
+  neither empty nor made of digits alone, and the constructors refuse any
+  other, naming it. For a board saved by blockr.core 0.1.4, `blockr_deser()`
+  reads the name off its `board_name` board option and the ID off the `id`
+  saved next to it (#427).
 
 # blockr.core 0.1.4
 

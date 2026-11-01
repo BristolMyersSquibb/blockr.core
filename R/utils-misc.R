@@ -39,8 +39,9 @@ include_mermaid <- function(name,
 
 #' Random IDs
 #'
-#' Randomly generated unique IDs are used throughout the package, created by
-#' `rand_names()`. If random strings are required that may not clash with a set
+#' Random unique strings are created by `rand_names()`, which the package no
+#' longer uses for the IDs of boards, blocks, links and stacks, since the client
+#' mints those. If random strings are required that may not clash with a set
 #' of existing values, this can be guaranteed by passing them as `old_names`.
 #' A [blockr_option()] `rand_id` can be set to swap out the function responsible
 #' for ID generation.
