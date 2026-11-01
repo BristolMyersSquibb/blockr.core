@@ -21,12 +21,10 @@
 #' where each upstream block's result is bound to its id, dispatching on the
 #' block's class, as `x` is the block's state with its class's class vector,
 #' and gets in `...` the parameters of the one-time evaluation that asked for
-#' the block, if any. Core's method keeps whatever the block expression draws
-#' as the result, a `recordedplot` holding in its attribute `rerun` a function
-#' that runs the block expression again, and its value otherwise. A package
-#' adds a method where its class runs otherwise, deciding whether and how the
-#' block expression runs, never what it computes. Each evaluation environment
-#' is created by `eval_env()`.
+#' the block, if any. Core's method evaluates the block expression, and a
+#' package adds a method where its class runs otherwise, deciding whether and
+#' how the block expression runs, never what it computes. Each evaluation
+#' environment is created by `eval_env()`.
 #'
 #' The `block_summary()` generic describes a result in a few words, such as
 #' `<data.frame> [150 x 5]`, dispatching on the result's class, so that a
@@ -311,35 +309,7 @@ block_eval <- function(x, expr, env, ...) {
 #' @rdname evaluate_block
 #' @export
 block_eval.block <- function(x, expr, env, ...) {
-
-  dev <- grDevices::dev.cur()
-
-  grDevices::pdf(NULL)
-  rec <- grDevices::dev.cur()
-
-  on.exit(restore_device(rec, dev))
-
-  grDevices::dev.control(displaylist = "enable")
-
-  res <- eval(expr, env)
-  plot <- grDevices::recordPlot()
-
-  if (!length(plot[[1L]])) {
-    return(res)
-  }
-
-  structure(plot, rerun = function() eval(expr, env))
-}
-
-restore_device <- function(rec, dev) {
-
-  grDevices::dev.off(rec)
-
-  if (dev > 1L) {
-    grDevices::dev.set(dev)
-  }
-
-  invisible()
+  eval(expr, env)
 }
 
 #' @param data Input data (a named list)

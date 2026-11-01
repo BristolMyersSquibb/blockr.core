@@ -83,12 +83,10 @@ The \code{block_eval()} generic runs the block expression, \code{expr}, in \code
 where each upstream block's result is bound to its id, dispatching on the
 block's class, as \code{x} is the block's state with its class's class vector,
 and gets in \code{...} the parameters of the one-time evaluation that asked for
-the block, if any. Core's method keeps whatever the block expression draws
-as the result, a \code{recordedplot} holding in its attribute \code{rerun} a function
-that runs the block expression again, and its value otherwise. A package
-adds a method where its class runs otherwise, deciding whether and how the
-block expression runs, never what it computes. Each evaluation environment
-is created by \code{eval_env()}.
+the block, if any. Core's method evaluates the block expression, and a
+package adds a method where its class runs otherwise, deciding whether and
+how the block expression runs, never what it computes. Each evaluation
+environment is created by \code{eval_env()}.
 
 The \code{block_summary()} generic describes a result in a few words, such as
 \verb{<data.frame> [150 x 5]}, dispatching on the result's class, so that a

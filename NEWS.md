@@ -21,11 +21,11 @@
   `interpolate()` generic turns what `expr` returns into the block expression,
   `bbquote()` returns a `bquoted_expr`, whose placeholders it fills in with the
   upstream ids, and `evaluate_block()` evaluates a block from its class, state
-  and upstream results through `block_eval()`, whose method in core keeps what
-  an expression draws. A state reads `invalid` where `expr` signals
-  `invalid()` or uses an unset arg. With them come `block_summary()`,
-  `block_migrate()`, `block_request()` with `volatile()` and `action()`, and
-  `expect_block_fixture()`, which tests a class without Shiny (#421).
+  and upstream results through `block_eval()`. A state reads `invalid` where
+  `expr` signals `invalid()` or uses an unset arg. With them come
+  `block_summary()`, `block_migrate()`, `block_request()` with `volatile()`
+  and `action()`, and `expect_block_fixture()`, which tests a class without
+  Shiny (#421).
 * Registration reads a block class from its constructor and builds no block.
   It keeps one entry per class under the registry id `{pkg}-{name}`, holding
   what R needs to evaluate a block and resolve its requests, and drops the

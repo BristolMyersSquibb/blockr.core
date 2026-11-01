@@ -183,39 +183,13 @@ test_that("a block_eval() method decides whether the expression runs", {
   expect_identical(res$status, "ok")
 })
 
-test_that("core's block_eval() method keeps what an expression draws", {
+test_that("core's block_eval() method evaluates the block expression", {
 
-  plotter <- new_block_class(
-    "plotter_block",
-    inputs = "data",
-    expr = function() bbquote(graphics::plot(.(data))),
-    ui = js_module("plotter.js")
-  )
+  env <- eval_env(list(a = 2L))
 
-  dev <- grDevices::dev.cur()
+  x <- structure(list(), class = c("x_block", "block"))
 
-  res <- evaluate_block(plotter, list(), list(data = "a"),
-                        list(a = datasets::BOD))
-
-  expect_identical(grDevices::dev.cur(), dev)
-  expect_identical(res$status, "ok")
-  expect_s3_class(res$result, "recordedplot")
-  expect_identical(res$summary, "<recordedplot>")
-
-  rerun <- attr(res$result, "rerun")
-
-  expect_type(rerun, "closure")
-
-  grDevices::pdf(NULL)
-  grDevices::dev.control(displaylist = "enable")
-  rerun()
-  expect_gt(length(grDevices::recordPlot()[[1L]]), 0L)
-  grDevices::dev.off()
-
-  res <- evaluate_block(head_class, list(), list(data = "a"),
-                        list(a = datasets::BOD))
-
-  expect_null(attr(res$result, "rerun"))
+  expect_identical(block_eval(x, quote(a + 1L), env), 3L)
 })
 
 test_that("an evaluation is a classed object that prints", {
