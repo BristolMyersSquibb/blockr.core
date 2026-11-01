@@ -9,19 +9,21 @@
 #' [board_blocks()]).
 #'
 #' A board has an ID, which identifies it, and a name, which the user calls it
-#' by. Unless given, the ID is drawn at random by [rand_names()] and the name
-#' is the ID in sentence case. Every ID, a board's as well as a block's, a
-#' link's or a stack's, is a string that is neither empty nor made of digits
-#' alone, since a JavaScript object puts keys that look like integers first,
-#' and the constructors refuse any other.
+#' by. A script may leave either out, as it may leave out the IDs of blocks,
+#' links and stacks, since R mints no IDs: the client mints each missing one
+#' when it opens the board, and names a board without a name after its ID.
+#' Every ID that is given, a board's as well as a block's, a link's or a
+#' stack's, is a string that is neither empty nor made of digits alone, since
+#' a JavaScript object puts keys that look like integers first, and the
+#' constructors refuse any other.
 #'
 #' @param blocks Set of blocks
 #' @param links Set of links
 #' @param stacks Set of stacks
 #' @param options Board-level user settings
 #' @param ... Further (metadata) attributes
-#' @param id Board ID
-#' @param name Board name, which `NULL` sets to the ID in sentence case
+#' @param id Board ID, which `NULL` leaves for the client to mint
+#' @param name Board name, which `NULL` leaves for the client to set
 #' @param ctor,pkg Constructor information (used for serialization)
 #' @param class Board sub-class
 #'
@@ -32,7 +34,7 @@
 #'      b = new_subset_block()
 #'   ),
 #'   list(from = "a", to = "b"),
-#'   id = "my_board"
+#'   name = "My board"
 #' )
 #'
 #' is_board(brd)
@@ -46,10 +48,8 @@
 #' @export
 new_board <- function(blocks = list(), links = list(), stacks = list(),
                       options = default_board_options(), ...,
-                      id = rand_names(), name = NULL,
+                      id = NULL, name = NULL,
                       ctor = NULL, pkg = NULL, class = character()) {
-
-  validate_board_id(id)
 
   blocks <- as_blocks(blocks)
   links <- as_links(links)
@@ -68,34 +68,19 @@ new_board <- function(blocks = list(), links = list(), stacks = list(),
         ...
       ),
       id = id,
-      name = coal(name, id_to_sentence_case(id)),
+      name = name,
       ctor = resolve_ctor(forward_ctor(ctor), pkg),
       class = c(class, "board")
     )
   )
 }
 
-validate_board_id <- function(x) {
-
-  if (!is_string(x)) {
-    blockr_abort(
-      "Expecting the board ID to be a string.",
-      class = "board_id_invalid"
-    )
-  }
-
-  validate_ids(x, "Board", "board_id_invalid")
-
-  invisible(x)
-}
-
 complete_unary_inputs <- function(x, blocks) {
 
-  ids <- names(blocks)
+  ids <- ids_or_empty(names(blocks), length(blocks))
+  ids <- ids[nzchar(ids) & int_ply(blocks, block_arity) == 1L]
 
-  to_complete <- x$to %in% ids[int_ply(blocks, block_arity) == 1L] & (
-    is.na(x$input) | nchar(x$input) == 0L
-  )
+  to_complete <- x$to %in% ids & (is.na(x$input) | nchar(x$input) == 0L)
 
   inputs <- lapply(blocks[unique(x$to[to_complete])], block_inputs)
 
@@ -106,7 +91,10 @@ complete_unary_inputs <- function(x, blocks) {
 
 validate_board_blocks_links <- function(blocks, links) {
 
-  ids <- names(blocks)
+  # A block without an ID is in no link
+  ids <- ids_or_empty(names(blocks), length(blocks))
+  blocks <- blocks[nzchar(ids)]
+  ids <- ids[nzchar(ids)]
 
   if (!all(links$from %in% ids) || !all(links$to %in% ids)) {
     blockr_abort(
@@ -194,11 +182,22 @@ validate_board.board <- function(x) {
     )
   }
 
-  validate_board_id(board_id(x))
+  id <- board_id(x)
 
-  if (!is_string(board_name(x))) {
+  if (!(is.null(id) || is_string(id))) {
     blockr_abort(
-      "Expecting the board name to be a string.",
+      "Expecting the board ID to be `NULL` or a string.",
+      class = "board_id_invalid"
+    )
+  }
+
+  validate_ids(id, "Board", "board_id_invalid")
+
+  name <- board_name(x)
+
+  if (!(is.null(name) || is_string(name))) {
+    blockr_abort(
+      "Expecting the board name to be `NULL` or a string.",
       class = "board_name_invalid"
     )
   }
@@ -232,7 +231,7 @@ as.matrix.board <- function(x, ...) {
   block_ids <- board_block_ids(x)
   links <- board_links(x)
 
-  as_adjacency_matrix(links$from, links$to, block_ids)
+  as_adjacency_matrix(links$from, links$to, block_ids[nzchar(block_ids)])
 }
 
 #' @rdname topo_sort
@@ -283,7 +282,7 @@ is_acyclic.board <- function(x) {
 #' while ID getters (`board_block_ids()`, `board_link_ids()`,
 #' `board_stack_ids()` and `board_option_ids()`) return character vectors, as
 #' does `available_stack_blocks()`, and `board_id()` and `board_name()` return
-#' strings.
+#' a string, or `NULL` where the board has none.
 #'
 #' @export
 board_blocks <- function(x) {
@@ -371,7 +370,8 @@ available_stack_blocks <- function(x, stacks = board_stacks(x),
 
 #' @section ID and name:
 #' The board's ID, which identifies it, is available as `board_id()`, and its
-#' name, which the user calls it by, as `board_name()`.
+#' name, which the user calls it by, as `board_name()`. Where the script left
+#' either out, it is `NULL` until the client fills it in.
 #'
 #' @rdname board_blocks
 #' @export
@@ -414,8 +414,8 @@ format.board <- function(x, ...) {
 
   out <- c(
     out,
-    paste0("ID: \"", board_id(x), "\""),
-    paste0("Name: \"", board_name(x), "\"")
+    if (not_null(board_id(x))) paste0("ID: \"", board_id(x), "\""),
+    if (not_null(board_name(x))) paste0("Name: \"", board_name(x), "\"")
   )
 
   blk <- board_blocks(x)
@@ -442,7 +442,7 @@ format.board <- function(x, ...) {
       out,
       paste0("Links[", length(lnk), "]:"),
       "",
-      paste0(names(lnk), ": ", format(lnk))
+      paste0(id_prefix(names(lnk)), format(lnk))
     )
   }
 
@@ -483,7 +483,10 @@ print.board <- function(x, ...) {
 #' @export
 str_value.board <- function(x, ...) {
   paste(
-    paste0("<", class(x)[1L], "> \"", board_name(x), "\""),
+    paste0(
+      "<", class(x)[1L], ">",
+      if (not_null(board_name(x))) paste0(" \"", board_name(x), "\"")
+    ),
     str_value(board_blocks(x)),
     str_value(board_links(x)),
     str_value(board_stacks(x)),

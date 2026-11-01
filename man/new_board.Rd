@@ -12,7 +12,7 @@ new_board(
   stacks = list(),
   options = default_board_options(),
   ...,
-  id = rand_names(),
+  id = NULL,
   name = NULL,
   ctor = NULL,
   pkg = NULL,
@@ -34,9 +34,9 @@ is_board(x)
 
 \item{...}{Further (metadata) attributes}
 
-\item{id}{Board ID}
+\item{id}{Board ID, which \code{NULL} leaves for the client to mint}
 
-\item{name}{Board name, which \code{NULL} sets to the ID in sentence case}
+\item{name}{Board name, which \code{NULL} leaves for the client to set}
 
 \item{ctor, pkg}{Constructor information (used for serialization)}
 
@@ -61,11 +61,13 @@ Several utilities are available for retrieving board components (see
 }
 \details{
 A board has an ID, which identifies it, and a name, which the user calls it
-by. Unless given, the ID is drawn at random by \code{\link[=rand_names]{rand_names()}} and the name
-is the ID in sentence case. Every ID, a board's as well as a block's, a
-link's or a stack's, is a string that is neither empty nor made of digits
-alone, since a JavaScript object puts keys that look like integers first,
-and the constructors refuse any other.
+by. A script may leave either out, as it may leave out the IDs of blocks,
+links and stacks, since R mints no IDs: the client mints each missing one
+when it opens the board, and names a board without a name after its ID.
+Every ID that is given, a board's as well as a block's, a link's or a
+stack's, is a string that is neither empty nor made of digits alone, since
+a JavaScript object puts keys that look like integers first, and the
+constructors refuse any other.
 }
 \examples{
 brd <- new_board(
@@ -74,7 +76,7 @@ brd <- new_board(
      b = new_subset_block()
   ),
   list(from = "a", to = "b"),
-  id = "my_board"
+  name = "My board"
 )
 
 is_board(brd)

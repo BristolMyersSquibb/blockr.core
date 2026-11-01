@@ -92,12 +92,7 @@ test_that("board constructor", {
   expect_type(board_option_ids(board), "character")
 })
 
-test_that("a board has an ID and a name", {
-
-  board <- new_board(id = "sales_review")
-
-  expect_identical(board_id(board), "sales_review")
-  expect_identical(board_name(board), "Sales review")
+test_that("a board has an ID and a name, which R leaves out unless given", {
 
   board <- new_board(id = "sales_review", name = "Q3 numbers")
 
@@ -106,8 +101,8 @@ test_that("a board has an ID and a name", {
 
   board <- new_board()
 
-  expect_true(is_string(board_id(board)))
-  expect_identical(board_name(board), id_to_sentence_case(board_id(board)))
+  expect_null(board_id(board))
+  expect_null(board_name(board))
 
   for (id in c("123", "0", "")) {
     expect_error(
@@ -128,6 +123,35 @@ test_that("a board has an ID and a name", {
   attr(board, "id") <- "42"
 
   expect_error(validate_board(board), "\"42\"", class = "board_id_invalid")
+})
+
+test_that("blocks, links and stacks without an ID take part in no link", {
+
+  board <- new_board(
+    c(a = new_dataset_block(), b = new_head_block(), new_subset_block()),
+    links = links(from = "a", to = "b"),
+    stacks = list(new_stack("a"))
+  )
+
+  expect_identical(board_block_ids(board), c("a", "b", ""))
+  expect_identical(board_link_ids(board), "")
+  expect_identical(board_stack_ids(board), "")
+
+  expect_true(is_acyclic(board))
+  expect_identical(topo_sort(board), c("a", "b"))
+
+  expect_error(
+    export_code(list(), board),
+    class = "export_code_block_id_missing"
+  )
+
+  expect_error(
+    new_board(
+      c(new_dataset_block(), b = new_head_block()),
+      links = links(from = "", to = "b")
+    ),
+    class = "board_block_link_name_mismatch"
+  )
 })
 
 test_that("validate_board checks each collection, not just cross-relations", {

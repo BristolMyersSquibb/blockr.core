@@ -23,10 +23,9 @@
 #' object re-created as another kind raises an error of class
 #' `block_deser_class_error`.
 #'
-#' A board is written with its ID and name next to its payload. For a board
-#' written by blockr.core 0.1.4, `blockr_deser()` reads the name off its
-#' `board_name` board option instead, and draws an ID where the board holds
-#' none.
+#' A board is written with its ID and name next to its payload, either of which
+#' is `NULL` where it has none. For a board written by blockr.core 0.1.4,
+#' `blockr_deser()` reads the name off its `board_name` board option instead.
 #'
 #' @param x Object to (de)serialize
 #' @param ... Generic consistency
@@ -401,8 +400,7 @@ blockr_deser.board <- function(x, data, ..., on_error = NULL) {
   name <- data[["name"]]
 
   # A board written by blockr.core 0.1.4 holds its name as the value of its
-  # `board_name` board option, which no longer exists, and its ID only where
-  # the app that saved it passed one, so that one is drawn otherwise.
+  # `board_name` board option, which no longer exists
   opts <- payload[["options"]][["payload"]]
   is_name <- lgl_ply(
     opts,
@@ -427,7 +425,7 @@ blockr_deser.board <- function(x, data, ..., on_error = NULL) {
   args <- c(
     parts,
     list(
-      id = coal(data[["id"]], rand_names()),
+      id = data[["id"]],
       name = name,
       ctor = coal(ctor_name(ctor), ctor_fun(ctor)),
       pkg = ctor_pkg(ctor)

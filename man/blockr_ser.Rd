@@ -133,10 +133,9 @@ can rename or drop classes of its blocks without breaking saved boards. An
 object re-created as another kind raises an error of class
 \code{block_deser_class_error}.
 
-A board is written with its ID and name next to its payload. For a board
-written by blockr.core 0.1.4, \code{blockr_deser()} reads the name off its
-\code{board_name} board option instead, and draws an ID where the board holds
-none.
+A board is written with its ID and name next to its payload, either of which
+is \code{NULL} where it has none. For a board written by blockr.core 0.1.4,
+\code{blockr_deser()} reads the name off its \code{board_name} board option instead.
 }
 \examples{
 blk <- new_dataset_block("iris")

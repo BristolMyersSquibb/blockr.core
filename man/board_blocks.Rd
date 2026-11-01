@@ -52,7 +52,7 @@ the corresponding classes \code{blocks}, \code{links}, \code{stacks} and \code{b
 while ID getters (\code{board_block_ids()}, \code{board_link_ids()},
 \code{board_stack_ids()} and \code{board_option_ids()}) return character vectors, as
 does \code{available_stack_blocks()}, and \code{board_id()} and \code{board_name()} return
-strings.
+a string, or \code{NULL} where the board has none.
 }
 \description{
 A set of utility functions is available for querying board components,
@@ -92,7 +92,8 @@ IDs are of interest, this is available as \code{board_option_ids()}, which calls
 \section{ID and name}{
 
 The board's ID, which identifies it, is available as \code{board_id()}, and its
-name, which the user calls it by, as \code{board_name()}.
+name, which the user calls it by, as \code{board_name()}. Where the script left
+either out, it is \code{NULL} until the client fills it in.
 }
 
 \examples{

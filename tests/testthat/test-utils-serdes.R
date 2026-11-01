@@ -208,15 +208,33 @@ test_that("a board saved by blockr.core 0.1.4 keeps its name and ID", {
   expect_identical(board_option_ids(res), board_option_ids(board))
 
   ser$payload$options$payload[[1L]]$payload$value <- NULL
-
-  expect_identical(board_name(blockr_deser(ser)), "Sales review")
-
   ser["id"] <- list(NULL)
 
   res <- blockr_deser(ser)
 
-  expect_true(is_string(board_id(res)))
-  expect_identical(board_name(res), id_to_sentence_case(board_id(res)))
+  expect_null(board_id(res))
+  expect_null(board_name(res))
+})
+
+test_that("objects without an ID round-trip without one", {
+
+  board <- new_board(
+    c(a = new_dataset_block("iris"), b = new_head_block(), new_head_block()),
+    links = links(from = "a", to = "b"),
+    stacks = list(new_stack("a"))
+  )
+
+  ser <- blockr_ser(board)
+
+  expect_true(all(c("id", "name") %in% names(ser)))
+  expect_null(ser[["id"]])
+  expect_null(ser[["name"]])
+
+  expect_identical(blockr_deser(ser), board, ignore_function_env = TRUE)
+
+  lnks <- links(new_link("a", "b"), bc = new_link("b", "c"))
+
+  expect_identical(blockr_deser(blockr_ser(lnks)), lnks)
 })
 
 test_that("a board option keeps the label it was given", {

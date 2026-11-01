@@ -55,11 +55,15 @@ cat_str_value <- function(object, ...) {
 str_value_collection <- function(x, vals, ids = names(x)) {
 
   items <- if (length(x)) {
-    if (is.null(ids)) paste0("  ", vals) else paste0("  ", ids, ": ", vals)
+    if (is.null(ids)) paste0("  ", vals) else paste0("  ", id_prefix(ids), vals)
   }
 
   paste(
     c(paste0("<", class(x)[1L], "[", length(x), "]>"), items),
     collapse = "\n"
   )
+}
+
+id_prefix <- function(ids) {
+  ifelse(nzchar(ids), paste0(ids, ": "), "")
 }

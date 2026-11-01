@@ -11,6 +11,13 @@
 #' @export
 export_code <- function(expressions, board) {
 
+  if (!all(nzchar(board_block_ids(board)))) {
+    blockr_abort(
+      "Exporting code requires every block to have an ID.",
+      class = "export_code_block_id_missing"
+    )
+  }
+
   lnks <- board_links(board)
 
   arg_map <- lapply(
