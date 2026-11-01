@@ -310,7 +310,7 @@ validate_class_options <- function(options) {
   }
 
   if (!is.list(options) || !all(lgl_ply(options, is.function)) ||
-        !all(lgl_ply(lapply(options, do.call, list()), is_board_option))) {
+        !all(lgl_ply(call_option_ctors(options), is_board_option))) {
     blockr_abort(
       "The `options` of a block class are expected to be a list of board ",
       "option constructors.",
@@ -446,7 +446,12 @@ class_state_args <- function(cls) {
 }
 
 class_board_options <- function(cls) {
-  lapply(cls[["options"]], do.call, list())
+  call_option_ctors(cls[["options"]])
+}
+
+call_option_ctors <- function(ctors) {
+  # Called by name, not via do.call(), as new_board_option() deparses the call
+  lapply(ctors, function(new) new())
 }
 
 class_option_ids <- function(cls) {
