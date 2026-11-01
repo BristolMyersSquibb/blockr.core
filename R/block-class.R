@@ -26,19 +26,19 @@
 #' module's path in the package's `inst/` and the package whose code calls it,
 #' for R to resolve when it serves the module, and which resolves the path
 #' against the working directory outside a package. A class further takes a
-#' named list of `requests`, functions for what its UI asks of R (see
-#' [block_request()]), the coercion that makes an output from a result, as
-#' `output`, and the constructors of the board options its code reads, as
-#' `options`. A field a class leaves out is `NULL`.
+#' named list of `requests`, functions for what its UI asks of R, which name
+#' the board options they read with [reads_options()] (see [block_request()]),
+#' and the coercion that makes an output from a result, as `output`. A field a
+#' class leaves out is `NULL`.
 #'
 #' A class is checked once, when it is defined: no state arg is `...`,
-#' `block_name` or `visible`, no input or board option shares the name of a
-#' state arg or of each other, the arguments of each request name inputs,
-#' state args or board options, but for parameters, which have a default, and
-#' for the `file` of a request wrapped in [action()], and `expr`, called
-#' without args, cannot run yet or returns a call, a string, a function whose
-#' formals are the inputs or an object of a class that inherits from
-#' `blockr_expr`, holding no function.
+#' `block_name` or `visible`, no input or state arg is `options` or shares the
+#' name of another, the arguments of each request name inputs or state args,
+#' but for parameters, which have a default, for the `file` of a request marked
+#' by [action()] and for the `options` of one marked by [reads_options()], and
+#' `expr`, called without args, cannot run yet or returns a call, a string, a
+#' function whose formals are the inputs or an object of a class that inherits
+#' from `blockr_expr`, holding no function.
 #'
 #' The constructor has the formals of `expr`, a `block_name` and a `visible`,
 #' and no `...`, so a misspelled state arg fails as an unused argument. It
@@ -63,7 +63,6 @@
 #' @param ui The class's UI module, made by `js_module()`
 #' @param requests Named list of request functions
 #' @param output Coercion that makes an output from a result
-#' @param options List of board option constructors
 #'
 #' @examples
 #' head_block <- new_block_class(
@@ -103,7 +102,7 @@
 #'
 #' @export
 new_block_class <- function(name, inputs = NULL, expr, ui, requests = NULL,
-                            output = NULL, options = NULL) {
+                            output = NULL) {
 
   if (!is_string(name)) {
     blockr_abort(
@@ -120,8 +119,7 @@ new_block_class <- function(name, inputs = NULL, expr, ui, requests = NULL,
         expr = expr,
         ui = ui,
         requests = requests,
-        output = output,
-        options = options
+        output = output
       ),
       class = "block_class"
     )
@@ -238,28 +236,29 @@ validate_block_class <- function(x) {
     )
   }
 
-  validate_class_options(x[["options"]])
-
   inputs <- class_inputs(x)
   args <- class_state_args(x)
-  opts <- class_option_ids(x)
 
-  reserved <- intersect(args, c("...", "block_name", "visible"))
+  reserved <- c(
+    intersect(args, c("...", "block_name", "visible")),
+    intersect(c(inputs, args), "options")
+  )
 
   if (length(reserved)) {
     blockr_abort(
-      "A block class cannot have {qty(reserved)}state arg{?s} {reserved}.",
+      "A block class cannot have {qty(reserved)}input or state arg{?s} ",
+      "{reserved}.",
       class = "block_class_args_invalid"
     )
   }
 
-  known <- c(inputs, args, opts)
+  known <- c(inputs, args)
   clash <- unique(known[duplicated(known)])
 
   if (length(clash)) {
     blockr_abort(
-      "A block class needs distinct names for its inputs, state args and ",
-      "board options, but repeats {clash}.",
+      "A block class needs distinct names for its inputs and state args, but ",
+      "repeats {clash}.",
       class = "block_class_args_invalid"
     )
   }
@@ -303,24 +302,6 @@ validate_class_inputs <- function(inputs) {
   invisible()
 }
 
-validate_class_options <- function(options) {
-
-  if (is.null(options)) {
-    return(invisible())
-  }
-
-  if (!is.list(options) || !all(lgl_ply(options, is.function)) ||
-        !all(lgl_ply(call_option_ctors(options), is_board_option))) {
-    blockr_abort(
-      "The `options` of a block class are expected to be a list of board ",
-      "option constructors.",
-      class = "block_class_options_invalid"
-    )
-  }
-
-  invisible()
-}
-
 validate_class_requests <- function(requests, known) {
 
   if (is.null(requests)) {
@@ -341,15 +322,24 @@ validate_class_requests <- function(requests, known) {
 
   for (nm in nms) {
 
-    fmls <- formals(requests[[nm]])
-    params <- setdiff(names(fmls), c(known, request_file_arg(requests[[nm]])))
+    fun <- requests[[nm]]
+    fmls <- formals(fun)
+
+    if ("options" %in% names(fmls) != not_null(request_option_ctors(fun))) {
+      blockr_abort(
+        "Request {nm} is expected to take `options` exactly where it is ",
+        "marked by `reads_options()`.",
+        class = "block_class_requests_invalid"
+      )
+    }
+
+    params <- setdiff(names(fmls), c(known, request_file_arg(fun), "options"))
     bare <- params[lgl_ply(fmls[params], is_empty_arg)]
 
     if (length(bare)) {
       blockr_abort(
         "Request {nm} takes {bare} without a default, which {qty(bare)}",
-        "{?is/are} neither an input, a state arg nor a board option of its ",
-        "class.",
+        "{?is/are} neither an input nor a state arg of its class.",
         class = "block_class_requests_invalid"
       )
     }
@@ -446,16 +436,16 @@ class_state_args <- function(cls) {
 }
 
 class_board_options <- function(cls) {
-  call_option_ctors(cls[["options"]])
+  combine_board_options(
+    call_option_ctors(
+      unlst(lapply(cls[["requests"]], request_option_ctors))
+    )
+  )
 }
 
 call_option_ctors <- function(ctors) {
   # Called by name, not via do.call(), as new_board_option() deparses the call
   lapply(ctors, function(new) new())
-}
-
-class_option_ids <- function(cls) {
-  chr_ply(class_board_options(cls), board_option_id)
 }
 
 is_invalid_cnd <- function(cnd) {
@@ -871,5 +861,5 @@ board_options.block <- function(x, ...) {
     return(new_board_options())
   }
 
-  as_board_options(class_board_options(block_class(x)))
+  class_board_options(block_class(x))
 }

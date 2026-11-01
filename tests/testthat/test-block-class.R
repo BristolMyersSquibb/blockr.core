@@ -10,7 +10,6 @@ test_that("a block class holds its fields", {
   expect_identical(class_inputs(rbind_class), "...")
 
   expect_null(head_class$output)
-  expect_null(head_class$options)
 
   lst <- new_block_class("lst_block", inputs = alist(x = , y = ),
                          expr = function() bbquote(c(.(x), .(y))),
@@ -72,11 +71,6 @@ test_that("new_block_class() checks a class once", {
   )
 
   expect_error(
-    new_block_class("x_block", "data", expr, ui, options = list("n_rows")),
-    class = "block_class_options_invalid"
-  )
-
-  expect_error(
     new_block_class("x_block", "data", function(...) bbquote(.(data)), ui),
     class = "block_class_args_invalid"
   )
@@ -92,9 +86,28 @@ test_that("new_block_class() checks a class once", {
   )
 
   expect_error(
-    new_block_class("x_block", "data", function(n_rows = 1) "data", ui,
-                    options = list(new_n_rows_option)),
+    new_block_class("x_block", "data", function(options = 1) "data", ui),
     class = "block_class_args_invalid"
+  )
+
+  expect_error(
+    new_block_class("x_block", "options", function() "options", ui),
+    class = "block_class_args_invalid"
+  )
+
+  expect_error(
+    new_block_class("x_block", "data", expr, ui,
+                    requests = list(page = function(data, options) data)),
+    class = "block_class_requests_invalid"
+  )
+
+  expect_error(
+    new_block_class(
+      "x_block", "data", expr, ui,
+      requests = list(page = reads_options(function(data) data,
+                                           new_n_rows_option))
+    ),
+    class = "block_class_requests_invalid"
   )
 
   expect_error(
@@ -114,10 +127,12 @@ test_that("new_block_class() checks a class once", {
       "x_block", "data", function(n = 1L) bbquote(utils::head(.(data), .(n))),
       ui,
       requests = list(
-        cols = function(data, n, n_rows, limit = 10L) names(data),
+        cols = reads_options(
+          function(data, n, options, limit = 10L) names(data),
+          new_n_rows_option
+        ),
         upload = action(function(file, n) file)
-      ),
-      options = list(new_n_rows_option)
+      )
     ),
     "block_class"
   )
@@ -319,7 +334,7 @@ test_that("blocks of a class print, combine and report their state args", {
   )
 })
 
-test_that("a block's board options are its class's", {
+test_that("a block's board options are those its requests read", {
 
   with_opts <- block_constructor(
     new_block_class(
@@ -327,10 +342,19 @@ test_that("a block's board options are its class's", {
       inputs = "data",
       expr = function() bbquote(.(data)),
       ui = js_module("opts.js"),
-      options = list(new_n_rows_option)
+      requests = list(
+        page = reads_options(
+          function(data, options) utils::head(data, options$n_rows),
+          new_n_rows_option
+        ),
+        rows = reads_options(
+          function(data, options) min(nrow(data), options$n_rows),
+          new_n_rows_option, new_dark_mode_option
+        )
+      )
     )
   )
 
-  expect_identical(names(board_options(with_opts())), "n_rows")
+  expect_setequal(names(board_options(with_opts())), c("n_rows", "dark_mode"))
   expect_length(board_options(new_class_head_block()), 0L)
 })

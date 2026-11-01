@@ -135,11 +135,11 @@ An entry holds, beside the metadata, the block class, its constructor, its
 data inputs, its UI module and the JSON Schema of the block's state that the
 module ships beside it, as \verb{<name>.schema.json} for a module \verb{<name>.js},
 whose properties must be the state args where it ships one, a description
-of each request, with the inputs, state args and board options it names and
-whether it is volatile or an action, the ids of the class's board options
-and the state a new block starts with, from \code{expr} called without args. The
-arg specs default to every state arg, and their examples are checked by
-calling \code{expr} with them.
+of each request, with the inputs and state args it names, the ids of the
+board options it reads and whether it is volatile or an action, and the
+state a new block starts with, from \code{expr} called without args. The arg
+specs default to every state arg, and their examples are checked by calling
+\code{expr} with them.
 
 Blocks can be registered (i.e. added to the registry) via \code{register_block()}
 with scalar-valued arguments and \code{register_blocks()}, where arguments may be

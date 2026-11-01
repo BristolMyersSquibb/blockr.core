@@ -15,7 +15,6 @@ test_that("registry", {
   expect_identical(entry$constructor, new_class_head_block)
   expect_identical(entry$inputs, "data")
   expect_identical(entry$state, list(n = 6L, direction = "head"))
-  expect_identical(entry$options, character())
   expect_null(entry$schema)
   expect_null(entry$package)
   expect_identical(
@@ -156,21 +155,26 @@ test_that("registration reads the schema the module ships", {
   )
 })
 
-test_that("a registry entry's board options are its class's", {
+test_that("a registry entry's board options are those its requests read", {
 
   cls <- new_block_class(
     "opts_block",
     inputs = "data",
     expr = function() bbquote(.(data)),
     ui = js_module("opts.js"),
-    options = list(new_n_rows_option)
+    requests = list(
+      page = reads_options(
+        function(data, options) utils::head(data, options$n_rows),
+        new_n_rows_option
+      )
+    )
   )
 
   withr::defer(unregister_blocks("opts_block"))
 
   entry <- register_block(block_constructor(cls), "Opts", "With options")
 
-  expect_identical(entry$options, "n_rows")
+  expect_identical(entry$requests$page$options, "n_rows")
   expect_identical(names(board_options(entry)), "n_rows")
 
   board <- new_board(c(a = new_dataset_block()))

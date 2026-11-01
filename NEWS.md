@@ -15,7 +15,8 @@
 * A block class is a value made by `new_block_class()`, holding what every
   block of the class shares: its data inputs, the `expr` from whose result
   interpolation makes the block expression, the UI module `js_module()` names,
-  its requests, the coercion of its output and its board options. The
+  its requests, which name the board options they read, and the coercion of
+  its output. The
   constructor that app scripts call is made from it by `block_constructor()`
   and keeps as a block's state what the checks in `expr` leave. The
   `interpolate()` generic turns what `expr` returns into the block expression,
@@ -23,9 +24,9 @@
   upstream ids, and `evaluate_block()` evaluates a block from its class, state
   and upstream results through `block_eval()`. A state reads `invalid` where
   `expr` signals `invalid()` or uses an unset arg. With them come
-  `result_summary()`, `block_migrate()`, `block_request()` with `volatile()`
-  and `action()`, and `expect_block_fixture()`, which tests a class without
-  Shiny (#421).
+  `result_summary()`, `block_migrate()`, `block_request()` with `volatile()`,
+  `action()` and `reads_options()`, and `expect_block_fixture()`, which tests
+  a class without Shiny (#421).
 * Registration reads a block class from its constructor and builds no block.
   It keeps one entry per class under the registry id `{pkg}-{name}`, holding
   what R needs to evaluate a block and resolve its requests, and drops the

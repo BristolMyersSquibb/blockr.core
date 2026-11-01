@@ -23,11 +23,11 @@ block_registry <- new.env()
 #' data inputs, its UI module and the JSON Schema of the block's state that the
 #' module ships beside it, as `<name>.schema.json` for a module `<name>.js`,
 #' whose properties must be the state args where it ships one, a description
-#' of each request, with the inputs, state args and board options it names and
-#' whether it is volatile or an action, the ids of the class's board options
-#' and the state a new block starts with, from `expr` called without args. The
-#' arg specs default to every state arg, and their examples are checked by
-#' calling `expr` with them.
+#' of each request, with the inputs and state args it names, the ids of the
+#' board options it reads and whether it is volatile or an action, and the
+#' state a new block starts with, from `expr` called without args. The arg
+#' specs default to every state arg, and their examples are checked by calling
+#' `expr` with them.
 #'
 #' Blocks can be registered (i.e. added to the registry) via `register_block()`
 #' with scalar-valued arguments and `register_blocks()`, where arguments may be
@@ -201,7 +201,6 @@ register_block <- function(ctor, name, description, uid = NULL,
     ui = cls[["ui"]],
     schema = class_schema(cls),
     requests = lapply(cls[["requests"]], request_entry, cls),
-    options = class_option_ids(cls),
     state = expr_state(cls, list())
   )
 
@@ -358,7 +357,7 @@ print.block_registry_entry <- function(x, ...) {
 
 #' @export
 board_options.block_registry_entry <- function(x, ...) {
-  as_board_options(class_board_options(x[["block_class"]]))
+  class_board_options(x[["block_class"]])
 }
 
 #' @rdname register_block

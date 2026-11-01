@@ -4,6 +4,7 @@
 \alias{block_request}
 \alias{volatile}
 \alias{action}
+\alias{reads_options}
 \title{Block class requests}
 \usage{
 block_request(x, name, inputs = list(), args = list(), options = list())
@@ -11,6 +12,8 @@ block_request(x, name, inputs = list(), args = list(), options = list())
 volatile(fun)
 
 action(fun)
+
+reads_options(fun, ...)
 }
 \arguments{
 \item{x}{A registry id or a block class}
@@ -21,14 +24,16 @@ action(fun)
 
 \item{args}{Values of the state args and parameters by name}
 
-\item{options}{Values of board options by id}
+\item{options}{Values of the board options the request reads, by id}
 
 \item{fun}{A request function}
+
+\item{...}{Constructors of the board options a request reads}
 }
 \value{
-The answer of the request for \code{block_request()}, while \code{volatile()}
-and \code{action()} return the function they wrap, with the class \code{volatile} or
-\code{action} added.
+The answer of the request for \code{block_request()}, while
+\code{volatile()}, \code{action()} and \code{reads_options()} return the function they are
+given, marked by an attribute.
 }
 \description{
 A request is a function that a block class's UI calls through its host for
@@ -38,27 +43,43 @@ never enters the block's state. A class names its requests in its
 with its arguments bound by name: an input to the result of the upstream
 block that feeds it, a variadic block's \code{...} to its inputs in link order,
 named by their links' inputs, a state arg to the value \code{args} holds for it,
-which is left missing where \code{args} holds none, a board option the class
-names to the value \code{options} holds for it, and any other argument to a
+which is left missing where \code{args} holds none, and any other argument to a
 parameter that \code{args} holds, where its default applies otherwise.
 }
 \details{
-A request's answer is kept by the client, but for a request wrapped in
+A request reads board options only where \code{reads_options()} marks it with
+the constructors of the options it reads. It then takes their values, by
+board option id, in its argument \code{options}, and the client sends exactly
+these values and keeps the request's answers by them, so that a board
+option the request does not read changes none of them.
+
+A request's answer is kept by the client, but for a request marked by
 \code{volatile()}, which goes to R every time and suits a cheap lookup outside
-the board, such as a directory listing, and for one wrapped in \code{action()},
+the board, such as a directory listing, and for one marked by \code{action()},
 which acts rather than reads, such as an upload, which receives the file the
 user picked in its argument \code{file}. R runs an action once per call, and it
-may write.
+may write. Each of the three sets an attribute of the function it is given,
+so they combine in any order.
 }
 \examples{
-head_block <- new_block_class(
-  "head_block",
-  inputs = "data",
-  expr = function(n = 6L) bbquote(utils::head(.(data), n = .(n))),
-  ui = js_module("head-block.js"),
-  requests = list(n_max = function(data) nrow(data))
+new_dir_option <- function(value = tempdir(), ...) {
+  new_board_option(id = "dir", default = value, ...)
+}
+
+dir_block <- new_block_class(
+  "dir_block",
+  expr = function(file = character()) bbquote(readLines(.(file))),
+  ui = js_module("dir-block.js"),
+  requests = list(
+    files = volatile(
+      reads_options(
+        function(options, pattern = "") list.files(options$dir, pattern),
+        new_dir_option
+      )
+    )
+  )
 )
 
-block_request(head_block, "n_max", inputs = list(data = datasets::iris))
+block_request(dir_block, "files", options = list(dir = R.home()))
 
 }
