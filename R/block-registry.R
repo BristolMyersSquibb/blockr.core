@@ -24,10 +24,10 @@ block_registry <- new.env()
 #' module ships beside it, as `<name>.schema.json` for a module `<name>.js`,
 #' whose properties must be the state args where it ships one, a description
 #' of each request, with the inputs and state args it names, the ids of the
-#' board options it reads and whether it is volatile or an action, and the
-#' state a new block starts with, from `expr` called without args. The arg
-#' specs default to every state arg, and their examples are checked by calling
-#' `expr` with them.
+#' board options it reads, named by the arguments that take their values, and
+#' whether it is volatile or an action, and the state a new block starts with,
+#' from `expr` called without args. The arg specs default to every state arg,
+#' and their examples are checked by calling `expr` with them.
 #'
 #' Blocks can be registered (i.e. added to the registry) via `register_block()`
 #' with scalar-valued arguments and `register_blocks()`, where arguments may be

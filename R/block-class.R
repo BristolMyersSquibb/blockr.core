@@ -26,19 +26,19 @@
 #' module's path in the package's `inst/` and the package whose code calls it,
 #' for R to resolve when it serves the module, and which resolves the path
 #' against the working directory outside a package. A class further takes a
-#' named list of `requests`, functions for what its UI asks of R, which name
-#' the board options they read with [reads_options()] (see [block_request()]),
-#' and the coercion that makes an output from a result, as `output`. A field a
-#' class leaves out is `NULL`.
+#' named list of `requests`, for what its UI asks of R, each a function or made
+#' by [new_request()], which names the board options it reads (see
+#' [block_request()]), and the coercion that makes an output from a result, as
+#' `output`. A field a class leaves out is `NULL`.
 #'
 #' A class is checked once, when it is defined: no state arg is `...`,
-#' `block_name` or `visible`, no input or state arg is `options` or shares the
-#' name of another, the arguments of each request name inputs or state args,
-#' but for parameters, which have a default, for the `file` of a request marked
-#' by [action()] and for the `options` of one marked by [reads_options()], and
-#' `expr`, called without args, cannot run yet or returns a call, a string, a
-#' function whose formals are the inputs or an object of a class that inherits
-#' from `blockr_expr`, holding no function.
+#' `block_name` or `visible`, no input or state arg shares the name of
+#' another, the arguments of each request name inputs or state args, but for
+#' parameters, which have a default, for the `file` of an action and for those
+#' that take board options, which are neither, and `expr`, called without
+#' args, cannot run yet or returns a call, a string, a function whose formals
+#' are the inputs or an object of a class that inherits from `blockr_expr`,
+#' holding no function.
 #'
 #' The constructor has the formals of `expr`, a `block_name` and a `visible`,
 #' and no `...`, so a misspelled state arg fails as an unused argument. It
@@ -63,7 +63,8 @@
 #' @param expr Function of the state args that returns what interpolation
 #'   makes the block expression from
 #' @param ui The class's UI module, made by `js_module()`
-#' @param requests Named list of request functions
+#' @param requests Named list of requests, each a function or made by
+#'   [new_request()]
 #' @param output Coercion that makes an output from a result
 #'
 #' @examples
@@ -111,6 +112,10 @@ new_block_class <- function(name, inputs = NULL, expr, ui, requests = NULL,
       "A block class name is expected to be a string.",
       class = "block_class_name_invalid"
     )
+  }
+
+  if (is.list(requests)) {
+    requests <- lapply(requests, as_request)
   }
 
   validate_block_class(
@@ -241,15 +246,11 @@ validate_block_class <- function(x) {
   inputs <- class_inputs(x)
   args <- class_state_args(x)
 
-  reserved <- c(
-    intersect(args, c("...", "block_name", "visible")),
-    intersect(c(inputs, args), "options")
-  )
+  reserved <- intersect(args, c("...", "block_name", "visible"))
 
   if (length(reserved)) {
     blockr_abort(
-      "A block class cannot have {qty(reserved)}input or state arg{?s} ",
-      "{reserved}.",
+      "A block class cannot have {qty(reserved)}state arg{?s} {reserved}.",
       class = "block_class_args_invalid"
     )
   }
@@ -312,30 +313,33 @@ validate_class_requests <- function(requests, known) {
 
   nms <- names(requests)
 
-  if (!is.list(requests) || !all(lgl_ply(requests, is.function)) ||
+  if (!is.list(requests) || !all(lgl_ply(requests, is_request)) ||
         (length(requests) && (is.null(nms) || any(!nzchar(nms)) ||
                                 anyDuplicated(nms)))) {
     blockr_abort(
       "The `requests` of a block class are expected to be a list of ",
-      "functions with unique names.",
+      "functions or requests made by `new_request()`, with unique names.",
       class = "block_class_requests_invalid"
     )
   }
 
   for (nm in nms) {
 
-    fun <- requests[[nm]]
-    fmls <- formals(fun)
+    req <- requests[[nm]]
+    fmls <- formals(req[["fun"]])
+    file <- request_file_arg(req)
+    read <- request_option_args(req)
+    clash <- intersect(read, c(known, file))
 
-    if ("options" %in% names(fmls) != not_null(request_option_ctors(fun))) {
+    if (length(clash)) {
       blockr_abort(
-        "Request {nm} is expected to take `options` exactly where it is ",
-        "marked by `reads_options()`.",
+        "Request {nm} reads board options into {clash}, which {qty(clash)}",
+        "{?names/name} an input, a state arg or the file of an action.",
         class = "block_class_requests_invalid"
       )
     }
 
-    params <- setdiff(names(fmls), c(known, request_file_arg(fun), "options"))
+    params <- setdiff(names(fmls), c(known, file, read))
     bare <- params[lgl_ply(fmls[params], is_empty_arg)]
 
     if (length(bare)) {
@@ -439,9 +443,7 @@ class_state_args <- function(cls) {
 
 class_board_options <- function(cls) {
   combine_board_options(
-    call_option_ctors(
-      unlst(lapply(cls[["requests"]], request_option_ctors))
-    )
+    call_option_ctors(unlst(lst_xtr(cls[["requests"]], "options")))
   )
 }
 

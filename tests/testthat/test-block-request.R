@@ -11,7 +11,6 @@ test_that("a request's args are bound by name", {
         vals <- unique(as.character(data[[column]]))
         utils::head(vals[grepl(query, vals, fixed = TRUE)], limit)
       },
-      page = reads_options(function(data, options) options, new_n_rows_option),
       unset = function(data, column) missing(column)
     )
   )
@@ -32,16 +31,6 @@ test_that("a request's args are bound by name", {
     "setosa"
   )
 
-  expect_identical(
-    block_request(cls, "page", list(data = iris), options = list(n_rows = 5L)),
-    list(n_rows = 5L)
-  )
-
-  expect_error(
-    block_request(cls, "n_max", list(data = iris), options = list(n_rows = 5L)),
-    class = "block_request_args_invalid"
-  )
-
   expect_true(block_request(cls, "unset", list(data = iris)))
 
   expect_error(
@@ -49,8 +38,73 @@ test_that("a request's args are bound by name", {
     class = "block_request_args_invalid"
   )
 
+  expect_error(
+    block_request(cls, "n_max", list(data = iris), options = list(n_rows = 5L)),
+    class = "block_request_args_invalid"
+  )
+
   expect_error(block_request(cls, "nope"), class = "block_request_unknown")
   expect_error(block_request(cls, 1), class = "block_request_unknown")
+})
+
+test_that("a request takes the values of the board options it reads", {
+
+  cls <- new_block_class(
+    "opts_block",
+    inputs = "data",
+    expr = function() bbquote(.(data)),
+    ui = js_module("opts.js"),
+    requests = list(
+      page = new_request(
+        function(data, options) utils::head(data, options),
+        options = new_n_rows_option
+      ),
+      shown = new_request(
+        function(rows, conds) list(rows = rows, conds = conds),
+        options = list(rows = new_n_rows_option,
+                       conds = new_show_conditions_option)
+      ),
+      unset = new_request(
+        function(rows) missing(rows),
+        options = list(rows = new_n_rows_option)
+      )
+    )
+  )
+
+  iris <- datasets::iris
+
+  expect_identical(
+    block_request(cls, "page", list(data = iris), options = list(n_rows = 5L)),
+    utils::head(iris, 5L)
+  )
+
+  expect_identical(
+    block_request(
+      cls, "shown",
+      options = list(n_rows = 5L, show_conditions = c("warning", "error"))
+    ),
+    list(rows = 5L, conds = c("warning", "error"))
+  )
+
+  expect_identical(
+    block_request(cls, "shown",
+                  options = list(n_rows = NULL, show_conditions = list(a = 1))),
+    list(rows = NULL, conds = list(a = 1))
+  )
+
+  expect_true(block_request(cls, "unset"))
+  expect_false(block_request(cls, "unset", options = list(n_rows = NULL)))
+
+  expect_error(
+    block_request(cls, "page", list(data = iris),
+                  options = list(dark_mode = "dark")),
+    class = "block_request_args_invalid"
+  )
+
+  expect_error(
+    block_request(cls, "page", list(data = iris), args = list(options = 5L)),
+    class = "block_request_args_invalid"
+  )
 })
 
 test_that("a variadic block's request takes its inputs as ...", {
@@ -72,34 +126,65 @@ test_that("a variadic block's request takes its inputs as ...", {
   )
 })
 
-test_that("volatile(), action() and reads_options() mark a request", {
+test_that("a request made by new_request() says what it reads and does", {
 
   f <- function(options, path = "") path
 
-  vol <- volatile(f)
-  act <- action(function(file) file)
+  req <- new_request(f, options = new_n_rows_option, volatile = TRUE)
 
-  expect_true(is_volatile(vol))
-  expect_false(is_action(vol))
-  expect_true(is_action(act))
-  expect_identical(vol(path = "x"), "x")
-  expect_null(oldClass(vol))
+  expect_s3_class(req, "blockr_request")
+  expect_identical(req$fun, f)
+  expect_identical(req$options, list(options = new_n_rows_option))
+  expect_identical(request_option_ids(req), c(options = "n_rows"))
+  expect_true(req$volatile)
+  expect_false(req$action)
+
+  expect_identical(
+    new_request(f, options = list(path = new_n_rows_option))$options,
+    list(path = new_n_rows_option)
+  )
+
+  plain <- new_request(function(data) nrow(data))
+
+  expect_null(plain$options)
+  expect_identical(request_option_ids(plain), character())
+
+  act <- new_request(function(file) file, action = TRUE)
 
   expect_identical(request_file_arg(act), "file")
-  expect_identical(request_file_arg(vol), character())
+  expect_identical(request_file_arg(req), character())
 
-  expect_identical(
-    volatile(reads_options(f, new_n_rows_option)),
-    reads_options(volatile(f), new_n_rows_option)
+  expect_snapshot({
+    print(req)
+    print(act)
+  })
+
+  expect_error(new_request("x"), class = "block_request_invalid")
+
+  expect_error(
+    new_request(f, options = "n_rows"),
+    class = "block_request_invalid"
   )
 
-  expect_identical(
-    reads_options(reads_options(f, new_n_rows_option), new_dark_mode_option),
-    reads_options(f, new_n_rows_option, new_dark_mode_option)
+  expect_error(
+    new_request(f, options = list(new_n_rows_option)),
+    class = "block_request_invalid"
   )
 
-  expect_error(volatile("x"), class = "block_request_invalid")
-  expect_error(reads_options(f, "n_rows"), class = "block_request_invalid")
+  expect_error(
+    new_request(
+      f,
+      options = list(path = new_n_rows_option, path = new_dark_mode_option)
+    ),
+    class = "block_request_invalid"
+  )
+
+  expect_error(
+    new_request(function(path) path, options = new_n_rows_option),
+    class = "block_request_invalid"
+  )
+
+  expect_error(new_request(f, volatile = NA), class = "block_request_invalid")
 })
 
 test_that("a registry entry describes each request", {
@@ -110,18 +195,18 @@ test_that("a registry entry describes each request", {
     expr = function(column = NULL) bbquote(.(data)),
     ui = js_module("req.js"),
     requests = list(
-      values = reads_options(
-        function(data, column, options, limit = 10L) NULL,
-        new_n_rows_option
+      values = new_request(
+        function(data, column, rows, limit = 10L) NULL,
+        options = list(rows = new_n_rows_option)
       ),
-      dirs = volatile(function(path = "") NULL),
-      upload = action(function(file, column) NULL)
+      dirs = new_request(function(path = "") NULL, volatile = TRUE),
+      upload = new_request(function(file, column) NULL, action = TRUE)
     )
   )
 
   expect_identical(
     request_entry(cls$requests$values, cls),
-    list(inputs = "data", state_args = "column", options = "n_rows",
+    list(inputs = "data", state_args = "column", options = c(rows = "n_rows"),
          volatile = FALSE, action = FALSE)
   )
 

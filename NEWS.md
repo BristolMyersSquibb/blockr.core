@@ -30,15 +30,14 @@
   its requests, which name the board options they read, and the coercion of
   its output. The constructor that app scripts call is made from it by
   `block_constructor()` and keeps as a block's state what the checks in `expr`
-  leave. The
-  `interpolate()` generic turns what `expr` returns into the block expression,
-  `bbquote()` returns a `bquoted_expr`, whose placeholders it fills in with the
-  upstream ids, and `evaluate_block()` evaluates a block from its class, state
-  and upstream results through `block_eval()`. A state reads `invalid` where
-  `expr` signals `invalid()` or uses an unset arg. With them come
-  `result_summary()`, `block_migrate()`, `block_request()` with `volatile()`,
-  `action()` and `reads_options()`, and `expect_block_fixture()`, which tests
-  a class without Shiny (#421).
+  leave. The `interpolate()` generic turns what `expr` returns into the block
+  expression, `bbquote()` returns a `bquoted_expr`, whose placeholders it
+  fills in with the upstream ids, and `evaluate_block()` evaluates a block
+  from its class, state and upstream results through `block_eval()`. A state
+  reads `invalid` where `expr` signals `invalid()` or uses an unset arg. With
+  them come `result_summary()`, `block_migrate()`, `block_request()` and
+  `new_request()`, and `expect_block_fixture()`, which tests a class without
+  Shiny (#421).
 * Registration reads a block class from its constructor and builds no block.
   It keeps one entry per class under the registry id `{pkg}-{name}`, holding
   what R needs to evaluate a block and resolve its requests, and drops the

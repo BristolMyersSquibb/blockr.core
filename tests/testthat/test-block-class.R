@@ -86,27 +86,41 @@ test_that("new_block_class() checks a class once", {
   )
 
   expect_error(
-    new_block_class("x_block", "data", function(options = 1) "data", ui),
-    class = "block_class_args_invalid"
-  )
-
-  expect_error(
-    new_block_class("x_block", "options", function() "options", ui),
-    class = "block_class_args_invalid"
-  )
-
-  expect_error(
-    new_block_class("x_block", "data", expr, ui,
-                    requests = list(page = function(data, options) data)),
+    new_block_class(
+      "x_block", "data", function(options = 1) "data", ui,
+      requests = list(
+        page = new_request(function(options) options, new_n_rows_option)
+      )
+    ),
     class = "block_class_requests_invalid"
   )
 
   expect_error(
     new_block_class(
       "x_block", "data", expr, ui,
-      requests = list(page = reads_options(function(data) data,
-                                           new_n_rows_option))
+      requests = list(
+        page = new_request(function(data) data, list(data = new_n_rows_option))
+      )
     ),
+    class = "block_class_requests_invalid"
+  )
+
+  expect_error(
+    new_block_class(
+      "x_block", "data", expr, ui,
+      requests = list(
+        upload = new_request(
+          function(file) file,
+          options = list(file = new_n_rows_option),
+          action = TRUE
+        )
+      )
+    ),
+    class = "block_class_requests_invalid"
+  )
+
+  expect_error(
+    new_block_class("x_block", "data", expr, ui, requests = list(page = "x")),
     class = "block_class_requests_invalid"
   )
 
@@ -127,13 +141,18 @@ test_that("new_block_class() checks a class once", {
       "x_block", "data", function(n = 1L) bbquote(utils::head(.(data), .(n))),
       ui,
       requests = list(
-        cols = reads_options(
-          function(data, n, options, limit = 10L) names(data),
-          new_n_rows_option
+        cols = new_request(
+          function(data, n, rows, limit = 10L) names(data),
+          options = list(rows = new_n_rows_option)
         ),
-        upload = action(function(file, n) file)
+        upload = new_request(function(file, n) file, action = TRUE)
       )
     ),
+    "block_class"
+  )
+
+  expect_s3_class(
+    new_block_class("x_block", "data", function(options = 1) "data", ui),
     "block_class"
   )
 
@@ -343,13 +362,13 @@ test_that("a block's board options are those its requests read", {
       expr = function() bbquote(.(data)),
       ui = js_module("opts.js"),
       requests = list(
-        page = reads_options(
-          function(data, options) utils::head(data, options$n_rows),
-          new_n_rows_option
+        page = new_request(
+          function(data, options) utils::head(data, options),
+          options = new_n_rows_option
         ),
-        rows = reads_options(
-          function(data, options) min(nrow(data), options$n_rows),
-          new_n_rows_option, new_dark_mode_option
+        rows = new_request(
+          function(data, n, dark) min(nrow(data), n),
+          options = list(n = new_n_rows_option, dark = new_dark_mode_option)
         )
       )
     )

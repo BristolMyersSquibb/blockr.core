@@ -48,7 +48,8 @@ makes the block expression from}
 
 \item{ui}{The class's UI module, made by \code{js_module()}}
 
-\item{requests}{Named list of request functions}
+\item{requests}{Named list of requests, each a function or made by
+\code{\link[=new_request]{new_request()}}}
 
 \item{output}{Coercion that makes an output from a result}
 
@@ -107,19 +108,19 @@ default. A class names its UI module with \code{js_module()}, which keeps the
 module's path in the package's \verb{inst/} and the package whose code calls it,
 for R to resolve when it serves the module, and which resolves the path
 against the working directory outside a package. A class further takes a
-named list of \code{requests}, functions for what its UI asks of R, which name
-the board options they read with \code{\link[=reads_options]{reads_options()}} (see \code{\link[=block_request]{block_request()}}),
-and the coercion that makes an output from a result, as \code{output}. A field a
-class leaves out is \code{NULL}.
+named list of \code{requests}, for what its UI asks of R, each a function or made
+by \code{\link[=new_request]{new_request()}}, which names the board options it reads (see
+\code{\link[=block_request]{block_request()}}), and the coercion that makes an output from a result, as
+\code{output}. A field a class leaves out is \code{NULL}.
 
 A class is checked once, when it is defined: no state arg is \code{...},
-\code{block_name} or \code{visible}, no input or state arg is \code{options} or shares the
-name of another, the arguments of each request name inputs or state args,
-but for parameters, which have a default, for the \code{file} of a request marked
-by \code{\link[=action]{action()}} and for the \code{options} of one marked by \code{\link[=reads_options]{reads_options()}}, and
-\code{expr}, called without args, cannot run yet or returns a call, a string, a
-function whose formals are the inputs or an object of a class that inherits
-from \code{blockr_expr}, holding no function.
+\code{block_name} or \code{visible}, no input or state arg shares the name of
+another, the arguments of each request name inputs or state args, but for
+parameters, which have a default, for the \code{file} of an action and for those
+that take board options, which are neither, and \code{expr}, called without
+args, cannot run yet or returns a call, a string, a function whose formals
+are the inputs or an object of a class that inherits from \code{blockr_expr},
+holding no function.
 
 The constructor has the formals of \code{expr}, a \code{block_name} and a \code{visible},
 and no \code{...}, so a misspelled state arg fails as an unused argument. It

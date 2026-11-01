@@ -2,18 +2,12 @@
 % Please edit documentation in R/block-request.R
 \name{block_request}
 \alias{block_request}
-\alias{volatile}
-\alias{action}
-\alias{reads_options}
+\alias{new_request}
 \title{Block class requests}
 \usage{
 block_request(x, name, inputs = list(), args = list(), options = list())
 
-volatile(fun)
-
-action(fun)
-
-reads_options(fun, ...)
+new_request(fun, options = NULL, volatile = FALSE, action = FALSE)
 }
 \arguments{
 \item{x}{A registry id or a block class}
@@ -24,42 +18,48 @@ reads_options(fun, ...)
 
 \item{args}{Values of the state args and parameters by name}
 
-\item{options}{Values of the board options the request reads, by id}
+\item{options}{For \code{block_request()}, the values of the board options the
+request reads, by id, and for \code{new_request()}, the constructor of the
+board option it reads, or a list of constructors named by the arguments
+that take their values}
 
-\item{fun}{A request function}
+\item{fun}{The request's function}
 
-\item{...}{Constructors of the board options a request reads}
+\item{volatile, action}{Whether the request is volatile or an action}
 }
 \value{
 The answer of the request for \code{block_request()}, while
-\code{volatile()}, \code{action()} and \code{reads_options()} return the function they are
-given, marked by an attribute.
+\code{new_request()} returns an object of class \code{blockr_request}.
 }
 \description{
 A request is a function that a block class's UI calls through its host for
 whatever it needs from R, such as the maximum of a numeric input, which
 never enters the block's state. A class names its requests in its
-\code{requests} field (see \code{\link[=new_block_class]{new_block_class()}}), and \code{block_request()} calls one
-with its arguments bound by name: an input to the result of the upstream
-block that feeds it, a variadic block's \code{...} to its inputs in link order,
-named by their links' inputs, a state arg to the value \code{args} holds for it,
-which is left missing where \code{args} holds none, and any other argument to a
-parameter that \code{args} holds, where its default applies otherwise.
+\code{requests} field (see \code{\link[=new_block_class]{new_block_class()}}), each a function or an object
+made by \code{new_request()}, which says what else R and the client need to know
+about it, and \code{block_request()} calls one with its arguments bound by name:
+an input to the result of the upstream block that feeds it, a variadic
+block's \code{...} to its inputs in link order, named by their links' inputs, a
+state arg to the value \code{args} holds for it, which is left missing where
+\code{args} holds none, and any other argument to a parameter that \code{args} holds,
+where its default applies otherwise.
 }
 \details{
-A request reads board options only where \code{reads_options()} marks it with
-the constructors of the options it reads. It then takes their values, by
-board option id, in its argument \code{options}, and the client sends exactly
-these values and keeps the request's answers by them, so that a board
-option the request does not read changes none of them.
+A request reads board options only where \code{new_request()} names them, by
+their constructors. Given one constructor, the request takes the board
+option's value in its argument \code{options}, and given a named list of them,
+it takes each value in the argument of that name. A value comes whole,
+whatever its shape, a single value, several, \code{NULL} or a list. The client
+sends exactly the values of the board options a request reads, by id, and
+keeps its answers by them, so that a board option it does not read changes
+none of them, and an argument whose board option the client sends no value
+for is left missing.
 
-A request's answer is kept by the client, but for a request marked by
-\code{volatile()}, which goes to R every time and suits a cheap lookup outside
-the board, such as a directory listing, and for one marked by \code{action()},
-which acts rather than reads, such as an upload, which receives the file the
-user picked in its argument \code{file}. R runs an action once per call, and it
-may write. Each of the three sets an attribute of the function it is given,
-so they combine in any order.
+A request's answer is kept by the client, but for a \code{volatile} request,
+which goes to R every time and suits a cheap lookup outside the board, such
+as a directory listing, and for an \code{action}, which acts rather than reads,
+such as an upload, which receives the file the user picked in its argument
+\code{file}. R runs an action once per call, and it may write.
 }
 \examples{
 new_dir_option <- function(value = tempdir(), ...) {
@@ -68,18 +68,27 @@ new_dir_option <- function(value = tempdir(), ...) {
 
 dir_block <- new_block_class(
   "dir_block",
-  expr = function(file = character()) bbquote(readLines(.(file))),
+  expr = function(path = character()) bbquote(readLines(.(path))),
   ui = js_module("dir-block.js"),
   requests = list(
-    files = volatile(
-      reads_options(
-        function(options, pattern = "") list.files(options$dir, pattern),
-        new_dir_option
-      )
+    files = new_request(
+      function(options, pattern = "") list.files(options, pattern),
+      options = new_dir_option,
+      volatile = TRUE
+    ),
+    preview = new_request(
+      function(path, dir, n = 3L) readLines(file.path(dir, path), n),
+      options = list(dir = new_dir_option)
     )
   )
 )
 
-block_request(dir_block, "files", options = list(dir = R.home()))
+dir_block$requests$preview
+
+pkg <- system.file(package = "blockr.core")
+
+block_request(dir_block, "files", options = list(dir = pkg))
+block_request(dir_block, "preview", args = list(path = "DESCRIPTION"),
+              options = list(dir = pkg))
 
 }

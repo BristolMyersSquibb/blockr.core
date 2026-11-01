@@ -163,9 +163,9 @@ test_that("a registry entry's board options are those its requests read", {
     expr = function() bbquote(.(data)),
     ui = js_module("opts.js"),
     requests = list(
-      page = reads_options(
-        function(data, options) utils::head(data, options$n_rows),
-        new_n_rows_option
+      page = new_request(
+        function(data, rows) utils::head(data, rows),
+        options = list(rows = new_n_rows_option)
       )
     )
   )
@@ -174,8 +174,14 @@ test_that("a registry entry's board options are those its requests read", {
 
   entry <- register_block(block_constructor(cls), "Opts", "With options")
 
-  expect_identical(entry$requests$page$options, "n_rows")
+  expect_identical(entry$requests$page$options, c(rows = "n_rows"))
   expect_identical(names(board_options(entry)), "n_rows")
+
+  expect_identical(
+    block_request("opts_block", "page", list(data = datasets::iris),
+                  options = list(n_rows = 2L)),
+    utils::head(datasets::iris, 2L)
+  )
 
   board <- new_board(c(a = new_dataset_block()))
 
