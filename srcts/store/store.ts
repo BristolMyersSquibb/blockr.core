@@ -130,11 +130,14 @@ export function createStore(options: StoreOptions): Store {
   const history = signal<ReadonlyMap<Origin, History>>(new Map());
   const subscribers = new Set<(change: Change, board: Board) => void>();
 
-  // The edit ids, which are kept beside the board rather than in it, and
-  // drawn from one count, so that an id names one version of what it belongs
-  // to, which undo and redo restore with it.
+  // The edit ids, kept beside the board rather than in it. One count numbers
+  // the steps, the opening of a board included, and the edit id of a block, or
+  // of an entry or a value of the front-end state, is the number of the step
+  // that last changed it, which undo and redo put back with what they put
+  // back. No number is given out twice, so an id names one version of what it
+  // belongs to.
   const edits = new Map<string, number>();
-  let count = 0;
+  let lastStep = 0;
 
   // Whether the store is applying or announcing a change, during which a
   // subscriber, an `expand`, a `check` or a migration may not change the board.
@@ -307,8 +310,9 @@ export function createStore(options: StoreOptions): Store {
       const touched = new Set(applied.flatMap(({ changed }) => [...changed.targets]));
       const before = editsOf(touched);
       const last = applied.at(-1)?.board ?? start;
+      const step = ++lastStep;
       for (const key of touched) {
-        if (exists(last, key)) edits.set(key, ++count);
+        if (exists(last, key)) edits.set(key, step);
         else edits.delete(key);
       }
       const after = editsOf(touched);
@@ -408,7 +412,8 @@ export function createStore(options: StoreOptions): Store {
 
       board.value = next;
       edits.clear();
-      for (const key of everyTarget(next)) edits.set(key, ++count);
+      const step = ++lastStep;
+      for (const key of everyTarget(next)) edits.set(key, step);
       history.value = new Map();
 
       announce({ opened: next, dropped }, next);

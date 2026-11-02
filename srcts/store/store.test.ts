@@ -918,6 +918,18 @@ describe("edit ids", () => {
     expect(store.editId({ block: "b" })).not.toBe(b);
   });
 
+  test("are the number of the step that last changed what they belong to", async () => {
+    const store = await opened();
+    const opening = store.editId({ block: "a" });
+    expect(store.editId({ block: "b" })).toBe(opening);
+
+    store.apply({ blocks: { mod: { a: { name: "Data" }, c: { name: "Joined" } } } });
+    const step = store.editId({ block: "a" });
+    expect(step).toBeGreaterThan(opening ?? Infinity);
+    expect(store.editId({ block: "c" })).toBe(step);
+    expect(store.editId({ block: "b" })).toBe(opening);
+  });
+
   test("refuse a delta built on an edit that another has replaced", async () => {
     const store = await opened();
     const edit = store.editId({ block: "b" });
