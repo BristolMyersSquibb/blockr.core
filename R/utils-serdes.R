@@ -1,9 +1,10 @@
 #' Serialization utilities
 #'
-#' Blocks are serialized by writing out information on the constructor used to
-#' create the object, combining this with block state information, which
-#' constitutes values such that when passed to the constructor the original
-#' object can be re-created.
+#' Board objects are serialized by writing out information on the constructor
+#' used to create the object, combining this with its state, which constitutes
+#' values such that when passed to the constructor the original object can be
+#' re-created. Blocks are not covered, so a board that holds any fails to
+#' serialize.
 #'
 #' Helper functions `blockr_ser()` and `blockr_deser()` are implemented as
 #' generics and perform most of the heavy lifting for (de-)serialization:
@@ -17,9 +18,9 @@
 #'
 #' The class vector written to `object` selects the `blockr_deser()` method,
 #' but the re-created object only has to keep the kind of object it names: the
-#' last class with a `blockr_deser()` method of its own, such as `block` for any
-#' block. Classes in front of it may differ from the ones written, so a package
-#' can rename or drop classes of its blocks without breaking saved boards. An
+#' last class with a `blockr_deser()` method of its own, such as `stack` for any
+#' stack. Classes in front of it may differ from the ones written, so a package
+#' can rename or drop classes of its objects without breaking saved boards. An
 #' object re-created as another kind raises an error of class
 #' `block_deser_class_error`.
 #'
@@ -31,11 +32,11 @@
 #' @param ... Generic consistency
 #'
 #' @examples
-#' blk <- new_dataset_block("iris")
+#' stk <- new_stack(c("a", "b"), name = "Inputs")
 #'
-#' blockr_ser(blk)
+#' blockr_ser(stk)
 #'
-#' all.equal(blk, blockr_deser(blockr_ser(blk)), check.environment = FALSE)
+#' all.equal(stk, blockr_deser(blockr_ser(stk)), check.environment = FALSE)
 #'
 #' @return Serialization helper function `blockr_ser()` returns lists, which
 #' for most objects contain slots `object` and `payload`, where `object`
@@ -46,31 +47,6 @@
 #' @export
 blockr_ser <- function(x, ...) {
   UseMethod("blockr_ser")
-}
-
-#' @param state Object state (as returned from a block server)
-#' @rdname blockr_ser
-#' @export
-blockr_ser.block <- function(x, state = NULL, ...) {
-
-  if (is.null(state)) {
-    state <- initial_block_state(x)
-  }
-
-  attrs <- attributes(x)
-
-  state <- c(
-    state,
-    attrs[setdiff(names(attrs), c("names", internal_block_attributes()))]
-  )
-
-  ctor <- block_ctor(x)
-
-  list(
-    object = class(x),
-    payload = state,
-    constructor = blockr_ser(ctor)
-  )
 }
 
 #' @param blocks Block states keyed by block ID. A block that is `NULL`, or
@@ -324,27 +300,6 @@ deser_kind <- function(cls) {
 }
 
 #' @param data List valued data (converted from JSON)
-#' @rdname blockr_ser
-#' @export
-blockr_deser.block <- function(x, data, ...) {
-
-  stopifnot(
-    all(c("constructor", "payload") %in% names(data))
-  )
-
-  ctor <- blockr_deser(data[["constructor"]])
-
-  args <- c(
-    data[["payload"]],
-    list(
-      ctor = coal(ctor_name(ctor), ctor_fun(ctor)),
-      ctor_pkg = ctor_pkg(ctor)
-    )
-  )
-
-  do.call(ctor_fun(ctor), args)
-}
-
 #' @rdname blockr_ser
 #' @export
 blockr_deser.blocks <- function(x, data, ..., on_error = NULL) {

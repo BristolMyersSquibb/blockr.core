@@ -4,6 +4,10 @@
 
   register_front_end("basic", js_module("js/basic.js"), class = "board")
 
+  register_core_blocks()
+
+  trace_block_classes(pkgname)
+
   invisible(NULL)
 } # nocov end
 

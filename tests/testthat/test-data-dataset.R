@@ -1,6 +1,58 @@
 test_that("dataset block constructor", {
 
-  blk <- new_dataset_block("mtcars")
+  blk <- new_dataset_block()
 
   expect_s3_class(blk, "dataset_block")
+  expect_identical(block_state(blk), list(package = "datasets"))
+
+  expect_identical(
+    block_state(new_dataset_block("iris")),
+    list(dataset = "iris", package = "datasets")
+  )
+
+  expect_identical(registry_id_from_block(blk), "blockr.core-dataset_block")
+})
+
+test_that("a dataset block names its dataset in its package", {
+
+  res <- evaluate_block(dataset_block, list(package = "datasets"))
+
+  expect_identical(res[["status"]], "invalid")
+  expect_match(res[["conditions"]][[1L]][["message"]], "dataset")
+
+  res <- evaluate_block(dataset_block,
+                        list(dataset = "BOD", package = "datasets"))
+
+  expect_identical(res[["status"]], "ok")
+  expect_identical(res[["expr"]], quote(datasets::BOD))
+  expect_identical(res[["result"]], datasets::BOD)
+
+  res <- evaluate_block(dataset_block,
+                        list(dataset = "nope", package = "datasets"))
+
+  expect_identical(res[["status"]], "error")
+})
+
+test_that("a dataset block lists the data frames a package exports", {
+
+  res <- run_block_request(dataset_block, "datasets",
+                           args = list(package = "datasets"))
+
+  expect_type(res, "character")
+  expect_contains(res, c("iris", "BOD", "mtcars"))
+  expect_false("Titanic" %in% res)
+
+  expect_true(dataset_block[["requests"]][["datasets"]][["volatile"]])
+})
+
+# The fixture records no answer of the request `datasets`, since what the
+# datasets package holds depends on the version of R.
+test_that("the dataset block's fixture", {
+  expect_block_fixture(
+    dataset_block,
+    states = list(
+      list(dataset = "iris", package = "datasets"),
+      list(dataset = "BOD", package = "datasets")
+    )
+  )
 })

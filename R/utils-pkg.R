@@ -7,8 +7,9 @@
 NULL
 
 # `datasets` has no function exports (only lazy data), so @importFrom
-# can't anchor it; reference `iris` here to silence the unused-Imports NOTE.
-ignore_unused_imports <- function() datasets::iris
+# can't anchor it, and `glue` is called only by the code the glue block
+# builds; reference both here to silence the unused-Imports NOTE.
+ignore_unused_imports <- function() list(datasets::iris, glue::glue)
 
 #' @param env An environment that is resolved to a package name
 #' @rdname set_names

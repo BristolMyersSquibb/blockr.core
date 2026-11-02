@@ -81,6 +81,32 @@
   most specific class in the board's class vector, so that every board has
   core's basic front-end, `blockr.core-basic`, which core declares for
   `board`, at least (#424).
+* Core's twelve built-in blocks are block classes. Core exports each class
+  beside its constructor, such as `head_block` beside `new_head_block()`, and
+  registers ten of them when it loads, under IDs such as
+  `blockr.core-head_block`. The static and fixed blocks stay out of the block
+  registry, as before. Each class names its UI module, which a later version
+  ships, its requests, such as the head block's `n_max`, and the coercion of
+  its output: a table for most, a plot for the scatter block and text for the
+  glue, file browser and upload blocks. Each class has a fixture file of
+  states and request answers, which the tests of its module will read (#423).
+* With the built-in blocks ported, `new_block()` is gone, and so are its
+  specializations `new_data_block()`, `new_file_block()`,
+  `new_parser_block()`, `new_plot_block()`, `new_text_block()` and
+  `new_transform_block()`, with `validate_data_inputs()`. The methods of
+  `blockr_ser()` and `blockr_deser()` for blocks go too, since neither works
+  for a block of a block class (#423).
+* Some built-in blocks change behavior. The static block holds R code as a
+  string, such as `new_static_block("datasets::iris")`, in place of a data
+  frame, which its constructor now refuses. The fixed block holds its code as
+  a string as well. A dataset block waits for a dataset, a merge block for the
+  columns to join by and a scatter block for both of its columns, where each
+  had a default before. The glue block waits for a link, refers to an input
+  without a name by the ID of its block, where it used `.arg1` before, and
+  shows its text as printed text rather than as Markdown. The upload block
+  keeps the uploaded file in the session's temporary directory and holds its
+  path as its state, `file_path`. The file browser lists directories through
+  a request of its own (#423).
 
 # blockr.core 0.1.4
 

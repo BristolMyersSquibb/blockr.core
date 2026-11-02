@@ -176,3 +176,25 @@ as_dots_call <- function(x) {
     class = "dots_should_not_be_called"
   )
 }
+
+# The R code that a block holds as its state, as a string, where a script may
+# also give it quoted, as a call or a name, which it deparses. A string that
+# does not parse fails with the parser's message.
+code_string <- function(x, block) {
+
+  if (is.language(x)) {
+    x <- paste(deparse(x), collapse = "\n")
+  }
+
+  if (!is_string(x) || is.na(x)) {
+    blockr_abort(
+      "The {block} takes R code as a string, not an object of class ",
+      "{class(x)[1L]}.",
+      class = "block_code_invalid"
+    )
+  }
+
+  parse(text = x, keep.source = FALSE)
+
+  x
+}

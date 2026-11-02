@@ -1,4 +1,4 @@
-#' Similar to [`blocks`](new_block()) and [`links`][new_link()], multiple
+#' Similar to [`blocks`][new_block_class()] and [`links`][new_link()], multiple
 #' stacks can be handled using `stacks` container objects. These guarantee
 #' that the IDs given (implemented as [base::names()]) are unique and, as every
 #' ID, strings that are neither empty nor made of digits alone, while a stack

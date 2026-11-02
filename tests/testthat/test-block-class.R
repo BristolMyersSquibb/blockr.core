@@ -224,10 +224,11 @@ test_that("the constructor keeps the state the checks in expr leave", {
   )
 
   expect_identical(constructor_class(new_class_head_block), head_class)
-  expect_error(constructor_class(new_head_block),
+  expect_error(constructor_class(function() NULL),
                class = "block_constructor_invalid")
 
-  expect_error(block_constructor(new_head_block), class = "block_class_invalid")
+  expect_error(block_constructor(new_class_head_block),
+               class = "block_class_invalid")
 })
 
 test_that("an unset arg stays out of the state until something sets it", {

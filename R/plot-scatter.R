@@ -1,12 +1,43 @@
-#' @section Scatter block:
+#' @include block-class.R output-plot.R
+#' @rdname new_scatter_block
+#' @format NULL
+#' @export
+scatter_block <- new_block_class(
+  "scatter_block",
+  inputs = function(data) stopifnot(is.data.frame(data) || is.matrix(data)),
+  expr = function(x, y) {
+    bbquote(plot(.(data)[[.(x)]], .(data)[[.(y)]], xlab = .(x), ylab = .(y)))
+  },
+  ui = js_module("js/scatter-block.js"),
+  requests = list(columns = function(data) colnames(data)),
+  output = as_plot_output
+)
+
+#' Scatter block
+#'
+#' The scatter block draws a scatter plot of two columns of a data frame with
+#' [graphics::plot()]. The block class `scatter_block` defines it, and its
+#' constructor `new_scatter_block()` makes a block of the class (see
+#' [new_block_class()]).
+#'
+#' @details
 #' Mainly for demonstration purposes, this block draws a scatter plot using
-#' [base::plot()]. In its current simplistic implementation, apart from axis
+#' [graphics::plot()]. In its current simplistic implementation, apart from axis
 #' labels (fixed to the corresponding column names), no further plotting
 #' options are available and for any "production" application, a more
 #' sophisticated (set of) block(s) for data visualization will most likely be
 #' required.
 #'
+#' @section Block class:
+#' The block's data input `data` is checked to be a data frame or a matrix.
+#' Its state args `x` and `y` have no defaults, so a new block leaves them
+#' unset and is `invalid` until something sets both. Its UI asks R for the
+#' input's columns through the request `columns`. The block's [block_eval()]
+#' method runs the block expression with [capture_plot()], so that its result
+#' is the plot it draws, which shows through [as_plot_output()].
+#'
 #' @param x,y Columns to place on respective axes
+#' @inheritParams new_head_block
 #'
 #' @block scatter plot block
 #' @blockDescr Scatter plotting
@@ -23,75 +54,23 @@
 #'   [example] "Sepal.Width"
 #'   [type] arg_string()
 #'
-#' @rdname new_plot_block
+#' @examples
+#' new_scatter_block(x = "Time", y = "demand")
+#'
+#' res <- evaluate_block(scatter_block, list(x = "Time", y = "demand"),
+#'                       list(data = "a"), list(a = datasets::BOD))
+#' res
+#'
+#' as_plot_output(res$result, info = list(width = 320, height = 240))
+#'
+#' @return The block class `scatter_block` is an object of class
+#' `block_class`, and its constructor `new_scatter_block()` returns a block of
+#' that class.
+#'
 #' @export
-new_scatter_block <- function(x = character(), y = character(), ...) {
-  new_plot_block(
-    function(id, data) {
-      moduleServer(
-        id,
-        function(input, output, session) {
+new_scatter_block <- block_constructor(scatter_block)
 
-          cols <- reactive(colnames(data()))
-
-          x_col <- reactiveVal(x)
-          y_col <- reactiveVal(y)
-
-          observeEvent(input$xcol, x_col(input$xcol))
-          observeEvent(input$ycol, y_col(input$ycol))
-
-          observeEvent(
-            cols(),
-            {
-              updateSelectInput(
-                session,
-                inputId = "xcol",
-                choices = cols(),
-                selected = x_col()
-              )
-              updateSelectInput(
-                session,
-                inputId = "ycol",
-                choices = cols(),
-                selected = y_col()
-              )
-            }
-          )
-
-          list(
-            expr = reactive(
-              bbquote(
-                plot(.(data)[[.(x)]], .(data)[[.(y)]], xlab = .(x_col),
-                     ylab = .(y_col)),
-                list(x = x_col(), y = y_col(), x_col = x_col(),
-                     y_col = y_col())
-              )
-            ),
-            state = list(x = x_col, y = y_col)
-          )
-        }
-      )
-    },
-    function(id) {
-      tagList(
-        selectInput(
-          inputId = NS(id, "xcol"),
-          label = "X-axis",
-          choices = x,
-          selected = x
-        ),
-        selectInput(
-          inputId = NS(id, "ycol"),
-          label = "Y-axis",
-          choices = y,
-          selected = y
-        )
-      )
-    },
-    dat_valid = function(data) {
-      stopifnot(is.data.frame(data) || is.matrix(data))
-    },
-    class = "scatter_block",
-    ...
-  )
+#' @export
+block_eval.scatter_block <- function(x, expr, env, ...) {
+  capture_plot(expr, env)
 }

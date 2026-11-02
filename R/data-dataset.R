@@ -1,4 +1,44 @@
-#' @section Dataset block:
+#' @include block-class.R output-table.R
+NULL
+
+list_datasets <- function(package) {
+
+  is_dataset_eligible <- function(x, pkg) {
+    inherits(do.call("::", list(pkg, x)), "data.frame")
+  }
+
+  datasets <- utils::data(package = package)
+  datasets <- datasets$results[, "Item"]
+
+  options <- gsub("\\s+\\(.+\\)$", "", datasets)
+
+  options[lgl_ply(options, is_dataset_eligible, package)]
+}
+
+#' @rdname new_dataset_block
+#' @format NULL
+#' @export
+dataset_block <- new_block_class(
+  "dataset_block",
+  expr = function(dataset, package = "datasets") {
+    obj <- call("::", as.name(package), as.name(dataset))
+    bbquote(.(obj))
+  },
+  ui = js_module("js/dataset-block.js"),
+  requests = list(
+    datasets = new_block_request(list_datasets, volatile = TRUE)
+  ),
+  output = as_table_output
+)
+
+#' Dataset block
+#'
+#' The dataset block loads a data frame that an installed package ships, such
+#' as `iris` from the datasets package. The block class `dataset_block`
+#' defines it, and its constructor `new_dataset_block()` makes a block of the
+#' class (see [new_block_class()]).
+#'
+#' @details
 #' This data block allows to select a dataset from a package, such as
 #' the datasets package available in most R installations as one of the
 #' packages with "recommended" priority. The source package can be chosen at
@@ -6,8 +46,18 @@
 #' a set of candidate datasets is computed. This includes exported objects that
 #' inherit from `data.frame`.
 #'
+#' @section Block class:
+#' The block has no data inputs. Its state arg `dataset` has no default, so a
+#' new block leaves it unset and is `invalid` until something sets it, while
+#' `package` defaults to datasets. The block expression names the dataset in its
+#' package, such as `datasets::iris`. The block's UI asks R for the data frames
+#' a package exports through the volatile request `datasets`, which reads the
+#' state arg `package`, and its results show as a table, through
+#' [as_table_output()].
+#'
 #' @param dataset Selected dataset
 #' @param package Name of an R package containing datasets
+#' @inheritParams new_head_block
 #'
 #' @block dataset block
 #' @blockDescr Choose a dataset from a package
@@ -24,77 +74,16 @@
 #'   [example] "datasets"
 #'   [type] arg_string()
 #'
-#' @rdname new_data_block
+#' @examples
+#' new_dataset_block("iris")
+#'
+#' evaluate_block(dataset_block, list(dataset = "BOD"))
+#'
+#' run_block_request(dataset_block, "datasets",
+#'                   args = list(package = "datasets"))
+#'
+#' @return The block class `dataset_block` is an object of class `block_class`,
+#' and its constructor `new_dataset_block()` returns a block of that class.
+#'
 #' @export
-new_dataset_block <- function(dataset = character(), package = "datasets",
-                              ...) {
-
-  is_dataset_eligible <- function(x, pkg) {
-    inherits(do.call("::", list(pkg, x)), "data.frame")
-  }
-
-  list_datasets <- function(package) {
-    datasets <- utils::data(package = package)
-    datasets <- datasets$results[, "Item"]
-
-    options <- gsub("\\s+\\(.+\\)$", "", datasets)
-
-    options[lgl_ply(options, is_dataset_eligible, package)]
-  }
-
-  new_data_block(
-    function(id) {
-      moduleServer(
-        id,
-        function(input, output, session) {
-
-          dat <- reactiveVal(dataset)
-
-          observeEvent(
-            req(input$dataset),
-            dat(input$dataset)
-          )
-
-          observeEvent(
-            req(dat()),
-            {
-              if (!identical(dat(), input$dataset)) {
-                updateSelectInput(
-                  session,
-                  "dataset",
-                  choices = list_datasets(package),
-                  selected = dat()
-                )
-              }
-            }
-          )
-
-          list(
-            expr = reactive(
-              eval(
-                bquote(
-                  as.call(c(as.symbol("::"), quote(.(pkg)), quote(.(dat)))),
-                  list(pkg = as.name(package), dat = as.name(dat()))
-                )
-              )
-            ),
-            state = list(
-              dataset = dat,
-              package = package
-            )
-          )
-        }
-      )
-    },
-    function(id) {
-      selectInput(
-        inputId = NS(id, "dataset"),
-        label = "Dataset",
-        choices = list_datasets(package),
-        selected = dataset
-      )
-    },
-    class = "dataset_block",
-    ...
-  )
-}
+new_dataset_block <- block_constructor(dataset_block)

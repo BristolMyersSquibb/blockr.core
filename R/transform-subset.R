@@ -1,10 +1,57 @@
-#' @section Subset block:
+#' @include block-class.R output-table.R
+#' @rdname new_subset_block
+#' @format NULL
+#' @export
+subset_block <- new_block_class(
+  "subset_block",
+  inputs = function(data) stopifnot(is.data.frame(data)),
+  expr = function(subset = "", select = "") {
+
+    subset <- code_string(subset, "subset block")
+    select <- code_string(select, "subset block")
+
+    rows <- if (nzchar(trimws(subset))) str2lang(subset)
+    cols <- if (nzchar(trimws(select))) str2lang(select)
+
+    if (not_null(rows) && not_null(cols)) {
+      bbquote(subset(.(data), .(rows), .(cols)))
+    } else if (not_null(cols)) {
+      bbquote(subset(.(data), select = .(cols)))
+    } else if (not_null(rows)) {
+      bbquote(subset(.(data), .(rows)))
+    } else {
+      bbquote(subset(.(data)))
+    }
+  },
+  ui = js_module("js/subset-block.js"),
+  output = as_table_output
+)
+
+#' Subset block
+#'
+#' The subset block keeps the rows and columns of a data frame that two R
+#' expressions select, as [base::subset()] does. The block class
+#' `subset_block` defines it, and its constructor `new_subset_block()` makes a
+#' block of the class (see [new_block_class()]).
+#'
+#' @details
 #' This block allows to perform row and column subsetting on `data.frame`
 #' objects via [base::subset()]. Using non-standard evaluation, strings passed
-#' as `subset`/`select` arguments or entered via shiny UI are turned into
-#' `language` objects by [base::parse()].
+#' as `subset`/`select` arguments or entered via the UI are parsed into R
+#' expressions.
+#'
+#' @section Block class:
+#' The block's data input `data` is checked to be a data frame. Each of its
+#' state args is a string that holds one R expression, which the block parses
+#' with [base::str2lang()] and puts in its block expression as code, or an
+#' empty string, which leaves that argument of [base::subset()] out. A string
+#' that does not parse makes the block fail, while a script may give an
+#' expression quoted, as `quote(Sepal.Width > 3)`, which the constructor turns
+#' into a string.
+#' Its results show as a table, through [as_table_output()].
 #'
 #' @param subset,select Expressions (passed as strings)
+#' @inheritParams new_head_block
 #'
 #' @block subset block
 #' @blockDescr Row and column subsetting
@@ -22,105 +69,14 @@
 #'   [example] "Species"
 #'   [type] arg_string()
 #'
-#' @rdname new_transform_block
+#' @examples
+#' new_subset_block(subset = "Sepal.Width > 4")
+#'
+#' evaluate_block(subset_block, list(subset = "Sepal.Width > 4"),
+#'                list(data = "a"), list(a = datasets::iris))
+#'
+#' @return The block class `subset_block` is an object of class `block_class`,
+#' and its constructor `new_subset_block()` returns a block of that class.
+#'
 #' @export
-new_subset_block <- function(subset = "", select = "", ...) {
-
-  pasrse_first <- function(x) {
-    parse(text = x)[[1L]]
-  }
-
-  new_transform_block(
-    function(id, data) {
-      moduleServer(
-        id,
-        function(input, output, session) {
-
-          sub <- reactiveVal(subset)
-          sel <- reactiveVal(select)
-
-          observeEvent(
-            input$eval,
-            {
-              sub(input$subset)
-              sel(input$select)
-            }
-          )
-
-          observeEvent(
-            req(sub()),
-            {
-              if (!identical(sub(), input$subset)) {
-                updateTextInput(session, "subset", value = sub())
-              }
-            }
-          )
-
-          observeEvent(
-            req(sel()),
-            {
-              if (!identical(sel(), input$select)) {
-                updateTextInput(session, "select", value = sel())
-              }
-            }
-          )
-
-          list(
-            expr = reactive(
-              {
-                su <- sub()
-                se <- sel()
-
-                if (nzchar(su) && nzchar(se)) {
-                  bbquote(
-                    subset(.(data), .(su), .(se)),
-                    list(su = pasrse_first(su), se = pasrse_first(se))
-                  )
-                } else if (nzchar(se)) {
-                  bbquote(
-                    subset(.(data), select = .(se)),
-                    list(se = pasrse_first(se))
-                  )
-                } else if (nzchar(su)) {
-                  bbquote(
-                    subset(.(data), .(su)),
-                    list(su = pasrse_first(su))
-                  )
-                } else {
-                  quote(subset(.(data)))
-                }
-              }
-            ),
-            state = list(subset = sub, select = sel)
-          )
-        }
-      )
-    },
-    function(id) {
-      tagList(
-        textInput(
-          inputId = NS(id, "subset"),
-          label = "Subset",
-          value = subset,
-          placeholder = "Enter a row subsetting expression."
-        ),
-        textInput(
-          inputId = NS(id, "select"),
-          label = "Select",
-          value = select,
-          placeholder = "Enter a column selection expression."
-        ),
-        actionButton(
-          inputId = NS(id, "eval"),
-          label = "Evaluate",
-        )
-      )
-    },
-    dat_val = function(data) {
-      stopifnot(is.data.frame(data))
-    },
-    allow_empty_state = TRUE,
-    class = "subset_block",
-    ...
-  )
-}
+new_subset_block <- block_constructor(subset_block)

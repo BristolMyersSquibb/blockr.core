@@ -95,6 +95,9 @@
 #' is_blocks(blks)
 #' names(blks)
 #'
+#' @include utils-assertions.R utils-cnd.R utils-misc.R utils-ply.R utils-pkg.R
+#' @include utils-expr.R block-expr.R block-request.R
+#'
 #' @return The class constructor `new_block_class()` returns an object of class
 #' `block_class` and `block_constructor()` a function of class
 #' `block_constructor`, which returns a block, an object inheriting from
@@ -575,7 +578,7 @@ default_block_name <- function(class) {
   paste0(toupper(substr(res, 1L, 1L)), substring(res, 2L))
 }
 
-validate_block <- function(x, ...) {
+validate_block <- function(x) {
 
   if (!is_block(x)) {
     blockr_abort(
@@ -596,10 +599,6 @@ validate_block <- function(x, ...) {
       "Expecting blocks to behave list-like.",
       class = "block_list_like_invalid"
     )
-  }
-
-  if (is_legacy_block(x)) {
-    return(validate_legacy_block(x, ...))
   }
 
   if (!is_block_class(block_class(x))) {
@@ -663,12 +662,6 @@ c.block <- function(...) {
 #' restrictions are in place and the block name can be retrieved with
 #' `block_name()`.
 #'
-#' @section Input validation:
-#' Data input validation is available via `validate_data_inputs()` which uses
-#' the (optional) validator function passed to [new_block()] at construction
-#' time. A block class checks its data inputs in the body of a function given
-#' as its `inputs` instead (see [new_block_class()]).
-#'
 #' @section Block arity:
 #' The number of data inputs of a block is available as `block_arity()`, which
 #' reads the inputs of the block's class. In case of variadic blocks (i.e.
@@ -687,8 +680,6 @@ c.block <- function(...) {
 #'
 #' @return Return types vary among the set of exported utilities:
 #' * `block_name()`: string valued block name,
-#' * `validate_data_inputs()`: `NULL` if no validator is set and the result of
-#'   the validator function otherwise,
 #' * `block_arity()`: a scalar integer with `NA` in case of variadic behavior.
 #'
 #' @export
@@ -707,10 +698,6 @@ block_arity <- function(x) {
     )
   }
 
-  if (is_legacy_block(x)) {
-    return(legacy_block_arity(x))
-  }
-
   inputs <- block_data_inputs(x)
 
   if ("..." %in% inputs) {
@@ -721,20 +708,10 @@ block_arity <- function(x) {
 }
 
 block_data_inputs <- function(x) {
-
-  if (is_legacy_block(x)) {
-    return(legacy_block_inputs(x))
-  }
-
   class_inputs(block_class(x))
 }
 
 block_state_args <- function(x) {
-
-  if (is_legacy_block(x)) {
-    return(block_ctor_inputs(x))
-  }
-
   class_state_args(block_class(x))
 }
 
@@ -768,10 +745,6 @@ format_block_state <- function(state) {
 
 #' @export
 format.block <- function(x, ...) {
-
-  if (is_legacy_block(x)) {
-    return(format_legacy_block(x, ...))
-  }
 
   state <- block_state(x)
 
@@ -862,10 +835,5 @@ str.block <- function(object, ...) {
 
 #' @export
 board_options.block <- function(x, ...) {
-
-  if (is_legacy_block(x)) {
-    return(new_board_options())
-  }
-
   class_board_options(block_class(x))
 }
