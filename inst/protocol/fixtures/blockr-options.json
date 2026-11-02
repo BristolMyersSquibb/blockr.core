@@ -1,0 +1,23 @@
+{
+  "description": "Reading the blockr options that core's scheduler reads, which core asks R for as soon as R has answered its hello. The app sets evaluation_queue as the R option blockr.evaluation_queue, which arrives as the number it holds, and the deployment sets BLOCKR_BACKGROUND_EVALUATION_DELAY, which arrives as the string an environment variable holds, for the client to convert to its fallback's type. Nothing sets gate_visibility, which R leaves out, so that the client takes its fallback.",
+  "client": [
+    {
+      "id": "2",
+      "kind": "blockr_options",
+      "names": [
+        "evaluation_queue",
+        "background_evaluation_delay",
+        "gate_visibility"
+      ]
+    }
+  ],
+  "r": [
+    [
+      {
+        "id": "2",
+        "status": "ok",
+        "values": { "evaluation_queue": 3, "background_evaluation_delay": "30" }
+      }
+    ]
+  ]
+}

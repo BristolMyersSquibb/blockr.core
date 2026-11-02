@@ -170,6 +170,18 @@ protocol_r_values <- function() {
         )
       )
     ),
+    `blockr-options` = list(
+      list(
+        obj(
+          id = "2",
+          status = "ok",
+          values = obj(
+            evaluation_queue = 3L,
+            background_evaluation_delay = "30"
+          )
+        )
+      )
+    ),
     `open-locked` = list(
       list(
         proto_error(
@@ -449,7 +461,7 @@ proto_hello_reply <- function(block_registry, lock, ...,
 }
 
 # What the replies to `hello` and `open` of a core app say of the modules that
-# R serves and of the blockr options its client reads.
+# R serves.
 proto_served <- function(startup_modules = list()) {
   obj(
     front_ends = obj(
@@ -460,14 +472,7 @@ proto_served <- function(startup_modules = list()) {
     ),
     startup_modules = startup_modules,
     modules = obj(),
-    renderers = proto_renderers(),
-    blockr_options = obj(
-      blockr.core = obj(
-        gate_visibility = TRUE,
-        evaluation_queue = 2L,
-        background_evaluation_delay = Inf
-      )
-    )
+    renderers = proto_renderers()
   )
 }
 

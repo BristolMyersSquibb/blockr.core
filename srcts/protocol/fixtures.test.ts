@@ -28,6 +28,7 @@ const types: Record<string, string> = {
   "hello-file": "Fixture<[HelloRequest], [[HelloReply]]>",
   open: "Fixture<[OpenRequest], [[OpenReply]]>",
   "open-locked": "Fixture<[OpenRequest], [[ErrorReply]]>",
+  "blockr-options": "Fixture<[BlockrOptionsRequest], [[BlockrOptionsReply]]>",
   evaluate: "Fixture<[EvaluateRequest], [[EvaluateReply]]>",
   "evaluate-warning": "Fixture<[EvaluateRequest], [[EvaluateReply]]>",
   "evaluate-variadic": "Fixture<[EvaluateRequest], [[EvaluateReply]]>",

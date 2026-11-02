@@ -19,6 +19,7 @@ export const PROTOCOL_VERSION = "1.0";
 export type Kind =
   | "hello"
   | "open"
+  | "blockr_options"
   | "evaluate"
   | "request"
   | "output"
@@ -38,6 +39,7 @@ export type RMessage = (Reply | Progress)[];
 export type Request =
   | HelloRequest
   | OpenRequest
+  | BlockrOptionsRequest
   | EvaluateRequest
   | BlockClassRequest
   | BoardOptionRequest
@@ -50,6 +52,7 @@ export type Request =
 export type Reply =
   | HelloReply
   | OpenReply
+  | BlockrOptionsReply
   | EvaluateReply
   | RequestReply
   | OutputReply
@@ -94,8 +97,6 @@ export type HelloReply = {
   modules: Record<string, { module: string; css?: string }>;
   // The renderers that R picked, by the renderer's id.
   renderers: Record<string, Renderer>;
-  // The values of the blockr options that the client reads, by package.
-  blockr_options: Record<string, Record<string, Json>>;
   lock: Lock | null;
   // For a block that `serve()` serves alone, the inputs that R binds itself
   // to the data it was given, which the client counts as linked.
@@ -136,8 +137,26 @@ export type OpenReply = Pick<
   | "startup_modules"
   | "modules"
   | "renderers"
-  | "blockr_options"
 >;
+
+// Reading blockr options, which the client asks R for by name, since it can
+// read neither an R option nor an environment variable of the server
+
+export interface BlockrOptionsRequest {
+  id: string;
+  kind: "blockr_options";
+  names: string[];
+}
+
+export interface BlockrOptionsReply {
+  id: string;
+  status: "ok";
+  // The value of each blockr option that R has one for, by name, as
+  // `blockr_option()` reads it: a string where an environment variable set it,
+  // and null for Inf. R leaves out the others, for which the client takes its
+  // fallback.
+  values: Record<string, Json>;
+}
 
 // Evaluating a block
 

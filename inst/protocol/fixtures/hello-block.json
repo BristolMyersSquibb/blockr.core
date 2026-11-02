@@ -71,13 +71,6 @@
             "class": "table_output"
           }
         },
-        "blockr_options": {
-          "blockr.core": {
-            "gate_visibility": true,
-            "evaluation_queue": 2,
-            "background_evaluation_delay": null
-          }
-        },
         "lock": null,
         "board": {
           "front_end": { "id": "blockr.core-basic", "state": {}, "attrs": {} },
