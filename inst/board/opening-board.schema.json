@@ -117,8 +117,7 @@
           "type": "string"
         },
         "state": {
-          "type": "object",
-          "properties": {}
+          "type": "object"
         },
         "attrs": {
           "type": "object",
