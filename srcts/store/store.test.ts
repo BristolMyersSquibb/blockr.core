@@ -369,14 +369,7 @@ describe("opening a board", () => {
       }),
     );
 
-    expect(dropped).toEqual([
-      { front_end: "blockr.dock-dock", package: "blockr.dock" },
-      { attribute: "color", on: "block", package: null },
-      { key: ["views"], package: "blockr.dock" },
-      { key: ["extensions", "blockr.dag-dag"], package: "blockr.dag" },
-      { attribute: "layout_locked", on: "front_end", package: null },
-      { option: "view_tabs", package: null },
-    ]);
+    expect(dropped).toEqual([{ front_end: "blockr.dock-dock", package: "blockr.dock" }]);
 
     const board = store.board();
     expect(board.front_end).toEqual({ id: "blockr.core-basic", state: {}, attrs: {} });
@@ -384,7 +377,7 @@ describe("opening a board", () => {
     expect(board.options).toEqual({ n_rows: 20 });
   });
 
-  test("names a dropped key with the package that its path gives", async () => {
+  test("drops front-end state that no package registered, without naming it", async () => {
     const store = await opened((store) => {
       store.register({ ...positions, path: ["extensions", "blockr.dag-dag", "layout"] });
     });
@@ -403,14 +396,11 @@ describe("opening a board", () => {
       }),
     );
 
-    expect(dropped).toEqual([
-      { key: ["extensions", "blockr.dag-dag", "positions"], package: "blockr.dag" },
-      { key: ["extensions", "blockr.md-md"], package: "blockr.md" },
-    ]);
+    expect(dropped).toEqual([]);
     expect(store.board().front_end.state).toEqual({ extensions: { "blockr.dag-dag": { layout: {} } } });
   });
 
-  test("keeps no empty object on the way to nothing, and names none as dropped", async () => {
+  test("keeps no empty object on the way to nothing", async () => {
     const store = await opened();
     const dropped = await store.open(
       file({ front_end: { id: "blockr.core-basic", state: { extensions: {} }, attrs: {} } }),
@@ -553,10 +543,7 @@ describe("opening a board", () => {
       }),
     );
 
-    expect(dropped).toEqual([
-      { attribute: "visible", on: "block", package: null },
-      { option: "n_rows", package: null },
-    ]);
+    expect(dropped).toEqual([]);
     expect(store.board().blocks.a?.attrs).toEqual({});
     expect(store.board().options).toEqual({ show_conditions: ["warning", "error"] });
   });

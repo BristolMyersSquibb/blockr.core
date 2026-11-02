@@ -33,22 +33,18 @@ export const FORMAT = 1;
 // serves no module for.
 export const BASIC_FRONT_END = "blockr.core-basic";
 
-// What the store dropped as it opened a board, since the app cannot rebuild
-// it, each with the package to install where its id or path gives one.
+// What the store names of what it dropped as it opened a board, since the app
+// cannot rebuild it, with the package to install where its id gives one: a
+// block whose class the block registry lacks, and the front-end the board was
+// made for, where R serves no module for it. What it drops of the front-end
+// state, attributes and board option values it does not name.
 export type Dropped =
   | {
       readonly block: string;
       readonly registry_id: string;
       readonly package: string | null;
     }
-  | { readonly front_end: string; readonly package: string | null }
-  | { readonly key: readonly string[]; readonly package: string | null }
-  | {
-      readonly attribute: string;
-      readonly on: "block" | "front_end";
-      readonly package: null;
-    }
-  | { readonly option: string; readonly package: null };
+  | { readonly front_end: string; readonly package: string | null };
 
 const refused = "The store refused to open the board";
 
@@ -243,9 +239,9 @@ export function frontEndOf(
 // option value that no package registered, and every attribute and board
 // option value that its schema refuses, as one an older version of its
 // package saved, which no migration converts, so that it reads as its initial
-// value or default. It is made for the front-end it opens with, and
-// what it dropped is named. The blocks that go keep what they hold, which goes
-// with them.
+// value or default, and made for the front-end it opens with, which is named
+// where it is another than the one the board was made for. The blocks that go
+// keep what they hold, which goes with them.
 function prune(
   board: Board,
   gone: readonly string[],
@@ -260,7 +256,6 @@ function prune(
     dropped.push({ front_end: frontEnd.id, package: packageOf(frontEnd.id) });
     frontEnd = { ...frontEnd, id };
   }
-  const owner = packageOf(board.front_end.id);
 
   // An attribute or a board option value that no package registered, or that
   // its schema refuses.
@@ -275,47 +270,25 @@ function prune(
       })
       .map(([name]) => name);
 
-  const blockAttrs = new Set<string>();
   const blocks = Object.fromEntries(
     Object.entries(board.blocks).map(([id, block]) => {
       if (gone.includes(id)) return [id, block];
       const unknown = unfit(block.attrs, (name) => registrations.attribute("block", name));
-      for (const name of unknown) blockAttrs.add(name);
       return [id, unknown.length === 0 ? block : { ...block, attrs: without(block.attrs, unknown) }];
     }),
   );
-  for (const name of blockAttrs) dropped.push({ attribute: name, on: "block", package: null });
 
-  // A dropped key is named with the package its path gives, and where none
-  // does, with that of each entry it holds by an id that gives one, as the
-  // dock keeps its extensions' state by their ids, or else with the package
-  // of the front-end the board was made for.
-  const name = (path: readonly string[], value: unknown): void => {
-    const pkg = path.map(packageOf).find((pkg) => pkg !== null);
-    const ids = isObject(value) ? Object.keys(value) : [];
-    if (pkg !== undefined || !ids.some((id) => packageOf(id) !== null)) {
-      dropped.push({ key: path, package: pkg ?? owner });
-      return;
-    }
-    for (const id of ids) {
-      dropped.push({ key: [...path, id], package: packageOf(id) ?? owner });
-    }
-  };
   const paths = registrations.keys().map(({ def }) => def.path);
-  const state = pruneState(frontEnd.state, [], paths, name);
-
-  const unknownAttrs = unfit(frontEnd.attrs, (name) => registrations.attribute("front_end", name));
-  for (const name of unknownAttrs) dropped.push({ attribute: name, on: "front_end", package: null });
-
-  const unknownOptions = unfit(board.options, (id) => registrations.option(id));
-  for (const id of unknownOptions) dropped.push({ option: id, package: null });
+  const state = pruneState(frontEnd.state, [], paths);
+  const attrs = unfit(frontEnd.attrs, (name) => registrations.attribute("front_end", name));
+  const options = unfit(board.options, (id) => registrations.option(id));
 
   return {
     board: {
       ...board,
-      front_end: { ...frontEnd, state, attrs: without(frontEnd.attrs, unknownAttrs) },
+      front_end: { ...frontEnd, state, attrs: without(frontEnd.attrs, attrs) },
       blocks,
-      options: without(board.options, unknownOptions),
+      options: without(board.options, options),
     },
     dropped,
   };
@@ -344,7 +317,6 @@ function pruneState(
   state: Readonly<Record<string, unknown>>,
   at: readonly string[],
   paths: readonly (readonly string[])[],
-  dropped: (path: readonly string[], value: unknown) => void,
 ): Readonly<Record<string, unknown>> {
   let next = state;
   for (const [key, value] of Object.entries(state)) {
@@ -352,12 +324,11 @@ function pruneState(
     const below = paths.filter((other) => path.every((part, i) => other[i] === part));
     if (below.some((other) => other.length === path.length)) continue;
     if (below.length > 0 && isObject(value)) {
-      const pruned = pruneState(value, path, below, dropped);
+      const pruned = pruneState(value, path, below);
       if (Object.keys(pruned).length === 0) next = without(next, [key]);
       else if (pruned !== value) next = { ...next, [key]: pruned };
       continue;
     }
-    if (!isObject(value) || Object.keys(value).length > 0) dropped(path, value);
     next = without(next, [key]);
   }
   return next;
