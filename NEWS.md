@@ -102,9 +102,9 @@
   `board_option_transform()`, `board_option_ctor()`, `validate_board_option()`,
   `default_board_options()` and `blockr_app_options()` go, `new_board()` takes
   no board options by default, and `as_table_output()` pages a data frame by
-  the `n_rows` that the client sends. The deserializer `blockr_deser()` still
-  reads a file of today's stack, recreating a board option from its value
-  alone (#428).
+  the `n_rows` that the client sends. A file of today's stack is still read
+  by `blockr_deser()`, which recreates a board option from its value alone
+  (#428).
 
 # blockr.core 0.1.4
 

@@ -6,6 +6,8 @@ DT
 Extensibility
 LLM
 MCP
+Schemas
+TypeScript
 UI
 UIs
 Unregister
@@ -37,6 +39,7 @@ getters
 ggplot
 instantiation
 io
+jsonlite
 lifecycle
 namespaced
 navbar
@@ -58,9 +61,11 @@ roclets
 roxygen
 rv
 sandboxed
+schemas
 sdtm
 selectable
 ser
+severities
 shiny's
 srcref
 stylesheet
@@ -77,3 +82,4 @@ validator
 variadic
 websocket
 xpt
+yyjsonr
