@@ -173,12 +173,12 @@ test_that("a small body travels in its reply's message", {
           list(
             id = "1",
             status = "ok",
-            body = list(x = as.raw(1:3), type = "image/png")
+            body = new_reply_body(as.raw(1:3), "image/png")
           ),
           list(
             id = "2",
             status = "ok",
-            body = list(x = file, type = "text/csv", name = "a.csv")
+            body = new_reply_body(file, "text/csv", name = "a.csv")
           )
         ),
         session
@@ -219,12 +219,12 @@ test_that("a large body is served from a URL until the client deletes it", {
           list(
             id = "3",
             status = "ok",
-            body = list(x = big, type = "application/octet-stream")
+            body = new_reply_body(big, "application/octet-stream")
           ),
           list(
             id = "4",
             status = "ok",
-            body = list(x = file, type = "text/plain", name = "big.txt")
+            body = new_reply_body(file, "text/plain", name = "big.txt")
           )
         ),
         session
@@ -278,7 +278,10 @@ test_that("a large body is served from a URL until the client deletes it", {
 
       res <- transport_http(session, "blockr-body-4")
 
-      expect_identical(res[["content"]], list(file = file, owned = FALSE))
+      expect_identical(
+        res[["content"]],
+        list(file = normalizePath(file), owned = FALSE)
+      )
     }
   )
 
@@ -292,7 +295,7 @@ test_that("the blockr options set which bodies travel in their message", {
     list(
       id = id,
       status = "ok",
-      body = list(x = as.raw(rep(1L, n)), type = "image/png")
+      body = new_reply_body(as.raw(rep(1L, n)), "image/png")
     )
   }
 
@@ -338,7 +341,7 @@ test_that("a body travels in a binary frame where the blockr option says so", {
         list(
           id = "1",
           status = "ok",
-          body = list(x = png, type = "image/png", name = "a.png")
+          body = new_reply_body(png, "image/png", name = "a.png")
         ),
         list(id = "2", status = "ok", value = 1L)
       ),
@@ -412,7 +415,7 @@ test_that("the transport refuses blockr options it cannot follow", {
   })
 })
 
-test_that("a reply goes as it is where its body holds no bytes", {
+test_that("a reply goes as it is where its body is no reply body", {
 
   with_transport(
     function(message, send) NULL,
@@ -431,24 +434,24 @@ test_that("a reply goes as it is where its body holds no bytes", {
   )
 })
 
-test_that("a reply's body holds bytes that R can send", {
+test_that("an output's body travels beside its reply", {
 
-  reply <- function(body) list(list(id = "6", status = "ok", body = body))
+  png <- as.raw(c(0x89, 0x50, 0x4e, 0x47))
+  out <- new_plot_output(new_reply_body(png, "image/png"), 480L, 480L)
+  parts <- shape_output(out)
 
   with_transport(
     function(message, send) NULL,
     {
-      expect_error(
-        send_message(reply(list(x = 1:3, type = "image/png")), session),
-        class = "shiny_transport_reply_body_invalid"
-      )
-      expect_error(
-        send_message(reply(list(x = tempfile(), type = "image/png")), session),
-        class = "shiny_transport_reply_body_invalid"
-      )
-      expect_error(
-        send_message(reply(list(x = as.raw(1L))), session),
-        class = "shiny_transport_reply_body_invalid"
+
+      send_message(list(c(list(id = "9", status = "ok"), parts)), session)
+
+      sent <- decode_message(utils::tail(transport_sent(session), 1L))[[1L]]
+
+      expect_identical(sent[["output"]], list(width = 480L, height = 480L))
+      expect_identical(
+        sent[["body"]],
+        list(type = "image/png", data = base64enc::base64encode(png))
       )
     }
   )

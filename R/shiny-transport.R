@@ -23,11 +23,11 @@
 # A request's body reaches the handler as the request's `body`, a list of its
 # `name`, where it has one, its `size`, its `type` and in `datapath` the file
 # that R wrote its bytes to, as `shiny::fileInput()` gives a file, which stays
-# until the session ends. A reply's body is given in its `body` too, as a list
-# of the bytes, a raw vector or a file's path, in `x`, the MIME type in `type`
-# and, for a download, a file name in `name`, which `send()` carries beside the
-# reply as the blockr options `max_message_body` and `message_body_encoding`
-# say, which the transport reads as it sets a session up (see `carry_body()`).
+# until the session ends. A reply's body is given in its `body` too, as a reply
+# body that `new_reply_body()` makes, such as `shape_output()` gives for an
+# output, which `send()` carries beside the reply as the blockr options
+# `max_message_body` and `message_body_encoding` say, which the transport reads
+# as it sets a session up (see `carry_body()`).
 shiny_transport <- function(handler, session = get_session()) {
 
   if (!is.function(handler)) {
@@ -301,37 +301,32 @@ send_frame <- function(item, bytes, session) {
 # its `url`, which the client fetches. A small body, such as a plot's PNG, thus
 # arrives with its reply, while one that R serves arrives only once R has
 # finished what it runs next, and a large body holds up neither R nor the
-# messages behind it on the websocket. A reply whose `body` holds no bytes in
-# `x` goes as it is.
+# messages behind it on the websocket. A reply whose `body` is no reply body
+# goes as it is.
 carry_body <- function(item, session, opts) {
 
   body <- if (is.list(item)) item[["body"]]
 
-  if (!is.list(body) || is.null(body[["x"]])) {
+  if (!is_reply_body(body)) {
     return(list(item = item))
   }
 
-  x <- body[["x"]]
-  type <- body[["type"]]
-
-  if (!(is.raw(x) || (is_string(x) && file.exists(x))) || !is_string(type)) {
-    blockr_abort(
-      "A reply's body holds its bytes, as a raw vector or the path of a ",
-      "file, and their MIME type.",
-      class = "shiny_transport_reply_body_invalid"
-    )
-  }
-
+  x <- body[["content"]]
   size <- if (is.raw(x)) length(x) else file.size(x)
 
-  item[["body"]] <- filter_empty(list(type = type, name = body[["name"]]))
+  item[["body"]] <- body_announcement(body)
 
   if (size > opts[["max"]]) {
-    item[["body"]][["url"]] <- serve_body(x, type, item[["id"]], session)
+    item[["body"]][["url"]] <- serve_body(
+      x,
+      body[["type"]],
+      item[["id"]],
+      session
+    )
     return(list(item = item))
   }
 
-  bytes <- if (is.raw(x)) x else readBin(x, "raw", size)
+  bytes <- reply_body_bytes(body)
 
   if (identical(opts[["encoding"]], "binary")) {
     return(list(item = item, frame = bytes))

@@ -45,9 +45,9 @@ handler <- function(session) {
           download = list(
             id = id,
             status = "ok",
-            body = list(
-              x = pattern(req[["args"]][["size"]]),
-              type = "application/octet-stream",
+            body = blockr.core::new_reply_body(
+              pattern(req[["args"]][["size"]]),
+              "application/octet-stream",
               name = req[["args"]][["name"]]
             )
           ),
