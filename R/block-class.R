@@ -27,9 +27,9 @@
 #' for R to resolve when it serves the module, and which resolves the path
 #' against the working directory outside a package. A class further takes a
 #' named list of `requests`, for what its UI asks of R, each a function or made
-#' by [new_block_request()], which names the board options it reads (see
-#' [block_request()]), and the coercion that makes an output from a result, as
-#' `output`. A field a class leaves out is `NULL`.
+#' by [new_block_request()], which names the board options it reads, and the
+#' coercion that makes an output from a result, as `output`. A field a class
+#' leaves out is `NULL`.
 #'
 #' A class is checked once, when it is defined: no state arg is `...`,
 #' `block_name` or `visible`, no input or state arg shares the name of

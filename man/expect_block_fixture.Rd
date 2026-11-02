@@ -21,7 +21,7 @@ expect_block_fixture(
 under \code{...}}
 
 \item{requests}{A list of request calls, each a list of the request's \code{name}
-and, optionally, its \code{args} and \code{options} (see \code{\link[=block_request]{block_request()}})}
+and, optionally, its \code{args} and \code{options} (see \code{\link[=run_block_request]{run_block_request()}})}
 
 \item{name}{The fixture's file name, without extension, which defaults to
 the class's name}

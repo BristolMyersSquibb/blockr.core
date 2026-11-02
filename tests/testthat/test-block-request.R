@@ -17,34 +17,35 @@ test_that("a request's args are bound by name", {
 
   iris <- datasets::iris
 
-  expect_identical(block_request(cls, "n_max", list(data = iris)), 150L)
+  expect_identical(run_block_request(cls, "n_max", list(data = iris)), 150L)
 
   expect_identical(
-    block_request(cls, "values", list(data = iris),
-                  args = list(column = "Species", query = "v")),
+    run_block_request(cls, "values", list(data = iris),
+                      args = list(column = "Species", query = "v")),
     c("versicolor", "virginica")
   )
 
   expect_identical(
-    block_request(cls, "values", list(data = iris),
-                  args = list(column = "Species", limit = 1L)),
+    run_block_request(cls, "values", list(data = iris),
+                      args = list(column = "Species", limit = 1L)),
     "setosa"
   )
 
-  expect_true(block_request(cls, "unset", list(data = iris)))
+  expect_true(run_block_request(cls, "unset", list(data = iris)))
 
   expect_error(
-    block_request(cls, "n_max", list(data = iris), args = list(nope = 1L)),
+    run_block_request(cls, "n_max", list(data = iris), args = list(nope = 1L)),
     class = "block_request_args_invalid"
   )
 
   expect_error(
-    block_request(cls, "n_max", list(data = iris), options = list(n_rows = 5L)),
+    run_block_request(cls, "n_max", list(data = iris),
+                      options = list(n_rows = 5L)),
     class = "block_request_args_invalid"
   )
 
-  expect_error(block_request(cls, "nope"), class = "block_request_unknown")
-  expect_error(block_request(cls, 1), class = "block_request_unknown")
+  expect_error(run_block_request(cls, "nope"), class = "block_request_unknown")
+  expect_error(run_block_request(cls, 1), class = "block_request_unknown")
 })
 
 test_that("a request takes the values of the board options it reads", {
@@ -74,12 +75,13 @@ test_that("a request takes the values of the board options it reads", {
   iris <- datasets::iris
 
   expect_identical(
-    block_request(cls, "page", list(data = iris), options = list(n_rows = 5L)),
+    run_block_request(cls, "page", list(data = iris),
+                      options = list(n_rows = 5L)),
     utils::head(iris, 5L)
   )
 
   expect_identical(
-    block_request(
+    run_block_request(
       cls, "shown",
       options = list(n_rows = 5L, show_conditions = c("warning", "error"))
     ),
@@ -87,22 +89,25 @@ test_that("a request takes the values of the board options it reads", {
   )
 
   expect_identical(
-    block_request(cls, "shown",
-                  options = list(n_rows = NULL, show_conditions = list(a = 1))),
+    run_block_request(
+      cls, "shown",
+      options = list(n_rows = NULL, show_conditions = list(a = 1))
+    ),
     list(rows = NULL, conds = list(a = 1))
   )
 
-  expect_true(block_request(cls, "unset"))
-  expect_false(block_request(cls, "unset", options = list(n_rows = NULL)))
+  expect_true(run_block_request(cls, "unset"))
+  expect_false(run_block_request(cls, "unset", options = list(n_rows = NULL)))
 
   expect_error(
-    block_request(cls, "page", list(data = iris),
-                  options = list(dark_mode = "dark")),
+    run_block_request(cls, "page", list(data = iris),
+                      options = list(dark_mode = "dark")),
     class = "block_request_args_invalid"
   )
 
   expect_error(
-    block_request(cls, "page", list(data = iris), args = list(options = 5L)),
+    run_block_request(cls, "page", list(data = iris),
+                      args = list(options = 5L)),
     class = "block_request_args_invalid"
   )
 })
@@ -120,8 +125,8 @@ test_that("a variadic block's request takes its inputs as ...", {
   )
 
   expect_identical(
-    block_request(cls, "counts",
-                  list(... = list(datasets::BOD, b2 = datasets::iris))),
+    run_block_request(cls, "counts",
+                      list(... = list(datasets::BOD, b2 = datasets::iris))),
     c(6L, b2 = 150L)
   )
 })

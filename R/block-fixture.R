@@ -35,7 +35,7 @@
 #' @param inputs Sample upstream results by data input, with a variadic block's
 #'   under `...`
 #' @param requests A list of request calls, each a list of the request's `name`
-#'   and, optionally, its `args` and `options` (see [block_request()])
+#'   and, optionally, its `args` and `options` (see [run_block_request()])
 #' @param name The fixture's file name, without extension, which defaults to
 #'   the class's name
 #'
@@ -125,7 +125,7 @@ record_request <- function(call, cls, inputs) {
     args = as_json_object(args),
     options = as_json_object(options),
     answer = encode_answer(
-      block_request(cls, call[["name"]], inputs, args, options)
+      run_block_request(cls, call[["name"]], inputs, args, options)
     )
   )
 }

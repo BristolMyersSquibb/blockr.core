@@ -181,8 +181,8 @@ test_that("a registry entry's board options are those its requests read", {
   expect_identical(names(board_options(entry)), "n_rows")
 
   expect_identical(
-    block_request("opts_block", "page", list(data = datasets::iris),
-                  options = list(n_rows = 2L)),
+    run_block_request("opts_block", "page", list(data = datasets::iris),
+                      options = list(n_rows = 2L)),
     utils::head(datasets::iris, 2L)
   )
 

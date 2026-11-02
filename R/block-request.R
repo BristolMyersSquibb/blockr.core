@@ -5,15 +5,15 @@
 #' never enters the block's state. A class names its requests in its
 #' `requests` field (see [new_block_class()]), each a function or an object
 #' made by `new_block_request()`, which says what else R and the client need
-#' to know about it, and `block_request()` calls one with its arguments bound
-#' by name: an input to the result of the upstream block that feeds it, a
-#' variadic block's `...` to its inputs in link order, named by their links'
+#' to know about it, and `run_block_request()` runs one with its arguments
+#' bound by name: an input to the result of the upstream block that feeds it,
+#' a variadic block's `...` to its inputs in link order, named by their links'
 #' inputs, a state arg to the value `args` holds for it, which is left missing
 #' where `args` holds none, and any other argument to a parameter that `args`
 #' holds, where its default applies otherwise.
 #'
-#' A request reads board options only where `new_block_request()` names them, by
-#' their constructors. Given one constructor, the request takes the board
+#' A request reads board options only where `new_block_request()` names them,
+#' by their constructors. Given one constructor, the request takes the board
 #' option's value in its argument `options`, and given a named list of them,
 #' it takes each value in the argument of that name. A value comes whole,
 #' whatever its shape, a single value, several, `NULL` or a list. The client
@@ -28,15 +28,11 @@
 #' such as an upload, which receives the file the user picked in its argument
 #' `file`. R runs an action once per call, and it may write.
 #'
-#' @param x A registry id or a block class
-#' @param name The name of the request
-#' @param inputs Upstream results by data input
-#' @param args Values of the state args and parameters by name
-#' @param options For `block_request()`, the values of the board options the
-#'   request reads, by id, and for `new_block_request()`, the constructor of the
-#'   board option it reads, or a list of constructors named by the arguments
-#'   that take their values
 #' @param fun The request's function
+#' @param options For `new_block_request()`, the constructor of the board
+#'   option the request reads, or a list of constructors named by the
+#'   arguments that take their values, and for `run_block_request()`, the
+#'   values of the board options it reads, by id
 #' @param volatile,action Whether the request is volatile or an action
 #'
 #' @examples
@@ -65,42 +61,13 @@
 #'
 #' pkg <- system.file(package = "blockr.core")
 #'
-#' block_request(dir_block, "files", options = list(dir = pkg))
-#' block_request(dir_block, "preview", args = list(path = "DESCRIPTION"),
-#'               options = list(dir = pkg))
+#' run_block_request(dir_block, "files", options = list(dir = pkg))
+#' run_block_request(dir_block, "preview", args = list(path = "DESCRIPTION"),
+#'                   options = list(dir = pkg))
 #'
-#' @return The answer of the request for `block_request()`, while
-#' `new_block_request()` returns an object of class `block_request`.
+#' @return An object of class `block_request` for `new_block_request()`, and
+#' the answer of the request for `run_block_request()`.
 #'
-#' @export
-block_request <- function(x, name, inputs = list(), args = list(),
-                          options = list()) {
-
-  cls <- as_block_class(x)
-
-  if (!is_string(name) || is.null(cls[["requests"]][[name]])) {
-    blockr_abort(
-      "Block class {cls[['class']][1L]} has no request {name}.",
-      class = "block_request_unknown"
-    )
-  }
-
-  req <- cls[["requests"]][[name]]
-
-  bound <- if (is_string(x)) {
-    get_registry_entry(x)[["requests"]][[name]][["options"]]
-  } else {
-    request_option_ids(req)
-  }
-
-  do.call(
-    req[["fun"]],
-    request_args(req[["fun"]], bound, inputs, args, options),
-    quote = TRUE
-  )
-}
-
-#' @rdname block_request
 #' @export
 new_block_request <- function(fun, options = NULL, volatile = FALSE,
                               action = FALSE) {
@@ -145,6 +112,39 @@ new_block_request <- function(fun, options = NULL, volatile = FALSE,
   structure(
     list(fun = fun, options = options, volatile = volatile, action = action),
     class = "block_request"
+  )
+}
+
+#' @param x A registry id or a block class
+#' @param name The name of the request
+#' @param inputs Upstream results by data input
+#' @param args Values of the state args and parameters by name
+#' @rdname new_block_request
+#' @export
+run_block_request <- function(x, name, inputs = list(), args = list(),
+                              options = list()) {
+
+  cls <- as_block_class(x)
+
+  if (!is_string(name) || is.null(cls[["requests"]][[name]])) {
+    blockr_abort(
+      "Block class {cls[['class']][1L]} has no request {name}.",
+      class = "block_request_unknown"
+    )
+  }
+
+  req <- cls[["requests"]][[name]]
+
+  bound <- if (is_string(x)) {
+    get_registry_entry(x)[["requests"]][[name]][["options"]]
+  } else {
+    request_option_ids(req)
+  }
+
+  do.call(
+    req[["fun"]],
+    request_args(req[["fun"]], bound, inputs, args, options),
+    quote = TRUE
   )
 }
 

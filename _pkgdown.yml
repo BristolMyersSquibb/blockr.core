@@ -27,7 +27,7 @@ reference:
     - interpolate
     - bbquote
     - evaluate_block
-    - block_request
+    - new_block_request
     - expect_block_fixture
     - block_name
     - register_block
