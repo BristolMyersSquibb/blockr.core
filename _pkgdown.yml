@@ -79,4 +79,5 @@ reference:
   - chr_ply
   - set_names
   - is_scalar
+  - get_session
   - blockr_abort

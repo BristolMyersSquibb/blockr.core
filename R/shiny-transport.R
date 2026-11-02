@@ -28,8 +28,7 @@
 # and, for a download, a file name in `name`, which `send()` carries beside the
 # reply as the blockr options `max_message_body` and `message_body_encoding`
 # say, which the transport reads as it sets a session up (see `carry_body()`).
-shiny_transport <- function(handler,
-                            session = shiny::getDefaultReactiveDomain()) {
+shiny_transport <- function(handler, session = get_session()) {
 
   stopifnot(is.function(handler), not_null(session))
 
@@ -61,7 +60,7 @@ shiny_transport <- function(handler,
     json_str(session_start(body_url), auto_unbox = TRUE)
   )
 
-  shiny::observeEvent(
+  observeEvent(
     session$input[["blockr"]],
     receive_message(session$input[["blockr"]], handler, send, bodies),
     ignoreInit = TRUE
@@ -187,16 +186,14 @@ lost_body_reply <- function(id) {
 receive_body <- function(req, dir, bodies) {
 
   if (!identical(req[["REQUEST_METHOD"]], "POST")) {
-    return(shiny::httpResponse(405L, "text/plain", "A body is posted."))
+    return(httpResponse(405L, "text/plain", "A body is posted."))
   }
 
   query <- coal(req[["QUERY_STRING"]], "", fail_all = FALSE)
-  id <- shiny::parseQueryString(query)[["id"]]
+  id <- parseQueryString(query)[["id"]]
 
   if (!is_string(id) || !nzchar(id)) {
-    return(
-      shiny::httpResponse(400L, "text/plain", "A body names its request.")
-    )
+    return(httpResponse(400L, "text/plain", "A body names its request."))
   }
 
   path <- tempfile("body-", tmpdir = dir)
@@ -204,7 +201,7 @@ receive_body <- function(req, dir, bodies) {
 
   assign(id, list(path = path, size = file.size(path)), envir = bodies)
 
-  shiny::httpResponse(200L, "text/plain", "")
+  httpResponse(200L, "text/plain", "")
 }
 
 write_input <- function(input, path) {
@@ -393,16 +390,14 @@ serve_body <- function(x, type, id, session) {
       # request that it sent over the same connection more often than not.
       if (identical(method, "DELETE")) {
         session$registerDataObj(name, NULL, body_gone)
-        return(shiny::httpResponse(200L, "text/plain", "Deleted."))
+        return(httpResponse(200L, "text/plain", "Deleted."))
       }
 
       if (!identical(method, "GET")) {
-        return(
-          shiny::httpResponse(405L, "text/plain", "A body is got or deleted.")
-        )
+        return(httpResponse(405L, "text/plain", "A body is got or deleted."))
       }
 
-      shiny::httpResponse(
+      httpResponse(
         200L,
         type,
         if (is.raw(data)) data else list(file = data, owned = FALSE)
@@ -412,5 +407,5 @@ serve_body <- function(x, type, id, session) {
 }
 
 body_gone <- function(data, req) {
-  shiny::httpResponse(404L, "text/plain", "The body was fetched already.")
+  httpResponse(404L, "text/plain", "The body was fetched already.")
 }
