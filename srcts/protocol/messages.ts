@@ -94,8 +94,8 @@ export type HelloReply = {
     string,
     { module: string; css?: string; options: OptionId[] }
   >;
-  // In the order of the packages' R dependencies, each package's after those
-  // of the packages it depends on.
+  // In the order in which the packages declared them, each package's after
+  // those of the packages its NAMESPACE imports.
   startup_modules: { package: string; module: string; css?: string }[];
   // The modules that packages offer each other, by id.
   modules: Record<string, { module: string; css?: string }>;

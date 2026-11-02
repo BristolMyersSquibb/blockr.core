@@ -1,5 +1,7 @@
 declared_startup_modules <- new.env()
 
+declared_startup_modules$entries <- list()
+
 declared_modules <- new.env()
 
 #' Modules a package declares
@@ -18,11 +20,14 @@ declared_modules <- new.env()
 #' Declaring a package's startup module, or a module under the same ID, again
 #' replaces it, as when a package is loaded again.
 #'
-#' R orders the startup modules by the `Depends` and `Imports` of each
-#' package's DESCRIPTION, so that a package's comes after those of the
-#' packages it depends on, and the client initializes them one at a time in
-#' that order. A package relies on the order only for the packages it imports
-#' in R, and between any other two packages it is unspecified.
+#' R keeps the startup modules in the order in which packages declare them,
+#' which is the order in which their namespaces load, since R runs the
+#' `.onLoad()` of the packages a namespace imports before its own, so that a
+#' package's comes after those of the packages its NAMESPACE imports, and the
+#' client initializes them one at a time in that order. A package relies on
+#' the order only for the packages its NAMESPACE imports, since R loads a
+#' package that its DESCRIPTION alone names only once something asks for it,
+#' and declaring a startup module again keeps its place.
 #'
 #' @param module The module, made by [js_module()]
 #' @param name The name part of the module's ID
@@ -56,7 +61,7 @@ register_startup_module <- function(module) {
 
   entry <- list(package = package, module = module)
 
-  assign(package, entry, envir = declared_startup_modules)
+  declared_startup_modules$entries[[package]] <- entry
 
   invisible(entry)
 }
@@ -87,24 +92,7 @@ register_module <- function(name, module) {
 }
 
 startup_modules <- function() {
-
-  pkgs <- ls(envir = declared_startup_modules)
-
-  if (!length(pkgs)) {
-    return(list())
-  }
-
-  deps <- lapply(pkgs, function(pkg) intersect(pkg_dependencies(pkg), pkgs))
-
-  order <- topo_sort(
-    as_adjacency_matrix(
-      from = unlst(deps),
-      to = rep(pkgs, lengths(deps)),
-      nodes = pkgs
-    )
-  )
-
-  lapply(order, get, envir = declared_startup_modules, inherits = FALSE)
+  unname(declared_startup_modules$entries)
 }
 
 list_modules <- function() {
@@ -113,13 +101,4 @@ list_modules <- function() {
 
 get_module <- function(id) {
   get_declared(id, declared_modules, "module", "module_missing")
-}
-
-pkg_dependencies <- function(pkg) {
-
-  desc <- utils::packageDescription(pkg, fields = c("Depends", "Imports"))
-  deps <- unlst(strsplit(Filter(Negate(is.na), unlst(desc)), ","))
-  deps <- trimws(sub("\\([^)]*\\)", "", deps))
-
-  setdiff(deps[nzchar(deps)], "R")
 }

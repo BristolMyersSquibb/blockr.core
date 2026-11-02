@@ -35,11 +35,14 @@ Declaring a package's startup module, or a module under the same ID, again
 replaces it, as when a package is loaded again.
 }
 \details{
-R orders the startup modules by the \code{Depends} and \code{Imports} of each
-package's DESCRIPTION, so that a package's comes after those of the
-packages it depends on, and the client initializes them one at a time in
-that order. A package relies on the order only for the packages it imports
-in R, and between any other two packages it is unspecified.
+R keeps the startup modules in the order in which packages declare them,
+which is the order in which their namespaces load, since R runs the
+\code{.onLoad()} of the packages a namespace imports before its own, so that a
+package's comes after those of the packages its NAMESPACE imports, and the
+client initializes them one at a time in that order. A package relies on
+the order only for the packages its NAMESPACE imports, since R loads a
+package that its DESCRIPTION alone names only once something asks for it,
+and declaring a startup module again keeps its place.
 }
 \examples{
 \dontrun{

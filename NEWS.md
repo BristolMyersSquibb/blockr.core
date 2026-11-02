@@ -56,12 +56,13 @@
   startup module with `register_startup_module()` and the modules it offers
   other packages with `register_module()`. A front-end or a module gets the
   ID `{pkg}-{name}`, two front-ends declared for one board class are an error
-  naming both, and R orders the startup modules by the `Depends` and
-  `Imports` of each package's DESCRIPTION. R picks a board's front-end with
-  `board_front_end()`, as the one declared for the most specific class in the
-  board's class vector, so that every board has core's basic front-end,
-  `blockr.core-basic`, which core declares for `board`, at least, and
-  `blockr_app_options()` collects that front-end's board options too (#424).
+  naming both, and the startup modules keep the order in which packages
+  declare them, which puts each after those of the packages its NAMESPACE
+  imports. R picks a board's front-end with `board_front_end()`, as the one
+  declared for the most specific class in the board's class vector, so that
+  every board has core's basic front-end, `blockr.core-basic`, which core
+  declares for `board`, at least, and `blockr_app_options()` collects that
+  front-end's board options too (#424).
 
 # blockr.core 0.1.4
 
