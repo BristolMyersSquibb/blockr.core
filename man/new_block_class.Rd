@@ -51,7 +51,9 @@ makes the block expression from}
 \item{requests}{Named list of requests, each a function or made by
 \code{\link[=new_block_request]{new_block_request()}}}
 
-\item{output}{Coercion that makes an output from a result}
+\item{output}{Coercion that makes an output from a result, such as
+\code{\link[=as_table_output]{as_table_output()}}, or \code{NULL}, for which R shows results through
+\code{\link[=as_text_output]{as_text_output()}}}
 
 \item{x}{Object}
 

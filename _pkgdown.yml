@@ -35,6 +35,13 @@ reference:
     - block_registration_roclet
     - new_arg_spec
     - new_block
+- subtitle: Outputs
+  desc: What R shows of a block's result, which a renderer draws in the client.
+  contents:
+    - new_block_output
+    - new_table_output
+    - new_text_output
+    - new_plot_output
 - subtitle: Links
   desc: Utilities for creating an working with links
   contents:
@@ -84,4 +91,5 @@ reference:
   - chr_ply
   - set_names
   - is_scalar
+  - get_session
   - blockr_abort

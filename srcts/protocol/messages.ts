@@ -10,6 +10,7 @@ import type {
   SavedBoard,
 } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
+import type { BlockOutput } from "../types/outputs.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 
 // The version of the protocol that the client speaks. R's protocol_version()
@@ -327,6 +328,8 @@ export interface OutputInfo {
   font: string;
 }
 
+// An output, whose fields beside its renderer are those of its class's
+// contract, as srcts/types/outputs.ts gives core's.
 export interface OutputReply {
   id: string;
   status: "ok";
@@ -334,13 +337,7 @@ export interface OutputReply {
   body?: Body;
 }
 
-// What every output holds, whatever its class, whose contract gives the rest.
-export interface BlockOutput {
-  // The renderer that R picked for the output's class.
-  renderer: string;
-}
-
-// A binary body, which travels beside the message as the bridge carries it,
+// A binary body, which travels beside the message as the transport carries it,
 // with its MIME type and, for a download, a file name.
 export interface Body {
   type: string;

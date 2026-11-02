@@ -43,7 +43,8 @@ Imports:
     cli,
     glue,
     yaml,
-    yyjsonr (>= 0.1.22)
+    yyjsonr (>= 0.1.22),
+    base64enc
 Suggests:
     testthat (>= 3.0.0),
     memuse,
@@ -55,7 +56,16 @@ Suggests:
     ids,
     ellmer,
     typedjson,
-    spelling
+    spelling,
+    chromote,
+    callr,
+    httpuv,
+    thematic,
+    ragg,
+    systemfonts,
+    ggplot2,
+    tibble,
+    stats
 Config/testthat/edition: 3
 VignetteBuilder: quarto
 Config/roxygen2/version: 8.0.0
