@@ -25,5 +25,9 @@
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.72.1",
     "vitest": "^5.0.5"
+  },
+  "dependencies": {
+    "@cfworker/json-schema": "^4.1.4",
+    "@preact/signals-core": "^1.14.5"
   }
 }
