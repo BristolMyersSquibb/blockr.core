@@ -9,12 +9,8 @@
 // `useSyncExternalStore` needs.
 
 import { signal } from "@preact/signals-core";
-import type {
-  HelloReply,
-  OpenReply,
-  OpenRequest,
-  Reply,
-} from "../protocol/messages.ts";
+import type { Client } from "../protocol/client.ts";
+import type { HelloReply, OpenReply } from "../protocol/messages.ts";
 import type {
   BlockId,
   Board,
@@ -95,9 +91,7 @@ export interface StoreOptions {
   // What the store sends R the `open` of a saved file through: the client of
   // the wire protocol, which gives a request its id and resolves with R's
   // reply to it.
-  readonly client: {
-    request(request: Omit<OpenRequest, "id">): Promise<{ readonly reply: Reply }>;
-  };
+  readonly client: Pick<Client, "request">;
   // What has to run once R has loaded the packages that a board names and
   // before the store opens it, given R's reply and the front-end the board
   // opens with: initializing the startup modules of the packages R loaded,
