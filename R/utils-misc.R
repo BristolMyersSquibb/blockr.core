@@ -272,7 +272,8 @@ blockr_option <- function(name, default) {
   )
 }
 
-#' @param ... Option key value pairs as named arguments
+#' @param ... Option key value pairs as named arguments, whose values
+#'   `register_blockr_options()` takes as the defaults
 #' @rdname blockr_option
 #' @export
 set_blockr_options <- function(...) {
@@ -300,6 +301,95 @@ set_blockr_options <- function(...) {
   names(vals) <- tolower(paste0("blockr.", name))
 
   do.call(options, vals)
+}
+
+declared_blockr_options <- new.env()
+
+#' @section Blockr options a client reads:
+#' A package declares the blockr options that its client code reads, from its
+#' `.onLoad()`, with `register_blockr_options()`, each with the default that R
+#' passes to `blockr_option()`, so that R sends their values, by package, with
+#' its reply to the client's `hello`. A value given as a string, as an
+#' environment variable gives every value, is converted to the type of its
+#' default where that is logical or numeric, so that the client reads a
+#' boolean or a number. Core declares those its scheduler reads,
+#' `gate_visibility`, `evaluation_queue` and `background_evaluation_delay`, and
+#' declaring a blockr option again replaces its default.
+#'
+#' @param package The package whose client reads the blockr options
+#' @rdname blockr_option
+#' @export
+register_blockr_options <- function(..., package = pkg_name(parent.frame())) {
+
+  check_declaring_package(package, "blockr option", "blockr_options_invalid")
+
+  vals <- list(...)
+  name <- names(vals)
+
+  if (length(vals) && (is.null(name) || !all(nzchar(name)) ||
+                         anyDuplicated(name) > 0L)) {
+    blockr_abort(
+      "The blockr options of package {package} are expected to be given as ",
+      "named arguments, with distinct names.",
+      class = "blockr_options_invalid"
+    )
+  }
+
+  res <- coal(
+    get0(package, envir = declared_blockr_options, inherits = FALSE),
+    list()
+  )
+
+  res[name] <- vals
+
+  assign(package, res, envir = declared_blockr_options)
+
+  invisible(res)
+}
+
+client_blockr_options <- function() {
+
+  pkgs <- ls(envir = declared_blockr_options)
+
+  set_names(
+    lapply(
+      pkgs,
+      function(pkg) {
+        defaults <- get(pkg, envir = declared_blockr_options)
+        map(client_blockr_option, names(defaults), defaults, use_names = TRUE)
+      }
+    ),
+    pkgs
+  )
+}
+
+client_blockr_option <- function(name, default) {
+
+  res <- blockr_option(name, default)
+
+  if (!is.character(res) || !(is.logical(default) || is.numeric(default))) {
+    return(res)
+  }
+
+  val <- suppressWarnings(
+    if (is.logical(default)) {
+      as.logical(res)
+    } else if (is.integer(default)) {
+      as.integer(res)
+    } else {
+      as.numeric(res)
+    }
+  )
+
+  if (anyNA(val)) {
+    blockr_abort(
+      "Blockr option {name} is set to {res}, which does not read as the ",
+      "{typeof(default)} its client expects.",
+      class = "blockr_option_invalid"
+    )
+  }
+
+  val
 }
 
 dot_sym <- function(i) {

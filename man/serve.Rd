@@ -27,6 +27,6 @@ provided.
 }
 \details{
 The board options an app offers are collected by \code{blockr_app_options()}
-from the board, its blocks and all registered blocks, keeping the first
-option for each ID.
+from the board, its front-end (see \code{\link[=board_front_end]{board_front_end()}}), its blocks and all
+registered blocks, keeping the first option for each ID.
 }

@@ -3,18 +3,24 @@
 \name{blockr_option}
 \alias{blockr_option}
 \alias{set_blockr_options}
+\alias{register_blockr_options}
 \title{Blockr Options}
 \usage{
 blockr_option(name, default)
 
 set_blockr_options(...)
+
+register_blockr_options(..., package = pkg_name(parent.frame()))
 }
 \arguments{
 \item{name}{Option name}
 
 \item{default}{Default value}
 
-\item{...}{Option key value pairs as named arguments}
+\item{...}{Option key value pairs as named arguments, whose values
+\code{register_blockr_options()} takes as the defaults}
+
+\item{package}{The package whose client reads the blockr options}
 }
 \value{
 The value set as option \code{name} or \code{default} if not set. In case of
@@ -28,6 +34,19 @@ order, and prefixes the option name passed as \code{name} with \code{blockr.} or
 for \code{getOption()} and upper case for environment variables. In case no value
 is available for a given \code{name}, \code{default} is returned.
 }
+\section{Blockr options a client reads}{
+
+A package declares the blockr options that its client code reads, from its
+\code{.onLoad()}, with \code{register_blockr_options()}, each with the default that R
+passes to \code{blockr_option()}, so that R sends their values, by package, with
+its reply to the client's \code{hello}. A value given as a string, as an
+environment variable gives every value, is converted to the type of its
+default where that is logical or numeric, so that the client reads a
+boolean or a number. Core declares those its scheduler reads,
+\code{gate_visibility}, \code{evaluation_queue} and \code{background_evaluation_delay}, and
+declaring a blockr option again replaces its default.
+}
+
 \examples{
 blockr_option("test-example", "default")
 

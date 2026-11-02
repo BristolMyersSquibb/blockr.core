@@ -17,6 +17,10 @@ is_string <- function(x) {
   is.character(x) && is_scalar(x)
 }
 
+is_nonempty_string <- function(x) {
+  is_string(x) && !is.na(x) && nzchar(x)
+}
+
 #' @rdname assertions
 #' @export
 is_bool <- function(x) {
