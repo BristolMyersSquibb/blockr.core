@@ -343,7 +343,8 @@ function remove(
 }
 
 // The state without what lies at no registered key's path, keeping the objects
-// on the way to one.
+// on the way to one that hold something, so that an empty object on the way to
+// nothing is no part of a board.
 function pruneState(
   state: Readonly<Record<string, unknown>>,
   at: readonly string[],
@@ -357,10 +358,11 @@ function pruneState(
     if (below.some((other) => other.length === path.length)) continue;
     if (below.length > 0 && isObject(value)) {
       const pruned = pruneState(value, path, below, dropped);
-      if (pruned !== value) next = { ...next, [key]: pruned };
+      if (Object.keys(pruned).length === 0) next = without(next, [key]);
+      else if (pruned !== value) next = { ...next, [key]: pruned };
       continue;
     }
-    dropped(path, value);
+    if (!isObject(value) || Object.keys(value).length > 0) dropped(path, value);
     next = without(next, [key]);
   }
   return next;

@@ -13,12 +13,15 @@ import type {
   StackId,
 } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
+import { isValueDelta } from "./delta.ts";
 import type {
   BlockMod,
   CollectionDelta,
   Delta,
   Entry,
   KeyChange,
+  ValueDelta,
+  Values,
 } from "./delta.ts";
 import type { Registrations } from "./registrations.ts";
 import { getAt, isObject, own, pathText, setAt, without } from "./util.ts";
@@ -112,8 +115,18 @@ export function commit(
     failures,
   );
 
-  const options = values(board.options, delta.options);
-  const attrs = values(board.front_end.attrs, delta.front_end?.attrs);
+  const options = values(
+    board.options,
+    delta.options,
+    (id) => `the board option "${id}"`,
+    failures,
+  );
+  const attrs = values(
+    board.front_end.attrs,
+    delta.front_end?.attrs,
+    (name) => `the front-end's attribute "${name}"`,
+    failures,
+  );
 
   let state = board.front_end.state;
   const stateInverse: KeyChange[] = [];
@@ -133,22 +146,23 @@ export function commit(
     }
 
     if (key.def.kind === "value") {
-      if (!Object.hasOwn(change, "set")) {
-        failures.push(`The change to ${pathText(path)} sets no value.`);
+      if (!isValueDelta(change)) {
+        failures.push(`The change to ${pathText(path)} neither sets nor unsets its value.`);
         continue;
       }
       const old = getAt(state, path) as Json | undefined;
-      const value = (change as { set: Json | undefined }).set;
+      const value = change.unset === true ? undefined : change.set;
       state = setAt(state, path, value);
-      stateInverse.unshift({ path, change: { set: old } });
+      const back: ValueDelta = old === undefined ? { unset: true } : { set: old };
+      stateInverse.unshift({ path, change: back });
       targets.add(target({ path }));
       if (value !== undefined) setValues.add(at);
       continue;
     }
 
-    if (Object.hasOwn(change, "set")) {
+    if (isValueDelta(change)) {
       failures.push(
-        `The change to ${pathText(path)} sets a value, where it holds a collection.`,
+        `The change to ${pathText(path)} sets or unsets a value, where it holds a collection.`,
       );
       continue;
     }
@@ -160,7 +174,7 @@ export function commit(
     const result = collection<Entry, NonNullable<CollectionDelta["mod"]>[string]>(
       (id) => `entry "${id}" of ${pathText(path)}`,
       current as Readonly<Record<string, Entry>>,
-      change as CollectionDelta,
+      change,
       (old, mod, id) => modifyEntry(old, mod, id, path, failures),
       places[at],
       undefined,
@@ -333,31 +347,47 @@ function empty(part: Part<unknown, unknown>): boolean {
   return Object.keys(part).length === 0;
 }
 
-// Values by id that a delta sets, or removes where it gives undefined.
+// Values by name that a delta sets and removes, with the change that sets
+// back what they were: the old value where there was one, and a removal where
+// there was none.
 function values(
   current: Readonly<Record<string, Json>>,
-  change: Readonly<Record<string, Json | undefined>> | undefined,
+  change: Values<string> | undefined,
+  what: (name: string) => string,
+  failures: string[],
 ): {
   next: Readonly<Record<string, Json>>;
-  inverse: Readonly<Record<string, Json | undefined>> | undefined;
+  inverse: Values<string> | undefined;
   set: ReadonlySet<string>;
 } {
   if (change === undefined) {
     return { next: current, inverse: undefined, set: new Set() };
   }
-  let next = current;
-  const inverse: Record<string, Json | undefined> = {};
-  const set = new Set<string>();
-  for (const [id, value] of Object.entries(change)) {
-    inverse[id] = own(current, id);
-    if (value === undefined) {
-      next = without(next, [id]);
-    } else {
-      next = { ...next, [id]: value };
-      set.add(id);
+  const setting = change.set ?? {};
+  const restore: Record<string, Json> = {};
+  const remove: string[] = [];
+
+  for (const name of change.unset ?? []) {
+    if (Object.hasOwn(setting, name)) {
+      failures.push(`The change both sets and unsets ${what(name)}.`);
     }
+    const was = own(current, name);
+    if (was !== undefined) restore[name] = was;
   }
-  return { next, inverse, set };
+  for (const name of Object.keys(setting)) {
+    const was = own(current, name);
+    if (was === undefined) remove.push(name);
+    else restore[name] = was;
+  }
+
+  return {
+    next: { ...without(current, change.unset ?? []), ...setting },
+    inverse: {
+      ...(Object.keys(restore).length === 0 ? {} : { set: restore }),
+      ...(remove.length === 0 ? {} : { unset: remove }),
+    },
+    set: new Set(Object.keys(setting)),
+  };
 }
 
 function modifyBlock(
@@ -386,7 +416,12 @@ function modifyBlock(
     if (was !== undefined) state[arg] = was;
   }
 
-  const attrs = values(old.attrs, mod.attrs);
+  const attrs = values(
+    old.attrs,
+    mod.attrs,
+    (name) => `the attribute "${name}" of block "${id}"`,
+    failures,
+  );
 
   return {
     value: {

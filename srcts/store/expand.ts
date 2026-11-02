@@ -7,12 +7,14 @@
 // plugin appended.
 
 import type { Board, Stack, StackId } from "../types/board.ts";
+import { isValueDelta } from "./delta.ts";
 import type {
   CollectionDelta,
   Delta,
   Entry,
   KeyChange,
   KeyDelta,
+  ValueDelta,
 } from "./delta.ts";
 import type { Registrations } from "./registrations.ts";
 import { jsonEqual, messageOf, own, pathText } from "./util.ts";
@@ -120,7 +122,7 @@ function merge(
 
   const merged =
     kind === "value"
-      ? own !== undefined && "set" in own
+      ? own !== undefined && isValueDelta(own)
         ? current
         : mergeValue(current, change)
       : mergeCollection(
@@ -145,10 +147,11 @@ function merge(
 // A value's change from an `expand`, which keeps the edit id that the delta's
 // own change of the value names.
 function mergeValue(current: KeyDelta | undefined, change: KeyDelta): KeyDelta | undefined {
-  if (!("set" in change)) return current;
-  if (current === undefined) return { set: change.set };
-  if ("set" in current && jsonEqual(current.set, change.set)) return current;
-  return { ...current, set: change.set };
+  if (!isValueDelta(change)) return current;
+  const next: ValueDelta = change.unset === true ? { unset: true } : { set: change.set };
+  if (current === undefined || !isValueDelta(current)) return next;
+  if (current.unset === next.unset && jsonEqual(current.set, next.set)) return current;
+  return current.edit === undefined ? next : { ...next, edit: current.edit };
 }
 
 // What an `expand` returned for a collection, without the entries the given

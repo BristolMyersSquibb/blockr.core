@@ -24,6 +24,7 @@ import type { RegistryEntry } from "../types/registry.ts";
 import { check } from "./check.ts";
 import { commit, target } from "./commit.ts";
 import type { Changed, Inverse } from "./commit.ts";
+import { isValueDelta } from "./delta.ts";
 import type { Delta, Origin } from "./delta.ts";
 import { expand } from "./expand.ts";
 import { fit, isEmpty } from "./undo.ts";
@@ -254,7 +255,7 @@ export function createStore(options: StoreOptions): Store {
         compare(target({ block: id }), mod.edit);
       }
       for (const { path, change } of delta.front_end?.state ?? []) {
-        if ("set" in change) {
+        if (isValueDelta(change)) {
           compare(target({ path }), change.edit);
         } else {
           for (const [id, mod] of Object.entries(change.mod ?? {})) {

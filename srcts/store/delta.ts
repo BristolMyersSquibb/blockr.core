@@ -21,10 +21,6 @@ export type Origin = string;
 
 // Within each collection, `rm` applies before `add`, since a delta may reuse an
 // id it drops, and `mod` applies last.
-//
-// A value of `undefined` in `attrs`, `options` or a value's `set` removes it,
-// which only the inverse that undo applies needs, where a step set a value
-// that had none.
 export interface Delta {
   readonly blocks?: {
     readonly add?: Readonly<Record<BlockId, Block>>;
@@ -44,12 +40,21 @@ export interface Delta {
     readonly mod?: Readonly<Record<StackId, Partial<Stack>>>;
     readonly rm?: readonly StackId[];
   };
-  readonly options?: Readonly<Record<OptionId, Json | undefined>>;
+  readonly options?: Values<OptionId>;
   readonly name?: string;
   readonly front_end?: {
     readonly state?: readonly KeyChange[];
-    readonly attrs?: Readonly<Record<string, Json | undefined>>;
+    readonly attrs?: Values<string>;
   };
+}
+
+// Values by name that a delta sets, and names whose values it removes, as a
+// collection entry's change sets and removes its fields: board option values
+// by id, and attributes by name. Undo removes a value where its step set one
+// that had none.
+export interface Values<K extends string> {
+  readonly set?: Readonly<Record<K, Json>>;
+  readonly unset?: readonly K[];
 }
 
 export interface BlockMod {
@@ -61,7 +66,7 @@ export interface BlockMod {
   // null would reach `expr` as NULL.
   readonly unset?: readonly string[];
   readonly name?: string;
-  readonly attrs?: Readonly<Record<string, Json | undefined>>;
+  readonly attrs?: Values<string>;
 }
 
 // A change to the key of the front-end's state that is registered at the path.
@@ -92,8 +97,12 @@ export interface CollectionDelta {
   readonly rm?: readonly string[];
 }
 
-// A value's change.
-export interface ValueDelta {
-  readonly edit?: number;
-  readonly set: Json | undefined;
+// Whether a change to front-end state is a value's, rather than a collection's.
+export function isValueDelta(change: KeyDelta): change is ValueDelta {
+  return Object.hasOwn(change, "set") || Object.hasOwn(change, "unset");
 }
+
+// A value's change, which sets the value or removes it.
+export type ValueDelta =
+  | { readonly edit?: number; readonly set: Json; readonly unset?: never }
+  | { readonly edit?: number; readonly unset: true; readonly set?: never };

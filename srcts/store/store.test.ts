@@ -392,7 +392,12 @@ describe("opening a board", () => {
       file({
         front_end: {
           id: "blockr.core-basic",
-          state: { extensions: { "blockr.dag-dag": { positions: {} }, "blockr.md-md": { content: "" } } },
+          state: {
+            extensions: {
+              "blockr.dag-dag": { positions: { a: { x: 0, y: 0 } } },
+              "blockr.md-md": { content: "" },
+            },
+          },
           attrs: {},
         },
       }),
@@ -403,6 +408,15 @@ describe("opening a board", () => {
       { key: ["extensions", "blockr.md-md"], package: "blockr.md" },
     ]);
     expect(store.board().front_end.state).toEqual({ extensions: { "blockr.dag-dag": { layout: {} } } });
+  });
+
+  test("keeps no empty object on the way to nothing, and names none as dropped", async () => {
+    const store = await opened();
+    const dropped = await store.open(
+      file({ front_end: { id: "blockr.core-basic", state: { extensions: {} }, attrs: {} } }),
+    );
+    expect(dropped).toEqual([]);
+    expect(store.board().front_end.state).toEqual({});
   });
 
   test("gives each registered key the board lacks its initial value or an empty collection", async () => {
@@ -764,16 +778,17 @@ describe("applying a delta", () => {
     ["a cycle", { links: { rm: ["ad"], add: { ed: { from: "e", to: "d", input: "data" } } } }, /links form a cycle through the blocks/],
     ["a stack holding a block the board lacks", { stacks: { add: { s2: { name: "More", blocks: ["z"] } } } }, /stack "s2" holds block "z", which the board lacks/],
     ["a block in two stacks", { stacks: { add: { s2: { name: "More", blocks: ["a"] } } } }, /block "a" sits in the stacks "s1" and "s2", where it sits in one/],
-    ["a board option value its schema refuses", { options: { n_rows: -1 } }, /value of the board option "n_rows" must be >= 0/],
-    ["a value of a board option no package registered", { options: { nope: 1 } }, /board option "nope", which no package registered/],
-    ["an attribute no package registered", { blocks: { mod: { a: { attrs: { color: "red" } } } } }, /block "a" has the attribute "color", which no package registered/],
-    ["an attribute its schema refuses", { blocks: { mod: { a: { attrs: { visible: ["header"] } } } } }, /attribute "visible" of block "a" \/0 must be equal to one of the allowed values/],
+    ["a board option value its schema refuses", { options: { set: { n_rows: -1 } } }, /value of the board option "n_rows" must be >= 0/],
+    ["a value of a board option no package registered", { options: { set: { nope: 1 } } }, /board option "nope", which no package registered/],
+    ["an attribute no package registered", { blocks: { mod: { a: { attrs: { set: { color: "red" } } } } } }, /block "a" has the attribute "color", which no package registered/],
+    ["an attribute its schema refuses", { blocks: { mod: { a: { attrs: { set: { visible: ["header"] } } } } } }, /attribute "visible" of block "a" \/0 must be equal to one of the allowed values/],
     ["a block of a class the block registry lacks", { blocks: { add: { g: { ...head(), registry_id: "blockr.foo-bar" } } } }, /class "blockr.foo-bar", which the block registry lacks/],
     ["an id made of digits alone", { blocks: { add: { 7: head() } } }, /block id "7" is empty or made of digits alone/],
     ["removing a block the board lacks", { blocks: { rm: ["z"] } }, /board holds no block "z" to remove/],
     ["adding a block the board holds", { blocks: { add: { a: head() } } }, /board holds block "a" already/],
     ["changing a block the board lacks", { blocks: { mod: { z: { name: "Z" } } } }, /board holds no block "z" to change/],
     ["setting and unsetting one state arg", { blocks: { mod: { b: { state: { n: 1 }, unset: ["n"] } } } }, /both sets and unsets "n"/],
+    ["setting and unsetting one board option", { options: { set: { n_rows: 5 }, unset: ["n_rows"] } }, /both sets and unsets the board option "n_rows"/],
     ["a key that no package registered", { front_end: { state: [{ path: ["views"], change: { add: {} } }] } }, /No key of the front-end's state is registered at views/],
     ["a block that is no block", { blocks: { add: { g: { ...head(), name: 3 } } } } as unknown as Delta, /block "g" has no string as its name/],
     ["a link holding more than core keeps", { links: { add: { dg: { from: "d", to: "f", input: "data", color: "red" } } } } as unknown as Delta, /link "dg" holds "color", which core does not keep/],
@@ -1024,8 +1039,8 @@ describe("undo", () => {
     const before = store.board();
 
     store.apply({
-      blocks: { mod: { d: { state: { extra: 1 } }, a: { attrs: { visible: ["outputs"] } } } },
-      options: { seed: 42 },
+      blocks: { mod: { d: { state: { extra: 1 } }, a: { attrs: { set: { visible: ["outputs"] } } } } },
+      options: { set: { seed: 42 } },
     });
     store.undo();
 
@@ -1034,10 +1049,28 @@ describe("undo", () => {
     expect(Object.hasOwn(store.board().options, "seed")).toBe(false);
   });
 
+  test("removes a value of front-end state again where its step set one that had none, with a removal that survives JSON", async () => {
+    const direction = ["extensions", "blockr.dag-dag", "direction"];
+    const store = await opened((store) => {
+      store.register({ path: direction, kind: "value", schema: { enum: ["LR", "TB"] } });
+    });
+    const before = store.board();
+    const seen = changes(store);
+
+    store.apply({ front_end: { state: [{ path: direction, change: { set: "TB" } }] } });
+    store.undo();
+
+    expect(store.board()).toEqual(before);
+    const undo = seen[1];
+    expect(undo && "delta" in undo ? JSON.parse(JSON.stringify(undo.delta)) : undefined).toEqual({
+      front_end: { state: [{ path: direction, change: { unset: true } }] },
+    });
+  });
+
   test("undoes each origin's steps apart", async () => {
     const store = await opened();
     store.apply({ name: "Renamed" });
-    store.apply({ options: { n_rows: 20 } }, "assistant");
+    store.apply({ options: { set: { n_rows: 20 } } }, "assistant");
 
     store.undo();
     expect(store.board().name).toBe("Iris review");
@@ -1135,7 +1168,7 @@ describe("undo", () => {
     const store = await opened();
     store.apply({ name: "Renamed" });
     store.undo();
-    store.apply({ options: { n_rows: 20 } }, "assistant");
+    store.apply({ options: { set: { n_rows: 20 } } }, "assistant");
     expect(store.canRedo()).toBe(true);
 
     store.apply({ name: "Again" });

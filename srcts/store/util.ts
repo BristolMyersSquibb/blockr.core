@@ -62,8 +62,10 @@ export function getAt(root: unknown, path: readonly string[]): unknown {
   return at;
 }
 
-// The nested objects with the value at the path, or without it where it is
-// undefined, copying only the objects along the path.
+// The nested objects with the value at the path, copying only the objects
+// along the path, or, where the value is undefined, without it and without the
+// objects that removing it leaves empty, so that setting a value and removing
+// it again leaves the objects as they were.
 export function setAt(
   root: Readonly<Record<string, unknown>>,
   path: readonly string[],
@@ -76,6 +78,12 @@ export function setAt(
     return { ...root, [key]: value };
   }
   const below = own(root, key);
+  if (value === undefined) {
+    if (!isObject(below)) return root;
+    const next = setAt(below, rest, undefined);
+    if (next === below) return root;
+    return Object.keys(next).length === 0 ? without(root, [key]) : { ...root, [key]: next };
+  }
   return {
     ...root,
     [key]: setAt(isObject(below) ? below : {}, rest, value),
