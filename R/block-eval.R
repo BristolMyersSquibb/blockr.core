@@ -27,13 +27,12 @@
 #' environment is created by `eval_env()`.
 #'
 #' The `result_summary()` generic describes a result in a few words, such as
-#' `<df [150 x 5]>`, dispatching on the result's class, so that a package
-#' describes its results wherever they appear, such as in a block's header and
-#' in the cells of a table. Core's method describes a vector or a data frame
-#' as tibble does, through [pillar::obj_sum()], so that a package's methods
-#' for pillar apply too. It describes any other object by its class, such as
-#' `<lm>`, since pillar shortens a class it has no method for, as `<ggplt2::>`
-#' for a ggplot. The `block_migrate()`
+#' `<data.frame> [150 x 5]`, dispatching on the result's class, so that a
+#' package describes its results wherever they appear, such as in a block's
+#' header and in the cells of a table. Core's method names the result's class
+#' in full, or its type for an object without a class, with `<function>` for
+#' any function and `<tibble>` for a tibble. It adds the result's dimensions,
+#' or the length of a vector. The `block_migrate()`
 #' generic maps a state that an older version of the class's package saved to
 #' the current state, given that version, where `x` is the saved state with the
 #' class's class vector. Core's method leaves a state as it is.
@@ -371,11 +370,52 @@ result_summary <- function(result) {
 #' @export
 result_summary.default <- function(result) {
 
-  if (obj_is_vector(result)) {
-    return(paste0("<", pillar::obj_sum(result), ">"))
+  res <- paste0("<", type_desc(result), ">")
+  dims <- dim_desc(result)
+
+  if (length(dims)) {
+    res <- paste0(res, " [", dims, "]")
   }
 
-  paste0("<", class(result)[1L], ">")
+  res
+}
+
+type_desc <- function(x) {
+
+  if (inherits(x, "tbl_df")) {
+    return("tibble")
+  }
+
+  if (is.function(x)) {
+    return("function")
+  }
+
+  if (is.object(x)) class(x)[1L] else typeof(x)
+}
+
+dim_desc <- function(x) {
+
+  dims <- dim(x)
+
+  if (is.null(dims) && obj_is_vector(x)) {
+    dims <- vec_size(x)
+  }
+
+  if (is.null(dims)) {
+    return(character())
+  }
+
+  paste0(big_mark(dims), collapse = " \u00d7 ")
+}
+
+big_mark <- function(x) {
+
+  mark <- if (identical(getOption("OutDec"), ",")) "." else ","
+
+  res <- formatC(x, big.mark = mark, format = "d")
+  res[is.na(x)] <- "??"
+
+  res
 }
 
 #' @param version The version of the class's package that saved the state

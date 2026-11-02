@@ -43,8 +43,7 @@ Imports:
     cli,
     glue,
     yaml,
-    yyjsonr (>= 0.1.22),
-    pillar
+    yyjsonr (>= 0.1.22)
 Suggests:
     testthat (>= 3.0.0),
     memuse,

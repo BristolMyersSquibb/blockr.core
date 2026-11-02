@@ -111,7 +111,7 @@ R looks the class up by its registry id, runs the checks of a function the class
 | Field | Holds |
 |---|---|
 | `block`, `revision` | as the request named them |
-| `summary` | the result's summary from `result_summary()`, such as `"<df [150 × 5]>"`, or `null` where there is no result or its summary failed |
+| `summary` | the result's summary from `result_summary()`, such as `"<data.frame> [150 × 5]"`, or `null` where there is no result or its summary failed |
 | `conditions`, `omitted` | the conditions raised, and how many of each severity the reply leaves out ([Conditions](#conditions)) |
 | `stdout`, `stderr` | the standard output and error, each bounded |
 

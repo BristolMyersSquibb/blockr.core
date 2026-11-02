@@ -20,7 +20,7 @@ output_fixture <- function(name) {
 # outputs, each with what it was asked with.
 output_fixture_values <- function() {
 
-  withr::local_options(width = 80L, cli.unicode = TRUE)
+  withr::local_options(width = 80L)
 
   list(
     `table-output` = list(

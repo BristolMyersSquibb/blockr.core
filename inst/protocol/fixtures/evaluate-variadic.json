@@ -23,7 +23,7 @@
         "status": "ok",
         "block": "e",
         "revision": 7,
-        "summary": "<df [9 × 5]>",
+        "summary": "<data.frame> [9 × 5]",
         "conditions": [],
         "omitted": { "warning": 0, "message": 0 },
         "stdout": "",

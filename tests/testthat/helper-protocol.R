@@ -187,7 +187,7 @@ protocol_r_values <- function() {
       list(
         proto_evaluated(
           "17", "c", 4L,
-          summary = "<df [300 × 9]>"
+          summary = "<data.frame> [300 × 9]"
         )
       )
     ),
@@ -195,7 +195,7 @@ protocol_r_values <- function() {
       list(
         proto_evaluated(
           "18", "d", 6L,
-          summary = "<df [3 × 5]>",
+          summary = "<data.frame> [3 × 5]",
           conditions = list(
             proto_condition(
               "warning",
@@ -211,7 +211,7 @@ protocol_r_values <- function() {
       list(
         proto_evaluated(
           "19", "e", 7L,
-          summary = "<df [9 × 5]>"
+          summary = "<data.frame> [9 × 5]"
         )
       )
     ),
@@ -251,7 +251,7 @@ protocol_r_values <- function() {
       list(
         proto_evaluated(
           "30", "w", 12L,
-          summary = "<df [300 × 9]>"
+          summary = "<data.frame> [300 × 9]"
         )
       )
     ),
@@ -268,13 +268,13 @@ protocol_r_values <- function() {
       list(
         proto_evaluated(
           "11", "a", 2L,
-          summary = "<df [150 × 5]>"
+          summary = "<data.frame> [150 × 5]"
         )
       ),
       list(
         proto_evaluated(
           "12", "b", 3L,
-          summary = "<df [6 × 5]>"
+          summary = "<data.frame> [6 × 5]"
         )
       ),
       list(

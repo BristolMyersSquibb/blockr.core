@@ -69,11 +69,6 @@
   that draws a base plot captures it with `capture_plot()` in its
   `block_eval()` method, so that a change of theme draws the plot again
   without evaluating the block (#422).
-* The default method of `result_summary()` describes a vector or a data
-  frame as tibble does, through pillar's `obj_sum()`, such as
-  `<df [150 x 5]>`, and any other object by its class, such as `<lm>`. So a
-  package's methods for pillar apply in a block's header and in the cells of
-  a table output (#422).
 
 # blockr.core 0.1.4
 

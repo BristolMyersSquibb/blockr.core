@@ -64,9 +64,9 @@ stays as it is, and a missing value becomes \code{null}. An infinite number and
 column of another class, such as a date, shows the text that \code{\link[=format]{format()}}
 gives. A list-column shows each cell that is a single number, string or
 logical as it is. Any other cell shows as a summary, as \code{\link[=result_summary]{result_summary()}}
-gives it, such as \verb{<lm>} or \verb{<df [3 x 2]>}. The same goes for each row of a
-matrix or data frame column. Each column keeps its name and its first class.
-Row names are dropped, as tibble drops them.
+gives it, such as \verb{<lm>} or \verb{<data.frame> [3 × 2]}. The same goes for each
+row of a matrix or data frame column. Each column keeps its name and its
+first class. Row names are dropped, as tibble drops them.
 
 The total row count may be unknown, as for a lazy table, whose count would
 run its whole query. A renderer then shows no page count, and a page with

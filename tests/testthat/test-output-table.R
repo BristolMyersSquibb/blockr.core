@@ -177,8 +177,6 @@ test_that("a data frame's table output sorts by its parameters", {
 
 test_that("a table output's cells hold values that JSON can carry", {
 
-  withr::local_options(cli.unicode = TRUE)
-
   df <- data.frame(
     num = c(1.5, Inf, -Inf, NaN, NA),
     int = c(1L, NA, 3L, 4L, 5L),
@@ -210,7 +208,8 @@ test_that("a table output's cells hold values that JSON can carry", {
   expect_identical(
     json$rows[[1L]],
     list(1.5, 1, TRUE, "a", "u", "2024-01-31", "2024-01-31 12:30:00", "1+1i",
-         "<int [3]>", "<int [1 \u00d7 2]>", "<df [1 \u00d7 2]>")
+         "<integer> [3]", "<integer> [1 \u00d7 2]",
+         "<data.frame> [1 \u00d7 2]")
   )
 
   expect_identical(
@@ -222,8 +221,8 @@ test_that("a table output's cells hold values that JSON can carry", {
                    list(1.5, "Inf", "-Inf", "NaN", NULL))
 
   expect_identical(lapply(json$rows, `[[`, 9L),
-                   list("<int [3]>", "one", "<NULL>", "<df [6 \u00d7 2]>",
-                        TRUE))
+                   list("<integer> [3]", "one", "<NULL>",
+                        "<data.frame> [6 \u00d7 2]", TRUE))
 
   # A column's attributes, such as its label, stay in R.
   expect_identical(names(json$columns[[1L]]), c("name", "class"))

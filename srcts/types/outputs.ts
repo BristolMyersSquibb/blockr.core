@@ -24,7 +24,7 @@ export interface TableOutput extends BlockOutput {
   // One page of rows, each in the order of columns. A cell holds the value as
   // JSON has it, a factor's label, the text R formats another class of value
   // with, and for a list-column the summary of the cell, such as "<lm>" or
-  // "<df [3 × 2]>".
+  // "<data.frame> [3 × 2]".
   rows: Json[][];
   // The total row count, or null where it is unknown, as for a lazy table,
   // whose count would run its whole query. The renderer then shows no page
