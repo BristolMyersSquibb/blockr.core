@@ -30,7 +30,19 @@
 # say, which the transport reads as it sets a session up (see `carry_body()`).
 shiny_transport <- function(handler, session = get_session()) {
 
-  stopifnot(is.function(handler), not_null(session))
+  if (!is.function(handler)) {
+    blockr_abort(
+      "The Shiny transport's handler is a function.",
+      class = "shiny_transport_handler_invalid"
+    )
+  }
+
+  if (is.null(session)) {
+    blockr_abort(
+      "The Shiny transport needs a Shiny session, as a server function has.",
+      class = "shiny_transport_session_missing"
+    )
+  }
 
   opts <- message_body_opts()
 
@@ -161,7 +173,10 @@ with_bodies <- function(message, bodies, send) {
 lost_body_reply <- function(id) {
 
   cnd <- tryCatch(
-    blockr_abort("R received no body for request {id}, which announces one."),
+    blockr_abort(
+      "R received no body for request {id}, which announces one.",
+      class = "shiny_transport_request_body_missing"
+    ),
     error = identity
   )
 
@@ -231,7 +246,8 @@ send_message <- function(message, session, opts = message_body_opts()) {
   if (!is.list(message) || not_null(names(message))) {
     blockr_abort(
       "A message that R sends is an unnamed list of replies and progress ",
-      "notes."
+      "notes.",
+      class = "shiny_transport_message_invalid"
     )
   }
 
@@ -301,7 +317,8 @@ carry_body <- function(item, session, opts) {
   if (!(is.raw(x) || (is_string(x) && file.exists(x))) || !is_string(type)) {
     blockr_abort(
       "A reply's body holds its bytes, as a raw vector or the path of a ",
-      "file, and their MIME type."
+      "file, and their MIME type.",
+      class = "shiny_transport_reply_body_invalid"
     )
   }
 
@@ -342,7 +359,8 @@ message_body_opts <- function() {
 
   if (!is_string(encoding) || !encoding %in% c("base64", "binary")) {
     blockr_abort(
-      "The blockr option `message_body_encoding` is \"base64\" or \"binary\"."
+      "The blockr option `message_body_encoding` is \"base64\" or \"binary\".",
+      class = "message_body_encoding_invalid"
     )
   }
 
@@ -358,7 +376,8 @@ message_body_opts <- function() {
 
   if (!is.numeric(max) || !is_scalar(max) || is.na(max) || max < 0) {
     blockr_abort(
-      "The blockr option `max_message_body` is a number of bytes, 0 or more."
+      "The blockr option `max_message_body` is a number of bytes, 0 or more.",
+      class = "max_message_body_invalid"
     )
   }
 

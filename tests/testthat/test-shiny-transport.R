@@ -24,6 +24,20 @@ test_that("the transport starts a session that the page may start anew", {
   expect_named(decode_message(transport_sent(session)), "body_url")
 })
 
+test_that("the transport needs a handler and a session", {
+
+  expect_error(
+    with_transport("echo"),
+    class = "shiny_transport_handler_invalid"
+  )
+
+  # Outside a server function, get_session() finds no session.
+  expect_error(
+    shiny_transport(function(message, send) NULL),
+    class = "shiny_transport_session_missing"
+  )
+})
+
 test_that("the transport hands each message the client sends to the handler", {
 
   got <- list()
@@ -135,11 +149,11 @@ test_that("the transport refuses to send what is no unnamed list", {
     {
       expect_error(
         send_message(list(id = "1", status = "ok"), session),
-        "unnamed list of replies"
+        class = "shiny_transport_message_invalid"
       )
       expect_error(
         send_message("[]", session),
-        "unnamed list of replies"
+        class = "shiny_transport_message_invalid"
       )
     }
   )
@@ -189,7 +203,7 @@ test_that("a small body travels in its reply's message", {
   )
 })
 
-test_that("a large body is served once from a URL", {
+test_that("a large body is served from a URL until the client deletes it", {
 
   big <- as.raw(rep(0:255, length.out = 2^20 + 1))
 
@@ -379,21 +393,21 @@ test_that("the transport refuses blockr options it cannot follow", {
   withr::with_options(list(blockr.max_message_body = -1), {
     expect_error(
       with_transport(function(message, send) NULL),
-      "The blockr option"
+      class = "max_message_body_invalid"
     )
   })
 
   withr::with_envvar(c(BLOCKR_MAX_MESSAGE_BODY = "big"), {
     expect_error(
       with_transport(function(message, send) NULL),
-      "The blockr option"
+      class = "max_message_body_invalid"
     )
   })
 
   withr::with_options(list(blockr.message_body_encoding = "zip"), {
     expect_error(
       with_transport(function(message, send) NULL),
-      "The blockr option"
+      class = "message_body_encoding_invalid"
     )
   })
 })
@@ -426,15 +440,15 @@ test_that("a reply's body holds bytes that R can send", {
     {
       expect_error(
         send_message(reply(list(x = 1:3, type = "image/png")), session),
-        "holds its bytes"
+        class = "shiny_transport_reply_body_invalid"
       )
       expect_error(
         send_message(reply(list(x = tempfile(), type = "image/png")), session),
-        "holds its bytes"
+        class = "shiny_transport_reply_body_invalid"
       )
       expect_error(
         send_message(reply(list(x = as.raw(1L))), session),
-        "holds its bytes"
+        class = "shiny_transport_reply_body_invalid"
       )
     }
   )
@@ -517,7 +531,11 @@ test_that("R replies error to a request whose body never came", {
 
   expect_named(cnd, c("severity", "class", "message"))
   expect_identical(cnd[["severity"]], "error")
-  expect_true("blockr_error" %in% cnd[["class"]])
+  expect_identical(
+    cnd[["class"]],
+    c("shiny_transport_request_body_missing", "blockr_error", "rlang_error",
+      "error", "condition")
+  )
   expect_match(cnd[["message"]], "request 27")
 })
 
