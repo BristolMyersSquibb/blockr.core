@@ -610,11 +610,14 @@ describe("migrations", () => {
     { "blockr.core": "0.1.9", "blockr.dag": "0.2.0" },
   );
 
-  test("runs the migration of every package whose saved version differs from the one R loaded", async () => {
+  test("runs the migration of every package whose saved version differs from the one R loaded, one after another", async () => {
+    // The DAG renames its layout to positions.
     const dag = vi.fn<Migration>((saved) => {
-      const layout = (saved.front_end.state as { extensions: Record<string, { layout: Record<string, number[]> }> })
-        .extensions["blockr.dag-dag"]?.layout ?? {};
+      const layout =
+        (saved.front_end.state as { extensions: Record<string, { layout?: Record<string, number[]> }> })
+          .extensions["blockr.dag-dag"]?.layout ?? {};
       return {
+        ...saved,
         front_end: {
           state: {
             extensions: {
@@ -628,20 +631,19 @@ describe("migrations", () => {
         },
       };
     });
+    // Core's head block once kept its n as a string.
     const core = vi.fn<Migration>((saved) => ({
+      ...saved,
       blocks: Object.fromEntries(
         Object.entries(saved.blocks).map(([id, block]) => [
           id,
-          {
-            ...block,
-            state: block.registry_id === "blockr.core-head_block" ? { ...block.state, n: Number(block.state.n) } : block.state,
-          },
+          block.registry_id === "blockr.core-head_block"
+            ? { ...block, state: { ...block.state, n: Number(block.state.n) } }
+            : block,
         ]),
       ),
-      // Not core's to write, so the store leaves it alone.
-      front_end: { state: { extensions: { "blockr.dag-dag": { positions: {} } } }, attrs: {} },
     }));
-    const io = vi.fn<Migration>(() => ({}));
+    const io = vi.fn<Migration>((saved) => saved);
 
     const store = await migrating({ "blockr.dag": dag, "blockr.core": core, "blockr.io": io });
     const dropped = await store.open(old);
@@ -651,27 +653,34 @@ describe("migrations", () => {
     expect(core.mock.calls[0]?.[1]).toBe("0.1.9");
     expect(io.mock.calls[0]?.[1]).toBeNull();
 
-    const saved = dag.mock.calls[0]?.[0];
-    expect(core.mock.calls[0]?.[0]).toEqual(saved);
-    expect(Object.isFrozen(saved?.blocks)).toBe(true);
+    // Each migration takes the file as the one before it left it.
+    const fromDag = dag.mock.results[0]?.value as unknown;
+    expect(core.mock.calls[0]?.[0]).toEqual(fromDag);
+    expect(Object.isFrozen(core.mock.calls[0]?.[0].blocks)).toBe(true);
 
     const board = store.board();
     expect(positionsOf(board)).toEqual({ a: { x: 1, y: 2 }, b: { x: 3, y: 4 } });
     expect(board.blocks.b?.state).toEqual({ n: 6, direction: "head" });
-    expect(dropped).toEqual([
-      { key: ["extensions", "blockr.dag-dag", "layout"], package: "blockr.dag" },
-    ]);
+    expect(dropped).toEqual([]);
+  });
+
+  test("refuses to open a board that a migration fails on", async () => {
+    const dag = vi.fn<Migration>(() => {
+      throw new Error("The layout is unreadable.");
+    });
+    const store = await migrating({ "blockr.dag": dag });
+    await expect(store.open(old)).rejects.toThrow("The migration of blockr.dag failed: The layout is unreadable.");
   });
 
   test("runs no migration of a package saved at the version R loaded", async () => {
-    const dag = vi.fn<Migration>(() => ({}));
+    const dag = vi.fn<Migration>((saved) => saved);
     const store = await migrating({ "blockr.dag": dag });
     await store.open(file({}, { "blockr.core": "0.2.0", "blockr.dag": "0.3.0" }));
     expect(dag).not.toHaveBeenCalled();
   });
 
   test("runs no migration for the board an app script built", async () => {
-    const dag = vi.fn<Migration>(() => ({}));
+    const dag = vi.fn<Migration>((saved) => saved);
     await migrating({ "blockr.dag": dag });
     expect(dag).not.toHaveBeenCalled();
   });
@@ -1231,8 +1240,8 @@ describe("registering", () => {
       'The board option "n_rows" is registered already.',
     );
     expect(() => {
-      store.registerMigration("blockr.foo", () => ({}));
-      store.registerMigration("blockr.foo", () => ({}));
+      store.registerMigration("blockr.foo", (saved) => saved);
+      store.registerMigration("blockr.foo", (saved) => saved);
     }).toThrow("blockr.foo registers a migration, which it registered already.");
   });
 

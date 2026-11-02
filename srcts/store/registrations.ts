@@ -74,12 +74,15 @@ export interface Saved {
   >;
 }
 
-// A package's migration, given what a file holds and the version of the
-// package that saved it, or null where the file records none. Of what it
-// returns, the store takes the state of each block of the package's block
-// classes, which the block's registry id names, and the front-end state at
-// each key whose path names one of the package's extensions by its id, or, for
-// the package of the board's front-end, at each key whose path names none.
+// A package's migration, which rewrites what a file holds, as the migrations
+// before it left it, with its package's part in today's shape, given the
+// version of the package that saved the file, or null where the file records
+// none. Migrations run one after another in the order of R's dependencies, and
+// the board opens with the front-end state and the blocks' states that the
+// last one returns, so that what a migration leaves out is gone. Each changes
+// only its own package's part, which nothing but the package enforces: the
+// states of its block classes' blocks and the front-end state its front-end or
+// its extensions keep.
 //
 // A migration converts what older versions of its package saved into today's
 // shape, and changes nothing on a board in today's shape, so that a board
@@ -90,7 +93,7 @@ export interface Saved {
 // board option values are not migrated: one that no longer fits its schema is
 // dropped as the board opens, so that it reads as its initial value or
 // default.
-export type Migration = (saved: Saved, version: string | null) => Partial<Saved>;
+export type Migration = (saved: Saved, version: string | null) => Saved;
 
 // A validator of a schema, which gives each failure in a sentence.
 export type Validate = (value: unknown) => readonly string[];

@@ -130,8 +130,8 @@ export function keyed(opening: OpeningBoard): Board {
   };
 }
 
-// What the file holds that migrations convert, as each package's migration
-// reads it.
+// What the file holds that migrations convert: the front-end state and every
+// block's state, with its class.
 function saved(board: Board): Saved {
   return frozenCopy({
     front_end: { state: board.front_end.state as Json },
@@ -144,60 +144,55 @@ function saved(board: Board): Saved {
   });
 }
 
-// The package whose migration converts what a key of the front-end state
-// holds: the one whose extension the key's path names by its id, or else the
-// package of the front-end the board is made for.
-function migratedBy(path: readonly string[], board: Board): string | null {
-  return path.map(packageOf).find((pkg) => pkg !== null) ?? packageOf(board.front_end.id);
-}
-
 // The board after the migration of every package whose version the file
 // records differs from the one R loaded, a package the board holds nothing of
-// included, each on the same saved state, of which the store takes the states
-// of the blocks of the package's block classes and the front-end state that
-// the package migrates. What a migration leaves out of its return stays as
-// the file holds it.
+// included, one after another in the order they were registered in, which is
+// the order of R's dependencies, since startup modules register them and core
+// initializes those in that order. Each rewrites the file as the one before
+// it left it, and the board takes the front-end state and the blocks' states
+// the last one returns, while what a migration leaves out is gone, so that
+// the board opens in today's shape.
 function migrate(
   board: Board,
   versions: Readonly<Record<string, string>>,
   loaded: Readonly<Record<string, string>>,
   registrations: Registrations,
 ): Board {
-  const before = saved(board);
-  let next = board;
+  let file = saved(board);
+  let migrated = false;
 
   for (const [pkg, migration] of registrations.migrations()) {
     const version = own(versions, pkg) ?? null;
     if (version === own(loaded, pkg)) continue;
 
-    let out: Partial<Saved>;
+    let out: unknown;
     try {
-      out = migration(before, version);
+      out = migration(file, version);
     } catch (error) {
       throw new StoreError(refused, [`The migration of ${pkg} failed: ${messageOf(error)}`]);
     }
-
-    let state = next.front_end.state;
-    if (out.front_end !== undefined) {
-      for (const { def } of registrations.keys()) {
-        if (migratedBy(def.path, board) !== pkg) continue;
-        const value = getAt(out.front_end.state, def.path);
-        if (value !== undefined) state = setAt(state, def.path, value);
-      }
+    if (!isObject(out) || !isObject(out.front_end) || !isObject(out.blocks)) {
+      throw new StoreError(refused, [
+        `The migration of ${pkg} returned no front-end state and blocks' states.`,
+      ]);
     }
-
-    const blocks = { ...next.blocks };
-    for (const [id, block] of Object.entries(next.blocks)) {
-      const state = own(out.blocks ?? {}, id)?.state;
-      if (state !== undefined && packageOf(block.registry_id) === pkg) {
-        blocks[id] = { ...block, state };
-      }
-    }
-
-    next = { ...next, blocks, front_end: { ...next.front_end, state } };
+    file = frozenCopy(out as Json) as unknown as Saved;
+    migrated = true;
   }
 
-  return next;
+  if (!migrated) return board;
+
+  const state = file.front_end.state;
+  return {
+    ...board,
+    front_end: { ...board.front_end, state: isObject(state) ? state : {} },
+    blocks: Object.fromEntries(
+      Object.entries(board.blocks).map(([id, block]) => {
+        const state = own(file.blocks, id)?.state;
+        return [id, state === undefined ? block : { ...block, state }];
+      }),
+    ),
+  };
 }
 
 // The board that a saved file opens to, with what opening it dropped, or a
