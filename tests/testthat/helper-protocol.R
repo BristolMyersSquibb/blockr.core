@@ -384,15 +384,12 @@ protocol_r_values <- function() {
     ),
     `output-plot` = list(
       list(
-        obj(
-          id = "32",
-          status = "ok",
-          output = obj(
-            renderer = "blockr.core-basic_plot",
-            width = 640L,
-            height = 400L
-          ),
-          body = obj(type = "image/png")
+        c(
+          obj(id = "32", status = "ok"),
+          proto_output(
+            new_plot_output(new_reply_body(raw(), "image/png"), 640L, 400L),
+            "blockr.core-basic_plot"
+          )
         )
       )
     ),
@@ -980,34 +977,24 @@ proto_condition <- function(severity, class, message, phase = NULL) {
   res
 }
 
-# A table output, one page of a data frame's rows, as the sketch of
-# `as_table_output()` in the block class proposal makes it.
-proto_table_output <- function(data, page = 1L, page_size = 50L,
-                               sort = NULL) {
+# The table output of a data frame, as `as_table_output()` makes it with the
+# board option values of the sample board and the parameters given, with the
+# renderer that R picks for table outputs.
+proto_table_output <- function(data, ...) {
+  proto_output(
+    as_table_output(data, options = list(n_rows = 50L), params = list(...)),
+    "blockr.core-basic_table"
+  )[["output"]]
+}
 
-  ord <- seq_len(nrow(data))
+# An output as R sends it in a reply: its fields, written by the schema of its
+# class, after the renderer that R picked, and the body beside it announced.
+proto_output <- function(x, renderer) {
 
-  if (length(sort)) {
-    ord <- order(data[[sort$column]], decreasing = isTRUE(sort$desc))
-  }
+  parts <- shape_output(x)
 
-  idx <- ord[(page - 1L) * page_size + seq_len(page_size)]
-  rows <- data[idx[!is.na(idx)], , drop = FALSE]
-
-  cell <- function(col, i) {
-    if (is.factor(col)) as.character(col[[i]]) else col[[i]]
-  }
-
-  obj(
-    renderer = "blockr.core-basic_table",
-    columns = lapply(
-      names(data),
-      function(nm) obj(name = nm, class = class(data[[nm]])[1L])
-    ),
-    rows = lapply(
-      seq_len(nrow(rows)),
-      function(i) unname(lapply(rows, cell, i))
-    ),
-    total = nrow(data)
+  c(
+    list(output = c(list(renderer = renderer), parts$output)),
+    if (not_null(parts$body)) list(body = body_announcement(parts$body))
   )
 }

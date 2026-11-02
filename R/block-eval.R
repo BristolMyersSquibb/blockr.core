@@ -28,7 +28,11 @@
 #'
 #' The `result_summary()` generic describes a result in a few words, such as
 #' `<data.frame> [150 x 5]`, dispatching on the result's class, so that a
-#' package describes its results wherever they appear. The `block_migrate()`
+#' package describes its results wherever they appear, such as in a block's
+#' header and in the cells of a table. Core's method names the result's class
+#' in full, or its type for an object without a class, with `<function>` for
+#' any function and `<tibble>` for a tibble. It adds the result's dimensions,
+#' or the length of a vector. The `block_migrate()`
 #' generic maps a state that an older version of the class's package saved to
 #' the current state, given that version, where `x` is the saved state with the
 #' class's class vector. Core's method leaves a state as it is.
@@ -377,6 +381,15 @@ result_summary.default <- function(result) {
 }
 
 type_desc <- function(x) {
+
+  if (inherits(x, "tbl_df")) {
+    return("tibble")
+  }
+
+  if (is.function(x)) {
+    return("function")
+  }
+
   if (is.object(x)) class(x)[1L] else typeof(x)
 }
 

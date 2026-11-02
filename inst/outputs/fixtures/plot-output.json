@@ -1,0 +1,19 @@
+{
+  "description": "Sample plot outputs, as as_plot_output() draws a captured base plot, with the renderer that core declares for plot outputs. The PNG of each is the file its body_file names, beside this one.",
+  "outputs": [
+    {
+      "description": "A scatter plot of iris, drawn at 320 by 200 CSS pixels and a pixel ratio of 2, so that its PNG has 640 by 400 pixels.",
+      "options": {},
+      "params": {},
+      "output": {
+        "renderer": "blockr.core-basic_plot",
+        "width": 320,
+        "height": 200
+      },
+      "body": {
+        "type": "image/png"
+      },
+      "body_file": "plot-output-scatter.png"
+    }
+  ]
+}
