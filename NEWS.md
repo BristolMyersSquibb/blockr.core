@@ -52,17 +52,16 @@
   block id in the order it is given, needing no board (#421).
 * A package declares in R, from its `.onLoad()`, the modules of its client
   that R serves: its front-ends with `register_front_end()`, each with its
-  module, the board class it draws and the board options it requires, its
-  startup module with `register_startup_module()` and the modules it offers
-  other packages with `register_module()`. A front-end or a module gets the
-  ID `{pkg}-{name}`, two front-ends declared for one board class are an error
-  naming both, and the startup modules keep the order in which packages
-  declare them, which puts each after those of the packages its NAMESPACE
-  imports. R picks a board's front-end with `board_front_end()`, as the one
-  declared for the most specific class in the board's class vector, so that
-  every board has core's basic front-end, `blockr.core-basic`, which core
-  declares for `board`, at least, and `blockr_app_options()` collects that
-  front-end's board options too (#424).
+  module and the board class it draws, its startup module with
+  `register_startup_module()` and the modules it offers other packages with
+  `register_module()`. A front-end or a module gets the ID `{pkg}-{name}`,
+  two front-ends declared for one board class are an error naming both, and
+  the startup modules keep the order in which packages declare them, which
+  puts each after those of the packages its NAMESPACE imports. R picks a
+  board's front-end with `board_front_end()`, as the one declared for the
+  most specific class in the board's class vector, so that every board has
+  core's basic front-end, `blockr.core-basic`, which core declares for
+  `board`, at least (#424).
 
 # blockr.core 0.1.4
 

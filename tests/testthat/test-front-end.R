@@ -6,11 +6,6 @@ test_that("core declares its basic front-end for boards", {
   expect_identical(entry$package, "blockr.core")
   expect_identical(entry$module, test_module("js/basic.js", "blockr.core"))
 
-  expect_identical(
-    names(front_end_options("blockr.core-basic")),
-    "show_conditions"
-  )
-
   expect_identical(board_front_end(new_board()), "blockr.core-basic")
   expect_identical(
     board_front_end(new_board(class = "other_board")),
@@ -106,63 +101,6 @@ test_that("a board class takes one front-end", {
   expect_identical(get_front_end("blockr.test-one"), entry)
 })
 
-test_that("a front-end's board options are collected for its boards", {
-
-  local_declared(declared_front_ends)
-
-  register_front_end(
-    "rows",
-    test_module("rows.js"),
-    class = "rows_board",
-    options = new_n_rows_option
-  )
-
-  register_front_end(
-    "all",
-    test_module("all.js"),
-    class = "all_board",
-    options = list(
-      new_n_rows_option,
-      new_show_conditions_option,
-      new_dark_mode_option
-    )
-  )
-
-  register_front_end(
-    "none",
-    test_module("none.js"),
-    class = "none_board"
-  )
-
-  expect_identical(names(front_end_options("blockr.test-rows")), "n_rows")
-  expect_identical(
-    names(front_end_options("blockr.test-all")),
-    c("n_rows", "show_conditions", "dark_mode")
-  )
-  expect_length(front_end_options("blockr.test-none"), 0L)
-
-  brd <- new_board(options = new_board_options(), class = "rows_board")
-  opts <- blockr_app_options(brd)
-
-  expect_true("n_rows" %in% names(opts))
-  expect_false("dark_mode" %in% names(opts))
-  expect_identical(board_option_value(opts[["n_rows"]]), 50L)
-
-  withr::local_options(blockr.n_rows = 25L)
-
-  expect_identical(
-    board_option_value(blockr_app_options(brd)[["n_rows"]]),
-    25L
-  )
-
-  brd <- new_board(options = new_n_rows_option(10L), class = "rows_board")
-
-  expect_identical(
-    board_option_value(blockr_app_options(brd)[["n_rows"]]),
-    10L
-  )
-})
-
 test_that("a front-end is declared by the package of its module", {
 
   local_declared(declared_front_ends)
@@ -207,30 +145,7 @@ test_that("a front-end's declaration is checked", {
     class = "front_end_invalid"
   )
 
-  expect_error(
-    register_front_end("test", mod, class = "test_board", options = "n_rows"),
-    class = "front_end_invalid"
-  )
-
   expect_error(get_front_end("blockr.test-test"), class = "front_end_missing")
-
-  register_front_end("test", mod, class = "test_board",
-                     options = function() 50L)
-
-  expect_error(
-    front_end_options("blockr.test-test"),
-    class = "front_end_invalid",
-    regexp = "blockr.test-test"
-  )
-
-  register_front_end("test", mod, class = "test_board",
-                     options = default_board_options)
-
-  expect_error(
-    front_end_options("blockr.test-test"),
-    class = "front_end_invalid",
-    regexp = "one board option"
-  )
 
   rm(list = list_front_ends(), envir = declared_front_ends)
 

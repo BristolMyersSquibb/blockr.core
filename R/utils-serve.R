@@ -6,8 +6,8 @@
 #' provided.
 #'
 #' The board options an app offers are collected by `blockr_app_options()`
-#' from the board, its front-end (see [board_front_end()]), its blocks and all
-#' registered blocks, keeping the first option for each ID.
+#' from the board, its blocks and all registered blocks, keeping the first
+#' option for each ID.
 #'
 #' @param x Object
 #' @param ... Generic consistency
@@ -31,7 +31,6 @@ blockr_app_options <- function(x) {
 blockr_app_options.board <- function(x, ...) {
   combine_board_options(
     board_options(x),
-    front_end_options(board_front_end(x)),
     lapply(board_blocks(x), board_options),
     lapply(available_blocks(), board_options)
   )

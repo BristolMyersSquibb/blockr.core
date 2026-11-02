@@ -5,14 +5,13 @@ declared_front_ends <- new.env()
 #' A front-end is the module that draws a board, which a package declares in
 #' R, from its `.onLoad()`, with `register_front_end()`: under a name, which
 #' gives it the ID `{pkg}-{name}`, as a registry id is, with its module, made
-#' by [js_module()], whose package is the one that declares it, the board
-#' class it draws, and the board options it requires, which R collects for a
-#' board with those of the board's other parts (see [blockr_app_options()]).
-#' A module made outside a package declares no front-end. Core declares its
-#' basic front-end, `blockr.core-basic`, for `board`, and a package may declare
-#' several front-ends, each for a class of its own, since two front-ends
-#' declared for one class are an error naming both. Declaring a front-end
-#' again under the same ID replaces it, as when a package is loaded again.
+#' by [js_module()], whose package is the one that declares it, and the board
+#' class it draws. A module made outside a package declares no front-end.
+#' Core declares its basic front-end, `blockr.core-basic`, for `board`, and a
+#' package may declare several front-ends, each for a class of its own, since
+#' two front-ends declared for one class are an error naming both. Declaring a
+#' front-end again under the same ID replaces it, as when a package is loaded
+#' again.
 #'
 #' R picks a board's front-end wherever it holds the board as an R object, the
 #' one an app script builds and the one [blockr_deser()] builds from a file of
@@ -26,8 +25,6 @@ declared_front_ends <- new.env()
 #' @param name The name part of the front-end's ID
 #' @param module The front-end's module, made by [js_module()]
 #' @param class The board class the front-end draws
-#' @param options The board options the front-end requires, as a board option
-#'   constructor or a list of them, which R calls whenever it collects them
 #'
 #' @examples
 #' \dontrun{
@@ -35,19 +32,18 @@ declared_front_ends <- new.env()
 #' register_front_end(
 #'   "dock",
 #'   js_module("js/dock.js"),
-#'   class = "dock_board",
-#'   options = list(new_compact_option, new_sync_rails_option)
+#'   class = "dock_board"
 #' )
 #' }
 #'
 #' board_front_end(new_board(name = "My board"))
 #'
 #' @return The declaration `register_front_end()` returns the front-end's
-#' entry invisibly, a list holding its `id`, `name`, `package`, `module`,
-#' `class` and `options`, while `board_front_end()` returns a front-end's ID.
+#' entry invisibly, a list holding its `id`, `name`, `package`, `module` and
+#' `class`, while `board_front_end()` returns a front-end's ID.
 #'
 #' @export
-register_front_end <- function(name, module, class, options = NULL) {
+register_front_end <- function(name, module, class) {
 
   if (!is_js_module(module)) {
     blockr_abort(
@@ -62,22 +58,6 @@ register_front_end <- function(name, module, class, options = NULL) {
     blockr_abort(
       "The class that front-end {id} draws is expected to be a non-empty ",
       "string.",
-      class = "front_end_invalid"
-    )
-  }
-
-  if (is.function(options)) {
-    options <- list(options)
-  }
-
-  if (is.null(options)) {
-    options <- list()
-  }
-
-  if (!is.list(options) || !all(lgl_ply(options, is.function))) {
-    blockr_abort(
-      "The board options that front-end {id} requires are expected to be a ",
-      "board option constructor or a list of them.",
       class = "front_end_invalid"
     )
   }
@@ -98,8 +78,7 @@ register_front_end <- function(name, module, class, options = NULL) {
     name = name,
     package = module[["package"]],
     module = module,
-    class = class,
-    options = options
+    class = class
   )
 
   assign(id, entry, envir = declared_front_ends)
@@ -139,21 +118,6 @@ list_front_ends <- function() {
 
 get_front_end <- function(id) {
   get_declared(id, declared_front_ends, "front-end", "front_end_missing")
-}
-
-front_end_options <- function(id) {
-
-  opts <- call_option_ctors(get_front_end(id)[["options"]])
-
-  if (!all(lgl_ply(opts, is_board_option))) {
-    blockr_abort(
-      "The board options that front-end {id} requires are expected to be ",
-      "given by their constructors, each returning one board option.",
-      class = "front_end_invalid"
-    )
-  }
-
-  combine_board_options(opts)
 }
 
 declared_id <- function(name, package, what, class) {
