@@ -1,12 +1,13 @@
 {
-  "description": "A new session of a page whose session the server ended while the page lived on. The client holds a board already, which it keeps, so its hello names the packages that board names, as its saved file would list them, for R to load before any recipe names their block classes. R no longer has blockr.dm installed, so it loads blockr.core alone, and the client drops the board's dm block, naming blockr.dm, which the reply's packages lack. R sends the opening board of the app all the same, which the client does not open, since it keeps its own.",
+  "description": "A new session of a page whose session the server ended while the page lived on. The client holds a board already, which it keeps, so its hello names the packages that board names, as its saved file would list them, for R to load before any recipe names their block classes, and the front-end that board names, for R to pick the renderers for. R no longer has blockr.dm installed, so it loads blockr.core alone, and the client drops the board's dm block, naming blockr.dm, which the reply's packages lack. R sends the opening board of the app all the same, which the client does not open, since it keeps its own.",
   "client": [
     {
       "id": "1",
       "kind": "hello",
       "protocol": "1.0",
       "capabilities": ["cancel", "interrupt", "progress"],
-      "packages": ["blockr.core", "blockr.dm"]
+      "packages": ["blockr.core", "blockr.dm"],
+      "front_end": "blockr.core-basic"
     }
   ],
   "r": [

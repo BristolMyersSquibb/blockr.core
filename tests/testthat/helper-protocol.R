@@ -374,6 +374,17 @@ protocol_r_values <- function() {
         )
       )
     ),
+    `request-renderer` = list(
+      list(
+        obj(
+          id = "35",
+          status = "ok",
+          value = encode_answer(
+            list(USUBJID = "Unique Subject Identifier", AGE = "Age")
+          )
+        )
+      )
+    ),
     output = list(
       list(
         obj(

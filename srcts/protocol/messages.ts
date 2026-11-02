@@ -78,6 +78,9 @@ export interface HelloRequest {
   // The packages that a board the client holds already names, as when the
   // server ended its session while the page lived on, for R to load.
   packages?: string[];
+  // The front-end that such a board names, by id, for R to pick the renderers
+  // for.
+  front_end?: string;
 }
 
 export type HelloReply = {
@@ -126,6 +129,10 @@ export interface OpenRequest {
   id: string;
   kind: "open";
   packages: string[];
+  // The front-end that the board names, by id, for R to pick the renderers
+  // for again. Where it names none, R picks them for the front-end it picked
+  // them for last.
+  front_end?: string;
 }
 
 export type OpenReply = Pick<
@@ -283,11 +290,14 @@ export interface ExtensionRequest {
 }
 
 // A request of an output class, which R resolves against the class vector of
-// the output it belongs to.
+// the output it belongs to, or a request of the renderer that asks.
 export interface OutputClassRequest {
   id: string;
   kind: "request";
   output: BlockRevision;
+  // The renderer that asks, by id, among whose own requests R looks first,
+  // before those of the output class.
+  renderer?: string;
   name: string;
   args: Record<string, Json>;
   // The board option values and parameters that its output was asked with.
