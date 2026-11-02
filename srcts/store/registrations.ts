@@ -48,9 +48,10 @@ export interface Attribute {
   readonly initial?: Json;
 }
 
-// A board option, whose value the board holds under its id, while the package
-// that ships it defines the rest. The schema's `default` is what a board that
-// lacks a value takes as it opens.
+// A board option, whose value the board holds under its id once something sets
+// one, while the package that ships it defines the rest. Until then, whatever
+// needs the board option takes the `default` of its schema, so a board option
+// that a block class registered while the app runs brings needs nothing more.
 export interface Option {
   readonly id: OptionId;
   readonly label: string;
@@ -83,12 +84,12 @@ export interface Saved {
 // A migration converts what older versions of its package saved into today's
 // shape, and changes nothing on a board in today's shape, so that a board
 // saved and opened again comes back as it was, though a file that records no
-// version of a package runs its migration. What a board takes where it lacks
-// a value comes from what packages register instead, a key's `initial` and a
-// board option's `default`, which the store gives every board it opens.
-// Attributes and board option values are not migrated: one that no longer
-// fits its schema is dropped as the board opens, for its initial value or
-// default to take its place.
+// version of a package runs its migration. What a board reads where nothing
+// set a value comes from what packages register instead, a key's `initial`,
+// an attribute's `initial` and a board option's `default`. Attributes and
+// board option values are not migrated: one that no longer fits its schema is
+// dropped as the board opens, so that it reads as its initial value or
+// default.
 export type Migration = (saved: Saved, version: string | null) => Partial<Saved>;
 
 // A validator of a schema, which gives each failure in a sentence.

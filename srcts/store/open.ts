@@ -247,8 +247,8 @@ export function frontEndOf(
 // The board without every key of the front-end state, attribute and board
 // option value that no package registered, and every attribute and board
 // option value that its schema refuses, as one an older version of its
-// package saved, which no migration converts, so that its initial value or
-// default takes its place. It is made for the front-end it opens with, and
+// package saved, which no migration converts, so that it reads as its initial
+// value or default. It is made for the front-end it opens with, and
 // what it dropped is named. The blocks that go keep what they hold, which goes
 // with them.
 function prune(
@@ -366,17 +366,10 @@ function pruneState(
   return next;
 }
 
-// The board with the default of each board option that it lacks, and each
-// registered key that it lacks, a collection empty and a value as its initial.
+// The board with each registered key that it lacks, a collection empty and a
+// value as its initial. A board option it holds no value of needs nothing
+// here: whatever needs one takes the `default` of its definition.
 function complete(board: Board, registrations: Registrations): Board {
-  let options = board.options;
-  for (const [id, option] of Object.entries(registrations.options.registered())) {
-    const value = option.schema.default;
-    if (value !== undefined && own(options, id) === undefined) {
-      options = { ...options, [id]: value };
-    }
-  }
-
   let state = board.front_end.state;
   for (const { def } of registrations.keys()) {
     if (getAt(state, def.path) !== undefined) continue;
@@ -384,9 +377,7 @@ function complete(board: Board, registrations: Registrations): Board {
     if (value !== undefined) state = setAt(state, def.path, value);
   }
 
-  return {
-    ...board,
-    options,
-    front_end: state === board.front_end.state ? board.front_end : { ...board.front_end, state },
-  };
+  return state === board.front_end.state
+    ? board
+    : { ...board, front_end: { ...board.front_end, state } };
 }

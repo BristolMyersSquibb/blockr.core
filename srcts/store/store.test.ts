@@ -212,7 +212,7 @@ describe("opening a board", () => {
     expect(store.canUndo()).toBe(false);
   });
 
-  test("names a board without a name after its id, and gives it the defaults of the board options it lacks", async () => {
+  test("names a board without a name after its id, and writes in no default of a board option", async () => {
     const store = newStore();
     await store.open(reply("hello-block") as HelloReply);
     const board = store.board();
@@ -220,7 +220,7 @@ describe("opening a board", () => {
     expect(board.name).toBe(sentenceCase(board.id));
     expect(Object.keys(board.blocks)).toHaveLength(1);
     expect(isId(Object.keys(board.blocks)[0])).toBe(true);
-    expect(board.options).toEqual({ n_rows: 50, show_conditions: ["warning", "error"] });
+    expect(board.options).toEqual({ n_rows: 50 });
   });
 
   test("opens the saved file that serve() was given without asking R again", async () => {
@@ -381,7 +381,7 @@ describe("opening a board", () => {
     const board = store.board();
     expect(board.front_end).toEqual({ id: "blockr.core-basic", state: {}, attrs: {} });
     expect(board.blocks.a?.attrs).toEqual({ visible: ["outputs"] });
-    expect(board.options).toEqual({ n_rows: 20, show_conditions: ["warning", "error"] });
+    expect(board.options).toEqual({ n_rows: 20 });
   });
 
   test("names a dropped key with the package that its path gives", async () => {
@@ -468,7 +468,7 @@ describe("opening a board", () => {
     const built = fresh();
     await built.open({
       ...replied,
-      board: { ...replied.board, blocks: [], links: [], stacks: [], options: {} },
+      board: { ...replied.board, blocks: [], links: [], stacks: [] },
     });
     for (const [id, block] of Object.entries(board.blocks)) {
       built.apply({ blocks: { add: { [id]: block } } });
@@ -522,7 +522,7 @@ describe("opening a board", () => {
     expect(board.stacks).toEqual({ s1: { name: "Input", blocks: ["a", "b"] } });
   });
 
-  test("drops an attribute or a board option value that its schema refuses, for its initial value or default", async () => {
+  test("drops an attribute or a board option value that its schema refuses, so that it reads as its initial value or default", async () => {
     const store = await opened();
     const dropped = await store.open(
       file({
@@ -544,7 +544,7 @@ describe("opening a board", () => {
       { option: "n_rows", package: null },
     ]);
     expect(store.board().blocks.a?.attrs).toEqual({});
-    expect(store.board().options).toEqual({ n_rows: 50, show_conditions: ["warning", "error"] });
+    expect(store.board().options).toEqual({ show_conditions: ["warning", "error"] });
   });
 
   test("holds no board until it opens one", () => {
