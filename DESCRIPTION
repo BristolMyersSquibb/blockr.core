@@ -43,7 +43,8 @@ Imports:
     cli,
     glue,
     yaml,
-    yyjsonr (>= 0.1.22)
+    yyjsonr (>= 0.1.22),
+    base64enc
 Suggests:
     testthat (>= 3.0.0),
     memuse,
