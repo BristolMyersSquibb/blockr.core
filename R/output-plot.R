@@ -323,17 +323,8 @@ open_png <- function(file, size, bg) {
                   res = res, background = bg)
   } else {
     grDevices::png(file, width = width, height = height, units = "px",
-                   res = res, bg = bg, type = png_type())
+                   res = res, bg = bg)
   }
-}
-
-png_type <- function() {
-
-  if (isTRUE(capabilities("cairo"))) {
-    return("cairo")
-  }
-
-  getOption("bitmapType")
 }
 
 # Calls `code` with a device that `open` opens, and closes that device again.
