@@ -140,14 +140,15 @@ function saved(board: Board): Saved {
   });
 }
 
-// The board after the migration of every package whose version the file
-// records differs from the one R loaded, a package the board holds nothing of
-// included, one after another in the order they were registered in, which is
-// the order of R's dependencies, since startup modules register them and core
-// initializes those in that order. Each rewrites the file as the one before
-// it left it, and the board takes the front-end state and the blocks' states
-// the last one returns, while what a migration leaves out is gone, so that
-// the board opens in today's shape.
+// The board after the migration of every package whose version the file records
+// differs from the one R loaded, a package the board holds nothing of included,
+// one after another in the order they were registered in, which is the order in
+// which packages declare their startup modules, since those register them and
+// core initializes them in that order, so that a package's comes after those of
+// the packages it imports. Each rewrites the file as the one before it left it,
+// and the board takes the front-end state and the blocks' states the last one
+// returns, while what a migration leaves out is gone, so that the board opens
+// in today's shape.
 function migrate(
   board: Board,
   versions: Readonly<Record<string, string>>,

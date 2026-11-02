@@ -50,13 +50,15 @@ export interface Attribute {
 
 // A board option, whose value the board holds under its id once something sets
 // one, while the package that ships it defines the rest. Until then, whatever
-// needs the board option takes the `default` of its schema, so a board option
-// that a block class registered while the app runs brings needs nothing more.
+// needs the board option takes its `default`, a value or a function that core
+// calls the first time it is needed, so a board option that a block class
+// registered while the app runs brings needs nothing more.
 export interface Option {
   readonly id: OptionId;
   readonly label: string;
   readonly category: string;
   readonly schema: JsonSchema;
+  readonly default: Json | (() => Promise<Json>);
 }
 
 // The board options packages define, by id.
@@ -77,12 +79,13 @@ export interface Saved {
 // A package's migration, which rewrites what a file holds, as the migrations
 // before it left it, with its package's part in today's shape, given the
 // version of the package that saved the file, or null where the file records
-// none. Migrations run one after another in the order of R's dependencies, and
-// the board opens with the front-end state and the blocks' states that the
-// last one returns, so that what a migration leaves out is gone. Each changes
-// only its own package's part, which nothing but the package enforces: the
-// states of its block classes' blocks and the front-end state its front-end or
-// its extensions keep.
+// none. Migrations run one after another, in the order in which packages
+// declare their startup modules, which puts each package's after those of the
+// packages it imports, and the board opens with the front-end state and the
+// blocks' states that the last one returns, so that what a migration leaves out
+// is gone. Each changes only its own package's part, which nothing but the
+// package enforces: the states of its block classes' blocks and the front-end
+// state its front-end or its extensions keep.
 //
 // A migration converts what older versions of its package saved into today's
 // shape, and changes nothing on a board in today's shape, so that a board
@@ -231,7 +234,9 @@ export function createRegistrations(): Registrations {
           throw new Error(`The board option "${def.id}" is registered already.`);
         }
         const validate = compile(what, def.schema);
-        checkInitial(what, validate, def.schema.default, "default");
+        if (typeof def.default !== "function") {
+          checkInitial(what, validate, def.default, "default");
+        }
         const item = { def, validate };
         options.value = [...options.value, item];
         return () => {

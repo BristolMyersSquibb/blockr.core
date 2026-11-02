@@ -79,17 +79,15 @@ const coreOptions: Option[] = [
     id: "n_rows",
     label: "Preview rows",
     category: "Table options",
-    schema: { type: "integer", minimum: 0, default: 50 },
+    schema: { type: "integer", minimum: 0 },
+    default: 50,
   },
   {
     id: "show_conditions",
     label: "Message types to display",
     category: "Board options",
-    schema: {
-      type: "array",
-      items: { enum: ["message", "warning", "error"] },
-      default: ["warning", "error"],
-    },
+    schema: { type: "array", items: { enum: ["message", "warning", "error"] } },
+    default: ["warning", "error"],
   },
 ];
 
@@ -1031,6 +1029,7 @@ describe("undo", () => {
         label: "Seed",
         category: "Board options",
         schema: { type: "integer" },
+        default: 0,
       });
     });
     const before = store.board();
@@ -1223,7 +1222,7 @@ describe("registering", () => {
       'The attribute "visible" of blocks is registered already.',
     );
     expect(() =>
-      store.options.register({ id: "n_rows", label: "Rows", category: "Table options", schema: {} }),
+      store.options.register({ id: "n_rows", label: "Rows", category: "Table options", schema: {}, default: 50 }),
     ).toThrow(
       'The board option "n_rows" is registered already.',
     );
@@ -1255,7 +1254,8 @@ describe("registering", () => {
         id: "seed",
         label: "Seed",
         category: "Board options",
-        schema: { type: "integer", default: "one" },
+        schema: { type: "integer" },
+        default: "one",
       }),
     ).toThrow(
       'The default of the board option "seed" fails its schema: Instance type "string" is invalid. Expected "integer".',
@@ -1265,15 +1265,30 @@ describe("registering", () => {
     ).toThrow(/The initial value of the key of the front-end state at direction fails its schema/);
   });
 
+  test("leaves a default that is a function to whatever needs the board option first", () => {
+    const store = newStore();
+    const read = vi.fn(() => Promise.resolve<number>(25));
+    store.options.register({
+      id: "page_rows",
+      label: "Rows a page shows",
+      category: "Table options",
+      schema: { type: "integer" },
+      default: read,
+    });
+    expect(read).not.toHaveBeenCalled();
+    expect(store.options.registered().page_rows?.default).toBe(read);
+  });
+
   test("reads the draft a schema declares", () => {
     const store = newStore();
     store.options.register({
       id: "seed",
       label: "Seed",
       category: "Board options",
-      schema: { $schema: "http://json-schema.org/draft-07/schema#", type: "integer", default: 1 },
+      schema: { $schema: "http://json-schema.org/draft-07/schema#", type: "integer" },
+      default: 1,
     });
-    expect(store.options.registered().seed?.schema.default).toBe(1);
+    expect(store.options.registered().seed?.default).toBe(1);
   });
 });
 
