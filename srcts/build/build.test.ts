@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, expect, test } from "vitest";
-import { build, stylesheet } from "./build.ts";
+import { build, outputTypes, schemaFile, schemas, stylesheet } from "./build.ts";
 
 // The fixtures import and reference core's stylesheet, so that they test core's
 // setup of Tailwind CSS.
@@ -74,4 +74,60 @@ test("keeps core's utilities under its prefix and outside layers, without Prefli
   expect(css).not.toContain("@layer utilities");
   expect(css).not.toContain("@layer base");
   expect(css).not.toContain("box-sizing");
+});
+
+test("finds the output types, each but BlockOutput, by their names", () => {
+  const source = [
+    "export interface BlockOutput { renderer: string }",
+    "export interface TableOutput extends BlockOutput { total: number }",
+    "export interface TableParams { page?: number }",
+    "interface HiddenOutput extends BlockOutput { x: number }",
+    "export type AliasOutput = TableOutput;",
+  ].join("\n");
+
+  expect(outputTypes("outputs.ts", source)).toEqual(["TableOutput"]);
+  expect(schemaFile("TableOutput")).toBe("table-output.schema.json");
+  expect(schemaFile("LazyTableOutput")).toBe("lazy-table-output.schema.json");
+});
+
+test("writes the schema of each output type and removes those of types gone", async () => {
+  await write({
+    "srcts/types/json.ts": "export type Json = string | number | Json[];\n",
+    "srcts/types/outputs.ts": [
+      'import type { Json } from "./json.ts";',
+      "export interface BlockOutput { renderer: string }",
+      "export interface ListOutput extends BlockOutput {",
+      "  items: Json[];",
+      "  note?: string;",
+      "}",
+      "",
+    ].join("\n"),
+    "inst/outputs/gone-output.schema.json": "{}",
+    "inst/outputs/fixtures/list-output.json": "{}",
+  });
+
+  expect(await schemas(root)).toEqual(["inst/outputs/list-output.schema.json"]);
+
+  const out = join(root, "inst", "outputs");
+  expect((await readdir(out)).sort()).toEqual(["fixtures", "list-output.schema.json"]);
+
+  const schema = JSON.parse(
+    await readFile(join(out, "list-output.schema.json"), "utf8"),
+  ) as Record<string, unknown>;
+
+  expect(schema).toMatchObject({
+    type: "object",
+    properties: {
+      renderer: { type: "string" },
+      items: { type: "array", items: { $ref: "#/definitions/Json" } },
+      note: { type: "string" },
+    },
+    required: ["items", "renderer"],
+  });
+  expect(schema).not.toHaveProperty("additionalProperties");
+  expect(Object.keys(schema.definitions as object)).toEqual(["Json"]);
+});
+
+test("writes no schemas without output types", async () => {
+  expect(await schemas(root)).toEqual([]);
 });
