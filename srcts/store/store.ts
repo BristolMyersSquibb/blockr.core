@@ -1,0 +1,511 @@
+// The store: the TypeScript object in core's JS API that holds a board and
+// through which every change to it passes, as a delta, whoever makes it. There
+// is one per board, which core creates and hands to front-ends, extensions and
+// modules through `CoreApi` and their hosts, rather than a global, so that
+// tests, and a page that shows two boards one day, can create more than one.
+//
+// It derives what it holds with signals inside, while its getters return the
+// same object until the change that replaces it is announced, as React's
+// `useSyncExternalStore` needs.
+
+import { signal } from "@preact/signals-core";
+import type {
+  HelloReply,
+  OpenReply,
+} from "../protocol/messages.ts";
+import type { Transport } from "../protocol/transport.ts";
+import type {
+  BlockId,
+  Board,
+  RegistryId,
+  SavedBoard,
+} from "../types/board.ts";
+import type { RegistryEntry } from "../types/registry.ts";
+import { check } from "./check.ts";
+import { commit, target } from "./commit.ts";
+import type { Changed, Inverse } from "./commit.ts";
+import type { Delta, Origin } from "./delta.ts";
+import { expand } from "./expand.ts";
+import { mintId, sentenceCase } from "./ids.ts";
+import {
+  BASIC_FRONT_END,
+  checkFile,
+  complete,
+  drop,
+  keyed,
+  migrate,
+  parse,
+} from "./open.ts";
+import type { Dropped } from "./open.ts";
+import { createRegistrations } from "./registrations.ts";
+import type {
+  Attribute,
+  Migration,
+  Options,
+  StateKey,
+} from "./registrations.ts";
+import { getAt, isObject, own, pathText, StoreError } from "./util.ts";
+
+export type Change =
+  | { readonly delta: Delta; readonly origin: Origin }
+  | { readonly opened: Board; readonly dropped: readonly Dropped[] };
+
+export interface Store {
+  // The current board, whose changes subscribe() announces.
+  board(): Board;
+  // Calls `fn` after every commit, once for each delta as expanded, and after
+  // every opening of a board, with the board as it then is.
+  subscribe(fn: (change: Change, board: Board) => void): () => void;
+
+  // Expands, checks, commits and announces the deltas as one step of the
+  // origin, "user" unless given, or throws a StoreError naming what rejected
+  // them, having changed nothing.
+  apply(delta: Delta | readonly Delta[], origin?: Origin): void;
+  // Opens a saved file, given as its text, having R load the packages it
+  // names, or the opening board that R sent with its reply to `hello`, and
+  // replaces the board, resolving with what it dropped.
+  open(saved: string | HelloReply): Promise<Dropped[]>;
+
+  // Reverts or applies again that origin's last step, or throws a StoreError
+  // where another origin has since changed what the step changed.
+  undo(origin?: Origin): void;
+  redo(origin?: Origin): void;
+  canUndo(origin?: Origin): boolean;
+  canRedo(origin?: Origin): boolean;
+
+  // A key of the front-end's state or an attribute, and what is registered.
+  register(def: StateKey | Attribute): () => void;
+  registered(): readonly (StateKey | Attribute)[];
+  // A package's one migration of its saved state.
+  registerMigration(pkg: string, fn: Migration): () => void;
+  // The board options packages define, by id.
+  readonly options: Options;
+
+  // The block registry's entries that the store opened the board with, and
+  // the versions of the packages R loaded, which a saved file records.
+  blockRegistry(): Readonly<Record<RegistryId, RegistryEntry>>;
+  packages(): Readonly<Record<string, string>>;
+
+  // The edit id of a block, or of an entry or a value of the front-end's
+  // state, which only their own edits change and which a delta names to be
+  // refused where another edit came first.
+  editId(
+    of:
+      | { readonly block: BlockId }
+      | { readonly path: readonly string[]; readonly entry?: string },
+  ): number | undefined;
+}
+
+export interface StoreOptions {
+  // What the store sends R the `open` of a saved file through.
+  readonly transport: Transport;
+  // What has to run once R has loaded the packages that a board names and
+  // before the store opens it, given R's reply and the front-end the board
+  // opens with: initializing the startup modules of the packages R loaded,
+  // which register their keys, attributes, board options and migrations, and
+  // switching the page to that front-end.
+  readonly loaded?: (reply: OpenReply, frontEnd: string) => void | Promise<void>;
+}
+
+// The deltas of one call to apply() as expanded, with their inverses in the
+// order undo applies them, and the edit ids of what they touched before and
+// after.
+interface Step {
+  readonly deltas: readonly Delta[];
+  readonly inverses: readonly Inverse[];
+  readonly before: ReadonlyMap<string, number>;
+  readonly after: ReadonlyMap<string, number>;
+}
+
+interface History {
+  readonly undo: readonly Step[];
+  readonly redo: readonly Step[];
+}
+
+interface Applied {
+  readonly delta: Delta;
+  readonly board: Board;
+  readonly changed: Changed;
+}
+
+export function createStore(options: StoreOptions): Store {
+  const registrations = createRegistrations();
+  registrations.register(visible);
+
+  const board = signal<Board>(empty());
+  const registry = signal<Readonly<Record<RegistryId, RegistryEntry>>>({});
+  const packages = signal<Readonly<Record<string, string>>>({});
+  const history = signal<ReadonlyMap<Origin, History>>(new Map());
+  const subscribers = new Set<(change: Change, board: Board) => void>();
+
+  // The edit ids, which are kept beside the board rather than in it, and
+  // drawn from one count, so that an id names one version of what it belongs
+  // to, which undo and redo restore with it.
+  const edits = new Map<string, number>();
+  let count = 0;
+
+  // Whether the store is applying or announcing a change, during which a
+  // subscriber, an `expand`, a `check` or a migration may not change the board.
+  let busy = false;
+
+  function guard(): void {
+    if (busy) {
+      throw new Error(
+        "The store is applying or announcing a change, which a subscriber, a key's expand or check, or a migration may not change, since what follows from a delta is a key's expand.",
+      );
+    }
+  }
+
+  function announce(change: Change, next: Board): void {
+    for (const fn of [...subscribers]) {
+      try {
+        fn(change, next);
+      } catch (error) {
+        queueMicrotask(() => {
+          throw error;
+        });
+      }
+    }
+  }
+
+  function steps(origin: Origin): History {
+    return history.value.get(origin) ?? { undo: [], redo: [] };
+  }
+
+  function setSteps(origin: Origin, steps: History): void {
+    history.value = new Map([...history.value, [origin, steps]]);
+  }
+
+  // Applies deltas in order, each expanded or not, as one step, checking each
+  // on the board the one before it left, or throws what rejected them.
+  function run(
+    deltas: readonly Delta[],
+    how: { expand: boolean; places?: readonly Inverse["places"][] },
+    refused: string,
+  ): { applied: Applied[]; inverses: Inverse[] } {
+    const applied: Applied[] = [];
+    const inverses: Inverse[] = [];
+    let current = board.value;
+
+    for (const [i, delta] of deltas.entries()) {
+      const prefix = deltas.length > 1 ? `Delta ${String(i + 1)}: ` : "";
+      const fail = (failures: readonly string[]) =>
+        new StoreError(refused, failures.map((failure) => prefix + failure));
+
+      const expanded = how.expand ? expand(delta, current, registrations) : delta;
+      if ("failures" in expanded) throw fail(expanded.failures);
+
+      const committed = commit(current, expanded, registrations, how.places?.[i]);
+      if ("failures" in committed) throw fail(committed.failures);
+
+      const failures = check(
+        committed.board,
+        registry.value,
+        registrations,
+        committed.changed,
+      );
+      if (failures.length > 0) throw fail(failures);
+
+      applied.push({ delta: expanded, board: committed.board, changed: committed.changed });
+      inverses.unshift(committed.inverse);
+      current = committed.board;
+    }
+
+    return { applied, inverses };
+  }
+
+  function exists(next: Board, key: string): boolean {
+    const [kind, ...rest] = JSON.parse(key) as [string, ...unknown[]];
+    if (kind === "block") return Object.hasOwn(next.blocks, rest[0] as string);
+    const at = getAt(next.front_end.state, rest[0] as string[]);
+    if (kind === "value") return at !== undefined;
+    return isObject(at) && Object.hasOwn(at, rest[1] as string);
+  }
+
+  function describe(key: string): string {
+    const [kind, ...rest] = JSON.parse(key) as [string, ...unknown[]];
+    if (kind === "block") return `block "${String(rest[0])}"`;
+    const path = pathText(rest[0] as string[]);
+    if (kind === "value") return `the value of ${path}`;
+    return `entry "${String(rest[1])}" of ${path}`;
+  }
+
+  function editsOf(keys: Iterable<string>): Map<string, number> {
+    const ids = new Map<string, number>();
+    for (const key of keys) {
+      const id = edits.get(key);
+      if (id !== undefined) ids.set(key, id);
+    }
+    return ids;
+  }
+
+  function restore(keys: Iterable<string>, ids: ReadonlyMap<string, number>): void {
+    for (const key of keys) {
+      const id = ids.get(key);
+      if (id === undefined) edits.delete(key);
+      else edits.set(key, id);
+    }
+  }
+
+  // Whether what the step left is as it was, or another origin has changed it.
+  function unchanged(ids: ReadonlyMap<string, number>, keys: Iterable<string>): string[] {
+    const failures: string[] = [];
+    for (const key of keys) {
+      if (edits.get(key) !== ids.get(key)) {
+        failures.push(`Another origin has changed ${describe(key)} since.`);
+      }
+    }
+    return failures;
+  }
+
+  // The edit ids that the deltas name and that differ from those the board had
+  // as the step started, since every delta of a step is built on that board.
+  function named(deltas: readonly Delta[]): string[] {
+    const failures: string[] = [];
+    const compare = (key: string, edit: number | undefined) => {
+      if (edit === undefined) return;
+      const id = edits.get(key);
+      if (id !== edit) {
+        failures.push(
+          id === undefined
+            ? `The delta was built on edit ${String(edit)} of ${describe(key)}, which the board lacks.`
+            : `The delta was built on edit ${String(edit)} of ${describe(key)}, which another edit has replaced with edit ${String(id)}.`,
+        );
+      }
+    };
+    for (const delta of deltas) {
+      for (const [id, mod] of Object.entries(delta.blocks?.mod ?? {})) {
+        compare(target({ block: id }), mod.edit);
+      }
+      for (const { path, change } of delta.front_end?.state ?? []) {
+        if ("set" in change) {
+          compare(target({ path }), change.edit);
+        } else {
+          for (const [id, mod] of Object.entries(change.mod ?? {})) {
+            compare(target({ path, entry: id }), mod.edit);
+          }
+        }
+      }
+    }
+    return failures;
+  }
+
+  function apply(delta: Delta | readonly Delta[], origin: Origin = "user"): void {
+    guard();
+    const deltas: readonly Delta[] = isDeltas(delta) ? delta : [delta];
+    if (deltas.length === 0) return;
+
+    busy = true;
+    try {
+      const refused = "The store rejected the delta";
+      const failures = named(deltas);
+      if (failures.length > 0) throw new StoreError(refused, failures);
+
+      const { applied, inverses } = run(deltas, { expand: true }, refused);
+
+      const touched = new Set(applied.flatMap(({ changed }) => [...changed.targets]));
+      const before = editsOf(touched);
+      const last = applied.at(-1)?.board ?? board.value;
+      for (const key of touched) {
+        if (exists(last, key)) edits.set(key, ++count);
+        else edits.delete(key);
+      }
+      const after = editsOf(touched);
+
+      setSteps(origin, {
+        undo: [...steps(origin).undo, { deltas: applied.map(({ delta }) => delta), inverses, before, after }],
+        redo: [],
+      });
+
+      for (const { delta, board: next } of applied) {
+        board.value = next;
+        announce({ delta, origin }, next);
+      }
+    } finally {
+      busy = false;
+    }
+  }
+
+  function revert(origin: Origin, back: boolean): void {
+    guard();
+    const { undo, redo } = steps(origin);
+    const step = back ? undo.at(-1) : redo.at(-1);
+    if (step === undefined) return;
+
+    busy = true;
+    try {
+      const refused = back ? "The store refused to undo the step" : "The store refused to redo the step";
+      const keys = new Set([...step.before.keys(), ...step.after.keys()]);
+      const failures = unchanged(back ? step.after : step.before, keys);
+      if (failures.length > 0) throw new StoreError(refused, failures);
+
+      const { applied } = back
+        ? run(
+            step.inverses.map(({ delta }) => delta),
+            { expand: false, places: step.inverses.map(({ places }) => places) },
+            refused,
+          )
+        : run(step.deltas, { expand: false }, refused);
+
+      restore(keys, back ? step.before : step.after);
+      setSteps(
+        origin,
+        back
+          ? { undo: undo.slice(0, -1), redo: [...redo, step] }
+          : { undo: [...undo, step], redo: redo.slice(0, -1) },
+      );
+
+      for (const { delta, board: next } of applied) {
+        board.value = next;
+        announce({ delta, origin }, next);
+      }
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function open(saved: string | HelloReply): Promise<Dropped[]> {
+    const refused = "The store refused to open the board";
+
+    let file: SavedBoard | undefined;
+    let reply: OpenReply;
+    let opening: Board;
+
+    if (typeof saved === "string") {
+      file = checkFile(parse(saved));
+      const answer = await options.transport.send({
+        kind: "open",
+        packages: Object.keys(file.packages),
+      });
+      if (answer.status !== "ok" || !("block_registry" in answer)) {
+        throw new StoreError(
+          "R refused to load the packages of the board",
+          "conditions" in answer
+            ? answer.conditions.map((condition) => condition.message)
+            : [`R replied ${answer.status}.`],
+        );
+      }
+      reply = answer;
+      opening = file.board;
+    } else {
+      reply = saved;
+      if (saved.file === undefined) {
+        opening = keyed(saved.board);
+      } else {
+        file = checkFile(saved.file);
+        opening = file.board;
+      }
+    }
+
+    registry.value = reply.block_registry;
+    packages.value = reply.packages;
+
+    const frontEnd =
+      own(reply.front_ends, opening.front_end.id) === undefined
+        ? BASIC_FRONT_END
+        : opening.front_end.id;
+    await options.loaded?.(reply, frontEnd);
+
+    guard();
+    busy = true;
+    try {
+      const migrated =
+        file === undefined
+          ? opening
+          : migrate(opening, file.packages, reply.packages, registrations);
+      const kept = drop(migrated, reply.block_registry, reply.front_ends, registrations);
+      const next = complete(kept.board, registrations);
+
+      const failures = check(next, registry.value, registrations);
+      if (failures.length > 0) throw new StoreError(refused, failures);
+
+      board.value = next;
+      edits.clear();
+      for (const key of everyTarget(next)) edits.set(key, ++count);
+      history.value = new Map();
+
+      announce({ opened: next, dropped: kept.dropped }, next);
+      return kept.dropped;
+    } finally {
+      busy = false;
+    }
+  }
+
+  function everyTarget(next: Board): string[] {
+    const keys = Object.keys(next.blocks).map((id) => target({ block: id }));
+    for (const { def } of registrations.keys()) {
+      const value = getAt(next.front_end.state, def.path);
+      if (value === undefined) continue;
+      if (def.kind === "value") {
+        keys.push(target({ path: def.path }));
+      } else if (isObject(value)) {
+        for (const id of Object.keys(value)) keys.push(target({ path: def.path, entry: id }));
+      }
+    }
+    return keys;
+  }
+
+  return {
+    board: () => board.value,
+    subscribe(fn) {
+      const wrapped = (change: Change, next: Board) => {
+        fn(change, next);
+      };
+      subscribers.add(wrapped);
+      return () => {
+        subscribers.delete(wrapped);
+      };
+    },
+    apply,
+    open,
+    undo: (origin = "user") => {
+      revert(origin, true);
+    },
+    redo: (origin = "user") => {
+      revert(origin, false);
+    },
+    canUndo: (origin = "user") => steps(origin).undo.length > 0,
+    canRedo: (origin = "user") => steps(origin).redo.length > 0,
+    register: (def) => registrations.register(def),
+    registered: () => registrations.registered(),
+    registerMigration: (pkg, fn) => registrations.registerMigration(pkg, fn),
+    options: registrations.options,
+    blockRegistry: () => registry.value,
+    packages: () => packages.value,
+    editId: (of) => edits.get(target(of)),
+  };
+}
+
+// Core's attribute, which says which of a block's sections show, its inputs
+// and its outputs, and which a locked board reads.
+const visible: Attribute = {
+  package: "blockr.core",
+  name: "visible",
+  on: "block",
+  schema: {
+    type: "array",
+    items: { enum: ["inputs", "outputs"] },
+    uniqueItems: true,
+    description: "Which of the block's sections show, its inputs and its outputs.",
+  },
+  initial: ["inputs", "outputs"],
+};
+
+// The board the store holds until it opens one, which the client made and so
+// gave an id.
+function empty(): Board {
+  const id = mintId(() => false);
+  return {
+    id,
+    front_end: { id: BASIC_FRONT_END, state: {}, attrs: {} },
+    name: sentenceCase(id),
+    blocks: {},
+    links: {},
+    stacks: {},
+    options: {},
+  };
+}
+
+function isDeltas(delta: Delta | readonly Delta[]): delta is readonly Delta[] {
+  return Array.isArray(delta);
+}
