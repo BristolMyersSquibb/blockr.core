@@ -29,6 +29,7 @@ reference:
     - evaluate_block
     - new_block_request
     - expect_block_fixture
+    - trace_block_classes
     - block_name
     - register_block
     - block_registration_roclet
