@@ -101,7 +101,9 @@ async function fetchBody(fetcher, url, body) {
       `R served no body at ${url}: ${String(response.status)} ${await response.text()}`
     );
   }
-  return blob([await response.blob()], body);
+  const bytes = await response.blob();
+  fetcher(url, { method: "DELETE" }).then((response2) => response2.text()).catch(() => void 0);
+  return blob([bytes], body);
 }
 async function post(fetcher, upload, id, body) {
   if (upload === null) {
@@ -121,10 +123,9 @@ async function post(fetcher, upload, id, body) {
       "Content-Type": body.type === "" ? "application/octet-stream" : body.type
     }
   });
+  const text = await response.text();
   if (!response.ok) {
-    throw new Error(
-      `R refused the body of request ${id}: ${await response.text()}`
-    );
+    throw new Error(`R refused the body of request ${id}: ${text}`);
   }
 }
 function blob(parts, body) {

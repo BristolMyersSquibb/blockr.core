@@ -233,7 +233,18 @@ test_that("a large body is served once from a URL", {
       expect_identical(res[["content_type"]], "application/octet-stream")
       expect_identical(res[["content"]], big)
 
-      # Served once, the bytes are dropped, by what takes their place too.
+      # Until the client deletes it, R serves the body to every GET, one that
+      # the browser sends again included.
+      expect_identical(bridge_http(session, "blockr-body-3")[["content"]], big)
+      expect_identical(
+        bridge_http(session, "blockr-body-3", "POST")[["status"]],
+        405L
+      )
+
+      res <- bridge_http(session, "blockr-body-3", "DELETE")
+      expect_identical(res[["status"]], 200L)
+
+      # Deleted, the bytes are dropped, by what takes their place too.
       expect_identical(bridge_http(session, "blockr-body-3")[["status"]], 404L)
       expect_null(session$data_objs[["blockr-body-3"]][["data"]])
       expect_identical(

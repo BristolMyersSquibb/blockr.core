@@ -16,8 +16,9 @@
 // in a binary frame of its own, which holds the length of the JSON of a message
 // of the reply alone in four bytes, little-endian, that JSON and then the
 // body's bytes, or from the URL in the body's `url`, which the client fetches,
-// as R's blockr options `max_message_body` and `message_body_encoding` say. The
-// bridge hands the transport the reply without the fields that carry the body.
+// as R's blockr options `max_message_body` and `message_body_encoding` say,
+// and which the client deletes once it has read the body. The bridge hands the
+// transport the reply without the fields that carry the body.
 
 import type {
   Body,
@@ -221,7 +222,16 @@ async function fetchBody(
     );
   }
 
-  return blob([await response.blob()], body);
+  const bytes = await response.blob();
+
+  // Lets R drop the body, which it serves until then, so that a request for it
+  // that the browser sends again after a broken connection is still answered.
+  // Its answer is read, as every answer is, so that the browser cancels none.
+  fetcher(url, { method: "DELETE" })
+    .then((response) => response.text())
+    .catch(() => undefined);
+
+  return blob([bytes], body);
 }
 
 async function post(
@@ -253,10 +263,10 @@ async function post(
     },
   });
 
+  const text = await response.text();
+
   if (!response.ok) {
-    throw new Error(
-      `R refused the body of request ${id}: ${await response.text()}`,
-    );
+    throw new Error(`R refused the body of request ${id}: ${text}`);
   }
 }
 

@@ -366,13 +366,16 @@ message_body_opts <- function() {
   list(max = max, encoding = encoding)
 }
 
-# Serves a reply's body once, from memory or from its file, at a URL of the
-# session's, named by the reply's id, and then drops it, so that R holds no
-# body that the client has fetched. What takes its place, `body_gone()`, is
-# defined here rather than where the body is served, so that it holds on to
-# nothing, where a function made in the serving one would hold its frame and
-# so the body. A body that the client never fetches stays until the session
-# ends, and the file of a body given as one stays.
+# Serves a reply's body, from memory or from its file, at a URL of the
+# session's, named by the reply's id, to every GET until the client deletes
+# it, which the client does once it has read the body, since only it knows
+# when it has all of it. A GET that the browser or a proxy sends again, after a
+# connection broke before the body arrived, is thus still answered. What takes
+# the body's place, `body_gone()`, is defined here rather than where the body
+# is served, so that it holds on to nothing, where a function made in the
+# serving one would hold its frame and so the body. A body that the client
+# never deletes stays until the session ends, and the file of a body given as
+# one stays.
 serve_body <- function(x, type, id, session) {
 
   name <- paste0("blockr-body-", id)
@@ -382,9 +385,20 @@ serve_body <- function(x, type, id, session) {
     x,
     function(data, req) {
 
-      force(data)
+      method <- coal(req[["REQUEST_METHOD"]], "GET", fail_all = FALSE)
 
-      session$registerDataObj(name, NULL, body_gone)
+      # Answered with 200 and a text, where Chrome, given 204, failed the next
+      # request that it sent over the same connection more often than not.
+      if (identical(method, "DELETE")) {
+        session$registerDataObj(name, NULL, body_gone)
+        return(shiny::httpResponse(200L, "text/plain", "Deleted."))
+      }
+
+      if (!identical(method, "GET")) {
+        return(
+          shiny::httpResponse(405L, "text/plain", "A body is got or deleted.")
+        )
+      }
 
       shiny::httpResponse(
         200L,

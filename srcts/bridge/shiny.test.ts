@@ -223,7 +223,11 @@ describe("the Shiny bridge", () => {
     });
 
     const file = await p.body(0);
-    expect(p.fetched.map((f) => f.url)).toEqual([url]);
+    // Once the client has read the body, it deletes it, for R to drop it.
+    expect(p.fetched.map((f) => [f.url, f.init?.method ?? "GET"])).toEqual([
+      [url, "GET"],
+      [url, "DELETE"],
+    ]);
     expect(file).toBeInstanceOf(File);
     expect(file.type).toBe("application/vnd.ms-powerpoint");
     expect(await text(file)).toBe("pptx bytes");
@@ -240,6 +244,8 @@ describe("the Shiny bridge", () => {
     ]);
 
     await expect(p.body(0)).rejects.toThrow("The body was fetched already.");
+    // Nothing is deleted that never came.
+    expect(p.fetched.map((f) => f.init?.method ?? "GET")).toEqual(["GET"]);
     await expect(p.body(1)).rejects.toThrow("R sent no bytes of the body of its reply to 33.");
   });
 
