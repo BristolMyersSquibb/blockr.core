@@ -1,5 +1,5 @@
 {
-  "description": "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, where each module is served, the renderers R picked, the blockr options core's client reads, with background_evaluation_delay at its default Inf, which R writes as null, no lock, and the opening board that the app script built. R mints no ids, so that board holds its blocks, links and stacks as arrays, each entry with the id the script gave it, and the link from a to f, which the script gave none, and the board itself, which the script gave a name but no id, without one. The client keys the collections and mints the missing ids as it opens the board.",
+  "description": "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, where each module is served, the renderers R picked, no lock, and the opening board that the app script built. R mints no ids, so that board holds its blocks, links and stacks as arrays, each entry with the id the script gave it, and the link from a to f, which the script gave none, and the board itself, which the script gave a name but no id, without one. The client keys the collections and mints the missing ids as it opens the board.",
   "client": [
     {
       "id": "1",
@@ -300,13 +300,6 @@
           "blockr.core-basic_plot": {
             "module": "blockr.core/basic-plot.js?v=f19d4a73",
             "class": "plot_output"
-          }
-        },
-        "blockr_options": {
-          "blockr.core": {
-            "gate_visibility": true,
-            "evaluation_queue": 2,
-            "background_evaluation_delay": null
           }
         },
         "lock": null,

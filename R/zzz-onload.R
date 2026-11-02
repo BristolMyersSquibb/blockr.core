@@ -1,7 +1,11 @@
-.onLoad <- function(libname, pkgname) {
+.onLoad <- function(libname, pkgname) { # nocov start
+
   register_core_output_classes()
-  invisible()
-}
+
+  register_front_end("basic", js_module("js/basic.js"), class = "board")
+
+  invisible(NULL)
+} # nocov end
 
 # Core's output classes, with the JSON Schemas that the build generates from
 # their TypeScript types in srcts/types/outputs.ts.

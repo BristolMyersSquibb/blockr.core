@@ -446,7 +446,6 @@ describe("opening a board", () => {
       startup_modules: replied.startup_modules,
       modules: replied.modules,
       renderers: replied.renderers,
-      blockr_options: replied.blockr_options,
     };
     const fresh = () => {
       const store = newStore(fakeR(answer));
