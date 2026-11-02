@@ -59,7 +59,13 @@ Suggests:
     spelling,
     chromote,
     callr,
-    httpuv
+    httpuv,
+    thematic,
+    ragg,
+    systemfonts,
+    ggplot2,
+    tibble,
+    stats
 Config/testthat/edition: 3
 VignetteBuilder: quarto
 Config/roxygen2/version: 8.0.0

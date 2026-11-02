@@ -50,6 +50,25 @@
   `new_block()`, and the `*` by which `str_value()` flagged externally
   controlled args, while `export_code()` assigns each block expression to its
   block id in the order it is given, needing no board (#421).
+* Outputs show a block's result in the client. The coercion that a block
+  class names in `output` makes an output from a result, and R sends the
+  output as JSON, so nothing assumes a table. The class vector of an output
+  ends in `block_output`, and `new_block_output()` makes one. An output may
+  hold one binary body, which `new_reply_body()` makes from a raw vector or a
+  file. A package registers each output class with `register_output_class()`.
+  Registration takes the JSON Schema that R writes the outputs by, and the
+  requests that the class's renderers call. The function
+  `run_output_class_request()` runs such a request as R does (#422).
+* Core defines three output classes. A table output holds one page of rows
+  and the total row count, which may be unknown, as for a lazy table. Its
+  coercion `as_table_output()` pages a data frame by the board option
+  `n_rows` and sorts it by the renderer's parameters. A text output holds what
+  `print()` shows, and `as_text_output()` shows the results of a block class
+  without an `output`. A plot output holds a PNG, which `as_plot_output()`
+  draws at the size and in the colors that the client gives. A block class
+  that draws a base plot captures it with `capture_plot()` in its
+  `block_eval()` method, so that a change of theme draws the plot again
+  without evaluating the block (#422).
 
 # blockr.core 0.1.4
 

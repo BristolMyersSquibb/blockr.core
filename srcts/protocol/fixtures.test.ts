@@ -9,8 +9,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import ts from "typescript";
 import { beforeAll, expect, test } from "vitest";
+import { declaration, typecheck } from "../testing/typecheck.ts";
 import { PROTOCOL_VERSION } from "./messages.ts";
 import type { Fixture } from "./messages.ts";
 
@@ -94,68 +94,6 @@ function path(name: string): string {
   return join(root, "srcts", "protocol", "__fixtures__", `${name}.ts`);
 }
 
-// A module that declares a value of the type with the JSON as its literal,
-// which starts on the module's first line, so that the compiler's line numbers
-// are the JSON's.
-function declaration(type: string, from: string, json: string): string {
-  const imported = [...new Set(type.match(/\b[A-Z]\w*/g))].join(", ");
-  return (
-    `import type { ${imported} } from ${JSON.stringify(from)}; ` +
-    `export const value: ${type} = ${json};\n`
-  );
-}
-
-// Type-checks the modules, given by their paths, with the options that
-// tsconfig.client.json checks the client with, and gives each module's
-// diagnostics.
-function typecheck(modules: Map<string, string>): Map<string, string[]> {
-  const config = ts.readConfigFile(join(root, "tsconfig.client.json"), (file) =>
-    ts.sys.readFile(file),
-  );
-  const { options } = ts.parseJsonConfigFileContent(
-    config.config,
-    ts.sys,
-    root,
-  );
-  delete options.tsBuildInfoFile;
-
-  const host = ts.createCompilerHost(options, true);
-  const getSourceFile = host.getSourceFile.bind(host);
-  const fileExists = host.fileExists.bind(host);
-  const readFile = host.readFile.bind(host);
-
-  host.getSourceFile = (file, version, ...rest) => {
-    const module = modules.get(file);
-    return module === undefined
-      ? getSourceFile(file, version, ...rest)
-      : ts.createSourceFile(file, module, version, true);
-  };
-  host.fileExists = (file) => modules.has(file) || fileExists(file);
-  host.readFile = (file) => modules.get(file) ?? readFile(file);
-
-  const program = ts.createProgram([...modules.keys()], options, host);
-
-  const format = (diagnostic: ts.Diagnostic): string => {
-    const message = ts.flattenDiagnosticMessageText(
-      diagnostic.messageText,
-      "\n",
-    );
-    if (diagnostic.file === undefined || diagnostic.start === undefined) {
-      return message;
-    }
-    const { line, character } =
-      diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start);
-    return `${String(line + 1)}:${String(character + 1)} ${message}`;
-  };
-
-  return new Map(
-    [...modules.keys()].map((file) => [
-      file,
-      ts.getPreEmitDiagnostics(program, program.getSourceFile(file)).map(format),
-    ]),
-  );
-}
-
 let diagnostics: Map<string, string[]>;
 
 beforeAll(() => {
@@ -172,7 +110,7 @@ beforeAll(() => {
     modules.set(path(`broken/${what}`), declaration(types.cancel ?? "", messages, json));
   }
 
-  diagnostics = typecheck(modules);
+  diagnostics = typecheck(root, modules);
 }, 60_000);
 
 test("every fixture has a type to be checked against", () => {
