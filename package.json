@@ -26,7 +26,7 @@
     "vitest": "^5.0.5"
   },
   "dependencies": {
-    "@preact/signals-core": "^1.14.5",
-    "ajv": "^8.20.0"
+    "@cfworker/json-schema": "^4.1.4",
+    "@preact/signals-core": "^1.14.5"
   }
 }

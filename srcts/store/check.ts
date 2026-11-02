@@ -79,7 +79,7 @@ function checkBlocks(
         continue;
       }
       for (const failure of attr.validate(value)) {
-        failures.push(`The attribute "${name}" of block "${id}" ${failure}.`);
+        failures.push(`The attribute "${name}" of block "${id}" ${failure}`);
       }
     }
   }
@@ -219,7 +219,7 @@ function checkValues(
       continue;
     }
     for (const failure of option.validate(value)) {
-      failures.push(`The value of the board option "${id}" ${failure}.`);
+      failures.push(`The value of the board option "${id}" ${failure}`);
     }
   }
 
@@ -231,7 +231,7 @@ function checkValues(
       continue;
     }
     for (const failure of attr.validate(value)) {
-      failures.push(`The front-end's attribute "${name}" ${failure}.`);
+      failures.push(`The front-end's attribute "${name}" ${failure}`);
     }
   }
 }
@@ -249,7 +249,7 @@ function checkKeys(
 
     if (def.kind === "value") {
       if (value !== undefined && (changed === undefined || changed.values.has(at))) {
-        for (const failure of validate(value)) failures.push(`The value of ${where} ${failure}.`);
+        for (const failure of validate(value)) failures.push(`The value of ${where} ${failure}`);
       }
     } else if (value !== undefined) {
       if (!isObject(value)) {
@@ -259,7 +259,7 @@ function checkKeys(
       const entries = changed === undefined ? Object.keys(value) : (changed.entries.get(at) ?? []);
       for (const id of entries) {
         for (const failure of validate(own(value, id))) {
-          failures.push(`The entry "${id}" of ${where} ${failure}.`);
+          failures.push(`The entry "${id}" of ${where} ${failure}`);
         }
       }
     }

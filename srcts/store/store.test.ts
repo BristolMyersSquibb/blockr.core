@@ -775,10 +775,10 @@ describe("applying a delta", () => {
     ["a cycle", { links: { rm: ["ad"], add: { ed: { from: "e", to: "d", input: "data" } } } }, /links form a cycle through the blocks/],
     ["a stack holding a block the board lacks", { stacks: { add: { s2: { name: "More", blocks: ["z"] } } } }, /stack "s2" holds block "z", which the board lacks/],
     ["a block in two stacks", { stacks: { add: { s2: { name: "More", blocks: ["a"] } } } }, /block "a" sits in the stacks "s1" and "s2", where it sits in one/],
-    ["a board option value its schema refuses", { options: { set: { n_rows: -1 } } }, /value of the board option "n_rows" must be >= 0/],
+    ["a board option value its schema refuses", { options: { set: { n_rows: -1 } } }, /value of the board option "n_rows" fails its schema: -1 is less than 0\./],
     ["a value of a board option no package registered", { options: { set: { nope: 1 } } }, /board option "nope", which no package registered/],
     ["an attribute no package registered", { blocks: { mod: { a: { attrs: { set: { color: "red" } } } } } }, /block "a" has the attribute "color", which no package registered/],
-    ["an attribute its schema refuses", { blocks: { mod: { a: { attrs: { set: { visible: ["header"] } } } } } }, /attribute "visible" of block "a" \/0 must be equal to one of the allowed values/],
+    ["an attribute its schema refuses", { blocks: { mod: { a: { attrs: { set: { visible: ["header"] } } } } } }, /attribute "visible" of block "a" fails its schema at \/0: Instance does not match any of \["inputs","outputs"\]\./],
     ["a block of a class the block registry lacks", { blocks: { add: { g: { ...head(), registry_id: "blockr.foo-bar" } } } }, /class "blockr.foo-bar", which the block registry lacks/],
     ["an id made of digits alone", { blocks: { add: { 7: head() } } }, /block id "7" is empty or made of digits alone/],
     ["removing a block the board lacks", { blocks: { rm: ["z"] } }, /board holds no block "z" to remove/],
@@ -811,7 +811,7 @@ describe("applying a delta", () => {
 
     expect(() => {
       store.apply(add({ a: { x: "left", y: 0 } }));
-    }).toThrow(/entry "a" of extensions\/blockr.dag-dag\/positions \/x must be number/);
+    }).toThrow(/entry "a" of extensions\/blockr.dag-dag\/positions fails its schema at \/x: Instance type "string" is invalid\. Expected "number"\./);
     expect(() => {
       store.apply(add({ z: { x: 0, y: 0 } }));
     }).toThrow(/extensions\/blockr.dag-dag\/positions: There is no block "z" to place/);
@@ -1248,11 +1248,8 @@ describe("registering", () => {
     expect(() => store.register(positions)).not.toThrow();
   });
 
-  test("a schema that Ajv cannot compile, or a default its schema refuses, fails", () => {
+  test("a default or an initial value that its schema refuses fails", () => {
     const store = newStore();
-    expect(() => store.register({ ...positions, schema: { type: "nope" } })).toThrow(
-      /Ajv cannot compile the schema of the key of the front-end state at extensions\/blockr.dag-dag\/positions/,
-    );
     expect(() =>
       store.options.register({
         id: "seed",
@@ -1260,7 +1257,23 @@ describe("registering", () => {
         category: "Board options",
         schema: { type: "integer", default: "one" },
       }),
-    ).toThrow('The schema of the board option "seed" refuses its default: must be integer.');
+    ).toThrow(
+      'The default of the board option "seed" fails its schema: Instance type "string" is invalid. Expected "integer".',
+    );
+    expect(() =>
+      store.register({ path: ["direction"], kind: "value", schema: { enum: ["LR", "TB"] }, initial: "up" }),
+    ).toThrow(/The initial value of the key of the front-end state at direction fails its schema/);
+  });
+
+  test("reads the draft a schema declares", () => {
+    const store = newStore();
+    store.options.register({
+      id: "seed",
+      label: "Seed",
+      category: "Board options",
+      schema: { $schema: "http://json-schema.org/draft-07/schema#", type: "integer", default: 1 },
+    });
+    expect(store.options.registered().seed?.schema.default).toBe(1);
   });
 });
 
