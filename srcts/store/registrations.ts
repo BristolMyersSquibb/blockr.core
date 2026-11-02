@@ -1,9 +1,7 @@
 // What packages register with the store, from their startup modules, before it
-// opens a board: the keys of the front-end's state, attributes, board options
-// and each package's one migration of its saved state. Each names its package,
-// so that a second registration of a key, an attribute or a board option id
-// fails naming both packages, and so that a migration writes only what its own
-// package registers.
+// opens a board: the keys of the front-end state, each at its path there,
+// attributes, board options and each package's one migration of its saved
+// state. A key, an attribute or a board option id registered twice fails.
 
 import { computed, signal } from "@preact/signals-core";
 import Ajv2020 from "ajv/dist/2020.js";
@@ -17,13 +15,12 @@ import type {
 } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import type { Delta, KeyDelta } from "./delta.ts";
-import { messageOf, pathText } from "./util.ts";
+import { jsonEqual, messageOf, pathText } from "./util.ts";
 
 // A key of the front-end's state, registered at its path there by the module
 // that owns it, as the dock registers ["views"] and the DAG its positions under
 // ["extensions", "blockr.dag-dag", "positions"].
 export interface StateKey {
-  readonly package: string;
   readonly path: readonly string[];
   // A collection holds entries keyed by id in insertion order, as the board's
   // blocks are, and a value is set as a whole, as the board's name is.
@@ -44,7 +41,6 @@ export interface StateKey {
 // A value kept on every block, or on the front-end beside its state, that is
 // not state, such as core's `visible`.
 export interface Attribute {
-  readonly package: string;
   readonly name: string;
   readonly on: "block" | "front_end";
   readonly schema: JsonSchema;
@@ -56,7 +52,6 @@ export interface Attribute {
 // that ships it defines the rest. The schema's `default` is what a board that
 // lacks a value takes as it opens.
 export interface Option {
-  readonly package: string;
   readonly id: OptionId;
   readonly label: string;
   readonly category: string;
@@ -69,28 +64,31 @@ export interface Options {
   registered(): Readonly<Record<OptionId, Option>>;
 }
 
-// What a saved board holds for every package, which each package's migration
-// reads, and of which it returns its own part in today's shape.
+// What a saved board holds that migrations convert: every block's state, with
+// its class, and the front-end state.
 export interface Saved {
-  readonly front_end: {
-    readonly state: Json;
-    readonly attrs: Readonly<Record<string, Json>>;
-  };
-  readonly attrs: Readonly<Record<BlockId, Block["attrs"]>>;
+  readonly front_end: { readonly state: Json };
   readonly blocks: Readonly<
     Record<BlockId, { readonly registry_id: RegistryId; readonly state: Block["state"] }>
   >;
-  readonly options: Readonly<Record<OptionId, Json>>;
 }
 
-// A package's migration, given everything a file holds and the version of the
-// package that saved it, or null where the file records none. It converts what
-// older versions of its package saved into today's shape, and changes nothing
-// on a board in today's shape, so that a board saved and opened again comes
-// back as it was, though a file that records no version of a package runs its
-// migration. What a board takes where it lacks a value comes from what
-// packages register instead, a key's `initial` and a board option's
-// `default`, which the store gives every board it opens.
+// A package's migration, given what a file holds and the version of the
+// package that saved it, or null where the file records none. Of what it
+// returns, the store takes the state of each block of the package's block
+// classes, which the block's registry id names, and the front-end state at
+// each key whose path names one of the package's extensions by its id, or, for
+// the package of the board's front-end, at each key whose path names none.
+//
+// A migration converts what older versions of its package saved into today's
+// shape, and changes nothing on a board in today's shape, so that a board
+// saved and opened again comes back as it was, though a file that records no
+// version of a package runs its migration. What a board takes where it lacks
+// a value comes from what packages register instead, a key's `initial` and a
+// board option's `default`, which the store gives every board it opens.
+// Attributes and board option values are not migrated: one that no longer
+// fits its schema is dropped as the board opens, for its initial value or
+// default to take its place.
 export type Migration = (saved: Saved, version: string | null) => Partial<Saved>;
 
 // A validator of a schema, which gives each failure in a sentence.
@@ -150,22 +148,20 @@ export function createRegistrations(): Registrations {
     Object.fromEntries(options.value.map((option) => [option.def.id, option.def])),
   );
 
-  function compile(what: string, pkg: string, schema: JsonSchema): Validate {
+  function compile(what: string, schema: JsonSchema): Validate {
     let validate;
     try {
       validate = ajv.compile(schema);
     } catch (error) {
-      throw new Error(
-        `${pkg} registers ${what} with a schema that Ajv cannot compile: ${messageOf(error)}`,
-        { cause: error },
-      );
+      throw new Error(`Ajv cannot compile the schema of ${what}: ${messageOf(error)}`, {
+        cause: error,
+      });
     }
     return (value) => (validate(value) ? [] : describe(validate.errors ?? []));
   }
 
   function checkInitial(
     what: string,
-    pkg: string,
     validate: Validate,
     initial: Json | undefined,
     field: string,
@@ -173,32 +169,31 @@ export function createRegistrations(): Registrations {
     if (initial === undefined) return;
     const failures = validate(initial);
     if (failures.length > 0) {
-      throw new Error(
-        `${pkg} registers ${what} with ${field} that its schema refuses: ${failures.join("; ")}.`,
-      );
+      throw new Error(`The schema of ${what} refuses its ${field}: ${failures.join("; ")}.`);
     }
   }
 
   function registerKey(def: StateKey): () => void {
-    const what = `the key ${pathText(def.path)}`;
+    const what = `the key of the front-end state at ${pathText(def.path)}`;
     if (
       def.path.length === 0 ||
       !def.path.every((part) => typeof part === "string" && part !== "")
     ) {
-      throw new Error(
-        `${def.package} registers a key at a path that is empty or holds an empty part.`,
-      );
+      throw new Error("A key of the front-end state has a path that is empty or holds an empty part.");
     }
     for (const other of keys.value) {
+      if (jsonEqual(def.path, other.def.path)) {
+        throw new Error(`The key of the front-end state at ${pathText(def.path)} is registered already.`);
+      }
       if (overlap(def.path, other.def.path)) {
         throw new Error(
-          `${def.package} registers ${what}, which ${other.def.package} registered as ${pathText(other.def.path)} already.`,
+          `The key of the front-end state at ${pathText(def.path)} overlaps the one at ${pathText(other.def.path)}, which is registered already.`,
         );
       }
     }
-    const validate = compile(what, def.package, def.schema);
+    const validate = compile(what, def.schema);
     if (def.kind === "value") {
-      checkInitial(what, def.package, validate, def.initial, "an initial value");
+      checkInitial(what, validate, def.initial, "initial value");
     }
     const item = { def, validate };
     keys.value = [...keys.value, item];
@@ -210,14 +205,11 @@ export function createRegistrations(): Registrations {
 
   function registerAttribute(def: Attribute): () => void {
     const what = `the attribute "${def.name}" of ${def.on === "block" ? "blocks" : "the front-end"}`;
-    const other = attributeIndex.value.get(JSON.stringify([def.on, def.name]));
-    if (other !== undefined) {
-      throw new Error(
-        `${def.package} registers ${what}, which ${other.def.package} registered already.`,
-      );
+    if (attributeIndex.value.has(JSON.stringify([def.on, def.name]))) {
+      throw new Error(`The ${what.slice("the ".length)} is registered already.`);
     }
-    const validate = compile(what, def.package, def.schema);
-    checkInitial(what, def.package, validate, def.initial, "an initial value");
+    const validate = compile(what, def.schema);
+    checkInitial(what, validate, def.initial, "initial value");
     const item = { def, validate };
     attributes.value = [...attributes.value, item];
     return () => {
@@ -234,14 +226,11 @@ export function createRegistrations(): Registrations {
     options: {
       register(def) {
         const what = `the board option "${def.id}"`;
-        const other = optionIndex.value.get(def.id);
-        if (other !== undefined) {
-          throw new Error(
-            `${def.package} registers ${what}, which ${other.def.package} registered already.`,
-          );
+        if (optionIndex.value.has(def.id)) {
+          throw new Error(`The board option "${def.id}" is registered already.`);
         }
-        const validate = compile(what, def.package, def.schema);
-        checkInitial(what, def.package, validate, def.schema.default, "a default");
+        const validate = compile(what, def.schema);
+        checkInitial(what, validate, def.schema.default, "default");
         const item = { def, validate };
         options.value = [...options.value, item];
         return () => {

@@ -75,14 +75,12 @@ function fakeR(answer: Reply = loaded): Transport & { sent: Sent[] } {
 // Core's board options, as the fixtures' boards hold their values.
 const coreOptions: Option[] = [
   {
-    package: "blockr.core",
     id: "n_rows",
     label: "Preview rows",
     category: "Table options",
     schema: { type: "integer", minimum: 0, default: 50 },
   },
   {
-    package: "blockr.core",
     id: "show_conditions",
     label: "Message types to display",
     category: "Board options",
@@ -102,7 +100,6 @@ function positionsOf(board: Board): Readonly<Record<string, Position>> {
 
 // The DAG's positions, a removed block's going with it.
 const positions: StateKey = {
-  package: "blockr.dag",
   path,
   kind: "collection",
   schema: {
@@ -412,7 +409,6 @@ describe("opening a board", () => {
     const store = await opened((store) => {
       store.register(positions);
       store.register({
-        package: "blockr.dag",
         path: ["extensions", "blockr.dag-dag", "direction"],
         kind: "value",
         schema: { enum: ["LR", "TB"] },
@@ -526,6 +522,31 @@ describe("opening a board", () => {
     expect(board.stacks).toEqual({ s1: { name: "Input", blocks: ["a", "b"] } });
   });
 
+  test("drops an attribute or a board option value that its schema refuses, for its initial value or default", async () => {
+    const store = await opened();
+    const dropped = await store.open(
+      file({
+        blocks: {
+          a: {
+            registry_id: "blockr.core-dataset_block",
+            state: { dataset: "mtcars", package: "datasets" },
+            name: "Cars",
+            attrs: { visible: ["header"] },
+          },
+          b: head(),
+        },
+        options: { n_rows: "fifty", show_conditions: ["warning", "error"] },
+      }),
+    );
+
+    expect(dropped).toEqual([
+      { attribute: "visible", on: "block", package: null },
+      { option: "n_rows", package: null },
+    ]);
+    expect(store.board().blocks.a?.attrs).toEqual({});
+    expect(store.board().options).toEqual({ n_rows: 50, show_conditions: ["warning", "error"] });
+  });
+
   test("holds no board until it opens one", () => {
     const store = newStore();
     expect(() => store.board()).toThrow("The store holds no board until it opens one.");
@@ -590,7 +611,6 @@ describe("migrations", () => {
               },
             },
           },
-          attrs: {},
         },
       };
     });
@@ -721,7 +741,6 @@ describe("applying a delta", () => {
 
   test("rejects a delta that keeps expanding, naming the keys that kept adding", async () => {
     const count: StateKey = {
-      package: "blockr.foo",
       path: ["count"],
       kind: "value",
       schema: { type: "integer" },
@@ -924,7 +943,6 @@ describe("edit ids", () => {
     const store = await opened((store) => {
       store.register(positions);
       store.register({
-        package: "blockr.dag",
         path: ["extensions", "blockr.dag-dag", "direction"],
         kind: "value",
         schema: { enum: ["LR", "TB"] },
@@ -985,7 +1003,6 @@ describe("undo", () => {
   test("removes again what a step set where there was none", async () => {
     const store = await opened((store) => {
       store.options.register({
-        package: "blockr.foo",
         id: "seed",
         label: "Seed",
         category: "Board options",
@@ -1109,27 +1126,27 @@ describe("registering", () => {
   test("core registers its attribute visible", () => {
     const store = newStore();
     expect(store.registered()).toContainEqual(
-      expect.objectContaining({ package: "blockr.core", name: "visible", on: "block" }),
+      expect.objectContaining({ name: "visible", on: "block" }),
     );
   });
 
-  test("a key, an attribute or a board option id registered twice fails, naming both packages", () => {
+  test("a key, an attribute or a board option id registered twice fails", () => {
     const store = newStore();
     store.register(positions);
 
-    expect(() => store.register({ ...positions, package: "blockr.foo" })).toThrow(
-      "blockr.foo registers the key extensions/blockr.dag-dag/positions, which blockr.dag registered as extensions/blockr.dag-dag/positions already.",
+    expect(() => store.register({ ...positions })).toThrow(
+      "The key of the front-end state at extensions/blockr.dag-dag/positions is registered already.",
     );
-    expect(() => store.register({ ...positions, package: "blockr.foo", path: ["extensions"] })).toThrow(
-      /blockr.foo registers the key extensions, which blockr.dag registered as/,
+    expect(() => store.register({ ...positions, path: ["extensions"] })).toThrow(
+      "The key of the front-end state at extensions overlaps the one at extensions/blockr.dag-dag/positions, which is registered already.",
+    );
+    expect(() => store.register({ name: "visible", on: "block", schema: {} })).toThrow(
+      'The attribute "visible" of blocks is registered already.',
     );
     expect(() =>
-      store.register({ package: "blockr.dock", name: "visible", on: "block", schema: {} }),
+      store.options.register({ id: "n_rows", label: "Rows", category: "Table options", schema: {} }),
     ).toThrow(
-      'blockr.dock registers the attribute "visible" of blocks, which blockr.core registered already.',
-    );
-    expect(() => store.options.register({ ...coreOptions[0], package: "blockr.foo" } as Option)).toThrow(
-      'blockr.foo registers the board option "n_rows", which blockr.core registered already.',
+      'The board option "n_rows" is registered already.',
     );
     expect(() => {
       store.registerMigration("blockr.foo", () => ({}));
@@ -1155,17 +1172,16 @@ describe("registering", () => {
   test("a schema that Ajv cannot compile, or a default its schema refuses, fails", () => {
     const store = newStore();
     expect(() => store.register({ ...positions, schema: { type: "nope" } })).toThrow(
-      /blockr.dag registers the key extensions\/blockr.dag-dag\/positions with a schema that Ajv cannot compile/,
+      /Ajv cannot compile the schema of the key of the front-end state at extensions\/blockr.dag-dag\/positions/,
     );
     expect(() =>
       store.options.register({
-        package: "blockr.foo",
         id: "seed",
         label: "Seed",
         category: "Board options",
         schema: { type: "integer", default: "one" },
       }),
-    ).toThrow(/with a default that its schema refuses: must be integer/);
+    ).toThrow('The schema of the board option "seed" refuses its default: must be integer.');
   });
 });
 

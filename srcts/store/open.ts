@@ -13,7 +13,7 @@ import { check } from "./check.ts";
 import { commit } from "./commit.ts";
 import { expand } from "./expand.ts";
 import { mintId, sentenceCase } from "./ids.ts";
-import type { Registrations, Saved } from "./registrations.ts";
+import type { Checked, Registrations, Saved } from "./registrations.ts";
 import {
   frozenCopy,
   getAt,
@@ -130,32 +130,33 @@ export function keyed(opening: OpeningBoard): Board {
   };
 }
 
-// What the file holds for every package, as each package's migration reads it.
+// What the file holds that migrations convert, as each package's migration
+// reads it.
 function saved(board: Board): Saved {
   return frozenCopy({
-    front_end: {
-      state: board.front_end.state as Json,
-      attrs: board.front_end.attrs,
-    },
-    attrs: Object.fromEntries(
-      Object.entries(board.blocks).map(([id, block]) => [id, block.attrs]),
-    ),
+    front_end: { state: board.front_end.state as Json },
     blocks: Object.fromEntries(
       Object.entries(board.blocks).map(([id, block]) => [
         id,
         { registry_id: block.registry_id, state: block.state },
       ]),
     ),
-    options: board.options,
   });
+}
+
+// The package whose migration converts what a key of the front-end state
+// holds: the one whose extension the key's path names by its id, or else the
+// package of the front-end the board is made for.
+function migratedBy(path: readonly string[], board: Board): string | null {
+  return path.map(packageOf).find((pkg) => pkg !== null) ?? packageOf(board.front_end.id);
 }
 
 // The board after the migration of every package whose version the file
 // records differs from the one R loaded, a package the board holds nothing of
-// included, each on the same saved state, writing only the keys, attributes
-// and board options its package registers and the states of its own block
-// classes' blocks. What a migration leaves out of its return stays as the file
-// holds it.
+// included, each on the same saved state, of which the store takes the states
+// of the blocks of the package's block classes and the front-end state that
+// the package migrates. What a migration leaves out of its return stays as
+// the file holds it.
 function migrate(
   board: Board,
   versions: Readonly<Record<string, string>>,
@@ -176,55 +177,24 @@ function migrate(
       throw new StoreError(refused, [`The migration of ${pkg} failed: ${messageOf(error)}`]);
     }
 
-    const keys = registrations.keys().filter(({ def }) => def.package === pkg);
-    const attrs = registrations
-      .attributes()
-      .map(({ def }) => def)
-      .filter((def) => def.package === pkg);
-    const options = Object.values(registrations.options.registered()).filter(
-      (option) => option.package === pkg,
-    );
-
     let state = next.front_end.state;
-    let frontEndAttrs = next.front_end.attrs;
     if (out.front_end !== undefined) {
-      for (const { def } of keys) {
+      for (const { def } of registrations.keys()) {
+        if (migratedBy(def.path, board) !== pkg) continue;
         const value = getAt(out.front_end.state, def.path);
         if (value !== undefined) state = setAt(state, def.path, value);
-      }
-      for (const attr of attrs.filter((attr) => attr.on === "front_end")) {
-        const value = own(out.front_end.attrs, attr.name);
-        if (value !== undefined) frontEndAttrs = { ...frontEndAttrs, [attr.name]: value };
       }
     }
 
     const blocks = { ...next.blocks };
     for (const [id, block] of Object.entries(next.blocks)) {
       const state = own(out.blocks ?? {}, id)?.state;
-      const blockAttrs = own(out.attrs ?? {}, id);
-      let migrated = block;
       if (state !== undefined && packageOf(block.registry_id) === pkg) {
-        migrated = { ...migrated, state };
+        blocks[id] = { ...block, state };
       }
-      for (const attr of attrs.filter((attr) => attr.on === "block")) {
-        const value = blockAttrs === undefined ? undefined : own(blockAttrs, attr.name);
-        if (value !== undefined) migrated = { ...migrated, attrs: { ...migrated.attrs, [attr.name]: value } };
-      }
-      blocks[id] = migrated;
     }
 
-    let values = next.options;
-    for (const option of options) {
-      const value = own(out.options ?? {}, option.id);
-      if (value !== undefined) values = { ...values, [option.id]: value };
-    }
-
-    next = {
-      ...next,
-      blocks,
-      options: values,
-      front_end: { ...next.front_end, state, attrs: frontEndAttrs },
-    };
+    next = { ...next, blocks, front_end: { ...next.front_end, state } };
   }
 
   return next;
@@ -274,10 +244,13 @@ export function frontEndOf(
     : board.front_end.id;
 }
 
-// The board without every key of the front-end's state, attribute and board
-// option value that no package registered, made for the front-end it opens
-// with, and what that dropped. The blocks that go keep what they hold, which
-// goes with them.
+// The board without every key of the front-end state, attribute and board
+// option value that no package registered, and every attribute and board
+// option value that its schema refuses, as one an older version of its
+// package saved, which no migration converts, so that its initial value or
+// default takes its place. It is made for the front-end it opens with, and
+// what it dropped is named. The blocks that go keep what they hold, which goes
+// with them.
 function prune(
   board: Board,
   gone: readonly string[],
@@ -294,13 +267,24 @@ function prune(
   }
   const owner = packageOf(board.front_end.id);
 
+  // An attribute or a board option value that no package registered, or that
+  // its schema refuses.
+  const unfit = (
+    values: Readonly<Record<string, Json>>,
+    registered: (name: string) => Checked<unknown> | undefined,
+  ): string[] =>
+    Object.entries(values)
+      .filter(([name, value]) => {
+        const def = registered(name);
+        return def === undefined || def.validate(value).length > 0;
+      })
+      .map(([name]) => name);
+
   const blockAttrs = new Set<string>();
   const blocks = Object.fromEntries(
     Object.entries(board.blocks).map(([id, block]) => {
       if (gone.includes(id)) return [id, block];
-      const unknown = Object.keys(block.attrs).filter(
-        (name) => registrations.attribute("block", name) === undefined,
-      );
+      const unknown = unfit(block.attrs, (name) => registrations.attribute("block", name));
       for (const name of unknown) blockAttrs.add(name);
       return [id, unknown.length === 0 ? block : { ...block, attrs: without(block.attrs, unknown) }];
     }),
@@ -325,14 +309,10 @@ function prune(
   const paths = registrations.keys().map(({ def }) => def.path);
   const state = pruneState(frontEnd.state, [], paths, name);
 
-  const unknownAttrs = Object.keys(frontEnd.attrs).filter(
-    (name) => registrations.attribute("front_end", name) === undefined,
-  );
+  const unknownAttrs = unfit(frontEnd.attrs, (name) => registrations.attribute("front_end", name));
   for (const name of unknownAttrs) dropped.push({ attribute: name, on: "front_end", package: null });
 
-  const unknownOptions = Object.keys(board.options).filter(
-    (id) => registrations.option(id) === undefined,
-  );
+  const unknownOptions = unfit(board.options, (id) => registrations.option(id));
   for (const id of unknownOptions) dropped.push({ option: id, package: null });
 
   return {

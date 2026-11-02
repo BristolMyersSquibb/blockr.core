@@ -471,7 +471,6 @@ export function createStore(options: StoreOptions): Store {
 // Core's attribute, which says which of a block's sections show, its inputs
 // and its outputs, and which a locked board reads.
 const visible: Attribute = {
-  package: "blockr.core",
   name: "visible",
   on: "block",
   schema: {
