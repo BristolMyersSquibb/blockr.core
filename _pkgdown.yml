@@ -61,6 +61,7 @@ reference:
   desc: What a package declares in R of its client
   contents:
     - register_front_end
+    - register_renderer
     - register_startup_module
 - title: Block classes
   contents:

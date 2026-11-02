@@ -81,6 +81,19 @@
   most specific class in the board's class vector, so that every board has
   core's basic front-end, `blockr.core-basic`, which core declares for
   `board`, at least (#424).
+* A package declares its renderers in R, from its `.onLoad()`, with
+  `register_renderer()`. Each renderer gets the ID `{pkg}-{name}` and draws
+  one output class or one board option. A renderer of an output class may
+  bring requests of its own, among which R looks before those of the class, as
+  `run_output_class_request()` does when given the renderer that asks. R picks
+  one renderer for each output class and each board option with
+  `pick_renderers()`, for the front-end of the board that the client draws:
+  the one that the blockr option `renderers` names, else one that the
+  front-end's package declares, else one of another package, and for an output
+  class otherwise one that the package defining the class declares. Two
+  renderers at one step are an error naming both. Core declares
+  `blockr.core-basic_table`, `blockr.core-basic_text` and
+  `blockr.core-basic_plot` for its output classes (#425).
 
 # blockr.core 0.1.4
 

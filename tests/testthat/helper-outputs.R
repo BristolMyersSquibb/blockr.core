@@ -165,19 +165,21 @@ unknown_total_output <- function(result, options, info, params) {
 }
 
 # A sample output: its description, what it was asked with, and the output as R
-# sends it, after the renderer that core declares for its class. An output
-# with a body announces it, and names the file that holds its bytes.
+# sends it, after the renderer that R picks for its class on a board of core's
+# basic front-end, core's own. An output with a body announces it, and names
+# the file that holds its bytes.
 output_sample <- function(description, coercion, result, options = list(),
                           info = list(), params = list(), body_file = NULL) {
 
   out <- coercion(result, options = options, info = info, params = params)
   parts <- shape_output(out)
+  renderer <- output_renderer(out, pick_renderers("blockr.core-basic"))
 
   res <- list(
     description = description,
     options = as_json_object(options),
     params = as_json_object(params),
-    output = c(list(renderer = core_renderer(out)), parts$output)
+    output = c(list(renderer = renderer), parts$output)
   )
 
   if (not_null(body_file)) {
@@ -187,15 +189,6 @@ output_sample <- function(description, coercion, result, options = list(),
   }
 
   res
-}
-
-core_renderer <- function(x) {
-  switch(
-    class(x)[1L],
-    table_output = "blockr.core-basic_table",
-    text_output = "blockr.core-basic_text",
-    plot_output = "blockr.core-basic_plot"
-  )
 }
 
 # A fixture's JSON, without the bytes of the bodies, which go to files of their

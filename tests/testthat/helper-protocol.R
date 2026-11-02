@@ -399,8 +399,7 @@ protocol_r_values <- function() {
         c(
           obj(id = "32", status = "ok"),
           proto_output(
-            new_plot_output(new_reply_body(raw(), "image/png"), 640L, 400L),
-            "blockr.core-basic_plot"
+            new_plot_output(new_reply_body(raw(), "image/png"), 640L, 400L)
           )
         )
       )
@@ -987,16 +986,17 @@ proto_condition <- function(severity, class, message, phase = NULL) {
 # renderer that R picks for table outputs.
 proto_table_output <- function(data, ...) {
   proto_output(
-    as_table_output(data, options = list(n_rows = 50L), params = list(...)),
-    "blockr.core-basic_table"
+    as_table_output(data, options = list(n_rows = 50L), params = list(...))
   )[["output"]]
 }
 
 # An output as R sends it in a reply: its fields, written by the schema of its
-# class, after the renderer that R picked, and the body beside it announced.
-proto_output <- function(x, renderer) {
+# class, after the renderer that R picks for it on a board of core's basic
+# front-end, and the body beside it announced.
+proto_output <- function(x) {
 
   parts <- shape_output(x)
+  renderer <- output_renderer(x, pick_renderers("blockr.core-basic"))
 
   c(
     list(output = c(list(renderer = renderer), parts$output)),

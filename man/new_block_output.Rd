@@ -26,7 +26,8 @@ run_output_class_request(
   args = list(),
   options = list(),
   params = list(),
-  file = NULL
+  file = NULL,
+  renderer = NULL
 )
 }
 \arguments{
@@ -65,6 +66,9 @@ board option id}
 \item{params}{The parameters that the output was asked with}
 
 \item{file}{A file that the renderer sends, or \code{NULL}}
+
+\item{renderer}{The ID of the renderer that asks, among whose own requests
+R looks first, or \code{NULL}}
 }
 \value{
 The constructor \code{new_block_output()} returns an object of class
@@ -107,8 +111,10 @@ its rows.
 Registration also takes the class's requests. A request is a function that
 the class's renderers call through their host, for what the output does not
 hold, such as a download of what they show. R resolves a request by the most
-specific class in the output's class vector that has it. R calls the
-request's function with these arguments, each where the function takes it:
+specific class in the output's class vector that has it. A renderer may
+bring requests of its own (see \code{\link[=register_renderer]{register_renderer()}}), among which R looks
+first where the request names the renderer that asks. R calls the request's
+function with these arguments, each where the function takes it:
 \itemize{
 \item The result that the output was made from, in \code{result}.
 \item The board option values that the output was asked with, in \code{options}.
@@ -121,7 +127,7 @@ A request may answer with a reply body, such as a file to download. The
 client keeps a request's answers, as it keeps the output, unless the class
 names the request in \code{volatile}. No request of an output class writes. The
 function \code{run_output_class_request()} runs a request as R does, to test an
-output class without Shiny.
+output class, or the requests of a renderer, without Shiny.
 }
 \examples{
 out <- new_block_output(list(text = "Hello"), "greeting_output")
