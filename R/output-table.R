@@ -18,10 +18,10 @@
 #' is `TRUE`. Asking for a page past the last one is an error, so that the
 #' renderer asks again.
 #'
-#' The rows hold values that JSON can carry. A number, a string or a logical
-#' stays as it is, and a missing value becomes `null`. An infinite number and
-#' `NaN` show as their names, such as `"Inf"`. A factor shows its labels. A
-#' column of another class, such as a date, shows the text that [format()]
+#' The rows hold values as JSON carries them. Numbers, strings, logicals,
+#' factors and dates are written as R prints them. A missing value becomes
+#' `null`, and so do an infinite number and `NaN`, which JSON cannot hold. A
+#' value of another class, such as a time, shows the text that [format()]
 #' gives. A list-column shows each cell that is a single number, string or
 #' logical as it is. Any other cell shows as a summary, as [result_summary()]
 #' gives it, such as `<lm>` or `<data.frame> [3 × 2]`. The same goes for each
@@ -166,6 +166,10 @@ as_table_output.data.frame <- function(result, options = list(),
   )
 }
 
+# The order of the rows that `params$sort` asks for, from which the method cuts
+# the page. Without a sort, the rows keep their own order. A column whose cells
+# are not single values cannot be sorted by, since `order()` fails on a list and
+# would sort a matrix cell by cell.
 table_order <- function(result, cols, sort) {
 
   if (!length(sort)) {
@@ -211,8 +215,13 @@ table_rows <- function(x) {
   )
 }
 
-# The cells of a column, as values that JSON can carry. A column is turned into
-# such values only once, and a column of them stays as it is.
+# The cells of a column, as JSON can carry them and R prints them. The JSON
+# writer writes numbers, strings, logicals, factors, dates and missing values
+# so already. Two cases need more. A cell that is not a single value shows its
+# summary, and a value of another class shows the text that `format()` gives.
+# The writer fails on some of these, such as a model in a list cell or a
+# complex number, and writes others unlike R prints them, such as a time in UTC
+# or a duration without its unit.
 table_cells <- function(x) {
 
   if (is.data.frame(x) || is.array(x)) {
@@ -225,41 +234,25 @@ table_cells <- function(x) {
     return(lapply(unname(unclass(x)), table_cell))
   }
 
-  if (is.factor(x)) {
-    return(as.character(x))
+  if (is.factor(x) || inherits(x, "Date") ||
+        !(is.object(x) || is.complex(x) || is.raw(x))) {
+    return(x)
   }
 
-  if (is.object(x)) {
-    res <- trimws(format(x))
-    res[is.na(x)] <- NA_character_
-    return(res)
-  }
+  res <- trimws(format(x))
+  res[is.na(x)] <- NA_character_
 
-  if (is.double(x) && any(is_special_number(x))) {
-    return(lapply(as.vector(x), table_cell))
-  }
-
-  if (is.complex(x) || is.raw(x)) {
-    return(as.character(x))
-  }
-
-  as.vector(x)
+  res
 }
 
+# A cell of a list-column: a single number, string or logical as it is, and
+# anything else as its summary.
 table_cell <- function(x) {
 
-  if (!is.atomic(x) || length(x) != 1L || is.object(x) ||
-        !typeof(x) %in% c("logical", "integer", "double", "character")) {
-    return(result_summary(x))
+  if (is.atomic(x) && length(x) == 1L && !is.object(x) &&
+        typeof(x) %in% c("logical", "integer", "double", "character")) {
+    return(x)
   }
 
-  if (is_special_number(x)) {
-    return(as.character(x))
-  }
-
-  x
-}
-
-is_special_number <- function(x) {
-  is.double(x) & (is.infinite(x) | is.nan(x))
+  result_summary(x)
 }

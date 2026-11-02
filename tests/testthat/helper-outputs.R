@@ -53,11 +53,11 @@ output_fixture_values <- function() {
         ),
         output_sample(
           paste(
-            "Cells of many kinds: an infinite number and NaN as their names,",
-            "a factor as its labels, a date and a time as format() gives",
-            "them, a list-column as a summary of each cell that is not a",
-            "single value, and names that R would change, such as 2019 and a",
-            "name that repeats."
+            "Cells of many kinds: an infinite number and NaN as null, which",
+            "JSON cannot hold, a factor as its labels, a date and a time as R",
+            "prints them, a list-column as a summary of each cell that is not",
+            "a single value, and names that R would change, such as 2019 and",
+            "a name that repeats."
           ),
           as_table_output,
           output_fixture_cells(),

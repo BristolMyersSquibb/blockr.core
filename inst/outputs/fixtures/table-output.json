@@ -129,7 +129,7 @@
       }
     },
     {
-      "description": "Cells of many kinds: an infinite number and NaN as their names, a factor as its labels, a date and a time as format() gives them, a list-column as a summary of each cell that is not a single value, and names that R would change, such as 2019 and a name that repeats.",
+      "description": "Cells of many kinds: an infinite number and NaN as null, which JSON cannot hold, a factor as its labels, a date and a time as R prints them, a list-column as a summary of each cell that is not a single value, and names that R would change, such as 2019 and a name that repeats.",
       "options": {
         "n_rows": 50
       },
@@ -192,7 +192,7 @@
             "<integer> [3]"
           ],
           [
-            "Inf",
+            null,
             null,
             false,
             null,
@@ -204,7 +204,7 @@
             "one"
           ],
           [
-            "-Inf",
+            null,
             3,
             null,
             "c",
@@ -216,7 +216,7 @@
             "<NULL>"
           ],
           [
-            "NaN",
+            null,
             4,
             true,
             "d",

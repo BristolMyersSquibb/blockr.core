@@ -11,7 +11,7 @@ test_that("a table output holds columns, a page of rows and a total", {
   )
 
   expect_s3_class(out, c("table_output", "block_output"), exact = TRUE)
-  expect_identical(out$rows$y, c("a", "b"))
+  expect_identical(out$rows$y, factor(c("a", "b")))
 
   expect_identical(
     table_json(out),
@@ -214,11 +214,15 @@ test_that("a table output's cells hold values that JSON can carry", {
 
   expect_identical(
     json$rows[[2L]][c(1L, 2L, 4L, 6L, 9L)],
-    list("Inf", NULL, NULL, NULL, "one")
+    list(NULL, NULL, NULL, NULL, "one")
   )
 
+  # JSON holds no infinite number or NaN, so they become null, as NA does.
   expect_identical(lapply(json$rows, `[[`, 1L),
-                   list(1.5, "Inf", "-Inf", "NaN", NULL))
+                   list(1.5, NULL, NULL, NULL, NULL))
+
+  # A factor's missing value is null too.
+  expect_null(json$rows[[3L]][[5L]])
 
   expect_identical(lapply(json$rows, `[[`, 9L),
                    list("<integer> [3]", "one", "<NULL>",
@@ -230,13 +234,28 @@ test_that("a table output's cells hold values that JSON can carry", {
 
 test_that("a table's cells are turned into JSON values only once", {
 
-  df <- data.frame(x = c(1, Inf))
+  df <- data.frame(
+    t = as.POSIXct("2024-01-31 12:30:00", tz = "Europe/Berlin") + 0:1
+  )
   df$l <- list(1:2, "a")
 
   out <- as_table_output(df)
   again <- new_table_output(out$columns, out$rows, out$total)
 
   expect_identical(again$rows, out$rows)
+})
+
+test_that("a table output shows values of other classes as R prints them", {
+
+  df <- data.frame(
+    time = as.POSIXct("2024-01-31 12:30:00", tz = "Europe/Berlin"),
+    wait = as.difftime(3, units = "days"),
+    byte = as.raw(10)
+  )
+
+  json <- read_json_strictly(table_json(as_table_output(df)))
+
+  expect_identical(json$rows[[1L]], c("2024-01-31 12:30:00", "3 days", "0a"))
 })
 
 test_that("a table output keeps names that R would change", {

@@ -58,10 +58,10 @@ board option \code{n_rows} gives. The rows are sorted by the column that
 is \code{TRUE}. Asking for a page past the last one is an error, so that the
 renderer asks again.
 
-The rows hold values that JSON can carry. A number, a string or a logical
-stays as it is, and a missing value becomes \code{null}. An infinite number and
-\code{NaN} show as their names, such as \code{"Inf"}. A factor shows its labels. A
-column of another class, such as a date, shows the text that \code{\link[=format]{format()}}
+The rows hold values as JSON carries them. Numbers, strings, logicals,
+factors and dates are written as R prints them. A missing value becomes
+\code{null}, and so do an infinite number and \code{NaN}, which JSON cannot hold. A
+value of another class, such as a time, shows the text that \code{\link[=format]{format()}}
 gives. A list-column shows each cell that is a single number, string or
 logical as it is. Any other cell shows as a summary, as \code{\link[=result_summary]{result_summary()}}
 gives it, such as \verb{<lm>} or \verb{<data.frame> [3 × 2]}. The same goes for each
