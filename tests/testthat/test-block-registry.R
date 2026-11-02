@@ -123,7 +123,10 @@ test_that("registration reads the schema the module ships", {
 
   writeLines("export default {};", file.path(dir, "head.js"))
   writeLines(
-    '{"type": "object", "properties": {"n": {"type": "integer"}}}',
+    paste(
+      '{"type": "object", "properties": {"n": {"type": "integer"}},',
+      '"required": ["n"]}'
+    ),
     file.path(dir, "head.schema.json")
   )
 
@@ -140,10 +143,16 @@ test_that("registration reads the schema the module ships", {
 
   expect_identical(
     entry$schema,
-    structure(
-      '{"type": "object", "properties": {"n": {"type": "integer"}}}',
-      class = "json"
+    list(
+      type = "object",
+      properties = list(n = list(type = "integer")),
+      required = I("n")
     )
+  )
+
+  expect_identical(
+    unclass(encode_message(entry$schema)),
+    '{"type":"object","properties":{"n":{"type":"integer"}},"required":["n"]}'
   )
 
   writeLines(
