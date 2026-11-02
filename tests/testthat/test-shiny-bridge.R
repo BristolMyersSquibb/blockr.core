@@ -1,15 +1,28 @@
 test_that("the bridge starts a session that the page may start anew", {
 
+  withr::local_options(shiny.maxRequestSize = NULL)
+
   session <- with_bridge(function(message, send) NULL)
 
   expect_true(session$reconnect)
 
   expect_identical(
-    bridge_sent(session),
-    paste0('{"upload":"session/mock/dataobj/blockr-bodies?w=&nonce=0"}')
+    decode_message(bridge_sent(session)),
+    list(
+      upload = "session/mock/dataobj/blockr-bodies?w=&nonce=0",
+      max_request_size = 5 * 1024^2
+    )
   )
   expect_s3_class(session$sent[[1L]][["message"]], "json")
   expect_identical(session$sent[[1L]][["type"]], "blockr")
+
+  # Shiny takes a body of any size where its limit is 0.
+  withr::local_options(shiny.maxRequestSize = 0)
+
+  expect_named(
+    decode_message(bridge_sent(with_bridge(function(message, send) NULL))),
+    "upload"
+  )
 })
 
 test_that("the bridge hands each message the client sends to the handler", {

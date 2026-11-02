@@ -171,11 +171,11 @@ test_that("the bridge carries messages and bodies between a page and R", {
   expect_identical(res$reply$value$type, list("application/octet-stream"))
   expect_identical(res$reply$value$name, list())
 
-  # Shiny refuses a body over shiny.maxRequestSize, here 1.5 MiB.
+  # A body over shiny.maxRequestSize, here 1.5 MiB, the client refuses itself.
   res <- page_eval(page, "bridge.upload(2000000)")
 
   expect_identical(res$error, "Error")
-  expect_match(res$message, "Maximum upload size exceeded")
+  expect_match(res$message, "larger than the 1572864 bytes that R takes")
 
   # The server ends the session, which loses what waited on it, and the page
   # starts a new one, which R does not end again with the message that Shiny

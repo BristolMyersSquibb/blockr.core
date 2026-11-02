@@ -37,7 +37,7 @@ function shinyChannel(options = {}) {
           }
         } else if (isSessionStart(message)) {
           session += 1;
-          upload = message.upload;
+          upload = message;
           listener.started();
         }
       });
@@ -107,7 +107,13 @@ async function post(fetcher, upload, id, body) {
   if (upload === null) {
     throw new Error("No session runs that a body could be posted to.");
   }
-  const url = `${upload}${upload.includes("?") ? "&" : "?"}id=${encodeURIComponent(id)}`;
+  const max = upload.max_request_size;
+  if (max !== void 0 && body.size > max) {
+    throw new Error(
+      `The body of request ${id}, of ${String(body.size)} bytes, is larger than the ${String(max)} bytes that R takes.`
+    );
+  }
+  const url = `${upload.upload}${upload.upload.includes("?") ? "&" : "?"}id=${encodeURIComponent(id)}`;
   const response = await fetcher(url, {
     method: "POST",
     body,

@@ -273,6 +273,20 @@ describe("the Shiny bridge", () => {
     expect(p.inputs).toEqual([]);
   });
 
+  test("refuses a body larger than Shiny takes, posting nothing", async () => {
+    const p = page();
+    p.deliver({ upload, max_request_size: 2 });
+
+    await expect(
+      p.channel.send([{ ...evaluate, id: "41" }], new Map([["41", new Blob(["xyz"])]])),
+    ).rejects.toThrow("The body of request 41, of 3 bytes, is larger than the 2 bytes that R takes.");
+    expect(p.fetched).toEqual([]);
+    expect(p.inputs).toEqual([]);
+
+    await p.channel.send([{ ...evaluate, id: "42" }], new Map([["42", new Blob(["xy"])]]));
+    expect(p.fetched).toHaveLength(1);
+  });
+
   test("sends nothing whose session ended while its body went", async () => {
     let respond: (response: Response) => void = () => undefined;
     const p = page(

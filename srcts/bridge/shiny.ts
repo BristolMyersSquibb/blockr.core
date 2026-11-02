@@ -6,9 +6,10 @@
 // messages, so leaving it later replaces these two files and nothing else.
 //
 // R starts each session with a message of the bridge's own, an object rather
-// than an array, which gives the URL that the client posts request bodies to,
-// so that the bridge has to listen before Shiny connects, as core does when the
-// page starts. A session ends when Shiny's websocket closes, which Shiny's
+// than an array, which gives the URL that the client posts request bodies to
+// and the largest body that Shiny takes there, in `max_request_size`, so that
+// the bridge has to listen before Shiny connects, as core does when the page
+// starts. A session ends when Shiny's websocket closes, which Shiny's
 // shiny:disconnected event on the document says.
 //
 // R carries a reply's body in its message, as base64 in the body's `data`, or
@@ -76,10 +77,10 @@ export function shinyChannel(options: ShinyChannelOptions = {}): Channel {
   const fetcher = options.fetch ?? window.fetch.bind(window);
   const onDisconnected = options.onDisconnected ?? disconnected(page.jQuery);
 
-  // The URL that R gives the session for request bodies, and a count of the
-  // sessions started and ended, so that a message whose body outlived its
-  // session goes nowhere.
-  let upload: string | null = null;
+  // What R gives the session for request bodies, and a count of the sessions
+  // started and ended, so that a message whose body outlived its session goes
+  // nowhere.
+  let upload: SessionStart | null = null;
   let session = 0;
 
   return {
@@ -113,7 +114,7 @@ export function shinyChannel(options: ShinyChannelOptions = {}): Channel {
           }
         } else if (isSessionStart(message)) {
           session += 1;
-          upload = message.upload;
+          upload = message;
           listener.started();
         }
       });
@@ -139,7 +140,14 @@ function disconnected(
   };
 }
 
-function isSessionStart(message: unknown): message is { upload: string } {
+// The bridge's message that starts a session, where Shiny limits the size of
+// a request with its option shiny.maxRequestSize.
+interface SessionStart {
+  upload: string;
+  max_request_size?: number;
+}
+
+function isSessionStart(message: unknown): message is SessionStart {
   return (
     typeof message === "object" &&
     message !== null &&
@@ -218,7 +226,7 @@ async function fetchBody(
 
 async function post(
   fetcher: typeof fetch,
-  upload: string | null,
+  upload: SessionStart | null,
   id: string,
   body: Blob,
 ): Promise<void> {
@@ -226,7 +234,16 @@ async function post(
     throw new Error("No session runs that a body could be posted to.");
   }
 
-  const url = `${upload}${upload.includes("?") ? "&" : "?"}id=${encodeURIComponent(id)}`;
+  // As Shiny refuses it, by its size, which the browser may not hear of if
+  // Shiny ends the connection while the browser still sends the body.
+  const max = upload.max_request_size;
+  if (max !== undefined && body.size > max) {
+    throw new Error(
+      `The body of request ${id}, of ${String(body.size)} bytes, is larger than the ${String(max)} bytes that R takes.`,
+    );
+  }
+
+  const url = `${upload.upload}${upload.upload.includes("?") ? "&" : "?"}id=${encodeURIComponent(id)}`;
 
   const response = await fetcher(url, {
     method: "POST",

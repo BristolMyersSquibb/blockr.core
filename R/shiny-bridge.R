@@ -57,7 +57,7 @@ shiny_bridge <- function(handler, session = shiny::getDefaultReactiveDomain()) {
   # the URL that it posts request bodies to.
   session$sendCustomMessage(
     "blockr",
-    json_str(list(upload = upload), auto_unbox = TRUE)
+    json_str(session_start(upload), auto_unbox = TRUE)
   )
 
   shiny::observeEvent(
@@ -67,6 +67,22 @@ shiny_bridge <- function(handler, session = shiny::getDefaultReactiveDomain()) {
   )
 
   invisible()
+}
+
+# The bridge's message that starts a session on the client, with the URL that
+# the client posts request bodies to and, where Shiny limits a request's size,
+# the limit, so that the client refuses a larger body itself, where a refusal
+# from Shiny can reach the browser as a connection that was reset while the
+# browser still sent the body.
+session_start <- function(upload) {
+
+  max <- getOption("shiny.maxRequestSize", 5 * 1024^2)
+
+  if (is.numeric(max) && max > 0) {
+    return(list(upload = upload, max_request_size = max))
+  }
+
+  list(upload = upload)
 }
 
 receive_message <- function(text, handler, send, bodies) {
