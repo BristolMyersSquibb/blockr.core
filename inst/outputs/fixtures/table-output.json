@@ -1,0 +1,282 @@
+{
+  "description": "Sample table outputs, as the method of as_table_output() for data frames makes them, with the renderer that core declares for table outputs.",
+  "outputs": [
+    {
+      "description": "The second page of the first seven rows of iris, at three rows to a page, as the board option n_rows gives.",
+      "options": {
+        "n_rows": 3
+      },
+      "params": {
+        "page": 2
+      },
+      "output": {
+        "renderer": "blockr.core-basic_table",
+        "columns": [
+          {
+            "name": "Sepal.Length",
+            "class": "numeric"
+          },
+          {
+            "name": "Sepal.Width",
+            "class": "numeric"
+          },
+          {
+            "name": "Petal.Length",
+            "class": "numeric"
+          },
+          {
+            "name": "Petal.Width",
+            "class": "numeric"
+          },
+          {
+            "name": "Species",
+            "class": "factor"
+          }
+        ],
+        "rows": [
+          [
+            4.6,
+            3.1,
+            1.5,
+            0.2,
+            "setosa"
+          ],
+          [
+            5.0,
+            3.6,
+            1.4,
+            0.2,
+            "setosa"
+          ],
+          [
+            5.4,
+            3.9,
+            1.7,
+            0.4,
+            "setosa"
+          ]
+        ],
+        "total": 7
+      }
+    },
+    {
+      "description": "The last page of airquality, sorted by Ozone from the largest, at fifty rows to a page, where the rows without Ozone come last and a missing value is null.",
+      "options": {
+        "n_rows": 50
+      },
+      "params": {
+        "page": 4,
+        "sort": {
+          "column": "Ozone",
+          "desc": true
+        }
+      },
+      "output": {
+        "renderer": "blockr.core-basic_table",
+        "columns": [
+          {
+            "name": "Ozone",
+            "class": "integer"
+          },
+          {
+            "name": "Solar.R",
+            "class": "integer"
+          },
+          {
+            "name": "Wind",
+            "class": "numeric"
+          },
+          {
+            "name": "Temp",
+            "class": "integer"
+          },
+          {
+            "name": "Month",
+            "class": "integer"
+          },
+          {
+            "name": "Day",
+            "class": "integer"
+          }
+        ],
+        "rows": [
+          [
+            null,
+            255,
+            12.6,
+            75,
+            8,
+            23
+          ],
+          [
+            null,
+            153,
+            5.7,
+            88,
+            8,
+            27
+          ],
+          [
+            null,
+            145,
+            13.2,
+            77,
+            9,
+            27
+          ]
+        ],
+        "total": 153
+      }
+    },
+    {
+      "description": "Cells of many kinds: an infinite number and NaN as their names, a factor as its labels, a date and a time as format() gives them, a list-column as a summary of each cell that is not a single value, a column with a label, and names that R would change, such as 2019 and a name that repeats.",
+      "options": {
+        "n_rows": 50
+      },
+      "params": {},
+      "output": {
+        "renderer": "blockr.core-basic_table",
+        "columns": [
+          {
+            "name": "number",
+            "class": "numeric",
+            "label": "A number with a label"
+          },
+          {
+            "name": "count",
+            "class": "integer"
+          },
+          {
+            "name": "flag",
+            "class": "logical"
+          },
+          {
+            "name": "text",
+            "class": "character"
+          },
+          {
+            "name": "level",
+            "class": "factor"
+          },
+          {
+            "name": "date",
+            "class": "Date"
+          },
+          {
+            "name": "time",
+            "class": "POSIXct"
+          },
+          {
+            "name": "2019",
+            "class": "integer"
+          },
+          {
+            "name": "text",
+            "class": "character"
+          },
+          {
+            "name": "cells",
+            "class": "list"
+          }
+        ],
+        "rows": [
+          [
+            1.5,
+            1,
+            true,
+            "a",
+            "low",
+            "2024-01-31",
+            "2024-01-31 12:30:00",
+            1,
+            "v",
+            "<integer> [3]"
+          ],
+          [
+            "Inf",
+            null,
+            false,
+            null,
+            "high",
+            null,
+            "2024-01-31 13:30:00",
+            2,
+            "w",
+            "one"
+          ],
+          [
+            "-Inf",
+            3,
+            null,
+            "c",
+            null,
+            "2024-02-02",
+            "2024-01-31 14:30:00",
+            3,
+            "x",
+            "<NULL>"
+          ],
+          [
+            "NaN",
+            4,
+            true,
+            "d",
+            "low",
+            "2024-02-03",
+            "2024-01-31 15:30:00",
+            4,
+            "y",
+            "<data.frame> [6 × 2]"
+          ],
+          [
+            null,
+            5,
+            true,
+            "e",
+            "high",
+            "2024-02-04",
+            "2024-01-31 16:30:00",
+            5,
+            "z",
+            "<lm>"
+          ]
+        ],
+        "total": 5
+      }
+    },
+    {
+      "description": "A table without rows, which has one page, holding no rows.",
+      "options": {
+        "n_rows": 50
+      },
+      "params": {},
+      "output": {
+        "renderer": "blockr.core-basic_table",
+        "columns": [
+          {
+            "name": "Sepal.Length",
+            "class": "numeric"
+          },
+          {
+            "name": "Sepal.Width",
+            "class": "numeric"
+          },
+          {
+            "name": "Petal.Length",
+            "class": "numeric"
+          },
+          {
+            "name": "Petal.Width",
+            "class": "numeric"
+          },
+          {
+            "name": "Species",
+            "class": "factor"
+          }
+        ],
+        "rows": [],
+        "total": 0
+      }
+    }
+  ]
+}

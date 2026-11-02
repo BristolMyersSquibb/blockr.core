@@ -196,6 +196,8 @@ An `output` asks for the output that the coercion its block's class names in `ou
 
 R replies `ok` with the output in `output`, a description in JSON whose `renderer` names the renderer R picked for the most specific class in the output's class vector that has one, which the client mounts to draw it ([Renderers](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#renderers)), and whose other fields its output class's contract gives, with at most one binary body, such as a plot's PNG beside its output. A coercion that fails makes R reply `error`, with the phase `output`, which leaves the block's status as it was.
 
+The contracts of core's output classes, for tables, text and plots, are their TypeScript types in [`srcts/types/outputs.ts`](../../srcts/types/outputs.ts). The build generates the JSON Schema of each class's outputs from its type, into [`inst/outputs`](../outputs/), and R writes the outputs by it. Sample outputs of each class, which every renderer of the class is tested on, are in [`inst/outputs/fixtures`](../outputs/fixtures/).
+
 ## Binary bodies
 
 Any reply may come with one binary body, such as a plot's PNG beside its output, or a file that a request answers with, as a download does, and a request may carry one, as an upload action does, or a chart's bitmap for its download. The reply or request announces it in `body`, with its MIME type and, for a download, a file name, as `{ "type": "image/png" }` or `{ "type": "text/csv", "name": "sales.csv" }`, and the bytes travel beside the message, as the Shiny bridge carries them, so that no message depends on how.
