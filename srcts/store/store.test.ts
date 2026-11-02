@@ -13,7 +13,6 @@ import type {
   OpenReply,
   Reply,
 } from "../protocol/messages.ts";
-import type { Transport } from "../protocol/transport.ts";
 import type { Block, Board, OpeningBoard, SavedBoard } from "../types/board.ts";
 import { ROUNDS } from "./expand.ts";
 import { createStore, isId, sentenceCase, StoreError } from "./index.ts";
@@ -24,6 +23,7 @@ import type {
   Option,
   StateKey,
   Store,
+  StoreOptions,
 } from "./index.ts";
 
 // The DAG keeps a position for each block in the front-end's state, as a
@@ -59,15 +59,16 @@ const hello = reply("hello") as HelloReply;
 const loaded = reply("open") as OpenReply;
 
 // R, as the fixtures give its replies, which records what the store sent.
-type Sent = Parameters<Transport["send"]>[0];
+type Client = StoreOptions["client"];
+type Sent = Parameters<Client["request"]>[0];
 
-function fakeR(answer: Reply = loaded): Transport & { sent: Sent[] } {
+function fakeR(answer: Reply = loaded): Client & { sent: Sent[] } {
   const sent: Sent[] = [];
   return {
     sent,
-    send(request) {
+    request(request) {
       sent.push(request);
-      return Promise.resolve(answer);
+      return Promise.resolve({ reply: answer, body: null });
     },
   };
 }
@@ -119,18 +120,18 @@ const positions: StateKey = {
       .map((id) => `There is no block "${id}" to place.`),
 };
 
-function newStore(transport: Transport = fakeR()): Store {
-  const store = createStore({ transport });
+function newStore(client: Client = fakeR()): Store {
+  const store = createStore({ client });
   for (const option of coreOptions) store.options.register(option);
   return store;
 }
 
 async function opened(
   setup?: (store: Store) => void,
-  transport: Transport = fakeR(),
+  client: Client = fakeR(),
   replied: HelloReply = hello,
 ): Promise<Store> {
-  const store = newStore(transport);
+  const store = newStore(client);
   setup?.(store);
   await store.open(replied);
   return store;
@@ -224,18 +225,18 @@ describe("opening a board", () => {
   });
 
   test("opens the saved file that serve() was given without asking R again", async () => {
-    const transport = fakeR();
-    const store = newStore(transport);
+    const client = fakeR();
+    const store = newStore(client);
     await store.open(reply("hello-file") as HelloReply);
 
-    expect(transport.sent).toEqual([]);
+    expect(client.sent).toEqual([]);
     expect(store.board().id).toBe("amber_tapir");
     expect(Object.keys(store.board().links)).toEqual(["ab"]);
   });
 
   test("has R load the packages a saved file names, and drops the blocks whose class the block registry lacks", async () => {
-    const transport = fakeR();
-    const store = await opened(undefined, transport);
+    const client = fakeR();
+    const store = await opened(undefined, client);
     const seen = changes(store);
 
     const dropped = await store.open(
@@ -261,7 +262,7 @@ describe("opening a board", () => {
       ),
     );
 
-    expect(transport.sent).toEqual([{ kind: "open", packages: ["blockr.core", "blockr.dplyr"] }]);
+    expect(client.sent).toEqual([{ kind: "open", packages: ["blockr.core", "blockr.dplyr"] }]);
     expect(store.blockRegistry()).toBe(loaded.block_registry);
     expect(store.packages()).toBe(loaded.packages);
     expect(dropped).toEqual([
@@ -328,7 +329,7 @@ describe("opening a board", () => {
     } as HelloReply;
     const order: string[] = [];
     const store = createStore({
-      transport: fakeR(),
+      client: fakeR(),
       loaded(reply, frontEnd) {
         order.push(`loaded ${frontEnd}`);
         expect(reply).toBe(replied);

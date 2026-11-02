@@ -12,8 +12,9 @@ import { signal } from "@preact/signals-core";
 import type {
   HelloReply,
   OpenReply,
+  OpenRequest,
+  Reply,
 } from "../protocol/messages.ts";
-import type { Transport } from "../protocol/transport.ts";
 import type {
   BlockId,
   Board,
@@ -91,8 +92,12 @@ export interface Store {
 }
 
 export interface StoreOptions {
-  // What the store sends R the `open` of a saved file through.
-  readonly transport: Transport;
+  // What the store sends R the `open` of a saved file through: the client of
+  // the wire protocol, which gives a request its id and resolves with R's
+  // reply to it.
+  readonly client: {
+    request(request: Omit<OpenRequest, "id">): Promise<{ readonly reply: Reply }>;
+  };
   // What has to run once R has loaded the packages that a board names and
   // before the store opens it, given R's reply and the front-end the board
   // opens with: initializing the startup modules of the packages R loaded,
@@ -345,7 +350,7 @@ export function createStore(options: StoreOptions): Store {
 
     if (typeof saved === "string") {
       file = checkFile(parse(saved));
-      const answer = await options.transport.send({
+      const { reply: answer } = await options.client.request({
         kind: "open",
         packages: Object.keys(file.packages),
       });
