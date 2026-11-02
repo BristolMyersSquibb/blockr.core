@@ -4,7 +4,7 @@
     "basic",
     js_module("js/basic.js"),
     class = "board",
-    options = default_board_options
+    options = list(new_show_conditions_option)
   )
 
   invisible(NULL)

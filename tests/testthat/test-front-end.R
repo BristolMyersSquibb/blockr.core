@@ -8,7 +8,7 @@ test_that("core declares its basic front-end for boards", {
 
   expect_identical(
     names(front_end_options("blockr.core-basic")),
-    names(default_board_options())
+    "show_conditions"
   )
 
   expect_identical(board_front_end(new_board()), "blockr.core-basic")
