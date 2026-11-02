@@ -39,7 +39,6 @@ new_rbind_block <- function(...) {
         }
       )
     },
-    expr_type = "bquoted",
     class = "rbind_block",
     ...
   )

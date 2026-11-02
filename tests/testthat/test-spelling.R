@@ -6,22 +6,24 @@ test_that("block metadata spelling", {
   # Registry metadata never reaches man/: `@blockDescr`, `@blockGuidance` and
   # `@blockArg` text is read by registry consumers only, so the package-level
   # check in tests/spelling.R cannot see it.
-  prose <- function(id) {
+  prose <- function(entry) {
     c(
-      block_meta_name(id),
-      block_meta_description(id),
-      block_meta_details(id),
-      block_meta_guidance(id),
-      chr_ply(block_meta_arguments(id), arg_spec_description)
+      entry[["name"]],
+      entry[["description"]],
+      entry[["details"]],
+      entry[["guidance"]],
+      unlist(lst_xtr(entry[["arguments"]], "description"))
     )
   }
 
-  ids <- list_blocks()
+  entries <- yaml::read_yaml(
+    system.file("registry", "blocks.yml", package = "blockr.core")
+  )
 
-  expect_gt(length(ids), 0L)
+  expect_gt(length(entries), 0L)
 
   file <- withr::local_tempfile(fileext = ".md")
-  writeLines(unlist(lapply(ids, prose)), file)
+  writeLines(unlist(lapply(entries, prose)), file)
 
   words <- spelling::spell_check_files(
     file,

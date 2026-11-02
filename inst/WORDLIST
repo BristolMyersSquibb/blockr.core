@@ -16,6 +16,8 @@ arity
 attr
 blockr
 browsable
+covr
+covr's
 cran
 csv
 ctrl
@@ -59,6 +61,7 @@ ser
 shiny's
 srcref
 subclass's
+testthat
 tibble
 uid
 unbuilt

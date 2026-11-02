@@ -101,9 +101,10 @@ worked \code{example}, and an optional machine-readable \code{type}), collected 
 empty \code{character()}, are also accepted and normalized into this form, so
 existing specifications are unaffected. A single argument's fields are read
 back with \code{arg_spec_description()}, \code{arg_spec_example()} and
-\code{arg_spec_type()}. Blocks are the primary consumer -- a block's constructor
-arguments are specified via the \code{arguments} parameter of \code{\link[=register_block]{register_block()}}
-and tabulated across blocks via \code{\link[=block_metadata]{block_metadata()}} -- but nothing here is
+\code{arg_spec_type()}. Blocks are the primary consumer -- a block class's state
+args are specified via the \code{arguments} parameter of \code{\link[=register_block]{register_block()}},
+which defaults to a specification of every state arg without a description,
+and kept in its entry in the block registry -- but nothing here is
 block-specific, and the same machinery documents the named formals of any
 constructor.
 }

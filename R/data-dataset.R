@@ -95,7 +95,6 @@ new_dataset_block <- function(dataset = character(), package = "datasets",
       )
     },
     class = "dataset_block",
-    external_ctrl = "dataset",
     ...
   )
 }

@@ -86,7 +86,6 @@ test_that("serialization", {
         tagList()
       },
       class = "identity_block",
-      block_metadata = list(),
       ...
     )
   }

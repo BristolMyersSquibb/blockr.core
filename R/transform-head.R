@@ -84,7 +84,6 @@ new_head_block <- function(n = 6L, direction = c("head", "tail"), ...) {
     dat_val = function(data) {
       stopifnot(is.data.frame(data))
     },
-    expr_type = "bquoted",
     class = "head_block",
     ...
   )

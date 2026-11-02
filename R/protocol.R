@@ -9,15 +9,28 @@ protocol_version <- function() "1.0"
 # is read as a double, and no array of objects becomes a data frame and no array
 # of arrays a matrix, so that nothing becomes code by being decoded.
 decode_message <- function(x) {
-  yyjsonr::read_json_str(
-    x,
-    opts = yyjsonr::opts_read_json(
-      obj_of_arrs_to_df = FALSE,
-      arr_of_objs_to_df = FALSE,
-      arr_of_arrs_to_matrix = FALSE,
-      int64 = "double",
-      num_specials = "string"
-    )
+  yyjsonr::read_json_str(x, opts = json_read_opts())
+}
+
+# Decodes the JSON Schema that a module ships beside it as a message decodes,
+# but for an array of length one, which is marked with `I()`, so that
+# `encode_message()` writes the schema back as the module ships it, as R sends
+# it with the class's entry in the block registry.
+decode_schema <- function(path) {
+  yyjsonr::read_json_file(
+    path,
+    opts = json_read_opts(length1_array_asis = TRUE)
+  )
+}
+
+json_read_opts <- function(...) {
+  yyjsonr::opts_read_json(
+    obj_of_arrs_to_df = FALSE,
+    arr_of_objs_to_df = FALSE,
+    arr_of_arrs_to_matrix = FALSE,
+    int64 = "double",
+    num_specials = "string",
+    ...
   )
 }
 
@@ -38,11 +51,12 @@ encode_answer <- function(x) {
   json_str(x, auto_unbox = FALSE)
 }
 
-json_str <- function(x, auto_unbox) {
+json_str <- function(x, auto_unbox, pretty = FALSE) {
   structure(
     yyjsonr::write_json_str(
       x,
       opts = yyjsonr::opts_write_json(
+        pretty = pretty,
         auto_unbox = auto_unbox,
         json_verbatim = TRUE
       )

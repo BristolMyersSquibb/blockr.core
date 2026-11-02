@@ -33,8 +33,8 @@ export interface RegistryEntry {
   requests: Record<
     string,
     {
-      // The data inputs, state args and board options that its function
-      // names, which R binds, as the host fills in the state args.
+      // The data inputs and state args that its function names and the board
+      // options it reads, which R binds, as the host fills in the state args.
       inputs: string[];
       state_args: string[];
       options: OptionId[];

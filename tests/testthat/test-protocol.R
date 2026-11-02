@@ -77,6 +77,27 @@ test_that("the client's JSON decodes as the protocol document has it", {
   expect_identical(decoded("\"~~a\""), "~~a")
 })
 
+test_that("a schema decodes as a message does, but for arrays of length one", {
+
+  path <- withr::local_tempfile(fileext = ".json")
+
+  writeLines(
+    '{"type": "object", "required": ["n"], "enum": ["a", "b"], "items": {}}',
+    path
+  )
+
+  schema <- decode_schema(path)
+
+  expect_identical(schema$type, "object")
+  expect_identical(schema$required, I("n"))
+  expect_identical(schema$enum, c("a", "b"))
+
+  expect_identical(
+    unclass(encode_message(schema)),
+    '{"type":"object","required":["n"],"enum":["a","b"],"items":{}}'
+  )
+})
+
 test_that("R writes an answer with every vector as an array", {
 
   expect_identical(unclass(encode_answer(150L)), "[150]")

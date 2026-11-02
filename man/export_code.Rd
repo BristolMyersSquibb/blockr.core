@@ -4,17 +4,29 @@
 \alias{export_code}
 \title{Utilities for code export}
 \usage{
-export_code(expressions, board)
+export_code(x)
 }
 \arguments{
-\item{expressions}{Block expressions}
-
-\item{board}{Board object}
+\item{x}{Block expressions, a list named by block id}
 }
 \value{
-String containing properly arranged block expressions.
+A list of calls, each assigning a block expression to its block id,
+named by block id.
 }
 \description{
-To facilitate code export, this utility performs much of the heavy lifting
-to properly arrange and scope block-level expressions.
+A script holds each block expression assigned to its block id. Since every
+block expression holds the ids of the blocks upstream of it (see
+\code{\link[=interpolate]{interpolate()}}), \code{export_code()} needs no board: it assigns each block
+expression to its block id, in the order its caller gives, which puts every
+block after those it reads where the caller passes them in topological
+order, as \code{\link[=topo_sort]{topo_sort()}} gives it.
+}
+\examples{
+export_code(
+  list(
+    a = quote(datasets::BOD),
+    b = quote(utils::head(a, n = 3L))
+  )
+)
+
 }

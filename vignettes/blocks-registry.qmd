@@ -36,34 +36,10 @@ include_mermaid("registry")
 
 ## Previewing available blocks
 
-Upon loading, `{blockr}` __registers__ its internal __blocks__ with `register_core_blocks()`.
-You won't have to call this function as it is not exported anyway. This makes the __registry__ environment
-ready to be queried by `available_blocks()`. A truncated output example below:
-
-```{r, eval=FALSE}
-available_blocks()[["dataset_block"]]
-```
-
-```r
-function(dataset = character(), package = "datasets", ...) {
-  ...
-}
-<environment: namespace:blockr.core>
-attr(,"name")
-[1] "dataset block"
-attr(,"description")
-[1] "Choose a dataset from a package"
-attr(,"classes")
-[1] "dataset_block" "data_block"    "block"         "vctrs_vctr"    "list"         
-attr(,"category")
-[1] "input"
-attr(,"ctor_name")
-[1] "new_dataset_block"
-attr(,"package")
-[1] "blockr.core"
-attr(,"class")
-[1] "block_registry_entry"
-```
+Packages __register__ their __blocks__ when they load, and `available_blocks()`
+lists the __registry__'s entries by registry ID, which is `{pkg}-{name}` for a
+block registered by a package, such as `blockr.core-head_block`, and the name
+alone for one registered outside a package:
 
 ```{r, eval=TRUE}
 names(available_blocks())
@@ -79,27 +55,17 @@ the same ID is already registered, it errors unless you pass `overwrite = TRUE`.
 Note that, if you develop your block outside a package context, you must call `register_block` (or `register_blocks`)
 passing the constructor as a function and not as a string (see below).
 
-Let's say you want to create a new `new_dummy_block` which does nothing specific in the `./R/dummy-block.R` script:
+Let's say you want to create a new `new_dummy_block` which does nothing specific in the `./R/dummy-block.R` script. A block is an instance of a block class, made by `new_block_class()`, from which `block_constructor()` makes the constructor, and registration reads the class from the constructor:
 
 ```{r, eval=TRUE}
 # ./R/dummy-block.R
-new_dummy_block <- function(text = "Hello World", ...) {
-  new_data_block(
-    function(id) {
-      moduleServer(id, function(input, output, session) {
-        list(
-          expr = reactive(quote(text)),
-          state = list(text = text)
-        )
-      })
-    },
-    function(id) {
-      shiny::tagList()
-    },
-    class = "dummy_block",
-    ...
-  )
-}
+dummy_block <- new_block_class(
+  "dummy_block",
+  expr = function(text = "Hello World") bbquote(identity(.(text))),
+  ui = js_module("dummy-block.js")
+)
+
+new_dummy_block <- block_constructor(dummy_block)
 
 register_dummy_blocks <- function() {
   register_blocks(
@@ -165,4 +131,4 @@ unregister_blocks(uid = "dummy_block")
 names(available_blocks())
 ```
 
-where __uid__ is/are the block(s) class(s) passed in the constructor.
+Here __uid__ takes the registry IDs, as `list_blocks()` lists them.

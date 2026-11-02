@@ -61,7 +61,6 @@ new_csv_block <- function(sep = ",", quote = "\"", ...) {
         )
       )
     },
-    expr_type = "bquoted",
     class = "csv_block",
     ...
   )

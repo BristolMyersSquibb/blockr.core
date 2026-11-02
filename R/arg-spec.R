@@ -7,9 +7,10 @@
 #' empty `character()`, are also accepted and normalized into this form, so
 #' existing specifications are unaffected. A single argument's fields are read
 #' back with `arg_spec_description()`, `arg_spec_example()` and
-#' `arg_spec_type()`. Blocks are the primary consumer -- a block's constructor
-#' arguments are specified via the `arguments` parameter of [register_block()]
-#' and tabulated across blocks via [block_metadata()] -- but nothing here is
+#' `arg_spec_type()`. Blocks are the primary consumer -- a block class's state
+#' args are specified via the `arguments` parameter of [register_block()],
+#' which defaults to a specification of every state arg without a description,
+#' and kept in its entry in the block registry -- but nothing here is
 #' block-specific, and the same machinery documents the named formals of any
 #' constructor.
 #'
@@ -216,18 +217,21 @@ block_examples_list <- function(args, examples) {
   list(assembled)
 }
 
-validate_block_spec <- function(args, examples, obj, ctor, ctor_ref, ctor_pkg,
-                                check_names = TRUE) {
+default_arg_specs <- function(args) {
+  as_arg_specs(set_names(rep(list(new_arg_spec()), length(args)), args))
+}
 
-  inputs <- block_ctor_inputs(obj)
+validate_block_spec <- function(args, examples, cls, check_names = TRUE) {
+
+  state_args <- class_state_args(cls)
 
   if (check_names) {
 
-    unknown <- setdiff(names(args), inputs)
+    unknown <- setdiff(names(args), state_args)
 
     if (length(unknown)) {
       blockr_abort(
-        "Block argument(s) {unknown} are not constructor formals ({inputs}).",
+        "Block argument(s) {unknown} are not state args ({state_args}).",
         class = "block_arg_unknown"
       )
     }
@@ -247,11 +251,11 @@ validate_block_spec <- function(args, examples, obj, ctor, ctor_ref, ctor_pkg,
 
   for (cfg in block_examples_list(args, examples)) {
 
-    unknown <- setdiff(names(cfg), inputs)
+    unknown <- setdiff(names(cfg), state_args)
 
     if (length(unknown)) {
       blockr_abort(
-        "Example field(s) {unknown} are not constructor formals ({inputs}).",
+        "Example field(s) {unknown} are not state args ({state_args}).",
         class = "block_example_unknown"
       )
     }
@@ -269,20 +273,11 @@ validate_block_spec <- function(args, examples, obj, ctor, ctor_ref, ctor_pkg,
       }
     }
 
-    res <- try(
-      do.call(
-        ctor,
-        c(
-          cfg,
-          list(ctor = ctor_ref, ctor_pkg = ctor_pkg, block_metadata = FALSE)
-        )
-      ),
-      silent = TRUE
-    )
+    res <- try(do.call(cls[["expr"]], cfg, quote = TRUE), silent = TRUE)
 
     if (inherits(res, "try-error")) {
       blockr_abort(
-        "A registered block example does not construct: ",
+        "A registered block example does not run: ",
         "{conditionMessage(attr(res, 'condition'))}",
         class = "block_example_invalid"
       )
@@ -290,19 +285,6 @@ validate_block_spec <- function(args, examples, obj, ctor, ctor_ref, ctor_pkg,
   }
 
   invisible()
-}
-
-as_legacy_arguments <- function(args, guidance, examples_list) {
-
-  desc <- chr_ply(
-    args,
-    function(a) coal(a[["description"]], "", fail_all = FALSE)
-  )
-
-  example <- if (length(examples_list)) examples_list[[1L]] else NULL
-  prompt <- if (length(guidance)) paste(guidance, collapse = "\n\n") else NULL
-
-  structure(set_names(desc, names(args)), examples = example, prompt = prompt)
 }
 
 deprecate_legacy_arg_attrs <- function() {
