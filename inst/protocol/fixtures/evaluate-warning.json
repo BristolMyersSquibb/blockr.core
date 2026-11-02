@@ -20,7 +20,7 @@
         "status": "ok",
         "block": "d",
         "revision": 6,
-        "summary": "<data.frame> [3 × 5]",
+        "summary": "<df [3 × 5]>",
         "conditions": [
           {
             "severity": "warning",

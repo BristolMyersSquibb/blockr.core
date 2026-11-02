@@ -21,7 +21,10 @@
       }
     },
     "total": {
-      "type": "number"
+      "type": [
+        "number",
+        "null"
+      ]
     }
   },
   "required": [
@@ -38,9 +41,6 @@
           "type": "string"
         },
         "class": {
-          "type": "string"
-        },
-        "label": {
           "type": "string"
         }
       },

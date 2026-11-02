@@ -14,13 +14,12 @@ as_table_output(result, options = list(), info = list(), params = list(), ...)
 }
 \arguments{
 \item{columns}{The table's columns: a data frame with the character columns
-\code{name} and \code{class}, and optionally \code{label}, which is \code{NA} for a column
-without a label}
+\code{name} and \code{class}}
 
 \item{rows}{One page of the table's rows, as a data frame with a column for
 each of \code{columns}}
 
-\item{total}{The table's total row count}
+\item{total}{The table's total row count, or \code{NA} where it is unknown}
 
 \item{...}{For \code{new_table_output()}, further fields, which a subclass adds,
 and otherwise passed on to methods}
@@ -65,9 +64,13 @@ stays as it is, and a missing value becomes \code{null}. An infinite number and
 column of another class, such as a date, shows the text that \code{\link[=format]{format()}}
 gives. A list-column shows each cell that is a single number, string or
 logical as it is. Any other cell shows as a summary, as \code{\link[=result_summary]{result_summary()}}
-gives it, such as \verb{<lm>} or \verb{<data.frame> [3 × 2]}. The same goes for each
-row of a matrix or data frame column. Each column keeps its name, its first
-class and its label attribute, where it has one.
+gives it, such as \verb{<lm>} or \verb{<df [3 x 2]>}. The same goes for each row of a
+matrix or data frame column. Each column keeps its name and its first class.
+Row names are dropped, as tibble drops them.
+
+The total row count may be unknown, as for a lazy table, whose count would
+run its whole query. A renderer then shows no page count, and a page with
+fewer rows than a page holds is the last.
 }
 \examples{
 new_table_output(

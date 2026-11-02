@@ -89,8 +89,13 @@ how the block expression runs, never what it computes. Each evaluation
 environment is created by \code{eval_env()}.
 
 The \code{result_summary()} generic describes a result in a few words, such as
-\verb{<data.frame> [150 x 5]}, dispatching on the result's class, so that a
-package describes its results wherever they appear. The \code{block_migrate()}
+\verb{<df [150 x 5]>}, dispatching on the result's class, so that a package
+describes its results wherever they appear, such as in a block's header and
+in the cells of a table. Core's method describes a vector or a data frame
+as tibble does, through \code{\link[pillar:obj_sum]{pillar::obj_sum()}}, so that a package's methods
+for pillar apply too. It describes any other object by its class, such as
+\verb{<lm>}, since pillar shortens a class it has no method for, as \verb{<ggplt2::>}
+for a ggplot. The \code{block_migrate()}
 generic maps a state that an older version of the class's package saved to
 the current state, given that version, where \code{x} is the saved state with the
 class's class vector. Core's method leaves a state as it is.

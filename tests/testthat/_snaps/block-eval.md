@@ -5,7 +5,7 @@
     Output
       <block_evaluation> ok
       Block expression: utils::head(a, n = 2L)
-      Summary: <data.frame> [2 × 5]
+      Summary: <df [2 x 5]>
 
 ---
 

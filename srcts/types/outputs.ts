@@ -23,19 +23,19 @@ export interface TableOutput extends BlockOutput {
   columns: TableColumn[];
   // One page of rows, each in the order of columns. A cell holds the value as
   // JSON has it, a factor's label, the text R formats another class of value
-  // with, and for a list-column the summary of the cell, such as
-  // "<lm>" or "<data.frame> [3 × 2]".
+  // with, and for a list-column the summary of the cell, such as "<lm>" or
+  // "<df [3 × 2]>".
   rows: Json[][];
-  // The total row count.
-  total: number;
+  // The total row count, or null where it is unknown, as for a lazy table,
+  // whose count would run its whole query. The renderer then shows no page
+  // count, and a page with fewer rows than a page holds is the last.
+  total: number | null;
 }
 
 export interface TableColumn {
   name: string;
   // The column's first class in R, such as "numeric", "factor" or "list".
   class: string;
-  // The column's label attribute, where it has one, as ADaM data carry.
-  label?: string;
 }
 
 // The parameters that a renderer of table outputs keeps and the coercion reads.

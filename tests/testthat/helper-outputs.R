@@ -20,7 +20,7 @@ output_fixture <- function(name) {
 # outputs, each with what it was asked with.
 output_fixture_values <- function() {
 
-  withr::local_options(width = 80L)
+  withr::local_options(width = 80L, cli.unicode = TRUE)
 
   list(
     `table-output` = list(
@@ -56,8 +56,8 @@ output_fixture_values <- function() {
             "Cells of many kinds: an infinite number and NaN as their names,",
             "a factor as its labels, a date and a time as format() gives",
             "them, a list-column as a summary of each cell that is not a",
-            "single value, a column with a label, and names that R would",
-            "change, such as 2019 and a name that repeats."
+            "single value, and names that R would change, such as 2019 and a",
+            "name that repeats."
           ),
           as_table_output,
           output_fixture_cells(),
@@ -68,6 +68,16 @@ output_fixture_values <- function() {
           as_table_output,
           datasets::iris[0L, ],
           options = list(n_rows = 50L)
+        ),
+        output_sample(
+          paste(
+            "The first page of a table whose total row count is unknown, as",
+            "for a lazy table, whose count would run its whole query, so",
+            "that the renderer shows no page count."
+          ),
+          unknown_total_output,
+          utils::head(datasets::iris, 3L),
+          options = list(n_rows = 3L)
         )
       )
     ),
@@ -138,9 +148,20 @@ output_fixture_cells <- function() {
   res$cells <- list(1:3, "one", NULL, datasets::BOD,
                     stats::lm(dist ~ speed, datasets::cars))
 
-  attr(res$number, "label") <- "A number with a label"
-
   res
+}
+
+# A table output of a data frame's first rows, as a lazy table's coercion may
+# make it, which does not count the rows.
+unknown_total_output <- function(result, options, info, params) {
+
+  cols <- lapply(seq_along(result), function(j) result[[j]])
+
+  new_table_output(
+    columns = table_columns(cols, names(result)),
+    rows = utils::head(result, options$n_rows),
+    total = NA
+  )
 }
 
 # A sample output: its description, what it was asked with, and the output as R

@@ -23,7 +23,7 @@ test_that("a table output holds columns, a page of rows and a total", {
   )
 
   sub <- new_table_output(
-    columns = data.frame(name = "x", class = "integer", label = "The x"),
+    columns = data.frame(name = "x", class = "integer"),
     rows = data.frame(x = 1L),
     total = 1L,
     sql = "SELECT x FROM t",
@@ -65,6 +65,25 @@ test_that("a table output checks its fields", {
                class = "table_output_invalid")
   expect_error(new_table_output(cols, rows, 2.5),
                class = "table_output_invalid")
+  expect_error(new_table_output(cols, rows, c(NA, NA)),
+               class = "table_output_invalid")
+  expect_error(
+    new_table_output(data.frame(name = "x", class = "a", label = "b"), rows,
+                     2L),
+    class = "table_output_invalid"
+  )
+})
+
+test_that("a table output's total row count may be unknown", {
+
+  out <- new_table_output(
+    columns = data.frame(name = "x", class = "integer"),
+    rows = data.frame(x = 1:2),
+    total = NA
+  )
+
+  expect_identical(out$total, NA)
+  expect_match(table_json(out), "\"total\":null", fixed = TRUE)
 })
 
 test_that("a data frame's table output pages by n_rows and its parameters", {
@@ -158,6 +177,8 @@ test_that("a data frame's table output sorts by its parameters", {
 
 test_that("a table output's cells hold values that JSON can carry", {
 
+  withr::local_options(cli.unicode = TRUE)
+
   df <- data.frame(
     num = c(1.5, Inf, -Inf, NaN, NA),
     int = c(1L, NA, 3L, 4L, 5L),
@@ -184,15 +205,12 @@ test_that("a table output's cells hold values that JSON can carry", {
       "POSIXct", "complex", "list", "matrix", "data.frame")
   )
 
-  expect_identical(out$columns$label,
-                   c("A number", rep(NA_character_, 10L)))
-
   json <- read_json_strictly(table_json(out))
 
   expect_identical(
     json$rows[[1L]],
     list(1.5, 1, TRUE, "a", "u", "2024-01-31", "2024-01-31 12:30:00", "1+1i",
-         "<integer> [3]", "<integer> [1 × 2]", "<data.frame> [1 × 2]")
+         "<int [3]>", "<int [1 \u00d7 2]>", "<df [1 \u00d7 2]>")
   )
 
   expect_identical(
@@ -204,11 +222,11 @@ test_that("a table output's cells hold values that JSON can carry", {
                    list(1.5, "Inf", "-Inf", "NaN", NULL))
 
   expect_identical(lapply(json$rows, `[[`, 9L),
-                   list("<integer> [3]", "one", "<NULL>",
-                        "<data.frame> [6 × 2]", TRUE))
+                   list("<int [3]>", "one", "<NULL>", "<df [6 \u00d7 2]>",
+                        TRUE))
 
-  expect_identical(json$columns[[1L]]$label, "A number")
-  expect_null(json$columns[[2L]]$label)
+  # A column's attributes, such as its label, stay in R.
+  expect_identical(names(json$columns[[1L]]), c("name", "class"))
 })
 
 test_that("a table's cells are turned into JSON values only once", {

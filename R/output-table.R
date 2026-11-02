@@ -24,16 +24,19 @@
 #' column of another class, such as a date, shows the text that [format()]
 #' gives. A list-column shows each cell that is a single number, string or
 #' logical as it is. Any other cell shows as a summary, as [result_summary()]
-#' gives it, such as `<lm>` or `<data.frame> [3 × 2]`. The same goes for each
-#' row of a matrix or data frame column. Each column keeps its name, its first
-#' class and its label attribute, where it has one.
+#' gives it, such as `<lm>` or `<df [3 x 2]>`. The same goes for each row of a
+#' matrix or data frame column. Each column keeps its name and its first class.
+#' Row names are dropped, as tibble drops them.
+#'
+#' The total row count may be unknown, as for a lazy table, whose count would
+#' run its whole query. A renderer then shows no page count, and a page with
+#' fewer rows than a page holds is the last.
 #'
 #' @param columns The table's columns: a data frame with the character columns
-#'   `name` and `class`, and optionally `label`, which is `NA` for a column
-#'   without a label
+#'   `name` and `class`
 #' @param rows One page of the table's rows, as a data frame with a column for
 #'   each of `columns`
-#' @param total The table's total row count
+#' @param total The table's total row count, or `NA` where it is unknown
 #' @param ... For `new_table_output()`, further fields, which a subclass adds,
 #'   and otherwise passed on to methods
 #' @param class The classes of a subclass, which come before `table_output`
@@ -67,7 +70,7 @@ new_table_output <- function(columns, rows, total, ..., class = character()) {
   if (!is_table_columns(columns)) {
     blockr_abort(
       "The columns of a table output are expected to be a data frame with ",
-      "the character columns `name` and `class`, and optionally `label`.",
+      "the character columns `name` and `class`.",
       class = "table_output_invalid"
     )
   }
@@ -80,10 +83,10 @@ new_table_output <- function(columns, rows, total, ..., class = character()) {
     )
   }
 
-  if (!is_count(total) || total < nrow(rows)) {
+  if (!is_unknown(total) && (!is_count(total) || total < nrow(rows))) {
     blockr_abort(
       "The total row count of a table output is expected to be a count, at ",
-      "least as large as the rows it holds.",
+      "least as large as the rows it holds, or `NA` where it is unknown.",
       class = "table_output_invalid"
     )
   }
@@ -96,13 +99,16 @@ new_table_output <- function(columns, rows, total, ..., class = character()) {
 
 is_table_columns <- function(x) {
 
-  if (!is.data.frame(x) || !all(c("name", "class") %in% names(x)) ||
-        !all(names(x) %in% c("name", "class", "label"))) {
+  if (!is.data.frame(x) || !setequal(names(x), c("name", "class"))) {
     return(FALSE)
   }
 
   all(lgl_ply(x, is.character)) && !anyNA(x[["name"]]) &&
     !anyNA(x[["class"]])
+}
+
+is_unknown <- function(x) {
+  is.atomic(x) && is_scalar(x) && is.na(x)
 }
 
 #' @rdname new_table_output
@@ -194,16 +200,8 @@ table_order <- function(result, cols, sort) {
 table_columns <- function(cols, names) {
   data.frame(
     name = names,
-    class = chr_ply(cols, function(col) class(col)[1L]),
-    label = chr_ply(cols, column_label)
+    class = chr_ply(cols, function(col) class(col)[1L])
   )
-}
-
-column_label <- function(x) {
-
-  res <- attr(x, "label", exact = TRUE)
-
-  if (is_string(res)) res else NA_character_
 }
 
 table_rows <- function(x) {

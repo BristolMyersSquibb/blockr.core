@@ -60,14 +60,20 @@
   requests that the class's renderers call. The function
   `run_output_class_request()` runs such a request as R does (#422).
 * Core defines three output classes. A table output holds one page of rows
-  and the total row count. Its coercion `as_table_output()` pages a data frame
-  by the board option `n_rows` and sorts it by the renderer's parameters. A
-  text output holds what `print()` shows, and `as_text_output()` shows the
-  results of a block class without an `output`. A plot output holds a PNG,
-  which `as_plot_output()` draws at the size and in the colors that the
-  client gives. A block class that draws a base plot captures it with
-  `capture_plot()` in its `block_eval()` method, so that a change of theme
-  draws the plot again without evaluating the block (#422).
+  and the total row count, which may be unknown, as for a lazy table. Its
+  coercion `as_table_output()` pages a data frame by the board option
+  `n_rows` and sorts it by the renderer's parameters. A text output holds what
+  `print()` shows, and `as_text_output()` shows the results of a block class
+  without an `output`. A plot output holds a PNG, which `as_plot_output()`
+  draws at the size and in the colors that the client gives. A block class
+  that draws a base plot captures it with `capture_plot()` in its
+  `block_eval()` method, so that a change of theme draws the plot again
+  without evaluating the block (#422).
+* The default method of `result_summary()` describes a vector or a data
+  frame as tibble does, through pillar's `obj_sum()`, such as
+  `<df [150 x 5]>`, and any other object by its class, such as `<lm>`. So a
+  package's methods for pillar apply in a block's header and in the cells of
+  a table output (#422).
 
 # blockr.core 0.1.4
 

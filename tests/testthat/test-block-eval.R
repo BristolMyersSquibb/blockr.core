@@ -1,5 +1,7 @@
 test_that("a block is evaluated from its class, state and upstream results", {
 
+  withr::local_options(cli.unicode = TRUE)
+
   res <- evaluate_block(
     head_class,
     list(n = 3L, direction = "tail"),
@@ -10,7 +12,7 @@ test_that("a block is evaluated from its class, state and upstream results", {
   expect_identical(res$status, "ok")
   expect_identical(res$expr, quote(utils::tail(a, n = 3L)))
   expect_identical(res$result, utils::tail(datasets::iris, n = 3L))
-  expect_identical(res$summary, "<data.frame> [3 \u00d7 5]")
+  expect_identical(res$summary, "<df [3 \u00d7 5]>")
   expect_identical(res$conditions, list())
 
   res <- evaluate_block(
@@ -209,20 +211,32 @@ test_that("an evaluation is a classed object that prints", {
   expect_error(new_block_evaluation("ok", expr = 1))
 })
 
-test_that("result_summary() gives a result's class and dimensions", {
+test_that("result_summary() describes vectors as tibble does", {
 
-  expect_identical(
-    result_summary(datasets::mtcars),
-    "<data.frame> [32 \u00d7 11]"
-  )
-  expect_identical(result_summary(1:10), "<integer> [10]")
-  expect_identical(result_summary(factor(c("a", "b"))), "<factor> [2]")
+  withr::local_options(cli.unicode = TRUE)
+
+  expect_identical(result_summary(datasets::mtcars), "<df [32 \u00d7 11]>")
+  expect_identical(result_summary(1:10), "<int [10]>")
+  expect_identical(result_summary(factor(c("a", "b"))), "<fct [2]>")
   expect_identical(result_summary(NULL), "<NULL>")
-  expect_identical(result_summary(sum), "<builtin>")
+  expect_identical(result_summary(sum), "<function>")
   expect_identical(result_summary(new.env()), "<environment>")
   expect_identical(
+    result_summary(stats::lm(dist ~ speed, datasets::cars)),
+    "<lm>"
+  )
+  expect_identical(result_summary(structure(list(), class = "my_plot")),
+                   "<my_plot>")
+  expect_identical(
     result_summary(matrix(1, 1000, 2)),
-    "<double> [1,000 \u00d7 2]"
+    "<dbl [1,000 \u00d7 2]>"
+  )
+
+  skip_if_not_installed("tibble")
+
+  expect_identical(
+    result_summary(tibble::as_tibble(datasets::mtcars)),
+    "<tibble [32 \u00d7 11]>"
   )
 })
 
