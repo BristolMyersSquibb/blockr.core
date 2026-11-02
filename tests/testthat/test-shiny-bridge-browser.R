@@ -211,8 +211,8 @@ test_that("the bridge carries a body in a binary frame where it is set to", {
 
   expect_identical(page_eval(page, "bridge.sessionsStarted(1)"), 1L)
 
-  # A body of up to 1 MiB travels in a binary frame, a larger one from a URL.
-  for (size in c(1000, 2^20 + 1000)) {
+  # A body of up to 4 MiB travels in a binary frame, a larger one from a URL.
+  for (size in c(1000, 4 * 2^20 + 1000)) {
 
     res <- page_eval(
       page,

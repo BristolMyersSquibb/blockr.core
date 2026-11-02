@@ -332,17 +332,32 @@ carry_body <- function(item, session, opts) {
   list(item = item)
 }
 
-# How bodies travel, from the blockr options `max_message_body`, the largest
-# body in bytes that travels in its reply's message, 1 MiB by default, which R
-# writes as base64 in about 30 ms, with 0 for every body from a URL and `Inf`
-# for every body in its message, and `message_body_encoding`, how a body
-# travels in its message, `"base64"` by default or `"binary"`, a binary frame,
-# which costs R and the client less, but reaches the page only where Shiny's
-# websocket is not wrapped in SockJS, as Shiny Server and Connect wrap it.
+# How bodies travel, from the blockr options `message_body_encoding`, how a
+# body travels in its reply's message, `"base64"` by default or `"binary"`, a
+# binary frame, which costs R and the client less, but reaches the page only
+# where Shiny's websocket is not wrapped in SockJS, as Shiny Server and Connect
+# wrap it, and `max_message_body`, the largest body in bytes that travels in
+# its message, with 0 for every body from a URL and `Inf` for every body in its
+# message. Its default follows the encoding: 1 MiB for base64, from which a URL
+# delivers a body sooner while R has nothing else to run and base64 starts to
+# hold up the messages behind it, and 4 MiB for binary frames, which keep up
+# with a URL to about 5 MB. Below its default, a body in the message also
+# arrives while R runs what comes next, which a body from a URL waits for.
 message_body_opts <- function() {
 
-  max <- blockr_option("max_message_body", 2^20)
   encoding <- blockr_option("message_body_encoding", "base64")
+
+  if (!is_string(encoding) || !encoding %in% c("base64", "binary")) {
+    blockr_abort(
+      "The blockr option `message_body_encoding` is \"base64\" or \"binary\".",
+      class = "blockr_option_invalid"
+    )
+  }
+
+  max <- blockr_option(
+    "max_message_body",
+    if (identical(encoding, "binary")) 4 * 2^20 else 2^20
+  )
 
   # An environment variable gives a string.
   if (is.character(max)) {
@@ -352,13 +367,6 @@ message_body_opts <- function() {
   if (!is.numeric(max) || !is_scalar(max) || is.na(max) || max < 0) {
     blockr_abort(
       "The blockr option `max_message_body` is a number of bytes, 0 or more.",
-      class = "blockr_option_invalid"
-    )
-  }
-
-  if (!is_string(encoding) || !encoding %in% c("base64", "binary")) {
-    blockr_abort(
-      "The blockr option `message_body_encoding` is \"base64\" or \"binary\".",
       class = "blockr_option_invalid"
     )
   }

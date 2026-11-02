@@ -349,6 +349,24 @@ test_that("a body travels in a binary frame where the blockr option says so", {
   expect_identical(frames[[1L]][["bytes"]], png)
 })
 
+test_that("the largest body in a message follows the encoding by default", {
+
+  expect_identical(message_body_opts(), list(max = 2^20, encoding = "base64"))
+
+  withr::with_options(list(blockr.message_body_encoding = "binary"), {
+    expect_identical(
+      message_body_opts(),
+      list(max = 4 * 2^20, encoding = "binary")
+    )
+  })
+
+  # As set, whatever the encoding.
+  withr::with_options(
+    list(blockr.message_body_encoding = "binary", blockr.max_message_body = 0),
+    expect_identical(message_body_opts(), list(max = 0, encoding = "binary"))
+  )
+})
+
 test_that("the bridge refuses blockr options it cannot follow", {
 
   withr::with_options(list(blockr.max_message_body = -1), {
