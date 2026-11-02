@@ -368,7 +368,11 @@ message_body_opts <- function() {
 
 # Serves a reply's body once, from memory or from its file, at a URL of the
 # session's, named by the reply's id, and then drops it, so that R holds no
-# body that the client has fetched. The file of a body given as one stays.
+# body that the client has fetched. What takes its place, `body_gone()`, is
+# defined here rather than where the body is served, so that it holds on to
+# nothing, where a function made in the serving one would hold its frame and
+# so the body. A body that the client never fetches stays until the session
+# ends, and the file of a body given as one stays.
 serve_body <- function(x, type, id, session) {
 
   name <- paste0("blockr-body-", id)
@@ -380,7 +384,7 @@ serve_body <- function(x, type, id, session) {
 
       force(data)
 
-      session$registerDataObj(name, NULL, function(data, req) body_gone())
+      session$registerDataObj(name, NULL, body_gone)
 
       shiny::httpResponse(
         200L,
@@ -391,6 +395,6 @@ serve_body <- function(x, type, id, session) {
   )
 }
 
-body_gone <- function() {
+body_gone <- function(data, req) {
   shiny::httpResponse(404L, "text/plain", "The body was fetched already.")
 }
