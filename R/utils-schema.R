@@ -164,7 +164,7 @@ column_cells <- function(x) {
     return(unclass(x))
   }
 
-  if (is.object(x)) {
+  if (is.object(x) || is.array(x)) {
     return(lapply(seq_len(vec_size(x)), function(i) vec_slice(x, i)))
   }
 

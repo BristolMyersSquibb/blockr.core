@@ -18,15 +18,16 @@
 #' is `TRUE`. Asking for a page past the last one is an error, so that the
 #' renderer asks again.
 #'
-#' The rows hold values as JSON carries them. Numbers, strings, logicals,
-#' factors and dates are written as R prints them. A missing value becomes
-#' `null`, and so do an infinite number and `NaN`, which JSON cannot hold. A
-#' value of another class, such as a time, shows the text that [format()]
-#' gives. A list-column shows each cell that is a single number, string or
-#' logical as it is. Any other cell shows as a summary, as [result_summary()]
-#' gives it, such as `<lm>` or `<data.frame> [3 × 2]`. The same goes for each
-#' row of a matrix or data frame column. Each column keeps its name and its
-#' first class. Row names are dropped, as tibble drops them.
+#' The rows hold the values as the JSON writer writes them, so that numbers,
+#' strings, logicals, factors and dates show as R prints them. A missing value
+#' becomes `null`, and so do an infinite number and `NaN`, which JSON cannot
+#' hold. A cell that is not a single value shows its summary instead, as
+#' [result_summary()] gives it, such as `<lm>` or `<data.frame> [3 × 2]`. So
+#' the table stays flat, whatever a list-column or a matrix or data frame
+#' column holds. Values of other classes go to the writer as they are, which
+#' writes a time in UTC and fails on a complex number. Each column keeps its
+#' name and its first class. Row names are dropped, as tibble drops them. A
+#' table that needs more takes a renderer of its own.
 #'
 #' The total row count may be unknown, as for a lazy table, whose count would
 #' run its whole query. A renderer then shows no page count, and a page with
@@ -215,13 +216,9 @@ table_rows <- function(x) {
   )
 }
 
-# The cells of a column, as JSON can carry them and R prints them. The JSON
-# writer writes numbers, strings, logicals, factors, dates and missing values
-# so already. Two cases need more. A cell that is not a single value shows its
-# summary, and a value of another class shows the text that `format()` gives.
-# The writer fails on some of these, such as a model in a list cell or a
-# complex number, and writes others unlike R prints them, such as a time in UTC
-# or a duration without its unit.
+# The cells of a column, which the JSON writer writes as they are, but for a
+# cell that is not a single value. That shows its summary, so that the table
+# stays flat.
 table_cells <- function(x) {
 
   if (is.data.frame(x) || is.array(x)) {
@@ -234,15 +231,7 @@ table_cells <- function(x) {
     return(lapply(unname(unclass(x)), table_cell))
   }
 
-  if (is.factor(x) || inherits(x, "Date") ||
-        !(is.object(x) || is.complex(x) || is.raw(x))) {
-    return(x)
-  }
-
-  res <- trimws(format(x))
-  res[is.na(x)] <- NA_character_
-
-  res
+  x
 }
 
 # A cell of a list-column: a single number, string or logical as it is, and

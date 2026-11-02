@@ -184,8 +184,7 @@ test_that("a table output's cells hold values that JSON can carry", {
     chr = c("a", NA, "c", "d", "e"),
     fct = factor(c("u", "v", NA, "u", "v")),
     date = as.Date("2024-01-31") + 0:4,
-    time = as.POSIXct("2024-01-31 12:30:00", tz = "UTC") + 0:4 * 3600,
-    cpl = complex(real = 1:5, imaginary = 1)
+    time = as.POSIXct("2024-01-31 12:30:00", tz = "UTC") + 0:4 * 3600
   )
 
   df$lst <- list(1:3, "one", NULL, datasets::BOD, TRUE)
@@ -200,20 +199,20 @@ test_that("a table output's cells hold values that JSON can carry", {
   expect_identical(
     out$columns$class,
     c("numeric", "integer", "logical", "character", "factor", "Date",
-      "POSIXct", "complex", "list", "matrix", "data.frame")
+      "POSIXct", "list", "matrix", "data.frame")
   )
 
   json <- read_json_strictly(table_json(out))
 
   expect_identical(
     json$rows[[1L]],
-    list(1.5, 1, TRUE, "a", "u", "2024-01-31", "2024-01-31 12:30:00", "1+1i",
+    list(1.5, 1, TRUE, "a", "u", "2024-01-31", "2024-01-31 12:30:00",
          "<integer> [3]", "<integer> [1 \u00d7 2]",
          "<data.frame> [1 \u00d7 2]")
   )
 
   expect_identical(
-    json$rows[[2L]][c(1L, 2L, 4L, 6L, 9L)],
+    json$rows[[2L]][c(1L, 2L, 4L, 6L, 8L)],
     list(NULL, NULL, NULL, NULL, "one")
   )
 
@@ -224,7 +223,7 @@ test_that("a table output's cells hold values that JSON can carry", {
   # A factor's missing value is null too.
   expect_null(json$rows[[3L]][[5L]])
 
-  expect_identical(lapply(json$rows, `[[`, 9L),
+  expect_identical(lapply(json$rows, `[[`, 8L),
                    list("<integer> [3]", "one", "<NULL>",
                         "<data.frame> [6 \u00d7 2]", TRUE))
 
@@ -243,19 +242,6 @@ test_that("a table's cells are turned into JSON values only once", {
   again <- new_table_output(out$columns, out$rows, out$total)
 
   expect_identical(again$rows, out$rows)
-})
-
-test_that("a table output shows values of other classes as R prints them", {
-
-  df <- data.frame(
-    time = as.POSIXct("2024-01-31 12:30:00", tz = "Europe/Berlin"),
-    wait = as.difftime(3, units = "days"),
-    byte = as.raw(10)
-  )
-
-  json <- read_json_strictly(table_json(as_table_output(df)))
-
-  expect_identical(json$rows[[1L]], c("2024-01-31 12:30:00", "3 days", "0a"))
 })
 
 test_that("a table output keeps names that R would change", {

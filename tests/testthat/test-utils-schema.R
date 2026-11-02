@@ -133,6 +133,17 @@ test_that("a data frame becomes an array of rows", {
   )
 })
 
+test_that("a matrix column gives each row its own cells", {
+
+  df <- data.frame(id = 1:2)
+  df$m <- matrix(1:4, ncol = 2L)
+
+  expect_identical(
+    written(df, list(type = "array", items = list(type = "array"))),
+    "[[1,[[1,3]]],[2,[[2,4]]]]"
+  )
+})
+
 test_that("cells of a data frame keep their class", {
 
   df <- data.frame(f = factor("a"), d = as.Date("2024-01-31"))
