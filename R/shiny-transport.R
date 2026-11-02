@@ -1,12 +1,12 @@
-# The Shiny bridge, which carries the messages of the wire protocol between the
-# client and R over a Shiny session, as inst/protocol/README.md gives them, and
-# the binary bodies beside them. Its other half is the client's
-# srcts/bridge/shiny.ts. Shiny only carries the messages, so leaving it later
+# The Shiny transport, which carries the messages of the wire protocol between
+# the client and R over a Shiny session, as inst/protocol/README.md gives them,
+# and the binary bodies beside them. Its other half is the client's
+# srcts/transport/shiny.ts. Shiny only carries the messages, so leaving it later
 # replaces these two files and nothing else.
 
-# Sets the bridge up for a session, handing each message that the client sends
-# to the handler, the session's evaluator, as `handler(message, send)`: the
-# message decoded by `decode_message()`, a list of requests, and `send()`,
+# Sets the transport up for a session, handing each message that the client
+# sends to the handler, the session's evaluator, as `handler(message, send)`:
+# the message decoded by `decode_message()`, a list of requests, and `send()`,
 # which sends a message of R's, an unnamed list of replies and progress notes,
 # with `session$sendCustomMessage()`, which writes to the websocket at once, so
 # that progress reaches the client while a request runs.
@@ -27,8 +27,9 @@
 # of the bytes, a raw vector or a file's path, in `x`, the MIME type in `type`
 # and, for a download, a file name in `name`, which `send()` carries beside the
 # reply as the blockr options `max_message_body` and `message_body_encoding`
-# say, which the bridge reads as it sets a session up (see `carry_body()`).
-shiny_bridge <- function(handler, session = shiny::getDefaultReactiveDomain()) {
+# say, which the transport reads as it sets a session up (see `carry_body()`).
+shiny_transport <- function(handler,
+                            session = shiny::getDefaultReactiveDomain()) {
 
   stopifnot(is.function(handler), not_null(session))
 
@@ -43,7 +44,7 @@ shiny_bridge <- function(handler, session = shiny::getDefaultReactiveDomain()) {
 
   send <- function(message) send_message(message, session, opts)
 
-  upload <- session$registerDataObj(
+  body_url <- session$registerDataObj(
     "blockr-bodies",
     NULL,
     function(data, req) receive_body(req, dir, bodies)
@@ -57,7 +58,7 @@ shiny_bridge <- function(handler, session = shiny::getDefaultReactiveDomain()) {
   # the URL that it posts request bodies to.
   session$sendCustomMessage(
     "blockr",
-    json_str(session_start(upload), auto_unbox = TRUE)
+    json_str(session_start(body_url), auto_unbox = TRUE)
   )
 
   shiny::observeEvent(
@@ -69,20 +70,20 @@ shiny_bridge <- function(handler, session = shiny::getDefaultReactiveDomain()) {
   invisible()
 }
 
-# The bridge's message that starts a session on the client, with the URL that
-# the client posts request bodies to and, where Shiny limits a request's size,
-# the limit, so that the client refuses a larger body itself, where a refusal
-# from Shiny can reach the browser as a connection that was reset while the
-# browser still sent the body.
-session_start <- function(upload) {
+# R's message that starts a session on the client, with the URL that the client
+# posts request bodies to and, where Shiny limits a request's size, the limit,
+# so that the client refuses a larger body itself, where a refusal from Shiny
+# can reach the browser as a connection that was reset while the browser still
+# sent the body.
+session_start <- function(body_url) {
 
   max <- getOption("shiny.maxRequestSize", 5 * 1024^2)
 
   if (is.numeric(max) && max > 0) {
-    return(list(upload = upload, max_request_size = max))
+    return(list(body_url = body_url, max_request_size = max))
   }
 
-  list(upload = upload)
+  list(body_url = body_url)
 }
 
 receive_message <- function(text, handler, send, bodies) {
@@ -94,7 +95,7 @@ receive_message <- function(text, handler, send, bodies) {
 
   if (!is.list(message) || not_null(names(message))) {
 
-    log_warn("The Shiny bridge ignores a message that is no array.")
+    log_warn("The Shiny transport ignores a message that is no array.")
 
     return(invisible())
   }
@@ -104,7 +105,7 @@ receive_message <- function(text, handler, send, bodies) {
   tryCatch(
     handler(message, send),
     error = function(e) {
-      log_error("The Shiny bridge's handler failed: {conditionMessage(e)}")
+      log_error("The Shiny transport's handler failed: {conditionMessage(e)}")
     }
   )
 
@@ -161,10 +162,7 @@ with_bodies <- function(message, bodies, send) {
 lost_body_reply <- function(id) {
 
   cnd <- tryCatch(
-    blockr_abort(
-      "R received no body for request {id}, which announces one.",
-      class = "blockr_no_body"
-    ),
+    blockr_abort("R received no body for request {id}, which announces one."),
     error = identity
   )
 
@@ -180,7 +178,7 @@ lost_body_reply <- function(id) {
   )
 }
 
-# Receives a request's body, which the client posts to the URL that the bridge
+# Receives a request's body, which the client posts to the URL that R
 # gives it, naming the request in the query's `id`, before it sends the
 # request. Shiny refuses a body over its option `shiny.maxRequestSize`, 5 MB by
 # default, before R reads it, as it refuses what `shiny::fileInput()` uploads,
@@ -236,8 +234,7 @@ send_message <- function(message, session, opts = message_body_opts()) {
   if (!is.list(message) || not_null(names(message))) {
     blockr_abort(
       "A message that R sends is an unnamed list of replies and progress ",
-      "notes.",
-      class = "blockr_message_invalid"
+      "notes."
     )
   }
 
@@ -307,8 +304,7 @@ carry_body <- function(item, session, opts) {
   if (!(is.raw(x) || (is_string(x) && file.exists(x))) || !is_string(type)) {
     blockr_abort(
       "A reply's body holds its bytes, as a raw vector or the path of a ",
-      "file, and their MIME type.",
-      class = "blockr_body_invalid"
+      "file, and their MIME type."
     )
   }
 
@@ -349,8 +345,7 @@ message_body_opts <- function() {
 
   if (!is_string(encoding) || !encoding %in% c("base64", "binary")) {
     blockr_abort(
-      "The blockr option `message_body_encoding` is \"base64\" or \"binary\".",
-      class = "blockr_option_invalid"
+      "The blockr option `message_body_encoding` is \"base64\" or \"binary\"."
     )
   }
 
@@ -366,8 +361,7 @@ message_body_opts <- function() {
 
   if (!is.numeric(max) || !is_scalar(max) || is.na(max) || max < 0) {
     blockr_abort(
-      "The blockr option `max_message_body` is a number of bytes, 0 or more.",
-      class = "blockr_option_invalid"
+      "The blockr option `max_message_body` is a number of bytes, 0 or more."
     )
   }
 

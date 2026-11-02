@@ -1,4 +1,4 @@
-# Hardening for the browser test of the Shiny bridge, which drives Chrome
+# Hardening for the browser test of the Shiny transport, which drives Chrome
 # through chromote and runs its app in another R process.
 
 # Give Chrome longer to open its remote-debugging port. The default of chromote

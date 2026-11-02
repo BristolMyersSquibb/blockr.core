@@ -1,9 +1,10 @@
-// The transport that core's store, scheduler and CoreApi send their requests
-// through, as inst/protocol/README.md gives the protocol. It gives each
-// request its id, sends nothing but a session's hello until R has answered
-// it, matches R's replies and progress notes to the requests waiting on them,
-// and ignores a reply to a request it is not waiting on. It runs over a
-// channel, which the Shiny bridge gives on the page (srcts/bridge/shiny.ts).
+// The client of the wire protocol, through which core's store, scheduler and
+// CoreApi send their requests to R, as inst/protocol/README.md gives the
+// protocol. It gives each request its id, sends nothing but a session's hello
+// until R has answered it, matches R's replies and progress notes to the
+// requests waiting on them, and ignores a reply to a request it is not waiting
+// on. It runs over a transport, which carries the messages: the Shiny
+// transport on the page (srcts/transport/shiny.ts).
 
 import type { BlockId } from "../types/board.ts";
 import type {
@@ -21,23 +22,12 @@ type DistributiveOmit<T, K extends PropertyKey> = T extends unknown
   ? Omit<T, K>
   : never;
 
-// A request as its caller hands it to the transport, which gives it its id and
-// announces its body. The transport sends each session's hello itself, and a
-// request's cancel when its signal aborts.
-export type Outgoing = DistributiveOmit<
-  Exclude<Request, HelloRequest | CancelRequest | ForgetRequest>,
-  "id" | "body"
->;
-
-// What the client names in a session's hello.
-export type Hello = Omit<HelloRequest, "id" | "kind">;
-
 export type ProgressNote = Progress["progress"];
 
 export interface RequestOptions {
   // The request's binary body, such as the file an upload action receives,
-  // which the transport announces in the request's `body` by its type and, for
-  // a File, its name.
+  // which the client announces in the request's `body` by its type and, for a
+  // File, its name.
   body?: Blob;
   // Hears each progress note that R sends for the request.
   progress?: (note: ProgressNote) => void;
@@ -47,44 +37,47 @@ export interface RequestOptions {
   signal?: AbortSignal;
 }
 
-// R's reply to a request, with the binary body that it announces, a File where
-// the reply names one, or null.
-export interface Answer {
-  reply: Reply;
-  body: Blob | null;
-}
-
-export interface Transport {
-  // Sends a request and resolves with R's reply to it, whatever its status.
-  // Rejects with a SessionEndedError where the session that it went to ended
-  // before R replied, and with the channel's error where the channel could not
-  // send it, such as where R refused its body.
-  request(request: Outgoing, options?: RequestOptions): Promise<Answer>;
+export interface Client {
+  // Sends a request, which the client gives its id and the announcement of its
+  // body, and resolves with R's reply to it, whatever its status, and the
+  // binary body that the reply announces, a File where the reply names one, or
+  // null. The client sends each session's hello itself, and a request's cancel
+  // when its signal aborts. Rejects with a SessionEndedError where the session
+  // that the request went to ended before R replied, and with the transport's
+  // error where the transport could not send it, such as where R refused its
+  // body.
+  request(
+    request: DistributiveOmit<
+      Exclude<Request, HelloRequest | CancelRequest | ForgetRequest>,
+      "id" | "body"
+    >,
+    options?: RequestOptions,
+  ): Promise<{ reply: Reply; body: Blob | null }>;
   // Has R forget blocks that left the board, which gets no reply.
   forget(blocks: BlockId[]): void;
 }
 
-export interface TransportOptions {
+export interface ClientOptions {
   // What to name in each session's hello, such as the packages of a board that
   // the client holds.
-  hello(): Hello;
+  hello(): Omit<HelloRequest, "id" | "kind">;
   // Hears R's reply to each session's hello, the first session's included,
-  // once the transport has sent what it held for the session.
-  session(answer: Answer): void;
+  // once the client has sent what it held for the session.
+  session(reply: Reply): void;
 }
 
-// What a transport sends its messages over and hears R's on, such as the Shiny
-// bridge (srcts/bridge/shiny.ts).
-export interface Channel {
+// What a client sends its messages over and hears R's on, which carries them,
+// such as the Shiny transport (srcts/transport/shiny.ts).
+export interface Transport {
   // Sends a message once the bodies of its requests, given by request id, have
-  // gone as the channel carries them, and rejects where it could not send
+  // gone as the transport carries them, and rejects where it could not send
   // them, sending nothing.
   send(message: ClientMessage, bodies: ReadonlyMap<string, Blob>): Promise<void>;
   // Hears R from now on.
-  listen(listener: ChannelListener): void;
+  listen(listener: TransportListener): void;
 }
 
-export interface ChannelListener {
+export interface TransportListener {
   // R started a session, to which the client sends its hello first.
   started(): void;
   // The session ended, so that R replies to nothing that was sent to it.
@@ -103,15 +96,13 @@ export class SessionEndedError extends Error {
   }
 }
 
-type Settled = { answer: Answer } | { error: Error };
-
 // A request that a caller waits on.
 interface Call {
   id: string;
   body: Blob | undefined;
   progress: ((note: ProgressNote) => void) | undefined;
-  settle(result: Settled): void;
-  // Whether the channel has sent it, and whether its signal aborted before.
+  settle(result: { reply: Reply; body: Blob | null } | { error: Error }): void;
+  // Whether the transport has sent it, and whether its signal aborted before.
   sent: boolean;
   aborted: boolean;
 }
@@ -122,10 +113,10 @@ interface Outbound {
   call?: Call;
 }
 
-export function createTransport(
-  channel: Channel,
-  options: TransportOptions,
-): Transport {
+export function createClient(
+  transport: Transport,
+  options: ClientOptions,
+): Client {
   let next = 0;
   // "none" while no session runs, "started" once R started one, and "ready"
   // once R answered its hello.
@@ -165,7 +156,7 @@ export function createTransport(
       waiting.set(call.id, call);
     }
 
-    channel
+    transport
       .send(
         outbound.map((entry) => entry.message),
         bodies,
@@ -190,7 +181,7 @@ export function createTransport(
 
   function cancel(call: Call): void {
     if (waiting.get(call.id) !== call || !shared.has("cancel")) return;
-    quietly(channel.send([{ kind: "cancel", request: call.id }], new Map()));
+    quietly(transport.send([{ kind: "cancel", request: call.id }], new Map()));
   }
 
   function abort(entry: Outbound, call: Call): void {
@@ -198,7 +189,7 @@ export function createTransport(
 
     if (index >= 0) {
       held.splice(index, 1);
-      call.settle({ answer: cancelled(call.id) });
+      call.settle(cancelled(call.id));
     } else if (call.sent) {
       cancel(call);
     } else {
@@ -239,12 +230,12 @@ export function createTransport(
       settle(result) {
         // A session may end before R answers its hello, which the next
         // session's hello then starts afresh.
-        if (!("answer" in result)) {
+        if ("error" in result) {
           if (!(result.error instanceof SessionEndedError)) report(result.error);
           return;
         }
 
-        const { reply } = result.answer;
+        const { reply } = result;
 
         if (reply.status === "ok" && "capabilities" in reply) {
           const theirs = new Set(reply.capabilities);
@@ -257,7 +248,7 @@ export function createTransport(
         }
 
         guard(() => {
-          options.session(result.answer);
+          options.session(reply);
         });
       },
     };
@@ -265,7 +256,7 @@ export function createTransport(
     transmit([{ message: { ...named, id, kind: "hello" }, call }], new Map());
   }
 
-  channel.listen({
+  transport.listen({
     started() {
       end();
       state = "started";
@@ -292,11 +283,11 @@ export function createTransport(
       waiting.delete(item.id);
 
       if (body === null) {
-        call.settle({ answer: { reply: item, body: null } });
+        call.settle({ reply: item, body: null });
       } else {
         body.then(
           (blob) => {
-            call.settle({ answer: { reply: item, body: blob } });
+            call.settle({ reply: item, body: blob });
           },
           (error: unknown) => {
             call.settle({ error: asError(error) });
@@ -315,7 +306,7 @@ export function createTransport(
         ...(body === undefined ? {} : { body: announce(body) }),
       } as Request;
 
-      return new Promise<Answer>((resolve, reject) => {
+      return new Promise((resolve, reject) => {
         const onAbort = (): void => {
           abort(entry, call);
         };
@@ -328,10 +319,10 @@ export function createTransport(
           aborted: false,
           settle(result) {
             signal?.removeEventListener("abort", onAbort);
-            if ("answer" in result) {
-              resolve(result.answer);
-            } else {
+            if ("error" in result) {
               reject(result.error);
+            } else {
+              resolve(result);
             }
           },
         };
@@ -339,7 +330,7 @@ export function createTransport(
         const entry: Outbound = { message, call };
 
         if (signal?.aborted === true) {
-          call.settle({ answer: cancelled(id) });
+          call.settle(cancelled(id));
           return;
         }
 
@@ -359,12 +350,12 @@ function announce(body: Blob): { type: string; name?: string } {
   return body instanceof File ? { type, name: body.name } : { type };
 }
 
-function cancelled(id: string): Answer {
+function cancelled(id: string): { reply: Reply; body: null } {
   return { reply: { id, status: "cancelled" }, body: null };
 }
 
 // Calls a caller's function, reporting what it throws without stopping the
-// transport, which goes on with the rest of R's message.
+// client, which goes on with the rest of R's message.
 function guard(fn: () => void): void {
   try {
     fn();

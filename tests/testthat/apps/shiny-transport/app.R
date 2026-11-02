@@ -1,8 +1,9 @@
-# A page and a session that the Shiny bridge connects, for the bridge's browser
-# test (test-shiny-bridge-browser.R). The page holds core's transport over the
-# bridge, from the blockr.core installed, and R's handler answers the requests
-# of an extension that the test sends: an echo of its args, progress, a body of
-# a given size, the size of a body it receives, and the end of the session.
+# A page and a session that the Shiny transport connects, for its browser test
+# (test-shiny-transport-browser.R). The page holds core's client over the
+# transport, from the blockr.core installed, and R's handler answers the
+# requests of an extension that the test sends: an echo of its args, progress,
+# a body of a given size, the size of a body it receives, and the end of the
+# session.
 
 options(shiny.maxRequestSize = 1.5 * 2^20)
 
@@ -76,7 +77,7 @@ handler <- function(session) {
 }
 
 page <- "
-import { createTransport, shinyChannel } from './blockr-js/blockr-core.js';
+import { createClient, shinyTransport } from './blockr-js/blockr-core.js';
 
 const sessions = [];
 let started = () => undefined;
@@ -89,10 +90,10 @@ window.jQuery(document).on('shiny:message', (event) => {
   if (custom && custom.blockr instanceof ArrayBuffer) frames++;
 });
 
-const transport = createTransport(shinyChannel(), {
+const client = createClient(shinyTransport(), {
   hello: () => ({ protocol: '1.0', capabilities: ['cancel', 'progress'] }),
-  session: (answer) => {
-    sessions.push(answer.reply);
+  session: (reply) => {
+    sessions.push(reply);
     started();
   },
 });
@@ -117,22 +118,22 @@ async function ask(name, args = {}, body = undefined) {
   try {
     const request = {
       kind: 'request',
-      extension: 'blockr.test-bridge',
+      extension: 'blockr.test-transport',
       name,
       args,
       reads: [],
     };
-    const answer = await transport.request(request, {
+    const replied = await client.request(request, {
       body,
       progress: (note) => notes.push(note),
     });
-    return { reply: answer.reply, body: await summary(answer.body), notes };
+    return { reply: replied.reply, body: await summary(replied.body), notes };
   } catch (error) {
     return { error: error.name, message: error.message };
   }
 }
 
-window.bridge = {
+window.app = {
   sessions,
   ask,
   frames: () => frames,
@@ -159,7 +160,7 @@ window.bridge = {
 shiny::shinyApp(
   ui = shiny::tags$script(type = "module", shiny::HTML(page)),
   server = function(input, output, session) {
-    blockr.core:::shiny_bridge(handler(session), session)
+    blockr.core:::shiny_transport(handler(session), session)
     # Locally, only a forced reconnect starts a new session.
     session$allowReconnect("force")
   }

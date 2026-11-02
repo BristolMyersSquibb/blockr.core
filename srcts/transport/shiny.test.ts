@@ -1,17 +1,17 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import type { EvaluateRequest, Progress, Reply } from "../protocol/messages.ts";
-import type { ChannelListener } from "../protocol/transport.ts";
-import { shinyChannel } from "./shiny.ts";
-import type { ShinyClient } from "./shiny.ts";
+import type { TransportListener } from "../protocol/client.ts";
+import { shinyTransport } from "./shiny.ts";
+import type { ShinyApi } from "./shiny.ts";
 
-const upload = "session/0a1b/dataobj/blockr-bodies?w=&nonce=c2d3";
+const bodyUrl = "session/0a1b/dataobj/blockr-bodies?w=&nonce=c2d3";
 
 interface Posted {
   url: string;
   init: RequestInit | undefined;
 }
 
-// Shiny's client, R's side of the bridge and the browser's fetch, as a test
+// Shiny's JS API, R's half of the transport and the browser's fetch, as a test
 // plays them.
 function page(respond: (url: string, init?: RequestInit) => Promise<Response> = () =>
   Promise.resolve(new Response(""))) {
@@ -20,7 +20,7 @@ function page(respond: (url: string, init?: RequestInit) => Promise<Response> = 
   const fetched: Posted[] = [];
   let disconnect: () => void = () => undefined;
 
-  const shiny: ShinyClient = {
+  const shiny: ShinyApi = {
     setInputValue(name, value, options) {
       inputs.push({ name, value, options });
     },
@@ -36,7 +36,7 @@ function page(respond: (url: string, init?: RequestInit) => Promise<Response> = 
     return respond(url, init);
   });
 
-  const channel = shinyChannel({
+  const transport = shinyTransport({
     shiny,
     fetch,
     onDisconnected: (fn) => {
@@ -47,16 +47,16 @@ function page(respond: (url: string, init?: RequestInit) => Promise<Response> = 
   const received: [Reply | Progress, Promise<Blob> | null][] = [];
   const started = vi.fn();
   const ended = vi.fn();
-  const listener: ChannelListener = {
+  const listener: TransportListener = {
     started,
     ended,
     received: (item, body) => received.push([item, body]),
   };
 
-  channel.listen(listener);
+  transport.listen(listener);
 
   return {
-    channel,
+    transport,
     inputs,
     fetched,
     received,
@@ -93,12 +93,12 @@ const evaluate: EvaluateRequest = {
   recipe: { registry_id: "blockr.core-dataset_block", state: {}, inputs: [] },
 };
 
-describe("the Shiny bridge", () => {
+describe("the Shiny transport", () => {
   test("sends a message as its JSON text, at the priority event", async () => {
     const p = page();
-    p.deliver({ upload });
+    p.deliver({ body_url: bodyUrl });
 
-    await p.channel.send([evaluate], new Map());
+    await p.transport.send([evaluate], new Map());
 
     expect(p.inputs).toEqual([
       { name: "blockr", value: JSON.stringify([evaluate]), options: { priority: "event" } },
@@ -108,7 +108,7 @@ describe("the Shiny bridge", () => {
   test("starts a session as R says and ends it when Shiny's websocket closes", () => {
     const p = page();
 
-    p.deliver({ upload });
+    p.deliver({ body_url: bodyUrl });
     expect(p.started).toHaveBeenCalledTimes(1);
 
     p.disconnect();
@@ -251,14 +251,14 @@ describe("the Shiny bridge", () => {
 
   test("posts a request's body to the URL R gave the session before it sends the request", async () => {
     const p = page();
-    p.deliver({ upload });
+    p.deliver({ body_url: bodyUrl });
     const csv = new File(["a,b\n"], "s.csv", { type: "text/csv" });
     const upl = { ...evaluate, id: "25", body: { type: "text/csv", name: "s.csv" } };
 
-    await p.channel.send([upl], new Map([["25", csv]]));
+    await p.transport.send([upl], new Map([["25", csv]]));
 
     expect(p.fetched).toHaveLength(1);
-    expect(p.fetched[0]?.url).toBe(`${upload}&id=25`);
+    expect(p.fetched[0]?.url).toBe(`${bodyUrl}&id=25`);
     expect(p.fetched[0]?.init).toMatchObject({
       method: "POST",
       body: csv,
@@ -271,25 +271,25 @@ describe("the Shiny bridge", () => {
     const p = page(() =>
       Promise.resolve(new Response("Maximum upload size exceeded", { status: 413 })),
     );
-    p.deliver({ upload });
+    p.deliver({ body_url: bodyUrl });
 
     await expect(
-      p.channel.send([{ ...evaluate, id: "26" }], new Map([["26", new Blob(["x"])]])),
+      p.transport.send([{ ...evaluate, id: "26" }], new Map([["26", new Blob(["x"])]])),
     ).rejects.toThrow("R refused the body of request 26: Maximum upload size exceeded");
     expect(p.inputs).toEqual([]);
   });
 
   test("refuses a body larger than Shiny takes, posting nothing", async () => {
     const p = page();
-    p.deliver({ upload, max_request_size: 2 });
+    p.deliver({ body_url: bodyUrl, max_request_size: 2 });
 
     await expect(
-      p.channel.send([{ ...evaluate, id: "41" }], new Map([["41", new Blob(["xyz"])]])),
+      p.transport.send([{ ...evaluate, id: "41" }], new Map([["41", new Blob(["xyz"])]])),
     ).rejects.toThrow("The body of request 41, of 3 bytes, is larger than the 2 bytes that R takes.");
     expect(p.fetched).toEqual([]);
     expect(p.inputs).toEqual([]);
 
-    await p.channel.send([{ ...evaluate, id: "42" }], new Map([["42", new Blob(["xy"])]]));
+    await p.transport.send([{ ...evaluate, id: "42" }], new Map([["42", new Blob(["xy"])]]));
     expect(p.fetched).toHaveLength(1);
   });
 
@@ -301,9 +301,9 @@ describe("the Shiny bridge", () => {
           respond = resolve;
         }),
     );
-    p.deliver({ upload });
+    p.deliver({ body_url: bodyUrl });
 
-    const sent = p.channel.send([{ ...evaluate, id: "27" }], new Map([["27", new Blob(["x"])]]));
+    const sent = p.transport.send([{ ...evaluate, id: "27" }], new Map([["27", new Blob(["x"])]]));
     p.disconnect();
     respond(new Response(""));
 
@@ -315,13 +315,13 @@ describe("the Shiny bridge", () => {
     const p = page();
 
     await expect(
-      p.channel.send([{ ...evaluate, id: "28" }], new Map([["28", new Blob(["x"])]])),
+      p.transport.send([{ ...evaluate, id: "28" }], new Map([["28", new Blob(["x"])]])),
     ).rejects.toThrow("No session runs that a body could be posted to.");
     expect(p.fetched).toEqual([]);
   });
 });
 
-describe("the Shiny bridge on the page", () => {
+describe("the Shiny transport on the page", () => {
   const page = window as Window & { Shiny?: unknown; jQuery?: unknown };
 
   afterEach(() => {
@@ -332,7 +332,7 @@ describe("the Shiny bridge on the page", () => {
   test("uses window.Shiny and the jQuery that Shiny puts on the page", () => {
     const handlers = new Map<string, () => void>();
     const addCustomMessageHandler = vi.fn();
-    const shiny: ShinyClient = { setInputValue: vi.fn(), addCustomMessageHandler };
+    const shiny: ShinyApi = { setInputValue: vi.fn(), addCustomMessageHandler };
 
     page.Shiny = shiny;
     page.jQuery = (element: Document) => {
@@ -343,7 +343,7 @@ describe("the Shiny bridge on the page", () => {
     };
 
     const ended = vi.fn();
-    shinyChannel().listen({ started: vi.fn(), ended, received: vi.fn() });
+    shinyTransport().listen({ started: vi.fn(), ended, received: vi.fn() });
 
     expect(addCustomMessageHandler).toHaveBeenCalledWith("blockr", expect.any(Function));
 
@@ -352,9 +352,9 @@ describe("the Shiny bridge on the page", () => {
   });
 
   test("needs Shiny and its jQuery", () => {
-    expect(() => shinyChannel()).toThrow("window.Shiny");
+    expect(() => shinyTransport()).toThrow("window.Shiny");
 
     page.Shiny = { setInputValue: vi.fn(), addCustomMessageHandler: vi.fn() };
-    expect(() => shinyChannel()).toThrow("jQuery");
+    expect(() => shinyTransport()).toThrow("jQuery");
   });
 });

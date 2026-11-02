@@ -1,15 +1,16 @@
-// The client's side of the Shiny bridge, the channel that core's transport runs
-// over on the page, whose other half is R/shiny-bridge.R. It sends each message
-// as its JSON text with Shiny.setInputValue("blockr", ...), at the priority
-// "event", so that Shiny sends every message, and hears R's through
-// Shiny.addCustomMessageHandler("blockr", ...). Shiny only carries the
+// The client's half of the Shiny transport, which carries the messages of the
+// wire protocol over a Shiny session for the client of the protocol
+// (srcts/protocol/client.ts), and whose other half is R/shiny-transport.R. It
+// sends each message as its JSON text with Shiny.setInputValue("blockr", ...),
+// at the priority "event", so that Shiny sends every message, and hears R's
+// through Shiny.addCustomMessageHandler("blockr", ...). Shiny only carries the
 // messages, so leaving it later replaces these two files and nothing else.
 //
-// R starts each session with a message of the bridge's own, an object rather
-// than an array, which gives the URL that the client posts request bodies to
-// and the largest body that Shiny takes there, in `max_request_size`, so that
-// the bridge has to listen before Shiny connects, as core does when the page
-// starts. A session ends when Shiny's websocket closes, which Shiny's
+// R starts each session with a message of its own, an object rather than an
+// array, which gives the URL that the client posts request bodies to, in
+// `body_url`, and the largest body that Shiny takes there, in
+// `max_request_size`, so that the transport has to listen before Shiny
+// connects, as core does when the page starts. A session ends when Shiny's websocket closes, which Shiny's
 // shiny:disconnected event on the document says.
 //
 // R carries a reply's body in its message, as base64 in the body's `data`, or
@@ -17,8 +18,8 @@
 // of the reply alone in four bytes, little-endian, that JSON and then the
 // body's bytes, or from the URL in the body's `url`, which the client fetches,
 // as R's blockr options `max_message_body` and `message_body_encoding` say,
-// and which the client deletes once it has read the body. The bridge hands the
-// transport the reply without the fields that carry the body.
+// and which the client deletes once it has read the body. The transport hands
+// the client the reply without the fields that carry the body.
 
 import type {
   Body,
@@ -26,10 +27,10 @@ import type {
   Progress,
   Reply,
 } from "../protocol/messages.ts";
-import type { Channel } from "../protocol/transport.ts";
+import type { Transport } from "../protocol/client.ts";
 
-// What the bridge uses of Shiny's client.
-export interface ShinyClient {
+// What the transport uses of Shiny's JS API.
+export interface ShinyApi {
   setInputValue(
     name: string,
     value: string,
@@ -41,9 +42,9 @@ export interface ShinyClient {
   ): void;
 }
 
-export interface ShinyChannelOptions {
-  // Shiny's client, window.Shiny by default.
-  shiny?: ShinyClient;
+export interface ShinyTransportOptions {
+  // Shiny's JS API, window.Shiny by default.
+  shiny?: ShinyApi;
   // What fetches and posts bodies, window.fetch by default.
   fetch?: typeof fetch;
   // Calls fn each time Shiny's websocket closes, by default as Shiny's
@@ -67,12 +68,12 @@ interface Carried {
 
 const name = "blockr";
 
-export function shinyChannel(options: ShinyChannelOptions = {}): Channel {
-  const page = window as Window & { Shiny?: ShinyClient; jQuery?: JQueryLike };
+export function shinyTransport(options: ShinyTransportOptions = {}): Transport {
+  const page = window as Window & { Shiny?: ShinyApi; jQuery?: JQueryLike };
 
   const shiny = options.shiny ?? page.Shiny;
   if (shiny === undefined) {
-    throw new Error("The Shiny bridge needs Shiny's client, window.Shiny.");
+    throw new Error("The Shiny transport needs Shiny's JS API, window.Shiny.");
   }
 
   const fetcher = options.fetch ?? window.fetch.bind(window);
@@ -81,7 +82,7 @@ export function shinyChannel(options: ShinyChannelOptions = {}): Channel {
   // What R gives the session for request bodies, and a count of the sessions
   // started and ended, so that a message whose body outlived its session goes
   // nowhere.
-  let upload: SessionStart | null = null;
+  let start: SessionStart | null = null;
   let session = 0;
 
   return {
@@ -89,7 +90,7 @@ export function shinyChannel(options: ShinyChannelOptions = {}): Channel {
       const at = session;
 
       for (const [id, body] of bodies) {
-        await post(fetcher, upload, id, body);
+        await post(fetcher, start, id, body);
       }
 
       if (at !== session) {
@@ -108,21 +109,22 @@ export function shinyChannel(options: ShinyChannelOptions = {}): Channel {
           }
         } else if (Array.isArray(message)) {
           for (const item of message as unknown[]) {
-            // An item that is no object R never sends, which the bridge skips.
+            // An item that is no object R never sends, which the transport
+            // skips.
             if (typeof item !== "object" || item === null) continue;
             const [carried, body] = received(item as Reply | Progress, fetcher);
             listener.received(carried, body);
           }
         } else if (isSessionStart(message)) {
           session += 1;
-          upload = message;
+          start = message;
           listener.started();
         }
       });
 
       onDisconnected(() => {
         session += 1;
-        upload = null;
+        start = null;
         listener.ended();
       });
     },
@@ -133,7 +135,7 @@ function disconnected(
   jquery: JQueryLike | undefined,
 ): (fn: () => void) => void {
   if (jquery === undefined) {
-    throw new Error("The Shiny bridge needs the jQuery that Shiny puts on the page.");
+    throw new Error("The Shiny transport needs the jQuery that Shiny puts on the page.");
   }
 
   return (fn) => {
@@ -141,10 +143,10 @@ function disconnected(
   };
 }
 
-// The bridge's message that starts a session, where Shiny limits the size of
-// a request with its option shiny.maxRequestSize.
+// R's message that starts a session, with the limit to a request's size where
+// Shiny's option shiny.maxRequestSize sets one.
 interface SessionStart {
-  upload: string;
+  body_url: string;
   max_request_size?: number;
 }
 
@@ -152,7 +154,7 @@ function isSessionStart(message: unknown): message is SessionStart {
   return (
     typeof message === "object" &&
     message !== null &&
-    typeof (message as { upload?: unknown }).upload === "string"
+    typeof (message as { body_url?: unknown }).body_url === "string"
   );
 }
 
@@ -226,7 +228,8 @@ async function fetchBody(
 
   // Lets R drop the body, which it serves until then, so that a request for it
   // that the browser sends again after a broken connection is still answered.
-  // Its answer is read, as every answer is, so that the browser cancels none.
+  // Its response is read, as every response is, so that the browser cancels
+  // none.
   fetcher(url, { method: "DELETE" })
     .then((response) => response.text())
     .catch(() => undefined);
@@ -236,24 +239,24 @@ async function fetchBody(
 
 async function post(
   fetcher: typeof fetch,
-  upload: SessionStart | null,
+  start: SessionStart | null,
   id: string,
   body: Blob,
 ): Promise<void> {
-  if (upload === null) {
+  if (start === null) {
     throw new Error("No session runs that a body could be posted to.");
   }
 
   // As Shiny refuses it, by its size, which the browser may not hear of if
   // Shiny ends the connection while the browser still sends the body.
-  const max = upload.max_request_size;
+  const max = start.max_request_size;
   if (max !== undefined && body.size > max) {
     throw new Error(
       `The body of request ${id}, of ${String(body.size)} bytes, is larger than the ${String(max)} bytes that R takes.`,
     );
   }
 
-  const url = `${upload.upload}${upload.upload.includes("?") ? "&" : "?"}id=${encodeURIComponent(id)}`;
+  const url = `${start.body_url}${start.body_url.includes("?") ? "&" : "?"}id=${encodeURIComponent(id)}`;
 
   const response = await fetcher(url, {
     method: "POST",

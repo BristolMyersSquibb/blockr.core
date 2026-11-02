@@ -1,10 +1,11 @@
-# The Shiny bridge end to end: core's transport on a page in Chrome and R's
-# side in a Shiny app, apps/shiny-bridge/app.R, which runs in another R process
-# with the blockr.core installed, page and R alike.
+# The Shiny transport end to end: core's client on a page in Chrome over the
+# transport, and R's half of it in a Shiny app, apps/shiny-transport/app.R,
+# which runs in another R process with the blockr.core installed, page and R
+# alike.
 
-# Whether the blockr.core installed, which the app runs, has the bridge, since
-# a test run from the source would otherwise test an older install.
-installed_with_bridge <- function() {
+# Whether the blockr.core installed, which the app runs, has the transport,
+# since a test run from the source would otherwise test an older install.
+installed_with_transport <- function() {
 
   path <- find.package("blockr.core", lib.loc = .libPaths(), quiet = TRUE)
 
@@ -14,17 +15,17 @@ installed_with_bridge <- function() {
 
   js <- file.path(path[[1L]], "js", "blockr-core.js")
 
-  file.exists(js) && any(grepl("shinyChannel", readLines(js, warn = FALSE)))
+  file.exists(js) && any(grepl("shinyTransport", readLines(js, warn = FALSE)))
 }
 
 # Starts the test app in another R process, on a port of its own, with the
 # blockr option `message_body_encoding` set.
-start_bridge_app <- function(encoding = "base64", timeout = 30) {
+start_transport_app <- function(encoding = "base64", timeout = 30) {
 
   port <- httpuv::randomPort()
   log <- withr::local_tempfile(.local_envir = parent.frame(), fileext = ".log")
 
-  dir <- normalizePath(testthat::test_path("apps", "shiny-bridge"))
+  dir <- normalizePath(testthat::test_path("apps", "shiny-transport"))
 
   proc <- callr::r_bg(
     function(dir, port, encoding) {
@@ -43,7 +44,7 @@ start_bridge_app <- function(encoding = "base64", timeout = 30) {
     if (!proc$is_alive() || Sys.time() > deadline) {
       proc$kill()
       stop(
-        "The bridge's test app did not start:\n",
+        "The transport's test app did not start:\n",
         paste(readLines(log, warn = FALSE), collapse = "\n")
       )
     }
@@ -94,17 +95,17 @@ page_eval <- function(page, js, timeout = 30) {
   res$result$value
 }
 
-test_that("the bridge carries messages and bodies between a page and R", {
+test_that("the transport carries messages and bodies between a page and R", {
 
   skip_on_cran()
   skip_if_not_installed("chromote")
   skip_if_not_installed("callr")
   skip_if_not(
-    installed_with_bridge(),
-    "The blockr.core installed has no Shiny bridge to test."
+    installed_with_transport(),
+    "The blockr.core installed has no Shiny transport to test."
   )
 
-  app <- start_bridge_app()
+  app <- start_transport_app()
   withr::defer(app$kill())
 
   page <- try(chromote::ChromoteSession$new(), silent = TRUE)
@@ -113,15 +114,15 @@ test_that("the bridge carries messages and bodies between a page and R", {
 
   navigate(page, app$url)
 
-  expect_identical(page_eval(page, "bridge.sessionsStarted(1)"), 1L)
+  expect_identical(page_eval(page, "app.sessionsStarted(1)"), 1L)
 
-  res <- page_eval(page, "bridge.ask('echo', { x: [1, 2], y: 'a' })")
+  res <- page_eval(page, "app.ask('echo', { x: [1, 2], y: 'a' })")
 
   expect_identical(res$reply$status, "ok")
   expect_identical(res$reply$value, list(x = list(1L, 2L), y = list("a")))
   expect_null(res$body)
 
-  res <- page_eval(page, "bridge.ask('progress')")
+  res <- page_eval(page, "app.ask('progress')")
 
   expect_identical(res$notes, list(list(value = 0.5, message = "halfway")))
   expect_identical(res$reply$value, list(TRUE))
@@ -132,7 +133,7 @@ test_that("the bridge carries messages and bodies between a page and R", {
 
     res <- page_eval(
       page,
-      sprintf("bridge.ask('download', { size: %d, name: 'data.bin' })", size)
+      sprintf("app.ask('download', { size: %d, name: 'data.bin' })", size)
     )
 
     expect_identical(
@@ -150,9 +151,9 @@ test_that("the bridge carries messages and bodies between a page and R", {
     )
   }
 
-  expect_identical(page_eval(page, "bridge.frames()"), 0L)
+  expect_identical(page_eval(page, "app.frames()"), 0L)
 
-  res <- page_eval(page, "bridge.upload(1000, 'sales.csv')")
+  res <- page_eval(page, "app.upload(1000, 'sales.csv')")
 
   expect_identical(
     res$reply$value,
@@ -165,14 +166,14 @@ test_that("the bridge carries messages and bodies between a page and R", {
     )
   )
 
-  res <- page_eval(page, "bridge.upload(1200000)")
+  res <- page_eval(page, "app.upload(1200000)")
 
   expect_identical(res$reply$value$match, list(TRUE))
   expect_identical(res$reply$value$type, list("application/octet-stream"))
   expect_identical(res$reply$value$name, list())
 
   # A body over shiny.maxRequestSize, here 1.5 MiB, the client refuses itself.
-  res <- page_eval(page, "bridge.upload(2000000)")
+  res <- page_eval(page, "app.upload(2000000)")
 
   expect_identical(res$error, "Error")
   expect_match(res$message, "larger than the 1572864 bytes that R takes")
@@ -180,27 +181,27 @@ test_that("the bridge carries messages and bodies between a page and R", {
   # The server ends the session, which loses what waited on it, and the page
   # starts a new one, which R does not end again with the message that Shiny
   # replays to it, and in which what the page asked meanwhile is answered.
-  res <- page_eval(page, "bridge.ask('close')")
+  res <- page_eval(page, "app.ask('close')")
 
   expect_identical(res$error, "SessionEndedError")
 
-  res <- page_eval(page, "bridge.ask('echo', { after: true })")
+  res <- page_eval(page, "app.ask('echo', { after: true })")
 
   expect_identical(res$reply$value, list(after = list(TRUE)))
-  expect_identical(page_eval(page, "bridge.sessions.length"), 2L)
+  expect_identical(page_eval(page, "app.sessions.length"), 2L)
 })
 
-test_that("the bridge carries a body in a binary frame where it is set to", {
+test_that("the transport carries a body in a binary frame where it is set to", {
 
   skip_on_cran()
   skip_if_not_installed("chromote")
   skip_if_not_installed("callr")
   skip_if_not(
-    installed_with_bridge(),
-    "The blockr.core installed has no Shiny bridge to test."
+    installed_with_transport(),
+    "The blockr.core installed has no Shiny transport to test."
   )
 
-  app <- start_bridge_app("binary")
+  app <- start_transport_app("binary")
   withr::defer(app$kill())
 
   page <- try(chromote::ChromoteSession$new(), silent = TRUE)
@@ -209,14 +210,14 @@ test_that("the bridge carries a body in a binary frame where it is set to", {
 
   navigate(page, app$url)
 
-  expect_identical(page_eval(page, "bridge.sessionsStarted(1)"), 1L)
+  expect_identical(page_eval(page, "app.sessionsStarted(1)"), 1L)
 
   # A body of up to 4 MiB travels in a binary frame, a larger one from a URL.
   for (size in c(1000, 4 * 2^20 + 1000)) {
 
     res <- page_eval(
       page,
-      sprintf("bridge.ask('download', { size: %d, name: 'data.bin' })", size)
+      sprintf("app.ask('download', { size: %d, name: 'data.bin' })", size)
     )
 
     expect_identical(res$body$size, as.integer(size))
@@ -227,9 +228,9 @@ test_that("the bridge carries a body in a binary frame where it is set to", {
     expect_identical(res$body$name, "data.bin")
   }
 
-  expect_identical(page_eval(page, "bridge.frames()"), 1L)
+  expect_identical(page_eval(page, "app.frames()"), 1L)
 
-  res <- page_eval(page, "bridge.ask('progress')")
+  res <- page_eval(page, "app.ask('progress')")
 
   expect_identical(res$notes, list(list(value = 0.5, message = "halfway")))
 })

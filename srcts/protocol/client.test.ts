@@ -12,15 +12,13 @@ import type {
   Reply,
   Request,
 } from "./messages.ts";
-import { createTransport, SessionEndedError } from "./transport.ts";
+import { createClient, SessionEndedError } from "./client.ts";
 import type {
-  Answer,
-  Channel,
-  ChannelListener,
-  Hello,
-  Outgoing,
-  TransportOptions,
-} from "./transport.ts";
+  Client,
+  ClientOptions,
+  Transport,
+  TransportListener,
+} from "./client.ts";
 
 const fixtures = join(
   resolve(dirname(fileURLToPath(import.meta.url)), "../.."),
@@ -44,19 +42,19 @@ interface Sent {
   bodies: Map<string, Blob>;
 }
 
-// A channel that keeps what the transport sends and plays R's part as a test
+// A transport that keeps what the client sends and plays R's part as a test
 // says, refusing the bodies whose ids it is told to.
-function channel() {
+function transport() {
   const sent: Sent[] = [];
   const refuse = new Set<string>();
-  let listener: ChannelListener | undefined;
+  let listener: TransportListener | undefined;
 
-  const hears = (): ChannelListener => {
+  const hears = (): TransportListener => {
     if (listener === undefined) throw new Error("Nothing listens yet.");
     return listener;
   };
 
-  const ch: Channel = {
+  const fake: Transport = {
     send(message, bodies) {
       for (const id of bodies.keys()) {
         if (refuse.has(id)) {
@@ -72,7 +70,7 @@ function channel() {
   };
 
   return {
-    ch,
+    fake,
     sent,
     refuse,
     start() {
@@ -92,21 +90,24 @@ function channel() {
 }
 
 function setup(
-  hello: Hello = { protocol: "1.0", capabilities: ["cancel", "progress"] },
+  hello: ReturnType<ClientOptions["hello"]> = {
+    protocol: "1.0",
+    capabilities: ["cancel", "progress"],
+  },
 ) {
-  const ch = channel();
-  const sessions: Answer[] = [];
+  const tr = transport();
+  const sessions: Reply[] = [];
   const hellos = vi.fn(() => hello);
-  const options: TransportOptions = {
+  const options: ClientOptions = {
     hello: hellos,
-    session: (answer) => sessions.push(answer),
+    session: (reply) => sessions.push(reply),
   };
-  const transport = createTransport(ch.ch, options);
+  const client = createClient(tr.fake, options);
 
-  return { ...ch, transport, sessions, hellos };
+  return { ...tr, client, sessions, hellos };
 }
 
-// The id of the last request of a kind that the transport sent.
+// The id of the last request of a kind that the client sent.
 function idOf(sent: Sent[], kind: Request["kind"]): string {
   const all = sent.flatMap((s) => s.message).filter((m) => m.kind === kind);
   const id = all.at(-1)?.id;
@@ -133,12 +134,12 @@ function only<T>(items: T[]): T {
   return item;
 }
 
-// Lets the transport's promise callbacks run.
+// Lets the client's promise callbacks run.
 async function settle(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-const evaluate: Outgoing = {
+const evaluate: Parameters<Client["request"]>[0] = {
   kind: "evaluate",
   block: "a",
   revision: 2,
@@ -149,7 +150,7 @@ const evaluate: Outgoing = {
   },
 };
 
-const echo: Outgoing = {
+const echo: Parameters<Client["request"]>[0] = {
   kind: "request",
   extension: "blockr.test-echo",
   name: "echo",
@@ -161,8 +162,8 @@ describe("the handshake", () => {
   test("sends a session's hello first and nothing else until R answers it", async () => {
     const t = setup();
 
-    const answer = t.transport.request(evaluate);
-    t.transport.forget(["z"]);
+    const pending = t.client.request(evaluate);
+    t.client.forget(["z"]);
     expect(t.sent).toEqual([]);
 
     t.start();
@@ -185,18 +186,18 @@ describe("the handshake", () => {
       { ...evaluate, id: idOf(t.sent, "evaluate") },
       { kind: "forget", blocks: ["z"] },
     ]);
-    expect(t.sessions.map((s) => s.reply)).toEqual([
+    expect(t.sessions).toEqual([
       { ...helloReply, id: idOf(t.sent, "hello") },
     ]);
 
     t.receive({ ...okReply, id: idOf(t.sent, "evaluate") });
-    expect((await answer).reply.status).toBe("ok");
+    expect((await pending).reply.status).toBe("ok");
   });
 
   test("holds everything while R has refused the hello", async () => {
     const t = setup();
 
-    void t.transport.request(evaluate);
+    void t.client.request(evaluate);
     t.start();
     t.receive({
       id: idOf(t.sent, "hello"),
@@ -207,14 +208,14 @@ describe("the handshake", () => {
     await settle();
 
     expect(t.sent).toHaveLength(1);
-    expect(t.sessions[0]?.reply.status).toBe("error");
+    expect(t.sessions[0]?.status).toBe("error");
   });
 
   test("gives every request an id of its own", () => {
     const t = setup();
     ready(t);
 
-    for (let i = 0; i < 3; i++) void t.transport.request(echo);
+    for (let i = 0; i < 3; i++) void t.client.request(echo);
 
     const ids = t.sent.flatMap((s) => s.message).map((m) => m.id);
     expect(new Set(ids).size).toBe(ids.length);
@@ -238,8 +239,8 @@ describe("replies", () => {
     const t = setup();
     ready(t);
 
-    const a = t.transport.request(echo);
-    const b = t.transport.request(evaluate);
+    const a = t.client.request(echo);
+    const b = t.client.request(evaluate);
     const [ida, idb] = t.sent.flatMap((s) => s.message).slice(1).map((m) => m.id);
 
     t.receive({ id: idb ?? "", status: "ok", value: ["b"] });
@@ -253,7 +254,7 @@ describe("replies", () => {
     const t = setup();
     ready(t);
 
-    const a = t.transport.request(echo);
+    const a = t.client.request(echo);
     const id = idOf(t.sent, "request");
 
     t.receive({ id: "unknown", status: "ok", value: [] });
@@ -269,8 +270,8 @@ describe("replies", () => {
     const t = setup();
     ready(t);
 
-    const a = t.transport.request(echo);
-    const b = t.transport.request(echo);
+    const a = t.client.request(echo);
+    const b = t.client.request(echo);
     const [ida, idb] = t.sent.flatMap((s) => s.message).slice(1).map((m) => m.id);
     const png = new Blob(["png"], { type: "image/png" });
 
@@ -292,7 +293,7 @@ describe("replies", () => {
     ready(t);
 
     const notes: unknown[] = [];
-    const a = t.transport.request(echo, { progress: (note) => notes.push(note) });
+    const a = t.client.request(echo, { progress: (note) => notes.push(note) });
     const id = idOf(t.sent, "request");
 
     t.receive({ id, progress: { value: 0.3, message: "Rendering" } });
@@ -312,9 +313,9 @@ describe("bodies", () => {
     const csv = new File(["a,b\n1,2\n"], "sales.csv", { type: "text/csv" });
     const bytes = new Blob(["?"]);
 
-    void t.transport.request(echo, { body: csv });
-    void t.transport.request(echo);
-    void t.transport.request(echo, { body: bytes });
+    void t.client.request(echo, { body: csv });
+    void t.client.request(echo);
+    void t.client.request(echo, { body: bytes });
 
     const [first, plain, second] = t.sent.slice(1);
 
@@ -330,14 +331,14 @@ describe("bodies", () => {
     expect(withBytes).not.toHaveProperty("body.name");
   });
 
-  test("that the channel cannot send fail their request alone", async () => {
+  test("that the transport cannot send fail their request alone", async () => {
     const t = setup();
     ready(t);
-    // The next id the transport mints is the upload's.
+    // The next id the client mints is the upload's.
     t.refuse.add(String(Number(idOf(t.sent, "hello")) + 1));
 
-    const upload = t.transport.request(echo, { body: new Blob(["big"]) });
-    const other = t.transport.request(echo);
+    const upload = t.client.request(echo, { body: new Blob(["big"]) });
+    const other = t.client.request(echo);
     const id = idOf(t.sent, "request");
     t.receive({ id, status: "ok", value: [] });
 
@@ -351,14 +352,14 @@ describe("a session that ends", () => {
     const t = setup();
     ready(t);
 
-    const lost = t.transport.request(echo);
+    const lost = t.client.request(echo);
     const lostId = idOf(t.sent, "request");
     const lostHello = idOf(t.sent, "hello");
     t.end();
 
     await expect(lost).rejects.toBeInstanceOf(SessionEndedError);
 
-    const later = t.transport.request(evaluate);
+    const later = t.client.request(evaluate);
     expect(t.sent).toHaveLength(2);
 
     // The next session starts with a hello built anew.
@@ -400,12 +401,12 @@ describe("a request given up", () => {
     const t = setup();
     const ac = new AbortController();
 
-    const held = t.transport.request(echo, { signal: ac.signal });
+    const held = t.client.request(echo, { signal: ac.signal });
     ac.abort();
 
     const aborted = new AbortController();
     aborted.abort();
-    const never = t.transport.request(echo, { signal: aborted.signal });
+    const never = t.client.request(echo, { signal: aborted.signal });
 
     expect((await held).reply.status).toBe("cancelled");
     expect((await never).reply.status).toBe("cancelled");
@@ -420,7 +421,7 @@ describe("a request given up", () => {
     ready(t);
     const ac = new AbortController();
 
-    const answer = t.transport.request(evaluate, { signal: ac.signal });
+    const pending = t.client.request(evaluate, { signal: ac.signal });
     const id = idOf(t.sent, "evaluate");
     await settle();
     ac.abort();
@@ -428,7 +429,7 @@ describe("a request given up", () => {
     expect(t.messages().at(-1)).toEqual([{ kind: "cancel", request: id }]);
 
     t.receive({ id, status: "cancelled" });
-    expect((await answer).reply).toEqual({ id, status: "cancelled" });
+    expect((await pending).reply).toEqual({ id, status: "cancelled" });
   });
 
   test("goes on where R did not name cancel", async () => {
@@ -436,7 +437,7 @@ describe("a request given up", () => {
     ready(t, { ...helloReply, capabilities: ["progress"] } as Reply);
     const ac = new AbortController();
 
-    const answer = t.transport.request(evaluate, { signal: ac.signal });
+    const pending = t.client.request(evaluate, { signal: ac.signal });
     const id = idOf(t.sent, "evaluate");
     await settle();
     ac.abort();
@@ -444,15 +445,15 @@ describe("a request given up", () => {
     expect(t.sent).toHaveLength(2);
 
     t.receive({ ...okReply, id });
-    expect((await answer).reply.status).toBe("ok");
+    expect((await pending).reply.status).toBe("ok");
   });
 
   test("while its body goes is cancelled once it is sent", async () => {
     const t = setup();
     ready(t);
     let sendBody: () => void = () => undefined;
-    const send = t.ch.send.bind(t.ch);
-    t.ch.send = (message, bodies) =>
+    const send = t.fake.send.bind(t.fake);
+    t.fake.send = (message, bodies) =>
       bodies.size === 0
         ? send(message, bodies)
         : new Promise((resolve) => {
@@ -462,7 +463,7 @@ describe("a request given up", () => {
           });
     const ac = new AbortController();
 
-    void t.transport.request(echo, { body: new Blob(["x"]), signal: ac.signal });
+    void t.client.request(echo, { body: new Blob(["x"]), signal: ac.signal });
     ac.abort();
     expect(t.sent).toHaveLength(1);
 
@@ -474,16 +475,16 @@ describe("a request given up", () => {
   });
 });
 
-// The fixtures of the wire protocol, played through the transport: each
-// fixture's message is what the transport sends for the requests it is
-// handed, and R's messages in it end those requests, with the transport's ids
-// in place of the fixture's.
+// The fixtures of the wire protocol, played through the client: each
+// fixture's message is what the client sends for the requests it is handed,
+// and R's messages in it end those requests, with the client's ids in place of
+// the fixture's.
 describe("the protocol's fixtures", () => {
   const names = readdirSync(fixtures)
     .filter((file) => file.endsWith(".json"))
     .map((file) => file.slice(0, -".json".length));
 
-  // Swaps ids in a message, the fixture's for the transport's or back.
+  // Swaps ids in a message, the fixture's for the client's or back.
   function swap<T>(value: T, ids: Map<string, string>): T {
     return JSON.parse(
       JSON.stringify(value, (key, v: unknown) =>
@@ -494,8 +495,10 @@ describe("the protocol's fixtures", () => {
     ) as T;
   }
 
-  // What a caller hands the transport for a request of a fixture.
-  function outgoing(request: Request): [Outgoing, Blob | undefined] {
+  // What a caller hands the client for a request of a fixture.
+  function outgoing(
+    request: Request,
+  ): [Parameters<Client["request"]>[0], Blob | undefined] {
     const body = "body" in request ? request.body : undefined;
     const blob =
       body === undefined
@@ -503,7 +506,10 @@ describe("the protocol's fixtures", () => {
         : body.name === undefined
           ? new Blob(["bytes"], { type: body.type })
           : new File(["bytes"], body.name, { type: body.type });
-    return [without(request, "id", "body") as Outgoing, blob];
+    return [
+      without(request, "id", "body") as Parameters<Client["request"]>[0],
+      blob,
+    ];
   }
 
   // Plays R's messages, handing a reply that announces a body its bytes.
@@ -522,7 +528,9 @@ describe("the protocol's fixtures", () => {
   test.each(names.filter((n) => n.startsWith("hello")))("%s", async (name) => {
     const fx = fixture(name);
     const request = only(fx.client) as HelloRequest;
-    const t = setup(without(request, "id", "kind") as Hello);
+    const t = setup(
+      without(request, "id", "kind") as ReturnType<ClientOptions["hello"]>,
+    );
 
     t.start();
     const ids = new Map([[request.id, idOf(t.sent, "hello")]]);
@@ -530,7 +538,7 @@ describe("the protocol's fixtures", () => {
 
     play(t, swap(fx.r, ids));
     await settle();
-    expect(t.sessions.map((s) => s.reply)).toEqual(swap(fx.r[0], ids));
+    expect(t.sessions).toEqual(swap(fx.r[0], ids));
   });
 
   const plain = names.filter(
@@ -544,9 +552,9 @@ describe("the protocol's fixtures", () => {
     const before = t.sent.length;
 
     const notes: unknown[] = [];
-    const answers = fx.client.map((request) => {
+    const pendings = fx.client.map((request) => {
       const [out, body] = outgoing(request);
-      return t.transport.request(out, {
+      return t.client.request(out, {
         body,
         progress: (note) => notes.push(note),
       });
@@ -563,8 +571,8 @@ describe("the protocol's fixtures", () => {
     play(t, swap(fx.r, ids));
 
     const replies = fx.r.flat().filter((item): item is Reply => "status" in item);
-    for (const [i, answer] of answers.entries()) {
-      const { reply, body } = await answer;
+    for (const [i, request] of pendings.entries()) {
+      const { reply, body } = await request;
       expect(swap(reply, new Map([...ids].map(([a, b]) => [b, a])))).toEqual(
         replies[i],
       );
@@ -580,7 +588,7 @@ describe("the protocol's fixtures", () => {
     const fx = fixture("several-requests");
     const t = setup();
 
-    for (const request of fx.client) void t.transport.request(outgoing(request)[0]);
+    for (const request of fx.client) void t.client.request(outgoing(request)[0]);
     ready(t);
 
     const [message] = t.messages().slice(1);
@@ -596,7 +604,7 @@ describe("the protocol's fixtures", () => {
     ready(t);
     const ac = new AbortController();
 
-    const answer = t.transport.request(evaluate, { signal: ac.signal });
+    const pending = t.client.request(evaluate, { signal: ac.signal });
     await settle();
     ac.abort();
 
@@ -604,7 +612,7 @@ describe("the protocol's fixtures", () => {
     expect(t.messages().at(-1)).toEqual(swap(fx.client, ids));
 
     play(t, swap(fx.r, ids));
-    expect((await answer).reply).toEqual(swap(fx.r[0]?.[0], ids));
+    expect((await pending).reply).toEqual(swap(fx.r[0]?.[0], ids));
   });
 
   test("forget", async () => {
@@ -613,13 +621,13 @@ describe("the protocol's fixtures", () => {
     const t = setup();
     ready(t);
 
-    const answer = t.transport.request(outgoing(output)[0]);
-    t.transport.forget(["d", "e"]);
+    const pending = t.client.request(outgoing(output)[0]);
+    t.client.forget(["d", "e"]);
 
     expect(t.messages().at(-1)).toEqual(fx.client);
 
     const ids = new Map([["34", idOf(t.sent, "output")]]);
     play(t, swap(fx.r, ids));
-    expect((await answer).reply).toEqual(swap(fx.r[0]?.[0], ids));
+    expect((await pending).reply).toEqual(swap(fx.r[0]?.[0], ids));
   });
 });

@@ -1,15 +1,15 @@
-test_that("the bridge starts a session that the page may start anew", {
+test_that("the transport starts a session that the page may start anew", {
 
   withr::local_options(shiny.maxRequestSize = NULL)
 
-  session <- with_bridge(function(message, send) NULL)
+  session <- with_transport(function(message, send) NULL)
 
   expect_true(session$reconnect)
 
   expect_identical(
-    decode_message(bridge_sent(session)),
+    decode_message(transport_sent(session)),
     list(
-      upload = "session/mock/dataobj/blockr-bodies?w=&nonce=0",
+      body_url = "session/mock/dataobj/blockr-bodies?w=&nonce=0",
       max_request_size = 5 * 1024^2
     )
   )
@@ -19,17 +19,16 @@ test_that("the bridge starts a session that the page may start anew", {
   # Shiny takes a body of any size where its limit is 0.
   withr::local_options(shiny.maxRequestSize = 0)
 
-  expect_named(
-    decode_message(bridge_sent(with_bridge(function(message, send) NULL))),
-    "upload"
-  )
+  session <- with_transport(function(message, send) NULL)
+
+  expect_named(decode_message(transport_sent(session)), "body_url")
 })
 
-test_that("the bridge hands each message the client sends to the handler", {
+test_that("the transport hands each message the client sends to the handler", {
 
   got <- list()
 
-  with_bridge(
+  with_transport(
     function(message, send) got[[length(got) + 1L]] <<- message,
     {
 
@@ -46,7 +45,7 @@ test_that("the bridge hands each message the client sends to the handler", {
         )
 
         if (name %in% c("request-action", "request-output")) {
-          bridge_post(session, decode_message(client)[[1L]][["id"]], raw(1L))
+          transport_post(session, decode_message(client)[[1L]][["id"]], raw(1L))
         }
 
         session$setInputs(blockr = client)
@@ -69,16 +68,16 @@ test_that("the bridge hands each message the client sends to the handler", {
   }
 })
 
-test_that("the bridge ignores the value that the input starts with", {
+test_that("the transport ignores the value that the input starts with", {
 
   got <- list()
 
-  session <- bridge_session()
+  session <- transport_session()
 
   # Shiny replays the page's last message when it starts a new session.
   session$setInputs(blockr = '[{"kind": "forget", "blocks": ["a"]}]')
 
-  with_bridge(
+  with_transport(
     function(message, send) got[[length(got) + 1L]] <<- message,
     session$setInputs(blockr = '[{"id": "1", "kind": "hello"}]'),
     session
@@ -87,11 +86,11 @@ test_that("the bridge ignores the value that the input starts with", {
   expect_identical(got, list(list(list(id = "1", kind = "hello"))))
 })
 
-test_that("the bridge sends R's messages as encode_message() writes them", {
+test_that("the transport sends R's messages as encode_message() writes them", {
 
   values <- protocol_r_values()
 
-  with_bridge(
+  with_transport(
     function(message, send) NULL,
     {
 
@@ -104,9 +103,9 @@ test_that("the bridge sends R's messages as encode_message() writes them", {
           send_message(values[[name]][[i]], session)
 
           expect_identical(
-            read_json_strictly(utils::tail(bridge_sent(session), 1L)),
+            read_json_strictly(utils::tail(transport_sent(session), 1L)),
             expected[[i]],
-            label = paste0("message ", i, " the bridge sends for ", name)
+            label = paste0("message ", i, " the transport sends for ", name)
           )
         }
       }
@@ -116,7 +115,7 @@ test_that("the bridge sends R's messages as encode_message() writes them", {
 
 test_that("the handler's send() sends a message", {
 
-  session <- with_bridge(
+  session <- with_transport(
     function(message, send) {
       send(list(list(id = message[[1L]][["id"]], status = "ok", value = 1L)))
     },
@@ -124,23 +123,23 @@ test_that("the handler's send() sends a message", {
   )
 
   expect_identical(
-    utils::tail(bridge_sent(session), 1L),
+    utils::tail(transport_sent(session), 1L),
     '[{"id":"7","status":"ok","value":1}]'
   )
 })
 
-test_that("the bridge refuses to send what is no unnamed list", {
+test_that("the transport refuses to send what is no unnamed list", {
 
-  with_bridge(
+  with_transport(
     function(message, send) NULL,
     {
       expect_error(
         send_message(list(id = "1", status = "ok"), session),
-        class = "blockr_message_invalid"
+        "unnamed list of replies"
       )
       expect_error(
         send_message("[]", session),
-        class = "blockr_message_invalid"
+        "unnamed list of replies"
       )
     }
   )
@@ -151,7 +150,7 @@ test_that("a small body travels in its reply's message", {
   file <- withr::local_tempfile(fileext = ".csv")
   writeLines("a,b", file)
 
-  with_bridge(
+  with_transport(
     function(message, send) NULL,
     {
 
@@ -171,7 +170,7 @@ test_that("a small body travels in its reply's message", {
         session
       )
 
-      sent <- decode_message(utils::tail(bridge_sent(session), 1L))
+      sent <- decode_message(utils::tail(transport_sent(session), 1L))
 
       expect_identical(
         sent[[1L]][["body"]],
@@ -197,7 +196,7 @@ test_that("a large body is served once from a URL", {
   file <- withr::local_tempfile(fileext = ".bin")
   writeBin(big, file)
 
-  with_bridge(
+  with_transport(
     function(message, send) NULL,
     {
 
@@ -217,7 +216,7 @@ test_that("a large body is served once from a URL", {
         session
       )
 
-      sent <- decode_message(utils::tail(bridge_sent(session), 1L))
+      sent <- decode_message(utils::tail(transport_sent(session), 1L))
 
       expect_identical(
         sent[[1L]][["body"]],
@@ -227,7 +226,7 @@ test_that("a large body is served once from a URL", {
         )
       )
 
-      res <- bridge_http(session, "blockr-body-3")
+      res <- transport_http(session, "blockr-body-3")
 
       expect_identical(res[["status"]], 200L)
       expect_identical(res[["content_type"]], "application/octet-stream")
@@ -235,17 +234,23 @@ test_that("a large body is served once from a URL", {
 
       # Until the client deletes it, R serves the body to every GET, one that
       # the browser sends again included.
-      expect_identical(bridge_http(session, "blockr-body-3")[["content"]], big)
       expect_identical(
-        bridge_http(session, "blockr-body-3", "POST")[["status"]],
+        transport_http(session, "blockr-body-3")[["content"]],
+        big
+      )
+      expect_identical(
+        transport_http(session, "blockr-body-3", "POST")[["status"]],
         405L
       )
 
-      res <- bridge_http(session, "blockr-body-3", "DELETE")
+      res <- transport_http(session, "blockr-body-3", "DELETE")
       expect_identical(res[["status"]], 200L)
 
       # Deleted, the bytes are dropped, by what takes their place too.
-      expect_identical(bridge_http(session, "blockr-body-3")[["status"]], 404L)
+      expect_identical(
+        transport_http(session, "blockr-body-3")[["status"]],
+        404L
+      )
       expect_null(session$data_objs[["blockr-body-3"]][["data"]])
       expect_identical(
         session$data_objs[["blockr-body-3"]][["filter"]],
@@ -257,7 +262,7 @@ test_that("a large body is served once from a URL", {
         list(type = "text/plain", name = "big.txt")
       )
 
-      res <- bridge_http(session, "blockr-body-4")
+      res <- transport_http(session, "blockr-body-4")
 
       expect_identical(res[["content"]], list(file = file, owned = FALSE))
     }
@@ -279,12 +284,14 @@ test_that("the blockr options set which bodies travel in their message", {
 
   sent_bodies <- function() {
 
-    session <- with_bridge(
+    session <- with_transport(
       function(message, send) NULL,
       send_message(list(reply("1", 3L), reply("2", 11L)), session)
     )
 
-    lapply(decode_message(utils::tail(bridge_sent(session), 1L)), `[[`, "body")
+    sent <- decode_message(utils::tail(transport_sent(session), 1L))
+
+    lapply(sent, `[[`, "body")
   }
 
   withr::with_options(list(blockr.max_message_body = 0), {
@@ -309,7 +316,7 @@ test_that("a body travels in a binary frame where the blockr option says so", {
 
   png <- as.raw(c(0x89, 0x50, 0x4e, 0x47))
 
-  session <- with_bridge(
+  session <- with_transport(
     function(message, send) NULL,
     send_message(
       list(
@@ -332,14 +339,14 @@ test_that("a body travels in a binary frame where the blockr option says so", {
     c(FALSE, TRUE, FALSE)
   )
   expect_identical(
-    utils::tail(bridge_sent(session), 2L),
+    utils::tail(transport_sent(session), 2L),
     c(
       '[{"id":"1","progress":{"value":0.5}}]',
       '[{"id":"2","status":"ok","value":1}]'
     )
   )
 
-  frames <- bridge_frames(session)
+  frames <- transport_frames(session)
 
   expect_length(frames, 1L)
   expect_identical(
@@ -367,33 +374,33 @@ test_that("the largest body in a message follows the encoding by default", {
   )
 })
 
-test_that("the bridge refuses blockr options it cannot follow", {
+test_that("the transport refuses blockr options it cannot follow", {
 
   withr::with_options(list(blockr.max_message_body = -1), {
     expect_error(
-      with_bridge(function(message, send) NULL),
-      class = "blockr_option_invalid"
+      with_transport(function(message, send) NULL),
+      "The blockr option"
     )
   })
 
   withr::with_envvar(c(BLOCKR_MAX_MESSAGE_BODY = "big"), {
     expect_error(
-      with_bridge(function(message, send) NULL),
-      class = "blockr_option_invalid"
+      with_transport(function(message, send) NULL),
+      "The blockr option"
     )
   })
 
   withr::with_options(list(blockr.message_body_encoding = "zip"), {
     expect_error(
-      with_bridge(function(message, send) NULL),
-      class = "blockr_option_invalid"
+      with_transport(function(message, send) NULL),
+      "The blockr option"
     )
   })
 })
 
 test_that("a reply goes as it is where its body holds no bytes", {
 
-  with_bridge(
+  with_transport(
     function(message, send) NULL,
     {
 
@@ -403,7 +410,7 @@ test_that("a reply goes as it is where its body holds no bytes", {
       )
 
       expect_identical(
-        utils::tail(bridge_sent(session), 1L),
+        utils::tail(transport_sent(session), 1L),
         '[{"id":"5","status":"ok","body":{"type":"image/png"}}]'
       )
     }
@@ -414,20 +421,20 @@ test_that("a reply's body holds bytes that R can send", {
 
   reply <- function(body) list(list(id = "6", status = "ok", body = body))
 
-  with_bridge(
+  with_transport(
     function(message, send) NULL,
     {
       expect_error(
         send_message(reply(list(x = 1:3, type = "image/png")), session),
-        class = "blockr_body_invalid"
+        "holds its bytes"
       )
       expect_error(
         send_message(reply(list(x = tempfile(), type = "image/png")), session),
-        class = "blockr_body_invalid"
+        "holds its bytes"
       )
       expect_error(
         send_message(reply(list(x = as.raw(1L))), session),
-        class = "blockr_body_invalid"
+        "holds its bytes"
       )
     }
   )
@@ -438,14 +445,14 @@ test_that("a request's body reaches the handler as a file", {
   got <- list()
   bytes <- charToRaw("a,b\n1,2\n")
 
-  with_bridge(
+  with_transport(
     function(message, send) got[[length(got) + 1L]] <<- message,
     {
 
-      res <- bridge_post(session, "25", bytes)
+      res <- transport_post(session, "25", bytes)
       expect_identical(res[["status"]], 200L)
 
-      bridge_post(session, "26", as.raw(1:4))
+      transport_post(session, "26", as.raw(1:4))
 
       session$setInputs(
         blockr = paste0(
@@ -483,7 +490,7 @@ test_that("R replies error to a request whose body never came", {
 
   got <- list()
 
-  session <- with_bridge(
+  session <- with_transport(
     function(message, send) got[[length(got) + 1L]] <<- message,
     session$setInputs(
       blockr = paste0(
@@ -500,7 +507,7 @@ test_that("R replies error to a request whose body never came", {
     list(list(list(id = "28", kind = "request", name = "echo")))
   )
 
-  reply <- decode_message(utils::tail(bridge_sent(session), 1L))[[1L]]
+  reply <- decode_message(utils::tail(transport_sent(session), 1L))[[1L]]
 
   expect_identical(reply[["id"]], "27")
   expect_identical(reply[["status"]], "error")
@@ -510,7 +517,7 @@ test_that("R replies error to a request whose body never came", {
 
   expect_named(cnd, c("severity", "class", "message"))
   expect_identical(cnd[["severity"]], "error")
-  expect_true("blockr_no_body" %in% cnd[["class"]])
+  expect_true("blockr_error" %in% cnd[["class"]])
   expect_match(cnd[["message"]], "request 27")
 })
 
@@ -518,7 +525,7 @@ test_that("a request whose body is no object goes as it is", {
 
   got <- list()
 
-  with_bridge(
+  with_transport(
     function(message, send) got[[length(got) + 1L]] <<- message,
     session$setInputs(
       blockr = '[{"id": "29", "kind": "request", "name": "x", "body": "bytes"}]'
@@ -531,22 +538,22 @@ test_that("a request whose body is no object goes as it is", {
   )
 })
 
-test_that("the bridge takes posted bodies that name their request alone", {
+test_that("the transport takes posted bodies that name their request alone", {
 
-  with_bridge(
+  with_transport(
     function(message, send) NULL,
     {
 
-      res <- bridge_http(session, "blockr-bodies", "GET", "?id=1")
+      res <- transport_http(session, "blockr-bodies", "GET", "?id=1")
       expect_identical(res[["status"]], 405L)
 
-      res <- bridge_http(session, "blockr-bodies", "POST", "?w=", raw(1L))
+      res <- transport_http(session, "blockr-bodies", "POST", "?w=", raw(1L))
       expect_identical(res[["status"]], 400L)
     }
   )
 })
 
-test_that("the bridge ignores what it cannot decode and outlives its handler", {
+test_that("the transport ignores what it cannot decode and outlives errors", {
 
   withr::local_options(
     blockr.logger = cnd_logger,
@@ -565,7 +572,7 @@ test_that("the bridge ignores what it cannot decode and outlives its handler", {
     }
   }
 
-  with_bridge(
+  with_transport(
     handler,
     {
 

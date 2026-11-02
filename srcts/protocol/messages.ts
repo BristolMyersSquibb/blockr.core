@@ -321,7 +321,7 @@ export interface BlockOutput {
   renderer: string;
 }
 
-// A binary body, which travels beside the message as the bridge carries it,
+// A binary body, which travels beside the message as the transport carries it,
 // with its MIME type and, for a download, a file name.
 export interface Body {
   type: string;

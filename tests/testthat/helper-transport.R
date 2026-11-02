@@ -1,8 +1,8 @@
-# A mock Shiny session for the Shiny bridge, which keeps the custom messages
+# A mock Shiny session for the Shiny transport, which keeps the custom messages
 # and binary frames sent, in their order, the data objects registered and the
 # reconnect allowed, so that a test can read what R sent the client and play
 # the client's HTTP requests.
-bridge_session <- function() {
+transport_session <- function() {
 
   session <- shiny::MockShinySession$new()
 
@@ -37,16 +37,17 @@ bridge_session <- function() {
   session
 }
 
-# Runs the bridge with a handler in a test session and then the code, with
-# `session` bound to the session, flushing once the bridge is set up, as Shiny
-# flushes after the message that starts a session.
-with_bridge <- function(handler, code = NULL, session = bridge_session()) {
+# Runs the transport with a handler in a test session and then the code, with
+# `session` bound to the session, flushing once the transport is set up, as
+# Shiny flushes after the message that starts a session.
+with_transport <- function(handler, code = NULL,
+                           session = transport_session()) {
 
   code <- substitute(code)
   env <- parent.frame()
 
   shiny::testServer(
-    function(input, output, session) shiny_bridge(handler, session),
+    function(input, output, session) shiny_transport(handler, session),
     {
       session$flushReact()
       eval(code, list(session = session), env)
@@ -58,14 +59,14 @@ with_bridge <- function(handler, code = NULL, session = bridge_session()) {
 }
 
 # The messages that R sent the client as text, each as its JSON text.
-bridge_sent <- function(session) {
+transport_sent <- function(session) {
   text <- Filter(function(x) !isTRUE(x[["binary"]]), session$sent)
   chr_ply(text, function(x) unclass(x[["message"]]))
 }
 
 # The binary frames that R sent the client, each as the JSON text of its
 # message and the body's bytes.
-bridge_frames <- function(session) {
+transport_frames <- function(session) {
 
   frames <- Filter(function(x) isTRUE(x[["binary"]]), session$sent)
 
@@ -82,10 +83,10 @@ bridge_frames <- function(session) {
   )
 }
 
-# Plays an HTTP request to a data object that the bridge registered, as Shiny
+# Plays an HTTP request to a data object that the transport registered, as Shiny
 # hands it the object's data and the request.
-bridge_http <- function(session, name, method = "GET", query = "",
-                        body = raw()) {
+transport_http <- function(session, name, method = "GET", query = "",
+                           body = raw()) {
 
   obj <- session$data_objs[[name]]
 
@@ -97,15 +98,15 @@ bridge_http <- function(session, name, method = "GET", query = "",
       list(
         REQUEST_METHOD = method,
         QUERY_STRING = query,
-        rook.input = bridge_input(body)
+        rook.input = transport_input(body)
       )
     )
   )
 }
 
 # Posts a request's body, as the client does before it sends the request.
-bridge_post <- function(session, id, body) {
-  bridge_http(
+transport_post <- function(session, id, body) {
+  transport_http(
     session,
     "blockr-bodies",
     "POST",
@@ -115,7 +116,7 @@ bridge_post <- function(session, id, body) {
 }
 
 # A request body as httpuv gives it, read in chunks.
-bridge_input <- function(bytes) {
+transport_input <- function(bytes) {
 
   pos <- 0L
 
