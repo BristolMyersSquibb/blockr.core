@@ -101,7 +101,8 @@
         "front_ends": {
           "blockr.core-basic": {
             "module": "blockr.core/basic.js?v=0f3d8e21",
-            "css": "blockr.core/basic.css?v=6a9b2c4e"
+            "css": "blockr.core/basic.css?v=6a9b2c4e",
+            "options": ["show_conditions"]
           }
         },
         "startup_modules": [],
@@ -109,15 +110,18 @@
         "renderers": {
           "blockr.core-basic_table": {
             "module": "blockr.core/basic-table.js?v=b7e2a915",
-            "class": "table_output"
+            "class": "table_output",
+            "options": ["n_rows"]
           },
           "blockr.core-basic_text": {
             "module": "blockr.core/basic-text.js?v=3c8f61d0",
-            "class": "text_output"
+            "class": "text_output",
+            "options": []
           },
           "blockr.core-basic_plot": {
             "module": "blockr.core/basic-plot.js?v=f19d4a73",
-            "class": "plot_output"
+            "class": "plot_output",
+            "options": []
           }
         },
         "lock": null,

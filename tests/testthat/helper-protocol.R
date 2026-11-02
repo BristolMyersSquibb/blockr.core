@@ -467,7 +467,8 @@ proto_served <- function(startup_modules = list()) {
     front_ends = obj(
       `blockr.core-basic` = obj(
         module = proto_js("basic.js", "0f3d8e21"),
-        css = proto_js("basic.css", "6a9b2c4e")
+        css = proto_js("basic.css", "6a9b2c4e"),
+        options = I("show_conditions")
       )
     ),
     startup_modules = startup_modules,
@@ -480,15 +481,18 @@ proto_renderers <- function() {
   obj(
     `blockr.core-basic_table` = obj(
       module = proto_js("basic-table.js", "b7e2a915"),
-      class = "table_output"
+      class = "table_output",
+      options = I("n_rows")
     ),
     `blockr.core-basic_text` = obj(
       module = proto_js("basic-text.js", "3c8f61d0"),
-      class = "text_output"
+      class = "text_output",
+      options = I(character())
     ),
     `blockr.core-basic_plot` = obj(
       module = proto_js("basic-plot.js", "f19d4a73"),
-      class = "plot_output"
+      class = "plot_output",
+      options = I(character())
     )
   )
 }
