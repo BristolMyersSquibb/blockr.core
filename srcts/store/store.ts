@@ -26,16 +26,7 @@ import { commit, target } from "./commit.ts";
 import type { Changed, Inverse } from "./commit.ts";
 import type { Delta, Origin } from "./delta.ts";
 import { expand } from "./expand.ts";
-import { mintId, sentenceCase } from "./ids.ts";
-import {
-  BASIC_FRONT_END,
-  checkFile,
-  complete,
-  drop,
-  keyed,
-  migrate,
-  parse,
-} from "./open.ts";
+import { checkFile, FORMAT, frontEndOf, keyed, openFile, parse } from "./open.ts";
 import type { Dropped } from "./open.ts";
 import { createRegistrations } from "./registrations.ts";
 import type {
@@ -44,14 +35,15 @@ import type {
   Options,
   StateKey,
 } from "./registrations.ts";
-import { getAt, isObject, own, pathText, StoreError } from "./util.ts";
+import { getAt, isObject, pathText, StoreError } from "./util.ts";
 
 export type Change =
   | { readonly delta: Delta; readonly origin: Origin }
   | { readonly opened: Board; readonly dropped: readonly Dropped[] };
 
 export interface Store {
-  // The current board, whose changes subscribe() announces.
+  // The current board, whose changes subscribe() announces. The store holds
+  // none until it opens one, and throws until then.
   board(): Board;
   // Calls `fn` after every commit, once for each delta as expanded, and after
   // every opening of a board, with the board as it then is.
@@ -132,7 +124,7 @@ export function createStore(options: StoreOptions): Store {
   const registrations = createRegistrations();
   registrations.register(visible);
 
-  const board = signal<Board>(empty());
+  const board = signal<Board | undefined>(undefined);
   const registry = signal<Readonly<Record<RegistryId, RegistryEntry>>>({});
   const packages = signal<Readonly<Record<string, string>>>({});
   const history = signal<ReadonlyMap<Origin, History>>(new Map());
@@ -154,6 +146,13 @@ export function createStore(options: StoreOptions): Store {
         "The store is applying or announcing a change, which a subscriber, a key's expand or check, or a migration may not change, since what follows from a delta is a key's expand.",
       );
     }
+  }
+
+  // The board the store holds, or a StoreError where it holds none yet, so
+  // that nothing builds on a board that no opening made.
+  function current(refused: string): Board {
+    if (board.value !== undefined) return board.value;
+    throw new StoreError(refused, ["The store holds no board until it opens one."]);
   }
 
   function announce(change: Change, next: Board): void {
@@ -179,13 +178,14 @@ export function createStore(options: StoreOptions): Store {
   // Applies deltas in order, each expanded or not, as one step, checking each
   // on the board the one before it left, or throws what rejected them.
   function run(
+    start: Board,
     deltas: readonly Delta[],
     how: { expand: boolean; places?: readonly Inverse["places"][] },
     refused: string,
   ): { applied: Applied[]; inverses: Inverse[] } {
     const applied: Applied[] = [];
     const inverses: Inverse[] = [];
-    let current = board.value;
+    let current = start;
 
     for (const [i, delta] of deltas.entries()) {
       const prefix = deltas.length > 1 ? `Delta ${String(i + 1)}: ` : "";
@@ -298,14 +298,15 @@ export function createStore(options: StoreOptions): Store {
     busy = true;
     try {
       const refused = "The store rejected the delta";
+      const start = current(refused);
       const failures = named(deltas);
       if (failures.length > 0) throw new StoreError(refused, failures);
 
-      const { applied, inverses } = run(deltas, { expand: true }, refused);
+      const { applied, inverses } = run(start, deltas, { expand: true }, refused);
 
       const touched = new Set(applied.flatMap(({ changed }) => [...changed.targets]));
       const before = editsOf(touched);
-      const last = applied.at(-1)?.board ?? board.value;
+      const last = applied.at(-1)?.board ?? start;
       for (const key of touched) {
         if (exists(last, key)) edits.set(key, ++count);
         else edits.delete(key);
@@ -339,13 +340,15 @@ export function createStore(options: StoreOptions): Store {
       const failures = unchanged(back ? step.after : step.before, keys);
       if (failures.length > 0) throw new StoreError(refused, failures);
 
+      const start = current(refused);
       const { applied } = back
         ? run(
+            start,
             step.inverses.map(({ delta }) => delta),
             { expand: false, places: step.inverses.map(({ places }) => places) },
             refused,
           )
-        : run(step.deltas, { expand: false }, refused);
+        : run(start, step.deltas, { expand: false }, refused);
 
       restore(keys, back ? step.before : step.after);
       setSteps(
@@ -365,11 +368,8 @@ export function createStore(options: StoreOptions): Store {
   }
 
   async function open(saved: string | HelloReply): Promise<Dropped[]> {
-    const refused = "The store refused to open the board";
-
-    let file: SavedBoard | undefined;
+    let file: SavedBoard;
     let reply: OpenReply;
-    let opening: Board;
 
     if (typeof saved === "string") {
       file = checkFile(parse(saved));
@@ -386,46 +386,33 @@ export function createStore(options: StoreOptions): Store {
         );
       }
       reply = answer;
-      opening = file.board;
     } else {
       reply = saved;
-      if (saved.file === undefined) {
-        opening = keyed(saved.board);
-      } else {
-        file = checkFile(saved.file);
-        opening = file.board;
-      }
+      // The board an app script built opens as the saved file it would be,
+      // which R wrote with the versions of the packages it loaded, so that it
+      // ends as the same board opened from a file ends.
+      file =
+        saved.file === undefined
+          ? { format: FORMAT, packages: saved.packages, board: keyed(saved.board) }
+          : checkFile(saved.file);
     }
 
     registry.value = reply.block_registry;
     packages.value = reply.packages;
-
-    const frontEnd =
-      own(reply.front_ends, opening.front_end.id) === undefined
-        ? BASIC_FRONT_END
-        : opening.front_end.id;
-    await options.loaded?.(reply, frontEnd);
+    await options.loaded?.(reply, frontEndOf(file.board, reply.front_ends));
 
     guard();
     busy = true;
     try {
-      const migrated =
-        file === undefined
-          ? opening
-          : migrate(opening, file.packages, reply.packages, registrations);
-      const kept = drop(migrated, reply.block_registry, reply.front_ends, registrations);
-      const next = complete(kept.board, registrations);
-
-      const failures = check(next, registry.value, registrations);
-      if (failures.length > 0) throw new StoreError(refused, failures);
+      const { board: next, dropped } = openFile(file, reply, registrations);
 
       board.value = next;
       edits.clear();
       for (const key of everyTarget(next)) edits.set(key, ++count);
       history.value = new Map();
 
-      announce({ opened: next, dropped: kept.dropped }, next);
-      return kept.dropped;
+      announce({ opened: next, dropped }, next);
+      return dropped;
     } finally {
       busy = false;
     }
@@ -446,7 +433,12 @@ export function createStore(options: StoreOptions): Store {
   }
 
   return {
-    board: () => board.value,
+    board() {
+      if (board.value === undefined) {
+        throw new Error("The store holds no board until it opens one.");
+      }
+      return board.value;
+    },
     subscribe(fn) {
       const wrapped = (change: Change, next: Board) => {
         fn(change, next);
@@ -490,21 +482,6 @@ const visible: Attribute = {
   },
   initial: ["inputs", "outputs"],
 };
-
-// The board the store holds until it opens one, which the client made and so
-// gave an id.
-function empty(): Board {
-  const id = mintId(() => false);
-  return {
-    id,
-    front_end: { id: BASIC_FRONT_END, state: {}, attrs: {} },
-    name: sentenceCase(id),
-    blocks: {},
-    links: {},
-    stacks: {},
-    options: {},
-  };
-}
 
 function isDeltas(delta: Delta | readonly Delta[]): delta is readonly Delta[] {
   return Array.isArray(delta);

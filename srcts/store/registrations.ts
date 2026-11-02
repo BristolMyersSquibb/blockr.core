@@ -6,8 +6,8 @@
 // package registers.
 
 import { computed, signal } from "@preact/signals-core";
-import Ajv2020 from "ajv/dist/2020";
-import type { ErrorObject } from "ajv/dist/2020";
+import Ajv2020 from "ajv/dist/2020.js";
+import type { ErrorObject } from "ajv/dist/2020.js";
 import type {
   Block,
   BlockId,
@@ -84,7 +84,13 @@ export interface Saved {
 }
 
 // A package's migration, given everything a file holds and the version of the
-// package that saved it, or null where the file records none.
+// package that saved it, or null where the file records none. It converts what
+// older versions of its package saved into today's shape, and changes nothing
+// on a board in today's shape, so that a board saved and opened again comes
+// back as it was, though a file that records no version of a package runs its
+// migration. What a board takes where it lacks a value comes from what
+// packages register instead, a key's `initial` and a board option's
+// `default`, which the store gives every board it opens.
 export type Migration = (saved: Saved, version: string | null) => Partial<Saved>;
 
 // A validator of a schema, which gives each failure in a sentence.

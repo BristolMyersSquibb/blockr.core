@@ -14,7 +14,7 @@ import type {
   Reply,
 } from "../protocol/messages.ts";
 import type { Transport } from "../protocol/transport.ts";
-import type { Block, Board, SavedBoard } from "../types/board.ts";
+import type { Block, Board, OpeningBoard, SavedBoard } from "../types/board.ts";
 import { ROUNDS } from "./expand.ts";
 import { createStore, isId, sentenceCase, StoreError } from "./index.ts";
 import type {
@@ -131,10 +131,11 @@ function newStore(transport: Transport = fakeR()): Store {
 async function opened(
   setup?: (store: Store) => void,
   transport: Transport = fakeR(),
+  replied: HelloReply = hello,
 ): Promise<Store> {
   const store = newStore(transport);
   setup?.(store);
-  await store.open(hello);
+  await store.open(replied);
   return store;
 }
 
@@ -433,6 +434,106 @@ describe("opening a board", () => {
     expect(store.canUndo()).toBe(false);
     expect(store.board().name).toBe("Iris review");
   });
+
+  test("ends at the same board whichever way the board comes in", async () => {
+    // A board that gives every id, so that nothing is minted.
+    const replied = reply("hello-locked") as HelloReply & { board: OpeningBoard };
+    const answer: OpenReply = {
+      id: "2",
+      status: "ok",
+      packages: replied.packages,
+      block_registry: replied.block_registry,
+      front_ends: replied.front_ends,
+      startup_modules: replied.startup_modules,
+      modules: replied.modules,
+      renderers: replied.renderers,
+      blockr_options: replied.blockr_options,
+    };
+    const fresh = () => {
+      const store = newStore(fakeR(answer));
+      store.register(positions);
+      return store;
+    };
+
+    // As an app script built it.
+    const script = fresh();
+    await script.open(replied);
+    const board = script.board();
+
+    // As the file the client writes for it, which serve() is given or the
+    // client opens.
+    const saved: SavedBoard = { format: 1, packages: replied.packages, board };
+    const viaR = fresh();
+    await viaR.open({ ...replied, board: undefined, file: saved });
+    const viaClient = fresh();
+    await viaClient.open(JSON.stringify(saved));
+
+    // As a user builds it on an empty board.
+    const built = fresh();
+    await built.open({
+      ...replied,
+      board: { ...replied.board, blocks: [], links: [], stacks: [], options: {} },
+    });
+    for (const [id, block] of Object.entries(board.blocks)) {
+      built.apply({ blocks: { add: { [id]: block } } });
+    }
+    built.apply({ links: { add: board.links } });
+
+    expect(viaR.board()).toEqual(board);
+    expect(viaClient.board()).toEqual(board);
+    expect(built.board()).toEqual(board);
+  });
+
+  test("drops a block whose class the block registry lacks as a delta removes it, with what keys keep about it", async () => {
+    const store = await opened((store) => store.register(positions));
+    const dropped = await store.open(
+      file({
+        front_end: {
+          id: "blockr.core-basic",
+          state: {
+            extensions: {
+              "blockr.dag-dag": {
+                positions: { a: { x: 0, y: 0 }, x: { x: 1, y: 1 }, b: { x: 2, y: 2 } },
+              },
+            },
+          },
+          attrs: {},
+        },
+        blocks: {
+          a: {
+            registry_id: "blockr.core-dataset_block",
+            state: { dataset: "mtcars", package: "datasets" },
+            name: "Cars",
+            attrs: {},
+          },
+          x: { registry_id: "blockr.dplyr-filter_block", state: {}, name: "Filter", attrs: { color: "red" } },
+          b: head(),
+        },
+        links: {
+          ax: { from: "a", to: "x", input: "data" },
+          xb: { from: "x", to: "b", input: "data" },
+        },
+        stacks: { s1: { name: "Input", blocks: ["a", "x", "b"] } },
+      }),
+    );
+
+    expect(dropped).toEqual([
+      { block: "x", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
+    ]);
+    const board = store.board();
+    expect(positionsOf(board)).toEqual({ a: { x: 0, y: 0 }, b: { x: 2, y: 2 } });
+    expect(board.links).toEqual({});
+    expect(board.stacks).toEqual({ s1: { name: "Input", blocks: ["a", "b"] } });
+  });
+
+  test("holds no board until it opens one", () => {
+    const store = newStore();
+    expect(() => store.board()).toThrow("The store holds no board until it opens one.");
+    expect(() => {
+      store.apply({ name: "Built" });
+    }).toThrow("The store rejected the delta\n- The store holds no board until it opens one.");
+    expect(store.canUndo()).toBe(false);
+  });
 });
 
 describe("migrations", () => {
@@ -441,11 +542,17 @@ describe("migrations", () => {
     packages: { ...loaded.packages, "blockr.dag": "0.3.0" },
   };
 
+  // An app that loaded blockr.dag and blockr.io beside core, whose packages
+  // register their migrations.
   function migrating(migrations: Record<string, Migration>): Promise<Store> {
-    return opened((store) => {
-      store.register(positions);
-      for (const [pkg, fn] of Object.entries(migrations)) store.registerMigration(pkg, fn);
-    }, fakeR(replied));
+    return opened(
+      (store) => {
+        store.register(positions);
+        for (const [pkg, fn] of Object.entries(migrations)) store.registerMigration(pkg, fn);
+      },
+      fakeR(replied),
+      { ...hello, packages: replied.packages },
+    );
   }
 
   const old = file(

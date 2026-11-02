@@ -1,17 +1,17 @@
 // Opening a board, which replaces the board the store holds: a saved file, or
-// the opening board that R sends with its reply to `hello`. The store runs the
-// migration of every package whose saved version differs from the one R
-// loaded, drops and names what the app cannot rebuild, and gives each board
-// option that the board lacks the default of its schema.
+// the opening board that R sends with its reply to `hello`, which the store
+// opens as the saved file it would be. Every board goes the same way from
+// there, so that it ends as the same board whichever way it came in: the store
+// runs the migration of every package whose saved version differs from the
+// one R loaded, drops and names what the app cannot rebuild, and gives the
+// board what packages register for a board that lacks it.
 
-import type {
-  Board,
-  OpeningBoard,
-  RegistryId,
-  SavedBoard,
-} from "../types/board.ts";
+import type { OpenReply } from "../protocol/messages.ts";
+import type { Board, OpeningBoard, SavedBoard } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
-import type { RegistryEntry } from "../types/registry.ts";
+import { check } from "./check.ts";
+import { commit } from "./commit.ts";
+import { expand } from "./expand.ts";
 import { mintId, sentenceCase } from "./ids.ts";
 import type { Registrations, Saved } from "./registrations.ts";
 import {
@@ -38,7 +38,7 @@ export const BASIC_FRONT_END = "blockr.core-basic";
 export type Dropped =
   | {
       readonly block: string;
-      readonly registry_id: RegistryId;
+      readonly registry_id: string;
       readonly package: string | null;
     }
   | { readonly front_end: string; readonly package: string | null }
@@ -156,7 +156,7 @@ function saved(board: Board): Saved {
 // and board options its package registers and the states of its own block
 // classes' blocks. What a migration leaves out of its return stays as the file
 // holds it.
-export function migrate(
+function migrate(
   board: Board,
   versions: Readonly<Record<string, string>>,
   loaded: Readonly<Record<string, string>>,
@@ -230,37 +230,74 @@ export function migrate(
   return next;
 }
 
-// The board without what the app cannot rebuild, and what that was: a block
-// whose class the block registry lacks, with its links and its places in
-// stacks, and every key of the front-end's state, attribute and board option
-// value that no package registered. A board made for a front-end that R serves
-// no module for opens as one made for core's basic front-end.
-export function drop(
+// The board that a saved file opens to, with what opening it dropped, or a
+// StoreError naming what refused it.
+export function openFile(
+  file: SavedBoard,
+  reply: OpenReply,
+  registrations: Registrations,
+): { board: Board; dropped: Dropped[] } {
+  const migrated = migrate(file.board, file.packages, reply.packages, registrations);
+
+  const gone = Object.entries(migrated.blocks)
+    .filter(([, block]) => own(reply.block_registry, block.registry_id) === undefined)
+    .map(([id]) => id);
+  const blocks: Dropped[] = gone.map((id) => {
+    const registryId = migrated.blocks[id]?.registry_id ?? "";
+    return { block: id, registry_id: registryId, package: packageOf(registryId) };
+  });
+
+  const { board: pruned, dropped } = prune(migrated, gone, reply.front_ends, registrations);
+  const board = remove(complete(pruned, registrations), gone, registrations);
+
+  const failures = check(board, reply.block_registry, registrations);
+  if (failures.length > 0) throw new StoreError(refused, failures);
+
+  const [frontEnd, ...rest] = dropped;
+  return {
+    board,
+    dropped:
+      frontEnd !== undefined && "front_end" in frontEnd
+        ? [frontEnd, ...blocks, ...rest]
+        : [...blocks, ...dropped],
+  };
+}
+
+// The front-end a board opens with: the one it names, or core's basic one
+// where R serves no module for that.
+export function frontEndOf(
   board: Board,
-  registry: Readonly<Record<RegistryId, RegistryEntry>>,
+  frontEnds: Readonly<Record<string, unknown>>,
+): string {
+  return own(frontEnds, board.front_end.id) === undefined
+    ? BASIC_FRONT_END
+    : board.front_end.id;
+}
+
+// The board without every key of the front-end's state, attribute and board
+// option value that no package registered, made for the front-end it opens
+// with, and what that dropped. The blocks that go keep what they hold, which
+// goes with them.
+function prune(
+  board: Board,
+  gone: readonly string[],
   frontEnds: Readonly<Record<string, unknown>>,
   registrations: Registrations,
 ): { board: Board; dropped: Dropped[] } {
   const dropped: Dropped[] = [];
 
   let frontEnd = board.front_end;
-  if (own(frontEnds, frontEnd.id) === undefined && frontEnd.id !== BASIC_FRONT_END) {
+  const id = frontEndOf(board, frontEnds);
+  if (id !== frontEnd.id) {
     dropped.push({ front_end: frontEnd.id, package: packageOf(frontEnd.id) });
-    frontEnd = { ...frontEnd, id: BASIC_FRONT_END };
+    frontEnd = { ...frontEnd, id };
   }
   const owner = packageOf(board.front_end.id);
 
-  const gone = Object.entries(board.blocks)
-    .filter(([, block]) => own(registry, block.registry_id) === undefined)
-    .map(([id]) => id);
-  for (const id of gone) {
-    const registryId = board.blocks[id]?.registry_id ?? "";
-    dropped.push({ block: id, registry_id: registryId, package: packageOf(registryId) });
-  }
-
   const blockAttrs = new Set<string>();
   const blocks = Object.fromEntries(
-    Object.entries(without(board.blocks, gone)).map(([id, block]) => {
+    Object.entries(board.blocks).map(([id, block]) => {
+      if (gone.includes(id)) return [id, block];
       const unknown = Object.keys(block.attrs).filter(
         (name) => registrations.attribute("block", name) === undefined,
       );
@@ -269,18 +306,6 @@ export function drop(
     }),
   );
   for (const name of blockAttrs) dropped.push({ attribute: name, on: "block", package: null });
-
-  const links = Object.fromEntries(
-    Object.entries(board.links).filter(([, link]) => !gone.includes(link.from) && !gone.includes(link.to)),
-  );
-  const stacks = Object.fromEntries(
-    Object.entries(board.stacks).map(([id, stack]) => [
-      id,
-      stack.blocks.some((block) => gone.includes(block))
-        ? { ...stack, blocks: stack.blocks.filter((block) => !gone.includes(block)) }
-        : stack,
-    ]),
-  );
 
   // A dropped key is named with the package its path gives, and where none
   // does, with that of each entry it holds by an id that gives one, as the
@@ -298,7 +323,7 @@ export function drop(
     }
   };
   const paths = registrations.keys().map(({ def }) => def.path);
-  const state = prune(frontEnd.state, [], paths, name);
+  const state = pruneState(frontEnd.state, [], paths, name);
 
   const unknownAttrs = Object.keys(frontEnd.attrs).filter(
     (name) => registrations.attribute("front_end", name) === undefined,
@@ -315,17 +340,31 @@ export function drop(
       ...board,
       front_end: { ...frontEnd, state, attrs: without(frontEnd.attrs, unknownAttrs) },
       blocks,
-      links,
-      stacks,
       options: without(board.options, unknownOptions),
     },
     dropped,
   };
 }
 
+// The board without the blocks, removed as a delta removes them, so that what
+// follows from removing a block goes with it: its links and its places in
+// stacks, and what each key of the front-end's state keeps about it.
+function remove(
+  board: Board,
+  gone: readonly string[],
+  registrations: Registrations,
+): Board {
+  if (gone.length === 0) return board;
+  const delta = expand({ blocks: { rm: gone } }, board, registrations);
+  if ("failures" in delta) throw new StoreError(refused, delta.failures);
+  const committed = commit(board, delta, registrations);
+  if ("failures" in committed) throw new StoreError(refused, committed.failures);
+  return committed.board;
+}
+
 // The state without what lies at no registered key's path, keeping the objects
 // on the way to one.
-function prune(
+function pruneState(
   state: Readonly<Record<string, unknown>>,
   at: readonly string[],
   paths: readonly (readonly string[])[],
@@ -337,7 +376,7 @@ function prune(
     const below = paths.filter((other) => path.every((part, i) => other[i] === part));
     if (below.some((other) => other.length === path.length)) continue;
     if (below.length > 0 && isObject(value)) {
-      const pruned = prune(value, path, below, dropped);
+      const pruned = pruneState(value, path, below, dropped);
       if (pruned !== value) next = { ...next, [key]: pruned };
       continue;
     }
@@ -349,7 +388,7 @@ function prune(
 
 // The board with the default of each board option that it lacks, and each
 // registered key that it lacks, a collection empty and a value as its initial.
-export function complete(board: Board, registrations: Registrations): Board {
+function complete(board: Board, registrations: Registrations): Board {
   let options = board.options;
   for (const [id, option] of Object.entries(registrations.options.registered())) {
     const value = option.schema.default;
