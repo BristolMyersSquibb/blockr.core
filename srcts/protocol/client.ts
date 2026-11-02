@@ -55,6 +55,9 @@ export interface Client {
   ): Promise<{ reply: Reply; body: Blob | null }>;
   // Has R forget blocks that left the board, which gets no reply.
   forget(blocks: BlockId[]): void;
+  // The capabilities that both sides named in the hello of the session that R
+  // has answered, none while no session is ready.
+  capabilities(): ReadonlySet<Capability>;
 }
 
 export interface ClientOptions {
@@ -341,6 +344,7 @@ export function createClient(
     forget(blocks) {
       queue({ message: { kind: "forget", blocks } });
     },
+    capabilities: () => shared,
   };
 }
 
