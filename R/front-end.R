@@ -5,13 +5,14 @@ declared_front_ends <- new.env()
 #' A front-end is the module that draws a board, which a package declares in
 #' R, from its `.onLoad()`, with `register_front_end()`: under a name, which
 #' gives it the ID `{pkg}-{name}`, as a registry id is, with its module, made
-#' by [js_module()], the board class it draws, and the board options it
-#' requires, which R collects for a board with those of the board's other
-#' parts (see [blockr_app_options()]). Core declares its basic front-end,
-#' `blockr.core-basic`, for `board`, and a package may declare several
-#' front-ends, each for a class of its own, since two front-ends declared for
-#' one class are an error naming both. Declaring a front-end again under the
-#' same ID replaces it, as when a package is loaded again.
+#' by [js_module()], whose package is the one that declares it, the board
+#' class it draws, and the board options it requires, which R collects for a
+#' board with those of the board's other parts (see [blockr_app_options()]).
+#' A module made outside a package declares no front-end. Core declares its
+#' basic front-end, `blockr.core-basic`, for `board`, and a package may declare
+#' several front-ends, each for a class of its own, since two front-ends
+#' declared for one class are an error naming both. Declaring a front-end
+#' again under the same ID replaces it, as when a package is loaded again.
 #'
 #' R picks a board's front-end wherever it holds the board as an R object, the
 #' one an app script builds and the one [blockr_deser()] builds from a file of
@@ -28,7 +29,6 @@ declared_front_ends <- new.env()
 #' @param options The board options the front-end requires, as a function that
 #'   returns board options, such as a board option constructor, or a list of
 #'   them, which R calls whenever it collects them
-#' @param package The package that declares the front-end
 #'
 #' @examples
 #' \dontrun{
@@ -48,17 +48,16 @@ declared_front_ends <- new.env()
 #' `class` and `options`, while `board_front_end()` returns a front-end's ID.
 #'
 #' @export
-register_front_end <- function(name, module, class, options = NULL,
-                               package = pkg_name(parent.frame())) {
-
-  id <- declared_id(name, package, "front-end", "front_end_invalid")
+register_front_end <- function(name, module, class, options = NULL) {
 
   if (!is_js_module(module)) {
     blockr_abort(
-      "The module of front-end {id} is expected to be made by `js_module()`.",
+      "A front-end's module is expected to be made by `js_module()`.",
       class = "front_end_invalid"
     )
   }
+
+  id <- declared_id(name, module[["package"]], "front-end", "front_end_invalid")
 
   if (!is_nonempty_string(class)) {
     blockr_abort(
@@ -98,7 +97,7 @@ register_front_end <- function(name, module, class, options = NULL,
   entry <- list(
     id = id,
     name = name,
-    package = package,
+    package = module[["package"]],
     module = module,
     class = class,
     options = options

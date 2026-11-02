@@ -5,13 +5,7 @@
 \alias{board_front_end}
 \title{Front-ends}
 \usage{
-register_front_end(
-  name,
-  module,
-  class,
-  options = NULL,
-  package = pkg_name(parent.frame())
-)
+register_front_end(name, module, class, options = NULL)
 
 board_front_end(x)
 }
@@ -26,8 +20,6 @@ board_front_end(x)
 returns board options, such as a board option constructor, or a list of
 them, which R calls whenever it collects them}
 
-\item{package}{The package that declares the front-end}
-
 \item{x}{Board}
 }
 \value{
@@ -39,13 +31,14 @@ entry invisibly, a list holding its \code{id}, \code{name}, \code{package}, \cod
 A front-end is the module that draws a board, which a package declares in
 R, from its \code{.onLoad()}, with \code{register_front_end()}: under a name, which
 gives it the ID \code{{pkg}-{name}}, as a registry id is, with its module, made
-by \code{\link[=js_module]{js_module()}}, the board class it draws, and the board options it
-requires, which R collects for a board with those of the board's other
-parts (see \code{\link[=blockr_app_options]{blockr_app_options()}}). Core declares its basic front-end,
-\code{blockr.core-basic}, for \code{board}, and a package may declare several
-front-ends, each for a class of its own, since two front-ends declared for
-one class are an error naming both. Declaring a front-end again under the
-same ID replaces it, as when a package is loaded again.
+by \code{\link[=js_module]{js_module()}}, whose package is the one that declares it, the board
+class it draws, and the board options it requires, which R collects for a
+board with those of the board's other parts (see \code{\link[=blockr_app_options]{blockr_app_options()}}).
+A module made outside a package declares no front-end. Core declares its
+basic front-end, \code{blockr.core-basic}, for \code{board}, and a package may declare
+several front-ends, each for a class of its own, since two front-ends
+declared for one class are an error naming both. Declaring a front-end
+again under the same ID replaces it, as when a package is loaded again.
 }
 \details{
 R picks a board's front-end wherever it holds the board as an R object, the

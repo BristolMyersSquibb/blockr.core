@@ -5,14 +5,12 @@
 \alias{register_module}
 \title{Modules a package declares}
 \usage{
-register_startup_module(module, package = pkg_name(parent.frame()))
+register_startup_module(module)
 
-register_module(name, module, package = pkg_name(parent.frame()))
+register_module(name, module)
 }
 \arguments{
 \item{module}{The module, made by \code{\link[=js_module]{js_module()}}}
-
-\item{package}{The package that declares the module}
 
 \item{name}{The name part of the module's ID}
 }
@@ -30,7 +28,9 @@ such as registering the board options it ships, and the modules it offers
 other packages, each with \code{register_module()} under a name that gives it
 the ID \code{{pkg}-{name}}, as a registry id is, by which \code{host.module()} and
 \code{CoreApi.module()} reach it in the client. Each is made by \code{\link[=js_module]{js_module()}},
-and the stylesheet and JSON Schema beside a module need no declaration.
+whose package is the one that declares it, so that a module made outside a
+package is declared by none, and the stylesheet and JSON Schema beside a
+module need no declaration.
 Declaring a package's startup module, or a module under the same ID, again
 replaces it, as when a package is loaded again.
 }

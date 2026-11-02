@@ -12,7 +12,9 @@ declared_modules <- new.env()
 #' other packages, each with `register_module()` under a name that gives it
 #' the ID `{pkg}-{name}`, as a registry id is, by which `host.module()` and
 #' `CoreApi.module()` reach it in the client. Each is made by [js_module()],
-#' and the stylesheet and JSON Schema beside a module need no declaration.
+#' whose package is the one that declares it, so that a module made outside a
+#' package is declared by none, and the stylesheet and JSON Schema beside a
+#' module need no declaration.
 #' Declaring a package's startup module, or a module under the same ID, again
 #' replaces it, as when a package is loaded again.
 #'
@@ -24,7 +26,6 @@ declared_modules <- new.env()
 #'
 #' @param module The module, made by [js_module()]
 #' @param name The name part of the module's ID
-#' @param package The package that declares the module
 #'
 #' @examples
 #' \dontrun{
@@ -38,18 +39,20 @@ declared_modules <- new.env()
 #' `module`, and for `register_module()` the module's `id` and `name` too.
 #'
 #' @export
-register_startup_module <- function(module,
-                                    package = pkg_name(parent.frame())) {
-
-  check_declaring_package(package, "startup module", "startup_module_invalid")
+register_startup_module <- function(module) {
 
   if (!is_js_module(module)) {
     blockr_abort(
-      "The startup module of package {package} is expected to be made by ",
-      "`js_module()`.",
+      "A startup module is expected to be made by `js_module()`.",
       class = "startup_module_invalid"
     )
   }
+
+  package <- check_declaring_package(
+    module[["package"]],
+    "startup module",
+    "startup_module_invalid"
+  )
 
   entry <- list(package = package, module = module)
 
@@ -60,18 +63,23 @@ register_startup_module <- function(module,
 
 #' @rdname register_startup_module
 #' @export
-register_module <- function(name, module, package = pkg_name(parent.frame())) {
-
-  id <- declared_id(name, package, "module", "module_invalid")
+register_module <- function(name, module) {
 
   if (!is_js_module(module)) {
     blockr_abort(
-      "Module {id} is expected to be made by `js_module()`.",
+      "A module a package offers is expected to be made by `js_module()`.",
       class = "module_invalid"
     )
   }
 
-  entry <- list(id = id, name = name, package = package, module = module)
+  id <- declared_id(name, module[["package"]], "module", "module_invalid")
+
+  entry <- list(
+    id = id,
+    name = name,
+    package = module[["package"]],
+    module = module
+  )
 
   assign(id, entry, envir = declared_modules)
 

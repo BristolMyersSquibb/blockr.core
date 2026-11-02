@@ -6,10 +6,7 @@ test_that("a package declares one startup module", {
 
   local_mocked_bindings(pkg_dependencies = function(pkg) character())
 
-  entry <- register_startup_module(
-    test_module("startup.js"),
-    package = "blockr.test"
-  )
+  entry <- register_startup_module(test_module("startup.js"))
 
   expect_identical(
     entry,
@@ -18,10 +15,7 @@ test_that("a package declares one startup module", {
 
   expect_identical(startup_modules(), list(entry))
 
-  entry <- register_startup_module(
-    test_module("init.js"),
-    package = "blockr.test"
-  )
+  entry <- register_startup_module(test_module("init.js"))
 
   expect_identical(startup_modules(), list(entry))
 })
@@ -43,7 +37,7 @@ test_that("startup modules come after those of what they depend on", {
   local_mocked_bindings(pkg_dependencies = function(pkg) deps[[pkg]])
 
   for (pkg in rev(names(deps))) {
-    register_startup_module(test_module("startup.js", pkg), package = pkg)
+    register_startup_module(test_module("startup.js", pkg))
   }
 
   res <- chr_xtr(startup_modules(), "package")
@@ -74,8 +68,7 @@ test_that("a package declares the modules it offers others", {
 
   local_declared(declared_modules)
 
-  entry <- register_module("filter", test_module("filter.js"),
-                           package = "blockr.test")
+  entry <- register_module("filter", test_module("filter.js"))
 
   expect_identical(
     entry,
@@ -90,8 +83,7 @@ test_that("a package declares the modules it offers others", {
   expect_identical(get_module("blockr.test-filter"), entry)
   expect_true("blockr.test-filter" %in% list_modules())
 
-  entry <- register_module("filter", test_module("filter-again.js"),
-                           package = "blockr.test")
+  entry <- register_module("filter", test_module("filter-again.js"))
 
   expect_identical(get_module("blockr.test-filter"), entry)
 
@@ -104,29 +96,28 @@ test_that("declaring a module is checked", {
   local_declared(declared_modules)
 
   expect_error(
-    register_startup_module(test_module("startup.js"), package = NULL),
+    register_startup_module(js_module("startup.js", package = NULL)),
     class = "startup_module_invalid",
     regexp = "declared by a package"
   )
 
   expect_error(
-    register_startup_module("startup.js", package = "blockr.test"),
+    register_startup_module("startup.js"),
     class = "startup_module_invalid"
   )
 
   expect_error(
-    register_module("filter", test_module("filter.js"), package = NULL),
+    register_module("filter", js_module("filter.js", package = NULL)),
     class = "module_invalid"
   )
 
   expect_error(
-    register_module(NA_character_, test_module("filter.js"),
-                    package = "blockr.test"),
+    register_module(NA_character_, test_module("filter.js")),
     class = "module_invalid"
   )
 
   expect_error(
-    register_module("filter", "filter.js", package = "blockr.test"),
+    register_module("filter", "filter.js"),
     class = "module_invalid"
   )
 })

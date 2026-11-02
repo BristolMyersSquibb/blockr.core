@@ -25,8 +25,7 @@ test_that("a board's front-end is the one of its most specific class", {
   entry <- register_front_end(
     "test",
     test_module("test.js"),
-    class = "test_board",
-    package = "blockr.test"
+    class = "test_board"
   )
 
   expect_identical(entry$id, "blockr.test-test")
@@ -48,8 +47,7 @@ test_that("a board's front-end is the one of its most specific class", {
   register_front_end(
     "sub",
     test_module("sub.js"),
-    class = "sub_board",
-    package = "blockr.test"
+    class = "sub_board"
   )
 
   expect_identical(
@@ -77,16 +75,14 @@ test_that("a board class takes one front-end", {
   register_front_end(
     "one",
     test_module("one.js"),
-    class = "test_board",
-    package = "blockr.test"
+    class = "test_board"
   )
 
   expect_error(
     register_front_end(
       "two",
       test_module("two.js", "blockr.other"),
-      class = "test_board",
-      package = "blockr.other"
+      class = "test_board"
     ),
     class = "front_end_class_taken",
     regexp = "blockr.test-one and blockr.other-two"
@@ -96,8 +92,7 @@ test_that("a board class takes one front-end", {
     register_front_end(
       "basic",
       test_module("basic.js"),
-      class = "board",
-      package = "blockr.test"
+      class = "board"
     ),
     class = "front_end_class_taken"
   )
@@ -105,8 +100,7 @@ test_that("a board class takes one front-end", {
   entry <- register_front_end(
     "one",
     test_module("one-again.js"),
-    class = "test_board",
-    package = "blockr.test"
+    class = "test_board"
   )
 
   expect_identical(get_front_end("blockr.test-one"), entry)
@@ -120,23 +114,20 @@ test_that("a front-end's board options are collected for its boards", {
     "rows",
     test_module("rows.js"),
     class = "rows_board",
-    options = new_n_rows_option,
-    package = "blockr.test"
+    options = new_n_rows_option
   )
 
   register_front_end(
     "all",
     test_module("all.js"),
     class = "all_board",
-    options = list(new_n_rows_option, default_board_options),
-    package = "blockr.test"
+    options = list(new_n_rows_option, default_board_options)
   )
 
   register_front_end(
     "none",
     test_module("none.js"),
-    class = "none_board",
-    package = "blockr.test"
+    class = "none_board"
   )
 
   expect_identical(names(front_end_options("blockr.test-rows")), "n_rows")
@@ -168,7 +159,7 @@ test_that("a front-end's board options are collected for its boards", {
   )
 })
 
-test_that("a front-end is declared by the package whose code declares it", {
+test_that("a front-end is declared by the package of its module", {
 
   local_declared(declared_front_ends)
 
@@ -191,38 +182,36 @@ test_that("a front-end's declaration is checked", {
   mod <- test_module("test.js")
 
   expect_error(
-    register_front_end("test", mod, class = "test_board", package = NULL),
+    register_front_end("test", js_module("test.js", package = NULL),
+                       class = "test_board"),
     class = "front_end_invalid",
     regexp = "declared by a package"
   )
 
   expect_error(
-    register_front_end("", mod, class = "test_board", package = "blockr.test"),
+    register_front_end("", mod, class = "test_board"),
     class = "front_end_invalid"
   )
 
   expect_error(
-    register_front_end("test", "test.js", class = "test_board",
-                       package = "blockr.test"),
+    register_front_end("test", "test.js", class = "test_board"),
     class = "front_end_invalid"
   )
 
   expect_error(
-    register_front_end("test", mod, class = c("a_board", "b_board"),
-                       package = "blockr.test"),
+    register_front_end("test", mod, class = c("a_board", "b_board")),
     class = "front_end_invalid"
   )
 
   expect_error(
-    register_front_end("test", mod, class = "test_board", options = "n_rows",
-                       package = "blockr.test"),
+    register_front_end("test", mod, class = "test_board", options = "n_rows"),
     class = "front_end_invalid"
   )
 
   expect_error(get_front_end("blockr.test-test"), class = "front_end_missing")
 
   register_front_end("test", mod, class = "test_board",
-                     options = function() 50L, package = "blockr.test")
+                     options = function() 50L)
 
   expect_error(
     front_end_options("blockr.test-test"),
