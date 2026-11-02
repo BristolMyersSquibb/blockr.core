@@ -81,6 +81,30 @@
   most specific class in the board's class vector, so that every board has
   core's basic front-end, `blockr.core-basic`, which core declares for
   `board`, at least (#424).
+* R writes the board that an app script builds with `blockr_ser()`, as R
+  sends it to the client: its ID and name where it has them, its blocks,
+  links and stacks as arrays, each with the ID the script gave it, the
+  front-end it is made for, with the front-end's state, and the values of the
+  board options the script gives. It writes each value by a JSON Schema, so
+  that no shape depends on R's JSON writer: core's objects by the schema of
+  the board that the build generates from its TypeScript types into
+  `inst/board`, a block's state by the schema its class's UI ships, and a key
+  of the front-end's state or a board option's value by the schema its
+  package ships beside its startup module, as core ships those of its board
+  options beside its runtime. Writing a board registers the block classes
+  that its blocks refer to, from the blocks themselves, and fails on a value
+  that JSON cannot hold, such as a function, so that such a board fails as
+  the script runs. The board, link and stack constructors lose `ctor` and
+  `pkg`, and `board_ctor()` and `forward_ctor()` go. A board option is its ID
+  and the value a script gives, since its constructor takes the value alone
+  and computes nothing. So `board_option_default()`,
+  `board_option_category()`, `board_option_label()`,
+  `board_option_transform()`, `board_option_ctor()`, `validate_board_option()`,
+  `default_board_options()` and `blockr_app_options()` go, `new_board()` takes
+  no board options by default, and `as_table_output()` pages a data frame by
+  the `n_rows` that the client sends. The deserializer `blockr_deser()` still
+  reads a file of today's stack, recreating a board option from its value
+  alone (#428).
 
 # blockr.core 0.1.4
 

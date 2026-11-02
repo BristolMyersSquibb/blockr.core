@@ -1,0 +1,21 @@
+{
+  "keys": [
+    {
+      "path": ["panels"],
+      "kind": "collection",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "blocks": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["title", "blocks"]
+      }
+    },
+    {
+      "path": ["active"],
+      "kind": "value",
+      "schema": { "type": "string" }
+    }
+  ]
+}

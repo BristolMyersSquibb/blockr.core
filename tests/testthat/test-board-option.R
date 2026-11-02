@@ -1,15 +1,25 @@
-test_that("opt utils", {
+test_that("a board option holds its ID and the value a script gives", {
 
-  opt <- new_board_option(
-    "test",
-    "test",
-    ctor = "new_board_option",
-    pkg = "blockr.core"
-  )
+  opt <- new_board_option("test", "test")
 
   expect_true(is_board_option(opt))
+  expect_s3_class(opt, c("test_option", "board_option"), exact = TRUE)
   expect_identical(validate_board_option(opt), opt)
   expect_identical(as_board_option(opt), opt)
+  expect_identical(board_option_id(opt), "test")
+  expect_identical(board_option_value(opt), "test")
+
+  expect_snapshot(opt)
+
+  expect_error(
+    new_board_option(1L, "test"),
+    class = "board_option_component_id_invalid"
+  )
+
+  expect_error(
+    new_board_option("", "test"),
+    class = "board_option_component_id_invalid"
+  )
 
   expect_error(
     validate_board_option(list()),
@@ -20,79 +30,53 @@ test_that("opt utils", {
     validate_board_option(structure(list(), id = 1L, class = "board_option")),
     class = "board_option_component_id_invalid"
   )
-
-  expect_error(
-    validate_board_option(
-      structure(list(transform = "test"), id = "test", class = "board_option")
-    ),
-    class = "board_option_component_transform_invalid"
-  )
-
-  expect_snapshot(opt)
 })
 
-test_that("a board option's label defaults to its ID in sentence case", {
+test_that("a board option made without a value has none", {
 
-  new_test_opt <- function(value = "test", ...) {
-    new_board_option("test_opt", value, ...)
+  opt <- new_board_option("test")
+
+  expect_false(has_board_option_value(opt))
+  expect_null(board_option_value(opt))
+  expect_identical(format(opt), "test: <unset>")
+
+  # A value of `NULL` is a value, which JSON writes as null
+  opt <- new_board_option("test", NULL)
+
+  expect_true(has_board_option_value(opt))
+  expect_null(board_option_value(opt))
+})
+
+test_that("core's board options take their value alone and compute nothing", {
+
+  ctors <- list(
+    n_rows = new_n_rows_option,
+    dark_mode = new_dark_mode_option,
+    show_conditions = new_show_conditions_option
+  )
+
+  withr::local_options(
+    blockr.n_rows = 10L,
+    blockr.dark_mode = "dark",
+    blockr.show_conditions = "error"
+  )
+
+  for (id in names(ctors)) {
+
+    expect_identical(names(formals(ctors[[id]])), "value", info = id)
+
+    opt <- ctors[[id]]()
+
+    expect_identical(board_option_id(opt), id)
+    expect_false(has_board_option_value(opt), info = id)
   }
 
-  expect_identical(board_option_label(new_test_opt()), "Test opt")
-
+  # The definitions in the client check a value, and R does not
+  expect_identical(board_option_value(new_n_rows_option(-1L)), -1L)
+  expect_identical(board_option_value(new_dark_mode_option(TRUE)), TRUE)
   expect_identical(
-    board_option_label(new_test_opt(label = "My label")),
-    "My label"
-  )
-
-  expect_error(
-    new_test_opt(label = 1L),
-    class = "board_option_component_label_invalid"
-  )
-})
-
-test_that("core board options take a label", {
-
-  ctors <- c(
-    "new_n_rows_option", "new_dark_mode_option", "new_show_conditions_option"
-  )
-
-  for (ctor in ctors) {
-
-    opt <- do.call(ctor, list(label = "My label"))
-
-    expect_identical(board_option_label(opt), "My label", info = ctor)
-  }
-})
-
-test_that("board n_rows opt", {
-
-  expect_true(is_board_option(new_n_rows_option()))
-
-  expect_error(
-    new_n_rows_option(-1L),
-    class = "board_options_n_rows_invalid"
-  )
-})
-
-test_that("board dark_mode opt", {
-
-  expect_true(is_board_option(new_dark_mode_option()))
-  expect_true(is_board_option(new_dark_mode_option(TRUE)))
-  expect_true(is_board_option(new_dark_mode_option(FALSE)))
-
-  expect_error(
-    new_dark_mode_option(-1L),
-    class = "board_options_dark_mode_invalid"
-  )
-})
-
-test_that("board show_conditions opt", {
-
-  expect_true(is_board_option(new_show_conditions_option()))
-
-  expect_error(
-    new_show_conditions_option(-1L),
-    class = "board_options_show_conditions_invalid"
+    board_option_value(new_show_conditions_option(-1L)),
+    -1L
   )
 })
 

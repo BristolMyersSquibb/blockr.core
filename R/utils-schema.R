@@ -174,3 +174,77 @@ column_cells <- function(x) {
 is_missing_value <- function(x) {
   is.atomic(x) && length(x) == 1L && is.na(x)
 }
+
+# Shapes each key of the front-end's state by its schema, where the state holds
+# a value at the key's path: a collection's entries each by an entry's schema,
+# and a value by the value's.
+shape_state_keys <- function(x, keys) {
+
+  for (key in keys) {
+
+    value <- value_at(x, key[["path"]])
+
+    if (is.null(value)) {
+      next
+    }
+
+    if (identical(key[["kind"]], "collection")) {
+      value <- shape_collection(value, key[["schema"]])
+    } else {
+      value <- shape_by_schema(value, key[["schema"]])
+    }
+
+    x <- set_value_at(x, key[["path"]], value)
+  }
+
+  x
+}
+
+# The entries of a collection, by ID, each shaped by the schema of an entry.
+shape_collection <- function(x, schema) {
+
+  if (!is.list(x)) {
+    return(x)
+  }
+
+  if (!length(x)) {
+    return(set_names(list(), character()))
+  }
+
+  set_names(lapply(x, shape_by_schema, schema), names(x))
+}
+
+shape_option_values <- function(x, schemas) {
+
+  for (id in intersect(names(x), names(schemas))) {
+    x[id] <- list(shape_by_schema(x[[id]], schemas[[id]]))
+  }
+
+  x
+}
+
+value_at <- function(x, path) {
+
+  for (key in path) {
+
+    if (!is.list(x) || !key %in% names(x)) {
+      return(NULL)
+    }
+
+    x <- x[[key]]
+  }
+
+  x
+}
+
+set_value_at <- function(x, path, value) {
+
+  if (length(path) == 1L) {
+    x[path] <- list(value)
+    return(x)
+  }
+
+  x[[path[1L]]] <- set_value_at(x[[path[1L]]], path[-1L], value)
+
+  x
+}

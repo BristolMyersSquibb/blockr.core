@@ -2,16 +2,16 @@
 % Please edit documentation in R/utils-serdes.R
 \name{blockr_ser}
 \alias{blockr_ser}
-\alias{blockr_ser.block}
-\alias{blockr_ser.blocks}
-\alias{blockr_ser.board_options}
-\alias{blockr_ser.blockr_ctor}
-\alias{blockr_ser.board_option}
 \alias{blockr_ser.board}
-\alias{blockr_ser.link}
+\alias{blockr_ser.blocks}
+\alias{blockr_ser.block}
 \alias{blockr_ser.links}
-\alias{blockr_ser.stack}
+\alias{blockr_ser.link}
 \alias{blockr_ser.stacks}
+\alias{blockr_ser.stack}
+\alias{blockr_ser.board_options}
+\alias{blockr_ser.board_option}
+\alias{blockr_ser.default}
 \alias{blockr_deser}
 \alias{blockr_deser.list}
 \alias{blockr_deser.block}
@@ -24,29 +24,29 @@
 \alias{blockr_deser.board_options}
 \alias{blockr_deser.blockr_ctor}
 \alias{blockr_deser.board_option}
-\title{Serialization utilities}
+\title{Serialization}
 \usage{
 blockr_ser(x, ...)
 
-\method{blockr_ser}{block}(x, state = NULL, ...)
-
-\method{blockr_ser}{blocks}(x, blocks = NULL, ...)
-
-\method{blockr_ser}{board_options}(x, options = NULL, ...)
-
-\method{blockr_ser}{blockr_ctor}(x, ...)
-
-\method{blockr_ser}{board_option}(x, option = NULL, ...)
-
 \method{blockr_ser}{board}(x, ...)
 
-\method{blockr_ser}{link}(x, ...)
+\method{blockr_ser}{blocks}(x, ...)
+
+\method{blockr_ser}{block}(x, ...)
 
 \method{blockr_ser}{links}(x, ...)
 
-\method{blockr_ser}{stack}(x, ...)
+\method{blockr_ser}{link}(x, ...)
 
 \method{blockr_ser}{stacks}(x, ...)
+
+\method{blockr_ser}{stack}(x, ...)
+
+\method{blockr_ser}{board_options}(x, ...)
+
+\method{blockr_ser}{board_option}(x, ...)
+
+\method{blockr_ser}{default}(x, ...)
 
 blockr_deser(x, ..., on_error = NULL)
 
@@ -77,16 +77,6 @@ blockr_deser(x, ..., on_error = NULL)
 
 \item{...}{Generic consistency}
 
-\item{state}{Object state (as returned from a block server)}
-
-\item{blocks}{Block states keyed by block ID. A block that is \code{NULL}, or
-omitted from \code{blocks} altogether, defaults to values from its constructor
-scope, so \code{blocks} may cover only a subset of blocks.}
-
-\item{options}{Board option values (\code{NULL} uses values provided by \code{x})}
-
-\item{option}{Board option value (\code{NULL} uses values provided by \code{x})}
-
 \item{on_error}{How to handle a block that cannot be deserialized -- its
 constructor (or the package providing it) is unavailable, its payload cannot
 be reconstructed, or the re-created object is not a block. \code{"abort"} (the
@@ -102,46 +92,109 @@ environment variable.}
 \item{data}{List valued data (converted from JSON)}
 }
 \value{
-Serialization helper function \code{blockr_ser()} returns lists, which
-for most objects contain slots \code{object} and \code{payload}, where \code{object}
-contains a class vector which is used by \code{blockr_deser()} to instantiate an
-empty object of that class and use S3 dispatch to identify the correct method
-that, given the content in \code{payload}, can re-create the original object.
+For a board, \code{blockr_ser()} returns the board as R sends it, as a
+list that R's JSON writers write as the board's JSON. Its methods for the
+parts of a board return what the board holds in their place, before the
+board's schemas shape it. The function \code{blockr_deser()} returns the board,
+block, link, stack or board option that it recreates from a file of today's
+stack.
 }
 \description{
-Blocks are serialized by writing out information on the constructor used to
-create the object, combining this with block state information, which
-constitutes values such that when passed to the constructor the original
-object can be re-created.
+R writes the board that an app script builds as JSON once: the opening
+board, which it sends the client. The client writes every board that is
+saved. Both write each value of a board by the same JSON Schemas, so that no
+shape depends on R's JSON writer. So \code{blockr_ser()} returns the board as R
+values that yyjsonr, jsonlite and Shiny's encoder all write as the same
+JSON. A value that a schema has as an array is marked with \code{\link[=I]{I()}}, so that a
+vector of length one stays an array, and an object is a named list, an empty
+one included. The function \code{blockr_deser()} reads a file of today's stack
+(below).
 }
-\details{
-Helper functions \code{blockr_ser()} and \code{blockr_deser()} are implemented as
-generics and perform most of the heavy lifting for (de-)serialization:
-representing objects as easy-to-serialize (nested) lists containing mostly
-strings and no objects which are hard/impossible to truthfully re-create in
-new sessions (such as environments).
+\section{Writing a board}{
 
-During deserialization, \code{blockr_deser()} forwards \code{...} to the dispatched
-per-class method. This lets callers (and outer methods deserializing nested
-objects) thread additional context down to inner deserializers.
+The board is written as R sends it. It holds its own \code{id} and \code{name} only
+where it has them. It holds its blocks, links and stacks as arrays, in their
+order, each entry with its \code{id} where the script gave one, since R mints no
+IDs: the client mints each missing one as it opens the board. It holds the
+value of each board option that the script gives, by ID, and no other.
 
-The class vector written to \code{object} selects the \code{blockr_deser()} method,
-but the re-created object only has to keep the kind of object it names: the
-last class with a \code{blockr_deser()} method of its own, such as \code{block} for any
-block. Classes in front of it may differ from the ones written, so a package
-can rename or drop classes of its blocks without breaking saved boards. An
-object re-created as another kind raises an error of class
-\code{block_deser_class_error}.
+Its \code{front_end} names the front-end that the board is made for, which R
+picks by the board's class (see \code{\link[=board_front_end]{board_front_end()}}), and holds the
+front-end's state. That state is made of the components that the board
+holds besides its blocks, links, stacks and board options, such as those
+that a front-end's constructor adds. Each is written by \code{blockr_ser()}, so
+that a package writes the objects of its own classes there through a
+method.
 
-A board is written with its ID and name next to its payload, either of which
-is \code{NULL} where it has none. For a board written by blockr.core 0.1.4,
-\code{blockr_deser()} reads the name off its \code{board_name} board option instead.
+A block is written by the registry ID of its class, with its state, its name
+and core's attribute \code{visible}. Where the block registry holds no entry for
+its class, writing the block registers the class, as a class from outside a
+package, under its name. So a class defined in an app script is registered
+before any session evaluates a block of it. A block made by \code{\link[=new_block]{new_block()}}
+names no block class and cannot be written.
+
+Core's objects are written by the JSON Schema of the board that core
+generates from its TypeScript types, so that a stack's blocks stay an array
+and an empty collection an object. A block's state is written by the schema
+that its class's UI ships (see \code{\link[=register_block]{register_block()}}), and bare where it ships
+none. A key of the front-end's state and a board option's value are written
+by the schema that their package ships beside its startup module, as core
+ships those of its board options beside its runtime (see
+\code{\link[=register_startup_module]{register_startup_module()}}). Two packages that ship a schema for the same
+key or board option are an error that names both.
+
+A board that the format cannot hold fails as it is written, and so as the
+script runs. Every value has to be \code{NULL}, a vector of logicals, numbers or
+strings, or a list of such values, with no attribute but names. So a
+function, an environment, a call or a value of a class, such as a factor or
+a data frame, is an error. A named vector is written as an object.
 }
+
+\section{Reading today's files}{
+
+A file of today's stack, which \code{blockr_ser()} wrote in blockr.core 0.1.4 and
+before, holds every object as its class vector in \code{object}, its
+constructor's args in \code{payload} and its constructor in \code{constructor}. The
+function \code{blockr_deser()} recreates the objects from the R values read from
+such a file, as the conversion of one into a saved file does. The class
+vector selects the \code{blockr_deser()} method, but the recreated object only has
+to keep the kind of object it names: the last class with a \code{blockr_deser()}
+method of its own, such as \code{block} for any block. Classes in front of it may
+differ from the ones written, so a package can rename or drop classes of its
+blocks without breaking saved boards. An object recreated as another kind
+raises an error of class \code{block_deser_class_error}. The function
+\code{blockr_deser()} forwards \code{...} to the method it dispatches to. That lets
+callers, and the methods that read nested objects, thread context down to
+inner methods.
+
+A board is read with its ID and name, which the file holds next to its
+payload, either of them \code{NULL} where the board has none. For a board written
+by blockr.core 0.1.4, \code{blockr_deser()} reads the name off its \code{board_name}
+board option instead. A board option is recreated from its value alone,
+without the category and label saved with it, which its definition in the
+client gives.
+}
+
 \examples{
-blk <- new_dataset_block("iris")
+new_identity_block <- block_constructor(
+  new_block_class(
+    "identity_block",
+    inputs = "data",
+    expr = function(note = "") bbquote(.(data)),
+    ui = js_module("identity-block.js")
+  )
+)
 
-blockr_ser(blk)
+board <- new_board(
+  blocks = c(a = new_identity_block(), b = new_identity_block("Second")),
+  links = links(from = "a", to = "b"),
+  stacks = stacks(s = new_stack("a", "Start")),
+  options = new_show_conditions_option("error"),
+  name = "My board"
+)
 
-all.equal(blk, blockr_deser(blockr_ser(blk)), check.environment = FALSE)
+str(blockr_ser(board))
+
+unregister_blocks("identity_block")
 
 }

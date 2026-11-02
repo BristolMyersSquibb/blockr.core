@@ -1,0 +1,14 @@
+{
+  "type": "object",
+  "properties": {
+    "by": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "The columns to join by"
+    },
+    "all_x": {
+      "type": "boolean",
+      "description": "Whether to keep the rows of x that y does not match"
+    }
+  }
+}

@@ -20,6 +20,17 @@ declared_modules <- new.env()
 #' Declaring a package's startup module, or a module under the same ID, again
 #' replaces it, as when a package is loaded again.
 #'
+#' Beside its startup module, as `startup.schema.json` beside `startup.js`, a
+#' package ships the JSON Schemas of the keys of the front-end's state and of
+#' the board options that the module registers. R writes their values by them
+#' for the board that an app script builds (see [blockr_ser()]). The file holds
+#' a JSON object. Under `keys`, it holds an array of the keys, each with its
+#' `path` in the front-end's state, such as `["views"]`, its `kind`,
+#' `"collection"` or `"value"`, and its `schema`, an entry's or the value's.
+#' Under `options`, it holds the schema of each board option's value, by the
+#' board option's ID. Core ships the schemas of its own board options beside
+#' its runtime in the same way.
+#'
 #' R keeps the startup modules in the order in which packages declare them,
 #' which is the order in which their namespaces load, since R runs the
 #' `.onLoad()` of the packages a namespace imports before its own, so that a
@@ -101,4 +112,131 @@ list_modules <- function() {
 
 get_module <- function(id) {
   get_declared(id, declared_modules, "module", "module_missing")
+}
+
+# The JSON Schemas that core ships beside its runtime and each package that R
+# has loaded beside its startup module, by which R writes the keys of the
+# front-end's state and the values of board options: in `keys`, each key with
+# its path, its kind and its schema, and in `options`, each board option's
+# schema by its ID.
+startup_schemas <- function() {
+
+  modules <- c(
+    list(list(package = "blockr.core", module = core_runtime())),
+    startup_modules()
+  )
+
+  keys <- list()
+  options <- list()
+  key_pkgs <- character()
+  option_pkgs <- character()
+
+  for (entry in modules) {
+
+    pkg <- entry[["package"]]
+    file <- module_file(entry[["module"]], ".schema.json")
+
+    if (!nzchar(file)) {
+      next
+    }
+
+    schemas <- read_startup_schemas(file, pkg)
+
+    for (key in schemas[["keys"]]) {
+
+      path <- paste(key[["path"]], collapse = "/")
+      other <- key_pkgs[path]
+
+      if (!is.na(other)) {
+        blockr_abort(
+          "Packages {other} and {pkg} both ship a schema for the key {path} ",
+          "of the front-end's state.",
+          class = "startup_schema_clash"
+        )
+      }
+
+      key_pkgs[path] <- pkg
+      keys <- c(keys, list(key))
+    }
+
+    for (id in names(schemas[["options"]])) {
+
+      other <- option_pkgs[id]
+
+      if (!is.na(other)) {
+        blockr_abort(
+          "Packages {other} and {pkg} both ship a schema for board option ",
+          "{id}.",
+          class = "startup_schema_clash"
+        )
+      }
+
+      option_pkgs[id] <- pkg
+      options[[id]] <- schemas[["options"]][[id]]
+    }
+  }
+
+  list(keys = keys, options = options)
+}
+
+core_runtime <- function() {
+  js_module("js/blockr-core.js", package = "blockr.core")
+}
+
+read_startup_schemas <- function(file, pkg) {
+
+  res <- decode_schema(file)
+
+  invalid <- function(what) {
+    blockr_abort(
+      "The schemas that package {pkg} ships in {file} are expected to hold ",
+      "{what}.",
+      class = "startup_schema_invalid"
+    )
+  }
+
+  if (!is.list(res) || (length(res) && is.null(names(res)))) {
+    invalid("an object")
+  }
+
+  keys <- coal(res[["keys"]], list(), fail_all = FALSE)
+
+  if (!is.list(keys) || not_null(names(keys))) {
+    invalid("an array of keys in `keys`")
+  }
+
+  for (i in seq_along(keys)) {
+
+    key <- keys[[i]]
+
+    if (!is.list(key) || !is_names_array(key[["path"]]) ||
+          !is_string(key[["kind"]]) ||
+          !key[["kind"]] %in% c("collection", "value") ||
+          !is.list(key[["schema"]])) {
+      invalid(
+        paste(
+          "for each key a `path` of names, a `kind`, \"collection\" or",
+          "\"value\", and a `schema`"
+        )
+      )
+    }
+
+    keys[[i]][["path"]] <- as.character(unclass(key[["path"]]))
+  }
+
+  options <- coal(res[["options"]], list(), fail_all = FALSE)
+
+  if (!is.list(options) || (length(options) && is.null(names(options))) ||
+        !all(lgl_ply(options, is.list))) {
+    invalid("a schema for each board option by its ID in `options`")
+  }
+
+  list(keys = keys, options = options)
+}
+
+# Whether a value that `decode_schema()` read is an array of names in JSON,
+# which it marks with `I()` where the array holds one.
+is_names_array <- function(x) {
+  is.character(x) && length(x) && all(nzchar(x)) && !anyNA(x) &&
+    (inherits(x, "AsIs") || length(x) > 1L)
 }

@@ -220,6 +220,20 @@ is_js_module <- function(x) {
   inherits(x, "js_module")
 }
 
+# The file that a module ships beside it, as `head-block.schema.json` beside
+# `head-block.js`, among its package's installed files, or beside the path of
+# a module made outside a package, and `""` where there is none.
+module_file <- function(module, suffix) {
+
+  path <- paste0(sub("\\.[^./]*$", "", module[["path"]]), suffix)
+
+  if (not_null(module[["package"]])) {
+    path <- system.file(path, package = module[["package"]])
+  }
+
+  if (nzchar(path) && file.exists(path)) path else ""
+}
+
 validate_block_class <- function(x) {
 
   validate_class_inputs(x[["inputs"]])
@@ -450,7 +464,6 @@ class_board_options <- function(cls) {
 }
 
 call_option_ctors <- function(ctors) {
-  # Called by name, not via do.call(), as new_board_option() deparses the call
   lapply(ctors, function(new) new())
 }
 

@@ -35,6 +35,17 @@ Declaring a package's startup module, or a module under the same ID, again
 replaces it, as when a package is loaded again.
 }
 \details{
+Beside its startup module, as \code{startup.schema.json} beside \code{startup.js}, a
+package ships the JSON Schemas of the keys of the front-end's state and of
+the board options that the module registers. R writes their values by them
+for the board that an app script builds (see \code{\link[=blockr_ser]{blockr_ser()}}). The file holds
+a JSON object. Under \code{keys}, it holds an array of the keys, each with its
+\code{path} in the front-end's state, such as \verb{["views"]}, its \code{kind},
+\code{"collection"} or \code{"value"}, and its \code{schema}, an entry's or the value's.
+Under \code{options}, it holds the schema of each board option's value, by the
+board option's ID. Core ships the schemas of its own board options beside
+its runtime in the same way.
+
 R keeps the startup modules in the order in which packages declare them,
 which is the order in which their namespaces load, since R runs the
 \code{.onLoad()} of the packages a namespace imports before its own, so that a

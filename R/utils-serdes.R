@@ -1,260 +1,383 @@
-#' Serialization utilities
+#' Serialization
 #'
-#' Blocks are serialized by writing out information on the constructor used to
-#' create the object, combining this with block state information, which
-#' constitutes values such that when passed to the constructor the original
-#' object can be re-created.
+#' R writes the board that an app script builds as JSON once: the opening
+#' board, which it sends the client. The client writes every board that is
+#' saved. Both write each value of a board by the same JSON Schemas, so that no
+#' shape depends on R's JSON writer. So `blockr_ser()` returns the board as R
+#' values that yyjsonr, jsonlite and Shiny's encoder all write as the same
+#' JSON. A value that a schema has as an array is marked with [I()], so that a
+#' vector of length one stays an array, and an object is a named list, an empty
+#' one included. The function `blockr_deser()` reads a file of today's stack
+#' (below).
 #'
-#' Helper functions `blockr_ser()` and `blockr_deser()` are implemented as
-#' generics and perform most of the heavy lifting for (de-)serialization:
-#' representing objects as easy-to-serialize (nested) lists containing mostly
-#' strings and no objects which are hard/impossible to truthfully re-create in
-#' new sessions (such as environments).
+#' @section Writing a board:
+#' The board is written as R sends it. It holds its own `id` and `name` only
+#' where it has them. It holds its blocks, links and stacks as arrays, in their
+#' order, each entry with its `id` where the script gave one, since R mints no
+#' IDs: the client mints each missing one as it opens the board. It holds the
+#' value of each board option that the script gives, by ID, and no other.
 #'
-#' During deserialization, `blockr_deser()` forwards `...` to the dispatched
-#' per-class method. This lets callers (and outer methods deserializing nested
-#' objects) thread additional context down to inner deserializers.
+#' Its `front_end` names the front-end that the board is made for, which R
+#' picks by the board's class (see [board_front_end()]), and holds the
+#' front-end's state. That state is made of the components that the board
+#' holds besides its blocks, links, stacks and board options, such as those
+#' that a front-end's constructor adds. Each is written by `blockr_ser()`, so
+#' that a package writes the objects of its own classes there through a
+#' method.
 #'
-#' The class vector written to `object` selects the `blockr_deser()` method,
-#' but the re-created object only has to keep the kind of object it names: the
-#' last class with a `blockr_deser()` method of its own, such as `block` for any
-#' block. Classes in front of it may differ from the ones written, so a package
-#' can rename or drop classes of its blocks without breaking saved boards. An
-#' object re-created as another kind raises an error of class
-#' `block_deser_class_error`.
+#' A block is written by the registry ID of its class, with its state, its name
+#' and core's attribute `visible`. Where the block registry holds no entry for
+#' its class, writing the block registers the class, as a class from outside a
+#' package, under its name. So a class defined in an app script is registered
+#' before any session evaluates a block of it. A block made by [new_block()]
+#' names no block class and cannot be written.
 #'
-#' A board is written with its ID and name next to its payload, either of which
-#' is `NULL` where it has none. For a board written by blockr.core 0.1.4,
-#' `blockr_deser()` reads the name off its `board_name` board option instead.
+#' Core's objects are written by the JSON Schema of the board that core
+#' generates from its TypeScript types, so that a stack's blocks stay an array
+#' and an empty collection an object. A block's state is written by the schema
+#' that its class's UI ships (see [register_block()]), and bare where it ships
+#' none. A key of the front-end's state and a board option's value are written
+#' by the schema that their package ships beside its startup module, as core
+#' ships those of its board options beside its runtime (see
+#' [register_startup_module()]). Two packages that ship a schema for the same
+#' key or board option are an error that names both.
+#'
+#' A board that the format cannot hold fails as it is written, and so as the
+#' script runs. Every value has to be `NULL`, a vector of logicals, numbers or
+#' strings, or a list of such values, with no attribute but names. So a
+#' function, an environment, a call or a value of a class, such as a factor or
+#' a data frame, is an error. A named vector is written as an object.
 #'
 #' @param x Object to (de)serialize
 #' @param ... Generic consistency
 #'
 #' @examples
-#' blk <- new_dataset_block("iris")
+#' new_identity_block <- block_constructor(
+#'   new_block_class(
+#'     "identity_block",
+#'     inputs = "data",
+#'     expr = function(note = "") bbquote(.(data)),
+#'     ui = js_module("identity-block.js")
+#'   )
+#' )
 #'
-#' blockr_ser(blk)
+#' board <- new_board(
+#'   blocks = c(a = new_identity_block(), b = new_identity_block("Second")),
+#'   links = links(from = "a", to = "b"),
+#'   stacks = stacks(s = new_stack("a", "Start")),
+#'   options = new_show_conditions_option("error"),
+#'   name = "My board"
+#' )
 #'
-#' all.equal(blk, blockr_deser(blockr_ser(blk)), check.environment = FALSE)
+#' str(blockr_ser(board))
 #'
-#' @return Serialization helper function `blockr_ser()` returns lists, which
-#' for most objects contain slots `object` and `payload`, where `object`
-#' contains a class vector which is used by `blockr_deser()` to instantiate an
-#' empty object of that class and use S3 dispatch to identify the correct method
-#' that, given the content in `payload`, can re-create the original object.
+#' unregister_blocks("identity_block")
+#'
+#' @return For a board, `blockr_ser()` returns the board as R sends it, as a
+#' list that R's JSON writers write as the board's JSON. Its methods for the
+#' parts of a board return what the board holds in their place, before the
+#' board's schemas shape it. The function `blockr_deser()` returns the board,
+#' block, link, stack or board option that it recreates from a file of today's
+#' stack.
 #'
 #' @export
 blockr_ser <- function(x, ...) {
   UseMethod("blockr_ser")
 }
 
-#' @param state Object state (as returned from a block server)
-#' @rdname blockr_ser
-#' @export
-blockr_ser.block <- function(x, state = NULL, ...) {
-
-  if (is.null(state)) {
-    state <- initial_block_state(x)
-  }
-
-  attrs <- attributes(x)
-
-  state <- c(
-    state,
-    attrs[setdiff(names(attrs), c("names", internal_block_attributes()))]
-  )
-
-  ctor <- block_ctor(x)
-
-  list(
-    object = class(x),
-    payload = state,
-    constructor = blockr_ser(ctor)
-  )
-}
-
-#' @param blocks Block states keyed by block ID. A block that is `NULL`, or
-#' omitted from `blocks` altogether, defaults to values from its constructor
-#' scope, so `blocks` may cover only a subset of blocks.
-#' @rdname blockr_ser
-#' @export
-blockr_ser.blocks <- function(x, blocks = NULL, ...) {
-
-  if (!length(blocks)) {
-
-    res <- lapply(x, blockr_ser)
-
-  } else {
-
-    stopifnot(
-      is.list(blocks),
-      all(lgl_ply(blocks, function(b) is.null(b) || is.list(b))),
-      !is.null(names(blocks)), all(names(blocks) %in% names(x))
-    )
-
-    res <- Map(blockr_ser, x, blocks[names(x)])
-  }
-
-  list(
-    object = class(x),
-    payload = res
-  )
-}
-
-#' @param options Board option values (`NULL` uses values provided by `x`)
-#' @rdname blockr_ser
-#' @export
-blockr_ser.board_options <- function(x, options = NULL, ...) {
-
-  if (is.null(options)) {
-    options <- board_option_values(x)
-  }
-
-  expected <- names(x)
-
-  stopifnot(is.list(options), setequal(expected, names(options)))
-
-  list(
-    object = class(x),
-    payload = map(blockr_ser, x, options[expected])
-  )
-}
-
-#' @rdname blockr_ser
-#' @export
-blockr_ser.blockr_ctor <- function(x, ...) {
-
-  fun <- attr(x, "fun")
-  pkg <- attr(x, "pkg")
-
-  if (is.null(fun)) {
-    fun <- serialize(x, NULL)
-    ver <- NULL
-  } else {
-    ver <- as.character(pkg_version(pkg))
-  }
-
-  list(
-    object = class(x),
-    constructor = fun,
-    package = pkg,
-    version = ver
-  )
-}
-
-#' @param option Board option value (`NULL` uses values provided by `x`)
-#' @rdname blockr_ser
-#' @export
-blockr_ser.board_option <- function(x, option = NULL, ...) {
-
-  val <- coal(option, board_option_value(x), list())
-
-  if (is.atomic(val)) {
-    val <- list(val)
-  }
-
-  ctor <- board_option_ctor(x)
-  name <- setdiff(names(formals(ctor)), c("...", "category", "label"))
-
-  if (is.null(names(val))) {
-
-    if (length(val) && length(name) != length(val)) {
-      blockr_abort(
-        "Cannot match option values to constructor arguments for option ",
-        "{board_option_id(x)}.",
-        class = "option_value_arg_number_mismatch"
-      )
-    }
-
-    if (length(val) && length(name) > 1L) {
-      log_warn(
-        "Uncertainty matching option values to constructor arguments for ",
-        "option {board_option_id(x)}. Consider providing a specific ",
-        "`blockr_ser()` method."
-      )
-    }
-
-    if (length(val)) {
-      names(val) <- name
-    }
-  }
-
-  unknown <- setdiff(names(val), name)
-
-  if (length(unknown)) {
-    blockr_abort(
-      "Unrecognized option {qty(unknown)} argument{?s} {unknown} for option ",
-      "{board_option_id(x)}.",
-      class = "option_value_arg_name_mismatch"
-    )
-  }
-
-  list(
-    object = class(x),
-    payload = c(
-      val,
-      list(
-        category = board_option_category(x),
-        label = board_option_label(x)
-      )
-    ),
-    constructor = blockr_ser(ctor)
-  )
-}
-
 #' @rdname blockr_ser
 #' @export
 blockr_ser.board <- function(x, ...) {
-  list(
-    object = class(x),
-    payload = Map(
-      blockr_ser, x, list(...)[names(x)]
+
+  res <- c(
+    if (not_null(board_id(x))) list(id = board_id(x)),
+    list(
+      front_end = list(
+        id = board_front_end(x),
+        state = front_end_state(x),
+        attrs = list()
+      )
     ),
-    constructor = blockr_ser(board_ctor(x)),
-    version = as.character(pkg_version()),
-    id = board_id(x),
-    name = board_name(x)
+    if (not_null(board_name(x))) list(name = board_name(x)),
+    list(
+      blocks = blockr_ser(board_blocks(x)),
+      links = blockr_ser(board_links(x)),
+      stacks = blockr_ser(board_stacks(x)),
+      options = blockr_ser(board_options(x))
+    )
   )
+
+  shape_board(res)
 }
 
 #' @rdname blockr_ser
 #' @export
-blockr_ser.link <- function(x, ...) {
+blockr_ser.blocks <- function(x, ...) {
+  ser_collection(as.list(x), ids_or_empty(names(x), length(x)))
+}
+
+#' @rdname blockr_ser
+#' @export
+blockr_ser.block <- function(x, ...) {
+
+  if (is_legacy_block(x)) {
+    blockr_abort(
+      "Block \"{block_name(x)}\" of class {class(x)[1L]} is made by ",
+      "`new_block()` and names no block class, so it cannot be written.",
+      class = "block_ser_legacy"
+    )
+  }
+
+  entry <- class_registry_entry(block_class(x))
+
   list(
-    object = class(x),
-    payload = as.list(x),
-    constructor = blockr_ser(attr(x, "ctor"))
+    registry_id = entry[["id"]],
+    state = plain_value(
+      block_state(x),
+      paste0("The state of block \"", block_name(x), "\"")
+    ),
+    name = block_name(x),
+    attrs = block_attrs(x)
   )
 }
 
 #' @rdname blockr_ser
 #' @export
 blockr_ser.links <- function(x, ...) {
-  list(
-    object = class(x),
-    payload = lapply(x, blockr_ser)
-  )
+  lnks <- as.list(x)
+  ser_collection(lnks, ids_or_empty(names(lnks), length(lnks)))
 }
 
 #' @rdname blockr_ser
 #' @export
-blockr_ser.stack <- function(x, ...) {
-  list(
-    object = class(x),
-    payload = as.list(x),
-    constructor = blockr_ser(attr(x, "ctor"))
-  )
+blockr_ser.link <- function(x, ...) {
+  list(from = x[["from"]], to = x[["to"]], input = x[["input"]])
 }
 
 #' @rdname blockr_ser
 #' @export
 blockr_ser.stacks <- function(x, ...) {
-  list(
-    object = class(x),
-    payload = lapply(x, blockr_ser)
+  ser_collection(as.list(x), ids_or_empty(names(x), length(x)))
+}
+
+#' @rdname blockr_ser
+#' @export
+blockr_ser.stack <- function(x, ...) {
+  list(name = stack_name(x), blocks = stack_blocks(x))
+}
+
+#' @rdname blockr_ser
+#' @export
+blockr_ser.board_options <- function(x, ...) {
+
+  opts <- as.list(x)
+  opts <- opts[lgl_ply(opts, has_board_option_value)]
+
+  set_names(lapply(opts, blockr_ser), names(opts))
+}
+
+#' @rdname blockr_ser
+#' @export
+blockr_ser.board_option <- function(x, ...) {
+  plain_value(
+    board_option_value(x),
+    paste0("The value of board option ", board_option_id(x))
   )
 }
 
+#' @rdname blockr_ser
+#' @export
+blockr_ser.default <- function(x, ...) {
+  x
+}
+
+ser_collection <- function(x, ids) {
+  map(
+    function(obj, id) c(if (nzchar(id)) list(id = id), blockr_ser(obj)),
+    x,
+    ids
+  )
+}
+
+board_components <- function() {
+  c("blocks", "links", "stacks", "options")
+}
+
+# The front-end's state: the components that a board holds besides core's, by
+# key, each written by `blockr_ser()`.
+front_end_state <- function(x) {
+
+  keys <- setdiff(names(x), board_components())
+
+  if (!all(nzchar(keys))) {
+    blockr_abort(
+      "The components that a board holds besides its blocks, links, stacks ",
+      "and board options are the front-end's state, by key, so each needs a ",
+      "name.",
+      class = "board_front_end_state_invalid"
+    )
+  }
+
+  set_names(
+    lapply(
+      keys,
+      function(key) {
+        plain_value(
+          blockr_ser(x[[key]]),
+          paste0("The front-end's state ", key)
+        )
+      }
+    ),
+    keys
+  )
+}
+
+# Core's attribute `visible`, which says which of a block's sections show,
+# written as the array of sections that its schema in the client has.
+block_attrs <- function(x) {
+
+  visible <- attr(x, "visible", exact = TRUE)
+
+  if (is.null(visible)) {
+    return(list())
+  }
+
+  list(visible = I(unname(visible)))
+}
+
+# The block registry's entry for a block class, which registers the class
+# where no entry holds it, as a class from outside a package, under its name.
+class_registry_entry <- function(cls) {
+
+  id <- registry_id_from_block(cls)
+
+  if (length(id)) {
+    return(get_registry_entry(id[1L]))
+  }
+
+  register_block(block_constructor(cls), default_block_name(cls[["class"]]), "")
+}
+
+# A value as a board's JSON holds it: `NULL`, a vector of logicals, numbers or
+# strings, or a list of such values, with no attribute but names, and a named
+# vector as a named list, so that it is written as an object. A value that a
+# schema marked as an array with `I()` stays marked.
+plain_value <- function(x, what) {
+
+  if (is.null(x)) {
+    return(NULL)
+  }
+
+  kind <- unplain_kind(x)
+
+  if (not_null(kind)) {
+    blockr_abort(
+      "{what} holds {kind}, which the JSON of a board cannot hold.",
+      class = "board_value_invalid"
+    )
+  }
+
+  marked <- inherits(x, "AsIs")
+
+  if (is.list(x)) {
+    res <- lapply(x, plain_value, what)
+    return(if (marked) I(res) else res)
+  }
+
+  if (!is.null(names(x)) && !marked) {
+    return(as.list(x))
+  }
+
+  x
+}
+
+# What keeps a value from being plain, as an error names it, or `NULL` for a
+# plain value.
+unplain_kind <- function(x) {
+
+  cls <- setdiff(oldClass(x), "AsIs")
+  type <- typeof(x)
+
+  if (length(cls)) {
+    return(paste("a value of class", cls[1L]))
+  }
+
+  if (type %in% c("closure", "builtin", "special")) {
+    return("a function")
+  }
+
+  if (!type %in% c("logical", "integer", "double", "character", "list")) {
+    return(paste("a value of type", type))
+  }
+
+  extra <- setdiff(names(attributes(x)), c("names", "class"))
+
+  if (length(extra)) {
+    return(paste("a value with the attribute", extra[1L]))
+  }
+
+  NULL
+}
+
+# Shapes the board as R sends it by the schemas that give its values' shapes:
+# core's objects by the board's schema, each block's state by the schema that
+# its class's UI ships, and each key of the front-end's state and each board
+# option's value by the schema that its package ships.
+shape_board <- function(x) {
+
+  x <- shape_by_schema(x, board_schema())
+
+  x[["blocks"]] <- lapply(x[["blocks"]], shape_block_state)
+
+  schemas <- startup_schemas()
+
+  x[["front_end"]][["state"]] <- shape_state_keys(
+    x[["front_end"]][["state"]],
+    schemas[["keys"]]
+  )
+
+  x[["options"]] <- shape_option_values(x[["options"]], schemas[["options"]])
+
+  x
+}
+
+# The JSON Schema of the board as R sends it, which the build generates from
+# `OpeningBoard` in srcts/types/board.ts.
+board_schema <- function() {
+  decode_schema(
+    system.file("board", "opening-board.schema.json", package = "blockr.core")
+  )
+}
+
+shape_block_state <- function(x) {
+  entry <- get_registry_entry(x[["registry_id"]])
+  x["state"] <- list(shape_by_schema(x[["state"]], entry[["schema"]]))
+  x
+}
+
+#' @section Reading today's files:
+#' A file of today's stack, which `blockr_ser()` wrote in blockr.core 0.1.4 and
+#' before, holds every object as its class vector in `object`, its
+#' constructor's args in `payload` and its constructor in `constructor`. The
+#' function `blockr_deser()` recreates the objects from the R values read from
+#' such a file, as the conversion of one into a saved file does. The class
+#' vector selects the `blockr_deser()` method, but the recreated object only has
+#' to keep the kind of object it names: the last class with a `blockr_deser()`
+#' method of its own, such as `block` for any block. Classes in front of it may
+#' differ from the ones written, so a package can rename or drop classes of its
+#' blocks without breaking saved boards. An object recreated as another kind
+#' raises an error of class `block_deser_class_error`. The function
+#' `blockr_deser()` forwards `...` to the method it dispatches to. That lets
+#' callers, and the methods that read nested objects, thread context down to
+#' inner methods.
+#'
+#' A board is read with its ID and name, which the file holds next to its
+#' payload, either of them `NULL` where the board has none. For a board written
+#' by blockr.core 0.1.4, `blockr_deser()` reads the name off its `board_name`
+#' board option instead. A board option is recreated from its value alone,
+#' without the category and label saved with it, which its definition in the
+#' client gives.
+#'
 #' @param on_error How to handle a block that cannot be deserialized -- its
 #' constructor (or the package providing it) is unavailable, its payload cannot
 #' be reconstructed, or the re-created object is not a block. `"abort"` (the
@@ -422,15 +545,7 @@ blockr_deser.board <- function(x, data, ..., on_error = NULL) {
     parts <- drop_block_refs(parts, payload[["blocks"]])
   }
 
-  args <- c(
-    parts,
-    list(
-      id = data[["id"]],
-      name = name,
-      ctor = coal(ctor_name(ctor), ctor_fun(ctor)),
-      pkg = ctor_pkg(ctor)
-    )
-  )
+  args <- c(parts, list(id = data[["id"]], name = name))
 
   do.call(ctor_fun(ctor), args)
 }
@@ -547,13 +662,10 @@ blockr_deser.board_option <- function(x, data, ...) {
 
   ctor <- blockr_deser(data[["constructor"]])
 
-  args <- c(
-    data[["payload"]],
-    list(
-      ctor = coal(ctor_name(ctor), ctor_fun(ctor)),
-      pkg = ctor_pkg(ctor)
-    )
-  )
+  # The category and label that today's files hold, the board option's
+  # definition in the client gives
+  args <- data[["payload"]]
+  args <- args[setdiff(names(args), c("category", "label"))]
 
   do.call(ctor_fun(ctor), args)
 }

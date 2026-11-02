@@ -58,7 +58,7 @@ test_that("a board's front-end is the one of its most specific class", {
 
 test_that("R picks the front-end of a board read from today's stack", {
 
-  brd <- blockr_deser(blockr_ser(new_board(name = "My board")))
+  brd <- blockr_deser(v014_board(name = "My board"))
 
   expect_identical(board_front_end(brd), "blockr.core-basic")
 })
