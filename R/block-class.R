@@ -65,7 +65,9 @@
 #' @param ui The class's UI module, made by `js_module()`
 #' @param requests Named list of requests, each a function or made by
 #'   [new_block_request()]
-#' @param output Coercion that makes an output from a result
+#' @param output Coercion that makes an output from a result, such as
+#'   [as_table_output()], or `NULL`, for which R shows results through
+#'   [as_text_output()]
 #'
 #' @examples
 #' head_block <- new_block_class(

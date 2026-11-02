@@ -218,11 +218,25 @@ test_that("result_summary() gives a result's class and dimensions", {
   expect_identical(result_summary(1:10), "<integer> [10]")
   expect_identical(result_summary(factor(c("a", "b"))), "<factor> [2]")
   expect_identical(result_summary(NULL), "<NULL>")
-  expect_identical(result_summary(sum), "<builtin>")
+  expect_identical(result_summary(sum), "<function>")
+  expect_identical(result_summary(function(x) x), "<function>")
   expect_identical(result_summary(new.env()), "<environment>")
+  expect_identical(
+    result_summary(stats::lm(dist ~ speed, datasets::cars)),
+    "<lm>"
+  )
+  expect_identical(result_summary(structure(list(), class = "my_plot")),
+                   "<my_plot>")
   expect_identical(
     result_summary(matrix(1, 1000, 2)),
     "<double> [1,000 \u00d7 2]"
+  )
+
+  skip_if_not_installed("tibble")
+
+  expect_identical(
+    result_summary(tibble::as_tibble(datasets::mtcars)),
+    "<tibble> [32 \u00d7 11]"
   )
 })
 
