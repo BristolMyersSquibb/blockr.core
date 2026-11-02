@@ -60,8 +60,7 @@
         "front_ends": {
           "blockr.core-basic": {
             "module": "blockr.core/basic.js?v=0f3d8e21",
-            "css": "blockr.core/basic.css?v=6a9b2c4e",
-            "options": ["show_conditions"]
+            "css": "blockr.core/basic.css?v=6a9b2c4e"
           }
         },
         "startup_modules": [],
@@ -69,8 +68,7 @@
         "renderers": {
           "blockr.core-basic_table": {
             "module": "blockr.core/basic-table.js?v=b7e2a915",
-            "class": "table_output",
-            "options": ["n_rows"]
+            "class": "table_output"
           }
         },
         "lock": null,

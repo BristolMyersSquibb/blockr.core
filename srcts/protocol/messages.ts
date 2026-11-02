@@ -88,12 +88,8 @@ export type HelloReply = {
   // of.
   packages: Record<string, string>;
   block_registry: Record<RegistryId, RegistryEntry>;
-  // Where each front-end's module is served, by the front-end's id, with the
-  // board options it requires.
-  front_ends: Record<
-    string,
-    { module: string; css?: string; options: OptionId[] }
-  >;
+  // Where each front-end's module is served, by the front-end's id.
+  front_ends: Record<string, { module: string; css?: string }>;
   // In the order in which the packages declared them, each package's after
   // those of the packages its NAMESPACE imports.
   startup_modules: { package: string; module: string; css?: string }[];
@@ -111,9 +107,8 @@ export type HelloReply = {
   { board: OpeningBoard; file?: never } | { file: SavedBoard; board?: never }
 );
 
-// A renderer that R picked for an output class or for a board option, with the
-// board options it brings.
-export type Renderer = { module: string; css?: string; options: OptionId[] } & (
+// A renderer that R picked for an output class or for a board option.
+export type Renderer = { module: string; css?: string } & (
   | { class: string; option?: never }
   | { option: OptionId; class?: never }
 );
