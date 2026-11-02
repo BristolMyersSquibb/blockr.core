@@ -26,9 +26,8 @@ declared_front_ends <- new.env()
 #' @param name The name part of the front-end's ID
 #' @param module The front-end's module, made by [js_module()]
 #' @param class The board class the front-end draws
-#' @param options The board options the front-end requires, as a function that
-#'   returns board options, such as a board option constructor, or a list of
-#'   them, which R calls whenever it collects them
+#' @param options The board options the front-end requires, as a board option
+#'   constructor or a list of them, which R calls whenever it collects them
 #'
 #' @examples
 #' \dontrun{
@@ -37,7 +36,7 @@ declared_front_ends <- new.env()
 #'   "dock",
 #'   js_module("js/dock.js"),
 #'   class = "dock_board",
-#'   options = dock_board_options
+#'   options = list(new_compact_option, new_sync_rails_option)
 #' )
 #' }
 #'
@@ -78,7 +77,7 @@ register_front_end <- function(name, module, class, options = NULL) {
   if (!is.list(options) || !all(lgl_ply(options, is.function))) {
     blockr_abort(
       "The board options that front-end {id} requires are expected to be a ",
-      "function that returns board options, or a list of them.",
+      "board option constructor or a list of them.",
       class = "front_end_invalid"
     )
   }
@@ -146,10 +145,10 @@ front_end_options <- function(id) {
 
   opts <- call_option_ctors(get_front_end(id)[["options"]])
 
-  if (!all(lgl_ply(opts, is_board_option) | lgl_ply(opts, is_board_options))) {
+  if (!all(lgl_ply(opts, is_board_option))) {
     blockr_abort(
       "The board options that front-end {id} requires are expected to be ",
-      "returned by its `options` as board options.",
+      "given by their constructors, each returning one board option.",
       class = "front_end_invalid"
     )
   }

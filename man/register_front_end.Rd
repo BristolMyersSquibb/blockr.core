@@ -16,9 +16,8 @@ board_front_end(x)
 
 \item{class}{The board class the front-end draws}
 
-\item{options}{The board options the front-end requires, as a function that
-returns board options, such as a board option constructor, or a list of
-them, which R calls whenever it collects them}
+\item{options}{The board options the front-end requires, as a board option
+constructor or a list of them, which R calls whenever it collects them}
 
 \item{x}{Board}
 }
@@ -57,7 +56,7 @@ register_front_end(
   "dock",
   js_module("js/dock.js"),
   class = "dock_board",
-  options = dock_board_options
+  options = list(new_compact_option, new_sync_rails_option)
 )
 }
 

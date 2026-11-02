@@ -121,7 +121,11 @@ test_that("a front-end's board options are collected for its boards", {
     "all",
     test_module("all.js"),
     class = "all_board",
-    options = list(new_n_rows_option, default_board_options)
+    options = list(
+      new_n_rows_option,
+      new_show_conditions_option,
+      new_dark_mode_option
+    )
   )
 
   register_front_end(
@@ -217,6 +221,15 @@ test_that("a front-end's declaration is checked", {
     front_end_options("blockr.test-test"),
     class = "front_end_invalid",
     regexp = "blockr.test-test"
+  )
+
+  register_front_end("test", mod, class = "test_board",
+                     options = default_board_options)
+
+  expect_error(
+    front_end_options("blockr.test-test"),
+    class = "front_end_invalid",
+    regexp = "one board option"
   )
 
   rm(list = list_front_ends(), envir = declared_front_ends)
