@@ -26,6 +26,7 @@ import { commit, target } from "./commit.ts";
 import type { Changed, Inverse } from "./commit.ts";
 import type { Delta, Origin } from "./delta.ts";
 import { expand } from "./expand.ts";
+import { fit, isEmpty } from "./undo.ts";
 import { checkFile, FORMAT, frontEndOf, keyed, openFile, parse } from "./open.ts";
 import type { Dropped } from "./open.ts";
 import { createRegistrations } from "./registrations.ts";
@@ -99,15 +100,11 @@ export interface StoreOptions {
   readonly loaded?: (reply: OpenReply, frontEnd: string) => void | Promise<void>;
 }
 
-// The deltas of one call to apply() as expanded, with their inverses in the
-// order undo applies them, and the edit ids of what they touched before and
-// after.
-interface Step {
-  readonly deltas: readonly Delta[];
-  readonly inverses: readonly Inverse[];
-  readonly before: ReadonlyMap<string, number>;
-  readonly after: ReadonlyMap<string, number>;
-}
+// What takes one step back, on an origin's undo list, or applies it again, on
+// its redo list: the deltas to apply, each with where what it adds back goes,
+// taken from the board the step replaced, so that applying them sets back what
+// the step changed.
+type Step = readonly Inverse[];
 
 interface History {
   readonly undo: readonly Step[];
@@ -131,11 +128,10 @@ export function createStore(options: StoreOptions): Store {
   const subscribers = new Set<(change: Change, board: Board) => void>();
 
   // The edit ids, kept beside the board rather than in it. One count numbers
-  // the steps, the opening of a board included, and the edit id of a block, or
-  // of an entry or a value of the front-end state, is the number of the step
-  // that last changed it, which undo and redo put back with what they put
-  // back. No number is given out twice, so an id names one version of what it
-  // belongs to.
+  // the steps, the opening of a board, an undo and a redo included, and the
+  // edit id of a block, or of an entry or a value of the front-end state, is
+  // the number of the step that last changed it. No number is given out twice,
+  // so an id names one version of what it belongs to.
   const edits = new Map<string, number>();
   let lastStep = 0;
 
@@ -178,24 +174,29 @@ export function createStore(options: StoreOptions): Store {
     history.value = new Map([...history.value, [origin, steps]]);
   }
 
-  // Applies deltas in order, each expanded or not, as one step, checking each
-  // on the board the one before it left, or throws what rejected them.
+  // Applies deltas in order as one step, expanding and checking each on the
+  // board the one before it left, or throws what rejected them. Undo and redo
+  // apply only what still fits the board, and a delta of which nothing does
+  // applies as nothing.
   function run(
     start: Board,
     deltas: readonly Delta[],
-    how: { expand: boolean; places?: readonly Inverse["places"][] },
+    how: { fit?: boolean; places?: readonly Inverse["places"][] },
     refused: string,
   ): { applied: Applied[]; inverses: Inverse[] } {
     const applied: Applied[] = [];
     const inverses: Inverse[] = [];
     let current = start;
 
-    for (const [i, delta] of deltas.entries()) {
+    for (const [i, given] of deltas.entries()) {
       const prefix = deltas.length > 1 ? `Delta ${String(i + 1)}: ` : "";
       const fail = (failures: readonly string[]) =>
         new StoreError(refused, failures.map((failure) => prefix + failure));
 
-      const expanded = how.expand ? expand(delta, current, registrations) : delta;
+      const delta = how.fit === true ? fit(given, current, registrations) : given;
+      if (how.fit === true && isEmpty(delta)) continue;
+
+      const expanded = expand(delta, current, registrations);
       if ("failures" in expanded) throw fail(expanded.failures);
 
       const committed = commit(current, expanded, registrations, how.places?.[i]);
@@ -233,34 +234,6 @@ export function createStore(options: StoreOptions): Store {
     return `entry "${String(rest[1])}" of ${path}`;
   }
 
-  function editsOf(keys: Iterable<string>): Map<string, number> {
-    const ids = new Map<string, number>();
-    for (const key of keys) {
-      const id = edits.get(key);
-      if (id !== undefined) ids.set(key, id);
-    }
-    return ids;
-  }
-
-  function restore(keys: Iterable<string>, ids: ReadonlyMap<string, number>): void {
-    for (const key of keys) {
-      const id = ids.get(key);
-      if (id === undefined) edits.delete(key);
-      else edits.set(key, id);
-    }
-  }
-
-  // Whether what the step left is as it was, or another origin has changed it.
-  function unchanged(ids: ReadonlyMap<string, number>, keys: Iterable<string>): string[] {
-    const failures: string[] = [];
-    for (const key of keys) {
-      if (edits.get(key) !== ids.get(key)) {
-        failures.push(`Another origin has changed ${describe(key)} since.`);
-      }
-    }
-    return failures;
-  }
-
   // The edit ids that the deltas name and that differ from those the board had
   // as the step started, since every delta of a step is built on that board.
   function named(deltas: readonly Delta[]): string[] {
@@ -293,6 +266,16 @@ export function createStore(options: StoreOptions): Store {
     return failures;
   }
 
+  // Gives what the step changed the number of a new step, or drops the edit id
+  // of what the step removed.
+  function number(applied: readonly Applied[], last: Board): void {
+    const step = ++lastStep;
+    for (const key of new Set(applied.flatMap(({ changed }) => [...changed.targets]))) {
+      if (exists(last, key)) edits.set(key, step);
+      else edits.delete(key);
+    }
+  }
+
   function apply(delta: Delta | readonly Delta[], origin: Origin = "user"): void {
     guard();
     const deltas: readonly Delta[] = isDeltas(delta) ? delta : [delta];
@@ -305,22 +288,9 @@ export function createStore(options: StoreOptions): Store {
       const failures = named(deltas);
       if (failures.length > 0) throw new StoreError(refused, failures);
 
-      const { applied, inverses } = run(start, deltas, { expand: true }, refused);
-
-      const touched = new Set(applied.flatMap(({ changed }) => [...changed.targets]));
-      const before = editsOf(touched);
-      const last = applied.at(-1)?.board ?? start;
-      const step = ++lastStep;
-      for (const key of touched) {
-        if (exists(last, key)) edits.set(key, step);
-        else edits.delete(key);
-      }
-      const after = editsOf(touched);
-
-      setSteps(origin, {
-        undo: [...steps(origin).undo, { deltas: applied.map(({ delta }) => delta), inverses, before, after }],
-        redo: [],
-      });
+      const { applied, inverses } = run(start, deltas, {}, refused);
+      number(applied, applied.at(-1)?.board ?? start);
+      setSteps(origin, { undo: [...steps(origin).undo, inverses], redo: [] });
 
       for (const { delta, board: next } of applied) {
         board.value = next;
@@ -331,6 +301,10 @@ export function createStore(options: StoreOptions): Store {
     }
   }
 
+  // Takes the origin's last step back, or applies the last it took back again,
+  // as a new edit on the board as it is, and keeps what would take that edit
+  // back on the other list, so that undoing and redoing leaves the board as it
+  // was, whatever another origin changed in between.
   function revert(origin: Origin, back: boolean): void {
     guard();
     const { undo, redo } = steps(origin);
@@ -340,26 +314,19 @@ export function createStore(options: StoreOptions): Store {
     busy = true;
     try {
       const refused = back ? "The store refused to undo the step" : "The store refused to redo the step";
-      const keys = new Set([...step.before.keys(), ...step.after.keys()]);
-      const failures = unchanged(back ? step.after : step.before, keys);
-      if (failures.length > 0) throw new StoreError(refused, failures);
-
       const start = current(refused);
-      const { applied } = back
-        ? run(
-            start,
-            step.inverses.map(({ delta }) => delta),
-            { expand: false, places: step.inverses.map(({ places }) => places) },
-            refused,
-          )
-        : run(start, step.deltas, { expand: false }, refused);
-
-      restore(keys, back ? step.before : step.after);
+      const { applied, inverses } = run(
+        start,
+        step.map(({ delta }) => delta),
+        { fit: true, places: step.map(({ places }) => places) },
+        refused,
+      );
+      number(applied, applied.at(-1)?.board ?? start);
       setSteps(
         origin,
         back
-          ? { undo: undo.slice(0, -1), redo: [...redo, step] }
-          : { undo: [...undo, step], redo: redo.slice(0, -1) },
+          ? { undo: undo.slice(0, -1), redo: [...redo, inverses] }
+          : { undo: [...undo, inverses], redo: redo.slice(0, -1) },
       );
 
       for (const { delta, board: next } of applied) {

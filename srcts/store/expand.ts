@@ -46,7 +46,7 @@ export function expand(
         continue;
       }
       if (change === undefined) continue;
-      const merged = merge(expanded, def.path, def.kind, change);
+      const merged = merge(expanded, delta, def.path, def.kind, change);
       if (merged !== expanded) adding.push(pathText(def.path));
       expanded = merged;
     }
@@ -103,9 +103,12 @@ function expandCore(delta: Delta, board: Board): Delta {
 
 // The delta with what an `expand` returned for its key merged in, or the same
 // delta where that adds nothing new, as an `expand` may return what the delta
-// holds already.
+// holds already. What follows from a delta never overrides what the delta given
+// to the store says itself, so that an undo that puts back an entry puts back
+// that entry, and not one an `expand` makes up for a new object.
 function merge(
   delta: Delta,
+  given: Delta,
   path: readonly string[],
   kind: "collection" | "value",
   change: KeyDelta,
@@ -113,11 +116,17 @@ function merge(
   const changes = delta.front_end?.state ?? [];
   const at = changes.findIndex((other) => jsonEqual(other.path, path));
   const current = changes[at]?.change;
+  const own = given.front_end?.state?.find((other) => jsonEqual(other.path, path))?.change;
 
   const merged =
     kind === "value"
-      ? mergeValue(current, change)
-      : mergeCollection(current as CollectionDelta | undefined, change as CollectionDelta);
+      ? own !== undefined && "set" in own
+        ? current
+        : mergeValue(current, change)
+      : mergeCollection(
+          current as CollectionDelta | undefined,
+          held(change as CollectionDelta, own as CollectionDelta | undefined),
+        );
   if (merged === undefined || merged === current) return delta;
 
   const next: KeyChange = { path, change: merged };
@@ -140,6 +149,47 @@ function mergeValue(current: KeyDelta | undefined, change: KeyDelta): KeyDelta |
   if (current === undefined) return { set: change.set };
   if ("set" in current && jsonEqual(current.set, change.set)) return current;
   return { ...current, set: change.set };
+}
+
+// What an `expand` returned for a collection, without the entries the given
+// delta adds and the fields it sets or unsets itself.
+function held(change: CollectionDelta, given: CollectionDelta | undefined): CollectionDelta {
+  if (given === undefined) return change;
+  const fields = (id: string) => [
+    ...Object.keys(own(given.mod ?? {}, id)?.set ?? {}),
+    ...(own(given.mod ?? {}, id)?.unset ?? []),
+  ];
+  return {
+    ...(change.rm === undefined ? {} : { rm: change.rm }),
+    ...(change.add === undefined
+      ? {}
+      : {
+          add: Object.fromEntries(
+            Object.entries(change.add).filter(([id]) => !Object.hasOwn(given.add ?? {}, id)),
+          ),
+        }),
+    ...(change.mod === undefined
+      ? {}
+      : {
+          mod: Object.fromEntries(
+            Object.entries(change.mod).map(([id, entry]) => [
+              id,
+              {
+                ...(entry.set === undefined
+                  ? {}
+                  : {
+                      set: Object.fromEntries(
+                        Object.entries(entry.set).filter(([key]) => !fields(id).includes(key)),
+                      ),
+                    }),
+                ...(entry.unset === undefined
+                  ? {}
+                  : { unset: entry.unset.filter((key) => !fields(id).includes(key)) }),
+              },
+            ]),
+          ),
+        }),
+  };
 }
 
 function mergeCollection(

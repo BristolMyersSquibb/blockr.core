@@ -1048,50 +1048,87 @@ describe("undo", () => {
     expect(store.board().options.n_rows).toBe(50);
   });
 
-  test("is refused where another origin has since changed the same block, until that origin undoes its change", async () => {
+  test("sets back what its step changed over what another origin changed since, as the last writer", async () => {
     const store = await opened();
     store.apply({ blocks: { mod: { b: { state: { n: 7 } } } } });
     store.apply({ blocks: { mod: { b: { state: { n: 8 } } } } }, "assistant");
-    const board = store.board();
+    const seen = changes(store);
 
-    expect(() => {
-      store.undo();
-    }).toThrow(/Another origin has changed block "b" since/);
-    expect(store.board()).toBe(board);
-    expect(store.canUndo()).toBe(true);
-
-    store.undo("assistant");
-    expect(store.board().blocks.b?.state.n).toBe(7);
     store.undo();
     expect(store.board().blocks.b?.state.n).toBe(6);
+    expect(seen).toEqual([{ delta: { blocks: { mod: { b: { state: { n: 6 } } } } }, origin: "user" }]);
+    expect(store.canUndo("assistant")).toBe(true);
   });
 
-  test("undoes an origin's steps in turn, restoring the edit ids", async () => {
+  test("undoes and redoes as steps of their own, so that edit ids only grow", async () => {
     const store = await opened();
-    const edit = store.editId({ block: "b" });
+    const opening = store.editId({ block: "b" }) ?? 0;
     store.apply({ blocks: { mod: { b: { state: { n: 7 } } } } });
     store.apply({ blocks: { mod: { b: { state: { n: 8 } } } } });
 
     store.undo();
+    const undone = store.editId({ block: "b" }) ?? 0;
     store.undo();
     expect(store.board().blocks.b?.state.n).toBe(6);
-    expect(store.editId({ block: "b" })).toBe(edit);
+    expect(store.editId({ block: "b" })).toBeGreaterThan(undone);
+    expect(undone).toBeGreaterThan(opening);
 
     store.redo();
     store.redo();
     expect(store.board().blocks.b?.state.n).toBe(8);
   });
 
-  test("redo is refused where another origin has since changed the same block", async () => {
+  test("redo brings back what was there as the step was undone, whatever another origin changed in between", async () => {
     const store = await opened();
-    store.apply({ blocks: { mod: { b: { state: { n: 7 } } } } });
-    store.undo();
-    store.apply({ blocks: { mod: { b: { state: { n: 8 } } } } }, "assistant");
+    store.apply({ stacks: { mod: { s1: { blocks: ["a"] } } } });
+    store.apply({ stacks: { mod: { s1: { blocks: ["a", "c"] } } } }, "assistant");
+    const before = store.board();
 
-    expect(() => {
-      store.redo();
-    }).toThrow(/refused to redo the step/);
-    expect(store.board().blocks.b?.state.n).toBe(8);
+    store.undo();
+    expect(store.board().stacks.s1?.blocks).toEqual(["a", "b"]);
+
+    store.redo();
+    expect(store.board()).toEqual(before);
+  });
+
+  test("does nothing where what its step changed is gone", async () => {
+    const store = await opened();
+    store.apply({ blocks: { mod: { d: { name: "Narrow" } } } });
+    store.apply({ blocks: { rm: ["d"] } }, "assistant");
+    const board = store.board();
+    const seen = changes(store);
+
+    store.undo();
+    expect(store.board()).toBe(board);
+    expect(seen).toEqual([]);
+    expect(store.canUndo()).toBe(false);
+
+    store.redo();
+    expect(store.board()).toBe(board);
+  });
+
+  test("takes an added block back with what another origin has linked to it since", async () => {
+    const store = await opened();
+    store.apply({ blocks: { add: { g: head(3) } } });
+    store.apply({ links: { add: { dg: { from: "d", to: "g", input: "data" } } } }, "assistant");
+
+    store.undo();
+    expect(Object.hasOwn(store.board().blocks, "g")).toBe(false);
+    expect(Object.hasOwn(store.board().links, "dg")).toBe(false);
+  });
+
+  test("puts a removed block back without its links to a block that is gone since", async () => {
+    const store = await opened();
+    store.apply({ blocks: { rm: ["b"] } });
+    store.apply({ blocks: { rm: ["e"] } }, "assistant");
+
+    store.undo();
+    const board = store.board();
+    expect(Object.hasOwn(board.blocks, "b")).toBe(true);
+    expect(board.links.ab).toEqual({ from: "a", to: "b", input: "data" });
+    expect(board.links.bc).toEqual({ from: "b", to: "c", input: "y" });
+    expect(Object.hasOwn(board.links, "be")).toBe(false);
+    expect(board.stacks.s1?.blocks).toEqual(["a", "b"]);
   });
 
   test("a new step clears the redo steps of its own origin only", async () => {
