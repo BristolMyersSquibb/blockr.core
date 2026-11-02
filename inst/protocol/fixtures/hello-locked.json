@@ -120,13 +120,6 @@
             "class": "plot_output"
           }
         },
-        "blockr_options": {
-          "blockr.core": {
-            "gate_visibility": true,
-            "evaluation_queue": 2,
-            "background_evaluation_delay": null
-          }
-        },
         "lock": { "open": ["b"] },
         "board": {
           "id": "steady_lynx",

@@ -57,6 +57,11 @@ reference:
     - board_blocks
     - new_board_options
     - locked-board
+- subtitle: Front-ends and modules
+  desc: What a package declares in R of its client
+  contents:
+    - register_front_end
+    - register_startup_module
 - title: Block classes
   contents:
     - new_data_block

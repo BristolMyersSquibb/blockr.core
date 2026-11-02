@@ -146,13 +146,6 @@
             "module": "blockr.core/basic-plot.js?v=f19d4a73",
             "class": "plot_output"
           }
-        },
-        "blockr_options": {
-          "blockr.core": {
-            "gate_visibility": true,
-            "evaluation_queue": 2,
-            "background_evaluation_delay": null
-          }
         }
       }
     ]

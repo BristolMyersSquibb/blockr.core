@@ -16,6 +16,7 @@ A message is a JSON array, of requests from the client or of replies and progres
 |---|---|---|
 | `hello` | start the session ([The handshake](#the-handshake)) | with everything the client needs before it draws a board, the opening board included |
 | `open` | load the packages that a board the client opens names ([Opening a board](#opening-a-board)) | with what the client needs to draw their blocks |
+| `blockr_options` | read blockr options ([Blockr options](#blockr-options)) | with the value of each it has one for |
 | `evaluate` | evaluate a block from its recipe ([Evaluating a block](#evaluating-a-block)) | with the block's status, summary and conditions |
 | `request` | run a function that an object registers in R ([Requests](#requests)) | with its answer |
 | `output` | make a block's output ([Outputs](#outputs)) | with the output |
@@ -53,10 +54,9 @@ R replies `ok` with:
 | `packages` | the version of every package that R has loaded and that the reply's block classes, front-ends, startup modules, modules and renderers come from, by package |
 | `block_registry` | the block registry's entries, by registry id, each as `RegistryEntry` in [`srcts/types/registry.ts`](../../srcts/types/registry.ts) gives it ([Registration](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.5#registration)) |
 | `front_ends` | where each front-end's module is served, by the front-end's id, as `{ "module": "...", "css": "..." }` |
-| `startup_modules` | the startup module of every package R has loaded that declares one, each as `{ "package": "...", "module": "...", "css": "..." }`, in the order of the packages' R dependencies, so that each package's comes after those of the packages it depends on ([Startup modules](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#startup-modules)) |
+| `startup_modules` | the startup module of every package R has loaded that declares one, each as `{ "package": "...", "module": "...", "css": "..." }`, in the order in which the packages declared them, which is the order in which their namespaces loaded, so that each package's comes after those of the packages its NAMESPACE imports ([Startup modules](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#startup-modules)) |
 | `modules` | the modules that packages offer each other, by id, as `front_ends` gives them |
 | `renderers` | the renderers R picked, by the renderer's id, each with the output class it draws in `class` or the board option in `option` ([Renderers](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#renderers)) |
-| `blockr_options` | the values of the blockr options that the client reads, by package ([Blockr options](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.3#blockr-options)) |
 | `lock` | the blocks that a locked board leaves open, as `{ "open": ["f"] }`, or `null` where the app locks nothing ([Locked boards](#locked-boards)) |
 | `board` or `file` | the opening board: in `board`, the board that the app script built, as `OpeningBoard` in [`srcts/types/board.ts`](../../srcts/types/board.ts) gives it (below), and in `file`, the saved file that `serve()` was given, as R read it ([Files](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.4#files)) |
 | `bound` | only for a block that `serve()` serves alone, the inputs that R binds itself to the data it was given, as `["data"]`, which the client counts as linked and names in a recipe by the input alone ([Data passed to `serve()`](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.3#data-passed-to-serve)) |
@@ -87,11 +87,23 @@ The client opens every board itself: a saved file that the user opens or that a 
 |---|---|
 | `packages` | the packages that the board names, as `["blockr.core", "blockr.io"]` |
 
-R loads the ones it has installed and not loaded yet, forgets every block ([Forgetting blocks](#forgetting-blocks)), and replies `ok` with the fields of the reply to a `hello` that say what it has loaded, `packages`, `block_registry`, `front_ends`, `startup_modules`, `modules`, `renderers` and `blockr_options`, for every package it has loaded, whichever request loaded it. A package it could not load is missing from `packages`, and a class it could not register from `block_registry`.
+R loads the ones it has installed and not loaded yet, forgets every block ([Forgetting blocks](#forgetting-blocks)), and replies `ok` with the fields of the reply to a `hello` that say what it has loaded, `packages`, `block_registry`, `front_ends`, `startup_modules`, `modules` and `renderers`, for every package it has loaded, whichever request loaded it. A package it could not load is missing from `packages`, and a class it could not register from `block_registry`.
 
-The client then initializes the startup modules of the packages it has not, drops each block whose class the block registry lacks, with its links and its places in stacks, naming the package to install from its registry id, and each key of the front-end's state, attribute and board option value that no package registered, runs the migration of every package whose version the file records differs from the one R loaded, gives each board option that the board's parts require and the board lacks the `default` that its schema gives, and replaces its board ([The front-end's state and attributes](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.2#the-front-ends-state-and-attributes)). A file of today's stack is converted to a saved file before it is opened, outside core.
+The client then initializes the startup modules of the packages it has not, drops each block whose class the block registry lacks, with its links and its places in stacks, naming the package to install from its registry id, and each key of the front-end's state, attribute and board option value that no package registered, runs the migration of every package whose version the file records differs from the one R loaded, and replaces its board ([The front-end's state and attributes](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.2#the-front-ends-state-and-attributes)). A file of today's stack is converted to a saved file before it is opened, outside core.
 
 A locked board refuses every `open` ([Locked boards](#locked-boards)).
+
+## Blockr options
+
+The client reads a blockr option by asking R for it, since it can read neither an R option nor an environment variable of the server ([Blockr options](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.3#blockr-options)). A `blockr_options` request names them:
+
+| Field | Holds |
+|---|---|
+| `names` | the blockr options to read, as `["evaluation_queue", "gate_visibility"]` |
+
+R replies `ok` with the value of each that it has one for, as `blockr_option()` reads it, in `values`, by name, and leaves out the others, for which the client takes the fallback its code gives. R sends a value as it is set, so that one set through an environment variable arrives as a string, which the client converts to its fallback's type, and writes `Inf` as `null` ([Encoding](#encoding)), which the client reads as `Infinity` where its fallback is a number. R answers for any blockr option, since a client can read whatever the R process can ([State in JS](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1#proposal)).
+
+The client asks for a blockr option once per page, the first time its code reads it through `CoreApi.blockrOption()`, and keeps the value, since a blockr option is fixed for the app. Core asks for those its scheduler reads, `evaluation_queue`, `background_evaluation_delay` and `gate_visibility`, as soon as R has answered its `hello`, so that they are there before the scheduler starts ([Scheduling](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.10#scheduling)).
 
 ## Evaluating a block
 
@@ -285,6 +297,7 @@ Each file in [`fixtures/`](fixtures/) holds a message that the client sends, in 
 | [`hello-file`](fixtures/hello-file.json) | the handshake of an app that serves a saved file |
 | [`open`](fixtures/open.json) | loading the packages of a board that the client opens |
 | [`open-locked`](fixtures/open-locked.json) | an `open` that a locked board refuses |
+| [`blockr-options`](fixtures/blockr-options.json) | reading blockr options, one set as an R option, one through an environment variable and one not set |
 | [`evaluate`](fixtures/evaluate.json) | an evaluation of a block with two inputs |
 | [`evaluate-warning`](fixtures/evaluate-warning.json) | an evaluation that raises a warning |
 | [`evaluate-variadic`](fixtures/evaluate-variadic.json) | an evaluation of a variadic block |
