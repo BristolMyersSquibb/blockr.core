@@ -25,7 +25,11 @@ function shinyChannel(options = {}) {
     },
     listen(listener) {
       shiny.addCustomMessageHandler(name, (message) => {
-        if (Array.isArray(message)) {
+        if (message instanceof ArrayBuffer) {
+          for (const [item, body] of framed(message)) {
+            listener.received(item, body);
+          }
+        } else if (Array.isArray(message)) {
           for (const item of message) {
             if (typeof item !== "object" || item === null) continue;
             const [carried, body] = received(item, fetcher);
@@ -55,6 +59,20 @@ function disconnected(jquery) {
 }
 function isSessionStart(message) {
   return typeof message === "object" && message !== null && typeof message.upload === "string";
+}
+function framed(frame) {
+  const length = new DataView(frame).getUint32(0, true);
+  const json = new TextDecoder().decode(new Uint8Array(frame, 4, length));
+  const bytes = frame.slice(4 + length);
+  return JSON.parse(json).flatMap((item) => {
+    if (typeof item !== "object" || item === null) return [];
+    const announced = "status" in item && "body" in item ? item.body : null;
+    if (typeof announced !== "object" || announced === null) {
+      return [[item, null]];
+    }
+    const body = Promise.resolve(blob([bytes], announced));
+    return [[item, body]];
+  });
 }
 function received(item, fetcher) {
   const announced = "status" in item && "body" in item ? item.body : null;

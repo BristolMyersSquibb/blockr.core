@@ -172,6 +172,38 @@ describe("the Shiny bridge", () => {
     await expect(p.body(1)).rejects.toThrow();
   });
 
+  test("takes a body that R sends in a binary frame beside its reply", async () => {
+    const p = page();
+
+    const frame = (items: unknown[], bytes: number[]): ArrayBuffer => {
+      const json = new TextEncoder().encode(JSON.stringify(items));
+      const out = new Uint8Array(4 + json.length + bytes.length);
+      new DataView(out.buffer).setUint32(0, json.length, true);
+      out.set(json, 4);
+      out.set(bytes, 4 + json.length);
+      return out.buffer;
+    };
+
+    p.deliver(frame([{ id: "36", status: "ok", body: { type: "image/png" } }], [0x89, 0x50]));
+    p.deliver(
+      frame([{ id: "37", status: "ok", body: { type: "text/csv", name: "a.csv" } }], [0x61]),
+    );
+
+    expect(p.received.map(([item]) => item)).toEqual([
+      { id: "36", status: "ok", body: { type: "image/png" } },
+      { id: "37", status: "ok", body: { type: "text/csv", name: "a.csv" } },
+    ]);
+
+    const png = await p.body(0);
+    expect(png.type).toBe("image/png");
+    expect(png).not.toBeInstanceOf(File);
+    expect([...new Uint8Array(await png.arrayBuffer())]).toEqual([0x89, 0x50]);
+
+    const csv = await p.body(1);
+    expect((csv as File).name).toBe("a.csv");
+    expect(await text(csv)).toBe("a");
+  });
+
   test("fetches a body that R serves from a URL", async () => {
     const url = "session/0a1b/dataobj/blockr-body-31?w=&nonce=e4f5";
     const p = page(() => Promise.resolve(new Response("pptx bytes")));

@@ -81,6 +81,14 @@ import { createTransport, shinyChannel } from './blockr-js/blockr-core.js';
 const sessions = [];
 let started = () => undefined;
 
+// Counts the binary frames that reach the page, as Shiny announces each
+// message.
+let frames = 0;
+window.jQuery(document).on('shiny:message', (event) => {
+  const custom = event.message.custom;
+  if (custom && custom.blockr instanceof ArrayBuffer) frames++;
+});
+
 const transport = createTransport(shinyChannel(), {
   hello: () => ({ protocol: '1.0', capabilities: ['cancel', 'progress'] }),
   session: (answer) => {
@@ -127,6 +135,7 @@ async function ask(name, args = {}, body = undefined) {
 window.bridge = {
   sessions,
   ask,
+  frames: () => frames,
   // Resolves once n sessions have started.
   sessionsStarted: (n) =>
     new Promise((resolve) => {

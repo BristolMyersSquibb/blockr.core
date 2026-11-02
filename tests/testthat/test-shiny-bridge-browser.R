@@ -17,8 +17,9 @@ installed_with_bridge <- function() {
   file.exists(js) && any(grepl("shinyChannel", readLines(js, warn = FALSE)))
 }
 
-# Starts the test app in another R process, on a port of its own.
-start_bridge_app <- function(timeout = 30) {
+# Starts the test app in another R process, on a port of its own, with the
+# blockr option `message_body_encoding` set.
+start_bridge_app <- function(encoding = "base64", timeout = 30) {
 
   port <- httpuv::randomPort()
   log <- withr::local_tempfile(.local_envir = parent.frame(), fileext = ".log")
@@ -26,10 +27,11 @@ start_bridge_app <- function(timeout = 30) {
   dir <- normalizePath(testthat::test_path("apps", "shiny-bridge"))
 
   proc <- callr::r_bg(
-    function(dir, port) {
+    function(dir, port, encoding) {
+      options(blockr.message_body_encoding = encoding)
       shiny::runApp(dir, port, launch.browser = FALSE, host = "127.0.0.1")
     },
-    args = list(dir = dir, port = port),
+    args = list(dir = dir, port = port, encoding = encoding),
     stdout = log,
     stderr = "2>&1"
   )
@@ -148,6 +150,8 @@ test_that("the bridge carries messages and bodies between a page and R", {
     )
   }
 
+  expect_identical(page_eval(page, "bridge.frames()"), 0L)
+
   res <- page_eval(page, "bridge.upload(1000, 'sales.csv')")
 
   expect_identical(
@@ -184,4 +188,48 @@ test_that("the bridge carries messages and bodies between a page and R", {
 
   expect_identical(res$reply$value, list(after = list(TRUE)))
   expect_identical(page_eval(page, "bridge.sessions.length"), 2L)
+})
+
+test_that("the bridge carries a body in a binary frame where it is set to", {
+
+  skip_on_cran()
+  skip_if_not_installed("chromote")
+  skip_if_not_installed("callr")
+  skip_if_not(
+    installed_with_bridge(),
+    "The blockr.core installed has no Shiny bridge to test."
+  )
+
+  app <- start_bridge_app("binary")
+  withr::defer(app$kill())
+
+  page <- try(chromote::ChromoteSession$new(), silent = TRUE)
+  skip_if(inherits(page, "try-error"), "Chrome does not start.")
+  withr::defer(page$close())
+
+  navigate(page, app$url)
+
+  expect_identical(page_eval(page, "bridge.sessionsStarted(1)"), 1L)
+
+  # A body of up to 1 MiB travels in a binary frame, a larger one from a URL.
+  for (size in c(1000, 2^20 + 1000)) {
+
+    res <- page_eval(
+      page,
+      sprintf("bridge.ask('download', { size: %d, name: 'data.bin' })", size)
+    )
+
+    expect_identical(res$body$size, as.integer(size))
+    expect_identical(
+      res$body$sum,
+      sum(as.integer(as.raw(seq_len(size) %% 251L)))
+    )
+    expect_identical(res$body$name, "data.bin")
+  }
+
+  expect_identical(page_eval(page, "bridge.frames()"), 1L)
+
+  res <- page_eval(page, "bridge.ask('progress')")
+
+  expect_identical(res$notes, list(list(value = 0.5, message = "halfway")))
 })

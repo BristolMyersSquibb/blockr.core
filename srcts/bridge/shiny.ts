@@ -11,9 +11,12 @@
 // page starts. A session ends when Shiny's websocket closes, which Shiny's
 // shiny:disconnected event on the document says.
 //
-// R carries a reply's body in the body's `data`, as base64, or from the URL in
-// its `url`, which the client fetches, and the bridge hands the transport the
-// reply without them.
+// R carries a reply's body in its message, as base64 in the body's `data`, or
+// in a binary frame of its own, which holds the length of the JSON of a message
+// of the reply alone in four bytes, little-endian, that JSON and then the
+// body's bytes, or from the URL in the body's `url`, which the client fetches,
+// as R's blockr options `max_message_body` and `message_body_encoding` say. The
+// bridge hands the transport the reply without the fields that carry the body.
 
 import type {
   Body,
@@ -50,6 +53,9 @@ export interface ShinyChannelOptions {
 type JQueryLike = (element: Document) => {
   on(event: string, handler: () => void): unknown;
 };
+
+// An item of R's message, a reply that announces a body with a promise of it.
+type Received = [Reply | Progress, Promise<Blob> | null];
 
 // The fields that R adds to a reply's body to carry its bytes.
 interface Carried {
@@ -94,7 +100,11 @@ export function shinyChannel(options: ShinyChannelOptions = {}): Channel {
     },
     listen(listener) {
       shiny.addCustomMessageHandler(name, (message: unknown) => {
-        if (Array.isArray(message)) {
+        if (message instanceof ArrayBuffer) {
+          for (const [item, body] of framed(message)) {
+            listener.received(item, body);
+          }
+        } else if (Array.isArray(message)) {
           for (const item of message as unknown[]) {
             // An item that is no object R never sends, which the bridge skips.
             if (typeof item !== "object" || item === null) continue;
@@ -137,11 +147,29 @@ function isSessionStart(message: unknown): message is { upload: string } {
   );
 }
 
+// The items of a message that R sent as a binary frame, the reply that
+// announces a body with the frame's bytes.
+function framed(frame: ArrayBuffer): Received[] {
+  const length = new DataView(frame).getUint32(0, true);
+  const json = new TextDecoder().decode(new Uint8Array(frame, 4, length));
+  const bytes = frame.slice(4 + length);
+
+  return (JSON.parse(json) as unknown[]).flatMap((item): Received[] => {
+    if (typeof item !== "object" || item === null) return [];
+
+    const announced: unknown =
+      "status" in item && "body" in item ? item.body : null;
+    if (typeof announced !== "object" || announced === null) {
+      return [[item as Reply | Progress, null]];
+    }
+
+    const body = Promise.resolve(blob([bytes], announced as Body));
+    return [[item as Reply, body]];
+  });
+}
+
 // A reply without the fields that carry its body, with a promise of the body.
-function received(
-  item: Reply | Progress,
-  fetcher: typeof fetch,
-): [Reply | Progress, Promise<Blob> | null] {
+function received(item: Reply | Progress, fetcher: typeof fetch): Received {
   // A body that R writes as null, from a NULL in R, is none.
   const announced: unknown = "status" in item && "body" in item ? item.body : null;
   if (typeof announced !== "object" || announced === null) return [item, null];

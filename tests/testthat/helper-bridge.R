@@ -1,6 +1,7 @@
 # A mock Shiny session for the Shiny bridge, which keeps the custom messages
-# sent, the data objects registered and the reconnect allowed, so that a test
-# can read what R sent the client and play the client's HTTP requests.
+# and binary frames sent, in their order, the data objects registered and the
+# reconnect allowed, so that a test can read what R sent the client and play
+# the client's HTTP requests.
 bridge_session <- function() {
 
   session <- shiny::MockShinySession$new()
@@ -13,6 +14,14 @@ bridge_session <- function() {
     session$sent[[length(session$sent) + 1L]] <- list(
       type = type,
       message = message
+    )
+  }
+
+  session$sendBinaryMessage <- function(type, message) {
+    session$sent[[length(session$sent) + 1L]] <- list(
+      type = type,
+      message = message,
+      binary = TRUE
     )
   }
 
@@ -48,9 +57,29 @@ with_bridge <- function(handler, code = NULL, session = bridge_session()) {
   invisible(session)
 }
 
-# The messages that R sent the client, each as its JSON text.
+# The messages that R sent the client as text, each as its JSON text.
 bridge_sent <- function(session) {
-  chr_ply(session$sent, function(x) unclass(x[["message"]]))
+  text <- Filter(function(x) !isTRUE(x[["binary"]]), session$sent)
+  chr_ply(text, function(x) unclass(x[["message"]]))
+}
+
+# The binary frames that R sent the client, each as the JSON text of its
+# message and the body's bytes.
+bridge_frames <- function(session) {
+
+  frames <- Filter(function(x) isTRUE(x[["binary"]]), session$sent)
+
+  lapply(
+    frames,
+    function(x) {
+      bytes <- x[["message"]]
+      size <- readBin(bytes[1:4], "integer", size = 4L, endian = "little")
+      list(
+        json = rawToChar(bytes[seq.int(5L, length.out = size)]),
+        bytes = bytes[-seq_len(4L + size)]
+      )
+    }
+  )
 }
 
 # Plays an HTTP request to a data object that the bridge registered, as Shiny

@@ -26,10 +26,13 @@
 # until the session ends. A reply's body is given in its `body` too, as a list
 # of the bytes, a raw vector or a file's path, in `x`, the MIME type in `type`
 # and, for a download, a file name in `name`, which `send()` carries beside the
-# reply (see `carry_body()`).
+# reply as the blockr options `max_message_body` and `message_body_encoding`
+# say, which the bridge reads as it sets a session up (see `carry_body()`).
 shiny_bridge <- function(handler, session = shiny::getDefaultReactiveDomain()) {
 
   stopifnot(is.function(handler), not_null(session))
+
+  opts <- message_body_opts()
 
   dir <- tempfile("blockr-bodies-")
   dir.create(dir)
@@ -38,7 +41,7 @@ shiny_bridge <- function(handler, session = shiny::getDefaultReactiveDomain()) {
 
   bodies <- new.env(parent = emptyenv())
 
-  send <- function(message) send_message(message, session)
+  send <- function(message) send_message(message, session, opts)
 
   upload <- session$registerDataObj(
     "blockr-bodies",
@@ -209,7 +212,10 @@ write_input <- function(input, path) {
   invisible(path)
 }
 
-send_message <- function(message, session) {
+# Sends a message of R's in the order of its items, with a reply whose body
+# travels in a binary frame in a frame of its own, and the items between such
+# replies together.
+send_message <- function(message, session, opts = message_body_opts()) {
 
   if (!is.list(message) || not_null(names(message))) {
     blockr_abort(
@@ -219,27 +225,64 @@ send_message <- function(message, session) {
     )
   }
 
-  session$sendCustomMessage(
-    "blockr",
-    encode_message(lapply(message, carry_body, session))
-  )
+  parts <- lapply(message, carry_body, session, opts)
+  run <- list()
+
+  for (part in parts) {
+
+    if (is.null(part[["frame"]])) {
+      run <- c(run, list(part[["item"]]))
+      next
+    }
+
+    send_items(run, session)
+    run <- list()
+
+    send_frame(part[["item"]], part[["frame"]], session)
+  }
+
+  send_items(run, session)
 
   invisible()
 }
 
-# Carries a reply's body beside it: a body of up to `inline_body_max()` bytes
-# in the message, as base64 in the body's `data`, and a larger one from a URL
-# of the session's in its `url`, which the client fetches. A small body, such
-# as a plot's PNG, thus arrives with its reply, while one that R serves arrives
-# only once R has finished what it runs next, and a large body holds up neither
-# R nor the messages behind it on the websocket, as base64 in the message
-# would. A reply whose `body` holds no bytes in `x` goes as it is.
-carry_body <- function(item, session) {
+send_items <- function(items, session) {
+
+  if (length(items)) {
+    session$sendCustomMessage("blockr", encode_message(items))
+  }
+
+  invisible()
+}
+
+# Sends a reply with its body as a binary frame, which holds the length of the
+# JSON of a message of the reply alone in four bytes, little-endian, that JSON
+# and then the body's bytes.
+send_frame <- function(item, bytes, session) {
+
+  json <- charToRaw(enc2utf8(unclass(encode_message(list(item)))))
+  size <- writeBin(length(json), raw(), size = 4L, endian = "little")
+
+  session$sendBinaryMessage("blockr", c(size, json, bytes))
+
+  invisible()
+}
+
+# Carries a reply's body beside it, giving the reply and, for a body that
+# travels in a binary frame, its bytes: a body of up to `max_message_body`
+# bytes in the message, as base64 in the body's `data` or in a binary frame as
+# `message_body_encoding` says, and a larger one from a URL of the session's in
+# its `url`, which the client fetches. A small body, such as a plot's PNG, thus
+# arrives with its reply, while one that R serves arrives only once R has
+# finished what it runs next, and a large body holds up neither R nor the
+# messages behind it on the websocket. A reply whose `body` holds no bytes in
+# `x` goes as it is.
+carry_body <- function(item, session, opts) {
 
   body <- if (is.list(item)) item[["body"]]
 
   if (!is.list(body) || is.null(body[["x"]])) {
-    return(item)
+    return(list(item = item))
   }
 
   x <- body[["x"]]
@@ -255,24 +298,56 @@ carry_body <- function(item, session) {
 
   size <- if (is.raw(x)) length(x) else file.size(x)
 
-  sent <- filter_empty(list(type = type, name = body[["name"]]))
+  item[["body"]] <- filter_empty(list(type = type, name = body[["name"]]))
 
-  if (size <= inline_body_max()) {
-    bytes <- if (is.raw(x)) x else readBin(x, "raw", size)
-    sent[["data"]] <- base64enc::base64encode(bytes)
-  } else {
-    sent[["url"]] <- serve_body(x, type, item[["id"]], session)
+  if (size > opts[["max"]]) {
+    item[["body"]][["url"]] <- serve_body(x, type, item[["id"]], session)
+    return(list(item = item))
   }
 
-  item[["body"]] <- sent
+  bytes <- if (is.raw(x)) x else readBin(x, "raw", size)
 
-  item
+  if (identical(opts[["encoding"]], "binary")) {
+    return(list(item = item, frame = bytes))
+  }
+
+  item[["body"]][["data"]] <- base64enc::base64encode(bytes)
+
+  list(item = item)
 }
 
-# The largest body that travels in its reply's message, 1 MiB, which R writes
-# in about 30 ms.
-inline_body_max <- function() {
-  2^20
+# How bodies travel, from the blockr options `max_message_body`, the largest
+# body in bytes that travels in its reply's message, 1 MiB by default, which R
+# writes as base64 in about 30 ms, with 0 for every body from a URL and `Inf`
+# for every body in its message, and `message_body_encoding`, how a body
+# travels in its message, `"base64"` by default or `"binary"`, a binary frame,
+# which costs R and the client less, but reaches the page only where Shiny's
+# websocket is not wrapped in SockJS, as Shiny Server and Connect wrap it.
+message_body_opts <- function() {
+
+  max <- blockr_option("max_message_body", 2^20)
+  encoding <- blockr_option("message_body_encoding", "base64")
+
+  # An environment variable gives a string.
+  if (is.character(max)) {
+    max <- suppressWarnings(as.numeric(max))
+  }
+
+  if (!is.numeric(max) || !is_scalar(max) || is.na(max) || max < 0) {
+    blockr_abort(
+      "The blockr option `max_message_body` is a number of bytes, 0 or more.",
+      class = "blockr_option_invalid"
+    )
+  }
+
+  if (!is_string(encoding) || !encoding %in% c("base64", "binary")) {
+    blockr_abort(
+      "The blockr option `message_body_encoding` is \"base64\" or \"binary\".",
+      class = "blockr_option_invalid"
+    )
+  }
+
+  list(max = max, encoding = encoding)
 }
 
 # Serves a reply's body once, from memory or from its file, at a URL of the

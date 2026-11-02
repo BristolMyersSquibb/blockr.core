@@ -179,7 +179,7 @@ test_that("a small body travels in its reply's message", {
 
 test_that("a large body is served once from a URL", {
 
-  big <- as.raw(rep(0:255, length.out = inline_body_max() + 1))
+  big <- as.raw(rep(0:255, length.out = 2^20 + 1))
 
   file <- withr::local_tempfile(fileext = ".bin")
   writeBin(big, file)
@@ -236,6 +236,112 @@ test_that("a large body is served once from a URL", {
 
   # The file of a body given as one stays.
   expect_true(file.exists(file))
+})
+
+test_that("the blockr options set which bodies travel in their message", {
+
+  reply <- function(id, n) {
+    list(
+      id = id,
+      status = "ok",
+      body = list(x = as.raw(rep(1L, n)), type = "image/png")
+    )
+  }
+
+  sent_bodies <- function() {
+
+    session <- with_bridge(
+      function(message, send) NULL,
+      send_message(list(reply("1", 3L), reply("2", 11L)), session)
+    )
+
+    lapply(decode_message(utils::tail(bridge_sent(session), 1L)), `[[`, "body")
+  }
+
+  withr::with_options(list(blockr.max_message_body = 0), {
+    expect_named(sent_bodies()[[1L]], c("type", "url"))
+  })
+
+  withr::with_options(list(blockr.max_message_body = Inf), {
+    expect_named(sent_bodies()[[2L]], c("type", "data"))
+  })
+
+  # An environment variable gives the option as a string.
+  withr::with_envvar(c(BLOCKR_MAX_MESSAGE_BODY = "10"), {
+    bodies <- sent_bodies()
+    expect_named(bodies[[1L]], c("type", "data"))
+    expect_named(bodies[[2L]], c("type", "url"))
+  })
+})
+
+test_that("a body travels in a binary frame where the blockr option says so", {
+
+  withr::local_options(blockr.message_body_encoding = "binary")
+
+  png <- as.raw(c(0x89, 0x50, 0x4e, 0x47))
+
+  session <- with_bridge(
+    function(message, send) NULL,
+    send_message(
+      list(
+        list(id = "1", progress = list(value = 0.5)),
+        list(
+          id = "1",
+          status = "ok",
+          body = list(x = png, type = "image/png", name = "a.png")
+        ),
+        list(id = "2", status = "ok", value = 1L)
+      ),
+      session
+    )
+  )
+
+  # In the order of the message's items, the reply with its body in a frame of
+  # its own between the others.
+  expect_identical(
+    lgl_ply(utils::tail(session$sent, 3L), function(x) isTRUE(x[["binary"]])),
+    c(FALSE, TRUE, FALSE)
+  )
+  expect_identical(
+    utils::tail(bridge_sent(session), 2L),
+    c(
+      '[{"id":"1","progress":{"value":0.5}}]',
+      '[{"id":"2","status":"ok","value":1}]'
+    )
+  )
+
+  frames <- bridge_frames(session)
+
+  expect_length(frames, 1L)
+  expect_identical(
+    frames[[1L]][["json"]],
+    '[{"id":"1","status":"ok","body":{"type":"image/png","name":"a.png"}}]'
+  )
+  expect_identical(frames[[1L]][["bytes"]], png)
+})
+
+test_that("the bridge refuses blockr options it cannot follow", {
+
+  withr::with_options(list(blockr.max_message_body = -1), {
+    expect_error(
+      with_bridge(function(message, send) NULL),
+      class = "blockr_option_invalid"
+    )
+  })
+
+  withr::with_envvar(c(BLOCKR_MAX_MESSAGE_BODY = "big"), {
+    expect_error(
+      with_bridge(function(message, send) NULL),
+      class = "blockr_option_invalid"
+    )
+  })
+
+  withr::with_options(list(blockr.message_body_encoding = "zip"), {
+    expect_error(
+      with_bridge(function(message, send) NULL),
+      class = "blockr_option_invalid"
+    )
+  })
 })
 
 test_that("a reply goes as it is where its body holds no bytes", {
