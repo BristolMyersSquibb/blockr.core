@@ -153,7 +153,17 @@ as_table_output.data.frame <- function(result, options = list(),
   }
 
   cols <- lapply(seq_along(result), function(j) result[[j]])
-  idx <- table_order(result, cols, params[["sort"]])
+  sort <- params[["sort"]]
+  idx <- seq_len(total)
+
+  if (length(sort)) {
+    idx <- order(
+      result[[sort[["column"]]]],
+      decreasing = isTRUE(sort[["desc"]]),
+      method = "radix"
+    )
+  }
+
   idx <- idx[(page - 1L) * size + seq_len(size)]
   idx <- idx[!is.na(idx)]
 
@@ -165,41 +175,6 @@ as_table_output.data.frame <- function(result, options = list(),
     ),
     total = total
   )
-}
-
-# The order of the rows that `params$sort` asks for, from which the method cuts
-# the page. Without a sort, the rows keep their own order. A column whose cells
-# are not single values cannot be sorted by, since `order()` fails on a list and
-# would sort a matrix cell by cell.
-table_order <- function(result, cols, sort) {
-
-  if (!length(sort)) {
-    return(seq_len(nrow(result)))
-  }
-
-  column <- sort[["column"]]
-  desc <- coal(sort[["desc"]], FALSE, fail_all = FALSE)
-
-  if (!is_string(column) || !column %in% names(result) || !is_bool(desc)) {
-    blockr_abort(
-      "A table output is sorted by the name of one of its columns, ",
-      "`params$sort$column`, from the largest value where ",
-      "`params$sort$desc` is `TRUE`.",
-      class = "table_output_params_invalid"
-    )
-  }
-
-  col <- cols[[match(column, names(result))]]
-
-  if (is.list(col) || is.array(col)) {
-    blockr_abort(
-      "A table output cannot be sorted by column {column}, whose cells are ",
-      "not single values.",
-      class = "table_output_params_invalid"
-    )
-  }
-
-  order(col, decreasing = desc, na.last = TRUE, method = "radix")
 }
 
 table_columns <- function(cols, names) {

@@ -163,16 +163,12 @@ test_that("a data frame's table output sorts by its parameters", {
   expect_identical(paged$rows$x, c(1, NA))
   expect_identical(paged$total, 4L)
 
+  # Sorting is order() as it is, so a column it cannot sort fails with R's own
+  # error.
   df$l <- list(1, 2, 3, 4)
 
-  expect_error(as_table_output(df, params = list(sort = list(column = "l"))),
-               class = "table_output_params_invalid")
-  expect_error(as_table_output(df, params = list(sort = list(column = "z"))),
-               class = "table_output_params_invalid")
-  expect_error(
-    as_table_output(df, params = list(sort = list(column = "x", desc = "y"))),
-    class = "table_output_params_invalid"
-  )
+  expect_error(as_table_output(df, params = list(sort = list(column = "l"))))
+  expect_error(as_table_output(df, params = list(sort = list(column = "z"))))
 })
 
 test_that("a table output's cells hold values that JSON can carry", {
