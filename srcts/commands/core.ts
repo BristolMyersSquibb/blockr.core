@@ -327,8 +327,6 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
 
         // The link into the input that the split link fed takes its place
         // among the links, since a variadic block takes its links in order.
-        const order = Object.keys(board.links);
-        const next = order[order.indexOf(args.link) + 1];
         return {
           blocks: { add: { [id]: block } },
           links: {
@@ -337,7 +335,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
               [near]: { from: split.from, to: id, input },
               [far]: { from: id, to: split.to, input: split.input },
             },
-            ...(next === undefined ? {} : { before: { [far]: next } }),
+            before: { [far]: args.link },
           },
         };
       },
