@@ -1,0 +1,33 @@
+{
+  "states": [
+    {
+      "file_path": "data/sales.csv",
+      "volumes": {
+        "here": "."
+      }
+    }
+  ],
+  "requests": [
+    {
+      "name": "list_dir",
+      "args": {
+        "volumes": {
+          "here": "."
+        }
+      },
+      "options": {},
+      "answer": {"dirs":["data"],"files":["notes.txt"]}
+    },
+    {
+      "name": "list_dir",
+      "args": {
+        "volumes": {
+          "here": "."
+        },
+        "path": "data"
+      },
+      "options": {},
+      "answer": {"dirs":[],"files":["sales.csv"]}
+    }
+  ]
+}

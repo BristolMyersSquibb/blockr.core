@@ -1,8 +1,45 @@
-#' @section CSV block:
-#' Files in CSV format provided for example by a block created via
-#' [new_file_block()] may be parsed into `data.frame` by CSV blocks.
+#' @include block-class.R output-table.R
+#' @rdname new_csv_block
+#' @format NULL
+#' @export
+csv_block <- new_block_class(
+  "csv_block",
+  inputs = function(file) {
+    if (!is_string(file) || !file.exists(file)) {
+      blockr_abort(
+        "The CSV block reads a file, which its input names by its path.",
+        class = "csv_block_inputs_invalid"
+      )
+    }
+  },
+  expr = function(sep = ",", quote = "\"") {
+    bbquote(
+      utils::read.table(.(file), header = TRUE, sep = .(sep), quote = .(quote),
+                        dec = ".", fill = TRUE, comment.char = "")
+    )
+  },
+  ui = js_module("js/csv-block.js"),
+  output = as_table_output
+)
+
+#' CSV block
+#'
+#' The CSV block reads a delimited text file into a data frame, as
+#' [utils::read.table()] does. The block class `csv_block` defines it, and its
+#' constructor `new_csv_block()` makes a block of the class (see
+#' [new_block_class()]).
+#'
+#' @details
+#' Files in CSV format provided for example by a file browser or an upload
+#' block may be parsed into `data.frame` by CSV blocks.
+#'
+#' @section Block class:
+#' The block's data input `file` is checked to be the path of a file that
+#' exists, as the file browser and the upload block give it. Its results show
+#' as a table, through [as_table_output()].
 #'
 #' @param sep,quote Forwarded to [utils::read.table()]
+#' @inheritParams new_head_block
 #'
 #' @block csv parser block
 #' @blockDescr Read CSV file
@@ -18,50 +55,16 @@
 #' @blockArg quote Quoting character.
 #'   [type] arg_string()
 #'
-#' @rdname new_parser_block
+#' @examples
+#' new_csv_block(sep = ";")
+#'
+#' csv <- tempfile(fileext = ".csv")
+#' write.csv(datasets::BOD, csv, row.names = FALSE)
+#'
+#' evaluate_block(csv_block, list(), list(file = "a"), list(a = csv))
+#'
+#' @return The block class `csv_block` is an object of class `block_class`,
+#' and its constructor `new_csv_block()` returns a block of that class.
+#'
 #' @export
-new_csv_block <- function(sep = ",", quote = "\"", ...) {
-  new_parser_block(
-    function(id, file) {
-      moduleServer(
-        id,
-        function(input, output, session) {
-
-          sp <- reactiveVal(sep)
-          qo <- reactiveVal(quote)
-
-          observeEvent(input$sep, sp(input$sep))
-          observeEvent(input$quote, qo(input$quote))
-
-          list(
-            expr = reactive(
-              bbquote(
-                utils::read.table(.(file), header = TRUE, sep = .(sp),
-                                  quote = .(qo), dec = ".", fill = TRUE,
-                                  comment.char = ""),
-                list(sp = sp(), qo = qo())
-              )
-            ),
-            state = list(sep = sp, quote = qo)
-          )
-        }
-      )
-    },
-    function(id) {
-      tagList(
-        textInput(
-          inputId = NS(id, "sep"),
-          label = "Field separator",
-          value = sep
-        ),
-        textInput(
-          inputId = NS(id, "quote"),
-          label = "Quoting characters",
-          value = quote
-        )
-      )
-    },
-    class = "csv_block",
-    ...
-  )
-}
+new_csv_block <- block_constructor(csv_block)

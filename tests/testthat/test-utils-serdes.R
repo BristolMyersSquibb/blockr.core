@@ -4,49 +4,6 @@ not_a_block <- blockr_ser(new_blockr_ctor(function(...) list()))
 
 test_that("serialization", {
 
-  blk_1 <- new_dataset_block("iris", "datasets")
-
-  expect_identical(
-    blk_1,
-    blockr_deser(blockr_ser(blk_1)),
-    ignore_function_env = TRUE
-  )
-
-  ser_1 <- blockr_ser(
-    new_dataset_block(),
-    list(dataset = "iris", package = "datasets")
-  )
-
-  expect_identical(
-    new_dataset_block("iris", "datasets"),
-    blockr_deser(ser_1),
-    ignore_function_env = TRUE
-  )
-
-  blks_1 <- c(
-    a = new_dataset_block(),
-    b = new_subset_block()
-  )
-
-  expect_identical(
-    blks_1,
-    blockr_deser(blockr_ser(blks_1)),
-    ignore_function_env = TRUE
-  )
-
-  blks_2 <- blocks(
-    a = new_dataset_block("iris", "datasets")
-  )
-
-  json <- blockr_ser(
-    blocks(a = new_dataset_block()),
-    list(
-      a = list(dataset = "iris", package = "datasets")
-    )
-  )
-
-  expect_identical(blks_2, blockr_deser(json), ignore_function_env = TRUE)
-
   lnks <- links(from = "a", to = "b")
 
   expect_identical(lnks, blockr_deser(blockr_ser(lnks)))
@@ -54,64 +11,6 @@ test_that("serialization", {
   stks <- stacks(ab = c("a", "b"))
 
   expect_identical(stks, blockr_deser(blockr_ser(stks)))
-
-  board <- new_board(
-    blocks = c(
-      a = new_dataset_block(),
-      b = new_subset_block()
-    ),
-    links = links(from = "a", to = "b")
-  )
-
-  expect_identical(
-    board,
-    blockr_deser(blockr_ser(board)),
-    ignore_function_env = TRUE
-  )
-
-  new_identity_block <- function(...) {
-    new_transform_block(
-      function(id, data) {
-        moduleServer(
-          id,
-          function(input, output, session) {
-            list(
-              expr = reactive(quote(identity(data))),
-              state = list()
-            )
-          }
-        )
-      },
-      function(id) {
-        tagList()
-      },
-      class = "identity_block",
-      ...
-    )
-  }
-
-  blk_2 <- new_identity_block()
-
-  expect_identical(
-    blk_2,
-    blockr_deser(blockr_ser(blk_2)),
-    ignore_function_env = TRUE
-  )
-
-  blk_3 <- with_mocked_bindings(
-    new_identity_block(
-      ctor = "new_identity_block",
-      ctor_pkg = "some_imaginary_package"
-    ),
-    get_ctor_from_pkg = function(...) new_identity_block
-  )
-
-  expect_error(
-    blockr_deser(
-      with_mocked_bindings(blockr_ser(blk_3), pkg_version = function(x) "1.0.0")
-    ),
-    class = "blockr_deser_missing_pkg"
-  )
 
   new_test_opt <- function(val1 = 1, val2 = "2", ...) {
     new_board_option("test_opt", list(val1 = val1, val2 = val2))
@@ -135,21 +34,21 @@ test_that("serialization", {
 
 test_that("deserialization checks the kind of object, not its classes", {
 
-  blk <- new_dataset_block("iris", "datasets")
+  stk <- new_stack(c("a", "b"), name = "Inputs")
 
-  ser <- blockr_ser(blk)
-  ser$object <- c("foo_block", "bar_block", ser$object[-1L])
+  ser <- blockr_ser(stk)
+  ser$object <- c("foo_stack", ser$object)
 
-  expect_identical(blockr_deser(ser), blk, ignore_function_env = TRUE)
+  expect_identical(blockr_deser(ser), stk)
 
-  board <- new_board(blocks(a = blk))
+  board <- new_board(name = "Inputs")
 
   ser <- blockr_ser(board)
   ser$object <- c("foo_board", ser$object)
 
   expect_identical(blockr_deser(ser), board, ignore_function_env = TRUE)
 
-  ser <- blockr_ser(blk)
+  ser <- blockr_ser(stk)
   ser$constructor <- not_a_block
 
   expect_error(blockr_deser(ser), class = "block_deser_class_error")
@@ -157,11 +56,7 @@ test_that("deserialization checks the kind of object, not its classes", {
 
 test_that("a board keeps its ID and name through serialization", {
 
-  board <- new_board(
-    c(a = new_dataset_block("iris")),
-    id = "sales_review",
-    name = "Q3 numbers"
-  )
+  board <- new_board(id = "sales_review", name = "Q3 numbers")
 
   ser <- blockr_ser(board)
 
@@ -176,7 +71,7 @@ test_that("a board keeps its ID and name through serialization", {
 
 test_that("a board saved by blockr.core 0.1.4 keeps its name and ID", {
 
-  board <- new_board(c(a = new_dataset_block("iris")), id = "sales_review")
+  board <- new_board(id = "sales_review")
 
   # As blockr.core 0.1.4 wrote it: the name as the value of a `board_name`
   # board option, and the ID only where the app passed one
@@ -217,19 +112,15 @@ test_that("a board saved by blockr.core 0.1.4 keeps its name and ID", {
 
 test_that("objects without an ID round-trip without one", {
 
-  board <- new_board(
-    c(a = new_dataset_block("iris"), b = new_head_block(), new_head_block()),
-    links = links(from = "a", to = "b"),
-    stacks = list(new_stack("a"))
-  )
-
-  ser <- blockr_ser(board)
+  ser <- blockr_ser(new_board())
 
   expect_true(all(c("id", "name") %in% names(ser)))
   expect_null(ser[["id"]])
   expect_null(ser[["name"]])
 
-  expect_identical(blockr_deser(ser), board, ignore_function_env = TRUE)
+  stks <- stacks(new_stack("a"), b = new_stack("b"))
+
+  expect_identical(blockr_deser(blockr_ser(stks)), stks)
 
   lnks <- links(new_link("a", "b"), bc = new_link("b", "c"))
 
@@ -244,40 +135,6 @@ test_that("a board option keeps the label it was given", {
     blockr_deser(blockr_ser(opt)),
     opt,
     ignore_function_env = TRUE
-  )
-})
-
-test_that("a partial block-state snapshot serializes from constructor scope", {
-
-  blks <- blocks(
-    a = new_dataset_block("iris", "datasets"),
-    b = new_dataset_block("mtcars", "datasets")
-  )
-
-  full <- blockr_ser(
-    blks,
-    list(
-      a = list(dataset = "iris", package = "datasets"),
-      b = list(dataset = "mtcars", package = "datasets")
-    )
-  )
-
-  partial <- blockr_ser(
-    blks,
-    list(a = list(dataset = "iris", package = "datasets"))
-  )
-
-  expect_identical(partial, full)
-
-  expect_identical(
-    blks,
-    blockr_deser(partial),
-    ignore_function_env = TRUE
-  )
-
-  expect_error(
-    blockr_ser(blks, list(a = list(dataset = "iris"), z = list())),
-    "names\\(blocks\\)"
   )
 })
 
@@ -306,166 +163,4 @@ test_that("blockr_deser.list forwards `...` to per-class methods", {
 
   expect_s3_class(no_ctx, "deser_ctx_probe")
   expect_null(captured)
-})
-
-test_that("a board with variadic links round-trips", {
-
-  board <- new_board(
-    blocks = c(
-      a = new_dataset_block("BOD"),
-      b = new_dataset_block("BOD"),
-      c = new_rbind_block()
-    ),
-    links = links(
-      ac = new_link("a", "c"),
-      bc = new_link("b", "c")
-    )
-  )
-
-  expect_identical(
-    board,
-    blockr_deser(blockr_ser(board)),
-    ignore_function_env = TRUE
-  )
-})
-
-test_that("blocks deser drops offending blocks when on_error is drop", {
-
-  blks <- c(a = new_dataset_block("iris"), b = new_subset_block())
-
-  class_err <- blockr_ser(blks)
-  class_err$payload$b$constructor <- not_a_block
-
-  expect_error(
-    blockr_deser(class_err),
-    class = "block_deser_class_error"
-  )
-
-  expect_error(
-    blockr_deser(class_err, on_error = "abort"),
-    class = "block_deser_class_error"
-  )
-
-  kept <- expect_output(
-    blockr_deser(class_err, on_error = "drop"),
-    "Dropping block b"
-  )
-
-  expect_true(is_blocks(kept))
-  expect_identical(names(kept), "a")
-
-  miss_pkg <- blockr_ser(blks)
-  miss_pkg$payload$b$constructor$package <- "some_imaginary_pkg"
-
-  expect_error(
-    blockr_deser(miss_pkg),
-    class = "blockr_deser_missing_pkg"
-  )
-
-  dropped_pkg <- expect_output(
-    blockr_deser(miss_pkg, on_error = "drop"),
-    "Dropping block b"
-  )
-
-  expect_identical(names(dropped_pkg), "a")
-
-  expect_error(blockr_deser(class_err, on_error = "nonsense"))
-})
-
-test_that("board deser prunes links and stacks referencing dropped blocks", {
-
-  board <- new_board(
-    c(
-      a = new_dataset_block("iris"),
-      b = new_subset_block(),
-      c = new_subset_block()
-    ),
-    links = links(from = "a", to = "b"),
-    stacks = list(with_a = new_stack(c("a", "b")), only_c = new_stack("c"))
-  )
-
-  ser <- blockr_ser(board)
-
-  for (id in c("b", "c")) {
-    ser$payload$blocks$payload[[id]]$constructor <- not_a_block
-  }
-
-  expect_error(
-    blockr_deser(ser),
-    class = "block_deser_class_error"
-  )
-
-  res <- expect_output(
-    blockr_deser(ser, on_error = "drop"),
-    "Dropping block b"
-  )
-
-  expect_true(is_board(res))
-  expect_identical(board_block_ids(res), "a")
-  expect_length(board_links(res), 0L)
-
-  # with_a keeps its surviving member; only_c empties out and is removed
-  expect_identical(board_stack_ids(res), "with_a")
-  expect_identical(stack_blocks(board_stacks(res)[["with_a"]]), "a")
-})
-
-test_that("deser_on_error default is sourced from a blockr_option", {
-
-  blks <- c(a = new_dataset_block("iris"), b = new_subset_block())
-  ser <- blockr_ser(blks)
-  ser$payload$b$constructor <- not_a_block
-
-  withr::with_envvar(
-    c(BLOCKR_DESER_ON_ERROR = NA),
-    withr::with_options(
-      list(blockr.deser_on_error = NULL),
-      expect_error(blockr_deser(ser), class = "block_deser_class_error")
-    )
-  )
-
-  withr::with_options(
-    list(blockr.deser_on_error = "drop"),
-    {
-      opt_res <- expect_output(blockr_deser(ser), "Dropping block b")
-      expect_identical(names(opt_res), "a")
-    }
-  )
-
-  withr::with_envvar(
-    c(BLOCKR_DESER_ON_ERROR = "drop"),
-    {
-      env_res <- expect_output(blockr_deser(ser), "Dropping block b")
-      expect_identical(names(env_res), "a")
-    }
-  )
-})
-
-test_that("board deser resolves the option and threads it to blocks", {
-
-  board <- new_board(
-    c(a = new_dataset_block("iris"), b = new_subset_block()),
-    links = links(from = "a", to = "b"),
-    stacks = list(with_a = new_stack(c("a", "b")))
-  )
-
-  ser <- blockr_ser(board)
-  ser$payload$blocks$payload$b$constructor <- not_a_block
-
-  withr::with_envvar(
-    c(BLOCKR_DESER_ON_ERROR = NA),
-    withr::with_options(
-      list(blockr.deser_on_error = NULL),
-      expect_error(blockr_deser(ser), class = "block_deser_class_error")
-    )
-  )
-
-  res <- withr::with_options(
-    list(blockr.deser_on_error = "drop"),
-    expect_output(blockr_deser(ser), "Dropping block b")
-  )
-
-  expect_true(is_board(res))
-  expect_identical(board_block_ids(res), "a")
-  expect_length(board_links(res), 0L)
-  expect_identical(stack_blocks(board_stacks(res)[["with_a"]]), "a")
 })

@@ -560,7 +560,7 @@ proto_registry <- function(...) {
         )
       ),
       requests = obj(
-        datasets = proto_request(state_args = "package", volatile = TRUE)
+        datasets = proto_request(state_args = "package")
       )
     ),
     head_block = obj(
@@ -574,7 +574,7 @@ proto_registry <- function(...) {
       ),
       url = paste0(
         "https://bristolmyerssquibb.github.io/blockr.core/reference/",
-        "new_transform_block.html"
+        "new_head_block.html"
       ),
       guidance = paste(
         "Keeps the first or last `n` rows of the input with `utils::head()`",
@@ -744,7 +744,7 @@ proto_registry <- function(...) {
       module = proto_js("upload-block.js", "d5932c60"),
       schema = obj(
         type = "object",
-        properties = obj(file = proto_string()),
+        properties = obj(file_path = proto_string()),
         additionalProperties = FALSE
       ),
       state = obj(),

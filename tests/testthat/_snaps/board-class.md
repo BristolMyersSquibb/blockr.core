@@ -8,46 +8,38 @@
       
       Blocks[5]:
       
-      d<merge_block<transform_block<block>>>
+      d<merge_block<block>>
       Name: "Merge"
       Data inputs: "x" and "y"
-      Initial block state:
-       $ by   : chr(0)
+      Block state:
        $ all_x: logi FALSE
        $ all_y: logi FALSE
-      Constructor: blockr.core::new_merge_block()
       
-      a<dataset_block<data_block<block>>>
+      a<dataset_block<block>>
       Name: "Dataset"
       No data inputs
-      Initial block state:
-       $ dataset: chr(0)
+      Block state:
        $ package: chr "datasets"
-      Constructor: blockr.core::new_dataset_block()
       
-      c<subset_block<transform_block<block>>>
+      c<subset_block<block>>
       Name: "Subset"
       Data inputs: "data"
-      Initial block state:
+      Block state:
        $ subset: chr ""
        $ select: chr ""
-      Constructor: blockr.core::new_subset_block()
       
-      e<subset_block<transform_block<block>>>
+      e<subset_block<block>>
       Name: "Subset"
       Data inputs: "data"
-      Initial block state:
+      Block state:
        $ subset: chr ""
        $ select: chr ""
-      Constructor: blockr.core::new_subset_block()
       
-      b<dataset_block<data_block<block>>>
+      b<dataset_block<block>>
       Name: "Dataset"
       No data inputs
-      Initial block state:
-       $ dataset: chr(0)
+      Block state:
        $ package: chr "datasets"
-      Constructor: blockr.core::new_dataset_block()
       
       Links[4]:
       

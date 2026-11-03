@@ -6,6 +6,10 @@
 
   register_core_renderers()
 
+  register_core_blocks()
+
+  trace_block_classes(pkgname)
+
   invisible(NULL)
 } # nocov end
 

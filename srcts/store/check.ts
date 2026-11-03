@@ -6,6 +6,7 @@
 // nothing else can have broken them, while the invariants and the keys' checks
 // run on the whole board every time.
 
+import { graphOf } from "../graph/index.ts";
 import type { Board, RegistryId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
@@ -134,43 +135,10 @@ function checkLinks(
     );
   }
 
-  const cycle = findCycle(board);
+  const cycle = graphOf(board).cycle();
   if (cycle !== undefined) {
     failures.push(`The links form a cycle through the blocks ${quoted(cycle)}.`);
   }
-}
-
-// The blocks of a cycle among the links, in order, if there is one.
-function findCycle(board: Board): string[] | undefined {
-  const next = new Map<string, string[]>();
-  for (const link of Object.values(board.links)) {
-    next.set(link.from, [...(next.get(link.from) ?? []), link.to]);
-  }
-
-  const done = new Set<string>();
-  const path: string[] = [];
-  const onPath = new Set<string>();
-
-  function visit(block: string): string[] | undefined {
-    if (onPath.has(block)) return path.slice(path.indexOf(block));
-    if (done.has(block)) return undefined;
-    path.push(block);
-    onPath.add(block);
-    for (const to of next.get(block) ?? []) {
-      const cycle = visit(to);
-      if (cycle !== undefined) return cycle;
-    }
-    path.pop();
-    onPath.delete(block);
-    done.add(block);
-    return undefined;
-  }
-
-  for (const block of next.keys()) {
-    const cycle = visit(block);
-    if (cycle !== undefined) return cycle;
-  }
-  return undefined;
 }
 
 function checkStacks(

@@ -2,7 +2,6 @@
 % Please edit documentation in R/utils-serdes.R
 \name{blockr_ser}
 \alias{blockr_ser}
-\alias{blockr_ser.block}
 \alias{blockr_ser.blocks}
 \alias{blockr_ser.board_options}
 \alias{blockr_ser.blockr_ctor}
@@ -14,7 +13,6 @@
 \alias{blockr_ser.stacks}
 \alias{blockr_deser}
 \alias{blockr_deser.list}
-\alias{blockr_deser.block}
 \alias{blockr_deser.blocks}
 \alias{blockr_deser.board}
 \alias{blockr_deser.link}
@@ -27,8 +25,6 @@
 \title{Serialization utilities}
 \usage{
 blockr_ser(x, ...)
-
-\method{blockr_ser}{block}(x, state = NULL, ...)
 
 \method{blockr_ser}{blocks}(x, blocks = NULL, ...)
 
@@ -52,8 +48,6 @@ blockr_deser(x, ..., on_error = NULL)
 
 \method{blockr_deser}{list}(x, ...)
 
-\method{blockr_deser}{block}(x, data, ...)
-
 \method{blockr_deser}{blocks}(x, data, ..., on_error = NULL)
 
 \method{blockr_deser}{board}(x, data, ..., on_error = NULL)
@@ -76,8 +70,6 @@ blockr_deser(x, ..., on_error = NULL)
 \item{x}{Object to (de)serialize}
 
 \item{...}{Generic consistency}
-
-\item{state}{Object state (as returned from a block server)}
 
 \item{blocks}{Block states keyed by block ID. A block that is \code{NULL}, or
 omitted from \code{blocks} altogether, defaults to values from its constructor
@@ -109,10 +101,11 @@ empty object of that class and use S3 dispatch to identify the correct method
 that, given the content in \code{payload}, can re-create the original object.
 }
 \description{
-Blocks are serialized by writing out information on the constructor used to
-create the object, combining this with block state information, which
-constitutes values such that when passed to the constructor the original
-object can be re-created.
+Board objects are serialized by writing out information on the constructor
+used to create the object, combining this with its state, which constitutes
+values such that when passed to the constructor the original object can be
+re-created. Blocks are not covered, so a board that holds any fails to
+serialize.
 }
 \details{
 Helper functions \code{blockr_ser()} and \code{blockr_deser()} are implemented as
@@ -127,9 +120,9 @@ objects) thread additional context down to inner deserializers.
 
 The class vector written to \code{object} selects the \code{blockr_deser()} method,
 but the re-created object only has to keep the kind of object it names: the
-last class with a \code{blockr_deser()} method of its own, such as \code{block} for any
-block. Classes in front of it may differ from the ones written, so a package
-can rename or drop classes of its blocks without breaking saved boards. An
+last class with a \code{blockr_deser()} method of its own, such as \code{stack} for any
+stack. Classes in front of it may differ from the ones written, so a package
+can rename or drop classes of its objects without breaking saved boards. An
 object re-created as another kind raises an error of class
 \code{block_deser_class_error}.
 
@@ -138,10 +131,10 @@ is \code{NULL} where it has none. For a board written by blockr.core 0.1.4,
 \code{blockr_deser()} reads the name off its \code{board_name} board option instead.
 }
 \examples{
-blk <- new_dataset_block("iris")
+stk <- new_stack(c("a", "b"), name = "Inputs")
 
-blockr_ser(blk)
+blockr_ser(stk)
 
-all.equal(blk, blockr_deser(blockr_ser(blk)), check.environment = FALSE)
+all.equal(stk, blockr_deser(blockr_ser(stk)), check.environment = FALSE)
 
 }

@@ -34,7 +34,6 @@ reference:
     - register_block
     - block_registration_roclet
     - new_arg_spec
-    - new_block
 - subtitle: Outputs
   desc: What R shows of a block's result, which a renderer draws in the client.
   contents:
@@ -64,13 +63,20 @@ reference:
     - register_renderer
     - register_startup_module
 - title: Block classes
+  desc: Core's built-in blocks, each a block class with its constructor.
   contents:
-    - new_data_block
-    - new_file_block
-    - new_parser_block
-    - new_transform_block
-    - new_plot_block
-    - new_text_block
+    - new_dataset_block
+    - new_static_block
+    - new_filebrowser_block
+    - new_upload_block
+    - new_csv_block
+    - new_head_block
+    - new_merge_block
+    - new_rbind_block
+    - new_subset_block
+    - new_fixed_block
+    - new_scatter_block
+    - new_glue_block
 - title: Utilities
 - subtitle: Serialization
   desc: Serialization and deserialization utilities.

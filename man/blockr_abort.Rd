@@ -2,11 +2,14 @@
 % Please edit documentation in R/utils-cnd.R
 \name{blockr_abort}
 \alias{blockr_abort}
+\alias{blockr_invalid}
 \alias{blockr_warn}
 \alias{blockr_inform}
 \title{Blockr conditions}
 \usage{
 blockr_abort(..., class = character(), envir = parent.frame())
+
+blockr_invalid(..., class = character(), envir = parent.frame())
 
 blockr_warn(
   ...,
@@ -38,5 +41,39 @@ Called for side-effect of signaling conditions.
 }
 \description{
 Wrappers for \code{\link[rlang:abort]{rlang::abort()}}, \code{\link[rlang:warn]{rlang::warn()}} and \code{\link[rlang:inform]{rlang::inform()}}. In
-addition to \code{class}, conditions inherit from "blockr_error".
+addition to \code{class}, conditions inherit from "blockr_error",
+"blockr_warning" or "blockr_message".
+}
+\details{
+The fourth wrapper, \code{blockr_invalid()}, signals that a block's state cannot
+run yet, such as a selection the user emptied, as an error that also
+inherits from "blockr_invalid". R then reports the block as \code{invalid}
+rather than \code{error}, and runs nothing. A block class signals it from its
+\code{expr}, while the check of a function given as its \code{inputs} signals an error
+with \code{blockr_abort()} (see \code{\link[=new_block_class]{new_block_class()}}).
+}
+\examples{
+merge_block <- new_block_class(
+  "merge_block",
+  inputs = function(x, y) {
+    if (!is.data.frame(x) || !is.data.frame(y)) {
+      blockr_abort("The merge block joins two data frames.",
+                   class = "merge_block_inputs_invalid")
+    }
+  },
+  expr = function(by) {
+    if (!length(by)) {
+      blockr_invalid("Choose at least one column to join by.")
+    }
+    bbquote(merge(.(x), .(y), by = .(by)))
+  },
+  ui = js_module("merge-block.js")
+)
+
+evaluate_block(merge_block, list(by = character()), list(x = "a", y = "b"),
+               list(a = datasets::BOD, b = datasets::BOD))
+
+evaluate_block(merge_block, list(by = "Time"), list(x = "a", y = "b"),
+               list(a = datasets::BOD, b = 1:3))
+
 }

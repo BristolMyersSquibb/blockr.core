@@ -1,0 +1,22 @@
+{
+  "states": [
+    {
+      "file_path": "uploads/3f9a2c/sales.csv"
+    }
+  ],
+  "requests": [
+    {
+      "name": "upload",
+      "args": {
+        "file": {
+          "datapath": "upload.tmp",
+          "name": "sales.csv",
+          "type": "text/csv",
+          "size": 18
+        }
+      },
+      "options": {},
+      "answer": ["uploads/3f9a2c/sales.csv"]
+    }
+  ]
+}

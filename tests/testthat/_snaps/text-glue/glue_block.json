@@ -1,0 +1,11 @@
+{
+  "states": [
+    {
+      "text": ""
+    },
+    {
+      "text": "{nrow(data)} rows"
+    }
+  ],
+  "requests": []
+}

@@ -1,0 +1,20 @@
+{
+  "states": [
+    {
+      "n": 6,
+      "direction": "head"
+    },
+    {
+      "n": 10,
+      "direction": "tail"
+    }
+  ],
+  "requests": [
+    {
+      "name": "n_max",
+      "args": {},
+      "options": {},
+      "answer": [150]
+    }
+  ]
+}
