@@ -12,7 +12,7 @@
 //   JSON Schema in inst/board, by which R writes the board an app script
 //   built.
 // - The schemas of core's board options, in srcts/options/schemas.ts, go
-//   beside core's runtime, into blockr-core.schema.json, by which R writes the
+//   next to core's runtime, into blockr-core.schema.json, by which R writes the
 //   value of one that an app script gives.
 //
 // The build owns inst/js and empties it first, so that nothing is left of a
@@ -172,10 +172,10 @@ async function boardSchema(root: string): Promise<string[]> {
   return [relative(root, file)];
 }
 
-// The JSON Schemas that core ships beside its runtime: those of its board
-// options' values, by the board option's id, under `options`, as a package
-// ships those of its board options and of its keys of the front-end's state
-// beside its startup module.
+// The JSON Schema next to core's runtime, laid out like the board, for the
+// part of it that core defines: the values of its board options, under
+// `options` by id, as a package puts one next to its startup module for the
+// front-end's state and its board options.
 async function runtimeSchemas(root: string): Promise<string[]> {
   const source = join(root, "srcts", "options", "schemas.ts");
   if (!existsSync(source)) return [];
@@ -186,7 +186,10 @@ async function runtimeSchemas(root: string): Promise<string[]> {
   const file = join(root, "inst", "js", "blockr-core.schema.json");
 
   await mkdir(dirname(file), { recursive: true });
-  await writeJson(file, { options: optionSchemas });
+  await writeJson(file, {
+    type: "object",
+    properties: { options: { type: "object", properties: optionSchemas } },
+  });
 
   return [relative(root, file)];
 }

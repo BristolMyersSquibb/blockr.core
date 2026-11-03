@@ -178,7 +178,7 @@ test("writes the schema of the board as R sends it", async () => {
   expect(schema).not.toHaveProperty("definitions");
 });
 
-test("writes the schemas of core's board options beside its runtime", async () => {
+test("writes the schemas of core's board options next to its runtime", async () => {
   await write({
     "srcts/options/schemas.ts": [
       "export const optionSchemas = {",
@@ -194,9 +194,15 @@ test("writes the schemas of core's board options beside its runtime", async () =
   const file = join(root, "inst", "js", "blockr-core.schema.json");
 
   expect(JSON.parse(await readFile(file, "utf8"))).toEqual({
-    options: {
-      n_rows: { type: "integer", minimum: 0 },
-      show_conditions: { type: "array", items: { enum: ["error"] } },
+    type: "object",
+    properties: {
+      options: {
+        type: "object",
+        properties: {
+          n_rows: { type: "integer", minimum: 0 },
+          show_conditions: { type: "array", items: { enum: ["error"] } },
+        },
+      },
     },
   });
 });

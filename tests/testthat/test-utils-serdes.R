@@ -287,11 +287,12 @@ test_that("the board holds the board options the script gives, by schema", {
     read_json_strictly('{ "show_conditions": ["error"], "n_rows": 5 }')
   )
 
-  # The schemas that core ships beside its runtime
-  schemas <- startup_schemas()[["options"]]
+  # The schema next to core's runtime, which is the first that R applies after
+  # the board's
+  options <- startup_schemas()[[1L]]$properties$options$properties
 
-  expect_setequal(names(schemas), c("n_rows", "show_conditions", "dark_mode"))
-  expect_identical(schemas$show_conditions$type, "array")
+  expect_setequal(names(options), c("n_rows", "show_conditions", "dark_mode"))
+  expect_identical(options$show_conditions$type, "array")
 })
 
 test_that("the front-end's state is written by the schemas packages ship", {
@@ -303,31 +304,44 @@ test_that("the front-end's state is written by the schemas packages ship", {
 
   writeLines(
     '{
-      "keys": [
-        {
-          "path": ["panels"],
-          "kind": "collection",
-          "schema": {
-            "type": "object",
-            "properties": {
-              "title": { "type": "string" },
-              "blocks": { "type": "array", "items": { "type": "string" } }
+      "type": "object",
+      "properties": {
+        "front_end": {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "object",
+              "properties": {
+                "panels": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "title": { "type": "string" },
+                      "blocks": {
+                        "type": "array",
+                        "items": { "type": "string" }
+                      }
+                    }
+                  }
+                },
+                "layout": {
+                  "type": "object",
+                  "properties": {
+                    "pinned": { "type": "array", "items": { "type": "string" } }
+                  }
+                },
+                "active": { "type": "string" }
+              }
             }
           }
         },
-        {
-          "path": ["extensions", "blockr.test-notes", "pinned"],
-          "kind": "value",
-          "schema": { "type": "array", "items": { "type": "string" } }
-        },
-        {
-          "path": ["active"],
-          "kind": "value",
-          "schema": { "type": "string" }
+        "options": {
+          "type": "object",
+          "properties": {
+            "tags": { "type": "array", "items": { "type": "string" } }
+          }
         }
-      ],
-      "options": {
-        "tags": { "type": "array", "items": { "type": "string" } }
       }
     }',
     file.path(dir, "startup.schema.json")
@@ -348,15 +362,13 @@ test_that("the front-end's state is written by the schemas packages ship", {
   board <- new_board(
     options = new_board_option("tags", "draft"),
     panels = list(p1 = list(title = "Main", blocks = "a"), p2 = list()),
-    extensions = list(
-      `blockr.test-notes` = list(pinned = "a", text = "x"),
-      other = list(pinned = "b")
-    ),
+    layout = list(pinned = "a", note = "x"),
     active = "p1",
     widths = list(),
     class = "grid_board"
   )
 
+  # What the schema leaves out keeps the shape that R's writer gives it
   expect_identical(
     read_json_strictly(encode_message(blockr_ser(board))),
     read_json_strictly(
@@ -368,10 +380,7 @@ test_that("the front-end's state is written by the schemas packages ship", {
               "p1": { "title": "Main", "blocks": ["a"] },
               "p2": {}
             },
-            "extensions": {
-              "blockr.test-notes": { "pinned": ["a"], "text": "x" },
-              "other": { "pinned": "b" }
-            },
+            "layout": { "pinned": ["a"], "note": "x" },
             "active": "p1",
             "widths": []
           },
@@ -385,7 +394,7 @@ test_that("the front-end's state is written by the schemas packages ship", {
     )
   )
 
-  # An empty collection is an object, and a key the board lacks stays out
+  # An empty collection is an object, and a part the board lacks stays out
   board <- new_board(panels = list(), class = "grid_board")
 
   expect_identical(
@@ -394,26 +403,39 @@ test_that("the front-end's state is written by the schemas packages ship", {
   )
 })
 
-test_that("two packages ship no schema for one key or board option", {
+test_that("R applies the schema of every package that has one", {
 
   local_declared(declared_startup_modules)
 
   dir <- withr::local_tempdir()
 
   writeLines(
-    '{ "keys": [{ "path": ["views"], "kind": "value", "schema": {} }] }',
+    '{
+      "properties": {
+        "front_end": {
+          "properties": {
+            "state": {
+              "properties": { "views": { "type": "array" } }
+            }
+          }
+        }
+      }
+    }',
     file.path(dir, "views.schema.json")
   )
 
   writeLines(
-    '{ "options": { "n_rows": { "type": "integer" } } }',
-    file.path(dir, "rows.schema.json")
+    '{
+      "properties": {
+        "options": { "properties": { "tags": { "type": "array" } } }
+      }
+    }',
+    file.path(dir, "tags.schema.json")
   )
 
   files <- list(
     blockr.one = "views.schema.json",
-    blockr.two = "views.schema.json",
-    blockr.three = "rows.schema.json"
+    blockr.two = "tags.schema.json"
   )
 
   local_mocked_bindings(
@@ -426,57 +448,37 @@ test_that("two packages ship no schema for one key or board option", {
   register_startup_module(test_module("js/startup.js", "blockr.one"))
   register_startup_module(test_module("js/startup.js", "blockr.two"))
 
-  expect_error(
-    startup_schemas(),
-    "Packages blockr.one and blockr.two both ship a schema for the key views",
-    class = "startup_schema_clash"
+  board <- new_board(
+    options = new_board_option("tags", "draft"),
+    views = "main"
   )
 
-  local_declared(declared_startup_modules)
-  declared_startup_modules$entries <- list()
+  res <- read_json_strictly(encode_message(blockr_ser(board)))
 
-  register_startup_module(test_module("js/startup.js", "blockr.three"))
-
-  files$blockr.core <- "rows.schema.json"
-
-  expect_error(
-    startup_schemas(),
-    "Packages blockr.core and blockr.three both ship a schema for board",
-    class = "startup_schema_clash"
+  expect_identical(
+    res$front_end$state,
+    read_json_strictly('{ "views": ["main"] }')
   )
+  expect_identical(res$options, read_json_strictly('{ "tags": ["draft"] }'))
 })
 
-test_that("the schemas beside a startup module are checked as R reads them", {
+test_that("the schema next to a startup module is a JSON object", {
 
   dir <- withr::local_tempdir()
   file <- file.path(dir, "startup.schema.json")
 
-  bad <- c(
-    '["views"]',
-    '{ "keys": { "views": {} } }',
-    '{ "keys": [{ "path": "views", "kind": "value", "schema": {} }] }',
-    '{ "keys": [{ "path": ["views"], "kind": "list", "schema": {} }] }',
-    '{ "keys": [{ "path": [], "kind": "value", "schema": {} }] }',
-    '{ "keys": [{ "path": ["views"], "kind": "value" }] }',
-    '{ "options": ["n_rows"] }',
-    '{ "options": { "n_rows": "integer" } }'
-  )
-
-  for (json in bad) {
+  for (json in c('["views"]', '"views"', "3")) {
     writeLines(json, file)
     expect_error(
-      read_startup_schemas(file, "blockr.test"),
-      "The schemas that package blockr.test ships",
+      read_startup_schema(file, "blockr.test"),
+      "The schema that package blockr.test puts next to its startup module",
       class = "startup_schema_invalid"
     )
   }
 
   writeLines("{}", file)
 
-  expect_identical(
-    read_startup_schemas(file, "blockr.test"),
-    list(keys = list(), options = list())
-  )
+  expect_length(read_startup_schema(file, "blockr.test"), 0L)
 })
 
 test_that("a board's parts are written by their methods", {

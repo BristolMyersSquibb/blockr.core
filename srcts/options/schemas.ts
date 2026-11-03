@@ -1,6 +1,6 @@
 // The JSON Schemas of the values of core's board options, by the board option's
 // id, which say what values each takes, with a description for a model. The
-// build writes them beside core's runtime, into inst/js/blockr-core.schema.json,
+// build writes them next to core's runtime, into inst/js/blockr-core.schema.json,
 // by which R writes the value of a board option that an app script gives, so
 // that show_conditions set to "error" in a script reaches the client as the
 // array its schema has.

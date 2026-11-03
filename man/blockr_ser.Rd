@@ -137,11 +137,10 @@ Core's objects are written by the JSON Schema of the board that core
 generates from its TypeScript types, so that a stack's blocks stay an array
 and an empty collection an object. A block's state is written by the schema
 that its class's UI ships (see \code{\link[=register_block]{register_block()}}), and bare where it ships
-none. A key of the front-end's state and a board option's value are written
-by the schema that their package ships beside its startup module, as core
-ships those of its board options beside its runtime (see
-\code{\link[=register_startup_module]{register_startup_module()}}). Two packages that ship a schema for the same
-key or board option are an error that names both.
+none. The parts of the board that a package defines, such as the front-end's
+state or the values of its board options, are written by the schema that the
+package puts next to its startup module, as core puts the schema of its board
+options next to its runtime (see \code{\link[=register_startup_module]{register_startup_module()}}).
 
 A board that the format cannot hold fails as it is written, and so as the
 script runs. Every value has to be \code{NULL}, a vector of logicals, numbers or
