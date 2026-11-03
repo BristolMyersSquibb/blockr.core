@@ -42,7 +42,7 @@ test_that("a dataset block lists the data frames a package exports", {
   expect_contains(res, c("iris", "BOD", "mtcars"))
   expect_false("Titanic" %in% res)
 
-  expect_true(dataset_block[["requests"]][["datasets"]][["volatile"]])
+  expect_false(dataset_block[["requests"]][["datasets"]][["volatile"]])
 })
 
 # The fixture records no answer of the request `datasets`, since what the

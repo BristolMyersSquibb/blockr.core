@@ -21,13 +21,10 @@ list_datasets <- function(package) {
 dataset_block <- new_block_class(
   "dataset_block",
   expr = function(dataset, package = "datasets") {
-    obj <- call("::", as.name(package), as.name(dataset))
-    bbquote(.(obj))
+    call("::", as.name(package), as.name(dataset))
   },
   ui = js_module("js/dataset-block.js"),
-  requests = list(
-    datasets = new_block_request(list_datasets, volatile = TRUE)
-  ),
+  requests = list(datasets = list_datasets),
   output = as_table_output
 )
 
@@ -51,9 +48,8 @@ dataset_block <- new_block_class(
 #' new block leaves it unset and is `invalid` until something sets it, while
 #' `package` defaults to datasets. The block expression names the dataset in its
 #' package, such as `datasets::iris`. The block's UI asks R for the data frames
-#' a package exports through the volatile request `datasets`, which reads the
-#' state arg `package`, and its results show as a table, through
-#' [as_table_output()].
+#' a package exports through the request `datasets`, which reads the state arg
+#' `package`, and its results show as a table, through [as_table_output()].
 #'
 #' @param dataset Selected dataset
 #' @param package Name of an R package containing datasets

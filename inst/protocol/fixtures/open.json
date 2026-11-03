@@ -45,8 +45,7 @@
               "datasets": {
                 "inputs": [],
                 "state_args": ["package"],
-                "options": [],
-                "volatile": true
+                "options": []
               }
             }
           },

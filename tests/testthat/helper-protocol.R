@@ -550,7 +550,7 @@ proto_registry <- function(...) {
         )
       ),
       requests = obj(
-        datasets = proto_request(state_args = "package", volatile = TRUE)
+        datasets = proto_request(state_args = "package")
       )
     ),
     head_block = obj(
