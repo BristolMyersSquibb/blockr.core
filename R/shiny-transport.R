@@ -4,6 +4,9 @@
 # srcts/transport/shiny.ts. Shiny only carries the messages, so leaving it later
 # replaces these two files and nothing else.
 
+#' @importFrom shiny httpResponse observeEvent parseQueryString
+NULL
+
 # Sets the transport up for a session, handing each message that the client
 # sends to the handler, the session's evaluator, as `handler(message, send)`:
 # the message decoded by `decode_message()`, a list of requests, and `send()`,
