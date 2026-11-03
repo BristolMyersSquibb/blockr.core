@@ -10,7 +10,7 @@
 
 import { SessionEndedError } from "../protocol/client.ts";
 import type { Client, RequestOptions } from "../protocol/client.ts";
-import type { Condition, Recipe, Reply } from "../protocol/messages.ts";
+import type { BlockRevision, Condition, Recipe, Reply } from "../protocol/messages.ts";
 import type { Delta } from "../store/delta.ts";
 import type { Store } from "../store/store.ts";
 import { jsonEqual, messageOf, own, quoted } from "../store/util.ts";
@@ -71,13 +71,15 @@ export interface Scheduler {
   // What core uses beside the above, which front-ends and extensions use.
 
   // Sends an output or a request to R through the client, as the client's own
-  // request() does, so that the scheduler sees everything R is asked to run.
-  // Where R replies `missing` for a result whose revision is still current and
-  // reads ready, it has the block evaluated again and asks again. Where the
-  // session ends before R replies, it asks the next session for an output, an
-  // output class's request and a block class's request, and rejects with the
-  // SessionEndedError for an action and for a board option's or an
-  // extension's request, which may have run.
+  // request() does. This way the scheduler sees everything R is asked to run.
+  // When the session ends before R replies, it sends an output, an output
+  // class's request and a block class's request to the next session again. It
+  // rejects an action, a board option's request and an extension's request
+  // with the SessionEndedError, since they may have run. A reply of `missing`
+  // goes back to the caller. The caller asks again once the blocks are
+  // evaluated at their current revisions. Only a fault in R makes R lack a
+  // result that reads ready at the block's current revision. The scheduler
+  // then invalidates that block first.
   request(
     request: Extract<Parameters<Client["request"]>[0], { kind: "request" | "output" }>,
     options?: RequestOptions,
@@ -89,7 +91,9 @@ export interface Scheduler {
   // Holds evaluations again until start(), as while the page switches to
   // another front-end.
   hold(): void;
-  // Hears that R answered the hello of a new session, which holds no results.
+  // Hears that R answered the hello of a new session. That session holds no
+  // results, so every block gets a new revision. Every block then reads stale
+  // until it is evaluated again.
   session(): void;
 }
 
@@ -140,11 +144,8 @@ interface Entry {
   registryId: RegistryId;
   state: Readonly<Record<string, Json>>;
   inputs: readonly Input[];
-  // What its latest reply said, from which its status comes.
+  // What its latest reply said. The block's status comes from it.
   outcome: Outcome | undefined;
-  // The revision whose result R holds for the block, as far as the client
-  // knows: that of the latest evaluation R replied ok to, until R loses it.
-  held: number | undefined;
 }
 
 // An evaluation sent to R and not yet answered.
@@ -293,7 +294,6 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
       state: block?.state ?? {},
       inputs: of.inputs.get(id) ?? [],
       outcome: undefined,
-      held: undefined,
     };
   }
 
@@ -452,28 +452,48 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     }
   }
 
-  // Whether a block needs evaluating to be current: it reads stale or
-  // unevaluated, or ready while R has lost its result.
+  // Whether a block needs evaluating to be current. It does where it reads
+  // stale or unevaluated.
   function needsEvaluation(id: BlockId): boolean {
     const status = statuses.get(id)?.status;
-    const entry = entries.get(id);
-    if (entry === undefined) return false;
-    return (
-      status === "stale" ||
-      status === "unevaluated" ||
-      (status === "ready" && entry.held !== entry.revision)
-    );
+    return status === "stale" || status === "unevaluated";
   }
 
-  // Whether R holds the block's result at its current revision, or computes it
-  // before anything sent after now.
+  // Whether R holds the block's result at its current revision. A result that
+  // is being computed counts too, since R computes it before anything sent
+  // after it.
   function available(id: BlockId): boolean {
     const entry = entries.get(id);
     if (entry === undefined) return false;
-    return (
-      (statuses.get(id)?.status === "ready" && entry.held === entry.revision) ||
-      inFlight(id, entry.revision)
-    );
+    return statuses.get(id)?.status === "ready" || inFlight(id, entry.revision);
+  }
+
+  // Gives the blocks and every block downstream of them a new revision. They
+  // then read stale until they are evaluated again.
+  function bump(roots: ReadonlySet<BlockId>): void {
+    if (graph === undefined) return;
+    const bumped = new Set<BlockId>();
+    for (const id of graph.order) {
+      const entry = entries.get(id);
+      if (entry === undefined) continue;
+      if (roots.has(id) || upstreamOf(graph, id).some((up) => bumped.has(up))) {
+        entry.revision = revision();
+        bumped.add(id);
+      }
+    }
+  }
+
+  // Invalidates each block that R says it lacks while the block reads ready at
+  // that revision. Only a fault in R causes that. The block is then evaluated
+  // again where something needs it.
+  function lacking(missing: readonly BlockRevision[]): void {
+    const lost = new Set<BlockId>();
+    for (const { block, revision: at } of missing) {
+      if (entries.get(block)?.revision === at && statuses.get(block)?.status === "ready") {
+        lost.add(block);
+      }
+    }
+    if (lost.size > 0) bump(lost);
   }
 
   function flush(): void {
@@ -578,25 +598,16 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     sent.delete(evaluation);
 
     if (!evaluation.orphaned) {
-      if (reply.status === "missing") {
-        for (const lacked of reply.missing) {
-          const entry = entries.get(lacked.block);
-          if (entry?.held === lacked.revision) entry.held = undefined;
-        }
-      }
+      if (reply.status === "missing") lacking(reply.missing);
 
       const outcome = outcomeOf(reply, evaluation.revision);
       const entry = entries.get(evaluation.block);
-      if (outcome !== undefined && entry !== undefined) {
-        // R keeps the result of the latest evaluation it ran, which a reply
-        // that failed leaves it without.
-        entry.held = outcome.status === "ok" ? evaluation.revision : undefined;
-        if (
-          evaluation.revision === entry.revision &&
-          statuses.get(evaluation.block)?.status !== "waiting"
-        ) {
-          entry.outcome = outcome;
-        }
+      if (
+        outcome !== undefined &&
+        evaluation.revision === entry?.revision &&
+        statuses.get(evaluation.block)?.status !== "waiting"
+      ) {
+        entry.outcome = outcome;
       }
 
       if (evaluation.part !== undefined) {
@@ -613,12 +624,9 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     sent.delete(evaluation);
 
     if (!evaluation.orphaned) {
-      if (error instanceof SessionEndedError) {
-        // The session that held every result has ended.
-        for (const entry of entries.values()) entry.held = undefined;
-      } else if (evaluation.part === undefined) {
-        // The transport could not send it, so the block fails with why, rather
-        // than being sent again and again.
+      if (!(error instanceof SessionEndedError) && evaluation.part === undefined) {
+        // The transport could not send it. The block then fails with why,
+        // rather than being sent again and again.
         const entry = entries.get(evaluation.block);
         if (entry?.revision === evaluation.revision) {
           entry.outcome = unsent(evaluation.revision, messageOf(error));
@@ -919,20 +927,11 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
       const status = statuses.get(id)?.status;
       if (!needs.has(id) && (status === "stale" || status === "unevaluated")) wanted.add(id);
     }
-    // Their upstream, which may need evaluating for R to hold it again.
-    for (let i = of.order.length - 1; i >= 0; i--) {
-      const id = of.order[i] ?? "";
-      if (!wanted.has(id)) continue;
-      for (const up of upstreamOf(of, id)) if (!needs.has(up)) wanted.add(up);
-    }
     for (const id of of.order) {
       const entry = entries.get(id);
-      if (entry === undefined || !wanted.has(id) || !needsEvaluation(id)) continue;
-      if (inFlight(id, entry.revision)) continue;
-      const ready = upstreamOf(of, id).every((up) => {
-        const above = entries.get(up);
-        return statuses.get(up)?.status === "ready" && above?.held === above?.revision;
-      });
+      if (entry === undefined || !wanted.has(id) || inFlight(id, entry.revision)) continue;
+      // One at a time: what the block reads has to be in R already.
+      const ready = upstreamOf(of, id).every((up) => statuses.get(up)?.status === "ready");
       if (!ready) continue;
       const recipe = recipeOf(id);
       if (recipe === undefined) continue;
@@ -1080,16 +1079,8 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     },
 
     invalidate(id) {
-      if (graph === undefined || !entries.has(id)) return;
-      const bumped = new Set([id]);
-      for (const block of graph.order) {
-        const entry = entries.get(block);
-        if (entry === undefined) continue;
-        if (block === id || upstreamOf(graph, block).some((up) => bumped.has(up))) {
-          entry.revision = revision();
-          bumped.add(block);
-        }
-      }
+      if (!entries.has(id)) return;
+      bump(new Set([id]));
       recompute();
       flush();
       schedule();
@@ -1108,63 +1099,25 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     },
 
     async request(request, requestOptions = {}) {
-      // The results R said it lacks that the scheduler had evaluated again,
-      // which it does once per request.
-      const again = new Set<string>();
-
       for (;;) {
         const item: Asked = { seq: ++seq, at: Date.now() };
         asked.add(item);
         schedule();
 
-        let result: { reply: Reply; body: Blob | null };
         try {
-          result = await client.request(request, requestOptions);
+          const result = await client.request(request, requestOptions);
+          if (result.reply.status === "missing") {
+            lacking(result.reply.missing);
+            recompute();
+            flush();
+          }
+          return result;
         } catch (error) {
           if (error instanceof SessionEndedError && resendable(request)) continue;
           throw error;
         } finally {
           asked.delete(item);
           schedule();
-        }
-
-        const { reply } = result;
-        if (reply.status !== "missing") return result;
-
-        const lacked = reply.missing;
-        const current = lacked.every(
-          ({ block, revision: at }) =>
-            entries.get(block)?.revision === at &&
-            statuses.get(block)?.status === "ready" &&
-            !again.has(JSON.stringify([block, at])),
-        );
-        if (!current) return result;
-
-        for (const { block, revision: at } of lacked) {
-          again.add(JSON.stringify([block, at]));
-          const entry = entries.get(block);
-          if (entry?.held === at) entry.held = undefined;
-        }
-
-        let found: Record<BlockId, BlockStatus>;
-        try {
-          found = await scheduler.evaluate(
-            lacked.map(({ block }) => block),
-            undefined,
-            requestOptions.signal === undefined ? {} : { signal: requestOptions.signal },
-          );
-        } catch {
-          return requestOptions.signal?.aborted === true
-            ? { reply: { id: reply.id, status: "cancelled" }, body: null }
-            : result;
-        }
-        if (
-          !lacked.every(
-            ({ block, revision: at }) =>
-              found[block]?.revision === at && found[block].status === "ready",
-          )
-        ) {
-          return result;
         }
       }
     },
@@ -1179,7 +1132,9 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     },
 
     session() {
-      for (const entry of entries.values()) entry.held = undefined;
+      bump(new Set(entries.keys()));
+      recompute();
+      flush();
       schedule();
     },
   };

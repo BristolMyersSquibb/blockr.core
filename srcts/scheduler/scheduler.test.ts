@@ -545,7 +545,7 @@ describe("statuses", () => {
     expect(statusOf(scheduler, "c").status).toBe("waiting");
   });
 
-  test("count a cancelled or a missing reply as none, evaluating again a result R lacks", async () => {
+  test("count a cancelled or a missing reply as none, and invalidate a block whose current result R says it lacks", async () => {
     const { r, scheduler } = await setup({ evaluationQueue: 0 });
     scheduler.demand("test", ["b"]);
     scheduler.start();
@@ -557,11 +557,12 @@ describe("statuses", () => {
 
     r.evaluated(pendingOf(r, "a"));
     await tick();
+    const ready = statusOf(scheduler, "a");
     const b = pendingOf(r, "b");
-    r.reply({ id: b.id, status: "missing", missing: [{ block: "a", revision: statusOf(scheduler, "a").revision }] });
+    r.reply({ id: b.id, status: "missing", missing: [{ block: "a", revision: ready.revision }] });
     await tick();
-    expect(statusOf(scheduler, "b").status).toBe("unevaluated");
-    expect(statusOf(scheduler, "a").status).toBe("ready");
+    expect(statusOf(scheduler, "a")).toMatchObject({ status: "stale", evaluated: ready.revision });
+    expect(statusOf(scheduler, "a").revision).toBeGreaterThan(ready.revision);
     expect(pendingOf(r, "a").revision).toBe(statusOf(scheduler, "a").revision);
 
     await evaluateAll(r);
@@ -1043,22 +1044,32 @@ describe("evaluation in the background", () => {
 });
 
 describe("a new session", () => {
-  test("takes every result as lost while keeping the statuses, and evaluates again what is demanded", async () => {
+  test("gives every block a new revision, so that every block reads stale, and evaluates again what is demanded", async () => {
     const { r, scheduler } = await setup();
     scheduler.demand("test", ["b"]);
     scheduler.start();
     await evaluateAll(r);
+    const before = revisionsOf(scheduler);
+    const top = Math.max(...Object.values(before));
     const ready = statusOf(scheduler, "b");
 
     r.end();
     r.connect();
     scheduler.session();
-    await tick();
 
-    expect(statusOf(scheduler, "b")).toMatchObject({ status: "ready", revision: ready.revision, running: true });
+    for (const id of Object.keys(before)) {
+      expect(statusOf(scheduler, id).revision).toBeGreaterThan(top);
+    }
+    expect(statusOf(scheduler, "b")).toMatchObject({
+      status: "stale",
+      evaluated: ready.revision,
+      summary: ready.summary,
+    });
+    expect(statusOf(scheduler, "d").status).toBe("unevaluated");
+    await tick();
     expect(r.pending().map((request) => [request.block, request.revision])).toEqual([
       ["a", statusOf(scheduler, "a").revision],
-      ["b", ready.revision],
+      ["b", statusOf(scheduler, "b").revision],
     ]);
   });
 
@@ -1103,7 +1114,7 @@ describe("requests", () => {
     await expect(asking).resolves.toMatchObject({ reply: { status: "ok" } });
   });
 
-  test("ask again once R has evaluated again a result it lacks that is still current, and give up with R's reply where it is not", async () => {
+  test("hand a missing reply back to the caller, invalidating a block whose current result R says it lacks", async () => {
     const { r, store, scheduler } = await setup();
     scheduler.demand("test", ["b"]);
     scheduler.start();
@@ -1113,20 +1124,20 @@ describe("requests", () => {
     const asking = scheduler.request(output(scheduler, "b"));
     const [first] = r.asked("output");
     r.reply({ id: first?.id ?? "", status: "missing", missing: [{ block: "b", revision: b.revision }] });
+    await expect(asking).resolves.toMatchObject({ reply: { status: "missing" } });
+    expect(statusOf(scheduler, "b")).toMatchObject({ status: "stale", evaluated: b.revision });
     await tick();
-    expect(pendingOf(r, "b").revision).toBe(b.revision);
-    r.evaluated(pendingOf(r, "b"));
-    await tick();
-    const [, second] = r.asked("output");
-    expect(second).toMatchObject({ block: "b", revision: b.revision });
-    r.reply({ id: second?.id ?? "", status: "ok", output: { renderer: "blockr.core-basic_table" } });
-    await expect(asking).resolves.toMatchObject({ reply: { status: "ok" } });
+    expect(pendingOf(r, "b").revision).toBe(statusOf(scheduler, "b").revision);
 
+    await evaluateAll(r);
+    const current = statusOf(scheduler, "b");
     const late = scheduler.request(output(scheduler, "b"));
     store.apply({ blocks: { mod: { b: { state: { n: 1 } } } } });
-    const [, , third] = r.asked("output");
-    r.reply({ id: third?.id ?? "", status: "missing", missing: [{ block: "b", revision: b.revision }] });
+    const edited = statusOf(scheduler, "b").revision;
+    const [, second] = r.asked("output");
+    r.reply({ id: second?.id ?? "", status: "missing", missing: [{ block: "b", revision: current.revision }] });
     await expect(late).resolves.toMatchObject({ reply: { status: "missing" } });
+    expect(statusOf(scheduler, "b").revision).toBe(edited);
   });
 
   test("go again to the next session for an output, an output class's and a block class's request, and reject for an action, a board option's and an extension's", async () => {
