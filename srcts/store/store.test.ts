@@ -2,17 +2,9 @@
 
 // The store, with R's replies taken from the fixtures of the wire protocol.
 
-import { readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, expect, test, vi } from "vitest";
-import type {
-  ErrorReply,
-  Fixture,
-  HelloReply,
-  OpenReply,
-  Reply,
-} from "../protocol/messages.ts";
+import type { ErrorReply, HelloReply, OpenReply } from "../protocol/messages.ts";
+import { coreOptions, fakeR, hello, loaded, reply } from "../testing/store.ts";
 import type { Block, Board, OpeningBoard, SavedBoard } from "../types/board.ts";
 import { ROUNDS } from "./expand.ts";
 import { createStore, isId, sentenceCase, StoreError } from "./index.ts";
@@ -20,7 +12,6 @@ import type {
   Change,
   Delta,
   Migration,
-  Option,
   StateKey,
   Store,
   StoreOptions,
@@ -46,50 +37,7 @@ interface Position {
   readonly y: number;
 }
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-
-// R's first reply in a fixture.
-function reply(name: string): unknown {
-  const file = join(root, "inst", "protocol", "fixtures", `${name}.json`);
-  const fixture = JSON.parse(readFileSync(file, "utf8")) as Fixture;
-  return fixture.r[0]?.[0];
-}
-
-const hello = reply("hello") as HelloReply;
-const loaded = reply("open") as OpenReply;
-
-// R, as the fixtures give its replies, which records what the store sent.
 type Client = StoreOptions["client"];
-type Sent = Parameters<Client["request"]>[0];
-
-function fakeR(answer: Reply = loaded): Client & { sent: Sent[] } {
-  const sent: Sent[] = [];
-  return {
-    sent,
-    request(request) {
-      sent.push(request);
-      return Promise.resolve({ reply: answer, body: null });
-    },
-  };
-}
-
-// Core's board options, as the fixtures' boards hold their values.
-const coreOptions: Option[] = [
-  {
-    id: "n_rows",
-    label: "Preview rows",
-    category: "Table options",
-    schema: { type: "integer", minimum: 0 },
-    default: 50,
-  },
-  {
-    id: "show_conditions",
-    label: "Message types to display",
-    category: "Board options",
-    schema: { type: "array", items: { enum: ["message", "warning", "error"] } },
-    default: ["warning", "error"],
-  },
-];
 
 const path = ["extensions", "blockr.dag-dag", "positions"];
 
