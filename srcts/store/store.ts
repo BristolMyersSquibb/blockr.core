@@ -347,6 +347,7 @@ export function createStore(options: StoreOptions): Store {
       const { reply: answer } = await options.client.request({
         kind: "open",
         packages: Object.keys(file.packages),
+        front_end: file.board.front_end.id,
       });
       if (answer.status !== "ok" || !("block_registry" in answer)) {
         throw new StoreError(

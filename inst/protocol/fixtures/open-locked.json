@@ -1,7 +1,12 @@
 {
   "description": "An open on a locked board, which loads no other board, so R refuses it with an error that names the lock, and loads none of the packages. R raises the condition itself, so it has no phase.",
   "client": [
-    { "id": "2", "kind": "open", "packages": ["blockr.core", "blockr.io"] }
+    {
+      "id": "2",
+      "kind": "open",
+      "packages": ["blockr.core", "blockr.io"],
+      "front_end": "blockr.core-basic"
+    }
   ],
   "r": [
     [

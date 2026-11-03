@@ -72,8 +72,8 @@ declares.
 Two renderers at one step are an error naming both, which the app settles
 through the blockr option. A board option that no renderer is declared for
 keeps the UI of its definition. Where no package that R has loaded declares
-the board's front-end, the second step has no renderer, since the
-front-end's package is unknown.
+the board's front-end, R picks for the front-end of class \code{board}, core's
+basic one, since the client then draws the board with that.
 
 R names in each output it sends the renderer that it picked for the most
 specific class in the output's class vector that has one, as S3 dispatch

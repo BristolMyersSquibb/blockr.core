@@ -131,9 +131,8 @@ export interface OpenRequest {
   kind: "open";
   packages: string[];
   // The front-end that the board names, by id, for R to pick the renderers
-  // for again. Where it names none, R picks them for the front-end it picked
-  // them for last.
-  front_end?: string;
+  // for again.
+  front_end: string;
 }
 
 export type OpenReply = Pick<

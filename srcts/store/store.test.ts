@@ -260,7 +260,9 @@ describe("opening a board", () => {
       ),
     );
 
-    expect(client.sent).toEqual([{ kind: "open", packages: ["blockr.core", "blockr.dplyr"] }]);
+    expect(client.sent).toEqual([
+      { kind: "open", packages: ["blockr.core", "blockr.dplyr"], front_end: "blockr.core-basic" },
+    ]);
     expect(store.blockRegistry()).toBe(loaded.block_registry);
     expect(store.packages()).toBe(loaded.packages);
     expect(dropped).toEqual([
@@ -344,7 +346,8 @@ describe("opening a board", () => {
   });
 
   test("opens a board made for a front-end that R serves no module for as one made for core's, dropping what it does not know", async () => {
-    const store = await opened();
+    const client = fakeR();
+    const store = await opened(undefined, client);
     const dropped = await store.open(
       file({
         front_end: {
@@ -368,6 +371,9 @@ describe("opening a board", () => {
       }),
     );
 
+    expect(client.sent).toEqual([
+      { kind: "open", packages: ["blockr.core"], front_end: "blockr.dock-dock" },
+    ]);
     expect(dropped).toEqual([{ front_end: "blockr.dock-dock", package: "blockr.dock" }]);
 
     const board = store.board();
