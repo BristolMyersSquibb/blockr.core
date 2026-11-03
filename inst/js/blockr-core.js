@@ -184,7 +184,8 @@ function createClient(transport, options) {
     },
     forget(blocks) {
       queue({ message: { kind: "forget", blocks } });
-    }
+    },
+    capabilities: () => shared
   };
 }
 function announce(body) {

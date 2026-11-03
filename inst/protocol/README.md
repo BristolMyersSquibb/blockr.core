@@ -77,7 +77,7 @@ R mints no ids, so a board that an app script built reaches the client with its 
 
 A client that holds a board already, as when the server ended its session while the page lived on, keeps it and its undo history, and names in its `hello` the packages that the board names, as its saved file would list them, so that R loads them before any recipe names their block classes, except on a locked board, which ignores them ([Locked boards](#locked-boards)). R sends the opening board all the same, which that client does not open. A package that R has loaded at another version than before makes the client ask for the page to be reloaded.
 
-A new session holds no results, so after its `hello` the client queues every demanded block again, with everything upstream. It answers none of the requests that the session before it held either, so the client sends again every output and every request of a block class or an output class still waiting for its reply, and rejects an evaluation with parameters, an action, and a board option's or an extension's request still waiting, which may have run and may write ([Scheduling](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.10#scheduling)).
+A new session holds no results. So after its `hello`, the client gives every block a new revision, and every block reads `stale` until the new session has evaluated it again ([Scheduling](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.10#scheduling)). The new session answers none of the requests that the session before it held either. The client sends again every output and every request of a block class or an output class that still waits for its reply. Where such a request names a block's old revision, R replies `missing`, and the request goes back to the code that sent it. That code asks again once the blocks are evaluated at their new revisions. The client rejects an evaluation with parameters, an action, and a board option's or an extension's request that still waits, since they may have run and may write.
 
 ## Opening a board
 
@@ -152,7 +152,7 @@ A reply keeps the first few conditions of each severity and counts the rest in `
 
 ### Missing results
 
-R replies `missing` to any request that names a block's revision it does not hold, such as a result it has forgotten or replaced, naming what it lacks in `missing`, as `[{ "block": "b", "revision": 4 }]`. The client then has a block evaluated again where that revision is still its current one and reads `ready`, and asks again, while it never sends a request that reads a block that is `failed`, `invalid` or `waiting` ([Demand](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.10#demand)).
+R replies `missing` to any request that names a block's revision it does not hold, such as a result it has forgotten or replaced. It names what it lacks in `missing`, as `[{ "block": "b", "revision": 4 }]`. The client's scheduler hands the reply back to the code that sent the request. That code asks again once the blocks are evaluated at their current revisions. Only a fault in R makes R lack a result that reads `ready` at the block's current revision. The scheduler then invalidates that block first, so that it is evaluated again. The client never sends a request that reads a `failed`, `invalid` or `waiting` block ([Demand](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.10#demand)).
 
 ## Requests
 
