@@ -8,9 +8,14 @@
 //   blockr-core.css or <name>.css.
 // - Each output type in srcts/types/outputs.ts gets its JSON Schema in
 //   inst/outputs, by which R writes the outputs of its class.
+// - The types that modules are written against, srcts/index.ts, and the stubs
+//   of the hosts, srcts/stubs/index.ts, go into inst/types, which a package's
+//   build resolves as `@blockr/core`: their declarations, the stubs bundled for
+//   a test runner, and the package.json that names them.
 //
-// The build owns inst/js and empties it first, so that nothing is left of a
-// module that is gone. In inst/outputs, it owns the schemas only.
+// The build owns inst/js and inst/types and empties them first, so that
+// nothing is left of a module that is gone. In inst/outputs, it owns the
+// schemas only.
 
 import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -154,9 +159,90 @@ export async function schemas(root: string): Promise<string[]> {
   return written.sort();
 }
 
+// The package that inst/types is: the types modules are written against, as
+// `@blockr/core`, and the stubs of the hosts, as `@blockr/core/stubs`.
+export const TYPES_PACKAGE = {
+  name: "@blockr/core",
+  private: true,
+  description:
+    "The types that the modules of blockr.core's client are written against, and a stub of each host for their tests, as the R package blockr.core ships them.",
+  type: "module",
+  exports: {
+    ".": { types: "./index.d.ts" },
+    "./stubs": { types: "./stubs/index.d.ts", default: "./stubs/index.js" },
+  },
+};
+
+// Writes inst/types: the declarations of srcts/index.ts and of the stubs, each
+// file's beside where its source sits in srcts, the stubs bundled, and the
+// package.json that names them.
+export async function types(root: string): Promise<string[]> {
+  const src = join(root, "srcts");
+  const entry = join(src, "index.ts");
+  const stubs = join(src, "stubs", "index.ts");
+  if (!existsSync(entry)) return [];
+
+  const dir = join(root, "inst", "types");
+  await rm(dir, { recursive: true, force: true });
+  await mkdir(dir, { recursive: true });
+
+  const config = ts.readConfigFile(join(root, "tsconfig.client.json"), (file) => ts.sys.readFile(file));
+  const { options } = ts.parseJsonConfigFileContent(config.config, ts.sys, root);
+  const program = ts.createProgram([entry, ...(existsSync(stubs) ? [stubs] : [])], {
+    ...options,
+    noEmit: false,
+    declaration: true,
+    emitDeclarationOnly: true,
+    rootDir: src,
+    outDir: dir,
+    incremental: false,
+    tsBuildInfoFile: undefined,
+  });
+
+  const written: string[] = [];
+  const emitted = program.emit(undefined, (file, text) => {
+    ts.sys.writeFile(file, text);
+    written.push(relative(root, file));
+  });
+  const problems = ts.getPreEmitDiagnostics(program).concat(emitted.diagnostics);
+  if (problems.length > 0) {
+    throw new Error(
+      ts.formatDiagnostics(problems, {
+        getCanonicalFileName: (file) => file,
+        getCurrentDirectory: () => root,
+        getNewLine: () => "\n",
+      }),
+    );
+  }
+
+  if (existsSync(stubs)) {
+    const { metafile, warnings } = await esbuild.build({
+      absWorkingDir: root,
+      entryPoints: [{ in: stubs, out: "stubs/index" }],
+      outdir: dir,
+      bundle: true,
+      format: "esm",
+      platform: "neutral",
+      target: "es2022",
+      logLevel: "warning",
+      metafile: true,
+    });
+    if (warnings.length > 0) {
+      throw new Error("esbuild warned, as printed above");
+    }
+    written.push(...Object.keys(metafile.outputs));
+  }
+
+  const manifest = join(dir, "package.json");
+  await writeFile(manifest, `${JSON.stringify(TYPES_PACKAGE, null, 2)}\n`);
+  written.push(relative(root, manifest));
+
+  return written.sort();
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-  for (const file of [...(await build(root)), ...(await schemas(root))]) {
+  for (const file of [...(await build(root)), ...(await schemas(root)), ...(await types(root))]) {
     console.log(file);
   }
 }

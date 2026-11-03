@@ -1,0 +1,17 @@
+import type { JsonSchema } from "../types/json.ts";
+import type { RegistryEntry } from "../types/registry.ts";
+export declare const blockId: JsonSchema;
+export declare const linkId: JsonSchema;
+export declare const stackId: JsonSchema;
+export declare const entryId: JsonSchema;
+export declare const registryId: JsonSchema;
+export declare const name: JsonSchema;
+export declare const input: JsonSchema;
+export declare const state: JsonSchema;
+export declare const stateArgs: JsonSchema;
+export declare const blockIds: JsonSchema;
+export declare const optionId: JsonSchema;
+export declare const path: JsonSchema;
+export declare const attribute: JsonSchema;
+export declare const value: JsonSchema;
+export declare function stateSchema(entry: RegistryEntry): JsonSchema;

@@ -1,0 +1,19 @@
+import type { Json } from "../types/json.ts";
+export declare class StoreError extends Error {
+    readonly failures: readonly string[];
+    constructor(message: string, failures: readonly string[]);
+}
+export declare function own<T>(record: Readonly<Record<string, T>>, key: string): T | undefined;
+export declare function messageOf(error: unknown): string;
+export declare function asError(error: unknown): Error;
+export declare function report(error: unknown): void;
+export declare function isObject(x: unknown): x is Readonly<Record<string, unknown>>;
+export declare function jsonEqual(a: unknown, b: unknown): boolean;
+export declare function getAt(root: unknown, path: readonly string[]): unknown;
+export declare function setAt(root: Readonly<Record<string, unknown>>, path: readonly string[], value: unknown): Readonly<Record<string, unknown>>;
+export declare function without<T>(record: Readonly<Record<string, T>>, keys: readonly string[]): Readonly<Record<string, T>>;
+export declare function frozenCopy<T extends Json>(x: T): T;
+export declare function listing(items: readonly string[]): string;
+export declare function quoted(items: readonly string[]): string;
+export declare function pathText(path: readonly string[]): string;
+export declare function packageOf(id: string): string | null;

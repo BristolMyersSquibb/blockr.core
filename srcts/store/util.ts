@@ -29,6 +29,20 @@ export function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+// What was thrown or rejected with, as an Error, such as the reason that a
+// signal aborted with, which is an AbortError where its caller gave none.
+export function asError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
+}
+
+// Reports an error that nobody waits on, by throwing it from a microtask,
+// without stopping what reported it.
+export function report(error: unknown): void {
+  queueMicrotask(() => {
+    throw error;
+  });
+}
+
 export function isObject(x: unknown): x is Readonly<Record<string, unknown>> {
   return typeof x === "object" && x !== null && !Array.isArray(x);
 }
