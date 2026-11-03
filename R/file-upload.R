@@ -52,7 +52,12 @@ keep_upload <- function(file) {
 #' @export
 upload_block <- new_block_class(
   "upload_block",
-  expr = function(file_path) call("file.path", file_path),
+  expr = function(file_path) {
+    if (!isTRUE(nzchar(file_path))) {
+      blockr_invalid("Upload a file.")
+    }
+    call("file.path", file_path)
+  },
   ui = js_module("js/upload-block.js"),
   requests = list(upload = new_block_request(keep_upload, action = TRUE))
 )

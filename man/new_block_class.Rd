@@ -5,7 +5,6 @@
 \alias{is_block_class}
 \alias{block_constructor}
 \alias{js_module}
-\alias{invalid}
 \alias{default_block_name}
 \alias{is_block}
 \alias{as_block}
@@ -21,8 +20,6 @@ is_block_class(x)
 block_constructor(cls)
 
 js_module(path, package = pkg_name(parent.frame()))
-
-invalid(message)
 
 default_block_name(class)
 
@@ -64,8 +61,6 @@ makes the block expression from}
 \item{package}{The package whose code names the module (\code{NULL} outside a
 package)}
 
-\item{message}{Why the state cannot run}
-
 \item{class}{A block class's class vector}
 
 \item{...}{For \code{blocks()}, the blocks to combine, and otherwise generic
@@ -76,8 +71,7 @@ The class constructor \code{new_block_class()} returns an object of class
 \code{block_class} and \code{block_constructor()} a function of class
 \code{block_constructor}, which returns a block, an object inheriting from
 \code{block}, as does \code{as_block()}. A UI module made by \code{js_module()} is an
-object of class \code{js_module}, while \code{invalid()} signals a condition of class
-\code{invalid} and returns nothing. The predicates \code{is_block_class()} and
+object of class \code{js_module}. The predicates \code{is_block_class()} and
 \code{is_block()} return a scalar logical. Block vectors, created using
 \code{blocks()}, \code{as_blocks()}, or by combining multiple blocks using \code{\link[base:c]{base::c()}}
 all inherit from \code{blocks} and \code{is_blocks()} returns a scalar logical.
@@ -96,9 +90,10 @@ interpolation makes the block expression from (see \code{\link[=interpolate]{int
 a string, a function of the data inputs or an object of a class that
 inherits from \code{blockr_expr}, such as what \code{\link[=bbquote]{bbquote()}} returns. An arg
 without a default starts unset and stays out of the block's state until
-something sets it. A body that uses an unset arg, or signals \code{invalid()}
-with a message, makes R run nothing and report the block as \code{invalid}, and
-a body that can do without an unset arg tests it with \code{\link[=missing]{missing()}}. Called
+something sets it. A body that uses an unset arg, or signals
+\code{\link[=blockr_invalid]{blockr_invalid()}} with a message, makes R run nothing and report the block
+as \code{invalid}, and a body that can do without an unset arg tests it with
+\code{\link[=missing]{missing()}}. Called
 without args, \code{expr} gives the state a new block starts with.
 
 The data inputs, apart from the state args, are given as \code{inputs}: a

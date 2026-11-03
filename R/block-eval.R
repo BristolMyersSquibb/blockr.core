@@ -8,11 +8,11 @@
 #' [interpolate()]) and runs that with the generic `block_eval()`, before
 #' describing the result with the generic `result_summary()`.
 #'
-#' An `invalid()` that `expr` or a `block_eval()` method signals, or an unset
-#' arg that the body of `expr` uses or interpolation fills in, makes R run
-#' nothing and report the status `invalid`, while a failed check in `inputs`,
-#' or any other error, reports `error`, and a block that runs reports `ok`. A
-#' check in `inputs` returns `NULL`, and any other value fails it too.
+#' A [blockr_invalid()] that `expr` or a `block_eval()` method signals, or an
+#' unset arg that the body of `expr` uses or interpolation fills in, makes R
+#' run nothing and report the status `invalid`, while a failed check in
+#' `inputs`, or any other error, reports `error`, and a block that runs reports
+#' `ok`. A check in `inputs` returns `NULL`, and any other value fails it too.
 #' Every condition raised on the way is recorded with its severity, its class,
 #' its message and the phase that raised it: `inputs`, `expr`, which covers
 #' interpolation, `block_eval` or `result_summary`. Warnings and messages are
@@ -298,7 +298,7 @@ phase_status <- function(x) {
 
   cnd <- x[["error"]]
 
-  if (inherits(cnd, "invalid") ||
+  if (inherits(cnd, "blockr_invalid") ||
         (identical(x[["phase"]], "expr") && is_missing_arg_error(cnd))) {
     return("invalid")
   }

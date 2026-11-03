@@ -21,6 +21,9 @@ list_datasets <- function(package) {
 dataset_block <- new_block_class(
   "dataset_block",
   expr = function(dataset, package = "datasets") {
+    if (!isTRUE(nzchar(dataset))) {
+      blockr_invalid("Choose a dataset.")
+    }
     call("::", as.name(package), as.name(dataset))
   },
   ui = js_module("js/dataset-block.js"),

@@ -56,7 +56,7 @@ test_that("a state that cannot run makes R run nothing and report invalid", {
     "picky_block",
     inputs = "data",
     expr = function(cols = character()) {
-      if (!length(cols)) invalid("Choose at least one column.")
+      if (!length(cols)) blockr_invalid("Choose at least one column.")
       bbquote(.(data)[, .(cols), drop = FALSE])
     },
     ui = js_module("picky.js")
@@ -67,7 +67,7 @@ test_that("a state that cannot run makes R run nothing and report invalid", {
 
   expect_identical(res$status, "invalid")
   expect_identical(res$conditions[[1L]]$message, "Choose at least one column.")
-  expect_true("invalid" %in% res$conditions[[1L]]$class)
+  expect_true("blockr_invalid" %in% res$conditions[[1L]]$class)
 
   unset_fun <- new_block_class(
     "unset_fun_block",
@@ -189,7 +189,7 @@ test_that("a block_eval() method decides whether the expression runs", {
     "block_eval",
     "saver_block",
     function(x, expr, env, save = FALSE, ...) {
-      if (!isTRUE(x$auto) && !save) invalid("Save to write the file.")
+      if (!isTRUE(x$auto) && !save) blockr_invalid("Save to write the file.")
       NextMethod()
     },
     envir = asNamespace("blockr.core")

@@ -35,6 +35,13 @@ test_that("a scatter block captures the plot it draws", {
 
   expect_identical(res[["status"]], "invalid")
 
+  res <- evaluate_block(scatter_block, list(x = "Time", y = ""),
+                        list(data = "a"), list(a = datasets::BOD))
+
+  expect_identical(res[["status"]], "invalid")
+  expect_identical(res[["conditions"]][[1L]][["message"]],
+                   "Choose a column for each axis.")
+
   res <- evaluate_block(scatter_block, list(x = "Time", y = "demand"),
                         list(data = "a"), list(a = letters))
 

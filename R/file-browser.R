@@ -43,6 +43,9 @@ list_volume_dir <- function(volumes, volume = NULL, path = "") {
 filebrowser_block <- new_block_class(
   "filebrowser_block",
   expr = function(file_path, volumes = filebrowser_volumes()) {
+    if (!isTRUE(nzchar(file_path))) {
+      blockr_invalid("Choose a file.")
+    }
     call("file.path", file_path)
   },
   ui = js_module("js/filebrowser-block.js"),

@@ -70,7 +70,15 @@ glue_plur <- function(..., envir = parent.frame()) {
 #' Blockr conditions
 #'
 #' Wrappers for [rlang::abort()], [rlang::warn()] and [rlang::inform()]. In
-#' addition to `class`, conditions inherit from "blockr_error".
+#' addition to `class`, conditions inherit from "blockr_error",
+#' "blockr_warning" or "blockr_message".
+#'
+#' The fourth wrapper, `blockr_invalid()`, signals that a block's state cannot
+#' run yet, such as a selection the user emptied, as an error that also
+#' inherits from "blockr_invalid". R then reports the block as `invalid`
+#' rather than `error`, and runs nothing. A block class signals it from its
+#' `expr`, while the check of a function given as its `inputs` signals an error
+#' with `blockr_abort()` (see [new_block_class()]).
 #'
 #' @param ... Forwarded to [cli::pluralize()]
 #' @param class Condition class
@@ -78,9 +86,42 @@ glue_plur <- function(..., envir = parent.frame()) {
 #'
 #' @return Called for side-effect of signaling conditions.
 #'
+#' @examples
+#' merge_block <- new_block_class(
+#'   "merge_block",
+#'   inputs = function(x, y) {
+#'     if (!is.data.frame(x) || !is.data.frame(y)) {
+#'       blockr_abort("The merge block joins two data frames.",
+#'                    class = "merge_block_inputs_invalid")
+#'     }
+#'   },
+#'   expr = function(by) {
+#'     if (!length(by)) {
+#'       blockr_invalid("Choose at least one column to join by.")
+#'     }
+#'     bbquote(merge(.(x), .(y), by = .(by)))
+#'   },
+#'   ui = js_module("merge-block.js")
+#' )
+#'
+#' evaluate_block(merge_block, list(by = character()), list(x = "a", y = "b"),
+#'                list(a = datasets::BOD, b = datasets::BOD))
+#'
+#' evaluate_block(merge_block, list(by = "Time"), list(x = "a", y = "b"),
+#'                list(a = datasets::BOD, b = 1:3))
+#'
 #' @export
 blockr_abort <- function(..., class = character(), envir = parent.frame()) {
   rlang::abort(glue_plur(..., envir = envir), c(class, "blockr_error"))
+}
+
+#' @rdname blockr_abort
+#' @export
+blockr_invalid <- function(..., class = character(), envir = parent.frame()) {
+  rlang::abort(
+    glue_plur(..., envir = envir),
+    c(class, "blockr_invalid", "blockr_error")
+  )
 }
 
 #' @param frequency,frequency_id Forwarded to [rlang::warn()]

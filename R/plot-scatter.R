@@ -14,6 +14,9 @@ scatter_block <- new_block_class(
     }
   },
   expr = function(x, y) {
+    if (!isTRUE(nzchar(x)) || !isTRUE(nzchar(y))) {
+      blockr_invalid("Choose a column for each axis.")
+    }
     bbquote(plot(.(data)[[.(x)]], .(data)[[.(y)]], xlab = .(x), ylab = .(y)))
   },
   ui = js_module("js/scatter-block.js"),

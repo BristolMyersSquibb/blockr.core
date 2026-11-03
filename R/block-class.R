@@ -12,9 +12,10 @@
 #' a string, a function of the data inputs or an object of a class that
 #' inherits from `blockr_expr`, such as what [bbquote()] returns. An arg
 #' without a default starts unset and stays out of the block's state until
-#' something sets it. A body that uses an unset arg, or signals `invalid()`
-#' with a message, makes R run nothing and report the block as `invalid`, and
-#' a body that can do without an unset arg tests it with [missing()]. Called
+#' something sets it. A body that uses an unset arg, or signals
+#' [blockr_invalid()] with a message, makes R run nothing and report the block
+#' as `invalid`, and a body that can do without an unset arg tests it with
+#' [missing()]. Called
 #' without args, `expr` gives the state a new block starts with.
 #'
 #' The data inputs, apart from the state args, are given as `inputs`: a
@@ -104,8 +105,7 @@
 #' `block_class` and `block_constructor()` a function of class
 #' `block_constructor`, which returns a block, an object inheriting from
 #' `block`, as does `as_block()`. A UI module made by `js_module()` is an
-#' object of class `js_module`, while `invalid()` signals a condition of class
-#' `invalid` and returns nothing. The predicates `is_block_class()` and
+#' object of class `js_module`. The predicates `is_block_class()` and
 #' `is_block()` return a scalar logical. Block vectors, created using
 #' `blocks()`, `as_blocks()`, or by combining multiple blocks using [base::c()]
 #' all inherit from `blocks` and `is_blocks()` returns a scalar logical.
@@ -199,26 +199,6 @@ js_module <- function(path, package = pkg_name(parent.frame())) {
   }
 
   structure(list(path = path, package = package), class = "js_module")
-}
-
-#' @param message Why the state cannot run
-#' @rdname new_block_class
-#' @export
-invalid <- function(message) {
-
-  if (!is_string(message)) {
-    blockr_abort(
-      "The message of `invalid()` is expected to be a string.",
-      class = "invalid_message_invalid"
-    )
-  }
-
-  stop(
-    structure(
-      class = c("invalid", "error", "condition"),
-      list(message = message, call = NULL)
-    )
-  )
 }
 
 is_js_module <- function(x) {
@@ -460,7 +440,7 @@ call_option_ctors <- function(ctors) {
 }
 
 is_invalid_cnd <- function(cnd) {
-  inherits(cnd, "invalid") || is_missing_arg_error(cnd)
+  inherits(cnd, "blockr_invalid") || is_missing_arg_error(cnd)
 }
 
 is_missing_arg_error <- function(cnd) {

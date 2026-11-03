@@ -34,7 +34,7 @@
   expression, `bbquote()` returns a `bquoted_expr`, whose placeholders it
   fills in with the upstream ids, and `evaluate_block()` evaluates a block
   from its class, state and upstream results through `block_eval()`. A state
-  reads `invalid` where `expr` signals `invalid()` or uses an unset arg. With
+  reads `invalid` where `expr` signals `blockr_invalid()` or uses an unset arg. With
   them come `result_summary()`, `block_migrate()`, `new_block_request()` and
   `run_block_request()`, `expect_block_fixture()`, which tests a class
   without Shiny, and `trace_block_classes()`, which a package calls in
@@ -100,7 +100,9 @@
   inputs do not fit and otherwise returns `NULL`. Any other value it returns
   now fails the check too, so that a predicate that returns `FALSE` no longer
   lets every input through. Core's blocks signal classed errors there, such as
-  `head_block_inputs_invalid` (#423).
+  `head_block_inputs_invalid`. Where a user empties a selection, they signal
+  `blockr_invalid()`, a sibling of `blockr_abort()`, which replaces
+  `invalid()` and makes R report the block as `invalid` (#423).
 * Some built-in blocks change behavior. The static block takes an R expression
   as a string, in its argument `expression`, such as
   `new_static_block("datasets::iris")`, in place of a data frame, which its
