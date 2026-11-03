@@ -1,0 +1,311 @@
+// The command registry: the edits that menus, shortcuts, extensions and the
+// assistant's tools run alike, each a command that a package registers, core's
+// own among them. A command reads the board and returns deltas, and the command
+// registry applies them through the store as one step of the origin it is
+// given, so that every edit, whoever makes it, is one undo step and passes the
+// store's checks. Core creates one for each store and hands it to front-ends
+// and extensions through `CoreApi`.
+
+import { computed, signal } from "@preact/signals-core";
+import { isValueDelta } from "../store/delta.ts";
+import type {
+  BlockMod,
+  CollectionDelta,
+  Delta,
+  KeyChange,
+  Origin,
+} from "../store/delta.ts";
+import { compile } from "../store/registrations.ts";
+import type { Validate } from "../store/registrations.ts";
+import type { Store } from "../store/store.ts";
+import { messageOf, packageOf } from "../store/util.ts";
+import type { Board } from "../types/board.ts";
+import type { Json, JsonSchema } from "../types/json.ts";
+import { coreCommands } from "./core.ts";
+
+export interface Command<A extends Json = Json, P = A> {
+  // Named as a registry id is, `{pkg}-{name}`, such as
+  // "blockr.core-remove_block": the package that registers it, and a name
+  // unique within that package.
+  readonly id: string;
+  // What menus and a command palette show.
+  readonly label: string;
+  // What it does and when to use it, for the assistant's model.
+  readonly description?: string;
+  // The JSON Schema of its args, for forms and the assistant's tools, against
+  // which the command registry checks the args it is given.
+  readonly args?: JsonSchema;
+  // Such as "Mod+Backspace", which a front-end binds.
+  readonly shortcut?: string;
+  // Whether it applies to the board with these args, which menus show by
+  // greying out what does not.
+  enabled?(board: Board, args: A): boolean;
+  // What has to wait, such as a layout that elkjs returns as a promise.
+  prepare?(board: Board, args: A): Promise<P>;
+  // Reads the board and returns the deltas of the edit, changing nothing
+  // itself.
+  run(board: Board, args: P): Delta | readonly Delta[];
+}
+
+export interface Commands {
+  // Adds a command, which fails where another has its id.
+  register<A extends Json, P = A>(command: Command<A, P>): () => void;
+  // The registered commands by id, for menus, a command palette and the
+  // assistant's tools.
+  registered(): Readonly<Record<string, Command<Json, unknown>>>;
+  // Whether the command applies to the current board with these args, which
+  // fit the schema of its args.
+  enabled(id: string, args?: Json): boolean;
+  // Runs the command and applies its deltas as one step of the origin, "user"
+  // unless given, or rejects with what refused it, having changed nothing. A
+  // command that does not prepare is applied before run() returns.
+  run(id: string, args?: Json, origin?: Origin): Promise<void>;
+  // The deltas the command returns on the current board, not applied, with
+  // the edit ids of the board they were built on, so that the store refuses
+  // them once another edit has come first.
+  plan(id: string, args?: Json): Promise<Delta[]>;
+}
+
+// What the command registry rejects with where it refuses to run a command, or
+// a command fails, with each failure in a sentence. What the store refuses it
+// rejects with as the store throws it.
+export class CommandError extends Error {
+  readonly failures: readonly string[];
+
+  constructor(message: string, failures: readonly string[], options?: ErrorOptions) {
+    super([message, ...failures.map((failure) => `- ${failure}`)].join("\n"), options);
+    this.name = "CommandError";
+    this.failures = failures;
+  }
+}
+
+interface Registered {
+  readonly command: Command<Json, unknown>;
+  readonly validate: Validate | undefined;
+}
+
+export function createCommands(store: Store): Commands {
+  const commands = signal<ReadonlyMap<string, Registered>>(new Map());
+  const registered = computed(() =>
+    Object.fromEntries([...commands.value].map(([id, { command }]) => [id, command])),
+  );
+
+  // How many boards the store has opened, so that a command still in its
+  // prepare() as a board opens is dropped rather than run on that board.
+  let openings = 0;
+  store.subscribe((change) => {
+    if ("opened" in change) openings++;
+  });
+
+  function register<A extends Json, P>(command: Command<A, P>): () => void {
+    const { id } = command;
+    if (typeof id !== "string" || !isCommandId(id)) {
+      throw new Error(
+        `The command id ${JSON.stringify(id)} is not named as a registry id is, "{pkg}-{name}".`,
+      );
+    }
+    if (typeof command.label !== "string" || command.label === "") {
+      throw new Error(`The command "${id}" has no label.`);
+    }
+    if (typeof command.run !== "function") {
+      throw new Error(`The command "${id}" has no run().`);
+    }
+    if (commands.value.has(id)) {
+      throw new Error(`The command "${id}" is registered already.`);
+    }
+    const validate =
+      command.args === undefined
+        ? undefined
+        : compile(`the args of the command "${id}"`, command.args, "fail their schema");
+
+    const item: Registered = { command, validate };
+    commands.value = new Map([...commands.value, [id, item]]);
+    return () => {
+      if (commands.value.get(id) !== item) return;
+      const rest = new Map(commands.value);
+      rest.delete(id);
+      commands.value = rest;
+    };
+  }
+
+  // The command and its args, once they fit its schema, or a CommandError.
+  function lookup(
+    id: string,
+    given: Json | undefined,
+  ): { command: Command<Json, unknown>; args: Json } {
+    const item = commands.value.get(id);
+    if (item === undefined) {
+      throw new CommandError(refused(id), [`No command "${id}" is registered.`]);
+    }
+    const args = given ?? {};
+    const failures = item.validate?.(args) ?? [];
+    if (failures.length > 0) {
+      throw new CommandError(refused(id), failures.map((failure) => `The args ${failure}`));
+    }
+    return { command: item.command, args };
+  }
+
+  function current(id: string): Board {
+    try {
+      return store.board();
+    } catch {
+      throw new CommandError(refused(id), ["The store holds no board until it opens one."]);
+    }
+  }
+
+  function allow(command: Command<Json, unknown>, board: Board, args: Json): void {
+    const enabled = attempt(command, () => command.enabled?.(board, args) ?? true);
+    if (!enabled) {
+      throw new CommandError(refused(command.id), [
+        `It is not enabled on the board as it is, with the args ${JSON.stringify(args)}.`,
+      ]);
+    }
+  }
+
+  // The deltas that the command returns on the board, with the edit ids the
+  // board gives what they change where the command left them out.
+  function build(command: Command<Json, unknown>, board: Board, args: unknown): Delta[] {
+    const returned = attempt(command, () => command.run(board, args));
+    const deltas: readonly Delta[] = isDeltas(returned) ? returned : [returned];
+    return deltas.map(withEdits);
+  }
+
+  // The deltas of the command on the current board: at once where it does
+  // not prepare, so that run() applies them before it returns, and otherwise
+  // once prepare() resolves, on the board as it is then, where the command is
+  // still enabled and no board has opened in the meantime.
+  function deltas(id: string, given: Json | undefined): Delta[] | Promise<Delta[]> {
+    const { command, args } = lookup(id, given);
+    const board = current(id);
+    allow(command, board, args);
+    if (command.prepare === undefined) return build(command, board, args);
+    return prepared(command, board, args);
+  }
+
+  async function prepared(
+    command: Command<Json, unknown>,
+    board: Board,
+    args: Json,
+  ): Promise<Delta[]> {
+    const opened = openings;
+    let input: unknown;
+    try {
+      input = await command.prepare?.(board, args);
+    } catch (error) {
+      throw failed(command, error);
+    }
+    if (openings !== opened) {
+      throw new CommandError(refused(command.id), [
+        "A board opened while it prepared, which drops it.",
+      ]);
+    }
+    const now = current(command.id);
+    allow(command, now, args);
+    return build(command, now, input);
+  }
+
+  // The delta with the edit id of each block, entry and value it changes,
+  // where it names none, from the board that the command read.
+  function withEdits(delta: Delta): Delta {
+    const blocks = delta.blocks?.mod;
+    const state = delta.front_end?.state;
+    if (blocks === undefined && state === undefined) return delta;
+
+    const edit = <T extends { readonly edit?: number }>(change: T, id: number | undefined): T =>
+      change.edit !== undefined || id === undefined ? change : { ...change, edit: id };
+
+    return {
+      ...delta,
+      ...(blocks === undefined
+        ? {}
+        : {
+            blocks: {
+              ...delta.blocks,
+              mod: Object.fromEntries(
+                Object.entries(blocks).map(([id, mod]): [string, BlockMod] => [
+                  id,
+                  edit(mod, store.editId({ block: id })),
+                ]),
+              ),
+            },
+          }),
+      ...(state === undefined
+        ? {}
+        : {
+            front_end: {
+              ...delta.front_end,
+              state: state.map(({ path, change }): KeyChange => {
+                if (isValueDelta(change)) {
+                  return { path, change: edit(change, store.editId({ path })) };
+                }
+                if (change.mod === undefined) return { path, change };
+                const mod: CollectionDelta["mod"] = Object.fromEntries(
+                  Object.entries(change.mod).map(([entry, entryMod]) => [
+                    entry,
+                    edit(entryMod, store.editId({ path, entry })),
+                  ]),
+                );
+                return { path, change: { ...change, mod } };
+              }),
+            },
+          }),
+    };
+  }
+
+  const registry: Commands = {
+    register,
+    registered: () => registered.value,
+    enabled(id, given) {
+      try {
+        const { command, args } = lookup(id, given);
+        allow(command, current(id), args);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    async run(id, given, origin = "user") {
+      const step = deltas(id, given);
+      store.apply(isDeltas(step) ? step : await step, origin);
+    },
+    async plan(id, given) {
+      return deltas(id, given);
+    },
+  };
+
+  for (const command of coreCommands(store)) registry.register(command);
+
+  return registry;
+}
+
+// Whether an id is named as a registry id is: a package name, a dash, and a
+// name.
+function isCommandId(id: string): boolean {
+  const pkg = packageOf(id);
+  return pkg !== null && id.length > pkg.length + 1;
+}
+
+function refused(id: string): string {
+  return `The command "${id}" refused to run`;
+}
+
+// What a command's own enabled(), prepare() or run() threw, as a CommandError
+// that names the command, unless it is one already.
+function failed(command: Command<Json, unknown>, error: unknown): CommandError {
+  if (error instanceof CommandError) return error;
+  return new CommandError(`The command "${command.id}" failed`, [messageOf(error)], {
+    cause: error,
+  });
+}
+
+function attempt<T>(command: Command<Json, unknown>, fn: () => T): T {
+  try {
+    return fn();
+  } catch (error) {
+    throw failed(command, error);
+  }
+}
+
+function isDeltas(x: unknown): x is readonly Delta[] {
+  return Array.isArray(x);
+}
