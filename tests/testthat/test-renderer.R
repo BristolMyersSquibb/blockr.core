@@ -226,7 +226,7 @@ test_that("the blockr option names declared renderers for what they draw", {
   check(c(table_output = ""))
 })
 
-test_that("a renderer brings its own requests before its class's", {
+test_that("a request is the named renderer's own or else its class's", {
 
   local_declared(declared_renderers)
 
@@ -267,9 +267,9 @@ test_that("a renderer brings its own requests before its class's", {
 
   expect_identical(run("label", params = list(page = 2L)), "labels 2")
   expect_identical(run("first"), "a")
-  expect_identical(run("size"), 26L)
 
   expect_identical(run_output_class_request(out, "label", letters), "sub")
+  expect_identical(run_output_class_request(out, "size", letters), 26L)
 
   req <- output_class_request(class(out), "first", "blockr.test-labels")
 
@@ -281,9 +281,9 @@ test_that("a renderer brings its own requests before its class's", {
     class = "output_class_request_unknown"
   )
   expect_error(
-    run("nope"),
-    class = "output_class_request_unknown",
-    regexp = "Neither renderer blockr.test-labels"
+    run("size"),
+    class = "renderer_request_unknown",
+    regexp = "Renderer blockr.test-labels has no request size"
   )
   expect_error(
     run_output_class_request("text_output", "first", letters,

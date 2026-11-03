@@ -19,9 +19,11 @@ declared_renderers <- new.env()
 #' table output does not carry. R runs a renderer's request as it runs a
 #' request of the output class (see [run_output_class_request()]), with the
 #' result that the output was made from and the board option values and
-#' parameters that the output was asked with. A request names the renderer
-#' that asks, and R looks for the request among that renderer's own requests
-#' first, then among those of the output class, most specific class first.
+#' parameters that the output was asked with. A request that names a renderer
+#' is one of that renderer's own, which R finds among its requests alone, and
+#' a request that names none is one of the output class's. So a renderer's
+#' request and a request of the output class may share a name, and neither
+#' hides the other.
 #'
 #' R picks one renderer for each output class and each board option with
 #' `pick_renderers()`, for the front-end of the board that the client draws.
@@ -292,4 +294,29 @@ list_renderers <- function() {
 
 get_renderer <- function(id) {
   get_declared(id, declared_renderers, "renderer", "renderer_missing")
+}
+
+# A renderer's own request, for an output of the class vector given, which the
+# renderer has to draw.
+renderer_request <- function(renderer, class, name) {
+
+  entry <- get_renderer(renderer)
+
+  if (!isTRUE(entry[["class"]] %in% class)) {
+    blockr_abort(
+      "Renderer {renderer} draws no output of class {class[1L]}.",
+      class = "renderer_class_mismatch"
+    )
+  }
+
+  fun <- entry[["requests"]][[name]]
+
+  if (!is.function(fun)) {
+    blockr_abort(
+      "Renderer {renderer} has no request {name}.",
+      class = "renderer_request_unknown"
+    )
+  }
+
+  list(fun = fun, volatile = FALSE, renderer = renderer)
 }

@@ -35,9 +35,9 @@ output_class_registry <- new.env()
 #' the class's renderers call through their host, for what the output does not
 #' hold, such as a download of what they show. R resolves a request by the most
 #' specific class in the output's class vector that has it. A renderer may
-#' bring requests of its own (see [register_renderer()]), among which R looks
-#' first where the request names the renderer that asks. R calls the request's
-#' function with these arguments, each where the function takes it:
+#' bring requests of its own (see [register_renderer()]), and a request that
+#' names a renderer is one of these, never one of the class's. R calls the
+#' request's function with these arguments, each where the function takes it:
 #'
 #' * The result that the output was made from, in `result`.
 #' * The board option values that the output was asked with, in `options`.
@@ -74,8 +74,8 @@ output_class_registry <- new.env()
 #'   board option id
 #' @param params The parameters that the output was asked with
 #' @param file A file that the renderer sends, or `NULL`
-#' @param renderer The ID of the renderer that asks, among whose own requests
-#'   R looks first, or `NULL`
+#' @param renderer The ID of the renderer whose own request it is, or `NULL`
+#'   for a request of the output class
 #'
 #' @examples
 #' out <- new_block_output(list(text = "Hello"), "greeting_output")
@@ -406,27 +406,13 @@ output_class_schema <- function(class) {
   )
 }
 
-# A request of an output, from the own requests of the renderer that asks,
-# where the request names one, and otherwise from the most specific class in
-# the output's class vector that has it.
+# A request of an output: where the request names a renderer, one of that
+# renderer's own requests, and otherwise one of the output class's, from the
+# most specific class in the output's class vector that has it.
 output_class_request <- function(class, name, renderer = NULL) {
 
   if (not_null(renderer)) {
-
-    entry <- get_renderer(renderer)
-
-    if (!isTRUE(entry[["class"]] %in% class)) {
-      blockr_abort(
-        "Renderer {renderer} draws no output of class {class[1L]}.",
-        class = "renderer_class_mismatch"
-      )
-    }
-
-    fun <- entry[["requests"]][[name]]
-
-    if (is.function(fun)) {
-      return(list(fun = fun, volatile = FALSE, renderer = renderer))
-    }
+    return(renderer_request(renderer, class, name))
   }
 
   for (cls in class) {
@@ -439,14 +425,6 @@ output_class_request <- function(class, name, renderer = NULL) {
         list(fun = fun, volatile = name %in% entry[["volatile"]], class = cls)
       )
     }
-  }
-
-  if (not_null(renderer)) {
-    blockr_abort(
-      "Neither renderer {renderer} nor output class {class[1L]} has a ",
-      "request {name}.",
-      class = "output_class_request_unknown"
-    )
   }
 
   blockr_abort(

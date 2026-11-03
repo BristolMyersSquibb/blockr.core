@@ -67,8 +67,8 @@ board option id}
 
 \item{file}{A file that the renderer sends, or \code{NULL}}
 
-\item{renderer}{The ID of the renderer that asks, among whose own requests
-R looks first, or \code{NULL}}
+\item{renderer}{The ID of the renderer whose own request it is, or \code{NULL}
+for a request of the output class}
 }
 \value{
 The constructor \code{new_block_output()} returns an object of class
@@ -112,9 +112,9 @@ Registration also takes the class's requests. A request is a function that
 the class's renderers call through their host, for what the output does not
 hold, such as a download of what they show. R resolves a request by the most
 specific class in the output's class vector that has it. A renderer may
-bring requests of its own (see \code{\link[=register_renderer]{register_renderer()}}), among which R looks
-first where the request names the renderer that asks. R calls the request's
-function with these arguments, each where the function takes it:
+bring requests of its own (see \code{\link[=register_renderer]{register_renderer()}}), and a request that
+names a renderer is one of these, never one of the class's. R calls the
+request's function with these arguments, each where the function takes it:
 \itemize{
 \item The result that the output was made from, in \code{result}.
 \item The board option values that the output was asked with, in \code{options}.

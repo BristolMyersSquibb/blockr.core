@@ -49,9 +49,11 @@ output does not hold, such as the labels of a table's columns, which core's
 table output does not carry. R runs a renderer's request as it runs a
 request of the output class (see \code{\link[=run_output_class_request]{run_output_class_request()}}), with the
 result that the output was made from and the board option values and
-parameters that the output was asked with. A request names the renderer
-that asks, and R looks for the request among that renderer's own requests
-first, then among those of the output class, most specific class first.
+parameters that the output was asked with. A request that names a renderer
+is one of that renderer's own, which R finds among its requests alone, and
+a request that names none is one of the output class's. So a renderer's
+request and a request of the output class may share a name, and neither
+hides the other.
 
 R picks one renderer for each output class and each board option with
 \code{pick_renderers()}, for the front-end of the board that the client draws.
