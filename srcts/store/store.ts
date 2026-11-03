@@ -50,7 +50,9 @@ export interface Store {
 
   // Expands, checks, commits and announces the deltas as one step of the
   // origin, "user" unless given, or throws a StoreError naming what rejected
-  // them, having changed nothing.
+  // them, having changed nothing. What changes nothing makes no step: a delta
+  // that changes nothing is no delta, and a step keeps of the others only what
+  // they change.
   apply(delta: Delta | readonly Delta[], origin?: Origin): void;
   // Opens a saved file, given as its text, having R load the packages it
   // names, or the opening board that R sent with its reply to `hello`, and
@@ -175,9 +177,10 @@ export function createStore(options: StoreOptions): Store {
   }
 
   // Applies deltas in order as one step, expanding and checking each on the
-  // board the one before it left, or throws what rejected them. Undo and redo
-  // apply only what still fits the board, and a delta of which nothing does
-  // applies as nothing.
+  // board the one before it left, or throws what rejected them. A delta that
+  // changes nothing is no delta, which is neither applied nor announced. Undo
+  // and redo apply only what still fits the board, and a delta of which
+  // nothing does applies as nothing.
   function run(
     start: Board,
     deltas: readonly Delta[],
@@ -201,6 +204,7 @@ export function createStore(options: StoreOptions): Store {
 
       const committed = commit(current, expanded, registrations, how.places?.[i]);
       if ("failures" in committed) throw fail(committed.failures);
+      if (isEmpty(committed.inverse.delta)) continue;
 
       const failures = check(
         committed.board,
@@ -289,6 +293,7 @@ export function createStore(options: StoreOptions): Store {
       if (failures.length > 0) throw new StoreError(refused, failures);
 
       const { applied, inverses } = run(start, deltas, {}, refused);
+      if (applied.length === 0) return;
       number(applied, applied.at(-1)?.board ?? start);
       setSteps(origin, { undo: [...steps(origin).undo, inverses], redo: [] });
 
