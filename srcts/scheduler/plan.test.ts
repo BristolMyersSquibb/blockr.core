@@ -9,7 +9,7 @@ import { hello } from "../testing/store.ts";
 import type { BlockId } from "../types/board.ts";
 import { needsOf } from "./needs.ts";
 import { GIVE_WAY, planOf } from "./plan.ts";
-import type { Asked, Part, Sent } from "./plan.ts";
+import type { Asked, Pending, Sent } from "./plan.ts";
 import { inputsOf } from "./recipes.ts";
 import { counter, opening } from "./revisions.ts";
 import { statusesOf } from "./status.ts";
@@ -51,14 +51,14 @@ function statuses(replies: [BlockId, Outcome["status"]][] = []) {
   }).statuses;
 }
 
-let seq = 0;
+let ids = 0;
 function sent(block: BlockId, fields: Partial<Sent> = {}): Sent {
   return {
-    seq: ++seq,
+    id: ++ids,
     at: now,
     block,
     revision: at(block),
-    part: undefined,
+    oneTime: undefined,
     background: false,
     cancelled: false,
     orphaned: false,
@@ -66,19 +66,21 @@ function sent(block: BlockId, fields: Partial<Sent> = {}): Sent {
   };
 }
 
-function part(block: BlockId, priority = 0): Part {
-  return { block, of: { priority, done: false } };
+// The evaluation of a block that a one-time evaluation with parameters waits
+// for, not sent yet.
+function pending(block: BlockId, priority = 0): Pending {
+  return { oneTime: ++ids, block, priority };
 }
 
-function plan(fields: Partial<Parameters<typeof planOf<Sent, Part>>[0]> = {}) {
-  return planOf<Sent, Part>({
+function plan(fields: Partial<Parameters<typeof planOf>[0]> = {}) {
+  return planOf({
     graph,
     revisions,
     statuses: statuses(),
     needs: new Map(),
     sent: [],
     asked: [],
-    parts: [],
+    pending: [],
     queue: 2,
     interrupt: false,
     holding: false,
@@ -120,48 +122,51 @@ describe("what to cancel", () => {
     const moved = sent("a", { revision: 0 });
     const idle = sent("b");
     const unneeded = sent("c");
-    expect(plan({ sent: [moved, idle, unneeded] }).cancel).toEqual([moved, idle, unneeded]);
+    expect(plan({ sent: [moved, idle, unneeded] }).cancel).toEqual([moved.id, idle.id, unneeded.id]);
 
     const oldest = sent("a");
     const later = sent("b");
-    expect(plan({ sent: [oldest, later] }).cancel).toEqual([later]);
+    expect(plan({ sent: [oldest, later] }).cancel).toEqual([later.id]);
     expect(plan({ sent: [oldest, later], needs: needsOf(graph, [{ blocks: ["b"], priority: 0 }]) }).cancel).toEqual([]);
   });
 
   test("is one below 0 that something else has waited behind for 5 s, where R can stop what it has started", () => {
     const behind = sent("d", { background: true });
-    const waited: Asked = { seq: ++seq, at: now - GIVE_WAY };
-    expect(plan({ sent: [behind], asked: [waited], interrupt: true }).cancel).toEqual([behind]);
+    const waited: Asked = { id: ++ids, at: now - GIVE_WAY };
+    expect(plan({ sent: [behind], asked: [waited], interrupt: true }).cancel).toEqual([behind.id]);
     expect(plan({ sent: [behind], asked: [waited], interrupt: false }).cancel).toEqual([]);
 
-    const young: Asked = { seq: ++seq, at: now - GIVE_WAY + 1 };
+    const young: Asked = { id: ++ids, at: now - GIVE_WAY + 1 };
     const found = plan({ sent: [behind], asked: [young], interrupt: true });
     expect(found.cancel).toEqual([]);
     expect(found.wakeAt).toBe(now + 1);
   });
 
-  test("is never an evaluation with parameters", () => {
-    const save = sent("b", { revision: 0, part: part("b") });
+  test("is never an evaluation for a one-time evaluation with parameters", () => {
+    const save = sent("b", { revision: 0, oneTime: { id: ++ids, priority: 0 } });
     expect(plan({ sent: [save] }).cancel).toEqual([]);
   });
 });
 
-describe("an evaluation with parameters", () => {
-  test("goes once what its block reads is available, and the block takes no other evaluation meanwhile", () => {
-    const save = part("b");
+describe("the evaluation of a block for a one-time evaluation with parameters", () => {
+  test("goes once what the block reads is available, and the block takes no other evaluation meanwhile", () => {
+    const save = pending("b");
     const needs = needsOf(graph, [{ blocks: ["b"], priority: 0 }]);
-    expect(plan({ needs, parts: [save] }).send).toEqual([{ block: "a" }, { block: "b", part: save }]);
-    expect(plan({ needs, parts: [save], statuses: statuses([["a", "ok"]]) }).send).toEqual([
-      { block: "b", part: save },
+    expect(plan({ needs, pending: [save] }).send).toEqual([
+      { block: "a" },
+      { block: "b", oneTime: save.oneTime },
+    ]);
+    expect(plan({ needs, pending: [save], statuses: statuses([["a", "ok"]]) }).send).toEqual([
+      { block: "b", oneTime: save.oneTime },
     ]);
   });
 
-  test("rejects where its block reads waiting, whatever room R has", () => {
-    const save = part("b");
-    const found = plan({ parts: [save], statuses: statuses([["a", "error"]]), queue: 0, sent: [sent("f")] });
+  test("rejects the one-time evaluation where the block reads waiting, whatever room R has", () => {
+    const save = pending("b");
+    const found = plan({ pending: [save], statuses: statuses([["a", "error"]]), queue: 0, sent: [sent("f")] });
     expect(found.send).toEqual([]);
-    expect(found.reject.map(({ part: rejected, error }) => [rejected, error.message])).toEqual([
-      [save, 'Block "b" is waiting for block "a". Its evaluation with parameters is not sent.'],
+    expect(found.reject.map(({ oneTime, error }) => [oneTime, error.message])).toEqual([
+      [save.oneTime, 'Block "b" is waiting for block "a". Its evaluation with parameters is not sent.'],
     ]);
   });
 });
@@ -181,7 +186,7 @@ describe("evaluation in the background", () => {
   });
 
   test("waits while R has anything else to run, an output, a request or an evaluation at 0 or above", () => {
-    const asked = plan({ delay: 2, idleSince: now - 2000, asked: [{ seq: ++seq, at: now }] });
+    const asked = plan({ delay: 2, idleSince: now - 2000, asked: [{ id: ++ids, at: now }] });
     expect(asked.send).toEqual([]);
     expect(asked.idleSince).toBeUndefined();
 
