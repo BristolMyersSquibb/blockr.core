@@ -506,8 +506,8 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
 
   const frontEnd = [
     command<{ readonly path: readonly string[]; readonly id?: string; readonly entry: Entry }>({
-      id: "blockr.core-add_entry",
-      label: "Add entry",
+      id: "blockr.core-add_front_end_entry",
+      label: "Add front-end entry",
       description:
         "Adds an entry to a key of the front-end's state that holds a collection, which the key's schema types.",
       args: object(
@@ -534,8 +534,8 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       readonly set?: Entry;
       readonly unset?: readonly string[];
     }>({
-      id: "blockr.core-change_entry",
-      label: "Change entry",
+      id: "blockr.core-change_front_end_entry",
+      label: "Change front-end entry",
       description:
         "Sets and unsets fields of an entry of a key of the front-end's state that holds a collection, which the key's schema types.",
       args: object(
@@ -570,8 +570,8 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       }),
     }),
     command<{ readonly path: readonly string[]; readonly id: string }>({
-      id: "blockr.core-remove_entry",
-      label: "Remove entry",
+      id: "blockr.core-remove_front_end_entry",
+      label: "Remove front-end entry",
       description: "Removes an entry of a key of the front-end's state that holds a collection.",
       args: object({ path: schemas.path, id: schemas.entryId }, ["path", "id"]),
       enabled: (board, { path, id }) =>
@@ -579,8 +579,8 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       run: (_board, { path, id }) => ({ front_end: { state: [{ path, change: { rm: [id] } }] } }),
     }),
     command<{ readonly path: readonly string[]; readonly value: Json }>({
-      id: "blockr.core-set_value",
-      label: "Set value",
+      id: "blockr.core-set_front_end_value",
+      label: "Set front-end value",
       description:
         "Sets the value of a key of the front-end's state that holds a value, which the key's schema types.",
       args: object({ path: schemas.path, value: schemas.value }, ["path", "value"]),

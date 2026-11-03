@@ -63,10 +63,10 @@ describe("registering", () => {
       "blockr.core-remove_stack",
       "blockr.core-rename_board",
       "blockr.core-set_option",
-      "blockr.core-add_entry",
-      "blockr.core-change_entry",
-      "blockr.core-remove_entry",
-      "blockr.core-set_value",
+      "blockr.core-add_front_end_entry",
+      "blockr.core-change_front_end_entry",
+      "blockr.core-remove_front_end_entry",
+      "blockr.core-set_front_end_value",
       "blockr.core-set_block_attribute",
       "blockr.core-set_front_end_attribute",
     ]);
@@ -354,9 +354,9 @@ describe("planning", () => {
       store.register(positions);
       store.register(layout);
     });
-    await commands.run("blockr.core-add_entry", { path: positions.path, id: "a", entry: { x: 1 } });
+    await commands.run("blockr.core-add_front_end_entry", { path: positions.path, id: "a", entry: { x: 1 } });
 
-    const entry = await commands.plan("blockr.core-change_entry", {
+    const entry = await commands.plan("blockr.core-change_front_end_entry", {
       path: positions.path,
       id: "a",
       set: { x: 2 },
@@ -374,7 +374,7 @@ describe("planning", () => {
       },
     ]);
 
-    const value = await commands.plan("blockr.core-set_value", { path: layout.path, value: "TB" });
+    const value = await commands.plan("blockr.core-set_front_end_value", { path: layout.path, value: "TB" });
     expect(value).toEqual([
       {
         front_end: {

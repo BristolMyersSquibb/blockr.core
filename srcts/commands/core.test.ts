@@ -448,17 +448,17 @@ describe("the front-end's state", () => {
     return board.front_end.state.extensions;
   }
 
-  test("add_entry, change_entry and remove_entry change a collection", async () => {
+  test("add_front_end_entry, change_front_end_entry and remove_front_end_entry change a collection", async () => {
     const { store, commands } = await setup(keys);
 
-    await commands.run("blockr.core-add_entry", { path: positions.path, id: "a", entry: { x: 1, y: 2 } });
-    await commands.run("blockr.core-change_entry", { path: positions.path, id: "a", set: { x: 5 } });
+    await commands.run("blockr.core-add_front_end_entry", { path: positions.path, id: "a", entry: { x: 1, y: 2 } });
+    await commands.run("blockr.core-change_front_end_entry", { path: positions.path, id: "a", set: { x: 5 } });
     expect(positionsOf(store.board())).toEqual({
       "blockr.dag-dag": { positions: { a: { x: 5, y: 2 } }, layout: "LR" },
     });
 
-    await commands.run("blockr.core-change_entry", { path: positions.path, id: "a", set: { x: 5 } });
-    await commands.run("blockr.core-remove_entry", { path: positions.path, id: "a" });
+    await commands.run("blockr.core-change_front_end_entry", { path: positions.path, id: "a", set: { x: 5 } });
+    await commands.run("blockr.core-remove_front_end_entry", { path: positions.path, id: "a" });
     expect(positionsOf(store.board())).toEqual({ "blockr.dag-dag": { positions: {}, layout: "LR" } });
 
     store.undo();
@@ -468,21 +468,21 @@ describe("the front-end's state", () => {
     });
   });
 
-  test("add_entry mints the id it is given none for, and leaves the key's schema and check to the store", async () => {
+  test("add_front_end_entry mints the id it is given none for, and leaves the key's schema and check to the store", async () => {
     const { store, commands } = await setup(keys);
 
     await expect(
-      commands.run("blockr.core-add_entry", { path: positions.path, entry: { x: 1, y: 2 } }),
+      commands.run("blockr.core-add_front_end_entry", { path: positions.path, entry: { x: 1, y: 2 } }),
     ).rejects.toThrow(/There is no block "\w+" to place./);
     await expect(
-      commands.run("blockr.core-add_entry", { path: positions.path, id: "a", entry: { x: "left" } }),
+      commands.run("blockr.core-add_front_end_entry", { path: positions.path, id: "a", entry: { x: "left" } }),
     ).rejects.toThrow('The entry "a" of extensions/blockr.dag-dag/positions fails its schema');
     expect(store.canUndo()).toBe(false);
   });
 
-  test("set_value sets a value", async () => {
+  test("set_front_end_value sets a value", async () => {
     const { store, commands } = await setup(keys);
-    await commands.run("blockr.core-set_value", { path: layout.path, value: "TB" });
+    await commands.run("blockr.core-set_front_end_value", { path: layout.path, value: "TB" });
     expect(store.board().front_end.state.extensions).toEqual({
       "blockr.dag-dag": { positions: {}, layout: "TB" },
     });
@@ -491,10 +491,10 @@ describe("the front-end's state", () => {
   test("are not enabled for a key that no package registered at the path, or one of the other kind", async () => {
     const { commands } = await setup(keys);
 
-    expect(commands.enabled("blockr.core-add_entry", { path: ["views"], entry: {} })).toBe(false);
-    expect(commands.enabled("blockr.core-add_entry", { path: layout.path, entry: {} })).toBe(false);
-    expect(commands.enabled("blockr.core-set_value", { path: positions.path, value: {} })).toBe(false);
-    expect(commands.enabled("blockr.core-change_entry", { path: positions.path, id: "a" })).toBe(false);
+    expect(commands.enabled("blockr.core-add_front_end_entry", { path: ["views"], entry: {} })).toBe(false);
+    expect(commands.enabled("blockr.core-add_front_end_entry", { path: layout.path, entry: {} })).toBe(false);
+    expect(commands.enabled("blockr.core-set_front_end_value", { path: positions.path, value: {} })).toBe(false);
+    expect(commands.enabled("blockr.core-change_front_end_entry", { path: positions.path, id: "a" })).toBe(false);
   });
 });
 
