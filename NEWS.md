@@ -109,13 +109,14 @@
   constructor now refuses. The fixed block holds its code as a string as well.
   A dataset block waits for a dataset, a merge block for the columns to join
   by and a scatter block for both of its columns, where each had a default
-  before. The glue block waits for a link, refers to an input whose link has
-  no name by its position among the inputs, as `...1`, where it used `.arg1`
-  before, and shows its text as printed text rather than as Markdown. The
-  upload block keeps each uploaded file in a folder of its own, in the
-  session's temporary directory or in the directory that the new blockr option
-  `upload_dir` names, and holds the file's path as its state, `file_path`. The
-  file browser lists directories through a request of its own (#423).
+  before. The glue block waits for a link, and its text refers to each input
+  by its link's name, so that an input whose link has no name, which it called
+  `.arg1` before, now makes the block fail. It shows its text as printed text
+  rather than as Markdown. The upload block keeps each uploaded file in a
+  folder of its own, in the session's temporary directory or in the directory
+  that the new blockr option `upload_dir` names, and holds the file's path as
+  its state, `file_path`. The file browser lists directories through a request
+  of its own (#423).
 
 # blockr.core 0.1.4
 

@@ -137,15 +137,13 @@ new_glue_block:
   category: utility
   details: Using [glue::glue()], this block allows evaluation of a text string in
     the context of datasets to produce text as block result. The text refers to an
-    input by the name of its link's input, as in `"{nrow(data)} rows"`. An input whose
-    link has no name goes by its position among the inputs, as `...1`, `...2` and
-    so on.
+    input by the name of its link's input, as in `"{nrow(data)} rows"`, so every link
+    into the block needs a name.
   link: https://bristolmyerssquibb.github.io/blockr.core/reference/new_glue_block.html
   icon: braces
   guidance: Interpolates a template against the input data with `glue::glue()` to
     produce text. Reference an input in `text` with braces, by the name of its link's
-    input, e.g. "{nrow(data)} rows", or, where the link has no name, by its position
-    among the inputs, as `...1`.
+    input, e.g. "{nrow(data)} rows". Every link into the block needs a name.
   keywords:
   - glue
   - template

@@ -31,18 +31,16 @@ and its constructor \code{new_glue_block()} makes a block of the class (see
 \details{
 Using \code{\link[glue:glue]{glue::glue()}}, this block allows evaluation of a text string in the
 context of datasets to produce text as block result. The text refers to an
-input by the name of its link's input, as in \code{"{nrow(data)} rows"}. An input
-whose link has no name goes by its position among the inputs, as \code{...1},
-\code{...2} and so on.
+input by the name of its link's input, as in \code{"{nrow(data)} rows"}, so every
+link into the block needs a name.
 }
 \section{Block class}{
 
-The block is variadic, so it waits for one link before it runs. Its \code{expr}
-returns a function of \code{...}, so that the block expression calls it with the
-upstream blocks in link order, an input whose link has no name as an
-unnamed argument. The function names each such input by its position and
-evaluates the template in an environment that binds every input by its
-name. Its results show as text, through \code{\link[=as_text_output]{as_text_output()}}.
+The block is variadic, so it waits for one link before it runs. Its block
+expression evaluates the text in an environment that binds every input by
+the name of its link's input. A text cannot refer to an input whose link
+has no name, so such an input makes the block fail. Its results show as
+text, through \code{\link[=as_text_output]{as_text_output()}}.
 }
 
 \examples{
