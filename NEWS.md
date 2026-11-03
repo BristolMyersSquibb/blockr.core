@@ -96,6 +96,11 @@
   `new_transform_block()`, with `validate_data_inputs()`. The methods of
   `blockr_ser()` and `blockr_deser()` for blocks go too, since neither works
   for a block of a block class (#423).
+* A function given as a block class's `inputs` signals an error where the
+  inputs do not fit and otherwise returns `NULL`. Any other value it returns
+  now fails the check too, so that a predicate that returns `FALSE` no longer
+  lets every input through. Core's blocks signal classed errors there, such as
+  `head_block_inputs_invalid` (#423).
 * Some built-in blocks change behavior. The static block takes an R expression
   as a string, in its argument `expression`, such as
   `new_static_block("datasets::iris")`, in place of a data frame, which its

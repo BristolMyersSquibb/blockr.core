@@ -4,7 +4,14 @@
 #' @export
 merge_block <- new_block_class(
   "merge_block",
-  inputs = function(x, y) stopifnot(is.data.frame(x), is.data.frame(y)),
+  inputs = function(x, y) {
+    if (!is.data.frame(x) || !is.data.frame(y)) {
+      blockr_abort(
+        "The merge block joins two data frames.",
+        class = "merge_block_inputs_invalid"
+      )
+    }
+  },
   expr = function(by, all_x = FALSE, all_y = FALSE) {
     if (!length(by)) {
       invalid("Choose at least one column to join by.")

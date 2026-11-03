@@ -21,11 +21,13 @@
 #' character vector names them, such as `"data"`, `c("x", "y")` or `"..."` for
 #' a variadic block, a list from [alist()] gives them as formals, and a
 #' function gives them as its formals and checks them in its body, as
-#' `function(data) stopifnot(is.data.frame(data))` does. No input has a
-#' default. A class names its UI module with `js_module()`, which keeps the
-#' module's path in the package's `inst/` and the package whose code calls it,
-#' for R to resolve when it serves the module, and which resolves the path
-#' against the working directory outside a package. A class further takes a
+#' `function(data) stopifnot(is.data.frame(data))` does. Such a function
+#' signals an error where the inputs do not fit and otherwise returns `NULL`,
+#' and any other value fails the check too. No input has a default. A class
+#' names its UI module with `js_module()`, which keeps the module's path in the
+#' package's `inst/` and the package whose code calls it, for R to resolve when
+#' it serves the module, and which resolves the path against the working
+#' directory outside a package. A class further takes a
 #' named list of `requests`, for what its UI asks of R, each a function or made
 #' by [new_block_request()], which names the board options it reads, and the
 #' coercion that makes an output from a result, as `output`. A field a class

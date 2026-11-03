@@ -4,7 +4,15 @@
 #' @export
 subset_block <- new_block_class(
   "subset_block",
-  inputs = function(data) stopifnot(is.data.frame(data)),
+  inputs = function(data) {
+    if (!is.data.frame(data)) {
+      blockr_abort(
+        "The subset block takes a data frame, not an object of class ",
+        "{class(data)[1L]}.",
+        class = "subset_block_inputs_invalid"
+      )
+    }
+  },
   expr = function(subset = "", select = "") {
     args <- list(
       if (nzchar(trimws(subset))) str2lang(subset),

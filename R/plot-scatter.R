@@ -4,7 +4,15 @@
 #' @export
 scatter_block <- new_block_class(
   "scatter_block",
-  inputs = function(data) stopifnot(is.data.frame(data)),
+  inputs = function(data) {
+    if (!is.data.frame(data)) {
+      blockr_abort(
+        "The scatter block plots columns of a data frame, not of an object of ",
+        "class {class(data)[1L]}.",
+        class = "scatter_block_inputs_invalid"
+      )
+    }
+  },
   expr = function(x, y) {
     bbquote(plot(.(data)[[.(x)]], .(data)[[.(y)]], xlab = .(x), ylab = .(y)))
   },

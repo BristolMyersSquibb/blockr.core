@@ -28,6 +28,8 @@ test_that("a csv block reads the file its input names", {
 
     expect_identical(res[["status"]], "error")
     expect_identical(res[["conditions"]][[1L]][["phase"]], "inputs")
+    expect_contains(res[["conditions"]][[1L]][["class"]],
+                    "csv_block_inputs_invalid")
   }
 })
 

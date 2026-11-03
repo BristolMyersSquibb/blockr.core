@@ -45,6 +45,8 @@ test_that("a merge block is invalid until it joins by a column", {
 
   expect_identical(res[["status"]], "error")
   expect_identical(res[["conditions"]][[1L]][["phase"]], "inputs")
+  expect_contains(res[["conditions"]][[1L]][["class"]],
+                  "merge_block_inputs_invalid")
 })
 
 test_that("a merge block asks for the columns its inputs share", {

@@ -127,11 +127,13 @@ filebrowser_volumes <- function(default = c(home = path.expand("~"))) {
     }
   }
 
-  stopifnot(
-    is.character(res),
-    length(res) >= 1L,
-    length(unique(names(res))) == length(res)
-  )
+  if (!is.character(res) || !length(res) || anyDuplicated(names(res))) {
+    blockr_abort(
+      "The file browser's volumes are expected as one or more paths, each ",
+      "under a name of its own.",
+      class = "filebrowser_volumes_invalid"
+    )
+  }
 
   res
 }

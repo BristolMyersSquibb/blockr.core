@@ -11,7 +11,8 @@
 #' An `invalid()` that `expr` or a `block_eval()` method signals, or an unset
 #' arg that the body of `expr` uses or interpolation fills in, makes R run
 #' nothing and report the status `invalid`, while a failed check in `inputs`,
-#' or any other error, reports `error`, and a block that runs reports `ok`.
+#' or any other error, reports `error`, and a block that runs reports `ok`. A
+#' check in `inputs` returns `NULL`, and any other value fails it too.
 #' Every condition raised on the way is recorded with its severity, its class,
 #' its message and the phase that raised it: `inputs`, `expr`, which covers
 #' interpolation, `block_eval` or `result_summary`. Warnings and messages are
@@ -81,7 +82,7 @@ evaluate_block <- function(x, state = list(), inputs = list(),
 
   checks <- run_phase(
     "inputs",
-    if (is.function(cls[["inputs"]])) do.call(cls[["inputs"]], data)
+    if (is.function(cls[["inputs"]])) check_inputs(cls, data)
   )
 
   if (phase_failed(checks)) {
@@ -130,6 +131,25 @@ evaluate_block <- function(x, state = list(), inputs = list(),
     summary = summary[["value"]],
     conditions = c(conditions, summary[["conditions"]])
   )
+}
+
+# The checks of a function given as a class's inputs, which signal an error
+# where the inputs do not fit and otherwise return NULL, so that a predicate
+# that returns FALSE fails rather than letting every input through
+check_inputs <- function(cls, data) {
+
+  res <- do.call(cls[["inputs"]], data)
+
+  if (!is.null(res)) {
+    blockr_abort(
+      "The inputs check of block class {cls[['class']][1L]} is expected to ",
+      "return `NULL` and to signal an error where the inputs do not fit, but ",
+      "it returned an object of class {class(res)[1L]}.",
+      class = "block_inputs_check_invalid"
+    )
+  }
+
+  invisible()
 }
 
 as_block_class <- function(x) {

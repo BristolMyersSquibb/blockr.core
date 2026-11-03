@@ -27,6 +27,12 @@ test_that("filebrowser block constructor", {
 
   expect_type(vols, "character")
   expect_named(vols, c("volume1", "volume2"))
+
+  expect_error(
+    filebrowser_volumes(c(a = "foo", a = "bar")),
+    class = "filebrowser_volumes_invalid"
+  )
+  expect_error(filebrowser_volumes(1), class = "filebrowser_volumes_invalid")
 })
 
 test_that("a file browser block gives the path of its file", {

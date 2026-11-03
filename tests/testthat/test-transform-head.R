@@ -35,6 +35,8 @@ test_that("head block expression and request", {
 
   expect_identical(res[["status"]], "error")
   expect_identical(res[["conditions"]][[1L]][["phase"]], "inputs")
+  expect_contains(res[["conditions"]][[1L]][["class"]],
+                  "head_block_inputs_invalid")
 
   expect_identical(
     run_block_request(head_block, "n_max", list(data = datasets::BOD)),

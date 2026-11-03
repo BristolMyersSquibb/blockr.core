@@ -124,6 +124,31 @@ test_that("failed checks and errors report error, by phase", {
   )
 })
 
+test_that("an inputs check returns NULL, and any other value fails it", {
+
+  predicate <- new_block_class(
+    "predicate_block",
+    inputs = function(data) is.data.frame(data),
+    expr = function() bbquote(.(data)),
+    ui = js_module("predicate.js")
+  )
+
+  for (input in list(1:3, datasets::BOD)) {
+
+    res <- evaluate_block(predicate, list(), list(data = "a"),
+                          list(a = input))
+
+    expect_identical(res$status, "error")
+    expect_identical(res$conditions[[1L]]$phase, "inputs")
+    expect_contains(res$conditions[[1L]]$class, "block_inputs_check_invalid")
+  }
+
+  res <- evaluate_block(head_class, list(), list(data = "a"),
+                        list(a = datasets::BOD))
+
+  expect_identical(res$status, "ok")
+})
+
 test_that("warnings and messages are recorded with their phase", {
 
   noisy <- new_block_class(

@@ -40,6 +40,8 @@ test_that("a scatter block captures the plot it draws", {
 
   expect_identical(res[["status"]], "error")
   expect_identical(res[["conditions"]][[1L]][["phase"]], "inputs")
+  expect_contains(res[["conditions"]][[1L]][["class"]],
+                  "scatter_block_inputs_invalid")
 
   expect_identical(
     run_block_request(scatter_block, "columns", list(data = datasets::BOD)),

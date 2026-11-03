@@ -4,7 +4,14 @@
 #' @export
 csv_block <- new_block_class(
   "csv_block",
-  inputs = function(file) stopifnot(is_string(file), file.exists(file)),
+  inputs = function(file) {
+    if (!is_string(file) || !file.exists(file)) {
+      blockr_abort(
+        "The CSV block reads a file, which its input names by its path.",
+        class = "csv_block_inputs_invalid"
+      )
+    }
+  },
   expr = function(sep = ",", quote = "\"") {
     bbquote(
       utils::read.table(.(file), header = TRUE, sep = .(sep), quote = .(quote),

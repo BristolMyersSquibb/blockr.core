@@ -4,7 +4,15 @@
 #' @export
 head_block <- new_block_class(
   "head_block",
-  inputs = function(data) stopifnot(is.data.frame(data)),
+  inputs = function(data) {
+    if (!is.data.frame(data)) {
+      blockr_abort(
+        "The head block takes a data frame, not an object of class ",
+        "{class(data)[1L]}.",
+        class = "head_block_inputs_invalid"
+      )
+    }
+  },
   expr = function(n = 6L, direction = c("head", "tail")) {
     direction <- match.arg(direction)
     fn <- if (direction == "tail") quote(utils::tail) else quote(utils::head)

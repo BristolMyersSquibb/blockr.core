@@ -40,6 +40,13 @@ test_that("a subset block puts its expressions in its block expression", {
   expect_identical(res[["expr"]], quote(subset(a)))
   expect_identical(res[["result"]], datasets::iris)
 
+  res <- evaluate_block(subset_block, list(), list(data = "a"),
+                        list(a = letters))
+
+  expect_identical(res[["status"]], "error")
+  expect_contains(res[["conditions"]][[1L]][["class"]],
+                  "subset_block_inputs_invalid")
+
   res <- run(list(subset = "Sepal.Width >", select = ""))
 
   expect_identical(res[["status"]], "error")

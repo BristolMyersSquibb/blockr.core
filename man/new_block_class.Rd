@@ -105,11 +105,13 @@ The data inputs, apart from the state args, are given as \code{inputs}: a
 character vector names them, such as \code{"data"}, \code{c("x", "y")} or \code{"..."} for
 a variadic block, a list from \code{\link[=alist]{alist()}} gives them as formals, and a
 function gives them as its formals and checks them in its body, as
-\code{function(data) stopifnot(is.data.frame(data))} does. No input has a
-default. A class names its UI module with \code{js_module()}, which keeps the
-module's path in the package's \verb{inst/} and the package whose code calls it,
-for R to resolve when it serves the module, and which resolves the path
-against the working directory outside a package. A class further takes a
+\code{function(data) stopifnot(is.data.frame(data))} does. Such a function
+signals an error where the inputs do not fit and otherwise returns \code{NULL},
+and any other value fails the check too. No input has a default. A class
+names its UI module with \code{js_module()}, which keeps the module's path in the
+package's \verb{inst/} and the package whose code calls it, for R to resolve when
+it serves the module, and which resolves the path against the working
+directory outside a package. A class further takes a
 named list of \code{requests}, for what its UI asks of R, each a function or made
 by \code{\link[=new_block_request]{new_block_request()}}, which names the board options it reads, and the
 coercion that makes an output from a result, as \code{output}. A field a class
