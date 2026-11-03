@@ -670,10 +670,16 @@ function refusal(command: string, failures: readonly string[]): CommandError {
 }
 
 // One of core's commands, with its args typed as their schema types them, which
-// the command registry checks them against before it calls the command.
+// the command registry checks them against before it calls the command. Its
+// methods are bound to it, so that they read its id as `this.id` however they
+// are called, such as once a caller has taken `run` off the command.
 function command<A extends Json>(
   def: Command<A> & ThisType<Command<A>>,
 ): Command<Json, unknown> {
-  return def;
+  return {
+    ...def,
+    run: def.run.bind(def),
+    ...(def.enabled === undefined ? {} : { enabled: def.enabled.bind(def) }),
+  };
 }
 

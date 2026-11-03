@@ -128,6 +128,15 @@ describe("blocks", () => {
     expect(store.board().blocks.a?.state).toEqual({ dataset: "iris", package: "datasets" });
   });
 
+  test("runs where its run() is called on its own, off the command", async () => {
+    const { store, commands } = await setup();
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- takes run() off the command on purpose
+    const { run } = commands.registered()["blockr.core-add_block"] ?? {};
+    expect(() => run?.(store.board(), { registry_id: "blockr.dplyr-filter_block" })).toThrow(
+      'The command "blockr.core-add_block" refused to run',
+    );
+  });
+
   test("set_block makes no step where nothing changes", async () => {
     const { store, commands } = await setup();
     await commands.run("blockr.core-set_block", { id: "b", state: { n: 6 }, unset: ["x"] });
