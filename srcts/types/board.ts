@@ -1,9 +1,8 @@
-// The board the client holds: plain data, which serializes as it is. It
-// records its own class vector, as R gives it, from which R resolves the
-// front-end that draws it, and it names each block's class by id. Its types
-// are read-only, so that nothing changes a board in place: the store makes a
-// new board for every change, sharing what did not change, as copy-on-modify
-// did in R.
+// The board the client holds: plain data, which serializes as it is and names
+// the front-end it is made for and each block's class by id, so that no object
+// in it carries an R class. Its types are read-only, so that nothing changes a
+// board in place: the store makes a new board for every change, sharing what
+// did not change, as copy-on-modify did in R.
 
 import type { Json } from "./json.ts";
 
@@ -24,10 +23,6 @@ export interface FrontEndState {}
 
 export interface Board {
   readonly id: string;
-  // Its class vector, as R gives it, most specific class first, as
-  // ["dock_board", "board"], from which R resolves the front-end that draws
-  // it, as S3 dispatch would.
-  readonly class: readonly string[];
   readonly front_end: FrontEnd;
   readonly name: string;
   readonly blocks: Readonly<Record<BlockId, Block>>;
@@ -38,8 +33,7 @@ export interface Board {
 }
 
 export interface FrontEnd {
-  // The id of the front-end that R resolved from the board's class, such as
-  // "blockr.dock-dock".
+  // The id of the front-end the board is made for, such as "blockr.dock-dock".
   readonly id: string;
   // The keys that front-ends add to FrontEndState, and those of packages whose
   // types a module does not import.
@@ -85,7 +79,6 @@ export interface SavedBoard {
 // opens the board.
 export interface OpeningBoard {
   readonly id?: string;
-  readonly class: readonly string[];
   readonly front_end: FrontEnd;
   readonly name?: string;
   readonly blocks: readonly (Block & { readonly id?: BlockId })[];

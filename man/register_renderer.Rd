@@ -7,7 +7,7 @@
 \usage{
 register_renderer(name, module, class = NULL, option = NULL, requests = NULL)
 
-pick_renderers(front_end)
+pick_renderers()
 }
 \arguments{
 \item{name}{The name part of the renderer's ID}
@@ -20,9 +20,6 @@ pick_renderers(front_end)
 
 \item{requests}{A named list of the renderer's own requests, each a
 function, which only a renderer of an output class has}
-
-\item{front_end}{The ID of the front-end that draws the board, as
-\code{\link[=board_front_end]{board_front_end()}} gives it}
 }
 \value{
 The declaration \code{register_renderer()} returns the renderer's entry
@@ -57,16 +54,16 @@ request and a request of the output class may share a name, and neither
 hides the other.
 
 R picks one renderer for each output class and each board option with
-\code{pick_renderers()}, for the front-end that \code{\link[=board_front_end]{board_front_end()}} gives for
-the board that the client draws. The pick takes the renderer of the first
-of these steps that has one:
+\code{pick_renderers()}, whatever the board and its front-end, so that any
+package can supply a renderer, such as a richer table. The pick takes the
+renderer of the first of these steps that has one:
 \enumerate{
 \item The renderer that the blockr option \code{renderers} names for the output
 class or board option, by ID, as
 \code{options(blockr.renderers = c(table_output = "blockr.core-basic_table"))}
 does (see \code{\link[=blockr_option]{blockr_option()}}).
-\item A renderer that the package of the board's front-end declares.
-\item A renderer that another package declares.
+\item A renderer that a package declares, other than the package that defines
+the output class.
 \item For an output class, a renderer that the package which defines the class
 declares.
 }
@@ -93,6 +90,6 @@ register_renderer(
 )
 }
 
-names(pick_renderers("blockr.core-basic"))
+names(pick_renderers())
 
 }

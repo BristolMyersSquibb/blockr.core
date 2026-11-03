@@ -1,12 +1,7 @@
 {
-  "description": "Opening a saved board in place of the board on the page, which the client does itself. It sends R only the packages that the board names, as its saved file lists them, and the board's class vector. R loads the packages it has not, here blockr.io, which registers its write block, forgets every block, and resolves the front-end from the class vector, here core's basic one, for which it picks the renderers again. It replies with what the client needs to draw the blocks of every package it has loaded: their versions, the block registry, the front-end it resolved, blockr.io's startup module, the renderers and the rest. The client then drops what no registered class or package covers, runs the migrations of the packages whose version the file records differs from the one R loaded, and replaces its board.",
+  "description": "Opening a saved board in place of the board on the page, which the client does itself. It sends R only the packages the board names, as its saved file lists them, and R loads the ones it has not, here blockr.io, which registers its write block, forgets every block, and replies with what the client needs to draw the blocks of every package it has loaded: their versions, the block registry, blockr.io's startup module and the rest. The client then drops what no registered class or package covers, runs the migrations of the packages whose version the file records differs from the one R loaded, and replaces its board.",
   "client": [
-    {
-      "id": "2",
-      "kind": "open",
-      "packages": ["blockr.core", "blockr.io"],
-      "class": ["board"]
-    }
+    { "id": "2", "kind": "open", "packages": ["blockr.core", "blockr.io"] }
   ],
   "r": [
     [
@@ -125,7 +120,6 @@
             "requests": {}
           }
         },
-        "front_end": "blockr.core-basic",
         "front_ends": {
           "blockr.core-basic": {
             "module": "blockr.core/basic.js?v=0f3d8e21",

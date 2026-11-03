@@ -161,7 +161,6 @@ function file(
     packages,
     board: {
       id: "amber_tapir",
-      class: ["board"],
       front_end: { id: "blockr.core-basic", state: {}, attrs: {} },
       name: "Cars",
       blocks: {
@@ -261,9 +260,7 @@ describe("opening a board", () => {
       ),
     );
 
-    expect(client.sent).toEqual([
-      { kind: "open", packages: ["blockr.core", "blockr.dplyr"], class: ["board"] },
-    ]);
+    expect(client.sent).toEqual([{ kind: "open", packages: ["blockr.core", "blockr.dplyr"] }]);
     expect(store.blockRegistry()).toBe(loaded.block_registry);
     expect(store.packages()).toBe(loaded.packages);
     expect(dropped).toEqual([
@@ -346,12 +343,10 @@ describe("opening a board", () => {
     expect(positionsOf(store.board())).toEqual({ a: { x: 0, y: 0 } });
   });
 
-  test("opens a board with the front-end that R resolved from its class, dropping what it does not know", async () => {
-    const client = fakeR();
-    const store = await opened(undefined, client);
+  test("opens a board made for a front-end that R serves no module for as one made for core's, dropping what it does not know", async () => {
+    const store = await opened();
     const dropped = await store.open(
       file({
-        class: ["dock_board", "board"],
         front_end: {
           id: "blockr.dock-dock",
           state: {
@@ -373,38 +368,12 @@ describe("opening a board", () => {
       }),
     );
 
-    expect(client.sent).toEqual([
-      { kind: "open", packages: ["blockr.core"], class: ["dock_board", "board"] },
-    ]);
     expect(dropped).toEqual([{ front_end: "blockr.dock-dock", package: "blockr.dock" }]);
 
     const board = store.board();
     expect(board.front_end).toEqual({ id: "blockr.core-basic", state: {}, attrs: {} });
     expect(board.blocks.a?.attrs).toEqual({ visible: ["outputs"] });
     expect(board.options).toEqual({ n_rows: 20 });
-  });
-
-  test("opens a board with the front-end of the nearest class that R resolved, not its own", async () => {
-    const answer: OpenReply = {
-      ...loaded,
-      front_end: "blockr.dock-dock",
-      front_ends: { ...loaded.front_ends, "blockr.dock-dock": { module: "blockr.dock/dock.js?v=1" } },
-    };
-    const client = fakeR(answer);
-    const store = await opened(undefined, client);
-    const dropped = await store.open(
-      file({
-        class: ["foo_board", "dock_board", "board"],
-        front_end: { id: "blockr.foo-foo", state: {}, attrs: {} },
-      }),
-    );
-
-    expect(client.sent).toEqual([
-      { kind: "open", packages: ["blockr.core"], class: ["foo_board", "dock_board", "board"] },
-    ]);
-    expect(dropped).toEqual([{ front_end: "blockr.foo-foo", package: "blockr.foo" }]);
-    expect(store.board().front_end.id).toBe("blockr.dock-dock");
-    expect(store.board().class).toEqual(["foo_board", "dock_board", "board"]);
   });
 
   test("drops front-end state that no package registered, without naming it", async () => {
@@ -473,7 +442,6 @@ describe("opening a board", () => {
       status: "ok",
       packages: replied.packages,
       block_registry: replied.block_registry,
-      front_end: replied.front_end,
       front_ends: replied.front_ends,
       startup_modules: replied.startup_modules,
       modules: replied.modules,

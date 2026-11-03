@@ -26,17 +26,17 @@ declared_renderers <- new.env()
 #' hides the other.
 #'
 #' R picks one renderer for each output class and each board option with
-#' `pick_renderers()`, for the front-end that [board_front_end()] gives for
-#' the board that the client draws. The pick takes the renderer of the first
-#' of these steps that has one:
+#' `pick_renderers()`, whatever the board and its front-end, so that any
+#' package can supply a renderer, such as a richer table. The pick takes the
+#' renderer of the first of these steps that has one:
 #'
 #' 1. The renderer that the blockr option `renderers` names for the output
 #'    class or board option, by ID, as
 #'    `options(blockr.renderers = c(table_output = "blockr.core-basic_table"))`
 #'    does (see [blockr_option()]).
-#' 2. A renderer that the package of the board's front-end declares.
-#' 3. A renderer that another package declares.
-#' 4. For an output class, a renderer that the package which defines the class
+#' 2. A renderer that a package declares, other than the package that defines
+#'    the output class.
+#' 3. For an output class, a renderer that the package which defines the class
 #'    declares.
 #'
 #' Two renderers at one step are an error naming both, which the app settles
@@ -54,8 +54,6 @@ declared_renderers <- new.env()
 #' @param option The ID of the board option that the renderer draws
 #' @param requests A named list of the renderer's own requests, each a
 #'   function, which only a renderer of an output class has
-#' @param front_end The ID of the front-end that draws the board, as
-#'   [board_front_end()] gives it
 #'
 #' @examples
 #' \dontrun{
@@ -70,7 +68,7 @@ declared_renderers <- new.env()
 #' )
 #' }
 #'
-#' names(pick_renderers("blockr.core-basic"))
+#' names(pick_renderers())
 #'
 #' @return The declaration `register_renderer()` returns the renderer's entry
 #' invisibly, a list holding its `id`, `name`, `package`, `module`, `class`,
@@ -152,25 +150,16 @@ register_renderer <- function(name, module, class = NULL, option = NULL,
 
 #' @rdname register_renderer
 #' @export
-pick_renderers <- function(front_end) {
-
-  if (!is_string(front_end)) {
-    blockr_abort(
-      "A front-end is named by its ID, a string.",
-      class = "front_end_invalid"
-    )
-  }
+pick_renderers <- function() {
 
   entries <- lapply(set_names(nm = list_renderers()), get_renderer)
   chosen <- chosen_renderers(entries)
 
-  front <- get_front_end(front_end)
-
   picked <- c(
     chr_ply(unique(unlst(lst_xtr(entries, "class"))), pick_renderer,
-            entries, "class", chosen, front[["package"]]),
+            entries, "class", chosen),
     chr_ply(unique(unlst(lst_xtr(entries, "option"))), pick_renderer,
-            entries, "option", chosen, front[["package"]])
+            entries, "option", chosen)
   )
 
   entries[names(entries) %in% picked]
@@ -180,7 +169,7 @@ pick_renderers <- function(front_end) {
 # says, from those declared for it, by the steps of the pick, which
 # `register_renderer()` gives. Every renderer declared for it falls into one
 # step, so the pick finds one.
-pick_renderer <- function(target, entries, what, chosen, front_pkg) {
+pick_renderer <- function(target, entries, what, chosen) {
 
   named <- chosen[names(chosen) == target]
   cands <- entries[lgl_ply(lst_xtr(entries, what), identical, target)]
@@ -195,11 +184,7 @@ pick_renderer <- function(target, entries, what, chosen, front_pkg) {
     output_class_entry(target)[["package"]]
   }
 
-  steps <- list(
-    pkgs %in% front_pkg,
-    !pkgs %in% c(front_pkg, owner),
-    pkgs %in% owner
-  )
+  steps <- list(!pkgs %in% owner, pkgs %in% owner)
 
   for (step in steps) {
 

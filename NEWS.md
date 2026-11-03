@@ -86,16 +86,12 @@
   one output class or one board option. A renderer of an output class may
   bring requests of its own, which `run_output_class_request()` runs when
   given the renderer. R picks one renderer for each output class and each
-  board option with `pick_renderers()`, for the front-end of the board that
-  the client draws: the one that the blockr option `renderers` names, else one
-  that the front-end's package declares, else one of another package, and for
-  an output class otherwise one that the package defining the class declares.
-  Two renderers at one step are an error naming both. Core declares
-  `blockr.core-basic_table`, `blockr.core-basic_text` and
-  `blockr.core-basic_plot` for its output classes. The function
-  `board_front_end()` takes a board's class vector as well as a board, since a
-  board that the client opens records its class vector rather than being an R
-  object (#425).
+  board option with `pick_renderers()`, whatever the board's front-end: the
+  one that the blockr option `renderers` names, else one that another package
+  declares, and for an output class otherwise one that the package defining
+  the class declares. Two renderers at one step are an error naming both. Core
+  declares `blockr.core-basic_table`, `blockr.core-basic_text` and
+  `blockr.core-basic_plot` for its output classes (#425).
 
 # blockr.core 0.1.4
 

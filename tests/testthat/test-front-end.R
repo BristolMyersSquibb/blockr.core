@@ -56,33 +56,6 @@ test_that("a board's front-end is the one of its most specific class", {
   )
 })
 
-test_that("a class vector resolves to a front-end as its board does", {
-
-  local_declared(declared_front_ends)
-
-  register_front_end("dock", test_module("dock.js"), class = "dock_board")
-
-  expect_identical(
-    board_front_end(c("foo_board", "dock_board", "board")),
-    "blockr.test-dock"
-  )
-  expect_identical(
-    board_front_end(c("foo_board", "dock_board", "board")),
-    board_front_end(new_board(class = c("foo_board", "dock_board")))
-  )
-  expect_identical(board_front_end("board"), "blockr.core-basic")
-
-  rm(list = "blockr.test-dock", envir = declared_front_ends)
-
-  expect_identical(
-    board_front_end(c("foo_board", "dock_board", "board")),
-    "blockr.core-basic"
-  )
-
-  expect_error(board_front_end("foo_board"), class = "front_end_missing")
-  expect_error(board_front_end(character()), class = "front_end_missing")
-})
-
 test_that("R picks the front-end of a board read from today's stack", {
 
   brd <- blockr_deser(blockr_ser(new_board(name = "My board")))

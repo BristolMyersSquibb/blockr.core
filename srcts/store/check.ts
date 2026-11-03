@@ -28,9 +28,6 @@ export function check(
   if (typeof board.name !== "string") {
     failures.push("The board's name is no string.");
   }
-  if (!Array.isArray(board.class) || !board.class.every((cls) => typeof cls === "string")) {
-    failures.push("The board's class is no array of strings.");
-  }
   if (typeof board.front_end.id !== "string") {
     failures.push("The board names no front-end by its id.");
   }
