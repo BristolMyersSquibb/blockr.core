@@ -38,15 +38,22 @@ each listed state runs on the sample inputs and, where every one does,
 records the answer of each listed request call and keeps both as a testthat
 file snapshot (see
 \code{\link[testthat:expect_snapshot_file]{testthat::expect_snapshot_file()}}), \verb{_snaps/<test file>/<name>.json} in
-the package's \verb{tests/testthat/}, which the module tests read. A change to
-what a request answers then fails the test until the snapshot is accepted.
+the package's \verb{tests/testthat/}. The module tests read it through the stub
+of the block's host that core ships, \code{stubBlockHost()} of
+\verb{@blockr/core/stubs}, which answers the module's requests from it and
+refuses a submit of a state it does not list. A change to what a request
+answers then fails the test until the snapshot is accepted.
 }
 \details{
-The fixture is a JSON object holding the \code{states}, each written as R writes
-a message, with a value of length one bare but where \code{\link[=I]{I()}} keeps it an
-array, and the \code{requests}, each with its \code{name}, the \code{args} and \code{options}
-it was called with, and its \code{answer}, written with every vector as an
-array, as R writes a request's answer.
+The fixture is a JSON object holding the \code{states} and the \code{requests}. Each
+state is written as a block given those args holds it, as its constructor
+takes it from the frame \code{expr} ran in (see \code{\link[=block_constructor]{block_constructor()}}), so that
+an arg left out takes its default, and by the JSON Schema that the class's
+UI module ships, where it ships one. A module test then compares the state
+a module submits with it as it is. Without a schema, a value of length one
+is written bare, but where \code{\link[=I]{I()}} keeps it an array. Each request is written
+with its \code{name}, the \code{args} and \code{options} it was called with, and its
+\code{answer}, with every vector as an array, as R writes a request's answer.
 
 In a test file, such as \code{tests/testthat/test-head-block.R}:
 

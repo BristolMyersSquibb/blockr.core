@@ -8,14 +8,21 @@
 #' records the answer of each listed request call and keeps both as a testthat
 #' file snapshot (see
 #' [testthat::expect_snapshot_file()]), `_snaps/<test file>/<name>.json` in
-#' the package's `tests/testthat/`, which the module tests read. A change to
-#' what a request answers then fails the test until the snapshot is accepted.
+#' the package's `tests/testthat/`. The module tests read it through the stub
+#' of the block's host that core ships, `stubBlockHost()` of
+#' `@blockr/core/stubs`, which answers the module's requests from it and
+#' refuses a submit of a state it does not list. A change to what a request
+#' answers then fails the test until the snapshot is accepted.
 #'
-#' The fixture is a JSON object holding the `states`, each written as R writes
-#' a message, with a value of length one bare but where [I()] keeps it an
-#' array, and the `requests`, each with its `name`, the `args` and `options`
-#' it was called with, and its `answer`, written with every vector as an
-#' array, as R writes a request's answer.
+#' The fixture is a JSON object holding the `states` and the `requests`. Each
+#' state is written as a block given those args holds it, as its constructor
+#' takes it from the frame `expr` ran in (see [block_constructor()]), so that
+#' an arg left out takes its default, and by the JSON Schema that the class's
+#' UI module ships, where it ships one. A module test then compares the state
+#' a module submits with it as it is. Without a schema, a value of length one
+#' is written bare, but where [I()] keeps it an array. Each request is written
+#' with its `name`, the `args` and `options` it was called with, and its
+#' `answer`, with every vector as an array, as R writes a request's answer.
 #'
 #' In a test file, such as `tests/testthat/test-head-block.R`:
 #'
@@ -62,7 +69,7 @@ expect_block_fixture <- function(x, states, inputs = list(), requests = list(),
   writeLines(
     json_str(
       list(
-        states = lapply(states, as_json_object),
+        states = lapply(states, fixture_state, cls),
         requests = lapply(requests, record_request, cls, inputs)
       ),
       auto_unbox = TRUE,
@@ -94,6 +101,10 @@ state_runs <- function(i, states, cls, ids) {
   )
 
   ok
+}
+
+fixture_state <- function(state, cls) {
+  as_json_object(shape_by_schema(expr_state(cls, state), class_schema(cls)))
 }
 
 sample_input_ids <- function(inputs) {

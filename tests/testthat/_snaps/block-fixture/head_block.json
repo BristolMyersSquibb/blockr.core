@@ -5,7 +5,8 @@
       "direction": "head"
     },
     {
-      "n": 2
+      "n": 2,
+      "direction": "head"
     }
   ],
   "requests": [
