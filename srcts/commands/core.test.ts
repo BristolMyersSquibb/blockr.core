@@ -157,7 +157,7 @@ describe("blocks", () => {
 });
 
 describe("appending, prepending and inserting", () => {
-  test("append_block adds a block that takes a block's result into its first input", async () => {
+  test("append_block adds a block that takes a block's result into its only input", async () => {
     const { store, commands } = await setup();
     const board = store.board();
 
@@ -173,6 +173,18 @@ describe("appending, prepending and inserting", () => {
     await expect(
       commands.run("blockr.core-append_block", { from: "d", registry_id: "blockr.core-dataset_block" }),
     ).rejects.toThrow('The block class "blockr.core-dataset_block" has no input to take a link.');
+  });
+
+  test("append_block takes the input given where the new block has several, and refuses to pick one", async () => {
+    const { store, commands } = await setup();
+    const merge = { from: "d", registry_id: "blockr.core-merge_block", id: "joined" };
+
+    await expect(commands.run("blockr.core-append_block", merge)).rejects.toThrow(
+      'The block class "blockr.core-merge_block" has the inputs "x" and "y", so the args have to name the one to use.',
+    );
+
+    await commands.run("blockr.core-append_block", { ...merge, input: "y" });
+    expect(inputs(store.board(), "joined")).toEqual([["d", "y"]]);
   });
 
   test("prepend_block adds a block whose result goes to a block's free input, in link order where it is variadic", async () => {
@@ -197,6 +209,21 @@ describe("appending, prepending and inserting", () => {
     const { commands } = await setup();
     expect(commands.enabled("blockr.core-prepend_block", { to: "b", registry_id: head })).toBe(false);
     expect(commands.enabled("blockr.core-prepend_block", { to: "e", registry_id: head })).toBe(true);
+  });
+
+  test("prepend_block refuses to pick one of several free inputs", async () => {
+    const { store, commands } = await setup();
+    await commands.run("blockr.core-remove_link", { id: "ac" });
+    await commands.run("blockr.core-remove_link", { id: "bc" });
+    const top = { to: "c", registry_id: head, id: "top" };
+
+    expect(commands.enabled("blockr.core-prepend_block", top)).toBe(true);
+    await expect(commands.run("blockr.core-prepend_block", top)).rejects.toThrow(
+      'The block "c" has the free inputs "x" and "y", so the args have to name the one to use.',
+    );
+
+    await commands.run("blockr.core-prepend_block", { ...top, input: "y" });
+    expect(inputs(store.board(), "c")).toEqual([["top", "y"]]);
   });
 
   test("insert_block puts a block on a link, whose input the new link takes in its place among the links", async () => {
@@ -229,10 +256,23 @@ describe("appending, prepending and inserting", () => {
       ["b", "y"],
     ]);
   });
+
+  test("insert_block takes the input given where the new block has several, and refuses to pick one", async () => {
+    const { store, commands } = await setup();
+    const merge = { link: "ab", registry_id: "blockr.core-merge_block", id: "joined" };
+
+    await expect(commands.run("blockr.core-insert_block", merge)).rejects.toThrow(
+      'The block class "blockr.core-merge_block" has the inputs "x" and "y", so the args have to name the one to use.',
+    );
+
+    await commands.run("blockr.core-insert_block", { ...merge, input: "x" });
+    expect(inputs(store.board(), "joined")).toEqual([["a", "x"]]);
+    expect(inputs(store.board(), "b")).toEqual([["joined", "data"]]);
+  });
 });
 
 describe("links", () => {
-  test("add_link goes to the only input of a unary block, the first free one of a block of fixed arity, and in link order into a variadic block", async () => {
+  test("add_link goes to the only free input of a block of fixed arity, and in link order into a variadic block", async () => {
     const { store, commands } = await setup();
 
     await commands.run("blockr.core-remove_link", { id: "ab" });
@@ -245,6 +285,20 @@ describe("links", () => {
 
     await commands.run("blockr.core-add_link", { from: "c", to: "e", id: "ce" });
     expect(store.board().links.ce).toEqual({ from: "c", to: "e", input: "" });
+  });
+
+  test("add_link refuses to pick one of several free inputs, naming them, and takes the one given", async () => {
+    const { store, commands } = await setup();
+    await commands.run("blockr.core-remove_link", { id: "ac" });
+    await commands.run("blockr.core-remove_link", { id: "bc" });
+
+    expect(commands.enabled("blockr.core-add_link", { from: "d", to: "c" })).toBe(true);
+    await expect(commands.run("blockr.core-add_link", { from: "d", to: "c" })).rejects.toThrow(
+      'The block "c" has the free inputs "x" and "y", so the args have to name the one to use.',
+    );
+
+    await commands.run("blockr.core-add_link", { from: "d", to: "c", input: "y", id: "dc" });
+    expect(store.board().links.dc).toEqual({ from: "d", to: "c", input: "y" });
   });
 
   test("add_link is not enabled for a block whose inputs links feed", async () => {
@@ -260,7 +314,7 @@ describe("links", () => {
     );
   });
 
-  test("change_link keeps the input where the link goes to the same block, and finds a free one where it goes to another", async () => {
+  test("change_link keeps the input where the link goes to the same block, and takes the only free one where it goes to another", async () => {
     const { store, commands } = await setup();
 
     await commands.run("blockr.core-change_link", { id: "bc", from: "d" });

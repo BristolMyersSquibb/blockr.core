@@ -16,7 +16,15 @@ import { mintId, sentenceCase } from "../store/ids.ts";
 import { compile } from "../store/registrations.ts";
 import type { Attribute, StateKey, Validate } from "../store/registrations.ts";
 import type { Store } from "../store/store.ts";
-import { getAt, isObject, jsonEqual, own, packageOf, without } from "../store/util.ts";
+import {
+  getAt,
+  isObject,
+  jsonEqual,
+  own,
+  packageOf,
+  quoted,
+  without,
+} from "../store/util.ts";
 import type {
   Block,
   BlockId,
@@ -103,50 +111,65 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
     ];
   }
 
-  // The input of block `to` that a new link goes to: the one given, and
-  // otherwise, for a block of fixed arity, its first input that no link feeds,
-  // which for a unary block is its only one, or, for a variadic block, an empty
-  // input, which takes its link in link order. The link `except`, which is
-  // about to change, feeds nothing.
-  function inputOf(board: Board, to: BlockId, given?: string, except?: LinkId): string | undefined {
-    if (given !== undefined && given !== "") return given;
+  // The inputs of block `to` that no link feeds, or undefined where the board
+  // lacks the block or the block registry its class. A variadic block's is an
+  // empty input, which takes its link in link order. The link `except`, which
+  // is about to change, feeds nothing.
+  function freeInputs(board: Board, to: BlockId, except?: LinkId): readonly string[] | undefined {
     const block = own(board.blocks, to);
     if (block === undefined) return undefined;
     const inputs = own(store.blockRegistry(), block.registry_id)?.inputs;
     if (inputs === undefined) return undefined;
-    if (inputs.includes("...")) return "";
+    if (inputs.includes("...")) return [""];
     const fed = new Set(
       Object.entries(board.links)
         .filter(([id, link]) => id !== except && link.to === to)
         .map(([, link]) => link.input),
     );
-    return inputs.find((input) => !fed.has(input));
+    return inputs.filter((input) => !fed.has(input));
   }
 
-  function freeInput(
+  // Whether a new link can go to block `to`, into the input given or a free
+  // one.
+  function linkable(board: Board, to: BlockId, given?: string): boolean {
+    if (!Object.hasOwn(board.blocks, to)) return false;
+    return named(given) || (freeInputs(board, to)?.length ?? 0) > 0;
+  }
+
+  // The input of block `to` that a new link goes to: the one given, and
+  // otherwise the only free one, which for a unary block is its only input, or
+  // an empty input for a variadic block. Where several inputs are free, the
+  // args have to name one, since the input a link feeds changes what the
+  // block computes, as the left and the right table of a merge.
+  function linkInput(
     command: string,
     board: Board,
     to: BlockId,
     given?: string,
     except?: LinkId,
   ): string {
-    const input = inputOf(board, to, given, except);
-    if (input === undefined) {
-      throw refusal(command, [`The block "${to}" has no input that no link feeds.`]);
-    }
-    return input;
+    if (named(given)) return given;
+    const free = freeInputs(board, to, except) ?? [];
+    return one(
+      command,
+      free,
+      `The block "${to}" has no input that no link feeds.`,
+      `The block "${to}" has the free inputs ${quoted(free)}, so the args have to name the one to use.`,
+    );
   }
 
-  // The input of a new block that takes a link: the one given, an empty input
-  // for a variadic class, and otherwise the first of its class.
-  function firstInput(command: string, entry: RegistryEntry, given?: string): string {
-    if (given !== undefined && given !== "") return given;
+  // The input of a new block of the class that takes a link: the one given,
+  // and otherwise its only input, or an empty input for a variadic class.
+  // Where the class has several inputs, the args have to name one.
+  function newInput(command: string, entry: RegistryEntry, given?: string): string {
+    if (named(given)) return given;
     if (entry.inputs.includes("...")) return "";
-    const [first] = entry.inputs;
-    if (first === undefined) {
-      throw refusal(command, [`The block class "${entry.id}" has no input to take a link.`]);
-    }
-    return first;
+    return one(
+      command,
+      entry.inputs,
+      `The block class "${entry.id}" has no input to take a link.`,
+      `The block class "${entry.id}" has the inputs ${quoted(entry.inputs)}, so the args have to name the one to use.`,
+    );
   }
 
   function keyAt(path: readonly string[], kind: StateKey["kind"]): StateKey | undefined {
@@ -245,7 +268,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
           input: {
             ...schemas.input,
             description:
-              "The input of the new block that takes the result, its first where it is left out.",
+              "The input of the new block that takes the result, which may be left out where the new block has one input or is variadic.",
           },
         },
         ["from", "registry_id"],
@@ -253,7 +276,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       enabled: (board, { from }) => Object.hasOwn(board.blocks, from),
       run(board, args) {
         const [id, block, entry] = added(this.id, board, args);
-        const input = firstInput(this.id, entry, args.input);
+        const input = newInput(this.id, entry, args.input);
         const link = mintId((id) => Object.hasOwn(board.links, id));
         return {
           blocks: { add: { [id]: block } },
@@ -273,15 +296,14 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
           input: {
             ...schemas.input,
             description:
-              "The input of that block that takes the result, its first that no link feeds where it is left out.",
+              "The input of that block that takes the result, which may be left out where only one of its inputs is free or it is variadic.",
           },
         },
         ["to", "registry_id"],
       ),
-      enabled: (board, { to, input }) =>
-        Object.hasOwn(board.blocks, to) && inputOf(board, to, input) !== undefined,
+      enabled: (board, { to, input }) => linkable(board, to, input),
       run(board, args) {
-        const input = freeInput(this.id, board, args.to, args.input);
+        const input = linkInput(this.id, board, args.to, args.input);
         const [id, block] = added(this.id, board, args);
         const link = mintId((id) => Object.hasOwn(board.links, id));
         return {
@@ -302,7 +324,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
           input: {
             ...schemas.input,
             description:
-              "The input of the new block that takes the result of the link's source, its first where it is left out.",
+              "The input of the new block that takes the result of the link's source, which may be left out where the new block has one input or is variadic.",
           },
         },
         ["link", "registry_id"],
@@ -312,7 +334,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         const split = own(board.links, args.link);
         if (split === undefined) return [];
         const [id, block, entry] = added(this.id, board, args);
-        const input = firstInput(this.id, entry, args.input);
+        const input = newInput(this.id, entry, args.input);
         const near = mintId((id) => Object.hasOwn(board.links, id));
         const far = mintId((id) => Object.hasOwn(board.links, id) || id === near);
 
@@ -353,7 +375,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
           input: {
             ...schemas.input,
             description:
-              "The input of the block that takes the result, its first that no link feeds where it is left out.",
+              "The input of the block that takes the result, which may be left out where only one of its inputs is free or it is variadic.",
           },
           id: {
             ...schemas.linkId,
@@ -363,12 +385,10 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         ["from", "to"],
       ),
       enabled: (board, { from, to, input }) =>
-        Object.hasOwn(board.blocks, from) &&
-        Object.hasOwn(board.blocks, to) &&
-        inputOf(board, to, input) !== undefined,
+        Object.hasOwn(board.blocks, from) && linkable(board, to, input),
       run(board, { from, to, input, id }) {
         const link = id ?? mintId((id) => Object.hasOwn(board.links, id));
-        const resolved = freeInput(this.id, board, to, input);
+        const resolved = linkInput(this.id, board, to, input);
         return { links: { add: { [link]: { from, to, input: resolved } } } };
       },
     }),
@@ -390,7 +410,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
           input: {
             ...schemas.input,
             description:
-              "The input of the block that takes the result, which, where the link goes to another block and it is left out, is that block's first that no other link feeds.",
+              "The input of the block that takes the result, which the link keeps where it is left out, unless the link goes to another block, where it may be left out only if one input of that block is free or the block is variadic.",
           },
         },
         ["id"],
@@ -404,7 +424,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         const input =
           args.input === undefined && to === link.to
             ? link.input
-            : freeInput(this.id, board, to, args.input, args.id);
+            : linkInput(this.id, board, to, args.input, args.id);
         const mod: Partial<Link> = {
           ...(from === link.from ? {} : { from }),
           ...(to === link.to ? {} : { to }),
@@ -667,6 +687,18 @@ function object(
   required: readonly string[] = [],
 ): JsonSchema {
   return { type: "object", properties, required, additionalProperties: false };
+}
+
+function named(input: string | undefined): input is string {
+  return input !== undefined && input !== "";
+}
+
+// The one input of several, or a refusal where there is none or more than one.
+function one(command: string, inputs: readonly string[], none: string, several: string): string {
+  const [input, ...rest] = inputs;
+  if (input === undefined) throw refusal(command, [none]);
+  if (rest.length > 0) throw refusal(command, [several]);
+  return input;
 }
 
 function refusal(command: string, failures: readonly string[]): CommandError {
