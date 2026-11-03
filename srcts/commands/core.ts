@@ -229,8 +229,15 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       run(board, { id, state, unset }) {
         const block = own(board.blocks, id);
         if (block === undefined) return [];
+        // A change may leave the state failing the schema where it failed
+        // already, so that a state that an older file left failing can be
+        // repaired one arg at a time, but it may not make it fail anew.
         const entry = classOf(this.id, block.registry_id);
-        const failures = stateFailures(entry, { ...without(block.state, unset ?? []), ...state });
+        const before = new Set(stateFailures(entry, block.state));
+        const failures = stateFailures(entry, {
+          ...without(block.state, unset ?? []),
+          ...state,
+        }).filter((failure) => !before.has(failure));
         if (failures.length > 0) {
           throw refusal(this.id, failures.map((failure) => `The state of block "${id}" ${failure}`));
         }
