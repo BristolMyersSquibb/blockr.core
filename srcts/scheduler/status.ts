@@ -1,5 +1,5 @@
-// A block's status, which the scheduler keeps for whatever draws the block,
-// with the names of today's statuses but `invalid` in place of `unset`
+// A block's status, as the scheduler keeps it for whatever draws the block. The
+// statuses keep today's names, but `invalid` takes the place of `unset`
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.10#statuses).
 
 import type {
@@ -11,10 +11,12 @@ import type {
 import type { BlockId } from "../types/board.ts";
 import { quoted } from "../store/util.ts";
 
-// A block's status is the first of these that holds: `waiting` while it cannot
-// run, `unevaluated` before its first reply, `stale` while its revision is
-// newer than its latest reply's, and otherwise what that reply says, `ready`
-// for ok, `failed` for error and `invalid` for invalid.
+// A block's status is the first of these that holds:
+// - It reads `waiting` while it cannot run.
+// - It reads `unevaluated` before its first reply.
+// - It reads `stale` while its revision is newer than its latest reply's.
+// - Otherwise it reads what that reply says: `ready` for ok, `failed` for error
+//   and `invalid` for invalid.
 export type Status =
   | "unevaluated"
   | "stale"
@@ -31,8 +33,9 @@ export interface BlockStatus {
   readonly evaluated: number | null;
   // Whether an evaluation of it is sent and not yet answered.
   readonly running: boolean;
-  // From the latest reply, which replaces the ones before, and while the block
-  // is waiting, the one condition the scheduler writes, of the phase `status`.
+  // From the latest reply, which replaces those of the reply before. While the
+  // block is waiting, it holds the one condition the scheduler writes, of the
+  // phase `status`.
   readonly conditions: readonly Condition[];
   readonly omitted: Omitted;
   // Its standard output and error, as R bounded them.
@@ -42,9 +45,9 @@ export interface BlockStatus {
   readonly summary: string | null;
 }
 
-// What a reply to an evaluation says about the block, which an error that R
-// raised before it read the request, such as a refusal by the lock, says
-// without a summary or an output.
+// What a reply to an evaluation says about the block. An error that R raised
+// before it read the request, such as a refusal by the lock, comes without a
+// summary or an output.
 export interface Outcome {
   readonly status: "ok" | "error" | "invalid";
   readonly revision: number;
@@ -58,8 +61,8 @@ export interface Outcome {
 const NONE: Omitted = Object.freeze({ warning: 0, message: 0 });
 const NO_CONDITIONS: readonly Condition[] = Object.freeze([]);
 
-// The outcome of an evaluation of a revision, from R's reply to it, or
-// undefined for a reply that counts as none, `cancelled` or `missing`.
+// The outcome of an evaluation of a revision, from R's reply to it. A reply of
+// `cancelled` or `missing` counts as none and gives undefined.
 export function outcomeOf(reply: Reply, revision: number): Outcome | undefined {
   if (reply.status === "cancelled" || reply.status === "missing") return undefined;
   const evaluated = reply as Partial<EvaluateReply> & Pick<EvaluateReply, "status">;
@@ -74,8 +77,8 @@ export function outcomeOf(reply: Reply, revision: number): Outcome | undefined {
   };
 }
 
-// The outcome of an evaluation that the transport could not send, which
-// fails with the transport's error, as R's error would.
+// The outcome of an evaluation that the transport could not send. It fails with
+// the transport's error, as it would with R's.
 export function unsent(revision: number, message: string): Outcome {
   return {
     status: "error",
@@ -109,9 +112,9 @@ export function unevaluated(revision: number, running: boolean): BlockStatus {
   };
 }
 
-// What a block reads with a reply, for its revision now: stale where the reply
-// is for an older one, whose conditions it keeps, so that a block that failed
-// before it went stale shows why.
+// What a block reads with a reply, for its revision now. Where the reply is for
+// an older revision, the block reads stale but keeps the reply's conditions. A
+// block that failed before it went stale then shows why.
 export function replied(
   outcome: Outcome,
   revision: number,
@@ -137,8 +140,8 @@ export function replied(
   };
 }
 
-// What a block reads while it cannot run: no summary, and as its conditions
-// only the one that names what it waits for.
+// What a block reads while it cannot run. It has no summary, and its one
+// condition names what it waits for.
 export function waiting(
   why: Condition,
   revision: number,
@@ -182,8 +185,8 @@ export function waitingFor(
   };
 }
 
-// Whether two statuses read the same, so that the scheduler keeps handing out
-// the one it has, as a getter must for React's useSyncExternalStore.
+// Whether two statuses read the same. The scheduler then keeps handing out the
+// status it has, as a getter must for React's useSyncExternalStore.
 export function sameStatus(a: BlockStatus, b: BlockStatus): boolean {
   return (
     a.status === b.status &&

@@ -1,12 +1,16 @@
-// The scheduler: what the client tracks about evaluation, and the API through
-// which front-ends, extensions and packages ask for it, as Evaluation in the
-// client has it (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.10).
-// It keeps a revision for each block, which goes up whenever the block's
-// recipe changes or something invalidates it, has R evaluate what is demanded,
-// with everything upstream of it, by the evaluation priority each demand gives
-// and in topological order within one, and keeps each block's status from R's
-// replies. There is one per board, which core creates beside the store and
-// hands to front-ends and extensions through `CoreApi`.
+// The scheduler tracks what the client knows about evaluation. Front-ends,
+// extensions and packages ask it for evaluations, as Evaluation in the client
+// has it (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.10). It
+// does three things:
+// - It keeps a revision for each block. The revision goes up whenever the
+//   block's recipe changes or something invalidates the block.
+// - It has R evaluate what is demanded, with everything upstream of it.
+//   Evaluations go by the evaluation priority each demand gives, and in
+//   topological order within one priority.
+// - It keeps each block's status from R's replies.
+//
+// There is one scheduler per board. Core creates it beside the store and hands
+// it to front-ends and extensions through `CoreApi`.
 
 import { SessionEndedError } from "../protocol/client.ts";
 import type { Client, RequestOptions } from "../protocol/client.ts";
@@ -32,43 +36,47 @@ import type { BlockStatus, Outcome } from "./status.ts";
 
 export interface Scheduler {
   // Keeps the blocks evaluated, with everything upstream of them, until the
-  // demand it returns is released: a set of blocks, such as what a view shows,
-  // or a function of the board, which the scheduler calls again after every
-  // change to the board, at the evaluation priority given, 0 unless given. The
-  // owner, such as "blockr.dock", says whose demand it is, so that the
-  // scheduler can name it, as when a function of the board throws.
+  // returned demand is released. The blocks are a set, such as what a view
+  // shows, or a function of the board. The scheduler calls such a function
+  // again after every change to the board. The evaluation priority is 0 unless
+  // given. The owner, such as "blockr.dock", says whose demand it is. The
+  // scheduler names the owner where needed, as when a function of the board
+  // throws.
   demand(
     owner: string,
     blocks: Iterable<BlockId> | ((board: Board) => Iterable<BlockId>),
     options?: { priority?: number },
   ): Demand;
-  // A one-time evaluation, which brings the blocks and their upstream up to
-  // date without keeping them so, and resolves with each block's status by its
-  // id once none of them reads stale or unevaluated, at whatever revision each
-  // has by then. It leaves out a block that leaves the board meanwhile, rejects
-  // once it is left with none or when another board opens, and stops once the
-  // signal aborts. Given parameters, which R passes to the block_eval() method
-  // of each block, it evaluates each block once, whether it is stale or not,
-  // at the revision the block has once R holds what it reads, never cancels
-  // that evaluation once sent, and resolves with the statuses R's replies
-  // give. It rejects where a block reads waiting, which has no result in
-  // sight.
+  // A one-time evaluation. It brings the blocks and their upstream up to date
+  // without keeping them so. It resolves with each block's status by id once
+  // none of the blocks reads stale or unevaluated, at whatever revision each
+  // has by then. A block that leaves the board meanwhile is left out. The
+  // evaluation rejects once it is left with no block, or when another board
+  // opens. It stops once the signal aborts.
+  //
+  // With parameters, it evaluates each block once, whether the block is stale
+  // or not. R passes the parameters to the block's block_eval() method. Each
+  // evaluation goes once R holds what the block reads, at the revision the
+  // block has then. Once sent, it is never cancelled. The evaluation resolves
+  // with the statuses R's replies give. It rejects where a block reads waiting,
+  // since no result is in sight.
   evaluate(
     blocks: Iterable<BlockId>,
     params?: Record<string, Json>,
     options?: { priority?: number; signal?: AbortSignal },
   ): Promise<Record<BlockId, BlockStatus>>;
-  // Gives the block and every block downstream of it a new revision, so that
-  // they evaluate again where something demands them, and turn stale where
-  // nothing does. A block that the board lacks is passed over.
+  // Gives the block and every block downstream of it a new revision. They
+  // evaluate again where something demands them, and turn stale where nothing
+  // does. A block that the board lacks is passed over.
   invalidate(id: BlockId): void;
-  // The block's status now, the same object until subscribe() announces that
-  // it changed, or undefined for a block that the board lacks.
+  // The block's status now, or undefined for a block that the board lacks. It
+  // is the same object until subscribe() announces that it changed.
   status(id: BlockId): BlockStatus | undefined;
   // Calls `fn` after statuses change, with the blocks whose status changed.
   subscribe(fn: (changed: readonly BlockId[]) => void): () => void;
 
-  // What core uses beside the above, which front-ends and extensions use.
+  // Core alone calls the methods below. Front-ends and extensions get only
+  // those above.
 
   // Sends an output or a request to R through the client, as the client's own
   // request() does. This way the scheduler sees everything R is asked to run.
@@ -84,9 +92,8 @@ export interface Scheduler {
     request: Extract<Parameters<Client["request"]>[0], { kind: "request" | "output" }>,
     options?: RequestOptions,
   ): Promise<{ reply: Reply; body: Blob | null }>;
-  // Lets the scheduler send evaluations, which it holds from its creation
-  // until then, so that core starts it once the front-end's render() has
-  // returned.
+  // Lets the scheduler send evaluations. It holds them from its creation until
+  // then. Core calls it once the front-end's render() has returned.
   start(): void;
   // Holds evaluations again until start(), as while the page switches to
   // another front-end.
@@ -97,7 +104,7 @@ export interface Scheduler {
   session(): void;
 }
 
-// A demand that demand() returns, which only its holder replaces or releases.
+// A demand that demand() returns. Only its holder replaces or releases it.
 export interface Demand {
   // Replaces the blocks it demands, and its evaluation priority where given.
   set(
@@ -112,23 +119,25 @@ export interface SchedulerOptions {
   readonly store: Pick<Store, "board" | "subscribe" | "blockRegistry">;
   // The client of the wire protocol, which the store sends through too.
   readonly client: Pick<Client, "request" | "forget" | "capabilities">;
-  // The blockr options that the scheduler reads, which core asks R for as soon
-  // as R has answered its hello. The `evaluation_queue` blockr option: how many
-  // evaluations the scheduler keeps waiting in R behind the one R runs, 2
-  // unless given, where 0 sends the next evaluation only once the last reply
-  // is back and Infinity sends every evaluation at once.
+  // The blockr options that the scheduler reads. Core asks R for them as soon
+  // as R has answered its hello.
+  //
+  // The `evaluation_queue` blockr option says how many evaluations the
+  // scheduler keeps waiting in R, behind the one R runs. It is 2 unless given.
+  // With 0, the scheduler sends the next evaluation only once the last reply is
+  // back. With Infinity, it sends every evaluation at once.
   readonly evaluationQueue?: number;
-  // The `background_evaluation_delay` blockr option: how many seconds R has had
-  // nothing else to run before the scheduler evaluates the stale and
-  // unevaluated blocks that nothing demands, Infinity unless given, which
-  // evaluates nothing in the background.
+  // The `background_evaluation_delay` blockr option, Infinity unless given.
+  // Once R has had nothing else to run for that many seconds, the scheduler
+  // evaluates the stale and unevaluated blocks that nothing demands. With
+  // Infinity, it evaluates nothing in the background.
   readonly backgroundEvaluationDelay?: number;
-  // The `gate_visibility` blockr option, true unless given, which has the
-  // scheduler demand every block when false.
+  // The `gate_visibility` blockr option, true unless given. Set to false, it
+  // has the scheduler demand every block.
   readonly gateVisibility?: boolean;
-  // For a block that `serve()` serves alone, the inputs that R binds itself to
-  // the data it was given, from its reply to hello, which count as linked on
-  // the board R sent until another board opens.
+  // The inputs that R binds itself, for a block that `serve()` serves alone,
+  // from R's reply to hello. They count as linked on the board R sent, until
+  // another board opens.
   readonly bound?: readonly string[];
 }
 
@@ -138,9 +147,9 @@ type Asking = Parameters<Scheduler["request"]>[0];
 // What the scheduler keeps for a block.
 interface Entry {
   revision: number;
-  // What the revision was taken for, which a new revision follows when it
-  // changes: the class, the state and the inputs, while the revisions of the
-  // blocks upstream are theirs.
+  // What the revision was taken for: the class, the state and the inputs. A
+  // change to any of them gives the block a new revision, and so does a new
+  // revision of a block upstream.
   registryId: RegistryId;
   state: Readonly<Record<string, Json>>;
   inputs: readonly Input[];
@@ -150,7 +159,7 @@ interface Entry {
 
 // An evaluation sent to R and not yet answered.
 interface Sent {
-  // When it was sent, as one count orders everything the scheduler sends.
+  // When it was sent. One count orders everything the scheduler sends.
   readonly seq: number;
   readonly at: number;
   readonly block: BlockId;
@@ -161,7 +170,7 @@ interface Sent {
   // Whether it was sent as evaluation in the background.
   readonly background: boolean;
   cancelled: boolean;
-  // Whether another board opened since, so that its reply counts for nothing.
+  // Whether another board opened since. Its reply then counts for nothing.
   orphaned: boolean;
 }
 
@@ -187,7 +196,8 @@ interface OneTime {
   settle(result: { statuses: Record<BlockId, BlockStatus> } | { error: unknown }): void;
 }
 
-// A one-time evaluation with parameters, an evaluation of each block.
+// A one-time evaluation with parameters. It is an evaluation of each of its
+// blocks.
 interface WithParams {
   readonly priority: number;
   readonly params: Record<string, Json>;
@@ -199,15 +209,15 @@ interface WithParams {
 interface Part {
   readonly of: WithParams;
   readonly block: BlockId;
-  // The recipe it went to R with, at the revision the block had then, while R
-  // has not replied.
+  // The recipe it went to R with, at the revision the block had then. It is
+  // kept until R replies.
   recipe: Recipe | undefined;
   sent: Sent | undefined;
   result: BlockStatus | undefined;
 }
 
 // How long anything else may wait in R behind an evaluation below evaluation
-// priority 0 before the scheduler cancels that evaluation.
+// priority 0. After that, the scheduler cancels that evaluation.
 const GIVE_WAY = 5000;
 
 export function createScheduler(options: SchedulerOptions): Scheduler {
@@ -266,9 +276,9 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   }
 
   // The scheduler works out what to send once the task in which something
-  // changed has ended, after every subscriber of the store has heard of the
-  // change, so that a front-end that changes its demand from its own
-  // subscription is heard first.
+  // changed has ended. By then every subscriber of the store has heard of the
+  // change. A front-end that changes its demand from its own subscription is
+  // then heard first.
   function schedule(): void {
     passTimer ??= setTimeout(pass, 0);
   }
@@ -297,13 +307,13 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     };
   }
 
-  // A board that opens holds no result in R, which forgets every block, so
+  // A board that opens holds no result in R, since R forgets every block. So
   // every block of it reads unevaluated, with a revision above any its id had.
   function opened(next: Board): void {
     if (board !== undefined) {
       const old = Object.keys(board.blocks);
-      // R forgets every block as it opens a board, and this forgets what an
-      // evaluation sent since may have kept.
+      // R forgets every block as it opens a board. This forget also clears what
+      // an evaluation sent since may have left in R.
       if (old.length > 0) client.forget(old);
       bound = new Set();
     }
@@ -325,9 +335,9 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   }
 
   // A block's revision goes up whenever its recipe changes: its class, its
-  // state, the links into it or the revision of any block upstream of it,
-  // while a rename, an attribute, a stack, the front-end's state and a board
-  // option change none.
+  // state, the links into it or the revision of any block upstream. A rename,
+  // an attribute, a stack, the front-end's state and a board option change no
+  // revision.
   function applied(delta: Delta, next: Board): void {
     const removed = new Set(delta.blocks?.rm ?? []);
     const gone = [...entries.keys()].filter(
@@ -411,9 +421,10 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     return false;
   }
 
-  // Why a block cannot run, if it cannot: an input that no link feeds and R
-  // binds not, a variadic block without a link, or a block upstream that reads
-  // failed, invalid or waiting.
+  // Why a block cannot run, if it cannot. A block cannot run in three cases:
+  // - An input has no link, and R does not bind it.
+  // - A variadic block has no link.
+  // - A block upstream reads failed, invalid or waiting.
   function why(id: BlockId, of: Graph): Condition | undefined {
     const unlinked = of.unlinked.get(id);
     if (unlinked !== undefined) return waitingFor({ unlinked });
@@ -424,8 +435,8 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     return upstream.length > 0 ? waitingFor({ upstream }) : undefined;
   }
 
-  // Works out every block's status, upstream first, keeping the object of each
-  // that reads as it did.
+  // Works out every block's status, upstream first. A status that reads as
+  // before keeps its object.
   function recompute(): void {
     if (graph === undefined) return;
     const running = new Set<BlockId>();
@@ -592,8 +603,8 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   }
 
   // A reply sets the block's status where it is for the block's current
-  // revision and the block reads anything but waiting, while `cancelled` and
-  // `missing` count as none.
+  // revision, and the block reads anything but waiting. A reply of `cancelled`
+  // or `missing` counts as none.
   function answered(evaluation: Sent, reply: Reply): void {
     sent.delete(evaluation);
 
@@ -655,8 +666,8 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
       part.result = Object.freeze(replied(outcome, at, false));
       finish(evaluation);
     } else if (reply.status === "missing") {
-      // R ran nothing, so the evaluation goes again, with the recipe the block
-      // has once R holds again what it reads.
+      // R ran nothing, so the evaluation goes again. It takes the recipe the
+      // block has once R holds what the block reads.
       part.sent = undefined;
       part.recipe = undefined;
     } else {
@@ -685,17 +696,17 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     evaluation.settle({ error });
   }
 
-  // Whether the evaluation of a block with parameters can go: once R holds
-  // what the block reads at their current revisions, or computes them before.
-  // A block that reads waiting has no result in sight, which rejects the
-  // evaluation.
+  // Whether the evaluation of a block with parameters can go. It goes once R
+  // holds what the block reads at their current revisions, or computes them
+  // first. A block that reads waiting has no result in sight, so the evaluation
+  // rejects.
   function partState(part: Part, of: Graph): "send" | "wait" | { error: Error } {
     const status = statuses.get(part.block);
     if (status?.status === "waiting") return { error: waitingError(part.block, status) };
     return upstreamOf(of, part.block).every(available) ? "send" : "wait";
   }
 
-  // The pass, which works out what to cancel and what to send
+  // The pass: what to cancel and what to send
 
   function demanded(demand: Demanding, of: Board): Iterable<BlockId> {
     if (typeof demand.blocks !== "function") return demand.blocks;
@@ -718,16 +729,16 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     return blocks;
   }
 
-  // The evaluation priority an evaluation has now: that of what needs its
-  // block, -1 for evaluation in the background, or undefined where nothing
-  // needs it any more.
+  // The evaluation priority an evaluation has now. It is that of what needs its
+  // block, or -1 for evaluation in the background. It is undefined where
+  // nothing needs the block any more.
   function priorityOf(evaluation: Sent): number | undefined {
     if (evaluation.part !== undefined) return evaluation.part.of.priority;
     return needs.get(evaluation.block) ?? (evaluation.background ? -1 : undefined);
   }
 
-  // Since when anything else, an evaluation at a higher evaluation priority,
-  // an output or a request, has waited in R behind an evaluation.
+  // Since when something else has waited in R behind an evaluation: an
+  // evaluation at a higher evaluation priority, an output or a request.
   function waitedSince(evaluation: Sent, priority: number): number | undefined {
     let since: number | undefined;
     for (const other of asked) {
@@ -750,8 +761,8 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     const of = graph;
     const deadlines: number[] = [];
 
-    // What is needed: what is demanded and what a one-time evaluation waits
-    // on, each block at the highest evaluation priority of anything that
+    // What is needed: what is demanded, and what a one-time evaluation waits
+    // on. Each block takes the highest evaluation priority of anything that
     // needs it, itself or a block downstream of it.
     const found = new Map<BlockId, number>();
     const raise = (id: BlockId, priority: number) => {
@@ -765,10 +776,10 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     for (const oneTime of oneTimes) {
       for (const id of oneTime.blocks) raise(id, oneTime.priority);
     }
-    // What an evaluation with parameters reads stays needed until R has
-    // replied to it, so that nothing cancels an evaluation it waits on in R:
-    // what the block reads now until it is sent, and what its recipe names
-    // from then on.
+    // What an evaluation with parameters reads stays needed until R has replied
+    // to it. Nothing then cancels an evaluation that it waits on in R. Until it
+    // is sent, that is what the block reads now. From then on, it is what its
+    // recipe names.
     for (const evaluation of withParams) {
       for (const part of evaluation.parts.values()) {
         if (part.result !== undefined) continue;
@@ -789,9 +800,11 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     }
     needs = found;
 
-    // What to cancel: an evaluation whose revision has moved, one that R has
-    // not started and nothing needs any more, and, where R can stop what it
-    // has started, one below 0 that something else has waited behind for 5 s.
+    // What to cancel, in three cases:
+    // - An evaluation whose revision has moved.
+    // - One that R has not started and nothing needs any more.
+    // - One below 0 that something else has waited behind for 5 s, where R can
+    //   stop what it has started.
     const interrupt = client.capabilities().has("interrupt");
     let oldest = Infinity;
     for (const item of [...sent, ...asked]) oldest = Math.min(oldest, item.seq);
@@ -799,7 +812,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     for (const evaluation of sent) {
       if (evaluation.cancelled || evaluation.orphaned || evaluation.part !== undefined) continue;
       const entry = entries.get(evaluation.block);
-      // R drops the evaluation of a block that left the board as it forgets
+      // R drops the evaluation of a block that left the board, as it forgets
       // the block.
       if (entry === undefined) continue;
       if (entry.revision !== evaluation.revision) {
@@ -818,9 +831,9 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
       else deadlines.push(since + GIVE_WAY);
     }
 
-    // What to send: the blocks needed that are not current, highest
-    // evaluation priority first and in topological order within one, each
-    // once R holds or computes before it what it reads.
+    // What to send: the blocks that are needed and not current. They go highest
+    // evaluation priority first, and in topological order within one priority.
+    // Each goes once R holds what it reads, or computes it first.
     const queued: { block: BlockId; priority: number; part?: Part }[] = [];
     for (const [id, priority] of found) {
       const entry = entries.get(id);
@@ -872,9 +885,10 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
       }
     }
 
-    // Evaluation in the background: once R has had nothing else to run, no
-    // evaluation at 0 or above, no output and no request, for the delay, the
-    // stale and unevaluated blocks that nothing needs, one at a time, at -1.
+    // Evaluation in the background. R counts as idle while it has no evaluation
+    // at 0 or above, no output and no request to run. Once R has been idle for
+    // the delay, the scheduler evaluates the stale and unevaluated blocks that
+    // nothing needs, one at a time, at -1.
     const busy =
       asked.size > 0 ||
       [...sent].some((evaluation) => (priorityOf(evaluation) ?? 0) >= 0 || evaluation.orphaned) ||
@@ -903,9 +917,9 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   }
 
   // Whether an evaluation with parameters still has to evaluate the block at
-  // that revision, which the scheduler then evaluates no other way: one not
-  // sent yet, which takes the revision the block has when it goes, or one sent
-  // for that revision.
+  // that revision. The scheduler then evaluates the block no other way. It
+  // counts one not sent yet, which takes the revision the block has when it
+  // goes. It also counts one sent for that revision.
   function paramsFor(id: BlockId, at: number): boolean {
     for (const evaluation of withParams) {
       const part = evaluation.parts.get(id);
@@ -1039,8 +1053,8 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
             done: false,
             settle,
           };
-          // Aborting drops the evaluations not sent yet, while R runs those it
-          // has, since it never cancels one with parameters.
+          // Aborting drops the evaluations not sent yet. R runs those already
+          // sent, since the scheduler never cancels one with parameters.
           onAbort = () => {
             fail(evaluation, signal?.reason);
             schedule();
@@ -1158,8 +1172,8 @@ function waitingError(id: BlockId, status: BlockStatus): Error {
   );
 }
 
-// A blockr option's value, or its default where it is no number of 0 or more,
-// which the scheduler reports.
+// A blockr option's value, or its default where the value is no number of 0 or
+// more. The scheduler reports such a value.
 function setting(value: number | undefined, fallback: number, name: string): number {
   if (value === undefined) return fallback;
   if (typeof value === "number" && value >= 0) return value;
@@ -1188,8 +1202,8 @@ function asError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
 }
 
-// Reports what a caller's function threw, or what went wrong where nobody
-// waits on it, without stopping the scheduler.
+// Reports what a caller's function threw, or an error that nobody waits on,
+// without stopping the scheduler.
 function report(error: unknown): void {
   queueMicrotask(() => {
     throw error;

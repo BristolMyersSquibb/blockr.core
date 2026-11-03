@@ -1,13 +1,13 @@
-// What the scheduler reads off the board's links and the block registry: the
-// blocks in topological order, the inputs of each block's recipe, and the
-// inputs that keep a block waiting.
+// What the scheduler reads off the board's links and the block registry. It
+// gives the blocks in topological order, the inputs of each block's recipe, and
+// the inputs that keep a block waiting.
 
 import type { BlockId, Board, RegistryId } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 
-// An input of a block's recipe, by the input it feeds, with the upstream block
-// whose result it binds, or alone where R binds it itself, for a block that
-// `serve()` serves alone.
+// An input of a block's recipe, named by the input it feeds. It names the
+// upstream block whose result the input binds. For a block that `serve()`
+// serves alone, R binds an input itself, and the input comes without a block.
 export interface Input {
   readonly input: string;
   readonly block?: BlockId;
@@ -17,10 +17,11 @@ export interface Graph {
   // Every block, each after the blocks upstream of it.
   readonly order: readonly BlockId[];
   readonly index: ReadonlyMap<BlockId, number>;
-  // In the order of the class's inputs, and a variadic block's in link order.
+  // The inputs of each block's recipe, in the order of its class's inputs. A
+  // variadic block's come in link order.
   readonly inputs: ReadonlyMap<BlockId, readonly Input[]>;
   readonly downstream: ReadonlyMap<BlockId, readonly BlockId[]>;
-  // The inputs that are neither linked nor bound by R, which keep the block
+  // The inputs that no link feeds and R does not bind. They keep the block
   // waiting. A variadic block that has no link lacks its input "...".
   readonly unlinked: ReadonlyMap<BlockId, readonly string[]>;
 }
@@ -94,8 +95,8 @@ export function upstreamOf(graph: Graph, id: BlockId): BlockId[] {
   return [...new Set(blocks)];
 }
 
-// Kahn's algorithm, which takes the blocks that have nothing upstream left in
-// the order the board holds them. The store refuses links that form a cycle.
+// Kahn's algorithm. It takes the blocks that have nothing upstream left, in the
+// order the board holds them. The store refuses links that form a cycle.
 function topological(
   blocks: readonly BlockId[],
   into: ReadonlyMap<BlockId, readonly unknown[]>,

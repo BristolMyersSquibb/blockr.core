@@ -1,8 +1,8 @@
 // @vitest-environment node
 
-// The scheduler, on the sample board of the wire protocol's fixtures, with R
-// played over the protocol's own client, so that what it sends is checked as
-// messages.
+// The scheduler, on the sample board of the wire protocol's fixtures. R is
+// played over the protocol's own client, so the tests check what the scheduler
+// sends as messages.
 
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -36,9 +36,10 @@ function fixture(name: string): Fixture {
   return JSON.parse(readFileSync(file, "utf8")) as Fixture;
 }
 
-// The sample board: the dataset a feeds the head b, the merge c, whose x is a
-// and y is b, the subset d and the scatter f, while the variadic rbind e binds
-// b and d, in that order.
+// The sample board:
+// - The dataset a feeds the head b, the subset d and the scatter f.
+// - The merge c takes a as x and b as y.
+// - The variadic rbind e binds b and d, in that order.
 const hello = fixture("hello").r[0]?.[0] as HelloReply;
 // A block served alone, whose input R binds itself.
 const helloBlock = fixture("hello-block").r[0]?.[0] as HelloReply;
@@ -236,7 +237,7 @@ async function evaluateAll(r: FakeR): Promise<void> {
   }
 }
 
-// What a function reported without throwing, as the scheduler reports what a
+// Captures what the scheduler reports rather than throws, such as what a
 // caller's function threw.
 function reports(): { errors: () => unknown[]; restore: () => void } {
   const queued: (() => void)[] = [];
@@ -744,7 +745,7 @@ describe("demand and scheduling", () => {
     scheduler.demand("test", ["a"]);
     scheduler.start();
     await tick();
-    // The refusal comes back during that tick, and fake timers put a timer
+    // The refusal comes back during that tick. Fake timers put a timer that is
     // set during a tick 1 ms later.
     await tick(1);
 

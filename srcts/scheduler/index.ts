@@ -1,5 +1,5 @@
-// The scheduler, which tracks revisions, demand and statuses and has R
-// evaluate what is demanded, with what `CoreApi` and the hosts build on.
+// The scheduler. It tracks revisions, demand and statuses, and has R evaluate
+// what is demanded. Both `CoreApi` and the hosts build on it.
 
 export { createScheduler } from "./scheduler.ts";
 export type { Demand, Scheduler, SchedulerOptions } from "./scheduler.ts";
