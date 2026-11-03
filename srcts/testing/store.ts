@@ -5,7 +5,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { Fixture, HelloReply, OpenReply, Reply } from "../protocol/messages.ts";
+import type { Fixture, HelloReply, OpenReply, Reply } from "../protocol/index.ts";
 import { createStore } from "../store/index.ts";
 import type { Option, Store, StoreOptions } from "../store/index.ts";
 

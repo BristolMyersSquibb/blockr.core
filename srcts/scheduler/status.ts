@@ -2,13 +2,13 @@
 // statuses keep today's names, but `invalid` takes the place of `unset`
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.10#statuses).
 
+import type { Graph } from "../graph/index.ts";
 import type {
   Condition,
   EvaluateReply,
   Omitted,
   Reply,
-} from "../protocol/messages.ts";
-import type { Graph } from "../graph/index.ts";
+} from "../protocol/index.ts";
 import type { BlockId } from "../types/board.ts";
 import { quoted } from "../util/index.ts";
 import type { Inputs } from "./recipes.ts";

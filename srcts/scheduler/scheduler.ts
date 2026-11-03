@@ -23,11 +23,15 @@
 import { action, batch, computed, effect, signal, untracked } from "@preact/signals-core";
 import type { ReadonlySignal } from "@preact/signals-core";
 import { graphOf } from "../graph/index.ts";
-import { SessionEndedError } from "../protocol/client.ts";
-import type { Client, RequestOptions } from "../protocol/client.ts";
-import type { BlockRevision, Recipe, Reply } from "../protocol/messages.ts";
-import type { Delta } from "../store/delta.ts";
-import type { Store } from "../store/store.ts";
+import { SessionEndedError } from "../protocol/index.ts";
+import type {
+  BlockRevision,
+  Client,
+  Recipe,
+  Reply,
+  RequestOptions,
+} from "../protocol/index.ts";
+import type { Delta, Store } from "../store/index.ts";
 import type { BlockId, Board, RegistryId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";

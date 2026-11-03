@@ -5,7 +5,7 @@
 // id. The functions here say what happens to them, and change nothing.
 
 import type { Graph } from "../graph/index.ts";
-import type { Recipe, Reply } from "../protocol/messages.ts";
+import type { Recipe, Reply } from "../protocol/index.ts";
 import type { BlockId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import { quoted } from "../util/index.ts";

@@ -3,7 +3,7 @@
 // The store, with R's replies taken from the fixtures of the wire protocol.
 
 import { describe, expect, test, vi } from "vitest";
-import type { ErrorReply, HelloReply, OpenReply } from "../protocol/messages.ts";
+import type { ErrorReply, HelloReply, OpenReply } from "../protocol/index.ts";
 import { coreOptions, fakeR, hello, loaded, reply } from "../testing/store.ts";
 import type { Block, Board, OpeningBoard, SavedBoard } from "../types/board.ts";
 import { ROUNDS } from "./expand.ts";

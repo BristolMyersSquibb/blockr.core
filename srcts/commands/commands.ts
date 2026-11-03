@@ -7,15 +7,15 @@
 // and extensions through `CoreApi`.
 
 import { computed, signal } from "@preact/signals-core";
-import { isDeltas, isValueDelta } from "../store/delta.ts";
+import { isDeltas, isValueDelta } from "../store/index.ts";
 import type {
   BlockMod,
   CollectionDelta,
   Delta,
   KeyChange,
   Origin,
-} from "../store/delta.ts";
-import type { Store } from "../store/store.ts";
+  Store,
+} from "../store/index.ts";
 import type { Board } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import { compile, messageOf, packageOf } from "../util/index.ts";

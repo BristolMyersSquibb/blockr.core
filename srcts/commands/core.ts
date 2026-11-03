@@ -11,10 +11,8 @@
 // which these commands check against the schema of the block's class. An edit
 // that changes nothing is the store's to drop, which makes no step of it.
 
-import type { Entry } from "../store/delta.ts";
-import { mintId, sentenceCase } from "../store/ids.ts";
-import type { Attribute, StateKey } from "../store/registrations.ts";
-import type { Store } from "../store/store.ts";
+import { mintId, sentenceCase } from "../store/index.ts";
+import type { Attribute, Entry, StateKey, Store } from "../store/index.ts";
 import type {
   Block,
   BlockId,

@@ -9,8 +9,7 @@
 // `useSyncExternalStore` needs.
 
 import { signal } from "@preact/signals-core";
-import type { Client } from "../protocol/client.ts";
-import type { HelloReply, OpenReply } from "../protocol/messages.ts";
+import type { Client, HelloReply, OpenReply } from "../protocol/index.ts";
 import type {
   BlockId,
   Board,

@@ -5,8 +5,7 @@
 // sends as messages.
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { createClient, SessionEndedError } from "../protocol/client.ts";
-import type { Transport, TransportListener } from "../protocol/client.ts";
+import { createClient, SessionEndedError } from "../protocol/index.ts";
 import type {
   Capability,
   Condition,
@@ -17,7 +16,9 @@ import type {
   OutputRequest,
   Reply,
   Request,
-} from "../protocol/messages.ts";
+  Transport,
+  TransportListener,
+} from "../protocol/index.ts";
 import { createStore } from "../store/index.ts";
 import type { Store } from "../store/index.ts";
 import { coreOptions, hello, reply as replyOf } from "../testing/store.ts";

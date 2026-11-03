@@ -6,7 +6,7 @@
 // one R loaded, drops and names what the app cannot rebuild, and gives the
 // board what packages register for a board that lacks it.
 
-import type { OpenReply } from "../protocol/messages.ts";
+import type { OpenReply } from "../protocol/index.ts";
 import type { Board, OpeningBoard, SavedBoard } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import {

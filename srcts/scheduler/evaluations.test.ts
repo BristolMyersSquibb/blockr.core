@@ -4,7 +4,7 @@
 
 import { describe, expect, test } from "vitest";
 import { graphOf } from "../graph/index.ts";
-import type { CancelledReply, EvaluateReply, MissingReply, Recipe } from "../protocol/messages.ts";
+import type { CancelledReply, EvaluateReply, MissingReply, Recipe } from "../protocol/index.ts";
 import { boardOf, sample } from "../testing/board.ts";
 import { hello } from "../testing/store.ts";
 import type { BlockId } from "../types/board.ts";

@@ -4,7 +4,7 @@
 
 import { describe, expect, test } from "vitest";
 import { graphOf } from "../graph/index.ts";
-import type { Condition } from "../protocol/messages.ts";
+import type { Condition } from "../protocol/index.ts";
 import { boardOf, sample } from "../testing/board.ts";
 import { hello } from "../testing/store.ts";
 import type { Board, BlockId } from "../types/board.ts";
