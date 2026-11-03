@@ -103,6 +103,28 @@ export type Migration = (saved: Saved, version: string | null) => Saved;
 // type "string" is invalid. Expected "number".`
 export type Validate = (value: unknown) => readonly string[];
 
+// The validator of a schema, or an error where the schema cannot be read. Its
+// clauses start with `fails`, or with another verb for a value named in the
+// plural, as "fail their schema" follows a command's args.
+export function compile(
+  what: string,
+  schema: JsonSchema,
+  fails = "fails its schema",
+): Validate {
+  let validator: Validator;
+  try {
+    validator = new Validator(schema, draftOf(schema), false);
+  } catch (error) {
+    throw new Error(`The schema of ${what} cannot be read: ${messageOf(error)}`, {
+      cause: error,
+    });
+  }
+  return (value) => {
+    const result = validator.validate(value);
+    return result.valid ? [] : describe(result.errors, fails);
+  };
+}
+
 // A registration with the validator of its schema.
 export interface Checked<T> {
   readonly def: T;
@@ -150,21 +172,6 @@ export function createRegistrations(): Registrations {
   const optionDefs = computed(() =>
     Object.fromEntries(options.value.map((option) => [option.def.id, option.def])),
   );
-
-  function compile(what: string, schema: JsonSchema): Validate {
-    let validator: Validator;
-    try {
-      validator = new Validator(schema, draftOf(schema), false);
-    } catch (error) {
-      throw new Error(`The schema of ${what} cannot be read: ${messageOf(error)}`, {
-        cause: error,
-      });
-    }
-    return (value) => {
-      const result = validator.validate(value);
-      return result.valid ? [] : describe(result.errors);
-    };
-  }
 
   function checkInitial(
     what: string,
@@ -296,11 +303,11 @@ const wrappers = new Set([
   "false",
 ]);
 
-function describe(errors: readonly OutputUnit[]): string[] {
+function describe(errors: readonly OutputUnit[], fails: string): string[] {
   return errors
     .filter((error) => !wrappers.has(error.keyword))
     .map((error) => {
       const at = error.instanceLocation.replace(/^#/, "");
-      return `fails its schema${at === "" ? "" : ` at ${at}`}: ${error.error}`;
+      return `${fails}${at === "" ? "" : ` at ${at}`}: ${error.error}`;
     });
 }
