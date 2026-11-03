@@ -54,23 +54,16 @@ request and a request of the output class may share a name, and neither
 hides the other.
 
 R picks one renderer for each output class and each board option with
-\code{pick_renderers()}, whatever the board and its front-end, so that any
-package can supply a renderer, such as a richer table. The pick takes the
-renderer of the first of these steps that has one:
-\enumerate{
-\item The renderer that the blockr option \code{renderers} names for the output
-class or board option, by ID, as
-\code{options(blockr.renderers = c(table_output = "blockr.core-basic_table"))}
-does (see \code{\link[=blockr_option]{blockr_option()}}).
-\item A renderer that a package declares, other than the package that defines
-the output class.
-\item For an output class, a renderer that the package which defines the class
-declares.
-}
-
-Two renderers at one step are an error naming both, which the app settles
-through the blockr option. A board option that no renderer is declared for
-keeps the UI of its definition.
+\code{pick_renderers()}, whatever the board and its front-end. Each output class
+has a default renderer, the one that the package which defines the class
+declares, and a board option has the UI of its definition. Any package can
+supply another renderer, such as a richer table, and an app replaces a
+default with it by naming it in the blockr option \code{renderers}, by ID, as
+\code{options(blockr.renderers = c(table_output = "blockr.ui-table_preview"))}
+does (see \code{\link[=blockr_option]{blockr_option()}}). So a renderer that another package declares
+draws only where the app names it, and loading its package changes nothing.
+Two renderers that the defining package declares for one class are an error
+naming both, which the app settles through the blockr option.
 
 R names in each output it sends the renderer that it picked for the most
 specific class in the output's class vector that has one, as S3 dispatch

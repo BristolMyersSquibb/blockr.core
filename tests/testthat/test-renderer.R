@@ -15,7 +15,7 @@ test_that("core declares a plain renderer for each of its output classes", {
   }
 })
 
-test_that("R picks core's renderers where no other package declares one", {
+test_that("core's renderers are the defaults of its output classes", {
 
   picked <- pick_renderers()
 
@@ -26,7 +26,7 @@ test_that("R picks core's renderers where no other package declares one", {
   )
 })
 
-test_that("R picks a renderer by the steps of the pick", {
+test_that("another package's renderer draws only where the app names it", {
 
   local_declared(declared_renderers)
 
@@ -41,52 +41,27 @@ test_that("R picks a renderer by the steps of the pick", {
     test_module("preview.js", "blockr.ui"),
     class = "table_output"
   )
-
-  expect_identical(table_renderer(), "blockr.ui-preview")
-
-  withr::local_options(
-    blockr.renderers = c(table_output = "blockr.core-basic_table")
-  )
-
-  expect_identical(table_renderer(), "blockr.core-basic_table")
-
-  withr::local_options(
-    blockr.renderers = c(text_output = "blockr.core-basic_text")
-  )
-
-  expect_identical(table_renderer(), "blockr.ui-preview")
-})
-
-test_that("two renderers at one step are an error naming both", {
-
-  local_declared(declared_renderers)
-
-  register_renderer(
-    "preview",
-    test_module("preview.js", "blockr.ui"),
-    class = "table_output"
-  )
   register_renderer(
     "table",
     test_module("table.js", "blockr.viz"),
     class = "table_output"
   )
 
-  expect_error(
-    pick_renderers(),
-    class = "renderers_ambiguous",
-    regexp = "blockr.ui-preview and blockr.viz-table"
+  expect_identical(table_renderer(), "blockr.core-basic_table")
+  expect_false("blockr.ui-preview" %in% names(pick_renderers()))
+
+  withr::local_options(blockr.renderers = c(table_output = "blockr.ui-preview"))
+
+  expect_identical(table_renderer(), "blockr.ui-preview")
+
+  withr::local_options(
+    blockr.renderers = c(text_output = "blockr.core-basic_text")
   )
 
-  withr::local_options(blockr.renderers = c(table_output = "blockr.viz-table"))
-
-  expect_identical(
-    output_renderer("table_output", pick_renderers()),
-    "blockr.viz-table"
-  )
+  expect_identical(table_renderer(), "blockr.core-basic_table")
 })
 
-test_that("the step of the package that defines the class takes one", {
+test_that("two renderers of the defining package leave no default", {
 
   local_declared(declared_renderers)
 
@@ -101,40 +76,42 @@ test_that("the step of the package that defines the class takes one", {
     class = "renderers_ambiguous",
     regexp = "blockr.core-basic_table and blockr.core-fancy"
   )
+
+  withr::local_options(
+    blockr.renderers = c(table_output = "blockr.core-fancy")
+  )
+
+  expect_identical(
+    output_renderer("table_output", pick_renderers()),
+    "blockr.core-fancy"
+  )
 })
 
-test_that("R picks a renderer for a board option, which else keeps its UI", {
+test_that("a board option keeps its UI unless the app names a renderer", {
 
   local_declared(declared_renderers)
 
-  expect_null(unlst(lst_xtr(pick_renderers(), "option")))
-
   register_renderer("rows", test_module("rows.js", "blockr.ui"),
                     option = "n_rows")
-
-  picked <- pick_renderers()
-
-  expect_identical(picked[["blockr.ui-rows"]], get_renderer("blockr.ui-rows"))
-
   register_renderer("rows", test_module("rows.js"), option = "n_rows")
 
-  expect_error(
-    pick_renderers(),
-    class = "renderers_ambiguous",
-    regexp = "board option n_rows"
-  )
+  expect_null(unlst(lst_xtr(pick_renderers(), "option")))
 
   withr::local_options(blockr.renderers = c(n_rows = "blockr.ui-rows"))
 
   picked <- pick_renderers()
 
-  expect_true("blockr.ui-rows" %in% names(picked))
+  expect_identical(picked[["blockr.ui-rows"]], get_renderer("blockr.ui-rows"))
   expect_false("blockr.test-rows" %in% names(picked))
 })
 
 test_that("an output names the renderer of its most specific class", {
 
   local_declared(declared_renderers)
+
+  withr::defer(unregister_output_classes("lazy_table_output"))
+
+  register_output_class("lazy_table_output", list(), package = "blockr.test")
 
   register_renderer(
     "lazy",

@@ -85,12 +85,12 @@
   `register_renderer()`. Each renderer gets the ID `{pkg}-{name}` and draws
   one output class or one board option. A renderer of an output class may
   bring requests of its own, which `run_output_class_request()` runs when
-  given the renderer. R picks one renderer for each output class and each
-  board option with `pick_renderers()`, whatever the board's front-end: the
-  one that the blockr option `renderers` names, else one that another package
-  declares, and for an output class otherwise one that the package defining
-  the class declares. Two renderers at one step are an error naming both. Core
-  declares `blockr.core-basic_table`, `blockr.core-basic_text` and
+  given the renderer. Each output class has a default renderer, the one that
+  the package defining the class declares, and an app replaces it with another
+  package's renderer by naming that renderer in the blockr option `renderers`.
+  The function `pick_renderers()` gives the renderer that R picks for each
+  output class and board option, whatever the board's front-end. Core declares
+  `blockr.core-basic_table`, `blockr.core-basic_text` and
   `blockr.core-basic_plot` for its output classes (#425).
 
 # blockr.core 0.1.4

@@ -26,22 +26,16 @@ declared_renderers <- new.env()
 #' hides the other.
 #'
 #' R picks one renderer for each output class and each board option with
-#' `pick_renderers()`, whatever the board and its front-end, so that any
-#' package can supply a renderer, such as a richer table. The pick takes the
-#' renderer of the first of these steps that has one:
-#'
-#' 1. The renderer that the blockr option `renderers` names for the output
-#'    class or board option, by ID, as
-#'    `options(blockr.renderers = c(table_output = "blockr.core-basic_table"))`
-#'    does (see [blockr_option()]).
-#' 2. A renderer that a package declares, other than the package that defines
-#'    the output class.
-#' 3. For an output class, a renderer that the package which defines the class
-#'    declares.
-#'
-#' Two renderers at one step are an error naming both, which the app settles
-#' through the blockr option. A board option that no renderer is declared for
-#' keeps the UI of its definition.
+#' `pick_renderers()`, whatever the board and its front-end. Each output class
+#' has a default renderer, the one that the package which defines the class
+#' declares, and a board option has the UI of its definition. Any package can
+#' supply another renderer, such as a richer table, and an app replaces a
+#' default with it by naming it in the blockr option `renderers`, by ID, as
+#' `options(blockr.renderers = c(table_output = "blockr.ui-table_preview"))`
+#' does (see [blockr_option()]). So a renderer that another package declares
+#' draws only where the app names it, and loading its package changes nothing.
+#' Two renderers that the defining package declares for one class are an error
+#' naming both, which the app settles through the blockr option.
 #'
 #' R names in each output it sends the renderer that it picked for the most
 #' specific class in the output's class vector that has one, as S3 dispatch
@@ -162,13 +156,13 @@ pick_renderers <- function() {
             entries, "option", chosen)
   )
 
-  entries[names(entries) %in% picked]
+  entries[names(entries) %in% picked[!is.na(picked)]]
 }
 
 # The renderer that R picks for an output class or a board option, as `what`
-# says, from those declared for it, by the steps of the pick, which
-# `register_renderer()` gives. Every renderer declared for it falls into one
-# step, so the pick finds one.
+# says, from those declared for it: the one that the blockr option `renderers`
+# names, and otherwise, for an output class, its default, the one that the
+# package which defines it declares, or `NA` where neither is.
 pick_renderer <- function(target, entries, what, chosen) {
 
   named <- chosen[names(chosen) == target]
@@ -178,34 +172,23 @@ pick_renderer <- function(target, entries, what, chosen) {
     return(unname(named))
   }
 
-  pkgs <- chr_xtr(cands, "package")
-
-  owner <- if (identical(what, "class")) {
-    output_class_entry(target)[["package"]]
+  if (!identical(what, "class")) {
+    return(NA_character_)
   }
 
-  steps <- list(!pkgs %in% owner, pkgs %in% owner)
+  owner <- output_class_entry(target)[["package"]]
+  ids <- names(cands)[chr_xtr(cands, "package") %in% owner]
 
-  for (step in steps) {
-
-    ids <- names(cands)[step]
-
-    if (length(ids) > 1L) {
-
-      what <- c(class = "output class", option = "board option")[[what]]
-
-      blockr_abort(
-        "Renderers {ids} draw {what} {target} at the same step of the pick, ",
-        "so R cannot pick one. Name the one to draw it in the blockr option ",
-        "`renderers`.",
-        class = "renderers_ambiguous"
-      )
-    }
-
-    if (length(ids)) {
-      return(ids)
-    }
+  if (length(ids) > 1L) {
+    blockr_abort(
+      "Renderers {ids} are declared by {owner}, which defines output class ",
+      "{target}, so it has no default renderer. Name the one to draw it in ",
+      "the blockr option `renderers`.",
+      class = "renderers_ambiguous"
+    )
   }
+
+  if (length(ids)) ids else NA_character_
 }
 
 # The renderers that the blockr option `renderers` names, by the output class
