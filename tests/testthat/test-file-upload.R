@@ -1,10 +1,12 @@
 upload_file <- function(name = "sales.csv") {
 
-  # Written as bytes, so that its hash, which names the directory R keeps it
-  # in, is the same on every platform
   writeBin(charToRaw("Time,demand\n1,8.3\n"), "upload.tmp")
 
   list(datapath = "upload.tmp", name = name, type = "text/csv", size = 18L)
+}
+
+upload <- function(file) {
+  run_block_request(upload_block, "upload", args = list(file = file))
 }
 
 test_that("upload block constructor", {
@@ -19,18 +21,18 @@ test_that("upload block constructor", {
 test_that("an upload keeps the file and answers with its path", {
 
   withr::local_dir(withr::local_tempdir())
-  local_mocked_bindings(upload_dir = function() "uploads")
-
-  upload <- function(file) {
-    run_block_request(upload_block, "upload", args = list(file = file))
-  }
+  withr::local_options(blockr.upload_dir = "uploads")
 
   file <- upload_file()
   path <- upload(file)
 
-  expect_match(path, "^uploads/[0-9a-f]+/sales\\.csv$")
+  expect_match(path, "^uploads/[^/]+/sales\\.csv$")
   expect_identical(readLines(path), c("Time,demand", "1,8.3"))
-  expect_identical(upload(file), path)
+
+  again <- upload(file)
+
+  expect_match(again, "^uploads/[^/]+/sales\\.csv$")
+  expect_false(identical(again, path))
 
   expect_identical(
     basename(upload(upload_file(file.path("..", "notes.csv")))),
@@ -57,17 +59,32 @@ test_that("an upload keeps the file and answers with its path", {
   expect_identical(res[["status"]], "invalid")
 })
 
+test_that("uploads go to the session's temporary directory by default", {
+
+  withr::local_dir(withr::local_tempdir())
+  withr::local_options(blockr.upload_dir = NULL)
+  withr::local_envvar(BLOCKR_UPLOAD_DIR = NA)
+
+  path <- upload(upload_file())
+
+  expect_identical(
+    normalizePath(dirname(dirname(path))),
+    normalizePath(file.path(tempdir(), "uploads"))
+  )
+})
+
 test_that("the upload block's fixture", {
 
   withr::local_dir(withr::local_tempdir())
-  local_mocked_bindings(upload_dir = function() "uploads")
+  local_mocked_bindings(
+    upload_folder = function() file.path("uploads", "3f9a2c")
+  )
 
   file <- upload_file()
-  path <- run_block_request(upload_block, "upload", args = list(file = file))
 
   expect_block_fixture(
     upload_block,
-    states = list(list(file_path = path)),
+    states = list(list(file_path = "uploads/3f9a2c/sales.csv")),
     requests = list(list(name = "upload", args = list(file = file)))
   )
 })

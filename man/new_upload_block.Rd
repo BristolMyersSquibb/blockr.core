@@ -31,21 +31,32 @@ class (see \code{\link[=new_block_class]{new_block_class()}}).
 }
 \details{
 In order to make user data available to blockr, this block lets a user
-upload a file. Given that data provided in this way are only available for
-the life-time of the R session, exported code is not self-contained and a
-script containing code from an upload block cannot be run in a new session.
+upload a file. Unless the app keeps uploads in a durable directory, data
+provided in this way are only available for the life-time of the R session,
+so a script containing code from an upload block cannot be run in a new
+session.
 }
 \section{Block class}{
 
 The block has no data inputs. Its UI sends the file a user picks to R
 through the action \code{upload}, which receives it in its argument \code{file} as a
 list of the path of the temporary file R wrote, as \code{datapath}, and the
-file's \code{name}, \code{type} and \code{size}. The action keeps the file in the R
-session's temporary directory and answers with its path, which the UI sets
-as the block's state arg \code{file_path}. That arg has no default, so a new
-block is \code{invalid} until a file is uploaded, and the block expression is the
-path, as \code{file.path("/tmp/Rtmp/uploads/3f9a2c/sales.csv")}. Its results
-show as text, through \code{\link[=as_text_output]{as_text_output()}}.
+file's \code{name}, \code{type} and \code{size}. The action copies the file into a new
+folder with a random name, where it keeps its own name, and answers with
+its path, which the UI sets as the block's state arg \code{file_path}. That arg
+has no default, so a new block is \code{invalid} until a file is uploaded, and
+the block expression is the path, as
+\code{file.path("/tmp/Rtmp/uploads/3f9a2c/sales.csv")}. Its results show as
+text, through \code{\link[=as_text_output]{as_text_output()}}.
+}
+
+\section{Upload directory}{
+
+The folders go in the session's temporary directory, which R removes with
+the session's process. A deployment that offers a durable path names it in
+the blockr option \code{upload_dir}, through the R option \code{blockr.upload_dir} or
+the environment variable \code{BLOCKR_UPLOAD_DIR}, so that a board saved with an
+upload can read its file in a later session.
 }
 
 \examples{

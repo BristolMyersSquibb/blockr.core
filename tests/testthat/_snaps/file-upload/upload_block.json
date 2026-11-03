@@ -1,7 +1,7 @@
 {
   "states": [
     {
-      "file_path": "uploads/4cfd61c04445379d198686ba36717138/sales.csv"
+      "file_path": "uploads/3f9a2c/sales.csv"
     }
   ],
   "requests": [
@@ -16,7 +16,7 @@
         }
       },
       "options": {},
-      "answer": ["uploads/4cfd61c04445379d198686ba36717138/sales.csv"]
+      "answer": ["uploads/3f9a2c/sales.csv"]
     }
   ]
 }

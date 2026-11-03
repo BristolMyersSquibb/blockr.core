@@ -1,10 +1,18 @@
 #' @include block-class.R output-text.R
 NULL
 
-# The directory where R keeps uploaded files, one directory per file content,
-# in the session's temporary directory, which goes with the session's process.
+# The directory where R keeps uploaded files. By default it is in the session's
+# temporary directory, which goes with the session's process, while a
+# deployment that offers a durable path names it in the blockr option
+# `upload_dir`.
 upload_dir <- function() {
-  file.path(tempdir(), "uploads")
+  blockr_option("upload_dir", file.path(tempdir(), "uploads"))
+}
+
+# A new folder with a random name in the upload directory, one per upload,
+# joined with "/" on every platform
+upload_folder <- function() {
+  file.path(upload_dir(), basename(tempfile("")))
 }
 
 keep_upload <- function(file) {
@@ -24,7 +32,7 @@ keep_upload <- function(file) {
     name <- path
   }
 
-  dir <- file.path(upload_dir(), rlang::hash_file(path))
+  dir <- upload_folder()
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
 
   dest <- file.path(dir, basename(name))
@@ -59,20 +67,29 @@ upload_block <- new_block_class(
 #'
 #' @details
 #' In order to make user data available to blockr, this block lets a user
-#' upload a file. Given that data provided in this way are only available for
-#' the life-time of the R session, exported code is not self-contained and a
-#' script containing code from an upload block cannot be run in a new session.
+#' upload a file. Unless the app keeps uploads in a durable directory, data
+#' provided in this way are only available for the life-time of the R session,
+#' so a script containing code from an upload block cannot be run in a new
+#' session.
 #'
 #' @section Block class:
 #' The block has no data inputs. Its UI sends the file a user picks to R
 #' through the action `upload`, which receives it in its argument `file` as a
 #' list of the path of the temporary file R wrote, as `datapath`, and the
-#' file's `name`, `type` and `size`. The action keeps the file in the R
-#' session's temporary directory and answers with its path, which the UI sets
-#' as the block's state arg `file_path`. That arg has no default, so a new
-#' block is `invalid` until a file is uploaded, and the block expression is the
-#' path, as `file.path("/tmp/Rtmp/uploads/3f9a2c/sales.csv")`. Its results
-#' show as text, through [as_text_output()].
+#' file's `name`, `type` and `size`. The action copies the file into a new
+#' folder with a random name, where it keeps its own name, and answers with
+#' its path, which the UI sets as the block's state arg `file_path`. That arg
+#' has no default, so a new block is `invalid` until a file is uploaded, and
+#' the block expression is the path, as
+#' `file.path("/tmp/Rtmp/uploads/3f9a2c/sales.csv")`. Its results show as
+#' text, through [as_text_output()].
+#'
+#' @section Upload directory:
+#' The folders go in the session's temporary directory, which R removes with
+#' the session's process. A deployment that offers a durable path names it in
+#' the blockr option `upload_dir`, through the R option `blockr.upload_dir` or
+#' the environment variable `BLOCKR_UPLOAD_DIR`, so that a board saved with an
+#' upload can read its file in a later session.
 #'
 #' @param file_path Path of the uploaded file
 #' @inheritParams new_head_block
@@ -83,8 +100,8 @@ upload_block <- new_block_class(
 #' @blockIcon upload
 #' @blockGuidance Provides the path of a file that a user uploads in the running
 #'   app, for a downstream parser such as a CSV block. The upload itself sets
-#'   `file_path`. Uploaded data lives only for the session, so reproducible
-#'   export is unavailable.
+#'   `file_path`. Unless the app keeps uploads in a durable directory, uploaded
+#'   data lives only for the session.
 #' @blockKeywords upload, file, import, data, session
 #'
 #' @examples

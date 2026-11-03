@@ -59,14 +59,15 @@ new_upload_block:
   description: Upload data
   category: input
   details: In order to make user data available to blockr, this block lets a user
-    upload a file. Given that data provided in this way are only available for the
-    life-time of the R session, exported code is not self-contained and a script containing
-    code from an upload block cannot be run in a new session.
+    upload a file. Unless the app keeps uploads in a durable directory, data provided
+    in this way are only available for the life-time of the R session, so a script
+    containing code from an upload block cannot be run in a new session.
   link: https://bristolmyerssquibb.github.io/blockr.core/reference/new_upload_block.html
   icon: upload
   guidance: Provides the path of a file that a user uploads in the running app, for
-    a downstream parser such as a CSV block. The upload itself sets `file_path`. Uploaded
-    data lives only for the session, so reproducible export is unavailable.
+    a downstream parser such as a CSV block. The upload itself sets `file_path`. Unless
+    the app keeps uploads in a durable directory, uploaded data lives only for the
+    session.
   keywords:
   - upload
   - file
