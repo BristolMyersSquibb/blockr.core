@@ -483,8 +483,8 @@ describe("statuses", () => {
       running: false,
       conditions: [
         {
-          severity: "warning",
-          class: ["blockr_warning", "warning", "condition"],
+          severity: "message",
+          class: ["blockr_message", "message", "condition"],
           phase: "status",
           message: 'This block is waiting for its input "data" to be linked.',
         },

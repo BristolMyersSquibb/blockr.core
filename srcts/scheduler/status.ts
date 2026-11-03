@@ -158,9 +158,9 @@ export function waiting(
   };
 }
 
-// The condition of a waiting block, which names the inputs that no link feeds
-// or the blocks upstream that keep it waiting, of the severity of today's
-// note.
+// The condition of a waiting block. It names the inputs that no link feeds,
+// or else the blocks upstream that keep the block waiting. It is a message,
+// since the status already says that the block waits.
 export function waitingFor(
   what: { unlinked: readonly string[] } | { upstream: readonly BlockId[] },
 ): Condition {
@@ -175,8 +175,8 @@ export function waitingFor(
     message = `This block is waiting for its ${inputs} ${quoted(what.unlinked)} to be linked.`;
   }
   return {
-    severity: "warning",
-    class: ["blockr_warning", "warning", "condition"],
+    severity: "message",
+    class: ["blockr_message", "message", "condition"],
     phase: "status",
     message,
   };
