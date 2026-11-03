@@ -2,17 +2,9 @@
 
 // The store, with R's replies taken from the fixtures of the wire protocol.
 
-import { readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, expect, test, vi } from "vitest";
-import type {
-  ErrorReply,
-  Fixture,
-  HelloReply,
-  OpenReply,
-  Reply,
-} from "../protocol/messages.ts";
+import type { ErrorReply, HelloReply, OpenReply } from "../protocol/messages.ts";
+import { coreOptions, fakeR, hello, loaded, reply } from "../testing/store.ts";
 import type { Block, Board, OpeningBoard, SavedBoard } from "../types/board.ts";
 import { ROUNDS } from "./expand.ts";
 import { createStore, isId, sentenceCase, StoreError } from "./index.ts";
@@ -20,7 +12,6 @@ import type {
   Change,
   Delta,
   Migration,
-  Option,
   StateKey,
   Store,
   StoreOptions,
@@ -46,50 +37,7 @@ interface Position {
   readonly y: number;
 }
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-
-// R's first reply in a fixture.
-function reply(name: string): unknown {
-  const file = join(root, "inst", "protocol", "fixtures", `${name}.json`);
-  const fixture = JSON.parse(readFileSync(file, "utf8")) as Fixture;
-  return fixture.r[0]?.[0];
-}
-
-const hello = reply("hello") as HelloReply;
-const loaded = reply("open") as OpenReply;
-
-// R, as the fixtures give its replies, which records what the store sent.
 type Client = StoreOptions["client"];
-type Sent = Parameters<Client["request"]>[0];
-
-function fakeR(answer: Reply = loaded): Client & { sent: Sent[] } {
-  const sent: Sent[] = [];
-  return {
-    sent,
-    request(request) {
-      sent.push(request);
-      return Promise.resolve({ reply: answer, body: null });
-    },
-  };
-}
-
-// Core's board options, as the fixtures' boards hold their values.
-const coreOptions: Option[] = [
-  {
-    id: "n_rows",
-    label: "Preview rows",
-    category: "Table options",
-    schema: { type: "integer", minimum: 0 },
-    default: 50,
-  },
-  {
-    id: "show_conditions",
-    label: "Message types to display",
-    category: "Board options",
-    schema: { type: "array", items: { enum: ["message", "warning", "error"] } },
-    default: ["warning", "error"],
-  },
-];
 
 const path = ["extensions", "blockr.dag-dag", "positions"];
 
@@ -863,6 +811,33 @@ describe("applying a delta", () => {
     expect(links.indexOf("ge")).toBe(links.indexOf("de") - 1);
   });
 
+  test("places an added link where the link that `before` names was, where the same delta removes that link", async () => {
+    const store = await opened();
+    const order = Object.keys(store.board().links);
+
+    store.apply({
+      blocks: { add: { g: head(3) } },
+      links: { rm: ["be"], add: { ge: { from: "g", to: "e", input: "" } }, before: { ge: "be" } },
+    });
+    expect(Object.keys(store.board().links)).toEqual(order.map((id) => (id === "be" ? "ge" : id)));
+
+    store.undo();
+    expect(Object.keys(store.board().links)).toEqual(order);
+
+    const last = order.at(-1) ?? "";
+    store.apply({
+      links: { rm: [last], add: { af: { from: "a", to: "f", input: "data" } }, before: { af: last } },
+    });
+    expect(Object.keys(store.board().links).at(-1)).toBe("af");
+  });
+
+  test("refuses a link to go before one that the board lacks", async () => {
+    const store = await opened();
+    expect(() => {
+      store.apply({ links: { add: { ce: { from: "c", to: "e", input: "" } }, before: { ce: "zz" } } });
+    }).toThrow('The board holds no link "zz" for link "ce" to go before.');
+  });
+
   test("throws when a subscriber applies a delta", async () => {
     const store = await opened();
     let caught: unknown;
@@ -911,6 +886,40 @@ describe("applying a delta", () => {
     store.apply([]);
     expect(store.board()).toBe(board);
     expect(store.canUndo()).toBe(false);
+  });
+
+  test("makes no step for a delta that changes nothing, and tells no one", async () => {
+    const store = await opened((store) => store.register(positions));
+    store.apply({ front_end: { state: [{ path, change: { add: { a: { x: 1, y: 2 } } } }] } });
+    const board = store.board();
+    const edits = [store.editId({ block: "b" }), store.editId({ path, entry: "a" })];
+    const seen = changes(store);
+
+    store.apply(
+      [
+        { name: "Iris review" },
+        { blocks: { mod: { b: { state: { n: 6 }, unset: ["nothing"], name: "Head" } } } },
+        { links: { mod: { ab: { input: "data" } } }, stacks: { mod: { s1: { blocks: ["a", "b"] } } } },
+        { options: { set: { n_rows: 50 }, unset: ["dark_mode"] } },
+        { front_end: { state: [{ path, change: { mod: { a: { set: { x: 1 } } } } }] } },
+      ],
+      "assistant",
+    );
+
+    expect(store.board()).toBe(board);
+    expect(seen).toEqual([]);
+    expect(store.canUndo("assistant")).toBe(false);
+    expect([store.editId({ block: "b" }), store.editId({ path, entry: "a" })]).toEqual(edits);
+  });
+
+  test("keeps in a step only what it changes, so that its undo sets back nothing else", async () => {
+    const store = await opened();
+
+    store.apply({ blocks: { mod: { b: { state: { n: 6, direction: "tail" } } } } });
+    store.apply({ blocks: { mod: { b: { state: { n: 10 } } } } }, "assistant");
+    store.undo();
+
+    expect(store.board().blocks.b?.state).toEqual({ n: 10, direction: "head" });
   });
 });
 
