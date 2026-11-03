@@ -136,14 +136,16 @@ new_glue_block:
   description: String interpolation using glue
   category: utility
   details: Using [glue::glue()], this block allows evaluation of a text string in
-    the context of datasets to produce text as block result. Each input is available
-    in the text by the name of its link's input, or else by the ID of the block it
-    comes from, as in `"{nrow(data)} rows"`.
+    the context of datasets to produce text as block result. The text refers to an
+    input by the name of its link's input, as in `"{nrow(data)} rows"`. An input whose
+    link has no name goes by its position among the inputs, as `...1`, `...2` and
+    so on.
   link: https://bristolmyerssquibb.github.io/blockr.core/reference/new_glue_block.html
   icon: braces
   guidance: Interpolates a template against the input data with `glue::glue()` to
     produce text. Reference an input in `text` with braces, by the name of its link's
-    input or else by the ID of the block it comes from, e.g. "{nrow(data)} rows".
+    input, e.g. "{nrow(data)} rows", or, where the link has no name, by its position
+    among the inputs, as `...1`.
   keywords:
   - glue
   - template

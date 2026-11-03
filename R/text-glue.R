@@ -6,15 +6,13 @@ glue_block <- new_block_class(
   "glue_block",
   inputs = "...",
   expr = function(text = "") {
-    bbquote(
-      glue::glue(
-        .(text),
-        .envir = list2env(
-          rlang::dots_list(..., .named = TRUE),
-          parent = baseenv()
-        )
-      )
-    )
+    function(...) {
+      args <- list(...)
+      nms <- if (is.null(names(args))) character(length(args)) else names(args)
+      nms[!nzchar(nms)] <- paste0("...", which(!nzchar(nms)))
+      names(args) <- nms
+      glue::glue(.(text), .envir = list2env(args, parent = baseenv()))
+    }
   },
   ui = js_module("js/glue-block.js"),
   output = as_text_output
@@ -29,16 +27,18 @@ glue_block <- new_block_class(
 #'
 #' @details
 #' Using [glue::glue()], this block allows evaluation of a text string in the
-#' context of datasets to produce text as block result. Each input is available
-#' in the text by the name of its link's input, or else by the ID of the block
-#' it comes from, as in `"{nrow(data)} rows"`.
+#' context of datasets to produce text as block result. The text refers to an
+#' input by the name of its link's input, as in `"{nrow(data)} rows"`. An input
+#' whose link has no name goes by its position among the inputs, as `...1`,
+#' `...2` and so on.
 #'
 #' @section Block class:
-#' The block is variadic, so it waits for one link before it runs. Its block
-#' expression evaluates the template in an environment that binds each input
-#' by the name of its link's input, or by the upstream block's ID where the
-#' link has none, through [rlang::dots_list()]. Its results show as text,
-#' through [as_text_output()].
+#' The block is variadic, so it waits for one link before it runs. Its `expr`
+#' returns a function of `...`, so that the block expression calls it with the
+#' upstream blocks in link order, an input whose link has no name as an
+#' unnamed argument. The function names each such input by its position and
+#' evaluates the template in an environment that binds every input by its
+#' name. Its results show as text, through [as_text_output()].
 #'
 #' @param text String evaluated using [glue::glue()]
 #' @inheritParams new_head_block
@@ -49,8 +49,8 @@ glue_block <- new_block_class(
 #' @blockIcon braces
 #' @blockGuidance Interpolates a template against the input data with
 #'   `glue::glue()` to produce text. Reference an input in `text` with braces,
-#'   by the name of its link's input or else by the ID of the block it comes
-#'   from, e.g. "{nrow(data)} rows".
+#'   by the name of its link's input, e.g. "{nrow(data)} rows", or, where the
+#'   link has no name, by its position among the inputs, as `...1`.
 #' @blockKeywords glue, template, text, string, interpolate, markdown
 #' @blockArg text Template string evaluated with glue::glue().
 #'   [example] "{nrow(data)} rows"

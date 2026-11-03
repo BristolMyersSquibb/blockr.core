@@ -14,31 +14,30 @@ test_that("glue block constructor", {
   expect_identical(registry_id_from_block(blk), "blockr.core-glue_block")
 })
 
-test_that("a glue block refers to its inputs by link or by block", {
+test_that("a glue block refers to its inputs by link name or position", {
 
   res <- evaluate_block(
     glue_block,
-    list(text = "{nrow(data)} rows, {nrow(a)} in a"),
-    list(... = list("a", data = "b")),
-    list(a = datasets::BOD, b = datasets::iris)
+    list(text = "{nrow(...1)} and {nrow(data)} rows, {nrow(...3)} more"),
+    list(... = list("a", data = "b", "c")),
+    list(a = datasets::BOD, b = datasets::iris, c = datasets::mtcars)
   )
 
   expect_identical(res[["status"]], "ok")
   expect_identical(
-    res[["expr"]],
-    quote(
-      glue::glue(
-        "{nrow(data)} rows, {nrow(a)} in a",
-        .envir = list2env(
-          rlang::dots_list(a, data = b, .named = TRUE),
-          parent = baseenv()
-        )
-      )
-    )
+    as.list(res[["expr"]])[-1L],
+    list(quote(a), data = quote(b), quote(c))
   )
-  expect_identical(as.character(res[["result"]]), "150 rows, 6 in a")
-  expect_identical(as_text_output(res[["result"]])[["text"]],
-                   "150 rows, 6 in a")
+  expect_identical(as.character(res[["result"]]), "6 and 150 rows, 32 more")
+  expect_identical(
+    as_text_output(res[["result"]])[["text"]],
+    "6 and 150 rows, 32 more"
+  )
+
+  res <- evaluate_block(glue_block, list(text = "{nrow(...1)} rows"),
+                        list(... = list("a")), list(a = datasets::BOD))
+
+  expect_identical(as.character(res[["result"]]), "6 rows")
 })
 
 test_that("the glue block's fixture", {
