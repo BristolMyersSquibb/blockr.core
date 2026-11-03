@@ -7,10 +7,10 @@
 \usage{
 static_block
 
-new_static_block(data, block_name = NULL, visible = NULL)
+new_static_block(expression, block_name = NULL, visible = NULL)
 }
 \arguments{
-\item{data}{An R expression as a string}
+\item{expression}{An R expression as a string}
 
 \item{block_name}{Name of the block, which defaults to one made from the
 name of its class, such as "Head"}
@@ -36,20 +36,17 @@ evaluated.
 }
 \section{Block class}{
 
-The block has no data inputs. Its state arg \code{data} holds the expression as a
-string, which the block parses with \code{\link[base:str2lang]{base::str2lang()}}, so that the
-constructor fails on a string that does not parse and on anything but a
-string, such as a data frame, while a script may give the expression quoted,
-as \code{quote(datasets::iris)}, which the constructor turns into a string. The
-block expression is the expression itself, in parentheses where it is a name
-or a constant, such as \code{(iris)}. Its module draws nothing, and its results
-show as a table, through \code{\link[=as_table_output]{as_table_output()}}.
+The block has no data inputs. Its state arg \code{expression} holds the
+expression as a string, which \code{expr} parses with \code{\link[base:str2lang]{base::str2lang()}}. So the
+constructor fails on a string that does not parse, and on anything but a
+string, such as a data frame. The block's module draws nothing, and its
+results show as a table, through \code{\link[=as_table_output]{as_table_output()}}.
 }
 
 \examples{
 new_static_block("datasets::iris")
 
-evaluate_block(static_block, list(data = "utils::head(datasets::iris)"))
+evaluate_block(static_block, list(expression = "utils::head(datasets::BOD)"))
 
 try(new_static_block(datasets::iris))
 

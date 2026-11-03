@@ -17,8 +17,13 @@ test_that("a call or a name becomes a function of the inputs", {
 
   expect_identical(
     interpolate(quote(datasets::iris), list()),
-    quote((function() datasets::iris)())
+    quote(datasets::iris)
   )
+
+  expect_identical(interpolate(quote(iris), list()), quote(iris))
+  expect_identical(interpolate("datasets::iris", list()), quote(datasets::iris))
+  expect_identical(interpolate(function() datasets::iris, list()),
+                   quote(datasets::iris))
 
   expect_identical(
     interpolate(quote(data), list(data = "a")),

@@ -4,16 +4,17 @@
 #' @export
 static_block <- new_block_class(
   "static_block",
-  expr = function(data) {
+  expr = function(expression) {
 
-    data <- code_string(data, "static block")
-    code <- str2lang(data)
-
-    if (!is.call(code)) {
-      code <- call("(", code)
+    if (!is_string(expression) || is.na(expression)) {
+      blockr_abort(
+        "The static block takes an R expression as a string, such as ",
+        "\"datasets::iris\".",
+        class = "block_code_invalid"
+      )
     }
 
-    bbquote(.(code))
+    str2lang(expression)
   },
   ui = js_module("js/static-block.js"),
   output = as_table_output
@@ -33,22 +34,19 @@ static_block <- new_block_class(
 #' evaluated.
 #'
 #' @section Block class:
-#' The block has no data inputs. Its state arg `data` holds the expression as a
-#' string, which the block parses with [base::str2lang()], so that the
-#' constructor fails on a string that does not parse and on anything but a
-#' string, such as a data frame, while a script may give the expression quoted,
-#' as `quote(datasets::iris)`, which the constructor turns into a string. The
-#' block expression is the expression itself, in parentheses where it is a name
-#' or a constant, such as `(iris)`. Its module draws nothing, and its results
-#' show as a table, through [as_table_output()].
+#' The block has no data inputs. Its state arg `expression` holds the
+#' expression as a string, which `expr` parses with [base::str2lang()]. So the
+#' constructor fails on a string that does not parse, and on anything but a
+#' string, such as a data frame. The block's module draws nothing, and its
+#' results show as a table, through [as_table_output()].
 #'
-#' @param data An R expression as a string
+#' @param expression An R expression as a string
 #' @inheritParams new_head_block
 #'
 #' @examples
 #' new_static_block("datasets::iris")
 #'
-#' evaluate_block(static_block, list(data = "utils::head(datasets::iris)"))
+#' evaluate_block(static_block, list(expression = "utils::head(datasets::BOD)"))
 #'
 #' try(new_static_block(datasets::iris))
 #'

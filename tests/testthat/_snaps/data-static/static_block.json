@@ -1,10 +1,10 @@
 {
   "states": [
     {
-      "data": "datasets::iris"
+      "expression": "datasets::iris"
     },
     {
-      "data": "utils::head(datasets::mtcars)"
+      "expression": "utils::head(datasets::mtcars)"
     }
   ],
   "requests": []

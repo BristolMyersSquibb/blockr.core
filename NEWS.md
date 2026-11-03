@@ -96,10 +96,11 @@
   `new_transform_block()`, with `validate_data_inputs()`. The methods of
   `blockr_ser()` and `blockr_deser()` for blocks go too, since neither works
   for a block of a block class (#423).
-* Some built-in blocks change behavior. The static block holds R code as a
-  string, such as `new_static_block("datasets::iris")`, in place of a data
-  frame, which its constructor now refuses. The fixed block holds its code as
-  a string as well. A dataset block waits for a dataset, a merge block for the
+* Some built-in blocks change behavior. The static block takes an R expression
+  as a string, in its argument `expression`, such as
+  `new_static_block("datasets::iris")`, in place of a data frame, which its
+  constructor now refuses. The fixed block holds its code as a string as
+  well. A dataset block waits for a dataset, a merge block for the
   columns to join by and a scatter block for both of its columns, where each
   had a default before. The glue block waits for a link, refers to an input
   without a name by the ID of its block, where it used `.arg1` before, and

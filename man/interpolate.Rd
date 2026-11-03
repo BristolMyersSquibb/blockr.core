@@ -52,7 +52,9 @@ the block's data inputs with the upstream ids, so that a head block
 downstream of block \code{a} gets
 \code{(function(data) utils::head(data, n = 10L))(data = a)}, and a variadic
 block's \code{...} is a formal of that function, which the call binds to the ids
-in link order. For a \code{bquoted_expr}, the upstream
+in link order. A block without data inputs has nothing to bind, so its block
+expression is the call or name as it is, such as \code{datasets::iris}. For a
+\code{bquoted_expr}, the upstream
 ids take the place of its placeholders, and \code{...} as an argument of a call
 stands for a variadic block's inputs, but for the \code{...} of a function the
 expression defines, so that \code{bbquote(utils::head(.(data), n = 10L))} gives
@@ -69,6 +71,7 @@ inputs <- list(data = "a")
 
 interpolate(quote(utils::head(data, n = 10L)), inputs)
 interpolate("utils::head(data, n = 10L)", inputs)
+interpolate("datasets::iris", list())
 
 n <- 10L
 interpolate(function(data) utils::head(data, n = .(n)), inputs)
