@@ -7,9 +7,9 @@
 // `args` with that schema in place of `state`, which is what a form or a tool
 // of the assistant's for that class takes.
 
-import { isObject, own } from "../store/util.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
+import { isObject, own } from "../util/index.ts";
 
 // An id is any string that is neither empty nor made of digits alone, since a
 // JS object puts keys that look like integers first.

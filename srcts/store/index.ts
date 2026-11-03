@@ -15,4 +15,4 @@ export type {
 export { BASIC_FRONT_END, FORMAT } from "./open.ts";
 export type { Dropped } from "./open.ts";
 export { isId, mintId, sentenceCase } from "./ids.ts";
-export { StoreError } from "./util.ts";
+export { StoreError } from "./error.ts";

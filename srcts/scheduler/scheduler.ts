@@ -28,10 +28,10 @@ import type { Client, RequestOptions } from "../protocol/client.ts";
 import type { BlockRevision, Recipe, Reply } from "../protocol/messages.ts";
 import type { Delta } from "../store/delta.ts";
 import type { Store } from "../store/store.ts";
-import { messageOf, own } from "../store/util.ts";
 import type { BlockId, Board, RegistryId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
+import { asError, messageOf, own, report } from "../util/index.ts";
 import * as evaluations from "./evaluations.ts";
 import type { OneTime, Settled } from "./evaluations.ts";
 import { needsOf } from "./needs.ts";
@@ -786,16 +786,4 @@ function priorityError(priority: number): TypeError | undefined {
   return typeof priority !== "number" || Number.isNaN(priority)
     ? new TypeError(`An evaluation priority is a number, not ${String(priority)}.`)
     : undefined;
-}
-
-function asError(error: unknown): Error {
-  return error instanceof Error ? error : new Error(String(error));
-}
-
-// Reports what a caller's function threw, or an error that nobody waits on,
-// without stopping the scheduler.
-function report(error: unknown): void {
-  queueMicrotask(() => {
-    throw error;
-  });
 }

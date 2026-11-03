@@ -4,8 +4,8 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.10#revisions).
 
 import type { Graph } from "../graph/index.ts";
-import { jsonEqual, own } from "../store/util.ts";
 import type { BlockId, Board } from "../types/board.ts";
+import { jsonEqual, own } from "../util/index.ts";
 import { sameInputs } from "./recipes.ts";
 import type { Inputs } from "./recipes.ts";
 

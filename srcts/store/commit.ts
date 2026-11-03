@@ -16,6 +16,7 @@ import type {
   StackId,
 } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
+import { getAt, isObject, jsonEqual, own, pathText, setAt, without } from "../util/index.ts";
 import { isValueDelta } from "./delta.ts";
 import type {
   BlockMod,
@@ -27,7 +28,6 @@ import type {
   Values,
 } from "./delta.ts";
 import type { Registrations } from "./registrations.ts";
-import { getAt, isObject, jsonEqual, own, pathText, setAt, without } from "./util.ts";
 
 // Where each entry that an inverse adds back goes, before the entry named or
 // last, by collection: "blocks", "links", "stacks", or a key's path as JSON.

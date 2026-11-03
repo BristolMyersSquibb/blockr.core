@@ -6,9 +6,9 @@
 
 import type { Graph } from "../graph/index.ts";
 import type { Recipe, Reply } from "../protocol/messages.ts";
-import { quoted } from "../store/util.ts";
 import type { BlockId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
+import { quoted } from "../util/index.ts";
 import type { Need } from "./needs.ts";
 import type { Pending } from "./plan.ts";
 import { replied, waitingError } from "./status.ts";

@@ -18,11 +18,13 @@ import type {
   SavedBoard,
 } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
+import { getAt, isObject, pathText, report } from "../util/index.ts";
 import { check } from "./check.ts";
 import { commit, target } from "./commit.ts";
 import type { Changed, Inverse } from "./commit.ts";
-import { isValueDelta } from "./delta.ts";
+import { isDeltas, isValueDelta } from "./delta.ts";
 import type { Delta, Origin } from "./delta.ts";
+import { StoreError } from "./error.ts";
 import { expand } from "./expand.ts";
 import { fit, isEmpty } from "./undo.ts";
 import { checkFile, FORMAT, frontEndOf, keyed, openFile, parse } from "./open.ts";
@@ -34,7 +36,6 @@ import type {
   Options,
   StateKey,
 } from "./registrations.ts";
-import { getAt, isObject, pathText, StoreError } from "./util.ts";
 
 export type Change =
   | { readonly delta: Delta; readonly origin: Origin }
@@ -161,9 +162,7 @@ export function createStore(options: StoreOptions): Store {
       try {
         fn(change, next);
       } catch (error) {
-        queueMicrotask(() => {
-          throw error;
-        });
+        report(error);
       }
     }
   }
@@ -458,7 +457,3 @@ const visible: Attribute = {
   },
   initial: ["inputs", "outputs"],
 };
-
-function isDeltas(delta: Delta | readonly Delta[]): delta is readonly Delta[] {
-  return Array.isArray(delta);
-}

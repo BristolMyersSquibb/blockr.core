@@ -9,8 +9,8 @@ import type {
   Reply,
 } from "../protocol/messages.ts";
 import type { Graph } from "../graph/index.ts";
-import { quoted } from "../store/util.ts";
 import type { BlockId } from "../types/board.ts";
+import { quoted } from "../util/index.ts";
 import type { Inputs } from "./recipes.ts";
 
 // A block's status is the first of these that holds:
