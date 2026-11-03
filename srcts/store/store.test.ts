@@ -860,6 +860,40 @@ describe("applying a delta", () => {
     expect(store.board()).toBe(board);
     expect(store.canUndo()).toBe(false);
   });
+
+  test("makes no step for a delta that changes nothing, and tells no one", async () => {
+    const store = await opened((store) => store.register(positions));
+    store.apply({ front_end: { state: [{ path, change: { add: { a: { x: 1, y: 2 } } } }] } });
+    const board = store.board();
+    const edits = [store.editId({ block: "b" }), store.editId({ path, entry: "a" })];
+    const seen = changes(store);
+
+    store.apply(
+      [
+        { name: "Iris review" },
+        { blocks: { mod: { b: { state: { n: 6 }, unset: ["nothing"], name: "Head" } } } },
+        { links: { mod: { ab: { input: "data" } } }, stacks: { mod: { s1: { blocks: ["a", "b"] } } } },
+        { options: { set: { n_rows: 50 }, unset: ["dark_mode"] } },
+        { front_end: { state: [{ path, change: { mod: { a: { set: { x: 1 } } } } }] } },
+      ],
+      "assistant",
+    );
+
+    expect(store.board()).toBe(board);
+    expect(seen).toEqual([]);
+    expect(store.canUndo("assistant")).toBe(false);
+    expect([store.editId({ block: "b" }), store.editId({ path, entry: "a" })]).toEqual(edits);
+  });
+
+  test("keeps in a step only what it changes, so that its undo sets back nothing else", async () => {
+    const store = await opened();
+
+    store.apply({ blocks: { mod: { b: { state: { n: 6, direction: "tail" } } } } });
+    store.apply({ blocks: { mod: { b: { state: { n: 10 } } } } }, "assistant");
+    store.undo();
+
+    expect(store.board().blocks.b?.state).toEqual({ n: 10, direction: "head" });
+  });
 });
 
 describe("edit ids", () => {

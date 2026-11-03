@@ -1,6 +1,9 @@
 // Applying a delta to a board: the new board, which shares with the old one
 // whatever the delta did not change, and the inverse that undo applies, taken
 // from the board the delta replaces, so that no package writes undo code.
+// Setting what a value holds already changes nothing, so the inverse holds
+// only what the delta changed, and is empty for a delta that changes nothing,
+// which the store therefore applies as no step.
 
 import type {
   Block,
@@ -24,7 +27,7 @@ import type {
   Values,
 } from "./delta.ts";
 import type { Registrations } from "./registrations.ts";
-import { getAt, isObject, own, pathText, setAt, without } from "./util.ts";
+import { getAt, isObject, jsonEqual, own, pathText, setAt, without } from "./util.ts";
 
 // Where each entry that an inverse adds back goes, before the entry named or
 // last, by collection: "blocks", "links", "stacks", or a key's path as JSON.
@@ -152,6 +155,7 @@ export function commit(
       }
       const old = getAt(state, path) as Json | undefined;
       const value = change.unset === true ? undefined : change.set;
+      if (jsonEqual(old, value)) continue;
       state = setAt(state, path, value);
       const back: ValueDelta = old === undefined ? { unset: true } : { set: old };
       stateInverse.unshift({ path, change: back });
@@ -181,7 +185,7 @@ export function commit(
       failures,
     );
     state = setAt(state, path, result.next);
-    stateInverse.unshift({ path, change: result.inverse });
+    if (!empty(result.inverse)) stateInverse.unshift({ path, change: result.inverse });
     statePlaces[at] = { ...statePlaces[at], ...result.places };
     for (const id of result.touched) targets.add(target({ path, entry: id }));
     entries.set(at, new Set([...(entries.get(at) ?? []), ...result.changed]));
@@ -209,7 +213,7 @@ export function commit(
     ...(empty(links.inverse) ? {} : { links: links.inverse }),
     ...(empty(stacks.inverse) ? {} : { stacks: stacks.inverse }),
     ...(options.inverse === undefined ? {} : { options: options.inverse }),
-    ...(delta.name === undefined ? {} : { name: board.name }),
+    ...(delta.name === undefined || delta.name === board.name ? {} : { name: board.name }),
     ...(attrs.inverse === undefined && stateInverse.length === 0
       ? {}
       : {
@@ -262,8 +266,9 @@ interface Collection<T, M> {
 
 // A collection's part of a delta, applied with `rm` before `add` and `mod`
 // last. An entry that `places` or `before` names a successor for goes before
-// it, and every other entry added goes last.
-function collection<T, M>(
+// it, and every other entry added goes last. A `mod` that changes nothing, as
+// its empty inverse says, leaves the entry as it is.
+function collection<T, M extends object>(
   name: (id: string) => string,
   current: Readonly<Record<string, T>>,
   part: Part<T, M> | undefined,
@@ -325,6 +330,7 @@ function collection<T, M>(
       continue;
     }
     const { value, inverse } = modify(entry[1], mod, id);
+    if (Object.keys(inverse).length === 0) continue;
     kept[at] = [id, value];
     if (!added.includes(id)) remod[id] = inverse;
     modded.push(id);
@@ -347,9 +353,58 @@ function empty(part: Part<unknown, unknown>): boolean {
   return Object.keys(part).length === 0;
 }
 
+// What setting and unsetting values by name changes in a record: the values
+// that differ from those it holds, and the names it holds of those to unset,
+// with what sets them back, the old values and the names that held none. The
+// record stays the same object where nothing changes, and setting and unsetting
+// one name fails.
+interface Changes {
+  readonly next: Readonly<Record<string, Json>>;
+  readonly set: readonly string[];
+  readonly restore: Readonly<Record<string, Json>>;
+  readonly remove: readonly string[];
+}
+
+function changes(
+  current: Readonly<Record<string, Json>>,
+  set: Readonly<Record<string, Json>>,
+  unset: readonly string[],
+  both: (name: string) => string,
+  failures: string[],
+): Changes {
+  const setting = Object.entries(set).filter(
+    ([name, value]) => !jsonEqual(own(current, name), value),
+  );
+  const restore: Record<string, Json> = {};
+  const remove: string[] = [];
+  const removing: string[] = [];
+
+  for (const name of unset) {
+    if (Object.hasOwn(set, name)) failures.push(both(name));
+    const was = own(current, name);
+    if (was === undefined) continue;
+    removing.push(name);
+    restore[name] = was;
+  }
+  for (const [name] of setting) {
+    const was = own(current, name);
+    if (was === undefined) remove.push(name);
+    else restore[name] = was;
+  }
+
+  return {
+    next:
+      setting.length === 0 && removing.length === 0
+        ? current
+        : { ...without(current, removing), ...Object.fromEntries(setting) },
+    set: setting.map(([name]) => name),
+    restore,
+    remove,
+  };
+}
+
 // Values by name that a delta sets and removes, with the change that sets
-// back what they were: the old value where there was one, and a removal where
-// there was none.
+// back what changed, or none where nothing did.
 function values(
   current: Readonly<Record<string, Json>>,
   change: Values<string> | undefined,
@@ -363,30 +418,24 @@ function values(
   if (change === undefined) {
     return { next: current, inverse: undefined, set: new Set() };
   }
-  const setting = change.set ?? {};
-  const restore: Record<string, Json> = {};
-  const remove: string[] = [];
-
-  for (const name of change.unset ?? []) {
-    if (Object.hasOwn(setting, name)) {
-      failures.push(`The change both sets and unsets ${what(name)}.`);
-    }
-    const was = own(current, name);
-    if (was !== undefined) restore[name] = was;
-  }
-  for (const name of Object.keys(setting)) {
-    const was = own(current, name);
-    if (was === undefined) remove.push(name);
-    else restore[name] = was;
-  }
+  const result = changes(
+    current,
+    change.set ?? {},
+    change.unset ?? [],
+    (name) => `The change both sets and unsets ${what(name)}.`,
+    failures,
+  );
+  const changed = Object.keys(result.restore).length > 0 || result.remove.length > 0;
 
   return {
-    next: { ...without(current, change.unset ?? []), ...setting },
-    inverse: {
-      ...(Object.keys(restore).length === 0 ? {} : { set: restore }),
-      ...(remove.length === 0 ? {} : { unset: remove }),
-    },
-    set: new Set(Object.keys(setting)),
+    next: result.next,
+    inverse: changed
+      ? {
+          ...(Object.keys(result.restore).length === 0 ? {} : { set: result.restore }),
+          ...(result.remove.length === 0 ? {} : { unset: result.remove }),
+        }
+      : undefined,
+    set: new Set(result.set),
   };
 }
 
@@ -396,26 +445,14 @@ function modifyBlock(
   id: BlockId,
   failures: string[],
 ): { value: Block; inverse: BlockMod } {
-  const set = mod.state ?? {};
-  const unset = mod.unset ?? [];
-  for (const arg of unset) {
-    if (Object.hasOwn(set, arg)) {
-      failures.push(`The change to block "${id}" both sets and unsets "${arg}".`);
-    }
-  }
-
-  const state: Record<string, Json> = {};
-  const restore: string[] = [];
-  for (const arg of Object.keys(set)) {
-    const was = own(old.state, arg);
-    if (was === undefined) restore.push(arg);
-    else state[arg] = was;
-  }
-  for (const arg of unset) {
-    const was = own(old.state, arg);
-    if (was !== undefined) state[arg] = was;
-  }
-
+  const state = changes(
+    old.state,
+    mod.state ?? {},
+    mod.unset ?? [],
+    (arg) => `The change to block "${id}" both sets and unsets "${arg}".`,
+    failures,
+  );
+  const name = mod.name === old.name ? undefined : mod.name;
   const attrs = values(
     old.attrs,
     mod.attrs,
@@ -424,19 +461,11 @@ function modifyBlock(
   );
 
   return {
-    value: {
-      ...old,
-      state:
-        mod.state === undefined && mod.unset === undefined
-          ? old.state
-          : { ...without(old.state, unset), ...set },
-      name: mod.name ?? old.name,
-      attrs: attrs.next,
-    },
+    value: { ...old, state: state.next, name: name ?? old.name, attrs: attrs.next },
     inverse: {
-      ...(Object.keys(state).length === 0 ? {} : { state }),
-      ...(restore.length === 0 ? {} : { unset: restore }),
-      ...(mod.name === undefined ? {} : { name: old.name }),
+      ...(Object.keys(state.restore).length === 0 ? {} : { state: state.restore }),
+      ...(state.remove.length === 0 ? {} : { unset: state.remove }),
+      ...(name === undefined ? {} : { name: old.name }),
       ...(attrs.inverse === undefined ? {} : { attrs: attrs.inverse }),
     },
   };
@@ -448,10 +477,13 @@ function modifyFields<T extends object>(
   mod: Partial<T>,
 ): { value: T; inverse: Partial<T> } {
   const inverse: Partial<T> = {};
+  const changed: Partial<T> = {};
   for (const field of Object.keys(mod) as (keyof T)[]) {
+    if (jsonEqual(old[field], mod[field])) continue;
     inverse[field] = old[field];
+    changed[field] = mod[field];
   }
-  return { value: { ...old, ...mod }, inverse };
+  return { value: { ...old, ...changed }, inverse };
 }
 
 function modifyEntry(
@@ -461,33 +493,19 @@ function modifyEntry(
   path: readonly string[],
   failures: string[],
 ): { value: Entry; inverse: NonNullable<CollectionDelta["mod"]>[string] } {
-  const set = mod.set ?? {};
-  const unset = mod.unset ?? [];
-  for (const key of unset) {
-    if (Object.hasOwn(set, key)) {
-      failures.push(
-        `The change to entry "${id}" of ${pathText(path)} both sets and unsets "${key}".`,
-      );
-    }
-  }
-
-  const restore: Record<string, Json> = {};
-  const remove: string[] = [];
-  for (const key of Object.keys(set)) {
-    const was = own(old, key);
-    if (was === undefined) remove.push(key);
-    else restore[key] = was;
-  }
-  for (const key of unset) {
-    const was = own(old, key);
-    if (was !== undefined) restore[key] = was;
-  }
+  const fields = changes(
+    old,
+    mod.set ?? {},
+    mod.unset ?? [],
+    (key) => `The change to entry "${id}" of ${pathText(path)} both sets and unsets "${key}".`,
+    failures,
+  );
 
   return {
-    value: { ...without(old, unset), ...set },
+    value: fields.next,
     inverse: {
-      ...(Object.keys(restore).length === 0 ? {} : { set: restore }),
-      ...(remove.length === 0 ? {} : { unset: remove }),
+      ...(Object.keys(fields.restore).length === 0 ? {} : { set: fields.restore }),
+      ...(fields.remove.length === 0 ? {} : { unset: fields.remove }),
     },
   };
 }
