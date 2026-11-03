@@ -379,6 +379,22 @@ describe("revisions", () => {
       expect(statusOf(scheduler, id).status).toBe("unevaluated");
     }
   });
+
+  test("start with the first board the store opens, where the scheduler is created before the store holds one", async () => {
+    const r = fakeR();
+    r.connect();
+    const store = createStore({ client: r.client });
+    for (const option of coreOptions) store.options.register(option);
+    const scheduler = createScheduler({ store, client: r.client });
+    expect(revisionsOf(scheduler)).toEqual({});
+
+    await store.open(hello);
+
+    expect(Object.keys(revisionsOf(scheduler))).toEqual(["a", "b", "c", "d", "e", "f"]);
+    for (const id of ["a", "b", "c", "d", "e", "f"]) {
+      expect(statusOf(scheduler, id).status).toBe("unevaluated");
+    }
+  });
 });
 
 describe("statuses", () => {

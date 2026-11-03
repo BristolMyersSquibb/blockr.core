@@ -151,11 +151,10 @@ export function createCommands(store: Store): Commands {
   }
 
   function current(id: string): Board {
-    try {
-      return store.board();
-    } catch {
+    if (!store.hasBoard()) {
       throw refusal(id, ["The store holds no board until it opens one."]);
     }
+    return store.board();
   }
 
   function allow(command: Command<Json, unknown>, board: Board, args: Json): void {

@@ -124,7 +124,7 @@ export interface Demand {
 
 export interface SchedulerOptions {
   // The store of the board, whose changes the scheduler follows.
-  readonly store: Pick<Store, "board" | "subscribe" | "blockRegistry">;
+  readonly store: Pick<Store, "board" | "hasBoard" | "subscribe" | "blockRegistry">;
   // The client of the wire protocol, which the store sends through too.
   readonly client: Pick<Client, "request" | "forget" | "capabilities">;
   // The blockr options that the scheduler reads. Core asks R for them as soon
@@ -592,13 +592,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     demanding(++ids, "blockr.core", (all) => Object.keys(all.blocks), 0);
   }
 
-  let initial: Board | undefined;
-  try {
-    initial = store.board();
-  } catch {
-    initial = undefined;
-  }
-  if (initial !== undefined) opened(initial);
+  if (store.hasBoard()) opened(store.board());
 
   // The statuses that the subscribers last heard of.
   let heard: ReadonlyMap<BlockId, BlockStatus> = new Map();

@@ -494,13 +494,17 @@ describe("opening a board", () => {
     expect(store.board().options).toEqual({ show_conditions: ["warning", "error"] });
   });
 
-  test("holds no board until it opens one", () => {
+  test("holds no board until it opens one", async () => {
     const store = newStore();
+    expect(store.hasBoard()).toBe(false);
     expect(() => store.board()).toThrow("The store holds no board until it opens one.");
     expect(() => {
       store.apply({ name: "Built" });
     }).toThrow("The store rejected the delta\n- The store holds no board until it opens one.");
     expect(store.canUndo()).toBe(false);
+
+    await store.open(hello);
+    expect(store.hasBoard()).toBe(true);
   });
 });
 

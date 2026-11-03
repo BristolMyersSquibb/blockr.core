@@ -201,7 +201,7 @@ describe("running a command", () => {
     const store = createStore({ client: { request: () => Promise.reject(new Error("No R.")) } });
     const commands = createCommands(store);
     await expect(commands.run("blockr.core-rename_board", { name: "Sepals" })).rejects.toThrow(
-      "The store holds no board until it opens one.",
+      'The command "blockr.core-rename_board" refused to run\n- The store holds no board until it opens one.',
     );
     expect(commands.enabled("blockr.core-rename_board", { name: "Sepals" })).toBe(false);
   });

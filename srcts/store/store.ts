@@ -45,6 +45,8 @@ export interface Store {
   // The current board, whose changes subscribe() announces. The store holds
   // none until it opens one, and throws until then.
   board(): Board;
+  // Whether the store holds a board. It holds one once it has opened one.
+  hasBoard(): boolean;
   // Calls `fn` after every commit, once for each delta as expanded, and after
   // every opening of a board, with the board as it then is.
   subscribe(fn: (change: Change, board: Board) => void): () => void;
@@ -415,6 +417,7 @@ export function createStore(options: StoreOptions): Store {
       }
       return board.value;
     },
+    hasBoard: () => board.value !== undefined,
     subscribe(fn) {
       const wrapped = (change: Change, next: Board) => {
         fn(change, next);
