@@ -92,7 +92,10 @@
   an output class otherwise one that the package defining the class declares.
   Two renderers at one step are an error naming both. Core declares
   `blockr.core-basic_table`, `blockr.core-basic_text` and
-  `blockr.core-basic_plot` for its output classes (#425).
+  `blockr.core-basic_plot` for its output classes. The function
+  `board_front_end()` takes a board's class vector as well as a board, since a
+  board that the client opens records its class vector rather than being an R
+  object (#425).
 
 # blockr.core 0.1.4
 

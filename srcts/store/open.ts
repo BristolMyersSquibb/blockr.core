@@ -29,15 +29,12 @@ import {
 // The highest format of a saved file that this client reads and writes.
 export const FORMAT = 1;
 
-// Core's basic front-end, which draws a board made for a front-end that R
-// serves no module for.
-export const BASIC_FRONT_END = "blockr.core-basic";
-
 // What the store names of what it dropped as it opened a board, since the app
 // cannot rebuild it, with the package to install where its id gives one: a
-// block whose class the block registry lacks, and the front-end the board was
-// made for, where R serves no module for it. What it drops of the front-end
-// state, attributes and board option values it does not name.
+// block whose class the block registry lacks, and the front-end the board
+// names, where R resolved another one from the board's class, as it does where
+// the package of the board's own front-end is not installed. What it drops of
+// the front-end state, attributes and board option values it does not name.
 export type Dropped =
   | {
       readonly block: string;
@@ -117,6 +114,7 @@ export function keyed(opening: OpeningBoard): Board {
   const id = opening.id ?? mintId(() => false);
   return {
     id,
+    class: opening.class,
     front_end: opening.front_end,
     name: opening.name ?? sentenceCase(id),
     blocks,
@@ -209,7 +207,7 @@ export function openFile(
     return { block: id, registry_id: registryId, package: packageOf(registryId) };
   });
 
-  const { board: pruned, dropped } = prune(migrated, gone, reply.front_ends, registrations);
+  const { board: pruned, dropped } = prune(migrated, gone, reply.front_end, registrations);
   const board = remove(complete(pruned, registrations), gone, registrations);
 
   const failures = check(board, reply.block_registry, registrations);
@@ -225,34 +223,22 @@ export function openFile(
   };
 }
 
-// The front-end a board opens with: the one it names, or core's basic one
-// where R serves no module for that.
-export function frontEndOf(
-  board: Board,
-  frontEnds: Readonly<Record<string, unknown>>,
-): string {
-  return own(frontEnds, board.front_end.id) === undefined
-    ? BASIC_FRONT_END
-    : board.front_end.id;
-}
-
 // The board without every key of the front-end state, attribute and board
 // option value that no package registered, and every attribute and board
 // option value that its schema refuses, as one an older version of its
 // package saved, which no migration converts, so that it reads as its initial
-// value or default, and made for the front-end it opens with, which is named
-// where it is another than the one the board was made for. The blocks that go
-// keep what they hold, which goes with them.
+// value or default, and drawn by the front-end that R resolved from its
+// class, which is named where it is another than the one the board names. The
+// blocks that go keep what they hold, which goes with them.
 function prune(
   board: Board,
   gone: readonly string[],
-  frontEnds: Readonly<Record<string, unknown>>,
+  id: string,
   registrations: Registrations,
 ): { board: Board; dropped: Dropped[] } {
   const dropped: Dropped[] = [];
 
   let frontEnd = board.front_end;
-  const id = frontEndOf(board, frontEnds);
   if (id !== frontEnd.id) {
     dropped.push({ front_end: frontEnd.id, package: packageOf(frontEnd.id) });
     frontEnd = { ...frontEnd, id };

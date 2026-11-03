@@ -13,14 +13,15 @@ declared_front_ends <- new.env()
 #' front-end again under the same ID replaces it, as when a package is loaded
 #' again.
 #'
-#' R picks a board's front-end wherever it holds the board as an R object, the
-#' one an app script builds and the one [blockr_deser()] builds from a file of
-#' today's stack: `board_front_end()` gives the ID of the front-end declared
-#' for the most specific class in the board's class vector that has one, so
-#' that a board of a class extending `dock_board` that no package declares a
-#' front-end for is drawn by the dock, and every board by core's basic
-#' front-end at least. A board given as JSON keeps the front-end it names in
-#' its `front_end.id`, since it carries no class.
+#' R picks a board's front-end from the board's class vector, with
+#' `board_front_end()`, which takes a board or its class vector. The board that
+#' an app script builds, and the one [blockr_deser()] builds from a file of
+#' today's stack, are R objects. A board that the client opens records its
+#' class vector, which the client sends R. The function gives the ID of the
+#' front-end declared for the most specific class in the class vector that has
+#' one, among the packages that R has loaded. So a board of a class extending
+#' `dock_board` that no package declares a front-end for is drawn by the dock,
+#' and every board by core's basic front-end at least.
 #'
 #' @param name The name part of the front-end's ID
 #' @param module The front-end's module, made by [js_module()]
@@ -37,6 +38,10 @@ declared_front_ends <- new.env()
 #' }
 #'
 #' board_front_end(new_board(name = "My board"))
+#'
+#' # Core's basic front-end, where no package that R has loaded declares one
+#' # for dock boards
+#' board_front_end(c("dock_board", "board"))
 #'
 #' @return The declaration `register_front_end()` returns the front-end's
 #' entry invisibly, a list holding its `id`, `name`, `package`, `module` and
@@ -86,18 +91,21 @@ register_front_end <- function(name, module, class) {
   invisible(entry)
 }
 
-#' @param x Board
+#' @param x A board, or its class vector
 #' @rdname register_front_end
 #' @export
 board_front_end <- function(x) {
 
-  stopifnot(is_board(x))
+  if (!is.character(x)) {
+    stopifnot(is_board(x))
+    x <- class(x)
+  }
 
-  res <- most_specific(class(x), front_end_classes())
+  res <- most_specific(x, front_end_classes())
 
   if (is.null(res)) {
     blockr_abort(
-      "No front-end is declared for board class{?es} {class(x)}.",
+      "No front-end is declared for board class{?es} {x}.",
       class = "front_end_missing"
     )
   }

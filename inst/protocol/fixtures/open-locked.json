@@ -5,7 +5,7 @@
       "id": "2",
       "kind": "open",
       "packages": ["blockr.core", "blockr.io"],
-      "front_end": "blockr.core-basic"
+      "class": ["board"]
     }
   ],
   "r": [

@@ -21,7 +21,8 @@ pick_renderers(front_end)
 \item{requests}{A named list of the renderer's own requests, each a
 function, which only a renderer of an output class has}
 
-\item{front_end}{The ID of the front-end of the board that the client draws}
+\item{front_end}{The ID of the front-end that draws the board, as
+\code{\link[=board_front_end]{board_front_end()}} gives it}
 }
 \value{
 The declaration \code{register_renderer()} returns the renderer's entry
@@ -56,8 +57,9 @@ request and a request of the output class may share a name, and neither
 hides the other.
 
 R picks one renderer for each output class and each board option with
-\code{pick_renderers()}, for the front-end of the board that the client draws.
-The pick takes the renderer of the first of these steps that has one:
+\code{pick_renderers()}, for the front-end that \code{\link[=board_front_end]{board_front_end()}} gives for
+the board that the client draws. The pick takes the renderer of the first
+of these steps that has one:
 \enumerate{
 \item The renderer that the blockr option \code{renderers} names for the output
 class or board option, by ID, as
@@ -71,9 +73,7 @@ declares.
 
 Two renderers at one step are an error naming both, which the app settles
 through the blockr option. A board option that no renderer is declared for
-keeps the UI of its definition. Where no package that R has loaded declares
-the board's front-end, R picks for the front-end of class \code{board}, core's
-basic one, since the client then draws the board with that.
+keeps the UI of its definition.
 
 R names in each output it sends the renderer that it picked for the most
 specific class in the output's class vector that has one, as S3 dispatch

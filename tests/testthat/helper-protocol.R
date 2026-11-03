@@ -121,6 +121,7 @@ protocol_r_values <- function() {
           renderers = proto_renderers()["blockr.core-basic_table"],
           lock = NULL,
           board = obj(
+            class = I("board"),
             front_end = proto_basic(),
             blocks = list(
               proto_block(
@@ -467,10 +468,11 @@ proto_hello_reply <- function(block_registry, lock, ...,
   )
 }
 
-# What the replies to `hello` and `open` of a core app say of the modules that
-# R serves.
+# What the replies to `hello` and `open` of a core app say of the front-end
+# that R resolved for the board and of the modules that R serves.
 proto_served <- function(startup_modules = list()) {
   obj(
+    front_end = "blockr.core-basic",
     front_ends = obj(
       `blockr.core-basic` = obj(
         module = proto_js("basic.js", "0f3d8e21"),
@@ -820,6 +822,7 @@ proto_id <- function(id) {
 # the board none.
 proto_board <- function() {
   obj(
+    class = I("board"),
     front_end = proto_basic(),
     name = "Iris review",
     blocks = list(
@@ -874,6 +877,7 @@ proto_board <- function() {
 proto_app_board <- function() {
   obj(
     id = "quiet_heron",
+    class = I("board"),
     front_end = proto_basic(),
     name = "Penguins",
     blocks = list(
@@ -901,6 +905,7 @@ proto_app_board <- function() {
 proto_locked_board <- function() {
   obj(
     id = "steady_lynx",
+    class = I("board"),
     front_end = proto_basic(),
     name = "Iris report",
     blocks = list(
@@ -933,6 +938,7 @@ proto_served_file <- function() {
     packages = obj(blockr.core = "0.2.0"),
     board = obj(
       id = "amber_tapir",
+      class = I("board"),
       front_end = proto_basic(),
       name = "Cars",
       blocks = obj(

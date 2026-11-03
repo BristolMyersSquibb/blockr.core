@@ -53,10 +53,7 @@ test_that("R picks a renderer by the steps of the pick", {
     table_renderer("blockr.core-basic"),
     "blockr.core-basic_table"
   )
-  expect_identical(
-    table_renderer("blockr.none-none"),
-    table_renderer("blockr.core-basic")
-  )
+  expect_error(table_renderer("blockr.none-none"), class = "front_end_missing")
 
   register_renderer("table", test_module("table.js"), class = "table_output")
 

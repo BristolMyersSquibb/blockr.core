@@ -79,9 +79,8 @@ export interface HelloRequest {
   // The packages that a board the client holds already names, as when the
   // server ended its session while the page lived on, for R to load.
   packages?: string[];
-  // The front-end that such a board names, by id, for R to pick the renderers
-  // for.
-  front_end?: string;
+  // The class vector of such a board, for R to resolve its front-end from.
+  class?: string[];
 }
 
 export type HelloReply = {
@@ -93,6 +92,10 @@ export type HelloReply = {
   // of.
   packages: Record<string, string>;
   block_registry: Record<RegistryId, RegistryEntry>;
+  // The front-end that R resolved for the board that the client draws, by id:
+  // from the class vector that the hello names, or else from the opening
+  // board's.
+  front_end: string;
   // Where each front-end's module is served, by the front-end's id.
   front_ends: Record<string, { module: string; css?: string }>;
   // In the order in which the packages declared them, each package's after
@@ -130,9 +133,8 @@ export interface OpenRequest {
   id: string;
   kind: "open";
   packages: string[];
-  // The front-end that the board names, by id, for R to pick the renderers
-  // for again.
-  front_end: string;
+  // The board's class vector, for R to resolve its front-end from.
+  class: string[];
 }
 
 export type OpenReply = Pick<
@@ -141,6 +143,7 @@ export type OpenReply = Pick<
   | "status"
   | "packages"
   | "block_registry"
+  | "front_end"
   | "front_ends"
   | "startup_modules"
   | "modules"

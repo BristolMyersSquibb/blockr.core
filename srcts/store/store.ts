@@ -25,7 +25,7 @@ import { isValueDelta } from "./delta.ts";
 import type { Delta, Origin } from "./delta.ts";
 import { expand } from "./expand.ts";
 import { fit, isEmpty } from "./undo.ts";
-import { checkFile, FORMAT, frontEndOf, keyed, openFile, parse } from "./open.ts";
+import { checkFile, FORMAT, keyed, openFile, parse } from "./open.ts";
 import type { Dropped } from "./open.ts";
 import { createRegistrations } from "./registrations.ts";
 import type {
@@ -94,9 +94,10 @@ export interface StoreOptions {
   readonly client: Pick<Client, "request">;
   // What has to run once R has loaded the packages that a board names and
   // before the store opens it, given R's reply and the front-end the board
-  // opens with: initializing the startup modules of the packages R loaded,
-  // which register their keys, attributes, board options and migrations, and
-  // switching the page to that front-end.
+  // opens with, which R resolved from the board's class: initializing the
+  // startup modules of the packages R loaded, which register their keys,
+  // attributes, board options and migrations, and switching the page to that
+  // front-end.
   readonly loaded?: (reply: OpenReply, frontEnd: string) => void | Promise<void>;
 }
 
@@ -347,7 +348,7 @@ export function createStore(options: StoreOptions): Store {
       const { reply: answer } = await options.client.request({
         kind: "open",
         packages: Object.keys(file.packages),
-        front_end: file.board.front_end.id,
+        class: [...file.board.class],
       });
       if (answer.status !== "ok" || !("block_registry" in answer)) {
         throw new StoreError(
@@ -371,7 +372,7 @@ export function createStore(options: StoreOptions): Store {
 
     registry.value = reply.block_registry;
     packages.value = reply.packages;
-    await options.loaded?.(reply, frontEndOf(file.board, reply.front_ends));
+    await options.loaded?.(reply, reply.front_end);
 
     guard();
     busy = true;

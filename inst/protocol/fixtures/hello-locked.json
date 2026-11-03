@@ -98,6 +98,7 @@
             }
           }
         },
+        "front_end": "blockr.core-basic",
         "front_ends": {
           "blockr.core-basic": {
             "module": "blockr.core/basic.js?v=0f3d8e21",
@@ -123,6 +124,7 @@
         "lock": { "open": ["b"] },
         "board": {
           "id": "steady_lynx",
+          "class": ["board"],
           "front_end": { "id": "blockr.core-basic", "state": {}, "attrs": {} },
           "name": "Iris report",
           "blocks": [

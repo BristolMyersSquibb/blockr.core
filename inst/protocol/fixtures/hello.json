@@ -1,5 +1,5 @@
 {
-  "description": "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, where each module is served, the renderers R picked, no lock, and the opening board that the app script built. R mints no ids, so that board holds its blocks, links and stacks as arrays, each entry with the id the script gave it, and the link from a to f, which the script gave none, and the board itself, which the script gave a name but no id, without one. The client keys the collections and mints the missing ids as it opens the board.",
+  "description": "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, the front-end R resolved from the board's class, where each module is served, the renderers R picked, no lock, and the opening board that the app script built. R mints no ids, so that board holds its blocks, links and stacks as arrays, each entry with the id the script gave it, and the link from a to f, which the script gave none, and the board itself, which the script gave a name but no id, without one. The client keys the collections and mints the missing ids as it opens the board.",
   "client": [
     {
       "id": "1",
@@ -280,6 +280,7 @@
             }
           }
         },
+        "front_end": "blockr.core-basic",
         "front_ends": {
           "blockr.core-basic": {
             "module": "blockr.core/basic.js?v=0f3d8e21",
@@ -304,6 +305,7 @@
         },
         "lock": null,
         "board": {
+          "class": ["board"],
           "front_end": { "id": "blockr.core-basic", "state": {}, "attrs": {} },
           "name": "Iris review",
           "blocks": [

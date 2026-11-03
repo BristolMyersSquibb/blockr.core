@@ -26,8 +26,9 @@ declared_renderers <- new.env()
 #' hides the other.
 #'
 #' R picks one renderer for each output class and each board option with
-#' `pick_renderers()`, for the front-end of the board that the client draws.
-#' The pick takes the renderer of the first of these steps that has one:
+#' `pick_renderers()`, for the front-end that [board_front_end()] gives for
+#' the board that the client draws. The pick takes the renderer of the first
+#' of these steps that has one:
 #'
 #' 1. The renderer that the blockr option `renderers` names for the output
 #'    class or board option, by ID, as
@@ -40,9 +41,7 @@ declared_renderers <- new.env()
 #'
 #' Two renderers at one step are an error naming both, which the app settles
 #' through the blockr option. A board option that no renderer is declared for
-#' keeps the UI of its definition. Where no package that R has loaded declares
-#' the board's front-end, R picks for the front-end of class `board`, core's
-#' basic one, since the client then draws the board with that.
+#' keeps the UI of its definition.
 #'
 #' R names in each output it sends the renderer that it picked for the most
 #' specific class in the output's class vector that has one, as S3 dispatch
@@ -55,7 +54,8 @@ declared_renderers <- new.env()
 #' @param option The ID of the board option that the renderer draws
 #' @param requests A named list of the renderer's own requests, each a
 #'   function, which only a renderer of an output class has
-#' @param front_end The ID of the front-end of the board that the client draws
+#' @param front_end The ID of the front-end that draws the board, as
+#'   [board_front_end()] gives it
 #'
 #' @examples
 #' \dontrun{
@@ -164,11 +164,7 @@ pick_renderers <- function(front_end) {
   entries <- lapply(set_names(nm = list_renderers()), get_renderer)
   chosen <- chosen_renderers(entries)
 
-  front <- get0(front_end, envir = declared_front_ends, inherits = FALSE)
-
-  if (is.null(front)) {
-    front <- get_front_end(most_specific("board", front_end_classes()))
-  }
+  front <- get_front_end(front_end)
 
   picked <- c(
     chr_ply(unique(unlst(lst_xtr(entries, "class"))), pick_renderer,
