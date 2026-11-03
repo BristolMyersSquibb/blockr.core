@@ -204,13 +204,6 @@ test_that("a block class is registered from its blocks", {
   )
 })
 
-test_that("a block made by new_block() cannot be written", {
-  expect_error(
-    blockr_ser(new_board(c(a = new_dataset_block("iris")))),
-    class = "block_ser_legacy"
-  )
-})
-
 test_that("a board that the format cannot hold fails as it is written", {
 
   local_declared(block_registry)

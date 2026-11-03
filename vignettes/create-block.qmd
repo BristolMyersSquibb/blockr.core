@@ -18,183 +18,54 @@ knitr::opts_chunk$set(
 library(blockr.core)
 ```
 
-## Creating blocks
+## Block classes
 
-**Note:** If you are not already familiar with [Shiny modules](https://mastering-shiny.org/scaling-modules.html), it is recommended you familiarize yourself with them before continuing with this section.
+A __block__ is an instance of a __block class__. A block class is a value made by `new_block_class()`, which holds everything that is the same for every block of the class. The constructor that app scripts call is made from the class by `block_constructor()`. A package exports both: the class, from whose fields another class can be built, and the constructor.
 
-`blockr.core` is built on top of Shiny. At its heart, a __block__ is nothing more than a specialized Shiny __module__ that returns two additional values:
-
-- **An expression** (called "expr"), a reactive expression defining a block's computation. This allows R code to be exported and data analyses to be recreated, outside of blockr and a reactive context.
-- **A state object** (called "state"), a list of reactive values tracking user inputs. This allows blocks to separate user-defined state from inputs specified by blocks.
-
-```{r, echo=FALSE}
-include_mermaid("block-anatomy")
-```
-
-While blocks *return* the "expr" and "state" values, blocks *consist* of three elements:
-
-1. A **UI function** to define the user interface. 
-2. A **Server function** to handle reactive logic that returns an expression and state object.
-3. A **Constructor function** wraps the UI and server to initialize the block state.
-
-Now, let's go through each element, building up a block template as we go.
-
-### UI function
-
-A UI function in blockr is the same as a UI function in a Shiny module.
-This means that:
-
-- The UI function signature is expected to contain a single `id` argument, which can be used with `shiny::NS()` to construct namespaced IDs.
-- A call to appropriate shiny UI functions is expected that return `shiny.tag` or `shiny.tag.list` objects, typically via the use of `shiny::tagList()` in the UI to list separate UI elements.
-
-Let's start to build our block template:
-
-```{r, eval = FALSE}
-ui <- function(id) {
-  tagList(
-    # Wrap widgets in `tagList()`
-    textInput(
-      NS(id, "my_input") # Use `shiny::NS()` to construct namespaces
-    )
-  )
-}
-```
-
-### Server function
-
-As inputs, a server function takes an id and any additional inputs from other blocks (e.g., data). For example, for the blocks shipped with blockr.core, this would result in zero inputs for a __data__ block, one for a __transform__ block such as a select block, two for a __join__ block and the special argument `...args` for __variadic__ blocks, such as an `rbind` block.
-
-```{r, echo=FALSE}
-include_mermaid("block-inputs")
-```
-
-A server function should return as output a `moduleServer()` call, defining:
-
-- **expr**: A quoted reactive expression representing the block’s computation. Data names should match between expression and the top-level server function arguments.
-- **state**: A list of reactive values tracking user selections. The set of returned values from the __state__ should match (both in count and names) that of the constructor signature.
-
-```{r eval = FALSE}
-server <- function(id, data) {
-  moduleServer(id, function(input, output, session) {
-    # Reactive logic goes here
-
-    # Return a list with "expr" and "state"
-    list(
-      expr = reactive(quote(identity(data))),
-      state = list(
-        input_one = reactive(input_one()),
-        input_two = reactive(input_two())
-      )
-    )
-  })
-}
-```
-
-Many options exist to build expressions, such as using tools offered by the `rlang` package or by passing a string to `base::parse()`.
-As a block developer you are free to choose the tools that your prefer, as long as the evaluated expression returns non-reactive R code which can be executed outside of blockr.
-
-The state is needed for __serialization__ and __deserialization__ to respectively save and restore the state of a blockr application.
-
-### Constructor function
-
-The __constructor__ function wraps the UI and server functions and initializes the block. Note that both `server` and `ui` are [closures](https://adv-r.hadley.nz/environments.html#function-environments) and therefore may refer to names bound in the constructor scope (e.g. `dataset` and `choices`).
-
-It should expose as arguments anything the user might set via the UI to control the block __state__.
-In other words, any inputs in the UI function, should have a corresponding argument in the constructor function.
-On the other hand, inputs from other blocks should not be exposed as arguments, as these are dynamically provided in the server function.
-
-The return value should be a call to `new_block()` (or if applicable a call to the more specific *virtual* constructors `new_data_block()`, `new_transform_block()`, etc.).
-
-We can finish our block template:
-
-```{r eval = FALSE}
-example_constructor <- function(ui_state = character(), ...) {
-  ui <- function(id) {
-    tagList(textInput(NS(id, "ui_state")))
-  }
-
-  server <- function(id, data) {
-    moduleServer(id, function(input, output, session) {
-      # Reactive logic goes here
-
-      # Return a list with "expr" and "state"
-      list(
-        expr = reactive(quote(identity(data))),
-        state = list(
-          # name must match what is defined in the constructor signature
-          ui_state = <STATE_VALUE>
-        )
-      )
-    })
-  }
-
-  # Return call to `new_block()`
-  new_block(
-    server = server,
-    ui = ui,
-    class = "my_block",
-    ...
-  )
-}
-```
-
-The `...` is forwarded to `new_block` or any `new_*_block`.
-
-### Example
-
-Putting this all together, we can create a `utils::head()` block, such as the one offered as `new_head_block()`:
+The head block that blockr.core ships is defined as follows:
 
 ```{r}
-new_head_block <- function(n = 6L, ...) {
-  new_transform_block(
-    function(id, data) {
-      moduleServer(
-        id,
-        function(input, output, session) {
-          n_rows <- reactiveVal(n)
+head_block <- new_block_class(
+  "head_block",
+  inputs = function(data) stopifnot(is.data.frame(data)),
+  expr = function(n = 6L, direction = c("head", "tail")) {
+    direction <- match.arg(direction)
+    fn <- if (direction == "tail") quote(utils::tail) else quote(utils::head)
+    bbquote(.(fn)(.(data), n = .(n)))
+  },
+  ui = js_module("js/head-block.js"),
+  requests = list(n_max = function(data) nrow(data)),
+  output = as_table_output
+)
 
-          observeEvent(input$n, n_rows(input$n))
-
-          observeEvent(
-            nrow(data()),
-            updateNumericInput(
-              inputId = "n",
-              value = n_rows(),
-              min = 1L,
-              max = nrow(data())
-            )
-          )
-
-          list(
-            expr = reactive(
-              bquote(utils::head(data, n = .(n)), list(n = n_rows()))
-            ),
-            state = list(
-              n = n_rows
-            )
-          )
-        }
-      )
-    },
-    function(id) {
-      tagList(
-        numericInput(
-          inputId = NS(id, "n"),
-          label = "Number of rows",
-          value = n,
-          min = 1L
-        )
-      )
-    },
-    dat_val = function(data) {
-      stopifnot(is.data.frame(data) || is.matrix(data))
-    },
-    class = "head_block",
-    ...
-  )
-}
+new_head_block <- block_constructor(head_block)
 ```
 
-Here, the state return value is a list of length 1, containing the current value for the only constructor argument. The current value for `n` is represented by a `shiny::reactiveVal()`, `n_rows()`, which is initialized with the values `n` in the constructor scope and updated on every change to `input$n`. Furthermore the `max` value for the `shiny::numericInput()` field is updated on every change to the number of data rows.
+Each field has one job:
 
-A final `block` constructor argument of note might be `dat_val`, which is an optional function that can be passed which signals to the framework, if data passed to a block, can actually be processed by the block.
+- The field `inputs` names the data inputs, the results of the blocks upstream. Given as a function, its formals name them and its body checks them.
+- The field `expr` builds the block's R code. Its formals are the __state args__, whose values a user sets through the block's UI. Its body checks them and returns what interpolation turns into the __block expression__: here a call made by `bbquote()`, where `.(data)` is a placeholder for the data input and `.(n)` is filled in with the value of `n`.
+- The field `ui` names the module that draws the block's UI in the browser.
+- The field `requests` holds the functions the UI calls for what it needs from R. The head block's UI asks for the number of rows of its input through `n_max`, which caps its numeric input.
+- The field `output` names the coercion through which the block's results show, here as a table.
+
+The constructor takes the state args, a `block_name` and a `visible`. It runs the checks in `expr` and keeps the state they leave:
+
+```{r}
+new_head_block(n = 10L)
+```
+
+## Evaluating a block
+
+R evaluates a block from its class, its state and the results of the blocks upstream, without building a block. It calls `expr` with the state, puts the IDs of the upstream blocks in place of the placeholders and runs the result:
+
+```{r}
+evaluate_block(
+  head_block,
+  state = list(n = 3L),
+  inputs = list(data = "a"),
+  results = list(a = datasets::iris)
+)
+```
+
+A state that cannot run yet makes the block `invalid`, such as one that leaves an argument without a default unset. See `?new_block_class` and `?interpolate` for the rules of `expr`, `?new_block_request` for requests, and `?expect_block_fixture` for testing a block class without Shiny.

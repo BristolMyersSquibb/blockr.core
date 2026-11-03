@@ -1,0 +1,21 @@
+{
+  "states": [
+    {
+      "subset": "",
+      "select": ""
+    },
+    {
+      "subset": "Sepal.Width > 3",
+      "select": ""
+    },
+    {
+      "subset": "",
+      "select": "Species"
+    },
+    {
+      "subset": "Sepal.Width > 3",
+      "select": "c(Sepal.Length, Species)"
+    }
+  ],
+  "requests": []
+}

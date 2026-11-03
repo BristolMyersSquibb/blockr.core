@@ -32,7 +32,8 @@ export interface Delta {
     readonly mod?: Readonly<Record<LinkId, Partial<Link>>>;
     readonly rm?: readonly LinkId[];
     // Where an added link goes among the links, before the one named, as a
-    // variadic target takes its inputs in link order.
+    // variadic target takes its inputs in link order. A link that the delta
+    // removes leaves its place to the one named to go before it.
     readonly before?: Readonly<Record<LinkId, LinkId>>;
   };
   readonly stacks?: {

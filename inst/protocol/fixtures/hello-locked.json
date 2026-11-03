@@ -53,8 +53,7 @@
               "datasets": {
                 "inputs": [],
                 "state_args": ["package"],
-                "options": [],
-                "volatile": true
+                "options": []
               }
             }
           },
@@ -63,7 +62,7 @@
             "name": "head/tail block",
             "description": "Data head/tail",
             "details": "Row-subsetting the first or last `n` rows of a `data.frame` (as provided by [utils::head()] and [utils::tail()]) is implemented as `head_block`.",
-            "url": "https://bristolmyerssquibb.github.io/blockr.core/reference/new_transform_block.html",
+            "url": "https://bristolmyerssquibb.github.io/blockr.core/reference/new_head_block.html",
             "guidance": "Keeps the first or last `n` rows of the input with `utils::head()` / `utils::tail()`. `direction` chooses the end: \"head\" for the first rows, \"tail\" for the last.",
             "keywords": ["head", "tail", "first", "last", "rows", "limit"],
             "category": "transform",

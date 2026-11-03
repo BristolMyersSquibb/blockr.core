@@ -78,8 +78,7 @@ A block is written by the registry ID of its class, with its state, its name
 and core's attribute \code{visible}. Where the block registry holds no entry for
 its class, writing the block registers the class, as a class from outside a
 package, under its name. So a class defined in an app script is registered
-before any session evaluates a block of it. A block made by \code{\link[=new_block]{new_block()}}
-names no block class and cannot be written.
+before any session evaluates a block of it.
 
 Core's objects are written by the JSON Schema of the board that core
 generates from its TypeScript types, so that a stack's blocks stay an array

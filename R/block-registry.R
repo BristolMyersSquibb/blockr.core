@@ -472,7 +472,18 @@ register_package_blocks <- function(which = "all", package = pkg_name(),
 }
 
 yaml_block_examples <- function(entry) {
-  coal(entry[["examples"]], list(), fail_all = FALSE)
+
+  types <- lapply(entry[["arguments"]], `[[`, "type")
+
+  lapply(
+    coal(entry[["examples"]], list(), fail_all = FALSE),
+    function(example) {
+      set_names(
+        map(yaml_arg_example, example, types[names(example)]),
+        names(example)
+      )
+    }
+  )
 }
 
 yaml_block_arguments <- function(entry) {
@@ -487,9 +498,27 @@ yaml_block_arguments <- function(entry) {
     new_arg_specs,
     lapply(
       args,
-      function(a) new_arg_spec(a[["description"]], a[["example"]], a[["type"]])
+      function(a) {
+        new_arg_spec(
+          a[["description"]],
+          yaml_arg_example(a[["example"]], a[["type"]]),
+          a[["type"]]
+        )
+      }
     )
   )
+}
+
+# YAML reads an array of single values back as an atomic vector, where the R
+# value of an arg spec's array type is a list
+yaml_arg_example <- function(example, type) {
+
+  if (identical(type[["type"]], "array") && is.atomic(example) &&
+        !is.null(example)) {
+    return(as.list(example))
+  }
+
+  example
 }
 
 register_core_blocks <- function(which = blockr_option("core_blocks", "all")) {

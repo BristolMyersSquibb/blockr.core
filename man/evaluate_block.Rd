@@ -70,10 +70,11 @@ state, interpolates what it returns into the block expression (see
 describing the result with the generic \code{result_summary()}.
 }
 \details{
-An \code{invalid()} that \code{expr} or a \code{block_eval()} method signals, or an unset
-arg that the body of \code{expr} uses or interpolation fills in, makes R run
-nothing and report the status \code{invalid}, while a failed check in \code{inputs},
-or any other error, reports \code{error}, and a block that runs reports \code{ok}.
+A \code{\link[=blockr_invalid]{blockr_invalid()}} that \code{expr} or a \code{block_eval()} method signals, or an
+unset arg that the body of \code{expr} uses or interpolation fills in, makes R
+run nothing and report the status \code{invalid}, while a failed check in
+\code{inputs}, or any other error, reports \code{error}, and a block that runs reports
+\code{ok}. A check in \code{inputs} returns \code{NULL}, and any other value fails it too.
 Every condition raised on the way is recorded with its severity, its class,
 its message and the phase that raised it: \code{inputs}, \code{expr}, which covers
 interpolation, \code{block_eval} or \code{result_summary}. Warnings and messages are

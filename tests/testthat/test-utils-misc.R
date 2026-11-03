@@ -290,7 +290,7 @@ test_that("misc", {
 
   # test for namespaced ctor in `resolve_ctor()`
   expect_s3_class(
-    blockr.core::new_dataset_block(),
-    "block"
+    blockr.core::new_board(),
+    "board"
   )
 })
