@@ -220,6 +220,19 @@ describe("the handshake", () => {
     const ids = t.sent.flatMap((s) => s.message).map((m) => m.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
+
+  test("gives the capabilities that both sides named while a session is ready, and none otherwise", () => {
+    const t = setup({ protocol: "1.0", capabilities: ["cancel", "interrupt", "progress"] });
+    expect([...t.client.capabilities()]).toEqual([]);
+
+    t.start();
+    expect([...t.client.capabilities()]).toEqual([]);
+    t.receive({ ...helloReply, id: idOf(t.sent, "hello") });
+    expect([...t.client.capabilities()]).toEqual(["cancel", "progress"]);
+
+    t.end();
+    expect([...t.client.capabilities()]).toEqual([]);
+  });
 });
 
 const okReply = {
