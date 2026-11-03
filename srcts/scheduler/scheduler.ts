@@ -48,9 +48,11 @@ export interface Scheduler {
   // has by then. It leaves out a block that leaves the board meanwhile, rejects
   // once it is left with none or when another board opens, and stops once the
   // signal aborts. Given parameters, which R passes to the block_eval() method
-  // of each block, it evaluates each block once, for the revision the block has
-  // now, whether it is stale or not, never cancels that evaluation, and
-  // resolves with the statuses R's replies give for those revisions.
+  // of each block, it evaluates each block once, whether it is stale or not,
+  // at the revision the block has once R holds what it reads, never cancels
+  // that evaluation once sent, and resolves with the statuses R's replies
+  // give. It rejects where a block reads waiting, which has no result in
+  // sight.
   evaluate(
     blocks: Iterable<BlockId>,
     params?: Record<string, Json>,
@@ -196,9 +198,9 @@ interface WithParams {
 interface Part {
   readonly of: WithParams;
   readonly block: BlockId;
-  // The block's revision when the evaluation was called, and its recipe then.
-  readonly revision: number;
-  readonly recipe: Recipe;
+  // The recipe it went to R with, at the revision the block had then, while R
+  // has not replied.
+  recipe: Recipe | undefined;
   sent: Sent | undefined;
   result: BlockStatus | undefined;
 }
@@ -597,7 +599,9 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
         }
       }
 
-      if (evaluation.part !== undefined) partAnswered(evaluation.part, reply, outcome);
+      if (evaluation.part !== undefined) {
+        partAnswered(evaluation.part, reply, outcome, evaluation.revision);
+      }
     }
 
     recompute();
@@ -630,31 +634,23 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
 
   // One-time evaluations with parameters
 
-  function partAnswered(part: Part, reply: Reply, outcome: Outcome | undefined): void {
+  function partAnswered(
+    part: Part,
+    reply: Reply,
+    outcome: Outcome | undefined,
+    at: number,
+  ): void {
     const evaluation = part.of;
     if (evaluation.done) return;
 
     if (outcome !== undefined) {
-      part.result = Object.freeze(replied(outcome, part.revision, false));
+      part.result = Object.freeze(replied(outcome, at, false));
       finish(evaluation);
     } else if (reply.status === "missing") {
-      // R ran nothing, and the evaluation goes again once R holds again what
-      // it reads, where that is still current.
-      const lost = reply.missing.filter(
-        (lacked) =>
-          entries.get(lacked.block)?.revision !== lacked.revision ||
-          statuses.get(lacked.block)?.status !== "ready",
-      );
-      if (lost.length === 0) {
-        part.sent = undefined;
-      } else {
-        fail(
-          evaluation,
-          new Error(
-            `R no longer holds ${quoted(lost.map((lacked) => lacked.block))} at the revisions that block "${part.block}" reads, which have changed since.`,
-          ),
-        );
-      }
+      // R ran nothing, so the evaluation goes again, with the recipe the block
+      // has once R holds again what it reads.
+      part.sent = undefined;
+      part.recipe = undefined;
     } else {
       fail(
         evaluation,
@@ -682,30 +678,13 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   }
 
   // Whether the evaluation of a block with parameters can go: once R holds
-  // what its recipe reads, or computes it before, while a block it reads that
-  // cannot run leaves it waiting. A block it reads that changed before then
-  // has a result R may never compute, which rejects the evaluation.
-  function partState(part: Part): "send" | "wait" | { waiting: Condition } | { error: Error } {
-    const blocked: BlockId[] = [];
-    for (const input of part.recipe.inputs) {
-      if (input.block === undefined) continue;
-      const entry = entries.get(input.block);
-      if (entry?.revision !== input.revision) {
-        const what = entry === undefined ? "left the board" : "changed";
-        return {
-          error: new Error(
-            `Block "${input.block}", which block "${part.block}" reads, ${what} before its evaluation with parameters was sent.`,
-          ),
-        };
-      }
-      const status = statuses.get(input.block)?.status;
-      if (status === "failed" || status === "invalid" || status === "waiting") {
-        blocked.push(input.block);
-      } else if (!available(input.block)) {
-        return "wait";
-      }
-    }
-    return blocked.length > 0 ? { waiting: waitingFor({ upstream: blocked }) } : "send";
+  // what the block reads at their current revisions, or computes them before.
+  // A block that reads waiting has no result in sight, which rejects the
+  // evaluation.
+  function partState(part: Part, of: Graph): "send" | "wait" | { error: Error } {
+    const status = statuses.get(part.block);
+    if (status?.status === "waiting") return { error: waitingError(part.block, status) };
+    return upstreamOf(of, part.block).every(available) ? "send" : "wait";
   }
 
   // The pass, which works out what to cancel and what to send
@@ -779,13 +758,19 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
       for (const id of oneTime.blocks) raise(id, oneTime.priority);
     }
     // What an evaluation with parameters reads stays needed until R has
-    // replied to it, so that nothing cancels an evaluation it waits on in R.
+    // replied to it, so that nothing cancels an evaluation it waits on in R:
+    // what the block reads now until it is sent, and what its recipe names
+    // from then on.
     for (const evaluation of withParams) {
       for (const part of evaluation.parts.values()) {
         if (part.result !== undefined) continue;
-        for (const input of part.recipe.inputs) {
-          if (input.block !== undefined) raise(input.block, evaluation.priority);
-        }
+        const reads =
+          part.recipe === undefined
+            ? upstreamOf(of, part.block)
+            : part.recipe.inputs.flatMap((input) =>
+                input.block === undefined ? [] : [input.block],
+              );
+        for (const id of reads) raise(id, evaluation.priority);
       }
     }
     for (let i = of.order.length - 1; i >= 0; i--) {
@@ -852,26 +837,22 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
 
     if (!holding) {
       for (const item of queued) {
-        // An evaluation with parameters that cannot go any more rejects, or
-        // resolves as waiting, whether R has room for another evaluation or
-        // not.
+        // An evaluation with parameters whose block cannot run rejects,
+        // whether R has room for another evaluation or not.
         if (item.part !== undefined) {
           if (item.part.of.done) continue;
-          const state = partState(item.part);
+          const state = partState(item.part, of);
           if (state === "wait") continue;
-          if (state === "send") {
-            if (slots <= 0) continue;
-            dispatch(item.block, item.part.revision, item.part.recipe, { part: item.part });
-            slots -= 1;
-          } else if ("error" in state) {
+          if (state !== "send") {
             fail(item.part.of, state.error);
-          } else {
-            const evaluated = entries.get(item.block)?.outcome?.revision ?? null;
-            item.part.result = Object.freeze(
-              waiting(state.waiting, item.part.revision, evaluated, false),
-            );
-            finish(item.part.of);
+            continue;
           }
+          const recipe = recipeOf(item.block);
+          const entry = entries.get(item.block);
+          if (slots <= 0 || recipe === undefined || entry === undefined) continue;
+          item.part.recipe = recipe;
+          dispatch(item.block, entry.revision, recipe, { part: item.part });
+          slots -= 1;
           continue;
         }
         if (slots <= 0 || !upstreamOf(of, item.block).every(available)) continue;
@@ -913,12 +894,16 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     flush();
   }
 
-  // Whether a one-time evaluation with parameters still has to evaluate the
-  // block at that revision, which the scheduler then evaluates no other way.
+  // Whether an evaluation with parameters still has to evaluate the block at
+  // that revision, which the scheduler then evaluates no other way: one not
+  // sent yet, which takes the revision the block has when it goes, or one sent
+  // for that revision.
   function paramsFor(id: BlockId, at: number): boolean {
     for (const evaluation of withParams) {
       const part = evaluation.parts.get(id);
-      if (part?.revision === at && part.result === undefined) return true;
+      if (part !== undefined && part.sent === undefined && part.result === undefined) {
+        return true;
+      }
     }
     for (const evaluation of sent) {
       if (evaluation.part?.block === id && evaluation.revision === at && !evaluation.orphaned) {
@@ -1076,21 +1061,19 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
           }
           for (const id of ids) {
             const status = statuses.get(id);
-            const recipe = recipeOf(id);
-            const entry = entries.get(id);
-            if (status === undefined || recipe === undefined || entry === undefined) continue;
+            if (status?.status === "waiting") {
+              fail(evaluation, waitingError(id, status));
+              return;
+            }
             evaluation.parts.set(id, {
               of: evaluation,
               block: id,
-              revision: entry.revision,
-              recipe,
+              recipe: undefined,
               sent: undefined,
-              // A block that cannot run has nothing to send.
-              result: status.status === "waiting" ? status : undefined,
+              result: undefined,
             });
           }
           withParams.add(evaluation);
-          finish(evaluation);
         }
         schedule();
       });
@@ -1208,6 +1191,15 @@ function sameInputs(a: readonly Input[], b: readonly Input[]): boolean {
   return (
     a.length === b.length &&
     a.every((input, i) => input.input === b[i]?.input && input.block === b[i].block)
+  );
+}
+
+// Why an evaluation with parameters is not sent, from the condition of the
+// block that reads waiting.
+function waitingError(id: BlockId, status: BlockStatus): Error {
+  const why = status.conditions[0]?.message ?? "This block is waiting.";
+  return new Error(
+    `${why.replace(/^This block/, `Block "${id}"`)} Its evaluation with parameters is not sent.`,
   );
 }
 

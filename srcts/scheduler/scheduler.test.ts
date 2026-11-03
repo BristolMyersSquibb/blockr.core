@@ -914,39 +914,55 @@ describe("one-time evaluations with parameters", () => {
     expect(statusOf(scheduler, "b").status).toBe("unevaluated");
   });
 
-  test("reject where a block it reads changes before it is sent, where its block leaves the board first, and where a new session starts before R replies", async () => {
+  test("wait while what it reads recomputes, following an edit made meanwhile, and reject where its block leaves the board before it is sent or a new session starts before R replies", async () => {
     const { r, store, scheduler } = await setup({ evaluationQueue: 0 });
     scheduler.start();
-    const changing = expect(scheduler.evaluate(["b"], { save: true })).rejects.toThrow(
-      /Block "a", which block "b" reads, changed before its evaluation with parameters was sent/,
-    );
+    const saving = scheduler.evaluate(["b"], { save: true });
     await tick();
+    const old = pendingOf(r, "a");
+
     store.apply({ blocks: { mod: { a: { state: { dataset: "mtcars" } } } } });
     await tick();
-    await changing;
+    r.reply({ id: old.id, status: "cancelled" });
+    await tick();
+    r.evaluated(pendingOf(r, "a"));
+    await tick();
+    const save = pendingOf(r, "b");
+    expect(save).toMatchObject({ revision: statusOf(scheduler, "b").revision, params: { save: true } });
+    expect(save.recipe.inputs).toEqual([
+      { input: "data", block: "a", revision: statusOf(scheduler, "a").revision },
+    ]);
+    r.evaluated(save);
+    await expect(saving).resolves.toMatchObject({ b: { status: "ready", revision: save.revision } });
 
     const leaving = scheduler.evaluate(["f"], { save: true });
     store.apply({ blocks: { rm: ["f"] } });
     await expect(leaving).rejects.toThrow(/Block "f" left the board before/);
 
-    await evaluateAll(r);
     const ending = scheduler.evaluate(["d"], { save: true });
-    await tick();
-    r.evaluated(pendingOf(r, "a"));
     await tick();
     expect(pendingOf(r, "d").params).toEqual({ save: true });
     r.end();
     await expect(ending).rejects.toBeInstanceOf(SessionEndedError);
   });
 
-  test("resolve as waiting for a block that cannot run, sending nothing for it", async () => {
-    const { r, store, scheduler } = await setup();
-    store.apply({ links: { rm: ["ab"] } });
+  test("reject where its block cannot run, at once or once a block it reads fails while it waits, sending nothing for it", async () => {
+    const { r, store, scheduler } = await setup({ evaluationQueue: 0 });
     scheduler.start();
-    const statuses = await scheduler.evaluate(["b"], { save: true });
-    expect(statuses.b?.status).toBe("waiting");
+    const failing = expect(scheduler.evaluate(["b"], { save: true })).rejects.toThrow(
+      'Block "b" is waiting for block "a". Its evaluation with parameters is not sent.',
+    );
+    await tick();
+    r.evaluated(pendingOf(r, "a"), "error", { conditions: [failure] });
+    await tick();
+    await failing;
+
+    store.apply({ links: { rm: ["ad"] } });
+    await expect(scheduler.evaluate(["d"], { save: true })).rejects.toThrow(
+      'Block "d" is waiting for its input "data" to be linked. Its evaluation with parameters is not sent.',
+    );
     await tick(1);
-    expect(r.evaluations()).toEqual([]);
+    expect(r.evaluations().map((request) => request.block)).toEqual(["a"]);
   });
 });
 
