@@ -34,7 +34,7 @@
   expression, `bbquote()` returns a `bquoted_expr`, whose placeholders it
   fills in with the upstream ids, and `evaluate_block()` evaluates a block
   from its class, state and upstream results through `block_eval()`. A state
-  reads `invalid` where `expr` signals `invalid()` or uses an unset arg. With
+  reads `invalid` where `expr` signals `blockr_invalid()` or uses an unset arg. With
   them come `result_summary()`, `block_migrate()`, `new_block_request()` and
   `run_block_request()`, `expect_block_fixture()`, which tests a class
   without Shiny, and `trace_block_classes()`, which a package calls in
@@ -81,6 +81,42 @@
   most specific class in the board's class vector, so that every board has
   core's basic front-end, `blockr.core-basic`, which core declares for
   `board`, at least (#424).
+* Core's twelve built-in blocks are block classes. Core exports each class
+  beside its constructor, such as `head_block` beside `new_head_block()`, and
+  registers ten of them when it loads, under IDs such as
+  `blockr.core-head_block`. The static and fixed blocks stay out of the block
+  registry, as before. Each class names its UI module, which a later version
+  ships, its requests, such as the head block's `n_max`, and the coercion of
+  its output: a table for most, a plot for the scatter block and text for the
+  glue, file browser and upload blocks. Each class has a fixture file of
+  states and request answers, which the tests of its module will read (#423).
+* With the built-in blocks ported, `new_block()` is gone, and so are its
+  specializations `new_data_block()`, `new_file_block()`,
+  `new_parser_block()`, `new_plot_block()`, `new_text_block()` and
+  `new_transform_block()`, with `validate_data_inputs()`. The methods of
+  `blockr_ser()` and `blockr_deser()` for blocks go too, since neither works
+  for a block of a block class (#423).
+* A function given as a block class's `inputs` signals an error where the
+  inputs do not fit and otherwise returns `NULL`. Any other value it returns
+  now fails the check too, so that a predicate that returns `FALSE` no longer
+  lets every input through. Core's blocks signal classed errors there, such as
+  `head_block_inputs_invalid`. Where a user empties a selection, they signal
+  `blockr_invalid()`, a sibling of `blockr_abort()`, which replaces
+  `invalid()` and makes R report the block as `invalid` (#423).
+* Some built-in blocks change behavior. The static block takes an R expression
+  as a string, in its argument `expression`, such as
+  `new_static_block("datasets::iris")`, in place of a data frame, which its
+  constructor now refuses. The fixed block holds its code as a string as well.
+  A dataset block waits for a dataset, a merge block for the columns to join
+  by and a scatter block for both of its columns, where each had a default
+  before. The glue block waits for a link, and its text refers to each input
+  by its link's name, so that an input whose link has no name, which it called
+  `.arg1` before, now makes the block fail. It shows its text as printed text
+  rather than as Markdown. The upload block keeps each uploaded file in a
+  folder of its own, in the session's temporary directory or in the directory
+  that the new blockr option `upload_dir` names, and holds the file's path as
+  its state, `file_path`. The file browser lists directories through a request
+  of its own (#423).
 
 # blockr.core 0.1.4
 

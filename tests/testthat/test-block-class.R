@@ -180,7 +180,8 @@ test_that("new_block_class() checks a class once", {
   )
 
   expect_s3_class(
-    new_block_class("x_block", "data", function() invalid("Not yet."), ui),
+    new_block_class("x_block", "data", function() blockr_invalid("Not yet."),
+                    ui),
     "block_class"
   )
 
@@ -224,10 +225,11 @@ test_that("the constructor keeps the state the checks in expr leave", {
   )
 
   expect_identical(constructor_class(new_class_head_block), head_class)
-  expect_error(constructor_class(new_head_block),
+  expect_error(constructor_class(function() NULL),
                class = "block_constructor_invalid")
 
-  expect_error(block_constructor(new_head_block), class = "block_class_invalid")
+  expect_error(block_constructor(new_class_head_block),
+               class = "block_class_invalid")
 })
 
 test_that("an unset arg stays out of the state until something sets it", {
@@ -261,7 +263,7 @@ test_that("an unset arg stays out of the state until something sets it", {
       "picky_block",
       inputs = "data",
       expr = function(cols = character()) {
-        if (!length(cols)) invalid("Choose at least one column.")
+        if (!length(cols)) blockr_invalid("Choose at least one column.")
         bbquote(.(data)[, .(cols)])
       },
       ui = js_module("picky.js")
@@ -297,14 +299,18 @@ test_that("js_module() keeps the path and the package", {
                class = "js_module_package_invalid")
 })
 
-test_that("invalid() signals an error of class invalid", {
+test_that("blockr_invalid() signals a classed error", {
 
-  cnd <- tryCatch(invalid("Not yet."), error = identity)
+  n <- 2L
 
-  expect_s3_class(cnd, c("invalid", "error", "condition"), exact = TRUE)
-  expect_identical(conditionMessage(cnd), "Not yet.")
+  cnd <- tryCatch(
+    blockr_invalid("Choose {n} column{?s}.", class = "my_block_unset"),
+    error = identity
+  )
 
-  expect_error(invalid(1), class = "invalid_message_invalid")
+  expect_s3_class(cnd, c("my_block_unset", "blockr_invalid", "blockr_error"))
+  expect_identical(conditionMessage(cnd), "Choose 2 columns.")
+  expect_true(is_invalid_cnd(cnd))
 })
 
 test_that("missing args are told apart from other errors", {

@@ -299,6 +299,6 @@ test_that("the shipped core registry is complete", {
   expect_length(reg[["new_merge_block"]][["examples"]], 2L)
   expect_match(
     reg[["new_dataset_block"]][["link"]],
-    "/reference/new_data_block\\.html$"
+    "/reference/new_dataset_block\\.html$"
   )
 })

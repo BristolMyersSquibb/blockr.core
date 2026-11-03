@@ -302,28 +302,6 @@ set_blockr_options <- function(...) {
   do.call(options, vals)
 }
 
-dot_sym <- function(i) {
-  paste0(".arg", i)
-}
-
-arg_refs <- function(nms) {
-
-  unnamed <- !nzchar(nms)
-
-  replace(nms, unnamed, dot_sym(seq_len(sum(unnamed))))
-}
-
-dot_arg_refs <- function(x) {
-
-  nms <- names(x)
-
-  if (is.null(nms)) {
-    nms <- character(length(x))
-  }
-
-  set_names(arg_refs(nms), nms)
-}
-
 exprs_to_lang <- function(exprs) {
 
   if (rlang::is_syntactic_literal(exprs)) {

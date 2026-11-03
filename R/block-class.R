@@ -12,20 +12,23 @@
 #' a string, a function of the data inputs or an object of a class that
 #' inherits from `blockr_expr`, such as what [bbquote()] returns. An arg
 #' without a default starts unset and stays out of the block's state until
-#' something sets it. A body that uses an unset arg, or signals `invalid()`
-#' with a message, makes R run nothing and report the block as `invalid`, and
-#' a body that can do without an unset arg tests it with [missing()]. Called
+#' something sets it. A body that uses an unset arg, or signals
+#' [blockr_invalid()] with a message, makes R run nothing and report the block
+#' as `invalid`, and a body that can do without an unset arg tests it with
+#' [missing()]. Called
 #' without args, `expr` gives the state a new block starts with.
 #'
 #' The data inputs, apart from the state args, are given as `inputs`: a
 #' character vector names them, such as `"data"`, `c("x", "y")` or `"..."` for
 #' a variadic block, a list from [alist()] gives them as formals, and a
 #' function gives them as its formals and checks them in its body, as
-#' `function(data) stopifnot(is.data.frame(data))` does. No input has a
-#' default. A class names its UI module with `js_module()`, which keeps the
-#' module's path in the package's `inst/` and the package whose code calls it,
-#' for R to resolve when it serves the module, and which resolves the path
-#' against the working directory outside a package. A class further takes a
+#' `function(data) stopifnot(is.data.frame(data))` does. Such a function
+#' signals an error where the inputs do not fit and otherwise returns `NULL`,
+#' and any other value fails the check too. No input has a default. A class
+#' names its UI module with `js_module()`, which keeps the module's path in the
+#' package's `inst/` and the package whose code calls it, for R to resolve when
+#' it serves the module, and which resolves the path against the working
+#' directory outside a package. A class further takes a
 #' named list of `requests`, for what its UI asks of R, each a function or made
 #' by [new_block_request()], which names the board options it reads, and the
 #' coercion that makes an output from a result, as `output`. A field a class
@@ -95,12 +98,14 @@
 #' is_blocks(blks)
 #' names(blks)
 #'
+#' @include utils-assertions.R utils-cnd.R utils-misc.R utils-ply.R utils-pkg.R
+#' @include utils-expr.R block-expr.R block-request.R
+#'
 #' @return The class constructor `new_block_class()` returns an object of class
 #' `block_class` and `block_constructor()` a function of class
 #' `block_constructor`, which returns a block, an object inheriting from
 #' `block`, as does `as_block()`. A UI module made by `js_module()` is an
-#' object of class `js_module`, while `invalid()` signals a condition of class
-#' `invalid` and returns nothing. The predicates `is_block_class()` and
+#' object of class `js_module`. The predicates `is_block_class()` and
 #' `is_block()` return a scalar logical. Block vectors, created using
 #' `blocks()`, `as_blocks()`, or by combining multiple blocks using [base::c()]
 #' all inherit from `blocks` and `is_blocks()` returns a scalar logical.
@@ -194,26 +199,6 @@ js_module <- function(path, package = pkg_name(parent.frame())) {
   }
 
   structure(list(path = path, package = package), class = "js_module")
-}
-
-#' @param message Why the state cannot run
-#' @rdname new_block_class
-#' @export
-invalid <- function(message) {
-
-  if (!is_string(message)) {
-    blockr_abort(
-      "The message of `invalid()` is expected to be a string.",
-      class = "invalid_message_invalid"
-    )
-  }
-
-  stop(
-    structure(
-      class = c("invalid", "error", "condition"),
-      list(message = message, call = NULL)
-    )
-  )
 }
 
 is_js_module <- function(x) {
@@ -455,7 +440,7 @@ call_option_ctors <- function(ctors) {
 }
 
 is_invalid_cnd <- function(cnd) {
-  inherits(cnd, "invalid") || is_missing_arg_error(cnd)
+  inherits(cnd, "blockr_invalid") || is_missing_arg_error(cnd)
 }
 
 is_missing_arg_error <- function(cnd) {
@@ -575,7 +560,7 @@ default_block_name <- function(class) {
   paste0(toupper(substr(res, 1L, 1L)), substring(res, 2L))
 }
 
-validate_block <- function(x, ...) {
+validate_block <- function(x) {
 
   if (!is_block(x)) {
     blockr_abort(
@@ -596,10 +581,6 @@ validate_block <- function(x, ...) {
       "Expecting blocks to behave list-like.",
       class = "block_list_like_invalid"
     )
-  }
-
-  if (is_legacy_block(x)) {
-    return(validate_legacy_block(x, ...))
   }
 
   if (!is_block_class(block_class(x))) {
@@ -663,12 +644,6 @@ c.block <- function(...) {
 #' restrictions are in place and the block name can be retrieved with
 #' `block_name()`.
 #'
-#' @section Input validation:
-#' Data input validation is available via `validate_data_inputs()` which uses
-#' the (optional) validator function passed to [new_block()] at construction
-#' time. A block class checks its data inputs in the body of a function given
-#' as its `inputs` instead (see [new_block_class()]).
-#'
 #' @section Block arity:
 #' The number of data inputs of a block is available as `block_arity()`, which
 #' reads the inputs of the block's class. In case of variadic blocks (i.e.
@@ -687,8 +662,6 @@ c.block <- function(...) {
 #'
 #' @return Return types vary among the set of exported utilities:
 #' * `block_name()`: string valued block name,
-#' * `validate_data_inputs()`: `NULL` if no validator is set and the result of
-#'   the validator function otherwise,
 #' * `block_arity()`: a scalar integer with `NA` in case of variadic behavior.
 #'
 #' @export
@@ -707,10 +680,6 @@ block_arity <- function(x) {
     )
   }
 
-  if (is_legacy_block(x)) {
-    return(legacy_block_arity(x))
-  }
-
   inputs <- block_data_inputs(x)
 
   if ("..." %in% inputs) {
@@ -721,20 +690,10 @@ block_arity <- function(x) {
 }
 
 block_data_inputs <- function(x) {
-
-  if (is_legacy_block(x)) {
-    return(legacy_block_inputs(x))
-  }
-
   class_inputs(block_class(x))
 }
 
 block_state_args <- function(x) {
-
-  if (is_legacy_block(x)) {
-    return(block_ctor_inputs(x))
-  }
-
   class_state_args(block_class(x))
 }
 
@@ -768,10 +727,6 @@ format_block_state <- function(state) {
 
 #' @export
 format.block <- function(x, ...) {
-
-  if (is_legacy_block(x)) {
-    return(format_legacy_block(x, ...))
-  }
 
   state <- block_state(x)
 
@@ -862,10 +817,5 @@ str.block <- function(object, ...) {
 
 #' @export
 board_options.block <- function(x, ...) {
-
-  if (is_legacy_block(x)) {
-    return(new_board_options())
-  }
-
   class_board_options(block_class(x))
 }

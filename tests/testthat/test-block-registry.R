@@ -28,7 +28,7 @@ test_that("registry", {
   expect_identical(registry_id_from_block(new_class_head_block()), "head_block")
   expect_identical(registry_id_from_block(head_class), "head_block")
   expect_identical(registry_id_from_block(new_class_merge_block()), character())
-  expect_identical(registry_id_from_block(new_dataset_block()), character())
+  expect_identical(registry_id_from_block(new_static_block()), character())
 
   blk <- create_block("head_block", n = 2L)
 
@@ -54,7 +54,7 @@ test_that("registry", {
   expect_identical(available_blocks()[["head_block"]]$description, "Last rows")
 
   expect_error(
-    register_block(new_head_block, "Head", "First rows"),
+    register_block(function() NULL, "Head", "First rows"),
     class = "block_constructor_invalid"
   )
 
@@ -209,11 +209,52 @@ test_that("registry entries print", {
   )
 })
 
-test_that("core's built-in blocks are not registered yet", {
+test_that("core registers its built-in blocks as it loads", {
 
-  expect_error(
-    register_package_blocks(package = "blockr.core",
-                            which = "new_dataset_block"),
-    class = "block_constructor_invalid"
+  ids <- paste0(
+    "blockr.core-",
+    c("csv_block", "dataset_block", "filebrowser_block", "glue_block",
+      "head_block", "merge_block", "rbind_block", "scatter_block",
+      "subset_block", "upload_block")
   )
+
+  expect_contains(list_blocks(), ids)
+
+  entries <- available_blocks()[ids]
+
+  expect_identical(unique(chr_xtr(entries, "package")), "blockr.core")
+
+  head <- entries[["blockr.core-head_block"]]
+
+  expect_identical(head[["block_class"]], head_block)
+  expect_identical(head[["constructor"]], new_head_block)
+  expect_identical(head[["state"]], list(n = 6L, direction = "head"))
+
+  expect_identical(
+    entries[["blockr.core-merge_block"]][["examples"]],
+    list(
+      list(by = list("Time"), all_x = TRUE, all_y = FALSE),
+      list(by = list("Time"), all_x = TRUE, all_y = TRUE)
+    )
+  )
+
+  expect_identical(registry_id_from_block(new_static_block()), character())
+  expect_identical(registry_id_from_block(new_fixed_block()), character())
+
+  entry <- register_package_blocks(package = "blockr.core",
+                                   which = "new_dataset_block")
+
+  expect_identical(entry[[1L]][["id"]], "blockr.core-dataset_block")
+})
+
+test_that("YAML examples of an array type are lists", {
+
+  arr <- list(type = "array", items = list(type = "string"))
+
+  expect_identical(yaml_arg_example("a", arr), list("a"))
+  expect_identical(yaml_arg_example(c("a", "b"), arr), list("a", "b"))
+  expect_identical(yaml_arg_example(list("a"), arr), list("a"))
+  expect_null(yaml_arg_example(NULL, arr))
+  expect_identical(yaml_arg_example("a", list(type = "string")), "a")
+  expect_identical(yaml_arg_example("a", NULL), "a")
 })

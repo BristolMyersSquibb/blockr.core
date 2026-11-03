@@ -1,0 +1,16 @@
+{
+  "states": [
+    {
+      "x": "Sepal.Length",
+      "y": "Sepal.Width"
+    }
+  ],
+  "requests": [
+    {
+      "name": "columns",
+      "args": {},
+      "options": {},
+      "answer": ["Sepal.Length","Sepal.Width","Petal.Length","Petal.Width","Species"]
+    }
+  ]
+}

@@ -28,7 +28,6 @@ Roxygen: list(markdown = TRUE, roclets = c("collate", "namespace", "rd",
     "blockr.core::block_registration_roclet"))
 Imports:
     shiny (>= 1.14.0),
-    bslib,
     bsicons,
     datasets,
     grDevices,
@@ -39,7 +38,6 @@ Imports:
     generics,
     rlang,
     evaluate,
-    shinyFiles,
     cli,
     glue,
     yaml,
@@ -69,3 +67,57 @@ Suggests:
 Config/testthat/edition: 3
 VignetteBuilder: quarto
 Config/roxygen2/version: 8.0.0
+Collate: 
+    'arg-spec.R'
+    'block-request.R'
+    'block-expr.R'
+    'utils-expr.R'
+    'utils-pkg.R'
+    'utils-ply.R'
+    'utils-misc.R'
+    'utils-cnd.R'
+    'utils-assertions.R'
+    'block-class.R'
+    'block-coverage.R'
+    'block-eval.R'
+    'block-fixture.R'
+    'block-registry.R'
+    'block-roclet.R'
+    'blocks-class.R'
+    'board-class.R'
+    'board-lock.R'
+    'board-option.R'
+    'board-options.R'
+    'output-table.R'
+    'data-dataset.R'
+    'data-static.R'
+    'file-browser.R'
+    'file-upload.R'
+    'front-end.R'
+    'link-class.R'
+    'links-class.R'
+    'output-class.R'
+    'output-plot.R'
+    'output-text.R'
+    'parser-csv.R'
+    'pkg-modules.R'
+    'plot-scatter.R'
+    'protocol.R'
+    'shiny-transport.R'
+    'stack-class.R'
+    'stacks-class.R'
+    'str-value.R'
+    'text-glue.R'
+    'transform-fixed.R'
+    'transform-head.R'
+    'transform-merge.R'
+    'transform-rbind.R'
+    'transform-subset.R'
+    'utils-code.R'
+    'utils-graph.R'
+    'utils-logging.R'
+    'utils-schema.R'
+    'utils-serdes.R'
+    'utils-serve.R'
+    'utils-shiny.R'
+    'zzz-onload.R'
