@@ -5,21 +5,20 @@
 // sends as messages.
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { createClient, SessionEndedError } from "../protocol/client.ts";
-import type { Transport, TransportListener } from "../protocol/client.ts";
+import { SessionEndedError } from "../protocol/client.ts";
 import type {
   Capability,
   Condition,
-  EvaluateReply,
   EvaluateRequest,
   HelloReply,
   OpenReply,
   OutputRequest,
-  Reply,
-  Request,
 } from "../protocol/messages.ts";
 import { createStore } from "../store/index.ts";
 import type { Store } from "../store/index.ts";
+import { playR } from "../testing/r.ts";
+import { reports } from "../testing/reports.ts";
+import type { PlayedR } from "../testing/r.ts";
 import { coreOptions, hello, reply as replyOf } from "../testing/store.ts";
 import type { BlockId } from "../types/board.ts";
 import { createScheduler } from "./index.ts";
@@ -54,100 +53,6 @@ const info = {
   font: "Inter",
 };
 
-// R, played over the protocol's client and a transport that keeps what the
-// client sends.
-function fakeR() {
-  const sent: Request[] = [];
-  const replied = new Set<string>();
-  // The kinds of request whose messages the transport cannot send.
-  const refuse = new Set<Request["kind"]>();
-  let listener: TransportListener | undefined;
-
-  const hears = (): TransportListener => {
-    if (listener === undefined) throw new Error("Nothing listens yet.");
-    return listener;
-  };
-
-  const transport: Transport = {
-    send(message) {
-      if (message.some((request) => refuse.has(request.kind))) {
-        return Promise.reject(new Error("The transport is closed."));
-      }
-      sent.push(...message);
-      return Promise.resolve();
-    },
-    listen(l) {
-      listener = l;
-    },
-  };
-
-  const client = createClient(transport, {
-    hello: () => ({ protocol: "1.0", capabilities: ["cancel", "interrupt", "progress"] }),
-    session: () => undefined,
-  });
-
-  function reply(item: Reply): void {
-    replied.add(item.id);
-    hears().received(item, null);
-  }
-
-  function evaluations(): EvaluateRequest[] {
-    return sent.filter((request): request is EvaluateRequest => request.kind === "evaluate");
-  }
-
-  return {
-    client,
-    sent,
-    refuse,
-    reply,
-    evaluations,
-    // The evaluations that R has not replied to.
-    pending(): EvaluateRequest[] {
-      return evaluations().filter((request) => !replied.has(request.id));
-    },
-    // Starts a session and answers its hello, naming R's capabilities.
-    connect(capabilities: Capability[] = ["cancel", "progress"]): void {
-      hears().started();
-      const request = sent.filter((item) => item.kind === "hello").at(-1);
-      if (request === undefined) throw new Error("The client sent no hello.");
-      reply({ ...hello, id: request.id, capabilities });
-    },
-    end(): void {
-      hears().ended();
-    },
-    // Replies to an evaluation as R does.
-    evaluated(
-      request: EvaluateRequest,
-      status: EvaluateReply["status"] = "ok",
-      fields: Partial<EvaluateReply> = {},
-    ): void {
-      reply({
-        id: request.id,
-        status,
-        block: request.block,
-        revision: request.revision,
-        summary: status === "ok" ? "<data.frame> [150 × 5]" : null,
-        conditions: [],
-        omitted: { warning: 0, message: 0 },
-        stdout: "",
-        stderr: "",
-        ...fields,
-      });
-    },
-    cancels(): string[] {
-      return sent.flatMap((item) => (item.kind === "cancel" ? [item.request] : []));
-    },
-    forgets(): BlockId[][] {
-      return sent.flatMap((item) => (item.kind === "forget" ? [item.blocks] : []));
-    },
-    // The requests of a kind, an output's or another request's, in order.
-    asked(kind: "output" | "request"): Request[] {
-      return sent.filter((item) => item.kind === kind);
-    },
-  };
-}
-
-type FakeR = ReturnType<typeof fakeR>;
 
 async function setup(
   options: Omit<SchedulerOptions, "store" | "client"> = {},
@@ -160,8 +65,8 @@ async function setup(
     reply?: HelloReply;
     prepare?: (store: Store) => void;
   } = {},
-): Promise<{ r: FakeR; store: Store; scheduler: Scheduler }> {
-  const r = fakeR();
+): Promise<{ r: PlayedR; store: Store; scheduler: Scheduler }> {
+  const r = playR();
   r.connect(capabilities);
   const store = createStore({ client: r.client });
   for (const option of coreOptions) store.options.register(option);
@@ -192,7 +97,7 @@ function revisionsOf(scheduler: Scheduler): Record<BlockId, number> {
 }
 
 // The latest evaluation of a block that R has not replied to.
-function pendingOf(r: FakeR, id: BlockId): EvaluateRequest {
+function pendingOf(r: PlayedR, id: BlockId): EvaluateRequest {
   const request = r.pending().filter((item) => item.block === id).at(-1);
   if (request === undefined) throw new Error(`No evaluation of block "${id}" waits on R.`);
   return request;
@@ -200,35 +105,12 @@ function pendingOf(r: FakeR, id: BlockId): EvaluateRequest {
 
 // Answers every evaluation that waits on R with ok, again and again, until
 // none waits.
-async function evaluateAll(r: FakeR): Promise<void> {
+async function evaluateAll(r: PlayedR): Promise<void> {
   await tick();
   for (let i = 0; i < 20 && r.pending().length > 0; i++) {
     for (const request of r.pending()) r.evaluated(request);
     await tick();
   }
-}
-
-// Captures what the scheduler reports rather than throws, such as what a
-// caller's function threw.
-function reports(): { errors: () => unknown[]; restore: () => void } {
-  const queued: (() => void)[] = [];
-  const spy = vi.spyOn(globalThis, "queueMicrotask").mockImplementation((fn) => {
-    queued.push(fn);
-  });
-  return {
-    errors: () =>
-      queued.map((fn) => {
-        try {
-          fn();
-          return undefined;
-        } catch (error) {
-          return error;
-        }
-      }),
-    restore: () => {
-      spy.mockRestore();
-    },
-  };
 }
 
 const failure: Condition = {
