@@ -1,0 +1,193 @@
+// @vitest-environment node
+
+// What a pass of the scheduler decides, on the sample board.
+
+import { describe, expect, test } from "vitest";
+import { graphOf } from "../graph/index.ts";
+import { sample } from "../testing/board.ts";
+import { hello } from "../testing/store.ts";
+import type { BlockId } from "../types/board.ts";
+import { needsOf } from "./needs.ts";
+import { GIVE_WAY, planOf } from "./plan.ts";
+import type { Asked, Part, Sent } from "./plan.ts";
+import { inputsOf } from "./recipes.ts";
+import { counter, opening } from "./revisions.ts";
+import { statusesOf } from "./status.ts";
+import type { Outcome } from "./status.ts";
+
+const graph = graphOf(sample);
+const inputs = inputsOf(sample, graph, hello.block_registry, new Set());
+// The revisions of the sample board as it opens: a 1, b 2, d 3, f 4, c 5, e 6.
+const revisions = opening(graph, counter());
+const now = 100_000;
+
+function at(id: BlockId): number {
+  const revision = revisions.get(id);
+  if (revision === undefined) throw new Error(`Block "${id}" has no revision.`);
+  return revision;
+}
+
+function outcome(status: Outcome["status"], id: BlockId): Outcome {
+  return {
+    status,
+    revision: at(id),
+    summary: null,
+    conditions: [],
+    omitted: { warning: 0, message: 0 },
+    stdout: "",
+    stderr: "",
+  };
+}
+
+// The statuses of the sample board, where the blocks given replied.
+function statuses(replies: [BlockId, Outcome["status"]][] = []) {
+  return statusesOf({
+    graph,
+    revisions,
+    outcomes: new Map(replies.map(([id, status]) => [id, outcome(status, id)])),
+    inputs,
+    running: new Set(),
+    before: new Map(),
+  }).statuses;
+}
+
+let seq = 0;
+function sent(block: BlockId, fields: Partial<Sent> = {}): Sent {
+  return {
+    seq: ++seq,
+    at: now,
+    block,
+    revision: at(block),
+    part: undefined,
+    background: false,
+    cancelled: false,
+    orphaned: false,
+    ...fields,
+  };
+}
+
+function part(block: BlockId, priority = 0): Part {
+  return { block, of: { priority, done: false } };
+}
+
+function plan(fields: Partial<Parameters<typeof planOf<Sent, Part>>[0]> = {}) {
+  return planOf<Sent, Part>({
+    graph,
+    revisions,
+    statuses: statuses(),
+    needs: new Map(),
+    sent: [],
+    asked: [],
+    parts: [],
+    queue: 2,
+    interrupt: false,
+    holding: false,
+    now,
+    idleSince: undefined,
+    delay: Infinity,
+    ...fields,
+  });
+}
+
+function blocksOf(found: ReturnType<typeof plan>): BlockId[] {
+  return found.send.map((item) => item.block);
+}
+
+describe("what to send", () => {
+  test("is what is needed and not current, highest evaluation priority first and in topological order within one, as R has room", () => {
+    const needs = needsOf(graph, [
+      { blocks: ["c"], priority: 1 },
+      { blocks: ["d"], priority: 0 },
+    ]);
+    expect(blocksOf(plan({ needs }))).toEqual(["a", "b", "c"]);
+    expect(blocksOf(plan({ needs, queue: 0 }))).toEqual(["a"]);
+    expect(blocksOf(plan({ needs, queue: Infinity }))).toEqual(["a", "b", "c", "d"]);
+    expect(blocksOf(plan({ needs, sent: [sent("f")] }))).toEqual(["a", "b"]);
+  });
+
+  test("is nothing while the scheduler holds, and no block whose upstream R neither holds nor computes", () => {
+    const needs = needsOf(graph, [{ blocks: ["b"], priority: 0 }]);
+    expect(plan({ needs, holding: true }).send).toEqual([]);
+    expect(blocksOf(plan({ needs: new Map([["b", 0]]) }))).toEqual([]);
+    expect(blocksOf(plan({ needs: new Map([["b", 0]]), statuses: statuses([["a", "ok"]]) }))).toEqual(["b"]);
+    expect(blocksOf(plan({ needs: new Map([["b", 0]]), sent: [sent("a")] }))).toEqual(["b"]);
+    expect(blocksOf(plan({ needs: new Map([["b", 0]]), sent: [sent("a", { cancelled: true })] }))).toEqual([]);
+  });
+});
+
+describe("what to cancel", () => {
+  test("is an evaluation whose revision has moved, and one that nothing needs unless R may be running it", () => {
+    const moved = sent("a", { revision: 0 });
+    const idle = sent("b");
+    const unneeded = sent("c");
+    expect(plan({ sent: [moved, idle, unneeded] }).cancel).toEqual([moved, idle, unneeded]);
+
+    const oldest = sent("a");
+    const later = sent("b");
+    expect(plan({ sent: [oldest, later] }).cancel).toEqual([later]);
+    expect(plan({ sent: [oldest, later], needs: needsOf(graph, [{ blocks: ["b"], priority: 0 }]) }).cancel).toEqual([]);
+  });
+
+  test("is one below 0 that something else has waited behind for 5 s, where R can stop what it has started", () => {
+    const behind = sent("d", { background: true });
+    const waited: Asked = { seq: ++seq, at: now - GIVE_WAY };
+    expect(plan({ sent: [behind], asked: [waited], interrupt: true }).cancel).toEqual([behind]);
+    expect(plan({ sent: [behind], asked: [waited], interrupt: false }).cancel).toEqual([]);
+
+    const young: Asked = { seq: ++seq, at: now - GIVE_WAY + 1 };
+    const found = plan({ sent: [behind], asked: [young], interrupt: true });
+    expect(found.cancel).toEqual([]);
+    expect(found.wakeAt).toBe(now + 1);
+  });
+
+  test("is never an evaluation with parameters", () => {
+    const save = sent("b", { revision: 0, part: part("b") });
+    expect(plan({ sent: [save] }).cancel).toEqual([]);
+  });
+});
+
+describe("an evaluation with parameters", () => {
+  test("goes once what its block reads is available, and the block takes no other evaluation meanwhile", () => {
+    const save = part("b");
+    const needs = needsOf(graph, [{ blocks: ["b"], priority: 0 }]);
+    expect(plan({ needs, parts: [save] }).send).toEqual([{ block: "a" }, { block: "b", part: save }]);
+    expect(plan({ needs, parts: [save], statuses: statuses([["a", "ok"]]) }).send).toEqual([
+      { block: "b", part: save },
+    ]);
+  });
+
+  test("rejects where its block reads waiting, whatever room R has", () => {
+    const save = part("b");
+    const found = plan({ parts: [save], statuses: statuses([["a", "error"]]), queue: 0, sent: [sent("f")] });
+    expect(found.send).toEqual([]);
+    expect(found.reject.map(({ part: rejected, error }) => [rejected, error.message])).toEqual([
+      [save, 'Block "b" is waiting for block "a". Its evaluation with parameters is not sent.'],
+    ]);
+  });
+});
+
+describe("evaluation in the background", () => {
+  test("starts once R has had nothing else to run for the delay, one block at a time, upstream first", () => {
+    const first = plan({ delay: 2 });
+    expect(first.send).toEqual([]);
+    expect(first.idleSince).toBe(now);
+    expect(first.wakeAt).toBe(now + 2000);
+
+    const due = plan({ delay: 2, idleSince: now - 2000 });
+    expect(due.send).toEqual([{ block: "a", background: true }]);
+
+    expect(plan({ delay: 2, idleSince: now - 2000, sent: [sent("d", { background: true })] }).send).toEqual([]);
+    expect(blocksOf(plan({ delay: 2, idleSince: now - 2000, statuses: statuses([["a", "ok"]]) }))).toEqual(["b"]);
+  });
+
+  test("waits while R has anything else to run, an output, a request or an evaluation at 0 or above", () => {
+    const asked = plan({ delay: 2, idleSince: now - 2000, asked: [{ seq: ++seq, at: now }] });
+    expect(asked.send).toEqual([]);
+    expect(asked.idleSince).toBeUndefined();
+
+    const needs = needsOf(graph, [{ blocks: ["a"], priority: 0 }]);
+    const busy = plan({ delay: 2, idleSince: now - 2000, needs });
+    expect(busy.send).toEqual([{ block: "a" }]);
+    expect(busy.idleSince).toBeUndefined();
+  });
+});

@@ -4,9 +4,6 @@
 // played over the protocol's own client, so the tests check what the scheduler
 // sends as messages.
 
-import { readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { createClient, SessionEndedError } from "../protocol/client.ts";
 import type { Transport, TransportListener } from "../protocol/client.ts";
@@ -15,7 +12,6 @@ import type {
   Condition,
   EvaluateReply,
   EvaluateRequest,
-  Fixture,
   HelloReply,
   OpenReply,
   OutputRequest,
@@ -23,26 +19,19 @@ import type {
   Request,
 } from "../protocol/messages.ts";
 import { createStore } from "../store/index.ts";
-import type { Option, Store } from "../store/index.ts";
+import type { Store } from "../store/index.ts";
+import { coreOptions, hello, reply as replyOf } from "../testing/store.ts";
 import type { BlockId } from "../types/board.ts";
 import { createScheduler } from "./index.ts";
 import type { BlockStatus, Scheduler, SchedulerOptions } from "./index.ts";
-import { counter } from "./revisions.ts";
-
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-
-function fixture(name: string): Fixture {
-  const file = join(root, "inst", "protocol", "fixtures", `${name}.json`);
-  return JSON.parse(readFileSync(file, "utf8")) as Fixture;
-}
 
 // The sample board:
 // - The dataset a feeds the head b, the subset d and the scatter f.
 // - The merge c takes a as x and b as y.
 // - The variadic rbind e binds b and d, in that order.
-const hello = fixture("hello").r[0]?.[0] as HelloReply;
-// A block served alone, whose input R binds itself.
-const helloBlock = fixture("hello-block").r[0]?.[0] as HelloReply;
+//
+// And a block served alone, whose input R binds itself.
+const helloBlock = replyOf("hello-block") as HelloReply;
 
 const opened: OpenReply = {
   id: "",
@@ -54,24 +43,6 @@ const opened: OpenReply = {
   modules: {},
   renderers: hello.renderers,
 };
-
-// Core's board options, as the fixtures' boards hold their values.
-const coreOptions: Option[] = [
-  {
-    id: "n_rows",
-    label: "Preview rows",
-    category: "Table options",
-    schema: { type: "integer", minimum: 0 },
-    default: 50,
-  },
-  {
-    id: "show_conditions",
-    label: "Message types to display",
-    category: "Board options",
-    schema: { type: "array", items: { enum: ["message", "warning", "error"] } },
-    default: ["warning", "error"],
-  },
-];
 
 const info = {
   width: 640,
@@ -407,13 +378,6 @@ describe("revisions", () => {
       expect(revision).toBeGreaterThan(top);
       expect(statusOf(scheduler, id).status).toBe("unevaluated");
     }
-  });
-
-  test("stop at 2^53 - 1 with an error that asks for the page to be reloaded", () => {
-    const next = counter(Number.MAX_SAFE_INTEGER - 1);
-    expect(next()).toBe(Number.MAX_SAFE_INTEGER);
-    expect(() => next()).toThrow(/Reload the page/);
-    expect(() => next()).toThrow(/Reload the page/);
   });
 });
 

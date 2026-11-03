@@ -8,8 +8,10 @@ import type {
   Omitted,
   Reply,
 } from "../protocol/messages.ts";
-import type { BlockId } from "../types/board.ts";
+import type { Graph } from "../graph/index.ts";
 import { quoted } from "../store/util.ts";
+import type { BlockId } from "../types/board.ts";
+import type { Inputs } from "./recipes.ts";
 
 // A block's status is the first of these that holds:
 // - It reads `waiting` while it cannot run.
@@ -203,5 +205,73 @@ export function sameStatus(a: BlockStatus, b: BlockStatus): boolean {
         condition === b.conditions[i] ||
         (condition.phase === "status" && condition.message === b.conditions[i]?.message),
     )
+  );
+}
+
+// Every block's status, upstream first. Each comes from the block's revision,
+// its latest reply and its inputs, and from the statuses of the blocks it
+// reads. A status that reads as before keeps its object. The blocks whose
+// status changed include those that left the board.
+export function statusesOf(input: {
+  readonly graph: Graph;
+  readonly revisions: ReadonlyMap<BlockId, number>;
+  readonly outcomes: ReadonlyMap<BlockId, Outcome>;
+  readonly inputs: ReadonlyMap<BlockId, Inputs>;
+  // The blocks with an evaluation sent and not yet answered.
+  readonly running: ReadonlySet<BlockId>;
+  readonly before: ReadonlyMap<BlockId, BlockStatus>;
+}): { statuses: Map<BlockId, BlockStatus>; changed: BlockId[] } {
+  const statuses = new Map<BlockId, BlockStatus>();
+  const changed: BlockId[] = [];
+
+  for (const id of input.graph.order) {
+    const revision = input.revisions.get(id);
+    if (revision === undefined) continue;
+    const outcome = input.outcomes.get(id);
+    const running = input.running.has(id);
+    const reason = why(id);
+    const now =
+      reason !== undefined
+        ? waiting(reason, revision, outcome?.revision ?? null, running)
+        : outcome === undefined
+          ? unevaluated(revision, running)
+          : replied(outcome, revision, running);
+    const before = input.before.get(id);
+    if (before !== undefined && sameStatus(before, now)) {
+      statuses.set(id, before);
+    } else {
+      statuses.set(id, Object.freeze(now));
+      changed.push(id);
+    }
+  }
+
+  for (const id of input.before.keys()) {
+    if (!statuses.has(id)) changed.push(id);
+  }
+  return { statuses, changed };
+
+  // Why a block cannot run, if it cannot. A block cannot run in three cases:
+  // - An input has no link, and R does not bind it.
+  // - A variadic block has no link.
+  // - A block that it reads has the status failed, invalid or waiting.
+  function why(id: BlockId): Condition | undefined {
+    const inputs = input.inputs.get(id);
+    const unlinked = inputs?.unlinked ?? [];
+    if (unlinked.length > 0) return waitingFor({ unlinked });
+    const reads = (inputs?.recipe ?? []).flatMap((read) => read.block ?? []);
+    const blocked = [...new Set(reads)].filter((up) => {
+      const status = statuses.get(up)?.status;
+      return status === "failed" || status === "invalid" || status === "waiting";
+    });
+    return blocked.length > 0 ? waitingFor({ upstream: blocked }) : undefined;
+  }
+}
+
+// Why an evaluation with parameters is not sent: the block reads waiting, for
+// what its status's condition names.
+export function waitingError(id: BlockId, status: BlockStatus): Error {
+  const why = status.conditions[0]?.message ?? "This block is waiting.";
+  return new Error(
+    `${why.replace(/^This block/, `Block "${id}"`)} Its evaluation with parameters is not sent.`,
   );
 }

@@ -12,26 +12,24 @@
 // There is one scheduler per board. Core creates it beside the store and hands
 // it to front-ends and extensions through `CoreApi`.
 
+import { graphOf } from "../graph/index.ts";
+import type { Graph } from "../graph/index.ts";
 import { SessionEndedError } from "../protocol/client.ts";
 import type { Client, RequestOptions } from "../protocol/client.ts";
-import type { BlockRevision, Condition, Recipe, Reply } from "../protocol/messages.ts";
+import type { BlockRevision, Recipe, Reply } from "../protocol/messages.ts";
 import type { Delta } from "../store/delta.ts";
 import type { Store } from "../store/store.ts";
-import { jsonEqual, messageOf, own, quoted } from "../store/util.ts";
-import type { BlockId, Board, RegistryId } from "../types/board.ts";
+import { messageOf, own, quoted } from "../store/util.ts";
+import type { BlockId, Board } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
-import { graphOf, upstreamOf } from "./graph.ts";
-import type { Graph, Input } from "./graph.ts";
-import { counter } from "./revisions.ts";
-import {
-  outcomeOf,
-  replied,
-  sameStatus,
-  unevaluated,
-  unsent,
-  waiting,
-  waitingFor,
-} from "./status.ts";
+import { needsOf } from "./needs.ts";
+import type { Need } from "./needs.ts";
+import { planOf } from "./plan.ts";
+import type * as planned from "./plan.ts";
+import { inputsOf } from "./recipes.ts";
+import type { Inputs } from "./recipes.ts";
+import { bump, counter, opening, revise } from "./revisions.ts";
+import { outcomeOf, replied, statusesOf, unsent, waitingError } from "./status.ts";
 import type { BlockStatus, Outcome } from "./status.ts";
 
 export interface Scheduler {
@@ -144,41 +142,17 @@ export interface SchedulerOptions {
 // The client's request() of an output or a request.
 type Asking = Parameters<Scheduler["request"]>[0];
 
-// What the scheduler keeps for a block.
-interface Entry {
-  revision: number;
-  // What the revision was taken for: the class, the state and the inputs. A
-  // change to any of them gives the block a new revision, and so does a new
-  // revision of a block upstream.
-  registryId: RegistryId;
-  state: Readonly<Record<string, Json>>;
-  inputs: readonly Input[];
-  // What its latest reply said. The block's status comes from it.
-  outcome: Outcome | undefined;
-}
-
 // An evaluation sent to R and not yet answered.
-interface Sent {
-  // When it was sent. One count orders everything the scheduler sends.
-  readonly seq: number;
-  readonly at: number;
-  readonly block: BlockId;
-  readonly revision: number;
+interface Sent extends planned.Sent {
   readonly controller: AbortController;
-  // The one-time evaluation with parameters that it belongs to.
   readonly part: Part | undefined;
-  // Whether it was sent as evaluation in the background.
-  readonly background: boolean;
   cancelled: boolean;
-  // Whether another board opened since. Its reply then counts for nothing.
   orphaned: boolean;
 }
 
-// An output or a request sent through request() and not yet answered.
-interface Asked {
-  readonly seq: number;
-  readonly at: number;
-}
+// What ends a one-time evaluation: the statuses it resolves with, or why it
+// rejects.
+type Settle = (result: { statuses: Record<BlockId, BlockStatus> } | { error: unknown }) => void;
 
 // A demand as its owner keeps it.
 interface Demanding {
@@ -193,7 +167,7 @@ interface Demanding {
 interface OneTime {
   readonly blocks: Set<BlockId>;
   readonly priority: number;
-  settle(result: { statuses: Record<BlockId, BlockStatus> } | { error: unknown }): void;
+  readonly settle: Settle;
 }
 
 // A one-time evaluation with parameters. It is an evaluation of each of its
@@ -203,12 +177,11 @@ interface WithParams {
   readonly params: Record<string, Json>;
   readonly parts: Map<BlockId, Part>;
   done: boolean;
-  settle(result: { statuses: Record<BlockId, BlockStatus> } | { error: unknown }): void;
+  readonly settle: Settle;
 }
 
-interface Part {
+interface Part extends planned.Part {
   readonly of: WithParams;
-  readonly block: BlockId;
   // The recipe it went to R with, at the revision the block had then. It is
   // kept until R replies.
   recipe: Recipe | undefined;
@@ -216,18 +189,10 @@ interface Part {
   result: BlockStatus | undefined;
 }
 
-// How long anything else may wait in R behind an evaluation below evaluation
-// priority 0. After that, the scheduler cancels that evaluation.
-const GIVE_WAY = 5000;
-
 export function createScheduler(options: SchedulerOptions): Scheduler {
   const { store, client } = options;
-  const evaluationQueue = setting(options.evaluationQueue, 2, "evaluation_queue");
-  const backgroundDelay = setting(
-    options.backgroundEvaluationDelay,
-    Infinity,
-    "background_evaluation_delay",
-  );
+  const queue = setting(options.evaluationQueue, 2, "evaluation_queue");
+  const delay = setting(options.backgroundEvaluationDelay, Infinity, "background_evaluation_delay");
   let bound: ReadonlySet<string> = new Set(options.bound ?? []);
 
   const next = counter();
@@ -235,23 +200,25 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   let stopped: unknown;
   let holding = true;
 
+  // The board as the scheduler last saw it, its graph, and its blocks' inputs.
   let board: Board | undefined;
-  let graph: Graph | undefined;
-  const entries = new Map<BlockId, Entry>();
-  const statuses = new Map<BlockId, BlockStatus>();
-  const changed = new Set<BlockId>();
+  let graph: Graph = graphOf({ blocks: {}, links: {} });
+  let inputs = new Map<BlockId, Inputs>();
+  // Each block's revision, what its latest reply said, and its status.
+  let revisions = new Map<BlockId, number>();
+  const outcomes = new Map<BlockId, Outcome>();
+  let statuses = new Map<BlockId, BlockStatus>();
+  // The blocks whose status changed since the subscribers last heard.
+  const unheard = new Set<BlockId>();
   const subscribers = new Set<(changed: readonly BlockId[]) => void>();
 
   const demands = new Set<Demanding>();
   const oneTimes = new Set<OneTime>();
   const withParams = new Set<WithParams>();
   const sent = new Set<Sent>();
-  const asked = new Set<Asked>();
+  const asked = new Set<planned.Asked>();
   let seq = 0;
 
-  // The evaluation priority of each block that something needs, as the last
-  // pass found it.
-  let needs = new Map<BlockId, number>();
   // Since when R has had nothing else to run than evaluations below 0.
   let idleSince: number | undefined;
   let passTimer: ReturnType<typeof setTimeout> | undefined;
@@ -283,8 +250,10 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     passTimer ??= setTimeout(pass, 0);
   }
 
-  function wake(at: number): void {
+  function wake(at: number | undefined): void {
     if (wakeTimer !== undefined) clearTimeout(wakeTimer);
+    wakeTimer = undefined;
+    if (at === undefined) return;
     wakeTimer = setTimeout(
       () => {
         wakeTimer = undefined;
@@ -296,15 +265,12 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
 
   // Following the board
 
-  function entryOf(id: BlockId, next: Board, of: Graph): Entry {
-    const block = next.blocks[id];
-    return {
-      revision: revision(),
-      registryId: block?.registry_id ?? "",
-      state: block?.state ?? {},
-      inputs: of.inputs.get(id) ?? [],
-      outcome: undefined,
-    };
+  // Takes the board that the scheduler follows from now on, with its graph and
+  // its blocks' inputs.
+  function read(next: Board): void {
+    board = next;
+    graph = graphOf(next);
+    inputs = inputsOf(next, graph, store.blockRegistry(), bound);
   }
 
   // A board that opens holds no result in R, since R forgets every block. So
@@ -323,68 +289,36 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     for (const oneTime of oneTimes) oneTime.settle({ error });
     oneTimes.clear();
     for (const evaluation of withParams) fail(evaluation, error);
-
-    for (const id of statuses.keys()) changed.add(id);
-    entries.clear();
-    statuses.clear();
     for (const demand of demands) demand.last = undefined;
 
-    board = next;
-    graph = graphOf(next, store.blockRegistry(), bound);
-    for (const id of graph.order) entries.set(id, entryOf(id, next, graph));
+    for (const id of statuses.keys()) unheard.add(id);
+    statuses = new Map();
+    outcomes.clear();
+    read(next);
+    revisions = opening(graph, revision);
   }
 
-  // A block's revision goes up whenever its recipe changes: its class, its
-  // state, the links into it or the revision of any block upstream. A rename,
-  // an attribute, a stack, the front-end's state and a board option change no
-  // revision.
   function applied(delta: Delta, next: Board): void {
-    const removed = new Set(delta.blocks?.rm ?? []);
-    const gone = [...entries.keys()].filter(
-      (id) => !Object.hasOwn(next.blocks, id) || removed.has(id),
+    const before = { board: board ?? next, inputs };
+    read(next);
+    const revised = revise(
+      revisions,
+      before,
+      { board: next, inputs, graph },
+      new Set(delta.blocks?.rm ?? []),
+      revision,
     );
-    if (gone.length > 0) {
-      left(new Set(gone));
-      client.forget(gone);
-    }
-
-    board = next;
-    const now = graphOf(next, store.blockRegistry(), bound);
-    graph = now;
-    const bumped = new Set<BlockId>();
-
-    for (const id of now.order) {
-      const entry = entries.get(id);
-      if (entry === undefined) {
-        entries.set(id, entryOf(id, next, now));
-        bumped.add(id);
-        continue;
-      }
-      const block = next.blocks[id];
-      if (block === undefined) continue;
-      const inputs = now.inputs.get(id) ?? [];
-      const moved =
-        entry.registryId !== block.registry_id ||
-        !(entry.state === block.state || jsonEqual(entry.state, block.state)) ||
-        !sameInputs(entry.inputs, inputs) ||
-        inputs.some((input) => input.block !== undefined && bumped.has(input.block));
-      entry.registryId = block.registry_id;
-      entry.state = block.state;
-      entry.inputs = inputs;
-      if (moved) {
-        entry.revision = revision();
-        bumped.add(id);
-      }
+    revisions = revised.revisions;
+    if (revised.gone.length > 0) {
+      left(new Set(revised.gone));
+      client.forget(revised.gone);
     }
   }
 
-  // Forgets the status of blocks that left the board, as R forgets their
-  // results.
+  // Forgets what the scheduler kept for blocks that left the board, as R
+  // forgets their results.
   function left(ids: ReadonlySet<BlockId>): void {
-    for (const id of ids) {
-      entries.delete(id);
-      if (statuses.delete(id)) changed.add(id);
-    }
+    for (const id of ids) outcomes.delete(id);
     for (const oneTime of oneTimes) {
       for (const id of ids) oneTime.blocks.delete(id);
       if (oneTime.blocks.size === 0) {
@@ -405,113 +339,36 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     }
   }
 
-  // Statuses
-
-  function inFlight(id: BlockId, at: number): boolean {
-    for (const evaluation of sent) {
-      if (
-        evaluation.block === id &&
-        evaluation.revision === at &&
-        !evaluation.orphaned &&
-        !evaluation.cancelled
-      ) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  // Why a block cannot run, if it cannot. A block cannot run in three cases:
-  // - An input has no link, and R does not bind it.
-  // - A variadic block has no link.
-  // - A block upstream reads failed, invalid or waiting.
-  function why(id: BlockId, of: Graph): Condition | undefined {
-    const unlinked = of.unlinked.get(id);
-    if (unlinked !== undefined) return waitingFor({ unlinked });
-    const upstream = upstreamOf(of, id).filter((up) => {
-      const status = statuses.get(up)?.status;
-      return status === "failed" || status === "invalid" || status === "waiting";
-    });
-    return upstream.length > 0 ? waitingFor({ upstream }) : undefined;
-  }
-
-  // Works out every block's status, upstream first. A status that reads as
-  // before keeps its object.
-  function recompute(): void {
-    if (graph === undefined) return;
-    const running = new Set<BlockId>();
-    for (const evaluation of sent) {
-      if (!evaluation.orphaned) running.add(evaluation.block);
-    }
-
-    for (const id of graph.order) {
-      const entry = entries.get(id);
-      if (entry === undefined) continue;
-      const busy = running.has(id);
-      const reason = why(id, graph);
-      const now =
-        reason !== undefined
-          ? waiting(reason, entry.revision, entry.outcome?.revision ?? null, busy)
-          : entry.outcome === undefined
-            ? unevaluated(entry.revision, busy)
-            : replied(entry.outcome, entry.revision, busy);
-      const before = statuses.get(id);
-      if (before === undefined || !sameStatus(before, now)) {
-        statuses.set(id, Object.freeze(now));
-        changed.add(id);
-      }
-    }
-  }
-
-  // Whether a block needs evaluating to be current. It does where it reads
-  // stale or unevaluated.
-  function needsEvaluation(id: BlockId): boolean {
-    const status = statuses.get(id)?.status;
-    return status === "stale" || status === "unevaluated";
-  }
-
-  // Whether R holds the block's result at its current revision. A result that
-  // is being computed counts too, since R computes it before anything sent
-  // after it.
-  function available(id: BlockId): boolean {
-    const entry = entries.get(id);
-    if (entry === undefined) return false;
-    return statuses.get(id)?.status === "ready" || inFlight(id, entry.revision);
-  }
-
-  // Gives the blocks and every block downstream of them a new revision. They
-  // then read stale until they are evaluated again.
-  function bump(roots: ReadonlySet<BlockId>): void {
-    if (graph === undefined) return;
-    const bumped = new Set<BlockId>();
-    for (const id of graph.order) {
-      const entry = entries.get(id);
-      if (entry === undefined) continue;
-      if (roots.has(id) || upstreamOf(graph, id).some((up) => bumped.has(up))) {
-        entry.revision = revision();
-        bumped.add(id);
-      }
-    }
-  }
-
   // Invalidates each block that R says it lacks while the block reads ready at
   // that revision. Only a fault in R causes that. The block is then evaluated
   // again where something needs it.
   function lacking(missing: readonly BlockRevision[]): void {
     const lost = new Set<BlockId>();
     for (const { block, revision: at } of missing) {
-      if (entries.get(block)?.revision === at && statuses.get(block)?.status === "ready") {
-        lost.add(block);
-      }
+      if (revisions.get(block) === at && statuses.get(block)?.status === "ready") lost.add(block);
     }
-    if (lost.size > 0) bump(lost);
+    if (lost.size > 0) revisions = bump(graph, revisions, lost, revision);
   }
 
+  // Statuses
+
+  function restatus(): void {
+    const running = new Set<BlockId>();
+    for (const evaluation of sent) {
+      if (!evaluation.orphaned) running.add(evaluation.block);
+    }
+    const result = statusesOf({ graph, revisions, outcomes, inputs, running, before: statuses });
+    statuses = result.statuses;
+    for (const id of result.changed) unheard.add(id);
+  }
+
+  // Settles the one-time evaluations whose blocks are current, then tells the
+  // subscribers which statuses changed.
   function flush(): void {
     settleOneTimes();
-    if (changed.size === 0) return;
-    const ids = [...changed];
-    changed.clear();
+    if (unheard.size === 0) return;
+    const ids = [...unheard];
+    unheard.clear();
     for (const fn of [...subscribers]) {
       try {
         fn(ids);
@@ -524,7 +381,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   function settleOneTimes(): void {
     for (const oneTime of [...oneTimes]) {
       const ids = [...oneTime.blocks];
-      if (ids.some(needsEvaluation)) continue;
+      if (ids.some(notCurrent)) continue;
       oneTimes.delete(oneTime);
       const result: Record<BlockId, BlockStatus> = {};
       for (const id of ids) {
@@ -535,55 +392,56 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     }
   }
 
+  function notCurrent(id: BlockId): boolean {
+    const status = statuses.get(id)?.status;
+    return status === "stale" || status === "unevaluated";
+  }
+
   // Sending
 
   function recipeOf(id: BlockId): Recipe | undefined {
-    const block = board?.blocks[id];
-    const entry = entries.get(id);
-    if (block === undefined || entry === undefined) return undefined;
+    const block = board === undefined ? undefined : own(board.blocks, id);
+    const recipe = inputs.get(id)?.recipe;
+    if (block === undefined || recipe === undefined) return undefined;
     return {
       registry_id: block.registry_id,
       state: { ...block.state },
-      inputs: entry.inputs.map((input) =>
+      inputs: recipe.map((input) =>
         input.block === undefined
           ? { input: input.input }
-          : {
-              input: input.input,
-              block: input.block,
-              revision: entries.get(input.block)?.revision ?? 0,
-            },
+          : { input: input.input, block: input.block, revision: revisions.get(input.block) ?? 0 },
       ),
     };
   }
 
-  function dispatch(
-    block: BlockId,
-    at: number,
-    recipe: Recipe,
-    how: { part?: Part; background?: boolean },
-  ): void {
+  function send(item: { readonly block: BlockId; readonly part?: Part; readonly background?: true }): void {
+    const recipe = recipeOf(item.block);
+    const at = revisions.get(item.block);
+    if (recipe === undefined || at === undefined) return;
+    if (item.part !== undefined) item.part.recipe = recipe;
+
     const evaluation: Sent = {
       seq: ++seq,
       at: Date.now(),
-      block,
+      block: item.block,
       revision: at,
       controller: new AbortController(),
-      part: how.part,
-      background: how.background ?? false,
+      part: item.part,
+      background: item.background ?? false,
       cancelled: false,
       orphaned: false,
     };
     sent.add(evaluation);
-    if (how.part !== undefined) how.part.sent = evaluation;
+    if (item.part !== undefined) item.part.sent = evaluation;
 
     client
       .request(
         {
           kind: "evaluate",
-          block,
+          block: item.block,
           revision: at,
           recipe,
-          ...(how.part === undefined ? {} : { params: how.part.of.params }),
+          ...(item.part === undefined ? {} : { params: item.part.of.params }),
         },
         { signal: evaluation.controller.signal },
       )
@@ -612,13 +470,12 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
       if (reply.status === "missing") lacking(reply.missing);
 
       const outcome = outcomeOf(reply, evaluation.revision);
-      const entry = entries.get(evaluation.block);
       if (
         outcome !== undefined &&
-        evaluation.revision === entry?.revision &&
+        evaluation.revision === revisions.get(evaluation.block) &&
         statuses.get(evaluation.block)?.status !== "waiting"
       ) {
-        entry.outcome = outcome;
+        outcomes.set(evaluation.block, outcome);
       }
 
       if (evaluation.part !== undefined) {
@@ -626,7 +483,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
       }
     }
 
-    recompute();
+    restatus();
     flush();
     schedule();
   }
@@ -638,15 +495,14 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
       if (!(error instanceof SessionEndedError) && evaluation.part === undefined) {
         // The transport could not send it. The block then fails with why,
         // rather than being sent again and again.
-        const entry = entries.get(evaluation.block);
-        if (entry?.revision === evaluation.revision) {
-          entry.outcome = unsent(evaluation.revision, messageOf(error));
+        if (revisions.get(evaluation.block) === evaluation.revision) {
+          outcomes.set(evaluation.block, unsent(evaluation.revision, messageOf(error)));
         }
       }
       if (evaluation.part !== undefined) fail(evaluation.part.of, error);
     }
 
-    recompute();
+    restatus();
     flush();
     schedule();
   }
@@ -696,17 +552,70 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     evaluation.settle({ error });
   }
 
-  // Whether the evaluation of a block with parameters can go. It goes once R
-  // holds what the block reads at their current revisions, or computes them
-  // first. A block that reads waiting has no result in sight, so the evaluation
-  // rejects.
-  function partState(part: Part, of: Graph): "send" | "wait" | { error: Error } {
-    const status = statuses.get(part.block);
-    if (status?.status === "waiting") return { error: waitingError(part.block, status) };
-    return upstreamOf(of, part.block).every(available) ? "send" : "wait";
+  // Starts a one-time evaluation without parameters, and returns what stops
+  // it. It rejects at once where the board holds none of its blocks.
+  function startOneTime(ids: readonly BlockId[], priority: number, settle: Settle) {
+    const oneTime: OneTime = {
+      blocks: new Set(ids.filter((id) => revisions.has(id))),
+      priority,
+      settle,
+    };
+    if (oneTime.blocks.size === 0) {
+      settle({ error: new Error(`The board holds none of the blocks ${quoted(ids)} to evaluate.`) });
+      return () => undefined;
+    }
+    oneTimes.add(oneTime);
+    settleOneTimes();
+    return (reason: unknown) => {
+      if (oneTimes.delete(oneTime)) {
+        settle({ error: reason });
+        schedule();
+      }
+    };
   }
 
-  // The pass: what to cancel and what to send
+  // Starts a one-time evaluation with parameters, and returns what stops it.
+  // Stopping drops the evaluations not sent yet. R runs those already sent,
+  // since the scheduler never cancels one with parameters. The evaluation
+  // rejects at once where it names a block that the board lacks or that reads
+  // waiting.
+  function startWithParams(
+    ids: readonly BlockId[],
+    params: Record<string, Json>,
+    priority: number,
+    settle: Settle,
+  ) {
+    const evaluation: WithParams = { priority, params, parts: new Map(), done: false, settle };
+    const stop = (reason: unknown) => {
+      fail(evaluation, reason);
+      schedule();
+    };
+
+    const absent = ids.filter((id) => !revisions.has(id));
+    if (ids.length === 0 || absent.length > 0) {
+      fail(
+        evaluation,
+        new Error(
+          ids.length === 0
+            ? "An evaluation with parameters names no block."
+            : `The board holds no ${absent.length === 1 ? "block" : "blocks"} ${quoted(absent)} to evaluate.`,
+        ),
+      );
+      return stop;
+    }
+    for (const id of ids) {
+      const status = statuses.get(id);
+      if (status?.status === "waiting") {
+        fail(evaluation, waitingError(id, status));
+        return stop;
+      }
+      evaluation.parts.set(id, { of: evaluation, block: id, recipe: undefined, sent: undefined, result: undefined });
+    }
+    withParams.add(evaluation);
+    return stop;
+  }
+
+  // The pass
 
   function demanded(demand: Demanding, of: Board): Iterable<BlockId> {
     if (typeof demand.blocks !== "function") return demand.blocks;
@@ -729,229 +638,70 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     return blocks;
   }
 
-  // The evaluation priority an evaluation has now. It is that of what needs its
-  // block, or -1 for evaluation in the background. It is undefined where
-  // nothing needs the block any more.
-  function priorityOf(evaluation: Sent): number | undefined {
-    if (evaluation.part !== undefined) return evaluation.part.of.priority;
-    return needs.get(evaluation.block) ?? (evaluation.background ? -1 : undefined);
-  }
-
-  // Since when something else has waited in R behind an evaluation: an
-  // evaluation at a higher evaluation priority, an output or a request.
-  function waitedSince(evaluation: Sent, priority: number): number | undefined {
-    let since: number | undefined;
-    for (const other of asked) {
-      if (other.seq > evaluation.seq) since = Math.min(since ?? other.at, other.at);
-    }
-    for (const other of sent) {
-      if (other.seq <= evaluation.seq || other.orphaned) continue;
-      if ((priorityOf(other) ?? -Infinity) > priority) {
-        since = Math.min(since ?? other.at, other.at);
-      }
-    }
-    return since;
-  }
-
-  function pass(): void {
-    passTimer = undefined;
-    if (stopped !== undefined || board === undefined || graph === undefined) return;
-    const now = Date.now();
-    const current = board;
-    const of = graph;
-    const deadlines: number[] = [];
-
-    // What is needed: what is demanded, and what a one-time evaluation waits
-    // on. Each block takes the highest evaluation priority of anything that
-    // needs it, itself or a block downstream of it.
-    const found = new Map<BlockId, number>();
-    const raise = (id: BlockId, priority: number) => {
-      if (!entries.has(id)) return;
-      const was = found.get(id);
-      if (was === undefined || priority > was) found.set(id, priority);
-    };
+  // Everything that needs blocks evaluated, each at its evaluation priority:
+  // the demands, the one-time evaluations, and what an evaluation with
+  // parameters reads. What an evaluation with parameters reads stays needed
+  // until R has replied to it, so that nothing cancels an evaluation that it
+  // waits on in R. Until it is sent, that is what the block reads now. From
+  // then on, it is what its recipe names.
+  function needed(of: Board): Need[] {
+    const found: Need[] = [];
     for (const demand of demands) {
-      for (const id of demanded(demand, current)) raise(id, demand.priority);
+      found.push({ blocks: demanded(demand, of), priority: demand.priority });
     }
     for (const oneTime of oneTimes) {
-      for (const id of oneTime.blocks) raise(id, oneTime.priority);
+      found.push({ blocks: oneTime.blocks, priority: oneTime.priority });
     }
-    // What an evaluation with parameters reads stays needed until R has replied
-    // to it. Nothing then cancels an evaluation that it waits on in R. Until it
-    // is sent, that is what the block reads now. From then on, it is what its
-    // recipe names.
     for (const evaluation of withParams) {
       for (const part of evaluation.parts.values()) {
         if (part.result !== undefined) continue;
         const reads =
           part.recipe === undefined
-            ? upstreamOf(of, part.block)
-            : part.recipe.inputs.flatMap((input) =>
-                input.block === undefined ? [] : [input.block],
-              );
-        for (const id of reads) raise(id, evaluation.priority);
+            ? graph.upstream(part.block)
+            : part.recipe.inputs.flatMap((input) => input.block ?? []);
+        found.push({ blocks: reads, priority: evaluation.priority });
       }
     }
-    for (let i = of.order.length - 1; i >= 0; i--) {
-      const id = of.order[i] ?? "";
-      const priority = found.get(id);
-      if (priority === undefined) continue;
-      for (const up of upstreamOf(of, id)) raise(up, priority);
-    }
-    needs = found;
+    return found;
+  }
 
-    // What to cancel, in three cases:
-    // - An evaluation whose revision has moved.
-    // - One that R has not started and nothing needs any more.
-    // - One below 0 that something else has waited behind for 5 s, where R can
-    //   stop what it has started.
-    const interrupt = client.capabilities().has("interrupt");
-    let oldest = Infinity;
-    for (const item of [...sent, ...asked]) oldest = Math.min(oldest, item.seq);
-
-    for (const evaluation of sent) {
-      if (evaluation.cancelled || evaluation.orphaned || evaluation.part !== undefined) continue;
-      const entry = entries.get(evaluation.block);
-      // R drops the evaluation of a block that left the board, as it forgets
-      // the block.
-      if (entry === undefined) continue;
-      if (entry.revision !== evaluation.revision) {
-        cancel(evaluation);
-        continue;
-      }
-      const priority = priorityOf(evaluation);
-      if (priority === undefined) {
-        if (evaluation.seq !== oldest) cancel(evaluation);
-        continue;
-      }
-      if (!interrupt || priority >= 0) continue;
-      const since = waitedSince(evaluation, priority);
-      if (since === undefined) continue;
-      if (now - since >= GIVE_WAY) cancel(evaluation);
-      else deadlines.push(since + GIVE_WAY);
-    }
-
-    // What to send: the blocks that are needed and not current. They go highest
-    // evaluation priority first, and in topological order within one priority.
-    // Each goes once R holds what it reads, or computes it first.
-    const queued: { block: BlockId; priority: number; part?: Part }[] = [];
-    for (const [id, priority] of found) {
-      const entry = entries.get(id);
-      if (entry === undefined || !needsEvaluation(id)) continue;
-      if (inFlight(id, entry.revision) || paramsFor(id, entry.revision)) continue;
-      queued.push({ block: id, priority });
-    }
-    for (const evaluation of withParams) {
-      for (const part of evaluation.parts.values()) {
-        if (part.sent === undefined && part.result === undefined) {
-          queued.push({ block: part.block, priority: evaluation.priority, part });
-        }
-      }
-    }
-    queued.sort(
-      (a, b) =>
-        (a.priority === b.priority ? 0 : a.priority > b.priority ? -1 : 1) ||
-        (of.index.get(a.block) ?? 0) - (of.index.get(b.block) ?? 0),
+  // The evaluations with parameters that are not sent yet.
+  function pending(): Part[] {
+    return [...withParams].flatMap((evaluation) =>
+      [...evaluation.parts.values()].filter(
+        (part) => part.sent === undefined && part.result === undefined,
+      ),
     );
+  }
 
-    let slots = evaluationQueue + 1 - sent.size;
+  function pass(): void {
+    passTimer = undefined;
+    if (stopped !== undefined || board === undefined) return;
 
-    if (!holding) {
-      for (const item of queued) {
-        // An evaluation with parameters whose block cannot run rejects,
-        // whether R has room for another evaluation or not.
-        if (item.part !== undefined) {
-          if (item.part.of.done) continue;
-          const state = partState(item.part, of);
-          if (state === "wait") continue;
-          if (state !== "send") {
-            fail(item.part.of, state.error);
-            continue;
-          }
-          const recipe = recipeOf(item.block);
-          const entry = entries.get(item.block);
-          if (slots <= 0 || recipe === undefined || entry === undefined) continue;
-          item.part.recipe = recipe;
-          dispatch(item.block, entry.revision, recipe, { part: item.part });
-          slots -= 1;
-          continue;
-        }
-        if (slots <= 0 || !upstreamOf(of, item.block).every(available)) continue;
-        const recipe = recipeOf(item.block);
-        const entry = entries.get(item.block);
-        if (recipe === undefined || entry === undefined) continue;
-        dispatch(item.block, entry.revision, recipe, {});
-        slots -= 1;
-      }
-    }
+    const plan = planOf({
+      graph,
+      revisions,
+      statuses,
+      needs: needsOf(graph, needed(board)),
+      sent,
+      asked,
+      parts: pending(),
+      queue,
+      interrupt: client.capabilities().has("interrupt"),
+      holding,
+      now: Date.now(),
+      idleSince,
+      delay,
+    });
 
-    // Evaluation in the background. R counts as idle while it has no evaluation
-    // at 0 or above, no output and no request to run. Once R has been idle for
-    // the delay, the scheduler evaluates the stale and unevaluated blocks that
-    // nothing needs, one at a time, at -1.
-    const busy =
-      asked.size > 0 ||
-      [...sent].some((evaluation) => (priorityOf(evaluation) ?? 0) >= 0 || evaluation.orphaned) ||
-      queued.some((item) => item.priority >= 0);
+    idleSince = plan.idleSince;
+    for (const evaluation of plan.cancel) cancel(evaluation);
+    for (const { part, error } of plan.reject) fail(part.of, error);
+    for (const item of plan.send) send(item);
+    wake(plan.wakeAt);
 
-    if (busy || holding || !Number.isFinite(backgroundDelay)) {
-      idleSince = undefined;
-    } else {
-      idleSince ??= now;
-      const due = idleSince + backgroundDelay * 1000;
-      if (now < due) {
-        deadlines.push(due);
-      } else if (slots > 0 && ![...sent].some((evaluation) => evaluation.background)) {
-        background(of);
-      }
-    }
-
-    if (wakeTimer !== undefined) {
-      clearTimeout(wakeTimer);
-      wakeTimer = undefined;
-    }
-    if (deadlines.length > 0) wake(Math.min(...deadlines));
-
-    recompute();
+    restatus();
     flush();
-  }
-
-  // Whether an evaluation with parameters still has to evaluate the block at
-  // that revision. The scheduler then evaluates the block no other way. It
-  // counts one not sent yet, which takes the revision the block has when it
-  // goes. It also counts one sent for that revision.
-  function paramsFor(id: BlockId, at: number): boolean {
-    for (const evaluation of withParams) {
-      const part = evaluation.parts.get(id);
-      if (part !== undefined && part.sent === undefined && part.result === undefined) {
-        return true;
-      }
-    }
-    for (const evaluation of sent) {
-      if (evaluation.part?.block === id && evaluation.revision === at && !evaluation.orphaned) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  function background(of: Graph): void {
-    const wanted = new Set<BlockId>();
-    for (const id of of.order) {
-      const status = statuses.get(id)?.status;
-      if (!needs.has(id) && (status === "stale" || status === "unevaluated")) wanted.add(id);
-    }
-    for (const id of of.order) {
-      const entry = entries.get(id);
-      if (entry === undefined || !wanted.has(id) || inFlight(id, entry.revision)) continue;
-      // One at a time: what the block reads has to be in R already.
-      const ready = upstreamOf(of, id).every((up) => statuses.get(up)?.status === "ready");
-      if (!ready) continue;
-      const recipe = recipeOf(id);
-      if (recipe === undefined) continue;
-      dispatch(id, entry.revision, recipe, { background: true });
-      return;
-    }
   }
 
   function resendable(request: Asking): boolean {
@@ -971,14 +721,14 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   }
   if (initial !== undefined) {
     opened(initial);
-    recompute();
-    changed.clear();
+    restatus();
+    unheard.clear();
   }
 
   store.subscribe((change, next) => {
     if ("opened" in change || board === undefined) opened(next);
     else applied(change.delta, next);
-    recompute();
+    restatus();
     flush();
     schedule();
   });
@@ -1017,85 +767,30 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
       const ids = [...new Set(blocks)];
 
       return new Promise((resolve, reject) => {
-        let onAbort = (): void => undefined;
-        const settle = (
-          result: { statuses: Record<BlockId, BlockStatus> } | { error: unknown },
-        ) => {
+        // What the signal stops once it aborts. The evaluation sets it as it
+        // starts.
+        let stop: (reason: unknown) => void = () => undefined;
+        const onAbort = () => {
+          stop(signal?.reason);
+        };
+        signal?.addEventListener("abort", onAbort, { once: true });
+        const settle: Settle = (result) => {
           signal?.removeEventListener("abort", onAbort);
           if ("error" in result) reject(asError(result.error));
           else resolve(result.statuses);
         };
-
-        if (params === undefined) {
-          const oneTime: OneTime = {
-            blocks: new Set(ids.filter((id) => entries.has(id))),
-            priority: at,
-            settle,
-          };
-          onAbort = () => {
-            if (oneTimes.delete(oneTime)) {
-              oneTime.settle({ error: signal?.reason });
-              schedule();
-            }
-          };
-          signal?.addEventListener("abort", onAbort, { once: true });
-          if (oneTime.blocks.size === 0) {
-            settle({ error: new Error(`The board holds none of the blocks ${quoted(ids)} to evaluate.`) });
-            return;
-          }
-          oneTimes.add(oneTime);
-          settleOneTimes();
-        } else {
-          const evaluation: WithParams = {
-            priority: at,
-            params,
-            parts: new Map(),
-            done: false,
-            settle,
-          };
-          // Aborting drops the evaluations not sent yet. R runs those already
-          // sent, since the scheduler never cancels one with parameters.
-          onAbort = () => {
-            fail(evaluation, signal?.reason);
-            schedule();
-          };
-          signal?.addEventListener("abort", onAbort, { once: true });
-          const lacking = ids.filter((id) => !entries.has(id));
-          if (ids.length === 0 || lacking.length > 0) {
-            fail(
-              evaluation,
-              new Error(
-                ids.length === 0
-                  ? "An evaluation with parameters names no block."
-                  : `The board holds no ${lacking.length === 1 ? "block" : "blocks"} ${quoted(lacking)} to evaluate.`,
-              ),
-            );
-            return;
-          }
-          for (const id of ids) {
-            const status = statuses.get(id);
-            if (status?.status === "waiting") {
-              fail(evaluation, waitingError(id, status));
-              return;
-            }
-            evaluation.parts.set(id, {
-              of: evaluation,
-              block: id,
-              recipe: undefined,
-              sent: undefined,
-              result: undefined,
-            });
-          }
-          withParams.add(evaluation);
-        }
+        stop =
+          params === undefined
+            ? startOneTime(ids, at, settle)
+            : startWithParams(ids, params, at, settle);
         schedule();
       });
     },
 
     invalidate(id) {
-      if (!entries.has(id)) return;
-      bump(new Set([id]));
-      recompute();
+      if (!revisions.has(id)) return;
+      revisions = bump(graph, revisions, new Set([id]), revision);
+      restatus();
       flush();
       schedule();
     },
@@ -1114,7 +809,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
 
     async request(request, requestOptions = {}) {
       for (;;) {
-        const item: Asked = { seq: ++seq, at: Date.now() };
+        const item: planned.Asked = { seq: ++seq, at: Date.now() };
         asked.add(item);
         schedule();
 
@@ -1122,7 +817,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
           const result = await client.request(request, requestOptions);
           if (result.reply.status === "missing") {
             lacking(result.reply.missing);
-            recompute();
+            restatus();
             flush();
           }
           return result;
@@ -1146,30 +841,14 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     },
 
     session() {
-      bump(new Set(entries.keys()));
-      recompute();
+      revisions = bump(graph, revisions, new Set(revisions.keys()), revision);
+      restatus();
       flush();
       schedule();
     },
   };
 
   return scheduler;
-}
-
-function sameInputs(a: readonly Input[], b: readonly Input[]): boolean {
-  return (
-    a.length === b.length &&
-    a.every((input, i) => input.input === b[i]?.input && input.block === b[i].block)
-  );
-}
-
-// Why an evaluation with parameters is not sent, from the condition of the
-// block that reads waiting.
-function waitingError(id: BlockId, status: BlockStatus): Error {
-  const why = status.conditions[0]?.message ?? "This block is waiting.";
-  return new Error(
-    `${why.replace(/^This block/, `Block "${id}"`)} Its evaluation with parameters is not sent.`,
-  );
 }
 
 // A blockr option's value, or its default where the value is no number of 0 or
