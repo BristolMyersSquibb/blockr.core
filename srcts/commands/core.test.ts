@@ -128,14 +128,9 @@ describe("blocks", () => {
     expect(store.board().blocks.a?.state).toEqual({ dataset: "iris", package: "datasets" });
   });
 
-  test("set_block_state changes only what differs, and makes no step where nothing does", async () => {
+  test("set_block_state makes no step where nothing changes", async () => {
     const { store, commands } = await setup();
-
-    expect(
-      await commands.plan("blockr.core-set_block_state", { id: "b", state: { n: 6, direction: "tail" }, unset: ["x"] }),
-    ).toEqual([{ blocks: { mod: { b: { edit: store.editId({ block: "b" }), state: { direction: "tail" } } } } }]);
-
-    await commands.run("blockr.core-set_block_state", { id: "b", state: { n: 6 } });
+    await commands.run("blockr.core-set_block_state", { id: "b", state: { n: 6 }, unset: ["x"] });
     expect(store.canUndo()).toBe(false);
   });
 

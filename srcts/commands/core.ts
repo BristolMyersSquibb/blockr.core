@@ -9,7 +9,7 @@
 // Each reads the board and returns its deltas, leaving the checks of the board
 // to the store, but for a block's state, which the store does not check, and
 // which these commands check against the schema of the block's class. An edit
-// that changes nothing returns no delta, so that it makes no undo step.
+// that changes nothing is the store's to drop, which makes no step of it.
 
 import type { Entry } from "../store/delta.ts";
 import { mintId, sentenceCase } from "../store/ids.ts";
@@ -29,7 +29,6 @@ import type {
   Block,
   BlockId,
   Board,
-  Link,
   LinkId,
   RegistryId,
   Stack,
@@ -211,10 +210,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       description: "Gives a block a new name.",
       args: object({ id: schemas.blockId, name: schemas.name }, ["id", "name"]),
       enabled: (board, { id }) => Object.hasOwn(board.blocks, id),
-      run(board, { id, name }) {
-        if (own(board.blocks, id)?.name === name) return [];
-        return { blocks: { mod: { [id]: { name } } } };
-      },
+      run: (_board, { id, name }) => ({ blocks: { mod: { [id]: { name } } } }),
     }),
     command<{ readonly id: BlockId; readonly state?: State; readonly unset?: readonly string[] }>({
       id: "blockr.core-set_block_state",
@@ -230,27 +226,18 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         ["id"],
       ),
       enabled: (board, { id }) => Object.hasOwn(board.blocks, id),
-      run(board, { id, state = {}, unset = [] }) {
+      run(board, { id, state, unset }) {
         const block = own(board.blocks, id);
         if (block === undefined) return [];
-        const set = Object.fromEntries(
-          Object.entries(state).filter(([arg, value]) => !jsonEqual(own(block.state, arg), value)),
-        );
-        const removed = unset.filter((arg) => Object.hasOwn(block.state, arg));
-        if (Object.keys(set).length === 0 && removed.length === 0) return [];
-
         const entry = classOf(this.id, block.registry_id);
-        const failures = stateFailures(entry, { ...without(block.state, removed), ...set });
+        const failures = stateFailures(entry, { ...without(block.state, unset ?? []), ...state });
         if (failures.length > 0) {
           throw refusal(this.id, failures.map((failure) => `The state of block "${id}" ${failure}`));
         }
         return {
           blocks: {
             mod: {
-              [id]: {
-                ...(Object.keys(set).length === 0 ? {} : { state: set }),
-                ...(removed.length === 0 ? {} : { unset: removed }),
-              },
+              [id]: { ...(state === undefined ? {} : { state }), ...(unset === undefined ? {} : { unset }) },
             },
           },
         };
@@ -419,19 +406,12 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       run(board, args) {
         const link = own(board.links, args.id);
         if (link === undefined) return [];
-        const from = args.from ?? link.from;
         const to = args.to ?? link.to;
         const input =
           args.input === undefined && to === link.to
             ? link.input
             : linkInput(this.id, board, to, args.input, args.id);
-        const mod: Partial<Link> = {
-          ...(from === link.from ? {} : { from }),
-          ...(to === link.to ? {} : { to }),
-          ...(input === link.input ? {} : { input }),
-        };
-        if (Object.keys(mod).length === 0) return [];
-        return { links: { mod: { [args.id]: mod } } };
+        return { links: { mod: { [args.id]: { from: args.from ?? link.from, to, input } } } };
       },
     }),
     command<{ readonly id: LinkId }>({
@@ -486,10 +466,9 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         ["id", "blocks"],
       ),
       enabled: (board, { id }) => Object.hasOwn(board.stacks, id),
-      run(board, { id, blocks }) {
-        if (jsonEqual(own(board.stacks, id)?.blocks, blocks)) return [];
-        return { stacks: { mod: { ...leave(board, id, blocks), [id]: { blocks } } } };
-      },
+      run: (board, { id, blocks }) => ({
+        stacks: { mod: { ...leave(board, id, blocks), [id]: { blocks } } },
+      }),
     }),
     command<{ readonly id: StackId; readonly name: string }>({
       id: "blockr.core-rename_stack",
@@ -497,10 +476,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       description: "Gives a stack a new name.",
       args: object({ id: schemas.stackId, name: schemas.name }, ["id", "name"]),
       enabled: (board, { id }) => Object.hasOwn(board.stacks, id),
-      run(board, { id, name }) {
-        if (own(board.stacks, id)?.name === name) return [];
-        return { stacks: { mod: { [id]: { name } } } };
-      },
+      run: (_board, { id, name }) => ({ stacks: { mod: { [id]: { name } } } }),
     }),
     command<{ readonly id: StackId }>({
       id: "blockr.core-remove_stack",
@@ -518,7 +494,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       label: "Rename board",
       description: "Gives the board a new name.",
       args: object({ name: schemas.name }, ["name"]),
-      run: (board, { name }) => (board.name === name ? [] : { name }),
+      run: (_board, { name }) => ({ name }),
     }),
     command<{ readonly id: string; readonly value: Json }>({
       id: "blockr.core-set_option",
@@ -526,10 +502,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       description: "Sets the value of a board option, which the board option's schema types.",
       args: object({ id: schemas.optionId, value: schemas.value }, ["id", "value"]),
       enabled: (_board, { id }) => own(store.options.registered(), id) !== undefined,
-      run(board, { id, value }) {
-        if (jsonEqual(own(board.options, id), value)) return [];
-        return { options: { set: { [id]: value } } };
-      },
+      run: (_board, { id, value }) => ({ options: { set: { [id]: value } } }),
     }),
   ];
 
@@ -583,20 +556,20 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       ),
       enabled: (board, { path, id }) =>
         keyAt(path, "collection") !== undefined && Object.hasOwn(entriesAt(board, path), id),
-      run(board, { path, id, set = {}, unset = [] }) {
-        const entry = own(entriesAt(board, path), id);
-        const old = isObject(entry) ? entry : {};
-        const fields = Object.fromEntries(
-          Object.entries(set).filter(([field, value]) => !jsonEqual(own(old, field), value)),
-        );
-        const removed = unset.filter((field) => Object.hasOwn(old, field));
-        if (Object.keys(fields).length === 0 && removed.length === 0) return [];
-        const mod = {
-          ...(Object.keys(fields).length === 0 ? {} : { set: fields }),
-          ...(removed.length === 0 ? {} : { unset: removed }),
-        };
-        return { front_end: { state: [{ path, change: { mod: { [id]: mod } } }] } };
-      },
+      run: (_board, { path, id, set, unset }) => ({
+        front_end: {
+          state: [
+            {
+              path,
+              change: {
+                mod: {
+                  [id]: { ...(set === undefined ? {} : { set }), ...(unset === undefined ? {} : { unset }) },
+                },
+              },
+            },
+          ],
+        },
+      }),
     }),
     command<{ readonly path: readonly string[]; readonly id: string }>({
       id: "blockr.core-remove_entry",
@@ -614,10 +587,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         "Sets the value of a key of the front-end's state that holds a value, which the key's schema types.",
       args: object({ path: schemas.path, value: schemas.value }, ["path", "value"]),
       enabled: (_board, { path }) => keyAt(path, "value") !== undefined,
-      run(board, { path, value }) {
-        if (jsonEqual(getAt(board.front_end.state, path), value)) return [];
-        return { front_end: { state: [{ path, change: { set: value } }] } };
-      },
+      run: (_board, { path, value }) => ({ front_end: { state: [{ path, change: { set: value } }] } }),
     }),
     command<{ readonly id: BlockId; readonly name: string; readonly value: Json }>({
       id: "blockr.core-set_block_attribute",
@@ -630,10 +600,9 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       ),
       enabled: (board, { id, name }) =>
         Object.hasOwn(board.blocks, id) && attributeOf("block", name) !== undefined,
-      run(board, { id, name, value }) {
-        if (jsonEqual(own(own(board.blocks, id)?.attrs ?? {}, name), value)) return [];
-        return { blocks: { mod: { [id]: { attrs: { set: { [name]: value } } } } } };
-      },
+      run: (_board, { id, name, value }) => ({
+        blocks: { mod: { [id]: { attrs: { set: { [name]: value } } } } },
+      }),
     }),
     command<{ readonly name: string; readonly value: Json }>({
       id: "blockr.core-set_front_end_attribute",
@@ -641,10 +610,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       description: "Sets an attribute of the front-end, which the attribute's schema types.",
       args: object({ name: schemas.attribute, value: schemas.value }, ["name", "value"]),
       enabled: (_board, { name }) => attributeOf("front_end", name) !== undefined,
-      run(board, { name, value }) {
-        if (jsonEqual(own(board.front_end.attrs, name), value)) return [];
-        return { front_end: { attrs: { set: { [name]: value } } } };
-      },
+      run: (_board, { name, value }) => ({ front_end: { attrs: { set: { [name]: value } } } }),
     }),
   ];
 
