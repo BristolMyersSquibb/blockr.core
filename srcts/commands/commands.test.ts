@@ -50,7 +50,7 @@ describe("registering", () => {
       "blockr.core-add_block",
       "blockr.core-remove_block",
       "blockr.core-rename_block",
-      "blockr.core-set_block_state",
+      "blockr.core-set_block",
       "blockr.core-append_block",
       "blockr.core-prepend_block",
       "blockr.core-insert_block",
@@ -332,12 +332,12 @@ describe("planning", () => {
   test("fills in the edit ids of the board it read, so that the store refuses a plan once another edit came first", async () => {
     const { store, commands } = await setup();
 
-    const planned = await commands.plan("blockr.core-set_block_state", { id: "b", state: { n: 10 } });
+    const planned = await commands.plan("blockr.core-set_block", { id: "b", state: { n: 10 } });
     expect(planned).toEqual([
       { blocks: { mod: { b: { edit: store.editId({ block: "b" }), state: { n: 10 } } } } },
     ]);
 
-    await commands.run("blockr.core-set_block_state", { id: "b", state: { n: 20 } });
+    await commands.run("blockr.core-set_block", { id: "b", state: { n: 20 } });
     expect(() => {
       store.apply(planned, "assistant");
     }).toThrow(/The delta was built on edit \d+ of block "b", which another edit has replaced/);

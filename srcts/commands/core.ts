@@ -213,7 +213,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       run: (_board, { id, name }) => ({ blocks: { mod: { [id]: { name } } } }),
     }),
     command<{ readonly id: BlockId; readonly state?: State; readonly unset?: readonly string[] }>({
-      id: "blockr.core-set_block_state",
+      id: "blockr.core-set_block",
       label: "Set block state",
       description:
         "Sets values of a block's state args, which the schema of its class types, and unsets the state args named, as a block's UI submits an edit.",

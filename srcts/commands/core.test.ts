@@ -118,33 +118,33 @@ describe("blocks", () => {
     expect(store.board().blocks.b?.name).toBe("Top rows");
   });
 
-  test("set_block_state sets and unsets state args, as one step", async () => {
+  test("set_block sets and unsets state args, as one step", async () => {
     const { store, commands } = await setup();
 
-    await commands.run("blockr.core-set_block_state", { id: "a", state: { package: "ggplot2" }, unset: ["dataset"] });
+    await commands.run("blockr.core-set_block", { id: "a", state: { package: "ggplot2" }, unset: ["dataset"] });
 
     expect(store.board().blocks.a?.state).toEqual({ package: "ggplot2" });
     store.undo();
     expect(store.board().blocks.a?.state).toEqual({ dataset: "iris", package: "datasets" });
   });
 
-  test("set_block_state makes no step where nothing changes", async () => {
+  test("set_block makes no step where nothing changes", async () => {
     const { store, commands } = await setup();
-    await commands.run("blockr.core-set_block_state", { id: "b", state: { n: 6 }, unset: ["x"] });
+    await commands.run("blockr.core-set_block", { id: "b", state: { n: 6 }, unset: ["x"] });
     expect(store.canUndo()).toBe(false);
   });
 
-  test("set_block_state refuses a state that the schema of the block's class refuses", async () => {
+  test("set_block refuses a state that the schema of the block's class refuses", async () => {
     const { store, commands } = await setup();
     const board = store.board();
 
-    await expect(commands.run("blockr.core-set_block_state", { id: "b", state: { n: -1 } })).rejects.toThrow(
+    await expect(commands.run("blockr.core-set_block", { id: "b", state: { n: -1 } })).rejects.toThrow(
       'The state of block "b" fails its schema at /n:',
     );
-    await expect(commands.run("blockr.core-set_block_state", { id: "b", unset: ["n"] })).rejects.toThrow(
+    await expect(commands.run("blockr.core-set_block", { id: "b", unset: ["n"] })).rejects.toThrow(
       'The state of block "b" fails its schema: Instance does not have required property "n".',
     );
-    await expect(commands.run("blockr.core-set_block_state", { id: "b", state: { m: 1 } })).rejects.toThrow(
+    await expect(commands.run("blockr.core-set_block", { id: "b", state: { m: 1 } })).rejects.toThrow(
       'The state of block "b" fails its schema',
     );
     expect(store.board()).toBe(board);
