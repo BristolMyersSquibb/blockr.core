@@ -811,6 +811,33 @@ describe("applying a delta", () => {
     expect(links.indexOf("ge")).toBe(links.indexOf("de") - 1);
   });
 
+  test("places an added link where the link that `before` names was, where the same delta removes that link", async () => {
+    const store = await opened();
+    const order = Object.keys(store.board().links);
+
+    store.apply({
+      blocks: { add: { g: head(3) } },
+      links: { rm: ["be"], add: { ge: { from: "g", to: "e", input: "" } }, before: { ge: "be" } },
+    });
+    expect(Object.keys(store.board().links)).toEqual(order.map((id) => (id === "be" ? "ge" : id)));
+
+    store.undo();
+    expect(Object.keys(store.board().links)).toEqual(order);
+
+    const last = order.at(-1) ?? "";
+    store.apply({
+      links: { rm: [last], add: { af: { from: "a", to: "f", input: "data" } }, before: { af: last } },
+    });
+    expect(Object.keys(store.board().links).at(-1)).toBe("af");
+  });
+
+  test("refuses a link to go before one that the board lacks", async () => {
+    const store = await opened();
+    expect(() => {
+      store.apply({ links: { add: { ce: { from: "c", to: "e", input: "" } }, before: { ce: "zz" } } });
+    }).toThrow('The board holds no link "zz" for link "ce" to go before.');
+  });
+
   test("throws when a subscriber applies a delta", async () => {
     const store = await opened();
     let caught: unknown;

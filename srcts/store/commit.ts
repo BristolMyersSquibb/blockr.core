@@ -266,8 +266,10 @@ interface Collection<T, M> {
 
 // A collection's part of a delta, applied with `rm` before `add` and `mod`
 // last. An entry that `places` or `before` names a successor for goes before
-// it, and every other entry added goes last. A `mod` that changes nothing, as
-// its empty inverse says, leaves the entry as it is.
+// it, and every other entry added goes last. Where `before` names an entry that
+// the delta removes, the entry added takes its place, as `before` is read
+// against the collection as it was before the delta. A `mod` that changes
+// nothing, as its empty inverse says, leaves the entry as it is.
 function collection<T, M extends object>(
   name: (id: string) => string,
   current: Readonly<Record<string, T>>,
@@ -306,10 +308,16 @@ function collection<T, M extends object>(
       failures.push(`The board holds ${name(id)} already.`);
       continue;
     }
-    const successor = own(before ?? {}, id) ?? own(places ?? {}, id) ?? null;
+    const named = own(before ?? {}, id);
+    const successor =
+      named === undefined
+        ? (own(places ?? {}, id) ?? null)
+        : removed.has(named)
+          ? (own(readdPlaces, named) ?? null)
+          : named;
     const at =
       successor === null ? -1 : kept.findIndex(([other]) => other === successor);
-    if (at < 0 && successor !== null && own(before ?? {}, id) !== undefined) {
+    if (at < 0 && successor !== null && named !== undefined) {
       failures.push(
         `The board holds no ${name(successor)} for ${name(id)} to go before.`,
       );
