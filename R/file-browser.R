@@ -1,4 +1,4 @@
-#' @include block-class.R output-text.R
+#' @include block-class.R
 NULL
 
 list_volume_dir <- function(volumes, volume = NULL, path = "") {
@@ -48,8 +48,7 @@ filebrowser_block <- new_block_class(
   ui = js_module("js/filebrowser-block.js"),
   requests = list(
     list_dir = new_block_request(list_volume_dir, volatile = TRUE)
-  ),
-  output = as_text_output
+  )
 )
 
 #' File browser block

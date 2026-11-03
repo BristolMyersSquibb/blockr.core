@@ -1,4 +1,4 @@
-#' @include block-class.R output-text.R
+#' @include block-class.R
 NULL
 
 # The directory where R keeps uploaded files. By default it is in the session's
@@ -54,8 +54,7 @@ upload_block <- new_block_class(
   "upload_block",
   expr = function(file_path) call("file.path", file_path),
   ui = js_module("js/upload-block.js"),
-  requests = list(upload = new_block_request(keep_upload, action = TRUE)),
-  output = as_text_output
+  requests = list(upload = new_block_request(keep_upload, action = TRUE))
 )
 
 #' Upload block

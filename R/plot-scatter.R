@@ -4,7 +4,7 @@
 #' @export
 scatter_block <- new_block_class(
   "scatter_block",
-  inputs = function(data) stopifnot(is.data.frame(data) || is.matrix(data)),
+  inputs = function(data) stopifnot(is.data.frame(data)),
   expr = function(x, y) {
     bbquote(plot(.(data)[[.(x)]], .(data)[[.(y)]], xlab = .(x), ylab = .(y)))
   },
@@ -29,7 +29,7 @@ scatter_block <- new_block_class(
 #' required.
 #'
 #' @section Block class:
-#' The block's data input `data` is checked to be a data frame or a matrix.
+#' The block's data input `data` is checked to be a data frame.
 #' Its state args `x` and `y` have no defaults, so a new block leaves them
 #' unset and is `invalid` until something sets both. Its UI asks R for the
 #' input's columns through the request `columns`. The block's [block_eval()]

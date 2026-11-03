@@ -5,12 +5,8 @@ test_that("subset block constructor", {
   expect_s3_class(blk, "subset_block")
   expect_identical(block_state(blk), list(subset = "", select = ""))
 
-  expect_identical(
-    block_state(new_subset_block(subset = quote(Sepal.Width > 3))),
-    list(subset = "Sepal.Width > 3", select = "")
-  )
-
-  expect_error(new_subset_block(subset = 1), class = "block_code_invalid")
+  expect_error(new_subset_block(subset = 1), "character")
+  expect_error(new_subset_block(subset = quote(Sepal.Width > 3)))
   expect_error(new_subset_block(select = "a +"), "unexpected")
   expect_error(new_subset_block(select = "a; b"), "not of length one")
 
@@ -26,7 +22,7 @@ test_that("a subset block puts its expressions in its block expression", {
 
   expect_identical(
     run(list(subset = "Sepal.Width > 4", select = "Species"))[["expr"]],
-    quote(subset(a, Sepal.Width > 4, Species))
+    quote(subset(a, Sepal.Width > 4, select = Species))
   )
 
   expect_identical(

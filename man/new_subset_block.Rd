@@ -40,9 +40,7 @@ The block's data input \code{data} is checked to be a data frame. Each of its
 state args is a string that holds one R expression, which the block parses
 with \code{\link[base:str2lang]{base::str2lang()}} and puts in its block expression as code, or an
 empty string, which leaves that argument of \code{\link[base:subset]{base::subset()}} out. A string
-that does not parse makes the block fail, while a script may give an
-expression quoted, as \code{quote(Sepal.Width > 3)}, which the constructor turns
-into a string.
+that does not parse makes the block fail.
 Its results show as a table, through \code{\link[=as_table_output]{as_table_output()}}.
 }
 

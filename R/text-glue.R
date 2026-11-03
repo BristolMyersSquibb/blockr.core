@@ -1,4 +1,4 @@
-#' @include block-class.R output-text.R
+#' @include block-class.R
 #' @rdname new_glue_block
 #' @format NULL
 #' @export
@@ -14,8 +14,7 @@ glue_block <- new_block_class(
       glue::glue(.(text), .envir = list2env(args, parent = baseenv()))
     }
   },
-  ui = js_module("js/glue-block.js"),
-  output = as_text_output
+  ui = js_module("js/glue-block.js")
 )
 
 #' Glue block

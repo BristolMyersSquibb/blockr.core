@@ -6,22 +6,12 @@ subset_block <- new_block_class(
   "subset_block",
   inputs = function(data) stopifnot(is.data.frame(data)),
   expr = function(subset = "", select = "") {
-
-    subset <- code_string(subset, "subset block")
-    select <- code_string(select, "subset block")
-
-    rows <- if (nzchar(trimws(subset))) str2lang(subset)
-    cols <- if (nzchar(trimws(select))) str2lang(select)
-
-    if (not_null(rows) && not_null(cols)) {
-      bbquote(subset(.(data), .(rows), .(cols)))
-    } else if (not_null(cols)) {
-      bbquote(subset(.(data), select = .(cols)))
-    } else if (not_null(rows)) {
-      bbquote(subset(.(data), .(rows)))
-    } else {
-      bbquote(subset(.(data)))
-    }
+    args <- list(
+      if (nzchar(trimws(subset))) str2lang(subset),
+      select = if (nzchar(trimws(select))) str2lang(select)
+    )
+    args <- Filter(not_null, args)
+    bbquote(subset(.(data), ..(args)), splice = TRUE)
   },
   ui = js_module("js/subset-block.js"),
   output = as_table_output
@@ -45,9 +35,7 @@ subset_block <- new_block_class(
 #' state args is a string that holds one R expression, which the block parses
 #' with [base::str2lang()] and puts in its block expression as code, or an
 #' empty string, which leaves that argument of [base::subset()] out. A string
-#' that does not parse makes the block fail, while a script may give an
-#' expression quoted, as `quote(Sepal.Width > 3)`, which the constructor turns
-#' into a string.
+#' that does not parse makes the block fail.
 #' Its results show as a table, through [as_table_output()].
 #'
 #' @param subset,select Expressions (passed as strings)
