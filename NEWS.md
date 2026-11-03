@@ -21,9 +21,7 @@
   the board, as it names a board without a name after its ID. An ID that is
   given, a board's, a block's, a link's or a stack's, is a string that is
   neither empty nor made of digits alone, and the constructors refuse any
-  other, naming it. For a board saved by blockr.core 0.1.4, `blockr_deser()`
-  reads the name off its `board_name` board option and the ID off the `id`
-  saved next to it (#427).
+  other, naming it (#427).
 * A block class is a value made by `new_block_class()`, holding what every
   block of the class shares: its data inputs, the `expr` from whose result
   interpolation makes the block expression, the UI module `js_module()` names,
@@ -102,9 +100,9 @@
   `board_option_transform()`, `board_option_ctor()`, `validate_board_option()`,
   `default_board_options()` and `blockr_app_options()` go, `new_board()` takes
   no board options by default, and `as_table_output()` pages a data frame by
-  the `n_rows` that the client sends. A file of today's stack is still read
-  by `blockr_deser()`, which recreates a board option from its value alone
-  (#428).
+  the `n_rows` that the client sends. Nothing in R reads a board back, since
+  the client opens every board itself, so `blockr_deser()` goes, and a file
+  of today's stack is converted by a script of its own (#428).
 
 # blockr.core 0.1.4
 

@@ -12,18 +12,6 @@
 \alias{blockr_ser.board_options}
 \alias{blockr_ser.board_option}
 \alias{blockr_ser.default}
-\alias{blockr_deser}
-\alias{blockr_deser.list}
-\alias{blockr_deser.block}
-\alias{blockr_deser.blocks}
-\alias{blockr_deser.board}
-\alias{blockr_deser.link}
-\alias{blockr_deser.links}
-\alias{blockr_deser.stack}
-\alias{blockr_deser.stacks}
-\alias{blockr_deser.board_options}
-\alias{blockr_deser.blockr_ctor}
-\alias{blockr_deser.board_option}
 \title{Serialization}
 \usage{
 blockr_ser(x, ...)
@@ -47,57 +35,17 @@ blockr_ser(x, ...)
 \method{blockr_ser}{board_option}(x, ...)
 
 \method{blockr_ser}{default}(x, ...)
-
-blockr_deser(x, ..., on_error = NULL)
-
-\method{blockr_deser}{list}(x, ...)
-
-\method{blockr_deser}{block}(x, data, ...)
-
-\method{blockr_deser}{blocks}(x, data, ..., on_error = NULL)
-
-\method{blockr_deser}{board}(x, data, ..., on_error = NULL)
-
-\method{blockr_deser}{link}(x, data, ...)
-
-\method{blockr_deser}{links}(x, data, ...)
-
-\method{blockr_deser}{stack}(x, data, ...)
-
-\method{blockr_deser}{stacks}(x, data, ...)
-
-\method{blockr_deser}{board_options}(x, data, ...)
-
-\method{blockr_deser}{blockr_ctor}(x, data, ...)
-
-\method{blockr_deser}{board_option}(x, data, ...)
 }
 \arguments{
-\item{x}{Object to (de)serialize}
+\item{x}{Object to serialize}
 
 \item{...}{Generic consistency}
-
-\item{on_error}{How to handle a block that cannot be deserialized -- its
-constructor (or the package providing it) is unavailable, its payload cannot
-be reconstructed, or the re-created object is not a block. \code{"abort"} (the
-default) propagates the error, while \code{"drop"} omits the offending block
-(emitting a warning) and continues; board deserialization then prunes any
-links and stacks that reference a dropped block, so a board referencing a
-since-retired or no-longer-installed block type still loads. Board
-deserialization resolves \code{on_error} once and threads it to the contained
-blocks. The default is sourced from \code{blockr_option("deser_on_error", "abort")}, letting a deployment opt into dropping via
-\code{options(blockr.deser_on_error = "drop")} or the \code{BLOCKR_DESER_ON_ERROR}
-environment variable.}
-
-\item{data}{List valued data (converted from JSON)}
 }
 \value{
 For a board, \code{blockr_ser()} returns the board as R sends it, as a
 list that R's JSON writers write as the board's JSON. Its methods for the
 parts of a board return what the board holds in their place, before the
-board's schemas shape it. The function \code{blockr_deser()} returns the board,
-block, link, stack or board option that it recreates from a file of today's
-stack.
+board's schemas shape it.
 }
 \description{
 R writes the board that an app script builds as JSON once: the opening
@@ -107,8 +55,8 @@ shape depends on R's JSON writer. So \code{blockr_ser()} returns the board as R
 values that yyjsonr, jsonlite and Shiny's encoder all write as the same
 JSON. A value that a schema has as an array is marked with \code{\link[=I]{I()}}, so that a
 vector of length one stays an array, and an object is a named list, an empty
-one included. The function \code{blockr_deser()} reads a file of today's stack
-(below).
+one included. Nothing in R reads a board back, since the client opens every
+board itself.
 }
 \section{Writing a board}{
 
@@ -147,31 +95,6 @@ script runs. Every value has to be \code{NULL}, a vector of logicals, numbers or
 strings, or a list of such values, with no attribute but names. So a
 function, an environment, a call or a value of a class, such as a factor or
 a data frame, is an error. A named vector is written as an object.
-}
-
-\section{Reading today's files}{
-
-A file of today's stack, which \code{blockr_ser()} wrote in blockr.core 0.1.4 and
-before, holds every object as its class vector in \code{object}, its
-constructor's args in \code{payload} and its constructor in \code{constructor}. The
-function \code{blockr_deser()} recreates the objects from the R values read from
-such a file, as the conversion of one into a saved file does. The class
-vector selects the \code{blockr_deser()} method, but the recreated object only has
-to keep the kind of object it names: the last class with a \code{blockr_deser()}
-method of its own, such as \code{block} for any block. Classes in front of it may
-differ from the ones written, so a package can rename or drop classes of its
-blocks without breaking saved boards. An object recreated as another kind
-raises an error of class \code{block_deser_class_error}. The function
-\code{blockr_deser()} forwards \code{...} to the method it dispatches to. That lets
-callers, and the methods that read nested objects, thread context down to
-inner methods.
-
-A board is read with its ID and name, which the file holds next to its
-payload, either of them \code{NULL} where the board has none. For a board written
-by blockr.core 0.1.4, \code{blockr_deser()} reads the name off its \code{board_name}
-board option instead. A board option is recreated from its value alone,
-without the category and label saved with it, which its definition in the
-client gives.
 }
 
 \examples{
