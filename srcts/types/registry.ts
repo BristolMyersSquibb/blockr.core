@@ -1,55 +1,58 @@
 // The block registry's entries, which R sends the client with its reply to
 // `hello` and to every `open`: each block class by registry id, with what the
-// client cannot read off a class that stays in R.
+// client cannot read off a class that stays in R. They are read-only, for
+// neither side to edit.
 
 import type { OptionId, RegistryId } from "./board.ts";
 import type { Json, JsonSchema } from "./json.ts";
 
 export interface RegistryEntry {
-  id: RegistryId;
+  readonly id: RegistryId;
   // The metadata that registration gives, as today: name, description,
   // details, url (the link that `register_block()` takes), guidance, keywords,
   // category and icon, the icon as SVG markup.
-  name: string;
-  description: string;
-  details?: string;
-  url?: string;
-  guidance?: string;
-  keywords: string[];
-  category: string;
-  icon: string;
+  readonly name: string;
+  readonly description: string;
+  readonly details?: string;
+  readonly url?: string;
+  readonly guidance?: string;
+  readonly keywords: readonly string[];
+  readonly category: string;
+  readonly icon: string;
   // Its data inputs, as ["data"], ["x", "y"], or ["..."] for a variadic block.
-  inputs: string[];
+  readonly inputs: readonly string[];
   // The URL that R serves the class's UI module at, and that of the stylesheet
   // beside it, if it has one.
-  module: string;
-  css?: string;
+  readonly module: string;
+  readonly css?: string;
   // The schema of the block's state, as its module ships it.
-  schema: JsonSchema;
+  readonly schema: JsonSchema;
   // What a new block starts with, from `expr` called without args.
-  state: Record<string, Json>;
+  readonly state: Readonly<Record<string, Json>>;
   // The arg specs, which describe each state arg for models and tools.
-  arguments: Record<string, ArgSpec>;
-  requests: Record<
-    string,
-    {
-      // The data inputs and state args that its function names and the board
-      // options it reads, which R binds, as the host fills in the state args.
-      inputs: string[];
-      state_args: string[];
-      options: OptionId[];
-      // Never kept by the client.
-      volatile?: true;
-      // Acts rather than reads, and runs once per call.
-      action?: true;
-    }
+  readonly arguments: Readonly<Record<string, ArgSpec>>;
+  readonly requests: Readonly<
+    Record<
+      string,
+      {
+        // The data inputs and state args that its function names and the board
+        // options it reads, which R binds, as the host fills in the state args.
+        readonly inputs: readonly string[];
+        readonly state_args: readonly string[];
+        readonly options: readonly OptionId[];
+        // Never kept by the client.
+        readonly volatile?: true;
+        // Acts rather than reads, and runs once per call.
+        readonly action?: true;
+      }
+    >
   >;
 }
 
 // An arg spec, as `new_arg_spec()` makes it, without the fields it leaves
 // unset.
 export interface ArgSpec {
-  description?: string;
-  example?: Json;
-  type?: JsonSchema;
+  readonly description?: string;
+  readonly example?: Json;
+  readonly type?: JsonSchema;
 }
