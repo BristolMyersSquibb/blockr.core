@@ -11,11 +11,7 @@ import { createAnswers } from "./answers.ts";
 import type { ClassRequest } from "./answers.ts";
 
 function fakeScheduler() {
-  const revisions = new Map<BlockId, number>([
-    ["a", 1],
-    ["b", 2],
-    ["g", 3],
-  ]);
+  const revisions = new Map<BlockId, number>([["a", 1]]);
   const subscribers = new Set<() => void>();
   const waiting: { request: ClassRequest; resolve: (reply: Reply) => void }[] = [];
   return {
@@ -23,11 +19,6 @@ function fakeScheduler() {
     // Moves a block to a revision, as the scheduler announces.
     revise(id: BlockId, revision: number): void {
       revisions.set(id, revision);
-      for (const fn of subscribers) fn();
-    },
-    // Takes a block off the board, as the scheduler announces.
-    leave(id: BlockId): void {
-      revisions.delete(id);
       for (const fn of subscribers) fn();
     },
     status: (id: BlockId) =>
@@ -71,7 +62,7 @@ function ask(block: BlockId, args: Record<string, number> = {}, revision?: numbe
   };
 }
 
-test("drops an answer once the revisions it read are superseded, but for each block's last answer of the request", async () => {
+test("drops an answer once the revisions it read are superseded", async () => {
   const scheduler = fakeScheduler();
   const answers = createAnswers(scheduler);
 
@@ -82,30 +73,27 @@ test("drops an answer once the revisions it read are superseded, but for each bl
   }
   expect(answers.size()).toBe(2);
 
-  // The answer with limit 1 goes. The one with limit 2 stays while b's next
-  // answer of the request loads, however long b takes to ask.
   scheduler.revise("a", 2);
-  expect(answers.size()).toBe(1);
+  expect(answers.size()).toBe(0);
 
   const next = answers.ask({ request: ask("b", { limit: 2 }, 2), share: "keep" });
   scheduler.answer([20]);
   await next;
-  expect(answers.size()).toBe(1);
   await expect(answers.ask({ request: ask("g", { limit: 2 }, 2), share: "keep" })).resolves.toMatchObject({
     reply: { value: [20] },
   });
+  expect(answers.size()).toBe(1);
 });
 
-test("drops a block's last answer once the block leaves the board", async () => {
+test("keeps no answer that its reads superseded while it was on its way", async () => {
   const scheduler = fakeScheduler();
   const answers = createAnswers(scheduler);
+
   const asked = answers.ask({ request: ask("b", {}, 1), share: "keep" });
+  scheduler.revise("a", 2);
   scheduler.answer();
   await asked;
 
-  scheduler.revise("a", 2);
-  expect(answers.size()).toBe(1);
-  scheduler.leave("b");
   expect(answers.size()).toBe(0);
 });
 
@@ -124,13 +112,12 @@ test("keeps the answers of every args that the revisions they read leave current
   await answers.ask({ request: ask("g", { offset: 0, limit: 1 }, 1), share: "keep" });
   expect(scheduler.waiting).toHaveLength(0);
 
-  // An answer that reads nothing stays whatever revisions move, and so does
-  // g's last answer, while b's earlier one goes.
+  // An answer that reads nothing stays whatever revisions move.
   const nothing = answers.ask({ request: ask("b", { limit: 3 }), share: "keep" });
   scheduler.answer();
   await nothing;
   scheduler.revise("a", 2);
-  expect(answers.size()).toBe(2);
+  expect(answers.size()).toBe(1);
 });
 
 test("keeps nothing of a request that is only merged, and neither keeps nor merges one asked once", async () => {

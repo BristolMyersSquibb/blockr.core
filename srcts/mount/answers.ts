@@ -7,10 +7,9 @@
 //   key, so nothing asks R for it again.
 // - A request merges with an identical one in flight. Once no caller that
 //   merged with it still waits, it is given up, and R gets a cancel.
-// - Core drops an answer once the revisions it read are superseded, but keeps
-//   a block's last answer of a request until the block's next answer of it
-//   arrives, so that it is there while the next one loads, however long the
-//   module takes to ask again.
+// - Core drops an answer once the revisions it read are superseded. No host
+//   method hands out such an answer, and a module keeps the last answer it
+//   got on screen while it asks again.
 // - Core keeps nothing of a volatile request, and neither keeps nor merges an
 //   action, which R runs once per call, or a request that sends a file.
 // - Core keeps answers for one opening of a board. Once another board opens,
@@ -72,9 +71,6 @@ interface Kept {
 export function createAnswers(scheduler: Pick<Scheduler, "request" | "status" | "subscribe">): Answers {
   const kept = new Map<string, Kept>();
   const flights = new Map<string, Flight>();
-  // The key of each block's last answer of each request, by the block and the
-  // request.
-  const last = new Map<string, { block: string; key: string }>();
 
   // A status that changes may be a revision that moved on, which supersedes
   // what an answer read.
@@ -89,16 +85,10 @@ export function createAnswers(scheduler: Pick<Scheduler, "request" | "status" | 
     );
   }
 
-  // Drops the answers whose reads are superseded, but for the last answer of
-  // a request of each block still on the board.
+  // Drops the answers whose reads are superseded.
   function sweep(): void {
-    const held = new Set<string>();
-    for (const [asking, { block, key }] of last) {
-      if (scheduler.status(block) === undefined) last.delete(asking);
-      else held.add(key);
-    }
     for (const [key, { request }] of kept) {
-      if (!held.has(key) && !current(request)) kept.delete(key);
+      if (!current(request)) kept.delete(key);
     }
   }
 
@@ -123,10 +113,8 @@ export function createAnswers(scheduler: Pick<Scheduler, "request" | "status" | 
       // The answer is kept before the request leaves what is in flight, so
       // that an identical request finds one or the other.
       .then((answer) => {
-        if (key !== undefined && ask.share === "keep" && answer.reply.status === "ok") {
+        if (key !== undefined && ask.share === "keep" && answer.reply.status === "ok" && current(ask.request)) {
           kept.set(key, { answer, request: ask.request });
-          last.set(askingOf(ask.request), { block: ask.request.block, key });
-          sweep();
         }
         return answer;
       })
@@ -190,17 +178,12 @@ export function createAnswers(scheduler: Pick<Scheduler, "request" | "status" | 
       if (signal?.aborted === true) return Promise.reject(asError(signal.reason));
       const key = ask.share === "once" ? undefined : keyOf(ask.request);
       const answer = key === undefined ? undefined : kept.get(key)?.answer;
-      if (key !== undefined && answer !== undefined) {
-        last.set(askingOf(ask.request), { block: ask.request.block, key });
-        sweep();
-        return Promise.resolve(answer);
-      }
+      if (answer !== undefined) return Promise.resolve(answer);
       const flight = (key === undefined ? undefined : flights.get(key)) ?? start(ask, key);
       return join(flight, key, signal, progress);
     },
     clear() {
       kept.clear();
-      last.clear();
       const given = [...flights.values()];
       flights.clear();
       for (const flight of given) flight.controller.abort();
@@ -209,10 +192,6 @@ export function createAnswers(scheduler: Pick<Scheduler, "request" | "status" | 
   };
 }
 
-// The block that asks and the request it asks, as one key.
-function askingOf(request: ClassRequest): string {
-  return JSON.stringify([request.block, request.name]);
-}
 
 // What makes two requests identical: the class, the name, the args, the values
 // of the board options sent and the revisions read, but not the block that
