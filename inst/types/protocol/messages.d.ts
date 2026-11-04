@@ -202,11 +202,13 @@ export type RequestReply = {
     status: "ok";
     value: Json;
     body?: never;
+    volatile?: true;
 } | {
     id: string;
     status: "ok";
     body: Body;
     value?: never;
+    volatile?: true;
 };
 export interface OutputRequest {
     id: string;

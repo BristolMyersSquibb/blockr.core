@@ -28,7 +28,10 @@
 #' names its UI module with `js_module()`, which keeps the module's path in the
 #' package's `inst/` and the package whose code calls it, for R to resolve when
 #' it serves the module, and which resolves the path against the working
-#' directory outside a package. A class further takes a
+#' directory outside a package. R serves a package's module under the
+#' package's name, at its path in the package, and a module from outside a
+#' package at a URL of its own, read from the path given, each at a URL that
+#' holds a hash of the file's content. A class further takes a
 #' named list of `requests`, for what its UI asks of R, each a function or made
 #' by [new_block_request()], which names the board options it reads, and the
 #' coercion that makes an output from a result, as `output`. A field a class
@@ -219,12 +222,26 @@ is_js_module <- function(x) {
   inherits(x, "js_module")
 }
 
-# The file that a module ships beside it, as `head-block.schema.json` beside
-# `head-block.js`, among its package's installed files, or beside the path of
-# a module made outside a package, and `""` where there is none.
-module_file <- function(module, suffix) {
+# The path of a module, or of a file that it ships beside it with `suffix`, as
+# `head-block.schema.json` beside `head-block.js`: relative to the package's
+# `inst/`, or as the path given outside a package.
+module_path <- function(module, suffix = NULL) {
 
-  path <- paste0(sub("\\.[^./]*$", "", module[["path"]]), suffix)
+  path <- module[["path"]]
+
+  if (is.null(suffix)) {
+    return(path)
+  }
+
+  paste0(sub("\\.[^./]*$", "", path), suffix)
+}
+
+# The file of a module, or of one that it ships beside it with `suffix`, among
+# its package's installed files, or at the path of a module made outside a
+# package, and `""` where there is none.
+module_file <- function(module, suffix = NULL) {
+
+  path <- module_path(module, suffix)
 
   if (not_null(module[["package"]])) {
     path <- system.file(path, package = module[["package"]])

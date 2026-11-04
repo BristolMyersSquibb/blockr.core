@@ -148,6 +148,36 @@ protocol_r_values <- function() {
         )
       )
     ),
+    # The fields of the reply that say what R has loaded are what R builds from
+    # what is registered and declared (see `declared_fields()` below), rather
+    # than R values written here.
+    `hello-declared` = list(
+      list(
+        c(
+          obj(
+            id = "1",
+            status = "ok",
+            protocol = protocol_version(),
+            capabilities = I(c("cancel", "progress"))
+          ),
+          declared_fields(),
+          obj(
+            lock = NULL,
+            board = obj(
+              front_end = obj(
+                id = "blockr.test-grid",
+                state = obj(),
+                attrs = obj()
+              ),
+              blocks = list(),
+              links = list(),
+              stacks = list(),
+              options = obj()
+            )
+          )
+        )
+      )
+    ),
     open = list(
       list(
         c(
@@ -371,6 +401,16 @@ protocol_r_values <- function() {
           id = "29",
           status = "ok",
           body = obj(type = proto_pptx(), name = "chart.pptx")
+        )
+      )
+    ),
+    `request-output-volatile` = list(
+      list(
+        obj(
+          id = "36",
+          status = "ok",
+          value = encode_answer(c("corporate.potx", "plain.potx")),
+          volatile = TRUE
         )
       )
     ),
@@ -1013,4 +1053,214 @@ proto_output <- function(x) {
     list(output = c(list(renderer = renderer), parts$output)),
     if (not_null(parts$body)) list(body = body_announcement(parts$body))
   )
+}
+
+# What R tells the client about the packages it has loaded, for the package
+# blockr.test, which no library holds: it declares, from its `.onLoad()`, a
+# front-end, a startup module, a module that it offers others and two
+# renderers, one for table outputs and one for the board option dark_mode.
+# Beside it, a script defines two block classes, one whose module ships a
+# stylesheet and the schema of its state, and one whose module ships neither.
+# The helper writes the files of all of them, so that their content, and so the
+# hashes in the URLs that R serves them at, are the same on every system.
+
+declared_files <- function() {
+  list(
+    `blockr.test/js/grid.js` = "export const api = 1; // grid\n",
+    `blockr.test/js/grid.css` = ".bt-grid { display: grid; }\n",
+    `blockr.test/js/startup.js` = "export const api = 1; // startup\n",
+    `blockr.test/js/picker.js` = "export const api = 1; // picker\n",
+    `blockr.test/js/table.js` = "export const api = 1; // table\n",
+    `blockr.test/js/dark.js` = "export const api = 1; // dark\n",
+    `blockr.test/js/notes.txt` = "Not served.\n",
+    `app/letters-block.js` = "export const api = 1; // letters\n",
+    `app/letters-block.css` = ".letters { color: teal; }\n",
+    `app/letters-block.schema.json` = paste0(
+      "{\"type\": \"object\", \"properties\": {",
+      "\"columns\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, ",
+      "\"sep\": {\"type\": \"string\"}}}\n"
+    ),
+    `app/count-block.js` = "export const api = 1; // count\n",
+    `app/secrets.R` = "Sys.setenv(API_KEY = \"not served\")\n"
+  )
+}
+
+# Writes each file as its bytes, so that no line ending changes on Windows.
+write_declared_files <- function(dir) {
+
+  files <- declared_files()
+
+  for (path in names(files)) {
+    file <- file.path(dir, path)
+    dir.create(dirname(file), recursive = TRUE, showWarnings = FALSE)
+    writeBin(charToRaw(files[[path]]), file)
+  }
+
+  invisible(dir)
+}
+
+# Empties the block registry and what packages declare, which core fills as it
+# loads, until `frame` ends, and removes then the resource paths that serving a
+# file added.
+local_empty_declarations <- function(frame = parent.frame()) {
+
+  envs <- list(
+    block_registry, declared_front_ends, declared_startup_modules,
+    declared_modules, declared_renderers, output_class_registry
+  )
+
+  saved <- lapply(envs, as.list, all.names = TRUE)
+  paths <- names(shiny::resourcePaths())
+
+  for (env in envs) {
+    rm(list = ls(env, all.names = TRUE), envir = env)
+  }
+
+  declared_startup_modules$entries <- list()
+
+  withr::defer(
+    {
+      for (i in seq_along(envs)) {
+        rm(list = ls(envs[[i]], all.names = TRUE), envir = envs[[i]])
+        list2env(saved[[i]], envir = envs[[i]])
+      }
+
+      for (prefix in setdiff(names(shiny::resourcePaths()), paths)) {
+        shiny::removeResourcePath(prefix)
+      }
+    },
+    envir = frame
+  )
+
+  invisible()
+}
+
+# Has the package blockr.test of the files that `dir` holds declare what it
+# declares from its `.onLoad()`, at the version 0.1.0, until `frame` ends.
+local_declared_package <- function(dir, frame = parent.frame()) {
+
+  installed <- module_file
+  version <- pkg_version
+
+  testthat::local_mocked_bindings(
+    module_file = function(module, suffix = NULL) {
+
+      if (!identical(module[["package"]], "blockr.test")) {
+        return(installed(module, suffix))
+      }
+
+      path <- file.path(dir, "blockr.test", module_path(module, suffix))
+
+      if (file.exists(path)) path else ""
+    },
+    pkg_version = function(pkg = parent.frame()) {
+
+      if (identical(pkg, "blockr.test")) {
+        return(package_version("0.1.0"))
+      }
+
+      version(pkg)
+    },
+    .package = "blockr.core",
+    .env = frame
+  )
+
+  module <- function(path) js_module(path, package = "blockr.test")
+
+  register_front_end("grid", module("js/grid.js"), class = "grid_board")
+  register_startup_module(module("js/startup.js"))
+  register_module("picker", module("js/picker.js"))
+  register_renderer("table", module("js/table.js"), class = "table_output")
+  register_renderer("dark", module("js/dark.js"), option = "dark_mode")
+
+  invisible()
+}
+
+# The block classes that a script in `dir` defines, which it registers with
+# the metadata that registration takes, where icons stand in for the drawings
+# of bsicons, as the protocol's fixtures have them, so that the fixture does
+# not change with bsicons.
+register_script_blocks <- function(dir) {
+
+  letters_block <- new_block_class(
+    "letters_block",
+    inputs = "data",
+    expr = function(columns = "x", sep = ",") {
+      bbquote(.(data)[.(columns)])
+    },
+    ui = js_module(file.path(dir, "app", "letters-block.js"), package = NULL),
+    requests = list(
+      columns = function(data) names(data),
+      page = new_block_request(
+        function(data, rows, sep) utils::head(data, rows),
+        options = list(rows = new_n_rows_option)
+      ),
+      files = new_block_request(
+        function(path = ".") list.files(path),
+        volatile = TRUE
+      ),
+      upload = new_block_request(
+        function(file) file[["datapath"]],
+        action = TRUE
+      )
+    )
+  )
+
+  count_block <- new_block_class(
+    "count_block",
+    expr = function(n = 3L) bbquote(seq_len(.(n))),
+    ui = js_module(file.path(dir, "app", "count-block.js"), package = NULL)
+  )
+
+  register_block(
+    block_constructor(letters_block),
+    "letters block",
+    "Pick columns",
+    category = "transform",
+    icon = "eye",
+    arguments = new_arg_specs(
+      columns = new_arg_spec(
+        "Columns to keep.",
+        example = list("x"),
+        type = arg_array(arg_string())
+      ),
+      sep = new_arg_spec("Separator.", type = arg_string())
+    ),
+    details = "Keeps the columns it is given.",
+    link = "https://example.com/letters",
+    guidance = "Set `columns` to the names of columns to keep.",
+    keywords = c("letters", "columns")
+  )
+
+  register_block(block_constructor(count_block), "count block", "Count up")
+
+  for (id in list_blocks()) {
+    entry <- get_registry_entry(id)
+    entry[["icon"]] <- proto_icon(if (id == "letters_block") "eye" else "hash")
+    assign(id, entry, envir = block_registry)
+  }
+
+  invisible()
+}
+
+# What R tells the client about the packages it has loaded, in its reply to
+# `hello`, for an app whose script loaded blockr.test beside its own block
+# classes, with nothing of core's.
+declared_fields <- function() {
+
+  dir <- withr::local_tempdir()
+  write_declared_files(dir)
+
+  local_empty_declarations()
+  local_declared_package(dir)
+  register_script_blocks(dir)
+
+  withr::local_options(
+    blockr.renderers = c(
+      table_output = "blockr.test-table",
+      dark_mode = "blockr.test-dark"
+    )
+  )
+
+  loaded_reply()
 }

@@ -78,13 +78,13 @@ local_fixture_package <- function(frame = parent.frame()) {
   installed <- module_file
 
   testthat::local_mocked_bindings(
-    module_file = function(module, suffix) {
+    module_file = function(module, suffix = NULL) {
 
       if (!identical(module[["package"]], "blockr.test")) {
         return(installed(module, suffix))
       }
 
-      path <- paste0(sub("\\.[^./]*$", "", module[["path"]]), suffix)
+      path <- module_path(module, suffix)
       path <- file.path(board_fixture_dir(), "blockr.test", path)
 
       if (file.exists(path)) path else ""
