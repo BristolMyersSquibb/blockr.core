@@ -11,24 +11,6 @@ export type {
   Transport,
   TransportListener,
 } from "./client.ts";
-export type {
-  BlockRevision,
-  Body,
-  CancelledReply,
-  Capability,
-  ClientMessage,
-  Condition,
-  ErrorReply,
-  EvaluateReply,
-  EvaluateRequest,
-  Fixture,
-  HelloReply,
-  MissingReply,
-  Omitted,
-  OpenReply,
-  OutputRequest,
-  Progress,
-  Recipe,
-  Reply,
-  Request,
-} from "./messages.ts";
+// Every message, since the README gives each one as part of the contract
+// between the client and R.
+export * from "./messages.ts";
