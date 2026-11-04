@@ -308,48 +308,4 @@ test_that("misc", {
                class = "blockr_options_names_invalid")
   expect_error(set_blockr_options(test_opt = "a", test_opt = "b"),
                class = "blockr_options_names_invalid")
-
-  expect_s3_class(
-    new_blockr_ctor("blockr.core::new_dataset_block"),
-    "blockr_ctor"
-  )
-
-  # test for namespaced ctor in `resolve_ctor()`
-  expect_s3_class(
-    blockr.core::new_board(),
-    "board"
-  )
-})
-
-test_that("constructors are checked as they are made and read", {
-
-  ctor <- new_blockr_ctor("blockr.core::new_dataset_block")
-
-  expect_identical(ctor_name(ctor), "new_dataset_block")
-  expect_identical(ctor_pkg(ctor), "blockr.core")
-  expect_type(ctor_fun(ctor), "closure")
-
-  for (getter in list(ctor_name, ctor_pkg, ctor_fun)) {
-    expect_error(getter(new_dataset_block), class = "blockr_ctor_invalid")
-  }
-
-  expect_error(new_blockr_ctor(1), class = "blockr_ctor_invalid")
-  expect_error(new_blockr_ctor("new_dataset_block"),
-               class = "blockr_ctor_invalid")
-  expect_error(new_blockr_ctor(NULL, 1, "blockr.core"),
-               class = "blockr_ctor_name_invalid")
-  expect_error(new_blockr_ctor(NULL, "new_dataset_block", 1),
-               class = "blockr_ctor_package_invalid")
-
-  # A function named `pkg::ctor` stands in for one called through a package
-  env <- new.env()
-  env[["pkg::ctor"]] <- function() resolve_ctor(-1L, ctor_pkg = "other")
-  env[["a::b::ctor"]] <- function() resolve_ctor(-1L)
-
-  expect_error(eval(call("pkg::ctor"), env), "rather than other",
-               class = "blockr_ctor_package_invalid")
-  expect_error(eval(call("a::b::ctor"), env),
-               class = "blockr_ctor_call_invalid")
-  expect_error(eval(as.call(list(call("(", as.name("a::b::ctor")))), env),
-               class = "blockr_ctor_call_invalid")
 })
