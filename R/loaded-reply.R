@@ -1,11 +1,13 @@
 # What R tells the client about the packages it has loaded, in its reply to
-# `hello` and to every `open`, for neither side to edit: the block registry's
-# entries, where R serves the front-ends, the startup modules and the modules
-# that packages offer each other, the renderers it picked, and the versions of
-# the packages that all of these come from. These are the fields `packages`,
-# `block_registry`, `front_ends`, `startup_modules`, `modules` and `renderers`
-# of inst/protocol/README.md, as R values that `encode_message()` writes as
-# the reply's JSON. Building them builds no block.
+# `hello`, for neither side to edit: the block registry's entries, where R
+# serves the front-ends, the startup modules and the modules that packages
+# offer each other, the renderers it picked, and the versions of the packages
+# that all of these come from. R loads no package for it: the app's script has
+# loaded them, and loading them filled the block registry and declared their
+# modules. These are the fields `packages`, `block_registry`, `front_ends`,
+# `startup_modules`, `modules` and `renderers` of inst/protocol/README.md, as R
+# values that `encode_message()` writes as the reply's JSON. Building them
+# builds no block.
 loaded_reply <- function() {
 
   entries <- available_blocks()

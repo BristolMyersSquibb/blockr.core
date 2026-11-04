@@ -148,6 +148,36 @@ protocol_r_values <- function() {
         )
       )
     ),
+    # The fields of the reply that say what R has loaded are what R builds from
+    # what is registered and declared (see `declared_fields()` below), rather
+    # than R values written here.
+    `hello-declared` = list(
+      list(
+        c(
+          obj(
+            id = "1",
+            status = "ok",
+            protocol = protocol_version(),
+            capabilities = I(c("cancel", "progress"))
+          ),
+          declared_fields(),
+          obj(
+            lock = NULL,
+            board = obj(
+              front_end = obj(
+                id = "blockr.test-grid",
+                state = obj(),
+                attrs = obj()
+              ),
+              blocks = list(),
+              links = list(),
+              stacks = list(),
+              options = obj()
+            )
+          )
+        )
+      )
+    ),
     open = list(
       list(
         c(
@@ -170,9 +200,6 @@ protocol_r_values <- function() {
         )
       )
     ),
-    # What R builds from what is registered and declared, rather than R values
-    # written here (see `declared_reply()` below).
-    `open-declared` = list(list(declared_reply())),
     `blockr-options` = list(
       list(
         obj(
@@ -1216,10 +1243,10 @@ register_script_blocks <- function(dir) {
   invisible()
 }
 
-# What R tells the client about the packages it has loaded, with blockr.test
-# loaded beside the script's block classes and nothing of core's, as the reply
-# to an `open` that names blockr.test.
-declared_reply <- function() {
+# What R tells the client about the packages it has loaded, in its reply to
+# `hello`, for an app whose script loaded blockr.test beside its own block
+# classes, with nothing of core's.
+declared_fields <- function() {
 
   dir <- withr::local_tempdir()
   write_declared_files(dir)
@@ -1235,5 +1262,5 @@ declared_reply <- function() {
     )
   )
 
-  c(obj(id = "2", status = "ok"), loaded_reply())
+  loaded_reply()
 }

@@ -299,8 +299,8 @@ Each file in [`fixtures/`](fixtures/) holds a message that the client sends, in 
 | [`hello-locked`](fixtures/hello-locked.json) | the handshake of a locked app, which ignores the packages that the `hello` names |
 | [`hello-block`](fixtures/hello-block.json) | the handshake of an app that serves a block alone, with `bound` |
 | [`hello-file`](fixtures/hello-file.json) | the handshake of an app that serves a saved file |
+| [`hello-declared`](fixtures/hello-declared.json) | the handshake of an app whose script loaded a package that declares modules and renderers, with what R builds from what is registered and declared, and the URLs it serves each file at |
 | [`open`](fixtures/open.json) | loading the packages of a board that the client opens |
-| [`open-declared`](fixtures/open-declared.json) | the reply to an `open` as R builds it from what is registered and declared, with the URLs it serves each file at |
 | [`open-locked`](fixtures/open-locked.json) | an `open` that a locked board refuses |
 | [`blockr-options`](fixtures/blockr-options.json) | reading blockr options, one set as an R option, one through an environment variable and one not set |
 | [`evaluate`](fixtures/evaluate.json) | an evaluation of a block with two inputs |

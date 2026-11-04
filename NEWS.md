@@ -91,7 +91,7 @@
   `pick_renderers()` gives the renderer that R picks for each output class and
   board option, whatever the board's front-end (#425).
 * R builds what it tells the client about the packages it has loaded, in its
-  reply to `hello` and to every `open`, without building a block. That is
+  reply to `hello`, without building a block. That is
   each block class's entry in the block registry, with the metadata that
   registration gives, `link` as `url`, its inputs, the schema of its state,
   the state a new block starts with, its arg specs and its requests. Beside

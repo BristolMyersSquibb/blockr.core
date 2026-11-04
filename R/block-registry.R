@@ -31,10 +31,10 @@ block_registry <- new.env()
 #' arg specs default to every state arg, and their examples are checked by
 #' calling `expr` with them.
 #'
-#' R sends the client what it needs of each entry, in its reply to `hello` and
-#' to every `open`, without building a block: the metadata, with `link` as
-#' `url`, the data inputs, where R serves the UI module, the schema, the state
-#' a new block starts with, the arg specs and the requests. R serves the
+#' R sends the client what it needs of each entry, in its reply to `hello`,
+#' without building a block: the metadata, with `link` as `url`, the data
+#' inputs, where R serves the UI module, the schema, the state a new block
+#' starts with, the arg specs and the requests. R serves the
 #' module, and the stylesheet beside it, at a URL that holds a hash of the
 #' file's content, so that no browser runs a changed file from its cache. It
 #' writes the starting state by the schema of the block's state, and the

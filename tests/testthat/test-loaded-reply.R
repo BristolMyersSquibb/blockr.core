@@ -5,12 +5,12 @@ json <- function(x) {
 
 test_that("R tells the client what it loaded in the fields of the protocol", {
 
-  reply <- declared_reply()
+  reply <- declared_fields()
 
   expect_named(
     reply,
-    c("id", "status", "packages", "block_registry", "front_ends",
-      "startup_modules", "modules", "renderers")
+    c("packages", "block_registry", "front_ends", "startup_modules", "modules",
+      "renderers")
   )
   expect_identical(json(reply$packages), "{\"blockr.test\":\"0.1.0\"}")
   expect_named(reply$block_registry, c("count_block", "letters_block"))
@@ -18,7 +18,7 @@ test_that("R tells the client what it loaded in the fields of the protocol", {
 
 test_that("an entry has the metadata registration gives, with link as url", {
 
-  entry <- declared_reply()$block_registry$letters_block
+  entry <- declared_fields()$block_registry$letters_block
 
   expect_identical(
     entry[c("id", "name", "description", "details", "url", "guidance",
@@ -39,7 +39,7 @@ test_that("an entry has the metadata registration gives, with link as url", {
 
 test_that("an entry leaves out the metadata that registration leaves unset", {
 
-  entry <- declared_reply()$block_registry$count_block
+  entry <- declared_fields()$block_registry$count_block
 
   expect_named(
     entry,
@@ -51,7 +51,7 @@ test_that("an entry leaves out the metadata that registration leaves unset", {
 
 test_that("an entry holds what the client cannot read off a class in R", {
 
-  reply <- declared_reply()
+  reply <- declared_fields()
 
   letters <- reply$block_registry$letters_block
 
@@ -75,7 +75,7 @@ test_that("an entry holds what the client cannot read off a class in R", {
 
 test_that("an entry holds no block class, constructor or package", {
 
-  entry <- declared_reply()$block_registry$letters_block
+  entry <- declared_fields()$block_registry$letters_block
 
   expect_length(
     intersect(
@@ -88,7 +88,7 @@ test_that("an entry holds no block class, constructor or package", {
 
 test_that("the starting state is written by the schema of the class's state", {
 
-  reply <- declared_reply()
+  reply <- declared_fields()
 
   # A vector of length one is an array where the schema has one.
   expect_identical(
@@ -102,7 +102,7 @@ test_that("the starting state is written by the schema of the class's state", {
 
 test_that("an arg spec's example is written by its type", {
 
-  reply <- declared_reply()
+  reply <- declared_fields()
 
   expect_identical(
     json(reply$block_registry$letters_block$arguments),
@@ -148,7 +148,7 @@ test_that("an arg spec's type is the JSON Schema that it denotes", {
 
 test_that("a request says what it reads, and whether volatile or an action", {
 
-  requests <- declared_reply()$block_registry$letters_block$requests
+  requests <- declared_fields()$block_registry$letters_block$requests
 
   expect_identical(
     json(requests),
@@ -166,7 +166,7 @@ test_that("a request says what it reads, and whether volatile or an action", {
 
 test_that("R says where it serves what packages declare", {
 
-  reply <- declared_reply()
+  reply <- declared_fields()
 
   url <- function(file) {
     paste0("^blockr.test/js/", file, "\\?v=[0-9a-f]{8}$")
@@ -188,7 +188,7 @@ test_that("R says where it serves what packages declare", {
 
 test_that("R names the renderers it picked, with what each draws", {
 
-  renderers <- declared_reply()$renderers
+  renderers <- declared_fields()$renderers
 
   expect_named(renderers, c("blockr.test-dark", "blockr.test-table"))
   expect_identical(renderers[["blockr.test-table"]]$class, "table_output")

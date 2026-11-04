@@ -1,11 +1,20 @@
 {
-  "description": "An open of a board that names blockr.test, a package that declares a front-end, a startup module, a module that it offers others and two renderers, one for table outputs and one for the board option dark_mode, which the app names in the blockr option renderers. Beside it, the app script registered two block classes of its own. R builds the reply from what is registered and declared, and building it builds no block. It gives the version of each package that the reply names, here blockr.test alone, since a class from no package names none. R serves each file at a URL that holds a hash of its content: a package's file under the package's name, at its path in the package, with the hash in the query, and a file from no package under blockr-modules, in a directory named by the hash. It writes the starting state of the letters block by the schema that the block's module ships, so that columns, a vector of length one, is an array, and that of the count block, whose module ships no schema, bare.",
-  "client": [{ "id": "2", "kind": "open", "packages": ["blockr.test"] }],
+  "description": "The handshake of an app whose script loaded blockr.test, a package that declares a front-end, a startup module, a module that it offers others and two renderers, one for table outputs and one for the board option dark_mode, which the app names in the blockr option renderers. Beside it, the script registered two block classes of its own and built an empty board for the package's front-end. R loads no package for the handshake, so its reply says what the script loaded. R builds the fields that say so from what is registered and declared, and building them builds no block. They give the version of each package that the reply names, here blockr.test alone, since a class from no package names none. R serves each file at a URL that holds a hash of its content: a package's file under the package's name, at its path in the package, with the hash in the query, and a file from no package under blockr-modules, in a directory named by the hash. It writes the starting state of the letters block by the schema that the block's module ships, so that columns, a vector of length one, is an array, and that of the count block, whose module ships no schema, bare.",
+  "client": [
+    {
+      "id": "1",
+      "kind": "hello",
+      "protocol": "1.0",
+      "capabilities": ["cancel", "interrupt", "progress"]
+    }
+  ],
   "r": [
     [
       {
-        "id": "2",
+        "id": "1",
         "status": "ok",
+        "protocol": "1.0",
+        "capabilities": ["cancel", "progress"],
         "packages": { "blockr.test": "0.1.0" },
         "block_registry": {
           "count_block": {
@@ -106,6 +115,14 @@
             "module": "blockr.test/js/table.js?v=da68949e",
             "class": "table_output"
           }
+        },
+        "lock": null,
+        "board": {
+          "front_end": { "id": "blockr.test-grid", "state": {}, "attrs": {} },
+          "blocks": [],
+          "links": [],
+          "stacks": [],
+          "options": {}
         }
       }
     ]
