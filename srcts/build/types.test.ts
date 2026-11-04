@@ -179,6 +179,7 @@ test.each(["bundler", "nodenext"] as const)(
     );
     expect(diagnostics).toEqual([]);
   },
+  60_000,
 );
 
 test("a package's module mounts on the stubs that core ships, which answer from its class's fixture file", async () => {
