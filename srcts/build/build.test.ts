@@ -128,6 +128,81 @@ test("writes the schema of each output type and removes those of types gone", as
   expect(Object.keys(schema.definitions as object)).toEqual(["Json"]);
 });
 
-test("writes no schemas without output types", async () => {
+test("writes no schemas without the types and modules they come from", async () => {
   expect(await schemas(root)).toEqual([]);
+});
+
+test("writes the schema of the board as R sends it", async () => {
+  await write({
+    "srcts/types/board.ts": [
+      "export interface Stack { name: string; blocks: string[] }",
+      "export interface OpeningBoard {",
+      "  id?: string;",
+      "  stacks: (Stack & { id?: string })[];",
+      "  options: Record<string, number>;",
+      "}",
+      "",
+    ].join("\n"),
+    "inst/board/fixtures/board.json": "{}",
+  });
+
+  expect(await schemas(root)).toEqual(["inst/board/opening-board.schema.json"]);
+
+  const out = join(root, "inst", "board");
+  expect((await readdir(out)).sort()).toEqual(["fixtures", "opening-board.schema.json"]);
+
+  const schema = JSON.parse(
+    await readFile(join(out, "opening-board.schema.json"), "utf8"),
+  ) as Record<string, unknown>;
+
+  expect(schema).toMatchObject({
+    type: "object",
+    properties: {
+      id: { type: "string" },
+      stacks: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            name: { type: "string" },
+            blocks: { type: "array", items: { type: "string" } },
+          },
+          required: ["blocks", "name"],
+        },
+      },
+      options: { type: "object", additionalProperties: { type: "number" } },
+    },
+    required: ["stacks", "options"],
+  });
+  expect(schema).not.toHaveProperty("definitions");
+});
+
+test("writes the schemas of core's board options next to its runtime", async () => {
+  await write({
+    "srcts/options/schemas.ts": [
+      "export const optionSchemas = {",
+      '  n_rows: { type: "integer", minimum: 0 },',
+      '  show_conditions: { type: "array", items: { enum: ["error"] } },',
+      "};",
+      "",
+    ].join("\n"),
+  });
+
+  expect(await schemas(root)).toEqual(["inst/js/blockr-core.schema.json"]);
+
+  const file = join(root, "inst", "js", "blockr-core.schema.json");
+
+  expect(JSON.parse(await readFile(file, "utf8"))).toEqual({
+    type: "object",
+    properties: {
+      options: {
+        type: "object",
+        properties: {
+          n_rows: { type: "integer", minimum: 0 },
+          show_conditions: { type: "array", items: { enum: ["error"] } },
+        },
+      },
+    },
+  });
 });

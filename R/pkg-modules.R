@@ -20,6 +20,16 @@ declared_modules <- new.env()
 #' Declaring a package's startup module, or a module under the same ID, again
 #' replaces it, as when a package is loaded again.
 #'
+#' Next to its startup module, as `startup.schema.json` next to `startup.js`, a
+#' package puts one JSON Schema, laid out like the board, for the parts of the
+#' board that the package defines: the front-end's state under
+#' `front_end.state` and the values of its board options under `options`, by
+#' their IDs. R shapes the board that an app script builds by it, as it does by
+#' core's schema of the board (see [blockr_ser()]), so that a value of length
+#' one stays an array where the schema has one. R reads nothing else out of
+#' it. Core puts the schema of its own board options next to its runtime in the
+#' same way.
+#'
 #' R keeps the startup modules in the order in which packages declare them,
 #' which is the order in which their namespaces load, since R runs the
 #' `.onLoad()` of the packages a namespace imports before its own, so that a
@@ -101,4 +111,49 @@ list_modules <- function() {
 
 get_module <- function(id) {
   get_declared(id, declared_modules, "module", "module_missing")
+}
+
+# The JSON Schemas next to core's runtime and next to the startup module of each
+# package that R has loaded, by which R writes the board an app script built.
+# Each is one JSON Schema, laid out like the board, for the parts of the board
+# that its package defines, such as the values of its board options under
+# `options`.
+startup_schemas <- function() {
+
+  modules <- c(
+    list(list(package = "blockr.core", module = core_runtime())),
+    startup_modules()
+  )
+
+  res <- list()
+
+  for (entry in modules) {
+
+    file <- module_file(entry[["module"]], ".schema.json")
+
+    if (nzchar(file)) {
+      res <- c(res, list(read_startup_schema(file, entry[["package"]])))
+    }
+  }
+
+  res
+}
+
+core_runtime <- function() {
+  js_module("js/blockr-core.js", package = "blockr.core")
+}
+
+read_startup_schema <- function(file, pkg) {
+
+  res <- decode_schema(file)
+
+  if (!is.list(res) || (length(res) && is.null(names(res)))) {
+    blockr_abort(
+      "The schema that package {pkg} puts next to its startup module, in ",
+      "{file}, is expected to be a JSON object.",
+      class = "startup_schema_invalid"
+    )
+  }
+
+  res
 }

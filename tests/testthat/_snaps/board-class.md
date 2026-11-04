@@ -55,7 +55,5 @@
       Blocks: "b" and "c"
       
       Options:
-      <board_options[2]>
-        show_conditions: warning, error
-        dark_mode: NULL
+      <board_options[0]>
 

@@ -10,12 +10,10 @@ new_board(
   blocks = list(),
   links = list(),
   stacks = list(),
-  options = default_board_options(),
+  options = list(),
   ...,
   id = NULL,
   name = NULL,
-  ctor = NULL,
-  pkg = NULL,
   class = character()
 )
 
@@ -30,15 +28,13 @@ is_board(x)
 
 \item{stacks}{Set of stacks}
 
-\item{options}{Board-level user settings}
+\item{options}{Board options, with the values the script gives}
 
-\item{...}{Further (metadata) attributes}
+\item{...}{The front-end's state, by key}
 
 \item{id}{Board ID, which \code{NULL} leaves for the client to mint}
 
 \item{name}{Board name, which \code{NULL} leaves for the client to set}
-
-\item{ctor, pkg}{Constructor information (used for serialization)}
 
 \item{class}{Board sub-class}
 
@@ -54,12 +50,19 @@ logical.
 A set of blocks, optionally connected via links and grouped into stacks
 are organized as a \code{board} object. Boards are constructed using \code{new_board()}
 and inheritance can be tested with \code{is_board()}, while validation is
-available as (generic function) \code{validate_board()}. This central data
-structure can be extended by adding further attributes and sub-classes.
-Several utilities are available for retrieving board components (see
-\code{\link[=board_blocks]{board_blocks()}}).
+available as (generic function) \code{validate_board()}. Several utilities are
+available for retrieving board components (see \code{\link[=board_blocks]{board_blocks()}}).
 }
 \details{
+A board holds what the client's board holds: its blocks, links and stacks,
+the values of the board options that the script gives, its ID and name, and
+the front-end's state. The front-end's state is made of the components
+passed in \code{...}, such as those that a front-end adds through a constructor
+of its own. Such a constructor names the board's class in \code{class}, which
+picks the front-end that the board is made for (see \code{\link[=board_front_end]{board_front_end()}}). A
+board takes no board options by default, since a board holds the value of a
+board option only once something sets it (see \code{\link[=new_board_options]{new_board_options()}}).
+
 A board has an ID, which identifies it, and a name, which the user calls it
 by. A script may leave either out, as it may leave out the IDs of blocks,
 links and stacks, since R mints no IDs: the client mints each missing one

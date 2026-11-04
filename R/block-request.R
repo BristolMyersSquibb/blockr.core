@@ -36,8 +36,8 @@
 #' @param volatile,action Whether the request is volatile or an action
 #'
 #' @examples
-#' new_dir_option <- function(value = tempdir(), ...) {
-#'   new_board_option(id = "dir", default = value, ...)
+#' new_dir_option <- function(value) {
+#'   new_board_option("dir", value)
 #' }
 #'
 #' dir_block <- new_block_class(

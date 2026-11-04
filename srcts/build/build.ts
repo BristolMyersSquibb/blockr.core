@@ -8,19 +8,25 @@
 //   blockr-core.css or <name>.css.
 // - Each output type in srcts/types/outputs.ts gets its JSON Schema in
 //   inst/outputs, by which R writes the outputs of its class.
+// - The board as R sends it, OpeningBoard in srcts/types/board.ts, gets its
+//   JSON Schema in inst/board, by which R writes the board an app script
+//   built.
+// - The schemas of core's board options, in srcts/options/schemas.ts, go
+//   next to core's runtime, into blockr-core.schema.json, by which R writes the
+//   value of one that an app script gives.
 // - The types that modules are written against, srcts/index.ts, and the stubs
 //   of the hosts, srcts/stubs/index.ts, go into inst/types, which a package's
 //   build resolves as `@blockr/core`: their declarations, the stubs bundled for
 //   a test runner, and the package.json that names them.
 //
 // The build owns inst/js and inst/types and empties them first, so that
-// nothing is left of a module that is gone. In inst/outputs, it owns the
-// schemas only.
+// nothing is left of a module that is gone. In inst/outputs and inst/board, it
+// owns the schemas only.
 
 import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import tailwindcss from "@tailwindcss/postcss";
 import * as esbuild from "esbuild";
 import postcss from "postcss";
@@ -115,10 +121,19 @@ export function schemaFile(type: string): string {
 }
 
 // Writes the JSON Schema of each output type in srcts/types/outputs.ts into
-// inst/outputs, and removes the schema of a type that is gone. A schema leaves
+// inst/outputs, and removes the schema of a type that is gone, then the schema
+// of the board as R sends it and those beside core's runtime. A schema leaves
 // out no field that a later version may add, since both sides of the wire
 // protocol skip fields they do not know.
 export async function schemas(root: string): Promise<string[]> {
+  return [
+    ...(await outputSchemas(root)),
+    ...(await boardSchema(root)),
+    ...(await runtimeSchemas(root)),
+  ].sort();
+}
+
+async function outputSchemas(root: string): Promise<string[]> {
   const types = join(root, "srcts", "types", "outputs.ts");
   if (!existsSync(types)) return [];
 
@@ -134,9 +149,61 @@ export async function schemas(root: string): Promise<string[]> {
     }
   }
 
+  const schema = typeSchemas(root, types);
+  const written: string[] = [];
+
+  for (const name of names) {
+    const file = join(out, schemaFile(name));
+    await writeJson(file, schema(name));
+    written.push(relative(root, file));
+  }
+
+  return written;
+}
+
+// The JSON Schema of the board as R sends the one an app script built, with
+// its collections as arrays, by which R writes core's objects in it, so that a
+// stack's blocks stay an array and an empty collection an object.
+async function boardSchema(root: string): Promise<string[]> {
+  const types = join(root, "srcts", "types", "board.ts");
+  if (!existsSync(types)) return [];
+
+  const file = join(root, "inst", "board", schemaFile("OpeningBoard"));
+
+  await mkdir(dirname(file), { recursive: true });
+  await writeJson(file, typeSchemas(root, types)("OpeningBoard"));
+
+  return [relative(root, file)];
+}
+
+// The JSON Schema next to core's runtime, laid out like the board, for the
+// part of it that core defines: the values of its board options, under
+// `options` by id, as a package puts one next to its startup module for the
+// front-end's state and its board options.
+async function runtimeSchemas(root: string): Promise<string[]> {
+  const source = join(root, "srcts", "options", "schemas.ts");
+  if (!existsSync(source)) return [];
+
+  const { optionSchemas } = (await import(pathToFileURL(source).href)) as {
+    optionSchemas: unknown;
+  };
+  const file = join(root, "inst", "js", "blockr-core.schema.json");
+
+  await mkdir(dirname(file), { recursive: true });
+  await writeJson(file, {
+    type: "object",
+    properties: { options: { type: "object", properties: optionSchemas } },
+  });
+
+  return [relative(root, file)];
+}
+
+// The JSON Schema of each type that the file at `path` exports, by the type's
+// name, without definitions where it needs none.
+function typeSchemas(root: string, path: string) {
   const tsconfig = join(root, "tsconfig.client.json");
   const generator = createGenerator({
-    path: types,
+    path,
     ...(existsSync(tsconfig) ? { tsconfig } : {}),
     expose: "export",
     topRef: false,
@@ -144,19 +211,17 @@ export async function schemas(root: string): Promise<string[]> {
     skipTypeCheck: true,
   });
 
-  const written: string[] = [];
-
-  for (const name of names) {
+  return (name: string) => {
     const schema = generator.createSchema(name);
     if (Object.keys(schema.definitions ?? {}).length === 0) {
       delete schema.definitions;
     }
-    const file = join(out, schemaFile(name));
-    await writeFile(file, `${JSON.stringify(schema, null, 2)}\n`);
-    written.push(relative(root, file));
-  }
+    return schema;
+  };
+}
 
-  return written.sort();
+async function writeJson(file: string, value: unknown): Promise<void> {
+  await writeFile(file, `${JSON.stringify(value, null, 2)}\n`);
 }
 
 // The package that inst/types is: the types modules are written against, as
@@ -234,7 +299,7 @@ export async function types(root: string): Promise<string[]> {
   }
 
   const manifest = join(dir, "package.json");
-  await writeFile(manifest, `${JSON.stringify(TYPES_PACKAGE, null, 2)}\n`);
+  await writeJson(manifest, TYPES_PACKAGE);
   written.push(relative(root, manifest));
 
   return written.sort();

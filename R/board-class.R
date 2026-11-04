@@ -3,10 +3,17 @@
 #' A set of blocks, optionally connected via links and grouped into stacks
 #' are organized as a `board` object. Boards are constructed using `new_board()`
 #' and inheritance can be tested with `is_board()`, while validation is
-#' available as (generic function) `validate_board()`. This central data
-#' structure can be extended by adding further attributes and sub-classes.
-#' Several utilities are available for retrieving board components (see
-#' [board_blocks()]).
+#' available as (generic function) `validate_board()`. Several utilities are
+#' available for retrieving board components (see [board_blocks()]).
+#'
+#' A board holds what the client's board holds: its blocks, links and stacks,
+#' the values of the board options that the script gives, its ID and name, and
+#' the front-end's state. The front-end's state is made of the components
+#' passed in `...`, such as those that a front-end adds through a constructor
+#' of its own. Such a constructor names the board's class in `class`, which
+#' picks the front-end that the board is made for (see [board_front_end()]). A
+#' board takes no board options by default, since a board holds the value of a
+#' board option only once something sets it (see [new_board_options()]).
 #'
 #' A board has an ID, which identifies it, and a name, which the user calls it
 #' by. A script may leave either out, as it may leave out the IDs of blocks,
@@ -20,11 +27,10 @@
 #' @param blocks Set of blocks
 #' @param links Set of links
 #' @param stacks Set of stacks
-#' @param options Board-level user settings
-#' @param ... Further (metadata) attributes
+#' @param options Board options, with the values the script gives
+#' @param ... The front-end's state, by key
 #' @param id Board ID, which `NULL` leaves for the client to mint
 #' @param name Board name, which `NULL` leaves for the client to set
-#' @param ctor,pkg Constructor information (used for serialization)
 #' @param class Board sub-class
 #'
 #' @examples
@@ -47,9 +53,8 @@
 #'
 #' @export
 new_board <- function(blocks = list(), links = list(), stacks = list(),
-                      options = default_board_options(), ...,
-                      id = NULL, name = NULL,
-                      ctor = NULL, pkg = NULL, class = character()) {
+                      options = list(), ..., id = NULL, name = NULL,
+                      class = character()) {
 
   blocks <- as_blocks(blocks)
   links <- as_links(links)
@@ -69,7 +74,6 @@ new_board <- function(blocks = list(), links = list(), stacks = list(),
       ),
       id = id,
       name = name,
-      ctor = resolve_ctor(forward_ctor(ctor), pkg),
       class = c(class, "board")
     )
   )
@@ -385,13 +389,6 @@ board_id <- function(x) {
 board_name <- function(x) {
   stopifnot(is_board(x))
   attr(x, "name", exact = TRUE)
-}
-
-#' @rdname new_board_options
-#' @export
-board_ctor <- function(x) {
-  stopifnot(is_board(x))
-  attr(x, "ctor")
 }
 
 #' @export
