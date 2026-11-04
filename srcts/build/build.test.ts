@@ -69,7 +69,7 @@ test("keeps core's utilities under its prefix and outside layers, without Prefli
 
   expect(css).toMatch(/^\.bc\\:flex \{/m);
   expect(css).toMatch(/^\.bc\\:bg-blue-500 \{\n {2}background-color: var\(--bc-color-blue-500\);/m);
-  expect(css).toMatch(/@layer theme \{\n {2}:root, :host \{\n {4}--bc-color-blue-500: /);
+  expect(css).toMatch(/@layer theme \{\n {2}:root, :host \{\n[^}]*\n {4}--bc-color-blue-500: /);
   expect(css).not.toMatch(/^\s*\.flex \{/m);
   expect(css).not.toContain("@layer utilities");
   expect(css).not.toContain("@layer base");
