@@ -17,13 +17,20 @@
 #' IDs: the client mints each missing one as it opens the board. It holds the
 #' value of each board option that the script gives, by ID, and no other.
 #'
-#' Its `front_end` names the front-end that the board is made for, which R
-#' picks by the board's class (see [board_front_end()]), and holds the
-#' front-end's state. That state is made of the components that the board
-#' holds besides its blocks, links, stacks and board options, such as those
-#' that a front-end's constructor adds. Each is written by `blockr_ser()`, so
-#' that a package writes the objects of its own classes there through a
-#' method.
+#' Its `class` is the board's class vector, most specific class first, as
+#' `c("dock_board", "board")`.
+#' The client keeps it and saves it unchanged.
+#' The properties that the board's class adds sit beside core's, each under its
+#' name.
+#' They are the components that the board holds besides its blocks, links,
+#' stacks and board options, such as those that a board class's constructor
+#' passes to [new_board()].
+#' Each is written by `blockr_ser()`, so that a package writes the objects of
+#' its own classes there through a method.
+#' R checks no property and picks no front-end, since board classes are defined
+#' in the client.
+#' The client drops each property that the class it builds the board as does
+#' not add.
 #'
 #' A block is written by the registry ID of its class, with its state, its name
 #' and core's attribute `visible`. Where the block registry holds no entry for
@@ -33,12 +40,13 @@
 #'
 #' Core's objects are written by the JSON Schema of the board that core
 #' generates from its TypeScript types, so that a stack's blocks stay an array
-#' and an empty collection an object. A block's state is written by the schema
-#' that its class's UI ships (see [register_block()]), and bare where it ships
-#' none. The parts of the board that a package defines, such as the front-end's
-#' state or the values of its board options, are written by the schema that the
-#' package puts next to its startup module, as core puts the schema of its board
-#' options next to its runtime (see [register_startup_module()]).
+#' and an empty collection an object.
+#' A block's state is written by the schema that its class's UI ships (see
+#' [register_block()]), and bare where it ships none.
+#' The parts of the board that a package defines, such as the properties of its
+#' board classes or the values of its board options, are written by the schema
+#' that the package puts next to its startup module, as core puts the schema of
+#' its board options next to its runtime (see [register_startup_module()]).
 #'
 #' A board that the format cannot hold fails as it is written, and so as the
 #' script runs. Every value has to be `NULL`, a vector of logicals, numbers or
@@ -87,20 +95,15 @@ blockr_ser.board <- function(x, ...) {
 
   res <- c(
     if (not_null(board_id(x))) list(id = board_id(x)),
-    list(
-      front_end = list(
-        id = board_front_end(x),
-        state = front_end_state(x),
-        attrs = list()
-      )
-    ),
+    list(class = class(x)),
     if (not_null(board_name(x))) list(name = board_name(x)),
     list(
       blocks = blockr_ser(board_blocks(x)),
       links = blockr_ser(board_links(x)),
       stacks = blockr_ser(board_stacks(x)),
       options = blockr_ser(board_options(x))
-    )
+    ),
+    board_properties(x)
   )
 
   shape_board(res)
@@ -191,18 +194,18 @@ board_components <- function() {
   c("blocks", "links", "stacks", "options")
 }
 
-# The front-end's state: the components that a board holds besides core's, by
-# key, each written by `blockr_ser()`.
-front_end_state <- function(x) {
+# The properties that the board's class adds: the components that a board holds
+# besides core's, by name, each written by `blockr_ser()`.
+board_properties <- function(x) {
 
   keys <- setdiff(names(x), board_components())
 
   if (!all(nzchar(keys))) {
     blockr_abort(
       "The components that a board holds besides its blocks, links, stacks ",
-      "and board options are the front-end's state, by key, so each needs a ",
-      "name.",
-      class = "board_front_end_state_invalid"
+      "and board options are the properties of its class, by name, so each ",
+      "needs a name.",
+      class = "board_properties_invalid"
     )
   }
 
@@ -212,7 +215,7 @@ front_end_state <- function(x) {
       function(key) {
         plain_value(
           blockr_ser(x[[key]]),
-          paste0("The front-end's state ", key)
+          paste0("The board's property ", key)
         )
       }
     ),
@@ -308,10 +311,10 @@ unplain_kind <- function(x) {
 }
 
 # Shapes the board as R sends it by the schemas that give its values' shapes:
-# core's objects by the board's schema, the parts that packages define, such as
-# the front-end's state and the values of board options, by the schemas next to
-# their startup modules, and each block's state by the schema that its class's
-# UI ships.
+# core's objects by the board's schema, the parts that packages define,
+# such as the properties of their board classes and the values of their board
+# options, by the schemas next to their startup modules,
+# and each block's state by the schema that its class's UI ships.
 shape_board <- function(x) {
 
   for (schema in c(list(board_schema()), startup_schemas())) {

@@ -6,30 +6,28 @@ import { describe, expect, test, vi } from "vitest";
 import type { ErrorReply, HelloReply, OpenReply } from "../protocol/index.ts";
 import { coreOptions, fakeR, hello, loaded, reply } from "../testing/store.ts";
 import type { Block, Board, OpeningBoard, SavedBoard } from "../types/board.ts";
+import type { JsonSchema } from "../types/json.ts";
+import { messageOf } from "../util/index.ts";
 import { ROUNDS } from "./expand.ts";
 import { createStore, isId, sentenceCase, StoreError } from "./index.ts";
 import type {
+  BoardClass,
   Change,
   Delta,
   Migration,
-  StateKey,
+  Patch,
   Store,
   StoreOptions,
 } from "./index.ts";
 
-// The DAG keeps a position for each block in the front-end's state, as a
-// front-end types its keys there.
-declare module "../types/board.ts" {
-  interface FrontEndState {
-    extensions: Readonly<
-      Record<
-        string,
-        { readonly positions?: Readonly<Record<string, Position>> } & Readonly<
-          Record<string, unknown>
-        >
-      >
-    >;
-  }
+// A board of a class like the dock's, which lists the panels of
+// each view and keeps what the dock's extensions carry by their ids,
+// such as the DAG's positions, as the dock types its board.
+interface DockBoard extends Board {
+  readonly views: Readonly<Record<string, { readonly panels: readonly string[] }>>;
+  readonly extensions: Readonly<
+    Record<string, { readonly positions?: Readonly<Record<string, Position>> }>
+  >;
 }
 
 interface Position {
@@ -39,32 +37,91 @@ interface Position {
 
 type Client = StoreOptions["client"];
 
-const path = ["extensions", "blockr.dag-dag", "positions"];
+const position: JsonSchema = {
+  type: "object",
+  properties: { x: { type: "number" }, y: { type: "number" } },
+  required: ["x", "y"],
+  additionalProperties: false,
+};
 
-function positionsOf(board: Board): Readonly<Record<string, Position>> {
-  return board.front_end.state.extensions?.["blockr.dag-dag"]?.positions ?? {};
+// The dock's board class.
+// Its update drops a removed block's panels, the last first,
+// so that each index still names the panel it names on the board,
+// and its position.
+const dock: BoardClass = {
+  class: "dock_board",
+  parent: "board",
+  frontEnd: "blockr.dock-dock",
+  properties: {
+    views: {
+      schema: {
+        type: "object",
+        additionalProperties: {
+          type: "object",
+          properties: { panels: { type: "array", items: { type: "string" } } },
+          required: ["panels"],
+          additionalProperties: false,
+        },
+      },
+      default: {},
+    },
+    extensions: {
+      schema: {
+        type: "object",
+        properties: {
+          "blockr.dag-dag": {
+            type: "object",
+            properties: { positions: { type: "object", additionalProperties: position } },
+          },
+        },
+      },
+      default: {},
+    },
+  },
+  update(delta, board) {
+    const gone = new Set(delta.blocks?.rm ?? []);
+    const { views, extensions } = board as DockBoard;
+    const patches: Patch[] = [];
+    for (const [view, { panels }] of Object.entries(views)) {
+      for (let i = panels.length - 1; i >= 0; i--) {
+        if (gone.has(panels[i] ?? "")) {
+          patches.push({ op: "remove", path: `/views/${view}/panels/${String(i)}` });
+        }
+      }
+    }
+    for (const id of Object.keys(extensions["blockr.dag-dag"]?.positions ?? {})) {
+      if (gone.has(id)) {
+        patches.push({ op: "remove", path: `/extensions/blockr.dag-dag/positions/${id}` });
+      }
+    }
+    return patches;
+  },
+};
+
+// A class that extends the dock's with notes on blocks, by block id,
+// a removed block's going with it.
+const noted: BoardClass = {
+  class: "noted_board",
+  parent: "dock_board",
+  frontEnd: "blockr.dock-dock",
+  properties: {
+    notes: { schema: { type: "object", additionalProperties: { type: "string" } }, default: {} },
+  },
+  update(delta, board) {
+    const notes = (board as DockBoard & { notes: Readonly<Record<string, string>> }).notes;
+    return (delta.blocks?.rm ?? [])
+      .filter((id) => Object.hasOwn(notes, id))
+      .map((id) => ({ op: "remove", path: `/notes/${id}` }));
+  },
+};
+
+function viewsOf(board: Board): DockBoard["views"] {
+  return (board as DockBoard).views;
 }
 
-// The DAG's positions, a removed block's going with it.
-const positions: StateKey = {
-  path,
-  kind: "collection",
-  schema: {
-    type: "object",
-    properties: { x: { type: "number" }, y: { type: "number" } },
-    required: ["x", "y"],
-    additionalProperties: false,
-  },
-  expand(delta, board) {
-    const held = positionsOf(board);
-    const gone = (delta.blocks?.rm ?? []).filter((id) => Object.hasOwn(held, id));
-    return gone.length > 0 ? { rm: gone } : undefined;
-  },
-  check: (value, board) =>
-    Object.keys(value as object)
-      .filter((id) => !Object.hasOwn(board.blocks, id))
-      .map((id) => `There is no block "${id}" to place.`),
-};
+function positionsOf(board: Board): Readonly<Record<string, Position>> {
+  return (board as DockBoard).extensions["blockr.dag-dag"]?.positions ?? {};
+}
 
 function newStore(client: Client = fakeR()): Store {
   const store = createStore({ client });
@@ -81,6 +138,34 @@ async function opened(
   setup?.(store);
   await store.open(replied);
   return store;
+}
+
+// The reply to `hello` of a dock app,
+// whose opening board is a dock board with a view of the panels of a and b,
+// and with their positions.
+const docking = {
+  ...hello,
+  board: {
+    ...hello.board,
+    class: ["dock_board", "board"],
+    views: { main: { panels: ["a", "b"] } },
+    extensions: {
+      "blockr.dag-dag": { positions: { a: { x: 0, y: 0 }, b: { x: 1, y: 1 } } },
+    },
+  },
+} as unknown as HelloReply;
+
+// A store that holds the board of a dock app, once the dock's class and what
+// `setup` registers are registered.
+function docked(setup?: (store: Store) => void): Promise<Store> {
+  return opened(
+    (store) => {
+      store.register(dock);
+      setup?.(store);
+    },
+    fakeR(),
+    docking,
+  );
 }
 
 function changes(store: Store): Change[] {
@@ -100,16 +185,18 @@ function head(n = 6, name = "Head"): Block {
   };
 }
 
+// The text of a saved file of a core board, with what `board` gives in place of
+// its parts, a board class's properties among them.
 function file(
-  board: Partial<Board>,
+  board: Partial<Board> & Readonly<Record<string, unknown>>,
   packages: Readonly<Record<string, string>> = { "blockr.core": "0.2.0" },
 ): string {
-  const saved: SavedBoard = {
+  const saved = {
     format: 1,
     packages,
     board: {
       id: "amber_tapir",
-      front_end: { id: "blockr.core-basic", state: {}, attrs: {} },
+      class: ["board"],
       name: "Cars",
       blocks: {
         a: {
@@ -129,6 +216,27 @@ function file(
   return JSON.stringify(saved);
 }
 
+// What the errors that the store reported while `run` ran say.
+async function reports(run: () => Promise<unknown>): Promise<string[]> {
+  const reported: (() => void)[] = [];
+  const queue = vi.spyOn(globalThis, "queueMicrotask").mockImplementation((fn) => {
+    reported.push(fn);
+  });
+  try {
+    await run();
+  } finally {
+    queue.mockRestore();
+  }
+  return reported.map((fn) => {
+    try {
+      fn();
+      return "";
+    } catch (error) {
+      return messageOf(error);
+    }
+  });
+}
+
 describe("opening a board", () => {
   test("opens the board R sent, keying its collections and minting the ids it lacks", async () => {
     const store = newStore();
@@ -138,6 +246,7 @@ describe("opening a board", () => {
 
     expect(dropped).toEqual([]);
     expect(isId(board.id)).toBe(true);
+    expect(board.class).toEqual(["board"]);
     expect(board.name).toBe("Iris review");
     expect(Object.keys(board.blocks)).toEqual(["a", "b", "c", "d", "e", "f"]);
     expect(board.blocks.a).toEqual({
@@ -159,7 +268,7 @@ describe("opening a board", () => {
     expect(store.canUndo()).toBe(false);
   });
 
-  test("names a board without a name after its id, and writes in no default of a board option", async () => {
+  test("names a board without a name after its id, and writes in no default of a board option that its class does not require", async () => {
     const store = newStore();
     await store.open(reply("hello-block") as HelloReply);
     const board = store.board();
@@ -261,48 +370,51 @@ describe("opening a board", () => {
     await expect(store.open(file({}))).rejects.toThrow(/The board is locked, so it opens no other board/);
   });
 
-  test("runs what has to run once R has loaded the packages, before it opens the board", async () => {
-    const replied = {
-      ...hello,
-      board: {
-        ...hello.board,
-        front_end: {
-          id: "blockr.core-basic",
-          state: { extensions: { "blockr.dag-dag": { positions: { a: { x: 0, y: 0 } } } } },
-          attrs: {},
-        },
-      },
-    } as HelloReply;
+  test("runs what has to run once R has loaded the packages, given the board's class vector, before it opens the board", async () => {
     const order: string[] = [];
     const store = createStore({
       client: fakeR(),
-      loaded(reply, frontEnd) {
-        order.push(`loaded ${frontEnd}`);
-        expect(reply).toBe(replied);
-        store.register(positions);
+      loaded(reply, classes) {
+        order.push(`loaded ${classes.join(" ")}`);
+        expect(reply).toBe(docking);
+        store.register(dock);
+        expect(store.boardClass(classes)).toBe(dock);
       },
     });
     store.subscribe(() => order.push("opened"));
     for (const option of coreOptions) store.options.register(option);
 
-    await store.open(replied);
+    await store.open(docking);
 
-    expect(order).toEqual(["loaded blockr.core-basic", "opened"]);
-    expect(positionsOf(store.board())).toEqual({ a: { x: 0, y: 0 } });
+    expect(order).toEqual(["loaded dock_board board", "opened"]);
+    expect(positionsOf(store.board())).toEqual({ a: { x: 0, y: 0 }, b: { x: 1, y: 1 } });
   });
 
-  test("opens a board made for a front-end that R serves no module for as one made for core's, dropping what it does not know", async () => {
+  test("builds a board as the first class in its class vector that a package defines, naming the classes it skips and dropping what they add", async () => {
+    const store = await opened((store) => store.register(dock));
+    const dropped = await store.open(
+      file({
+        class: ["grid_board", "dock_board", "board"],
+        views: { main: { panels: ["a"] } },
+        extensions: {},
+        panels: { p1: ["a"] },
+      }),
+    );
+
+    expect(dropped).toEqual([{ class: "dock_board", skipped: ["grid_board"] }]);
+    const board = store.board();
+    expect(board.class).toEqual(["grid_board", "dock_board", "board"]);
+    expect(viewsOf(board)).toEqual({ main: { panels: ["a"] } });
+    expect(Object.hasOwn(board, "panels")).toBe(false);
+  });
+
+  test("builds a board whose classes no package defines as core's, dropping what they add and what no package registered", async () => {
     const store = await opened();
     const dropped = await store.open(
       file({
-        front_end: {
-          id: "blockr.dock-dock",
-          state: {
-            views: { main: { panels: ["a"] } },
-            extensions: { "blockr.dag-dag": { positions: { a: { x: 0, y: 0 } } } },
-          },
-          attrs: { layout_locked: true },
-        },
+        class: ["dock_board", "board"],
+        views: { main: { panels: ["a"] } },
+        extensions: { "blockr.dag-dag": { positions: { a: { x: 0, y: 0 } } } },
         blocks: {
           a: {
             registry_id: "blockr.core-dataset_block",
@@ -316,60 +428,102 @@ describe("opening a board", () => {
       }),
     );
 
-    expect(dropped).toEqual([{ front_end: "blockr.dock-dock", package: "blockr.dock" }]);
+    expect(dropped).toEqual([{ class: "board", skipped: ["dock_board"] }]);
 
+    // The board keeps every class, so that a dock app builds it as a dock
+    // board again.
     const board = store.board();
-    expect(board.front_end).toEqual({ id: "blockr.core-basic", state: {}, attrs: {} });
+    expect(board.class).toEqual(["dock_board", "board"]);
+    expect(Object.keys(board)).toEqual(["id", "class", "name", "blocks", "links", "stacks", "options"]);
     expect(board.blocks.a?.attrs).toEqual({ visible: ["outputs"] });
     expect(board.options).toEqual({ n_rows: 20 });
   });
 
-  test("drops front-end state that no package registered, without naming it", async () => {
-    const store = await opened((store) => {
-      store.register({ ...positions, path: ["extensions", "blockr.dag-dag", "layout"] });
-    });
+  test("drops a property that its class does not add, without naming it", async () => {
+    const store = await opened((store) => store.register(dock));
     const dropped = await store.open(
-      file({
-        front_end: {
-          id: "blockr.core-basic",
-          state: {
-            extensions: {
-              "blockr.dag-dag": { positions: { a: { x: 0, y: 0 } } },
-              "blockr.md-md": { content: "" },
-            },
-          },
-          attrs: {},
-        },
-      }),
+      file({ class: ["dock_board", "board"], views: {}, extensions: {}, zoom: 2 }),
     );
 
     expect(dropped).toEqual([]);
-    expect(store.board().front_end.state).toEqual({ extensions: { "blockr.dag-dag": { layout: {} } } });
+    expect(Object.hasOwn(store.board(), "zoom")).toBe(false);
   });
 
-  test("keeps no empty object on the way to nothing", async () => {
-    const store = await opened();
-    const dropped = await store.open(
-      file({ front_end: { id: "blockr.core-basic", state: { extensions: {} }, attrs: {} } }),
-    );
-    expect(dropped).toEqual([]);
-    expect(store.board().front_end.state).toEqual({});
+  test("gives each property of its class that the board lacks its default", async () => {
+    const store = await opened((store) => store.register(dock));
+    await store.open(file({ class: ["dock_board", "board"], views: { main: { panels: [] } } }));
+
+    expect(viewsOf(store.board())).toEqual({ main: { panels: [] } });
+    expect((store.board() as DockBoard).extensions).toEqual({});
   });
 
-  test("gives each registered key the board lacks its initial value or an empty collection", async () => {
+  test("gives the board options that its class and its parents require their defaults where it lacks them, as no step", async () => {
+    const read = vi.fn(() => Promise.resolve(25));
     const store = await opened((store) => {
-      store.register(positions);
-      store.register({
-        path: ["extensions", "blockr.dag-dag", "direction"],
-        kind: "value",
-        schema: { enum: ["LR", "TB"] },
-        initial: "LR",
+      store.options.register({
+        id: "view_tabs",
+        label: "View tabs",
+        category: "Dock options",
+        schema: { type: "boolean" },
+        default: true,
       });
+      store.options.register({
+        id: "page_rows",
+        label: "Rows a page shows",
+        category: "Table options",
+        schema: { type: "integer" },
+        default: read,
+      });
+      store.register({ ...dock, options: ["view_tabs", "n_rows"] });
+      store.register({ ...noted, options: ["page_rows"] });
     });
 
-    expect(store.board().front_end.state).toEqual({
-      extensions: { "blockr.dag-dag": { positions: {}, direction: "LR" } },
+    await store.open(file({ class: ["noted_board", "board"], options: { n_rows: 20 } }));
+
+    expect(store.board().options).toEqual({ n_rows: 20, view_tabs: true, page_rows: 25 });
+    expect(read).toHaveBeenCalledOnce();
+    expect(store.canUndo()).toBe(false);
+  });
+
+  test("reports a board option that the class requires and no package defines, or whose default fails, and opens the board without it", async () => {
+    const store = await opened((store) => {
+      store.options.register({
+        id: "page_rows",
+        label: "Rows a page shows",
+        category: "Table options",
+        schema: { type: "integer" },
+        default: () => Promise.reject(new Error("R has no page_rows.")),
+      });
+      store.register({ ...dock, options: ["view_tabs", "page_rows"] });
     });
+
+    const said = await reports(() => store.open(file({ class: ["dock_board", "board"] })));
+
+    expect(said).toEqual([
+      'The board option "view_tabs", which the board class "dock_board" requires, is defined by no package loaded.',
+      'The default of the board option "page_rows" failed: R has no page_rows.',
+    ]);
+    expect(store.board().options).toEqual({ n_rows: 50, show_conditions: ["warning", "error"] });
+  });
+
+  test("refuses a board whose class is no class vector, before R loads anything", async () => {
+    const client = fakeR();
+    const store = await opened(undefined, client);
+
+    await expect(store.open(file({ class: [] }))).rejects.toThrow(
+      /The board's class is no array of class names/,
+    );
+    await expect(store.open(file({ class: "board" } as unknown as Partial<Board>))).rejects.toThrow(
+      StoreError,
+    );
+    expect(client.sent).toEqual([]);
+  });
+
+  test("refuses a board whose property fails its schema", async () => {
+    const store = await opened((store) => store.register(dock));
+    await expect(
+      store.open(file({ class: ["dock_board", "board"], views: { main: { panels: "a" } } })),
+    ).rejects.toThrow(/The property "views" fails its schema at \/main\/panels: Instance type "string" is invalid\. Expected "array"\./);
   });
 
   test("opening a board starts a new undo history", async () => {
@@ -395,11 +549,7 @@ describe("opening a board", () => {
       modules: replied.modules,
       renderers: replied.renderers,
     };
-    const fresh = () => {
-      const store = newStore(fakeR(answer));
-      store.register(positions);
-      return store;
-    };
+    const fresh = () => newStore(fakeR(answer));
 
     // As an app script built it.
     const script = fresh();
@@ -430,20 +580,16 @@ describe("opening a board", () => {
     expect(built.board()).toEqual(board);
   });
 
-  test("drops a block whose class the block registry lacks as a delta removes it, with what keys keep about it", async () => {
-    const store = await opened((store) => store.register(positions));
+  test("drops a block whose class the block registry lacks as a delta removes it, with what its board class keeps about it", async () => {
+    const store = await opened((store) => store.register(dock));
     const dropped = await store.open(
       file({
-        front_end: {
-          id: "blockr.core-basic",
-          state: {
-            extensions: {
-              "blockr.dag-dag": {
-                positions: { a: { x: 0, y: 0 }, x: { x: 1, y: 1 }, b: { x: 2, y: 2 } },
-              },
-            },
+        class: ["dock_board", "board"],
+        views: { main: { panels: ["a", "x", "b"] } },
+        extensions: {
+          "blockr.dag-dag": {
+            positions: { a: { x: 0, y: 0 }, x: { x: 1, y: 1 }, b: { x: 2, y: 2 } },
           },
-          attrs: {},
         },
         blocks: {
           a: {
@@ -467,6 +613,7 @@ describe("opening a board", () => {
       { block: "x", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
     ]);
     const board = store.board();
+    expect(viewsOf(board)).toEqual({ main: { panels: ["a", "b"] } });
     expect(positionsOf(board)).toEqual({ a: { x: 0, y: 0 }, b: { x: 2, y: 2 } });
     expect(board.links).toEqual({});
     expect(board.stacks).toEqual({ s1: { name: "Input", blocks: ["a", "b"] } });
@@ -514,12 +661,12 @@ describe("migrations", () => {
     packages: { ...loaded.packages, "blockr.dag": "0.3.0" },
   };
 
-  // An app that loaded blockr.dag and blockr.io beside core, whose packages
-  // register their migrations.
+  // A dock app that loaded blockr.dag and blockr.io beside core,
+  // whose packages register their migrations.
   function migrating(migrations: Record<string, Migration>): Promise<Store> {
     return opened(
       (store) => {
-        store.register(positions);
+        store.register(dock);
         for (const [pkg, fn] of Object.entries(migrations)) store.registerMigration(pkg, fn);
       },
       fakeR(replied),
@@ -529,11 +676,8 @@ describe("migrations", () => {
 
   const old = file(
     {
-      front_end: {
-        id: "blockr.core-basic",
-        state: { extensions: { "blockr.dag-dag": { layout: { a: [1, 2], b: [3, 4] } } } },
-        attrs: {},
-      },
+      class: ["dock_board", "board"],
+      extensions: { "blockr.dag-dag": { layout: { a: [1, 2], b: [3, 4] } } },
       blocks: {
         a: {
           registry_id: "blockr.core-dataset_block",
@@ -548,21 +692,24 @@ describe("migrations", () => {
   );
 
   test("runs the migration of every package whose saved version differs from the one R loaded, one after another", async () => {
-    // The DAG renames its layout to positions.
+    // The DAG renames its layout to positions, in the state that the dock board
+    // keeps of it.
     const dag = vi.fn<Migration>((saved) => {
-      const layout =
-        (saved.front_end.state as { extensions: Record<string, { layout?: Record<string, number[]> }> })
-          .extensions["blockr.dag-dag"]?.layout ?? {};
+      const extensions = saved.properties.extensions as unknown as Record<
+        string,
+        { layout?: Record<string, number[]> }
+      >;
+      const layout = extensions["blockr.dag-dag"]?.layout ?? {};
       return {
         ...saved,
-        front_end: {
-          state: {
-            extensions: {
-              "blockr.dag-dag": {
-                positions: Object.fromEntries(
-                  Object.entries(layout).map(([id, [x = 0, y = 0]]) => [id, { x, y }]),
-                ),
-              },
+        properties: {
+          ...saved.properties,
+          extensions: {
+            ...extensions,
+            "blockr.dag-dag": {
+              positions: Object.fromEntries(
+                Object.entries(layout).map(([id, [x = 0, y = 0]]) => [id, { x, y }]),
+              ),
             },
           },
         },
@@ -644,7 +791,7 @@ describe("applying a delta", () => {
     expect(after.blocks.a).toBe(before.blocks.a);
     expect(after.stacks).toBe(before.stacks);
     expect(after.options).toBe(before.options);
-    expect(after.front_end).toBe(before.front_end);
+    expect(after.class).toBe(before.class);
     expect(Object.keys(after.blocks).at(-1)).toBe("g");
     expect(after.links.dg).toEqual({ from: "d", to: "g", input: "data" });
     expect(seen).toEqual([{ delta, origin: "user" }]);
@@ -680,41 +827,100 @@ describe("applying a delta", () => {
     expect(board.stacks.s1?.blocks).toEqual(["a"]);
   });
 
-  test("expands a delta through each key's expand, and one undo takes all of it back", async () => {
-    const store = await opened((store) => store.register(positions));
-    store.apply({
-      front_end: { state: [{ path, change: { add: { a: { x: 0, y: 0 }, b: { x: 1, y: 1 } } } }] },
-    });
+  test("expands a delta through the update of the board's class, and one undo takes all of it back", async () => {
+    const store = await docked();
     const before = store.board();
     const seen = changes(store);
 
     store.apply({ blocks: { rm: ["b"] } });
-    expect(seen[0]).toMatchObject({ delta: { front_end: { state: [{ path, change: { rm: ["b"] } }] } } });
+    expect(seen[0]).toMatchObject({
+      delta: {
+        patches: [
+          { op: "remove", path: "/views/main/panels/1" },
+          { op: "remove", path: "/extensions/blockr.dag-dag/positions/b" },
+        ],
+      },
+    });
+    expect(viewsOf(store.board())).toEqual({ main: { panels: ["a"] } });
     expect(positionsOf(store.board())).toEqual({ a: { x: 0, y: 0 } });
 
     store.undo();
     expect(store.board()).toEqual(before);
-    expect(Object.keys(store.board().blocks)).toEqual(Object.keys(before.blocks));
     expect(Object.keys(store.board().links)).toEqual(Object.keys(before.links));
-    expect(Object.keys(positionsOf(store.board()))).toEqual(["a", "b"]);
   });
 
-  test("rejects a delta that keeps expanding, naming the keys that kept adding", async () => {
-    const count: StateKey = {
-      path: ["count"],
-      kind: "value",
-      schema: { type: "integer" },
-      initial: 0,
-      expand(delta) {
-        const change = delta.front_end?.state?.find((other) => other.path[0] === "count")?.change;
-        const at = change !== undefined && "set" in change ? (change.set as number) : 0;
-        return { set: at + 1 };
+  test("runs the update of the board's class and of each of its parents, each for its own properties", async () => {
+    const store = await opened((store) => {
+      store.register(dock);
+      store.register(noted);
+    });
+    await store.open(
+      file({
+        class: ["noted_board", "board"],
+        views: { main: { panels: ["a", "b"] } },
+        notes: { a: "Raw", b: "First rows" },
+      }),
+    );
+
+    store.apply({ blocks: { rm: ["b"] } });
+    expect(viewsOf(store.board())).toEqual({ main: { panels: ["a"] } });
+    expect((store.board() as Board & { notes: unknown }).notes).toEqual({ a: "Raw" });
+  });
+
+  test("leaves out what an update returns at a path that the delta's own patches change", async () => {
+    // A class that notes every block added, in place of a note the delta gives.
+    const store = await opened((store) => {
+      store.register(dock);
+      store.register({
+        ...noted,
+        update: (delta) =>
+          Object.keys(delta.blocks?.add ?? {}).map((id) => ({
+            op: "add",
+            path: `/notes/${id}`,
+            value: "New",
+          })),
+      });
+    });
+    await store.open(file({ class: ["noted_board", "board"] }));
+
+    store.apply({
+      blocks: { add: { g: head(3), h: head(4) } },
+      patches: [{ op: "add", path: "/notes/g", value: "Pasted" }],
+    });
+    expect((store.board() as Board & { notes: unknown }).notes).toEqual({ g: "Pasted", h: "New" });
+  });
+
+  test("rejects a delta that keeps expanding, naming the board classes that kept adding", async () => {
+    const counting: BoardClass = {
+      class: "counting_board",
+      parent: "board",
+      frontEnd: "blockr.test-count",
+      properties: { count: { schema: { type: "integer" }, default: 0 } },
+      update(delta) {
+        const last = delta.patches?.filter(({ path }) => path === "/count").at(-1);
+        return [{ op: "replace", path: "/count", value: Number(last?.value ?? 0) + 1 }];
       },
     };
-    const store = await opened((store) => store.register(count));
+    const store = await opened((store) => store.register(counting));
+    await store.open(file({ class: ["counting_board", "board"] }));
+
     expect(() => {
       store.apply({ name: "Renamed" });
-    }).toThrow(new RegExp(`kept expanding after ${String(ROUNDS)} rounds, through count`));
+    }).toThrow(new RegExp(`kept expanding after ${String(ROUNDS)} rounds, through the board class "counting_board"`));
+  });
+
+  test("rejects a delta that an update follows with a patch outside the properties its class adds", async () => {
+    const store = await opened((store) => {
+      store.register(dock);
+      store.register({ ...noted, update: () => [{ op: "replace", path: "/views", value: {} }] });
+    });
+    await store.open(file({ class: ["noted_board", "board"] }));
+
+    expect(() => {
+      store.apply({ name: "Renamed" });
+    }).toThrow(
+      'The board class "noted_board" updated the delta with a patch at "/views", outside the properties it adds.',
+    );
   });
 
   const refusals: [string, Delta, RegExp][] = [
@@ -735,7 +941,9 @@ describe("applying a delta", () => {
     ["changing a block the board lacks", { blocks: { mod: { z: { name: "Z" } } } }, /board holds no block "z" to change/],
     ["setting and unsetting one state arg", { blocks: { mod: { b: { state: { n: 1 }, unset: ["n"] } } } }, /both sets and unsets "n"/],
     ["setting and unsetting one board option", { options: { set: { n_rows: 5 }, unset: ["n_rows"] } }, /both sets and unsets the board option "n_rows"/],
-    ["a key that no package registered", { front_end: { state: [{ path: ["views"], change: { add: {} } }] } }, /No key of the front-end's state is registered at views/],
+    ["a patch of a property that the board's class does not add", { patches: [{ op: "add", path: "/views/main", value: {} }] }, /The patch 1, add at "\/views\/main", changes "views", which the board class "board" does not add\./],
+    ["a patch of core's properties", { patches: [{ op: "replace", path: "/name", value: "Renamed" }] }, /changes "name", which the board class "board" does not add/],
+    ["a patch that is no patch", { patches: [{ op: "move", path: "views" }] } as unknown as Delta, /The patch 1 has the op "move", where it takes "add", "remove" or "replace", has the path "views", which is no JSON Pointer below the board's top\./],
     ["a block that is no block", { blocks: { add: { g: { ...head(), name: 3 } } } } as unknown as Delta, /block "g" has no string as its name/],
     ["a link holding more than core keeps", { links: { add: { dg: { from: "d", to: "f", input: "data", color: "red" } } } } as unknown as Delta, /link "dg" holds "color", which core does not keep/],
   ];
@@ -753,17 +961,38 @@ describe("applying a delta", () => {
     expect(store.canUndo()).toBe(false);
   });
 
-  test("checks each key's schema and check", async () => {
-    const store = await opened((store) => store.register(positions));
-    const add = (entries: Record<string, unknown>): Delta =>
-      ({ front_end: { state: [{ path, change: { add: entries } }] } }) as Delta;
+  test("checks the property that a patch changes against its schema, and applies no patch that does not find its path", async () => {
+    const store = await docked();
+    const board = store.board();
 
     expect(() => {
-      store.apply(add({ a: { x: "left", y: 0 } }));
-    }).toThrow(/entry "a" of extensions\/blockr.dag-dag\/positions fails its schema at \/x: Instance type "string" is invalid\. Expected "number"\./);
+      store.apply({ patches: [{ op: "add", path: "/extensions/blockr.dag-dag/positions/c", value: { x: "left", y: 0 } }] });
+    }).toThrow(/The property "extensions" fails its schema at \/blockr.dag-dag\/positions\/c\/x: Instance type "string" is invalid\. Expected "number"\./);
     expect(() => {
-      store.apply(add({ z: { x: 0, y: 0 } }));
-    }).toThrow(/extensions\/blockr.dag-dag\/positions: There is no block "z" to place/);
+      store.apply({ patches: [{ op: "replace", path: "/views/side/panels", value: [] }] });
+    }).toThrow('The patch 1, replace at "/views/side/panels", finds no "side" in "/views".');
+    expect(() => {
+      store.apply({ patches: [{ op: "remove", path: "/views" }] });
+    }).toThrow('The patch 1 removes the property "views", which a board of the class "dock_board" always holds.');
+    expect(store.board()).toBe(board);
+  });
+
+  test("applies patches in their order, after core's parts", async () => {
+    const store = await docked();
+
+    store.apply({
+      blocks: { add: { g: head(3) } },
+      patches: [
+        { op: "add", path: "/views/side", value: { panels: [] } },
+        { op: "add", path: "/views/side/panels/-", value: "g" },
+        { op: "add", path: "/views/side/panels/0", value: "a" },
+        { op: "replace", path: "/views/main/panels/1", value: "g" },
+      ],
+    });
+    expect(viewsOf(store.board())).toEqual({
+      main: { panels: ["a", "g"] },
+      side: { panels: ["a", "g"] },
+    });
   });
 
   test("applies several deltas in order as one step, or none of them", async () => {
@@ -893,10 +1122,9 @@ describe("applying a delta", () => {
   });
 
   test("makes no step for a delta that changes nothing, and tells no one", async () => {
-    const store = await opened((store) => store.register(positions));
-    store.apply({ front_end: { state: [{ path, change: { add: { a: { x: 1, y: 2 } } } }] } });
+    const store = await docked();
     const board = store.board();
-    const edits = [store.editId({ block: "b" }), store.editId({ path, entry: "a" })];
+    const edits = [store.editId({ block: "b" }), store.editId({ property: "views" })];
     const seen = changes(store);
 
     store.apply(
@@ -905,7 +1133,12 @@ describe("applying a delta", () => {
         { blocks: { mod: { b: { state: { n: 6 }, unset: ["nothing"], name: "Head" } } } },
         { links: { mod: { ab: { input: "data" } } }, stacks: { mod: { s1: { blocks: ["a", "b"] } } } },
         { options: { set: { n_rows: 50 }, unset: ["dark_mode"] } },
-        { front_end: { state: [{ path, change: { mod: { a: { set: { x: 1 } } } } }] } },
+        {
+          patches: [
+            { op: "replace", path: "/views/main/panels/0", value: "a" },
+            { op: "add", path: "/views/main", value: { panels: ["a", "b"] } },
+          ],
+        },
       ],
       "assistant",
     );
@@ -913,7 +1146,7 @@ describe("applying a delta", () => {
     expect(store.board()).toBe(board);
     expect(seen).toEqual([]);
     expect(store.canUndo("assistant")).toBe(false);
-    expect([store.editId({ block: "b" }), store.editId({ path, entry: "a" })]).toEqual(edits);
+    expect([store.editId({ block: "b" }), store.editId({ property: "views" })]).toEqual(edits);
   });
 
   test("keeps in a step only what it changes, so that its undo sets back nothing else", async () => {
@@ -973,31 +1206,22 @@ describe("edit ids", () => {
     expect(store.board().blocks.b).toMatchObject({ state: { n: 7 }, name: "Top" });
   });
 
-  test("are kept for each entry and value of the front-end's state", async () => {
-    const store = await opened((store) => {
-      store.register(positions);
-      store.register({
-        path: ["extensions", "blockr.dag-dag", "direction"],
-        kind: "value",
-        schema: { enum: ["LR", "TB"] },
-        initial: "LR",
-      });
-    });
-    const direction = ["extensions", "blockr.dag-dag", "direction"];
-    expect(store.editId({ path: direction })).toBeTypeOf("number");
+  test("are kept for each property of the board's class, which a patch names", async () => {
+    const store = await docked();
+    const views = store.editId({ property: "views" });
+    const extensions = store.editId({ property: "extensions" });
+    expect(views).toBeTypeOf("number");
 
-    store.apply({
-      front_end: { state: [{ path, change: { add: { a: { x: 0, y: 0 }, b: { x: 1, y: 1 } } } }] },
-    });
-    const a = store.editId({ path, entry: "a" });
-    store.apply({ front_end: { state: [{ path, change: { mod: { b: { set: { x: 2 } } } } }] } });
-    expect(store.editId({ path, entry: "a" })).toBe(a);
+    store.apply({ patches: [{ op: "add", path: "/views/side", value: { panels: [] } }] });
+    expect(store.editId({ property: "extensions" })).toBe(extensions);
+    const edit = store.editId({ property: "views" });
+    expect(edit).toBeGreaterThan(views ?? Infinity);
 
-    const edit = store.editId({ path: direction });
-    store.apply({ front_end: { state: [{ path: direction, change: { edit, set: "TB" } }] } });
+    store.apply({ patches: [{ op: "replace", path: "/views/side/panels", value: ["a"], edit }] });
     expect(() => {
-      store.apply({ front_end: { state: [{ path: direction, change: { edit, set: "LR" } }] } });
-    }).toThrow(/built on edit \d+ of the value of extensions\/blockr.dag-dag\/direction/);
+      store.apply({ patches: [{ op: "replace", path: "/views/side/panels", value: ["b"], edit }] });
+    }).toThrow(/built on edit \d+ of the property "views", which another edit has replaced with edit \d+\.$/);
+    expect(viewsOf(store.board()).side).toEqual({ panels: ["a"] });
   });
 });
 
@@ -1057,22 +1281,55 @@ describe("undo", () => {
     expect(Object.hasOwn(store.board().options, "seed")).toBe(false);
   });
 
-  test("removes a value of front-end state again where its step set one that had none, with a removal that survives JSON", async () => {
-    const direction = ["extensions", "blockr.dag-dag", "direction"];
-    const store = await opened((store) => {
-      store.register({ path: direction, kind: "value", schema: { enum: ["LR", "TB"] } });
-    });
+  test("takes back a step's patches by those that invert them, in the order that does, which survive JSON", async () => {
+    const store = await docked();
     const before = store.board();
     const seen = changes(store);
 
-    store.apply({ front_end: { state: [{ path: direction, change: { set: "TB" } }] } });
+    store.apply({
+      patches: [
+        { op: "add", path: "/views/side", value: { panels: ["a"] } },
+        { op: "add", path: "/views/main/panels/0", value: "c" },
+        { op: "replace", path: "/extensions/blockr.dag-dag/positions/a", value: { x: 5, y: 5 } },
+      ],
+    });
     store.undo();
 
     expect(store.board()).toEqual(before);
     const undo = seen[1];
     expect(undo && "delta" in undo ? JSON.parse(JSON.stringify(undo.delta)) : undefined).toEqual({
-      front_end: { state: [{ path: direction, change: { unset: true } }] },
+      patches: [
+        { op: "replace", path: "/extensions/blockr.dag-dag/positions/a", value: { x: 0, y: 0 } },
+        { op: "remove", path: "/views/main/panels/0" },
+        { op: "remove", path: "/views/side" },
+      ],
     });
+  });
+
+  test("sets back a property over what another origin changed since, and leaves out the patches whose path is gone", async () => {
+    const store = await docked();
+    store.apply({
+      patches: [
+        { op: "add", path: "/views/side", value: { panels: ["a"] } },
+        { op: "replace", path: "/views/main/panels", value: ["b", "a"] },
+      ],
+    });
+    store.apply(
+      {
+        patches: [
+          { op: "remove", path: "/views/side" },
+          { op: "replace", path: "/views/main/panels", value: ["a"] },
+        ],
+      },
+      "assistant",
+    );
+
+    store.undo();
+    expect(viewsOf(store.board())).toEqual({ main: { panels: ["a", "b"] } });
+
+    // Redo brings back the board as it was before the undo.
+    store.redo();
+    expect(viewsOf(store.board())).toEqual({ main: { panels: ["a"] } });
   });
 
   test("undoes each origin's steps apart", async () => {
@@ -1213,24 +1470,20 @@ describe("undo", () => {
 });
 
 describe("registering", () => {
-  test("core registers its attribute visible", () => {
+  test("core registers its board class board and its attribute visible", () => {
     const store = newStore();
-    expect(store.registered()).toContainEqual(
-      expect.objectContaining({ name: "visible", on: "block" }),
-    );
+    expect(store.registered()).toEqual([
+      { class: "board", frontEnd: "blockr.core-basic", properties: {} },
+      expect.objectContaining({ name: "visible" }),
+    ]);
   });
 
-  test("a key, an attribute or a board option id registered twice fails", () => {
+  test("a board class, an attribute or a board option id registered twice fails", () => {
     const store = newStore();
-    store.register(positions);
+    store.register(dock);
 
-    expect(() => store.register({ ...positions })).toThrow(
-      "The key of the front-end state at extensions/blockr.dag-dag/positions is registered already.",
-    );
-    expect(() => store.register({ ...positions, path: ["extensions"] })).toThrow(
-      "The key of the front-end state at extensions overlaps the one at extensions/blockr.dag-dag/positions, which is registered already.",
-    );
-    expect(() => store.register({ name: "visible", on: "block", schema: {} })).toThrow(
+    expect(() => store.register({ ...dock })).toThrow('The board class "dock_board" is registered already.');
+    expect(() => store.register({ name: "visible", schema: {} })).toThrow(
       'The attribute "visible" of blocks is registered already.',
     );
     expect(() =>
@@ -1244,19 +1497,53 @@ describe("registering", () => {
     }).toThrow("blockr.foo registers a migration, which it registered already.");
   });
 
+  test("a board class extends a registered class, and adds no property that core or its parents hold", () => {
+    const store = newStore();
+
+    expect(() => store.register({ ...dock, parent: "grid_board" })).toThrow(
+      'The board class "dock_board" extends "grid_board", which no package registered.',
+    );
+    expect(() => store.register({ ...dock, parent: undefined })).toThrow(
+      'The board class "dock_board" names no parent, which every board class but core\'s "board" does.',
+    );
+    expect(() => store.register({ ...dock, properties: { name: { schema: {}, default: "" } } })).toThrow(
+      'The board class "dock_board" adds the property "name", which every board holds as core\'s.',
+    );
+
+    store.register(dock);
+    expect(() =>
+      store.register({ ...noted, properties: { views: { schema: {}, default: {} } } }),
+    ).toThrow('The board class "noted_board" adds the property "views", which its parent "dock_board" adds already.');
+  });
+
+  test("gives the class that a board of a class vector is built as", () => {
+    const store = newStore();
+    store.register(dock);
+
+    expect(store.boardClass(["grid_board", "dock_board", "board"])).toBe(dock);
+    expect(store.boardClass(["grid_board"]).class).toBe("board");
+
+    // A class whose parent is no longer registered is skipped.
+    const unregister = store.register(noted);
+    expect(store.boardClass(["noted_board", "board"])).toBe(noted);
+    store.register({ ...noted, class: "sticky_board", parent: "noted_board", properties: {} });
+    unregister();
+    expect(store.boardClass(["sticky_board", "dock_board"])).toBe(dock);
+  });
+
   test("registered() returns the same list until a registration changes it", () => {
     const store = newStore();
     const before = store.registered();
     expect(store.registered()).toBe(before);
 
-    const unregister = store.register(positions);
+    const unregister = store.register(dock);
     const during = store.registered();
     expect(during).not.toBe(before);
-    expect(during).toContain(positions);
+    expect(during).toContain(dock);
 
     unregister();
     expect(store.registered()).toEqual(before);
-    expect(() => store.register(positions)).not.toThrow();
+    expect(() => store.register(dock)).not.toThrow();
   });
 
   test("a default or an initial value that its schema refuses fails", () => {
@@ -1273,8 +1560,13 @@ describe("registering", () => {
       'The default of the board option "seed" fails its schema: Instance type "string" is invalid. Expected "integer".',
     );
     expect(() =>
-      store.register({ path: ["direction"], kind: "value", schema: { enum: ["LR", "TB"] }, initial: "up" }),
-    ).toThrow(/The initial value of the key of the front-end state at direction fails its schema/);
+      store.register({ ...dock, properties: { views: { schema: { type: "object" }, default: [] } } }),
+    ).toThrow(
+      'The default of the property "views" of the board class "dock_board" fails its schema: Instance type "array" is invalid. Expected "object".',
+    );
+    expect(() =>
+      store.register({ name: "pinned", schema: { type: "boolean" }, initial: "yes" }),
+    ).toThrow(/The initial value of the attribute "pinned" of blocks fails its schema/);
   });
 
   test("leaves a default that is a function to whatever needs the board option first", () => {

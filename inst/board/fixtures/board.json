@@ -1,12 +1,10 @@
 {
-  "description": "A board that an app script builds for core's basic front-end, with every id given, so that the client mints none. Its block classes are defined outside a package, so their registry ids are their names. The UI of the join block ships the schema of its state. R writes that block's by, a vector of length one, as an array, and its all_x as a value, while it writes the state of the letters blocks bare. The stack of one block keeps its blocks an array, by the board's schema, and show_conditions is an array, by the schema that core ships beside its runtime. The client keys the collections by id as it opens the board, and the fixture's file is the file that the client then writes.",
+  "description": "A board of core's class board, which an app script builds, with every id given, so that the client mints none. Its block classes are defined outside a package, so their registry ids are their names. The UI of the join block ships the schema of its state. R writes that block's by, a vector of length one, as an array, and its all_x as a value, while it writes the state of the letters blocks bare. The stack of one block keeps its blocks an array, by the board's schema, and show_conditions is an array, by the schema that core ships beside its runtime. The client keys the collections by id as it opens the board, and the fixture's file is the file that the client then writes.",
   "board": {
     "id": "curious_otter",
-    "front_end": {
-      "id": "blockr.core-basic",
-      "state": {},
-      "attrs": {}
-    },
+    "class": [
+      "board"
+    ],
     "name": "Sales review",
     "blocks": [
       {
@@ -81,11 +79,9 @@
     },
     "board": {
       "id": "curious_otter",
-      "front_end": {
-        "id": "blockr.core-basic",
-        "state": {},
-        "attrs": {}
-      },
+      "class": [
+        "board"
+      ],
       "name": "Sales review",
       "blocks": {
         "a": {

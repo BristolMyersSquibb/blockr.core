@@ -122,7 +122,7 @@
         "lock": null,
         "board": {
           "id": "quiet_heron",
-          "front_end": { "id": "blockr.core-basic", "state": {}, "attrs": {} },
+          "class": ["board"],
           "name": "Penguins",
           "blocks": [
             {

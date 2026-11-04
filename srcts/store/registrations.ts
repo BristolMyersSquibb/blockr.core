@@ -1,47 +1,67 @@
-// What packages register with the store, from their startup modules, before it
-// opens a board: the keys of the front-end state, each at its path there,
-// attributes, board options and each package's one migration of its saved
-// state. A key, an attribute or a board option id registered twice fails.
+// What packages register with the store, from their startup modules, before
+// it opens a board: board classes, attributes, board options and each
+// package's one migration of its saved state.
+// A board class is registered under its R class name, with the properties it
+// adds.
+// A board class, an attribute or a board option id registered twice fails.
 
 import { computed, signal } from "@preact/signals-core";
 import type {
   Block,
   BlockId,
   Board,
+  OpeningBoard,
   OptionId,
   RegistryId,
 } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
-import { compile, jsonEqual, pathText } from "../util/index.ts";
+import { compile, own } from "../util/index.ts";
 import type { Validate } from "../util/index.ts";
-import type { Delta, KeyDelta } from "./delta.ts";
+import type { Delta, Patch } from "./delta.ts";
 
-// A key of the front-end's state, registered at its path there by the module
-// that owns it, as the dock registers ["views"] and the DAG its positions under
-// ["extensions", "blockr.dag-dag", "positions"].
-export interface StateKey {
-  readonly path: readonly string[];
-  // A collection holds entries keyed by id in insertion order, as the board's
-  // blocks are, and a value is set as a whole, as the board's name is.
-  readonly kind: "collection" | "value";
-  // An entry's schema or the value's, with descriptions and examples.
-  readonly schema: JsonSchema;
-  // What a value holds on a board that has none; a collection starts empty.
-  readonly initial?: Json;
-  // What follows in this key from a delta, such as dropping a removed block's
-  // position, from the delta and the board before it, as a delta of this key
-  // alone.
-  expand?(delta: Delta, board: Board): KeyDelta | undefined;
-  // What the schema cannot say about the key's value on the board after a
-  // delta, each failure in a sentence.
-  check?(value: Json, board: Board): string[];
+// A board class, which the package that ships it defines in JS under its R
+// class name, so that the definition and R's class meet at the name.
+// It names its parent, its front-end and the board options it requires, and
+// gives the properties it adds beside core's, each with a schema and a
+// default.
+// What sits inside a property is the class's own design.
+// The store applies patches to a property without knowing that design.
+export interface BoardClass {
+  // The R class it defines, as "dock_board".
+  readonly class: string;
+  // The class it extends, as "board", which a package registers before it.
+  // Only core's `board` has none.
+  readonly parent?: string;
+  // The id of the module that draws the boards built as this class,
+  // as "blockr.dock-dock".
+  readonly frontEnd: string;
+  // The board options it requires, which the board gets with their defaults as
+  // it opens, where it lacks them.
+  readonly options?: readonly OptionId[];
+  readonly properties: Readonly<Record<string, Property>>;
+  // The patches to its own properties that follow from a change, such as
+  // removing a removed block's panels from the dock's views.
+  // The store applies them in the same step.
+  // It gets the delta, as expanded so far, and the board before the delta,
+  // so that it sees what the delta removes.
+  // It reads nothing else: it calls no R and reads nothing on screen, so that
+  // every peer that applies a change computes the same patches.
+  // It mints an id only into the step it is part of.
+  update?(delta: Delta, board: Board): readonly Patch[];
 }
 
-// A value kept on every block, or on the front-end beside its state, that is
-// not state, such as core's `visible`.
+// A property that a board class adds.
+export interface Property {
+  // What values it takes, with descriptions and examples for a model.
+  // The store checks the whole property against it after every change.
+  readonly schema: JsonSchema;
+  // What a board that lacks it holds as it opens.
+  readonly default: Json;
+}
+
+// A value kept on every block that is not its state, such as core's `visible`.
 export interface Attribute {
   readonly name: string;
-  readonly on: "block" | "front_end";
   readonly schema: JsonSchema;
   // What it holds where nothing set it.
   readonly initial?: Json;
@@ -66,35 +86,39 @@ export interface Options {
   registered(): Readonly<Record<OptionId, Option>>;
 }
 
-// What a saved board holds that migrations convert: every block's state, with
-// its class, and the front-end state.
+// What a saved board holds that migrations convert:
+// the properties that board classes add, as the file holds them,
+// and every block's state, with its class.
 export interface Saved {
-  readonly front_end: { readonly state: Json };
+  readonly properties: Readonly<Record<string, Json>>;
   readonly blocks: Readonly<
     Record<BlockId, { readonly registry_id: RegistryId; readonly state: Block["state"] }>
   >;
 }
 
-// A package's migration, which rewrites what a file holds, as the migrations
-// before it left it, with its package's part in today's shape, given the
-// version of the package that saved the file, or null where the file records
-// none. Migrations run one after another, in the order in which packages
-// declare their startup modules, which puts each package's after those of the
-// packages it imports, and the board opens with the front-end state and the
-// blocks' states that the last one returns, so that what a migration leaves out
-// is gone. Each changes only its own package's part, which nothing but the
-// package enforces: the states of its block classes' blocks and the front-end
-// state its front-end or its extensions keep.
+// A package's migration, which rewrites what a file holds,
+// as the migrations before it left it, with its package's part in
+// today's shape, given the version of the package that saved the file,
+// or null where the file records none.
+// Migrations run one after another,
+// in the order in which packages declare their startup modules,
+// which puts each package's after those of the packages it imports,
+// and the board opens with the properties and the blocks' states that the last
+// one returns, so that what a migration leaves out is gone.
+// Each changes only its own package's part, which nothing but the package
+// enforces: the properties its board classes add and the states of its block
+// classes' blocks.
 //
-// A migration converts what older versions of its package saved into today's
-// shape, and changes nothing on a board in today's shape, so that a board
-// saved and opened again comes back as it was, though a file that records no
-// version of a package runs its migration. What a board reads where nothing
-// set a value comes from what packages register instead, a key's `initial`,
-// an attribute's `initial` and a board option's `default`. Attributes and
-// board option values are not migrated: one that no longer fits its schema is
-// dropped as the board opens, so that it reads as its initial value or
-// default.
+// A migration converts what older versions of its package saved into
+// today's shape, and changes nothing on a board in today's shape,
+// so that a board saved and opened again comes back as it was,
+// though a file that records no version of a package runs its migration.
+// What a board reads where nothing set a value comes from
+// what packages register instead, a property's `default`,
+// an attribute's `initial` and a board option's `default`.
+// Attributes and board option values are not migrated:
+// one that no longer fits its schema is dropped as the board opens,
+// so that it reads as its initial value or default.
 export type Migration = (saved: Saved, version: string | null) => Saved;
 
 // A registration with the validator of its schema.
@@ -103,42 +127,73 @@ export interface Checked<T> {
   readonly validate: Validate;
 }
 
+// A board class with the validators of its properties' schemas, by name.
+export interface CheckedClass {
+  readonly def: BoardClass;
+  readonly validate: Readonly<Record<string, Validate>>;
+}
+
+// The class that a board is built as, with the classes before it that the
+// store skipped: the first in the board's class vector that is registered, or
+// core's `board` where none is.
+export interface Built {
+  readonly def: BoardClass;
+  readonly skipped: readonly string[];
+  // The class and its parents, core's `board` first,
+  // whose properties a board built as the class holds.
+  readonly chain: readonly CheckedClass[];
+  // Of each property that the chain adds,
+  // the class that adds it and the validator of its schema,
+  // by the property's name.
+  readonly properties: ReadonlyMap<string, { readonly owner: CheckedClass; readonly validate: Validate }>;
+}
+
 export interface Registrations {
-  register(def: StateKey | Attribute): () => void;
-  registered(): readonly (StateKey | Attribute)[];
+  register(def: BoardClass | Attribute): () => void;
+  registered(): readonly (BoardClass | Attribute)[];
   readonly options: Options;
   registerMigration(pkg: string, fn: Migration): () => void;
-  keys(): readonly Checked<StateKey>[];
-  key(path: readonly string[]): Checked<StateKey> | undefined;
+  builtAs(classes: readonly string[]): Built;
   attributes(): readonly Checked<Attribute>[];
-  attribute(on: Attribute["on"], name: string): Checked<Attribute> | undefined;
+  attribute(name: string): Checked<Attribute> | undefined;
   option(id: OptionId): Checked<Option> | undefined;
   migrations(): ReadonlyMap<string, Migration>;
 }
 
+// Core's board class.
+// The store builds a board as it where no class in the board's class vector
+// is registered, so core's basic front-end draws every board at least.
+export const CORE_BOARD: BoardClass = {
+  class: "board",
+  frontEnd: "blockr.core-basic",
+  properties: {},
+};
+
+// The properties that every board holds, which no board class may add again.
+export const CORE_PROPERTIES: readonly string[] = [
+  "id",
+  "class",
+  "name",
+  "blocks",
+  "links",
+  "stacks",
+  "options",
+];
+
 export function createRegistrations(): Registrations {
-  const keys = signal<readonly Checked<StateKey>[]>([]);
+  const classes = signal<ReadonlyMap<string, CheckedClass>>(new Map());
   const attributes = signal<readonly Checked<Attribute>[]>([]);
   const options = signal<readonly Checked<Option>[]>([]);
   const migrations = signal<ReadonlyMap<string, Migration>>(new Map());
 
-  const keyIndex = computed(
-    () => new Map(keys.value.map((key) => [JSON.stringify(key.def.path), key])),
-  );
   const attributeIndex = computed(
-    () =>
-      new Map(
-        attributes.value.map((attr) => [
-          JSON.stringify([attr.def.on, attr.def.name]),
-          attr,
-        ]),
-      ),
+    () => new Map(attributes.value.map((attr) => [attr.def.name, attr])),
   );
   const optionIndex = computed(
     () => new Map(options.value.map((option) => [option.def.id, option])),
   );
   const registered = computed(() => [
-    ...keys.value.map((key) => key.def),
+    ...[...classes.value.values()].map((cls) => cls.def),
     ...attributes.value.map((attr) => attr.def),
   ]);
   const optionDefs = computed(() =>
@@ -158,39 +213,82 @@ export function createRegistrations(): Registrations {
     }
   }
 
-  function registerKey(def: StateKey): () => void {
-    const what = `the key of the front-end state at ${pathText(def.path)}`;
-    if (
-      def.path.length === 0 ||
-      !def.path.every((part) => typeof part === "string" && part !== "")
-    ) {
-      throw new Error("A key of the front-end state has a path that is empty or holds an empty part.");
+  // The class and its parents, core's `board` first,
+  // or undefined where a parent is no longer registered.
+  function chainOf(cls: CheckedClass): CheckedClass[] | undefined {
+    const chain = [cls];
+    let parent = cls.def.parent;
+    while (parent !== undefined) {
+      const next = classes.value.get(parent);
+      if (next === undefined || chain.includes(next)) return undefined;
+      chain.unshift(next);
+      parent = next.def.parent;
     }
-    for (const other of keys.value) {
-      if (jsonEqual(def.path, other.def.path)) {
-        throw new Error(`The key of the front-end state at ${pathText(def.path)} is registered already.`);
+    return chain;
+  }
+
+  function registerClass(def: BoardClass, root = false): () => void {
+    const name = def.class;
+    if (typeof name !== "string" || name === "") {
+      throw new Error(`The board class ${JSON.stringify(name)} has no name.`);
+    }
+    const what = `the board class "${name}"`;
+    if (classes.value.has(name)) {
+      throw new Error(`The board class "${name}" is registered already.`);
+    }
+    const parent = def.parent === undefined ? undefined : classes.value.get(def.parent);
+    if (!root && parent === undefined) {
+      throw new Error(
+        def.parent === undefined
+          ? `The board class "${name}" names no parent, which every board class but core's "board" does.`
+          : `The board class "${name}" extends "${def.parent}", which no package registered.`,
+      );
+    }
+    if (typeof def.frontEnd !== "string" || def.frontEnd === "") {
+      throw new Error(`The board class "${name}" names no front-end.`);
+    }
+    if (def.update !== undefined && typeof def.update !== "function") {
+      throw new Error(`The board class "${name}" has an update that is no function.`);
+    }
+
+    const inherited = new Map<string, string>();
+    for (const cls of (parent === undefined ? undefined : chainOf(parent)) ?? []) {
+      for (const property of Object.keys(cls.def.properties)) inherited.set(property, cls.def.class);
+    }
+
+    const validate: Record<string, Validate> = {};
+    for (const [property, given] of Object.entries(def.properties)) {
+      if (CORE_PROPERTIES.includes(property)) {
+        throw new Error(`The board class "${name}" adds the property "${property}", which every board holds as core's.`);
       }
-      if (overlap(def.path, other.def.path)) {
+      const owner = inherited.get(property);
+      if (owner !== undefined) {
         throw new Error(
-          `The key of the front-end state at ${pathText(def.path)} overlaps the one at ${pathText(other.def.path)}, which is registered already.`,
+          `The board class "${name}" adds the property "${property}", which its parent "${owner}" adds already.`,
         );
       }
+      const of = `the property "${property}" of ${what}`;
+      if (!Object.hasOwn(given, "default")) {
+        throw new Error(`The property "${property}" of ${what} has no default.`);
+      }
+      validate[property] = compile(of, given.schema);
+      checkInitial(of, validate[property], given.default, "default");
     }
-    const validate = compile(what, def.schema);
-    if (def.kind === "value") {
-      checkInitial(what, validate, def.initial, "initial value");
-    }
-    const item = { def, validate };
-    keys.value = [...keys.value, item];
+
+    const item: CheckedClass = { def, validate };
+    classes.value = new Map([...classes.value, [name, item]]);
     return () => {
-      keys.value = keys.value.filter((x) => x !== item);
+      if (classes.value.get(name) !== item) return;
+      const rest = new Map(classes.value);
+      rest.delete(name);
+      classes.value = rest;
     };
   }
 
   function registerAttribute(def: Attribute): () => void {
-    const what = `the attribute "${def.name}" of ${def.on === "block" ? "blocks" : "the front-end"}`;
-    if (attributeIndex.value.has(JSON.stringify([def.on, def.name]))) {
-      throw new Error(`The ${what.slice("the ".length)} is registered already.`);
+    const what = `the attribute "${def.name}" of blocks`;
+    if (attributeIndex.value.has(def.name)) {
+      throw new Error(`The attribute "${def.name}" of blocks is registered already.`);
     }
     const validate = compile(what, def.schema);
     checkInitial(what, validate, def.initial, "initial value");
@@ -201,9 +299,27 @@ export function createRegistrations(): Registrations {
     };
   }
 
+  function builtAs(vector: readonly string[]): Built {
+    const skipped: string[] = [];
+    for (const name of vector) {
+      const cls = classes.value.get(name);
+      const chain = cls === undefined ? undefined : chainOf(cls);
+      if (cls === undefined || chain === undefined) {
+        skipped.push(name);
+        continue;
+      }
+      return built(chain, skipped);
+    }
+    const core = classes.value.get(CORE_BOARD.class);
+    if (core === undefined) throw new Error('Core\'s board class "board" is not registered.');
+    return built([core], skipped);
+  }
+
+  registerClass(CORE_BOARD, true);
+
   return {
     register(def) {
-      return "path" in def ? registerKey(def) : registerAttribute(def);
+      return "class" in def ? registerClass(def) : registerAttribute(def);
     },
     registered: () => registered.value,
     options: {
@@ -220,7 +336,7 @@ export function createRegistrations(): Registrations {
         options.value = [...options.value, item];
         return () => {
           options.value = options.value.filter((x) => x !== item);
-            };
+        };
       },
       registered: () => optionDefs.value,
     },
@@ -236,17 +352,40 @@ export function createRegistrations(): Registrations {
         migrations.value = rest;
       };
     },
-    keys: () => keys.value,
-    key: (path) => keyIndex.value.get(JSON.stringify(path)),
+    builtAs,
     attributes: () => attributes.value,
-    attribute: (on, name) => attributeIndex.value.get(JSON.stringify([on, name])),
+    attribute: (name) => attributeIndex.value.get(name),
     option: (id) => optionIndex.value.get(id),
     migrations: () => migrations.value,
   };
 }
 
-// Whether two keys would hold the same place, one at or under the other.
-function overlap(a: readonly string[], b: readonly string[]): boolean {
-  const n = Math.min(a.length, b.length);
-  return a.slice(0, n).every((part, i) => part === b[i]);
+function built(chain: readonly CheckedClass[], skipped: readonly string[]): Built {
+  const properties = new Map<string, { owner: CheckedClass; validate: Validate }>();
+  for (const cls of chain) {
+    for (const [name, validate] of Object.entries(cls.validate)) {
+      properties.set(name, { owner: cls, validate });
+    }
+  }
+  const def = chain.at(-1)?.def ?? CORE_BOARD;
+  return { def, skipped, chain, properties };
+}
+
+// The board taken as a record, by which code that does not import the types of
+// its class's properties reads them.
+export function recordOf(board: Board | OpeningBoard): Readonly<Record<string, unknown>> {
+  return board as unknown as Readonly<Record<string, unknown>>;
+}
+
+// The properties of the board beside core's, by name.
+export function propertiesOf(board: Board | OpeningBoard): Readonly<Record<string, unknown>> {
+  return Object.fromEntries(
+    Object.entries(recordOf(board)).filter(([name]) => !CORE_PROPERTIES.includes(name)),
+  );
+}
+
+// The default of a property, as the class that adds it gives it.
+export function defaultOf(built: Built, name: string): Json | undefined {
+  const at = built.properties.get(name);
+  return at === undefined ? undefined : own(at.owner.def.properties, name)?.default;
 }

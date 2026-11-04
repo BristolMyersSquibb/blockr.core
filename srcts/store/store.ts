@@ -17,23 +17,25 @@ import type {
   SavedBoard,
 } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { getAt, isObject, pathText, report } from "../util/index.ts";
+import { report } from "../util/index.ts";
 import { check } from "./check.ts";
 import { commit, target } from "./commit.ts";
-import type { Changed, Inverse } from "./commit.ts";
-import { isDeltas, isValueDelta } from "./delta.ts";
+import type { Changed, Inverse, Target } from "./commit.ts";
+import { isDeltas } from "./delta.ts";
 import type { Delta, Origin } from "./delta.ts";
 import { StoreError } from "./error.ts";
 import { expand } from "./expand.ts";
+import { pointer } from "./patch.ts";
 import { fit, isEmpty } from "./undo.ts";
-import { checkFile, FORMAT, frontEndOf, keyed, openFile, parse } from "./open.ts";
+import { checkFile, FORMAT, keyed, openFile, parse, required } from "./open.ts";
 import type { Dropped } from "./open.ts";
 import { createRegistrations } from "./registrations.ts";
 import type {
   Attribute,
+  BoardClass,
+  Built,
   Migration,
   Options,
-  StateKey,
 } from "./registrations.ts";
 
 export type Change =
@@ -68,9 +70,17 @@ export interface Store {
   canUndo(origin?: Origin): boolean;
   canRedo(origin?: Origin): boolean;
 
-  // A key of the front-end's state or an attribute, and what is registered.
-  register(def: StateKey | Attribute): () => void;
-  registered(): readonly (StateKey | Attribute)[];
+  // Registers a board class, with the properties it adds,
+  // or an attribute of blocks.
+  // What is registered holds core's board class "board" and its attribute
+  // "visible" too.
+  register(def: BoardClass | Attribute): () => void;
+  registered(): readonly (BoardClass | Attribute)[];
+  // The board class that a board of these classes is built as:
+  // the first class in the vector that is registered, with its parents,
+  // or core's "board" where none is.
+  // Core switches the page to that class's front-end.
+  boardClass(classes: readonly string[]): BoardClass;
   // A package's one migration of its saved state.
   registerMigration(pkg: string, fn: Migration): () => void;
   // The board options packages define, by id.
@@ -81,14 +91,10 @@ export interface Store {
   blockRegistry(): Readonly<Record<RegistryId, RegistryEntry>>;
   packages(): Readonly<Record<string, string>>;
 
-  // The edit id of a block, or of an entry or a value of the front-end's
-  // state, which only their own edits change and which a delta names to be
-  // refused where another edit came first.
-  editId(
-    of:
-      | { readonly block: BlockId }
-      | { readonly path: readonly string[]; readonly entry?: string },
-  ): number | undefined;
+  // The edit id of a block, or of a property that the board's class adds,
+  // which only their own edits change and which a delta names to be refused
+  // where another edit came first.
+  editId(of: { readonly block: BlockId } | { readonly property: string }): number | undefined;
 }
 
 export interface StoreOptions {
@@ -97,11 +103,15 @@ export interface StoreOptions {
   // reply to it.
   readonly client: Pick<Client, "request">;
   // What has to run once R has loaded the packages that a board names and
-  // before the store opens it, given R's reply and the front-end the board
-  // opens with: initializing the startup modules of the packages R loaded,
-  // which register their keys, attributes, board options and migrations, and
-  // switching the page to that front-end.
-  readonly loaded?: (reply: OpenReply, frontEnd: string) => void | Promise<void>;
+  // before the store opens it, given R's reply and the board's class vector:
+  // initializing the startup modules of the packages R loaded,
+  // which define their board classes and register their attributes,
+  // board options and migrations, and switching the page to the front-end
+  // of the first class in the vector that a loaded package defines,
+  // which the store then builds the board as, and which boardClass() gives.
+  // Which class that is, and so the board's front-end,
+  // is known only once the startup modules have run.
+  readonly loaded?: (reply: OpenReply, classes: readonly string[]) => void | Promise<void>;
 }
 
 // What takes one step back, on an origin's undo list, or applies it again, on
@@ -126,35 +136,42 @@ export function createStore(options: StoreOptions): Store {
   registrations.register(visible);
 
   const board = signal<Board | undefined>(undefined);
+  // The class that the store built the board as, with its parents,
+  // as it was registered when the board opened.
+  let built: Built | undefined;
   const registry = signal<Readonly<Record<RegistryId, RegistryEntry>>>({});
   const packages = signal<Readonly<Record<string, string>>>({});
   const history = signal<ReadonlyMap<Origin, History>>(new Map());
   const subscribers = new Set<(change: Change, board: Board) => void>();
 
-  // The edit ids, kept beside the board rather than in it. One count numbers
-  // the steps, the opening of a board, an undo and a redo included, and the
-  // edit id of a block, or of an entry or a value of the front-end state, is
-  // the number of the step that last changed it. No number is given out twice,
-  // so an id names one version of what it belongs to.
+  // The edit ids, kept beside the board rather than in it.
+  // One count numbers the steps, the opening of a board,
+  // an undo and a redo included, and the edit id of a block,
+  // or of a property of the board's class, is the number of the step that last
+  // changed it.
+  // No number is given out twice, so an id names one version of what it
+  // belongs to.
   const edits = new Map<string, number>();
   let lastStep = 0;
 
-  // Whether the store is applying or announcing a change, during which a
-  // subscriber, an `expand`, a `check` or a migration may not change the board.
+  // Whether the store is applying or announcing a change,
+  // during which a subscriber, a board class's update or a migration may not
+  // change the board.
   let busy = false;
 
   function guard(): void {
     if (busy) {
       throw new Error(
-        "The store is applying or announcing a change, which a subscriber, a key's expand or check, or a migration may not change, since what follows from a delta is a key's expand.",
+        "The store is applying or announcing a change, which a subscriber, a board class's update or a migration may not change, since what follows from a delta is a board class's update.",
       );
     }
   }
 
-  // The board the store holds, or a StoreError where it holds none yet, so
-  // that nothing builds on a board that no opening made.
-  function current(refused: string): Board {
-    if (board.value !== undefined) return board.value;
+  // The board the store holds, with the class it built the board as,
+  // or a StoreError where it holds none yet, so that nothing builds on a board
+  // that no opening made.
+  function current(refused: string): { board: Board; built: Built } {
+    if (board.value !== undefined && built !== undefined) return { board: board.value, built };
     throw new StoreError(refused, ["The store holds no board until it opens one."]);
   }
 
@@ -183,6 +200,7 @@ export function createStore(options: StoreOptions): Store {
   // nothing does applies as nothing.
   function run(
     start: Board,
+    as: Built,
     deltas: readonly Delta[],
     how: { fit?: boolean; places?: readonly Inverse["places"][] },
     refused: string,
@@ -196,13 +214,13 @@ export function createStore(options: StoreOptions): Store {
       const fail = (failures: readonly string[]) =>
         new StoreError(refused, failures.map((failure) => prefix + failure));
 
-      const delta = how.fit === true ? fit(given, current, registrations) : given;
+      const delta = how.fit === true ? fit(given, current, as) : given;
       if (how.fit === true && isEmpty(delta)) continue;
 
-      const expanded = expand(delta, current, registrations);
+      const expanded = expand(delta, current, as);
       if ("failures" in expanded) throw fail(expanded.failures);
 
-      const committed = commit(current, expanded, registrations, how.places?.[i]);
+      const committed = commit(current, expanded, as, how.places?.[i]);
       if ("failures" in committed) throw fail(committed.failures);
       if (isEmpty(committed.inverse.delta)) continue;
 
@@ -210,6 +228,7 @@ export function createStore(options: StoreOptions): Store {
         committed.board,
         registry.value,
         registrations,
+        as,
         committed.changed,
       );
       if (failures.length > 0) throw fail(failures);
@@ -222,20 +241,16 @@ export function createStore(options: StoreOptions): Store {
     return { applied, inverses };
   }
 
+  // Whether the board holds what an edit id belongs to: a block,
+  // since a board holds every property of its class.
   function exists(next: Board, key: string): boolean {
-    const [kind, ...rest] = JSON.parse(key) as [string, ...unknown[]];
-    if (kind === "block") return Object.hasOwn(next.blocks, rest[0] as string);
-    const at = getAt(next.front_end.state, rest[0] as string[]);
-    if (kind === "value") return at !== undefined;
-    return isObject(at) && Object.hasOwn(at, rest[1] as string);
+    const [kind, id] = JSON.parse(key) as [string, string];
+    return kind !== "block" || Object.hasOwn(next.blocks, id);
   }
 
   function describe(key: string): string {
-    const [kind, ...rest] = JSON.parse(key) as [string, ...unknown[]];
-    if (kind === "block") return `block "${String(rest[0])}"`;
-    const path = pathText(rest[0] as string[]);
-    if (kind === "value") return `the value of ${path}`;
-    return `entry "${String(rest[1])}" of ${path}`;
+    const [kind, id] = JSON.parse(key) as [string, string];
+    return kind === "block" ? `block "${id}"` : `the property "${id}"`;
   }
 
   // The edit ids that the deltas name and that differ from those the board had
@@ -257,17 +272,12 @@ export function createStore(options: StoreOptions): Store {
       for (const [id, mod] of Object.entries(delta.blocks?.mod ?? {})) {
         compare(target({ block: id }), mod.edit);
       }
-      for (const { path, change } of delta.front_end?.state ?? []) {
-        if (isValueDelta(change)) {
-          compare(target({ path }), change.edit);
-        } else {
-          for (const [id, mod] of Object.entries(change.mod ?? {})) {
-            compare(target({ path, entry: id }), mod.edit);
-          }
-        }
+      for (const patch of delta.patches ?? []) {
+        const property = pointer(patch.path)?.[0];
+        if (property !== undefined) compare(target({ property }), patch.edit);
       }
     }
-    return failures;
+    return [...new Set(failures)];
   }
 
   // Gives what the step changed the number of a new step, or drops the edit id
@@ -288,11 +298,11 @@ export function createStore(options: StoreOptions): Store {
     busy = true;
     try {
       const refused = "The store rejected the delta";
-      const start = current(refused);
+      const { board: start, built: as } = current(refused);
       const failures = named(deltas);
       if (failures.length > 0) throw new StoreError(refused, failures);
 
-      const { applied, inverses } = run(start, deltas, {}, refused);
+      const { applied, inverses } = run(start, as, deltas, {}, refused);
       if (applied.length === 0) return;
       number(applied, applied.at(-1)?.board ?? start);
       setSteps(origin, { undo: [...steps(origin).undo, inverses], redo: [] });
@@ -319,9 +329,10 @@ export function createStore(options: StoreOptions): Store {
     busy = true;
     try {
       const refused = back ? "The store refused to undo the step" : "The store refused to redo the step";
-      const start = current(refused);
+      const { board: start, built: as } = current(refused);
       const { applied, inverses } = run(
         start,
+        as,
         step.map(({ delta }) => delta),
         { fit: true, places: step.map(({ places }) => places) },
         refused,
@@ -375,17 +386,35 @@ export function createStore(options: StoreOptions): Store {
 
     registry.value = reply.block_registry;
     packages.value = reply.packages;
-    await options.loaded?.(reply, frontEndOf(file.board, reply.front_ends));
+    await options.loaded?.(reply, file.board.class);
+
+    guard();
+    let opened: ReturnType<typeof openFile>;
+    busy = true;
+    try {
+      opened = openFile(file, reply, registrations);
+    } finally {
+      busy = false;
+    }
+
+    // The board options that its class requires, whose defaults may have to
+    // wait, as one read from a blockr option asks R for it.
+    const values = await required(opened.board, opened.built, registrations);
 
     guard();
     busy = true;
     try {
-      const { board: next, dropped } = openFile(file, reply, registrations);
+      const { dropped } = opened;
+      const next: Board =
+        Object.keys(values).length === 0
+          ? opened.board
+          : { ...opened.board, options: { ...opened.board.options, ...values } };
 
       board.value = next;
+      built = opened.built;
       edits.clear();
       const step = ++lastStep;
-      for (const key of everyTarget(next)) edits.set(key, step);
+      for (const key of everyTarget(next, opened.built)) edits.set(key, step);
       history.value = new Map();
 
       announce({ opened: next, dropped }, next);
@@ -395,18 +424,12 @@ export function createStore(options: StoreOptions): Store {
     }
   }
 
-  function everyTarget(next: Board): string[] {
-    const keys = Object.keys(next.blocks).map((id) => target({ block: id }));
-    for (const { def } of registrations.keys()) {
-      const value = getAt(next.front_end.state, def.path);
-      if (value === undefined) continue;
-      if (def.kind === "value") {
-        keys.push(target({ path: def.path }));
-      } else if (isObject(value)) {
-        for (const id of Object.keys(value)) keys.push(target({ path: def.path, entry: id }));
-      }
-    }
-    return keys;
+  function everyTarget(next: Board, as: Built): string[] {
+    const targets: Target[] = [
+      ...Object.keys(next.blocks).map((id) => ({ block: id })),
+      ...[...as.properties.keys()].map((property) => ({ property })),
+    ];
+    return targets.map(target);
   }
 
   return {
@@ -438,6 +461,7 @@ export function createStore(options: StoreOptions): Store {
     canRedo: (origin = "user") => steps(origin).redo.length > 0,
     register: (def) => registrations.register(def),
     registered: () => registrations.registered(),
+    boardClass: (classes) => registrations.builtAs(classes).def,
     registerMigration: (pkg, fn) => registrations.registerMigration(pkg, fn),
     options: registrations.options,
     blockRegistry: () => registry.value,
@@ -450,7 +474,6 @@ export function createStore(options: StoreOptions): Store {
 // and its outputs, and which a locked board reads.
 const visible: Attribute = {
   name: "visible",
-  on: "block",
   schema: {
     type: "array",
     items: { enum: ["inputs", "outputs"] },

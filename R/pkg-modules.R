@@ -22,9 +22,10 @@ declared_modules <- new.env()
 #'
 #' Next to its startup module, as `startup.schema.json` next to `startup.js`, a
 #' package puts one JSON Schema, laid out like the board, for the parts of the
-#' board that the package defines: the front-end's state under
-#' `front_end.state` and the values of its board options under `options`, by
-#' their IDs. R shapes the board that an app script builds by it, as it does by
+#' board that the package defines: the properties that its board classes add,
+#' beside core's, and the values of its board options under `options`, by
+#' their IDs.
+#' R shapes the board that an app script builds by it, as it does by
 #' core's schema of the board (see [blockr_ser()]), so that a value of length
 #' one stays an array where the schema has one. R reads nothing else out of
 #' it. Core puts the schema of its own board options next to its runtime in the

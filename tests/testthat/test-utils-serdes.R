@@ -37,7 +37,7 @@ test_that("a board is written as R sends it", {
     read_json_strictly(
       '{
         "id": "sales_review",
-        "front_end": { "id": "blockr.core-basic", "state": {}, "attrs": {} },
+        "class": ["board"],
         "name": "Q3 numbers",
         "blocks": [
           {
@@ -67,7 +67,8 @@ test_that("a board is written as R sends it", {
   res <- blockr_ser(board)
 
   expect_s3_class(res$stacks[[1L]]$blocks, "AsIs")
-  expect_named(res$front_end$state, character())
+  expect_s3_class(res$class, "AsIs")
+  expect_named(res$options, c("n_rows", "dark_mode"))
 })
 
 test_that("R mints no ids and writes an empty board as such", {
@@ -102,7 +103,7 @@ test_that("R mints no ids and writes an empty board as such", {
     read_json_strictly(encode_message(blockr_ser(new_board()))),
     read_json_strictly(
       '{
-        "front_end": { "id": "blockr.core-basic", "state": {}, "attrs": {} },
+        "class": ["board"],
         "blocks": [],
         "links": [],
         "stacks": [],
@@ -246,13 +247,13 @@ test_that("a board that the format cannot hold fails as it is written", {
 
   expect_error(
     blockr_ser(new_board(views = list(fun = identity))),
-    "The front-end's state views holds a function",
+    "The board's property views holds a function",
     class = "board_value_invalid"
   )
 
   expect_error(
     blockr_ser(new_board(list(), list(), list(), list(), "unnamed")),
-    class = "board_front_end_state_invalid"
+    class = "board_properties_invalid"
   )
 })
 
@@ -279,10 +280,9 @@ test_that("the board holds the board options the script gives, by schema", {
   expect_identical(options$show_conditions$type, "array")
 })
 
-test_that("the front-end's state is written by the schemas packages ship", {
+test_that("a board's class and its properties are written by the schemas", {
 
   local_declared(declared_startup_modules)
-  local_declared(declared_front_ends)
 
   dir <- withr::local_tempdir()
 
@@ -290,36 +290,23 @@ test_that("the front-end's state is written by the schemas packages ship", {
     '{
       "type": "object",
       "properties": {
-        "front_end": {
+        "panels": {
           "type": "object",
-          "properties": {
-            "state": {
-              "type": "object",
-              "properties": {
-                "panels": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "object",
-                    "properties": {
-                      "title": { "type": "string" },
-                      "blocks": {
-                        "type": "array",
-                        "items": { "type": "string" }
-                      }
-                    }
-                  }
-                },
-                "layout": {
-                  "type": "object",
-                  "properties": {
-                    "pinned": { "type": "array", "items": { "type": "string" } }
-                  }
-                },
-                "active": { "type": "string" }
-              }
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string" },
+              "blocks": { "type": "array", "items": { "type": "string" } }
             }
           }
         },
+        "layout": {
+          "type": "object",
+          "properties": {
+            "pinned": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "active": { "type": "string" },
         "options": {
           "type": "object",
           "properties": {
@@ -341,7 +328,6 @@ test_that("the front-end's state is written by the schemas packages ship", {
   )
 
   register_startup_module(test_module("js/startup.js"))
-  register_front_end("grid", test_module("js/grid.js"), class = "grid_board")
 
   board <- new_board(
     options = new_board_option("tags", "draft"),
@@ -352,39 +338,40 @@ test_that("the front-end's state is written by the schemas packages ship", {
     class = "grid_board"
   )
 
-  # What the schema leaves out keeps the shape that R's writer gives it
+  # The properties come after core's, in their order,
+  # and what the schema leaves out keeps the shape that R's writer gives it
   expect_identical(
     read_json_strictly(encode_message(blockr_ser(board))),
     read_json_strictly(
       '{
-        "front_end": {
-          "id": "blockr.test-grid",
-          "state": {
-            "panels": {
-              "p1": { "title": "Main", "blocks": ["a"] },
-              "p2": {}
-            },
-            "layout": { "pinned": ["a"], "note": "x" },
-            "active": "p1",
-            "widths": []
-          },
-          "attrs": {}
-        },
+        "class": ["grid_board", "board"],
         "blocks": [],
         "links": [],
         "stacks": [],
-        "options": { "tags": ["draft"] }
+        "options": { "tags": ["draft"] },
+        "panels": {
+          "p1": { "title": "Main", "blocks": ["a"] },
+          "p2": {}
+        },
+        "layout": { "pinned": ["a"], "note": "x" },
+        "active": "p1",
+        "widths": []
       }'
     )
   )
 
-  # An empty collection is an object, and a part the board lacks stays out
-  board <- new_board(panels = list(), class = "grid_board")
+  # An empty collection is an object, and a property the board lacks stays out,
+  # while a class that no package defines is written all the same
+  board <- new_board(panels = list(), class = c("my_board", "grid_board"))
+  res <- read_json_strictly(encode_message(blockr_ser(board)))
 
   expect_identical(
-    read_json_strictly(encode_message(blockr_ser(board)))$front_end$state,
-    read_json_strictly('{ "panels": {} }')
+    res[c("class", "panels")],
+    read_json_strictly(
+      '{ "class": ["my_board", "grid_board", "board"], "panels": {} }'
+    )
   )
+  expect_false("active" %in% names(res))
 })
 
 test_that("R applies the schema of every package that has one", {
@@ -394,17 +381,7 @@ test_that("R applies the schema of every package that has one", {
   dir <- withr::local_tempdir()
 
   writeLines(
-    '{
-      "properties": {
-        "front_end": {
-          "properties": {
-            "state": {
-              "properties": { "views": { "type": "array" } }
-            }
-          }
-        }
-      }
-    }',
+    '{ "properties": { "views": { "type": "array" } } }',
     file.path(dir, "views.schema.json")
   )
 
@@ -439,10 +416,7 @@ test_that("R applies the schema of every package that has one", {
 
   res <- read_json_strictly(encode_message(blockr_ser(board)))
 
-  expect_identical(
-    res$front_end$state,
-    read_json_strictly('{ "views": ["main"] }')
-  )
+  expect_identical(res["views"], read_json_strictly('{ "views": ["main"] }'))
   expect_identical(res$options, read_json_strictly('{ "tags": ["draft"] }'))
 })
 

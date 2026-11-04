@@ -3,9 +3,11 @@
 // Checks the fixtures of boards that app scripts build, in inst/board/fixtures,
 // against core's types: the JSON that R writes for each, as R sends the board,
 // and the file that the client writes for the board it opens that JSON to.
-// Each fixture is type-checked as the value of a variable of its type, as the
-// fixtures of the wire protocol are, and every id is given, so that the file
-// holds the JSON's entries keyed by their ids, in their order.
+// Each fixture is type-checked as the value of a variable of its type,
+// as the fixtures of the wire protocol are, and every id is given,
+// so that the file holds the JSON's entries keyed by their ids, in their order.
+// A board holds the properties of its class beside core's,
+// which core's types leave open.
 
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -18,12 +20,16 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const fixtures = join(root, "inst", "board", "fixtures");
 const board = join(root, "srcts", "types", "board.ts");
 
-const type = "{ description: string; board: OpeningBoard; file: SavedBoard }";
+// A board's properties beside core's, which core's types do not name.
+type Properties = Readonly<Record<string, unknown>>;
+
+const properties = "Readonly<Record<string, unknown>>";
+const type = `{ description: string; board: OpeningBoard & ${properties}; file: SavedBoard & { board: ${properties} } }`;
 
 interface Fixture {
   description: string;
-  board: OpeningBoard;
-  file: SavedBoard;
+  board: OpeningBoard & Properties;
+  file: SavedBoard & { board: Properties };
 }
 
 const names = readdirSync(fixtures)
@@ -83,25 +89,26 @@ function keyed<T extends { id?: string }>(
   );
 }
 
-function opened(json: OpeningBoard): Board {
-  const { id, name } = json;
+function opened(json: OpeningBoard & Properties): Board & Properties {
+  const { id, class: classes, name, blocks, links, stacks, options, ...properties } = json;
   if (id === undefined || name === undefined) {
     throw new Error("A fixture gives the board's id and name.");
   }
   return {
     id,
-    front_end: json.front_end,
+    class: classes,
     name,
-    blocks: keyed(json.blocks),
-    links: keyed(json.links),
-    stacks: keyed(json.stacks),
-    options: json.options,
+    blocks: keyed(blocks),
+    links: keyed(links),
+    stacks: keyed(stacks),
+    options,
+    ...properties,
   };
 }
 
 test("there are fixtures", () => {
   expect(names).toContain("board");
-  expect(names).toContain("front-end-state");
+  expect(names).toContain("board-class");
 });
 
 test.each(names)("%s meets the types of the board and the saved file", (name) => {

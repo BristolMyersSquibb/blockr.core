@@ -8,14 +8,20 @@ import ts from "typescript";
 
 // A module that declares a value of the type with the JSON as its literal,
 // which starts on the module's first line, so that the compiler's line numbers
-// are the JSON's. The type's names are imported from the module `from`.
+// are the JSON's.
+// The type's names are imported from the module `from`,
+// but for TypeScript's own, such as Record.
 export function declaration(type: string, from: string, json: string): string {
-  const imported = [...new Set(type.match(/\b[A-Z]\w*/g))].join(", ");
+  const imported = [...new Set(type.match(/\b[A-Z]\w*/g))]
+    .filter((name) => !builtins.has(name))
+    .join(", ");
   return (
     `import type { ${imported} } from ${JSON.stringify(from)}; ` +
     `export const value: ${type} = ${json};\n`
   );
 }
+
+const builtins = new Set(["Partial", "Readonly", "Record"]);
 
 // Type-checks the modules, given by their paths, which exist only in memory,
 // with the options that tsconfig.client.json in `root` checks the client with,

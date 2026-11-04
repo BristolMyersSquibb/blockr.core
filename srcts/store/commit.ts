@@ -16,21 +16,14 @@ import type {
   StackId,
 } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
-import { getAt, isObject, jsonEqual, own, pathText, setAt, without } from "../util/index.ts";
-import { isValueDelta } from "./delta.ts";
-import type {
-  BlockMod,
-  CollectionDelta,
-  Delta,
-  Entry,
-  KeyChange,
-  ValueDelta,
-  Values,
-} from "./delta.ts";
-import type { Registrations } from "./registrations.ts";
+import { jsonEqual, own, without } from "../util/index.ts";
+import type { BlockMod, Delta, Patch, Values } from "./delta.ts";
+import { applyPatch, malformed, pointer } from "./patch.ts";
+import { recordOf } from "./registrations.ts";
+import type { Built } from "./registrations.ts";
 
-// Where each entry that an inverse adds back goes, before the entry named or
-// last, by collection: "blocks", "links", "stacks", or a key's path as JSON.
+// Where each entry that an inverse adds back goes,
+// before the entry named or last, by collection: "blocks", "links" or "stacks".
 export type Places = Readonly<
   Record<string, Readonly<Record<string, string | null>>>
 >;
@@ -47,13 +40,10 @@ export interface Changed {
   readonly blocks: ReadonlySet<BlockId>;
   readonly links: ReadonlySet<LinkId>;
   readonly stacks: ReadonlySet<StackId>;
-  // Set rather than removed, by id or name.
+  // Set rather than removed, by id.
   readonly options: ReadonlySet<OptionId>;
-  readonly attrs: ReadonlySet<string>;
-  // The entries added or changed in each collection, and the values set, by
-  // the key's path as JSON.
-  readonly entries: ReadonlyMap<string, ReadonlySet<string>>;
-  readonly values: ReadonlySet<string>;
+  // The properties that a patch changed, by name.
+  readonly properties: ReadonlySet<string>;
   // What has an edit id that the delta added, changed or removed, as target()
   // names it.
   readonly targets: ReadonlySet<string>;
@@ -65,23 +55,19 @@ export interface Committed {
   readonly changed: Changed;
 }
 
-// What has an edit id: a block, an entry of a collection of the front-end's
-// state, or a value of it.
-export type Target =
-  | { readonly block: BlockId }
-  | { readonly path: readonly string[]; readonly entry?: string };
+// What has an edit id: a block, or a property that the board's class adds.
+export type Target = { readonly block: BlockId } | { readonly property: string };
 
 export function target(of: Target): string {
-  if ("block" in of) return JSON.stringify(["block", of.block]);
-  return of.entry === undefined
-    ? JSON.stringify(["value", of.path])
-    : JSON.stringify(["entry", of.path, of.entry]);
+  return "block" in of
+    ? JSON.stringify(["block", of.block])
+    : JSON.stringify(["property", of.property]);
 }
 
 export function commit(
   board: Board,
   delta: Delta,
-  registrations: Registrations,
+  built: Built,
   places: Places = {},
 ): Committed | { readonly failures: readonly string[] } {
   const failures: string[] = [];
@@ -124,89 +110,21 @@ export function commit(
     (id) => `the board option "${id}"`,
     failures,
   );
-  const attrs = values(
-    board.front_end.attrs,
-    delta.front_end?.attrs,
-    (name) => `the front-end's attribute "${name}"`,
-    failures,
-  );
 
-  let state = board.front_end.state;
-  const stateInverse: KeyChange[] = [];
-  const statePlaces: Record<string, Readonly<Record<string, string | null>>> =
-    {};
-  const entries = new Map<string, Set<string>>();
-  const setValues = new Set<string>();
-
-  for (const { path, change } of delta.front_end?.state ?? []) {
-    const key = registrations.key(path);
-    const at = JSON.stringify(path);
-    if (key === undefined) {
-      failures.push(
-        `No key of the front-end's state is registered at ${pathText(path)}.`,
-      );
-      continue;
-    }
-
-    if (key.def.kind === "value") {
-      if (!isValueDelta(change)) {
-        failures.push(`The change to ${pathText(path)} neither sets nor unsets its value.`);
-        continue;
-      }
-      const old = getAt(state, path) as Json | undefined;
-      const value = change.unset === true ? undefined : change.set;
-      if (jsonEqual(old, value)) continue;
-      state = setAt(state, path, value);
-      const back: ValueDelta = old === undefined ? { unset: true } : { set: old };
-      stateInverse.unshift({ path, change: back });
-      targets.add(target({ path }));
-      if (value !== undefined) setValues.add(at);
-      continue;
-    }
-
-    if (isValueDelta(change)) {
-      failures.push(
-        `The change to ${pathText(path)} sets or unsets a value, where it holds a collection.`,
-      );
-      continue;
-    }
-    const current = getAt(state, path) ?? {};
-    if (!isObject(current)) {
-      failures.push(`The key ${pathText(path)} holds no collection.`);
-      continue;
-    }
-    const result = collection<Entry, NonNullable<CollectionDelta["mod"]>[string]>(
-      (id) => `entry "${id}" of ${pathText(path)}`,
-      current as Readonly<Record<string, Entry>>,
-      change,
-      (old, mod, id) => modifyEntry(old, mod, id, path, failures),
-      places[at],
-      undefined,
-      failures,
-    );
-    state = setAt(state, path, result.next);
-    if (!empty(result.inverse)) stateInverse.unshift({ path, change: result.inverse });
-    statePlaces[at] = { ...statePlaces[at], ...result.places };
-    for (const id of result.touched) targets.add(target({ path, entry: id }));
-    entries.set(at, new Set([...(entries.get(at) ?? []), ...result.changed]));
-  }
-
-  if (failures.length > 0) return { failures };
-
-  const name = delta.name ?? board.name;
-
-  const next: Board = {
+  let next: Board = {
     ...board,
-    name,
+    name: delta.name ?? board.name,
     blocks: blocks.next,
     links: links.next,
     stacks: stacks.next,
     options: options.next,
-    front_end:
-      attrs.next === board.front_end.attrs && state === board.front_end.state
-        ? board.front_end
-        : { ...board.front_end, state, attrs: attrs.next },
   };
+
+  const patched = patch(next, delta.patches ?? [], built, failures);
+  for (const property of patched.properties) targets.add(target({ property }));
+  next = patched.board;
+
+  if (failures.length > 0) return { failures };
 
   const inverse: Delta = {
     ...(empty(blocks.inverse) ? {} : { blocks: blocks.inverse }),
@@ -214,14 +132,7 @@ export function commit(
     ...(empty(stacks.inverse) ? {} : { stacks: stacks.inverse }),
     ...(options.inverse === undefined ? {} : { options: options.inverse }),
     ...(delta.name === undefined || delta.name === board.name ? {} : { name: board.name }),
-    ...(attrs.inverse === undefined && stateInverse.length === 0
-      ? {}
-      : {
-          front_end: {
-            ...(stateInverse.length === 0 ? {} : { state: stateInverse }),
-            ...(attrs.inverse === undefined ? {} : { attrs: attrs.inverse }),
-          },
-        }),
+    ...(patched.inverse.length === 0 ? {} : { patches: patched.inverse }),
   };
 
   return {
@@ -232,7 +143,6 @@ export function commit(
         blocks: blocks.places,
         links: links.places,
         stacks: stacks.places,
-        ...statePlaces,
       },
     },
     changed: {
@@ -240,12 +150,60 @@ export function commit(
       links: new Set(links.changed),
       stacks: new Set(stacks.changed),
       options: options.set,
-      attrs: attrs.set,
-      entries,
-      values: setValues,
+      properties: patched.properties,
       targets,
     },
   };
+}
+
+// The board after the patches, applied in their order,
+// with the patches that take them back, in the order that does,
+// and the properties they changed.
+// A patch changes a property that the board's class adds, never one of core's,
+// and takes no property away, since a board holds every property of its class.
+function patch(
+  board: Board,
+  patches: readonly Patch[],
+  built: Built,
+  failures: string[],
+): { board: Board; inverse: Patch[]; properties: ReadonlySet<string> } {
+  let next: Readonly<Record<string, unknown>> = recordOf(board);
+  const inverse: Patch[] = [];
+  const properties = new Set<string>();
+
+  for (const [i, given] of patches.entries()) {
+    const name = `The patch ${String(i + 1)}`;
+    const problems = malformed(given);
+    if (problems.length > 0) {
+      failures.push(`${name} ${problems.join(", ")}.`);
+      continue;
+    }
+    const parts = pointer(given.path) ?? [];
+    const [property = ""] = parts;
+    if (!built.properties.has(property)) {
+      failures.push(
+        `${name}, ${given.op} at "${given.path}", changes "${property}", which the board class "${built.def.class}" does not add.`,
+      );
+      continue;
+    }
+    if (parts.length === 1 && given.op === "remove") {
+      failures.push(
+        `${name} removes the property "${property}", which a board of the class "${built.def.class}" always holds.`,
+      );
+      continue;
+    }
+    const applied = applyPatch(next, given, parts);
+    if ("failure" in applied) {
+      failures.push(`${name}, ${given.op} at "${given.path}", ${applied.failure}.`);
+      continue;
+    }
+    next = applied.next;
+    if (applied.inverse === undefined) continue;
+    inverse.unshift(applied.inverse);
+    properties.add(property);
+  }
+
+  return { board: next as unknown as Board, inverse, properties };
 }
 
 interface Part<T, M> {
@@ -492,28 +450,4 @@ function modifyFields<T extends object>(
     changed[field] = mod[field];
   }
   return { value: { ...old, ...changed }, inverse };
-}
-
-function modifyEntry(
-  old: Entry,
-  mod: NonNullable<CollectionDelta["mod"]>[string],
-  id: string,
-  path: readonly string[],
-  failures: string[],
-): { value: Entry; inverse: NonNullable<CollectionDelta["mod"]>[string] } {
-  const fields = changes(
-    old,
-    mod.set ?? {},
-    mod.unset ?? [],
-    (key) => `The change to entry "${id}" of ${pathText(path)} both sets and unsets "${key}".`,
-    failures,
-  );
-
-  return {
-    value: fields.next,
-    inverse: {
-      ...(Object.keys(fields.restore).length === 0 ? {} : { set: fields.restore }),
-      ...(fields.remove.length === 0 ? {} : { unset: fields.remove }),
-    },
-  };
 }

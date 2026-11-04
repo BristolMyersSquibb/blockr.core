@@ -5,8 +5,11 @@
     "id": {
       "type": "string"
     },
-    "front_end": {
-      "$ref": "#/definitions/FrontEnd"
+    "class": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     },
     "name": {
       "type": "string"
@@ -103,34 +106,18 @@
     }
   },
   "required": [
-    "front_end",
+    "class",
     "blocks",
     "links",
     "stacks",
     "options"
   ],
   "definitions": {
-    "FrontEnd": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "state": {
-          "type": "object"
-        },
-        "attrs": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/Json"
-          }
-        }
-      },
-      "required": [
-        "id",
-        "state",
-        "attrs"
-      ]
+    "BlockId": {
+      "type": "string"
+    },
+    "RegistryId": {
+      "type": "string"
     },
     "Json": {
       "anyOf": [
@@ -159,12 +146,6 @@
           }
         }
       ]
-    },
-    "BlockId": {
-      "type": "string"
-    },
-    "RegistryId": {
-      "type": "string"
     },
     "LinkId": {
       "type": "string"

@@ -12,7 +12,7 @@ export function boardOf(
 ): Board {
   return {
     id: "board",
-    front_end: { id: "blockr.core-basic", state: {}, attrs: {} },
+    class: ["board"],
     name: "Board",
     blocks: Object.fromEntries(
       Object.entries(blocks).map(([id, name]) => [

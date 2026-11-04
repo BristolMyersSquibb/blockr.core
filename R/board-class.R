@@ -7,12 +7,16 @@
 #' available for retrieving board components (see [board_blocks()]).
 #'
 #' A board holds what the client's board holds: its blocks, links and stacks,
-#' the values of the board options that the script gives, its ID and name, and
-#' the front-end's state. The front-end's state is made of the components
-#' passed in `...`, such as those that a front-end adds through a constructor
-#' of its own. Such a constructor names the board's class in `class`, which
-#' picks the front-end that the board is made for (see [board_front_end()]). A
-#' board takes no board options by default, since a board holds the value of a
+#' the values of the board options that the script gives, its ID and name,
+#' its class and the properties that its class adds beside core's.
+#' Those properties are the components passed in `...`, such as the views that a
+#' constructor like blockr.dock's `new_dock_board()` adds.
+#' Such a constructor names the board's class in `class`.
+#' R writes the board's class vector for the client.
+#' The client builds the board as the first class in the vector that a loaded
+#' package defines in JavaScript, and that class's front-end draws the board
+#' (see [register_module()]).
+#' A board takes no board options by default, since a board holds the value of a
 #' board option only once something sets it (see [new_board_options()]).
 #'
 #' A board has an ID, which identifies it, and a name, which the user calls it
@@ -28,7 +32,7 @@
 #' @param links Set of links
 #' @param stacks Set of stacks
 #' @param options Board options, with the values the script gives
-#' @param ... The front-end's state, by key
+#' @param ... The properties that the board's class adds, by name
 #' @param id Board ID, which `NULL` leaves for the client to mint
 #' @param name Board name, which `NULL` leaves for the client to set
 #' @param class Board sub-class

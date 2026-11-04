@@ -37,9 +37,10 @@ replaces it, as when a package is loaded again.
 \details{
 Next to its startup module, as \code{startup.schema.json} next to \code{startup.js}, a
 package puts one JSON Schema, laid out like the board, for the parts of the
-board that the package defines: the front-end's state under
-\code{front_end.state} and the values of its board options under \code{options}, by
-their IDs. R shapes the board that an app script builds by it, as it does by
+board that the package defines: the properties that its board classes add,
+beside core's, and the values of its board options under \code{options}, by
+their IDs.
+R shapes the board that an app script builds by it, as it does by
 core's schema of the board (see \code{\link[=blockr_ser]{blockr_ser()}}), so that a value of length
 one stays an array where the schema has one. R reads nothing else out of
 it. Core puts the schema of its own board options next to its runtime in the

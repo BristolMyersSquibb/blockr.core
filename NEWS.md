@@ -91,16 +91,19 @@
   `pick_renderers()` gives the renderer that R picks for each output class and
   board option, whatever the board's front-end (#425).
 * R writes the board that an app script builds with `blockr_ser()`, as R
-  sends it to the client: its ID and name where it has them, its blocks,
-  links and stacks as arrays, each with the ID the script gave it, the
-  front-end it is made for, with the front-end's state, and the values of the
-  board options the script gives. It writes each value by a JSON Schema, so
-  that no shape depends on R's JSON writer: core's objects by the schema of
-  the board that the build generates from its TypeScript types into
-  `inst/board`, a block's state by the schema its class's UI ships, and a key
-  of the front-end's state or a board option's value by the schema its
-  package ships beside its startup module, as core ships those of its board
-  options beside its runtime. Writing a board registers the block classes
+  sends it to the client: its ID and name where it has them, its class
+  vector, its blocks, links and stacks as arrays, each with the ID the script
+  gave it, and the values of the board options the script gives.
+  Beside them it writes the properties that the board's class adds, which are
+  the components that the board holds besides core's, such as those that a
+  board class's constructor passes to `new_board()`.
+  It writes each value by a JSON Schema, so that no shape depends on R's JSON
+  writer: core's objects by the schema of the board that the build generates
+  from its TypeScript types into `inst/board`, a block's state by the schema
+  its class's UI ships, and a property of the board's class or a board
+  option's value by the schema its package ships beside its startup module,
+  as core ships those of its board options beside its runtime.
+  Writing a board registers the block classes
   that its blocks refer to, from the blocks themselves, and fails on a value
   that JSON cannot hold, such as a function, so that such a board fails as
   the script runs. The board, link and stack constructors lose `ctor` and
@@ -113,7 +116,7 @@
   no board options by default, and `as_table_output()` pages a data frame by
   the `n_rows` that the client sends. Nothing in R reads a board back, since
   the client opens every board itself, so `blockr_deser()` goes, and a file
-  of today's stack is converted by a script of its own (#428).
+  of today's stack is converted by a script of its own (#428, #465).
 * Core's twelve built-in blocks are block classes. Core exports each class
   beside its constructor, such as `head_block` beside `new_head_block()`, and
   registers ten of them when it loads, under IDs such as

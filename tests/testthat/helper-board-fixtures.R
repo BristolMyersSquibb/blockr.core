@@ -50,10 +50,11 @@ fixture_classes <- list(
 
 # What the package blockr.test of the fixtures declares from its `.onLoad()`:
 # the front-end blockr.test-grid, which draws a `grid_board`, and a startup
-# module, beside which the package ships the schemas of its keys of the
-# front-end's state, here in the fixtures' blockr.test/, as it would install
-# them. The block registry and what packages declare are restored once `frame`
-# ends, so that the classes that writing a fixture registers go too.
+# module, beside which the package ships the schemas of the properties that
+# `grid_board` adds, here in the fixtures' blockr.test/, as it would install
+# them.
+# The block registry and what packages declare are restored once `frame` ends,
+# so that the classes that writing a fixture registers go too.
 local_fixture_package <- function(frame = parent.frame()) {
 
   envs <- list(block_registry, declared_front_ends, declared_startup_modules)
@@ -109,7 +110,7 @@ board_fixture_values <- function() {
   list(
     board = list(
       description = paste(
-        "A board that an app script builds for core's basic front-end, with",
+        "A board of core's class board, which an app script builds, with",
         "every id given, so that the client mints none. Its block classes are",
         "defined outside a package, so their registry ids are their names.",
         "The UI of the join block ships the schema of its state. R writes",
@@ -141,16 +142,18 @@ board_fixture_values <- function() {
       ),
       packages = core
     ),
-    `front-end-state` = list(
+    `board-class` = list(
       description = paste(
-        "A board of the class grid_board, made for the front-end",
-        "blockr.test-grid that the package blockr.test declares, with the",
-        "front-end's state that the script gives. The package ships the",
-        "schemas of its keys beside its startup module, here in",
+        "A board of the class grid_board, which extends core's board and",
+        "which the package blockr.test defines in JavaScript, with the",
+        "properties that the class adds beside core's, panels and active, as",
+        "the script gives them. The package ships the schemas of those",
+        "properties beside its startup module, here in",
         "blockr.test/js/startup.schema.json. By them, R writes the blocks of",
-        "each entry of the collection panels as an array, and the value",
-        "active as a string. A client opens the board as written only where",
-        "blockr.test registers those keys and R serves its front-end."
+        "each entry of panels as an array, and active as a string. A client",
+        "builds the board as a grid_board, keeping both properties, only",
+        "where blockr.test defines the class, and as core's board otherwise,",
+        "without them."
       ),
       board = new_board(
         blocks = c(a = new_letters_block(block_name = "Letters")),

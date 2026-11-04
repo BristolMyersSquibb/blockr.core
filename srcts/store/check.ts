@@ -1,24 +1,26 @@
-// The checks a board passes after every delta and as it opens, each failure in
-// a sentence: the invariants of core's objects, as R's validate_links() and
-// the board's checks did, the schemas of the attributes, board options and
-// keys of the front-end's state, and each key's own check. Where a delta
-// changed only some objects, their shapes and schemas are checked alone, since
-// nothing else can have broken them, while the invariants and the keys' checks
-// run on the whole board every time.
+// The checks a board passes after every delta and as it opens,
+// each failure in a sentence: the invariants of core's objects,
+// as R's validate_links() and the board's checks did,
+// and the schemas of the attributes, board options and properties of the
+// board's class.
+// Where a delta changed only some objects, their shapes and schemas
+// are checked alone, since nothing else can have broken them,
+// while the invariants run on the whole board every time.
 
 import { graphOf } from "../graph/index.ts";
 import type { Board, RegistryId } from "../types/board.ts";
-import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { getAt, isObject, messageOf, own, pathText, quoted } from "../util/index.ts";
+import { isObject, own, quoted } from "../util/index.ts";
 import type { Changed } from "./commit.ts";
 import { isId } from "./ids.ts";
-import type { Registrations } from "./registrations.ts";
+import { recordOf } from "./registrations.ts";
+import type { Built, Registrations } from "./registrations.ts";
 
 export function check(
   board: Board,
   registry: Readonly<Record<RegistryId, RegistryEntry>>,
   registrations: Registrations,
+  built: Built,
   changed?: Changed,
 ): string[] {
   const failures: string[] = [];
@@ -29,17 +31,23 @@ export function check(
   if (typeof board.name !== "string") {
     failures.push("The board's name is no string.");
   }
-  if (typeof board.front_end.id !== "string") {
-    failures.push("The board names no front-end by its id.");
+  if (!isClass(board.class)) {
+    failures.push("The board's class is no array of class names, as R's class vector of a board is.");
   }
 
   checkBlocks(board, registry, registrations, changed, failures);
   checkLinks(board, registry, changed, failures);
   checkStacks(board, changed, failures);
   checkValues(board, registrations, changed, failures);
-  checkKeys(board, registrations, changed, failures);
+  checkProperties(board, built, changed, failures);
 
   return failures;
+}
+
+// Whether a board's class is a class vector: an array of names,
+// which are not empty.
+export function isClass(x: unknown): x is readonly string[] {
+  return Array.isArray(x) && x.length > 0 && x.every((cls) => typeof cls === "string" && cls !== "");
 }
 
 function ids(
@@ -74,7 +82,7 @@ function checkBlocks(
       );
     }
     for (const [name, value] of Object.entries(block.attrs)) {
-      const attr = registrations.attribute("block", name);
+      const attr = registrations.attribute(name);
       if (attr === undefined) {
         failures.push(`The block "${id}" has the attribute "${name}", which no package registered.`);
         continue;
@@ -190,54 +198,25 @@ function checkValues(
       failures.push(`The value of the board option "${id}" ${failure}`);
     }
   }
-
-  for (const [name, value] of Object.entries(board.front_end.attrs)) {
-    if (changed !== undefined && !changed.attrs.has(name)) continue;
-    const attr = registrations.attribute("front_end", name);
-    if (attr === undefined) {
-      failures.push(`The front-end has the attribute "${name}", which no package registered.`);
-      continue;
-    }
-    for (const failure of attr.validate(value)) {
-      failures.push(`The front-end's attribute "${name}" ${failure}`);
-    }
-  }
 }
 
-function checkKeys(
+// Each property of the board's class against its schema, as a whole:
+// those that a patch changed, or every one as the board opens.
+function checkProperties(
   board: Board,
-  registrations: Registrations,
+  built: Built,
   changed: Changed | undefined,
   failures: string[],
 ): void {
-  for (const { def, validate } of registrations.keys()) {
-    const at = JSON.stringify(def.path);
-    const where = pathText(def.path);
-    const value = getAt(board.front_end.state, def.path) as Json | undefined;
-
-    if (def.kind === "value") {
-      if (value !== undefined && (changed === undefined || changed.values.has(at))) {
-        for (const failure of validate(value)) failures.push(`The value of ${where} ${failure}`);
-      }
-    } else if (value !== undefined) {
-      if (!isObject(value)) {
-        failures.push(`The key ${where} holds no collection.`);
-        continue;
-      }
-      const entries = changed === undefined ? Object.keys(value) : (changed.entries.get(at) ?? []);
-      for (const id of entries) {
-        for (const failure of validate(own(value, id))) {
-          failures.push(`The entry "${id}" of ${where} ${failure}`);
-        }
-      }
+  const record = recordOf(board);
+  for (const [name, { validate }] of built.properties) {
+    if (changed !== undefined && !changed.properties.has(name)) continue;
+    const value = own(record, name);
+    if (value === undefined) {
+      failures.push(`The board holds no value of the property "${name}" of its class.`);
+      continue;
     }
-
-    if (def.check === undefined || value === undefined) continue;
-    try {
-      for (const failure of def.check(value, board)) failures.push(`${where}: ${failure}`);
-    } catch (error) {
-      failures.push(`The key ${where} failed to check the board: ${messageOf(error)}`);
-    }
+    for (const failure of validate(value)) failures.push(`The property "${name}" ${failure}`);
   }
 }
 

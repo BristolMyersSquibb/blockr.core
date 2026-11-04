@@ -279,12 +279,18 @@ describe("revisions", () => {
     for (const id of ["b", "c", "e"]) expect(after[id]).toBeGreaterThan(top);
   });
 
-  test("stay through a rename, an attribute, a stack, a board option, the board's name, the front-end's state and a state set to what it holds", async () => {
+  test("stay through a rename, an attribute, a stack, a board option, the board's name, a property of its class and a state set to what it holds", async () => {
     const { store, scheduler } = await setup(
       {},
       {
+        reply: { ...hello, board: { ...hello.board, class: ["zoomed_board", "board"] } } as HelloReply,
         prepare: (store) =>
-          store.register({ path: ["zoom"], kind: "value", schema: { type: "number" } }),
+          store.register({
+            class: "zoomed_board",
+            parent: "board",
+            frontEnd: "test.pkg-zoomed",
+            properties: { zoom: { schema: { type: "number" }, default: 1 } },
+          }),
       },
     );
     const before = revisionsOf(scheduler);
@@ -299,7 +305,7 @@ describe("revisions", () => {
     store.apply({ stacks: { mod: { s1: { name: "Inputs" } } } });
     store.apply({ options: { set: { n_rows: 20 } } });
     store.apply({ name: "Renamed" });
-    store.apply({ front_end: { state: [{ path: ["zoom"], change: { set: 2 } }] } });
+    store.apply({ patches: [{ op: "replace", path: "/zoom", value: 2 }] });
 
     expect(revisionsOf(scheduler)).toEqual(before);
   });

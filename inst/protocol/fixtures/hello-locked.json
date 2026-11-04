@@ -122,7 +122,7 @@
         "lock": { "open": ["b"] },
         "board": {
           "id": "steady_lynx",
-          "front_end": { "id": "blockr.core-basic", "state": {}, "attrs": {} },
+          "class": ["board"],
           "name": "Iris report",
           "blocks": [
             {

@@ -7,7 +7,7 @@
 
 import { describe, expect, test } from "vitest";
 import { isId, StoreError } from "../store/index.ts";
-import type { Attribute, StateKey, Store } from "../store/index.ts";
+import type { Store } from "../store/index.ts";
 import { hello, openedStore } from "../testing/store.ts";
 import type { Board } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
@@ -431,88 +431,6 @@ describe("the board", () => {
   });
 });
 
-describe("the front-end's state", () => {
-  const positions: StateKey = {
-    path: ["extensions", "blockr.dag-dag", "positions"],
-    kind: "collection",
-    schema: {
-      type: "object",
-      properties: { x: { type: "number" }, y: { type: "number" } },
-      required: ["x", "y"],
-      additionalProperties: false,
-    },
-    check: (value, board) =>
-      Object.keys(value as object)
-        .filter((id) => !Object.hasOwn(board.blocks, id))
-        .map((id) => `There is no block "${id}" to place.`),
-  };
-
-  const layout: StateKey = {
-    path: ["extensions", "blockr.dag-dag", "layout"],
-    kind: "value",
-    schema: { enum: ["LR", "TB"] },
-    initial: "LR",
-  };
-
-  function keys(store: Store): void {
-    store.register(positions);
-    store.register(layout);
-  }
-
-  function positionsOf(board: Board): unknown {
-    return board.front_end.state.extensions;
-  }
-
-  test("add_front_end_entry, change_front_end_entry and remove_front_end_entry change a collection", async () => {
-    const { store, commands } = await setup(keys);
-
-    await commands.run("blockr.core-add_front_end_entry", { path: positions.path, id: "a", entry: { x: 1, y: 2 } });
-    await commands.run("blockr.core-change_front_end_entry", { path: positions.path, id: "a", set: { x: 5 } });
-    expect(positionsOf(store.board())).toEqual({
-      "blockr.dag-dag": { positions: { a: { x: 5, y: 2 } }, layout: "LR" },
-    });
-
-    await commands.run("blockr.core-change_front_end_entry", { path: positions.path, id: "a", set: { x: 5 } });
-    await commands.run("blockr.core-remove_front_end_entry", { path: positions.path, id: "a" });
-    expect(positionsOf(store.board())).toEqual({ "blockr.dag-dag": { positions: {}, layout: "LR" } });
-
-    store.undo();
-    store.undo();
-    expect(positionsOf(store.board())).toEqual({
-      "blockr.dag-dag": { positions: { a: { x: 1, y: 2 } }, layout: "LR" },
-    });
-  });
-
-  test("add_front_end_entry mints the id it is given none for, and leaves the key's schema and check to the store", async () => {
-    const { store, commands } = await setup(keys);
-
-    await expect(
-      commands.run("blockr.core-add_front_end_entry", { path: positions.path, entry: { x: 1, y: 2 } }),
-    ).rejects.toThrow(/There is no block "\w+" to place./);
-    await expect(
-      commands.run("blockr.core-add_front_end_entry", { path: positions.path, id: "a", entry: { x: "left" } }),
-    ).rejects.toThrow('The entry "a" of extensions/blockr.dag-dag/positions fails its schema');
-    expect(store.canUndo()).toBe(false);
-  });
-
-  test("set_front_end_value sets a value", async () => {
-    const { store, commands } = await setup(keys);
-    await commands.run("blockr.core-set_front_end_value", { path: layout.path, value: "TB" });
-    expect(store.board().front_end.state.extensions).toEqual({
-      "blockr.dag-dag": { positions: {}, layout: "TB" },
-    });
-  });
-
-  test("are not enabled for a key that no package registered at the path, or one of the other kind", async () => {
-    const { commands } = await setup(keys);
-
-    expect(commands.enabled("blockr.core-add_front_end_entry", { path: ["views"], entry: {} })).toBe(false);
-    expect(commands.enabled("blockr.core-add_front_end_entry", { path: layout.path, entry: {} })).toBe(false);
-    expect(commands.enabled("blockr.core-set_front_end_value", { path: positions.path, value: {} })).toBe(false);
-    expect(commands.enabled("blockr.core-change_front_end_entry", { path: positions.path, id: "a" })).toBe(false);
-  });
-});
-
 describe("attributes", () => {
   test("set_block_attribute sets an attribute of a block that a package registered", async () => {
     const { store, commands } = await setup();
@@ -528,14 +446,6 @@ describe("attributes", () => {
     ).rejects.toThrow('The attribute "visible" of block "b" fails its schema');
   });
 
-  test("set_front_end_attribute sets an attribute of the front-end that a package registered", async () => {
-    const theme: Attribute = { name: "theme", on: "front_end", schema: { enum: ["light", "dark"] } };
-    const { store, commands } = await setup((store) => store.register(theme));
-
-    await commands.run("blockr.core-set_front_end_attribute", { name: "theme", value: "dark" });
-    expect(store.board().front_end.attrs).toEqual({ theme: "dark" });
-    expect(commands.enabled("blockr.core-set_front_end_attribute", { name: "visible", value: [] })).toBe(false);
-  });
 });
 
 describe("the schemas", () => {

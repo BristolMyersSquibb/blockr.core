@@ -30,7 +30,7 @@ is_board(x)
 
 \item{options}{Board options, with the values the script gives}
 
-\item{...}{The front-end's state, by key}
+\item{...}{The properties that the board's class adds, by name}
 
 \item{id}{Board ID, which \code{NULL} leaves for the client to mint}
 
@@ -55,12 +55,16 @@ available for retrieving board components (see \code{\link[=board_blocks]{board_
 }
 \details{
 A board holds what the client's board holds: its blocks, links and stacks,
-the values of the board options that the script gives, its ID and name, and
-the front-end's state. The front-end's state is made of the components
-passed in \code{...}, such as those that a front-end adds through a constructor
-of its own. Such a constructor names the board's class in \code{class}, which
-picks the front-end that the board is made for (see \code{\link[=board_front_end]{board_front_end()}}). A
-board takes no board options by default, since a board holds the value of a
+the values of the board options that the script gives, its ID and name,
+its class and the properties that its class adds beside core's.
+Those properties are the components passed in \code{...}, such as the views that a
+constructor like blockr.dock's \code{new_dock_board()} adds.
+Such a constructor names the board's class in \code{class}.
+R writes the board's class vector for the client.
+The client builds the board as the first class in the vector that a loaded
+package defines in JavaScript, and that class's front-end draws the board
+(see \code{\link[=register_module]{register_module()}}).
+A board takes no board options by default, since a board holds the value of a
 board option only once something sets it (see \code{\link[=new_board_options]{new_board_options()}}).
 
 A board has an ID, which identifies it, and a name, which the user calls it

@@ -121,7 +121,7 @@ protocol_r_values <- function() {
           renderers = proto_renderers()["blockr.core-table_output"],
           lock = NULL,
           board = obj(
-            front_end = proto_basic(),
+            class = proto_class(),
             blocks = list(
               proto_block(
                 "blockr.core-head_block",
@@ -790,8 +790,9 @@ proto_registry <- function(...) {
   set_names(unname(entries), chr_xtr(entries, "id"))
 }
 
-proto_basic <- function() {
-  obj(id = "blockr.core-basic", state = obj(), attrs = obj())
+# The class vector of a board of core's class.
+proto_class <- function() {
+  I("board")
 }
 
 # An object of a board, with its id first where it has one.
@@ -820,7 +821,7 @@ proto_id <- function(id) {
 # the board none.
 proto_board <- function() {
   obj(
-    front_end = proto_basic(),
+    class = proto_class(),
     name = "Iris review",
     blocks = list(
       proto_block(
@@ -874,7 +875,7 @@ proto_board <- function() {
 proto_app_board <- function() {
   obj(
     id = "quiet_heron",
-    front_end = proto_basic(),
+    class = proto_class(),
     name = "Penguins",
     blocks = list(
       proto_block(
@@ -901,7 +902,7 @@ proto_app_board <- function() {
 proto_locked_board <- function() {
   obj(
     id = "steady_lynx",
-    front_end = proto_basic(),
+    class = proto_class(),
     name = "Iris report",
     blocks = list(
       proto_block(
@@ -933,7 +934,7 @@ proto_served_file <- function() {
     packages = obj(blockr.core = "0.2.0"),
     board = obj(
       id = "amber_tapir",
-      front_end = proto_basic(),
+      class = proto_class(),
       name = "Cars",
       blocks = obj(
         a = proto_block(

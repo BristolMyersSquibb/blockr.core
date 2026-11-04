@@ -73,7 +73,7 @@
         },
         "lock": null,
         "board": {
-          "front_end": { "id": "blockr.core-basic", "state": {}, "attrs": {} },
+          "class": ["board"],
           "blocks": [
             {
               "registry_id": "blockr.core-head_block",

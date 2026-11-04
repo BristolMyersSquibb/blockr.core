@@ -3,25 +3,19 @@
 
 export { createStore } from "./store.ts";
 export type { Change, Store, StoreOptions } from "./store.ts";
-export { isDeltas, isValueDelta } from "./delta.ts";
-export type {
-  BlockMod,
-  CollectionDelta,
-  Delta,
-  Entry,
-  KeyChange,
-  KeyDelta,
-  Origin,
-} from "./delta.ts";
+export { isDeltas } from "./delta.ts";
+export type { BlockMod, Delta, Origin, Patch, Values } from "./delta.ts";
+export { pathOf, pointer } from "./patch.ts";
 export type {
   Attribute,
+  BoardClass,
   Migration,
   Option,
   Options,
+  Property,
   Saved,
-  StateKey,
 } from "./registrations.ts";
-export { BASIC_FRONT_END, FORMAT } from "./open.ts";
+export { FORMAT } from "./open.ts";
 export type { Dropped } from "./open.ts";
 export { isId, mintId, sentenceCase } from "./ids.ts";
 export { StoreError } from "./error.ts";

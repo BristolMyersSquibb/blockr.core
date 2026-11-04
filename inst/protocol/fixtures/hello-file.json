@@ -125,11 +125,7 @@
           "packages": { "blockr.core": "0.2.0" },
           "board": {
             "id": "amber_tapir",
-            "front_end": {
-              "id": "blockr.core-basic",
-              "state": {},
-              "attrs": {}
-            },
+            "class": ["board"],
             "name": "Cars",
             "blocks": {
               "a": {
