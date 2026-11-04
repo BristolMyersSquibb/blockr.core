@@ -30,45 +30,53 @@ test_that("board opts", {
   expect_named(opts3, c("n_rows", "dark_mode", "show_conditions"))
 })
 
-test_that("opt ser/deser", {
+test_that("board option values are those that a set holds", {
 
-  for (opt in default_board_options()) {
-    expect_identical(
-      opt,
-      blockr_deser(blockr_ser(opt)),
-      ignore_function_env = TRUE
-    )
-  }
-
-  reg_opts <- combine_board_options(lapply(available_blocks(), board_options))
-
-  for (opt in reg_opts) {
-    expect_identical(
-      opt,
-      blockr_deser(blockr_ser(opt)),
-      ignore_function_env = TRUE
-    )
-  }
-
-  opts <- list(
-    new_dark_mode_option("dark"),
-    new_show_conditions_option(character()),
-    new_show_conditions_option("error"),
-    new_show_conditions_option(c("warning", "error", "message"))
+  opts <- new_board_options(
+    new_n_rows_option(25L),
+    new_dark_mode_option(),
+    new_show_conditions_option("error")
   )
 
-  for (opt in opts) {
-    expect_identical(
-      opt,
-      blockr_deser(blockr_ser(opt)),
-      ignore_function_env = TRUE
-    )
-  }
+  expect_identical(
+    board_option_values(opts),
+    list(n_rows = 25L, show_conditions = "error")
+  )
+
+  expect_identical(
+    board_option_values(new_board_options(new_dark_mode_option())),
+    set_names(list(), character())
+  )
+
+  expect_identical(
+    board_option_values(new_board(options = new_n_rows_option(5L))),
+    list(n_rows = 5L)
+  )
+})
+
+test_that("a set of board options keeps the first for each ID", {
+
+  opts <- combine_board_options(
+    new_n_rows_option(25L),
+    new_board_options(new_n_rows_option(5L), new_dark_mode_option("dark"))
+  )
+
+  expect_identical(
+    board_option_values(opts),
+    list(n_rows = 25L, dark_mode = "dark")
+  )
 })
 
 test_that("a board options container has a compact str_value()", {
 
-  opts <- as_board_options(new_board())
+  opts <- as_board_options(
+    new_board(
+      options = c(
+        new_show_conditions_option(c("warning", "error")),
+        new_dark_mode_option()
+      )
+    )
+  )
 
   res <- str_value(opts)
   lines <- strsplit(res, "\n")[[1L]]
@@ -77,6 +85,7 @@ test_that("a board options container has a compact str_value()", {
   expect_identical(lines[1L], "<board_options[2]>")
   expect_length(lines, 3L)
   expect_true(any(startsWith(lines[-1L], "  show_conditions: ")))
+  expect_true("  dark_mode: <unset>" %in% lines)
 
   expect_identical(str_value(new_board_options()), "<board_options[0]>")
 

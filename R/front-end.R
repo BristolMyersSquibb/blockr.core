@@ -13,14 +13,13 @@ declared_front_ends <- new.env()
 #' front-end again under the same ID replaces it, as when a package is loaded
 #' again.
 #'
-#' R picks a board's front-end wherever it holds the board as an R object, the
-#' one an app script builds and the one [blockr_deser()] builds from a file of
-#' today's stack: `board_front_end()` gives the ID of the front-end declared
-#' for the most specific class in the board's class vector that has one, so
-#' that a board of a class extending `dock_board` that no package declares a
-#' front-end for is drawn by the dock, and every board by core's basic
-#' front-end at least. A board given as JSON keeps the front-end it names in
-#' its `front_end.id`, since it carries no class.
+#' R picks the front-end of the board that an app script builds, the only
+#' board that R holds as an R object. The function `board_front_end()` gives
+#' the ID of the front-end declared for the most specific class in the board's
+#' class vector that has one. So a board of a class extending `dock_board` that
+#' no package declares a front-end for is drawn by the dock, and every board by
+#' core's basic front-end at least. A board given as JSON keeps the front-end
+#' it names in its `front_end.id`, since it carries no class.
 #'
 #' @param name The name part of the front-end's ID
 #' @param module The front-end's module, made by [js_module()]

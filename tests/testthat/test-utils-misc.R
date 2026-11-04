@@ -288,8 +288,6 @@ test_that("misc", {
     "blockr_ctor"
   )
 
-  expect_identical(forward_ctor(1L), -2L)
-
   # test for namespaced ctor in `resolve_ctor()`
   expect_s3_class(
     blockr.core::new_board(),

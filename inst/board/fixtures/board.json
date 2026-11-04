@@ -1,0 +1,151 @@
+{
+  "description": "A board that an app script builds for core's basic front-end, with every id given, so that the client mints none. Its block classes are defined outside a package, so their registry ids are their names. The UI of the join block ships the schema of its state. R writes that block's by, a vector of length one, as an array, and its all_x as a value, while it writes the state of the letters blocks bare. The stack of one block keeps its blocks an array, by the board's schema, and show_conditions is an array, by the schema that core ships beside its runtime. The client keys the collections by id as it opens the board, and the fixture's file is the file that the client then writes.",
+  "board": {
+    "id": "curious_otter",
+    "front_end": {
+      "id": "blockr.core-basic",
+      "state": {},
+      "attrs": {}
+    },
+    "name": "Sales review",
+    "blocks": [
+      {
+        "id": "a",
+        "registry_id": "letters_block",
+        "state": {
+          "n": 3
+        },
+        "name": "Letters",
+        "attrs": {}
+      },
+      {
+        "id": "b",
+        "registry_id": "letters_block",
+        "state": {
+          "n": 5
+        },
+        "name": "More letters",
+        "attrs": {}
+      },
+      {
+        "id": "c",
+        "registry_id": "join_block",
+        "state": {
+          "by": [
+            "x"
+          ],
+          "all_x": false
+        },
+        "name": "Join",
+        "attrs": {
+          "visible": [
+            "outputs"
+          ]
+        }
+      }
+    ],
+    "links": [
+      {
+        "id": "ac",
+        "from": "a",
+        "to": "c",
+        "input": "x"
+      },
+      {
+        "id": "bc",
+        "from": "b",
+        "to": "c",
+        "input": "y"
+      }
+    ],
+    "stacks": [
+      {
+        "id": "s1",
+        "name": "Input",
+        "blocks": [
+          "a"
+        ]
+      }
+    ],
+    "options": {
+      "n_rows": 25,
+      "show_conditions": [
+        "error"
+      ]
+    }
+  },
+  "file": {
+    "format": 1,
+    "packages": {
+      "blockr.core": "0.2.0"
+    },
+    "board": {
+      "id": "curious_otter",
+      "front_end": {
+        "id": "blockr.core-basic",
+        "state": {},
+        "attrs": {}
+      },
+      "name": "Sales review",
+      "blocks": {
+        "a": {
+          "registry_id": "letters_block",
+          "state": {
+            "n": 3
+          },
+          "name": "Letters",
+          "attrs": {}
+        },
+        "b": {
+          "registry_id": "letters_block",
+          "state": {
+            "n": 5
+          },
+          "name": "More letters",
+          "attrs": {}
+        },
+        "c": {
+          "registry_id": "join_block",
+          "state": {
+            "by": [
+              "x"
+            ],
+            "all_x": false
+          },
+          "name": "Join",
+          "attrs": {
+            "visible": [
+              "outputs"
+            ]
+          }
+        }
+      },
+      "links": {
+        "ac": {
+          "from": "a",
+          "to": "c",
+          "input": "x"
+        },
+        "bc": {
+          "from": "b",
+          "to": "c",
+          "input": "y"
+        }
+      },
+      "stacks": {
+        "s1": {
+          "name": "Input",
+          "blocks": [
+            "a"
+          ]
+        }
+      },
+      "options": {
+        "n_rows": 25,
+        "show_conditions": [
+          "error"
+        ]
+      }
+    }
+  }
+}

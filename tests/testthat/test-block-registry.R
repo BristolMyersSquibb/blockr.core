@@ -194,10 +194,6 @@ test_that("a registry entry's board options are those its requests read", {
                       options = list(n_rows = 2L)),
     utils::head(datasets::iris, 2L)
   )
-
-  board <- new_board(c(a = new_dataset_block()))
-
-  expect_true("n_rows" %in% names(blockr_app_options(board)))
 })
 
 test_that("registry entries print", {

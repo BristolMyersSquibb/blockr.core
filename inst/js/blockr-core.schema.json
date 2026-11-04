@@ -1,0 +1,34 @@
+{
+  "type": "object",
+  "properties": {
+    "options": {
+      "type": "object",
+      "properties": {
+        "n_rows": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "How many rows of a table a block's output shows"
+        },
+        "show_conditions": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "message",
+              "warning",
+              "error"
+            ]
+          },
+          "uniqueItems": true,
+          "description": "The severities of a block's conditions that the board shows"
+        },
+        "dark_mode": {
+          "enum": [
+            "light",
+            "dark"
+          ],
+          "description": "Whether the board shows in its light or its dark theme"
+        }
+      }
+    }
+  }
+}

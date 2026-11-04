@@ -1,30 +1,55 @@
 #' Board options
 #'
-#' User settings at the board level are managed by a `board_options` object.
-#' This can be constructed via `new_board_options()` and in case the set of
-#' user options is to be extended, the constructor is designed with sub-classing
-#' in mind. Consequently, the associated validator `validate_board_options()`
-#' is available as S3 generic. Inheritance checking is available as
-#' `is_board_options()` and coercion as `as_board_options()`.
+#' A board option is an option that the user sees and changes while the app
+#' runs, such as `n_rows`, the rows of a table output's page. The package that
+#' ships a board option defines it in the client, with its label, category,
+#' schema, UI and default. A board holds only its value, under its ID, once
+#' something sets one: the app script or, while the app runs, a command.
 #'
-#' @param ... Options passed as individual arguments
+#' In R, a board option is its ID and the value that a script gives it, which
+#' `new_board_option()` makes. The constructors of core's board options, such
+#' as `new_n_rows_option(25L)`, make one each and compute nothing, neither a
+#' default nor a check. A board option made without a value has none. The board
+#' then holds no value for it, so that whatever needs it takes the default of
+#' its definition in the client.
+#'
+#' Core ships three board options: `n_rows`, the rows of a table output's page,
+#' `show_conditions`, the severities of a block's conditions that a front-end
+#' shows, and `dark_mode`, which switches between the light and the dark theme.
+#' Their schemas ship beside core's runtime, and R writes the value that a
+#' script gives by them (see [blockr_ser()]).
+#'
+#' Several board options make a `board_options` object, which
+#' `new_board_options()` makes, holding one board option per ID. The predicate
+#' `is_board_options()` tests for one, `as_board_options()` coerces to one and
+#' `validate_board_options()` checks one. The values that it holds, by ID, are
+#' given by `board_option_values()`, and `combine_board_options()` combines
+#' sets of board options, keeping the first for each ID.
+#'
+#' @param ... Board options
 #'
 #' @examples
-#' opt <- new_board_options(
-#'    new_dark_mode_option(),
-#'    new_n_rows_option()
-#'  )
+#' opts <- new_board_options(
+#'   new_n_rows_option(25L),
+#'   new_show_conditions_option("error"),
+#'   new_dark_mode_option()
+#' )
 #'
-#' is_board_options(opt)
-#' names(opt)
+#' is_board_options(opts)
+#' names(opts)
 #'
-#' opt[["n_rows"]]
+#' opts[["n_rows"]]
+#' board_option_values(opts)
 #'
-#' @return All of `new_board_options()` and `as_board_options()` return a
-#' `board_options` object, as does the validator `validate_board_options()`,
-#' which is typically called for side effects of throwing errors is validation
-#' does not pass. Inheritance checking as `is_board_options()` returns a scalar
-#' logical, while `board_option_values()` returns a named list of option values.
+#' @return Both `new_board_option()` and the constructors of core's board
+#' options return a `board_option` object, while `new_board_options()`,
+#' `as_board_options()` and `combine_board_options()` return a `board_options`
+#' object, as does the validator `validate_board_options()`, which is called
+#' for the errors it throws. The predicates `is_board_option()` and
+#' `is_board_options()` return a scalar logical, `board_option_id()` returns a
+#' string, `board_option_value()` the value, or `NULL` where there is none, and
+#' `board_option_values()` a named list of the values that a set of board
+#' options holds, by ID.
 #'
 #' @export
 new_board_options <- function(...) {
@@ -37,15 +62,6 @@ new_board_options <- function(...) {
   validate_board_options(res)
 
   res
-}
-
-#' @rdname new_board_options
-#' @export
-default_board_options <- function(...) {
-  new_board_options(
-    new_show_conditions_option(...),
-    new_dark_mode_option(...)
-  )
 }
 
 #' @param x Board options object
@@ -131,12 +147,10 @@ names.board_options <- function(x) {
 #' @export
 board_option_values <- function(x) {
 
-  x <- as_board_options(x)
+  x <- as.list(as_board_options(x))
+  x <- x[lgl_ply(x, has_board_option_value)]
 
-  set_names(
-    lapply(x, board_option_value),
-    names(x)
-  )
+  set_names(lapply(x, board_option_value), names(x))
 }
 
 #' @export

@@ -237,14 +237,9 @@ registry_id <- function(name, package) {
 
 class_schema <- function(cls) {
 
-  ui <- cls[["ui"]]
-  path <- paste0(sub("\\.[^./]*$", "", ui[["path"]]), ".schema.json")
+  path <- module_file(cls[["ui"]], ".schema.json")
 
-  if (not_null(ui[["package"]])) {
-    path <- system.file(path, package = ui[["package"]])
-  }
-
-  if (!nzchar(path) || !file.exists(path)) {
+  if (!nzchar(path)) {
     return(NULL)
   }
 

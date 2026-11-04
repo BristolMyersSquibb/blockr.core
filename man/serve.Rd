@@ -2,12 +2,9 @@
 % Please edit documentation in R/utils-serve.R
 \name{serve}
 \alias{serve}
-\alias{blockr_app_options}
 \title{Serve object}
 \usage{
 serve(x, ...)
-
-blockr_app_options(x)
 }
 \arguments{
 \item{x}{Object}
@@ -16,17 +13,11 @@ blockr_app_options(x)
 }
 \value{
 A \code{serve()} method is expected to return an app, such as the result
-of a call to \code{\link[shiny:shinyApp]{shiny::shinyApp()}}, while \code{blockr_app_options()} returns a
-\code{board_options} object.
+of a call to \code{\link[shiny:shinyApp]{shiny::shinyApp()}}.
 }
 \description{
 Intended as entry point to start up an app, the generic function \code{serve()}
 dispatches on the object to serve, such as an entire board or a single block
 (for previewing it during block development). No methods are currently
 provided.
-}
-\details{
-The board options an app offers are collected by \code{blockr_app_options()}
-from the board, its blocks and all registered blocks, keeping the first
-option for each ID.
 }
