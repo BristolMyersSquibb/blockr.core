@@ -22,8 +22,10 @@ import { applyPatch, malformed, pointer } from "./patch.ts";
 import { recordOf } from "./registrations.ts";
 import type { Built } from "./registrations.ts";
 
-// Where each entry that an inverse adds back goes,
-// before the entry named or last, by collection: "blocks", "links" or "stacks".
+// Where each entry that an inverse adds back goes, before the entry named or
+// last, by collection: "blocks", "links" or "stacks".
+// Under "patches", where each member of an object that an inverse's patch adds
+// back goes, by the patch's path.
 export type Places = Readonly<
   Record<string, Readonly<Record<string, string | null>>>
 >;
@@ -120,7 +122,7 @@ export function commit(
     options: options.next,
   };
 
-  const patched = patch(next, delta.patches ?? [], built, failures);
+  const patched = patch(next, delta.patches ?? [], built, places.patches ?? {}, failures);
   for (const property of patched.properties) targets.add(target({ property }));
   next = patched.board;
 
@@ -143,6 +145,7 @@ export function commit(
         blocks: blocks.places,
         links: links.places,
         stacks: stacks.places,
+        patches: patched.places,
       },
     },
     changed: {
@@ -159,16 +162,26 @@ export function commit(
 // The board after the patches, applied in their order,
 // with the patches that take them back, in the order that does,
 // and the properties they changed.
+// An `add` of a member that `placed` gives a place for goes in that place, and
+// each member that a patch removes leaves its place for the patch that adds
+// it back.
 // A patch changes a property that the board's class adds, never one of core's,
 // and takes no property away, since a board holds every property of its class.
 function patch(
   board: Board,
   patches: readonly Patch[],
   built: Built,
+  placed: Readonly<Record<string, string | null>>,
   failures: string[],
-): { board: Board; inverse: Patch[]; properties: ReadonlySet<string> } {
+): {
+  board: Board;
+  inverse: Patch[];
+  places: Readonly<Record<string, string | null>>;
+  properties: ReadonlySet<string>;
+} {
   let next: Readonly<Record<string, unknown>> = recordOf(board);
   const inverse: Patch[] = [];
+  const places: Record<string, string | null> = {};
   const properties = new Set<string>();
 
   for (const [i, given] of patches.entries()) {
@@ -192,7 +205,8 @@ function patch(
       );
       continue;
     }
-    const applied = applyPatch(next, given, parts);
+    const place = given.op === "add" ? own(placed, given.path) : undefined;
+    const applied = applyPatch(next, given, parts, place);
     if ("failure" in applied) {
       failures.push(`${name}, ${given.op} at "${given.path}", ${applied.failure}.`);
       continue;
@@ -200,10 +214,11 @@ function patch(
     next = applied.next;
     if (applied.inverse === undefined) continue;
     inverse.unshift(applied.inverse);
+    if (applied.place !== undefined) places[applied.inverse.path] = applied.place;
     properties.add(property);
   }
 
-  return { board: next as unknown as Board, inverse, properties };
+  return { board: next as unknown as Board, inverse, places, properties };
 }
 
 interface Part<T, M> {

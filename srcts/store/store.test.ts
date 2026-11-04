@@ -1305,6 +1305,57 @@ describe("undo", () => {
     });
   });
 
+  test("puts a member that a patch removed back in its place, before the member that followed it", async () => {
+    const store = await docked();
+    const order = () => Object.keys(viewsOf(store.board()));
+    store.apply({
+      patches: [
+        { op: "add", path: "/views/side", value: { panels: [] } },
+        { op: "add", path: "/views/data", value: { panels: [] } },
+      ],
+    });
+    expect(order()).toEqual(["main", "side", "data"]);
+
+    store.apply({
+      patches: [
+        { op: "remove", path: "/views/side" },
+        { op: "remove", path: "/views/main" },
+      ],
+    });
+    expect(order()).toEqual(["data"]);
+    store.undo();
+    expect(order()).toEqual(["main", "side", "data"]);
+
+    // Redo removes them again, and the undo after it puts them back again.
+    store.redo();
+    store.undo();
+    expect(order()).toEqual(["main", "side", "data"]);
+  });
+
+  test("puts a removed member back before the member that followed it where another origin changed the object since, and last where that member is gone", async () => {
+    const store = await docked();
+    const order = () => Object.keys(viewsOf(store.board()));
+    store.apply(
+      {
+        patches: [
+          { op: "add", path: "/views/side", value: { panels: [] } },
+          { op: "add", path: "/views/data", value: { panels: [] } },
+        ],
+      },
+      "setup",
+    );
+
+    store.apply({ patches: [{ op: "remove", path: "/views/side" }] });
+    store.apply({ patches: [{ op: "add", path: "/views/extra", value: { panels: [] } }] }, "assistant");
+    store.undo();
+    expect(order()).toEqual(["main", "side", "data", "extra"]);
+
+    store.apply({ patches: [{ op: "remove", path: "/views/side" }] });
+    store.apply({ patches: [{ op: "remove", path: "/views/data" }] }, "assistant");
+    store.undo();
+    expect(order()).toEqual(["main", "extra", "side"]);
+  });
+
   test("sets back a property over what another origin changed since, and leaves out the patches whose path is gone", async () => {
     const store = await docked();
     store.apply({

@@ -4,9 +4,13 @@
 // A patch copies only the objects and arrays along its path,
 // so that the new board shares the rest with the old one,
 // and returns the patch that takes it back, which undo applies.
-// An object's members carry no order in JSON.
-// So where a patch removes a member, the patch that takes it back adds the
-// member last.
+// A path holds where a patch changes something, however deeply nested, and an
+// index holds where an element sits in its array.
+// Where a member of an object sits among the object's members, a path does
+// not hold.
+// So a patch that removes a member names the member that followed it, which
+// the store keeps for undo, and the patch that takes the removal back adds the
+// member before that one.
 
 import { isObject, jsonEqual, without } from "../util/index.ts";
 import type { Patch } from "./delta.ts";
@@ -65,26 +69,33 @@ export type Applied =
       readonly next: Readonly<Record<string, unknown>>;
       // The patch that takes this one back, or none where it changes nothing.
       readonly inverse: Patch | undefined;
+      // Where the patch removed a member of an object: the member that
+      // followed it, or null where it was the last.
+      readonly place?: string | null;
     }
   | { readonly failure: string };
 
 // The board after the patch, whose path `parts` gives, with the patch that
 // takes it back.
+// An `add` of a member that an object lacks puts the member before the one
+// that `place` names, where the object holds that one, and last otherwise.
 // Where the patch cannot apply, the failure that keeps it from applying, in a
 // clause.
 export function applyPatch(
   board: Readonly<Record<string, unknown>>,
   patch: Patch,
   parts: readonly string[],
+  place?: string | null,
 ): Applied {
-  const result = step(board, parts, patch, []);
+  const result = step(board, parts, patch, [], place);
   if (typeof result === "string") return { failure: result };
-  return { next: result.next as Readonly<Record<string, unknown>>, inverse: result.inverse };
+  return { ...result, next: result.next as Readonly<Record<string, unknown>> };
 }
 
 interface Step {
   readonly next: unknown;
   readonly inverse: Patch | undefined;
+  readonly place?: string | null;
 }
 
 // The patch applied below `at`, which `done` leads to from the board's top.
@@ -93,6 +104,7 @@ function step(
   parts: readonly string[],
   patch: Patch,
   done: readonly string[],
+  place: string | null | undefined,
 ): Step | string {
   const [part = "", ...rest] = parts;
 
@@ -107,10 +119,10 @@ function step(
     const here = pathOf([...done, String(index)]);
 
     if (!last) {
-      const inner = step(items[index], rest, patch, [...done, String(index)]);
+      const inner = step(items[index], rest, patch, [...done, String(index)], place);
       if (typeof inner === "string") return inner;
-      if (inner.next === items[index]) return { next: at, inverse: inner.inverse };
-      return { next: spliced(items, index, 1, inner.next), inverse: inner.inverse };
+      if (inner.next === items[index]) return { ...inner, next: at };
+      return { ...inner, next: spliced(items, index, 1, inner.next) };
     }
 
     const old = items[index];
@@ -144,30 +156,50 @@ function step(
 
   if (rest.length > 0) {
     if (!has) return `finds no "${part}" in "${pathOf(done)}"`;
-    const inner = step(old, rest, patch, [...done, part]);
+    const inner = step(old, rest, patch, [...done, part], place);
     if (typeof inner === "string") return inner;
-    if (inner.next === old) return { next: at, inverse: inner.inverse };
-    return { next: { ...at, [part]: inner.next }, inverse: inner.inverse };
+    if (inner.next === old) return { ...inner, next: at };
+    return { ...inner, next: { ...at, [part]: inner.next } };
   }
 
   switch (patch.op) {
     case "add":
     case "replace":
       if (!has && patch.op === "replace") return `finds no "${part}" in "${pathOf(done)}" to replace`;
-      if (has && jsonEqual(old, patch.value)) return { next: at, inverse: undefined };
+      if (!has) {
+        return { next: inserted(at, part, patch.value, place), inverse: { op: "remove", path: here } };
+      }
+      if (jsonEqual(old, patch.value)) return { next: at, inverse: undefined };
       return {
         next: { ...at, [part]: patch.value },
-        inverse: has
-          ? { op: "replace", path: here, value: old as Patch["value"] }
-          : { op: "remove", path: here },
+        inverse: { op: "replace", path: here, value: old as Patch["value"] },
       };
-    case "remove":
+    case "remove": {
       if (!has) return `finds no "${part}" in "${pathOf(done)}" to remove`;
+      const members = Object.keys(at);
       return {
         next: without(at, [part]),
         inverse: { op: "add", path: here, value: old as Patch["value"] },
+        place: members[members.indexOf(part) + 1] ?? null,
       };
+    }
   }
+}
+
+// The object with a member it lacks, put before the member that `before`
+// names where the object holds that one, and last otherwise.
+function inserted(
+  record: Readonly<Record<string, unknown>>,
+  key: string,
+  value: unknown,
+  before: string | null | undefined,
+): Readonly<Record<string, unknown>> {
+  if (typeof before !== "string" || !Object.hasOwn(record, before)) {
+    return { ...record, [key]: value };
+  }
+  const members = Object.entries(record);
+  members.splice(members.findIndex(([name]) => name === before), 0, [key, value]);
+  return Object.fromEntries(members);
 }
 
 // A copy of the array with `count` elements at `index` replaced by those given.

@@ -85,6 +85,28 @@ describe("applying a patch", () => {
     expect(roundTrip({ op: "remove", path: "/views/main/title" })).toEqual(board);
   });
 
+  test("names the member that followed one it removes, and puts a member it adds before the one named", () => {
+    const views = { views: { main: 1, side: 2, data: 3 } };
+    const removed = apply({ op: "remove", path: "/views/side" }, views);
+    expect(removed).toMatchObject({ place: "data" });
+    expect(apply({ op: "remove", path: "/views/data" }, views)).toMatchObject({ place: null });
+    if ("failure" in removed) throw new Error(removed.failure);
+
+    // An add that takes the removal back, with the place it left.
+    const order = (place: string | null) => {
+      const back = applyPatch(removed.next, { op: "add", path: "/views/side", value: 2 }, ["views", "side"], place);
+      if ("failure" in back) throw new Error(back.failure);
+      return Object.keys(back.next.views as object);
+    };
+    expect(order("data")).toEqual(["main", "side", "data"]);
+    expect(order("gone")).toEqual(["main", "data", "side"]);
+    expect(order(null)).toEqual(["main", "data", "side"]);
+
+    // An add of a member the object holds replaces it where it is.
+    const replaced = applyPatch(views, { op: "add", path: "/views/main", value: 4 }, ["views", "main"], "data");
+    expect("next" in replaced && Object.keys(replaced.next.views as object)).toEqual(["main", "side", "data"]);
+  });
+
   test("replaces a value, and takes it back by replacing it again", () => {
     expect(apply({ op: "replace", path: "/views/main/panels/1", value: "c" })).toMatchObject({
       inverse: { op: "replace", path: "/views/main/panels/1", value: "b" },
