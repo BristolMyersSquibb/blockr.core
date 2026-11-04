@@ -57,7 +57,8 @@ board option \code{n_rows} gives, whose value the client sends with every output
 request, the default of its definition where the board holds none. The rows
 are sorted by the column that \code{params$sort$column} names, from the largest
 value where \code{params$sort$desc} is \code{TRUE}. Asking for a page past the last
-one is an error, so that the renderer asks again.
+one, or for a sort by a column that the table lacks, is an error, so that
+the renderer asks again.
 
 The rows hold the values as the JSON writer writes them, so that numbers,
 strings, logicals, factors and dates show as R prints them. A missing value

@@ -17,7 +17,8 @@
 #' request, the default of its definition where the board holds none. The rows
 #' are sorted by the column that `params$sort$column` names, from the largest
 #' value where `params$sort$desc` is `TRUE`. Asking for a page past the last
-#' one is an error, so that the renderer asks again.
+#' one, or for a sort by a column that the table lacks, is an error, so that
+#' the renderer asks again.
 #'
 #' The rows hold the values as the JSON writer writes them, so that numbers,
 #' strings, logicals, factors and dates show as R prints them. A missing value
@@ -161,8 +162,18 @@ as_table_output.data.frame <- function(result, options = list(),
   idx <- seq_len(total)
 
   if (length(sort)) {
+
+    column <- sort[["column"]]
+
+    if (is_string(column) && !column %in% names(result)) {
+      blockr_abort(
+        "The table has no column {column} to sort by.",
+        class = "table_output_params_invalid"
+      )
+    }
+
     idx <- order(
-      result[[sort[["column"]]]],
+      result[[column]],
       decreasing = isTRUE(sort[["desc"]]),
       method = "radix"
     )
