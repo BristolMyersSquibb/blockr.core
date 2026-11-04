@@ -11,20 +11,8 @@
 // which these commands check against the schema of the block's class. An edit
 // that changes nothing is the store's to drop, which makes no step of it.
 
-import type { Entry } from "../store/delta.ts";
-import { mintId, sentenceCase } from "../store/ids.ts";
-import { compile } from "../store/registrations.ts";
-import type { Attribute, StateKey, Validate } from "../store/registrations.ts";
-import type { Store } from "../store/store.ts";
-import {
-  getAt,
-  isObject,
-  jsonEqual,
-  own,
-  packageOf,
-  quoted,
-  without,
-} from "../store/util.ts";
+import { mintId, sentenceCase } from "../store/index.ts";
+import type { Attribute, Entry, StateKey, Store } from "../store/index.ts";
 import type {
   Block,
   BlockId,
@@ -36,7 +24,18 @@ import type {
 } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { CommandError } from "./commands.ts";
+import {
+  compile,
+  getAt,
+  isObject,
+  jsonEqual,
+  own,
+  packageOf,
+  quoted,
+  without,
+} from "../util/index.ts";
+import type { Validate } from "../util/index.ts";
+import { refusal } from "./commands.ts";
 import type { Command } from "./commands.ts";
 import * as schemas from "./schemas.ts";
 
@@ -670,10 +669,6 @@ function one(command: string, inputs: readonly string[], none: string, several: 
   if (input === undefined) throw refusal(command, [none]);
   if (rest.length > 0) throw refusal(command, [several]);
   return input;
-}
-
-function refusal(command: string, failures: readonly string[]): CommandError {
-  return new CommandError(`The command "${command}" refused to run`, failures);
 }
 
 // One of core's commands, with its args typed as their schema types them, which

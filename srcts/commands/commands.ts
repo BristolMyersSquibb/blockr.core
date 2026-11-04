@@ -7,20 +7,19 @@
 // and extensions through `CoreApi`.
 
 import { computed, signal } from "@preact/signals-core";
-import { isValueDelta } from "../store/delta.ts";
+import { isDeltas, isValueDelta } from "../store/index.ts";
 import type {
   BlockMod,
   CollectionDelta,
   Delta,
   KeyChange,
   Origin,
-} from "../store/delta.ts";
-import { compile } from "../store/registrations.ts";
-import type { Validate } from "../store/registrations.ts";
-import type { Store } from "../store/store.ts";
-import { messageOf, packageOf } from "../store/util.ts";
+  Store,
+} from "../store/index.ts";
 import type { Board } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
+import { compile, messageOf, packageOf } from "../util/index.ts";
+import type { Validate } from "../util/index.ts";
 import { coreCommands } from "./core.ts";
 
 export interface Command<A extends Json = Json, P = A> {
@@ -79,6 +78,12 @@ export class CommandError extends Error {
   }
 }
 
+// The CommandError of a command that refuses to run, with each failure in a
+// sentence.
+export function refusal(id: string, failures: readonly string[]): CommandError {
+  return new CommandError(`The command "${id}" refused to run`, failures);
+}
+
 interface Registered {
   readonly command: Command<Json, unknown>;
   readonly validate: Validate | undefined;
@@ -135,28 +140,27 @@ export function createCommands(store: Store): Commands {
   ): { command: Command<Json, unknown>; args: Json } {
     const item = commands.value.get(id);
     if (item === undefined) {
-      throw new CommandError(refused(id), [`No command "${id}" is registered.`]);
+      throw refusal(id, [`No command "${id}" is registered.`]);
     }
     const args = given ?? {};
     const failures = item.validate?.(args) ?? [];
     if (failures.length > 0) {
-      throw new CommandError(refused(id), failures.map((failure) => `The args ${failure}`));
+      throw refusal(id, failures.map((failure) => `The args ${failure}`));
     }
     return { command: item.command, args };
   }
 
   function current(id: string): Board {
-    try {
-      return store.board();
-    } catch {
-      throw new CommandError(refused(id), ["The store holds no board until it opens one."]);
+    if (!store.hasBoard()) {
+      throw refusal(id, ["The store holds no board until it opens one."]);
     }
+    return store.board();
   }
 
   function allow(command: Command<Json, unknown>, board: Board, args: Json): void {
     const enabled = attempt(command, () => command.enabled?.(board, args) ?? true);
     if (!enabled) {
-      throw new CommandError(refused(command.id), [
+      throw refusal(command.id, [
         `It is not enabled on the board as it is, with the args ${JSON.stringify(args)}.`,
       ]);
     }
@@ -195,9 +199,7 @@ export function createCommands(store: Store): Commands {
       throw failed(command, error);
     }
     if (openings !== opened) {
-      throw new CommandError(refused(command.id), [
-        "A board opened while it prepared, which drops it.",
-      ]);
+      throw refusal(command.id, ["A board opened while it prepared, which drops it."]);
     }
     const now = current(command.id);
     allow(command, now, args);
@@ -266,7 +268,7 @@ export function createCommands(store: Store): Commands {
     },
     async run(id, given, origin = "user") {
       const step = deltas(id, given);
-      store.apply(isDeltas(step) ? step : await step, origin);
+      store.apply(Array.isArray(step) ? step : await step, origin);
     },
     async plan(id, given) {
       return deltas(id, given);
@@ -285,10 +287,6 @@ function isCommandId(id: string): boolean {
   return pkg !== null && id.length > pkg.length + 1;
 }
 
-function refused(id: string): string {
-  return `The command "${id}" refused to run`;
-}
-
 // What a command's own enabled(), prepare() or run() threw, as a CommandError
 // that names the command, unless it is one already.
 function failed(command: Command<Json, unknown>, error: unknown): CommandError {
@@ -304,8 +302,4 @@ function attempt<T>(command: Command<Json, unknown>, fn: () => T): T {
   } catch (error) {
     throw failed(command, error);
   }
-}
-
-function isDeltas(x: unknown): x is readonly Delta[] {
-  return Array.isArray(x);
 }

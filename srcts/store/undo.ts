@@ -4,9 +4,9 @@
 // since, and nothing happens where it is gone.
 
 import type { Board } from "../types/board.ts";
+import { getAt, isObject } from "../util/index.ts";
 import type { CollectionDelta, Delta, KeyChange } from "./delta.ts";
 import type { Registrations } from "./registrations.ts";
-import { getAt, isObject } from "./util.ts";
 
 // The part of a delta that still applies to the board: without the removal or
 // change of what is gone, the addition of what is there already, and the

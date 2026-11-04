@@ -9,8 +9,7 @@
 // `useSyncExternalStore` needs.
 
 import { signal } from "@preact/signals-core";
-import type { Client } from "../protocol/client.ts";
-import type { HelloReply, OpenReply } from "../protocol/messages.ts";
+import type { Client, HelloReply, OpenReply } from "../protocol/index.ts";
 import type {
   BlockId,
   Board,
@@ -18,11 +17,13 @@ import type {
   SavedBoard,
 } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
+import { getAt, isObject, pathText, report } from "../util/index.ts";
 import { check } from "./check.ts";
 import { commit, target } from "./commit.ts";
 import type { Changed, Inverse } from "./commit.ts";
-import { isValueDelta } from "./delta.ts";
+import { isDeltas, isValueDelta } from "./delta.ts";
 import type { Delta, Origin } from "./delta.ts";
+import { StoreError } from "./error.ts";
 import { expand } from "./expand.ts";
 import { fit, isEmpty } from "./undo.ts";
 import { checkFile, FORMAT, frontEndOf, keyed, openFile, parse } from "./open.ts";
@@ -34,7 +35,6 @@ import type {
   Options,
   StateKey,
 } from "./registrations.ts";
-import { getAt, isObject, pathText, StoreError } from "./util.ts";
 
 export type Change =
   | { readonly delta: Delta; readonly origin: Origin }
@@ -44,6 +44,8 @@ export interface Store {
   // The current board, whose changes subscribe() announces. The store holds
   // none until it opens one, and throws until then.
   board(): Board;
+  // Whether the store holds a board. It holds one once it has opened one.
+  hasBoard(): boolean;
   // Calls `fn` after every commit, once for each delta as expanded, and after
   // every opening of a board, with the board as it then is.
   subscribe(fn: (change: Change, board: Board) => void): () => void;
@@ -161,9 +163,7 @@ export function createStore(options: StoreOptions): Store {
       try {
         fn(change, next);
       } catch (error) {
-        queueMicrotask(() => {
-          throw error;
-        });
+        report(error);
       }
     }
   }
@@ -416,6 +416,7 @@ export function createStore(options: StoreOptions): Store {
       }
       return board.value;
     },
+    hasBoard: () => board.value !== undefined,
     subscribe(fn) {
       const wrapped = (change: Change, next: Board) => {
         fn(change, next);
@@ -458,7 +459,3 @@ const visible: Attribute = {
   },
   initial: ["inputs", "outputs"],
 };
-
-function isDeltas(delta: Delta | readonly Delta[]): delta is readonly Delta[] {
-  return Array.isArray(delta);
-}

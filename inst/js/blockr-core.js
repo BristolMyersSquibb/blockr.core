@@ -1,3 +1,13 @@
+// srcts/util/util.ts
+function asError(error) {
+  return error instanceof Error ? error : new Error(String(error));
+}
+function report(error) {
+  queueMicrotask(() => {
+    throw error;
+  });
+}
+
 // srcts/protocol/client.ts
 var SessionEndedError = class extends Error {
   constructor(id) {
@@ -201,14 +211,6 @@ function guard(fn) {
   } catch (error) {
     report(error);
   }
-}
-function asError(error) {
-  return error instanceof Error ? error : new Error(String(error));
-}
-function report(error) {
-  queueMicrotask(() => {
-    throw error;
-  });
 }
 function quietly(sent) {
   sent.catch(() => void 0);

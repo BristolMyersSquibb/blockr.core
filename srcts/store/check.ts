@@ -10,10 +10,10 @@ import { graphOf } from "../graph/index.ts";
 import type { Board, RegistryId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
+import { getAt, isObject, messageOf, own, pathText, quoted } from "../util/index.ts";
 import type { Changed } from "./commit.ts";
 import { isId } from "./ids.ts";
 import type { Registrations } from "./registrations.ts";
-import { getAt, isObject, messageOf, own, pathText, quoted } from "./util.ts";
 
 export function check(
   board: Board,

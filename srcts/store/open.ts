@@ -6,14 +6,9 @@
 // one R loaded, drops and names what the app cannot rebuild, and gives the
 // board what packages register for a board that lacks it.
 
-import type { OpenReply } from "../protocol/messages.ts";
+import type { OpenReply } from "../protocol/index.ts";
 import type { Board, OpeningBoard, SavedBoard } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
-import { check } from "./check.ts";
-import { commit } from "./commit.ts";
-import { expand } from "./expand.ts";
-import { mintId, sentenceCase } from "./ids.ts";
-import type { Checked, Registrations, Saved } from "./registrations.ts";
 import {
   frozenCopy,
   getAt,
@@ -22,9 +17,14 @@ import {
   own,
   packageOf,
   setAt,
-  StoreError,
   without,
-} from "./util.ts";
+} from "../util/index.ts";
+import { check } from "./check.ts";
+import { commit } from "./commit.ts";
+import { StoreError } from "./error.ts";
+import { expand } from "./expand.ts";
+import { mintId, sentenceCase } from "./ids.ts";
+import type { Checked, Registrations, Saved } from "./registrations.ts";
 
 // The highest format of a saved file that this client reads and writes.
 export const FORMAT = 1;

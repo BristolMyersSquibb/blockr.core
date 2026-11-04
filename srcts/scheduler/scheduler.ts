@@ -23,15 +23,19 @@
 import { action, batch, computed, effect, signal, untracked } from "@preact/signals-core";
 import type { ReadonlySignal } from "@preact/signals-core";
 import { graphOf } from "../graph/index.ts";
-import { SessionEndedError } from "../protocol/client.ts";
-import type { Client, RequestOptions } from "../protocol/client.ts";
-import type { BlockRevision, Recipe, Reply } from "../protocol/messages.ts";
-import type { Delta } from "../store/delta.ts";
-import type { Store } from "../store/store.ts";
-import { messageOf, own } from "../store/util.ts";
+import { SessionEndedError } from "../protocol/index.ts";
+import type {
+  BlockRevision,
+  Client,
+  Recipe,
+  Reply,
+  RequestOptions,
+} from "../protocol/index.ts";
+import type { Delta, Store } from "../store/index.ts";
 import type { BlockId, Board, RegistryId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
+import { asError, messageOf, own, report } from "../util/index.ts";
 import * as evaluations from "./evaluations.ts";
 import type { OneTime, Settled } from "./evaluations.ts";
 import { needsOf } from "./needs.ts";
@@ -124,7 +128,7 @@ export interface Demand {
 
 export interface SchedulerOptions {
   // The store of the board, whose changes the scheduler follows.
-  readonly store: Pick<Store, "board" | "subscribe" | "blockRegistry">;
+  readonly store: Pick<Store, "board" | "hasBoard" | "subscribe" | "blockRegistry">;
   // The client of the wire protocol, which the store sends through too.
   readonly client: Pick<Client, "request" | "forget" | "capabilities">;
   // The blockr options that the scheduler reads. Core asks R for them as soon
@@ -592,13 +596,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     demanding(++ids, "blockr.core", (all) => Object.keys(all.blocks), 0);
   }
 
-  let initial: Board | undefined;
-  try {
-    initial = store.board();
-  } catch {
-    initial = undefined;
-  }
-  if (initial !== undefined) opened(initial);
+  if (store.hasBoard()) opened(store.board());
 
   // The statuses that the subscribers last heard of.
   let heard: ReadonlyMap<BlockId, BlockStatus> = new Map();
@@ -786,16 +784,4 @@ function priorityError(priority: number): TypeError | undefined {
   return typeof priority !== "number" || Number.isNaN(priority)
     ? new TypeError(`An evaluation priority is a number, not ${String(priority)}.`)
     : undefined;
-}
-
-function asError(error: unknown): Error {
-  return error instanceof Error ? error : new Error(String(error));
-}
-
-// Reports what a caller's function threw, or an error that nobody waits on,
-// without stopping the scheduler.
-function report(error: unknown): void {
-  queueMicrotask(() => {
-    throw error;
-  });
 }

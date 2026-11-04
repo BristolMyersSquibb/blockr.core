@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import type { EvaluateRequest, Progress, Reply } from "../protocol/messages.ts";
-import type { TransportListener } from "../protocol/client.ts";
+import type {
+  EvaluateRequest,
+  Progress,
+  Reply,
+  TransportListener,
+} from "../protocol/index.ts";
 import { shinyTransport } from "./shiny.ts";
 import type { ShinyApi } from "./shiny.ts";
 
