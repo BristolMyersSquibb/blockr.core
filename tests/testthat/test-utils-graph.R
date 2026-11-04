@@ -38,4 +38,12 @@ test_that("topo sort", {
     topo_sort(as_adjacency_matrix(from = character(), to = character())),
     character()
   )
+
+  expect_error(topo_sort("a"), class = "adjacency_matrix_invalid")
+  expect_error(topo_sort(matrix(1:4, 2L)), class = "adjacency_matrix_invalid")
+
+  expect_error(as_adjacency_matrix("a", "b", nodes = "a"),
+               class = "adjacency_matrix_invalid")
+  expect_error(as_adjacency_matrix("a", "b", nodes = c("a", "b", "a")),
+               class = "adjacency_matrix_invalid")
 })

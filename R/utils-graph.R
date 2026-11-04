@@ -33,11 +33,15 @@ topo_sort <- function(x) {
     x <- as.matrix(x)
   }
 
-  stopifnot(
-    is.matrix(x), nrow(x) == ncol(x),
-    identical(rownames(x), colnames(x)),
-    is.integer(x), all(x %in% c(0L, 1L))
-  )
+  if (!is.matrix(x) || nrow(x) != ncol(x) ||
+        !identical(rownames(x), colnames(x)) || !is.integer(x) ||
+        !all(x %in% c(0L, 1L))) {
+    blockr_abort(
+      "Expecting a board or an adjacency matrix: a square integer matrix of ",
+      "0s and 1s, with the same row and column names.",
+      class = "adjacency_matrix_invalid"
+    )
+  }
 
   num_nodes <- nrow(x)
 
@@ -87,9 +91,14 @@ topo_sort <- function(x) {
 
 as_adjacency_matrix <- function(from, to, nodes = union(from, to)) {
 
-  stopifnot(
-    all(from %in% nodes), all(to %in% nodes), anyDuplicated(nodes) == 0L
-  )
+  if (!all(from %in% nodes) || !all(to %in% nodes) ||
+        anyDuplicated(nodes) > 0L) {
+    blockr_abort(
+      "Expecting the nodes to be unique and to include both ends of every ",
+      "edge.",
+      class = "adjacency_matrix_invalid"
+    )
+  }
 
   n <- length(nodes)
 
