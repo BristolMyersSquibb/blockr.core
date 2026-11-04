@@ -4,12 +4,12 @@ import type { Json } from "../types/json.ts";
 import type { Built, Registrations } from "./registrations.ts";
 export declare const FORMAT = 1;
 export type Dropped = {
+    readonly package: string;
+    readonly version: string;
+} | {
     readonly block: string;
     readonly registry_id: string;
     readonly package: string | null;
-} | {
-    readonly class: string;
-    readonly skipped: readonly string[];
 };
 export declare function parse(text: string): unknown;
 export declare function checkFile(file: unknown): SavedBoard;

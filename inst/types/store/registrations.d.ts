@@ -48,7 +48,6 @@ export interface CheckedClass {
 }
 export interface Built {
     readonly def: BoardClass;
-    readonly skipped: readonly string[];
     readonly chain: readonly CheckedClass[];
     readonly properties: ReadonlyMap<string, {
         readonly owner: CheckedClass;

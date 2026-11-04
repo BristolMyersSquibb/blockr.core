@@ -299,6 +299,7 @@ describe("opening a board", () => {
     expect(store.blockRegistry()).toBe(loaded.block_registry);
     expect(store.packages()).toBe(loaded.packages);
     expect(dropped).toEqual([
+      { package: "blockr.dplyr", version: "0.3.0" },
       { block: "x", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
     ]);
 
@@ -368,7 +369,7 @@ describe("opening a board", () => {
     expect(positionsOf(store.board())).toEqual({ a: { x: 0, y: 0 }, b: { x: 1, y: 1 } });
   });
 
-  test("builds a board as the first class in its class vector that a package defines, naming the classes it skips and dropping what they add", async () => {
+  test("builds a board as the first class in its class vector that a package defines, dropping what the classes it skips add", async () => {
     const store = await opened((store) => store.register(dock));
     const dropped = await store.open(
       file({
@@ -379,34 +380,37 @@ describe("opening a board", () => {
       }),
     );
 
-    expect(dropped).toEqual([{ class: "dock_board", skipped: ["grid_board"] }]);
+    expect(dropped).toEqual([]);
     const board = store.board();
     expect(board.class).toEqual(["grid_board", "dock_board", "board"]);
     expect(viewsOf(board)).toEqual({ main: { panels: ["a"] } });
     expect(Object.hasOwn(board, "panels")).toBe(false);
   });
 
-  test("builds a board whose classes no package defines as core's, dropping what they add and what no package registered", async () => {
+  test("builds a board whose classes no package defines as core's, naming the packages that R could not load, and dropping what no package registered", async () => {
     const store = await opened();
     const dropped = await store.open(
-      file({
-        class: ["dock_board", "board"],
-        views: { main: { panels: ["a"] } },
-        extensions: { "blockr.dag-dag": { positions: { a: { x: 0, y: 0 } } } },
-        blocks: {
-          a: {
-            registry_id: "blockr.core-dataset_block",
-            state: { dataset: "mtcars", package: "datasets" },
-            name: "Cars",
-            attrs: { visible: ["outputs"], color: "red" },
+      file(
+        {
+          class: ["dock_board", "board"],
+          views: { main: { panels: ["a"] } },
+          extensions: { "blockr.dag-dag": { positions: { a: { x: 0, y: 0 } } } },
+          blocks: {
+            a: {
+              registry_id: "blockr.core-dataset_block",
+              state: { dataset: "mtcars", package: "datasets" },
+              name: "Cars",
+              attrs: { visible: ["outputs"], color: "red" },
+            },
+            b: head(),
           },
-          b: head(),
+          options: { n_rows: 20, view_tabs: true },
         },
-        options: { n_rows: 20, view_tabs: true },
-      }),
+        { "blockr.core": "0.2.0", "blockr.dock": "0.2.1" },
+      ),
     );
 
-    expect(dropped).toEqual([{ class: "board", skipped: ["dock_board"] }]);
+    expect(dropped).toEqual([{ package: "blockr.dock", version: "0.2.1" }]);
 
     // The board keeps every class, so that a dock app builds it as a dock
     // board again.

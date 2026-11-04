@@ -91,6 +91,7 @@ A package it could not load is missing from `packages`, and a class it could not
 
 The client then initializes the startup modules of the packages it has not, which define their board classes, and runs the migration of every package whose version the file records differs from the one R loaded.
 It builds the board as the first class in the board's class vector that a loaded package defines, and draws it with that class's front-end ([Board classes and attributes](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.2#board-classes-and-attributes)).
+It names each package that the file lists and R could not load, with the version the file records.
 It drops each block whose class the block registry lacks, with its links and its places in stacks, naming the package to install from its registry id.
 It drops each property that the class it builds the board as does not add, and each attribute and board option value that no package registered, and replaces its board.
 A file of today's stack is converted to a saved file before it is opened, outside core.

@@ -133,12 +133,10 @@ export interface CheckedClass {
   readonly validate: Readonly<Record<string, Validate>>;
 }
 
-// The class that a board is built as, with the classes before it that the
-// store skipped: the first in the board's class vector that is registered, or
-// core's `board` where none is.
+// The class that a board is built as: the first in the board's class vector
+// that is registered, or core's `board` where none is.
 export interface Built {
   readonly def: BoardClass;
-  readonly skipped: readonly string[];
   // The class and its parents, core's `board` first,
   // whose properties a board built as the class holds.
   readonly chain: readonly CheckedClass[];
@@ -300,19 +298,14 @@ export function createRegistrations(): Registrations {
   }
 
   function builtAs(vector: readonly string[]): Built {
-    const skipped: string[] = [];
     for (const name of vector) {
       const cls = classes.value.get(name);
       const chain = cls === undefined ? undefined : chainOf(cls);
-      if (cls === undefined || chain === undefined) {
-        skipped.push(name);
-        continue;
-      }
-      return built(chain, skipped);
+      if (chain !== undefined) return built(chain);
     }
     const core = classes.value.get(CORE_BOARD.class);
     if (core === undefined) throw new Error('Core\'s board class "board" is not registered.');
-    return built([core], skipped);
+    return built([core]);
   }
 
   registerClass(CORE_BOARD, true);
@@ -360,7 +353,7 @@ export function createRegistrations(): Registrations {
   };
 }
 
-function built(chain: readonly CheckedClass[], skipped: readonly string[]): Built {
+function built(chain: readonly CheckedClass[]): Built {
   const properties = new Map<string, { owner: CheckedClass; validate: Validate }>();
   for (const cls of chain) {
     for (const [name, validate] of Object.entries(cls.validate)) {
@@ -368,7 +361,7 @@ function built(chain: readonly CheckedClass[], skipped: readonly string[]): Buil
     }
   }
   const def = chain.at(-1)?.def ?? CORE_BOARD;
-  return { def, skipped, chain, properties };
+  return { def, chain, properties };
 }
 
 // The board taken as a record, by which code that does not import the types of

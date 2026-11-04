@@ -37,20 +37,22 @@ export const FORMAT = 1;
 
 // What the store names of what it dropped as it opened a board, since the app
 // cannot rebuild it.
-// It names a block whose class the block registry lacks, with the package to
-// install where its registry id gives one.
-// Where it skipped classes of the board's class vector that no loaded package
-// defines, it names the class that it built the board as, with the classes it
-// skipped.
+// It names each package that the file lists and R could not load, with the
+// version the file records, so that the user learns what to install.
+// Where such a package defines the board's class, the store builds the board
+// as the next class in its class vector that a loaded package defines.
+// A class's name gives no package, but the file's packages do.
+// It names each block whose class the block registry lacks, with the package
+// to install where its registry id gives one.
 // It does not name what it drops of the properties, attributes and board
 // option values.
 export type Dropped =
+  | { readonly package: string; readonly version: string }
   | {
       readonly block: string;
       readonly registry_id: string;
       readonly package: string | null;
-    }
-  | { readonly class: string; readonly skipped: readonly string[] };
+    };
 
 const refused = "The store refused to open the board";
 
@@ -247,14 +249,11 @@ export function openFile(
   const failures = check(board, reply.block_registry, registrations, built);
   if (failures.length > 0) throw new StoreError(refused, failures);
 
-  return {
-    board,
-    dropped: [
-      ...(built.skipped.length === 0 ? [] : [{ class: built.def.class, skipped: built.skipped }]),
-      ...blocks,
-    ],
-    built,
-  };
+  const packages: Dropped[] = Object.entries(file.packages)
+    .filter(([pkg]) => own(reply.packages, pkg) === undefined)
+    .map(([pkg, version]) => ({ package: pkg, version }));
+
+  return { board, dropped: [...packages, ...blocks], built };
 }
 
 // The board without the properties that the class it is built as adds neither
