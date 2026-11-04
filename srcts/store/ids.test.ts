@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import { isId, mintId, sentenceCase } from "./ids.ts";
+import { adjectives, animals } from "./words.ts";
 
 test("an id is a string that is neither empty nor made of digits alone", () => {
   expect(isId("curious_otter")).toBe(true);
@@ -10,9 +11,18 @@ test("an id is a string that is neither empty nor made of digits alone", () => {
   expect(isId(12)).toBe(false);
 });
 
-test("a minted id is an adjective and an animal of at most eight letters each", () => {
+test("a minted id is an adjective and an animal of the words R draws from too", () => {
   for (let i = 0; i < 500; i++) {
-    expect(mintId(() => false)).toMatch(/^[a-z]{2,8}_[a-z]{2,8}$/);
+    const [adjective = "", animal = ""] = mintId(() => false).split("_");
+    expect(adjectives).toContain(adjective);
+    expect(animals).toContain(animal);
+  }
+});
+
+test("the words are distinct words of at most six lowercase letters", () => {
+  for (const words of [adjectives, animals]) {
+    for (const word of words) expect(word).toMatch(/^[a-z]{2,6}$/);
+    expect(new Set(words).size).toBe(words.length);
   }
 });
 

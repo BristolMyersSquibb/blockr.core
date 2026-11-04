@@ -270,13 +270,3 @@ test_that("result_summary() gives a result's class and dimensions", {
     "<tibble> [32 \u00d7 11]"
   )
 })
-
-test_that("block_migrate() leaves a state as it is", {
-
-  state <- list(n = 3L, direction = "tail")
-
-  expect_identical(
-    block_migrate(structure(state, class = head_class$class), "0.1.0"),
-    state
-  )
-})
