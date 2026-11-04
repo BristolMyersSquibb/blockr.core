@@ -73,7 +73,7 @@
         "id": "13",
         "status": "ok",
         "output": {
-          "renderer": "blockr.core-basic_table",
+          "renderer": "blockr.core-table_output",
           "columns": [
             { "name": "Sepal.Length", "class": "numeric" },
             { "name": "Sepal.Width", "class": "numeric" },

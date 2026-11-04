@@ -118,7 +118,7 @@ protocol_r_values <- function() {
       list(
         proto_hello_reply(
           block_registry = proto_registry("head_block"),
-          renderers = proto_renderers()["blockr.core-basic_table"],
+          renderers = proto_renderers()["blockr.core-table_output"],
           lock = NULL,
           board = obj(
             front_end = proto_basic(),
@@ -485,15 +485,15 @@ proto_served <- function(startup_modules = list()) {
 
 proto_renderers <- function() {
   obj(
-    `blockr.core-basic_table` = obj(
+    `blockr.core-table_output` = obj(
       module = proto_js("basic-table.js", "b7e2a915"),
       class = "table_output"
     ),
-    `blockr.core-basic_text` = obj(
+    `blockr.core-text_output` = obj(
       module = proto_js("basic-text.js", "3c8f61d0"),
       class = "text_output"
     ),
-    `blockr.core-basic_plot` = obj(
+    `blockr.core-plot_output` = obj(
       module = proto_js("basic-plot.js", "f19d4a73"),
       class = "plot_output"
     )

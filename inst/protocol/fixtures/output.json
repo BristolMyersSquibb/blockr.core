@@ -29,7 +29,7 @@
         "id": "31",
         "status": "ok",
         "output": {
-          "renderer": "blockr.core-basic_table",
+          "renderer": "blockr.core-table_output",
           "columns": [
             { "name": "Species", "class": "factor" },
             { "name": "Sepal.Length.x", "class": "numeric" },

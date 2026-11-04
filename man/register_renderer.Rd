@@ -26,25 +26,35 @@ The declaration \code{register_renderer()} returns the renderer's entry
 invisibly, a list holding its \code{id}, \code{name}, \code{package}, \code{module}, \code{class},
 \code{option} and \code{requests}, where one of \code{class} and \code{option} is \code{NULL}, while
 \code{pick_renderers()} returns the entries of the renderers that R picked, by
-ID.
+ID, among them the defaults of output classes, each with its class as its
+name and no requests.
 }
 \description{
 A renderer is a module that draws the outputs of one output class (see
-\code{\link[=new_block_output]{new_block_output()}}) or the value of one board option. A package declares
-its renderers in R, from its \code{.onLoad()}, with \code{register_renderer()}: under
-a name, which gives the renderer the ID \code{{pkg}-{name}}, as a registry id
-is, with its module, made by \code{\link[=js_module]{js_module()}}, whose package is the one that
+\code{\link[=new_block_output]{new_block_output()}}) or the value of one board option. Each output class
+has a default renderer, which the package that defines the class registers
+with it (see \code{\link[=register_output_class]{register_output_class()}}) under the ID \code{{pkg}-{class}}. Core's
+are \code{blockr.core-table_output}, \code{blockr.core-text_output} and
+\code{blockr.core-plot_output}. A board option has the UI of its definition.
+}
+\details{
+Any package can supply another renderer, such as a richer table. It declares
+the renderer in R, from its \code{.onLoad()}, with \code{register_renderer()}: under a
+name, which gives the renderer the ID \code{{pkg}-{name}}, as a registry id is,
+with its module, made by \code{\link[=js_module]{js_module()}}, whose package is the one that
 declares it, and the output class it draws, in \code{class}, or the board option
 it draws, in \code{option}. One module may stand behind several renderers.
 Declaring a renderer again under the same ID replaces it, as when a package
-is loaded again. Core declares a plain renderer for each of its output
-classes: \code{blockr.core-basic_table}, \code{blockr.core-basic_text} and
-\code{blockr.core-basic_plot}.
-}
-\details{
-A renderer of an output class may bring requests of its own, for what the
-output does not hold, such as the labels of a table's columns, which core's
-table output does not carry. R runs a renderer's request as it runs a
+is loaded again. An app draws with such a renderer by naming it in the
+blockr option \code{renderers}, by ID, as
+\code{options(blockr.renderers = c(table_output = "blockr.ui-table_preview"))}
+does (see \code{\link[=blockr_option]{blockr_option()}}). So a renderer that \code{register_renderer()}
+declares draws only where the app names it, and loading its package changes
+nothing.
+
+Such a renderer of an output class may bring requests of its own, for what
+the output does not hold, such as the labels of a table's columns, which
+core's table output does not carry. R runs a renderer's request as it runs a
 request of the output class (see \code{\link[=run_output_class_request]{run_output_class_request()}}), with the
 result that the output was made from and the board option values and
 parameters that the output was asked with. A request that names a renderer
@@ -54,21 +64,12 @@ request and a request of the output class may share a name, and neither
 hides the other.
 
 R picks one renderer for each output class and each board option with
-\code{pick_renderers()}, whatever the board and its front-end. Each output class
-has a default renderer, the one that the package which defines the class
-declares, and a board option has the UI of its definition. Any package can
-supply another renderer, such as a richer table, and an app replaces a
-default with it by naming it in the blockr option \code{renderers}, by ID, as
-\code{options(blockr.renderers = c(table_output = "blockr.ui-table_preview"))}
-does (see \code{\link[=blockr_option]{blockr_option()}}). So a renderer that another package declares
-draws only where the app names it, and loading its package changes nothing.
-Two renderers that the defining package declares for one class are an error
-naming both, which the app settles through the blockr option.
-
-R names in each output it sends the renderer that it picked for the most
-specific class in the output's class vector that has one, as S3 dispatch
-would. So the outputs of a subclass that no package draws are drawn by
-their class's renderer.
+\code{pick_renderers()}, whatever the board and its front-end: the one that the
+blockr option names, and otherwise an output class's default. R names in
+each output it sends the renderer that it picked for the most specific class
+in the output's class vector that has one, as S3 dispatch would. So the
+outputs of a subclass registered without a renderer are drawn by the
+renderer of the class it extends.
 }
 \examples{
 \dontrun{

@@ -14,6 +14,7 @@ new_reply_body(x, type, name = NULL)
 register_output_class(
   class,
   schema,
+  renderer = NULL,
   requests = NULL,
   volatile = character(),
   package = pkg_name(parent.frame())
@@ -48,6 +49,12 @@ for \code{run_output_class_request()}, the name of the request}
 relative to the package's \verb{inst/}, or relative to the working directory
 outside a package}
 
+\item{renderer}{For \code{register_output_class()}, the module of the class's
+default renderer, made by \code{\link[=js_module]{js_module()}} in the package that registers the
+class, or \code{NULL}, and for \code{run_output_class_request()}, the ID of the
+renderer whose own request it is, or \code{NULL} for a request of the output
+class}
+
 \item{requests}{A named list of the class's requests, each a function}
 
 \item{volatile}{The names of the requests whose answers the client never
@@ -66,9 +73,6 @@ board option id}
 \item{params}{The parameters that the output was asked with}
 
 \item{file}{A file that the renderer sends, or \code{NULL}}
-
-\item{renderer}{The ID of the renderer whose own request it is, or \code{NULL}
-for a request of the output class}
 }
 \value{
 The constructor \code{new_block_output()} returns an object of class
@@ -107,6 +111,14 @@ R writes each output by this schema, as it writes a block's state by the
 schema that the block class's UI ships. So a vector of length one stays an
 array where the schema has an array, and a data frame becomes an array of
 its rows.
+
+Registration also takes the class's default renderer, the module that draws
+its outputs, made by \code{\link[=js_module]{js_module()}} in the package that registers the class.
+The renderer gets the ID \code{{pkg}-{class}}, as \code{blockr.core-table_output} does
+for core's tables, and draws the class's outputs unless an app names another
+renderer in the blockr option \code{renderers} (see \code{\link[=register_renderer]{register_renderer()}}). A
+class registered without one, such as a subclass, is drawn by the renderer
+of the most specific class in its class vector that has one.
 
 Registration also takes the class's requests. A request is a function that
 the class's renderers call through their host, for what the output does not

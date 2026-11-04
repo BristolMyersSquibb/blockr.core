@@ -3,20 +3,29 @@ declared_renderers <- new.env()
 #' Renderers
 #'
 #' A renderer is a module that draws the outputs of one output class (see
-#' [new_block_output()]) or the value of one board option. A package declares
-#' its renderers in R, from its `.onLoad()`, with `register_renderer()`: under
-#' a name, which gives the renderer the ID `{pkg}-{name}`, as a registry id
-#' is, with its module, made by [js_module()], whose package is the one that
+#' [new_block_output()]) or the value of one board option. Each output class
+#' has a default renderer, which the package that defines the class registers
+#' with it (see [register_output_class()]) under the ID `{pkg}-{class}`. Core's
+#' are `blockr.core-table_output`, `blockr.core-text_output` and
+#' `blockr.core-plot_output`. A board option has the UI of its definition.
+#'
+#' Any package can supply another renderer, such as a richer table. It declares
+#' the renderer in R, from its `.onLoad()`, with `register_renderer()`: under a
+#' name, which gives the renderer the ID `{pkg}-{name}`, as a registry id is,
+#' with its module, made by [js_module()], whose package is the one that
 #' declares it, and the output class it draws, in `class`, or the board option
 #' it draws, in `option`. One module may stand behind several renderers.
 #' Declaring a renderer again under the same ID replaces it, as when a package
-#' is loaded again. Core declares a plain renderer for each of its output
-#' classes: `blockr.core-basic_table`, `blockr.core-basic_text` and
-#' `blockr.core-basic_plot`.
+#' is loaded again. An app draws with such a renderer by naming it in the
+#' blockr option `renderers`, by ID, as
+#' `options(blockr.renderers = c(table_output = "blockr.ui-table_preview"))`
+#' does (see [blockr_option()]). So a renderer that `register_renderer()`
+#' declares draws only where the app names it, and loading its package changes
+#' nothing.
 #'
-#' A renderer of an output class may bring requests of its own, for what the
-#' output does not hold, such as the labels of a table's columns, which core's
-#' table output does not carry. R runs a renderer's request as it runs a
+#' Such a renderer of an output class may bring requests of its own, for what
+#' the output does not hold, such as the labels of a table's columns, which
+#' core's table output does not carry. R runs a renderer's request as it runs a
 #' request of the output class (see [run_output_class_request()]), with the
 #' result that the output was made from and the board option values and
 #' parameters that the output was asked with. A request that names a renderer
@@ -26,21 +35,12 @@ declared_renderers <- new.env()
 #' hides the other.
 #'
 #' R picks one renderer for each output class and each board option with
-#' `pick_renderers()`, whatever the board and its front-end. Each output class
-#' has a default renderer, the one that the package which defines the class
-#' declares, and a board option has the UI of its definition. Any package can
-#' supply another renderer, such as a richer table, and an app replaces a
-#' default with it by naming it in the blockr option `renderers`, by ID, as
-#' `options(blockr.renderers = c(table_output = "blockr.ui-table_preview"))`
-#' does (see [blockr_option()]). So a renderer that another package declares
-#' draws only where the app names it, and loading its package changes nothing.
-#' Two renderers that the defining package declares for one class are an error
-#' naming both, which the app settles through the blockr option.
-#'
-#' R names in each output it sends the renderer that it picked for the most
-#' specific class in the output's class vector that has one, as S3 dispatch
-#' would. So the outputs of a subclass that no package draws are drawn by
-#' their class's renderer.
+#' `pick_renderers()`, whatever the board and its front-end: the one that the
+#' blockr option names, and otherwise an output class's default. R names in
+#' each output it sends the renderer that it picked for the most specific class
+#' in the output's class vector that has one, as S3 dispatch would. So the
+#' outputs of a subclass registered without a renderer are drawn by the
+#' renderer of the class it extends.
 #'
 #' @param name The name part of the renderer's ID
 #' @param module The renderer's module, made by [js_module()]
@@ -68,7 +68,8 @@ declared_renderers <- new.env()
 #' invisibly, a list holding its `id`, `name`, `package`, `module`, `class`,
 #' `option` and `requests`, where one of `class` and `option` is `NULL`, while
 #' `pick_renderers()` returns the entries of the renderers that R picked, by
-#' ID.
+#' ID, among them the defaults of output classes, each with its class as its
+#' name and no requests.
 #'
 #' @export
 register_renderer <- function(name, module, class = NULL, option = NULL,
@@ -146,49 +147,35 @@ register_renderer <- function(name, module, class = NULL, option = NULL,
 #' @export
 pick_renderers <- function() {
 
-  entries <- lapply(set_names(nm = list_renderers()), get_renderer)
+  entries <- known_renderers()
   chosen <- chosen_renderers(entries)
 
   picked <- c(
-    chr_ply(unique(unlst(lst_xtr(entries, "class"))), pick_renderer,
-            entries, "class", chosen),
-    chr_ply(unique(unlst(lst_xtr(entries, "option"))), pick_renderer,
-            entries, "option", chosen)
+    chr_ply(unique(unlst(lst_xtr(entries, "class"))), pick_renderer, chosen,
+            "class"),
+    chr_ply(unique(unlst(lst_xtr(entries, "option"))), pick_renderer, chosen,
+            "option")
   )
 
   entries[names(entries) %in% picked[!is.na(picked)]]
 }
 
 # The renderer that R picks for an output class or a board option, as `what`
-# says, from those declared for it: the one that the blockr option `renderers`
-# names, and otherwise, for an output class, its default, the one that the
-# package which defines it declares, or `NA` where neither is.
-pick_renderer <- function(target, entries, what, chosen) {
+# says: the one that the blockr option `renderers` names for it, and otherwise,
+# for an output class, its default, or `NA` where neither is.
+pick_renderer <- function(target, chosen, what) {
 
-  named <- chosen[names(chosen) == target]
-  cands <- entries[lgl_ply(lst_xtr(entries, what), identical, target)]
-
-  if (any(named %in% names(cands))) {
-    return(unname(named))
+  if (target %in% names(chosen)) {
+    return(chosen[[target]])
   }
 
-  if (!identical(what, "class")) {
-    return(NA_character_)
+  entry <- if (identical(what, "class")) output_class_entry(target)
+
+  if (not_null(entry[["renderer"]])) {
+    return(default_renderer_id(entry))
   }
 
-  owner <- output_class_entry(target)[["package"]]
-  ids <- names(cands)[chr_xtr(cands, "package") %in% owner]
-
-  if (length(ids) > 1L) {
-    blockr_abort(
-      "Renderers {ids} are declared by {owner}, which defines output class ",
-      "{target}, so it has no default renderer. Name the one to draw it in ",
-      "the blockr option `renderers`.",
-      class = "renderers_ambiguous"
-    )
-  }
-
-  if (length(ids)) ids else NA_character_
+  NA_character_
 }
 
 # The renderers that the blockr option `renderers` names, by the output class
@@ -202,7 +189,7 @@ chosen_renderers <- function(entries) {
     blockr_abort(
       "The blockr option `renderers` is expected to name a renderer by ID for ",
       "each output class or board option that it picks one for, as ",
-      "`c(table_output = \"blockr.core-basic_table\")` does.",
+      "`c(table_output = \"blockr.ui-table_preview\")` does.",
       class = "renderers_blockr_option_invalid"
     )
   }
@@ -256,12 +243,69 @@ output_renderer <- function(x, renderers) {
   res
 }
 
+# Every renderer that R can pick, by ID: the defaults of the output classes
+# registered, and those that packages declare.
+known_renderers <- function() {
+
+  declared <- lapply(set_names(nm = list_renderers()), get0,
+                     envir = declared_renderers, inherits = FALSE)
+  defaults <- default_renderers()
+
+  clash <- intersect(names(declared), names(defaults))
+
+  if (length(clash)) {
+    blockr_abort(
+      "Renderer{?s} {clash} {?is/are} declared under the ID of the default ",
+      "renderer of an output class.",
+      class = "renderer_invalid"
+    )
+  }
+
+  c(defaults, declared)
+}
+
+# The default renderers of the output classes registered, as entries like
+# those that `register_renderer()` makes.
+default_renderers <- function() {
+
+  classes <- lapply(ls(envir = output_class_registry), output_class_entry)
+  classes <- classes[!lgl_ply(lst_xtr(classes, "renderer"), is.null)]
+
+  res <- lapply(
+    classes,
+    function(x) {
+      list(
+        id = default_renderer_id(x),
+        name = x[["class"]],
+        package = x[["package"]],
+        module = x[["renderer"]],
+        class = x[["class"]],
+        option = NULL,
+        requests = list()
+      )
+    }
+  )
+
+  set_names(res, chr_xtr(res, "id"))
+}
+
+default_renderer_id <- function(entry) {
+  paste0(entry[["package"]], "-", entry[["class"]])
+}
+
 list_renderers <- function() {
   ls(envir = declared_renderers)
 }
 
 get_renderer <- function(id) {
-  get_declared(id, declared_renderers, "renderer", "renderer_missing")
+
+  res <- known_renderers()[[id]]
+
+  if (is.null(res)) {
+    blockr_abort("No renderer is declared as {id}.", class = "renderer_missing")
+  }
+
+  res
 }
 
 # A renderer's own request, for an output of the class vector given, which the
