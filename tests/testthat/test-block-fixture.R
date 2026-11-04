@@ -33,6 +33,33 @@ test_that("a fixture fails on a state that does not run", {
   )
 })
 
+test_that("a fixture writes each state as a board's JSON holds it", {
+
+  labelled <- new_block_class(
+    "labelled_block",
+    inputs = "data",
+    expr = function(label = "a", volumes = c(home = "~")) bbquote(.(data)),
+    ui = js_module("labelled-block.js", package = "blockr.core")
+  )
+
+  # An arg left out takes its default, and a named vector is written as an
+  # object, as blockr_ser() writes the state of a block.
+  expect_identical(
+    fixture_state(1L, list(list(label = "b")), labelled),
+    list(label = "b", volumes = list(home = "~"))
+  )
+
+  expect_error(
+    expect_block_fixture(
+      labelled,
+      states = list(list(label = factor("a"))),
+      inputs = list(data = datasets::BOD)
+    ),
+    "State 1 of block class labelled_block holds a value of class factor",
+    class = "board_value_invalid"
+  )
+})
+
 test_that("sample inputs get ids", {
 
   expect_identical(

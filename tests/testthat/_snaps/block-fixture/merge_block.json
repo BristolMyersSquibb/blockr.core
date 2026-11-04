@@ -3,11 +3,14 @@
     {
       "by": [
         "Time"
-      ]
+      ],
+      "all_x": false,
+      "all_y": false
     },
     {
       "by": "Time",
-      "all_x": true
+      "all_x": true,
+      "all_y": false
     }
   ],
   "requests": [

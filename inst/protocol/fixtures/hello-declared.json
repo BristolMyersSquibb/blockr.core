@@ -1,0 +1,130 @@
+{
+  "description": "The handshake of an app whose script loaded blockr.test, a package that declares a front-end, a startup module, a module that it offers others and two renderers, one for table outputs and one for the board option dark_mode, which the app names in the blockr option renderers. Beside it, the script registered two block classes of its own and built an empty board for the package's front-end. R loads no package for the handshake, so its reply says what the script loaded. R builds the fields that say so from what is registered and declared, and building them builds no block. They give the version of each package that the reply names, here blockr.test alone, since a class from no package names none. R serves each file at a URL that holds a hash of its content: a package's file under the package's name, at its path in the package, with the hash in the query, and a file from no package under blockr-modules, in a directory named by the hash. It writes the starting state of the letters block by the schema that the block's module ships, so that columns, a vector of length one, is an array, and that of the count block, whose module ships no schema, bare.",
+  "client": [
+    {
+      "id": "1",
+      "kind": "hello",
+      "protocol": "1.0",
+      "capabilities": ["cancel", "interrupt", "progress"]
+    }
+  ],
+  "r": [
+    [
+      {
+        "id": "1",
+        "status": "ok",
+        "protocol": "1.0",
+        "capabilities": ["cancel", "progress"],
+        "packages": { "blockr.test": "0.1.0" },
+        "block_registry": {
+          "count_block": {
+            "id": "count_block",
+            "name": "count block",
+            "description": "Count up",
+            "keywords": [],
+            "category": "uncategorized",
+            "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-hash\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
+            "inputs": [],
+            "module": "blockr-modules/8ae8c1b3/count-block.js",
+            "schema": {},
+            "state": { "n": 3 },
+            "arguments": { "n": {} },
+            "requests": {}
+          },
+          "letters_block": {
+            "id": "letters_block",
+            "name": "letters block",
+            "description": "Pick columns",
+            "details": "Keeps the columns it is given.",
+            "url": "https://example.com/letters",
+            "guidance": "Set `columns` to the names of columns to keep.",
+            "keywords": ["letters", "columns"],
+            "category": "transform",
+            "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-eye\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
+            "inputs": ["data"],
+            "module": "blockr-modules/bf59b37f/letters-block.js",
+            "css": "blockr-modules/7dc41faf/letters-block.css",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "columns": { "type": "array", "items": { "type": "string" } },
+                "sep": { "type": "string" }
+              }
+            },
+            "state": { "columns": ["x"], "sep": "," },
+            "arguments": {
+              "columns": {
+                "description": "Columns to keep.",
+                "example": ["x"],
+                "type": { "type": "array", "items": { "type": "string" } }
+              },
+              "sep": {
+                "description": "Separator.",
+                "type": { "type": "string" }
+              }
+            },
+            "requests": {
+              "columns": {
+                "inputs": ["data"],
+                "state_args": [],
+                "options": []
+              },
+              "page": {
+                "inputs": ["data"],
+                "state_args": ["sep"],
+                "options": ["n_rows"]
+              },
+              "files": {
+                "inputs": [],
+                "state_args": [],
+                "options": [],
+                "volatile": true
+              },
+              "upload": {
+                "inputs": [],
+                "state_args": [],
+                "options": [],
+                "action": true
+              }
+            }
+          }
+        },
+        "front_ends": {
+          "blockr.test-grid": {
+            "module": "blockr.test/js/grid.js?v=f9b5f4b6",
+            "css": "blockr.test/js/grid.css?v=3e948caf"
+          }
+        },
+        "startup_modules": [
+          {
+            "package": "blockr.test",
+            "module": "blockr.test/js/startup.js?v=4b93c4ad"
+          }
+        ],
+        "modules": {
+          "blockr.test-picker": {
+            "module": "blockr.test/js/picker.js?v=42980521"
+          }
+        },
+        "renderers": {
+          "blockr.test-dark": {
+            "module": "blockr.test/js/dark.js?v=5536bd26",
+            "option": "dark_mode"
+          },
+          "blockr.test-table": {
+            "module": "blockr.test/js/table.js?v=da68949e",
+            "class": "table_output"
+          }
+        },
+        "lock": null,
+        "board": {
+          "front_end": { "id": "blockr.test-grid", "state": {}, "attrs": {} },
+          "blocks": [],
+          "links": [],
+          "stacks": [],
+          "options": {}
+        }
+      }
+    ]
+  ]
+}

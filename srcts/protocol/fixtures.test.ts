@@ -26,6 +26,7 @@ const types: Record<string, string> = {
   "hello-locked": "Fixture<[HelloRequest], [[HelloReply]]>",
   "hello-block": "Fixture<[HelloRequest], [[HelloReply]]>",
   "hello-file": "Fixture<[HelloRequest], [[HelloReply]]>",
+  "hello-declared": "Fixture<[HelloRequest], [[HelloReply]]>",
   open: "Fixture<[OpenRequest], [[OpenReply]]>",
   "open-locked": "Fixture<[OpenRequest], [[ErrorReply]]>",
   "blockr-options": "Fixture<[BlockrOptionsRequest], [[BlockrOptionsReply]]>",
@@ -48,6 +49,7 @@ const types: Record<string, string> = {
   "request-progress":
     "Fixture<[ExtensionRequest], [[Progress], [Progress], [RequestReply]]>",
   "request-output": "Fixture<[OutputClassRequest], [[RequestReply]]>",
+  "request-output-volatile": "Fixture<[OutputClassRequest], [[RequestReply]]>",
   "request-renderer": "Fixture<[RendererRequest], [[RequestReply]]>",
   output: "Fixture<[OutputRequest], [[OutputReply]]>",
   "output-plot": "Fixture<[OutputRequest], [[OutputReply]]>",

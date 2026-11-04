@@ -33,6 +33,7 @@ Imports:
     grDevices,
     graphics,
     methods,
+    tools,
     utils,
     vctrs,
     generics,
@@ -96,6 +97,7 @@ Collate:
     'front-end.R'
     'link-class.R'
     'links-class.R'
+    'loaded-reply.R'
     'output-class.R'
     'output-plot.R'
     'output-renderer.R'
@@ -105,6 +107,7 @@ Collate:
     'plot-scatter.R'
     'protocol.R'
     'saved-file.R'
+    'served-modules.R'
     'shiny-transport.R'
     'stack-class.R'
     'stacks-class.R'

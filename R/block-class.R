@@ -28,11 +28,28 @@
 #' names its UI module with `js_module()`, which keeps the module's path in the
 #' package's `inst/` and the package whose code calls it, for R to resolve when
 #' it serves the module, and which resolves the path against the working
-#' directory outside a package. A class further takes a
+#' directory outside a package. R serves a package's module under the
+#' package's name, at its path in the package, and a module from outside a
+#' package at a URL of its own, read from the path given, each at a URL that
+#' holds a hash of the file's content. A class further takes a
 #' named list of `requests`, for what its UI asks of R, each a function or made
 #' by [new_block_request()], which names the board options it reads, and the
 #' coercion that makes an output from a result, as `output`. A field a class
 #' leaves out is `NULL`.
+#'
+#' A UI module is an ES module that exports the major of core's JS API
+#' that it was built against, as `export const api = 1`,
+#' and a default with a `render()` function.
+#' Core calls `render()` with the element to draw in,
+#' the block's host and a signal,
+#' once it has added the board options that the default names to the board.
+#' The types that a module is written against ship in the installed package,
+#' in the directory `system.file("types", package = "blockr.core")`.
+#' A package's build resolves that directory as `@blockr/core`,
+#' such as after `npm install --no-save` of it.
+#' Stubs of the hosts ship there too, as `@blockr/core/stubs`,
+#' with which a module's tests mount it
+#' on the fixture file that [expect_block_fixture()] writes.
 #'
 #' A class is checked once, when it is defined: no state arg is `...`,
 #' `block_name` or `visible`, no input or state arg shares the name of
@@ -205,12 +222,26 @@ is_js_module <- function(x) {
   inherits(x, "js_module")
 }
 
-# The file that a module ships beside it, as `head-block.schema.json` beside
-# `head-block.js`, among its package's installed files, or beside the path of
-# a module made outside a package, and `""` where there is none.
-module_file <- function(module, suffix) {
+# The path of a module, or of a file that it ships beside it with `suffix`, as
+# `head-block.schema.json` beside `head-block.js`: relative to the package's
+# `inst/`, or as the path given outside a package.
+module_path <- function(module, suffix = NULL) {
 
-  path <- paste0(sub("\\.[^./]*$", "", module[["path"]]), suffix)
+  path <- module[["path"]]
+
+  if (is.null(suffix)) {
+    return(path)
+  }
+
+  paste0(sub("\\.[^./]*$", "", path), suffix)
+}
+
+# The file of a module, or of one that it ships beside it with `suffix`, among
+# its package's installed files, or at the path of a module made outside a
+# package, and `""` where there is none.
+module_file <- function(module, suffix = NULL) {
+
+  path <- module_path(module, suffix)
 
   if (not_null(module[["package"]])) {
     path <- system.file(path, package = module[["package"]])

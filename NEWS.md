@@ -90,6 +90,20 @@
   `run_output_class_request()` runs when given the renderer. The function
   `pick_renderers()` gives the renderer that R picks for each output class and
   board option, whatever the board's front-end (#425).
+* R builds what it tells the client about the packages it has loaded, in its
+  reply to `hello`, without building a block. That is
+  each block class's entry in the block registry, with the metadata that
+  registration gives, `link` as `url`, its inputs, the schema of its state,
+  the state a new block starts with, its arg specs and its requests. Beside
+  the entries come the versions of the packages, the front-ends, the startup
+  modules in R's order, the modules that packages offer each other and the
+  renderers that R picked. R serves each module and stylesheet at a URL that
+  holds a hash of the file's content, so that no browser runs a changed file
+  from its cache. It serves a package's files under the package's name, and the
+  module of a block class from outside a package at a URL of its own, read
+  from the path given, and nothing beside them. Registration refuses a class
+  whose starting state is not a plain value, and an arg spec whose example is
+  not one either (#426).
 * R writes the board that an app script builds with `blockr_ser()`, as R
   sends it to the client: its ID and name where it has them, its blocks,
   links and stacks as arrays, each with the ID the script gave it, the
@@ -148,6 +162,14 @@
   that the new blockr option `upload_dir` names, and holds the file's path as
   its state, `file_path`. The file browser lists directories through a request
   of its own (#423).
+* Since a board names no constructor any more,
+  the helpers that recorded and read one are gone:
+  `resolve_ctor()`, `is_blockr_ctor()`, `ctor_name()`, `ctor_pkg()` and
+  `ctor_fun()` (#469).
+* The package ships the TypeScript types that the UI modules of block classes are written against, in `system.file("types", package = "blockr.core")`.
+  A package's build resolves that directory as `@blockr/core`, and its module tests take stubs of the hosts from it, as `@blockr/core/stubs`.
+  The fixture file that `expect_block_fixture()` writes lists each state as a block given those args holds it, its defaults filled in and written by the schema of the class's UI module.
+  The stub of a block's host then refuses a submit of a state that the file does not list (#437).
 
 # blockr.core 0.1.4
 
