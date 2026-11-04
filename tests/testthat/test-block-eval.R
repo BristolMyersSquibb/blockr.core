@@ -230,8 +230,10 @@ test_that("an evaluation is a classed object that prints", {
 
   expect_snapshot(print(res))
 
-  expect_error(new_block_evaluation("done"))
-  expect_error(new_block_evaluation("ok", expr = 1))
+  expect_error(new_block_evaluation("done"),
+               class = "block_evaluation_invalid")
+  expect_error(new_block_evaluation("ok", expr = 1),
+               class = "block_evaluation_invalid")
 })
 
 test_that("result_summary() gives a result's class and dimensions", {

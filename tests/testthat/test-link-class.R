@@ -27,6 +27,9 @@ test_that("link class", {
     class = "link_components_invalid"
   )
 
+  expect_error(new_link("a", c("b", "c")), class = "link_components_invalid")
+  expect_error(new_link(character(), "b"), class = "link_components_invalid")
+
   expect_error(
     validate_link(
       new_vctr(
