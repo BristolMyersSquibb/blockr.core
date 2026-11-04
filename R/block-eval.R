@@ -72,8 +72,14 @@
 #' @export
 evaluate_block <- function(x, state = list(), inputs = list(),
                            results = list(), ...) {
+  eval_block_class(as_block_class(x), state, inputs, results, list(...))
+}
 
-  cls <- as_block_class(x)
+# Evaluates a block of the class `cls`, as `evaluate_block()` does, with the
+# parameters of a one-time evaluation given as a list, so that a parameter
+# reaches `block_eval()` whatever its name.
+eval_block_class <- function(cls, state, inputs, results, params) {
+
   data <- input_results(class_inputs(cls), inputs, results)
 
   checks <- run_phase(
@@ -98,11 +104,17 @@ evaluate_block <- function(x, state = list(), inputs = list(),
 
   ran <- run_phase(
     "block_eval",
-    block_eval(
-      structure(state, class = cls[["class"]]),
-      built[["value"]],
-      eval_env(results[unique(unlst(inputs, recursive = TRUE))]),
-      ...
+    do.call(
+      block_eval,
+      c(
+        list(
+          structure(state, class = cls[["class"]]),
+          built[["value"]],
+          eval_env(results[unique(unlst(inputs, recursive = TRUE))])
+        ),
+        params
+      ),
+      quote = TRUE
     )
   )
 

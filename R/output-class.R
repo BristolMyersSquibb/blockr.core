@@ -465,6 +465,18 @@ run_output_class_request <- function(x, name, result, args = list(),
                                      options = list(), params = list(),
                                      file = NULL, renderer = NULL) {
 
+  call <- output_request_call(x, name, result, args, options, params, file,
+                              renderer)
+
+  do.call(call[["fun"]], call[["args"]], quote = TRUE)
+}
+
+# The function of a request of an output, or of a renderer, with the arguments
+# that R binds for it and whether the request is volatile, so that R can
+# resolve a request apart from running it.
+output_request_call <- function(x, name, result, args, options, params, file,
+                                renderer) {
+
   if (!is_string(name)) {
     blockr_abort(
       "The name of a request is expected to be a string.",
@@ -489,31 +501,49 @@ run_output_class_request <- function(x, name, result, args = list(),
     )
   }
 
-  core <- c("result", "options", "params", "file")
-  fmls <- formal_names(req[["fun"]])
-  unknown <- setdiff(names(args), setdiff(fmls, c(core, "...")))
+  bound <- list(result = result, options = options, params = params,
+                file = file)
+
+  if (is.null(file)) {
+    bound[["file"]] <- NULL
+  }
+
+  list(
+    fun = req[["fun"]],
+    args = request_call_args(
+      req[["fun"]],
+      name,
+      args,
+      bound,
+      c("result", "options", "params", "file"),
+      "output_class_request_args_invalid"
+    ),
+    volatile = isTRUE(req[["volatile"]])
+  )
+}
+
+# The arguments that R calls a request's function with: those that the client
+# passes in `args`, by name, and the values that R binds itself, in `bound`,
+# where the function takes them. The client passes none of the arguments that
+# `reserved` names, which R binds where it has a value for them.
+request_call_args <- function(fun, name, args, bound, reserved, class) {
+
+  fmls <- formal_names(fun)
+  unknown <- setdiff(names(args), setdiff(fmls, c(reserved, "...")))
 
   if ("..." %in% fmls) {
-    unknown <- intersect(names(args), core)
+    unknown <- intersect(names(args), reserved)
   }
 
   if (length(unknown)) {
     blockr_abort(
       "Request {name} takes no {qty(unknown)}argument{?s} {unknown} from ",
       "`args`.",
-      class = "output_class_request_args_invalid"
+      class = class
     )
   }
 
-  bound <- list(result = result, options = options, params = params,
-                file = file)
-  bound <- bound[intersect(names(bound), fmls)]
-
-  if (is.null(file)) {
-    bound[["file"]] <- NULL
-  }
-
-  do.call(req[["fun"]], c(bound, args), quote = TRUE)
+  c(bound[intersect(names(bound), fmls)], args)
 }
 
 # The parts of an output that R sends. Its fields are shaped by the JSON Schema
