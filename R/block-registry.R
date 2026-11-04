@@ -37,10 +37,11 @@ block_registry <- new.env()
 #' a new block starts with, the arg specs and the requests. R serves the
 #' module, and the stylesheet beside it, at a URL that holds a hash of the
 #' file's content, so that no browser runs a changed file from its cache. It
-#' writes the starting state by the schema of the block's state, and each arg
-#' spec's example by the arg's type. So registration refuses a class whose
-#' starting state is not a plain value, as a block's state has to be (see
-#' [blockr_ser()]), and refuses an arg spec whose example is not one either.
+#' writes the starting state by the schema of the block's state, and the
+#' example of each arg spec by the type it gives. So registration refuses a
+#' class whose starting state is not a plain value, as a block's state has to
+#' be (see [blockr_ser()]), and refuses an arg spec whose example is not one
+#' either.
 #'
 #' Blocks can be registered (i.e. added to the registry) via `register_block()`
 #' with scalar-valued arguments and `register_blocks()`, where arguments may be
