@@ -11,8 +11,10 @@ import type {
   OptionId,
   RegistryId,
 } from "../types/board.ts";
+import type { CoreApi } from "../types/core-api.ts";
+import type { OptionModule } from "../types/hosts.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
-import { compile, jsonEqual, pathText } from "../util/index.ts";
+import { compile, isObject, jsonEqual, pathText } from "../util/index.ts";
 import type { Validate } from "../util/index.ts";
 import type { Delta, KeyDelta } from "./delta.ts";
 
@@ -58,6 +60,11 @@ export interface Option {
   readonly category: string;
   readonly schema: JsonSchema;
   readonly default: Json | (() => Promise<Json>);
+  // Its UI module, which core mounts with an OptionHost where R picked no
+  // renderer for the board option.
+  readonly ui: OptionModule;
+  // What a new value does on the page, such as switching the theme.
+  onChange?(value: Json, core: CoreApi): void;
 }
 
 // The board options packages define, by id.
@@ -211,6 +218,16 @@ export function createRegistrations(): Registrations {
         const what = `the board option "${def.id}"`;
         if (optionIndex.value.has(def.id)) {
           throw new Error(`The board option "${def.id}" is registered already.`);
+        }
+        // A package that writes its JS without types may give no UI module,
+        // or an onChange that is no function.
+        const ui: unknown = def.ui;
+        if (!isObject(ui) || typeof ui.render !== "function") {
+          throw new Error(`The board option "${def.id}" has no UI module with a render() function.`);
+        }
+        const { onChange } = def as { readonly onChange?: unknown };
+        if (onChange !== undefined && typeof onChange !== "function") {
+          throw new Error(`The onChange of the board option "${def.id}" is no function.`);
         }
         const validate = compile(what, def.schema);
         if (typeof def.default !== "function") {

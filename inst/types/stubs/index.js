@@ -182,6 +182,7 @@ function stubOutputHost(options = {}) {
   let output = options.output ?? first?.output ?? null;
   let body = options.body ?? null;
   let params = options.params ?? (options.output === void 0 ? first?.params ?? {} : {});
+  const values = options.options ?? (options.output === void 0 ? first?.options ?? {} : {});
   let loading = false;
   let error = null;
   const emitted = [];
@@ -194,6 +195,7 @@ function stubOutputHost(options = {}) {
     output: () => output,
     body: () => body,
     params: () => params,
+    options: () => values,
     loading: () => loading,
     error: () => error,
     on: on.listen,
@@ -204,7 +206,7 @@ function stubOutputHost(options = {}) {
     setParams(next) {
       asked.push(next);
       const found = options.fixtures?.outputs.find(
-        (fixture) => jsonEqual(fixture.params, next) && Object.entries(fixture.options).every(([id, value]) => jsonEqual(options.options?.[id], value))
+        (fixture) => jsonEqual(fixture.params, next) && Object.entries(fixture.options).every(([id, value]) => jsonEqual(values[id], value))
       );
       if (found === void 0) {
         error = {

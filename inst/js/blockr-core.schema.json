@@ -6,7 +6,7 @@
       "properties": {
         "n_rows": {
           "type": "integer",
-          "minimum": 0,
+          "minimum": 1,
           "description": "How many rows of a table a block's output shows"
         },
         "show_conditions": {

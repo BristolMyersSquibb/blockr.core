@@ -15,10 +15,15 @@
  * - Utilities sit outside any cascade layer, since a page's other CSS, such as
  *   Bootstrap's, sits outside one too and would win over them otherwise, as its
  *   `label { display: inline-block; }` would over `bc:block`.
+ * - The dark variant, as in `bc:dark:bg-gray-900`, applies under the dark
+ *   theme that the board option dark_mode switches the page to, in the
+ *   attribute data-bs-theme of its root element, which Bootstrap and
+ *   blockr.ui's design tokens read too.
  */
 @layer theme;
 @import "tailwindcss/theme.css" layer(theme) prefix(bc);
 @import "tailwindcss/utilities.css" source(none);
+@custom-variant dark (&:where([data-bs-theme="dark"], [data-bs-theme="dark"] *));
 @source "../**/*.ts";
 @source not "../build";
 @source not "../**/*.test.ts";

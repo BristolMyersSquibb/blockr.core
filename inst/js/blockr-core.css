@@ -3,23 +3,144 @@
   @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {
     *, :before, :after, ::backdrop {
       --tw-border-style: solid;
+      --tw-leading: initial;
+      --tw-font-weight: initial;
+      --tw-ordinal: initial;
+      --tw-slashed-zero: initial;
+      --tw-numeric-figure: initial;
+      --tw-numeric-spacing: initial;
+      --tw-numeric-fraction: initial;
     }
   }
 }
 
 @layer theme {
   :root, :host {
+    --bc-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
     --bc-color-red-50: oklch(97.1% .013 17.38);
+    --bc-color-red-200: oklch(88.5% .062 18.334);
     --bc-color-red-300: oklch(80.8% .114 19.571);
     --bc-color-red-800: oklch(44.4% .177 26.899);
+    --bc-color-red-950: oklch(25.8% .092 26.042);
+    --bc-color-blue-600: oklch(54.6% .245 262.881);
+    --bc-color-gray-50: oklch(98.5% .002 247.839);
+    --bc-color-gray-100: oklch(96.7% .003 264.542);
+    --bc-color-gray-200: oklch(92.8% .006 264.531);
+    --bc-color-gray-300: oklch(87.2% .01 258.338);
+    --bc-color-gray-400: oklch(70.7% .022 261.325);
+    --bc-color-gray-500: oklch(55.1% .027 264.364);
+    --bc-color-gray-600: oklch(44.6% .03 256.802);
+    --bc-color-gray-700: oklch(37.3% .034 259.733);
+    --bc-color-gray-800: oklch(27.8% .033 256.848);
+    --bc-color-gray-900: oklch(21% .034 264.665);
+    --bc-color-white: #fff;
     --bc-spacing: .25rem;
+    --bc-text-xs: .75rem;
+    --bc-text-xs--line-height: calc(1 / .75);
     --bc-text-sm: .875rem;
     --bc-text-sm--line-height: calc(1.25 / .875);
+    --bc-font-weight-normal: 400;
+    --bc-font-weight-medium: 500;
+    --bc-leading-snug: 1.375;
+    --bc-radius-md: .375rem;
   }
+}
+
+.bc\:sticky {
+  position: sticky;
+}
+
+.bc\:top-0 {
+  top: 0;
+}
+
+.bc\:m-0 {
+  margin: 0;
+}
+
+.bc\:mb-1 {
+  margin-bottom: var(--bc-spacing);
+}
+
+.bc\:flex {
+  display: flex;
+}
+
+.bc\:max-h-full {
+  max-height: 100%;
+}
+
+.bc\:min-h-0 {
+  min-height: 0;
+}
+
+.bc\:w-24 {
+  width: calc(var(--bc-spacing) * 24);
+}
+
+.bc\:w-full {
+  width: 100%;
+}
+
+.bc\:max-w-none {
+  max-width: none;
+}
+
+.bc\:min-w-0 {
+  min-width: 0;
+}
+
+.bc\:border-collapse {
+  border-collapse: collapse;
+}
+
+.bc\:cursor-pointer {
+  cursor: pointer;
+}
+
+.bc\:flex-col {
+  flex-direction: column;
+}
+
+.bc\:items-center {
+  align-items: center;
+}
+
+.bc\:items-end {
+  align-items: flex-end;
+}
+
+.bc\:justify-between {
+  justify-content: space-between;
+}
+
+.bc\:justify-end {
+  justify-content: flex-end;
+}
+
+.bc\:gap-1 {
+  gap: var(--bc-spacing);
+}
+
+.bc\:gap-2 {
+  gap: calc(var(--bc-spacing) * 2);
+}
+
+.bc\:gap-3 {
+  gap: calc(var(--bc-spacing) * 3);
+}
+
+.bc\:overflow-auto {
+  overflow: auto;
 }
 
 .bc\:rounded {
   border-radius: .25rem;
+}
+
+.bc\:rounded-md {
+  border-radius: var(--bc-radius-md);
 }
 
 .bc\:border {
@@ -27,16 +148,86 @@
   border-width: 1px;
 }
 
+.bc\:border-0 {
+  border-style: var(--tw-border-style);
+  border-width: 0;
+}
+
+.bc\:border-b {
+  border-bottom-style: var(--tw-border-style);
+  border-bottom-width: 1px;
+}
+
+.bc\:border-gray-100 {
+  border-color: var(--bc-color-gray-100);
+}
+
+.bc\:border-gray-200 {
+  border-color: var(--bc-color-gray-200);
+}
+
+.bc\:border-gray-300 {
+  border-color: var(--bc-color-gray-300);
+}
+
 .bc\:border-red-300 {
   border-color: var(--bc-color-red-300);
+}
+
+.bc\:bg-gray-50 {
+  background-color: var(--bc-color-gray-50);
 }
 
 .bc\:bg-red-50 {
   background-color: var(--bc-color-red-50);
 }
 
+.bc\:bg-transparent {
+  background-color: #0000;
+}
+
+.bc\:bg-white {
+  background-color: var(--bc-color-white);
+}
+
+.bc\:p-0 {
+  padding: 0;
+}
+
 .bc\:p-2 {
   padding: calc(var(--bc-spacing) * 2);
+}
+
+.bc\:px-2 {
+  padding-inline: calc(var(--bc-spacing) * 2);
+}
+
+.bc\:py-0\.5 {
+  padding-block: calc(var(--bc-spacing) * .5);
+}
+
+.bc\:py-1 {
+  padding-block: var(--bc-spacing);
+}
+
+.bc\:text-left {
+  text-align: left;
+}
+
+.bc\:text-right {
+  text-align: right;
+}
+
+.bc\:align-bottom {
+  vertical-align: bottom;
+}
+
+.bc\:align-top {
+  vertical-align: top;
+}
+
+.bc\:font-mono {
+  font-family: var(--bc-font-mono);
 }
 
 .bc\:text-sm {
@@ -44,16 +235,184 @@
   line-height: var(--tw-leading, var(--bc-text-sm--line-height));
 }
 
+.bc\:text-xs {
+  font-size: var(--bc-text-xs);
+  line-height: var(--tw-leading, var(--bc-text-xs--line-height));
+}
+
+.bc\:leading-snug {
+  --tw-leading: var(--bc-leading-snug);
+  line-height: var(--bc-leading-snug);
+}
+
+.bc\:font-medium {
+  --tw-font-weight: var(--bc-font-weight-medium);
+  font-weight: var(--bc-font-weight-medium);
+}
+
+.bc\:font-normal {
+  --tw-font-weight: var(--bc-font-weight-normal);
+  font-weight: var(--bc-font-weight-normal);
+}
+
+.bc\:whitespace-nowrap {
+  white-space: nowrap;
+}
+
+.bc\:whitespace-pre {
+  white-space: pre;
+}
+
 .bc\:whitespace-pre-wrap {
   white-space: pre-wrap;
+}
+
+.bc\:text-gray-400 {
+  color: var(--bc-color-gray-400);
+}
+
+.bc\:text-gray-500 {
+  color: var(--bc-color-gray-500);
+}
+
+.bc\:text-gray-600 {
+  color: var(--bc-color-gray-600);
+}
+
+.bc\:text-gray-700 {
+  color: var(--bc-color-gray-700);
+}
+
+.bc\:text-gray-900 {
+  color: var(--bc-color-gray-900);
+}
+
+.bc\:text-inherit {
+  color: inherit;
 }
 
 .bc\:text-red-800 {
   color: var(--bc-color-red-800);
 }
 
+.bc\:italic {
+  font-style: italic;
+}
+
+.bc\:tabular-nums {
+  --tw-numeric-spacing: tabular-nums;
+  font-variant-numeric: var(--tw-ordinal, ) var(--tw-slashed-zero, ) var(--tw-numeric-figure, ) var(--tw-numeric-spacing, ) var(--tw-numeric-fraction, );
+}
+
+.bc\:accent-blue-600 {
+  accent-color: var(--bc-color-blue-600);
+}
+
+.bc\:opacity-60 {
+  opacity: .6;
+}
+
+.bc\:\[font\:inherit\] {
+  font: inherit;
+}
+
+.bc\:disabled\:cursor-default:disabled {
+  cursor: default;
+}
+
+.bc\:disabled\:opacity-40:disabled {
+  opacity: .4;
+}
+
+.bc\:dark\:border-gray-600:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
+  border-color: var(--bc-color-gray-600);
+}
+
+.bc\:dark\:border-gray-700:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
+  border-color: var(--bc-color-gray-700);
+}
+
+.bc\:dark\:border-gray-800:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
+  border-color: var(--bc-color-gray-800);
+}
+
+.bc\:dark\:border-red-800:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
+  border-color: var(--bc-color-red-800);
+}
+
+.bc\:dark\:bg-gray-800:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
+  background-color: var(--bc-color-gray-800);
+}
+
+.bc\:dark\:bg-gray-900:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
+  background-color: var(--bc-color-gray-900);
+}
+
+.bc\:dark\:bg-red-950:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
+  background-color: var(--bc-color-red-950);
+}
+
+.bc\:dark\:text-gray-100:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
+  color: var(--bc-color-gray-100);
+}
+
+.bc\:dark\:text-gray-200:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
+  color: var(--bc-color-gray-200);
+}
+
+.bc\:dark\:text-gray-400:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
+  color: var(--bc-color-gray-400);
+}
+
+.bc\:dark\:text-gray-500:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
+  color: var(--bc-color-gray-500);
+}
+
+.bc\:dark\:text-red-200:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
+  color: var(--bc-color-red-200);
+}
+
+.bc\:dark\:scheme-dark:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
+  color-scheme: dark;
+}
+
 @property --tw-border-style {
   syntax: "*";
   inherits: false;
   initial-value: solid;
+}
+
+@property --tw-leading {
+  syntax: "*";
+  inherits: false
+}
+
+@property --tw-font-weight {
+  syntax: "*";
+  inherits: false
+}
+
+@property --tw-ordinal {
+  syntax: "*";
+  inherits: false
+}
+
+@property --tw-slashed-zero {
+  syntax: "*";
+  inherits: false
+}
+
+@property --tw-numeric-figure {
+  syntax: "*";
+  inherits: false
+}
+
+@property --tw-numeric-spacing {
+  syntax: "*";
+  inherits: false
+}
+
+@property --tw-numeric-fraction {
+  syntax: "*";
+  inherits: false
 }

@@ -198,6 +198,16 @@ describe("the stub of an output's host", () => {
     expect(host.asked).toEqual([{ page: 4, sort: { column: "Ozone", desc: true } }, { page: 2 }]);
   });
 
+  test("gives the board option values the output was asked with, those given or else those of the first of the fixtures", () => {
+    expect(stubOutputHost({ fixtures: tables, options: { n_rows: 50 } }).options()).toEqual({ n_rows: 50 });
+    expect(stubOutputHost({ fixtures: tables }).options()).toEqual({ n_rows: 3 });
+
+    const host = stubOutputHost({ fixtures: tables });
+    host.setParams({ page: 2 });
+    expect(host.error()).toBeNull();
+    expect(stubOutputHost({ output: { renderer: "blockr.core-text_output", text: "1" } }).options()).toEqual({});
+  });
+
   test("records what the renderer emits and the outputs it draws nested in its own", () => {
     const host = stubOutputHost({ output: { renderer: "blockr.dm-dm", diagram: {} } });
     const el = document.createElement("div");

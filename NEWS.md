@@ -170,6 +170,10 @@
   A package's build resolves that directory as `@blockr/core`, and its module tests take stubs of the hosts from it, as `@blockr/core/stubs`.
   The fixture file that `expect_block_fixture()` writes lists each state as a block given those args holds it, its defaults filled in and written by the schema of the class's UI module.
   The stub of a block's host then refuses a submit of a state that the file does not list (#437).
+* Core's client draws table, text and plot outputs with renderers of its own, in plain TypeScript: a table that pages and sorts through its output's parameters, printed text that scrolls at R's width, and a plot's PNG at the size it was drawn at.
+  It defines core's board options `n_rows`, `show_conditions` and `dark_mode`, each with its UI, and each takes its default from the blockr option of its name, as before.
+  The board option `dark_mode` switches the page's theme in the attribute `data-bs-theme` of its root element, which Bootstrap reads too, and `n_rows` takes one row at least.
+  A board option's definition in the client holds its UI module and what a new value does on the page, and the host of a renderer gives it the board option values that its output was asked with (#439).
 
 # blockr.core 0.1.4
 
