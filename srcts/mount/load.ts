@@ -28,8 +28,8 @@ export interface Loader {
 }
 
 export interface LoaderOptions {
-  // The modules that packages offer each other, by id, from R's latest reply
-  // to `hello` or to an opening.
+  // The modules that packages offer each other, by id, as R's reply names
+  // them.
   readonly modules?: () => Readonly<Record<string, Source>>;
   // Imports a module by its URL, resolved against the page, as `import()`
   // does on the page. Tests give their own.
