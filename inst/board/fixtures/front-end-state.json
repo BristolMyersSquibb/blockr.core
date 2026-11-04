@@ -1,0 +1,75 @@
+{
+  "description": "A board of the class grid_board, made for the front-end blockr.test-grid that the package blockr.test declares, with the front-end's state that the script gives. The package ships the schemas of its keys beside its startup module, here in blockr.test/js/startup.schema.json. By them, R writes the blocks of each entry of the collection panels as an array, and the value active as a string. A client opens the board as written only where blockr.test registers those keys and R serves its front-end.",
+  "board": {
+    "id": "quiet_heron",
+    "front_end": {
+      "id": "blockr.test-grid",
+      "state": {
+        "panels": {
+          "main": {
+            "title": "Main",
+            "blocks": [
+              "a"
+            ]
+          }
+        },
+        "active": "main"
+      },
+      "attrs": {}
+    },
+    "name": "Grid",
+    "blocks": [
+      {
+        "id": "a",
+        "registry_id": "letters_block",
+        "state": {
+          "n": 3
+        },
+        "name": "Letters",
+        "attrs": {}
+      }
+    ],
+    "links": [],
+    "stacks": [],
+    "options": {}
+  },
+  "file": {
+    "format": 1,
+    "packages": {
+      "blockr.core": "0.2.0",
+      "blockr.test": "0.1.0"
+    },
+    "board": {
+      "id": "quiet_heron",
+      "front_end": {
+        "id": "blockr.test-grid",
+        "state": {
+          "panels": {
+            "main": {
+              "title": "Main",
+              "blocks": [
+                "a"
+              ]
+            }
+          },
+          "active": "main"
+        },
+        "attrs": {}
+      },
+      "name": "Grid",
+      "blocks": {
+        "a": {
+          "registry_id": "letters_block",
+          "state": {
+            "n": 3
+          },
+          "name": "Letters",
+          "attrs": {}
+        }
+      },
+      "links": {},
+      "stacks": {},
+      "options": {}
+    }
+  }
+}

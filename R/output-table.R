@@ -13,10 +13,11 @@
 #' element in `info`, and the output's parameters in `params`. The method for
 #' data frames reads three parameters. It shows page `params$page`, the first
 #' by default. A page holds `params$page_size` rows, or else as many as the
-#' board option `n_rows` gives. The rows are sorted by the column that
-#' `params$sort$column` names, from the largest value where `params$sort$desc`
-#' is `TRUE`. Asking for a page past the last one is an error, so that the
-#' renderer asks again.
+#' board option `n_rows` gives, whose value the client sends with every output
+#' request, the default of its definition where the board holds none. The rows
+#' are sorted by the column that `params$sort$column` names, from the largest
+#' value where `params$sort$desc` is `TRUE`. Asking for a page past the last
+#' one is an error, so that the renderer asks again.
 #'
 #' The rows hold the values as the JSON writer writes them, so that numbers,
 #' strings, logicals, factors and dates show as R prints them. A missing value
@@ -124,12 +125,15 @@ as_table_output <- function(result, options = list(), info = list(),
 as_table_output.data.frame <- function(result, options = list(),
                                        info = list(), params = list(), ...) {
 
-  size <- coal(
-    params[["page_size"]],
-    options[["n_rows"]],
-    board_option_value(new_n_rows_option()),
-    fail_all = FALSE
-  )
+  size <- coal(params[["page_size"]], options[["n_rows"]], fail_all = FALSE)
+
+  if (is.null(size)) {
+    blockr_abort(
+      "A table output takes its page size from the parameter `page_size` or ",
+      "the board option `n_rows`, but neither is given.",
+      class = "table_output_params_invalid"
+    )
+  }
 
   page <- coal(params[["page"]], 1L, fail_all = FALSE)
 

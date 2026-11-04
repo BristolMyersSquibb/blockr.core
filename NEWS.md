@@ -21,9 +21,7 @@
   the board, as it names a board without a name after its ID. An ID that is
   given, a board's, a block's, a link's or a stack's, is a string that is
   neither empty nor made of digits alone, and the constructors refuse any
-  other, naming it. For a board saved by blockr.core 0.1.4, `blockr_deser()`
-  reads the name off its `board_name` board option and the ID off the `id`
-  saved next to it (#427).
+  other, naming it (#427).
 * A block class is a value made by `new_block_class()`, holding what every
   block of the class shares: its data inputs, the `expr` from whose result
   interpolation makes the block expression, the UI module `js_module()` names,
@@ -81,6 +79,30 @@
   most specific class in the board's class vector, so that every board has
   core's basic front-end, `blockr.core-basic`, which core declares for
   `board`, at least (#424).
+* R writes the board that an app script builds with `blockr_ser()`, as R
+  sends it to the client: its ID and name where it has them, its blocks,
+  links and stacks as arrays, each with the ID the script gave it, the
+  front-end it is made for, with the front-end's state, and the values of the
+  board options the script gives. It writes each value by a JSON Schema, so
+  that no shape depends on R's JSON writer: core's objects by the schema of
+  the board that the build generates from its TypeScript types into
+  `inst/board`, a block's state by the schema its class's UI ships, and a key
+  of the front-end's state or a board option's value by the schema its
+  package ships beside its startup module, as core ships those of its board
+  options beside its runtime. Writing a board registers the block classes
+  that its blocks refer to, from the blocks themselves, and fails on a value
+  that JSON cannot hold, such as a function, so that such a board fails as
+  the script runs. The board, link and stack constructors lose `ctor` and
+  `pkg`, and `board_ctor()` and `forward_ctor()` go. A board option is its ID
+  and the value a script gives, since its constructor takes the value alone
+  and computes nothing. So `board_option_default()`,
+  `board_option_category()`, `board_option_label()`,
+  `board_option_transform()`, `board_option_ctor()`, `validate_board_option()`,
+  `default_board_options()` and `blockr_app_options()` go, `new_board()` takes
+  no board options by default, and `as_table_output()` pages a data frame by
+  the `n_rows` that the client sends. Nothing in R reads a board back, since
+  the client opens every board itself, so `blockr_deser()` goes, and a file
+  of today's stack is converted by a script of its own (#428).
 * Core's twelve built-in blocks are block classes. Core exports each class
   beside its constructor, such as `head_block` beside `new_head_block()`, and
   registers ten of them when it loads, under IDs such as
@@ -93,9 +115,7 @@
 * With the built-in blocks ported, `new_block()` is gone, and so are its
   specializations `new_data_block()`, `new_file_block()`,
   `new_parser_block()`, `new_plot_block()`, `new_text_block()` and
-  `new_transform_block()`, with `validate_data_inputs()`. The methods of
-  `blockr_ser()` and `blockr_deser()` for blocks go too, since neither works
-  for a block of a block class (#423).
+  `new_transform_block()`, with `validate_data_inputs()` (#423).
 * A function given as a block class's `inputs` signals an error where the
   inputs do not fit and otherwise returns `NULL`. Any other value it returns
   now fails the check too, so that a predicate that returns `FALSE` no longer

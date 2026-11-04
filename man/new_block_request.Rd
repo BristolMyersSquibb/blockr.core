@@ -62,8 +62,8 @@ such as an upload, which receives the file the user picked in its argument
 \code{file}. R runs an action once per call, and it may write.
 }
 \examples{
-new_dir_option <- function(value = tempdir(), ...) {
-  new_board_option(id = "dir", default = value, ...)
+new_dir_option <- function(value) {
+  new_board_option("dir", value)
 }
 
 dir_block <- new_block_class(

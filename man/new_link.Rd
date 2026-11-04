@@ -10,15 +10,7 @@
 \alias{validate_links}
 \title{Board links}
 \usage{
-new_link(
-  from = "",
-  to = "",
-  input = "",
-  ...,
-  ctor = "new_link",
-  pkg = pkg_name(),
-  class = character()
-)
+new_link(from = "", to = "", input = "", ..., class = character())
 
 is_link(x)
 
@@ -38,8 +30,6 @@ validate_links(x)
 \item{input}{Block argument}
 
 \item{...}{Extensibility}
-
-\item{ctor, pkg}{Constructor information (used for serialization)}
 
 \item{class}{(Optional) link sub-class}
 
