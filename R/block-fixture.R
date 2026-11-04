@@ -17,14 +17,12 @@
 #' until the snapshot is accepted.
 #'
 #' The fixture is a JSON object holding the `states` and the `requests`.
-#' Each state is written as a block given those args holds it,
-#' as its constructor takes it from the frame `expr` ran in
-#' (see [block_constructor()]),
+#' Each state is written as a board's JSON holds the state of a block given
+#' those args (see [blockr_ser()]):
+#' as its constructor takes it from the frame `expr` ran in,
 #' so that an arg left out takes its default,
-#' and by the JSON Schema that the class's UI module ships, where it ships one.
+#' and by the JSON Schema that the class's UI module ships.
 #' A module test then compares the state a module submits with it as it is.
-#' Without a schema, a value of length one is written bare,
-#' but where [I()] keeps it an array.
 #' Each request is written with its `name`,
 #' the `args` and `options` it was called with,
 #' and its `answer`, with every vector as an array,
@@ -75,7 +73,7 @@ expect_block_fixture <- function(x, states, inputs = list(), requests = list(),
   writeLines(
     json_str(
       list(
-        states = lapply(states, fixture_state, cls),
+        states = lapply(seq_along(states), fixture_state, states, cls),
         requests = lapply(requests, record_request, cls, inputs)
       ),
       auto_unbox = TRUE,
@@ -109,8 +107,16 @@ state_runs <- function(i, states, cls, ids) {
   ok
 }
 
-fixture_state <- function(state, cls) {
-  as_json_object(shape_by_schema(expr_state(cls, state), class_schema(cls)))
+# A listed state as a board's JSON holds the state of a block given those args,
+# in the two steps by which blockr_ser() and shape_block_state() write it.
+fixture_state <- function(i, states, cls) {
+
+  state <- plain_value(
+    expr_state(cls, states[[i]]),
+    paste("State", i, "of block class", cls[["class"]][1L])
+  )
+
+  as_json_object(shape_by_schema(state, class_schema(cls)))
 }
 
 sample_input_ids <- function(inputs) {

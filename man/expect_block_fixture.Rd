@@ -48,14 +48,12 @@ until the snapshot is accepted.
 }
 \details{
 The fixture is a JSON object holding the \code{states} and the \code{requests}.
-Each state is written as a block given those args holds it,
-as its constructor takes it from the frame \code{expr} ran in
-(see \code{\link[=block_constructor]{block_constructor()}}),
+Each state is written as a board's JSON holds the state of a block given
+those args (see \code{\link[=blockr_ser]{blockr_ser()}}):
+as its constructor takes it from the frame \code{expr} ran in,
 so that an arg left out takes its default,
-and by the JSON Schema that the class's UI module ships, where it ships one.
+and by the JSON Schema that the class's UI module ships.
 A module test then compares the state a module submits with it as it is.
-Without a schema, a value of length one is written bare,
-but where \code{\link[=I]{I()}} keeps it an array.
 Each request is written with its \code{name},
 the \code{args} and \code{options} it was called with,
 and its \code{answer}, with every vector as an array,
