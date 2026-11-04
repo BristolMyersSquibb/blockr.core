@@ -34,17 +34,19 @@
 #' coercion that makes an output from a result, as `output`. A field a class
 #' leaves out is `NULL`.
 #'
-#' A UI module is an ES module that exports the major of core's JS API that it
-#' was built against, as `export const api = 1`, and a default with a
-#' `render()` function. Core calls `render()` with the element to draw in, the
-#' block's host and a signal, once it has added the board options that the
-#' default names to the board. The types that a module is written against ship
-#' in the installed package, in the directory
-#' `system.file("types", package = "blockr.core")`. A package's build resolves
-#' that directory as `@blockr/core`, such as after `npm install --no-save` of
-#' it. Stubs of the hosts ship there too, as `@blockr/core/stubs`, with which a
-#' module's tests mount it on the fixture file that [expect_block_fixture()]
-#' writes.
+#' A UI module is an ES module that exports the major of core's JS API
+#' that it was built against, as `export const api = 1`,
+#' and a default with a `render()` function.
+#' Core calls `render()` with the element to draw in,
+#' the block's host and a signal,
+#' once it has added the board options that the default names to the board.
+#' The types that a module is written against ship in the installed package,
+#' in the directory `system.file("types", package = "blockr.core")`.
+#' A package's build resolves that directory as `@blockr/core`,
+#' such as after `npm install --no-save` of it.
+#' Stubs of the hosts ship there too, as `@blockr/core/stubs`,
+#' with which a module's tests mount it
+#' on the fixture file that [expect_block_fixture()] writes.
 #'
 #' A class is checked once, when it is defined: no state arg is `...`,
 #' `block_name` or `visible`, no input or state arg shares the name of

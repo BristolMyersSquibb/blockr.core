@@ -148,14 +148,10 @@
   that the new blockr option `upload_dir` names, and holds the file's path as
   its state, `file_path`. The file browser lists directories through a request
   of its own (#423).
-* The package ships the TypeScript types that the UI modules of block classes
-  are written against, in `system.file("types", package = "blockr.core")`.
-  A package's build resolves that directory as `@blockr/core`, and its module
-  tests take stubs of the hosts from it, as `@blockr/core/stubs`. The fixture
-  file that `expect_block_fixture()` writes lists each state as a block given
-  those args holds it, its defaults filled in and written by the schema of the
-  class's UI module. The stub of a block's host then refuses a submit of a
-  state that the file does not list (#437).
+* The package ships the TypeScript types that the UI modules of block classes are written against, in `system.file("types", package = "blockr.core")`.
+  A package's build resolves that directory as `@blockr/core`, and its module tests take stubs of the hosts from it, as `@blockr/core/stubs`.
+  The fixture file that `expect_block_fixture()` writes lists each state as a block given those args holds it, its defaults filled in and written by the schema of the class's UI module.
+  The stub of a block's host then refuses a submit of a state that the file does not list (#437).
 
 # blockr.core 0.1.4
 
