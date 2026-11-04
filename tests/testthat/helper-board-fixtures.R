@@ -70,12 +70,41 @@ local_versions <- function(..., frame = parent.frame()) {
   )
 }
 
+# Gives board class `class` a method of `board_front_end()` that names
+# `front_end`, from a namespace of `package`, as that package registers it,
+# until `frame` ends.
+local_board_front_end <- function(class, front_end, package,
+                                  frame = parent.frame()) {
+
+  ns <- list2env(list(.packageName = package, front_end = front_end))
+
+  method <- function(x, ...) front_end
+  environment(method) <- ns
+
+  registerS3method(
+    "board_front_end",
+    class,
+    method,
+    envir = asNamespace("blockr.core")
+  )
+
+  withr::defer(
+    rm(
+      list = paste0("board_front_end.", class),
+      envir = get(".__S3MethodsTable__.", envir = asNamespace("blockr.core"))
+    ),
+    envir = frame
+  )
+
+  invisible()
+}
+
 # What the package blockr.test of the fixtures declares from its `.onLoad()`:
 # the module blockr.test-grid, the front-end that its board class
-# `grid_board` names in JavaScript, and a startup module, beside which
-# the package ships the schemas of the properties that `grid_board` adds,
-# here in the fixtures' blockr.test/, as it would install them, at the version
-# 0.1.0.
+# `grid_board` names through its method of `board_front_end()`, and a startup
+# module, beside which the package ships the schemas of the properties that
+# `grid_board` adds, here in the fixtures' blockr.test/, as it would install
+# them, at the version 0.1.0.
 # The block registry and what packages declare are restored once `frame` ends,
 # so that the classes that writing a fixture registers go too.
 local_fixture_package <- function(frame = parent.frame()) {
@@ -94,6 +123,13 @@ local_fixture_package <- function(frame = parent.frame()) {
   register_module("grid", js_module("js/grid.js", package = "blockr.test"))
 
   register_startup_module(js_module("js/startup.js", package = "blockr.test"))
+
+  local_board_front_end(
+    "grid_board",
+    "blockr.test-grid",
+    "blockr.test",
+    frame = frame
+  )
 
   local_versions(blockr.test = "0.1.0", frame = frame)
 
@@ -166,11 +202,12 @@ board_fixture_values <- function() {
         "the script gives them. The package ships the schemas of those",
         "properties beside its startup module, here in",
         "blockr.test/js/startup.schema.json. By them, R writes the blocks of",
-        "each entry of panels as an array, and active as a string, and so it",
-        "records blockr.test among the board's packages. A client builds the",
-        "board as a grid_board, keeping both properties, only where",
-        "blockr.test defines the class, and as core's board otherwise,",
-        "without them."
+        "each entry of panels as an array, and active as a string. The",
+        "package names the class's front-end through its method of",
+        "board_front_end(), from whose namespace R records blockr.test among",
+        "the board's packages. A client builds the board as a grid_board,",
+        "keeping both properties, only where blockr.test defines the class,",
+        "and as core's board otherwise, without them."
       ),
       board = new_board(
         blocks = c(a = new_letters_block(block_name = "Letters")),

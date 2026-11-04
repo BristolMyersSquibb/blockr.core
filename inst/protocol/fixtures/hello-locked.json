@@ -103,6 +103,12 @@
             "css": "blockr.core/basic.css?v=6a9b2c4e"
           }
         },
+        "board_classes": {
+          "board": {
+            "package": "blockr.core",
+            "front_end": "blockr.core-basic"
+          }
+        },
         "renderers": {
           "blockr.core-table_output": {
             "module": "blockr.core/basic-table.js?v=b7e2a915",

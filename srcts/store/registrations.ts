@@ -14,29 +14,27 @@ import type {
   RegistryId,
 } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
-import { compile, isPackageName, own } from "../util/index.ts";
+import { compile, own } from "../util/index.ts";
 import type { Validate } from "../util/index.ts";
 import type { Delta, Patch } from "./delta.ts";
 
 // A board class, which the package that ships it defines in JS under its R
 // class name, so that the definition and R's class meet at the name.
-// It names its parent, its front-end and the board options it requires, and
-// gives the properties it adds beside core's, each with a schema and a
-// default.
+// It names its parent and the board options it requires, and gives the
+// properties it adds beside core's, each with a schema and a default.
+// Its package and its front-end come from R, where the package names the
+// class's front-end through its method of `board_front_end()`, from its
+// namespace, and R sends both with its reply to `hello`.
+// A class that R names no front-end for comes from no package, and its
+// parent's front-end draws it.
 // What sits inside a property is the class's own design.
 // The store applies patches to a property without knowing that design.
 export interface BoardClass {
   // The R class it defines, as "dock_board".
   readonly class: string;
-  // The package that defines it, as "blockr.dock", whose version a JSON board
-  // records, since the R class names no package.
-  readonly package: string;
   // The class it extends, as "board", which a package registers before it.
   // Only core's `board` has none.
   readonly parent?: string;
-  // The id of the module that draws the boards built as this class,
-  // as "blockr.dock-dock".
-  readonly frontEnd: string;
   // The board options it requires, which the board gets with their defaults as
   // it opens, where it lacks them.
   readonly options?: readonly OptionId[];
@@ -166,8 +164,6 @@ export interface Registrations {
 // is registered, so core's basic front-end draws every board at least.
 export const CORE_BOARD: BoardClass = {
   class: "board",
-  package: "blockr.core",
-  frontEnd: "blockr.core-basic",
   properties: {},
 };
 
@@ -245,14 +241,6 @@ export function createRegistrations(): Registrations {
           ? `The board class "${name}" names no parent, which every board class but core's "board" does.`
           : `The board class "${name}" extends "${def.parent}", which no package registered.`,
       );
-    }
-    if (!isPackageName(def.package)) {
-      throw new Error(
-        `The board class "${name}" names the package ${JSON.stringify(def.package)}, which is no name an R package can have.`,
-      );
-    }
-    if (typeof def.frontEnd !== "string" || def.frontEnd === "") {
-      throw new Error(`The board class "${name}" names no front-end.`);
     }
     if (def.update !== undefined && typeof def.update !== "function") {
       throw new Error(`The board class "${name}" has an update that is no function.`);

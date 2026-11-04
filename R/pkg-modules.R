@@ -178,8 +178,7 @@ check_declaring_package <- function(package, what, class) {
 }
 
 # The JSON Schemas next to core's runtime and next to the startup module of each
-# package that R has loaded, by which R writes the board an app script built,
-# by package.
+# package that R has loaded, by which R writes the board an app script built.
 # Each is one JSON Schema, laid out like the board, for the parts of the board
 # that its package defines, such as the values of its board options under
 # `options`.
@@ -197,7 +196,7 @@ startup_schemas <- function() {
     file <- module_file(entry[["module"]], ".schema.json")
 
     if (nzchar(file)) {
-      res[[entry[["package"]]]] <- read_startup_schema(file, entry[["package"]])
+      res <- c(res, list(read_startup_schema(file, entry[["package"]])))
     }
   }
 

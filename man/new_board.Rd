@@ -62,8 +62,8 @@ constructor like blockr.dock's \code{new_dock_board()} adds.
 Such a constructor names the board's class in \code{class}.
 R writes the board's class vector for the client.
 The client builds the board as the first class in the vector that a loaded
-package defines in JavaScript, and that class's front-end draws the board
-(see \code{\link[=register_module]{register_module()}}).
+package defines in JavaScript, and the front-end that the class names in R
+draws the board (see \code{\link[=board_front_end]{board_front_end()}}).
 A board takes no board options by default, since a board holds the value of a
 board option only once something sets it (see \code{\link[=new_board_options]{new_board_options()}}).
 

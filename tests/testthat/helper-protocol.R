@@ -478,6 +478,9 @@ proto_served <- function() {
         css = proto_js("basic.css", "6a9b2c4e")
       )
     ),
+    board_classes = obj(
+      board = obj(package = "blockr.core", front_end = "blockr.core-basic")
+    ),
     renderers = proto_renderers()
   )
 }
@@ -1069,6 +1072,28 @@ local_declared_package <- function(dir, frame = parent.frame()) {
   register_module("picker", module("js/picker.js"))
   register_renderer("table", module("js/table.js"), class = "table_output")
   register_renderer("dark", module("js/dark.js"), option = "dark_mode")
+
+  # The method of `board_front_end()` by which blockr.test names the front-end
+  # of its board class grid_board, from blockr.test's namespace
+  ns <- list2env(list(.packageName = "blockr.test"))
+
+  method <- function(x, ...) "blockr.test-grid"
+  environment(method) <- ns
+
+  registerS3method(
+    "board_front_end",
+    "grid_board",
+    method,
+    envir = asNamespace("blockr.core")
+  )
+
+  withr::defer(
+    rm(
+      list = "board_front_end.grid_board",
+      envir = get(".__S3MethodsTable__.", envir = asNamespace("blockr.core"))
+    ),
+    envir = frame
+  )
 
   invisible()
 }

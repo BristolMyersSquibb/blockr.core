@@ -298,7 +298,7 @@ test_that("the board holds the board options the script gives, by schema", {
 
   # The schema next to core's runtime, which is the first that R applies after
   # the JSON board's
-  options <- startup_schemas()[["blockr.core"]]$properties$options$properties
+  options <- startup_schemas()[[1L]]$properties$options$properties
 
   expect_setequal(names(options), c("n_rows", "show_conditions", "dark_mode"))
   expect_identical(options$show_conditions$type, "array")
@@ -351,8 +351,6 @@ test_that("a board's class and its properties are written by the schemas", {
     }
   )
 
-  local_versions(blockr.test = "0.1.0")
-
   register_startup_module(test_module("js/startup.js"))
 
   board <- new_board(
@@ -403,10 +401,9 @@ test_that("a board's class and its properties are written by the schemas", {
   expect_false("active" %in% names(res))
 })
 
-test_that("R applies each package's schema, and records a property's package", {
+test_that("R applies the schema of every package that has one", {
 
   local_declared(declared_startup_modules)
-  local_versions(blockr.one = "1.2.0", blockr.two = "0.3.0")
 
   dir <- withr::local_tempdir()
 
@@ -440,32 +437,33 @@ test_that("R applies each package's schema, and records a property's package", {
   register_startup_module(test_module("js/startup.js", "blockr.two"))
 
   board <- new_board(
-    c(a = new_dataset_block()),
     options = new_board_option("tags", "draft"),
     views = "main"
   )
 
-  res <- read_json_strictly(encode_message(blockr_ser(board)))
+  res <- read_json_strictly(encode_message(blockr_ser(board)))$board
 
-  expect_identical(
-    res$board["views"],
-    read_json_strictly('{ "views": ["main"] }')
-  )
-  expect_identical(
-    res$board$options,
-    read_json_strictly('{ "tags": ["draft"] }')
-  )
+  expect_identical(res["views"], read_json_strictly('{ "views": ["main"] }'))
+  expect_identical(res$options, read_json_strictly('{ "tags": ["draft"] }'))
+})
 
-  # The package whose startup module ships the schema of a property that the
-  # board holds is the one whose board class adds it, while a board option's
-  # value is no content of its package's
+test_that("a JSON board records the package of each class and block class", {
+
+  local_versions(blockr.one = "1.2.0", blockr.two = "0.3.0")
+  local_board_front_end("one_board", "blockr.one-grid", "blockr.one")
+
   core <- as.character(pkg_version("blockr.core"))
 
-  expect_identical(res$packages, list(blockr.core = core, blockr.one = "1.2.0"))
+  # The package whose namespace holds a class's method of board_front_end(),
+  # while a class without one of its own, as my_board, comes from no package
+  board <- new_board(
+    c(a = new_dataset_block()),
+    class = c("my_board", "one_board")
+  )
 
   expect_identical(
-    blockr_ser(new_board(options = new_board_option("tags", "draft")))$packages,
-    list(blockr.core = core)
+    blockr_ser(board)$packages,
+    list(blockr.core = core, blockr.one = "1.2.0")
   )
 
   # The package of a block's class is the one its registry entry names
@@ -481,7 +479,7 @@ test_that("R applies each package's schema, and records a property's package", {
   )
 
   expect_identical(
-    board_packages(list(blocks = blocks)),
+    board_packages(list(class = "board", blocks = blocks)),
     list(blockr.core = core, blockr.two = "0.3.0")
   )
 })

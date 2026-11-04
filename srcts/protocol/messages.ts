@@ -84,6 +84,10 @@ export interface HelloReply {
   // Where each module that packages offer each other is served,
   // by the module's id, a front-end's among them, which a board class names.
   modules: Record<string, { module: string; css?: string }>;
+  // The board classes that loaded packages name front-ends for, by class:
+  // each with the package that defines it, whose namespace holds its method of
+  // R's `board_front_end()`, and the front-end that the method names.
+  board_classes: Record<string, { package: string; front_end: string }>;
   // The renderers that R picked, by the renderer's id.
   renderers: Record<string, Renderer>;
   lock: Lock | null;

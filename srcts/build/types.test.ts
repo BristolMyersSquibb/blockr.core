@@ -128,9 +128,7 @@ export function views(board: ViewsBoard): string[] {
 
 export const viewsBoard: BoardClass = {
   class: "views_board",
-  package: "blockr.test",
   parent: "board",
-  frontEnd: "blockr.test-views",
   properties: { views: { schema: { type: "object" }, default: {} } },
   update: (delta, board) =>
     (delta.blocks?.rm ?? [])

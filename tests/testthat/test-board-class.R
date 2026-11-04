@@ -166,6 +166,28 @@ test_that("R draws the IDs of blocks, links and stacks a script leaves out", {
   expect_lt(match("a", topo_sort(board)), match("b", topo_sort(board)))
 })
 
+test_that("a board class's method names its front-end and its package", {
+
+  expect_identical(board_front_end(new_board()), "blockr.core-basic")
+  expect_identical(class_package("board"), "blockr.core")
+
+  local_board_front_end("one_board", "blockr.one-grid", "blockr.one")
+
+  expect_identical(
+    board_front_end(new_board(class = "one_board")),
+    "blockr.one-grid"
+  )
+  expect_identical(class_package("one_board"), "blockr.one")
+
+  # A class without a method of its own is drawn by its parent's front-end,
+  # and comes from no package
+  expect_identical(
+    board_front_end(new_board(class = c("my_board", "one_board"))),
+    "blockr.one-grid"
+  )
+  expect_null(class_package("my_board"))
+})
+
 test_that("validate_board checks each collection, not just cross-relations", {
 
   board <- new_board(c(a = new_dataset_block(), b = new_subset_block()))

@@ -25,6 +25,7 @@ export interface Store {
     register(def: BoardClass | Attribute): () => void;
     registered(): readonly (BoardClass | Attribute)[];
     boardClass(classes: readonly string[]): BoardClass;
+    frontEnd(classes: readonly string[]): string;
     registerMigration(pkg: string, fn: Migration): () => void;
     readonly options: Options;
     blockRegistry(): Readonly<Record<RegistryId, RegistryEntry>>;

@@ -100,9 +100,7 @@ function entry(id: string, inputs: readonly string[]): RegistryEntry {
 // built as.
 const grid: BoardClass = {
   class: "grid_board",
-  package: "blockr.test",
   parent: "board",
-  frontEnd: "blockr.test-grid",
   properties: {
     panels: { schema: { type: "object" }, default: {} },
     active: { schema: { type: "string" }, default: "" },
@@ -138,6 +136,10 @@ test.each(names)("the store opens %s and saves it as it is", async (name) => {
   await store.open({
     ...hello,
     packages: json.packages,
+    board_classes: {
+      ...hello.board_classes,
+      grid_board: { package: "blockr.test", front_end: "blockr.test-grid" },
+    },
     block_registry: {
       letters_block: entry("letters_block", []),
       join_block: entry("join_block", ["x", "y"]),

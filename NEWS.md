@@ -84,10 +84,11 @@
   A module gets the ID `{pkg}-{name}`.
   The startup modules keep the order in which packages declare them, which
   puts each after those of the packages its NAMESPACE imports.
-  A front-end is such a module, which a board class names in the client, so R
-  picks no front-end for a board.
-  Core declares its basic front-end as `blockr.core-basic`, which core's board
-  class `board` names (#424, #465).
+  A front-end is such a module, which a board class names through its method
+  of the generic `board_front_end()`, as core's class `board` names core's
+  basic front-end, `blockr.core-basic`.
+  The package whose namespace holds the method is the one that defines the
+  class, so that R knows a board class's package (#424, #465).
 * An output class's registration with `register_output_class()` takes its
   default renderer, the module that draws its outputs, under the ID
   `{pkg}-{class}`. Core's are `blockr.core-table_output`,
@@ -106,7 +107,8 @@
   the state a new block starts with, its arg specs and its requests.
   Beside the entries come the versions of the packages, the startup modules
   in R's order, the modules that packages offer each other, front-ends among
-  them, and the renderers that R picked.
+  them, the board classes that packages name front-ends for, each with its
+  package and its front-end, and the renderers that R picked.
   R serves each module and stylesheet at a URL that
   holds a hash of the file's content, so that no browser runs a changed file
   from its cache. It serves a package's files under the package's name, and the
@@ -119,9 +121,8 @@
   A JSON board holds the board, with its ID and name, its class vector, its
   blocks, links and stacks by ID and the values of the board options the
   script gives, beside the version of the format and the versions of the
-  packages that the board's content comes from: blockr.core, the packages of
-  the blocks' classes and each package whose startup module ships the schema
-  of a property that the board holds.
+  packages that the board's content comes from: those of the board's classes,
+  by their methods of `board_front_end()`, and those of the blocks' classes.
   Beside them it writes the properties that the board's class adds, which are
   the components that the board holds besides core's, such as those that a
   board class's constructor passes to `new_board()`.

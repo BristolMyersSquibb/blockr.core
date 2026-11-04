@@ -39,6 +39,10 @@ export interface HelloReply {
         module: string;
         css?: string;
     }>;
+    board_classes: Record<string, {
+        package: string;
+        front_end: string;
+    }>;
     renderers: Record<string, Renderer>;
     lock: Lock | null;
     board: JsonBoard;

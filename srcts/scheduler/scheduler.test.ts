@@ -159,9 +159,7 @@ describe("revisions", () => {
         prepare: (store) =>
           store.register({
             class: "zoomed_board",
-            package: "test.pkg",
             parent: "board",
-            frontEnd: "test.pkg-zoomed",
             properties: { zoom: { schema: { type: "number" }, default: 1 } },
           }),
       },

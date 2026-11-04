@@ -65,9 +65,9 @@ board itself.
 A JSON board holds the board under \code{board}, with two things beside it:
 \code{format}, the version of the format, and \code{packages}, the version of each
 package that the board's content comes from, by package.
-Those are blockr.core, the packages of the blocks' classes, and each package
-whose startup module ships the schema of a property that the board holds,
-since R cannot tell which package defines a board class in JavaScript.
+Those are the packages of the board's classes, each the package whose
+namespace holds the class's method of \code{\link[=board_front_end]{board_front_end()}}, blockr.core's for
+\code{board} among them, and the packages of the blocks' classes.
 The board holds its \code{id} and \code{name}, and its blocks, links and stacks, each
 by ID, in their order.
 It holds the value of each board option that the script gives, by ID, and no

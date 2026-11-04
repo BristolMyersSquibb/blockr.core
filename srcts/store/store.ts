@@ -60,8 +60,9 @@ export interface Store {
   open(given: string | HelloReply): Promise<Dropped[]>;
   // The board as a JSON board, as a file holds it, which records the version
   // of each package that the board's content comes from: the package of each
-  // class that the board is built as, core's among them, and the package of
-  // each block's class, which its registry id names.
+  // class that the board is built as, core's among them, as the reply to
+  // `hello` gives it, and the package of each block's class, which its
+  // registry id names.
   jsonBoard(): JsonBoard;
 
   // Reverts or applies again that origin's last step, or throws a StoreError
@@ -80,8 +81,12 @@ export interface Store {
   // The board class that a board of these classes is built as:
   // the first class in the vector that is registered, with its parents,
   // or core's "board" where none is.
-  // Core switches the page to that class's front-end.
   boardClass(classes: readonly string[]): BoardClass;
+  // The id of the module that draws a board of these classes: the front-end
+  // that R names for the class it is built as, as the reply to `hello` gives
+  // it, or for that class's nearest parent that R names one for.
+  // Core switches the page to it.
+  frontEnd(classes: readonly string[]): string;
   // A package's one migration of its saved state.
   registerMigration(pkg: string, fn: Migration): () => void;
   // The board options packages define, by id.
@@ -108,9 +113,8 @@ export interface StoreOptions {
   // initialized yet,
   // which define their board classes and register their attributes,
   // board options and migrations, and switching the page to the front-end
-  // of the first class in the vector that a loaded package defines,
-  // which the store then builds the board as, and which boardClass() gives.
-  // Which class that is, and so the board's front-end,
+  // that frontEnd() gives for the vector.
+  // Which class the store builds the board as, and so the board's front-end,
   // is known only once the startup modules have run.
   readonly loaded?: (reply: HelloReply, classes: readonly string[]) => void | Promise<void>;
 }
@@ -422,8 +426,9 @@ export function createStore(options: StoreOptions = {}): Store {
     if (board.value === undefined || built === undefined) {
       throw new Error("The store holds no board until it opens one.");
     }
+    const classes = hello?.board_classes ?? {};
     const owned = new Set([
-      ...built.chain.map(({ def }) => def.package),
+      ...built.chain.flatMap(({ def }) => own(classes, def.class)?.package ?? []),
       ...Object.values(board.value.blocks).flatMap(({ registry_id }) => packageOf(registry_id) ?? []),
     ]);
     const versions = Object.fromEntries(
@@ -433,6 +438,20 @@ export function createStore(options: StoreOptions = {}): Store {
       }),
     );
     return { format: FORMAT, packages: versions, board: board.value };
+  }
+
+  function frontEnd(classes: readonly string[]): string {
+    if (hello === undefined) {
+      throw new Error("The store knows the front-ends of board classes only once R has answered `hello`.");
+    }
+    const { chain } = registrations.builtAs(classes);
+    for (const { def } of [...chain].reverse()) {
+      const named = own(hello.board_classes, def.class)?.front_end;
+      if (named !== undefined) return named;
+    }
+    throw new Error(
+      `R names no front-end for the board class "${chain.at(-1)?.def.class ?? ""}" or for its parents.`,
+    );
   }
 
   function everyTarget(next: Board, as: Built): string[] {
@@ -473,6 +492,7 @@ export function createStore(options: StoreOptions = {}): Store {
     register: (def) => registrations.register(def),
     registered: () => registrations.registered(),
     boardClass: (classes) => registrations.builtAs(classes).def,
+    frontEnd,
     registerMigration: (pkg, fn) => registrations.registerMigration(pkg, fn),
     options: registrations.options,
     jsonBoard,

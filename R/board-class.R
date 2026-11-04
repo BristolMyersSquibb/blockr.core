@@ -14,8 +14,8 @@
 #' Such a constructor names the board's class in `class`.
 #' R writes the board's class vector for the client.
 #' The client builds the board as the first class in the vector that a loaded
-#' package defines in JavaScript, and that class's front-end draws the board
-#' (see [register_module()]).
+#' package defines in JavaScript, and the front-end that the class names in R
+#' draws the board (see [board_front_end()]).
 #' A board takes no board options by default, since a board holds the value of a
 #' board option only once something sets it (see [new_board_options()]).
 #'
@@ -407,6 +407,58 @@ board_id <- function(x) {
 board_name <- function(x) {
   check_board(x)
   attr(x, "name", exact = TRUE)
+}
+
+#' Board front-ends
+#'
+#' A board class names the module that draws its boards, its front-end, through
+#' its method of `board_front_end()`, which the package that defines the class
+#' registers as it registers any S3 method.
+#' The method returns the ID of a module that a package declares with
+#' [register_module()], as `"blockr.dock-dock"`, whatever the board holds.
+#' Core's class `board` names core's basic front-end, `blockr.core-basic`.
+#'
+#' The package whose namespace holds the method is the one that defines the
+#' class, so R learns a board class's package from its method, as the JSON
+#' board that [blockr_ser()] writes records it.
+#' R sends every board class that a loaded package names a front-end for, with
+#' its package and its front-end, in its reply to `hello`.
+#' A class without a method of its own, such as one that an app script adds or
+#' one that a package defines in JavaScript alone, comes from no package, and
+#' its parent's front-end draws its boards, as S3 dispatch gives it.
+#'
+#' @param x Board
+#' @param ... Generic consistency
+#'
+#' @examples
+#' board_front_end(new_board())
+#'
+#' @return The ID of the module that draws boards of the class, a string.
+#'
+#' @export
+board_front_end <- function(x, ...) {
+  UseMethod("board_front_end")
+}
+
+#' @rdname board_front_end
+#' @export
+board_front_end.board <- function(x, ...) {
+  "blockr.core-basic"
+}
+
+# The package that defines a board class: the one whose namespace holds the
+# class's method of `board_front_end()`, or `NULL` for a class without one or
+# with one that an app script defines.
+class_package <- function(class) {
+
+  method <- utils::getS3method(
+    "board_front_end",
+    class,
+    optional = TRUE,
+    envir = asNamespace("blockr.core")
+  )
+
+  if (is.function(method)) utils::packageName(environment(method))
 }
 
 #' @export

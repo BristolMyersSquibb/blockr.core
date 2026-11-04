@@ -46,9 +46,7 @@ const position: JsonSchema = {
 // and its position.
 const dock: BoardClass = {
   class: "dock_board",
-  package: "blockr.dock",
   parent: "board",
-  frontEnd: "blockr.dock-dock",
   properties: {
     views: {
       schema: {
@@ -99,9 +97,7 @@ const dock: BoardClass = {
 // a removed block's going with it.
 const noted: BoardClass = {
   class: "noted_board",
-  package: "blockr.notes",
   parent: "dock_board",
-  frontEnd: "blockr.dock-dock",
   properties: {
     notes: { schema: { type: "object", additionalProperties: { type: "string" } }, default: {} },
   },
@@ -137,11 +133,17 @@ async function opened(
   return store;
 }
 
-// The reply to `hello` of a dock app,
-// whose opening board is a dock board with a view of the panels of a and b,
+// The reply to `hello` of a dock app, which loaded blockr.dock, whose method
+// of R's `board_front_end()` names the dock's front-end,
+// and whose opening board is a dock board with a view of the panels of a and b,
 // and with their positions.
 const docking = {
   ...hello,
+  packages: { ...hello.packages, "blockr.dock": "0.2.1" },
+  board_classes: {
+    ...hello.board_classes,
+    dock_board: { package: "blockr.dock", front_end: "blockr.dock-dock" },
+  },
   board: {
     ...hello.board,
     board: {
@@ -894,9 +896,7 @@ describe("applying a delta", () => {
   test("rejects a delta that keeps expanding, naming the board classes that kept adding", async () => {
     const counting: BoardClass = {
       class: "counting_board",
-      package: "blockr.test",
       parent: "board",
-      frontEnd: "blockr.test-count",
       properties: { count: { schema: { type: "integer" }, default: 0 } },
       update(delta) {
         const last = delta.patches?.filter(({ path }) => path === "/count").at(-1);
@@ -1526,7 +1526,7 @@ describe("registering", () => {
   test("core registers its board class board and its attribute visible", () => {
     const store = newStore();
     expect(store.registered()).toEqual([
-      { class: "board", package: "blockr.core", frontEnd: "blockr.core-basic", properties: {} },
+      { class: "board", properties: {} },
       expect.objectContaining({ name: "visible" }),
     ]);
   });
@@ -1559,9 +1559,6 @@ describe("registering", () => {
     expect(() => store.register({ ...dock, parent: undefined })).toThrow(
       'The board class "dock_board" names no parent, which every board class but core\'s "board" does.',
     );
-    expect(() => store.register({ ...dock, package: "blockr.dock-" })).toThrow(
-      'The board class "dock_board" names the package "blockr.dock-", which is no name an R package can have.',
-    );
     expect(() => store.register({ ...dock, properties: { name: { schema: {}, default: "" } } })).toThrow(
       'The board class "dock_board" adds the property "name", which every board holds as core\'s.',
     );
@@ -1585,6 +1582,29 @@ describe("registering", () => {
     store.register({ ...noted, class: "sticky_board", parent: "noted_board", properties: {} });
     unregister();
     expect(store.boardClass(["sticky_board", "dock_board"])).toBe(dock);
+  });
+
+  test("gives the front-end that R names for the class a board is built as, or for its nearest parent", async () => {
+    const store = await docked((store) => store.register(noted));
+
+    expect(store.frontEnd(["dock_board", "board"])).toBe("blockr.dock-dock");
+    // R names no front-end for noted_board, which its parent's draws.
+    expect(store.frontEnd(["noted_board", "board"])).toBe("blockr.dock-dock");
+    expect(store.frontEnd(["grid_board"])).toBe("blockr.core-basic");
+
+    expect(() => newStore().frontEnd(["board"])).toThrow(
+      "The store knows the front-ends of board classes only once R has answered `hello`.",
+    );
+  });
+
+  test("saves a board with the package of each class it is built as that R names, and of each block's class", async () => {
+    const store = await docked((store) => store.register(noted));
+    await store.open(
+      JSON.stringify({ ...docking.board, board: { ...docking.board.board, class: ["noted_board", "dock_board", "board"] } }),
+    );
+
+    // R names no front-end for noted_board, which so comes from no package.
+    expect(store.jsonBoard().packages).toEqual({ "blockr.core": "0.2.0", "blockr.dock": "0.2.1" });
   });
 
   test("registered() returns the same list until a registration changes it", () => {

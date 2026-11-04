@@ -9,9 +9,16 @@ test_that("R tells the client what it loaded in the fields of the protocol", {
 
   expect_named(
     reply,
-    c("packages", "block_registry", "startup_modules", "modules", "renderers")
+    c("packages", "block_registry", "startup_modules", "modules",
+      "board_classes", "renderers")
   )
-  expect_identical(json(reply$packages), "{\"blockr.test\":\"0.1.0\"}")
+  expect_identical(
+    json(reply$packages),
+    paste0(
+      "{\"blockr.core\":\"", pkg_version("blockr.core"), "\",",
+      "\"blockr.test\":\"0.1.0\"}"
+    )
+  )
   expect_named(reply$block_registry, c("count_block", "letters_block"))
 })
 
@@ -185,6 +192,24 @@ test_that("R says where it serves what packages declare", {
   expect_match(reply$modules[["blockr.test-picker"]]$module, url("picker.js"))
 })
 
+test_that("R names each board class with its package and front-end", {
+
+  expect_identical(
+    json(declared_fields()$board_classes),
+    paste0(
+      "{\"board\":{\"package\":\"blockr.core\",",
+      "\"front_end\":\"blockr.core-basic\"},",
+      "\"grid_board\":{\"package\":\"blockr.test\",",
+      "\"front_end\":\"blockr.test-grid\"}}"
+    )
+  )
+
+  # A method that names no module fails as R builds the reply
+  local_board_front_end("bad_board", 1L, "blockr.bad")
+
+  expect_error(board_classes(), class = "board_front_end_invalid")
+})
+
 test_that("R names the renderers it picked, with what each draws", {
 
   renderers <- declared_fields()$renderers
@@ -225,8 +250,8 @@ test_that("R keeps the startup modules in the order packages declare them", {
   expect_identical(
     json(reply$packages),
     paste0(
-      "{\"blockr.dag\":\"1.0.0\",\"blockr.dock\":\"1.0.0\",",
-      "\"blockr.ui\":\"1.0.0\"}"
+      "{\"blockr.core\":\"1.0.0\",\"blockr.dag\":\"1.0.0\",",
+      "\"blockr.dock\":\"1.0.0\",\"blockr.ui\":\"1.0.0\"}"
     )
   )
 })

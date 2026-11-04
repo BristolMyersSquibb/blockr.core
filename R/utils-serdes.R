@@ -16,9 +16,9 @@
 #' A JSON board holds the board under `board`, with two things beside it:
 #' `format`, the version of the format, and `packages`, the version of each
 #' package that the board's content comes from, by package.
-#' Those are blockr.core, the packages of the blocks' classes, and each package
-#' whose startup module ships the schema of a property that the board holds,
-#' since R cannot tell which package defines a board class in JavaScript.
+#' Those are the packages of the board's classes, each the package whose
+#' namespace holds the class's method of [board_front_end()], blockr.core's for
+#' `board` among them, and the packages of the blocks' classes.
 #' The board holds its `id` and `name`, and its blocks, links and stacks, each
 #' by ID, in their order.
 #' It holds the value of each board option that the script gives, by ID, and no
@@ -204,29 +204,19 @@ board_components <- function() {
 }
 
 # The packages that a board's content comes from, with their versions, as a
-# JSON board records them: blockr.core, whose class `board` every board class
-# extends, the package of each block's class, and each package whose startup
-# module ships the schema of a property that the board holds.
-# The client records the package of each board class that it builds the board
-# as instead, which R cannot tell, since board classes are defined in
-# JavaScript, while the package that defines a board class ships the schemas of
-# the properties it adds.
+# JSON board records them: the package of each class in the board's class
+# vector that names a front-end, blockr.core's for `board` among them, and the
+# package of each block's class.
 board_packages <- function(board) {
+
+  classes <- lapply(board[["class"]], class_package)
 
   blocks <- lapply(
     board[["blocks"]],
     function(blk) get_registry_entry(blk[["registry_id"]])[["package"]]
   )
 
-  props <- setdiff(names(board), c("id", "class", "name", board_components()))
-
-  schemas <- startup_schemas()
-  owners <- lgl_ply(
-    schemas,
-    function(schema) any(props %in% names(schema[["properties"]]))
-  )
-
-  package_versions(c("blockr.core", unlst(blocks), names(schemas)[owners]))
+  package_versions(unlst(c(classes, blocks)))
 }
 
 # The properties that the board's class adds: the components that a board holds
