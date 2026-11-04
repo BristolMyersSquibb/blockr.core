@@ -90,7 +90,7 @@ register_front_end <- function(name, module, class) {
 #' @export
 board_front_end <- function(x) {
 
-  stopifnot(is_board(x))
+  check_board(x)
 
   taken <- front_end_classes()
   hit <- names(taken)[match(class(x), taken)]
