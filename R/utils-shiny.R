@@ -6,5 +6,5 @@
 #'
 #' @export
 get_session <- function() {
-  getDefaultReactiveDomain()
+  shiny::getDefaultReactiveDomain()
 }
