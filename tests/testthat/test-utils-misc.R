@@ -71,52 +71,126 @@ test_that("exprs_to_lang", {
   expect_error(exprs_to_lang(quote(x)), class = "exprs_to_lang_invalid")
 })
 
-test_that("rand_names()", {
+test_that("rand_names() draws IDs from the shared words", {
 
-  id_1 <- rand_names(n = 1L)
+  words <- id_words()
+  ids <- rand_names(n = 50L)
 
-  expect_type(id_1, "character")
-  expect_length(id_1, 1L)
-  expect_true(grepl("_", id_1, fixed = TRUE))
+  expect_type(ids, "character")
+  expect_length(ids, 50L)
+  expect_identical(anyDuplicated(ids), 0L)
+
+  parts <- strsplit(ids, "_", fixed = TRUE)
+
+  expect_true(all(chr_xtr(parts, 1L) %in% words[["adjectives"]]))
+  expect_true(all(chr_xtr(parts, 2L) %in% words[["animals"]]))
+
+  expect_identical(rand_names(n = 0L), character())
+  expect_identical(adjective_animal(0L), character())
+  expect_length(adjective_animal(3L), 3L)
+})
+
+test_that("rand_names() counts an ID up where every draw is taken", {
+
+  local_mocked_bindings(adjective_animal = function(n) rep("calm_heron", n))
+
+  expect_identical(rand_names(), "calm_heron")
+  expect_identical(rand_names("calm_heron"), "calm_heron_2")
 
   expect_identical(
-    rand_names(n = 1L, id_fun = function(n) rep("a", n)),
-    "a"
+    rand_names(c("calm_heron", "calm_heron_2"), n = 2L, max_tries = 5L),
+    c("calm_heron_3", "calm_heron_4")
   )
 
-  expect_error(
-    rand_names(n = 2L, max_tries = 5, id_fun = function(n) rep("a", n)),
-    class = "id_creation_unsuccessful"
+  expect_identical(
+    rand_names(n = 2L, max_tries = 0L),
+    c("calm_heron_2", "calm_heron_3")
+  )
+})
+
+test_that("rand_names() draws IDs in the shape that rand_id names", {
+
+  shapes <- c(
+    adjective_animal = "^[a-z]+_[a-z]+$",
+    adjective_adjective_animal = "^[a-z]+_[a-z]+_[a-z]+$",
+    letters_6 = "^[a-z]{6}$",
+    letters_8 = "^[a-z]{8}$",
+    letters_12 = "^[a-z]{12}$",
+    bytes_4 = "^[0-9a-f]{8}$",
+    bytes_8 = "^[0-9a-f]{16}$",
+    uuid = paste0(
+      "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-",
+      "[0-9a-f]{12}$"
+    )
   )
 
-  expect_error(
-    rand_names("a", n = 1L, max_tries = 5, id_fun = function(n) rep("a", n)),
-    class = "id_creation_unsuccessful"
+  expect_setequal(names(shapes), rand_id_shapes())
+
+  for (rand_id in names(shapes)) {
+
+    ids <- rand_names(n = 50L, rand_id = rand_id)
+
+    expect_true(all(grepl(shapes[[rand_id]], ids)), label = rand_id)
+    expect_false(any(grepl("^[0-9]+$", ids)), label = rand_id)
+  }
+
+  parts <- strsplit(
+    rand_names(n = 50L, rand_id = "adjective_adjective_animal"),
+    "_",
+    fixed = TRUE
   )
 
-  expect_error(rand_names(1), class = "rand_names_old_names_invalid")
-  expect_error(rand_names(n = -1L), class = "rand_names_n_invalid")
-  expect_error(rand_names(max_tries = 1.5),
-               class = "rand_names_max_tries_invalid")
-  expect_error(rand_names(id_fun = "a"), class = "rand_names_id_fun_invalid")
-  expect_error(rand_names(id_fun = function(x) x),
-               class = "rand_names_id_fun_invalid")
+  expect_false(any(chr_xtr(parts, 1L) == chr_xtr(parts, 2L)))
 
-  id_2 <- with_mocked_bindings(
-    rand_names(),
-    pkg_avail = function(x) {
-      if (identical(x, "ids")) {
-        FALSE
-      } else {
-        requireNamespace(x, quietly = TRUE)
-      }
+  withr::local_options(blockr.rand_id = "uuid")
+
+  expect_match(rand_names(), shapes[["uuid"]])
+})
+
+test_that("rand_names() draws again where a draw is made of digits alone", {
+
+  draws <- c("40213377", "4021ab77")
+
+  local_mocked_bindings(
+    draw_id = function(rand_id) {
+      res <- draws[1L]
+      draws <<- draws[-1L]
+      res
     }
   )
 
-  expect_identical(nchar(id_2), 8L)
-  expect_type(id_2, "character")
-  expect_length(id_2, 1L)
-  expect_false(grepl("_", id_2, fixed = TRUE))
+  expect_identical(rand_names(rand_id = "bytes_4"), "4021ab77")
+})
+
+test_that("rand_names() and adjective_animal() check their arguments", {
+
+  expect_error(rand_names(1), class = "rand_names_old_names_invalid")
+  expect_error(rand_names(n = -1L), class = "rand_names_n_invalid")
+
+  expect_error(
+    rand_names(max_tries = 1.5),
+    class = "rand_names_max_tries_invalid"
+  )
+
+  expect_error(
+    rand_names(rand_id = "counter"),
+    "letters_12",
+    class = "rand_names_rand_id_invalid"
+  )
+
+  expect_error(adjective_animal(-1L), class = "adjective_animal_n_invalid")
+})
+
+test_that("the words of IDs are distinct words of at most six letters", {
+
+  # The build writes them into inst/ids from the client's
+  # srcts/store/words.ts, and CI checks that a rebuild changes nothing there.
+  for (words in id_words()) {
+    expect_true(all(grepl("^[a-z]{2,6}$", words)))
+    expect_identical(anyDuplicated(words), 0L)
+  }
+
+  expect_named(id_words(), c("adjectives", "animals"))
 })
 
 test_that("sentence case", {

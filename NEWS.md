@@ -22,6 +22,17 @@
   given, a board's, a block's, a link's or a stack's, is a string that is
   neither empty nor made of digits alone, and the constructors refuse any
   other, naming it (#427).
+* The IDs that `rand_names()` draws take the shapes in which the client mints
+  them, so that an ID looks the same whichever side drew it. The blockr option
+  `rand_id`, or the argument of that name, names the shape, where the option
+  took a function before: `adjective_animal`, the default, as `calm_heron`,
+  `adjective_adjective_animal`, `letters_6`, `letters_8` or `letters_12`,
+  `bytes_4` or `bytes_8`, as random bytes in hex, or `uuid`. The words are
+  familiar ones of at most six letters, picked from those of the ids package,
+  which blockr.core ships in `inst/ids`. Where every draw is taken,
+  `rand_names()` counts the ID up, as `calm_heron_2`, where it failed before.
+  The `id_fun` argument and `sample_letters()` go, and the ids package is no
+  longer suggested (#429).
 * A block class is a value made by `new_block_class()`, holding what every
   block of the class shares: its data inputs, the `expr` from whose result
   interpolation makes the block expression, the UI module `js_module()` names,
@@ -33,7 +44,7 @@
   fills in with the upstream ids, and `evaluate_block()` evaluates a block
   from its class, state and upstream results through `block_eval()`. A state
   reads `invalid` where `expr` signals `blockr_invalid()` or uses an unset arg. With
-  them come `result_summary()`, `block_migrate()`, `new_block_request()` and
+  them come `result_summary()`, `new_block_request()` and
   `run_block_request()`, `expect_block_fixture()`, which tests a class
   without Shiny, and `trace_block_classes()`, which a package calls in
   `.onLoad()` so that covr counts the code its classes hold (#421).

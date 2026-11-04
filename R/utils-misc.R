@@ -39,33 +39,45 @@ include_mermaid <- function(name,
 
 #' Random IDs
 #'
-#' Random unique strings are created by `rand_names()`, which the package no
-#' longer uses for the IDs of boards, blocks, links and stacks, since the client
-#' mints those. If random strings are required that may not clash with a set
-#' of existing values, this can be guaranteed by passing them as `old_names`.
-#' A [blockr_option()] `rand_id` can be set to swap out the function responsible
-#' for ID generation.
+#' Random unique IDs are drawn by `rand_names()`, in one of the shapes that the
+#' blockr option `rand_id` names. The client of blockr.core mints IDs in the
+#' same shapes, so that an ID looks the same whichever side drew it:
+#'
+#' * An adjective and an animal, as `calm_heron`, for `adjective_animal`, the
+#'   default;
+#' * Two different adjectives and an animal, as `calm_brave_heron`, for
+#'   `adjective_adjective_animal`;
+#' * That many lowercase letters, as `qkzvtmwa`, for `letters_6`, `letters_8`
+#'   and `letters_12`;
+#' * That many random bytes in hex, as `9f04a1c7`, for `bytes_4` and `bytes_8`;
+#' * A version 4 UUID, as `f47ac10b-58cc-4372-a567-0e02b2c3d479`, for `uuid`.
+#'
+#' The words are familiar ones of at most six letters, picked from those of the
+#' ids package, which blockr.core ships in `inst/ids`. An ID that may not clash
+#' with a set of existing values is drawn by passing those as `old_names`. A
+#' draw made of digits alone, which no ID may be, is drawn again. Where
+#' `max_tries` draws in a row are all taken, the ID is a further draw with the
+#' lowest number from 2 that makes it new, as `calm_heron_2`, as the client
+#' counts up. The draws of `adjective_animal()` may repeat.
 #'
 #' @param old_names Disallowed IDs
-#' @param n Number of IDs to generate
-#' @param max_tries Max number of attempts to create IDs that do not intersect
-#' with `old_names`
-#' @param id_fun A function with a single argument `n` that generates random
-#' IDs. A value of `NULL` defaults to [ids::adjective_animal()] if available and
-#' `sample_letters` otherwise.
+#' @param n Number of IDs to draw
+#' @param max_tries Number of draws for one ID before it is counted up
+#' @param rand_id The shape of the IDs, as the blockr option `rand_id` names it
 #'
 #' @examples
 #' rand_names()
 #' rand_names(n = 5L)
-#' rand_names(id_fun = sample_letters)
+#' rand_names(n = 2L, rand_id = "uuid")
+#' adjective_animal(3L)
 #'
-#' @return A character vector of length `n` where each entry contains `length`
-#' characters (all among `chars` and start/end with `prefix`/`suffix`), is
-#' guaranteed to be unique and not present among values passed as `old_names`.
+#' @return A character vector of length `n`, whose entries are unique and none
+#' of `old_names` for `rand_names()`, and draws that may repeat for
+#' `adjective_animal()`.
 #'
 #' @export
 rand_names <- function(old_names = character(0L), n = 1L, max_tries = 100L,
-                       id_fun = blockr_option("rand_id", NULL)) {
+                       rand_id = blockr_option("rand_id", "adjective_animal")) {
 
   if (!is.character(old_names)) {
     blockr_abort(
@@ -88,54 +100,152 @@ rand_names <- function(old_names = character(0L), n = 1L, max_tries = 100L,
     )
   }
 
-  if (is.null(id_fun)) {
-    if (pkg_avail("ids")) {
-      id_fun <- adjective_animal
-    } else {
-      id_fun <- sample_letters
-    }
-  } else if (!is.function(id_fun) ||
-               !identical(names(formals(id_fun)), "n")) {
+  if (!is_string(rand_id) || !rand_id %in% rand_id_shapes()) {
     blockr_abort(
-      "Expecting `id_fun` to be a function with the single argument `n`.",
-      class = "rand_names_id_fun_invalid"
+      "Expecting `rand_id` to be one of ",
+      "{paste_enum(rand_id_shapes(), conj = ' or ')}.",
+      class = "rand_names_rand_id_invalid"
     )
   }
 
-  new_names <- character(0L)
-  counter <- 0L
+  res <- character(0L)
 
-  while (length(new_names) < n && counter < max_tries) {
-
-    counter <- counter + 1L
-
-    candidates <- unique(id_fun(n - length(new_names)))
-
-    collisions <- candidates %in% c(old_names, new_names)
-
-    new_names <- c(new_names, candidates[!collisions])
+  for (i in seq_len(n)) {
+    res <- c(res, new_id(c(old_names, res), max_tries, rand_id))
   }
 
-  if (length(new_names) < n) {
-    blockr_abort(
-      "Failed to create {n} unique ID{?s} within {max_tries} attempt{?s}.",
-      class = "id_creation_unsuccessful"
-    )
-  }
-
-  new_names
+  res
 }
 
 #' @rdname rand_names
 #' @export
 adjective_animal <- function(n) {
-  ids::adjective_animal(n, max_len = 8L)
+
+  if (!is_count(n)) {
+    blockr_abort(
+      "Expecting `n` to be a single whole number of 0 or more.",
+      class = "adjective_animal_n_invalid"
+    )
+  }
+
+  words <- id_words()
+
+  paste(
+    sample(words[["adjectives"]], n, replace = TRUE),
+    sample(words[["animals"]], n, replace = TRUE),
+    sep = "_"
+  )
 }
 
-#' @rdname rand_names
-#' @export
-sample_letters <- function(n) {
-  paste(sample(letters, 8, replace = TRUE), collapse = "")
+# The shapes that the blockr option `rand_id` names, which the client's
+# `RAND_IDS` in srcts/store/ids.ts gives as well.
+rand_id_shapes <- function() {
+  c(
+    "adjective_animal",
+    "adjective_adjective_animal",
+    "letters_6",
+    "letters_8",
+    "letters_12",
+    "bytes_4",
+    "bytes_8",
+    "uuid"
+  )
+}
+
+# A new ID that `taken` does not hold, drawn as the client's mintId() in
+# srcts/store/ids.ts draws one.
+new_id <- function(taken, max_tries, rand_id) {
+
+  for (attempt in seq_len(max_tries)) {
+
+    id <- draw_id(rand_id)
+
+    if (!grepl("^[0-9]+$", id) && !id %in% taken) {
+      return(id)
+    }
+  }
+
+  id <- draw_id(rand_id)
+  count <- 2L
+
+  while (paste0(id, "_", count) %in% taken) {
+    count <- count + 1L
+  }
+
+  paste0(id, "_", count)
+}
+
+# One draw in the shape that `rand_id` names, which may be taken.
+draw_id <- function(rand_id) {
+  switch(
+    rand_id,
+    adjective_animal = adjective_animal(1L),
+    adjective_adjective_animal = paste(
+      c(
+        sample(id_words()[["adjectives"]], 2L),
+        sample(id_words()[["animals"]], 1L)
+      ),
+      collapse = "_"
+    ),
+    letters_6 = random_letters(6L),
+    letters_8 = random_letters(8L),
+    letters_12 = random_letters(12L),
+    bytes_4 = random_hex(4L),
+    bytes_8 = random_hex(8L),
+    uuid = random_uuid()
+  )
+}
+
+random_letters <- function(n) {
+  paste(sample(letters, n, replace = TRUE), collapse = "")
+}
+
+random_bytes <- function(n) {
+  sample.int(256L, n, replace = TRUE) - 1L
+}
+
+random_hex <- function(n) {
+  paste(sprintf("%02x", random_bytes(n)), collapse = "")
+}
+
+# A version 4 UUID: 16 random bytes, of which the seventh holds the version, 4,
+# and the ninth the variant, in hex, grouped by hyphens as 8-4-4-4-12.
+random_uuid <- function() {
+
+  bytes <- random_bytes(16L)
+  bytes[7L] <- bitwOr(bitwAnd(bytes[7L], 15L), 64L)
+  bytes[9L] <- bitwOr(bitwAnd(bytes[9L], 63L), 128L)
+
+  hex <- sprintf("%02x", bytes)
+  groups <- list(1:4, 5:6, 7:8, 9:10, 11:16)
+
+  paste(
+    chr_ply(groups, function(i) paste(hex[i], collapse = "")),
+    collapse = "-"
+  )
+}
+
+# The words that IDs are made of, which the build writes into inst/ids from
+# srcts/store/words.ts, read once per process.
+id_word_cache <- new.env(parent = emptyenv())
+
+id_words <- function() {
+
+  if (is.null(id_word_cache[["words"]])) {
+    id_word_cache[["words"]] <- list(
+      adjectives = read_id_words("adjectives"),
+      animals = read_id_words("animals")
+    )
+  }
+
+  id_word_cache[["words"]]
+}
+
+read_id_words <- function(kind) {
+  readLines(
+    system.file("ids", paste0(kind, ".txt"), package = "blockr.core"),
+    warn = FALSE
+  )
 }
 
 inherits <- function(x, ..., agg = NULL) {

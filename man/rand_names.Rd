@@ -3,7 +3,6 @@
 \name{rand_names}
 \alias{rand_names}
 \alias{adjective_animal}
-\alias{sample_letters}
 \alias{to_sentence_case}
 \alias{id_to_sentence_case}
 \title{Random IDs}
@@ -12,12 +11,10 @@ rand_names(
   old_names = character(0L),
   n = 1L,
   max_tries = 100L,
-  id_fun = blockr_option("rand_id", NULL)
+  rand_id = blockr_option("rand_id", "adjective_animal")
 )
 
 adjective_animal(n)
-
-sample_letters(n)
 
 to_sentence_case(x, replace = character(), with = character())
 
@@ -26,35 +23,50 @@ id_to_sentence_case(x)
 \arguments{
 \item{old_names}{Disallowed IDs}
 
-\item{n}{Number of IDs to generate}
+\item{n}{Number of IDs to draw}
 
-\item{max_tries}{Max number of attempts to create IDs that do not intersect
-with \code{old_names}}
+\item{max_tries}{Number of draws for one ID before it is counted up}
 
-\item{id_fun}{A function with a single argument \code{n} that generates random
-IDs. A value of \code{NULL} defaults to \code{\link[ids:adjective_animal]{ids::adjective_animal()}} if available and
-\code{sample_letters} otherwise.}
+\item{rand_id}{The shape of the IDs, as the blockr option \code{rand_id} names it}
 
 \item{x}{Character vector to transform}
 
 \item{replace, with}{Mapped to \code{\link[base:gsub]{base::gsub()}}}
 }
 \value{
-A character vector of length \code{n} where each entry contains \code{length}
-characters (all among \code{chars} and start/end with \code{prefix}/\code{suffix}), is
-guaranteed to be unique and not present among values passed as \code{old_names}.
+A character vector of length \code{n}, whose entries are unique and none
+of \code{old_names} for \code{rand_names()}, and draws that may repeat for
+\code{adjective_animal()}.
 }
 \description{
-Random unique strings are created by \code{rand_names()}, which the package no
-longer uses for the IDs of boards, blocks, links and stacks, since the client
-mints those. If random strings are required that may not clash with a set
-of existing values, this can be guaranteed by passing them as \code{old_names}.
-A \code{\link[=blockr_option]{blockr_option()}} \code{rand_id} can be set to swap out the function responsible
-for ID generation.
+Random unique IDs are drawn by \code{rand_names()}, in one of the shapes that the
+blockr option \code{rand_id} names. The client of blockr.core mints IDs in the
+same shapes, so that an ID looks the same whichever side drew it:
+}
+\details{
+\itemize{
+\item An adjective and an animal, as \code{calm_heron}, for \code{adjective_animal}, the
+default;
+\item Two different adjectives and an animal, as \code{calm_brave_heron}, for
+\code{adjective_adjective_animal};
+\item That many lowercase letters, as \code{qkzvtmwa}, for \code{letters_6}, \code{letters_8}
+and \code{letters_12};
+\item That many random bytes in hex, as \verb{9f04a1c7}, for \code{bytes_4} and \code{bytes_8};
+\item A version 4 UUID, as \verb{f47ac10b-58cc-4372-a567-0e02b2c3d479}, for \code{uuid}.
+}
+
+The words are familiar ones of at most six letters, picked from those of the
+ids package, which blockr.core ships in \code{inst/ids}. An ID that may not clash
+with a set of existing values is drawn by passing those as \code{old_names}. A
+draw made of digits alone, which no ID may be, is drawn again. Where
+\code{max_tries} draws in a row are all taken, the ID is a further draw with the
+lowest number from 2 that makes it new, as \code{calm_heron_2}, as the client
+counts up. The draws of \code{adjective_animal()} may repeat.
 }
 \examples{
 rand_names()
 rand_names(n = 5L)
-rand_names(id_fun = sample_letters)
+rand_names(n = 2L, rand_id = "uuid")
+adjective_animal(3L)
 
 }

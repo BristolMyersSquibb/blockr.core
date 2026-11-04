@@ -33,14 +33,10 @@
 #' header and in the cells of a table. Core's method names the result's class
 #' in full, or its type for an object without a class, with `<function>` for
 #' any function and `<tibble>` for a tibble. It adds the result's dimensions,
-#' or the length of a vector. The `block_migrate()`
-#' generic maps a state that an older version of the class's package saved to
-#' the current state, given that version, where `x` is the saved state with the
-#' class's class vector. Core's method leaves a state as it is.
+#' or the length of a vector.
 #'
 #' @param x For `evaluate_block()`, a registry id or a block class, and for
-#'   `block_eval()` and `block_migrate()`, a block's state with its class's
-#'   class vector
+#'   `block_eval()`, a block's state with its class's class vector
 #' @param state The block's state, a named list of its state args' values
 #' @param inputs Upstream block ids by data input, as [interpolate()] takes
 #'   them
@@ -70,8 +66,8 @@
 #' `block_evaluation`, a list holding its `status`, `"ok"`, `"invalid"` or
 #' `"error"`, the block expression as `expr`, the `result`, its `summary` and
 #' the `conditions` raised, where what was not reached is `NULL`. The result
-#' is what `block_eval()` returns, while `result_summary()` returns a string,
-#' `block_migrate()` a state and `eval_env()` an environment.
+#' is what `block_eval()` returns, while `result_summary()` returns a string
+#' and `eval_env()` an environment.
 #'
 #' @export
 evaluate_block <- function(x, state = list(), inputs = list(),
@@ -459,17 +455,4 @@ big_mark <- function(x) {
   res[is.na(x)] <- "??"
 
   res
-}
-
-#' @param version The version of the class's package that saved the state
-#' @rdname evaluate_block
-#' @export
-block_migrate <- function(x, version) {
-  UseMethod("block_migrate")
-}
-
-#' @rdname evaluate_block
-#' @export
-block_migrate.block <- function(x, version) {
-  unclass(x)
 }
