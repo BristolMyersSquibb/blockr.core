@@ -6,7 +6,7 @@
       "options": {},
       "params": {},
       "output": {
-        "renderer": "blockr.core-basic_text",
+        "renderer": "blockr.core-text_output",
         "text": " [1]  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25\n[26] 26 27 28 29 30"
       }
     },
@@ -15,7 +15,7 @@
       "options": {},
       "params": {},
       "output": {
-        "renderer": "blockr.core-basic_text",
+        "renderer": "blockr.core-text_output",
         "text": " first second \n   \"a\"   \"bb\" "
       }
     }

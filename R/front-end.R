@@ -92,18 +92,29 @@ board_front_end <- function(x) {
 
   check_board(x)
 
-  taken <- front_end_classes()
-  hit <- names(taken)[match(class(x), taken)]
-  hit <- hit[!is.na(hit)]
+  res <- most_specific(class(x), front_end_classes())
 
-  if (!length(hit)) {
+  if (is.null(res)) {
     blockr_abort(
       "No front-end is declared for board class{?es} {class(x)}.",
       class = "front_end_missing"
     )
   }
 
-  hit[1L]
+  res
+}
+
+# Of `taken`, the class that each front-end or renderer is for, by its id, the
+# id for the most specific class in `class` that has one, as S3 dispatch picks
+# a method, or `NULL` where no class has one.
+most_specific <- function(class, taken) {
+
+  hit <- names(taken)[match(class, taken)]
+  hit <- hit[!is.na(hit)]
+
+  if (length(hit)) {
+    hit[1L]
+  }
 }
 
 front_end_classes <- function() {

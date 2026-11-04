@@ -6,7 +6,7 @@
       "options": {},
       "params": {},
       "output": {
-        "renderer": "blockr.core-basic_plot",
+        "renderer": "blockr.core-plot_output",
         "width": 320,
         "height": 200
       },

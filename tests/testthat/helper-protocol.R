@@ -118,7 +118,7 @@ protocol_r_values <- function() {
       list(
         proto_hello_reply(
           block_registry = proto_registry("head_block"),
-          renderers = proto_renderers()["blockr.core-basic_table"],
+          renderers = proto_renderers()["blockr.core-table_output"],
           lock = NULL,
           board = obj(
             front_end = proto_basic(),
@@ -374,6 +374,17 @@ protocol_r_values <- function() {
         )
       )
     ),
+    `request-renderer` = list(
+      list(
+        obj(
+          id = "35",
+          status = "ok",
+          value = encode_answer(
+            list(USUBJID = "Unique Subject Identifier", AGE = "Age")
+          )
+        )
+      )
+    ),
     output = list(
       list(
         obj(
@@ -399,8 +410,7 @@ protocol_r_values <- function() {
         c(
           obj(id = "32", status = "ok"),
           proto_output(
-            new_plot_output(new_reply_body(raw(), "image/png"), 640L, 400L),
-            "blockr.core-basic_plot"
+            new_plot_output(new_reply_body(raw(), "image/png"), 640L, 400L)
           )
         )
       )
@@ -475,15 +485,15 @@ proto_served <- function(startup_modules = list()) {
 
 proto_renderers <- function() {
   obj(
-    `blockr.core-basic_table` = obj(
+    `blockr.core-table_output` = obj(
       module = proto_js("basic-table.js", "b7e2a915"),
       class = "table_output"
     ),
-    `blockr.core-basic_text` = obj(
+    `blockr.core-text_output` = obj(
       module = proto_js("basic-text.js", "3c8f61d0"),
       class = "text_output"
     ),
-    `blockr.core-basic_plot` = obj(
+    `blockr.core-plot_output` = obj(
       module = proto_js("basic-plot.js", "f19d4a73"),
       class = "plot_output"
     )
@@ -987,16 +997,17 @@ proto_condition <- function(severity, class, message, phase = NULL) {
 # renderer that R picks for table outputs.
 proto_table_output <- function(data, ...) {
   proto_output(
-    as_table_output(data, options = list(n_rows = 50L), params = list(...)),
-    "blockr.core-basic_table"
+    as_table_output(data, options = list(n_rows = 50L), params = list(...))
   )[["output"]]
 }
 
 # An output as R sends it in a reply: its fields, written by the schema of its
-# class, after the renderer that R picked, and the body beside it announced.
-proto_output <- function(x, renderer) {
+# class, after the renderer that R picks for it, and the body beside it
+# announced.
+proto_output <- function(x) {
 
   parts <- shape_output(x)
+  renderer <- output_renderer(x, pick_renderers())
 
   c(
     list(output = c(list(renderer = renderer), parts$output)),

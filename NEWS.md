@@ -79,6 +79,17 @@
   most specific class in the board's class vector, so that every board has
   core's basic front-end, `blockr.core-basic`, which core declares for
   `board`, at least (#424).
+* An output class's registration with `register_output_class()` takes its
+  default renderer, the module that draws its outputs, under the ID
+  `{pkg}-{class}`. Core's are `blockr.core-table_output`,
+  `blockr.core-text_output` and `blockr.core-plot_output`. Another package
+  declares a renderer of its own with `register_renderer()`, under the ID
+  `{pkg}-{name}`, for one output class or one board option, and an app draws
+  with it by naming it in the blockr option `renderers`, so loading a package
+  changes nothing. Such a renderer may bring requests of its own, which
+  `run_output_class_request()` runs when given the renderer. The function
+  `pick_renderers()` gives the renderer that R picks for each output class and
+  board option, whatever the board's front-end (#425).
 * R writes the board that an app script builds with `blockr_ser()`, as R
   sends it to the client: its ID and name where it has them, its blocks,
   links and stacks as arrays, each with the ID the script gave it, the

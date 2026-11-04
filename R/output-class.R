@@ -31,10 +31,20 @@ output_class_registry <- new.env()
 #' array where the schema has an array, and a data frame becomes an array of
 #' its rows.
 #'
+#' Registration also takes the class's default renderer, the module that draws
+#' its outputs, made by [js_module()] in the package that registers the class.
+#' The renderer gets the ID `{pkg}-{class}`, as `blockr.core-table_output` does
+#' for core's tables, and draws the class's outputs unless an app names another
+#' renderer in the blockr option `renderers` (see [register_renderer()]). A
+#' class registered without one, such as a subclass, is drawn by the renderer
+#' of the most specific class in its class vector that has one.
+#'
 #' Registration also takes the class's requests. A request is a function that
 #' the class's renderers call through their host, for what the output does not
 #' hold, such as a download of what they show. R resolves a request by the most
-#' specific class in the output's class vector that has it. R calls the
+#' specific class in the output's class vector that has it. A renderer may
+#' bring requests of its own (see [register_renderer()]), and a request that
+#' names a renderer is one of these, never one of the class's. R calls the
 #' request's function with these arguments, each where the function takes it:
 #'
 #' * The result that the output was made from, in `result`.
@@ -47,7 +57,7 @@ output_class_registry <- new.env()
 #' client keeps a request's answers, as it keeps the output, unless the class
 #' names the request in `volatile`. No request of an output class writes. The
 #' function `run_output_class_request()` runs a request as R does, to test an
-#' output class without Shiny.
+#' output class, or the requests of a renderer, without Shiny.
 #'
 #' @param x For `new_block_output()`, the output's fields, as a named list, for
 #'   `new_reply_body()`, a raw vector or the path of a file, and for
@@ -72,6 +82,11 @@ output_class_registry <- new.env()
 #'   board option id
 #' @param params The parameters that the output was asked with
 #' @param file A file that the renderer sends, or `NULL`
+#' @param renderer For `register_output_class()`, the module of the class's
+#'   default renderer, made by [js_module()] in the package that registers the
+#'   class, or `NULL`, and for `run_output_class_request()`, the ID of the
+#'   renderer whose own request it is, or `NULL` for a request of the output
+#'   class
 #'
 #' @examples
 #' out <- new_block_output(list(text = "Hello"), "greeting_output")
@@ -268,14 +283,25 @@ print.reply_body <- function(x, ...) {
 
 #' @rdname new_block_output
 #' @export
-register_output_class <- function(class, schema, requests = NULL,
-                                  volatile = character(),
+register_output_class <- function(class, schema, renderer = NULL,
+                                  requests = NULL, volatile = character(),
                                   package = pkg_name(parent.frame())) {
 
   if (!is_string(class) || !nzchar(class) || identical(class, "block_output")) {
     blockr_abort(
       "An output class is registered under its name, a string other than ",
       "`block_output`.",
+      class = "output_class_invalid"
+    )
+  }
+
+  if (not_null(renderer) &&
+        !(is_js_module(renderer) && is_nonempty_string(package) &&
+            identical(renderer[["package"]], package))) {
+    blockr_abort(
+      "The default renderer of output class {class} is expected to be a ",
+      "module that the package registering the class makes with ",
+      "`js_module()`.",
       class = "output_class_invalid"
     )
   }
@@ -316,6 +342,7 @@ register_output_class <- function(class, schema, requests = NULL,
       class = class,
       package = package,
       schema = read_output_schema(schema, package),
+      renderer = renderer,
       requests = requests,
       volatile = volatile
     ),
@@ -370,6 +397,9 @@ format.output_class_entry <- function(x, ...) {
   c(
     paste0("<output_class_entry> ", x[["class"]]),
     if (not_null(x[["package"]])) paste0("Package: ", x[["package"]]),
+    if (not_null(x[["renderer"]])) {
+      paste0("Renderer: ", default_renderer_id(x))
+    },
     if (length(x[["requests"]])) {
       paste0("Requests: ", paste_enum(names(x[["requests"]]), quotes = "\""))
     }
@@ -402,9 +432,14 @@ output_class_schema <- function(class) {
   )
 }
 
-# A request of an output, from the most specific class in its class vector
-# that has it.
-output_class_request <- function(class, name) {
+# A request of an output: where the request names a renderer, one of that
+# renderer's own requests, and otherwise one of the output class's, from the
+# most specific class in the output's class vector that has it.
+output_class_request <- function(class, name, renderer = NULL) {
+
+  if (not_null(renderer)) {
+    return(renderer_request(renderer, class, name))
+  }
 
   for (cls in class) {
 
@@ -428,7 +463,7 @@ output_class_request <- function(class, name) {
 #' @export
 run_output_class_request <- function(x, name, result, args = list(),
                                      options = list(), params = list(),
-                                     file = NULL) {
+                                     file = NULL, renderer = NULL) {
 
   if (!is_string(name)) {
     blockr_abort(
@@ -437,8 +472,15 @@ run_output_class_request <- function(x, name, result, args = list(),
     )
   }
 
+  if (not_null(renderer) && !is_string(renderer)) {
+    blockr_abort(
+      "The renderer that asks is expected to be named by its ID, a string.",
+      class = "output_class_request_unknown"
+    )
+  }
+
   class <- if (is.character(x)) x else class(x)
-  req <- output_class_request(class, name)
+  req <- output_class_request(class, name, renderer)
 
   if (!has_unique_names(args)) {
     blockr_abort(
