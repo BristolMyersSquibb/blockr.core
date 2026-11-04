@@ -142,7 +142,7 @@ const docking = {
   packages: { ...hello.packages, "blockr.dock": "0.2.1" },
   board_classes: {
     ...hello.board_classes,
-    dock_board: { package: "blockr.dock", front_end: "blockr.dock-dock" },
+    dock_board: { package: "blockr.dock", front_end: "blockr.dock-dock", version: 1 },
   },
   board: {
     ...hello.board,
@@ -188,33 +188,34 @@ function head(n = 6, name = "Head"): Block {
 
 // The text of a JSON board of a core board, with what `board` gives in place of
 // its parts, a board class's properties among them.
+// Each block records version 1 of its class's state unless it gives another,
+// and the board version 1 of core's class unless it gives versions.
 function file(
   board: Partial<Board> & Readonly<Record<string, unknown>>,
   packages: Readonly<Record<string, string>> = { "blockr.core": "0.2.0" },
 ): string {
-  const json = {
-    format: 1,
-    packages,
-    board: {
-      id: "amber_tapir",
-      class: ["board"],
-      name: "Cars",
-      blocks: {
-        a: {
-          registry_id: "blockr.core-dataset_block",
-          state: { dataset: "mtcars", package: "datasets" },
-          name: "Cars",
-          attrs: {},
-        },
-        b: head(),
+  const given = {
+    id: "amber_tapir",
+    class: ["board"],
+    name: "Cars",
+    blocks: {
+      a: {
+        registry_id: "blockr.core-dataset_block",
+        state: { dataset: "mtcars", package: "datasets" },
+        name: "Cars",
+        attrs: {},
       },
-      links: { ab: { from: "a", to: "b", input: "data" } },
-      stacks: { s1: { name: "Input", blocks: ["a", "b"] } },
-      options: { n_rows: 50, show_conditions: ["warning", "error"] },
-      ...board,
-    },
+      b: head(),
+    } as Readonly<Record<string, Block & { version?: number }>>,
+    links: { ab: { from: "a", to: "b", input: "data" } },
+    stacks: { s1: { name: "Input", blocks: ["a", "b"] } },
+    options: { n_rows: 50, show_conditions: ["warning", "error"] },
+    ...board,
   };
-  return JSON.stringify(json);
+  const versions = (board.versions as Readonly<Record<string, number>> | undefined) ?? { board: 1 };
+  const entries: readonly [string, Block & { version?: number }][] = Object.entries(given.blocks);
+  const blocks = Object.fromEntries(entries.map(([id, block]) => [id, { version: 1, ...block }]));
+  return JSON.stringify({ format: 1, packages, board: { ...given, versions, blocks } });
 }
 
 describe("opening a board", () => {
@@ -567,7 +568,10 @@ describe("opening a board", () => {
     const built = newStore();
     await built.open({
       ...replied,
-      board: { ...replied.board, board: { ...board, blocks: {}, links: {}, stacks: {} } },
+      board: {
+        ...replied.board,
+        board: { ...board, versions: replied.board.board.versions, blocks: {}, links: {}, stacks: {} },
+      },
     });
     for (const [id, block] of Object.entries(board.blocks)) {
       built.apply({ blocks: { add: { [id]: block } } });
@@ -654,122 +658,133 @@ describe("opening a board", () => {
 });
 
 describe("migrations", () => {
-  // A dock app that loaded blockr.dag beside core,
-  // whose packages register their migrations.
-  function migrating(migrations: Record<string, Migration>): Promise<Store> {
-    return opened(
-      (store) => {
-        store.register(dock);
-        for (const [pkg, fn] of Object.entries(migrations)) store.registerMigration(pkg, fn);
-      },
-      { ...hello, packages: { ...hello.packages, "blockr.dag": "0.3.0" } },
-    );
-  }
-
-  const old = file(
-    {
-      class: ["dock_board", "board"],
-      extensions: { "blockr.dag-dag": { layout: { a: [1, 2], b: [3, 4] } } },
-      blocks: {
-        a: {
-          registry_id: "blockr.core-dataset_block",
-          state: { dataset: "mtcars", package: "datasets" },
-          name: "Cars",
-          attrs: {},
-        },
-        b: { ...head(), state: { n: "6", direction: "head" } },
+  // A dock app whose dock board class is at version 3 of its properties and
+  // whose head block class is at version 2 of its state, and whose opening
+  // board R wrote at those versions.
+  const replied: HelloReply = {
+    ...docking,
+    board_classes: {
+      ...docking.board_classes,
+      dock_board: { package: "blockr.dock", front_end: "blockr.dock-dock", version: 3 },
+    },
+    block_registry: Object.fromEntries(
+      Object.entries(docking.block_registry).map(([id, entry]) => [
+        id,
+        id === "blockr.core-head_block" ? { ...entry, version: 2 } : entry,
+      ]),
+    ),
+    board: {
+      ...docking.board,
+      board: {
+        ...docking.board.board,
+        versions: { dock_board: 3, board: 1 },
+        blocks: Object.fromEntries(
+          Object.entries(docking.board.board.blocks).map(([id, block]) => [
+            id,
+            block.registry_id === "blockr.core-head_block" ? { ...block, version: 2 } : block,
+          ]),
+        ),
       },
     },
-    { "blockr.core": "0.1.9", "blockr.dag": "0.2.0" },
-  );
+  };
 
-  test("runs the migration of every package whose saved version differs from the one R loaded, one after another", async () => {
-    // The DAG renames its layout to positions, in the state that the dock board
-    // keeps of it.
-    const dag = vi.fn<Migration>((saved) => {
-      const extensions = saved.properties.extensions as unknown as Record<
-        string,
-        { layout?: Record<string, number[]> }
-      >;
-      const layout = extensions["blockr.dag-dag"]?.layout ?? {};
+  // The dock's board class, whose versions before 3 kept the panels of a view
+  // under `layout`.
+  const migrating: BoardClass = {
+    ...dock,
+    migrate(properties, version) {
+      const views = properties.views as Readonly<Record<string, { layout?: string[] }>>;
+      if (version >= 3) return properties;
       return {
-        ...saved,
-        properties: {
-          ...saved.properties,
-          extensions: {
-            ...extensions,
-            "blockr.dag-dag": {
-              positions: Object.fromEntries(
-                Object.entries(layout).map(([id, [x = 0, y = 0]]) => [id, { x, y }]),
-              ),
-            },
-          },
-        },
+        ...properties,
+        views: Object.fromEntries(
+          Object.entries(views).map(([id, view]) => [id, { panels: view.layout ?? [] }]),
+        ),
       };
-    });
-    // Core's head block once kept its n as a string.
-    const core = vi.fn<Migration>((saved) => ({
-      ...saved,
-      blocks: Object.fromEntries(
-        Object.entries(saved.blocks).map(([id, block]) => [
-          id,
-          block.registry_id === "blockr.core-head_block"
-            ? { ...block, state: { ...block.state, n: Number(block.state.n) } }
-            : block,
-        ]),
-      ),
-    }));
-    const io = vi.fn<Migration>((saved) => saved);
+    },
+  };
 
-    const store = await migrating({ "blockr.dag": dag, "blockr.core": core, "blockr.io": io });
-    const dropped = await store.open(old);
+  // A board of the dock app that the dock's version 2 and the head block's
+  // version 1 saved, when the head block kept its n as a string.
+  const old = file({
+    class: ["dock_board", "board"],
+    versions: { dock_board: 2, board: 1 },
+    views: { main: { layout: ["a", "b"] } },
+    extensions: {},
+    blocks: {
+      a: {
+        registry_id: "blockr.core-dataset_block",
+        state: { dataset: "mtcars", package: "datasets" },
+        name: "Cars",
+        attrs: {},
+      },
+      b: { ...head(), state: { n: "6", direction: "head" } },
+    },
+  });
 
-    expect(dag).toHaveBeenCalledOnce();
-    expect(dag.mock.calls[0]?.[1]).toBe("0.2.0");
-    expect(core.mock.calls[0]?.[1]).toBe("0.1.9");
-    expect(io.mock.calls[0]?.[1]).toBeNull();
+  function store(head?: Migration): Promise<Store> {
+    return opened((store) => {
+      store.register(migrating);
+      if (head !== undefined) store.registerMigration("blockr.core-head_block", head);
+    }, replied);
+  }
 
-    // Each migration takes the file as the one before it left it.
-    const fromDag = dag.mock.results[0]?.value as unknown;
-    expect(core.mock.calls[0]?.[0]).toEqual(fromDag);
-    expect(Object.isFrozen(core.mock.calls[0]?.[0].blocks)).toBe(true);
+  test("migrates what a JSON board holds of an older version, by the version it records", async () => {
+    const head = vi.fn<Migration>((state) => ({ ...state, n: Number(state.n) }));
+    const opening = await store(head);
+    const dropped = await opening.open(old);
 
-    const board = store.board();
-    expect(positionsOf(board)).toEqual({ a: { x: 1, y: 2 }, b: { x: 3, y: 4 } });
+    expect(head).toHaveBeenCalledOnce();
+    expect(head.mock.calls[0]?.[1]).toBe(1);
+    expect(Object.isFrozen(head.mock.calls[0]?.[0])).toBe(true);
+
+    const board = opening.board();
+    expect(viewsOf(board)).toEqual({ main: { panels: ["a", "b"] } });
     expect(board.blocks.b?.state).toEqual({ n: 6, direction: "head" });
     expect(dropped).toEqual([]);
+
+    // The board saves at today's versions.
+    const saved = opening.jsonBoard();
+    expect(saved.board.versions).toEqual({ dock_board: 3, board: 1 });
+    expect(saved.board.blocks.b?.version).toBe(2);
+    expect(saved.board.blocks.a?.version).toBe(1);
   });
 
-  test("refuses to open a board that a migration fails on", async () => {
-    const dag = vi.fn<Migration>(() => {
-      throw new Error("The layout is unreadable.");
+  test("runs no migration of what a JSON board holds at today's version", async () => {
+    const head = vi.fn<Migration>((state) => state);
+    const opening = await store(head);
+    await opening.open(JSON.stringify(opening.jsonBoard()));
+    expect(head).not.toHaveBeenCalled();
+  });
+
+  test("refuses to open a board that a migration fails on, or that holds a version above today's", async () => {
+    const opening = await store(() => {
+      throw new Error("The n is unreadable.");
     });
-    const store = await migrating({ "blockr.dag": dag });
-    await expect(store.open(old)).rejects.toThrow("The migration of blockr.dag failed: The layout is unreadable.");
+    await expect(opening.open(old)).rejects.toThrow(
+      'The migration of the block class "blockr.core-head_block" failed: The n is unreadable.',
+    );
+
+    const newer = file({
+      class: ["dock_board", "board"],
+      versions: { dock_board: 4, board: 1 },
+      views: { main: { panels: ["a", "b"] } },
+      extensions: {},
+    });
+    await expect((await store()).open(newer)).rejects.toThrow(
+      'The board records version 4 of the board class "dock_board", while R gives version 3.',
+    );
   });
 
-  test("runs no migration of a package saved at the version R loaded", async () => {
-    const dag = vi.fn<Migration>((saved) => saved);
-    const store = await migrating({ "blockr.dag": dag });
-    await store.open(file({}, { "blockr.core": "0.2.0", "blockr.dag": "0.3.0" }));
-    expect(dag).not.toHaveBeenCalled();
-  });
-
-  test("runs no migration where every package that a JSON board records is at the version R loaded", async () => {
-    const dag = vi.fn<Migration>((saved) => saved);
-    const store = await migrating({ "blockr.dag": dag });
-    await store.open(file({}, { "blockr.core": "0.2.0" }));
-    expect(dag).not.toHaveBeenCalled();
-
-    await store.open(file({}, { "blockr.core": "0.1.9" }));
-    expect(dag).toHaveBeenCalledOnce();
-    expect(dag.mock.calls[0]?.[1]).toBeNull();
-  });
-
-  test("runs no migration for the board an app script built", async () => {
-    const dag = vi.fn<Migration>((saved) => saved);
-    await migrating({ "blockr.dag": dag });
-    expect(dag).not.toHaveBeenCalled();
+  test("refuses a JSON board without the versions it records", async () => {
+    const opening = await store();
+    const json = JSON.parse(old) as { board: Record<string, unknown> };
+    await expect(
+      opening.open(JSON.stringify({ ...json, board: { ...json.board, versions: { dock_board: 0 } } })),
+    ).rejects.toThrow("The board records its classes' versions as no whole numbers from 1 by class.");
+    await expect(
+      opening.open(file({ blocks: { a: { ...head(), version: "1" } as unknown as Block } })),
+    ).rejects.toThrow('The block "a" records no version of its class\'s state.');
   });
 });
 
@@ -1545,9 +1560,9 @@ describe("registering", () => {
       'The board option "n_rows" is registered already.',
     );
     expect(() => {
-      store.registerMigration("blockr.foo", (saved) => saved);
-      store.registerMigration("blockr.foo", (saved) => saved);
-    }).toThrow("blockr.foo registers a migration, which it registered already.");
+      store.registerMigration("blockr.foo-bar_block", (state) => state);
+      store.registerMigration("blockr.foo-bar_block", (state) => state);
+    }).toThrow('The block class "blockr.foo-bar_block" has a migration registered already.');
   });
 
   test("a board class extends a registered class, and adds no property that core or its parents hold", () => {

@@ -3,11 +3,17 @@
 \name{board_front_end}
 \alias{board_front_end}
 \alias{board_front_end.board}
-\title{Board front-ends}
+\alias{board_version}
+\alias{board_version.board}
+\title{Board classes in R}
 \usage{
 board_front_end(x, ...)
 
 \method{board_front_end}{board}(x, ...)
+
+board_version(x, ...)
+
+\method{board_version}{board}(x, ...)
 }
 \arguments{
 \item{x}{Board}
@@ -15,7 +21,9 @@ board_front_end(x, ...)
 \item{...}{Generic consistency}
 }
 \value{
-The ID of the module that draws boards of the class, a string.
+\code{board_front_end()} returns the ID of the module that draws boards of
+the class, a string, and \code{board_version()} the class's version, a whole
+number.
 }
 \description{
 A board class names the module that draws its boards, its front-end, through
@@ -30,12 +38,19 @@ The package whose namespace holds the method is the one that defines the
 class, so R learns a board class's package from its method, as the JSON
 board that \code{\link[=blockr_ser]{blockr_ser()}} writes records it.
 R sends every board class that a loaded package names a front-end for, with
-its package and its front-end, in its reply to \code{hello}.
+its package, its front-end and its version, in its reply to \code{hello}.
 A class without a method of its own, such as one that an app script adds or
 one that a package defines in JavaScript alone, comes from no package, and
 its parent's front-end draws its boards, as S3 dispatch gives it.
+
+The version of a class is the version of the shape of the properties that it
+adds, a whole number from 1, which its method of \code{board_version()} gives,
+and which is 1 for a class with a front-end but no such method.
+A package raises it as it changes that shape, so that the client migrates
+the properties that a JSON board holds of an older version.
 }
 \examples{
 board_front_end(new_board())
+board_version(new_board())
 
 }

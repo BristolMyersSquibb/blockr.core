@@ -25,6 +25,9 @@ export interface RegistryEntry {
   // beside it, if it has one.
   readonly module: string;
   readonly css?: string;
+  // The version of the shape of the block's state, which a package raises as
+  // it changes that shape, and which a JSON board records with each block.
+  readonly version: number;
   // The schema of the block's state, as its module ships it.
   readonly schema: JsonSchema;
   // What a new block starts with, from `expr` called without args.

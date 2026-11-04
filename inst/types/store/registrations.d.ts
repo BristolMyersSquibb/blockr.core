@@ -1,4 +1,4 @@
-import type { Block, BlockId, Board, OptionId, RegistryId } from "../types/board.ts";
+import type { Block, Board, OptionId, RegistryId } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import type { Validate } from "../util/index.ts";
 import type { Delta, Patch } from "./delta.ts";
@@ -7,6 +7,7 @@ export interface BoardClass {
     readonly parent?: string;
     readonly options?: readonly OptionId[];
     readonly properties: Readonly<Record<string, Property>>;
+    migrate?(properties: Readonly<Record<string, Json>>, version: number): Readonly<Record<string, Json>>;
     update?(delta: Delta, board: Board): readonly Patch[];
 }
 export interface Property {
@@ -29,14 +30,7 @@ export interface Options {
     register(option: Option): () => void;
     registered(): Readonly<Record<OptionId, Option>>;
 }
-export interface Saved {
-    readonly properties: Readonly<Record<string, Json>>;
-    readonly blocks: Readonly<Record<BlockId, {
-        readonly registry_id: RegistryId;
-        readonly state: Block["state"];
-    }>>;
-}
-export type Migration = (saved: Saved, version: string | null) => Saved;
+export type Migration = (state: Block["state"], version: number) => Block["state"];
 export interface Checked<T> {
     readonly def: T;
     readonly validate: Validate;
@@ -57,12 +51,12 @@ export interface Registrations {
     register(def: BoardClass | Attribute): () => void;
     registered(): readonly (BoardClass | Attribute)[];
     readonly options: Options;
-    registerMigration(pkg: string, fn: Migration): () => void;
+    registerMigration(registryId: RegistryId, fn: Migration): () => void;
     builtAs(classes: readonly string[]): Built;
     attributes(): readonly Checked<Attribute>[];
     attribute(name: string): Checked<Attribute> | undefined;
     option(id: OptionId): Checked<Option> | undefined;
-    migrations(): ReadonlyMap<string, Migration>;
+    migration(registryId: RegistryId): Migration | undefined;
 }
 export declare const CORE_BOARD: BoardClass;
 export declare const CORE_PROPERTIES: readonly string[];

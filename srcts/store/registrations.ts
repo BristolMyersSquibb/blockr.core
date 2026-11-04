@@ -1,14 +1,14 @@
 // What packages register with the store, from their startup modules, before
-// it opens a board: board classes, attributes, board options and each
-// package's one migration of its saved state.
+// it opens a board: board classes, attributes, board options and the
+// migrations of their block classes' states.
 // A board class is registered under its R class name, with the properties it
 // adds.
-// A board class, an attribute or a board option id registered twice fails.
+// A board class, an attribute, a board option id or a block class's migration
+// registered twice fails.
 
 import { computed, signal } from "@preact/signals-core";
 import type {
   Block,
-  BlockId,
   Board,
   OptionId,
   RegistryId,
@@ -39,6 +39,16 @@ export interface BoardClass {
   // it opens, where it lacks them.
   readonly options?: readonly OptionId[];
   readonly properties: Readonly<Record<string, Property>>;
+  // Converts the properties beside core's, as a JSON board holds them, from
+  // the version of this class that the board records to the one R gives,
+  // which R's `board_version()` gives, and returns them as the board then
+  // holds them, so that what it leaves out is gone.
+  // The store calls it as it opens a board whose recorded version of the class
+  // is below R's, with that version, for the class and each of its parents,
+  // root first.
+  // It changes only the properties that its own class adds, which nothing but
+  // the package enforces, and may rename, split and merge them.
+  migrate?(properties: Readonly<Record<string, Json>>, version: number): Readonly<Record<string, Json>>;
   // The patches to its own properties that follow from a change, such as
   // removing a removed block's panels from the dock's views.
   // The store applies them in the same step.
@@ -86,41 +96,22 @@ export interface Options {
   registered(): Readonly<Record<OptionId, Option>>;
 }
 
-// What a JSON board holds that migrations convert:
-// the properties that board classes add, as the file holds them,
-// and every block's state, with its class.
-export interface Saved {
-  readonly properties: Readonly<Record<string, Json>>;
-  readonly blocks: Readonly<
-    Record<BlockId, { readonly registry_id: RegistryId; readonly state: Block["state"] }>
-  >;
-}
-
-// A package's migration, which rewrites what a JSON board holds,
-// as the migrations before it left it, with its package's part in
-// today's shape, given the version of the package that saved it,
-// or null where the JSON board records none.
-// Migrations run one after another,
-// in the order in which packages declare their startup modules,
-// which puts each package's after those of the packages it imports,
-// and the board opens with the properties and the blocks' states that the last
-// one returns, so that what a migration leaves out is gone.
-// Each changes only its own package's part, which nothing but the package
-// enforces: the properties its board classes add and the states of its block
-// classes' blocks.
-//
-// A migration converts what older versions of its package saved into
-// today's shape, and changes nothing on a board in today's shape,
-// so that a board saved and opened again comes back as it was,
-// though a JSON board that records no version of a package runs its migration,
-// unless every package that it records is at the version R loaded.
+// A block class's migration, which converts a block's state, as a JSON board
+// holds it, from the version of the class's state that the block records to
+// the one that the class's entry in the block registry gives, which R's
+// `new_block_class()` takes.
+// A package's startup module registers it under the class's registry id, and
+// the store calls it as it opens a board, for each block of the class whose
+// version is below the class's, with that version.
+// A migration converts what older versions of its class wrote into today's
+// shape, so that a board saved and opened again comes back as it was.
 // What a board reads where nothing set a value comes from
 // what packages register instead, a property's `default`,
 // an attribute's `initial` and a board option's `default`.
 // Attributes and board option values are not migrated:
 // one that no longer fits its schema is dropped as the board opens,
 // so that it reads as its initial value or default.
-export type Migration = (saved: Saved, version: string | null) => Saved;
+export type Migration = (state: Block["state"], version: number) => Block["state"];
 
 // A registration with the validator of its schema.
 export interface Checked<T> {
@@ -151,12 +142,12 @@ export interface Registrations {
   register(def: BoardClass | Attribute): () => void;
   registered(): readonly (BoardClass | Attribute)[];
   readonly options: Options;
-  registerMigration(pkg: string, fn: Migration): () => void;
+  registerMigration(registryId: RegistryId, fn: Migration): () => void;
   builtAs(classes: readonly string[]): Built;
   attributes(): readonly Checked<Attribute>[];
   attribute(name: string): Checked<Attribute> | undefined;
   option(id: OptionId): Checked<Option> | undefined;
-  migrations(): ReadonlyMap<string, Migration>;
+  migration(registryId: RegistryId): Migration | undefined;
 }
 
 // Core's board class.
@@ -182,7 +173,7 @@ export function createRegistrations(): Registrations {
   const classes = signal<ReadonlyMap<string, CheckedClass>>(new Map());
   const attributes = signal<readonly Checked<Attribute>[]>([]);
   const options = signal<readonly Checked<Option>[]>([]);
-  const migrations = signal<ReadonlyMap<string, Migration>>(new Map());
+  const migrations = signal<ReadonlyMap<RegistryId, Migration>>(new Map());
 
   const attributeIndex = computed(
     () => new Map(attributes.value.map((attr) => [attr.def.name, attr])),
@@ -244,6 +235,9 @@ export function createRegistrations(): Registrations {
     }
     if (def.update !== undefined && typeof def.update !== "function") {
       throw new Error(`The board class "${name}" has an update that is no function.`);
+    }
+    if (def.migrate !== undefined && typeof def.migrate !== "function") {
+      throw new Error(`The board class "${name}" has a migrate that is no function.`);
     }
 
     const inherited = new Map<string, string>();
@@ -330,15 +324,15 @@ export function createRegistrations(): Registrations {
       },
       registered: () => optionDefs.value,
     },
-    registerMigration(pkg, fn) {
-      if (migrations.value.has(pkg)) {
-        throw new Error(`${pkg} registers a migration, which it registered already.`);
+    registerMigration(registryId, fn) {
+      if (migrations.value.has(registryId)) {
+        throw new Error(`The block class "${registryId}" has a migration registered already.`);
       }
-      migrations.value = new Map([...migrations.value, [pkg, fn]]);
+      migrations.value = new Map([...migrations.value, [registryId, fn]]);
       return () => {
-        if (migrations.value.get(pkg) !== fn) return;
+        if (migrations.value.get(registryId) !== fn) return;
         const rest = new Map(migrations.value);
-        rest.delete(pkg);
+        rest.delete(registryId);
         migrations.value = rest;
       };
     },
@@ -346,7 +340,7 @@ export function createRegistrations(): Registrations {
     attributes: () => attributes.value,
     attribute: (name) => attributeIndex.value.get(name),
     option: (id) => optionIndex.value.get(id),
-    migrations: () => migrations.value,
+    migration: (registryId) => migrations.value.get(registryId),
   };
 }
 

@@ -24,7 +24,7 @@ import { pointer } from "./patch.ts";
 import { fit, isEmpty } from "./undo.ts";
 import { checkJsonBoard, FORMAT, openJsonBoard, parse, required } from "./open.ts";
 import type { Dropped } from "./open.ts";
-import { createRegistrations } from "./registrations.ts";
+import { createRegistrations, propertiesOf } from "./registrations.ts";
 import type {
   Attribute,
   BoardClass,
@@ -58,11 +58,14 @@ export interface Store {
   // and replaces the board, resolving with what it dropped.
   // A locked board opens no JSON board.
   open(given: string | HelloReply): Promise<Dropped[]>;
-  // The board as a JSON board, as a file holds it, which records the version
-  // of each package that the board's content comes from: the package of each
-  // class that the board is built as, core's among them, as the reply to
-  // `hello` gives it, and the package of each block's class, which its
-  // registry id names.
+  // The board as a JSON board, as a file holds it.
+  // It records the version of each package that the board's content comes
+  // from: the package of each class that the board is built as, core's among
+  // them, as the reply to `hello` gives it, and the package of each block's
+  // class, which its registry id names.
+  // It records the versions of the shapes that the board holds as well: of
+  // each class that the board is built as that R names one for, and of each
+  // block's state, as the class's entry in the block registry gives it.
   jsonBoard(): JsonBoard;
 
   // Reverts or applies again that origin's last step, or throws a StoreError
@@ -87,8 +90,8 @@ export interface Store {
   // it, or for that class's nearest parent that R names one for.
   // Core switches the page to it.
   frontEnd(classes: readonly string[]): string;
-  // A package's one migration of its saved state.
-  registerMigration(pkg: string, fn: Migration): () => void;
+  // A block class's one migration of its state, by its registry id.
+  registerMigration(registryId: RegistryId, fn: Migration): () => void;
   // The board options packages define, by id.
   readonly options: Options;
 
@@ -423,21 +426,46 @@ export function createStore(options: StoreOptions = {}): Store {
   }
 
   function jsonBoard(): JsonBoard {
-    if (board.value === undefined || built === undefined) {
+    const next = board.value;
+    if (next === undefined || built === undefined) {
       throw new Error("The store holds no board until it opens one.");
     }
     const classes = hello?.board_classes ?? {};
+    const chain = new Set(built.chain.map(({ def }) => def.class));
     const owned = new Set([
       ...built.chain.flatMap(({ def }) => own(classes, def.class)?.package ?? []),
-      ...Object.values(board.value.blocks).flatMap(({ registry_id }) => packageOf(registry_id) ?? []),
+      ...Object.values(next.blocks).flatMap(({ registry_id }) => packageOf(registry_id) ?? []),
     ]);
-    const versions = Object.fromEntries(
+    const recorded = Object.fromEntries(
       [...owned].sort().flatMap((pkg) => {
         const version = own(packages.value, pkg);
         return version === undefined ? [] : [[pkg, version]];
       }),
     );
-    return { format: FORMAT, packages: versions, board: board.value };
+    const versions = Object.fromEntries(
+      next.class.flatMap((cls) => {
+        const version = chain.has(cls) ? own(classes, cls)?.version : undefined;
+        return version === undefined ? [] : [[cls, version]];
+      }),
+    );
+    const blocks = Object.fromEntries(
+      Object.entries(next.blocks).map(([id, block]) => [
+        id,
+        {
+          registry_id: block.registry_id,
+          version: own(registry.value, block.registry_id)?.version ?? 1,
+          state: block.state,
+          name: block.name,
+          attrs: block.attrs,
+        },
+      ]),
+    );
+    const { id, class: classVector, name, links, stacks, options } = next;
+    return {
+      format: FORMAT,
+      packages: recorded,
+      board: { id, class: classVector, versions, name, blocks, links, stacks, options, ...propertiesOf(next) },
+    };
   }
 
   function frontEnd(classes: readonly string[]): string {
@@ -493,7 +521,7 @@ export function createStore(options: StoreOptions = {}): Store {
     registered: () => registrations.registered(),
     boardClass: (classes) => registrations.builtAs(classes).def,
     frontEnd,
-    registerMigration: (pkg, fn) => registrations.registerMigration(pkg, fn),
+    registerMigration: (registryId, fn) => registrations.registerMigration(registryId, fn),
     options: registrations.options,
     jsonBoard,
     blockRegistry: () => registry.value,

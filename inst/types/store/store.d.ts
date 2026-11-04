@@ -26,7 +26,7 @@ export interface Store {
     registered(): readonly (BoardClass | Attribute)[];
     boardClass(classes: readonly string[]): BoardClass;
     frontEnd(classes: readonly string[]): string;
-    registerMigration(pkg: string, fn: Migration): () => void;
+    registerMigration(registryId: RegistryId, fn: Migration): () => void;
     readonly options: Options;
     blockRegistry(): Readonly<Record<RegistryId, RegistryEntry>>;
     packages(): Readonly<Record<string, string>>;

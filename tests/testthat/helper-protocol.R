@@ -167,7 +167,9 @@ protocol_r_values <- function() {
                 links = obj(),
                 stacks = obj(),
                 options = obj()
-              )
+              ),
+              packages = obj(blockr.core = "0.2.0", blockr.test = "0.1.0"),
+              versions = obj(grid_board = 1L, board = 1L)
             )
           )
         )
@@ -479,7 +481,11 @@ proto_served <- function() {
       )
     ),
     board_classes = obj(
-      board = obj(package = "blockr.core", front_end = "blockr.core-basic")
+      board = obj(
+        package = "blockr.core",
+        front_end = "blockr.core-basic",
+        version = 1L
+      )
     ),
     renderers = proto_renderers()
   )
@@ -542,6 +548,7 @@ proto_registry <- function(...) {
       icon = proto_icon("database"),
       inputs = I(character()),
       module = proto_js("dataset-block.js", "5e0c8b1d"),
+      version = 1L,
       schema = obj(
         type = "object",
         properties = obj(dataset = proto_string(), package = proto_string()),
@@ -589,6 +596,7 @@ proto_registry <- function(...) {
       inputs = I("data"),
       module = proto_js("head-block.js", "9a41f2c7"),
       css = proto_js("head-block.css", "c03e7b58"),
+      version = 1L,
       schema = obj(
         type = "object",
         properties = obj(
@@ -625,6 +633,7 @@ proto_registry <- function(...) {
       icon = proto_icon("union"),
       inputs = I(c("x", "y")),
       module = proto_js("merge-block.js", "77d0a9e3"),
+      version = 1L,
       schema = obj(
         type = "object",
         properties = obj(
@@ -663,6 +672,7 @@ proto_registry <- function(...) {
       icon = proto_icon("funnel"),
       inputs = I("data"),
       module = proto_js("subset-block.js", "2b6f04d9"),
+      version = 1L,
       schema = obj(
         type = "object",
         properties = obj(subset = proto_string(), select = proto_string()),
@@ -695,6 +705,7 @@ proto_registry <- function(...) {
       icon = proto_icon("chevron-bar-expand"),
       inputs = I("..."),
       module = proto_js("rbind-block.js", "e8c1d6a2"),
+      version = 1L,
       schema = obj(
         type = "object",
         properties = obj(),
@@ -715,6 +726,7 @@ proto_registry <- function(...) {
       icon = proto_icon("dice-5"),
       inputs = I("data"),
       module = proto_js("scatter-block.js", "41a7e0bf"),
+      version = 1L,
       schema = obj(
         type = "object",
         properties = obj(x = proto_string(), y = proto_string()),
@@ -744,6 +756,7 @@ proto_registry <- function(...) {
       icon = proto_icon("upload"),
       inputs = I(character()),
       module = proto_js("upload-block.js", "d5932c60"),
+      version = 1L,
       schema = obj(
         type = "object",
         properties = obj(file_path = proto_string()),
@@ -765,9 +778,16 @@ proto_class <- function() {
   I("board")
 }
 
-# The objects of a board, which its collections hold by id.
+# The objects of a board, which its collections hold by id, a block with the
+# version of its class's state.
 proto_block <- function(registry_id, state, name, attrs = obj()) {
-  obj(registry_id = registry_id, state = state, name = name, attrs = attrs)
+  obj(
+    registry_id = registry_id,
+    version = 1L,
+    state = state,
+    name = name,
+    attrs = attrs
+  )
 }
 
 proto_link <- function(from, to, input) {
@@ -779,8 +799,15 @@ proto_stack <- function(name, blocks) {
 }
 
 # A board as a JSON board holds it, beside the format and the packages that
-# its content comes from, here core's alone.
-proto_json_board <- function(board, packages = obj(blockr.core = "0.2.0")) {
+# its content comes from, here core's alone, with the versions of its classes
+# after its class vector.
+proto_json_board <- function(board, packages = obj(blockr.core = "0.2.0"),
+                             versions = obj(board = 1L)) {
+
+  at <- match("class", names(board))
+
+  board <- c(board[seq_len(at)], list(versions = versions), board[-seq_len(at)])
+
   obj(format = 1L, packages = packages, board = board)
 }
 

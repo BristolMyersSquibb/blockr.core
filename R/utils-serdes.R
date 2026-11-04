@@ -21,6 +21,11 @@
 #' `board` among them, and the packages of the blocks' classes.
 #' The board holds its `id` and `name`, and its blocks, links and stacks, each
 #' by ID, in their order.
+#' In `versions`, it holds the version of each class in its class vector that a
+#' loaded package names a front-end for, by class (see [board_version()]), and
+#' each block holds the version of its class's state in `version` (see
+#' [new_block_class()]), so that the client migrates by the versions of the
+#' shapes that a JSON board holds.
 #' It holds the value of each board option that the script gives, by ID, and no
 #' other.
 #'
@@ -104,6 +109,7 @@ blockr_ser.board <- function(x, ...) {
     list(
       id = board_id(x),
       class = class(x),
+      versions = board_versions(class(x)),
       name = board_name(x),
       blocks = blockr_ser(board_blocks(x)),
       links = blockr_ser(board_links(x)),
@@ -136,6 +142,7 @@ blockr_ser.block <- function(x, ...) {
 
   list(
     registry_id = entry[["id"]],
+    version = entry[["block_class"]][["version"]],
     state = plain_value(
       block_state(x),
       paste0("The state of block \"", block_name(x), "\"")

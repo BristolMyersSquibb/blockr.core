@@ -11,10 +11,15 @@
       "grid_board",
       "board"
     ],
+    "versions": {
+      "grid_board": 1,
+      "board": 1
+    },
     "name": "Grid",
     "blocks": {
       "a": {
         "registry_id": "letters_block",
+        "version": 1,
         "state": {
           "n": 3
         },

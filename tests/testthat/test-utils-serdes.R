@@ -1,6 +1,7 @@
 # A block class from outside a package, whose UI module sits in `dir`, with
 # the schema of its state beside it where `schema` gives one.
-outside_class <- function(name, expr, dir, schema = NULL, inputs = NULL) {
+outside_class <- function(name, expr, dir, schema = NULL, inputs = NULL,
+                          version = 1L) {
 
   module <- file.path(dir, paste0(gsub("_", "-", name), ".js"))
 
@@ -12,7 +13,8 @@ outside_class <- function(name, expr, dir, schema = NULL, inputs = NULL) {
     name,
     inputs = inputs,
     expr = expr,
-    ui = js_module(module, package = NULL)
+    ui = js_module(module, package = NULL),
+    version = version
   )
 }
 
@@ -49,16 +51,19 @@ test_that("a board is written as a JSON board", {
       '{
         "id": "sales_review",
         "class": ["board"],
+        "versions": { "board": 1 },
         "name": "Q3 numbers",
         "blocks": {
           "a": {
             "registry_id": "head_block",
+            "version": 1,
             "state": { "n": 10, "direction": "head" },
             "name": "Ten",
             "attrs": {}
           },
           "b": {
             "registry_id": "head_block",
+            "version": 1,
             "state": { "n": 6, "direction": "tail" },
             "name": "Head",
             "attrs": { "visible": ["outputs"] }
@@ -125,6 +130,7 @@ test_that("a JSON board holds every ID, and an empty board empty objects", {
           "board": {
             "id": "empty",
             "class": ["board"],
+            "versions": { "board": 1 },
             "name": "Empty",
             "blocks": {},
             "links": {},
@@ -164,7 +170,8 @@ test_that("a block's state is written by the schema its class's UI ships", {
     "bare_block",
     function(cols = character(), n = 1L) bbquote(utils::head(.(data), .(n))),
     dir,
-    inputs = "data"
+    inputs = "data",
+    version = 3L
   )
 
   board <- new_board(
@@ -187,6 +194,12 @@ test_that("a block's state is written by the schema its class's UI ships", {
         "c": { "cols": "Time", "n": 1 }
       }'
     )
+  )
+
+  # Each block records the version of its class's state
+  expect_identical(
+    lapply(res$blocks, `[[`, "version"),
+    list(a = 1, b = 1, c = 3)
   )
 })
 
@@ -371,6 +384,7 @@ test_that("a board's class and its properties are written by the schemas", {
       '{
         "id": "grid",
         "class": ["grid_board", "board"],
+        "versions": { "board": 1 },
         "name": "Grid",
         "blocks": {},
         "links": {},
@@ -450,7 +464,7 @@ test_that("R applies the schema of every package that has one", {
 test_that("a JSON board records the package of each class and block class", {
 
   local_versions(blockr.one = "1.2.0", blockr.two = "0.3.0")
-  local_board_front_end("one_board", "blockr.one-grid", "blockr.one")
+  local_board_front_end("one_board", "blockr.one-grid", "blockr.one", 3L)
 
   core <- as.character(pkg_version("blockr.core"))
 
@@ -461,10 +475,12 @@ test_that("a JSON board records the package of each class and block class", {
     class = c("my_board", "one_board")
   )
 
-  expect_identical(
-    blockr_ser(board)$packages,
-    list(blockr.core = core, blockr.one = "1.2.0")
-  )
+  res <- blockr_ser(board)
+
+  expect_identical(res$packages, list(blockr.core = core, blockr.one = "1.2.0"))
+
+  # Beside the version of each class that names a front-end, by class
+  expect_identical(res$board$versions, list(one_board = 3L, board = 1L))
 
   # The package of a block's class is the one its registry entry names
   local_mocked_bindings(

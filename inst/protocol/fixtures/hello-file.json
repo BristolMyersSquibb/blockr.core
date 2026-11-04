@@ -26,6 +26,7 @@
             "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-database\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
             "inputs": [],
             "module": "blockr.core/dataset-block.js?v=5e0c8b1d",
+            "version": 1,
             "schema": {
               "type": "object",
               "properties": {
@@ -72,6 +73,7 @@
             "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-funnel\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
             "inputs": ["data"],
             "module": "blockr.core/subset-block.js?v=2b6f04d9",
+            "version": 1,
             "schema": {
               "type": "object",
               "properties": {
@@ -107,7 +109,8 @@
         "board_classes": {
           "board": {
             "package": "blockr.core",
-            "front_end": "blockr.core-basic"
+            "front_end": "blockr.core-basic",
+            "version": 1
           }
         },
         "renderers": {
@@ -131,16 +134,19 @@
           "board": {
             "id": "amber_tapir",
             "class": ["board"],
+            "versions": { "board": 1 },
             "name": "Cars",
             "blocks": {
               "a": {
                 "registry_id": "blockr.core-dataset_block",
+                "version": 1,
                 "state": { "dataset": "mtcars", "package": "datasets" },
                 "name": "Cars",
                 "attrs": {}
               },
               "b": {
                 "registry_id": "blockr.core-subset_block",
+                "version": 1,
                 "state": { "subset": "cyl == 6", "select": "mpg" },
                 "name": "Six cylinders",
                 "attrs": {}

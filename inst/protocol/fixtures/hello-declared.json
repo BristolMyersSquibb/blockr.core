@@ -26,6 +26,7 @@
             "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-hash\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
             "inputs": [],
             "module": "blockr-modules/8ae8c1b3/count-block.js",
+            "version": 1,
             "schema": {},
             "state": { "n": 3 },
             "arguments": { "n": {} },
@@ -44,6 +45,7 @@
             "inputs": ["data"],
             "module": "blockr-modules/bf59b37f/letters-block.js",
             "css": "blockr-modules/7dc41faf/letters-block.css",
+            "version": 1,
             "schema": {
               "type": "object",
               "properties": {
@@ -107,11 +109,13 @@
         "board_classes": {
           "board": {
             "package": "blockr.core",
-            "front_end": "blockr.core-basic"
+            "front_end": "blockr.core-basic",
+            "version": 1
           },
           "grid_board": {
             "package": "blockr.test",
-            "front_end": "blockr.test-grid"
+            "front_end": "blockr.test-grid",
+            "version": 1
           }
         },
         "renderers": {
@@ -127,10 +131,11 @@
         "lock": null,
         "board": {
           "format": 1,
-          "packages": { "blockr.core": "0.2.0" },
+          "packages": { "blockr.core": "0.2.0", "blockr.test": "0.1.0" },
           "board": {
             "id": "calm_heron",
             "class": ["grid_board", "board"],
+            "versions": { "grid_board": 1, "board": 1 },
             "name": "Calm heron",
             "blocks": {},
             "links": {},

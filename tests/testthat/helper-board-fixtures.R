@@ -71,28 +71,34 @@ local_versions <- function(..., frame = parent.frame()) {
 }
 
 # Gives board class `class` a method of `board_front_end()` that names
-# `front_end`, from a namespace of `package`, as that package registers it,
-# until `frame` ends.
-local_board_front_end <- function(class, front_end, package,
+# `front_end`, and one of `board_version()` that gives `version` where it is
+# given, from a namespace of `package`, as that package registers them, until
+# `frame` ends.
+local_board_front_end <- function(class, front_end, package, version = NULL,
                                   frame = parent.frame()) {
 
-  ns <- list2env(list(.packageName = package, front_end = front_end))
-
-  method <- function(x, ...) front_end
-  environment(method) <- ns
-
-  registerS3method(
-    "board_front_end",
-    class,
-    method,
-    envir = asNamespace("blockr.core")
+  ns <- list2env(
+    list(.packageName = package, front_end = front_end, version = version)
   )
 
+  methods <- list(
+    board_front_end = function(x, ...) front_end,
+    board_version = if (not_null(version)) function(x, ...) version
+  )
+
+  methods <- Filter(not_null, methods)
+  table <- get(".__S3MethodsTable__.", envir = asNamespace("blockr.core"))
+
+  for (generic in names(methods)) {
+
+    method <- methods[[generic]]
+    environment(method) <- ns
+
+    registerS3method(generic, class, method, envir = asNamespace("blockr.core"))
+  }
+
   withr::defer(
-    rm(
-      list = paste0("board_front_end.", class),
-      envir = get(".__S3MethodsTable__.", envir = asNamespace("blockr.core"))
-    ),
+    rm(list = paste0(names(methods), ".", class), envir = table),
     envir = frame
   )
 

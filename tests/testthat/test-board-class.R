@@ -188,6 +188,23 @@ test_that("a board class's method names its front-end and its package", {
   expect_null(class_package("my_board"))
 })
 
+test_that("a board class's method gives its version, or it is at version 1", {
+
+  expect_identical(board_version(new_board()), 1L)
+
+  local_board_front_end("one_board", "blockr.one-grid", "blockr.one", 2L)
+  local_board_front_end("two_board", "blockr.two-grid", "blockr.two")
+
+  expect_identical(class_version("one_board"), 2L)
+  expect_identical(class_version("two_board"), 1L)
+
+  # The versions of the classes that name a front-end, by class
+  expect_identical(
+    board_versions(c("my_board", "one_board", "two_board", "board")),
+    list(one_board = 2L, two_board = 1L, board = 1L)
+  )
+})
+
 test_that("validate_board checks each collection, not just cross-relations", {
 
   board <- new_board(c(a = new_dataset_block(), b = new_subset_block()))

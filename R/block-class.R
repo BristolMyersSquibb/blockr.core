@@ -88,6 +88,10 @@
 #' @param output Coercion that makes an output from a result, such as
 #'   [as_table_output()], or `NULL`, for which R shows results through
 #'   [as_text_output()]
+#' @param version Version of the shape of the class's state, a whole number
+#'   from 1, which a package raises as it changes that shape, so that the
+#'   client migrates the states that a JSON board holds of an older version
+#'   (see [blockr_ser()])
 #'
 #' @examples
 #' head_block <- new_block_class(
@@ -129,7 +133,7 @@
 #'
 #' @export
 new_block_class <- function(name, inputs = NULL, expr, ui, requests = NULL,
-                            output = NULL) {
+                            output = NULL, version = 1L) {
 
   if (!is_string(name)) {
     blockr_abort(
@@ -150,7 +154,8 @@ new_block_class <- function(name, inputs = NULL, expr, ui, requests = NULL,
         expr = expr,
         ui = ui,
         requests = requests,
-        output = output
+        output = output,
+        version = version
       ),
       class = "block_class"
     )
@@ -272,6 +277,14 @@ validate_block_class <- function(x) {
     blockr_abort(
       "A block class's `output` is expected to be a function.",
       class = "block_class_output_invalid"
+    )
+  }
+
+  if (!is_count(x[["version"]], allow_zero = FALSE)) {
+    blockr_abort(
+      "A block class's `version` is expected to be a whole number of 1 or ",
+      "more.",
+      class = "block_class_version_invalid"
     )
   }
 

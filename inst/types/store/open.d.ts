@@ -14,7 +14,7 @@ export type Dropped = {
 export declare function parse(text: string): unknown;
 export declare function checkJsonBoard(json: unknown): JsonBoard;
 export declare function classOf(board: Board): readonly string[];
-export declare function openJsonBoard(json: JsonBoard, reply: Pick<HelloReply, "packages" | "block_registry">, registrations: Registrations): {
+export declare function openJsonBoard(json: JsonBoard, reply: Pick<HelloReply, "packages" | "block_registry" | "board_classes">, registrations: Registrations): {
     board: Board;
     dropped: Dropped[];
     built: Built;

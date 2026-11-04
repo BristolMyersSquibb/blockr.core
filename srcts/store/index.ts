@@ -13,7 +13,6 @@ export type {
   Option,
   Options,
   Property,
-  Saved,
 } from "./registrations.ts";
 export { FORMAT } from "./open.ts";
 export type { Dropped } from "./open.ts";

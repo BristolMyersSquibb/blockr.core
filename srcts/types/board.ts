@@ -63,11 +63,25 @@ export interface Stack {
 
 // A JSON board, the one format of a board outside the store: the board, the
 // version of the format, and the version of every package that the board's
-// block classes and board classes come from.
+// block classes and board classes come from, which names what to install.
 // The client saves a board as one, and R writes the opening board that an app
 // script built as one, with every id.
+// The board records the version of each shape that a definition outside core
+// gives it, which migrations key on, while the format versions core's own.
 export interface JsonBoard {
   readonly format: number;
   readonly packages: Readonly<Record<string, string>>;
-  readonly board: Board;
+  readonly board: Omit<Board, "blocks"> & {
+    // The version of each class in the board's class vector that R names one
+    // for, by class, as R's `board_version()` gives it: the version of the
+    // properties that the class adds.
+    readonly versions: Readonly<Record<string, number>>;
+    readonly blocks: Readonly<Record<BlockId, JsonBlock>>;
+  };
+}
+
+// A block as a JSON board holds it, with the version of its class's state,
+// which the class's entry in the block registry gives.
+export interface JsonBlock extends Block {
+  readonly version: number;
 }

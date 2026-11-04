@@ -13,6 +13,7 @@ export interface RegistryEntry {
     readonly inputs: readonly string[];
     readonly module: string;
     readonly css?: string;
+    readonly version: number;
     readonly schema: JsonSchema;
     readonly state: Readonly<Record<string, Json>>;
     readonly arguments: Readonly<Record<string, ArgSpec>>;

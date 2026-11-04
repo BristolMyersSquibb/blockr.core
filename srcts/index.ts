@@ -16,6 +16,7 @@ export type {
   Block,
   BlockId,
   Board,
+  JsonBlock,
   JsonBoard,
   Link,
   LinkId,
@@ -61,7 +62,6 @@ export type {
   Origin,
   Patch,
   Property,
-  Saved,
   Store,
   StoreError,
 } from "./store/index.ts";

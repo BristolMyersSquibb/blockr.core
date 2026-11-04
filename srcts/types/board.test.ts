@@ -89,6 +89,7 @@ function entry(id: string, inputs: readonly string[]): RegistryEntry {
     icon: "",
     inputs,
     module: "",
+    version: 1,
     schema: {},
     state: {},
     arguments: {},
@@ -122,7 +123,7 @@ test.each(names)("%s meets the type of a JSON board", (name) => {
 
 test("the check fails a fixture with a field that its type lacks", () => {
   const found = diagnostics.get(path("broken")) ?? [];
-  expect(found.join("\n")).toMatch(/'"class"' does not exist in type 'Block'/);
+  expect(found.join("\n")).toMatch(/'"class"' does not exist in type 'JsonBlock'/);
 });
 
 // R loaded the packages at the versions that the JSON board records, so that
@@ -138,7 +139,7 @@ test.each(names)("the store opens %s and saves it as it is", async (name) => {
     packages: json.packages,
     board_classes: {
       ...hello.board_classes,
-      grid_board: { package: "blockr.test", front_end: "blockr.test-grid" },
+      grid_board: { package: "blockr.test", front_end: "blockr.test-grid", version: 1 },
     },
     block_registry: {
       letters_block: entry("letters_block", []),

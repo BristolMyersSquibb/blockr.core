@@ -756,7 +756,7 @@ describe("a request", () => {
           ...json.board,
           blocks: {
             ...json.board.blocks,
-            u: { registry_id: "blockr.core-upload_block", state: {}, name: "Upload", attrs: {} },
+            u: { registry_id: "blockr.core-upload_block", version: 1, state: {}, name: "Upload", attrs: {} },
           },
         },
       },

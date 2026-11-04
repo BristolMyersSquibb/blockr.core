@@ -26,6 +26,7 @@
             "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-database\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
             "inputs": [],
             "module": "blockr.core/dataset-block.js?v=5e0c8b1d",
+            "version": 1,
             "schema": {
               "type": "object",
               "properties": {
@@ -69,6 +70,7 @@
             "inputs": ["data"],
             "module": "blockr.core/head-block.js?v=9a41f2c7",
             "css": "blockr.core/head-block.css?v=c03e7b58",
+            "version": 1,
             "schema": {
               "type": "object",
               "properties": {
@@ -106,7 +108,8 @@
         "board_classes": {
           "board": {
             "package": "blockr.core",
-            "front_end": "blockr.core-basic"
+            "front_end": "blockr.core-basic",
+            "version": 1
           }
         },
         "renderers": {
@@ -130,16 +133,19 @@
           "board": {
             "id": "steady_lynx",
             "class": ["board"],
+            "versions": { "board": 1 },
             "name": "Iris report",
             "blocks": {
               "a": {
                 "registry_id": "blockr.core-dataset_block",
+                "version": 1,
                 "state": { "dataset": "iris", "package": "datasets" },
                 "name": "Iris",
                 "attrs": { "visible": ["outputs"] }
               },
               "b": {
                 "registry_id": "blockr.core-head_block",
+                "version": 1,
                 "state": { "n": 6, "direction": "head" },
                 "name": "Head",
                 "attrs": { "visible": ["inputs", "outputs"] }

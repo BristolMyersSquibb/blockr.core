@@ -9,10 +9,14 @@
     "class": [
       "board"
     ],
+    "versions": {
+      "board": 1
+    },
     "name": "Sales review",
     "blocks": {
       "a": {
         "registry_id": "letters_block",
+        "version": 1,
         "state": {
           "n": 3
         },
@@ -21,6 +25,7 @@
       },
       "b": {
         "registry_id": "letters_block",
+        "version": 1,
         "state": {
           "n": 5
         },
@@ -29,6 +34,7 @@
       },
       "c": {
         "registry_id": "join_block",
+        "version": 1,
         "state": {
           "by": [
             "x"

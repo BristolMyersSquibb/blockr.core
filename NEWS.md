@@ -123,6 +123,11 @@
   script gives, beside the version of the format and the versions of the
   packages that the board's content comes from: those of the board's classes,
   by their methods of `board_front_end()`, and those of the blocks' classes.
+  The board records the version of each of its classes, which a method of the
+  generic `board_version()` gives, and each block the version of its class's
+  state, which `new_block_class()` takes as `version`, so that the client
+  migrates what a JSON board holds by the versions of its shapes rather than
+  of packages.
   Beside them it writes the properties that the board's class adds, which are
   the components that the board holds besides core's, such as those that a
   board class's constructor passes to `new_board()`.

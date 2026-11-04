@@ -31,5 +31,11 @@ export interface Stack {
 export interface JsonBoard {
     readonly format: number;
     readonly packages: Readonly<Record<string, string>>;
-    readonly board: Board;
+    readonly board: Omit<Board, "blocks"> & {
+        readonly versions: Readonly<Record<string, number>>;
+        readonly blocks: Readonly<Record<BlockId, JsonBlock>>;
+    };
+}
+export interface JsonBlock extends Block {
+    readonly version: number;
 }

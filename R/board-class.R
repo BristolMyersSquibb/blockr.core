@@ -409,7 +409,7 @@ board_name <- function(x) {
   attr(x, "name", exact = TRUE)
 }
 
-#' Board front-ends
+#' Board classes in R
 #'
 #' A board class names the module that draws its boards, its front-end, through
 #' its method of `board_front_end()`, which the package that defines the class
@@ -422,18 +422,27 @@ board_name <- function(x) {
 #' class, so R learns a board class's package from its method, as the JSON
 #' board that [blockr_ser()] writes records it.
 #' R sends every board class that a loaded package names a front-end for, with
-#' its package and its front-end, in its reply to `hello`.
+#' its package, its front-end and its version, in its reply to `hello`.
 #' A class without a method of its own, such as one that an app script adds or
 #' one that a package defines in JavaScript alone, comes from no package, and
 #' its parent's front-end draws its boards, as S3 dispatch gives it.
+#'
+#' The version of a class is the version of the shape of the properties that it
+#' adds, a whole number from 1, which its method of `board_version()` gives,
+#' and which is 1 for a class with a front-end but no such method.
+#' A package raises it as it changes that shape, so that the client migrates
+#' the properties that a JSON board holds of an older version.
 #'
 #' @param x Board
 #' @param ... Generic consistency
 #'
 #' @examples
 #' board_front_end(new_board())
+#' board_version(new_board())
 #'
-#' @return The ID of the module that draws boards of the class, a string.
+#' @return `board_front_end()` returns the ID of the module that draws boards of
+#' the class, a string, and `board_version()` the class's version, a whole
+#' number.
 #'
 #' @export
 board_front_end <- function(x, ...) {
@@ -446,19 +455,68 @@ board_front_end.board <- function(x, ...) {
   "blockr.core-basic"
 }
 
+#' @rdname board_front_end
+#' @export
+board_version <- function(x, ...) {
+  UseMethod("board_version")
+}
+
+#' @rdname board_front_end
+#' @export
+board_version.board <- function(x, ...) {
+  1L
+}
+
 # The package that defines a board class: the one whose namespace holds the
 # class's method of `board_front_end()`, or `NULL` for a class without one or
 # with one that an app script defines.
 class_package <- function(class) {
 
-  method <- utils::getS3method(
-    "board_front_end",
+  method <- class_method("board_front_end", class)
+
+  if (is.function(method)) utils::packageName(environment(method))
+}
+
+# The version of a board class: what its own method of `board_version()`
+# returns, or 1 for a class without one.
+class_version <- function(class) {
+
+  method <- class_method("board_version", class)
+
+  if (!is.function(method)) {
+    return(1L)
+  }
+
+  version <- method(structure(list(), class = unique(c(class, "board"))))
+
+  if (!is_count(version, allow_zero = FALSE)) {
+    blockr_abort(
+      "The method of `board_version()` for board class {class} returns no ",
+      "whole number of 1 or more.",
+      class = "board_version_invalid"
+    )
+  }
+
+  version
+}
+
+# The method of a generic that a board class has of its own, or `NULL`.
+class_method <- function(generic, class) {
+  utils::getS3method(
+    generic,
     class,
     optional = TRUE,
     envir = asNamespace("blockr.core")
   )
+}
 
-  if (is.function(method)) utils::packageName(environment(method))
+# The versions of the classes in a board's class vector that loaded packages
+# name front-ends for, by class, as a JSON board records them.
+board_versions <- function(classes) {
+
+  known <- Filter(function(cls) not_null(class_package(cls)), classes)
+
+  as_json_object(set_names(lapply(known, class_version), known))
 }
 
 #' @export

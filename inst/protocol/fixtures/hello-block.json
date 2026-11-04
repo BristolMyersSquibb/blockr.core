@@ -30,6 +30,7 @@
             "inputs": ["data"],
             "module": "blockr.core/head-block.js?v=9a41f2c7",
             "css": "blockr.core/head-block.css?v=c03e7b58",
+            "version": 1,
             "schema": {
               "type": "object",
               "properties": {
@@ -67,7 +68,8 @@
         "board_classes": {
           "board": {
             "package": "blockr.core",
-            "front_end": "blockr.core-basic"
+            "front_end": "blockr.core-basic",
+            "version": 1
           }
         },
         "renderers": {
@@ -83,10 +85,12 @@
           "board": {
             "id": "quick_wren",
             "class": ["board"],
+            "versions": { "board": 1 },
             "name": "Quick wren",
             "blocks": {
               "tidy_crab": {
                 "registry_id": "blockr.core-head_block",
+                "version": 1,
                 "state": { "n": 6, "direction": "head" },
                 "name": "Head",
                 "attrs": {}

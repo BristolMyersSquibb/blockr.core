@@ -13,7 +13,15 @@
 \alias{as_blocks}
 \title{Block classes}
 \usage{
-new_block_class(name, inputs = NULL, expr, ui, requests = NULL, output = NULL)
+new_block_class(
+  name,
+  inputs = NULL,
+  expr,
+  ui,
+  requests = NULL,
+  output = NULL,
+  version = 1L
+)
 
 is_block_class(x)
 
@@ -51,6 +59,11 @@ makes the block expression from}
 \item{output}{Coercion that makes an output from a result, such as
 \code{\link[=as_table_output]{as_table_output()}}, or \code{NULL}, for which R shows results through
 \code{\link[=as_text_output]{as_text_output()}}}
+
+\item{version}{Version of the shape of the class's state, a whole number
+from 1, which a package raises as it changes that shape, so that the
+client migrates the states that a JSON board holds of an older version
+(see \code{\link[=blockr_ser]{blockr_ser()}})}
 
 \item{x}{Object}
 

@@ -41,7 +41,7 @@ loaded_reply <- function() {
 
 # The board classes that loaded packages name front-ends for, by class, each
 # with its package, whose namespace holds its method of `board_front_end()`,
-# and the front-end that the method names.
+# the front-end that the method names and the class's version.
 # R calls each method on an empty board of its class, and leaves out a method
 # that an app script defines, since its class comes from no package.
 board_classes <- function() {
@@ -74,7 +74,11 @@ board_classes <- function() {
       )
     }
 
-    list(package = package, front_end = front_end)
+    list(
+      package = package,
+      front_end = front_end,
+      version = class_version(class)
+    )
   })
 
   Filter(not_null, res)
@@ -128,6 +132,7 @@ registry_entry_reply <- function(x) {
     ),
     served_module(x[["ui"]]),
     list(
+      version = x[["block_class"]][["version"]],
       schema = coal(x[["schema"]], as_json_object(list()), fail_all = FALSE),
       state = entry_state(x),
       arguments = as_json_object(

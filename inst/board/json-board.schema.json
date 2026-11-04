@@ -12,18 +12,20 @@
       }
     },
     "board": {
-      "$ref": "#/definitions/Board"
-    }
-  },
-  "required": [
-    "format",
-    "packages",
-    "board"
-  ],
-  "definitions": {
-    "Board": {
       "type": "object",
       "properties": {
+        "versions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "blocks": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/JsonBlock"
+          }
+        },
         "id": {
           "type": "string"
         },
@@ -35,12 +37,6 @@
         },
         "name": {
           "type": "string"
-        },
-        "blocks": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/Block"
-          }
         },
         "links": {
           "type": "object",
@@ -62,16 +58,24 @@
         }
       },
       "required": [
-        "id",
-        "class",
-        "name",
         "blocks",
+        "class",
+        "id",
         "links",
+        "name",
+        "options",
         "stacks",
-        "options"
+        "versions"
       ]
-    },
-    "Block": {
+    }
+  },
+  "required": [
+    "format",
+    "packages",
+    "board"
+  ],
+  "definitions": {
+    "JsonBlock": {
       "type": "object",
       "properties": {
         "registry_id": {
@@ -91,13 +95,17 @@
           "additionalProperties": {
             "$ref": "#/definitions/Json"
           }
+        },
+        "version": {
+          "type": "number"
         }
       },
       "required": [
+        "attrs",
+        "name",
         "registry_id",
         "state",
-        "name",
-        "attrs"
+        "version"
       ]
     },
     "RegistryId": {

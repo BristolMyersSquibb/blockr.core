@@ -70,6 +70,11 @@ namespace holds the class's method of \code{\link[=board_front_end]{board_front_
 \code{board} among them, and the packages of the blocks' classes.
 The board holds its \code{id} and \code{name}, and its blocks, links and stacks, each
 by ID, in their order.
+In \code{versions}, it holds the version of each class in its class vector that a
+loaded package names a front-end for, by class (see \code{\link[=board_version]{board_version()}}), and
+each block holds the version of its class's state in \code{version} (see
+\code{\link[=new_block_class]{new_block_class()}}), so that the client migrates by the versions of the
+shapes that a JSON board holds.
 It holds the value of each board option that the script gives, by ID, and no
 other.
 

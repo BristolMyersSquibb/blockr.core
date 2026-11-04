@@ -42,6 +42,7 @@ export interface HelloReply {
     board_classes: Record<string, {
         package: string;
         front_end: string;
+        version: number;
     }>;
     renderers: Record<string, Renderer>;
     lock: Lock | null;

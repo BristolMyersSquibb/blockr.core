@@ -50,7 +50,7 @@ test_that("an entry leaves out the metadata that registration leaves unset", {
   expect_named(
     entry,
     c("id", "name", "description", "keywords", "category", "icon", "inputs",
-      "module", "schema", "state", "arguments", "requests")
+      "module", "version", "schema", "state", "arguments", "requests")
   )
   expect_identical(json(entry$keywords), "[]")
 })
@@ -198,16 +198,25 @@ test_that("R names each board class with its package and front-end", {
     json(declared_fields()$board_classes),
     paste0(
       "{\"board\":{\"package\":\"blockr.core\",",
-      "\"front_end\":\"blockr.core-basic\"},",
+      "\"front_end\":\"blockr.core-basic\",\"version\":1},",
       "\"grid_board\":{\"package\":\"blockr.test\",",
-      "\"front_end\":\"blockr.test-grid\"}}"
+      "\"front_end\":\"blockr.test-grid\",\"version\":1}}"
     )
   )
 
-  # A method that names no module fails as R builds the reply
+  # A class's version is what its method of board_version() returns
+  local_board_front_end("one_board", "blockr.one-grid", "blockr.one", 2L)
+
+  expect_identical(board_classes()$one_board$version, 2L)
+
+  # A method that names no module or no version fails as R builds the reply
   local_board_front_end("bad_board", 1L, "blockr.bad")
 
   expect_error(board_classes(), class = "board_front_end_invalid")
+
+  local_board_front_end("bad_board", "blockr.bad-grid", "blockr.bad", 0L)
+
+  expect_error(board_classes(), class = "board_version_invalid")
 })
 
 test_that("R names the renderers it picked, with what each draws", {

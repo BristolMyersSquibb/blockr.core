@@ -10,6 +10,7 @@ test_that("a block class holds its fields", {
   expect_identical(class_inputs(rbind_class), "...")
 
   expect_null(head_class$output)
+  expect_identical(head_class$version, 1L)
 
   lst <- new_block_class("lst_block", inputs = alist(x = , y = ),
                          expr = function() bbquote(c(.(x), .(y))),
@@ -29,6 +30,18 @@ test_that("new_block_class() checks a class once", {
 
   ui <- js_module("x.js")
   expr <- function() bbquote(.(data))
+
+  expect_identical(
+    new_block_class("x_block", "data", expr, ui, version = 3L)$version,
+    3L
+  )
+
+  for (version in list(0L, 1.5, "2", c(1L, 2L), NA_integer_)) {
+    expect_error(
+      new_block_class("x_block", "data", expr, ui, version = version),
+      class = "block_class_version_invalid"
+    )
+  }
 
   expect_error(
     new_block_class(1, "data", expr, ui),
