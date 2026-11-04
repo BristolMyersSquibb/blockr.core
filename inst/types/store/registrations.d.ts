@@ -4,6 +4,7 @@ import type { Validate } from "../util/index.ts";
 import type { Delta, Patch } from "./delta.ts";
 export interface BoardClass {
     readonly class: string;
+    readonly package: string;
     readonly parent?: string;
     readonly frontEnd: string;
     readonly options?: readonly OptionId[];

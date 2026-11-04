@@ -15,7 +15,7 @@ import type {
   RegistryId,
 } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
-import { compile, own } from "../util/index.ts";
+import { compile, isPackageName, own } from "../util/index.ts";
 import type { Validate } from "../util/index.ts";
 import type { Delta, Patch } from "./delta.ts";
 
@@ -29,6 +29,9 @@ import type { Delta, Patch } from "./delta.ts";
 export interface BoardClass {
   // The R class it defines, as "dock_board".
   readonly class: string;
+  // The package that defines it, as "blockr.dock", whose version a saved file
+  // records, since the R class names no package.
+  readonly package: string;
   // The class it extends, as "board", which a package registers before it.
   // Only core's `board` has none.
   readonly parent?: string;
@@ -163,6 +166,7 @@ export interface Registrations {
 // is registered, so core's basic front-end draws every board at least.
 export const CORE_BOARD: BoardClass = {
   class: "board",
+  package: "blockr.core",
   frontEnd: "blockr.core-basic",
   properties: {},
 };
@@ -240,6 +244,11 @@ export function createRegistrations(): Registrations {
         def.parent === undefined
           ? `The board class "${name}" names no parent, which every board class but core's "board" does.`
           : `The board class "${name}" extends "${def.parent}", which no package registered.`,
+      );
+    }
+    if (!isPackageName(def.package)) {
+      throw new Error(
+        `The board class "${name}" names the package ${JSON.stringify(def.package)}, which is no name an R package can have.`,
       );
     }
     if (typeof def.frontEnd !== "string" || def.frontEnd === "") {

@@ -49,6 +49,7 @@ const position: JsonSchema = {
 // and its position.
 const dock: BoardClass = {
   class: "dock_board",
+  package: "blockr.dock",
   parent: "board",
   frontEnd: "blockr.dock-dock",
   properties: {
@@ -101,6 +102,7 @@ const dock: BoardClass = {
 // a removed block's going with it.
 const noted: BoardClass = {
   class: "noted_board",
+  package: "blockr.notes",
   parent: "dock_board",
   frontEnd: "blockr.dock-dock",
   properties: {
@@ -904,6 +906,7 @@ describe("applying a delta", () => {
   test("rejects a delta that keeps expanding, naming the board classes that kept adding", async () => {
     const counting: BoardClass = {
       class: "counting_board",
+      package: "blockr.test",
       parent: "board",
       frontEnd: "blockr.test-count",
       properties: { count: { schema: { type: "integer" }, default: 0 } },
@@ -1535,7 +1538,7 @@ describe("registering", () => {
   test("core registers its board class board and its attribute visible", () => {
     const store = newStore();
     expect(store.registered()).toEqual([
-      { class: "board", frontEnd: "blockr.core-basic", properties: {} },
+      { class: "board", package: "blockr.core", frontEnd: "blockr.core-basic", properties: {} },
       expect.objectContaining({ name: "visible" }),
     ]);
   });
@@ -1567,6 +1570,9 @@ describe("registering", () => {
     );
     expect(() => store.register({ ...dock, parent: undefined })).toThrow(
       'The board class "dock_board" names no parent, which every board class but core\'s "board" does.',
+    );
+    expect(() => store.register({ ...dock, package: "blockr.dock-" })).toThrow(
+      'The board class "dock_board" names the package "blockr.dock-", which is no name an R package can have.',
     );
     expect(() => store.register({ ...dock, properties: { name: { schema: {}, default: "" } } })).toThrow(
       'The board class "dock_board" adds the property "name", which every board holds as core\'s.',

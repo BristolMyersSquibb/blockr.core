@@ -138,5 +138,11 @@ export function packageOf(id: string): string | null {
   const at = id.indexOf("-");
   if (at < 0) return null;
   const pkg = id.slice(0, at);
-  return /^[A-Za-z][A-Za-z0-9.]*[A-Za-z0-9]$/.test(pkg) ? pkg : null;
+  return isPackageName(pkg) ? pkg : null;
+}
+
+// Whether a name is one an R package can have: letters, digits and dots,
+// starting with a letter and ending with no dot.
+export function isPackageName(name: unknown): name is string {
+  return typeof name === "string" && /^[A-Za-z][A-Za-z0-9.]*[A-Za-z0-9]$/.test(name);
 }

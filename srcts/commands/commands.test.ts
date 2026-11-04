@@ -41,6 +41,7 @@ function renameB(
 // and the command of its package that changes one.
 const placed: BoardClass = {
   class: "placed_board",
+  package: "test.pkg",
   parent: "board",
   frontEnd: "test.pkg-placed",
   properties: {
