@@ -186,8 +186,14 @@ test_that("a data frame's table output sorts by its parameters", {
 
   expect_error(as_table_output(df, options = n_rows,
                                params = list(sort = list(column = "l"))))
-  expect_error(as_table_output(df, options = n_rows,
-                               params = list(sort = list(column = "z"))))
+
+  # A column that the table lacks fails as a page past the last one does.
+  expect_error(
+    as_table_output(df, options = n_rows,
+                    params = list(sort = list(column = "z"))),
+    "no column z to sort by",
+    class = "table_output_params_invalid"
+  )
 })
 
 test_that("a table output's cells hold values that JSON can carry", {
