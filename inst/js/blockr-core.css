@@ -1,2 +1,59 @@
 /*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
-@layer theme;
+@layer properties {
+  @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {
+    *, :before, :after, ::backdrop {
+      --tw-border-style: solid;
+    }
+  }
+}
+
+@layer theme {
+  :root, :host {
+    --bc-color-red-50: oklch(97.1% .013 17.38);
+    --bc-color-red-300: oklch(80.8% .114 19.571);
+    --bc-color-red-800: oklch(44.4% .177 26.899);
+    --bc-spacing: .25rem;
+    --bc-text-sm: .875rem;
+    --bc-text-sm--line-height: calc(1.25 / .875);
+  }
+}
+
+.bc\:rounded {
+  border-radius: .25rem;
+}
+
+.bc\:border {
+  border-style: var(--tw-border-style);
+  border-width: 1px;
+}
+
+.bc\:border-red-300 {
+  border-color: var(--bc-color-red-300);
+}
+
+.bc\:bg-red-50 {
+  background-color: var(--bc-color-red-50);
+}
+
+.bc\:p-2 {
+  padding: calc(var(--bc-spacing) * 2);
+}
+
+.bc\:text-sm {
+  font-size: var(--bc-text-sm);
+  line-height: var(--tw-leading, var(--bc-text-sm--line-height));
+}
+
+.bc\:whitespace-pre-wrap {
+  white-space: pre-wrap;
+}
+
+.bc\:text-red-800 {
+  color: var(--bc-color-red-800);
+}
+
+@property --tw-border-style {
+  syntax: "*";
+  inherits: false;
+  initial-value: solid;
+}

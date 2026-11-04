@@ -112,6 +112,20 @@ by \code{\link[=new_block_request]{new_block_request()}}, which names the board 
 coercion that makes an output from a result, as \code{output}. A field a class
 leaves out is \code{NULL}.
 
+A UI module is an ES module that exports the major of core's JS API
+that it was built against, as \verb{export const api = 1},
+and a default with a \code{render()} function.
+Core calls \code{render()} with the element to draw in,
+the block's host and a signal,
+once it has added the board options that the default names to the board.
+The types that a module is written against ship in the installed package,
+in the directory \code{system.file("types", package = "blockr.core")}.
+A package's build resolves that directory as \verb{@blockr/core},
+such as after \verb{npm install --no-save} of it.
+Stubs of the hosts ship there too, as \verb{@blockr/core/stubs},
+with which a module's tests mount it
+on the fixture file that \code{\link[=expect_block_fixture]{expect_block_fixture()}} writes.
+
 A class is checked once, when it is defined: no state arg is \code{...},
 \code{block_name} or \code{visible}, no input or state arg shares the name of
 another, the arguments of each request name inputs or state args, but for

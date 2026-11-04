@@ -30,23 +30,34 @@ the class's name}
 Called for its expectations, returning invisibly.
 }
 \description{
-A block class's two halves, its R side and its UI module, meet only in
-JSON, so its R tests and its module tests share one fixture file, which
-lists states and records what the class's requests answer. Called in a
-test, \code{expect_block_fixture()} checks that the block expression built for
-each listed state runs on the sample inputs and, where every one does,
-records the answer of each listed request call and keeps both as a testthat
-file snapshot (see
-\code{\link[testthat:expect_snapshot_file]{testthat::expect_snapshot_file()}}), \verb{_snaps/<test file>/<name>.json} in
-the package's \verb{tests/testthat/}, which the module tests read. A change to
-what a request answers then fails the test until the snapshot is accepted.
+A block class's two halves, its R side and its UI module, meet only in JSON,
+so its R tests and its module tests share one fixture file,
+which lists states and records what the class's requests answer.
+Called in a test, \code{expect_block_fixture()} checks that the block expression
+built for each listed state runs on the sample inputs and,
+where every one does, records the answer of each listed request call
+and keeps both as a testthat file snapshot
+(see \code{\link[testthat:expect_snapshot_file]{testthat::expect_snapshot_file()}}),
+\verb{_snaps/<test file>/<name>.json} in the package's \verb{tests/testthat/}.
+The module tests read it through the stub of the block's host
+that core ships, \code{stubBlockHost()} of \verb{@blockr/core/stubs},
+which answers the module's requests from it
+and refuses a submit of a state it does not list.
+A change to what a request answers then fails the test
+until the snapshot is accepted.
 }
 \details{
-The fixture is a JSON object holding the \code{states}, each written as R writes
-a message, with a value of length one bare but where \code{\link[=I]{I()}} keeps it an
-array, and the \code{requests}, each with its \code{name}, the \code{args} and \code{options}
-it was called with, and its \code{answer}, written with every vector as an
-array, as R writes a request's answer.
+The fixture is a JSON object holding the \code{states} and the \code{requests}.
+Each state is written as a board's JSON holds the state of a block given
+those args (see \code{\link[=blockr_ser]{blockr_ser()}}):
+as its constructor takes it from the frame \code{expr} ran in,
+so that an arg left out takes its default,
+and by the JSON Schema that the class's UI module ships.
+A module test then compares the state a module submits with it as it is.
+Each request is written with its \code{name},
+the \code{args} and \code{options} it was called with,
+and its \code{answer}, with every vector as an array,
+as R writes a request's answer.
 
 In a test file, such as \code{tests/testthat/test-head-block.R}:
 

@@ -42,6 +42,7 @@ import { needsOf } from "./needs.ts";
 import { planOf } from "./plan.ts";
 import type { Asked, Plan, Sent } from "./plan.ts";
 import { inputsOf } from "./recipes.ts";
+import type { Inputs } from "./recipes.ts";
 import { bump, counter, opening, revise } from "./revisions.ts";
 import { outcomeOf, statusesOf, unsent } from "./status.ts";
 import type { BlockStatus, Outcome } from "./status.ts";
@@ -104,6 +105,12 @@ export interface Scheduler {
     request: Extract<Parameters<Client["request"]>[0], { kind: "request" | "output" }>,
     options?: RequestOptions,
   ): Promise<{ reply: Reply; body: Blob | null }>;
+  // The inputs of the block's recipe, in the order of its class's inputs, each
+  // with the upstream block that feeds it, or none where R binds it, and the
+  // inputs that no link feeds. It is undefined for a block that the board
+  // lacks. A block's UI module reads its inputs and has its requests read them
+  // through this.
+  inputs(id: BlockId): Inputs | undefined;
   // Lets the scheduler send evaluations. It holds them from its creation until
   // then. Core calls it once the front-end's render() has returned.
   start(): void;
@@ -719,6 +726,8 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
         }
       }
     },
+
+    inputs: (id) => inputs.peek().get(id),
 
     start: action(() => {
       holding.value = false;

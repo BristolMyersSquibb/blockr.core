@@ -1,0 +1,15 @@
+{
+  "name": "@blockr/core",
+  "private": true,
+  "description": "The types that the modules of blockr.core's client are written against, and a stub of each host for their tests, as the R package blockr.core ships them.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts"
+    },
+    "./stubs": {
+      "types": "./stubs/index.d.ts",
+      "default": "./stubs/index.js"
+    }
+  }
+}

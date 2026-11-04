@@ -152,6 +152,10 @@
   the helpers that recorded and read one are gone:
   `resolve_ctor()`, `is_blockr_ctor()`, `ctor_name()`, `ctor_pkg()` and
   `ctor_fun()` (#469).
+* The package ships the TypeScript types that the UI modules of block classes are written against, in `system.file("types", package = "blockr.core")`.
+  A package's build resolves that directory as `@blockr/core`, and its module tests take stubs of the hosts from it, as `@blockr/core/stubs`.
+  The fixture file that `expect_block_fixture()` writes lists each state as a block given those args holds it, its defaults filled in and written by the schema of the class's UI module.
+  The stub of a block's host then refuses a submit of a state that the file does not list (#437).
 
 # blockr.core 0.1.4
 
