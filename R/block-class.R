@@ -679,7 +679,14 @@ c.block <- function(...) {
 #'
 #' @export
 block_name <- function(x) {
-  stopifnot(is_block(x))
+
+  if (!is_block(x)) {
+    blockr_abort(
+      "Expecting a block to inherit from \"block\".",
+      class = "block_class_invalid"
+    )
+  }
+
   attr(x, "block_name")
 }
 

@@ -30,6 +30,11 @@ test_that("a board option holds its ID and the value a script gives", {
     validate_board_option(structure(list(), id = 1L, class = "board_option")),
     class = "board_option_component_id_invalid"
   )
+
+  for (getter in list(board_option_id, board_option_value,
+                      has_board_option_value)) {
+    expect_error(getter(list()), class = "board_option_inheritance_invalid")
+  }
 })
 
 test_that("a board option made without a value has none", {

@@ -191,6 +191,7 @@ test_that("an output is written by the schema of its most specific class", {
 
   expect_error(shape_output(new_block_output(list(), "d_output")),
                class = "output_class_unknown")
+  expect_error(shape_output(list(x = 1)), class = "block_output_invalid")
 })
 
 test_that("an output's body travels beside its fields", {

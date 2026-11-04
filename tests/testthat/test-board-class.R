@@ -92,6 +92,16 @@ test_that("board constructor", {
   expect_type(board_option_ids(board), "character")
 })
 
+test_that("the getters of a board check that they read one", {
+
+  getters <- list(board_blocks, board_links, board_stacks, board_option_ids,
+                  board_id, board_name)
+
+  for (getter in getters) {
+    expect_error(getter(list()), class = "board_inheritance_invalid")
+  }
+})
+
 test_that("a board has an ID and a name, which R leaves out unless given", {
 
   board <- new_board(id = "sales_review", name = "Q3 numbers")

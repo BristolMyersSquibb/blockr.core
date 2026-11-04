@@ -58,8 +58,6 @@ new_stack <- function(blocks = character(), name = default_stack_name, ...,
     name <- name()
   }
 
-  stopifnot(is_string(name))
-
   validate_stack(
     structure(
       blocks,

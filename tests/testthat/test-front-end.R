@@ -143,4 +143,5 @@ test_that("a front-end's declaration is checked", {
   rm(list = list_front_ends(), envir = declared_front_ends)
 
   expect_error(board_front_end(new_board()), class = "front_end_missing")
+  expect_error(board_front_end(list()), class = "board_inheritance_invalid")
 })

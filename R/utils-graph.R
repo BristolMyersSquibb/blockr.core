@@ -33,11 +33,28 @@ topo_sort <- function(x) {
     x <- as.matrix(x)
   }
 
-  stopifnot(
-    is.matrix(x), nrow(x) == ncol(x),
-    identical(rownames(x), colnames(x)),
-    is.integer(x), all(x %in% c(0L, 1L))
-  )
+  if (!is.matrix(x)) {
+    blockr_abort(
+      "Expecting a board or an adjacency matrix.",
+      class = "adjacency_matrix_invalid"
+    )
+  }
+
+  if (nrow(x) != ncol(x) || !identical(rownames(x), colnames(x))) {
+    blockr_abort(
+      "Expecting an adjacency matrix to be square, with its nodes as both its ",
+      "row and its column names.",
+      class = "adjacency_matrix_nodes_invalid"
+    )
+  }
+
+  if (!is.integer(x) || !all(x %in% c(0L, 1L))) {
+    blockr_abort(
+      "Expecting the entries of an adjacency matrix to be the integers 0 ",
+      "and 1.",
+      class = "adjacency_matrix_edges_invalid"
+    )
+  }
 
   num_nodes <- nrow(x)
 
@@ -87,9 +104,23 @@ topo_sort <- function(x) {
 
 as_adjacency_matrix <- function(from, to, nodes = union(from, to)) {
 
-  stopifnot(
-    all(from %in% nodes), all(to %in% nodes), anyDuplicated(nodes) == 0L
-  )
+  unknown <- setdiff(c(from, to), nodes)
+
+  if (length(unknown)) {
+    blockr_abort(
+      "Edges join {qty(unknown)}unknown node{?s} {unknown}.",
+      class = "adjacency_matrix_edges_invalid"
+    )
+  }
+
+  dups <- unique(nodes[duplicated(nodes)])
+
+  if (length(dups)) {
+    blockr_abort(
+      "{qty(dups)}Node{?s} {dups} {?is/are} given more than once.",
+      class = "adjacency_matrix_nodes_invalid"
+    )
+  }
 
   n <- length(nodes)
 

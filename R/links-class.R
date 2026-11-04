@@ -56,9 +56,13 @@ list_to_list_of_links <- function(x) {
 
   if (length(x) && all(lgl_ply(x, is.atomic))) {
 
-    stopifnot(
-      all(length(x[[1L]]) == lengths(x[-1L]))
-    )
+    if (!all(length(x[[1L]]) == lengths(x[-1L]))) {
+      blockr_abort(
+        "Expecting the fields of links, such as `from` and `to`, to have the ",
+        "same length.",
+        class = "links_fields_invalid"
+      )
+    }
 
     vals <- lgl_ply(
       coal(names(x), rep("", length(x))),
