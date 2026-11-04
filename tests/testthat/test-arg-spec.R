@@ -347,6 +347,8 @@ test_that("arg_object builds an object type without fields", {
   expect_true(conforms_to(list(), obj))
   expect_false(conforms_to(list(a = 1L), obj))
 
+  skip_if_not_installed("typedjson")
+
   js <- typedjson::json_write_str(obj, typed = FALSE)
 
   expect_match(js, '"properties":{}', fixed = TRUE)
