@@ -25,10 +25,17 @@
 write_log <- function(..., level = "info", envir = parent.frame(),
                       asis = FALSE, use_glue = TRUE, pkg = pkg_name(envir)) {
 
-  if (!is.environment(envir) || !(is.null(pkg) || is_string(pkg))) {
+  if (!is.environment(envir)) {
     blockr_abort(
-      "Expecting `envir` to be an environment and `pkg` a string or `NULL`.",
-      class = "write_log_invalid"
+      "Expecting `envir` to be an environment.",
+      class = "write_log_envir_invalid"
+    )
+  }
+
+  if (!(is.null(pkg) || is_string(pkg))) {
+    blockr_abort(
+      "Expecting `pkg` to be a string or `NULL`.",
+      class = "write_log_pkg_invalid"
     )
   }
 
@@ -57,7 +64,7 @@ write_log <- function(..., level = "info", envir = parent.frame(),
   if (!is_string(msg)) {
     blockr_abort(
       "Expecting a log message to be a string.",
-      class = "write_log_invalid"
+      class = "write_log_message_invalid"
     )
   }
 

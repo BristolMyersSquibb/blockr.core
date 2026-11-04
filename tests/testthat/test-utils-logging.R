@@ -58,10 +58,10 @@ test_that("a log message is a string, written from an environment", {
   withr::local_envvar(BLOCKR_LOG_LEVEL = "")
   withr::local_options(blockr.log_level = "info")
 
-  expect_error(write_log("abc", envir = 1), class = "write_log_invalid")
-  expect_error(write_log("abc", pkg = 1), class = "write_log_invalid")
+  expect_error(write_log("abc", envir = 1), class = "write_log_envir_invalid")
+  expect_error(write_log("abc", pkg = 1), class = "write_log_pkg_invalid")
   expect_error(write_log(c("a", "b"), use_glue = FALSE),
-               class = "write_log_invalid")
+               class = "write_log_message_invalid")
 })
 
 test_that("memory marker is omitted when memuse is unavailable", {

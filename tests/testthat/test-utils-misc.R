@@ -94,11 +94,13 @@ test_that("rand_names()", {
     class = "id_creation_unsuccessful"
   )
 
-  expect_error(rand_names(1), class = "rand_names_invalid")
-  expect_error(rand_names(n = -1L), class = "rand_names_invalid")
-  expect_error(rand_names(max_tries = 1.5), class = "rand_names_invalid")
-  expect_error(rand_names(id_fun = "a"), class = "rand_names_invalid")
-  expect_error(rand_names(id_fun = function(x) x), class = "rand_names_invalid")
+  expect_error(rand_names(1), class = "rand_names_old_names_invalid")
+  expect_error(rand_names(n = -1L), class = "rand_names_n_invalid")
+  expect_error(rand_names(max_tries = 1.5),
+               class = "rand_names_max_tries_invalid")
+  expect_error(rand_names(id_fun = "a"), class = "rand_names_id_fun_invalid")
+  expect_error(rand_names(id_fun = function(x) x),
+               class = "rand_names_id_fun_invalid")
 
   id_2 <- with_mocked_bindings(
     rand_names(),
@@ -196,13 +198,15 @@ test_that("sentence case", {
     c("Thin cute dove", "Gold busy rail", "Key sick puma", "Left tart naga")
   )
 
-  expect_error(to_sentence_case(1), class = "to_sentence_case_invalid")
+  expect_error(to_sentence_case(1), class = "to_sentence_case_x_invalid")
   expect_error(to_sentence_case(character()),
-               class = "to_sentence_case_invalid")
+               class = "to_sentence_case_x_invalid")
   expect_error(to_sentence_case("a", 1, "b"),
-               class = "to_sentence_case_invalid")
+               class = "to_sentence_case_replace_invalid")
+  expect_error(to_sentence_case("a", "a", 1),
+               class = "to_sentence_case_with_invalid")
   expect_error(to_sentence_case("a", c("a", "b"), c("x", "y", "z")),
-               class = "to_sentence_case_invalid")
+               class = "to_sentence_case_with_invalid")
 })
 
 test_that("misc", {
@@ -319,6 +323,12 @@ test_that("misc", {
 
 test_that("constructors are checked as they are made and read", {
 
+  ctor <- new_blockr_ctor("blockr.core::new_dataset_block")
+
+  expect_identical(ctor_name(ctor), "new_dataset_block")
+  expect_identical(ctor_pkg(ctor), "blockr.core")
+  expect_type(ctor_fun(ctor), "closure")
+
   for (getter in list(ctor_name, ctor_pkg, ctor_fun)) {
     expect_error(getter(new_dataset_block), class = "blockr_ctor_invalid")
   }
@@ -327,7 +337,9 @@ test_that("constructors are checked as they are made and read", {
   expect_error(new_blockr_ctor("new_dataset_block"),
                class = "blockr_ctor_invalid")
   expect_error(new_blockr_ctor(NULL, 1, "blockr.core"),
-               class = "blockr_ctor_invalid")
+               class = "blockr_ctor_name_invalid")
+  expect_error(new_blockr_ctor(NULL, "new_dataset_block", 1),
+               class = "blockr_ctor_package_invalid")
 
   # A function named `pkg::ctor` stands in for one called through a package
   env <- new.env()
@@ -335,8 +347,9 @@ test_that("constructors are checked as they are made and read", {
   env[["a::b::ctor"]] <- function() resolve_ctor(-1L)
 
   expect_error(eval(call("pkg::ctor"), env), "rather than other",
-               class = "blockr_ctor_invalid")
-  expect_error(eval(call("a::b::ctor"), env), class = "blockr_ctor_invalid")
+               class = "blockr_ctor_package_invalid")
+  expect_error(eval(call("a::b::ctor"), env),
+               class = "blockr_ctor_call_invalid")
   expect_error(eval(as.call(list(call("(", as.name("a::b::ctor")))), env),
-               class = "blockr_ctor_invalid")
+               class = "blockr_ctor_call_invalid")
 })

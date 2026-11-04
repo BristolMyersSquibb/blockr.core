@@ -67,13 +67,13 @@ test_that("registry", {
   # takes none
   expect_error(
     register_block("new_class_head_block", "Head", "First rows"),
-    class = "block_constructor_invalid"
+    class = "block_package_invalid"
   )
 
   expect_error(
     register_block(new_class_head_block, "Head", "First rows",
                    package = "blockr.core"),
-    class = "block_constructor_invalid"
+    class = "block_package_invalid"
   )
 
   expect_error(

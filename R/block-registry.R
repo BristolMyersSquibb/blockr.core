@@ -153,15 +153,35 @@ register_block <- function(ctor, name, description, uid = NULL,
     icon <- as.character(bsicons::bs_icon(icon))
   }
 
-  if (is_string(ctor) && is_string(package)) {
+  if (is_string(ctor)) {
+
+    if (!is_string(package)) {
+      blockr_abort(
+        "Constructor {ctor} is given by name, so `package` is expected to be ",
+        "the name of its package.",
+        class = "block_package_invalid"
+      )
+    }
+
     uid <- coal(uid, sub("^new_", "", ctor), fail_all = FALSE)
     ctor <- get(ctor, asNamespace(package), mode = "function")
-  } else if (!is.function(ctor) || not_null(package)) {
-    blockr_abort(
-      "A block constructor is registered as a function with no `package`, ",
-      "or by its name with its `package`.",
-      class = "block_constructor_invalid"
-    )
+
+  } else {
+
+    if (!is.function(ctor)) {
+      blockr_abort(
+        "Expecting a block constructor to be a function or the name of one.",
+        class = "block_constructor_invalid"
+      )
+    }
+
+    if (not_null(package)) {
+      blockr_abort(
+        "A constructor given as a function is from no package, so `package` ",
+        "is expected to be `NULL`.",
+        class = "block_package_invalid"
+      )
+    }
   }
 
   cls <- constructor_class(ctor)
@@ -474,13 +494,30 @@ register_package_blocks <- function(which = "all", package = pkg_name(),
   entries <- yaml::read_yaml(file)
 
   if (identical(which, "all")) {
+
     which <- names(entries)
-  } else if (!all(which %in% names(entries)) || anyDuplicated(which) > 0L) {
-    blockr_abort(
-      "Expecting `which` to name blocks that package {package} declares, ",
-      "each once.",
-      class = "package_blocks_invalid"
-    )
+
+  } else {
+
+    unknown <- setdiff(which, names(entries))
+
+    if (length(unknown)) {
+      blockr_abort(
+        "Package {package} declares no {qty(unknown)}block constructor{?s} ",
+        "{unknown}.",
+        class = "package_blocks_invalid"
+      )
+    }
+
+    dups <- unique(which[duplicated(which)])
+
+    if (length(dups)) {
+      blockr_abort(
+        "Expecting `which` to name each block constructor once, but {dups} ",
+        "{?is/are} named more than once.",
+        class = "package_blocks_invalid"
+      )
+    }
   }
 
   entries <- entries[which]
