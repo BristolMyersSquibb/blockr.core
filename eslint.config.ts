@@ -17,9 +17,9 @@ export default defineConfig(
   },
   {
     // Each directory of srcts is a module, and its index.ts names what it
-    // offers. Other modules import from that file alone. The directories types
-    // and testing are exempt, since they hold only declarations and test
-    // helpers.
+    // offers. Every file outside the module, a file directly in srcts
+    // included, imports from that file alone. The directories types and
+    // testing are exempt, since they hold only declarations and test helpers.
     files: ["srcts/**/*.ts"],
     rules: {
       "no-restricted-imports": [
@@ -27,7 +27,7 @@ export default defineConfig(
         {
           patterns: [
             {
-              regex: String.raw`^(\.\./)+(?!\.|(types|testing)/)[^/]+/(?!index\.ts$)`,
+              regex: String.raw`^(\.\.?/)+(?!\.|(types|testing)/)[^/]+/(?!index\.ts$)`,
               message: "Import another module through its index.ts.",
             },
           ],
