@@ -84,13 +84,29 @@ copy_served_file <- function(file, prefix, path, hash) {
     file.copy(file, dest, overwrite = TRUE)
   }
 
-  dir <- normalizePath(dir)
-
-  if (!identical(unname(shiny::resourcePaths()[prefix]), dir)) {
+  if (!identical(served_path(prefix), dir_path(dir))) {
     shiny::addResourcePath(prefix, dir)
   }
 
   invisible(dest)
+}
+
+# The directory that Shiny serves under `prefix`, or `NA` where it serves none,
+# in the form that `dir_path()` gives, since Shiny keeps a path on Windows with
+# forward slashes, where `normalizePath()` gives backslashes.
+served_path <- function(prefix) {
+
+  path <- unname(shiny::resourcePaths()[prefix])
+
+  if (is.na(path)) {
+    return(NA_character_)
+  }
+
+  dir_path(path)
+}
+
+dir_path <- function(dir) {
+  normalizePath(dir, winslash = "/", mustWork = FALSE)
 }
 
 served_dir <- function() {

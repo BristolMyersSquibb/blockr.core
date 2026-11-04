@@ -3,7 +3,7 @@ hash_of <- function(file) {
 }
 
 served_copy <- function(prefix, ...) {
-  file.path(normalizePath(file.path(served_dir(), prefix)), ...)
+  file.path(dir_path(file.path(served_dir(), prefix)), ...)
 }
 
 test_that("R serves a package's file under the package's name", {
@@ -23,7 +23,7 @@ test_that("R serves a package's file under the package's name", {
   # Shiny serves a directory of R's own under the package's name, which holds
   # the files that R names and nothing beside them.
   expect_identical(
-    unname(shiny::resourcePaths()["blockr.test"]),
+    served_path("blockr.test"),
     served_copy("blockr.test")
   )
   expect_identical(
@@ -75,7 +75,7 @@ test_that("R serves a file from no package at a URL of its own", {
     paste0("blockr-modules/", hash, "/letters-block.js")
   )
   expect_identical(
-    unname(shiny::resourcePaths()["blockr-modules"]),
+    served_path("blockr-modules"),
     served_copy("blockr-modules")
   )
 
