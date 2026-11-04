@@ -544,7 +544,6 @@ describe("opening a board", () => {
       status: "ok",
       packages: replied.packages,
       block_registry: replied.block_registry,
-      front_ends: replied.front_ends,
       startup_modules: replied.startup_modules,
       modules: replied.modules,
       renderers: replied.renderers,

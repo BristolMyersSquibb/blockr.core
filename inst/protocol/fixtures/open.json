@@ -119,19 +119,18 @@
             "requests": {}
           }
         },
-        "front_ends": {
-          "blockr.core-basic": {
-            "module": "blockr.core/basic.js?v=0f3d8e21",
-            "css": "blockr.core/basic.css?v=6a9b2c4e"
-          }
-        },
         "startup_modules": [
           {
             "package": "blockr.io",
             "module": "blockr.io/startup.js?v=9d1b3e66"
           }
         ],
-        "modules": {},
+        "modules": {
+          "blockr.core-basic": {
+            "module": "blockr.core/basic.js?v=0f3d8e21",
+            "css": "blockr.core/basic.css?v=6a9b2c4e"
+          }
+        },
         "renderers": {
           "blockr.core-table_output": {
             "module": "blockr.core/basic-table.js?v=b7e2a915",

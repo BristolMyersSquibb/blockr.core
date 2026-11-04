@@ -102,3 +102,12 @@ test_that("declaring a module is checked", {
     class = "module_invalid"
   )
 })
+
+test_that("core declares its basic front-end as a module it offers", {
+
+  entry <- get_module("blockr.core-basic")
+
+  expect_identical(entry$name, "basic")
+  expect_identical(entry$package, "blockr.core")
+  expect_identical(entry$module, test_module("js/basic.js", "blockr.core"))
+})

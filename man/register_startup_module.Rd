@@ -20,21 +20,33 @@ module's entry invisibly, a list holding the declaring \code{package} and the
 \code{module}, and for \code{register_module()} the module's \code{id} and \code{name} too.
 }
 \description{
-Besides its block classes and its front-ends (see \code{\link[=register_front_end]{register_front_end()}}),
-a package declares in R, from its \code{.onLoad()}, the modules of its client
-that R serves: its startup module, at most one, with
+Besides its block classes (see \code{\link[=register_block]{register_block()}}) and its renderers (see
+\code{\link[=register_renderer]{register_renderer()}}), a package declares in R, from its \code{.onLoad()}, the
+modules of its client that R serves: its startup module, at most one, with
 \code{register_startup_module()}, for what has to run before anything mounts,
-such as registering the board options it ships, and the modules it offers
-other packages, each with \code{register_module()} under a name that gives it
-the ID \code{{pkg}-{name}}, as a registry id is, by which \code{host.module()} and
-\code{CoreApi.module()} reach it in the client. Each is made by \code{\link[=js_module]{js_module()}},
-whose package is the one that declares it, so that a module made outside a
-package is declared by none, and the stylesheet and JSON Schema beside a
-module need no declaration.
+such as defining its board classes and registering the board options it
+ships, and the modules it offers other packages, each with
+\code{register_module()} under a name that gives it the ID \code{{pkg}-{name}}, as a
+registry id is, by which \code{host.module()} and \code{CoreApi.module()} reach it in
+the client.
+Each is made by \code{\link[=js_module]{js_module()}}, whose package is the one that
+declares it, so that a module made outside a package is declared by none,
+and the stylesheet and JSON Schema beside a module need no declaration.
 Declaring a package's startup module, or a module under the same ID, again
 replaces it, as when a package is loaded again.
 }
 \details{
+A front-end is such a module: the module that draws the boards of a board
+class.
+The class's definition in JavaScript names its front-end by ID.
+So blockr.dock declares \code{register_module("dock", js_module("dock.js"))},
+and its definition of \code{dock_board} names \code{blockr.dock-dock}.
+Core declares its basic front-end the same way, as \code{blockr.core-basic},
+which core's board class \code{board} names.
+R declares nothing about a front-end but its module, and picks none.
+The client builds a board as the first class in its class vector that a
+loaded package defines, and that class's front-end draws the board.
+
 Next to its startup module, as \code{startup.schema.json} next to \code{startup.js}, a
 package puts one JSON Schema, laid out like the board, for the parts of the
 board that the package defines: the properties that its board classes add,
@@ -60,6 +72,9 @@ and declaring a startup module again keeps its place.
 # In the `.onLoad()` of a package such as blockr.dplyr
 register_startup_module(js_module("js/startup.js"))
 register_module("filter", js_module("js/filter.js"))
+
+# In the `.onLoad()` of blockr.dock, its front-end
+register_module("dock", js_module("js/dock.js"))
 }
 
 }

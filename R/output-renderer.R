@@ -243,6 +243,19 @@ output_renderer <- function(x, renderers) {
   res
 }
 
+# Of `taken`, the class that each renderer draws, by its id,
+# the id for the most specific class in `class` that has one,
+# as S3 dispatch picks a method, or `NULL` where no class has one.
+most_specific <- function(class, taken) {
+
+  hit <- names(taken)[match(class, taken)]
+  hit <- hit[!is.na(hit)]
+
+  if (length(hit)) {
+    hit[1L]
+  }
+}
+
 # Every renderer that R can pick, by ID: the defaults of the output classes
 # registered, and those that packages declare.
 known_renderers <- function() {

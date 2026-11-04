@@ -49,15 +49,15 @@ fixture_classes <- list(
 )
 
 # What the package blockr.test of the fixtures declares from its `.onLoad()`:
-# the front-end blockr.test-grid, which draws a `grid_board`, and a startup
-# module, beside which the package ships the schemas of the properties that
-# `grid_board` adds, here in the fixtures' blockr.test/, as it would install
-# them.
+# the module blockr.test-grid, the front-end that its board class
+# `grid_board` names in JavaScript, and a startup module, beside which
+# the package ships the schemas of the properties that `grid_board` adds,
+# here in the fixtures' blockr.test/, as it would install them.
 # The block registry and what packages declare are restored once `frame` ends,
 # so that the classes that writing a fixture registers go too.
 local_fixture_package <- function(frame = parent.frame()) {
 
-  envs <- list(block_registry, declared_front_ends, declared_startup_modules)
+  envs <- list(block_registry, declared_modules, declared_startup_modules)
   saved <- lapply(envs, as.list, all.names = TRUE)
 
   withr::defer(
@@ -68,11 +68,7 @@ local_fixture_package <- function(frame = parent.frame()) {
     envir = frame
   )
 
-  register_front_end(
-    "grid",
-    js_module("js/grid.js", package = "blockr.test"),
-    class = "grid_board"
-  )
+  register_module("grid", js_module("js/grid.js", package = "blockr.test"))
 
   register_startup_module(js_module("js/startup.js", package = "blockr.test"))
 

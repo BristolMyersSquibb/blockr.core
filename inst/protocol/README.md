@@ -51,11 +51,10 @@ R replies `ok` with:
 |---|---|
 | `protocol` | the version R speaks |
 | `capabilities` | the capabilities R speaks |
-| `packages` | the version of every package that R has loaded and that the reply's block classes, front-ends, startup modules, modules and renderers come from, by package |
+| `packages` | the version of every package that R has loaded and that the reply's block classes, startup modules, modules and renderers come from, by package |
 | `block_registry` | the block registry's entries, by registry id, each as `RegistryEntry` in [`srcts/types/registry.ts`](../../srcts/types/registry.ts) gives it ([Registration](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.5#registration)) |
-| `front_ends` | where each front-end's module is served, by the front-end's id, as `{ "module": "...", "css": "..." }` |
 | `startup_modules` | the startup module of every package R has loaded that declares one, each as `{ "package": "...", "module": "...", "css": "..." }`, in the order in which the packages declared them, which is the order in which their namespaces loaded, so that each package's comes after those of the packages its NAMESPACE imports ([Startup modules](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#startup-modules)) |
-| `modules` | the modules that packages offer each other, by id, as `front_ends` gives them |
+| `modules` | where each module that packages offer each other is served, by the module's id, as `{ "module": "...", "css": "..." }`, among them each front-end, which a board class names in the client ([Registering a front-end](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#registering-a-front-end)) |
 | `renderers` | the renderers R picked, by the renderer's id, each with the output class it draws in `class` or the board option in `option` ([Renderers](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#renderers)) |
 | `lock` | the blocks that a locked board leaves open, as `{ "open": ["f"] }`, or `null` where the app locks nothing ([Locked boards](#locked-boards)) |
 | `board` or `file` | the opening board: in `board`, the board that the app script built, as `OpeningBoard` in [`srcts/types/board.ts`](../../srcts/types/board.ts) gives it (below), and in `file`, the saved file that `serve()` was given, as R read it ([Files](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.4#files)) |
@@ -87,7 +86,8 @@ The client opens every board itself: a saved file that the user opens or that a 
 |---|---|
 | `packages` | the packages that the board names, as `["blockr.core", "blockr.io"]` |
 
-R loads the ones it has installed and not loaded yet, forgets every block ([Forgetting blocks](#forgetting-blocks)), and replies `ok` with the fields of the reply to a `hello` that say what it has loaded, `packages`, `block_registry`, `front_ends`, `startup_modules`, `modules` and `renderers`, for every package it has loaded, whichever request loaded it. A package it could not load is missing from `packages`, and a class it could not register from `block_registry`.
+R loads the ones it has installed and not loaded yet, forgets every block ([Forgetting blocks](#forgetting-blocks)), and replies `ok` with the fields of the reply to a `hello` that say what it has loaded, `packages`, `block_registry`, `startup_modules`, `modules` and `renderers`, for every package it has loaded, whichever request loaded it.
+A package it could not load is missing from `packages`, and a class it could not register from `block_registry`.
 
 The client then initializes the startup modules of the packages it has not, which define their board classes, and runs the migration of every package whose version the file records differs from the one R loaded.
 It builds the board as the first class in the board's class vector that a loaded package defines, and draws it with that class's front-end ([Board classes and attributes](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.2#board-classes-and-attributes)).

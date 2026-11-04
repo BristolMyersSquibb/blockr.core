@@ -2,7 +2,7 @@
 
   register_core_output_classes()
 
-  register_front_end("basic", js_module("js/basic.js"), class = "board")
+  register_module("basic", js_module("js/basic.js"))
 
   register_core_blocks()
 

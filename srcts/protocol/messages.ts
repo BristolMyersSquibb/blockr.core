@@ -90,12 +90,11 @@ export type HelloReply = {
   // of.
   packages: Record<string, string>;
   block_registry: Record<RegistryId, RegistryEntry>;
-  // Where each front-end's module is served, by the front-end's id.
-  front_ends: Record<string, { module: string; css?: string }>;
   // In the order in which the packages declared them, each package's after
   // those of the packages its NAMESPACE imports.
   startup_modules: { package: string; module: string; css?: string }[];
-  // The modules that packages offer each other, by id.
+  // Where each module that packages offer each other is served,
+  // by the module's id, a front-end's among them, which a board class names.
   modules: Record<string, { module: string; css?: string }>;
   // The renderers that R picked, by the renderer's id.
   renderers: Record<string, Renderer>;
@@ -135,7 +134,6 @@ export type OpenReply = Pick<
   | "status"
   | "packages"
   | "block_registry"
-  | "front_ends"
   | "startup_modules"
   | "modules"
   | "renderers"

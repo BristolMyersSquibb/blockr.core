@@ -468,17 +468,16 @@ proto_hello_reply <- function(block_registry, lock, ...,
 }
 
 # What the replies to `hello` and `open` of a core app say of the modules that
-# R serves.
+# R serves, among them core's basic front-end, which core's board class names.
 proto_served <- function(startup_modules = list()) {
   obj(
-    front_ends = obj(
+    startup_modules = startup_modules,
+    modules = obj(
       `blockr.core-basic` = obj(
         module = proto_js("basic.js", "0f3d8e21"),
         css = proto_js("basic.css", "6a9b2c4e")
       )
     ),
-    startup_modules = startup_modules,
-    modules = obj(),
     renderers = proto_renderers()
   )
 }

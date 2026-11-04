@@ -39,7 +39,6 @@ const opened: OpenReply = {
   status: "ok",
   packages: hello.packages,
   block_registry: hello.block_registry,
-  front_ends: hello.front_ends,
   startup_modules: [],
   modules: {},
   renderers: hello.renderers,
