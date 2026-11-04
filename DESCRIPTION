@@ -15,7 +15,15 @@ Authors@R:
              role = c("aut"),
              email = "christoph@cynkra.com"),
       person(family = "Bristol Myers Squibb",
-             role = "fnd")
+             role = "fnd"),
+      person(given = "Rich",
+             family = "FitzJohn",
+             role = "cph",
+             comment = "Word lists of the ids package, in inst/ids"),
+      person(given = "Grant",
+             family = "Forrest",
+             role = "cph",
+             comment = "Word lists of adjective-adjective-animal, in inst/ids")
     )
 Description: A framework for data manipulation and visualization using a
     web-based point and click user interface where analysis pipelines are decomposed into re-usable and parameterizable blocks.
@@ -52,7 +60,6 @@ Suggests:
     knitr,
     rmarkdown,
     quarto,
-    ids,
     ellmer,
     typedjson,
     spelling,

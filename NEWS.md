@@ -22,6 +22,13 @@
   given, a board's, a block's, a link's or a stack's, is a string that is
   neither empty nor made of digits alone, and the constructors refuse any
   other, naming it (#427).
+* The IDs that `rand_names()` draws take the shape in which the client mints
+  them, an adjective and an animal such as `calm_heron`, from words of at most
+  six letters that blockr.core ships in `inst/ids`, picked from those of the
+  ids package, so that an ID looks the same whichever side drew it. Where every
+  draw is taken, it counts the ID up, as `calm_heron_2`, where it failed
+  before. Its `id_fun` argument goes, with the blockr option `rand_id` and
+  `sample_letters()`, and the ids package is no longer suggested (#429).
 * A block class is a value made by `new_block_class()`, holding what every
   block of the class shares: its data inputs, the `expr` from whose result
   interpolation makes the block expression, the UI module `js_module()` names,
