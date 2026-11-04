@@ -428,6 +428,9 @@ arg_object <- function(..., description = NULL, required = TRUE) {
     )
   }
 
+  nms <- coal(nms, character())
+  names(fields) <- nms
+
   req <- nms[lgl_ply(fields, function(x) isTRUE(attr(x, "blockr_required")))]
 
   arg_node(
