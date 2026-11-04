@@ -31,6 +31,17 @@ block_registry <- new.env()
 #' arg specs default to every state arg, and their examples are checked by
 #' calling `expr` with them.
 #'
+#' R sends the client what it needs of each entry, in its reply to `hello` and
+#' to every `open`, without building a block: the metadata, with `link` as
+#' `url`, the data inputs, where R serves the UI module, the schema, the state
+#' a new block starts with, the arg specs and the requests. R serves the
+#' module, and the stylesheet beside it, at a URL that holds a hash of the
+#' file's content, so that no browser runs a changed file from its cache. It
+#' writes the starting state by the schema of the block's state, and each arg
+#' spec's example by the arg's type. So registration refuses a class whose
+#' starting state is not a plain value, as a block's state has to be (see
+#' [blockr_ser()]), and refuses an arg spec whose example is not one either.
+#'
 #' Blocks can be registered (i.e. added to the registry) via `register_block()`
 #' with scalar-valued arguments and `register_blocks()`, where arguments may be
 #' vector-valued, while de-registration (or removal) is handled via
@@ -218,6 +229,10 @@ register_block <- function(ctor, name, description, uid = NULL,
     )
   }
 
+  state <- expr_state(cls, list())
+
+  check_sent_values(cls, state, arguments)
+
   entry <- new_registry_entry(
     id = id,
     name = name,
@@ -237,12 +252,34 @@ register_block <- function(ctor, name, description, uid = NULL,
     ui = cls[["ui"]],
     schema = class_schema(cls),
     requests = lapply(cls[["requests"]], request_entry, cls),
-    state = expr_state(cls, list())
+    state = state
   )
 
   assign(id, entry, envir = block_registry)
 
   invisible(entry)
+}
+
+# R sends the client the state a new block of a class starts with and the
+# example of each of its arg specs, which a block's state may hold, so each has
+# to be a plain value, as the JSON of a board holds it.
+check_sent_values <- function(cls, state, arguments) {
+
+  name <- cls[["class"]][1L]
+
+  plain_value(
+    state,
+    paste("The state a new block of class", name, "starts with")
+  )
+
+  for (arg in names(arguments)) {
+    plain_value(
+      arg_spec_example(arguments[[arg]]),
+      paste("The example of arg", arg, "of block class", name)
+    )
+  }
+
+  invisible()
 }
 
 registry_id <- function(name, package) {
