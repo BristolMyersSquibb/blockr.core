@@ -22,7 +22,6 @@ import {
   messageOf,
   own,
   packageOf,
-  report,
   without,
 } from "../util/index.ts";
 import { check, isClass } from "./check.ts";
@@ -330,11 +329,11 @@ function remove(board: Board, gone: readonly string[], built: Built): Board {
 // The values of the board options that the board's class and its parents
 // require and the board lacks: each its definition's default, or what the
 // function that is its default resolves with.
-// A board option that no loaded package defines, or whose default fails or
-// does not fit its schema, is an error that names it.
-// The store reports that error and opens the board without the value, since
-// whatever needs the board option takes its default where the board holds
-// none.
+// A board option that no loaded package defines refuses the board, before the
+// store calls any default, and so does a default that fails or does not fit
+// its schema.
+// What the class requires the board option for would fail later otherwise,
+// where its cause is harder to see.
 export async function required(
   board: Board,
   built: Built,
@@ -344,36 +343,40 @@ export async function required(
   for (const { def } of built.chain) {
     for (const id of def.options ?? []) if (!by.has(id)) by.set(id, def.class);
   }
-  const lacking = [...by.keys()].filter((id) => !Object.hasOwn(board.options, id));
+  const lacking = [...by]
+    .filter(([id]) => !Object.hasOwn(board.options, id))
+    .map(([id, cls]) => ({ id, cls, option: registrations.option(id) }));
 
+  const missing = lacking.filter(({ option }) => option === undefined);
+  if (missing.length > 0) {
+    throw new StoreError(
+      refused,
+      missing.map(
+        ({ id, cls }) =>
+          `The board class "${cls}" requires the board option "${id}", which no loaded package defines.`,
+      ),
+    );
+  }
+
+  const defined = lacking.flatMap(({ id, cls, option }) =>
+    option === undefined ? [] : [{ id, cls, option }],
+  );
   const values = await Promise.all(
-    lacking.map(async (id): Promise<[OptionId, Json] | undefined> => {
-      const cls = by.get(id) ?? "";
-      const option = registrations.option(id);
-      if (option === undefined) {
-        report(
-          new Error(
-            `The board option "${id}", which the board class "${cls}" requires, is defined by no package loaded.`,
-          ),
-        );
-        return undefined;
-      }
+    defined.map(async ({ id, cls, option }): Promise<[OptionId, Json] | string> => {
+      const what = `The default of the board option "${id}", which the board class "${cls}" requires,`;
       let value: Json;
       try {
         const given = option.def.default;
         value = typeof given === "function" ? await given() : given;
       } catch (error) {
-        report(new Error(`The default of the board option "${id}" failed: ${messageOf(error)}`, { cause: error }));
-        return undefined;
+        return `${what} failed: ${messageOf(error)}`;
       }
       const failures = option.validate(value);
-      if (failures.length > 0) {
-        report(new Error(`The default of the board option "${id}" ${failures.join(" ")}`));
-        return undefined;
-      }
-      return [id, value];
+      return failures.length > 0 ? `${what} ${failures.join(" ")}` : [id, value];
     }),
   );
 
-  return Object.fromEntries(values.filter((entry) => entry !== undefined));
+  const failures = values.filter((entry) => typeof entry === "string");
+  if (failures.length > 0) throw new StoreError(refused, failures);
+  return Object.fromEntries(values.filter((entry) => typeof entry !== "string"));
 }

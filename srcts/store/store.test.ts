@@ -7,7 +7,6 @@ import type { ErrorReply, HelloReply, OpenReply } from "../protocol/index.ts";
 import { coreOptions, fakeR, hello, loaded, reply } from "../testing/store.ts";
 import type { Block, Board, OpeningBoard, SavedBoard } from "../types/board.ts";
 import type { JsonSchema } from "../types/json.ts";
-import { messageOf } from "../util/index.ts";
 import { ROUNDS } from "./expand.ts";
 import { createStore, isId, sentenceCase, StoreError } from "./index.ts";
 import type {
@@ -214,27 +213,6 @@ function file(
     },
   };
   return JSON.stringify(saved);
-}
-
-// What the errors that the store reported while `run` ran say.
-async function reports(run: () => Promise<unknown>): Promise<string[]> {
-  const reported: (() => void)[] = [];
-  const queue = vi.spyOn(globalThis, "queueMicrotask").mockImplementation((fn) => {
-    reported.push(fn);
-  });
-  try {
-    await run();
-  } finally {
-    queue.mockRestore();
-  }
-  return reported.map((fn) => {
-    try {
-      fn();
-      return "";
-    } catch (error) {
-      return messageOf(error);
-    }
-  });
 }
 
 describe("opening a board", () => {
@@ -485,7 +463,28 @@ describe("opening a board", () => {
     expect(store.canUndo()).toBe(false);
   });
 
-  test("reports a board option that the class requires and no package defines, or whose default fails, and opens the board without it", async () => {
+  test("refuses a board whose class requires a board option that no package defines, naming both, before it calls a default", async () => {
+    const read = vi.fn(() => Promise.resolve(25));
+    const store = await opened((store) => {
+      store.options.register({
+        id: "page_rows",
+        label: "Rows a page shows",
+        category: "Table options",
+        schema: { type: "integer" },
+        default: read,
+      });
+      store.register({ ...dock, options: ["view_tabs", "page_rows"] });
+    });
+    const board = store.board();
+
+    await expect(store.open(file({ class: ["dock_board", "board"] }))).rejects.toThrow(
+      'The store refused to open the board\n- The board class "dock_board" requires the board option "view_tabs", which no loaded package defines.',
+    );
+    expect(read).not.toHaveBeenCalled();
+    expect(store.board()).toBe(board);
+  });
+
+  test("refuses a board where the default of a board option that its class requires fails or does not fit its schema", async () => {
     const store = await opened((store) => {
       store.options.register({
         id: "page_rows",
@@ -494,16 +493,25 @@ describe("opening a board", () => {
         schema: { type: "integer" },
         default: () => Promise.reject(new Error("R has no page_rows.")),
       });
-      store.register({ ...dock, options: ["view_tabs", "page_rows"] });
+      store.options.register({
+        id: "view_tabs",
+        label: "View tabs",
+        category: "Dock options",
+        schema: { type: "boolean" },
+        default: () => Promise.resolve("yes"),
+      });
+      store.register({ ...dock, options: ["page_rows", "view_tabs"] });
     });
+    const board = store.board();
 
-    const said = await reports(() => store.open(file({ class: ["dock_board", "board"] })));
-
-    expect(said).toEqual([
-      'The board option "view_tabs", which the board class "dock_board" requires, is defined by no package loaded.',
-      'The default of the board option "page_rows" failed: R has no page_rows.',
-    ]);
-    expect(store.board().options).toEqual({ n_rows: 50, show_conditions: ["warning", "error"] });
+    const refused = store.open(file({ class: ["dock_board", "board"] }));
+    await expect(refused).rejects.toThrow(
+      'The default of the board option "page_rows", which the board class "dock_board" requires, failed: R has no page_rows.',
+    );
+    await expect(refused).rejects.toThrow(
+      'The default of the board option "view_tabs", which the board class "dock_board" requires, fails its schema: Instance type "string" is invalid. Expected "boolean".',
+    );
+    expect(store.board()).toBe(board);
   });
 
   test("refuses a board whose class is no class vector, before R loads anything", async () => {
