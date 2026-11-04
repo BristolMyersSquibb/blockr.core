@@ -8,6 +8,8 @@
 //    parameters `args` gives, and the values of the board options it names.
 // 3. Where R replies `missing`, since a revision moved on before R ran the
 //    request, the host has the inputs evaluated again and asks again.
+// Once another board opens or the block leaves the board, the request stops,
+// whichever step it is at, so that nothing of it reaches the next board.
 // What core keeps of the answers is ./answers.ts's.
 
 import type { Condition, ReplyStatus } from "../protocol/messages.ts";
@@ -54,6 +56,10 @@ export interface RequestDeps {
   readonly store: Pick<Store, "board">;
   readonly scheduler: Pick<Scheduler, "evaluate" | "inputs">;
   readonly answers: Answers;
+  // Whether the host is still bound to its board and its block, and why not
+  // where it is not.
+  readonly bound: () => boolean;
+  readonly unboundError: () => Error;
 }
 
 // Sends the request `name` of the block's class, `entry`, and resolves with
@@ -78,6 +84,7 @@ export async function blockRequest(
 
   for (let attempt = 1; ; attempt++) {
     const reads = await readsOf(deps, block, entry, name, spec.inputs, opts.signal);
+    if (!deps.bound()) throw deps.unboundError();
 
     // The state and the board options, as the board holds them once the
     // inputs are evaluated.
@@ -115,6 +122,7 @@ export async function blockRequest(
         ...(opts.progress === undefined ? {} : { progress: opts.progress.bind(opts) }),
       },
     );
+    if (!deps.bound()) throw deps.unboundError();
 
     switch (reply.status) {
       case "ok":

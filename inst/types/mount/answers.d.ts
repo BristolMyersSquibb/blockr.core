@@ -16,6 +16,7 @@ export interface Answers {
         signal?: AbortSignal;
         progress?: (note: ProgressNote) => void;
     }): Promise<Answer>;
+    clear(): void;
     size(): number;
 }
 export declare function createAnswers(scheduler: Pick<Scheduler, "request" | "status" | "subscribe">): Answers;

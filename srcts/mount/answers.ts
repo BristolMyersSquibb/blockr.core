@@ -13,6 +13,9 @@
 //   module takes to ask again.
 // - Core keeps nothing of a volatile request, and neither keeps nor merges an
 //   action, which R runs once per call, or a request that sends a file.
+// - Core keeps answers for one opening of a board. Once another board opens,
+//   it drops them and gives up the requests on their way to R, as a page that
+//   starts with that board holds none.
 
 import type { ProgressNote } from "../protocol/client.ts";
 import type { BlockClassRequest, Reply } from "../protocol/messages.ts";
@@ -47,6 +50,9 @@ export interface Answers {
     ask: Ask,
     options?: { signal?: AbortSignal; progress?: (note: ProgressNote) => void },
   ): Promise<Answer>;
+  // Drops every answer and gives up every request on its way to R, as
+  // another board opens.
+  clear(): void;
   // How many answers core keeps, for tests.
   size(): number;
 }
@@ -192,6 +198,13 @@ export function createAnswers(scheduler: Pick<Scheduler, "request" | "status" | 
       }
       const flight = (key === undefined ? undefined : flights.get(key)) ?? start(ask, key);
       return join(flight, key, signal, progress);
+    },
+    clear() {
+      kept.clear();
+      last.clear();
+      const given = [...flights.values()];
+      flights.clear();
+      for (const flight of given) flight.controller.abort();
     },
     size: () => kept.size,
   };

@@ -37,9 +37,9 @@ export interface Mounts {
   // returned cleanup runs. It throws where the board holds no such block.
   mountBlock(el: HTMLElement, block: BlockId): () => void;
   // Adds the board options to the board, each with its definition's default
-  // where the board lacks it. Core calls a default that is a function once
-  // and keeps its result. The origin of what it adds is "blockr.core", so that
-  // the user's undo leaves it.
+  // where the board lacks it. Core calls a default that is a function once per
+  // opening of a board and keeps its result. The origin of what it adds is
+  // "blockr.core", so that the user's undo leaves it.
   addOptions(ids: readonly OptionId[], by: string): Promise<void>;
 }
 
@@ -61,14 +61,19 @@ export function createMounts(options: MountsOptions): Mounts {
   const { store, commands, scheduler, loader } = options;
   const answers = createAnswers(scheduler);
 
-  // How many boards the store has opened, so that a host knows whether the
-  // board it was made on is still the store's.
+  // What core keeps for one opening of a board, which it drops once another
+  // board opens, as a page that starts with that board holds none of it: the
+  // answers of requests and the defaults of board options. How many boards
+  // the store has opened tells a host whether its board is still the
+  // store's.
+  const defaults = new Map<OptionId, Promise<Json>>();
   let openings = 0;
   store.subscribe((change) => {
-    if ("opened" in change) openings++;
+    if (!("opened" in change)) return;
+    openings++;
+    answers.clear();
+    defaults.clear();
   });
-
-  const defaults = new Map<OptionId, Promise<Json>>();
 
   function defaultOf(id: OptionId, def: { default: Json | (() => Promise<Json>) }): Promise<Json> {
     let value = defaults.get(id);
@@ -81,6 +86,7 @@ export function createMounts(options: MountsOptions): Mounts {
   }
 
   async function addOptions(ids: readonly OptionId[], by: string): Promise<void> {
+    const opening = openings;
     await Promise.all(
       ids.map(async (id) => {
         if (Object.hasOwn(store.board().options, id)) return;
@@ -96,8 +102,10 @@ export function createMounts(options: MountsOptions): Mounts {
           report(new Error(`The default of the board option "${id}" failed: ${messageOf(error)}`, { cause: error }));
           return;
         }
-        // Something may have set it while the default resolved.
-        if (Object.hasOwn(store.board().options, id)) return;
+        // Something may have set it while the default resolved, and another
+        // board may have opened, which takes the board options its own mounts
+        // require.
+        if (openings !== opening || Object.hasOwn(store.board().options, id)) return;
         try {
           await commands.run("blockr.core-set_option", { id, value }, CORE);
         } catch (error) {
@@ -401,7 +409,7 @@ function blockHost(deps: HostDeps): MountedHost {
       opts: HostRequestOpts = {},
     ): Promise<T | Blob> {
       if (!bound()) return Promise.reject(unboundError());
-      return blockRequest(deps, block, entry, name, args, opts) as Promise<T | Blob>;
+      return blockRequest({ ...deps, bound, unboundError }, block, entry, name, args, opts) as Promise<T | Blob>;
     },
     async evaluate(params) {
       if (!bound()) throw unboundError();

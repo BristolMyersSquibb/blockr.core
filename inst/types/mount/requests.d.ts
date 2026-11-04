@@ -26,5 +26,7 @@ export interface RequestDeps {
     readonly store: Pick<Store, "board">;
     readonly scheduler: Pick<Scheduler, "evaluate" | "inputs">;
     readonly answers: Answers;
+    readonly bound: () => boolean;
+    readonly unboundError: () => Error;
 }
 export declare function blockRequest(deps: RequestDeps, block: BlockId, entry: RegistryEntry, name: string, given: Readonly<Record<string, Json | undefined>>, opts: HostRequestOpts): Promise<Json | Blob>;

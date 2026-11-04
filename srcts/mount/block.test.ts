@@ -285,7 +285,7 @@ describe("board options", () => {
     expect(store.canUndo("blockr.core")).toBe(true);
   });
 
-  test("take a default that is a function, which core calls once per page", async () => {
+  test("take a default that is a function, which core calls once per opening of a board", async () => {
     const ui = recorder(["zoom"]);
     let calls = 0;
     const lazy: Option = {
@@ -302,12 +302,36 @@ describe("board options", () => {
     await tick();
     expect(store.board().options.zoom).toBe(2);
 
-    // A board that opens later lacks it, and gets the kept default.
+    expect(calls).toBe(1);
+
+    // A board that opens later lacks it, and gets it as a page that starts
+    // with that board would.
     await store.open(hello);
     mounts.mountBlock(document.createElement("div"), "b");
     await tick();
     expect(store.board().options.zoom).toBe(2);
-    expect(calls).toBe(1);
+    expect(calls).toBe(2);
+  });
+
+  test("whose default resolves once another board opened land on neither board", async () => {
+    const ui = recorder(["zoom"]);
+    const pending: ((value: number) => void)[] = [];
+    const lazy: Option = { ...zoom, default: () => new Promise((done) => pending.push(done)) };
+    const { store, mounts } = await setup({ [HEAD]: ui.exports }, { options: [lazy] });
+
+    mounts.mountBlock(document.createElement("div"), "b");
+    await tick();
+    await store.open(hello);
+    pending[0]?.(2);
+    await tick();
+    expect(Object.hasOwn(store.board().options, "zoom")).toBe(false);
+    expect(ui.mounts).toHaveLength(0);
+
+    mounts.mountBlock(document.createElement("div"), "b");
+    await tick();
+    pending[1]?.(3);
+    await tick();
+    expect(store.board().options.zoom).toBe(3);
   });
 
   test("keep a value set while the default resolves", async () => {
@@ -855,6 +879,59 @@ describe("a request", () => {
     void host.request("listing");
     await tick();
     expect(requests(r)).toHaveLength(2);
+  });
+
+  test("is kept for one opening of a board, as a page that starts with the next board holds none", async () => {
+    const dataset = recorder();
+    const { r, store, mounts } = await setup({ "blockr.core/dataset-block.js?v=5e0c8b1d": dataset.exports });
+    mounts.mountBlock(document.createElement("div"), "a");
+    await tick();
+    const first = dataset.host().request("datasets");
+    await tick();
+    r.reply({ id: lastRequest(r).id, status: "ok", value: ["iris"] });
+    await first;
+    await expect(dataset.host().request("datasets")).resolves.toEqual(["iris"]);
+    expect(requests(r)).toHaveLength(1);
+
+    await store.open(hello);
+    mounts.mountBlock(document.createElement("div"), "a");
+    await tick();
+    void dataset.host(1).request("datasets");
+    await tick();
+
+    expect(requests(r)).toHaveLength(2);
+  });
+
+  test("stops once another board opens, and asks nothing of the next board, though it holds a block of the same id", async () => {
+    const { r, store, host } = await mounted();
+    const max = host.request("n_max");
+    const stopped = expect(max).rejects.toThrow('Another board opened, so the host of block "b" no longer changes it.');
+    await evaluateAll(r);
+    const sent = lastRequest(r);
+
+    await store.open(withRequests);
+    expect(r.cancels()).toEqual([sent.id]);
+    r.reply({ id: sent.id, status: "cancelled" });
+    await stopped;
+    await evaluateAll(r);
+
+    expect(requests(r)).toHaveLength(1);
+  });
+
+  test("that R answers missing stops once another board opens, rather than asking again on it", async () => {
+    const { r, store, scheduler, host } = await mounted();
+    const max = host.request("n_max");
+    const stopped = expect(max).rejects.toThrow("Another board opened.");
+    await evaluateAll(r);
+    const sent = lastRequest(r);
+
+    r.reply({ id: sent.id, status: "missing", missing: [{ block: "a", revision: revisionOf(scheduler, "a") }] });
+    await tick();
+    await store.open(withRequests);
+    await stopped;
+    await evaluateAll(r);
+
+    expect(requests(r)).toHaveLength(1);
   });
 
   test("of a request the class lacks, or of a block that left the board, rejects", async () => {
