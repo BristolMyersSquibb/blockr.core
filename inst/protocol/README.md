@@ -60,7 +60,7 @@ R replies `ok` with:
 | `board` or `file` | the opening board: in `board`, the board that the app script built, as `OpeningBoard` in [`srcts/types/board.ts`](../../srcts/types/board.ts) gives it (below), and in `file`, the saved file that `serve()` was given, as R read it ([Files](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.4#files)) |
 | `bound` | only for a block that `serve()` serves alone, the inputs that R binds itself to the data it was given, as `["data"]`, which the client counts as linked and names in a recipe by the input alone ([Data passed to `serve()`](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.3#data-passed-to-serve)) |
 
-A module's URL, like its stylesheet's in `css`, which a module without one leaves out, is R's to choose, and holds a hash of the file's content, so that a changed file is never read from a browser's cache. The client imports each URL once, and loads the stylesheet with its module.
+A module's URL, like its stylesheet's in `css`, which a module without one leaves out, is R's to choose, and holds a hash of the file's content, so that a changed file is never read from a browser's cache. The client imports each URL once, and loads the stylesheet with its module. Where R finds no file for a module, it sends a URL at which nothing is served, so that the client reports the module as failing to load where it would mount it.
 
 Both sides use only the capabilities that both named, so that a capability can arrive without a major version:
 
@@ -185,6 +185,8 @@ R calls a block class's request with each of its inputs bound to the result the 
 
 R replies `ok` with the answer in `value`, which no schema describes, so that R writes it with every vector as an array, a length-one vector included, as `[150]`, and a module reads a single value as `answer[0]`. An answer that is a file, as a download is, comes as the reply's binary body, with no `value`.
 
+Where R resolves a request of an output class to one that the class makes volatile, it marks its reply with `"volatile": true`, and the client keeps no answer so marked. The client cannot tell such a request before it asks: an output names its renderer rather than its class vector, and a subclass may replace a volatile request of its class with one that is not. A renderer's own request is never volatile, and a block class's request needs no mark, since the block registry says which of them are volatile.
+
 What R runs for the client comes in these flavors, which differ in who defines and calls them, whether the client keeps what they answer, whether they may write, and what a locked board allows ([Locked boards](#locked-boards)):
 
 | Flavor | Defined by | Called by | Kept by the client | May write | On a locked board |
@@ -192,7 +194,7 @@ What R runs for the client comes in these flavors, which differ in who defines a
 | Evaluation | The block's class, through its `expr` and `block_eval()` | The scheduler, for demand and one-time evaluations | Its reply sets the block's status, and R keeps the result | No | From the block expression R built at startup, for a locked block |
 | Evaluation with parameters | A `block_eval()` method of the block's class, such as the write block's | A one-time evaluation with parameters, such as a save button's | No, it runs once per call | Yes | With its parameters only for a block left open |
 | Output | The coercion of the output class that the block's class names | Core, for whatever draws the output | The last output, by revision, board options, `info` and parameters | No | With the opening board option values |
-| Output class's request | The output class, as the package that defines it registers it | A renderer of the class, through its output host | Its answer, by block, revision, name, args, board options and parameters, unless the class makes it volatile | No | With the opening board option values |
+| Output class's request | The output class, as the package that defines it registers it | A renderer of the class, through its output host | Its answer, by block, revision, name, args, board options and parameters, unless R marks its reply volatile | No | With the opening board option values |
 | Renderer's request | A renderer of the output class, as its package declares it | That renderer, through its output host | Its answer, by renderer, block, revision, name, args, board options and parameters | No | With the opening board option values |
 | Block class's request | The class's `requests` | The block's UI, through its host | Its answer, by registry id, name, args, board options and the revisions read | No | With a locked block's opening state and the opening board option values |
 | Volatile request | A request that the class makes with `new_block_request(volatile = TRUE)` | The block's UI, through its host | No | No | As a block class's request |
@@ -302,6 +304,7 @@ Each file in [`fixtures/`](fixtures/) holds a message that the client sends, in 
 | [`hello-locked`](fixtures/hello-locked.json) | the handshake of a locked app, which ignores the packages that the `hello` names |
 | [`hello-block`](fixtures/hello-block.json) | the handshake of an app that serves a block alone, with `bound` |
 | [`hello-file`](fixtures/hello-file.json) | the handshake of an app that serves a saved file |
+| [`hello-declared`](fixtures/hello-declared.json) | the handshake of an app whose script loaded a package that declares modules and renderers, with what R builds from what is registered and declared, and the URLs it serves each file at |
 | [`open`](fixtures/open.json) | loading the packages of a board that the client opens |
 | [`open-locked`](fixtures/open-locked.json) | an `open` that a locked board refuses |
 | [`blockr-options`](fixtures/blockr-options.json) | reading blockr options, one set as an R option, one through an environment variable and one not set |
@@ -320,6 +323,7 @@ Each file in [`fixtures/`](fixtures/) holds a message that the client sends, in 
 | [`request-extension`](fixtures/request-extension.json) | an extension's request |
 | [`request-progress`](fixtures/request-progress.json) | progress notes, and an answer that is a file |
 | [`request-output`](fixtures/request-output.json) | an output class's request that carries a file |
+| [`request-output-volatile`](fixtures/request-output-volatile.json) | an output class's request that R marks volatile in its reply |
 | [`request-renderer`](fixtures/request-renderer.json) | a renderer's own request |
 | [`output`](fixtures/output.json) | a table output |
 | [`output-plot`](fixtures/output-plot.json) | a plot output with its PNG |

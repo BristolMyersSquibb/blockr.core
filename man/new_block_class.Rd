@@ -106,7 +106,10 @@ and any other value fails the check too. No input has a default. A class
 names its UI module with \code{js_module()}, which keeps the module's path in the
 package's \verb{inst/} and the package whose code calls it, for R to resolve when
 it serves the module, and which resolves the path against the working
-directory outside a package. A class further takes a
+directory outside a package. R serves a package's module under the
+package's name, at its path in the package, and a module from outside a
+package at a URL of its own, read from the path given, each at a URL that
+holds a hash of the file's content. A class further takes a
 named list of \code{requests}, for what its UI asks of R, each a function or made
 by \code{\link[=new_block_request]{new_block_request()}}, which names the board options it reads, and the
 coercion that makes an output from a result, as \code{output}. A field a class

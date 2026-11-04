@@ -322,10 +322,12 @@ export interface RendererRequest {
   extension?: never;
 }
 
-// An answer as R writes it, every vector as an array, or a file.
+// An answer as R writes it, every vector as an array, or a file. R marks with
+// `volatile` its reply to a request of an output class that it resolved to one
+// that the class makes volatile, whose answer the client never keeps.
 export type RequestReply =
-  | { id: string; status: "ok"; value: Json; body?: never }
-  | { id: string; status: "ok"; body: Body; value?: never };
+  | { id: string; status: "ok"; value: Json; body?: never; volatile?: true }
+  | { id: string; status: "ok"; body: Body; value?: never; volatile?: true };
 
 // Outputs
 
