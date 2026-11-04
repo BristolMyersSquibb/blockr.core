@@ -1,5 +1,5 @@
-import type { Client, HelloReply, OpenReply } from "../protocol/index.ts";
-import type { BlockId, Board, RegistryId } from "../types/board.ts";
+import type { HelloReply } from "../protocol/index.ts";
+import type { BlockId, Board, JsonBoard, RegistryId } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import type { Delta, Origin } from "./delta.ts";
 import type { Dropped } from "./open.ts";
@@ -16,7 +16,8 @@ export interface Store {
     hasBoard(): boolean;
     subscribe(fn: (change: Change, board: Board) => void): () => void;
     apply(delta: Delta | readonly Delta[], origin?: Origin): void;
-    open(saved: string | HelloReply): Promise<Dropped[]>;
+    open(given: string | HelloReply): Promise<Dropped[]>;
+    jsonBoard(): JsonBoard;
     undo(origin?: Origin): void;
     redo(origin?: Origin): void;
     canUndo(origin?: Origin): boolean;
@@ -35,7 +36,6 @@ export interface Store {
     }): number | undefined;
 }
 export interface StoreOptions {
-    readonly client: Pick<Client, "request">;
-    readonly loaded?: (reply: OpenReply, classes: readonly string[]) => void | Promise<void>;
+    readonly loaded?: (reply: HelloReply, classes: readonly string[]) => void | Promise<void>;
 }
-export declare function createStore(options: StoreOptions): Store;
+export declare function createStore(options?: StoreOptions): Store;

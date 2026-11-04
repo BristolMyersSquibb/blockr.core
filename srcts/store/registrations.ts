@@ -10,7 +10,6 @@ import type {
   Block,
   BlockId,
   Board,
-  OpeningBoard,
   OptionId,
   RegistryId,
 } from "../types/board.ts";
@@ -29,7 +28,7 @@ import type { Delta, Patch } from "./delta.ts";
 export interface BoardClass {
   // The R class it defines, as "dock_board".
   readonly class: string;
-  // The package that defines it, as "blockr.dock", whose version a saved file
+  // The package that defines it, as "blockr.dock", whose version a JSON board
   // records, since the R class names no package.
   readonly package: string;
   // The class it extends, as "board", which a package registers before it.
@@ -89,7 +88,7 @@ export interface Options {
   registered(): Readonly<Record<OptionId, Option>>;
 }
 
-// What a saved board holds that migrations convert:
+// What a JSON board holds that migrations convert:
 // the properties that board classes add, as the file holds them,
 // and every block's state, with its class.
 export interface Saved {
@@ -99,10 +98,10 @@ export interface Saved {
   >;
 }
 
-// A package's migration, which rewrites what a file holds,
+// A package's migration, which rewrites what a JSON board holds,
 // as the migrations before it left it, with its package's part in
-// today's shape, given the version of the package that saved the file,
-// or null where the file records none.
+// today's shape, given the version of the package that saved it,
+// or null where the JSON board records none.
 // Migrations run one after another,
 // in the order in which packages declare their startup modules,
 // which puts each package's after those of the packages it imports,
@@ -115,7 +114,8 @@ export interface Saved {
 // A migration converts what older versions of its package saved into
 // today's shape, and changes nothing on a board in today's shape,
 // so that a board saved and opened again comes back as it was,
-// though a file that records no version of a package runs its migration.
+// though a JSON board that records no version of a package runs its migration,
+// unless every package that it records is at the version R loaded.
 // What a board reads where nothing set a value comes from
 // what packages register instead, a property's `default`,
 // an attribute's `initial` and a board option's `default`.
@@ -375,12 +375,12 @@ function built(chain: readonly CheckedClass[]): Built {
 
 // The board taken as a record, by which code that does not import the types of
 // its class's properties reads them.
-export function recordOf(board: Board | OpeningBoard): Readonly<Record<string, unknown>> {
+export function recordOf(board: Board): Readonly<Record<string, unknown>> {
   return board as unknown as Readonly<Record<string, unknown>>;
 }
 
 // The properties of the board beside core's, by name.
-export function propertiesOf(board: Board | OpeningBoard): Readonly<Record<string, unknown>> {
+export function propertiesOf(board: Board): Readonly<Record<string, unknown>> {
   return Object.fromEntries(
     Object.entries(recordOf(board)).filter(([name]) => !CORE_PROPERTIES.includes(name)),
   );

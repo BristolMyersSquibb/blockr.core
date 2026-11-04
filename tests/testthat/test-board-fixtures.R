@@ -2,7 +2,7 @@ test_that("every board fixture has its R values", {
   expect_setequal(names(board_fixture_values()), board_fixtures())
 })
 
-test_that("R writes the board of every fixture as the fixture holds it", {
+test_that("R writes the JSON board of every fixture as the fixture holds it", {
 
   local_fixture_package()
 
@@ -10,12 +10,14 @@ test_that("R writes the board of every fixture as the fixture holds it", {
 
   for (name in board_fixtures()) {
 
+    fixture <- read_json_strictly(board_fixture(name))
+
     # Not expect_equal(), whose tolerance takes a number marked with `I()` for
     # the same number unmarked, which would let a scalar pass for an array.
     expect_identical(
       read_json_strictly(encode_message(blockr_ser(values[[name]]$board))),
-      read_json_strictly(board_fixture(name))$board,
-      label = paste("the board R writes for", name),
+      fixture[names(fixture) != "description"],
+      label = paste("the JSON board R writes for", name),
       expected.label = "the fixture's"
     )
   }

@@ -1,12 +1,11 @@
 {
-  "description": "A new session of a locked app, whose script sets blockr.locked to TRUE, gives every block an id, as a locked board needs, and shows the inputs of b alone. The client holds its board already, where a reader may have changed b, and keeps it, while R ignores the packages its hello names, since a locked board loads nothing the app did not. R replies with the opening board, into which it wrote visible for a, which the script left unset, so that a shows only its output, and with the lock, which leaves b open.",
+  "description": "A new session of a locked app, whose script sets blockr.locked to TRUE and shows the inputs of b alone. The client holds its board already, where a reader may have changed b, and keeps it. R replies with the opening board, into which it wrote visible for a, which the script left unset, so that a shows only its output, and with the lock, which leaves b open.",
   "client": [
     {
       "id": "1",
       "kind": "hello",
       "protocol": "1.0",
-      "capabilities": ["cancel", "interrupt", "progress"],
-      "packages": ["blockr.core"]
+      "capabilities": ["cancel", "interrupt", "progress"]
     }
   ],
   "r": [
@@ -120,28 +119,33 @@
         },
         "lock": { "open": ["b"] },
         "board": {
-          "id": "steady_lynx",
-          "class": ["board"],
-          "name": "Iris report",
-          "blocks": [
-            {
-              "id": "a",
-              "registry_id": "blockr.core-dataset_block",
-              "state": { "dataset": "iris", "package": "datasets" },
-              "name": "Iris",
-              "attrs": { "visible": ["outputs"] }
+          "format": 1,
+          "packages": { "blockr.core": "0.2.0" },
+          "board": {
+            "id": "steady_lynx",
+            "class": ["board"],
+            "name": "Iris report",
+            "blocks": {
+              "a": {
+                "registry_id": "blockr.core-dataset_block",
+                "state": { "dataset": "iris", "package": "datasets" },
+                "name": "Iris",
+                "attrs": { "visible": ["outputs"] }
+              },
+              "b": {
+                "registry_id": "blockr.core-head_block",
+                "state": { "n": 6, "direction": "head" },
+                "name": "Head",
+                "attrs": { "visible": ["inputs", "outputs"] }
+              }
             },
-            {
-              "id": "b",
-              "registry_id": "blockr.core-head_block",
-              "state": { "n": 6, "direction": "head" },
-              "name": "Head",
-              "attrs": { "visible": ["inputs", "outputs"] }
+            "links": { "ab": { "from": "a", "to": "b", "input": "data" } },
+            "stacks": {},
+            "options": {
+              "n_rows": 50,
+              "show_conditions": ["warning", "error"]
             }
-          ],
-          "links": [{ "id": "ab", "from": "a", "to": "b", "input": "data" }],
-          "stacks": [],
-          "options": { "n_rows": 50, "show_conditions": ["warning", "error"] }
+          }
         }
       }
     ]

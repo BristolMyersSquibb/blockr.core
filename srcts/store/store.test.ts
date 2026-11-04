@@ -3,12 +3,12 @@
 // The store, with R's replies taken from the fixtures of the wire protocol.
 
 import { describe, expect, test, vi } from "vitest";
-import type { ErrorReply, HelloReply, OpenReply } from "../protocol/index.ts";
-import { coreOptions, fakeR, hello, loaded, reply } from "../testing/store.ts";
-import type { Block, Board, OpeningBoard, SavedBoard } from "../types/board.ts";
+import type { HelloReply } from "../protocol/index.ts";
+import { coreOptions, hello, reply } from "../testing/store.ts";
+import type { Block, Board } from "../types/board.ts";
 import type { JsonSchema } from "../types/json.ts";
 import { ROUNDS } from "./expand.ts";
-import { createStore, isId, sentenceCase, StoreError } from "./index.ts";
+import { createStore, StoreError } from "./index.ts";
 import type {
   BoardClass,
   Change,
@@ -16,7 +16,6 @@ import type {
   Migration,
   Patch,
   Store,
-  StoreOptions,
 } from "./index.ts";
 
 // A board of a class like the dock's, which lists the panels of
@@ -33,8 +32,6 @@ interface Position {
   readonly x: number;
   readonly y: number;
 }
-
-type Client = StoreOptions["client"];
 
 const position: JsonSchema = {
   type: "object",
@@ -124,18 +121,17 @@ function positionsOf(board: Board): Readonly<Record<string, Position>> {
   return (board as DockBoard).extensions["blockr.dag-dag"]?.positions ?? {};
 }
 
-function newStore(client: Client = fakeR()): Store {
-  const store = createStore({ client });
+function newStore(): Store {
+  const store = createStore();
   for (const option of coreOptions) store.options.register(option);
   return store;
 }
 
 async function opened(
   setup?: (store: Store) => void,
-  client: Client = fakeR(),
   replied: HelloReply = hello,
 ): Promise<Store> {
-  const store = newStore(client);
+  const store = newStore();
   setup?.(store);
   await store.open(replied);
   return store;
@@ -148,10 +144,13 @@ const docking = {
   ...hello,
   board: {
     ...hello.board,
-    class: ["dock_board", "board"],
-    views: { main: { panels: ["a", "b"] } },
-    extensions: {
-      "blockr.dag-dag": { positions: { a: { x: 0, y: 0 }, b: { x: 1, y: 1 } } },
+    board: {
+      ...hello.board.board,
+      class: ["dock_board", "board"],
+      views: { main: { panels: ["a", "b"] } },
+      extensions: {
+        "blockr.dag-dag": { positions: { a: { x: 0, y: 0 }, b: { x: 1, y: 1 } } },
+      },
     },
   },
 } as unknown as HelloReply;
@@ -164,7 +163,6 @@ function docked(setup?: (store: Store) => void): Promise<Store> {
       store.register(dock);
       setup?.(store);
     },
-    fakeR(),
     docking,
   );
 }
@@ -186,13 +184,13 @@ function head(n = 6, name = "Head"): Block {
   };
 }
 
-// The text of a saved file of a core board, with what `board` gives in place of
+// The text of a JSON board of a core board, with what `board` gives in place of
 // its parts, a board class's properties among them.
 function file(
   board: Partial<Board> & Readonly<Record<string, unknown>>,
   packages: Readonly<Record<string, string>> = { "blockr.core": "0.2.0" },
 ): string {
-  const saved = {
+  const json = {
     format: 1,
     packages,
     board: {
@@ -214,18 +212,18 @@ function file(
       ...board,
     },
   };
-  return JSON.stringify(saved);
+  return JSON.stringify(json);
 }
 
 describe("opening a board", () => {
-  test("opens the board R sent, keying its collections and minting the ids it lacks", async () => {
+  test("opens the JSON board R sent, with every id that R drew for it", async () => {
     const store = newStore();
     const seen = changes(store);
     const dropped = await store.open(hello);
     const board = store.board();
 
     expect(dropped).toEqual([]);
-    expect(isId(board.id)).toBe(true);
+    expect(board.id).toBe("brisk_otter");
     expect(board.class).toEqual(["board"]);
     expect(board.name).toBe("Iris review");
     expect(Object.keys(board.blocks)).toEqual(["a", "b", "c", "d", "e", "f"]);
@@ -236,10 +234,8 @@ describe("opening a board", () => {
       attrs: {},
     });
 
-    const links = Object.keys(board.links);
-    expect(links.slice(0, 6)).toEqual(["ab", "ac", "bc", "ad", "be", "de"]);
-    expect(links[6]).toMatch(/^[a-z]+_[a-z]+$/);
-    expect(board.links[links[6] ?? ""]).toEqual({ from: "a", to: "f", input: "data" });
+    expect(Object.keys(board.links)).toEqual(["ab", "ac", "bc", "ad", "be", "de", "keen_finch"]);
+    expect(board.links.keen_finch).toEqual({ from: "a", to: "f", input: "data" });
     expect(board.stacks).toEqual({ s1: { name: "Input", blocks: ["a", "b"] } });
 
     expect(store.blockRegistry()).toBe(hello.block_registry);
@@ -248,30 +244,26 @@ describe("opening a board", () => {
     expect(store.canUndo()).toBe(false);
   });
 
-  test("names a board without a name after its id, and writes in no default of a board option that its class does not require", async () => {
+  test("writes in no default of a board option that the board's class does not require", async () => {
     const store = newStore();
     await store.open(reply("hello-block") as HelloReply);
     const board = store.board();
 
-    expect(board.name).toBe(sentenceCase(board.id));
-    expect(Object.keys(board.blocks)).toHaveLength(1);
-    expect(isId(Object.keys(board.blocks)[0])).toBe(true);
+    expect(board.name).toBe("Quick wren");
+    expect(Object.keys(board.blocks)).toEqual(["tidy_crab"]);
     expect(board.options).toEqual({ n_rows: 50 });
   });
 
-  test("opens the saved file that serve() was given without asking R again", async () => {
-    const client = fakeR();
-    const store = newStore(client);
+  test("opens the JSON board that serve() was given, which R passed on as it is", async () => {
+    const store = newStore();
     await store.open(reply("hello-file") as HelloReply);
 
-    expect(client.sent).toEqual([]);
     expect(store.board().id).toBe("amber_tapir");
     expect(Object.keys(store.board().links)).toEqual(["ab"]);
   });
 
-  test("has R load the packages a saved file names, and drops the blocks whose class the block registry lacks", async () => {
-    const client = fakeR();
-    const store = await opened(undefined, client);
+  test("opens a JSON board with the block registry of the reply to hello, dropping each block whose class it lacks", async () => {
+    const store = await opened();
     const seen = changes(store);
 
     const dropped = await store.open(
@@ -297,9 +289,8 @@ describe("opening a board", () => {
       ),
     );
 
-    expect(client.sent).toEqual([{ kind: "open", packages: ["blockr.core", "blockr.dplyr"] }]);
-    expect(store.blockRegistry()).toBe(loaded.block_registry);
-    expect(store.packages()).toBe(loaded.packages);
+    expect(store.blockRegistry()).toBe(hello.block_registry);
+    expect(store.packages()).toBe(hello.packages);
     expect(dropped).toEqual([
       { package: "blockr.dplyr", version: "0.3.0" },
       { block: "x", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
@@ -346,19 +337,25 @@ describe("opening a board", () => {
     expect(seen).toEqual([]);
   });
 
-  test("rejects where R refuses to load the packages", async () => {
-    const store = await opened(undefined, fakeR(reply("open-locked") as ErrorReply));
+  test("refuses a JSON board on a locked board, and before R has answered hello", async () => {
+    const store = await opened(undefined, reply("hello-locked") as HelloReply);
+    const board = store.board();
+
     await expect(store.open(file({}))).rejects.toThrow(/The board is locked, so it opens no other board/);
+    expect(store.board()).toBe(board);
+
+    await expect(newStore().open(file({}))).rejects.toThrow(
+      /The store opens a JSON board only once R has answered `hello`/,
+    );
   });
 
-  test("runs what has to run once R has loaded the packages, given the board's class vector, before it opens the board", async () => {
+  test("runs what has to run before it opens a board, given the reply to hello and the board's class vector", async () => {
     const order: string[] = [];
     const store = createStore({
-      client: fakeR(),
       loaded(reply, classes) {
         order.push(`loaded ${classes.join(" ")}`);
         expect(reply).toBe(docking);
-        store.register(dock);
+        if (!store.registered().includes(dock)) store.register(dock);
         expect(store.boardClass(classes)).toBe(dock);
       },
     });
@@ -366,9 +363,10 @@ describe("opening a board", () => {
     for (const option of coreOptions) store.options.register(option);
 
     await store.open(docking);
+    await store.open(file({ class: ["dock_board", "board"], views: {}, extensions: {} }));
 
-    expect(order).toEqual(["loaded dock_board board", "opened"]);
-    expect(positionsOf(store.board())).toEqual({ a: { x: 0, y: 0 }, b: { x: 1, y: 1 } });
+    expect(order).toEqual(["loaded dock_board board", "opened", "loaded dock_board board", "opened"]);
+    expect(viewsOf(store.board())).toEqual({});
   });
 
   test("builds a board as the first class in its class vector that a package defines, dropping what the classes it skips add", async () => {
@@ -520,9 +518,8 @@ describe("opening a board", () => {
     expect(store.board()).toBe(board);
   });
 
-  test("refuses a board whose class is no class vector, before R loads anything", async () => {
-    const client = fakeR();
-    const store = await opened(undefined, client);
+  test("refuses a board whose class is no class vector", async () => {
+    const store = await opened();
 
     await expect(store.open(file({ class: [] }))).rejects.toThrow(
       /The board's class is no array of class names/,
@@ -530,7 +527,6 @@ describe("opening a board", () => {
     await expect(store.open(file({ class: "board" } as unknown as Partial<Board>))).rejects.toThrow(
       StoreError,
     );
-    expect(client.sent).toEqual([]);
   });
 
   test("refuses a board whose property fails its schema", async () => {
@@ -550,45 +546,32 @@ describe("opening a board", () => {
     expect(store.board().name).toBe("Iris review");
   });
 
-  test("ends at the same board whichever way the board comes in", async () => {
-    // A board that gives every id, so that nothing is minted.
-    const replied = reply("hello-locked") as HelloReply & { board: OpeningBoard };
-    const answer: OpenReply = {
-      id: "2",
-      status: "ok",
-      packages: replied.packages,
-      block_registry: replied.block_registry,
-      startup_modules: replied.startup_modules,
-      modules: replied.modules,
-      renderers: replied.renderers,
-    };
-    const fresh = () => newStore(fakeR(answer));
+  test("ends at the same board whichever way the board comes in, and saves the JSON board R sent as it is", async () => {
+    // Unlocked, so that the store opens a JSON board on it.
+    const replied: HelloReply = { ...(reply("hello-locked") as HelloReply), lock: null };
 
-    // As an app script built it.
-    const script = fresh();
-    await script.open(replied);
-    const board = script.board();
+    // As R sent it.
+    const viaR = newStore();
+    await viaR.open(replied);
+    const board = viaR.board();
+    expect(viaR.jsonBoard()).toEqual(replied.board);
 
-    // As the file the client writes for it, which serve() is given or the
-    // client opens.
-    const saved: SavedBoard = { format: 1, packages: replied.packages, board };
-    const viaR = fresh();
-    await viaR.open({ ...replied, board: undefined, file: saved });
-    const viaClient = fresh();
-    await viaClient.open(JSON.stringify(saved));
+    // As the client saves it, which the user opens.
+    const viaClient = newStore();
+    await viaClient.open(replied);
+    await viaClient.open(JSON.stringify(viaR.jsonBoard()));
 
     // As a user builds it on an empty board.
-    const built = fresh();
+    const built = newStore();
     await built.open({
       ...replied,
-      board: { ...replied.board, blocks: [], links: [], stacks: [] },
+      board: { ...replied.board, board: { ...board, blocks: {}, links: {}, stacks: {} } },
     });
     for (const [id, block] of Object.entries(board.blocks)) {
       built.apply({ blocks: { add: { [id]: block } } });
     }
     built.apply({ links: { add: board.links } });
 
-    expect(viaR.board()).toEqual(board);
     expect(viaClient.board()).toEqual(board);
     expect(built.board()).toEqual(board);
   });
@@ -669,12 +652,7 @@ describe("opening a board", () => {
 });
 
 describe("migrations", () => {
-  const replied: OpenReply = {
-    ...loaded,
-    packages: { ...loaded.packages, "blockr.dag": "0.3.0" },
-  };
-
-  // A dock app that loaded blockr.dag and blockr.io beside core,
+  // A dock app that loaded blockr.dag beside core,
   // whose packages register their migrations.
   function migrating(migrations: Record<string, Migration>): Promise<Store> {
     return opened(
@@ -682,8 +660,7 @@ describe("migrations", () => {
         store.register(dock);
         for (const [pkg, fn] of Object.entries(migrations)) store.registerMigration(pkg, fn);
       },
-      fakeR(replied),
-      { ...hello, packages: replied.packages },
+      { ...hello, packages: { ...hello.packages, "blockr.dag": "0.3.0" } },
     );
   }
 
@@ -774,6 +751,17 @@ describe("migrations", () => {
     const store = await migrating({ "blockr.dag": dag });
     await store.open(file({}, { "blockr.core": "0.2.0", "blockr.dag": "0.3.0" }));
     expect(dag).not.toHaveBeenCalled();
+  });
+
+  test("runs no migration where every package that a JSON board records is at the version R loaded", async () => {
+    const dag = vi.fn<Migration>((saved) => saved);
+    const store = await migrating({ "blockr.dag": dag });
+    await store.open(file({}, { "blockr.core": "0.2.0" }));
+    expect(dag).not.toHaveBeenCalled();
+
+    await store.open(file({}, { "blockr.core": "0.1.9" }));
+    expect(dag).toHaveBeenCalledOnce();
+    expect(dag.mock.calls[0]?.[1]).toBeNull();
   });
 
   test("runs no migration for the board an app script built", async () => {

@@ -108,7 +108,7 @@ async function setup(
 ): Promise<Setup> {
   const r = playR();
   r.connect();
-  const store = createStore({ client: r.client });
+  const store = createStore();
   for (const option of [...coreOptions, ...options]) store.options.register(option);
   await store.open(reply);
   const commands = createCommands(store);
@@ -603,7 +603,7 @@ describe("a mount", () => {
     let load: (exports: unknown) => void = () => undefined;
     const r = playR();
     r.connect();
-    const store = createStore({ client: r.client });
+    const store = createStore();
     for (const option of coreOptions) store.options.register(option);
     await store.open(hello);
     const scheduler = createScheduler({ store, client: r.client });
@@ -747,13 +747,18 @@ describe("a request", () => {
   });
 
   test("of an action runs once per call, with the file it sends, and is neither kept nor merged", async () => {
-    const board = hello.board;
-    if (board === undefined) throw new Error("The reply to hello holds no board.");
+    const json = hello.board;
     const reply: HelloReply = {
       ...hello,
       board: {
-        ...board,
-        blocks: [...board.blocks, { id: "u", registry_id: "blockr.core-upload_block", state: {}, name: "Upload", attrs: {} }],
+        ...json,
+        board: {
+          ...json.board,
+          blocks: {
+            ...json.board.blocks,
+            u: { registry_id: "blockr.core-upload_block", state: {}, name: "Upload", attrs: {} },
+          },
+        },
       },
     };
     const ui = recorder();

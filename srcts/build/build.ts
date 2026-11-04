@@ -8,9 +8,8 @@
 //   blockr-core.css or <name>.css.
 // - Each output type in srcts/types/outputs.ts gets its JSON Schema in
 //   inst/outputs, by which R writes the outputs of its class.
-// - The board as R sends it, OpeningBoard in srcts/types/board.ts, gets its
-//   JSON Schema in inst/board, by which R writes the board an app script
-//   built.
+// - A JSON board, JsonBoard in srcts/types/board.ts, gets its JSON Schema in
+//   inst/board, by which R writes the board an app script built.
 // - The schemas of core's board options, in srcts/options/schemas.ts, go
 //   next to core's runtime, into blockr-core.schema.json, by which R writes the
 //   value of one that an app script gives.
@@ -126,7 +125,7 @@ export function schemaFile(type: string): string {
 
 // Writes the JSON Schema of each output type in srcts/types/outputs.ts into
 // inst/outputs, and removes the schema of a type that is gone, then the schema
-// of the board as R sends it and those beside core's runtime. A schema leaves
+// of a JSON board and those beside core's runtime. A schema leaves
 // out no field that a later version may add, since both sides of the wire
 // protocol skip fields they do not know.
 export async function schemas(root: string): Promise<string[]> {
@@ -165,17 +164,25 @@ async function outputSchemas(root: string): Promise<string[]> {
   return written;
 }
 
-// The JSON Schema of the board as R sends the one an app script built, with
-// its collections as arrays, by which R writes core's objects in it, so that a
-// stack's blocks stay an array and an empty collection an object.
+// The JSON Schema of a JSON board, by which R writes core's objects in the
+// board an app script built, so that a stack's blocks stay an array and an
+// empty collection an object.
+// It removes every other schema in inst/board, such as that of a type that is
+// gone.
 async function boardSchema(root: string): Promise<string[]> {
   const types = join(root, "srcts", "types", "board.ts");
   if (!existsSync(types)) return [];
 
-  const file = join(root, "inst", "board", schemaFile("OpeningBoard"));
+  const out = join(root, "inst", "board");
+  const file = join(out, schemaFile("JsonBoard"));
 
-  await mkdir(dirname(file), { recursive: true });
-  await writeJson(file, typeSchemas(root, types)("OpeningBoard"));
+  await mkdir(out, { recursive: true });
+  for (const name of await readdir(out)) {
+    if (name.endsWith(".schema.json") && name !== schemaFile("JsonBoard")) {
+      await rm(join(out, name));
+    }
+  }
+  await writeJson(file, typeSchemas(root, types)("JsonBoard"));
 
   return [relative(root, file)];
 }

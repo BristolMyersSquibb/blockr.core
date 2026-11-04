@@ -72,9 +72,16 @@ test_that("R reads the JSON board that the fixture hello-file serves", {
 
   msg <- decode_message(protocol_fixture("hello-file"))
 
-  expect_identical(msg$r[[1L]][[1L]]$file$format, board_json_format())
+  expect_identical(msg$r[[1L]][[1L]]$board$format, board_json_format())
 
   text <- encode_message(proto_served_file())
+
+  expect_identical(read_board_json(local_board_json(text)), text)
+})
+
+test_that("R reads the JSON board that blockr_ser() writes", {
+
+  text <- encode_message(blockr_ser(new_board(id = "empty")))
 
   expect_identical(read_board_json(local_board_json(text)), text)
 })

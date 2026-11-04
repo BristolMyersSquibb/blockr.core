@@ -23,19 +23,12 @@
 #' @export
 export_code <- function(x) {
 
-  if (!is.list(x)) {
+  ids <- coal(names(x), character(length(x)), fail_all = FALSE)
+
+  if (!is.list(x) || anyNA(ids) || !all(nzchar(ids))) {
     blockr_abort(
       "Block expressions are expected as a list named by block id.",
       class = "export_code_ids_invalid"
-    )
-  }
-
-  ids <- coal(names(x), character(length(x)), fail_all = FALSE)
-
-  if (!all(nzchar(ids))) {
-    blockr_abort(
-      "Exporting code requires every block to have an ID.",
-      class = "export_code_block_id_missing"
     )
   }
 

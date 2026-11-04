@@ -1,5 +1,5 @@
 {
-  "description": "The handshake of an app that serves a block alone, as serve(new_head_block(), data = list(data = iris)) does. R replies with a board of the one block, which has no id, as the board has neither an id nor a name, for the client to mint, and binds the block's input data to the data it was given itself, which bound names, so that the client counts the input as linked and names it in a recipe by the input alone.",
+  "description": "The handshake of an app that serves a block alone, as serve(new_head_block(), data = list(data = iris)) does. R replies with a board of the one block, as a JSON board, with the ids that it drew for the block and for the board, which it names after its id, and binds the block's input data to the data it was given itself, which bound names, so that the client counts the input as linked and names it in a recipe by the input alone.",
   "client": [
     {
       "id": "1",
@@ -72,18 +72,24 @@
         },
         "lock": null,
         "board": {
-          "class": ["board"],
-          "blocks": [
-            {
-              "registry_id": "blockr.core-head_block",
-              "state": { "n": 6, "direction": "head" },
-              "name": "Head",
-              "attrs": {}
-            }
-          ],
-          "links": [],
-          "stacks": [],
-          "options": { "n_rows": 50 }
+          "format": 1,
+          "packages": { "blockr.core": "0.2.0" },
+          "board": {
+            "id": "quick_wren",
+            "class": ["board"],
+            "name": "Quick wren",
+            "blocks": {
+              "tidy_crab": {
+                "registry_id": "blockr.core-head_block",
+                "state": { "n": 6, "direction": "head" },
+                "name": "Head",
+                "attrs": {}
+              }
+            },
+            "links": {},
+            "stacks": {},
+            "options": { "n_rows": 50 }
+          }
         },
         "bound": ["data"]
       }

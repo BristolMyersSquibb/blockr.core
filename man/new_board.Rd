@@ -32,9 +32,9 @@ is_board(x)
 
 \item{...}{The properties that the board's class adds, by name}
 
-\item{id}{Board ID, which \code{NULL} leaves for the client to mint}
+\item{id}{Board ID, which \code{\link[=rand_names]{rand_names()}} draws where it is \code{NULL}}
 
-\item{name}{Board name, which \code{NULL} leaves for the client to set}
+\item{name}{Board name, which is made from the ID where it is \code{NULL}}
 
 \item{class}{Board sub-class}
 
@@ -68,13 +68,14 @@ A board takes no board options by default, since a board holds the value of a
 board option only once something sets it (see \code{\link[=new_board_options]{new_board_options()}}).
 
 A board has an ID, which identifies it, and a name, which the user calls it
-by. A script may leave either out, as it may leave out the IDs of blocks,
-links and stacks, since R mints no IDs: the client mints each missing one
-when it opens the board, and names a board without a name after its ID.
-Every ID that is given, a board's as well as a block's, a link's or a
-stack's, is a string that is neither empty nor made of digits alone, since
-a JavaScript object puts keys that look like integers first, and the
-constructors refuse any other.
+by.
+A script may leave either out, as it may leave out the IDs of blocks, links
+and stacks: R draws each missing ID with \code{\link[=rand_names]{rand_names()}}, and names a board
+without a name after its ID, as \code{"Calm heron"} for \code{calm_heron}.
+Every ID, a board's as well as a block's, a link's or a stack's, is a string
+that is neither empty nor made of digits alone, since a JavaScript object
+puts keys that look like integers first, and the constructors refuse any
+other.
 }
 \examples{
 brd <- new_board(

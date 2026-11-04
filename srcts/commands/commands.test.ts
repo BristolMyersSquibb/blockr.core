@@ -4,7 +4,6 @@
 // fixtures.
 
 import { describe, expect, test, vi } from "vitest";
-import type { HelloReply } from "../protocol/index.ts";
 import { createStore, StoreError } from "../store/index.ts";
 import type { BoardClass, Store } from "../store/index.ts";
 import { hello, openedStore } from "../testing/store.ts";
@@ -218,7 +217,7 @@ describe("running a command", () => {
   });
 
   test("refuses to run before the store opens a board", async () => {
-    const store = createStore({ client: { request: () => Promise.reject(new Error("No R.")) } });
+    const store = createStore();
     const commands = createCommands(store);
     await expect(commands.run("blockr.core-rename_board", { name: "Sepals" })).rejects.toThrow(
       'The command "blockr.core-rename_board" refused to run\n- The store holds no board until it opens one.',
@@ -367,8 +366,8 @@ describe("planning", () => {
     const { store, commands } = await setup((store) => store.register(placed));
     await store.open({
       ...hello,
-      board: { ...hello.board, class: ["placed_board", "board"] },
-    } as unknown as HelloReply);
+      board: { ...hello.board, board: { ...hello.board.board, class: ["placed_board", "board"] } },
+    });
     commands.register(move);
 
     await commands.run("test.pkg-move", { id: "a", x: 1 });

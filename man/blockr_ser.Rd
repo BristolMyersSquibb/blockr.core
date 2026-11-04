@@ -42,15 +42,17 @@ blockr_ser(x, ...)
 \item{...}{Generic consistency}
 }
 \value{
-For a board, \code{blockr_ser()} returns the board as R sends it, as a
-list that R's JSON writers write as the board's JSON. Its methods for the
-parts of a board return what the board holds in their place, before the
-board's schemas shape it.
+For a board, \code{blockr_ser()} returns the board as a JSON board, as a
+list that R's JSON writers write as its JSON.
+Its methods for the parts of a board return what the board holds in their
+place, before the schemas shape it.
 }
 \description{
-R writes the board that an app script builds as JSON once: the opening
-board, which it sends the client. The client writes every board that is
-saved. Both write each value of a board by the same JSON Schemas, so that no
+R writes the board that an app script builds as a JSON board once: the
+opening board, which it sends the client.
+A JSON board is the format in which the client saves every board, so R
+writes the opening board as the client would save it.
+Both write each value of a board by the same JSON Schemas, so that no
 shape depends on R's JSON writer. So \code{blockr_ser()} returns the board as R
 values that yyjsonr, jsonlite and Shiny's encoder all write as the same
 JSON. A value that a schema has as an array is marked with \code{\link[=I]{I()}}, so that a
@@ -60,11 +62,16 @@ board itself.
 }
 \section{Writing a board}{
 
-The board is written as R sends it. It holds its own \code{id} and \code{name} only
-where it has them. It holds its blocks, links and stacks as arrays, in their
-order, each entry with its \code{id} where the script gave one, since R mints no
-IDs: the client mints each missing one as it opens the board. It holds the
-value of each board option that the script gives, by ID, and no other.
+A JSON board holds the board under \code{board}, with two things beside it:
+\code{format}, the version of the format, and \code{packages}, the version of each
+package that the board's content comes from, by package.
+Those are blockr.core, the packages of the blocks' classes, and each package
+whose startup module ships the schema of a property that the board holds,
+since R cannot tell which package defines a board class in JavaScript.
+The board holds its \code{id} and \code{name}, and its blocks, links and stacks, each
+by ID, in their order.
+It holds the value of each board option that the script gives, by ID, and no
+other.
 
 Its \code{class} is the board's class vector, most specific class first, as
 \code{c("dock_board", "board")}.
@@ -87,7 +94,7 @@ its class, writing the block registers the class, as a class from outside a
 package, under its name. So a class defined in an app script is registered
 before any session evaluates a block of it.
 
-Core's objects are written by the JSON Schema of the board that core
+Core's objects are written by the JSON Schema of a JSON board, which core
 generates from its TypeScript types, so that a stack's blocks stay an array
 and an empty collection an object.
 A block's state is written by the schema that its class's UI ships (see

@@ -5,9 +5,9 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { Fixture, HelloReply, OpenReply, Reply } from "../protocol/index.ts";
+import type { Fixture, HelloReply } from "../protocol/index.ts";
 import { createStore } from "../store/index.ts";
-import type { Option, Store, StoreOptions } from "../store/index.ts";
+import type { Option, Store } from "../store/index.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -19,22 +19,6 @@ export function reply(name: string): unknown {
 }
 
 export const hello = reply("hello") as HelloReply;
-export const loaded = reply("open") as OpenReply;
-
-// R, as the fixtures give its replies, which records what the store sent.
-type Client = StoreOptions["client"];
-type Sent = Parameters<Client["request"]>[0];
-
-export function fakeR(answer: Reply = loaded): Client & { sent: Sent[] } {
-  const sent: Sent[] = [];
-  return {
-    sent,
-    request(request) {
-      sent.push(request);
-      return Promise.resolve({ reply: answer, body: null });
-    },
-  };
-}
 
 // Core's board options, as the fixtures' boards hold their values.
 export const coreOptions: readonly Option[] = [
@@ -57,7 +41,7 @@ export const coreOptions: readonly Option[] = [
 // A store with core's board options that has opened the board of the reply to
 // `hello`, once `setup` has registered what a test needs.
 export async function openedStore(setup?: (store: Store) => void): Promise<Store> {
-  const store = createStore({ client: fakeR() });
+  const store = createStore();
   for (const option of coreOptions) store.options.register(option);
   setup?.(store);
   await store.open(hello);

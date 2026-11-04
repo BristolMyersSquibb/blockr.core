@@ -16,12 +16,11 @@ export type {
   Block,
   BlockId,
   Board,
+  JsonBoard,
   Link,
   LinkId,
-  OpeningBoard,
   OptionId,
   RegistryId,
-  SavedBoard,
   Stack,
   StackId,
 } from "./types/board.ts";

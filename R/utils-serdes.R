@@ -1,8 +1,10 @@
 #' Serialization
 #'
-#' R writes the board that an app script builds as JSON once: the opening
-#' board, which it sends the client. The client writes every board that is
-#' saved. Both write each value of a board by the same JSON Schemas, so that no
+#' R writes the board that an app script builds as a JSON board once: the
+#' opening board, which it sends the client.
+#' A JSON board is the format in which the client saves every board, so R
+#' writes the opening board as the client would save it.
+#' Both write each value of a board by the same JSON Schemas, so that no
 #' shape depends on R's JSON writer. So `blockr_ser()` returns the board as R
 #' values that yyjsonr, jsonlite and Shiny's encoder all write as the same
 #' JSON. A value that a schema has as an array is marked with [I()], so that a
@@ -11,11 +13,16 @@
 #' board itself.
 #'
 #' @section Writing a board:
-#' The board is written as R sends it. It holds its own `id` and `name` only
-#' where it has them. It holds its blocks, links and stacks as arrays, in their
-#' order, each entry with its `id` where the script gave one, since R mints no
-#' IDs: the client mints each missing one as it opens the board. It holds the
-#' value of each board option that the script gives, by ID, and no other.
+#' A JSON board holds the board under `board`, with two things beside it:
+#' `format`, the version of the format, and `packages`, the version of each
+#' package that the board's content comes from, by package.
+#' Those are blockr.core, the packages of the blocks' classes, and each package
+#' whose startup module ships the schema of a property that the board holds,
+#' since R cannot tell which package defines a board class in JavaScript.
+#' The board holds its `id` and `name`, and its blocks, links and stacks, each
+#' by ID, in their order.
+#' It holds the value of each board option that the script gives, by ID, and no
+#' other.
 #'
 #' Its `class` is the board's class vector, most specific class first, as
 #' `c("dock_board", "board")`.
@@ -38,7 +45,7 @@
 #' package, under its name. So a class defined in an app script is registered
 #' before any session evaluates a block of it.
 #'
-#' Core's objects are written by the JSON Schema of the board that core
+#' Core's objects are written by the JSON Schema of a JSON board, which core
 #' generates from its TypeScript types, so that a stack's blocks stay an array
 #' and an empty collection an object.
 #' A block's state is written by the schema that its class's UI ships (see
@@ -79,10 +86,10 @@
 #'
 #' unregister_blocks("identity_block")
 #'
-#' @return For a board, `blockr_ser()` returns the board as R sends it, as a
-#' list that R's JSON writers write as the board's JSON. Its methods for the
-#' parts of a board return what the board holds in their place, before the
-#' board's schemas shape it.
+#' @return For a board, `blockr_ser()` returns the board as a JSON board, as a
+#' list that R's JSON writers write as its JSON.
+#' Its methods for the parts of a board return what the board holds in their
+#' place, before the schemas shape it.
 #'
 #' @export
 blockr_ser <- function(x, ...) {
@@ -93,11 +100,11 @@ blockr_ser <- function(x, ...) {
 #' @export
 blockr_ser.board <- function(x, ...) {
 
-  res <- c(
-    if (not_null(board_id(x))) list(id = board_id(x)),
-    list(class = class(x)),
-    if (not_null(board_name(x))) list(name = board_name(x)),
+  board <- c(
     list(
+      id = board_id(x),
+      class = class(x),
+      name = board_name(x),
       blocks = blockr_ser(board_blocks(x)),
       links = blockr_ser(board_links(x)),
       stacks = blockr_ser(board_stacks(x)),
@@ -106,13 +113,19 @@ blockr_ser.board <- function(x, ...) {
     board_properties(x)
   )
 
-  shape_board(res)
+  shape_json_board(
+    list(
+      format = board_json_format(),
+      packages = board_packages(board),
+      board = board
+    )
+  )
 }
 
 #' @rdname blockr_ser
 #' @export
 blockr_ser.blocks <- function(x, ...) {
-  ser_collection(as.list(x), ids_or_empty(names(x), length(x)))
+  ser_collection(as.list(x))
 }
 
 #' @rdname blockr_ser
@@ -135,8 +148,7 @@ blockr_ser.block <- function(x, ...) {
 #' @rdname blockr_ser
 #' @export
 blockr_ser.links <- function(x, ...) {
-  lnks <- as.list(x)
-  ser_collection(lnks, ids_or_empty(names(lnks), length(lnks)))
+  ser_collection(as.list(x))
 }
 
 #' @rdname blockr_ser
@@ -148,7 +160,7 @@ blockr_ser.link <- function(x, ...) {
 #' @rdname blockr_ser
 #' @export
 blockr_ser.stacks <- function(x, ...) {
-  ser_collection(as.list(x), ids_or_empty(names(x), length(x)))
+  ser_collection(as.list(x))
 }
 
 #' @rdname blockr_ser
@@ -182,16 +194,39 @@ blockr_ser.default <- function(x, ...) {
   x
 }
 
-ser_collection <- function(x, ids) {
-  map(
-    function(obj, id) c(if (nzchar(id)) list(id = id), blockr_ser(obj)),
-    x,
-    ids
-  )
+# A collection as a JSON board holds it, an object of its entries by ID.
+ser_collection <- function(x) {
+  as_json_object(lapply(x, blockr_ser))
 }
 
 board_components <- function() {
   c("blocks", "links", "stacks", "options")
+}
+
+# The packages that a board's content comes from, with their versions, as a
+# JSON board records them: blockr.core, whose class `board` every board class
+# extends, the package of each block's class, and each package whose startup
+# module ships the schema of a property that the board holds.
+# The client records the package of each board class that it builds the board
+# as instead, which R cannot tell, since board classes are defined in
+# JavaScript, while the package that defines a board class ships the schemas of
+# the properties it adds.
+board_packages <- function(board) {
+
+  blocks <- lapply(
+    board[["blocks"]],
+    function(blk) get_registry_entry(blk[["registry_id"]])[["package"]]
+  )
+
+  props <- setdiff(names(board), c("id", "class", "name", board_components()))
+
+  schemas <- startup_schemas()
+  owners <- lgl_ply(
+    schemas,
+    function(schema) any(props %in% names(schema[["properties"]]))
+  )
+
+  package_versions(c("blockr.core", unlst(blocks), names(schemas)[owners]))
 }
 
 # The properties that the board's class adds: the components that a board holds
@@ -310,27 +345,32 @@ unplain_kind <- function(x) {
   NULL
 }
 
-# Shapes the board as R sends it by the schemas that give its values' shapes:
-# core's objects by the board's schema, the parts that packages define,
-# such as the properties of their board classes and the values of their board
-# options, by the schemas next to their startup modules,
-# and each block's state by the schema that its class's UI ships.
-shape_board <- function(x) {
+# Shapes a JSON board by the schemas that give its values' shapes: core's
+# objects by the schema of a JSON board, the parts of the board that packages
+# define, such as the properties of their board classes and the values of their
+# board options, by the schemas next to their startup modules, which are laid
+# out like the board, and each block's state by the schema that its class's UI
+# ships.
+shape_json_board <- function(x) {
 
-  for (schema in c(list(board_schema()), startup_schemas())) {
-    x <- shape_by_schema(x, schema)
+  x <- shape_by_schema(x, json_board_schema())
+
+  for (schema in startup_schemas()) {
+    x[["board"]] <- shape_by_schema(x[["board"]], schema)
   }
 
-  x[["blocks"]] <- lapply(x[["blocks"]], shape_block_state)
+  x[["board"]][["blocks"]] <- as_json_object(
+    lapply(x[["board"]][["blocks"]], shape_block_state)
+  )
 
   x
 }
 
-# The JSON Schema of the board as R sends it, which the build generates from
-# `OpeningBoard` in srcts/types/board.ts.
-board_schema <- function() {
+# The JSON Schema of a JSON board, which the build generates from `JsonBoard`
+# in srcts/types/board.ts.
+json_board_schema <- function() {
   decode_schema(
-    system.file("board", "opening-board.schema.json", package = "blockr.core")
+    system.file("board", "json-board.schema.json", package = "blockr.core")
   )
 }
 

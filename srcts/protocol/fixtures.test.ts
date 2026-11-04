@@ -22,13 +22,10 @@ const messages = join(root, "srcts", "protocol", "messages.ts");
 // nothing of the kind of request they answer.
 const types: Record<string, string> = {
   hello: "Fixture<[HelloRequest], [[HelloReply]]>",
-  "hello-packages": "Fixture<[HelloRequest], [[HelloReply]]>",
   "hello-locked": "Fixture<[HelloRequest], [[HelloReply]]>",
   "hello-block": "Fixture<[HelloRequest], [[HelloReply]]>",
   "hello-file": "Fixture<[HelloRequest], [[HelloReply]]>",
   "hello-declared": "Fixture<[HelloRequest], [[HelloReply]]>",
-  open: "Fixture<[OpenRequest], [[OpenReply]]>",
-  "open-locked": "Fixture<[OpenRequest], [[ErrorReply]]>",
   "blockr-options": "Fixture<[BlockrOptionsRequest], [[BlockrOptionsReply]]>",
   evaluate: "Fixture<[EvaluateRequest], [[EvaluateReply]]>",
   "evaluate-warning": "Fixture<[EvaluateRequest], [[EvaluateReply]]>",

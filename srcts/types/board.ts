@@ -61,29 +61,13 @@ export interface Stack {
   readonly blocks: readonly BlockId[];
 }
 
-// A saved board, the file that only the client writes: the board,
-// the version of the file format, and the version of every package that the
-// board's block classes and the properties of its class come from.
-export interface SavedBoard {
+// A JSON board, the one format of a board outside the store: the board, the
+// version of the format, and the version of every package that the board's
+// block classes and board classes come from.
+// The client saves a board as one, and R writes the opening board that an app
+// script built as one, with every id.
+export interface JsonBoard {
   readonly format: number;
   readonly packages: Readonly<Record<string, string>>;
   readonly board: Board;
-}
-
-// The opening board that an app script built, as R sends it.
-// R mints no ids, so it holds the blocks, links and stacks as arrays,
-// in their order, each with its id where the script gave one,
-// and the board's own id and name where it has them.
-// The client keys the collections and mints each missing id as it opens
-// the board.
-// Beside core's properties, it holds those of the board's class that the
-// script gives.
-export interface OpeningBoard {
-  readonly id?: string;
-  readonly class: readonly string[];
-  readonly name?: string;
-  readonly blocks: readonly (Block & { readonly id?: BlockId })[];
-  readonly links: readonly (Link & { readonly id?: LinkId })[];
-  readonly stacks: readonly (Stack & { readonly id?: StackId })[];
-  readonly options: Readonly<Record<OptionId, Json>>;
 }

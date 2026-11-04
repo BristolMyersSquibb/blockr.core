@@ -11,7 +11,6 @@ import type {
   Condition,
   EvaluateRequest,
   HelloReply,
-  OpenReply,
   OutputRequest,
 } from "../protocol/index.ts";
 import { createStore } from "../store/index.ts";
@@ -31,16 +30,6 @@ import type { BlockStatus, Scheduler, SchedulerOptions } from "./index.ts";
 //
 // And a block served alone, whose input R binds itself.
 const helloBlock = replyOf("hello-block") as HelloReply;
-
-const opened: OpenReply = {
-  id: "",
-  status: "ok",
-  packages: hello.packages,
-  block_registry: hello.block_registry,
-  startup_modules: [],
-  modules: {},
-  renderers: hello.renderers,
-};
 
 const info = {
   width: 640,
@@ -67,7 +56,7 @@ async function setup(
 ): Promise<{ r: PlayedR; store: Store; scheduler: Scheduler }> {
   const r = playR();
   r.connect(capabilities);
-  const store = createStore({ client: r.client });
+  const store = createStore();
   for (const option of coreOptions) store.options.register(option);
   prepare?.(store);
   await store.open(reply);
@@ -163,7 +152,10 @@ describe("revisions", () => {
     const { store, scheduler } = await setup(
       {},
       {
-        reply: { ...hello, board: { ...hello.board, class: ["zoomed_board", "board"] } } as HelloReply,
+        reply: {
+          ...hello,
+          board: { ...hello.board, board: { ...hello.board.board, class: ["zoomed_board", "board"] } },
+        },
         prepare: (store) =>
           store.register({
             class: "zoomed_board",
@@ -255,11 +247,7 @@ describe("revisions", () => {
     await evaluateAll(r);
     const top = Math.max(...Object.values(revisionsOf(scheduler)));
 
-    const text = JSON.stringify({ format: 1, packages: hello.packages, board: store.board() });
-    const opening = store.open(text);
-    const request = r.sent.find((item) => item.kind === "open");
-    r.reply({ ...opened, id: request?.id ?? "" });
-    await opening;
+    await store.open(JSON.stringify(store.jsonBoard()));
 
     expect(r.forgets()).toEqual([["a", "b", "c", "d", "e", "f"]]);
     for (const [id, revision] of Object.entries(revisionsOf(scheduler))) {
@@ -271,7 +259,7 @@ describe("revisions", () => {
   test("start with the first board the store opens, where the scheduler is created before the store holds one", async () => {
     const r = playR();
     r.connect();
-    const store = createStore({ client: r.client });
+    const store = createStore();
     for (const option of coreOptions) store.options.register(option);
     const scheduler = createScheduler({ store, client: r.client });
     expect(revisionsOf(scheduler)).toEqual({});
@@ -728,11 +716,7 @@ describe("one-time evaluations", () => {
     await expect(aborted).rejects.toThrow("The step was given up.");
 
     const waiting = scheduler.evaluate(["e"]);
-    const text = JSON.stringify({ format: 1, packages: hello.packages, board: store.board() });
-    const opening = store.open(text);
-    const request = r.sent.find((item) => item.kind === "open");
-    r.reply({ ...opened, id: request?.id ?? "" });
-    await opening;
+    await store.open(JSON.stringify(store.jsonBoard()));
     await expect(waiting).rejects.toThrow("Another board opened.");
   });
 });

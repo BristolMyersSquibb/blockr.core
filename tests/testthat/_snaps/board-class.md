@@ -5,6 +5,7 @@
     Output
       <board>
       ID: "my_board"
+      Name: "My board"
       
       Blocks[5]:
       

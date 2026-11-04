@@ -132,50 +132,55 @@ test("writes no schemas without the types and modules they come from", async () 
   expect(await schemas(root)).toEqual([]);
 });
 
-test("writes the schema of the board as R sends it", async () => {
+test("writes the schema of a JSON board, and removes any other in inst/board", async () => {
   await write({
     "srcts/types/board.ts": [
       "export interface Stack { name: string; blocks: string[] }",
-      "export interface OpeningBoard {",
-      "  id?: string;",
-      "  stacks: (Stack & { id?: string })[];",
-      "  options: Record<string, number>;",
+      "export interface JsonBoard {",
+      "  format: number;",
+      "  board: { stacks: Record<string, Stack>; options: Record<string, number> };",
       "}",
       "",
     ].join("\n"),
     "inst/board/fixtures/board.json": "{}",
+    "inst/board/opening-board.schema.json": "{}",
   });
 
-  expect(await schemas(root)).toEqual(["inst/board/opening-board.schema.json"]);
+  expect(await schemas(root)).toEqual(["inst/board/json-board.schema.json"]);
 
   const out = join(root, "inst", "board");
-  expect((await readdir(out)).sort()).toEqual(["fixtures", "opening-board.schema.json"]);
+  expect((await readdir(out)).sort()).toEqual(["fixtures", "json-board.schema.json"]);
 
   const schema = JSON.parse(
-    await readFile(join(out, "opening-board.schema.json"), "utf8"),
+    await readFile(join(out, "json-board.schema.json"), "utf8"),
   ) as Record<string, unknown>;
 
   expect(schema).toMatchObject({
     type: "object",
     properties: {
-      id: { type: "string" },
-      stacks: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            id: { type: "string" },
-            name: { type: "string" },
-            blocks: { type: "array", items: { type: "string" } },
+      format: { type: "number" },
+      board: {
+        type: "object",
+        properties: {
+          stacks: {
+            type: "object",
+            additionalProperties: { $ref: "#/definitions/Stack" },
           },
-          required: ["blocks", "name"],
+          options: { type: "object", additionalProperties: { type: "number" } },
         },
       },
-      options: { type: "object", additionalProperties: { type: "number" } },
     },
-    required: ["stacks", "options"],
+    required: ["format", "board"],
+    definitions: {
+      Stack: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          blocks: { type: "array", items: { type: "string" } },
+        },
+      },
+    },
   });
-  expect(schema).not.toHaveProperty("definitions");
 });
 
 test("writes the schemas of core's board options next to its runtime", async () => {

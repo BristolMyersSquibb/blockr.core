@@ -15,13 +15,13 @@
 * Boards have an ID and a name, which `new_board()` takes as `id` and `name`
   and `board_id()` and `board_name()` read. The ID takes the place of the one
   `serve()` took until now, and the name that of the `board_name` board
-  option, which is gone with `new_board_name_option()`. R no longer mints IDs:
-  a board, block, link or stack that a script leaves without one has none,
-  where `rand_names()` used to draw it, and the client mints it when it opens
-  the board, as it names a board without a name after its ID. An ID that is
-  given, a board's, a block's, a link's or a stack's, is a string that is
+  option, which is gone with `new_board_name_option()`.
+  Where a script leaves out the ID of a board, a block, a link or a stack,
+  `rand_names()` draws it, and a board without a name is named after its ID,
+  as `"Calm heron"` for `calm_heron`.
+  An ID, a board's, a block's, a link's or a stack's, is a string that is
   neither empty nor made of digits alone, and the constructors refuse any
-  other, naming it (#427).
+  other, naming it (#427, #429).
 * The IDs that `rand_names()` draws take the shapes in which the client mints
   them, so that an ID looks the same whichever side drew it. The blockr option
   `rand_id`, or the argument of that name, names the shape, where the option
@@ -114,19 +114,23 @@
   from the path given, and nothing beside them. Registration refuses a class
   whose starting state is not a plain value, and an arg spec whose example is
   not one either (#426, #465).
-* R writes the board that an app script builds with `blockr_ser()`, as R
-  sends it to the client: its ID and name where it has them, its class
-  vector, its blocks, links and stacks as arrays, each with the ID the script
-  gave it, and the values of the board options the script gives.
+* R writes the board that an app script builds with `blockr_ser()` as a JSON
+  board, the format in which the client saves a board.
+  A JSON board holds the board, with its ID and name, its class vector, its
+  blocks, links and stacks by ID and the values of the board options the
+  script gives, beside the version of the format and the versions of the
+  packages that the board's content comes from: blockr.core, the packages of
+  the blocks' classes and each package whose startup module ships the schema
+  of a property that the board holds.
   Beside them it writes the properties that the board's class adds, which are
   the components that the board holds besides core's, such as those that a
   board class's constructor passes to `new_board()`.
   It writes each value by a JSON Schema, so that no shape depends on R's JSON
-  writer: core's objects by the schema of the board that the build generates
-  from its TypeScript types into `inst/board`, a block's state by the schema
-  its class's UI ships, and a property of the board's class or a board
-  option's value by the schema its package ships beside its startup module,
-  as core ships those of its board options beside its runtime.
+  writer: core's objects by the schema of a JSON board that the build
+  generates from its TypeScript types into `inst/board`, a block's state by
+  the schema its class's UI ships, and a property of the board's class or a
+  board option's value by the schema its package ships beside its startup
+  module, as core ships those of its board options beside its runtime.
   Writing a board registers the block classes
   that its blocks refer to, from the blocks themselves, and fails on a value
   that JSON cannot hold, such as a function, so that such a board fails as
@@ -140,7 +144,7 @@
   no board options by default, and `as_table_output()` pages a data frame by
   the `n_rows` that the client sends. Nothing in R reads a board back, since
   the client opens every board itself, so `blockr_deser()` goes, and a file
-  of today's stack is converted by a script of its own (#428, #465).
+  of today's stack is converted by a script of its own (#428, #429, #465).
 * Core's twelve built-in blocks are block classes. Core exports each class
   beside its constructor, such as `head_block` beside `new_head_block()`, and
   registers ten of them when it loads, under IDs such as

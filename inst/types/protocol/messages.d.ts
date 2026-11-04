@@ -1,15 +1,15 @@
-import type { BlockId, OpeningBoard, OptionId, RegistryId, SavedBoard } from "../types/board.ts";
+import type { BlockId, JsonBoard, OptionId, RegistryId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { BlockOutput } from "../types/outputs.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 export declare const PROTOCOL_VERSION = "1.0";
-export type Kind = "hello" | "open" | "blockr_options" | "evaluate" | "request" | "output" | "cancel" | "forget";
+export type Kind = "hello" | "blockr_options" | "evaluate" | "request" | "output" | "cancel" | "forget";
 export type Capability = "cancel" | "interrupt" | "progress";
 export type ReplyStatus = "ok" | "error" | "cancelled" | "invalid" | "missing";
 export type ClientMessage = Request[];
 export type RMessage = (Reply | Progress)[];
-export type Request = HelloRequest | OpenRequest | BlockrOptionsRequest | EvaluateRequest | BlockClassRequest | BoardOptionRequest | ExtensionRequest | OutputClassRequest | RendererRequest | OutputRequest | CancelRequest | ForgetRequest;
-export type Reply = HelloReply | OpenReply | BlockrOptionsReply | EvaluateReply | RequestReply | OutputReply | ErrorReply | CancelledReply | MissingReply;
+export type Request = HelloRequest | BlockrOptionsRequest | EvaluateRequest | BlockClassRequest | BoardOptionRequest | ExtensionRequest | OutputClassRequest | RendererRequest | OutputRequest | CancelRequest | ForgetRequest;
+export type Reply = HelloReply | BlockrOptionsReply | EvaluateReply | RequestReply | OutputReply | ErrorReply | CancelledReply | MissingReply;
 export interface Progress {
     id: string;
     progress: {
@@ -22,9 +22,8 @@ export interface HelloRequest {
     kind: "hello";
     protocol: string;
     capabilities: Capability[];
-    packages?: string[];
 }
-export type HelloReply = {
+export interface HelloReply {
     id: string;
     status: "ok";
     protocol: string;
@@ -42,14 +41,9 @@ export type HelloReply = {
     }>;
     renderers: Record<string, Renderer>;
     lock: Lock | null;
+    board: JsonBoard;
     bound?: string[];
-} & ({
-    board: OpeningBoard;
-    file?: never;
-} | {
-    file: SavedBoard;
-    board?: never;
-});
+}
 export type Renderer = {
     module: string;
     css?: string;
@@ -63,12 +57,6 @@ export type Renderer = {
 export interface Lock {
     open: BlockId[];
 }
-export interface OpenRequest {
-    id: string;
-    kind: "open";
-    packages: string[];
-}
-export type OpenReply = Pick<HelloReply, "id" | "status" | "packages" | "block_registry" | "startup_modules" | "modules" | "renderers">;
 export interface BlockrOptionsRequest {
     id: string;
     kind: "blockr_options";

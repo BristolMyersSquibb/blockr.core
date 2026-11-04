@@ -1,0 +1,175 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "format": {
+      "type": "number"
+    },
+    "packages": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "board": {
+      "$ref": "#/definitions/Board"
+    }
+  },
+  "required": [
+    "format",
+    "packages",
+    "board"
+  ],
+  "definitions": {
+    "Board": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "class": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "name": {
+          "type": "string"
+        },
+        "blocks": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Block"
+          }
+        },
+        "links": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Link"
+          }
+        },
+        "stacks": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Stack"
+          }
+        },
+        "options": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Json"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "class",
+        "name",
+        "blocks",
+        "links",
+        "stacks",
+        "options"
+      ]
+    },
+    "Block": {
+      "type": "object",
+      "properties": {
+        "registry_id": {
+          "$ref": "#/definitions/RegistryId"
+        },
+        "state": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Json"
+          }
+        },
+        "name": {
+          "type": "string"
+        },
+        "attrs": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Json"
+          }
+        }
+      },
+      "required": [
+        "registry_id",
+        "state",
+        "name",
+        "attrs"
+      ]
+    },
+    "RegistryId": {
+      "type": "string"
+    },
+    "Json": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Json"
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Json"
+          }
+        }
+      ]
+    },
+    "Link": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "$ref": "#/definitions/BlockId"
+        },
+        "to": {
+          "$ref": "#/definitions/BlockId"
+        },
+        "input": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "from",
+        "to",
+        "input"
+      ]
+    },
+    "BlockId": {
+      "type": "string"
+    },
+    "Stack": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "blocks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BlockId"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "blocks"
+      ]
+    }
+  }
+}

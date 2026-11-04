@@ -28,23 +28,8 @@ export interface Stack {
     readonly name: string;
     readonly blocks: readonly BlockId[];
 }
-export interface SavedBoard {
+export interface JsonBoard {
     readonly format: number;
     readonly packages: Readonly<Record<string, string>>;
     readonly board: Board;
-}
-export interface OpeningBoard {
-    readonly id?: string;
-    readonly class: readonly string[];
-    readonly name?: string;
-    readonly blocks: readonly (Block & {
-        readonly id?: BlockId;
-    })[];
-    readonly links: readonly (Link & {
-        readonly id?: LinkId;
-    })[];
-    readonly stacks: readonly (Stack & {
-        readonly id?: StackId;
-    })[];
-    readonly options: Readonly<Record<OptionId, Json>>;
 }

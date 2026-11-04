@@ -151,9 +151,9 @@ class, which every block of the class shares.
 
 Multiple blocks can be combined into a \code{blocks} object, a container for
 an (ordered) set of blocks. Block IDs are handled at the \code{blocks} level,
-which ensures that those given are unique and, as every ID, strings that
-are neither empty nor made of digits alone. A block passed without a name
-has no ID, which the client mints when it opens the board.
+which ensures that they are unique and, as every ID, strings that are
+neither empty nor made of digits alone.
+A block passed without a name gets an ID that \code{\link[=rand_names]{rand_names()}} draws.
 }
 
 \examples{

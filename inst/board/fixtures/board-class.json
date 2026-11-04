@@ -1,5 +1,10 @@
 {
-  "description": "A board of the class grid_board, which extends core's board and which the package blockr.test defines in JavaScript, with the properties that the class adds beside core's, panels and active, as the script gives them. The package ships the schemas of those properties beside its startup module, here in blockr.test/js/startup.schema.json. By them, R writes the blocks of each entry of panels as an array, and active as a string. A client builds the board as a grid_board, keeping both properties, only where blockr.test defines the class, and as core's board otherwise, without them.",
+  "description": "A board of the class grid_board, which extends core's board and which the package blockr.test defines in JavaScript, with the properties that the class adds beside core's, panels and active, as the script gives them. The package ships the schemas of those properties beside its startup module, here in blockr.test/js/startup.schema.json. By them, R writes the blocks of each entry of panels as an array, and active as a string, and so it records blockr.test among the board's packages. A client builds the board as a grid_board, keeping both properties, only where blockr.test defines the class, and as core's board otherwise, without them.",
+  "format": 1,
+  "packages": {
+    "blockr.core": "0.2.0",
+    "blockr.test": "0.1.0"
+  },
   "board": {
     "id": "quiet_heron",
     "class": [
@@ -7,9 +12,8 @@
       "board"
     ],
     "name": "Grid",
-    "blocks": [
-      {
-        "id": "a",
+    "blocks": {
+      "a": {
         "registry_id": "letters_block",
         "state": {
           "n": 3
@@ -17,9 +21,9 @@
         "name": "Letters",
         "attrs": {}
       }
-    ],
-    "links": [],
-    "stacks": [],
+    },
+    "links": {},
+    "stacks": {},
     "options": {},
     "panels": {
       "main": {
@@ -30,42 +34,5 @@
       }
     },
     "active": "main"
-  },
-  "file": {
-    "format": 1,
-    "packages": {
-      "blockr.core": "0.2.0",
-      "blockr.test": "0.1.0"
-    },
-    "board": {
-      "id": "quiet_heron",
-      "class": [
-        "grid_board",
-        "board"
-      ],
-      "name": "Grid",
-      "blocks": {
-        "a": {
-          "registry_id": "letters_block",
-          "state": {
-            "n": 3
-          },
-          "name": "Letters",
-          "attrs": {}
-        }
-      },
-      "links": {},
-      "stacks": {},
-      "options": {},
-      "panels": {
-        "main": {
-          "title": "Main",
-          "blocks": [
-            "a"
-          ]
-        }
-      },
-      "active": "main"
-    }
   }
 }

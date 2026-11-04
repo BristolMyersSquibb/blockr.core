@@ -71,17 +71,20 @@ test_that("stacks class", {
   expect_named(stkss, c("a", "b", "c", "d"))
 })
 
-test_that("a stack may lack an ID, but one given is not made of digits", {
+test_that("R draws a stack's missing ID, and refuses one of digits alone", {
 
   x <- new_stack(letters[1:2], "stack a")
 
-  expect_named(stacks(x, b = new_stack("c")), c("", "b"))
+  ids <- names(stacks(x, b = new_stack("c")))
 
-  expect_s3_class(
+  expect_identical(ids[2L], "b")
+  expect_false(ids[1L] %in% c("b", ""))
+
+  expect_error(
     validate_stacks(
       structure(list(x), class = c("stacks", "vctrs_vctr", "list"))
     ),
-    "stacks"
+    class = "stacks_names_invalid"
   )
 
   expect_error(

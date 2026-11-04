@@ -1,5 +1,5 @@
 {
-  "description": "The handshake of an app whose script loaded blockr.test, a package that declares a startup module, two modules that it offers others, one of them the front-end that its board class grid_board names, and two renderers, one for table outputs and one for the board option dark_mode, which the app names in the blockr option renderers. Beside it, the script registered two block classes of its own and built an empty board of the class grid_board. R loads no package for the handshake, so its reply says what the script loaded. R builds the fields that say so from what is registered and declared, and building them builds no block. They give the version of each package that the reply names, here blockr.test alone, since a class from no package names none. R serves each file at a URL that holds a hash of its content: a package's file under the package's name, at its path in the package, with the hash in the query, and a file from no package under blockr-modules, in a directory named by the hash. It writes the starting state of the letters block by the schema that the block's module ships, so that columns, a vector of length one, is an array, and that of the count block, whose module ships no schema, bare.",
+  "description": "The handshake of an app whose script loaded blockr.test, a package that declares a startup module, two modules that it offers others, one of them the front-end that its board class grid_board names, and two renderers, one for table outputs and one for the board option dark_mode, which the app names in the blockr option renderers. Beside it, the script registered two block classes of its own and built an empty board of the class grid_board, which R sends as a JSON board, with the id it drew. R loads no package for the handshake, so its reply says what the script loaded. R builds the fields that say so from what is registered and declared, and building them builds no block. They give the version of each package that the reply names, here blockr.test alone, since a class from no package names none. R serves each file at a URL that holds a hash of its content: a package's file under the package's name, at its path in the package, with the hash in the query, and a file from no package under blockr-modules, in a directory named by the hash. It writes the starting state of the letters block by the schema that the block's module ships, so that columns, a vector of length one, is an array, and that of the count block, whose module ships no schema, bare.",
   "client": [
     {
       "id": "1",
@@ -116,11 +116,17 @@
         },
         "lock": null,
         "board": {
-          "class": ["grid_board", "board"],
-          "blocks": [],
-          "links": [],
-          "stacks": [],
-          "options": {}
+          "format": 1,
+          "packages": { "blockr.core": "0.2.0" },
+          "board": {
+            "id": "calm_heron",
+            "class": ["grid_board", "board"],
+            "name": "Calm heron",
+            "blocks": {},
+            "links": {},
+            "stacks": {},
+            "options": {}
+          }
         }
       }
     ]

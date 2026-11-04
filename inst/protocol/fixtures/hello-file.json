@@ -1,5 +1,5 @@
 {
-  "description": "The handshake of an app that serves a saved file, as serve(\"cars.json\") does. R has loaded the packages the file names, and passes the file on as it is, in place of a board an app script built, which the client opens as it opens any saved file, running the migrations of the packages whose version the file records differs from the one R loaded.",
+  "description": "The handshake of an app that serves a JSON board, as serve(\"cars.json\") does. R passes the file's text on as it is, in place of a board an app script built, and loads nothing for it, and the client opens it as it opens any JSON board, running the migrations of the packages whose version the file records differs from the one R loaded.",
   "client": [
     {
       "id": "1",
@@ -119,7 +119,7 @@
           }
         },
         "lock": null,
-        "file": {
+        "board": {
           "format": 1,
           "packages": { "blockr.core": "0.2.0" },
           "board": {

@@ -1,10 +1,10 @@
-// Opening a board, which replaces the board the store holds: a saved file,
-// or the opening board that R sends with its reply to `hello`,
-// which the store opens as the saved file it would be.
-// Every board goes the same way from there, so that it ends as the same board
-// whichever way it came in:
-// 1. The store runs the migration of every package whose saved version differs
-//    from the one R loaded.
+// Opening a board, which replaces the board the store holds: a JSON board,
+// as the text of a file or as the opening board that R sends with its reply to
+// `hello`.
+// Every board goes the same way, so that it ends as the same board whichever
+// way it came in:
+// 1. The store runs the migration of every package whose version the JSON
+//    board records differs from the one R loaded.
 // 2. It builds the board as the first class in the board's class vector that a
 //    loaded package defines, or as core's `board` where none is.
 // 3. It drops and names what the app cannot rebuild,
@@ -13,8 +13,8 @@
 //    the defaults of the properties of its class, and of the board options that
 //    the class and its parents require.
 
-import type { OpenReply } from "../protocol/index.ts";
-import type { Board, OpeningBoard, OptionId, SavedBoard } from "../types/board.ts";
+import type { HelloReply } from "../protocol/index.ts";
+import type { Board, JsonBoard, OptionId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import {
   frozenCopy,
@@ -28,20 +28,19 @@ import { check, isClass } from "./check.ts";
 import { commit } from "./commit.ts";
 import { StoreError } from "./error.ts";
 import { expand } from "./expand.ts";
-import { mintId, sentenceCase } from "./ids.ts";
 import { CORE_PROPERTIES, defaultOf, propertiesOf, recordOf } from "./registrations.ts";
 import type { Built, Checked, Registrations, Saved } from "./registrations.ts";
 
-// The highest format of a saved file that this client reads and writes.
+// The highest format of a JSON board that this client reads and writes.
 export const FORMAT = 1;
 
 // What the store names of what it dropped as it opened a board, since the app
 // cannot rebuild it.
-// It names each package that the file lists and R could not load, with the
-// version the file records, so that the user learns what to install.
+// It names each package that the JSON board lists and R could not load, with
+// the version the JSON board records, so that the user learns what to install.
 // Where such a package defines the board's class, the store builds the board
 // as the next class in its class vector that a loaded package defines.
-// A class's name gives no package, but the file's packages do.
+// A class's name gives no package, but the JSON board's packages do.
 // It names each block whose class the block registry lacks, with the package
 // to install where its registry id gives one.
 // It does not name what it drops of the properties, attributes and board
@@ -56,38 +55,38 @@ export type Dropped =
 
 const refused = "The store refused to open the board";
 
-// A saved file's text, as JSON.parse() reads it.
+// A JSON board's text, as JSON.parse() reads it.
 export function parse(text: string): unknown {
   try {
     return JSON.parse(text);
   } catch (error) {
-    throw new StoreError(refused, [`The file holds no JSON: ${messageOf(error)}`]);
+    throw new StoreError(refused, [`The text holds no JSON: ${messageOf(error)}`]);
   }
 }
 
-// A saved file, refusing a format above any this client knows,
+// A JSON board, refusing a format above any this client knows,
 // a file of today's stack, which has none, and a board that names no class.
-export function checkFile(file: unknown): SavedBoard {
-  if (!isObject(file)) throw new StoreError(refused, ["The file holds no saved board."]);
-  if (!Object.hasOwn(file, "format")) {
+export function checkJsonBoard(json: unknown): JsonBoard {
+  if (!isObject(json)) throw new StoreError(refused, ["The JSON is no JSON board."]);
+  if (!Object.hasOwn(json, "format")) {
     throw new StoreError(refused, [
-      "The file has no format, as a file of today's stack has none, which a conversion outside core turns into a saved file first.",
+      "The JSON board has no format, as a file of today's stack has none, which a conversion outside core turns into a JSON board first.",
     ]);
   }
-  if (typeof file.format !== "number" || !Number.isInteger(file.format)) {
-    throw new StoreError(refused, [`The file's format ${JSON.stringify(file.format)} is no whole number.`]);
+  if (typeof json.format !== "number" || !Number.isInteger(json.format)) {
+    throw new StoreError(refused, [`The JSON board's format ${JSON.stringify(json.format)} is no whole number.`]);
   }
-  if (file.format > FORMAT) {
+  if (json.format > FORMAT) {
     throw new StoreError(refused, [
-      `The file's format is ${String(file.format)}, while this client reads format ${String(FORMAT)} at most.`,
+      `The JSON board's format is ${String(json.format)}, while this client reads format ${String(FORMAT)} at most.`,
     ]);
   }
-  if (!isObject(file.packages) || !Object.values(file.packages).every((v) => typeof v === "string")) {
-    throw new StoreError(refused, ["The file names no packages with their versions."]);
+  if (!isObject(json.packages) || !Object.values(json.packages).every((v) => typeof v === "string")) {
+    throw new StoreError(refused, ["The JSON board names no packages with their versions."]);
   }
-  if (!isObject(file.board)) throw new StoreError(refused, ["The file holds no board."]);
-  classOf(file.board as unknown as Board);
-  return file as unknown as SavedBoard;
+  if (!isObject(json.board)) throw new StoreError(refused, ["The JSON board holds no board."]);
+  classOf(json.board as unknown as Board);
+  return json as unknown as JsonBoard;
 }
 
 // The board's class vector, which the store builds the board by,
@@ -101,57 +100,8 @@ export function classOf(board: Board): readonly string[] {
   return board.class;
 }
 
-// The opening board that an app script built,
-// with its collections keyed by id and each id it lacks minted,
-// and named after its id where it has no name.
-// The properties of its class that the script gives come after core's.
-export function keyed(opening: OpeningBoard): Board {
-  classOf(opening as unknown as Board);
-  const failures: string[] = [];
-
-  function collection<T extends { readonly id?: string }>(
-    what: string,
-    entries: readonly T[],
-  ): Readonly<Record<string, Omit<T, "id">>> {
-    const given = new Set<string>();
-    for (const entry of entries) {
-      if (entry.id === undefined) continue;
-      if (given.has(entry.id)) {
-        failures.push(`The board holds two ${what}s with the id "${entry.id}".`);
-      }
-      given.add(entry.id);
-    }
-    const taken = (id: string) => given.has(id);
-    return Object.fromEntries(
-      entries.map(({ id, ...entry }) => {
-        const key = id ?? mintId(taken);
-        given.add(key);
-        return [key, entry];
-      }),
-    );
-  }
-
-  const blocks = collection("block", opening.blocks);
-  const links = collection("link", opening.links);
-  const stacks = collection("stack", opening.stacks);
-
-  if (failures.length > 0) throw new StoreError(refused, failures);
-
-  const id = opening.id ?? mintId(() => false);
-  const board: Board = {
-    id,
-    class: opening.class,
-    name: opening.name ?? sentenceCase(id),
-    blocks,
-    links,
-    stacks,
-    options: opening.options,
-  };
-  return { ...board, ...propertiesOf(opening) };
-}
-
-// What the file holds that migrations convert: the properties of the board's
-// class and every block's state, with its class.
+// What the JSON board holds that migrations convert: the properties of the
+// board's class and every block's state, with its class.
 function saved(board: Board): Saved {
   return frozenCopy({
     properties: propertiesOf(board) as Readonly<Record<string, Json>>,
@@ -171,22 +121,29 @@ function coreOf(board: Board): Board {
   ) as unknown as Board;
 }
 
-// The board after the migration of every package whose version the file records
-// differs from the one R loaded, a package the board holds nothing of included,
-// one after another in the order they were registered in,
+// The board after the migration of every package whose version the JSON board
+// records differs from the one R loaded, a package the board holds nothing of
+// included, one after another in the order they were registered in,
 // which is the order in which packages declare their startup modules,
 // since those register them and core initializes them in that order,
 // so that a package's comes after those of the packages it imports.
-// Each rewrites the file as the one before it left it,
+// Each rewrites what the JSON board holds as the one before it left it,
 // and the board takes the properties and the blocks' states the
 // last one returns, while what a migration leaves out is gone,
 // so that the board opens in today's shape.
+// A JSON board whose every package is at the version R loaded is in today's
+// shape, since it records every package whose content it holds, as the client
+// and R both write it, so that no migration runs for it.
 function migrate(
   board: Board,
   versions: Readonly<Record<string, string>>,
   loaded: Readonly<Record<string, string>>,
   registrations: Registrations,
 ): Board {
+  if (Object.entries(versions).every(([pkg, version]) => own(loaded, pkg) === version)) {
+    return board;
+  }
+
   let file = saved(board);
   let migrated = false;
 
@@ -223,16 +180,17 @@ function migrate(
   };
 }
 
-// The board that a saved file opens to, with what opening it dropped and the
-// class it is built as, or a StoreError naming what refused it.
+// The board that a JSON board opens to, with the block registry and the
+// versions of the packages of the reply to `hello`, with what opening it
+// dropped and the class it is built as, or a StoreError naming what refused it.
 // The board options that its class requires come after,
 // since a default may have to wait (see required()).
-export function openFile(
-  file: SavedBoard,
-  reply: OpenReply,
+export function openJsonBoard(
+  json: JsonBoard,
+  reply: Pick<HelloReply, "packages" | "block_registry">,
   registrations: Registrations,
 ): { board: Board; dropped: Dropped[]; built: Built } {
-  const migrated = migrate(file.board, file.packages, reply.packages, registrations);
+  const migrated = migrate(json.board, json.packages, reply.packages, registrations);
   const built = registrations.builtAs(classOf(migrated));
 
   const gone = Object.entries(migrated.blocks)
@@ -249,7 +207,7 @@ export function openFile(
   const failures = check(board, reply.block_registry, registrations, built);
   if (failures.length > 0) throw new StoreError(refused, failures);
 
-  const packages: Dropped[] = Object.entries(file.packages)
+  const packages: Dropped[] = Object.entries(json.packages)
     .filter(([pkg]) => own(reply.packages, pkg) === undefined)
     .map(([pkg, version]) => ({ package: pkg, version }));
 

@@ -1,5 +1,5 @@
-import type { OpenReply } from "../protocol/index.ts";
-import type { Board, OpeningBoard, OptionId, SavedBoard } from "../types/board.ts";
+import type { HelloReply } from "../protocol/index.ts";
+import type { Board, JsonBoard, OptionId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { Built, Registrations } from "./registrations.ts";
 export declare const FORMAT = 1;
@@ -12,10 +12,9 @@ export type Dropped = {
     readonly package: string | null;
 };
 export declare function parse(text: string): unknown;
-export declare function checkFile(file: unknown): SavedBoard;
+export declare function checkJsonBoard(json: unknown): JsonBoard;
 export declare function classOf(board: Board): readonly string[];
-export declare function keyed(opening: OpeningBoard): Board;
-export declare function openFile(file: SavedBoard, reply: OpenReply, registrations: Registrations): {
+export declare function openJsonBoard(json: JsonBoard, reply: Pick<HelloReply, "packages" | "block_registry">, registrations: Registrations): {
     board: Board;
     dropped: Dropped[];
     built: Built;

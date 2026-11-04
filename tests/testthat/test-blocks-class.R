@@ -62,19 +62,32 @@ test_that("blocks utils", {
   )
 })
 
-test_that("a block may lack an ID, but one given is not made of digits", {
+test_that("R draws a block's missing ID, and refuses one of digits alone", {
 
   a <- new_dataset_block()
 
-  expect_named(blocks(a, new_subset_block()), c("", ""))
-  expect_named(c(a = a, new_subset_block()), c("a", ""))
+  ids <- names(blocks(a, new_subset_block()))
+
+  expect_length(ids, 2L)
+  expect_true(all(nzchar(ids)))
+  expect_false(anyDuplicated(ids) > 0L)
+
+  ids <- names(c(a = a, new_subset_block()))
+
+  expect_identical(ids[1L], "a")
+  expect_false(ids[2L] %in% c("a", ""))
+
   expect_named(blocks(a1 = a, `1a` = new_subset_block()), c("a1", "1a"))
 
-  expect_s3_class(
+  withr::local_options(blockr.rand_id = "letters_6")
+
+  expect_match(names(blocks(a)), "^[a-z]{6}$")
+
+  expect_error(
     validate_blocks(
       structure(list(a), class = c("blocks", "vctrs_vctr", "list"))
     ),
-    "blocks"
+    class = "blocks_names_invalid"
   )
 
   expect_error(

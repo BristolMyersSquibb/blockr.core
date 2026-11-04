@@ -1,7 +1,7 @@
 // The block registry's entries, which R sends the client with its reply to
-// `hello` and to every `open`: each block class by registry id, with what the
-// client cannot read off a class that stays in R. They are read-only, for
-// neither side to edit.
+// `hello`: each block class by registry id, with what the client cannot read
+// off a class that stays in R.
+// They are read-only, for neither side to edit.
 
 import type { OptionId, RegistryId } from "./board.ts";
 import type { Json, JsonSchema } from "./json.ts";

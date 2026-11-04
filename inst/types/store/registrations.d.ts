@@ -1,4 +1,4 @@
-import type { Block, BlockId, Board, OpeningBoard, OptionId, RegistryId } from "../types/board.ts";
+import type { Block, BlockId, Board, OptionId, RegistryId } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import type { Validate } from "../util/index.ts";
 import type { Delta, Patch } from "./delta.ts";
@@ -69,6 +69,6 @@ export interface Registrations {
 export declare const CORE_BOARD: BoardClass;
 export declare const CORE_PROPERTIES: readonly string[];
 export declare function createRegistrations(): Registrations;
-export declare function recordOf(board: Board | OpeningBoard): Readonly<Record<string, unknown>>;
-export declare function propertiesOf(board: Board | OpeningBoard): Readonly<Record<string, unknown>>;
+export declare function recordOf(board: Board): Readonly<Record<string, unknown>>;
+export declare function propertiesOf(board: Board): Readonly<Record<string, unknown>>;
 export declare function defaultOf(built: Built, name: string): Json | undefined;

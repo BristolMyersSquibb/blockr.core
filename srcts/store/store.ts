@@ -9,15 +9,10 @@
 // `useSyncExternalStore` needs.
 
 import { signal } from "@preact/signals-core";
-import type { Client, HelloReply, OpenReply } from "../protocol/index.ts";
-import type {
-  BlockId,
-  Board,
-  RegistryId,
-  SavedBoard,
-} from "../types/board.ts";
+import type { HelloReply } from "../protocol/index.ts";
+import type { BlockId, Board, JsonBoard, RegistryId } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { report } from "../util/index.ts";
+import { own, packageOf, report } from "../util/index.ts";
 import { check } from "./check.ts";
 import { commit, target } from "./commit.ts";
 import type { Changed, Inverse, Target } from "./commit.ts";
@@ -27,7 +22,7 @@ import { StoreError } from "./error.ts";
 import { expand } from "./expand.ts";
 import { pointer } from "./patch.ts";
 import { fit, isEmpty } from "./undo.ts";
-import { checkFile, FORMAT, keyed, openFile, parse, required } from "./open.ts";
+import { checkJsonBoard, FORMAT, openJsonBoard, parse, required } from "./open.ts";
 import type { Dropped } from "./open.ts";
 import { createRegistrations } from "./registrations.ts";
 import type {
@@ -58,10 +53,16 @@ export interface Store {
   // that changes nothing is no delta, and a step keeps of the others only what
   // they change.
   apply(delta: Delta | readonly Delta[], origin?: Origin): void;
-  // Opens a saved file, given as its text, having R load the packages it
-  // names, or the opening board that R sent with its reply to `hello`, and
-  // replaces the board, resolving with what it dropped.
-  open(saved: string | HelloReply): Promise<Dropped[]>;
+  // Opens the opening board that R sent with its reply to `hello`, or a JSON
+  // board given as its text, with the block registry of the last such reply,
+  // and replaces the board, resolving with what it dropped.
+  // A locked board opens no JSON board.
+  open(given: string | HelloReply): Promise<Dropped[]>;
+  // The board as a JSON board, as a file holds it, which records the version
+  // of each package that the board's content comes from: the package of each
+  // class that the board is built as, core's among them, and the package of
+  // each block's class, which its registry id names.
+  jsonBoard(): JsonBoard;
 
   // Reverts or applies again that origin's last step, or throws a StoreError
   // where another origin has since changed what the step changed.
@@ -87,7 +88,7 @@ export interface Store {
   readonly options: Options;
 
   // The block registry's entries that the store opened the board with, and
-  // the versions of the packages R loaded, which a saved file records.
+  // the versions of the packages R loaded, from the reply to `hello`.
   blockRegistry(): Readonly<Record<RegistryId, RegistryEntry>>;
   packages(): Readonly<Record<string, string>>;
 
@@ -97,21 +98,21 @@ export interface Store {
   editId(of: { readonly block: BlockId } | { readonly property: string }): number | undefined;
 }
 
+// The store sends R nothing: it opens every board with what the reply to
+// `hello` holds, and the scheduler has R forget the blocks of a board that
+// another replaces.
 export interface StoreOptions {
-  // What the store sends R the `open` of a saved file through: the client of
-  // the wire protocol, which gives a request its id and resolves with R's
-  // reply to it.
-  readonly client: Pick<Client, "request">;
-  // What has to run once R has loaded the packages that a board names and
-  // before the store opens it, given R's reply and the board's class vector:
-  // initializing the startup modules of the packages R loaded,
+  // What has to run before the store opens a board, given the reply to `hello`
+  // and the board's class vector:
+  // initializing the startup modules of the packages R loaded that it has not
+  // initialized yet,
   // which define their board classes and register their attributes,
   // board options and migrations, and switching the page to the front-end
   // of the first class in the vector that a loaded package defines,
   // which the store then builds the board as, and which boardClass() gives.
   // Which class that is, and so the board's front-end,
   // is known only once the startup modules have run.
-  readonly loaded?: (reply: OpenReply, classes: readonly string[]) => void | Promise<void>;
+  readonly loaded?: (reply: HelloReply, classes: readonly string[]) => void | Promise<void>;
 }
 
 // What takes one step back, on an origin's undo list, or applies it again, on
@@ -131,7 +132,7 @@ interface Applied {
   readonly changed: Changed;
 }
 
-export function createStore(options: StoreOptions): Store {
+export function createStore(options: StoreOptions = {}): Store {
   const registrations = createRegistrations();
   registrations.register(visible);
 
@@ -139,6 +140,9 @@ export function createStore(options: StoreOptions): Store {
   // The class that the store built the board as, with its parents,
   // as it was registered when the board opened.
   let built: Built | undefined;
+  // The last reply to `hello`, whose block registry and package versions the
+  // store opens every board with, and whose lock keeps it from opening one.
+  let hello: HelloReply | undefined;
   const registry = signal<Readonly<Record<RegistryId, RegistryEntry>>>({});
   const packages = signal<Readonly<Record<string, string>>>({});
   const history = signal<ReadonlyMap<Origin, History>>(new Map());
@@ -354,45 +358,35 @@ export function createStore(options: StoreOptions): Store {
     }
   }
 
-  async function open(saved: string | HelloReply): Promise<Dropped[]> {
-    let file: SavedBoard;
-    let reply: OpenReply;
+  async function open(given: string | HelloReply): Promise<Dropped[]> {
+    let json: JsonBoard;
+    let reply: HelloReply;
 
-    if (typeof saved === "string") {
-      file = checkFile(parse(saved));
-      const { reply: answer } = await options.client.request({
-        kind: "open",
-        packages: Object.keys(file.packages),
-      });
-      if (answer.status !== "ok" || !("block_registry" in answer)) {
-        throw new StoreError(
-          "R refused to load the packages of the board",
-          "conditions" in answer
-            ? answer.conditions.map((condition) => condition.message)
-            : [`R replied ${answer.status}.`],
-        );
+    if (typeof given === "string") {
+      const refused = "The store refused to open the board";
+      if (hello === undefined) {
+        throw new StoreError(refused, ["The store opens a JSON board only once R has answered `hello`."]);
       }
-      reply = answer;
+      if (hello.lock !== null) {
+        throw new StoreError(refused, ["The board is locked, so it opens no other board."]);
+      }
+      reply = hello;
+      json = checkJsonBoard(parse(given));
     } else {
-      reply = saved;
-      // The board an app script built opens as the saved file it would be,
-      // which R wrote with the versions of the packages it loaded, so that it
-      // ends as the same board opened from a file ends.
-      file =
-        saved.file === undefined
-          ? { format: FORMAT, packages: saved.packages, board: keyed(saved.board) }
-          : checkFile(saved.file);
+      reply = given;
+      hello = given;
+      registry.value = given.block_registry;
+      packages.value = given.packages;
+      json = checkJsonBoard(given.board);
     }
 
-    registry.value = reply.block_registry;
-    packages.value = reply.packages;
-    await options.loaded?.(reply, file.board.class);
+    await options.loaded?.(reply, json.board.class);
 
     guard();
-    let opened: ReturnType<typeof openFile>;
+    let opened: ReturnType<typeof openJsonBoard>;
     busy = true;
     try {
-      opened = openFile(file, reply, registrations);
+      opened = openJsonBoard(json, reply, registrations);
     } finally {
       busy = false;
     }
@@ -422,6 +416,23 @@ export function createStore(options: StoreOptions): Store {
     } finally {
       busy = false;
     }
+  }
+
+  function jsonBoard(): JsonBoard {
+    if (board.value === undefined || built === undefined) {
+      throw new Error("The store holds no board until it opens one.");
+    }
+    const owned = new Set([
+      ...built.chain.map(({ def }) => def.package),
+      ...Object.values(board.value.blocks).flatMap(({ registry_id }) => packageOf(registry_id) ?? []),
+    ]);
+    const versions = Object.fromEntries(
+      [...owned].sort().flatMap((pkg) => {
+        const version = own(packages.value, pkg);
+        return version === undefined ? [] : [[pkg, version]];
+      }),
+    );
+    return { format: FORMAT, packages: versions, board: board.value };
   }
 
   function everyTarget(next: Board, as: Built): string[] {
@@ -464,6 +475,7 @@ export function createStore(options: StoreOptions): Store {
     boardClass: (classes) => registrations.builtAs(classes).def,
     registerMigration: (pkg, fn) => registrations.registerMigration(pkg, fn),
     options: registrations.options,
+    jsonBoard,
     blockRegistry: () => registry.value,
     packages: () => packages.value,
     editId: (of) => edits.get(target(of)),

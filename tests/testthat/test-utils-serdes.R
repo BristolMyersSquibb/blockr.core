@@ -16,7 +16,7 @@ outside_class <- function(name, expr, dir, schema = NULL, inputs = NULL) {
   )
 }
 
-test_that("a board is written as R sends it", {
+test_that("a board is written as a JSON board", {
 
   local_declared(block_registry)
 
@@ -32,31 +32,40 @@ test_that("a board is written as R sends it", {
     name = "Q3 numbers"
   )
 
+  res <- read_json_strictly(encode_message(blockr_ser(board)))
+
+  expect_named(res, c("format", "packages", "board"))
+  expect_identical(res$format, 1)
+
+  # The block class is from no package, so the board's content is core's alone
   expect_identical(
-    read_json_strictly(encode_message(blockr_ser(board))),
+    res$packages,
+    list(blockr.core = as.character(pkg_version("blockr.core")))
+  )
+
+  expect_identical(
+    res$board,
     read_json_strictly(
       '{
         "id": "sales_review",
         "class": ["board"],
         "name": "Q3 numbers",
-        "blocks": [
-          {
-            "id": "a",
+        "blocks": {
+          "a": {
             "registry_id": "head_block",
             "state": { "n": 10, "direction": "head" },
             "name": "Ten",
             "attrs": {}
           },
-          {
-            "id": "b",
+          "b": {
             "registry_id": "head_block",
             "state": { "n": 6, "direction": "tail" },
             "name": "Head",
             "attrs": { "visible": ["outputs"] }
           }
-        ],
-        "links": [{ "id": "ab", "from": "a", "to": "b", "input": "data" }],
-        "stacks": [{ "id": "s1", "name": "Input", "blocks": ["a"] }],
+        },
+        "links": { "ab": { "from": "a", "to": "b", "input": "data" } },
+        "stacks": { "s1": { "name": "Input", "blocks": ["a"] } },
         "options": { "n_rows": 25, "dark_mode": "dark" }
       }'
     )
@@ -64,14 +73,14 @@ test_that("a board is written as R sends it", {
 
   # R marks an array and writes an object as a named list, as R's writers all
   # write them
-  res <- blockr_ser(board)
+  res <- blockr_ser(board)$board
 
-  expect_s3_class(res$stacks[[1L]]$blocks, "AsIs")
+  expect_s3_class(res$stacks$s1$blocks, "AsIs")
   expect_s3_class(res$class, "AsIs")
   expect_named(res$options, c("n_rows", "dark_mode"))
 })
 
-test_that("R mints no ids and writes an empty board as such", {
+test_that("a JSON board holds every ID, and an empty board empty objects", {
 
   local_declared(block_registry)
 
@@ -85,30 +94,45 @@ test_that("R mints no ids and writes an empty board as such", {
     stacks = list(new_stack(character(), "Empty"))
   )
 
-  res <- read_json_strictly(encode_message(blockr_ser(board)))
+  res <- read_json_strictly(encode_message(blockr_ser(board)))$board
 
-  expect_false(any(c("id", "name") %in% names(res)))
-  expect_identical(lapply(res$blocks, `[[`, "id"), list("a", "b", NULL))
+  expect_identical(res$id, board_id(board))
+  expect_identical(res$name, board_name(board))
+  expect_named(res$blocks, board_block_ids(board))
   expect_identical(
-    res[c("links", "stacks")],
-    read_json_strictly(
-      '{
-        "links": [{ "from": "a", "to": "b", "input": "data" }],
-        "stacks": [{ "name": "Empty", "blocks": [] }]
-      }'
+    unname(res[c("links", "stacks")]),
+    list(
+      set_names(
+        read_json_strictly('[{ "from": "a", "to": "b", "input": "data" }]'),
+        board_link_ids(board)
+      ),
+      set_names(
+        read_json_strictly('[{ "name": "Empty", "blocks": [] }]'),
+        board_stack_ids(board)
+      )
     )
   )
 
   expect_identical(
-    read_json_strictly(encode_message(blockr_ser(new_board()))),
+    read_json_strictly(encode_message(blockr_ser(new_board(id = "empty")))),
     read_json_strictly(
-      '{
-        "class": ["board"],
-        "blocks": [],
-        "links": [],
-        "stacks": [],
-        "options": {}
-      }'
+      paste0(
+        '{
+          "format": 1,
+          "packages": { "blockr.core": "',
+        as.character(pkg_version("blockr.core")),
+        '" },
+          "board": {
+            "id": "empty",
+            "class": ["board"],
+            "name": "Empty",
+            "blocks": {},
+            "links": {},
+            "stacks": {},
+            "options": {}
+          }
+        }'
+      )
     )
   )
 })
@@ -151,17 +175,17 @@ test_that("a block's state is written by the schema its class's UI ships", {
     )
   )
 
-  res <- read_json_strictly(encode_message(blockr_ser(board)))
+  res <- read_json_strictly(encode_message(blockr_ser(board)))$board
 
   # Bare where the UI ships no schema, so that the UI takes either form
   expect_identical(
     lapply(res$blocks, `[[`, "state"),
     read_json_strictly(
-      '[
-        { "by": ["Time"], "all_x": false, "all_y": false },
-        { "by": [], "all_x": false, "all_y": false },
-        { "cols": "Time", "n": 1 }
-      ]'
+      '{
+        "a": { "by": ["Time"], "all_x": false, "all_y": false },
+        "b": { "by": [], "all_x": false, "all_y": false },
+        "c": { "cols": "Time", "n": 1 }
+      }'
     )
   )
 })
@@ -177,9 +201,9 @@ test_that("a block class is registered from its blocks", {
 
   expect_false("note_block" %in% list_blocks())
 
-  res <- blockr_ser(new_board(c(a = new_note_block("Hi"))))
+  res <- blockr_ser(new_board(c(a = new_note_block("Hi"))))$board
 
-  expect_identical(res$blocks[[1L]]$registry_id, "note_block")
+  expect_identical(res$blocks$a$registry_id, "note_block")
   expect_identical(registry_id_from_block(cls), "note_block")
 
   entry <- get_registry_entry("note_block")
@@ -191,9 +215,9 @@ test_that("a block class is registered from its blocks", {
   unregister_blocks("note_block")
   register_block(new_note_block, "Notes", "Free text", uid = "text_note")
 
-  res <- blockr_ser(new_board(c(a = new_note_block("Hi"))))
+  res <- blockr_ser(new_board(c(a = new_note_block("Hi"))))$board
 
-  expect_identical(res$blocks[[1L]]$registry_id, "text_note")
+  expect_identical(res$blocks$a$registry_id, "text_note")
   expect_false("note_block" %in% list_blocks())
 
   # Another class of the same name takes no entry from it
@@ -237,7 +261,7 @@ test_that("a board that the format cannot hold fails as it is written", {
   # A named vector is written as an object, as R decodes one
   res <- ser(c(a = "x", b = "y"))
 
-  expect_identical(res$blocks[[1L]]$state$x, list(a = "x", b = "y"))
+  expect_identical(res$board$blocks$a$state$x, list(a = "x", b = "y"))
 
   expect_error(
     blockr_ser(new_board(options = new_n_rows_option(as.Date("2024-01-01")))),
@@ -268,13 +292,13 @@ test_that("the board holds the board options the script gives, by schema", {
   )
 
   expect_identical(
-    read_json_strictly(encode_message(blockr_ser(board)))$options,
+    read_json_strictly(encode_message(blockr_ser(board)))$board$options,
     read_json_strictly('{ "show_conditions": ["error"], "n_rows": 5 }')
   )
 
   # The schema next to core's runtime, which is the first that R applies after
-  # the board's
-  options <- startup_schemas()[[1L]]$properties$options$properties
+  # the JSON board's
+  options <- startup_schemas()[["blockr.core"]]$properties$options$properties
 
   expect_setequal(names(options), c("n_rows", "show_conditions", "dark_mode"))
   expect_identical(options$show_conditions$type, "array")
@@ -327,6 +351,8 @@ test_that("a board's class and its properties are written by the schemas", {
     }
   )
 
+  local_versions(blockr.test = "0.1.0")
+
   register_startup_module(test_module("js/startup.js"))
 
   board <- new_board(
@@ -335,19 +361,22 @@ test_that("a board's class and its properties are written by the schemas", {
     layout = list(pinned = "a", note = "x"),
     active = "p1",
     widths = list(),
+    id = "grid",
     class = "grid_board"
   )
 
   # The properties come after core's, in their order,
   # and what the schema leaves out keeps the shape that R's writer gives it
   expect_identical(
-    read_json_strictly(encode_message(blockr_ser(board))),
+    read_json_strictly(encode_message(blockr_ser(board)))$board,
     read_json_strictly(
       '{
+        "id": "grid",
         "class": ["grid_board", "board"],
-        "blocks": [],
-        "links": [],
-        "stacks": [],
+        "name": "Grid",
+        "blocks": {},
+        "links": {},
+        "stacks": {},
         "options": { "tags": ["draft"] },
         "panels": {
           "p1": { "title": "Main", "blocks": ["a"] },
@@ -363,7 +392,7 @@ test_that("a board's class and its properties are written by the schemas", {
   # An empty collection is an object, and a property the board lacks stays out,
   # while a class that no package defines is written all the same
   board <- new_board(panels = list(), class = c("my_board", "grid_board"))
-  res <- read_json_strictly(encode_message(blockr_ser(board)))
+  res <- read_json_strictly(encode_message(blockr_ser(board)))$board
 
   expect_identical(
     res[c("class", "panels")],
@@ -374,9 +403,10 @@ test_that("a board's class and its properties are written by the schemas", {
   expect_false("active" %in% names(res))
 })
 
-test_that("R applies the schema of every package that has one", {
+test_that("R applies each package's schema, and records a property's package", {
 
   local_declared(declared_startup_modules)
+  local_versions(blockr.one = "1.2.0", blockr.two = "0.3.0")
 
   dir <- withr::local_tempdir()
 
@@ -410,14 +440,50 @@ test_that("R applies the schema of every package that has one", {
   register_startup_module(test_module("js/startup.js", "blockr.two"))
 
   board <- new_board(
+    c(a = new_dataset_block()),
     options = new_board_option("tags", "draft"),
     views = "main"
   )
 
   res <- read_json_strictly(encode_message(blockr_ser(board)))
 
-  expect_identical(res["views"], read_json_strictly('{ "views": ["main"] }'))
-  expect_identical(res$options, read_json_strictly('{ "tags": ["draft"] }'))
+  expect_identical(
+    res$board["views"],
+    read_json_strictly('{ "views": ["main"] }')
+  )
+  expect_identical(
+    res$board$options,
+    read_json_strictly('{ "tags": ["draft"] }')
+  )
+
+  # The package whose startup module ships the schema of a property that the
+  # board holds is the one whose board class adds it, while a board option's
+  # value is no content of its package's
+  core <- as.character(pkg_version("blockr.core"))
+
+  expect_identical(res$packages, list(blockr.core = core, blockr.one = "1.2.0"))
+
+  expect_identical(
+    blockr_ser(new_board(options = new_board_option("tags", "draft")))$packages,
+    list(blockr.core = core)
+  )
+
+  # The package of a block's class is the one its registry entry names
+  local_mocked_bindings(
+    get_registry_entry = function(uid) {
+      list(package = if (startsWith(uid, "blockr.two-")) "blockr.two")
+    }
+  )
+
+  blocks <- list(
+    a = list(registry_id = "blockr.two-tag_block"),
+    b = list(registry_id = "note_block")
+  )
+
+  expect_identical(
+    board_packages(list(blocks = blocks)),
+    list(blockr.core = core, blockr.two = "0.3.0")
+  )
 })
 
 test_that("the schema next to a startup module is a JSON object", {
@@ -452,10 +518,10 @@ test_that("a board's parts are written by their methods", {
   )
 
   expect_identical(
-    blockr_ser(links(ab = new_link("a", "b"), new_link("b", "c"))),
+    blockr_ser(links(ab = new_link("a", "b"), bc = new_link("b", "c"))),
     list(
-      list(id = "ab", from = "a", to = "b", input = ""),
-      list(from = "b", to = "c", input = "")
+      ab = list(from = "a", to = "b", input = ""),
+      bc = list(from = "b", to = "c", input = "")
     )
   )
 

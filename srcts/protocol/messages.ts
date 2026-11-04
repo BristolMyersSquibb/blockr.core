@@ -2,13 +2,7 @@
 // inst/protocol/README.md gives them, which the fixtures in
 // inst/protocol/fixtures are checked against.
 
-import type {
-  BlockId,
-  OpeningBoard,
-  OptionId,
-  RegistryId,
-  SavedBoard,
-} from "../types/board.ts";
+import type { BlockId, JsonBoard, OptionId, RegistryId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { BlockOutput } from "../types/outputs.ts";
 import type { RegistryEntry } from "../types/registry.ts";
@@ -19,7 +13,6 @@ export const PROTOCOL_VERSION = "1.0";
 
 export type Kind =
   | "hello"
-  | "open"
   | "blockr_options"
   | "evaluate"
   | "request"
@@ -39,7 +32,6 @@ export type RMessage = (Reply | Progress)[];
 
 export type Request =
   | HelloRequest
-  | OpenRequest
   | BlockrOptionsRequest
   | EvaluateRequest
   | BlockClassRequest
@@ -53,7 +45,6 @@ export type Request =
 
 export type Reply =
   | HelloReply
-  | OpenReply
   | BlockrOptionsReply
   | EvaluateReply
   | RequestReply
@@ -76,12 +67,9 @@ export interface HelloRequest {
   kind: "hello";
   protocol: string;
   capabilities: Capability[];
-  // The packages that a board the client holds already names, as when the
-  // server ended its session while the page lived on, for R to load.
-  packages?: string[];
 }
 
-export type HelloReply = {
+export interface HelloReply {
   id: string;
   status: "ok";
   protocol: string;
@@ -99,14 +87,14 @@ export type HelloReply = {
   // The renderers that R picked, by the renderer's id.
   renderers: Record<string, Renderer>;
   lock: Lock | null;
+  // The opening board, as a JSON board: the one an app script built, which R
+  // wrote with every id, or the one that `serve()` was given, which R passes on
+  // as it is.
+  board: JsonBoard;
   // For a block that `serve()` serves alone, the inputs that R binds itself
   // to the data it was given, which the client counts as linked.
   bound?: string[];
-} & (
-  // The opening board, as R sends the one an app script built, or as the saved
-  // file that `serve()` was given holds it, which R passes on as it is.
-  { board: OpeningBoard; file?: never } | { file: SavedBoard; board?: never }
-);
+}
 
 // A renderer that R picked for an output class or for a board option.
 export type Renderer = { module: string; css?: string } & (
@@ -118,26 +106,6 @@ export type Renderer = { module: string; css?: string } & (
 export interface Lock {
   open: BlockId[];
 }
-
-// Opening a board, which the client does itself, having R load the packages
-// that the board names
-
-export interface OpenRequest {
-  id: string;
-  kind: "open";
-  packages: string[];
-}
-
-export type OpenReply = Pick<
-  HelloReply,
-  | "id"
-  | "status"
-  | "packages"
-  | "block_registry"
-  | "startup_modules"
-  | "modules"
-  | "renderers"
->;
 
 // Reading blockr options, which the client asks R for by name, since it can
 // read neither an R option nor an environment variable of the server

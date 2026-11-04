@@ -277,16 +277,17 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
 
   // Following the board
 
-  // A board that opens holds no result in R, since R forgets every block. So
-  // every block of it reads unevaluated, with a revision above any its id had.
+  // A board that opens holds no result in R, since the scheduler has R forget
+  // every block of the board it replaces. So every block of it reads
+  // unevaluated, with a revision above any its id had.
   // Every one-time evaluation rejects, and the replies to the evaluations sent
   // count for nothing.
   const opened = action((next: Board) => {
     const before = board.value;
     if (before !== undefined) {
       const old = Object.keys(before.blocks);
-      // R forgets every block as it opens a board. This forget also clears what
-      // an evaluation sent since may have left in R.
+      // This forget also clears what an evaluation sent since may have left in
+      // R.
       if (old.length > 0) client.forget(old);
       bound.value = new Set();
     }
