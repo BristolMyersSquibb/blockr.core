@@ -14,6 +14,7 @@ new_reply_body(x, type, name = NULL)
 register_output_class(
   class,
   schema,
+  renderer = NULL,
   requests = NULL,
   volatile = character(),
   package = pkg_name(parent.frame())
@@ -26,7 +27,8 @@ run_output_class_request(
   args = list(),
   options = list(),
   params = list(),
-  file = NULL
+  file = NULL,
+  renderer = NULL
 )
 }
 \arguments{
@@ -46,6 +48,12 @@ for \code{run_output_class_request()}, the name of the request}
 \item{schema}{The JSON Schema of the class's outputs: the path of its file,
 relative to the package's \verb{inst/}, or relative to the working directory
 outside a package}
+
+\item{renderer}{For \code{register_output_class()}, the module of the class's
+default renderer, made by \code{\link[=js_module]{js_module()}} in the package that registers the
+class, or \code{NULL}, and for \code{run_output_class_request()}, the ID of the
+renderer whose own request it is, or \code{NULL} for a request of the output
+class}
 
 \item{requests}{A named list of the class's requests, each a function}
 
@@ -104,10 +112,20 @@ schema that the block class's UI ships. So a vector of length one stays an
 array where the schema has an array, and a data frame becomes an array of
 its rows.
 
+Registration also takes the class's default renderer, the module that draws
+its outputs, made by \code{\link[=js_module]{js_module()}} in the package that registers the class.
+The renderer gets the ID \code{{pkg}-{class}}, as \code{blockr.core-table_output} does
+for core's tables, and draws the class's outputs unless an app names another
+renderer in the blockr option \code{renderers} (see \code{\link[=register_renderer]{register_renderer()}}). A
+class registered without one, such as a subclass, is drawn by the renderer
+of the most specific class in its class vector that has one.
+
 Registration also takes the class's requests. A request is a function that
 the class's renderers call through their host, for what the output does not
 hold, such as a download of what they show. R resolves a request by the most
-specific class in the output's class vector that has it. R calls the
+specific class in the output's class vector that has it. A renderer may
+bring requests of its own (see \code{\link[=register_renderer]{register_renderer()}}), and a request that
+names a renderer is one of these, never one of the class's. R calls the
 request's function with these arguments, each where the function takes it:
 \itemize{
 \item The result that the output was made from, in \code{result}.
@@ -121,7 +139,7 @@ A request may answer with a reply body, such as a file to download. The
 client keeps a request's answers, as it keeps the output, unless the class
 names the request in \code{volatile}. No request of an output class writes. The
 function \code{run_output_class_request()} runs a request as R does, to test an
-output class without Shiny.
+output class, or the requests of a renderer, without Shiny.
 }
 \examples{
 out <- new_block_output(list(text = "Hello"), "greeting_output")

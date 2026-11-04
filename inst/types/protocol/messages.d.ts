@@ -8,7 +8,7 @@ export type Capability = "cancel" | "interrupt" | "progress";
 export type ReplyStatus = "ok" | "error" | "cancelled" | "invalid" | "missing";
 export type ClientMessage = Request[];
 export type RMessage = (Reply | Progress)[];
-export type Request = HelloRequest | OpenRequest | BlockrOptionsRequest | EvaluateRequest | BlockClassRequest | BoardOptionRequest | ExtensionRequest | OutputClassRequest | OutputRequest | CancelRequest | ForgetRequest;
+export type Request = HelloRequest | OpenRequest | BlockrOptionsRequest | EvaluateRequest | BlockClassRequest | BoardOptionRequest | ExtensionRequest | OutputClassRequest | RendererRequest | OutputRequest | CancelRequest | ForgetRequest;
 export type Reply = HelloReply | OpenReply | BlockrOptionsReply | EvaluateReply | RequestReply | OutputReply | ErrorReply | CancelledReply | MissingReply;
 export interface Progress {
     id: string;
@@ -142,6 +142,7 @@ export interface BlockClassRequest {
     option?: never;
     extension?: never;
     output?: never;
+    renderer?: never;
 }
 export interface BoardOptionRequest {
     id: string;
@@ -153,6 +154,7 @@ export interface BoardOptionRequest {
     registry_id?: never;
     extension?: never;
     output?: never;
+    renderer?: never;
 }
 export interface ExtensionRequest {
     id: string;
@@ -165,10 +167,26 @@ export interface ExtensionRequest {
     registry_id?: never;
     option?: never;
     output?: never;
+    renderer?: never;
 }
 export interface OutputClassRequest {
     id: string;
     kind: "request";
+    output: BlockRevision;
+    name: string;
+    args: Record<string, Json>;
+    options: Record<OptionId, Json>;
+    params: Record<string, Json>;
+    body?: Body;
+    registry_id?: never;
+    option?: never;
+    extension?: never;
+    renderer?: never;
+}
+export interface RendererRequest {
+    id: string;
+    kind: "request";
+    renderer: string;
     output: BlockRevision;
     name: string;
     args: Record<string, Json>;

@@ -10,7 +10,7 @@
         "page": 2
       },
       "output": {
-        "renderer": "blockr.core-basic_table",
+        "renderer": "blockr.core-table_output",
         "columns": [
           {
             "name": "Sepal.Length",
@@ -72,7 +72,7 @@
         }
       },
       "output": {
-        "renderer": "blockr.core-basic_table",
+        "renderer": "blockr.core-table_output",
         "columns": [
           {
             "name": "Ozone",
@@ -135,7 +135,7 @@
       },
       "params": {},
       "output": {
-        "renderer": "blockr.core-basic_table",
+        "renderer": "blockr.core-table_output",
         "columns": [
           {
             "name": "number",
@@ -250,7 +250,7 @@
       },
       "params": {},
       "output": {
-        "renderer": "blockr.core-basic_table",
+        "renderer": "blockr.core-table_output",
         "columns": [
           {
             "name": "Sepal.Length",
@@ -284,7 +284,7 @@
       },
       "params": {},
       "output": {
-        "renderer": "blockr.core-basic_table",
+        "renderer": "blockr.core-table_output",
         "columns": [
           {
             "name": "Sepal.Length",

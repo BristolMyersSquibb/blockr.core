@@ -25,7 +25,7 @@
         "id": "32",
         "status": "ok",
         "output": {
-          "renderer": "blockr.core-basic_plot",
+          "renderer": "blockr.core-plot_output",
           "width": 640,
           "height": 400
         },

@@ -973,7 +973,7 @@ describe("requests", () => {
     const asking = scheduler.request(output(scheduler, "b"));
     const [sent] = r.asked("output");
     expect(sent).toMatchObject({ kind: "output", block: "b", revision: statusOf(scheduler, "b").revision });
-    r.reply({ id: sent?.id ?? "", status: "ok", output: { renderer: "blockr.core-basic_table" } });
+    r.reply({ id: sent?.id ?? "", status: "ok", output: { renderer: "blockr.core-table_output" } });
     await expect(asking).resolves.toMatchObject({ reply: { status: "ok" } });
   });
 

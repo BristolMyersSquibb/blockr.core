@@ -46,6 +46,7 @@ export type Request =
   | BoardOptionRequest
   | ExtensionRequest
   | OutputClassRequest
+  | RendererRequest
   | OutputRequest
   | CancelRequest
   | ForgetRequest;
@@ -254,6 +255,7 @@ export interface BlockClassRequest {
   option?: never;
   extension?: never;
   output?: never;
+  renderer?: never;
 }
 
 export interface BoardOptionRequest {
@@ -266,6 +268,7 @@ export interface BoardOptionRequest {
   registry_id?: never;
   extension?: never;
   output?: never;
+  renderer?: never;
 }
 
 export interface ExtensionRequest {
@@ -280,6 +283,7 @@ export interface ExtensionRequest {
   registry_id?: never;
   option?: never;
   output?: never;
+  renderer?: never;
 }
 
 // A request of an output class, which R resolves against the class vector of
@@ -287,6 +291,27 @@ export interface ExtensionRequest {
 export interface OutputClassRequest {
   id: string;
   kind: "request";
+  output: BlockRevision;
+  name: string;
+  args: Record<string, Json>;
+  // The board option values and parameters that its output was asked with.
+  options: Record<OptionId, Json>;
+  params: Record<string, Json>;
+  body?: Body;
+  registry_id?: never;
+  option?: never;
+  extension?: never;
+  renderer?: never;
+}
+
+// A renderer's own request, which R resolves among that renderer's requests
+// alone and runs as it runs a request of the output class, with the result of
+// the output it belongs to.
+export interface RendererRequest {
+  id: string;
+  kind: "request";
+  // The renderer's id.
+  renderer: string;
   output: BlockRevision;
   name: string;
   args: Record<string, Json>;
