@@ -108,6 +108,60 @@ test_that("rand_names() counts an ID up where every draw is taken", {
   )
 })
 
+test_that("rand_names() draws IDs in the shape that rand_id names", {
+
+  shapes <- c(
+    adjective_animal = "^[a-z]+_[a-z]+$",
+    adjective_adjective_animal = "^[a-z]+_[a-z]+_[a-z]+$",
+    letters_6 = "^[a-z]{6}$",
+    letters_8 = "^[a-z]{8}$",
+    letters_12 = "^[a-z]{12}$",
+    bytes_4 = "^[0-9a-f]{8}$",
+    bytes_8 = "^[0-9a-f]{16}$",
+    uuid = paste0(
+      "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-",
+      "[0-9a-f]{12}$"
+    )
+  )
+
+  expect_setequal(names(shapes), rand_id_shapes())
+
+  for (rand_id in names(shapes)) {
+
+    ids <- rand_names(n = 50L, rand_id = rand_id)
+
+    expect_true(all(grepl(shapes[[rand_id]], ids)), label = rand_id)
+    expect_false(any(grepl("^[0-9]+$", ids)), label = rand_id)
+  }
+
+  parts <- strsplit(
+    rand_names(n = 50L, rand_id = "adjective_adjective_animal"),
+    "_",
+    fixed = TRUE
+  )
+
+  expect_false(any(chr_xtr(parts, 1L) == chr_xtr(parts, 2L)))
+
+  withr::local_options(blockr.rand_id = "uuid")
+
+  expect_match(rand_names(), shapes[["uuid"]])
+})
+
+test_that("rand_names() draws again where a draw is made of digits alone", {
+
+  draws <- c("40213377", "4021ab77")
+
+  local_mocked_bindings(
+    draw_id = function(rand_id) {
+      res <- draws[1L]
+      draws <<- draws[-1L]
+      res
+    }
+  )
+
+  expect_identical(rand_names(rand_id = "bytes_4"), "4021ab77")
+})
+
 test_that("rand_names() and adjective_animal() check their arguments", {
 
   expect_error(rand_names(1), class = "rand_names_old_names_invalid")
@@ -116,6 +170,12 @@ test_that("rand_names() and adjective_animal() check their arguments", {
   expect_error(
     rand_names(max_tries = 1.5),
     class = "rand_names_max_tries_invalid"
+  )
+
+  expect_error(
+    rand_names(rand_id = "counter"),
+    "letters_12",
+    class = "rand_names_rand_id_invalid"
   )
 
   expect_error(adjective_animal(-1L), class = "adjective_animal_n_invalid")

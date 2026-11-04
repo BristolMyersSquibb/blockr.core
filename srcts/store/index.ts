@@ -17,5 +17,6 @@ export type {
 } from "./registrations.ts";
 export { FORMAT } from "./open.ts";
 export type { Dropped } from "./open.ts";
-export { isId, mintId, sentenceCase } from "./ids.ts";
+export { isId, isRandId, mintId, RAND_IDS, sentenceCase } from "./ids.ts";
+export type { RandId } from "./ids.ts";
 export { StoreError } from "./error.ts";
