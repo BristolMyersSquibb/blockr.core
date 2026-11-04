@@ -148,6 +148,10 @@
   that the new blockr option `upload_dir` names, and holds the file's path as
   its state, `file_path`. The file browser lists directories through a request
   of its own (#423).
+* Since a board names no constructor any more,
+  the helpers that recorded and read one are gone:
+  `resolve_ctor()`, `is_blockr_ctor()`, `ctor_name()`, `ctor_pkg()` and
+  `ctor_fun()` (#469).
 
 # blockr.core 0.1.4
 
