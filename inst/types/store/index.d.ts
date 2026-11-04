@@ -5,5 +5,6 @@ export type { BlockMod, CollectionDelta, Delta, Entry, KeyChange, KeyDelta, Orig
 export type { Attribute, Migration, Option, Options, Saved, StateKey, } from "./registrations.ts";
 export { BASIC_FRONT_END, FORMAT } from "./open.ts";
 export type { Dropped } from "./open.ts";
-export { isId, mintId, sentenceCase } from "./ids.ts";
+export { isId, isRandId, mintId, RAND_IDS, sentenceCase } from "./ids.ts";
+export type { RandId } from "./ids.ts";
 export { StoreError } from "./error.ts";
