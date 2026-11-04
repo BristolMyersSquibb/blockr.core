@@ -377,6 +377,16 @@ protocol_r_values <- function() {
         )
       )
     ),
+    `request-output-volatile` = list(
+      list(
+        obj(
+          id = "36",
+          status = "ok",
+          value = encode_answer(c("corporate.potx", "plain.potx")),
+          volatile = TRUE
+        )
+      )
+    ),
     `request-renderer` = list(
       list(
         obj(

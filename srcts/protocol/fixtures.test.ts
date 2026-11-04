@@ -49,6 +49,7 @@ const types: Record<string, string> = {
   "request-progress":
     "Fixture<[ExtensionRequest], [[Progress], [Progress], [RequestReply]]>",
   "request-output": "Fixture<[OutputClassRequest], [[RequestReply]]>",
+  "request-output-volatile": "Fixture<[OutputClassRequest], [[RequestReply]]>",
   "request-renderer": "Fixture<[RendererRequest], [[RequestReply]]>",
   output: "Fixture<[OutputRequest], [[OutputReply]]>",
   "output-plot": "Fixture<[OutputRequest], [[OutputReply]]>",
