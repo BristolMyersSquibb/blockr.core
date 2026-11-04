@@ -1,4 +1,4 @@
-#' @import vctrs shiny
+#' @import vctrs
 #' @keywords internal
 #' @importFrom cli qty
 #' @importFrom grDevices col2rgb

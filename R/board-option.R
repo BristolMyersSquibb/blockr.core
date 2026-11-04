@@ -27,7 +27,9 @@ is_board_option <- function(x) {
   inherits(x, "board_option")
 }
 
-validate_board_option <- function(x) {
+# A getter checks only that it reads a board option. The function
+# `validate_board_option()` checks a board option in full.
+check_board_option <- function(x) {
 
   if (!is_board_option(x)) {
     blockr_abort(
@@ -35,6 +37,13 @@ validate_board_option <- function(x) {
       class = "board_option_inheritance_invalid"
     )
   }
+
+  invisible(x)
+}
+
+validate_board_option <- function(x) {
+
+  check_board_option(x)
 
   if (!is_nonempty_string(board_option_id(x))) {
     blockr_abort(
@@ -61,19 +70,19 @@ as_board_option.board_option <- function(x, ...) {
 #' @rdname new_board_options
 #' @export
 board_option_id <- function(x) {
-  stopifnot(is_board_option(x))
+  check_board_option(x)
   attr(x, "id")
 }
 
 #' @rdname new_board_options
 #' @export
 board_option_value <- function(x) {
-  stopifnot(is_board_option(x))
+  check_board_option(x)
   x[["value"]]
 }
 
 has_board_option_value <- function(x) {
-  stopifnot(is_board_option(x))
+  check_board_option(x)
   "value" %in% names(x)
 }
 

@@ -1,5 +1,6 @@
 import type { Block, BlockId, Board, OptionId, RegistryId } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
+import type { Validate } from "../util/index.ts";
 import type { Delta, KeyDelta } from "./delta.ts";
 export interface StateKey {
     readonly path: readonly string[];
@@ -36,8 +37,6 @@ export interface Saved {
     }>>;
 }
 export type Migration = (saved: Saved, version: string | null) => Saved;
-export type Validate = (value: unknown) => readonly string[];
-export declare function compile(what: string, schema: JsonSchema, fails?: string): Validate;
 export interface Checked<T> {
     readonly def: T;
     readonly validate: Validate;

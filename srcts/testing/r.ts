@@ -2,8 +2,7 @@
 // the client sends, for the tests of what sends through the client: the
 // scheduler and what builds on it.
 
-import { createClient } from "../protocol/client.ts";
-import type { Transport, TransportListener } from "../protocol/client.ts";
+import { createClient } from "../protocol/index.ts";
 import type {
   Capability,
   EvaluateReply,
@@ -11,7 +10,9 @@ import type {
   Progress,
   Reply,
   Request,
-} from "../protocol/messages.ts";
+  Transport,
+  TransportListener,
+} from "../protocol/index.ts";
 import type { BlockId } from "../types/board.ts";
 import { hello } from "./store.ts";
 

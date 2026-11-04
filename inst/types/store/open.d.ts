@@ -1,4 +1,4 @@
-import type { OpenReply } from "../protocol/messages.ts";
+import type { OpenReply } from "../protocol/index.ts";
 import type { Board, OpeningBoard, SavedBoard } from "../types/board.ts";
 import type { Registrations } from "./registrations.ts";
 export declare const FORMAT = 1;

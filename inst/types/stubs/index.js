@@ -1,4 +1,4 @@
-// srcts/store/util.ts
+// srcts/util/util.ts
 function own(record, key) {
   return Object.hasOwn(record, key) ? record[key] : void 0;
 }
@@ -258,8 +258,28 @@ function stubOutputHost(options = {}) {
   };
 }
 
+// srcts/scheduler/status.ts
+var NONE = Object.freeze({ warning: 0, message: 0 });
+var NO_CONDITIONS = Object.freeze([]);
+function unevaluated(revision, running) {
+  return {
+    status: "unevaluated",
+    revision,
+    evaluated: null,
+    running,
+    conditions: NO_CONDITIONS,
+    omitted: NONE,
+    stdout: "",
+    stderr: "",
+    summary: null
+  };
+}
+
 // srcts/mount/load.ts
 var API = 1;
+
+// srcts/mount/block.ts
+var NO_STATUS = Object.freeze(unevaluated(0, false));
 
 // srcts/stubs/mount.ts
 async function mount(exports, host, el = document.createElement("div")) {

@@ -3,9 +3,9 @@
 // element, the host and a signal, and on unmounting aborts the signal and runs
 // the cleanup that render() returned.
 
-import { API } from "../mount/load.ts";
-import { isObject } from "../store/util.ts";
+import { API } from "../mount/index.ts";
 import type { Rendered } from "../types/hosts.ts";
+import { isObject } from "../util/index.ts";
 
 export interface Mounted {
   // The element the module draws in.

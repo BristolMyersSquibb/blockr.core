@@ -12,14 +12,14 @@
 // whichever step it is at, so that nothing of it reaches the next board.
 // What core keeps of the answers is ./answers.ts's.
 
-import type { Condition, ReplyStatus } from "../protocol/messages.ts";
+import type { Condition, ReplyStatus } from "../protocol/index.ts";
 import type { BlockStatus, Inputs, Scheduler } from "../scheduler/index.ts";
-import type { Store } from "../store/store.ts";
-import { isObject, own, quoted } from "../store/util.ts";
+import type { Store } from "../store/index.ts";
 import type { BlockId } from "../types/board.ts";
 import type { HostRequestOpts } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
+import { isObject, own, quoted } from "../util/index.ts";
 import type { Answers, ClassRequest } from "./answers.ts";
 
 // How many times a request asks R before it gives up on results that R keeps

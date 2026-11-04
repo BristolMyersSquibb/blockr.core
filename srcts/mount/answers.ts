@@ -17,11 +17,10 @@
 //   it drops them and gives up the requests on their way to R, as a page that
 //   starts with that board holds none.
 
-import type { ProgressNote } from "../protocol/client.ts";
-import type { BlockClassRequest, Reply } from "../protocol/messages.ts";
-import type { Scheduler } from "../scheduler/scheduler.ts";
-import { asError, isObject, report } from "../store/util.ts";
+import type { BlockClassRequest, ProgressNote, Reply } from "../protocol/index.ts";
+import type { Scheduler } from "../scheduler/index.ts";
 import type { Json } from "../types/json.ts";
+import { asError, isObject, report } from "../util/index.ts";
 
 // A request of a block class, as it goes to R but for its id, which the
 // protocol's client gives it.

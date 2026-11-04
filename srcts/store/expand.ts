@@ -7,6 +7,7 @@
 // plugin appended.
 
 import type { Board, Stack, StackId } from "../types/board.ts";
+import { jsonEqual, messageOf, own, pathText } from "../util/index.ts";
 import { isValueDelta } from "./delta.ts";
 import type {
   CollectionDelta,
@@ -17,7 +18,6 @@ import type {
   ValueDelta,
 } from "./delta.ts";
 import type { Registrations } from "./registrations.ts";
-import { jsonEqual, messageOf, own, pathText } from "./util.ts";
 
 // How many rounds a delta may expand in before the store rejects it, naming
 // the keys that kept adding.

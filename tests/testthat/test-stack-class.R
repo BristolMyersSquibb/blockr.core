@@ -26,6 +26,10 @@ test_that("stack class", {
     class = "stack_name_invalid"
   )
 
+  expect_error(new_stack("a", name = 1), class = "stack_name_invalid")
+  expect_error(new_stack("a", name = function() 1),
+               class = "stack_name_invalid")
+
   expect_error(
     validate_stack(structure(1, name = "a", class = "stack")),
     class = "stack_type_invalid"

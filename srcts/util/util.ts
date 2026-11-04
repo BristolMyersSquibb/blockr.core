@@ -1,19 +1,7 @@
-// What the store's modules share for reading and writing plain data without
-// changing it in place.
+// What the client's modules share: reading and writing plain data without
+// changing it in place, the text of messages, and errors.
 
 import type { Json } from "../types/json.ts";
-
-// What the store throws where it refuses a delta, an undo or redo, or a board
-// to open, with each failure in a sentence.
-export class StoreError extends Error {
-  readonly failures: readonly string[];
-
-  constructor(message: string, failures: readonly string[]) {
-    super([message, ...failures.map((failure) => `- ${failure}`)].join("\n"));
-    this.name = "StoreError";
-    this.failures = failures;
-  }
-}
 
 // An object's own value under a key, which an id such as "constructor" never
 // reads off the prototype.
@@ -29,14 +17,15 @@ export function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-// What was thrown or rejected with, as an Error, such as the reason that a
-// signal aborted with, which is an AbortError where its caller gave none.
+// What was thrown, as an Error. A value that is no Error, such as a string,
+// becomes an Error that says it.
 export function asError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
 }
 
-// Reports an error that nobody waits on, by throwing it from a microtask,
-// without stopping what reported it.
+// Reports an error that nobody waits on, such as what a subscriber threw. It
+// throws the error from a microtask. The page hears of it as of any uncaught
+// error, and the code that reports it goes on.
 export function report(error: unknown): void {
   queueMicrotask(() => {
     throw error;

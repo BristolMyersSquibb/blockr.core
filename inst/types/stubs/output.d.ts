@@ -1,4 +1,4 @@
-import type { Condition } from "../protocol/messages.ts";
+import type { Condition } from "../protocol/index.ts";
 import type { BlockId, OptionId } from "../types/board.ts";
 import type { OutputHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";

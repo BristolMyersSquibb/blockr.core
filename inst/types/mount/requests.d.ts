@@ -1,6 +1,6 @@
-import type { Condition, ReplyStatus } from "../protocol/messages.ts";
+import type { Condition, ReplyStatus } from "../protocol/index.ts";
 import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
-import type { Store } from "../store/store.ts";
+import type { Store } from "../store/index.ts";
 import type { BlockId } from "../types/board.ts";
 import type { HostRequestOpts } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";

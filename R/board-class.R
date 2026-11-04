@@ -216,17 +216,27 @@ validate_board.board <- function(x) {
 
 #' @export
 validate_board.default <- function(x) {
-
-  blockr_abort(
-    "Expecting a board object to inherit from \"baord\".",
-    class = "board_inheritance_invalid"
-  )
+  check_board(x)
 }
 
 #' @rdname new_board
 #' @export
 is_board <- function(x) {
   inherits(x, "board")
+}
+
+# A getter checks only that it reads a board. The function `validate_board()`
+# checks a board in full.
+check_board <- function(x) {
+
+  if (!is_board(x)) {
+    blockr_abort(
+      "Expecting a board object to inherit from \"board\".",
+      class = "board_inheritance_invalid"
+    )
+  }
+
+  invisible(x)
 }
 
 #' @export
@@ -290,7 +300,7 @@ is_acyclic.board <- function(x) {
 #'
 #' @export
 board_blocks <- function(x) {
-  stopifnot(is_board(x))
+  check_board(x)
   x[["blocks"]]
 }
 
@@ -308,7 +318,7 @@ board_block_ids <- function(x) {
 #' @rdname board_blocks
 #' @export
 board_links <- function(x) {
-  stopifnot(is_board(x))
+  check_board(x)
   x[["links"]]
 }
 
@@ -328,7 +338,7 @@ board_link_ids <- function(x) {
 #' @rdname board_blocks
 #' @export
 board_stacks <- function(x) {
-  stopifnot(is_board(x))
+  check_board(x)
   x[["stacks"]]
 }
 
@@ -359,7 +369,7 @@ board_options.board <- function(x) {
 #' @rdname board_blocks
 #' @export
 board_option_ids <- function(x) {
-  stopifnot(is_board(x))
+  check_board(x)
   chr_ply(board_options(x), board_option_id)
 }
 
@@ -380,14 +390,14 @@ available_stack_blocks <- function(x, stacks = board_stacks(x),
 #' @rdname board_blocks
 #' @export
 board_id <- function(x) {
-  stopifnot(is_board(x))
+  check_board(x)
   attr(x, "id", exact = TRUE)
 }
 
 #' @rdname board_blocks
 #' @export
 board_name <- function(x) {
-  stopifnot(is_board(x))
+  check_board(x)
   attr(x, "name", exact = TRUE)
 }
 

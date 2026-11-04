@@ -1,5 +1,5 @@
 import type { Graph } from "../graph/index.ts";
-import type { Recipe, Reply } from "../protocol/messages.ts";
+import type { Recipe, Reply } from "../protocol/index.ts";
 import type { BlockId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { Need } from "./needs.ts";

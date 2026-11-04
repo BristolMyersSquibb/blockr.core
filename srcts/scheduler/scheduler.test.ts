@@ -5,7 +5,7 @@
 // sends as messages.
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { SessionEndedError } from "../protocol/client.ts";
+import { SessionEndedError } from "../protocol/index.ts";
 import type {
   Capability,
   Condition,
@@ -13,7 +13,7 @@ import type {
   HelloReply,
   OpenReply,
   OutputRequest,
-} from "../protocol/messages.ts";
+} from "../protocol/index.ts";
 import { createStore } from "../store/index.ts";
 import type { Store } from "../store/index.ts";
 import { playR } from "../testing/r.ts";
@@ -258,6 +258,22 @@ describe("revisions", () => {
     expect(r.forgets()).toEqual([["a", "b", "c", "d", "e", "f"]]);
     for (const [id, revision] of Object.entries(revisionsOf(scheduler))) {
       expect(revision).toBeGreaterThan(top);
+      expect(statusOf(scheduler, id).status).toBe("unevaluated");
+    }
+  });
+
+  test("start with the first board the store opens, where the scheduler is created before the store holds one", async () => {
+    const r = playR();
+    r.connect();
+    const store = createStore({ client: r.client });
+    for (const option of coreOptions) store.options.register(option);
+    const scheduler = createScheduler({ store, client: r.client });
+    expect(revisionsOf(scheduler)).toEqual({});
+
+    await store.open(hello);
+
+    expect(Object.keys(revisionsOf(scheduler))).toEqual(["a", "b", "c", "d", "e", "f"]);
+    for (const id of ["a", "b", "c", "d", "e", "f"]) {
       expect(statusOf(scheduler, id).status).toBe("unevaluated");
     }
   });

@@ -53,8 +53,6 @@
 new_link <- function(from = "", to = "", input = "", ...,
                      class = character()) {
 
-  stopifnot(length(from) == length(to))
-
   if (length(from) && is_empty(input)) {
     input <- ""
   }

@@ -17,15 +17,21 @@
 // made on and to its block. Once another board opens or the block leaves the
 // board, core ends the mount, and the host's submit() and evaluate() reject.
 
-import type { Commands } from "../commands/commands.ts";
-import type { Scheduler } from "../scheduler/scheduler.ts";
-import { unevaluated } from "../scheduler/status.ts";
-import type { Store } from "../store/store.ts";
-import { isObject, jsonEqual, messageOf, own, packageOf, report } from "../store/util.ts";
+import type { Commands } from "../commands/index.ts";
+import { unevaluated } from "../scheduler/index.ts";
+import type { Scheduler } from "../scheduler/index.ts";
+import type { Store } from "../store/index.ts";
 import type { Block, BlockId, OptionId } from "../types/board.ts";
-import type { BlockContext, BlockHost, BlockModule, HostRequestOpts, State } from "../types/hosts.ts";
+import type {
+  BlockContext,
+  BlockHost,
+  BlockModule,
+  HostRequestOpts,
+  State,
+} from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
+import { isObject, jsonEqual, messageOf, own, packageOf, report } from "../util/index.ts";
 import { createAnswers } from "./answers.ts";
 import type { Answers } from "./answers.ts";
 import { API, ModuleError } from "./load.ts";

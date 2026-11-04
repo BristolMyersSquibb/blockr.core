@@ -2,10 +2,10 @@
 // board option's value, keeps a record of what the module submitted and
 // answers the board option's requests from the answers a test gives.
 
-import { asError, isObject, jsonEqual } from "../store/util.ts";
 import type { OptionId } from "../types/board.ts";
 import type { HostRequestOpts, OptionHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
+import { asError, isObject, jsonEqual } from "../util/index.ts";
 import { announcer } from "./util.ts";
 
 // What a request answers, given its name and the args it is called with.

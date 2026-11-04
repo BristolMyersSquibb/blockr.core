@@ -7,6 +7,7 @@
 // transport on the page (srcts/transport/shiny.ts).
 
 import type { BlockId } from "../types/board.ts";
+import { asError, report } from "../util/index.ts";
 import type {
   Capability,
   CancelRequest,
@@ -366,16 +367,6 @@ function guard(fn: () => void): void {
   } catch (error: unknown) {
     report(error);
   }
-}
-
-function asError(error: unknown): Error {
-  return error instanceof Error ? error : new Error(String(error));
-}
-
-function report(error: unknown): void {
-  queueMicrotask(() => {
-    throw error;
-  });
 }
 
 // Sends a message that nothing waits on, such as a cancel, which goes nowhere

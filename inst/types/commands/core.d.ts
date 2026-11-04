@@ -1,4 +1,4 @@
-import type { Store } from "../store/store.ts";
+import type { Store } from "../store/index.ts";
 import type { RegistryId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { Command } from "./commands.ts";

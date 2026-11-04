@@ -106,7 +106,12 @@ register_block <- function(ctor, name, description, uid = NULL,
     category <- default_category()
   }
 
-  stopifnot(is_string(category))
+  if (!is_string(category)) {
+    blockr_abort(
+      "A block category is expected to be a string.",
+      class = "block_category_invalid"
+    )
+  }
 
   if (!category %in% names(suggested_categories())) {
     blockr_warn(
@@ -124,7 +129,13 @@ register_block <- function(ctor, name, description, uid = NULL,
 
   } else {
 
-    stopifnot(is_string(icon))
+    if (!is_string(icon)) {
+      blockr_abort(
+        "A block icon is expected to be the name of a Bootstrap icon, as a ",
+        "string.",
+        class = "block_icon_invalid"
+      )
+    }
 
     if (grepl("-fill$", icon)) {
       blockr_warn(
@@ -143,11 +154,34 @@ register_block <- function(ctor, name, description, uid = NULL,
   }
 
   if (is_string(ctor)) {
-    stopifnot(is_string(package))
+
+    if (!is_string(package)) {
+      blockr_abort(
+        "Constructor {ctor} is given by name, so `package` is expected to be ",
+        "the name of its package.",
+        class = "block_package_invalid"
+      )
+    }
+
     uid <- coal(uid, sub("^new_", "", ctor), fail_all = FALSE)
     ctor <- get(ctor, asNamespace(package), mode = "function")
+
   } else {
-    stopifnot(is.function(ctor), is.null(package))
+
+    if (!is.function(ctor)) {
+      blockr_abort(
+        "Expecting a block constructor to be a function or the name of one.",
+        class = "block_constructor_invalid"
+      )
+    }
+
+    if (not_null(package)) {
+      blockr_abort(
+        "A constructor given as a function is from no package, so `package` ",
+        "is expected to be `NULL`.",
+        class = "block_package_invalid"
+      )
+    }
   }
 
   cls <- constructor_class(ctor)
@@ -262,7 +296,12 @@ class_schema <- function(cls) {
 #' @export
 default_icon <- function(category = default_category()) {
 
-  stopifnot(is_string(category))
+  if (!is_string(category)) {
+    blockr_abort(
+      "A block category is expected to be a string.",
+      class = "block_category_invalid"
+    )
+  }
 
   res <- switch(
     category,
@@ -411,8 +450,16 @@ register_blocks <- function(...) {
 }
 
 get_registry_entry <- function(uid) {
-  res <- get(uid, envir = block_registry, inherits = FALSE)
-  stopifnot(is_registry_entry(res))
+
+  res <- if (is_string(uid)) get0(uid, envir = block_registry, inherits = FALSE)
+
+  if (!is_registry_entry(res)) {
+    blockr_abort(
+      "No block class is registered under the registry id {uid}.",
+      class = "registry_id_unknown"
+    )
+  }
+
   res
 }
 
@@ -447,9 +494,30 @@ register_package_blocks <- function(which = "all", package = pkg_name(),
   entries <- yaml::read_yaml(file)
 
   if (identical(which, "all")) {
+
     which <- names(entries)
+
   } else {
-    stopifnot(all(which %in% names(entries)), anyDuplicated(which) == 0L)
+
+    unknown <- setdiff(which, names(entries))
+
+    if (length(unknown)) {
+      blockr_abort(
+        "Package {package} declares no {qty(unknown)}block constructor{?s} ",
+        "{unknown}.",
+        class = "package_blocks_invalid"
+      )
+    }
+
+    dups <- unique(which[duplicated(which)])
+
+    if (length(dups)) {
+      blockr_abort(
+        "Expecting `which` to name each block constructor once, but {dups} ",
+        "{?is/are} named more than once.",
+        class = "package_blocks_invalid"
+      )
+    }
   }
 
   entries <- entries[which]

@@ -2,9 +2,9 @@
 // recipe, and the inputs that keep it waiting.
 
 import type { Graph } from "../graph/index.ts";
-import { own } from "../store/util.ts";
 import type { BlockId, Board, RegistryId } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
+import { own } from "../util/index.ts";
 
 // An input of a block's recipe, named by the input it feeds. It names the
 // upstream block whose result the input binds. For a block that `serve()`

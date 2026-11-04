@@ -7,7 +7,7 @@
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { CommandError, createCommands } from "../commands/index.ts";
-import type { BlockClassRequest, Condition, HelloReply } from "../protocol/messages.ts";
+import type { BlockClassRequest, Condition, HelloReply } from "../protocol/index.ts";
 import { createScheduler } from "../scheduler/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import { createStore } from "../store/index.ts";

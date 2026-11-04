@@ -1,5 +1,5 @@
-import type { Condition } from "../protocol/messages.ts";
-import type { BlockStatus } from "../scheduler/status.ts";
+import type { Condition } from "../protocol/index.ts";
+import type { BlockStatus } from "../scheduler/index.ts";
 import type { BlockId, OptionId, RegistryId } from "./board.ts";
 import type { RequestOpts } from "./core-api.ts";
 import type { Json } from "./json.ts";

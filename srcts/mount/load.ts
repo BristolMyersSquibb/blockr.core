@@ -5,7 +5,7 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#packaging).
 // What a module exports is checked where core mounts it (./block.ts).
 
-import { messageOf, own, packageOf, report } from "../store/util.ts";
+import { messageOf, own, packageOf, report } from "../util/index.ts";
 
 // The major of core's JS API. A module that core mounts declares the major it
 // was built against, as `export const api = 1`, and core refuses one that

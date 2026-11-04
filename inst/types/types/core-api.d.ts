@@ -1,8 +1,7 @@
-import type { Commands } from "../commands/commands.ts";
-import type { Lock } from "../protocol/messages.ts";
-import type { Scheduler } from "../scheduler/scheduler.ts";
-import type { Options } from "../store/registrations.ts";
-import type { Store } from "../store/store.ts";
+import type { Commands } from "../commands/index.ts";
+import type { Lock } from "../protocol/index.ts";
+import type { Scheduler } from "../scheduler/index.ts";
+import type { Options, Store } from "../store/index.ts";
 import type { BlockId, OptionId, RegistryId } from "./board.ts";
 import type { Json } from "./json.ts";
 import type { RegistryEntry } from "./registry.ts";

@@ -208,6 +208,8 @@ test_that("the constructor keeps the state the checks in expr leave", {
   expect_identical(block_name(blk), "Last")
   expect_identical(attr(blk, "visible"), "outputs")
 
+  expect_error(block_name(list()), class = "block_class_invalid")
+
   expect_error(new_class_head_block(m = 10L), "unused argument")
   expect_error(new_class_head_block(direction = "middle"), "should be one of")
   expect_error(

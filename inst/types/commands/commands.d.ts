@@ -1,5 +1,4 @@
-import type { Delta, Origin } from "../store/delta.ts";
-import type { Store } from "../store/store.ts";
+import type { Delta, Origin, Store } from "../store/index.ts";
 import type { Board } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 export interface Command<A extends Json = Json, P = A> {
@@ -23,4 +22,5 @@ export declare class CommandError extends Error {
     readonly failures: readonly string[];
     constructor(message: string, failures: readonly string[], options?: ErrorOptions);
 }
+export declare function refusal(id: string, failures: readonly string[]): CommandError;
 export declare function createCommands(store: Store): Commands;

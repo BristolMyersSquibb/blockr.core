@@ -1,6 +1,5 @@
-import type { ProgressNote } from "../protocol/client.ts";
-import type { BlockClassRequest, Reply } from "../protocol/messages.ts";
-import type { Scheduler } from "../scheduler/scheduler.ts";
+import type { BlockClassRequest, ProgressNote, Reply } from "../protocol/index.ts";
+import type { Scheduler } from "../scheduler/index.ts";
 export type ClassRequest = Omit<BlockClassRequest, "id" | "body">;
 export interface Ask {
     readonly request: ClassRequest;

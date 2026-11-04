@@ -1,4 +1,4 @@
-import type { BlockStatus } from "../scheduler/status.ts";
+import type { BlockStatus } from "../scheduler/index.ts";
 import type { BlockId, OptionId, RegistryId } from "../types/board.ts";
 import type { BlockContext, BlockHost, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";

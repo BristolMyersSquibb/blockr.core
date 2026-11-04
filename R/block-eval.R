@@ -203,12 +203,35 @@ input_results <- function(names, inputs, results) {
 new_block_evaluation <- function(status, expr = NULL, result = NULL,
                                  summary = NULL, conditions = list()) {
 
-  stopifnot(
-    is_string(status), status %in% c("ok", "invalid", "error"),
-    is.null(expr) || is.language(expr),
-    is.null(summary) || is_string(summary),
-    is.list(conditions)
-  )
+  if (!is_string(status) || !status %in% c("ok", "invalid", "error")) {
+    blockr_abort(
+      "Expecting the status of a block evaluation to be \"ok\", \"invalid\" ",
+      "or \"error\".",
+      class = "block_evaluation_status_invalid"
+    )
+  }
+
+  if (!(is.null(expr) || is.language(expr))) {
+    blockr_abort(
+      "Expecting the expression of a block evaluation to be `NULL` or a ",
+      "language object.",
+      class = "block_evaluation_expr_invalid"
+    )
+  }
+
+  if (!(is.null(summary) || is_string(summary))) {
+    blockr_abort(
+      "Expecting the summary of a block evaluation to be `NULL` or a string.",
+      class = "block_evaluation_summary_invalid"
+    )
+  }
+
+  if (!is.list(conditions)) {
+    blockr_abort(
+      "Expecting the conditions of a block evaluation to be a list.",
+      class = "block_evaluation_conditions_invalid"
+    )
+  }
 
   structure(
     list(

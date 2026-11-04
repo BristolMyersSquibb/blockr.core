@@ -25,6 +25,7 @@ export interface Delta {
         readonly attrs?: Values<string>;
     };
 }
+export declare function isDeltas(delta: Delta | readonly Delta[]): delta is readonly Delta[];
 export interface Values<K extends string> {
     readonly set?: Readonly<Record<K, Json>>;
     readonly unset?: readonly K[];

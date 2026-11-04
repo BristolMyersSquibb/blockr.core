@@ -4,7 +4,7 @@
 // whose revisions the tests set and whose requests they answer.
 
 import { expect, test } from "vitest";
-import type { Reply } from "../protocol/messages.ts";
+import type { Reply } from "../protocol/index.ts";
 import type { BlockStatus } from "../scheduler/index.ts";
 import type { BlockId } from "../types/board.ts";
 import { createAnswers } from "./answers.ts";

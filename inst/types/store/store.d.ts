@@ -1,5 +1,4 @@
-import type { Client } from "../protocol/client.ts";
-import type { HelloReply, OpenReply } from "../protocol/messages.ts";
+import type { Client, HelloReply, OpenReply } from "../protocol/index.ts";
 import type { BlockId, Board, RegistryId } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import type { Delta, Origin } from "./delta.ts";
@@ -14,6 +13,7 @@ export type Change = {
 };
 export interface Store {
     board(): Board;
+    hasBoard(): boolean;
     subscribe(fn: (change: Change, board: Board) => void): () => void;
     apply(delta: Delta | readonly Delta[], origin?: Origin): void;
     open(saved: string | HelloReply): Promise<Dropped[]>;

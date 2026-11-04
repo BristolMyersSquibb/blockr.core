@@ -1,8 +1,4 @@
 import type { Json } from "../types/json.ts";
-export declare class StoreError extends Error {
-    readonly failures: readonly string[];
-    constructor(message: string, failures: readonly string[]);
-}
 export declare function own<T>(record: Readonly<Record<string, T>>, key: string): T | undefined;
 export declare function messageOf(error: unknown): string;
 export declare function asError(error: unknown): Error;

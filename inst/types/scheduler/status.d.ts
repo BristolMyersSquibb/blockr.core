@@ -1,5 +1,5 @@
-import type { Condition, Omitted, Reply } from "../protocol/messages.ts";
 import type { Graph } from "../graph/index.ts";
+import type { Condition, Omitted, Reply } from "../protocol/index.ts";
 import type { BlockId } from "../types/board.ts";
 import type { Inputs } from "./recipes.ts";
 export type Status = "unevaluated" | "stale" | "waiting" | "invalid" | "ready" | "failed";

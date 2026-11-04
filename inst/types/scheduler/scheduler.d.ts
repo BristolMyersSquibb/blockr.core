@@ -1,6 +1,5 @@
-import type { Client, RequestOptions } from "../protocol/client.ts";
-import type { Reply } from "../protocol/messages.ts";
-import type { Store } from "../store/store.ts";
+import type { Client, Reply, RequestOptions } from "../protocol/index.ts";
+import type { Store } from "../store/index.ts";
 import type { BlockId, Board } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { Inputs } from "./recipes.ts";
@@ -34,7 +33,7 @@ export interface Demand {
     release(): void;
 }
 export interface SchedulerOptions {
-    readonly store: Pick<Store, "board" | "subscribe" | "blockRegistry">;
+    readonly store: Pick<Store, "board" | "hasBoard" | "subscribe" | "blockRegistry">;
     readonly client: Pick<Client, "request" | "forget" | "capabilities">;
     readonly evaluationQueue?: number;
     readonly backgroundEvaluationDelay?: number;

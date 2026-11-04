@@ -1,6 +1,6 @@
 // What the stubs of the hosts share.
 
-import type { BlockStatus } from "../scheduler/status.ts";
+import type { BlockStatus } from "../scheduler/index.ts";
 import type { BlockContext } from "../types/hosts.ts";
 
 // The status of a block that R evaluated at its first revision, with no

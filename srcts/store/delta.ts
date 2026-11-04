@@ -49,6 +49,12 @@ export interface Delta {
   };
 }
 
+// Whether a step is given as several deltas rather than one. The store's
+// apply() and a command's run() take either.
+export function isDeltas(delta: Delta | readonly Delta[]): delta is readonly Delta[] {
+  return Array.isArray(delta);
+}
+
 // Values by name that a delta sets, and names whose values it removes, as a
 // collection entry's change sets and removes its fields: board option values
 // by id, and attributes by name. Undo removes a value where its step set one

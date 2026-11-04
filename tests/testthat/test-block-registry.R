@@ -59,8 +59,31 @@ test_that("registry", {
   )
 
   expect_error(
+    register_block(1, "Head", "First rows"),
+    class = "block_constructor_invalid"
+  )
+
+  # A constructor given by name needs its package, and one given as a function
+  # takes none
+  expect_error(
+    register_block("new_class_head_block", "Head", "First rows"),
+    class = "block_package_invalid"
+  )
+
+  expect_error(
+    register_block(new_class_head_block, "Head", "First rows",
+                   package = "blockr.core"),
+    class = "block_package_invalid"
+  )
+
+  expect_error(
     register_block(new_class_merge_block, "Merge", "Merge", uid = "a-b"),
     class = "registry_id_invalid"
+  )
+
+  expect_error(
+    register_block(new_class_merge_block, "Merge", "Merge", category = 1),
+    class = "block_category_invalid"
   )
 
   rlang::reset_warning_verbosity("block_category_test_discouraged")
@@ -84,15 +107,26 @@ test_that("registry", {
     class = "block_icon_invalid"
   )
 
+  expect_error(
+    register_block(new_class_merge_block, "Merge", "Merge", icon = 1,
+                   overwrite = TRUE),
+    class = "block_icon_invalid"
+  )
+
   unregister_blocks("head_block")
 
   expect_false("head_block" %in% list_blocks())
   expect_identical(registry_id_from_block(new_class_head_block()), character())
 
+  expect_error(create_block("head_block"), class = "registry_id_unknown")
+  expect_error(create_block(1), class = "registry_id_unknown")
+
   icon <- default_icon(default_category())
 
   expect_type(icon, "character")
   expect_length(icon, 1L)
+
+  expect_error(default_icon(1), class = "block_category_invalid")
 })
 
 test_that("a constructor registered by name comes with its package", {
@@ -241,6 +275,17 @@ test_that("core registers its built-in blocks as it loads", {
                                    which = "new_dataset_block")
 
   expect_identical(entry[[1L]][["id"]], "blockr.core-dataset_block")
+
+  expect_error(
+    register_package_blocks(package = "blockr.core", which = "new_no_block"),
+    class = "package_blocks_invalid"
+  )
+
+  expect_error(
+    register_package_blocks(package = "blockr.core",
+                            which = c("new_head_block", "new_head_block")),
+    class = "package_blocks_invalid"
+  )
 })
 
 test_that("YAML examples of an array type are lists", {

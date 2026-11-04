@@ -26,8 +26,8 @@ import type {
   ClientMessage,
   Progress,
   Reply,
-} from "../protocol/messages.ts";
-import type { Transport } from "../protocol/client.ts";
+  Transport,
+} from "../protocol/index.ts";
 
 // What the transport uses of Shiny's JS API.
 export interface ShinyApi {

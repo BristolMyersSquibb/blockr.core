@@ -3,7 +3,7 @@
 // The store, with R's replies taken from the fixtures of the wire protocol.
 
 import { describe, expect, test, vi } from "vitest";
-import type { ErrorReply, HelloReply, OpenReply } from "../protocol/messages.ts";
+import type { ErrorReply, HelloReply, OpenReply } from "../protocol/index.ts";
 import { coreOptions, fakeR, hello, loaded, reply } from "../testing/store.ts";
 import type { Block, Board, OpeningBoard, SavedBoard } from "../types/board.ts";
 import { ROUNDS } from "./expand.ts";
@@ -494,13 +494,17 @@ describe("opening a board", () => {
     expect(store.board().options).toEqual({ show_conditions: ["warning", "error"] });
   });
 
-  test("holds no board until it opens one", () => {
+  test("holds no board until it opens one", async () => {
     const store = newStore();
+    expect(store.hasBoard()).toBe(false);
     expect(() => store.board()).toThrow("The store holds no board until it opens one.");
     expect(() => {
       store.apply({ name: "Built" });
     }).toThrow("The store rejected the delta\n- The store holds no board until it opens one.");
     expect(store.canUndo()).toBe(false);
+
+    await store.open(hello);
+    expect(store.hasBoard()).toBe(true);
   });
 });
 

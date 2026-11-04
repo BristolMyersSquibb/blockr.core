@@ -3,12 +3,12 @@
 // that R's constructor writes, and keeps a record of what the renderer
 // emitted, asked for and drew nested in its output.
 
-import type { Condition } from "../protocol/messages.ts";
-import { asError, jsonEqual } from "../store/util.ts";
+import type { Condition } from "../protocol/index.ts";
 import type { BlockId, OptionId } from "../types/board.ts";
 import type { HostRequestOpts, Nested, OutputHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { OutputFixtures } from "../types/outputs.ts";
+import { asError, jsonEqual } from "../util/index.ts";
 import { answer } from "./option.ts";
 import type { Answered } from "./option.ts";
 import { announcer } from "./util.ts";

@@ -6,11 +6,11 @@
 // only states that R has checked to run, the pattern of consumer-driven
 // contract tests (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.5#testing).
 
-import type { BlockStatus } from "../scheduler/status.ts";
-import { asError, isObject, jsonEqual, own } from "../store/util.ts";
+import type { BlockStatus } from "../scheduler/index.ts";
 import type { BlockId, OptionId, RegistryId } from "../types/board.ts";
 import type { BlockContext, BlockHost, HostRequestOpts, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
+import { asError, isObject, jsonEqual, own } from "../util/index.ts";
 import { announcer, contextOf } from "./util.ts";
 
 // A block class's fixture file: the states that a block of the class may

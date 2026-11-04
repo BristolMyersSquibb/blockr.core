@@ -67,7 +67,26 @@ include_mermaid <- function(name,
 rand_names <- function(old_names = character(0L), n = 1L, max_tries = 100L,
                        id_fun = blockr_option("rand_id", NULL)) {
 
-  stopifnot(is.character(old_names), is_count(n), is_count(max_tries))
+  if (!is.character(old_names)) {
+    blockr_abort(
+      "Expecting `old_names` to be a character vector.",
+      class = "rand_names_old_names_invalid"
+    )
+  }
+
+  if (!is_count(n)) {
+    blockr_abort(
+      "Expecting `n` to be a single whole number of 0 or more.",
+      class = "rand_names_n_invalid"
+    )
+  }
+
+  if (!is_count(max_tries)) {
+    blockr_abort(
+      "Expecting `max_tries` to be a single whole number of 0 or more.",
+      class = "rand_names_max_tries_invalid"
+    )
+  }
 
   if (is.null(id_fun)) {
     if (pkg_avail("ids")) {
@@ -75,8 +94,12 @@ rand_names <- function(old_names = character(0L), n = 1L, max_tries = 100L,
     } else {
       id_fun <- sample_letters
     }
-  } else {
-    stopifnot(is.function(id_fun), identical(names(formals(id_fun)), "n"))
+  } else if (!is.function(id_fun) ||
+               !identical(names(formals(id_fun)), "n")) {
+    blockr_abort(
+      "Expecting `id_fun` to be a function with the single argument `n`.",
+      class = "rand_names_id_fun_invalid"
+    )
   }
 
   new_names <- character(0L)
@@ -284,11 +307,22 @@ set_blockr_options <- function(...) {
   vals <- list(...)
   name <- names(vals)
 
-  stopifnot(
-    length(vals) == length(name),
-    all(nzchar(name)),
-    anyDuplicated(name) == 0L
-  )
+  if (length(vals) != length(name) || !all(nzchar(name))) {
+    blockr_abort(
+      "Expecting blockr options to be set by name.",
+      class = "blockr_options_names_invalid"
+    )
+  }
+
+  dups <- unique(name[duplicated(name)])
+
+  if (length(dups)) {
+    blockr_abort(
+      "Expecting each blockr option to be set once, but {dups} {?is/are} set ",
+      "more than once.",
+      class = "blockr_options_names_invalid"
+    )
+  }
 
   env <- toupper(paste0("blockr_", name))
   evl <- nzchar(Sys.getenv(env))
@@ -316,7 +350,12 @@ exprs_to_lang <- function(exprs) {
     exprs <- as.call(c(quote(`{`), exprs))
   }
 
-  stopifnot(typeof(exprs) == "language")
+  if (typeof(exprs) != "language") {
+    blockr_abort(
+      "Expecting a call, a list of calls or an expression vector.",
+      class = "exprs_to_lang_invalid"
+    )
+  }
 
   exprs
 }
@@ -346,19 +385,29 @@ resolve_ctor <- function(ctor, ctor_pkg = NULL) {
 
       if (length(call) == 1L) {
         call <- strsplit(call, "::", fixed = TRUE)[[1L]]
-      } else {
-        stopifnot(length(call) == 3L)
+      } else if (length(call) == 3L) {
         call <- call[-1L]
+      } else {
+        call <- NULL
       }
 
-      stopifnot(length(call) == 2L)
+      if (length(call) != 2L) {
+        blockr_abort(
+          "Expecting a constructor to be called as `pkg::fun()`.",
+          class = "blockr_ctor_call_invalid"
+        )
+      }
 
       ctor <- call[2L]
 
       if (is.null(ctor_pkg)) {
         ctor_pkg <- call[1L]
-      } else {
-        stopifnot(identical(ctor_pkg, call[1L]))
+      } else if (!identical(ctor_pkg, call[1L])) {
+        blockr_abort(
+          "The constructor is called as {call[1L]}::{call[2L]}(), so ",
+          "`ctor_pkg` is expected to be {call[1L]} rather than {ctor_pkg}.",
+          class = "blockr_ctor_package_invalid"
+        )
       }
 
     } else {
@@ -398,18 +447,33 @@ new_blockr_ctor <- function(fun, nme = NULL, pkg = NULL) {
       return(structure(fun, class = "blockr_ctor"))
     }
 
-    stopifnot(is_string(fun))
+    fun <- if (is_string(fun)) strsplit(fun, "::", fixed = TRUE)[[1L]]
 
-    fun <- strsplit(fun, "::", fixed = TRUE)[[1L]]
-
-    stopifnot(length(fun) == 2L)
+    if (length(fun) != 2L) {
+      blockr_abort(
+        "Expecting a constructor to be a function or a string `pkg::fun`.",
+        class = "blockr_ctor_invalid"
+      )
+    }
 
     nme <- fun[2L]
     pkg <- fun[1L]
     fun <- NULL
   }
 
-  stopifnot(is_string(nme), is_string(pkg))
+  if (!is_string(nme)) {
+    blockr_abort(
+      "Expecting the name of a constructor to be a string.",
+      class = "blockr_ctor_name_invalid"
+    )
+  }
+
+  if (!is_string(pkg)) {
+    blockr_abort(
+      "Expecting the package of a constructor to be a string.",
+      class = "blockr_ctor_package_invalid"
+    )
+  }
 
   structure(
     coal(fun, get_ctor_from_pkg(nme, pkg)),
@@ -429,24 +493,36 @@ is_blockr_ctor <- function(x) {
   inherits(x, "blockr_ctor")
 }
 
+check_blockr_ctor <- function(x) {
+
+  if (!is_blockr_ctor(x)) {
+    blockr_abort(
+      "Expecting a constructor to inherit from `blockr_ctor`.",
+      class = "blockr_ctor_invalid"
+    )
+  }
+
+  invisible(x)
+}
+
 #' @rdname rand_names
 #' @export
 ctor_name <- function(x) {
-  stopifnot(is_blockr_ctor(x))
+  check_blockr_ctor(x)
   attr(x, "fun")
 }
 
 #' @rdname rand_names
 #' @export
 ctor_pkg <- function(x) {
-  stopifnot(is_blockr_ctor(x))
+  check_blockr_ctor(x)
   attr(x, "pkg")
 }
 
 #' @rdname rand_names
 #' @export
 ctor_fun <- function(x) {
-  stopifnot(is_blockr_ctor(x))
+  check_blockr_ctor(x)
   attributes(x) <- NULL
   x
 }
@@ -480,10 +556,27 @@ to_sentence_case <- function(x, replace = character(), with = character()) {
   len_rep <- length(replace)
   len_wit <- length(with)
 
-  stopifnot(
-    is.character(x), is.character(replace), is.character(with),
-    length(x) > 0, len_wit == length(replace) || len_wit == 1L
-  )
+  if (!is.character(x) || !length(x)) {
+    blockr_abort(
+      "Expecting `x` to be a non-empty character vector.",
+      class = "to_sentence_case_x_invalid"
+    )
+  }
+
+  if (!is.character(replace)) {
+    blockr_abort(
+      "Expecting `replace` to be a character vector.",
+      class = "to_sentence_case_replace_invalid"
+    )
+  }
+
+  if (!is.character(with) || !len_wit %in% c(1L, len_rep)) {
+    blockr_abort(
+      "Expecting `with` to be a character vector of length one or as long as ",
+      "`replace`.",
+      class = "to_sentence_case_with_invalid"
+    )
+  }
 
   x <- replace(x, is.na(x), "")
 

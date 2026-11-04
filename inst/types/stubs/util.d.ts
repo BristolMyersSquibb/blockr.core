@@ -1,4 +1,4 @@
-import type { BlockStatus } from "../scheduler/status.ts";
+import type { BlockStatus } from "../scheduler/index.ts";
 import type { BlockContext } from "../types/hosts.ts";
 export declare const READY: BlockStatus;
 export declare function contextOf(given?: Partial<BlockContext>): BlockContext;

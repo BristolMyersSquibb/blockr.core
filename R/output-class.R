@@ -479,7 +479,12 @@ run_output_class_request <- function(x, name, result, args = list(),
 # if it holds one, travels beside them.
 shape_output <- function(x) {
 
-  stopifnot(is_block_output(x))
+  if (!is_block_output(x)) {
+    blockr_abort(
+      "An output is expected to inherit from `block_output`.",
+      class = "block_output_invalid"
+    )
+  }
 
   fields <- unclass(x)
   body <- lgl_ply(fields, is_reply_body)
