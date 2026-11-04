@@ -104,6 +104,7 @@ Collate:
     'pkg-modules.R'
     'plot-scatter.R'
     'protocol.R'
+    'saved-file.R'
     'shiny-transport.R'
     'stack-class.R'
     'stacks-class.R'
