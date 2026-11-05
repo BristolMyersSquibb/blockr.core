@@ -1,8 +1,11 @@
 // Builds core's client into inst/js, which the R package ships and git keeps,
 // since R CMD check and CRAN run no Node. Run: npm run build
 //
-// - Core's runtime, srcts/runtime/index.ts, is bundled into blockr-core.js,
-//   with React, of which it puts the one copy on the page.
+// - Core's runtime, srcts/runtime/index.ts, is bundled into blockr-core.js.
+//   The file starts with the one copy of React, which
+//   srcts/runtime/share-react.ts puts on the page, minified, since it changes
+//   only with React's version. Core's own code follows unminified, its imports
+//   of React mapped to that copy as a module's are.
 // - A module, srcts/modules/<name>/index.ts or index.tsx, is bundled into
 //   <name>.js on its own, by the build preset of ./preset.ts, which maps each
 //   import of React to the copy that core's runtime puts on the page, so that
@@ -83,6 +86,27 @@ export async function stylesheet(file: string): Promise<string> {
   return result.css;
 }
 
+// The one copy of React that core's runtime puts on the page, from
+// share-react.ts in the runtime's directory, as a minified script that keeps
+// React's license comments, which the runtime's bundle starts with.
+async function reactCopy(root: string, dir: string) {
+  const entry = join(dir, "share-react.ts");
+  if (!existsSync(entry)) return undefined;
+  return await esbuild.build({
+    absWorkingDir: root,
+    entryPoints: [entry],
+    bundle: true,
+    write: false,
+    format: "iife",
+    platform: "browser",
+    target: preset.target,
+    minify: true,
+    legalComments: "inline",
+    define: preset.define,
+    logLevel: "warning",
+  });
+}
+
 export async function build(root: string): Promise<string[]> {
   const out = join(root, "inst", "js");
   const { runtime, modules } = await entries(join(root, "srcts"));
@@ -97,24 +121,34 @@ export async function build(root: string): Promise<string[]> {
     logLevel: "warning",
     metafile: true,
   } satisfies esbuild.BuildOptions;
-  const results = [
-    // The runtime bundles React, which it puts on the page, so it maps none.
-    await esbuild.build({ ...options, plugins: [], entryPoints: [{ in: entryFile(runtime.dir), out: runtime.name }] }),
-    ...(modules.length === 0
+  // The runtime maps its imports of React to the copy that its bundle starts
+  // with, as a module does, and is written behind that copy below.
+  const core = await esbuild.build({
+    ...options,
+    write: false,
+    entryPoints: [{ in: entryFile(runtime.dir), out: runtime.name }],
+  });
+  const copy = await reactCopy(root, runtime.dir);
+  const bundled =
+    modules.length === 0
       ? []
       : [
           await esbuild.build({
             ...options,
             entryPoints: modules.map((entry) => ({ in: entryFile(entry.dir), out: entry.name })),
           }),
-        ]),
-  ];
+        ];
 
-  if (results.some((result) => result.warnings.length > 0)) {
+  if ([core, ...(copy === undefined ? [] : [copy]), ...bundled].some((result) => result.warnings.length > 0)) {
     throw new Error("esbuild warned, as printed above");
   }
 
-  const written = results.flatMap((result) => Object.keys(result.metafile.outputs));
+  for (const file of core.outputFiles) {
+    const start = file.path.endsWith(".js") ? (copy?.outputFiles[0]?.text ?? "") : "";
+    await writeFile(file.path, start + file.text);
+  }
+
+  const written = [core, ...bundled].flatMap((result) => Object.keys(result.metafile.outputs));
 
   for (const entry of [runtime, ...modules]) {
     const css = join(entry.dir, "index.css");

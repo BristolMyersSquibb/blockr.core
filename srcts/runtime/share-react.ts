@@ -1,7 +1,8 @@
-// Puts the one copy of React on the page, which core's runtime bundles, under
-// the global that the build maps the modules' imports of React to. Core's
-// runtime loads before any module, so the copy is in place before a module
-// that imports React loads.
+// Puts the one copy of React on the page, under the global that the build
+// maps the imports of React in core's runtime and in every module to. The
+// build minifies it into the start of the runtime's bundle, so the copy is in
+// place before core's own code runs, and core's runtime loads before any
+// module.
 
 import * as react from "react";
 import * as reactDom from "react-dom";

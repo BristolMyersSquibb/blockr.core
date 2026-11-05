@@ -9,7 +9,6 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as esbuild from "esbuild";
 import { afterEach, beforeEach, expect, test } from "vitest";
-import "../runtime/index.ts";
 import { stubOutputHost } from "../stubs/index.ts";
 import { mountReact } from "../testing/react.ts";
 import type { OutputFixtures, TextOutput } from "../types/outputs.ts";
@@ -19,6 +18,9 @@ const repo = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
 // The build preset as core ships it.
 const { preset } = (await import(pathToFileURL(join(repo, "inst/types/build/index.js")).href)) as typeof Build;
+
+// Core's runtime as it ships, which puts the one copy of React on the page.
+await import(pathToFileURL(join(repo, "inst/js/blockr-core.js")).href);
 
 let root: string;
 

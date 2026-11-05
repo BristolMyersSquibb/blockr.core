@@ -60,6 +60,21 @@ test("bundles the runtime and each module, each with its stylesheet beside it", 
   expect(own).not.toMatch(/--bc-[\w-]+:/);
 });
 
+test("starts the runtime's bundle with the copy of React that it shares, minified, ahead of core's own code", async () => {
+  await write({
+    "srcts/runtime/share-react.ts": "globalThis.shared = [1, 2].map((n) => n * 2);\n",
+    "srcts/runtime/index.ts": "export const runtime = 'core';\n",
+  });
+
+  const written = await build(root);
+
+  const js = await readFile(join(root, "inst/js/blockr-core.js"), "utf8");
+  expect(written).toEqual(["inst/js/blockr-core.js"]);
+  expect(js).toContain("globalThis.shared=[1,2].map(");
+  expect(js).toContain('var runtime = "core";');
+  expect(js.indexOf("globalThis.shared")).toBeLessThan(js.indexOf("var runtime"));
+});
+
 test("keeps core's utilities under its prefix and outside layers, without Preflight", async () => {
   await write({
     "test.css": `@import "${core}";\n@source inline("bc:flex bc:bg-blue-500 flex");\n`,

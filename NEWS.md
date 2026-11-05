@@ -190,7 +190,7 @@
   A package adds a type of its own with a method of `request_call()`, and gives the requests of a board option it ships with a method of `board_option_requests()` for the board option's class.
   A request's function reports how far it has come with `report_progress()`, which R sends to the client as progress notes (#430).
 * Core's client draws table, text and plot outputs with renderers of its own, written in React: a table that pages and sorts through its output's parameters, printed text that scrolls at R's width, and a plot's PNG at the size it was drawn at.
-  Core's runtime puts the one copy of React on the page, and core's build maps each of its modules' imports of React to that copy.
+  Core's runtime puts the one copy of React on the page, minified at the start of its bundle and ahead of core's own code, and core's build maps each of its modules' imports of React to that copy.
   Core's React SDK holds what the renderers and core's UIs draw with.
   Its hook `useOutput()` follows an output host, while `useValue()` binds a block's state arg or a board option's value and `useRequest()` follows a request, both through a binding that needs no framework.
   Its inputs each show and edit one value that `useValue()` binds, and `reactModule()` and `outputRenderer()` make a module and a renderer from a React component.
