@@ -2,11 +2,9 @@
 // module (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract):
 // reactModule() makes a module of any kind, and outputRenderer() a renderer of
 // an output class. A package may use them, or write a module's render()
-// itself. The file draws with createElement() rather than JSX, since the
-// build, which Node runs, imports this module for REACT_GLOBAL, and Node loads
-// no TSX.
+// itself.
 
-import { Component, createElement } from "react";
+import { Component } from "react";
 import type { ComponentType, ReactElement, ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
@@ -43,7 +41,7 @@ export function reactModule<H>(
     render({ el, host, signal }) {
       const root = createRoot(el);
       flushSync(() => {
-        root.render(createElement(Draw, { host, signal }));
+        root.render(<Draw host={host} signal={signal} />);
       });
       return () => {
         root.unmount();
@@ -80,31 +78,34 @@ export function outputRenderer<O extends BlockOutput = BlockOutput, P = Json>(
 ): OutputModule {
   function Renderer({ host }: ModuleProps<OutputHost>): ReactElement {
     const now = useOutput(host);
-    const drawn = createElement(Draw, {
-      output: now.output as unknown as O,
-      body: now.body,
-      params: now.params as P,
-      options: now.options,
-      loading: now.loading,
-      error: now.error,
-      host,
-    });
-    return createElement(
-      "div",
-      { className: "bc:flex bc:max-h-full bc:flex-col bc:gap-2", "aria-busy": now.loading },
-      now.error === null ? null : createElement(Alert, { message: now.error.message }),
-      createElement(
-        Boundary,
-        { output: now.output },
-        createElement("div", { className: `bc:flex bc:min-h-0 bc:flex-col ${now.loading ? "bc:opacity-60" : ""}` }, drawn),
-      ),
+    return (
+      <div className="bc:flex bc:max-h-full bc:flex-col bc:gap-2" aria-busy={now.loading}>
+        {now.error === null ? null : <Alert message={now.error.message} />}
+        <Boundary output={now.output}>
+          <div className={`bc:flex bc:min-h-0 bc:flex-col ${now.loading ? "bc:opacity-60" : ""}`}>
+            <Draw
+              output={now.output as unknown as O}
+              body={now.body}
+              params={now.params as P}
+              options={now.options}
+              loading={now.loading}
+              error={now.error}
+              host={host}
+            />
+          </div>
+        </Boundary>
+      </div>
     );
   }
   return reactModule(Renderer, options);
 }
 
 function Alert({ message }: { message: string }): ReactElement {
-  return createElement("p", { role: "alert", className: "bc:m-0 bc:text-sm bc:text-red-600 bc:whitespace-pre-wrap" }, message);
+  return (
+    <p role="alert" className="bc:m-0 bc:text-sm bc:text-red-600 bc:whitespace-pre-wrap">
+      {message}
+    </p>
+  );
 }
 
 // Shows why a renderer's component threw, in place of what it drew, and draws
@@ -129,8 +130,6 @@ class Boundary extends Component<{ output: Json; children?: ReactNode }, { faile
 
   override render(): ReactNode {
     const { failed } = this.state;
-    return failed === null
-      ? this.props.children
-      : createElement(Alert, { message: `The renderer failed to draw the output: ${failed}` });
+    return failed === null ? this.props.children : <Alert message={`The renderer failed to draw the output: ${failed}`} />;
   }
 }

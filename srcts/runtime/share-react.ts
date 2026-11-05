@@ -7,8 +7,8 @@ import * as react from "react";
 import * as reactDom from "react-dom";
 import * as reactDomClient from "react-dom/client";
 import * as jsxRuntime from "react/jsx-runtime";
-import { REACT_GLOBAL } from "../react/index.ts";
-import type { REACT_ENTRIES } from "../react/index.ts";
+import { REACT_GLOBAL } from "../react-global/index.ts";
+import type { REACT_ENTRIES } from "../react-global/index.ts";
 
 const entries: Readonly<Record<(typeof REACT_ENTRIES)[number], unknown>> = {
   react,

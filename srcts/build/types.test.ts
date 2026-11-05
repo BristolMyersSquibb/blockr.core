@@ -3,6 +3,7 @@
 // What the build ships in inst/types, which a package's build resolves as
 // `@blockr/core`: the declarations of the types that modules are written
 // against and of the stubs of the hosts, the stubs bundled for a test runner,
+// the React SDK, its binding and the build preset bundled for a package's build,
 // and the package.json that names them.
 
 import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
@@ -200,3 +201,98 @@ test("a package's module mounts on the stubs that core ships, which answer from 
   expect(el.title).toBe("[150]");
   await expect(host.submit({ n: 3 })).rejects.toThrow("which the fixture does not list");
 });
+
+// A renderer and a block's UI written in React on the React SDK that core
+// ships, a block's UI in plain TypeScript on its binding, and the build script
+// that bundles them with its build preset, as a package writes them.
+const sdkFiles = {
+  "src/text-renderer.tsx": `import type { TextOutput } from "@blockr/core";
+import { outputRenderer } from "@blockr/core/react";
+
+export const api = 1;
+
+export default outputRenderer<TextOutput>(({ output }) => <pre>{output.text}</pre>);
+`,
+  "src/head-block.tsx": `import type { BlockHost } from "@blockr/core";
+import { NumberInput, reactModule, useValue } from "@blockr/core/react";
+import type { ModuleProps } from "@blockr/core/react";
+import type { ReactElement } from "react";
+
+type HeadState = { n: number; direction: "head" | "tail" };
+
+function Head({ host }: ModuleProps<BlockHost<HeadState>>): ReactElement {
+  return <NumberInput bound={useValue(host, "n")} label="Rows" min={1} />;
+}
+
+export const api = 1;
+
+export default reactModule(Head);
+`,
+  "src/head-plain.ts": `import type { BlockModule } from "@blockr/core";
+import { bind } from "@blockr/core/binding";
+
+type HeadState = { n: number; direction: "head" | "tail" };
+
+export const api = 1;
+
+const head: BlockModule<HeadState> = {
+  render({ el, host }) {
+    const input = document.createElement("input");
+    const n = bind(host, "n", (value) => {
+      input.value = typeof value === "number" ? String(value) : "";
+    });
+    input.addEventListener("input", () => {
+      n.type(Number(input.value));
+    });
+    el.replaceChildren(input);
+    return () => {
+      n.release();
+    };
+  },
+};
+
+export default head;
+`,
+  "build.ts": `import * as esbuild from "esbuild";
+import { preset } from "@blockr/core/build";
+
+await esbuild.build({ ...preset, entryPoints: ["src/text-renderer.tsx", "src/head-block.tsx"], outdir: "inst/js" });
+`,
+};
+
+test.each(["bundler", "nodenext"] as const)(
+  "a package's modules on the React SDK and the binding, and its build on the build preset, type-check against what core ships, as %s resolution finds them",
+  async (resolution) => {
+    await mkdir(join(root, "node_modules", "@blockr"), { recursive: true });
+    await symlink(join(repo, "inst", "types"), join(root, "node_modules", "@blockr", "core"), "dir");
+    // What a package installs to write its modules in React and build them.
+    for (const name of ["react", "@types/react", "esbuild"]) {
+      await mkdir(dirname(join(root, "node_modules", name)), { recursive: true });
+      await symlink(join(repo, "node_modules", name), join(root, "node_modules", name), "dir");
+    }
+    await write({ "package.json": JSON.stringify({ name: "blockr.test", private: true, type: "module" }), ...sdkFiles });
+
+    const program = ts.createProgram(
+      Object.keys(sdkFiles).map((file) => join(root, file)),
+      {
+        target: ts.ScriptTarget.ES2022,
+        lib: ["lib.es2022.d.ts", "lib.dom.d.ts"],
+        module: resolution === "bundler" ? ts.ModuleKind.Preserve : ts.ModuleKind.NodeNext,
+        moduleResolution: resolution === "bundler" ? ts.ModuleResolutionKind.Bundler : ts.ModuleResolutionKind.NodeNext,
+        jsx: ts.JsxEmit.ReactJSX,
+        strict: true,
+        verbatimModuleSyntax: true,
+        allowImportingTsExtensions: true,
+        noEmit: true,
+        skipLibCheck: false,
+        types: [],
+      },
+    );
+
+    const diagnostics = ts.getPreEmitDiagnostics(program).map((diagnostic) =>
+      ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"),
+    );
+    expect(diagnostics).toEqual([]);
+  },
+  60_000,
+);

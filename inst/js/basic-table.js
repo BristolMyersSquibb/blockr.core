@@ -65,7 +65,7 @@ var require_jsx_runtime = __commonJS({
 });
 
 // srcts/modules/basic-table/index.tsx
-var import_react3 = __toESM(require_react(), 1);
+var import_react4 = __toESM(require_react(), 1);
 
 // srcts/react/hooks.ts
 var import_react = __toESM(require_react(), 1);
@@ -104,17 +104,18 @@ function snapshotOf(host) {
   return next;
 }
 
-// srcts/react/module.ts
+// srcts/react/module.tsx
 var import_react2 = __toESM(require_react(), 1);
 var import_react_dom = __toESM(require_react_dom(), 1);
 var import_client = __toESM(require_client(), 1);
+var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
 function reactModule(Draw, options = {}) {
   return {
     ...options.options === void 0 ? {} : { options: options.options },
     render({ el, host, signal }) {
       const root = (0, import_client.createRoot)(el);
       (0, import_react_dom.flushSync)(() => {
-        root.render((0, import_react2.createElement)(Draw, { host, signal }));
+        root.render(/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Draw, { host, signal }));
       });
       return () => {
         root.unmount();
@@ -125,30 +126,26 @@ function reactModule(Draw, options = {}) {
 function outputRenderer(Draw, options = {}) {
   function Renderer({ host }) {
     const now = useOutput(host);
-    const drawn = (0, import_react2.createElement)(Draw, {
-      output: now.output,
-      body: now.body,
-      params: now.params,
-      options: now.options,
-      loading: now.loading,
-      error: now.error,
-      host
-    });
-    return (0, import_react2.createElement)(
-      "div",
-      { className: "bc:flex bc:max-h-full bc:flex-col bc:gap-2", "aria-busy": now.loading },
-      now.error === null ? null : (0, import_react2.createElement)(Alert, { message: now.error.message }),
-      (0, import_react2.createElement)(
-        Boundary,
-        { output: now.output },
-        (0, import_react2.createElement)("div", { className: `bc:flex bc:min-h-0 bc:flex-col ${now.loading ? "bc:opacity-60" : ""}` }, drawn)
-      )
-    );
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bc:flex bc:max-h-full bc:flex-col bc:gap-2", "aria-busy": now.loading, children: [
+      now.error === null ? null : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Alert, { message: now.error.message }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Boundary, { output: now.output, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: `bc:flex bc:min-h-0 bc:flex-col ${now.loading ? "bc:opacity-60" : ""}`, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        Draw,
+        {
+          output: now.output,
+          body: now.body,
+          params: now.params,
+          options: now.options,
+          loading: now.loading,
+          error: now.error,
+          host
+        }
+      ) }) })
+    ] });
   }
   return reactModule(Renderer, options);
 }
 function Alert({ message }) {
-  return (0, import_react2.createElement)("p", { role: "alert", className: "bc:m-0 bc:text-sm bc:text-red-600 bc:whitespace-pre-wrap" }, message);
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { role: "alert", className: "bc:m-0 bc:text-sm bc:text-red-600 bc:whitespace-pre-wrap", children: message });
 }
 var Boundary = class extends import_react2.Component {
   state = { failed: null };
@@ -165,9 +162,13 @@ var Boundary = class extends import_react2.Component {
   }
   render() {
     const { failed } = this.state;
-    return failed === null ? this.props.children : (0, import_react2.createElement)(Alert, { message: `The renderer failed to draw the output: ${failed}` });
+    return failed === null ? this.props.children : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Alert, { message: `The renderer failed to draw the output: ${failed}` });
   }
 };
+
+// srcts/inputs/inputs.tsx
+var import_react3 = __toESM(require_react(), 1);
+var import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
 
 // srcts/modules/basic-table/table.ts
 var NUMBERS = /* @__PURE__ */ new Set(["numeric", "integer"]);
@@ -233,7 +234,7 @@ function countOf(value) {
 }
 
 // srcts/modules/basic-table/index.tsx
-var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
+var import_jsx_runtime3 = __toESM(require_jsx_runtime(), 1);
 var api = 1;
 var basic_table_default = outputRenderer(Table, { options: ["n_rows"] });
 function Table({ output, params, options, error, host }) {
@@ -242,8 +243,8 @@ function Table({ output, params, options, error, host }) {
   const ask = (to, sort) => {
     host.setParams(paramsFor(to, sort, params));
   };
-  const tried = (0, import_react3.useRef)(0);
-  (0, import_react3.useEffect)(() => {
+  const tried = (0, import_react4.useRef)(0);
+  (0, import_react4.useEffect)(() => {
     if (error === null) {
       tried.current = 0;
       return;
@@ -253,9 +254,9 @@ function Table({ output, params, options, error, host }) {
     tried.current = again.tried;
     host.setParams(paramsFor(1, again.sort, params));
   }, [host, error, params]);
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bc:flex bc:min-h-0 bc:flex-col bc:gap-2", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bc:min-h-0 bc:overflow-auto", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("table", { className: "bc:w-full bc:border-collapse bc:text-left bc:text-sm", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("tr", { children: output.columns.map((column, j) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "bc:flex bc:min-h-0 bc:flex-col bc:gap-2", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "bc:min-h-0 bc:overflow-auto", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("table", { className: "bc:w-full bc:border-collapse bc:text-left bc:text-sm", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tr", { children: output.columns.map((column, j) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
         Header,
         {
           column,
@@ -266,9 +267,9 @@ function Table({ output, params, options, error, host }) {
         },
         j
       )) }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("tbody", { children: output.rows.map((row, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("tr", { children: output.columns.map((column, j) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Cell, { column, value: row[j] ?? null }, j)) }, i)) })
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tbody", { children: output.rows.map((row, i) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tr", { children: output.columns.map((column, j) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Cell, { column, value: row[j] ?? null }, j)) }, i)) })
     ] }) }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
       Pager,
       {
         table: output,
@@ -284,7 +285,7 @@ function Header(props) {
   const { column, sort, onSort } = props;
   const number = isNumber(column);
   const order = sort === void 0 ? "none" : sort.desc === true ? "descending" : "ascending";
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("th", { scope: "col", "aria-sort": order, className: "bc:border-b bc:border-current/25 bc:px-2 bc:py-1 bc:align-bottom", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { scope: "col", "aria-sort": order, className: "bc:border-b bc:border-current/25 bc:px-2 bc:py-1 bc:align-bottom", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
     "button",
     {
       type: "button",
@@ -293,24 +294,24 @@ function Header(props) {
         onSort(nextSort(sort, column.name));
       },
       children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: `bc:flex bc:flex-col ${number ? "bc:items-end" : ""}`, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc:font-medium", children: column.name }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc:text-xs bc:font-normal bc:opacity-60", children: column.class })
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: `bc:flex bc:flex-col ${number ? "bc:items-end" : ""}`, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "bc:font-medium", children: column.name }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "bc:text-xs bc:font-normal bc:opacity-60", children: column.class })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { "aria-hidden": "true", children: order === "none" ? "" : order === "descending" ? "\u2193" : "\u2191" })
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { "aria-hidden": "true", children: order === "none" ? "" : order === "descending" ? "\u2193" : "\u2191" })
       ]
     }
   ) });
 }
 function Cell({ column, value }) {
   const text = cellText(value);
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("td", { className: `bc:border-b bc:border-current/10 bc:px-2 bc:py-1 bc:whitespace-nowrap ${isNumber(column) ? "bc:text-right bc:tabular-nums" : ""}`, children: text ?? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc:italic bc:opacity-50", children: "NA" }) });
+  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { className: `bc:border-b bc:border-current/10 bc:px-2 bc:py-1 bc:whitespace-nowrap ${isNumber(column) ? "bc:text-right bc:tabular-nums" : ""}`, children: text ?? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "bc:italic bc:opacity-50", children: "NA" }) });
 }
 function Pager({ table, page, onPage }) {
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2 bc:text-xs bc:opacity-75", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: rowsText(table, page) }),
-    (page.page > 1 || page.more) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bc:flex bc:items-center bc:gap-2", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2 bc:text-xs bc:opacity-75", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: rowsText(table, page) }),
+    (page.page > 1 || page.more) && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "bc:flex bc:items-center bc:gap-2", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
         PageButton,
         {
           text: "Previous",
@@ -320,8 +321,8 @@ function Pager({ table, page, onPage }) {
           }
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: pageText(page) }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: pageText(page) }),
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
         PageButton,
         {
           text: "Next",
@@ -335,7 +336,7 @@ function Pager({ table, page, onPage }) {
   ] });
 }
 function PageButton({ text, disabled, onClick }) {
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
     "button",
     {
       type: "button",

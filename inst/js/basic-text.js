@@ -101,17 +101,18 @@ function snapshotOf(host) {
   return next;
 }
 
-// srcts/react/module.ts
+// srcts/react/module.tsx
 var import_react2 = __toESM(require_react(), 1);
 var import_react_dom = __toESM(require_react_dom(), 1);
 var import_client = __toESM(require_client(), 1);
+var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
 function reactModule(Draw, options = {}) {
   return {
     ...options.options === void 0 ? {} : { options: options.options },
     render({ el, host, signal }) {
       const root = (0, import_client.createRoot)(el);
       (0, import_react_dom.flushSync)(() => {
-        root.render((0, import_react2.createElement)(Draw, { host, signal }));
+        root.render(/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Draw, { host, signal }));
       });
       return () => {
         root.unmount();
@@ -122,30 +123,26 @@ function reactModule(Draw, options = {}) {
 function outputRenderer(Draw, options = {}) {
   function Renderer({ host }) {
     const now = useOutput(host);
-    const drawn = (0, import_react2.createElement)(Draw, {
-      output: now.output,
-      body: now.body,
-      params: now.params,
-      options: now.options,
-      loading: now.loading,
-      error: now.error,
-      host
-    });
-    return (0, import_react2.createElement)(
-      "div",
-      { className: "bc:flex bc:max-h-full bc:flex-col bc:gap-2", "aria-busy": now.loading },
-      now.error === null ? null : (0, import_react2.createElement)(Alert, { message: now.error.message }),
-      (0, import_react2.createElement)(
-        Boundary,
-        { output: now.output },
-        (0, import_react2.createElement)("div", { className: `bc:flex bc:min-h-0 bc:flex-col ${now.loading ? "bc:opacity-60" : ""}` }, drawn)
-      )
-    );
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bc:flex bc:max-h-full bc:flex-col bc:gap-2", "aria-busy": now.loading, children: [
+      now.error === null ? null : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Alert, { message: now.error.message }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Boundary, { output: now.output, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: `bc:flex bc:min-h-0 bc:flex-col ${now.loading ? "bc:opacity-60" : ""}`, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        Draw,
+        {
+          output: now.output,
+          body: now.body,
+          params: now.params,
+          options: now.options,
+          loading: now.loading,
+          error: now.error,
+          host
+        }
+      ) }) })
+    ] });
   }
   return reactModule(Renderer, options);
 }
 function Alert({ message }) {
-  return (0, import_react2.createElement)("p", { role: "alert", className: "bc:m-0 bc:text-sm bc:text-red-600 bc:whitespace-pre-wrap" }, message);
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { role: "alert", className: "bc:m-0 bc:text-sm bc:text-red-600 bc:whitespace-pre-wrap", children: message });
 }
 var Boundary = class extends import_react2.Component {
   state = { failed: null };
@@ -162,14 +159,18 @@ var Boundary = class extends import_react2.Component {
   }
   render() {
     const { failed } = this.state;
-    return failed === null ? this.props.children : (0, import_react2.createElement)(Alert, { message: `The renderer failed to draw the output: ${failed}` });
+    return failed === null ? this.props.children : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Alert, { message: `The renderer failed to draw the output: ${failed}` });
   }
 };
 
+// srcts/inputs/inputs.tsx
+var import_react3 = __toESM(require_react(), 1);
+var import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
+
 // srcts/modules/basic-text/index.tsx
-var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
+var import_jsx_runtime3 = __toESM(require_jsx_runtime(), 1);
 var api = 1;
-var basic_text_default = outputRenderer(({ output }) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+var basic_text_default = outputRenderer(({ output }) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
   "pre",
   {
     tabIndex: 0,
