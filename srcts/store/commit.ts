@@ -17,7 +17,7 @@ import type {
 } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import { jsonEqual, own, without } from "../util/index.ts";
-import type { BlockMod, Delta, Patch, Values } from "./delta.ts";
+import type { BlockMod, Delta, Patch, StackMod, Values } from "./delta.ts";
 import { applyPatch, malformed, pointer } from "./patch.ts";
 import { recordOf } from "./registrations.ts";
 import type { Built } from "./registrations.ts";
@@ -96,11 +96,11 @@ export function commit(
     failures,
   );
 
-  const stacks = collection<Stack, Partial<Stack>>(
+  const stacks = collection<Stack, StackMod>(
     (id) => `stack "${id}"`,
     board.stacks,
     delta.stacks,
-    modifyFields,
+    (old, mod, id) => modifyStack(old, mod, id, failures),
     places.stacks,
     undefined,
     failures,
@@ -445,7 +445,35 @@ function modifyBlock(
   };
 }
 
-// A link's or a stack's change, which sets the fields it names.
+// A stack's change, which sets the fields it gives and removes those that its
+// `unset` names, with the change that sets back what changed: the old values,
+// and in `unset` the fields that it set where the stack had none, such as a
+// colour.
+function modifyStack(
+  old: Stack,
+  mod: StackMod,
+  id: StackId,
+  failures: string[],
+): { value: Stack; inverse: StackMod } {
+  const { unset = [], ...set } = mod;
+  const fields = changes(
+    old as unknown as Readonly<Record<string, Json>>,
+    set,
+    unset,
+    (field) => `The change to stack "${id}" both sets and unsets "${field}".`,
+    failures,
+  );
+
+  return {
+    value: fields.next as unknown as Stack,
+    inverse: {
+      ...(fields.restore as Partial<Stack>),
+      ...(fields.remove.length === 0 ? {} : { unset: fields.remove as readonly "color"[] }),
+    },
+  };
+}
+
+// A link's change, which sets the fields it names.
 function modifyFields<T extends object>(
   old: T,
   mod: Partial<T>,

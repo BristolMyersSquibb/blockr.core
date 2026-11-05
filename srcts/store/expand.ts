@@ -8,9 +8,9 @@
 // until none adds anything, as ProseMirror calls `appendTransaction` again for
 // what another plugin appended.
 
-import type { Board, Stack, StackId } from "../types/board.ts";
+import type { Board, StackId } from "../types/board.ts";
 import { jsonEqual, messageOf, own, quoted } from "../util/index.ts";
-import type { Delta, Patch } from "./delta.ts";
+import type { Delta, Patch, StackMod } from "./delta.ts";
 import { malformed, overlap, pointer } from "./patch.ts";
 import type { Built } from "./registrations.ts";
 
@@ -79,7 +79,7 @@ function expandCore(delta: Delta, board: Board): Delta {
 
   const stacksRm = delta.stacks?.rm ?? [];
   const stacksMod = delta.stacks?.mod ?? {};
-  const placed: Record<StackId, Partial<Stack>> = {};
+  const placed: Record<StackId, StackMod> = {};
   for (const [id, stack] of Object.entries(board.stacks)) {
     if (stacksRm.includes(id)) continue;
     const mod = own(stacksMod, id);

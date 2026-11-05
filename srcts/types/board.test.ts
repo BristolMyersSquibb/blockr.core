@@ -13,7 +13,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { beforeAll, expect, test } from "vitest";
-import { createStore } from "../store/index.ts";
+import { createStore, HEX_COLOR } from "../store/index.ts";
 import type { BoardClass } from "../store/index.ts";
 import { coreOptions, hello } from "../testing/store.ts";
 import { declaration, typecheck } from "../testing/typecheck.ts";
@@ -111,6 +111,19 @@ const grid: BoardClass = {
 function jsonOf({ format, packages, board }: Fixture): JsonBoard {
   return { format, packages, board };
 }
+
+// The JSON Schema of a JSON board, which the build generates from core's types.
+interface BoardSchema {
+  readonly definitions: {
+    readonly Stack: { readonly properties: { readonly color: { readonly pattern: string } } };
+  };
+}
+
+test("the JSON Schema of a JSON board checks a stack's colour by the pattern of the store's check", () => {
+  const file = join(root, "inst", "board", "json-board.schema.json");
+  const schema = JSON.parse(readFileSync(file, "utf8")) as BoardSchema;
+  expect(schema.definitions.Stack.properties.color.pattern).toBe(HEX_COLOR);
+});
 
 test("there are fixtures", () => {
   expect(names).toContain("board");

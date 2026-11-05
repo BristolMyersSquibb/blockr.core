@@ -397,6 +397,43 @@ describe("stacks", () => {
     expect(store.board().stacks.s1?.blocks).toEqual(["a", "b"]);
   });
 
+  test("add_stack gives a stack the colour given, and none where it is given none", async () => {
+    const { store, commands } = await setup();
+
+    await commands.run("blockr.core-add_stack", { id: "s2", blocks: ["c"], color: "#66c2a5" });
+    await commands.run("blockr.core-add_stack", { id: "s3", blocks: ["d"] });
+
+    expect(store.board().stacks.s2).toStrictEqual({ name: "Stack", blocks: ["c"], color: "#66c2a5" });
+    expect(store.board().stacks.s3).toStrictEqual({ name: "Stack", blocks: ["d"] });
+  });
+
+  test("change_stack sets a stack's colour and keeps its blocks, and undo takes the colour away", async () => {
+    const { store, commands } = await setup();
+
+    await commands.run("blockr.core-change_stack", { id: "s1", color: "#fc8" });
+    expect(store.board().stacks.s1).toStrictEqual({ name: "Input", blocks: ["a", "b"], color: "#fc8" });
+
+    await commands.run("blockr.core-change_stack", { id: "s1", blocks: ["a"] });
+    expect(store.board().stacks.s1).toStrictEqual({ name: "Input", blocks: ["a"], color: "#fc8" });
+
+    store.undo();
+    store.undo();
+    expect(store.board().stacks.s1).toStrictEqual({ name: "Input", blocks: ["a", "b"] });
+  });
+
+  test("add_stack and change_stack refuse a colour that is no hex colour", async () => {
+    const { store, commands } = await setup();
+    const board = store.board();
+
+    await expect(commands.run("blockr.core-add_stack", { color: "teal" })).rejects.toThrow(
+      "The args fail their schema at /color:",
+    );
+    await expect(commands.run("blockr.core-change_stack", { id: "s1", color: "#66c2a" })).rejects.toThrow(
+      "The args fail their schema at /color:",
+    );
+    expect(store.board()).toBe(board);
+  });
+
   test("rename_stack and remove_stack, which leaves the stack's blocks", async () => {
     const { store, commands } = await setup();
 

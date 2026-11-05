@@ -57,6 +57,15 @@ export interface Link {
 export interface Stack {
   readonly name: string;
   readonly blocks: readonly BlockId[];
+  // The colour that front-ends draw the stack in, a hex colour such as
+  // "#66c2a5", or "#fc8" in short.
+  // A front-end draws a stack without one in a default of its own.
+  // The pattern is the store's HEX_COLOR, by which the store checks a stack,
+  // and a test holds the two to each other.
+  /**
+   * @pattern ^#([0-9a-fA-F]{3}){1,2}$
+   */
+  readonly color?: string;
 }
 
 // A JSON board, the one format of a board outside the store: the board, the

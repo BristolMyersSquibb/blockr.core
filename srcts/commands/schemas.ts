@@ -7,6 +7,7 @@
 // `args` with that schema in place of `state`, which is what a form or a tool
 // of the assistant's for that class takes.
 
+import { HEX_COLOR } from "../store/index.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import { isObject, own } from "../util/index.ts";
@@ -64,6 +65,12 @@ export const blockIds: JsonSchema = {
   items: blockId,
   uniqueItems: true,
   description: "Ids of blocks, in order.",
+};
+
+export const color: JsonSchema = {
+  type: "string",
+  pattern: HEX_COLOR,
+  description: 'A hex colour, such as "#66c2a5", which front-ends draw a stack in.',
 };
 
 export const optionId: JsonSchema = {

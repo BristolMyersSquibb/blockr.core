@@ -4,7 +4,7 @@
 export { createStore } from "./store.ts";
 export type { Change, Store, StoreOptions } from "./store.ts";
 export { isDeltas } from "./delta.ts";
-export type { BlockMod, Delta, Origin, Patch, Values } from "./delta.ts";
+export type { BlockMod, Delta, Origin, Patch, StackMod, Values } from "./delta.ts";
 export { pathOf, pointer } from "./patch.ts";
 export type {
   BoardClass,
@@ -13,6 +13,7 @@ export type {
   Options,
   Property,
 } from "./registrations.ts";
+export { HEX_COLOR } from "./check.ts";
 export { FORMAT } from "./open.ts";
 export type { Dropped } from "./open.ts";
 export { isId, isRandId, mintId, RAND_IDS, sentenceCase } from "./ids.ts";

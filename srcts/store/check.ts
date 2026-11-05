@@ -15,6 +15,14 @@ import { isId } from "./ids.ts";
 import { recordOf } from "./registrations.ts";
 import type { Built, Registrations } from "./registrations.ts";
 
+// A stack's colour: a hex colour, such as "#66c2a5", or "#fc8" in short,
+// as blockr.dock took one until now.
+// The JSON Schema of a JSON board, which the build generates from core's types,
+// holds the same pattern.
+export const HEX_COLOR = "^#([0-9a-fA-F]{3}){1,2}$";
+
+const hexColor = new RegExp(HEX_COLOR);
+
 export function check(
   board: Board,
   registry: Readonly<Record<RegistryId, RegistryEntry>>,
@@ -148,10 +156,15 @@ function checkStacks(
   const holder = new Map<string, string>();
   for (const [id, stack] of Object.entries(board.stacks)) {
     if (changed === undefined || changed.stacks.has(id)) {
-      const fields = shape(stack, { name: "string", blocks: "array" });
+      const fields = shape(stack, { name: "string", blocks: "array" }, { color: "string" });
       if (fields.length > 0) {
         failures.push(`The stack "${id}" ${fields.join(", ")}.`);
         continue;
+      }
+      if (stack.color !== undefined && !hexColor.test(stack.color)) {
+        failures.push(
+          `The stack "${id}" has the colour "${stack.color}", which is no hex colour, such as "#66c2a5".`,
+        );
       }
     }
     for (const block of stack.blocks) {
@@ -213,17 +226,24 @@ type Kind = "string" | "object" | "array";
 
 // What an object of core's lacks or holds beyond its fields, which a delta
 // built in plain JS or by a model may get wrong.
-function shape(value: unknown, fields: Readonly<Record<string, Kind>>): string[] {
+// It may lack a field of `optional`, which holds its kind where it is there.
+function shape(
+  value: unknown,
+  fields: Readonly<Record<string, Kind>>,
+  optional: Readonly<Record<string, Kind>> = {},
+): string[] {
   if (!isObject(value)) return ["is no object"];
   const problems: string[] = [];
-  for (const [field, kind] of Object.entries(fields)) {
+  const kinds = { ...fields, ...optional };
+  for (const [field, kind] of Object.entries(kinds)) {
+    if (Object.hasOwn(optional, field) && !Object.hasOwn(value, field)) continue;
     const x = value[field];
     const ok =
       kind === "array" ? Array.isArray(x) : kind === "object" ? isObject(x) : typeof x === kind;
     if (!ok) problems.push(`has no ${kind} as its ${field}`);
   }
   for (const field of Object.keys(value)) {
-    if (!Object.hasOwn(fields, field)) problems.push(`holds "${field}", which core does not keep`);
+    if (!Object.hasOwn(kinds, field)) problems.push(`holds "${field}", which core does not keep`);
   }
   return problems;
 }

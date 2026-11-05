@@ -411,6 +411,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       readonly id?: StackId;
       readonly name?: string;
       readonly blocks?: readonly BlockId[];
+      readonly color?: string;
     }>({
       id: "blockr.core-add_stack",
       label: "Add stack",
@@ -423,33 +424,53 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         },
         name: { ...schemas.name, description: 'The new stack\'s name, "Stack" where it is left out.' },
         blocks: { ...schemas.blockIds, description: "The blocks of the new stack, in order." },
+        color: {
+          ...schemas.color,
+          description:
+            "The new stack's colour, which front-ends draw it in. Where it is left out, the stack has none, and a front-end draws it in a default of its own.",
+        },
       }),
-      run(board, { id, name = "Stack", blocks = [] }) {
+      run(board, { id, name = "Stack", blocks = [], color }) {
         const stack = id ?? mintId((id) => Object.hasOwn(board.stacks, id));
         const left = leave(board, stack, blocks);
         return {
           stacks: {
-            add: { [stack]: { name, blocks } },
+            add: { [stack]: { name, blocks, ...(color === undefined ? {} : { color }) } },
             ...(Object.keys(left).length === 0 ? {} : { mod: left }),
           },
         };
       },
     }),
-    command<{ readonly id: StackId; readonly blocks: readonly BlockId[] }>({
+    command<{ readonly id: StackId; readonly blocks?: readonly BlockId[]; readonly color?: string }>({
       id: "blockr.core-change_stack",
       label: "Change stack",
       description:
-        "Sets the blocks of a stack, taking each out of the stack it is in, since a block sits in one stack at most.",
+        "Changes the blocks of a stack or its colour, taking each block out of the stack it is in, since a block sits in one stack at most.",
       args: object(
         {
           id: schemas.stackId,
-          blocks: { ...schemas.blockIds, description: "The blocks of the stack, in order." },
+          blocks: {
+            ...schemas.blockIds,
+            description: "The blocks of the stack, in order, which it keeps where they are left out.",
+          },
+          color: {
+            ...schemas.color,
+            description: "The stack's colour, which front-ends draw it in, and which it keeps where it is left out.",
+          },
         },
-        ["id", "blocks"],
+        ["id"],
       ),
       enabled: (board, { id }) => Object.hasOwn(board.stacks, id),
-      run: (board, { id, blocks }) => ({
-        stacks: { mod: { ...leave(board, id, blocks), [id]: { blocks } } },
+      run: (board, { id, blocks, color }) => ({
+        stacks: {
+          mod: {
+            ...(blocks === undefined ? {} : leave(board, id, blocks)),
+            [id]: {
+              ...(blocks === undefined ? {} : { blocks }),
+              ...(color === undefined ? {} : { color }),
+            },
+          },
+        },
       }),
     }),
     command<{ readonly id: StackId; readonly name: string }>({

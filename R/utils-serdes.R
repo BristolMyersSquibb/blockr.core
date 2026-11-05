@@ -174,7 +174,10 @@ blockr_ser.stacks <- function(x, ...) {
 #' @rdname blockr_ser
 #' @export
 blockr_ser.stack <- function(x, ...) {
-  list(name = stack_name(x), blocks = stack_blocks(x))
+  c(
+    list(name = stack_name(x), blocks = stack_blocks(x)),
+    if (not_null(stack_color(x))) list(color = stack_color(x))
+  )
 }
 
 #' @rdname blockr_ser

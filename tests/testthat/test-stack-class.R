@@ -93,6 +93,45 @@ test_that("stack class", {
   expect_length(stks, 2)
 })
 
+test_that("a stack may have a color, which is a hex color", {
+
+  x <- new_stack(c("a", "b"), "Input", color = "#66c2a5")
+
+  expect_identical(stack_color(x), "#66c2a5")
+  expect_identical(stack_color(new_stack("a", color = "#FC8")), "#FC8")
+  expect_null(stack_color(new_stack("a")))
+  expect_null(stack_color(new_stack("a", color = NULL)))
+
+  expect_identical(
+    format(x),
+    c(
+      "<stack[2]>",
+      "Name: \"Input\"",
+      "Color: \"#66c2a5\"",
+      "Blocks: \"a\" and \"b\""
+    )
+  )
+
+  expect_identical(as_stack(as.list(x)), x)
+  expect_identical(stack_color(setdiff(x, "b")), "#66c2a5")
+  expect_identical(stack_color(stacks(s = x)[["s"]]), "#66c2a5")
+
+  for (color in list("teal", "#66c2a", "66c2a5", "#66c2a5ff", NA_character_,
+                     c("#fff", "#000"), 1)) {
+    expect_error(new_stack("a", color = color), class = "stack_color_invalid")
+  }
+})
+
+test_that("a stack's color has the pattern of the schema of a JSON board", {
+
+  stack <- json_board_schema()[["definitions"]][["Stack"]]
+
+  expect_identical(
+    stack[["properties"]][["color"]][["pattern"]],
+    hex_color_pattern()
+  )
+})
+
 test_that("stacks have a compact str_value()", {
 
   stk <- new_stack(c("a", "b"), name = "my stack")

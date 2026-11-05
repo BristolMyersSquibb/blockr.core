@@ -543,6 +543,11 @@ test_that("a board's parts are written by their methods", {
   )
 
   expect_identical(
+    blockr_ser(new_stack("a", "Input", color = "#66c2a5")),
+    list(name = "Input", blocks = "a", color = "#66c2a5")
+  )
+
+  expect_identical(
     blockr_ser(links(ab = new_link("a", "b"), bc = new_link("b", "c"))),
     list(
       ab = list(from = "a", to = "b", input = ""),
