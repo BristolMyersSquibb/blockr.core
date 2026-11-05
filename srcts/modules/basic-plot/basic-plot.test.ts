@@ -6,9 +6,10 @@ import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { mount, stubOutputHost } from "../../stubs/index.ts";
+import { stubOutputHost } from "../../stubs/index.ts";
+import { mountReact, step } from "../../testing/react.ts";
 import type { OutputFixtures, PlotOutput } from "../../types/outputs.ts";
-import * as basicPlot from "./index.ts";
+import * as basicPlot from "./index.tsx";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const dir = join(root, "inst", "outputs", "fixtures");
@@ -39,49 +40,53 @@ afterEach(() => {
 });
 
 test("shows the PNG of the body at the size the plot was drawn at", async () => {
-  const { el } = await mount(basicPlot, stubOutputHost({ output: { ...scatter.output }, body: png }));
+  const { el } = await mountReact(basicPlot, stubOutputHost({ output: { ...scatter.output }, body: png }));
   const img = el.querySelector("img");
 
   expect(made).toEqual([png]);
   expect(img?.getAttribute("src")).toBe("blob:plot-1");
   expect([img?.width, img?.height]).toEqual([320, 200]);
   expect(img?.alt).toBe("Plot");
-  expect(img?.hidden).toBe(false);
   expect(basicPlot.api).toBe(1);
   expect(basicPlot.default.options).toBeUndefined();
 });
 
 test("shows the body of each output that core hands it, and lets the URL of the one before go", async () => {
   const host = stubOutputHost({ output: { ...scatter.output }, body: png });
-  const mounted = await mount(basicPlot, host);
+  const mounted = await mountReact(basicPlot, host);
   const { el } = mounted;
-  const img = el.querySelector("img");
+  // The image the renderer shows, which it draws again as the body changes.
+  const img = () => el.querySelector("img");
 
-  host.setLoading(true);
+  await step(() => {
+    host.setLoading(true);
+  });
   expect(el.firstElementChild?.getAttribute("aria-busy")).toBe("true");
   expect(made).toHaveLength(1);
 
   const wider = new Blob([png], { type: "image/png" });
-  host.setOutput({ ...scatter.output, width: 640, height: 400 }, wider);
+  await step(() => {
+    host.setOutput({ ...scatter.output, width: 640, height: 400 }, wider);
+  });
   expect(el.firstElementChild?.getAttribute("aria-busy")).toBe("false");
-  expect(img?.getAttribute("src")).toBe("blob:plot-2");
-  expect([img?.width, img?.height]).toEqual([640, 400]);
+  expect(img()?.getAttribute("src")).toBe("blob:plot-2");
+  expect([img()?.width, img()?.height]).toEqual([640, 400]);
   expect(revoked).toEqual(["blob:plot-1"]);
 
-  host.setError({ severity: "error", class: ["simpleError", "error", "condition"], phase: "output", message: "boom" });
-  const alert = el.querySelector<HTMLElement>('[role="alert"]');
-  expect(alert?.hidden).toBe(false);
-  expect(alert?.textContent).toBe("boom");
-  expect(img?.getAttribute("src")).toBe("blob:plot-2");
+  await step(() => {
+    host.setError({ severity: "error", class: ["simpleError", "error", "condition"], phase: "output", message: "boom" });
+  });
+  expect(el.querySelector('[role="alert"]')?.textContent).toBe("boom");
+  expect(img()?.getAttribute("src")).toBe("blob:plot-2");
 
-  mounted.unmount();
+  await step(() => {
+    mounted.unmount();
+  });
   expect(revoked).toEqual(["blob:plot-1", "blob:plot-2"]);
 });
 
 test("shows no image for an output that holds no body", async () => {
-  const { el } = await mount(basicPlot, stubOutputHost({ output: { ...scatter.output } }));
-  const img = el.querySelector("img");
-  expect(img?.hidden).toBe(true);
-  expect(img?.hasAttribute("src")).toBe(false);
+  const { el } = await mountReact(basicPlot, stubOutputHost({ output: { ...scatter.output } }));
+  expect(el.querySelector("img")).toBeNull();
   expect(made).toEqual([]);
 });

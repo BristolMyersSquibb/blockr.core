@@ -1,9 +1,11 @@
 // Builds core's client into inst/js, which the R package ships and git keeps,
 // since R CMD check and CRAN run no Node. Run: npm run build
 //
-// - Core's runtime, srcts/runtime/index.ts, is bundled into blockr-core.js.
-// - A module, srcts/modules/<name>/index.ts, is bundled into <name>.js on its
-//   own.
+// - Core's runtime, srcts/runtime/index.ts, is bundled into blockr-core.js,
+//   with React, of which it puts the one copy on the page.
+// - A module, srcts/modules/<name>/index.ts or index.tsx, is bundled into
+//   <name>.js on its own, with each import of React mapped to the copy that
+//   core's runtime puts on the page, so that its bundle holds no React.
 // - An index.css beside either is its stylesheet, built with Tailwind CSS into
 //   blockr-core.css or <name>.css.
 // - Each output type in srcts/types/outputs.ts gets its JSON Schema in
@@ -32,23 +34,57 @@ import * as esbuild from "esbuild";
 import postcss from "postcss";
 import { createGenerator } from "ts-json-schema-generator";
 import ts from "typescript";
+import { REACT_ENTRIES, REACT_GLOBAL } from "../react/index.ts";
 
 interface Entry {
   name: string;
   dir: string;
 }
 
-async function entries(src: string): Promise<Entry[]> {
+// The file a module's directory starts from, index.ts or, where it draws
+// with React, index.tsx.
+function entryFile(dir: string): string {
+  const tsx = join(dir, "index.tsx");
+  return existsSync(tsx) ? tsx : join(dir, "index.ts");
+}
+
+// Maps each import of React's entry points in a module to the copy that core's
+// runtime puts on the page, under REACT_GLOBAL, so that every module draws
+// with that one copy. An entry point that core does not share fails the
+// build, rather than bundling a second copy of React.
+export const sharedReact: esbuild.Plugin = {
+  name: "shared-react",
+  setup(build) {
+    build.onResolve({ filter: /^react(-dom)?(\/|$)/ }, (args) => {
+      if (!(REACT_ENTRIES as readonly string[]).includes(args.path)) {
+        return { errors: [{ text: `A module imports ${args.path}, which core does not share. It shares ${REACT_ENTRIES.join(", ")}.` }] };
+      }
+      return { path: args.path, namespace: "shared-react" };
+    });
+    build.onLoad({ filter: /.*/, namespace: "shared-react" }, (args) => ({
+      contents: [
+        `const shared = globalThis[${JSON.stringify(REACT_GLOBAL)}];`,
+        `if (shared === undefined) throw new Error("React is not on the page: core's runtime puts it there before any module loads.");`,
+        `module.exports = shared[${JSON.stringify(args.path)}];`,
+      ].join("\n"),
+      loader: "js",
+    }));
+  },
+};
+
+// Core's runtime and its modules, each by the name of the file it is bundled
+// into and its directory.
+async function entries(src: string): Promise<{ runtime: Entry; modules: Entry[] }> {
   const modules = join(src, "modules");
   const dirs = existsSync(modules)
     ? await readdir(modules, { withFileTypes: true })
     : [];
-  return [
-    { name: "blockr-core", dir: join(src, "runtime") },
-    ...dirs
+  return {
+    runtime: { name: "blockr-core", dir: join(src, "runtime") },
+    modules: dirs
       .filter((dir) => dir.isDirectory())
       .map((dir) => ({ name: dir.name, dir: join(modules, dir.name) })),
-  ];
+  };
 }
 
 export async function stylesheet(file: string): Promise<string> {
@@ -64,33 +100,43 @@ export async function stylesheet(file: string): Promise<string> {
 
 export async function build(root: string): Promise<string[]> {
   const out = join(root, "inst", "js");
-  const all = await entries(join(root, "srcts"));
+  const { runtime, modules } = await entries(join(root, "srcts"));
 
   await rm(out, { recursive: true, force: true });
   await mkdir(out, { recursive: true });
 
-  const { metafile, warnings } = await esbuild.build({
+  const options = {
     absWorkingDir: root,
-    entryPoints: all.map((entry) => ({
-      in: join(entry.dir, "index.ts"),
-      out: entry.name,
-    })),
     outdir: out,
     bundle: true,
     format: "esm",
     platform: "browser",
     target: "es2022",
+    jsx: "automatic",
+    define: { "process.env.NODE_ENV": JSON.stringify("production") },
     logLevel: "warning",
     metafile: true,
-  });
+  } satisfies esbuild.BuildOptions;
+  const results = [
+    await esbuild.build({ ...options, entryPoints: [{ in: entryFile(runtime.dir), out: runtime.name }] }),
+    ...(modules.length === 0
+      ? []
+      : [
+          await esbuild.build({
+            ...options,
+            entryPoints: modules.map((entry) => ({ in: entryFile(entry.dir), out: entry.name })),
+            plugins: [sharedReact],
+          }),
+        ]),
+  ];
 
-  if (warnings.length > 0) {
+  if (results.some((result) => result.warnings.length > 0)) {
     throw new Error("esbuild warned, as printed above");
   }
 
-  const written = Object.keys(metafile.outputs);
+  const written = results.flatMap((result) => Object.keys(result.metafile.outputs));
 
-  for (const entry of all) {
+  for (const entry of [runtime, ...modules]) {
     const css = join(entry.dir, "index.css");
     if (!existsSync(css)) continue;
     const file = join(out, `${entry.name}.css`);

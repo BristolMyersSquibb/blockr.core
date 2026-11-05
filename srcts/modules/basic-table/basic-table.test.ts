@@ -6,11 +6,12 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 import type { Condition } from "../../protocol/index.ts";
-import { mount, stubOutputHost } from "../../stubs/index.ts";
+import { stubOutputHost } from "../../stubs/index.ts";
+import { mountReact, step } from "../../testing/react.ts";
 import type { StubOutputHostOptions } from "../../stubs/index.ts";
 import type { Json } from "../../types/json.ts";
 import type { OutputFixtures, TableOutput } from "../../types/outputs.ts";
-import * as basicTable from "./index.ts";
+import * as basicTable from "./index.tsx";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const fixtures = JSON.parse(
@@ -53,7 +54,7 @@ async function mounted(i: number, options: StubOutputHostOptions & { waiting?: b
       asks.push(next);
     };
   }
-  const mounted = await mount(basicTable, host);
+  const mounted = await mountReact(basicTable, host);
   const { el } = mounted;
 
   const button = (text: string): HTMLButtonElement => {
@@ -75,14 +76,21 @@ async function mounted(i: number, options: StubOutputHostOptions & { waiting?: b
     },
     button,
     header,
-    texts: (selector: string) => [...el.querySelectorAll(selector)].map((node) => node.textContent),
+    texts: (selector: string) => [...el.querySelectorAll(selector)].map((node) => words(node.textContent)),
     rows: () =>
       [...el.querySelectorAll("tbody tr")].map((tr) => [...tr.querySelectorAll("td")].map((td) => td.textContent)),
     counts: () => el.querySelector("table")?.parentElement?.nextElementSibling?.firstElementChild?.textContent,
     page: () => button("Previous").nextElementSibling?.textContent,
-    pager: () => button("Previous").parentElement?.parentElement,
+    // Whether the pager draws its buttons, which it does where the table has
+    // more than one page.
+    paged: () => [...el.querySelectorAll("button")].some((node) => node.textContent === "Previous"),
     alert: () => el.querySelector<HTMLElement>('[role="alert"]'),
   };
+}
+
+// Text with its runs of white space as one space, as it reads on the page.
+function words(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
 }
 
 test("names n_rows as the board option it requires, by which the coercion pages", () => {
@@ -138,7 +146,7 @@ describe("drawing a page", () => {
     ]);
     expect(table.el.querySelector("td span")?.className).toContain("bc:italic");
     expect(table.counts()).toBe("5 rows");
-    expect(table.pager()?.hidden).toBe(true);
+    expect(table.paged()).toBe(false);
   });
 
   test("says that a table without rows has none, with no pager", async () => {
@@ -146,7 +154,7 @@ describe("drawing a page", () => {
     expect(table.texts("th")).toHaveLength(5);
     expect(table.rows()).toEqual([]);
     expect(table.counts()).toBe("No rows");
-    expect(table.pager()?.hidden).toBe(true);
+    expect(table.paged()).toBe(false);
   });
 });
 
@@ -156,10 +164,14 @@ describe("paging", () => {
 
     expect(table.counts()).toBe("Rows 4–6 of 7");
     expect(table.page()).toBe("Page 2 of 3");
-    expect(table.pager()?.hidden).toBe(false);
+    expect(table.paged()).toBe(true);
 
-    table.button("Next").click();
-    table.button("Previous").click();
+    await step(() => {
+      table.button("Next").click();
+    });
+    await step(() => {
+      table.button("Previous").click();
+    });
 
     expect(table.asks).toEqual([{ page: 3 }, {}]);
   });
@@ -170,7 +182,9 @@ describe("paging", () => {
     expect(table.counts()).toBe("Rows 151–153 of 153");
     expect(table.page()).toBe("Page 4 of 4");
     expect(table.button("Next").disabled).toBe(true);
-    table.button("Previous").click();
+    await step(() => {
+      table.button("Previous").click();
+    });
     expect(table.asks).toEqual([{ page: 3, sort: { column: "Ozone", desc: true } }]);
 
     const rows = sample(0).output.rows.slice(0, 2);
@@ -181,7 +195,9 @@ describe("paging", () => {
     });
     expect(sized.counts()).toBe("Rows 3–4 of 7");
     expect(sized.page()).toBe("Page 2 of 4");
-    sized.button("Next").click();
+    await step(() => {
+      sized.button("Next").click();
+    });
     expect(sized.asks).toEqual([{ page: 3, page_size: 2 }]);
   });
 
@@ -191,11 +207,15 @@ describe("paging", () => {
     expect(full.page()).toBe("Page 1");
     expect(full.button("Previous").disabled).toBe(true);
     expect(full.button("Next").disabled).toBe(false);
-    full.button("Next").click();
+    await step(() => {
+      full.button("Next").click();
+    });
     expect(full.asks).toEqual([{ page: 2 }]);
 
     const rows = sample(4).output.rows.slice(0, 2);
-    full.host.setOutput({ ...sample(4).output, rows } as unknown as Json, null, { page: 2 });
+    await step(() => {
+      full.host.setOutput({ ...sample(4).output, rows } as unknown as Json, null, { page: 2 });
+    });
     expect(full.counts()).toBe("Rows 4–5");
     expect(full.page()).toBe("Page 2");
     expect(full.button("Next").disabled).toBe(true);
@@ -208,17 +228,27 @@ describe("sorting", () => {
     const species = table.header("Species");
     expect(species.getAttribute("aria-sort")).toBe("none");
 
-    species.querySelector("button")?.click();
-    table.host.setOutput(outputOf(0), null, { sort: { column: "Species" } });
+    await step(() => {
+      species.querySelector("button")?.click();
+    });
+    await step(() => {
+      table.host.setOutput(outputOf(0), null, { sort: { column: "Species" } });
+    });
     expect(species.getAttribute("aria-sort")).toBe("ascending");
     expect(species.textContent).toContain("↑");
 
-    species.querySelector("button")?.click();
-    table.host.setOutput(outputOf(0), null, { sort: { column: "Species", desc: true } });
+    await step(() => {
+      species.querySelector("button")?.click();
+    });
+    await step(() => {
+      table.host.setOutput(outputOf(0), null, { sort: { column: "Species", desc: true } });
+    });
     expect(species.getAttribute("aria-sort")).toBe("descending");
     expect(species.textContent).toContain("↓");
 
-    species.querySelector("button")?.click();
+    await step(() => {
+      species.querySelector("button")?.click();
+    });
 
     expect(table.asks).toEqual([{ sort: { column: "Species" } }, { sort: { column: "Species", desc: true } }, {}]);
   });
@@ -229,7 +259,9 @@ describe("sorting", () => {
     expect(ozone.getAttribute("aria-sort")).toBe("descending");
     expect(table.header("Wind").getAttribute("aria-sort")).toBe("none");
 
-    table.host.setOutput(outputOf(1), null, { page: 3, sort: { column: "Wind" } });
+    await step(() => {
+      table.host.setOutput(outputOf(1), null, { page: 3, sort: { column: "Wind" } });
+    });
 
     expect(table.header("Ozone")).toBe(ozone);
     expect(ozone.getAttribute("aria-sort")).toBe("none");
@@ -243,11 +275,15 @@ describe("while core asks R for an output", () => {
     const busy = table.el.firstElementChild;
     expect(busy?.getAttribute("aria-busy")).toBe("false");
 
-    table.host.setLoading(true);
+    await step(() => {
+      table.host.setLoading(true);
+    });
     expect(busy?.getAttribute("aria-busy")).toBe("true");
     expect(table.el.querySelector("table")?.classList.contains("bc:opacity-60")).toBe(true);
 
-    table.host.setOutput(outputOf(0), null, { page: 2 });
+    await step(() => {
+      table.host.setOutput(outputOf(0), null, { page: 2 });
+    });
     expect(busy?.getAttribute("aria-busy")).toBe("false");
     expect(table.el.querySelector("table")?.classList.contains("bc:opacity-60")).toBe(false);
   });
@@ -257,12 +293,14 @@ describe("while core asks R for an output", () => {
     // while they hold the first page unsorted at fifty rows to a page, the
     // sample of many kinds of cells.
     const table = await mounted(1);
-    expect(table.alert()?.hidden).toBe(true);
+    expect(table.alert()).toBeNull();
 
-    table.host.setError(error);
+    await step(() => {
+      table.host.setError(error);
+    });
 
     expect(table.host.asked).toEqual([{ sort: { column: "Ozone", desc: true } }, {}]);
-    expect(table.alert()?.hidden).toBe(true);
+    expect(table.alert()).toBeNull();
     expect(table.rows()).toHaveLength(5);
   });
 
@@ -270,26 +308,35 @@ describe("while core asks R for an output", () => {
     // The fixtures hold no first page at five rows to a page.
     const table = await mounted(0, { options: { n_rows: 5 } });
 
-    table.host.setError(error);
+    await step(() => {
+      table.host.setError(error);
+    });
 
     expect(table.host.asked).toEqual([{}]);
-    expect(table.alert()?.hidden).toBe(false);
     expect(table.alert()?.textContent).toBe("The fixtures hold no output asked with the parameters {}.");
     expect(table.rows()).toHaveLength(3);
 
-    table.host.setLoading(false);
+    await step(() => {
+      table.host.setLoading(false);
+    });
     expect(table.host.asked).toEqual([{}]);
 
     const first = await mounted(4);
-    first.host.setError(error);
+    await step(() => {
+      first.host.setError(error);
+    });
     expect(first.host.asked).toEqual([]);
     expect(first.alert()?.textContent).toBe(error.message);
   });
 });
 
-test("stops drawing once unmounted", async () => {
+test("leaves its element empty once unmounted, and draws nothing more", async () => {
   const table = await mounted(0);
-  table.unmount();
-  table.host.setOutput(outputOf(2));
-  expect(table.rows()).toHaveLength(3);
+  await step(() => {
+    table.unmount();
+  });
+  await step(() => {
+    table.host.setOutput(outputOf(2));
+  });
+  expect(table.el.childNodes).toHaveLength(0);
 });

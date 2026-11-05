@@ -5,9 +5,10 @@ import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "vitest";
-import { mount, stubOutputHost } from "../../stubs/index.ts";
+import { stubOutputHost } from "../../stubs/index.ts";
+import { mountReact, step } from "../../testing/react.ts";
 import type { OutputFixtures, TextOutput } from "../../types/outputs.ts";
-import * as basicText from "./index.ts";
+import * as basicText from "./index.tsx";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const fixtures = JSON.parse(
@@ -18,7 +19,7 @@ const texts = fixtures.outputs.map(({ output }) => output);
 
 test("shows each sample as print() shows it, in a box that scrolls rather than wraps", async () => {
   for (const output of texts) {
-    const { el } = await mount(basicText, stubOutputHost({ output: { ...output } }));
+    const { el } = await mountReact(basicText, stubOutputHost({ output: { ...output } }));
     const pre = el.querySelector("pre");
     expect(pre?.textContent).toBe(output.text);
     expect(pre?.className).toContain("bc:whitespace-pre");
@@ -32,24 +33,32 @@ test("shows each sample as print() shows it, in a box that scrolls rather than w
 test("draws each output that core hands it, marks it busy while a newer one loads, and shows why an ask failed over it", async () => {
   const [first, second] = texts;
   const host = stubOutputHost({ output: { ...first } });
-  const mounted = await mount(basicText, host);
+  const mounted = await mountReact(basicText, host);
   const { el } = mounted;
   const pre = el.querySelector("pre");
-  const alert = el.querySelector<HTMLElement>('[role="alert"]');
-  expect(alert?.hidden).toBe(true);
+  expect(el.querySelector('[role="alert"]')).toBeNull();
 
-  host.setLoading(true);
+  await step(() => {
+    host.setLoading(true);
+  });
   expect(el.firstElementChild?.getAttribute("aria-busy")).toBe("true");
-  host.setOutput({ ...second });
+  await step(() => {
+    host.setOutput({ ...second });
+  });
   expect(pre?.textContent).toBe(second?.text);
   expect(el.firstElementChild?.getAttribute("aria-busy")).toBe("false");
 
-  host.setError({ severity: "error", class: ["simpleError", "error", "condition"], phase: "output", message: "boom" });
-  expect(alert?.hidden).toBe(false);
-  expect(alert?.textContent).toBe("boom");
+  await step(() => {
+    host.setError({ severity: "error", class: ["simpleError", "error", "condition"], phase: "output", message: "boom" });
+  });
+  expect(el.querySelector('[role="alert"]')?.textContent).toBe("boom");
   expect(pre?.textContent).toBe(second?.text);
 
-  mounted.unmount();
-  host.setOutput({ ...first });
+  await step(() => {
+    mounted.unmount();
+  });
+  await step(() => {
+    host.setOutput({ ...first });
+  });
   expect(pre?.textContent).toBe(second?.text);
 });

@@ -8,6 +8,6 @@
     "types": ["node"],
     "tsBuildInfoFile": "node_modules/.tmp/tsconfig.node.tsbuildinfo"
   },
-  "include": ["srcts/build", "srcts/testing", "srcts/**/*.test.ts", "*.config.ts"],
+  "include": ["srcts/build", "srcts/testing", "srcts/**/*.test.ts", "srcts/**/*.test.tsx", "*.config.ts"],
   "exclude": []
 }
