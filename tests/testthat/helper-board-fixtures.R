@@ -223,11 +223,11 @@ board_fixture_values <- function() {
       description = paste(
         "A board of the class grid_board, which extends core's board and",
         "which the package blockr.test defines in JavaScript, with the",
-        "properties that the class adds beside core's, panels and active, as",
+        "properties that the class adds beside core's, notes and pinned, as",
         "the script gives them. The package ships the schemas of those",
         "properties beside its startup module, here in",
         "blockr.test/js/startup.schema.json. By them, R writes the blocks of",
-        "each entry of panels as an array, and active as a string. The",
+        "each note as an array, and pinned as a string. The",
         "package names the class's front-end through its method of",
         "board_front_end(), from whose namespace R records blockr.test among",
         "the board's packages. A client builds the board as a grid_board,",
@@ -236,8 +236,8 @@ board_fixture_values <- function() {
       ),
       board = new_board(
         blocks = c(a = new_letters_block(block_name = "Letters")),
-        panels = list(main = list(title = "Main", blocks = "a")),
-        active = "main",
+        notes = list(check = list(text = "To check", blocks = "a")),
+        pinned = "a",
         id = "quiet_heron",
         name = "Grid",
         class = "grid_board"

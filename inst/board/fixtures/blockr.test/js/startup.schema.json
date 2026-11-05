@@ -1,17 +1,17 @@
 {
   "type": "object",
   "properties": {
-    "panels": {
+    "notes": {
       "type": "object",
       "additionalProperties": {
         "type": "object",
         "properties": {
-          "title": { "type": "string" },
+          "text": { "type": "string" },
           "blocks": { "type": "array", "items": { "type": "string" } }
         },
-        "required": ["title", "blocks"]
+        "required": ["text", "blocks"]
       }
     },
-    "active": { "type": "string" }
+    "pinned": { "type": "string" }
   }
 }

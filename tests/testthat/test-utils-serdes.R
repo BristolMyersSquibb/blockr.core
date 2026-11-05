@@ -333,23 +333,23 @@ test_that("a board's class and its properties are written by the schemas", {
     '{
       "type": "object",
       "properties": {
-        "panels": {
+        "notes": {
           "type": "object",
           "additionalProperties": {
             "type": "object",
             "properties": {
-              "title": { "type": "string" },
+              "text": { "type": "string" },
               "blocks": { "type": "array", "items": { "type": "string" } }
             }
           }
         },
-        "layout": {
+        "flags": {
           "type": "object",
           "properties": {
-            "pinned": { "type": "array", "items": { "type": "string" } }
+            "starred": { "type": "array", "items": { "type": "string" } }
           }
         },
-        "active": { "type": "string" },
+        "pinned": { "type": "string" },
         "options": {
           "type": "object",
           "properties": {
@@ -375,10 +375,10 @@ test_that("a board's class and its properties are written by the schemas", {
 
   board <- new_board(
     options = new_board_option("tags", "draft"),
-    panels = list(p1 = list(title = "Main", blocks = "a"), p2 = list()),
-    layout = list(pinned = "a", note = "x"),
-    active = "p1",
-    widths = list(),
+    notes = list(n1 = list(text = "To check", blocks = "a"), n2 = list()),
+    flags = list(starred = "a", note = "x"),
+    pinned = "n1",
+    counts = list(),
     id = "grid",
     class = "grid_board"
   )
@@ -398,29 +398,29 @@ test_that("a board's class and its properties are written by the schemas", {
         "links": {},
         "stacks": {},
         "options": { "tags": { "value": ["draft"], "version": 2 } },
-        "panels": {
-          "p1": { "title": "Main", "blocks": ["a"] },
-          "p2": {}
+        "notes": {
+          "n1": { "text": "To check", "blocks": ["a"] },
+          "n2": {}
         },
-        "layout": { "pinned": ["a"], "note": "x" },
-        "active": "p1",
-        "widths": []
+        "flags": { "starred": ["a"], "note": "x" },
+        "pinned": "n1",
+        "counts": []
       }'
     )
   )
 
   # An empty collection is an object, and a property the board lacks stays out,
   # while a class that no package defines is written all the same
-  board <- new_board(panels = list(), class = c("my_board", "grid_board"))
+  board <- new_board(notes = list(), class = c("my_board", "grid_board"))
   res <- read_json_strictly(encode_message(blockr_ser(board)))$board
 
   expect_identical(
-    res[c("class", "panels")],
+    res[c("class", "notes")],
     read_json_strictly(
-      '{ "class": ["my_board", "grid_board", "board"], "panels": {} }'
+      '{ "class": ["my_board", "grid_board", "board"], "notes": {} }'
     )
   )
-  expect_false("active" %in% names(res))
+  expect_false("pinned" %in% names(res))
 })
 
 test_that("R applies the schema of every package that has one", {

@@ -103,8 +103,8 @@ const grid: BoardClass = {
   class: "grid_board",
   parent: "board",
   properties: {
-    panels: { schema: { type: "object" }, default: {} },
-    active: { schema: { type: "string" }, default: "" },
+    notes: { schema: { type: "object" }, default: {} },
+    pinned: { schema: { type: "string" }, default: "" },
   },
 };
 
