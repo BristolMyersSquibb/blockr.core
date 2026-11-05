@@ -1,4 +1,6 @@
 import type { Block, Board, OptionId, RegistryId } from "../types/board.ts";
+import type { CoreApi } from "../types/core-api.ts";
+import type { OptionModule } from "../types/hosts.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import type { Validate } from "../util/index.ts";
 import type { Delta, Patch } from "./delta.ts";
@@ -20,6 +22,8 @@ export interface Option {
     readonly category: string;
     readonly schema: JsonSchema;
     readonly default: Json | (() => Promise<Json>);
+    readonly ui: OptionModule;
+    onChange?(value: Json, core: CoreApi): void;
     migrate?(value: Json, version: number): Json;
 }
 export interface Options {

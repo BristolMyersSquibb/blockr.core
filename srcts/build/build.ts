@@ -2,8 +2,14 @@
 // since R CMD check and CRAN run no Node. Run: npm run build
 //
 // - Core's runtime, srcts/runtime/index.ts, is bundled into blockr-core.js.
-// - A module, srcts/modules/<name>/index.ts, is bundled into <name>.js on its
-//   own.
+//   The file starts with the one copy of React, which
+//   srcts/runtime/share-react.ts puts on the page, minified, since it changes
+//   only with React's version. Core's own code follows unminified, its imports
+//   of React mapped to that copy as a module's are.
+// - A module, srcts/modules/<name>/index.ts or index.tsx, is bundled into
+//   <name>.js on its own, by the build preset of ./preset.ts, which maps each
+//   import of React to the copy that core's runtime puts on the page, so that
+//   its bundle holds no React.
 // - An index.css beside either is its stylesheet, built with Tailwind CSS into
 //   blockr-core.css or <name>.css.
 // - Each output type in srcts/types/outputs.ts gets its JSON Schema in
@@ -15,7 +21,11 @@
 //   value of one that an app script gives.
 // - The types that modules are written against, srcts/index.ts, and the stubs
 //   of the hosts, srcts/stubs/index.ts, go into inst/types, which a package's
-//   build resolves as `@blockr/core`: their declarations, the stubs bundled for
+//   build resolves as `@blockr/core`, and so do core's React SDK, srcts/react,
+//   its binding, srcts/binding, and the build preset, srcts/build, each as the
+//   export of its name, such as `@blockr/core/react`: their declarations, the
+//   SDK, the binding and the preset bundled for a package's build, with React
+//   left for the preset to map, the stubs bundled for
 //   a test runner, and the package.json that names them.
 //
 // - The words that ids are made of, in srcts/store/words.ts, go into inst/ids,
@@ -35,23 +45,33 @@ import * as esbuild from "esbuild";
 import postcss from "postcss";
 import { createGenerator } from "ts-json-schema-generator";
 import ts from "typescript";
+import { preset } from "./preset.ts";
 
 interface Entry {
   name: string;
   dir: string;
 }
 
-async function entries(src: string): Promise<Entry[]> {
+// The file a module's directory starts from, index.ts or, where it draws
+// with React, index.tsx.
+function entryFile(dir: string): string {
+  const tsx = join(dir, "index.tsx");
+  return existsSync(tsx) ? tsx : join(dir, "index.ts");
+}
+
+// Core's runtime and its modules, each by the name of the file it is bundled
+// into and its directory.
+async function entries(src: string): Promise<{ runtime: Entry; modules: Entry[] }> {
   const modules = join(src, "modules");
   const dirs = existsSync(modules)
     ? await readdir(modules, { withFileTypes: true })
     : [];
-  return [
-    { name: "blockr-core", dir: join(src, "runtime") },
-    ...dirs
+  return {
+    runtime: { name: "blockr-core", dir: join(src, "runtime") },
+    modules: dirs
       .filter((dir) => dir.isDirectory())
       .map((dir) => ({ name: dir.name, dir: join(modules, dir.name) })),
-  ];
+  };
 }
 
 export async function stylesheet(file: string): Promise<string> {
@@ -65,35 +85,71 @@ export async function stylesheet(file: string): Promise<string> {
   return result.css;
 }
 
+// The one copy of React that core's runtime puts on the page, from
+// share-react.ts in the runtime's directory, as a minified script that keeps
+// React's license comments, which the runtime's bundle starts with.
+async function reactCopy(root: string, dir: string) {
+  const entry = join(dir, "share-react.ts");
+  if (!existsSync(entry)) return undefined;
+  return await esbuild.build({
+    absWorkingDir: root,
+    entryPoints: [entry],
+    bundle: true,
+    write: false,
+    format: "iife",
+    platform: "browser",
+    target: preset.target,
+    minify: true,
+    legalComments: "inline",
+    define: preset.define,
+    logLevel: "warning",
+  });
+}
+
 export async function build(root: string): Promise<string[]> {
   const out = join(root, "inst", "js");
-  const all = await entries(join(root, "srcts"));
+  const { runtime, modules } = await entries(join(root, "srcts"));
 
   await rm(out, { recursive: true, force: true });
   await mkdir(out, { recursive: true });
 
-  const { metafile, warnings } = await esbuild.build({
+  const options = {
+    ...preset,
     absWorkingDir: root,
-    entryPoints: all.map((entry) => ({
-      in: join(entry.dir, "index.ts"),
-      out: entry.name,
-    })),
     outdir: out,
-    bundle: true,
-    format: "esm",
-    platform: "browser",
-    target: "es2022",
     logLevel: "warning",
     metafile: true,
+  } satisfies esbuild.BuildOptions;
+  // The runtime maps its imports of React to the copy that its bundle starts
+  // with, as a module does, and is written behind that copy below.
+  const core = await esbuild.build({
+    ...options,
+    write: false,
+    entryPoints: [{ in: entryFile(runtime.dir), out: runtime.name }],
   });
+  const copy = await reactCopy(root, runtime.dir);
+  const bundled =
+    modules.length === 0
+      ? []
+      : [
+          await esbuild.build({
+            ...options,
+            entryPoints: modules.map((entry) => ({ in: entryFile(entry.dir), out: entry.name })),
+          }),
+        ];
 
-  if (warnings.length > 0) {
+  if ([core, ...(copy === undefined ? [] : [copy]), ...bundled].some((result) => result.warnings.length > 0)) {
     throw new Error("esbuild warned, as printed above");
   }
 
-  const written = Object.keys(metafile.outputs);
+  for (const file of core.outputFiles) {
+    const start = file.path.endsWith(".js") ? (copy?.outputFiles[0]?.text ?? "") : "";
+    await writeFile(file.path, start + file.text);
+  }
 
-  for (const entry of all) {
+  const written = [core, ...bundled].flatMap((result) => Object.keys(result.metafile.outputs));
+
+  for (const entry of [runtime, ...modules]) {
     const css = join(entry.dir, "index.css");
     if (!existsSync(css)) continue;
     const file = join(out, `${entry.name}.css`);
@@ -261,26 +317,37 @@ async function writeJson(file: string, value: unknown): Promise<void> {
 }
 
 // The package that inst/types is: the types modules are written against, as
-// `@blockr/core`, and the stubs of the hosts, as `@blockr/core/stubs`.
+// `@blockr/core`, the stubs of the hosts, as `@blockr/core/stubs`, and core's
+// React SDK, its binding and the build preset, as `@blockr/core/react`,
+// `@blockr/core/binding` and `@blockr/core/build`.
 export const TYPES_PACKAGE = {
   name: "@blockr/core",
   private: true,
   description:
-    "The types that the modules of blockr.core's client are written against, and a stub of each host for their tests, as the R package blockr.core ships them.",
+    "The types that the modules of blockr.core's client are written against, a stub of each host for their tests, and the React SDK, its binding and the build preset that they may be built with, as the R package blockr.core ships them.",
   type: "module",
   exports: {
     ".": { types: "./index.d.ts" },
+    "./binding": { types: "./binding/index.d.ts", default: "./binding/index.js" },
+    "./build": { types: "./build/index.d.ts", default: "./build/index.js" },
+    "./react": { types: "./react/index.d.ts", default: "./react/index.js" },
     "./stubs": { types: "./stubs/index.d.ts", default: "./stubs/index.js" },
   },
 };
 
-// Writes inst/types: the declarations of srcts/index.ts and of the stubs, each
-// file's beside where its source sits in srcts, the stubs bundled, and the
-// package.json that names them.
+// The modules of srcts that the types package bundles,
+// each as the export of its name.
+const BUNDLED = ["stubs", "binding", "react", "build"];
+
+// Writes inst/types: the declarations of srcts/index.ts and of the modules
+// that BUNDLED names, each file's beside where its source sits in srcts, those
+// modules bundled, and the package.json that names them.
 export async function types(root: string): Promise<string[]> {
   const src = join(root, "srcts");
   const entry = join(src, "index.ts");
-  const stubs = join(src, "stubs", "index.ts");
+  const bundled = BUNDLED.map((name) => ({ name, file: join(src, name, "index.ts") })).filter(({ file }) =>
+    existsSync(file),
+  );
   if (!existsSync(entry)) return [];
 
   const dir = join(root, "inst", "types");
@@ -289,7 +356,7 @@ export async function types(root: string): Promise<string[]> {
 
   const config = ts.readConfigFile(join(root, "tsconfig.client.json"), (file) => ts.sys.readFile(file));
   const { options } = ts.parseJsonConfigFileContent(config.config, ts.sys, root);
-  const program = ts.createProgram([entry, ...(existsSync(stubs) ? [stubs] : [])], {
+  const program = ts.createProgram([entry, ...bundled.map(({ file }) => file)], {
     ...options,
     noEmit: false,
     declaration: true,
@@ -316,15 +383,19 @@ export async function types(root: string): Promise<string[]> {
     );
   }
 
-  if (existsSync(stubs)) {
+  if (bundled.length > 0) {
     const { metafile, warnings } = await esbuild.build({
       absWorkingDir: root,
-      entryPoints: [{ in: stubs, out: "stubs/index" }],
+      entryPoints: bundled.map(({ name, file }) => ({ in: file, out: `${name}/index` })),
       outdir: dir,
       bundle: true,
       format: "esm",
       platform: "neutral",
       target: "es2022",
+      jsx: "automatic",
+      // React stays an import, which the build preset maps to core's copy as
+      // a package's build bundles the React SDK into its module.
+      external: ["react", "react/*", "react-dom", "react-dom/*"],
       logLevel: "warning",
       metafile: true,
     });

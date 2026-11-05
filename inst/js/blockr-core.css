@@ -3,23 +3,173 @@
   @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {
     *, :before, :after, ::backdrop {
       --tw-border-style: solid;
+      --tw-leading: initial;
+      --tw-font-weight: initial;
+      --tw-ordinal: initial;
+      --tw-slashed-zero: initial;
+      --tw-numeric-figure: initial;
+      --tw-numeric-spacing: initial;
+      --tw-numeric-fraction: initial;
+      --tw-outline-style: solid;
     }
   }
 }
 
 @layer theme {
   :root, :host {
-    --bc-color-red-50: oklch(97.1% .013 17.38);
-    --bc-color-red-300: oklch(80.8% .114 19.571);
-    --bc-color-red-800: oklch(44.4% .177 26.899);
+    --bc-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
+    --bc-color-red-500: oklch(63.7% .237 25.331);
+    --bc-color-red-600: oklch(57.7% .245 27.325);
+    --bc-color-blue-500: oklch(62.3% .214 259.815);
+    --bc-color-blue-600: oklch(54.6% .245 262.881);
+    --bc-color-gray-900: oklch(21% .034 264.665);
     --bc-spacing: .25rem;
+    --bc-text-xs: .75rem;
+    --bc-text-xs--line-height: calc(1 / .75);
     --bc-text-sm: .875rem;
     --bc-text-sm--line-height: calc(1.25 / .875);
+    --bc-font-weight-normal: 400;
+    --bc-font-weight-medium: 500;
+    --bc-leading-snug: 1.375;
+    --bc-radius-md: .375rem;
+    --bc-color-text-default: currentColor;
+    --bc-color-text-muted: currentColor;
   }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    :root, :host {
+      --bc-color-text-muted: color-mix(in oklab, currentColor 65%, transparent);
+    }
+  }
+
+  :root, :host {
+    --bc-color-text-danger: var(--bc-color-red-600);
+    --bc-color-border-default: currentColor;
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    :root, :host {
+      --bc-color-border-default: color-mix(in oklab, currentColor 25%, transparent);
+    }
+  }
+
+  :root, :host {
+    --bc-color-border-danger: var(--bc-color-red-500);
+    --bc-color-border-accent: var(--bc-color-blue-500);
+    --bc-color-bg-accent: var(--bc-color-blue-600);
+    --bc-color-bg-subtle: currentColor;
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    :root, :host {
+      --bc-color-bg-subtle: color-mix(in oklab, currentColor 5%, transparent);
+    }
+  }
+}
+
+.bc\:m-0 {
+  margin: 0;
+}
+
+.bc\:mb-1 {
+  margin-bottom: var(--bc-spacing);
+}
+
+.bc\:block {
+  display: block;
+}
+
+.bc\:flex {
+  display: flex;
+}
+
+.bc\:grid {
+  display: grid;
+}
+
+.bc\:max-h-48 {
+  max-height: calc(var(--bc-spacing) * 48);
+}
+
+.bc\:max-h-full {
+  max-height: 100%;
+}
+
+.bc\:min-h-0 {
+  min-height: 0;
+}
+
+.bc\:w-full {
+  width: 100%;
+}
+
+.bc\:max-w-none {
+  max-width: none;
+}
+
+.bc\:min-w-0 {
+  min-width: 0;
+}
+
+.bc\:border-collapse {
+  border-collapse: collapse;
+}
+
+.bc\:cursor-pointer {
+  cursor: pointer;
+}
+
+.bc\:flex-col {
+  flex-direction: column;
+}
+
+.bc\:items-center {
+  align-items: center;
+}
+
+.bc\:items-end {
+  align-items: flex-end;
+}
+
+.bc\:justify-between {
+  justify-content: space-between;
+}
+
+.bc\:justify-end {
+  justify-content: flex-end;
+}
+
+.bc\:gap-1 {
+  gap: var(--bc-spacing);
+}
+
+.bc\:gap-2 {
+  gap: calc(var(--bc-spacing) * 2);
+}
+
+.bc\:gap-3 {
+  gap: calc(var(--bc-spacing) * 3);
+}
+
+.bc\:justify-self-stretch {
+  justify-self: stretch;
+}
+
+.bc\:overflow-auto {
+  overflow: auto;
+}
+
+.bc\:overflow-y-auto {
+  overflow-y: auto;
 }
 
 .bc\:rounded {
   border-radius: .25rem;
+}
+
+.bc\:rounded-md {
+  border-radius: var(--bc-radius-md);
 }
 
 .bc\:border {
@@ -27,16 +177,76 @@
   border-width: 1px;
 }
 
-.bc\:border-red-300 {
-  border-color: var(--bc-color-red-300);
+.bc\:border-0 {
+  border-style: var(--tw-border-style);
+  border-width: 0;
 }
 
-.bc\:bg-red-50 {
-  background-color: var(--bc-color-red-50);
+.bc\:border-b {
+  border-bottom-style: var(--tw-border-style);
+  border-bottom-width: 1px;
+}
+
+.bc\:border-border-danger {
+  border-color: var(--bc-color-border-danger);
+}
+
+.bc\:border-border-default, .bc\:border-border-default\/40 {
+  border-color: var(--bc-color-border-default);
+}
+
+@supports (color: color-mix(in lab, red, red)) {
+  .bc\:border-border-default\/40 {
+    border-color: color-mix(in oklab, var(--bc-color-border-default) 40%, transparent);
+  }
+}
+
+.bc\:bg-bg-subtle {
+  background-color: var(--bc-color-bg-subtle);
+}
+
+.bc\:bg-transparent {
+  background-color: #0000;
+}
+
+.bc\:p-0 {
+  padding: 0;
 }
 
 .bc\:p-2 {
   padding: calc(var(--bc-spacing) * 2);
+}
+
+.bc\:px-2 {
+  padding-inline: calc(var(--bc-spacing) * 2);
+}
+
+.bc\:py-0\.5 {
+  padding-block: calc(var(--bc-spacing) * .5);
+}
+
+.bc\:py-1 {
+  padding-block: var(--bc-spacing);
+}
+
+.bc\:text-left {
+  text-align: left;
+}
+
+.bc\:text-right {
+  text-align: right;
+}
+
+.bc\:align-bottom {
+  vertical-align: bottom;
+}
+
+.bc\:\[font-family\:inherit\] {
+  font-family: inherit;
+}
+
+.bc\:font-mono {
+  font-family: var(--bc-font-mono);
 }
 
 .bc\:text-sm {
@@ -44,15 +254,146 @@
   line-height: var(--tw-leading, var(--bc-text-sm--line-height));
 }
 
+.bc\:text-xs {
+  font-size: var(--bc-text-xs);
+  line-height: var(--tw-leading, var(--bc-text-xs--line-height));
+}
+
+.bc\:leading-snug {
+  --tw-leading: var(--bc-leading-snug);
+  line-height: var(--bc-leading-snug);
+}
+
+.bc\:font-medium {
+  --tw-font-weight: var(--bc-font-weight-medium);
+  font-weight: var(--bc-font-weight-medium);
+}
+
+.bc\:font-normal {
+  --tw-font-weight: var(--bc-font-weight-normal);
+  font-weight: var(--bc-font-weight-normal);
+}
+
+.bc\:whitespace-nowrap {
+  white-space: nowrap;
+}
+
+.bc\:whitespace-pre {
+  white-space: pre;
+}
+
 .bc\:whitespace-pre-wrap {
   white-space: pre-wrap;
 }
 
-.bc\:text-red-800 {
-  color: var(--bc-color-red-800);
+.bc\:text-inherit {
+  color: inherit;
+}
+
+.bc\:text-text-danger {
+  color: var(--bc-color-text-danger);
+}
+
+.bc\:text-text-default {
+  color: var(--bc-color-text-default);
+}
+
+.bc\:text-text-muted {
+  color: var(--bc-color-text-muted);
+}
+
+.bc\:italic {
+  font-style: italic;
+}
+
+.bc\:tabular-nums {
+  --tw-numeric-spacing: tabular-nums;
+  font-variant-numeric: var(--tw-ordinal, ) var(--tw-slashed-zero, ) var(--tw-numeric-figure, ) var(--tw-numeric-spacing, ) var(--tw-numeric-fraction, );
+}
+
+.bc\:accent-bg-accent {
+  accent-color: var(--bc-color-bg-accent);
+}
+
+.bc\:opacity-60 {
+  opacity: .6;
+}
+
+.bc\:\[font\:inherit\] {
+  font: inherit;
+}
+
+.bc\:focus\:outline-2:focus {
+  outline-style: var(--tw-outline-style);
+  outline-width: 2px;
+}
+
+.bc\:focus\:outline-offset-1:focus {
+  outline-offset: 1px;
+}
+
+.bc\:focus\:outline-border-accent:focus {
+  outline-color: var(--bc-color-border-accent);
+}
+
+.bc\:disabled\:cursor-default:disabled {
+  cursor: default;
+}
+
+.bc\:disabled\:opacity-40:disabled {
+  opacity: .4;
+}
+
+.bc\:aria-invalid\:border-border-danger[aria-invalid="true"] {
+  border-color: var(--bc-color-border-danger);
+}
+
+.bc\:dark\:bg-gray-900:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
+  background-color: var(--bc-color-gray-900);
 }
 
 @property --tw-border-style {
+  syntax: "*";
+  inherits: false;
+  initial-value: solid;
+}
+
+@property --tw-leading {
+  syntax: "*";
+  inherits: false
+}
+
+@property --tw-font-weight {
+  syntax: "*";
+  inherits: false
+}
+
+@property --tw-ordinal {
+  syntax: "*";
+  inherits: false
+}
+
+@property --tw-slashed-zero {
+  syntax: "*";
+  inherits: false
+}
+
+@property --tw-numeric-figure {
+  syntax: "*";
+  inherits: false
+}
+
+@property --tw-numeric-spacing {
+  syntax: "*";
+  inherits: false
+}
+
+@property --tw-numeric-fraction {
+  syntax: "*";
+  inherits: false
+}
+
+@property --tw-outline-style {
   syntax: "*";
   inherits: false;
   initial-value: solid;

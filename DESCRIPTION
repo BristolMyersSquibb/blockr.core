@@ -23,7 +23,10 @@ Authors@R:
       person(given = "Grant",
              family = "Forrest",
              role = "cph",
-             comment = "Word lists of adjective-adjective-animal, in inst/ids")
+             comment = "Word lists of adjective-adjective-animal, in inst/ids"),
+      person(family = "Meta Platforms, Inc.",
+             role = "cph",
+             comment = "'React' and 'ReactDOM', bundled in inst/js/blockr-core.js")
     )
 Description: A framework for data manipulation and visualization using a
     web-based point and click user interface where analysis pipelines are decomposed into re-usable and parameterizable blocks.

@@ -8,10 +8,12 @@
 import type { OptionId } from "../types/board.ts";
 import type { JsonSchema } from "../types/json.ts";
 
-export const optionSchemas: Record<OptionId, JsonSchema> = {
+export const optionSchemas = {
   n_rows: {
     type: "integer",
-    minimum: 0,
+    // A page of a table holds a row at least, as the coercion of table
+    // outputs takes it.
+    minimum: 1,
     description: "How many rows of a table a block's output shows",
   },
   show_conditions: {
@@ -24,4 +26,4 @@ export const optionSchemas: Record<OptionId, JsonSchema> = {
     enum: ["light", "dark"],
     description: "Whether the board shows in its light or its dark theme",
   },
-};
+} satisfies Record<OptionId, JsonSchema>;

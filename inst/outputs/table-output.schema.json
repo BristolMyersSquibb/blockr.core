@@ -3,7 +3,22 @@
   "type": "object",
   "properties": {
     "renderer": {
-      "$ref": "#/definitions/OutputRenderer"
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "module": {
+          "type": "string"
+        },
+        "css": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "module"
+      ]
     },
     "columns": {
       "type": "array",
@@ -34,24 +49,6 @@
     "total"
   ],
   "definitions": {
-    "OutputRenderer": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "module": {
-          "type": "string"
-        },
-        "css": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "id",
-        "module"
-      ]
-    },
     "TableColumn": {
       "type": "object",
       "properties": {

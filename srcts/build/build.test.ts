@@ -60,6 +60,21 @@ test("bundles the runtime and each module, each with its stylesheet beside it", 
   expect(own).not.toMatch(/--bc-[\w-]+:/);
 });
 
+test("starts the runtime's bundle with the copy of React that it shares, minified, ahead of core's own code", async () => {
+  await write({
+    "srcts/runtime/share-react.ts": "globalThis.shared = [1, 2].map((n) => n * 2);\n",
+    "srcts/runtime/index.ts": "export const runtime = 'core';\n",
+  });
+
+  const written = await build(root);
+
+  const js = await readFile(join(root, "inst/js/blockr-core.js"), "utf8");
+  expect(written).toEqual(["inst/js/blockr-core.js"]);
+  expect(js).toContain("globalThis.shared=[1,2].map(");
+  expect(js).toContain('var runtime = "core";');
+  expect(js.indexOf("globalThis.shared")).toBeLessThan(js.indexOf("var runtime"));
+});
+
 test("keeps core's utilities under its prefix and outside layers, without Preflight", async () => {
   await write({
     "test.css": `@import "${core}";\n@source inline("bc:flex bc:bg-blue-500 flex");\n`,
@@ -74,6 +89,22 @@ test("keeps core's utilities under its prefix and outside layers, without Prefli
   expect(css).not.toContain("@layer utilities");
   expect(css).not.toContain("@layer base");
   expect(css).not.toContain("box-sizing");
+});
+
+test("names the colors of core's UIs as variables of its theme, which follow the text around them", async () => {
+  await write({
+    "test.css": `@import "${core}";\n@source inline("bc:border-border-default bc:text-text-danger");\n`,
+  });
+
+  const css = await stylesheet(join(root, "test.css"));
+
+  // A utility reads the variable, so that a front-end restyles core by setting it.
+  expect(css).toMatch(/^\.bc\\:border-border-default(, [^{]+)? \{\n {2}border-color: var\(--bc-color-border-default\);/m);
+  expect(css).toContain("--bc-color-border-default: color-mix(in oklab, currentColor 25%, transparent);");
+  // A colour with an accent of its own takes the theme's, which the stylesheet
+  // then holds too.
+  expect(css).toContain("--bc-color-text-danger: var(--bc-color-red-600);");
+  expect(css).toMatch(/--bc-color-red-600: oklch\(/);
 });
 
 test("finds the output types, each but BlockOutput, by their names", () => {

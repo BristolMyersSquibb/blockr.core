@@ -3,18 +3,6 @@
   "type": "object",
   "properties": {
     "renderer": {
-      "$ref": "#/definitions/OutputRenderer"
-    },
-    "text": {
-      "type": "string"
-    }
-  },
-  "required": [
-    "renderer",
-    "text"
-  ],
-  "definitions": {
-    "OutputRenderer": {
       "type": "object",
       "properties": {
         "id": {
@@ -31,6 +19,13 @@
         "id",
         "module"
       ]
+    },
+    "text": {
+      "type": "string"
     }
-  }
+  },
+  "required": [
+    "renderer",
+    "text"
+  ]
 }

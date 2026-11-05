@@ -10,19 +10,15 @@ import type { Json } from "./json.ts";
 // What every output holds, whatever its class.
 export interface BlockOutput {
   // The renderer that draws the output, which R adds to every output it sends,
-  // as the method of the output's class gives it in R.
-  renderer: OutputRenderer;
+  // as the method of the output's class gives it in R: its id, which a request
+  // of its own names, and where R serves its module and the stylesheet beside
+  // it, so that the client loads the renderer the first time that an output
+  // names it.
+  renderer: { id: string; module: string; css?: string };
 }
 
-// The renderer of an output, as R sends it in the output: its id, which a
-// request of its own names, and where R serves its module and the stylesheet
-// beside it, so that the client loads the renderer the first time that an
-// output names it.
-export interface OutputRenderer {
-  id: string;
-  module: string;
-  css?: string;
-}
+// The renderer of an output, as R sends it in the output.
+export type OutputRenderer = BlockOutput["renderer"];
 
 // A table output: a table's columns, the rows of one page and the total row
 // count. Its board option is n_rows, the rows of a page, which every renderer

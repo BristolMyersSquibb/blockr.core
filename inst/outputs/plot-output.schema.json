@@ -3,22 +3,6 @@
   "type": "object",
   "properties": {
     "renderer": {
-      "$ref": "#/definitions/OutputRenderer"
-    },
-    "width": {
-      "type": "number"
-    },
-    "height": {
-      "type": "number"
-    }
-  },
-  "required": [
-    "height",
-    "renderer",
-    "width"
-  ],
-  "definitions": {
-    "OutputRenderer": {
       "type": "object",
       "properties": {
         "id": {
@@ -35,6 +19,17 @@
         "id",
         "module"
       ]
+    },
+    "width": {
+      "type": "number"
+    },
+    "height": {
+      "type": "number"
     }
-  }
+  },
+  "required": [
+    "height",
+    "renderer",
+    "width"
+  ]
 }

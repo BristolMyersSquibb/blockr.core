@@ -4,7 +4,7 @@
 
 import { describe, expect, test, vi } from "vitest";
 import type { HelloReply } from "../protocol/index.ts";
-import { coreOptions, hello, reply } from "../testing/store.ts";
+import { coreOptions, hello, noUi, reply } from "../testing/store.ts";
 import type { Block, Board } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import { ROUNDS } from "./expand.ts";
@@ -454,6 +454,7 @@ describe("opening a board", () => {
         category: "Dock options",
         schema: { type: "boolean" },
         default: true,
+        ui: noUi,
       });
       store.options.register({
         id: "page_rows",
@@ -461,6 +462,7 @@ describe("opening a board", () => {
         category: "Table options",
         schema: { type: "integer" },
         default: read,
+        ui: noUi,
       });
       store.register({ ...dock, options: ["view_tabs", "n_rows"] });
       store.register({ ...noted, options: ["page_rows"] });
@@ -482,6 +484,7 @@ describe("opening a board", () => {
         category: "Table options",
         schema: { type: "integer" },
         default: read,
+        ui: noUi,
       });
       store.register({ ...dock, options: ["view_tabs", "page_rows"] });
     });
@@ -502,6 +505,7 @@ describe("opening a board", () => {
         category: "Table options",
         schema: { type: "integer" },
         default: () => Promise.reject(new Error("R has no page_rows.")),
+        ui: noUi,
       });
       store.options.register({
         id: "view_tabs",
@@ -509,6 +513,7 @@ describe("opening a board", () => {
         category: "Dock options",
         schema: { type: "boolean" },
         default: () => Promise.resolve("yes"),
+        ui: noUi,
       });
       store.register({ ...dock, options: ["page_rows", "view_tabs"] });
     });
@@ -806,6 +811,7 @@ describe("migrating board option values", () => {
     category: "Board options",
     schema: { type: "integer" },
     default: 0,
+    ui: noUi,
     migrate: fromString,
   };
 
@@ -1030,7 +1036,7 @@ describe("applying a delta", () => {
     ["a cycle", { links: { rm: ["ad"], add: { ed: { from: "e", to: "d", input: "data" } } } }, /links form a cycle through the blocks/],
     ["a stack holding a block the board lacks", { stacks: { add: { s2: { name: "More", blocks: ["z"] } } } }, /stack "s2" holds block "z", which the board lacks/],
     ["a block in two stacks", { stacks: { add: { s2: { name: "More", blocks: ["a"] } } } }, /block "a" sits in the stacks "s1" and "s2", where it sits in one/],
-    ["a board option value its schema refuses", { options: { set: { n_rows: -1 } } }, /value of the board option "n_rows" fails its schema: -1 is less than 0\./],
+    ["a board option value its schema refuses", { options: { set: { n_rows: -1 } } }, /value of the board option "n_rows" fails its schema: -1 is less than 1\./],
     ["a value of a board option no package registered", { options: { set: { nope: 1 } } }, /board option "nope", which no package registered/],
     ["a block of a class the block registry lacks", { blocks: { add: { g: { ...head(), registry_id: "blockr.foo-bar" } } } }, /class "blockr.foo-bar", which the block registry lacks/],
     ["an id made of digits alone", { blocks: { add: { 7: head() } } }, /block id "7" is empty or made of digits alone/],
@@ -1364,6 +1370,7 @@ describe("undo", () => {
         category: "Board options",
         schema: { type: "integer" },
         default: 0,
+        ui: noUi,
       });
     });
     const before = store.board();
@@ -1630,7 +1637,7 @@ describe("registering", () => {
 
     expect(() => store.register({ ...dock })).toThrow('The board class "dock_board" is registered already.');
     expect(() =>
-      store.options.register({ id: "n_rows", label: "Rows", category: "Table options", schema: {}, default: 50 }),
+      store.options.register({ id: "n_rows", label: "Rows", category: "Table options", schema: {}, default: 50, ui: noUi }),
     ).toThrow(
       'The board option "n_rows" is registered already.',
     );
@@ -1712,6 +1719,22 @@ describe("registering", () => {
     expect(() => store.register(dock)).not.toThrow();
   });
 
+  test("a board option without a UI module, or with an onChange that is no function, fails", () => {
+    const store = newStore();
+    const seed = { id: "seed", label: "Seed", category: "Board options", schema: {}, default: 1 };
+    // As a package that writes its JS without types may register them.
+    const register = (def: unknown) => store.options.register(def as Option);
+
+    expect(() => register(seed)).toThrow('The board option "seed" has no UI module with a render() function.');
+    expect(() => register({ ...seed, ui: {} })).toThrow(
+      'The board option "seed" has no UI module with a render() function.',
+    );
+    expect(() => register({ ...seed, ui: noUi, onChange: "dark" })).toThrow(
+      'The onChange of the board option "seed" is no function.',
+    );
+    expect(() => register({ ...seed, ui: noUi, onChange: () => undefined })).not.toThrow();
+  });
+
   test("a default that its schema refuses fails", () => {
     const store = newStore();
     expect(() =>
@@ -1721,6 +1744,7 @@ describe("registering", () => {
         category: "Board options",
         schema: { type: "integer" },
         default: "one",
+        ui: noUi,
       }),
     ).toThrow(
       'The default of the board option "seed" fails its schema: Instance type "string" is invalid. Expected "integer".',
@@ -1747,6 +1771,7 @@ describe("registering", () => {
         category: "Board options",
         schema: { type: "integer" },
         default: 0,
+        ui: noUi,
         migrate: "yes",
       } as unknown as Option),
     ).toThrow('The board option "seed" has a migrate that is no function.');
@@ -1761,6 +1786,7 @@ describe("registering", () => {
       category: "Table options",
       schema: { type: "integer" },
       default: read,
+      ui: noUi,
     });
     expect(read).not.toHaveBeenCalled();
     expect(store.options.registered().page_rows?.default).toBe(read);
@@ -1774,6 +1800,7 @@ describe("registering", () => {
       category: "Board options",
       schema: { $schema: "http://json-schema.org/draft-07/schema#", type: "integer" },
       default: 1,
+      ui: noUi,
     });
     expect(store.options.registered().seed?.default).toBe(1);
   });

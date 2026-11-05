@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import type { Fixture, HelloReply } from "../protocol/index.ts";
 import { createStore } from "../store/index.ts";
 import type { Option, Store } from "../store/index.ts";
+import type { OptionModule } from "../types/hosts.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -20,14 +21,19 @@ export function reply(name: string): unknown {
 
 export const hello = reply("hello") as HelloReply;
 
+// The UI module of a board option that a test never mounts, which draws
+// nothing.
+export const noUi: OptionModule = { render: () => undefined };
+
 // Core's board options, as the fixtures' boards hold their values.
 export const coreOptions: readonly Option[] = [
   {
     id: "n_rows",
     label: "Preview rows",
     category: "Table options",
-    schema: { type: "integer", minimum: 0 },
+    schema: { type: "integer", minimum: 1 },
     default: 50,
+    ui: noUi,
   },
   {
     id: "show_conditions",
@@ -35,6 +41,7 @@ export const coreOptions: readonly Option[] = [
     category: "Board options",
     schema: { type: "array", items: { enum: ["message", "warning", "error"] } },
     default: ["warning", "error"],
+    ui: noUi,
   },
 ];
 

@@ -64,6 +64,7 @@ export interface OutputHost {
     output(): Json;
     body(): Blob | null;
     params(): Json;
+    options(): Readonly<Record<OptionId, Json>>;
     loading(): boolean;
     error(): Condition | null;
     on(event: "output", fn: () => void): () => void;

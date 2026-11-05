@@ -13,8 +13,10 @@ import type {
   OptionId,
   RegistryId,
 } from "../types/board.ts";
+import type { CoreApi } from "../types/core-api.ts";
+import type { OptionModule } from "../types/hosts.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
-import { compile, own } from "../util/index.ts";
+import { compile, isObject, own } from "../util/index.ts";
 import type { Validate } from "../util/index.ts";
 import type { Delta, Patch } from "./delta.ts";
 
@@ -80,6 +82,11 @@ export interface Option {
   readonly category: string;
   readonly schema: JsonSchema;
   readonly default: Json | (() => Promise<Json>);
+  // Its UI module, which core mounts with an OptionHost where the app names no
+  // renderer for the board option.
+  readonly ui: OptionModule;
+  // What a new value does on the page, such as switching the theme.
+  onChange?(value: Json, core: CoreApi): void;
   // Converts the value, as a JSON board holds it, from the version of its
   // shape that the board records to the one that the package's method of R's
   // `board_option_version()` gives, and returns it as the board then holds it.
@@ -281,6 +288,16 @@ export function createRegistrations(): Registrations {
         const what = `the board option "${def.id}"`;
         if (optionIndex.value.has(def.id)) {
           throw new Error(`The board option "${def.id}" is registered already.`);
+        }
+        // A package that writes its JS without types may give no UI module,
+        // or an onChange or a migrate that is no function.
+        const ui: unknown = def.ui;
+        if (!isObject(ui) || typeof ui.render !== "function") {
+          throw new Error(`The board option "${def.id}" has no UI module with a render() function.`);
+        }
+        const { onChange } = def as { readonly onChange?: unknown };
+        if (onChange !== undefined && typeof onChange !== "function") {
+          throw new Error(`The onChange of the board option "${def.id}" is no function.`);
         }
         if (def.migrate !== undefined && typeof def.migrate !== "function") {
           throw new Error(`The board option "${def.id}" has a migrate that is no function.`);
