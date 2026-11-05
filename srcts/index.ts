@@ -3,9 +3,11 @@
 // them as `@blockr/core`
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#packaging):
 // the hosts that core gives the modules it mounts, `CoreApi`, and the types of
-// the board, of its updates and of core's outputs. A front-end types what it
-// keeps by adding its keys to the FrontEndState interface, as a module
-// augmentation of `@blockr/core`. Nothing here runs: a module reaches core's
+// the board, of its updates and of core's outputs.
+// A board class types the properties it adds by extending `Board`, as
+// `interface DockBoard extends Board { views: ... }`, and defines itself as a
+// `BoardClass`.
+// Nothing here runs: a module reaches core's
 // runtime through its host, so that one copy of it runs on the page, and the
 // stubs of the hosts, which tests run, come from `@blockr/core/stubs`.
 
@@ -14,14 +16,13 @@ export type {
   Block,
   BlockId,
   Board,
-  FrontEnd,
-  FrontEndState,
+  JsonBlock,
+  JsonOption,
+  JsonBoard,
   Link,
   LinkId,
-  OpeningBoard,
   OptionId,
   RegistryId,
-  SavedBoard,
   Stack,
   StackId,
 } from "./types/board.ts";
@@ -30,6 +31,7 @@ export type {
   BlockOutput,
   OutputFixture,
   OutputFixtures,
+  OutputRenderer,
   PlotOutput,
   TableColumn,
   TableOutput,
@@ -51,18 +53,16 @@ export type {
 } from "./types/hosts.ts";
 export type { BlockRegistry, CoreApi, OutputEvents, RequestOpts } from "./types/core-api.ts";
 export type {
-  Attribute,
+  BoardClass,
   Change,
   Delta,
   Dropped,
-  Entry,
-  KeyDelta,
   Migration,
   Option,
   Options,
   Origin,
-  Saved,
-  StateKey,
+  Patch,
+  Property,
   Store,
   StoreError,
 } from "./store/index.ts";

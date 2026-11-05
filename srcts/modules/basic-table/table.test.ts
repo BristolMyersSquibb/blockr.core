@@ -8,7 +8,7 @@ import { cellText, nextSort, pageOf, pageText, paramsFor, retry, rowsText, sorte
 // A table of `total` rows, holding a page of `rows` rows.
 function table(rows: number, total: number | null): TableOutput {
   return {
-    renderer: "blockr.core-table_output",
+    renderer: { id: "blockr.core-table_output", module: "blockr.core/js/basic-table.js" },
     columns: [{ name: "x", class: "integer" }],
     rows: Array.from({ length: rows }, (_, i) => [i]),
     total,

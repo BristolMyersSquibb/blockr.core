@@ -1,5 +1,5 @@
 {
-  "description": "A request of an output class that the class makes volatile, as the renderer of a chart on another board asks for the PowerPoint templates that a directory of the server holds, which can change behind the client's back. The output names its renderer rather than its class vector, so the client cannot tell that the request is volatile before it asks. R resolves the request against the output's class vector, finds it volatile, and marks its reply so, and the client keeps no answer so marked.",
+  "description": "A request of an output class that the class makes volatile, as the renderer of a chart on another board asks for the PowerPoint templates that a directory of the server holds, which can change behind the client's back. The output carries its renderer rather than its class vector, so the client cannot tell that the request is volatile before it asks. R resolves the request against the output's class vector, finds it volatile, and marks its reply so, and the client keeps no answer so marked.",
   "client": [
     {
       "id": "36",

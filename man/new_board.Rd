@@ -30,11 +30,11 @@ is_board(x)
 
 \item{options}{Board options, with the values the script gives}
 
-\item{...}{The front-end's state, by key}
+\item{...}{The properties that the board's class adds, by name}
 
-\item{id}{Board ID, which \code{NULL} leaves for the client to mint}
+\item{id}{Board ID, which \code{\link[=rand_names]{rand_names()}} draws where it is \code{NULL}}
 
-\item{name}{Board name, which \code{NULL} leaves for the client to set}
+\item{name}{Board name, which is made from the ID where it is \code{NULL}}
 
 \item{class}{Board sub-class}
 
@@ -55,22 +55,27 @@ available for retrieving board components (see \code{\link[=board_blocks]{board_
 }
 \details{
 A board holds what the client's board holds: its blocks, links and stacks,
-the values of the board options that the script gives, its ID and name, and
-the front-end's state. The front-end's state is made of the components
-passed in \code{...}, such as those that a front-end adds through a constructor
-of its own. Such a constructor names the board's class in \code{class}, which
-picks the front-end that the board is made for (see \code{\link[=board_front_end]{board_front_end()}}). A
-board takes no board options by default, since a board holds the value of a
+the values of the board options that the script gives, its ID and name,
+its class and the properties that its class adds beside core's.
+Those properties are the components passed in \code{...}, such as the views that a
+constructor like blockr.dock's \code{new_dock_board()} adds.
+Such a constructor names the board's class in \code{class}.
+R writes the board's class vector for the client.
+The client builds the board as the first class in the vector that a loaded
+package defines in JavaScript, and the front-end that the class names in R
+draws the board (see \code{\link[=board_front_end]{board_front_end()}}).
+A board takes no board options by default, since a board holds the value of a
 board option only once something sets it (see \code{\link[=new_board_options]{new_board_options()}}).
 
 A board has an ID, which identifies it, and a name, which the user calls it
-by. A script may leave either out, as it may leave out the IDs of blocks,
-links and stacks, since R mints no IDs: the client mints each missing one
-when it opens the board, and names a board without a name after its ID.
-Every ID that is given, a board's as well as a block's, a link's or a
-stack's, is a string that is neither empty nor made of digits alone, since
-a JavaScript object puts keys that look like integers first, and the
-constructors refuse any other.
+by.
+A script may leave either out, as it may leave out the IDs of blocks, links
+and stacks: R draws each missing ID with \code{\link[=rand_names]{rand_names()}}, and names a board
+without a name after its ID, as \code{"Calm heron"} for \code{calm_heron}.
+Every ID, a board's as well as a block's, a link's or a stack's, is a string
+that is neither empty nor made of digits alone, since a JavaScript object
+puts keys that look like integers first, and the constructors refuse any
+other.
 }
 \examples{
 brd <- new_board(

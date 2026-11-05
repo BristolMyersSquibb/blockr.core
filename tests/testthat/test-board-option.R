@@ -37,6 +37,24 @@ test_that("a board option holds its ID and the value a script gives", {
   }
 })
 
+test_that("a board option's version is what its class's method gives", {
+
+  expect_identical(board_option_version(new_n_rows_option(25L)), 1L)
+  expect_identical(option_version("n_rows"), 1L)
+
+  local_board_option_version("grid_gap", 2L)
+
+  expect_identical(board_option_version(new_board_option("grid_gap", 4L)), 2L)
+  expect_identical(option_version("grid_gap"), 2L)
+
+  local_board_option_version("bad_gap", 0L)
+
+  expect_error(
+    option_version("bad_gap"),
+    class = "board_option_version_invalid"
+  )
+})
+
 test_that("a board option made without a value has none", {
 
   opt <- new_board_option("test")

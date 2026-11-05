@@ -287,13 +287,16 @@ chart_block_class <- new_block_class(
 # for the duration of `frame`.
 local_chart_output <- function(frame = parent.frame()) {
 
-  register_output_class(
+  local_output_class(
     "chart_output",
     schema = list(
       type = "object",
       properties = list(title = list(type = "string"))
     ),
-    renderer = js_module("js/chart.js", package = "blockr.viz"),
+    renderer = new_renderer(
+      "chart_output",
+      js_module("js/chart.js", package = "blockr.viz")
+    ),
     requests = list(
       download = function(result, format, file) {
         stopifnot(identical(file[["type"]], "image/png"))
@@ -303,13 +306,10 @@ local_chart_output <- function(frame = parent.frame()) {
           name = paste0("chart.", format)
         )
       },
-      templates = function() c("corporate.potx", "plain.potx")
+      templates = volatile(function() c("corporate.potx", "plain.potx"))
     ),
-    volatile = "templates",
-    package = "blockr.viz"
+    frame = frame
   )
-
-  withr::defer(unregister_output_classes("chart_output"), envir = frame)
 
   local_block_class(chart_block_class, "chart_block", frame)
 }
@@ -340,22 +340,61 @@ local_labelled_block <- function(frame = parent.frame()) {
 
 # The table preview of blockr.ui,
 # a renderer of table outputs with a request of its own for the labels of a
-# table's columns, for the duration of `frame`.
+# table's columns, which the app names for table outputs for the duration of
+# `frame`.
 local_table_preview <- function(frame = parent.frame()) {
-
-  register_renderer(
-    "table_preview",
-    js_module("js/table-preview.js", package = "blockr.ui"),
-    class = "table_output",
-    requests = list(
-      labels = function(result) lapply(result, attr, "label", exact = TRUE)
-    )
+  withr::local_options(
+    blockr.renderers = list(
+      table_output = new_renderer(
+        "table_preview",
+        js_module("js/table-preview.js", package = "blockr.ui"),
+        requests = list(
+          labels = function(result) lapply(result, attr, "label", exact = TRUE)
+        )
+      )
+    ),
+    .local_envir = frame
   )
+}
+
+# An output class, with the methods that give its schema, its requests and its
+# renderer, where they are given, for the duration of `frame`. A function given
+# is the method itself, as one that calls `NextMethod()`, and anything else is
+# what the method returns.
+local_output_class <- function(class, schema = NULL, requests = NULL,
+                               renderer = NULL, frame = parent.frame()) {
+
+  method <- function(value) {
+    if (is.function(value)) value else function(x, ...) value
+  }
+
+  methods <- lapply(
+    Filter(
+      not_null,
+      list(
+        output_schema = schema,
+        output_requests = requests,
+        output_renderer = renderer
+      )
+    ),
+    method
+  )
+
+  table <- get(".__S3MethodsTable__.", envir = asNamespace("blockr.core"))
+
+  for (generic in names(methods)) {
+    registerS3method(generic, class, methods[[generic]],
+                     envir = asNamespace("blockr.core"))
+  }
+
+  keys <- paste0(names(methods), ".", class)
 
   withr::defer(
-    rm(list = "blockr.ui-table_preview", envir = declared_renderers),
+    rm(list = intersect(keys, ls(table, all.names = TRUE)), envir = table),
     envir = frame
   )
+
+  invisible()
 }
 
 # The script of the blocks that a request reads, as a code export would write

@@ -347,3 +347,16 @@ with_device <- function(open, code) {
 
   code(dev)
 }
+
+#' @export
+output_schema.plot_output <- function(x, ...) {
+  read_json_schema("outputs/plot-output.schema.json")
+}
+
+#' @export
+output_renderer.plot_output <- function(x, ...) {
+  chosen_renderer(
+    "plot_output",
+    new_renderer("plot_output", js_module("js/basic-plot.js"))
+  )
+}

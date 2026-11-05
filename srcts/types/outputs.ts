@@ -1,7 +1,7 @@
 // The contracts of core's output classes, which every renderer of a class is
 // written against. An output is what an output class's coercion makes in R
 // from a block's result. R writes it as JSON by the JSON Schema that the build
-// generates from these types into inst/outputs, and names in it the renderer
+// generates from these types into inst/outputs, and puts in it the renderer
 // that draws it. A subclass's type extends its class's, as its class vector
 // does in R.
 
@@ -9,10 +9,16 @@ import type { Json } from "./json.ts";
 
 // What every output holds, whatever its class.
 export interface BlockOutput {
-  // The renderer that R picked for the output's class, which R adds to every
-  // output it sends.
-  renderer: string;
+  // The renderer that draws the output, which R adds to every output it sends,
+  // as the method of the output's class gives it in R: its id, which a request
+  // of its own names, and where R serves its module and the stylesheet beside
+  // it, so that the client loads the renderer the first time that an output
+  // names it.
+  renderer: { id: string; module: string; css?: string };
 }
+
+// The renderer of an output, as R sends it in the output.
+export type OutputRenderer = BlockOutput["renderer"];
 
 // A table output: a table's columns, the rows of one page and the total row
 // count. Its board option is n_rows, the rows of a page, which every renderer

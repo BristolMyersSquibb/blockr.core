@@ -1,7 +1,7 @@
-// Deltas, the one shape in which every change to the board travels, whoever
-// makes it: core's objects, the board options, the board's name and the
-// front-end's state and attributes alike, in the `add`, `mod` and `rm` shape of
-// today's board updates in R.
+// Deltas, the one shape in which every change to the board travels,
+// whoever makes it: core's objects, the board options and the board's
+// name in the `add`, `mod` and `rm` shape of today's board updates in R,
+// and the properties that the board's class adds by patches at nested paths.
 
 import type {
   Block,
@@ -19,8 +19,9 @@ import type { Json } from "../types/json.ts";
 // origin undoes its own steps.
 export type Origin = string;
 
-// Within each collection, `rm` applies before `add`, since a delta may reuse an
-// id it drops, and `mod` applies last.
+// Within each collection, `rm` applies before `add`,
+// since a delta may reuse an id it drops, and `mod` applies last.
+// The patches apply in their order, after core's parts.
 export interface Delta {
   readonly blocks?: {
     readonly add?: Readonly<Record<BlockId, Block>>;
@@ -43,10 +44,7 @@ export interface Delta {
   };
   readonly options?: Values<OptionId>;
   readonly name?: string;
-  readonly front_end?: {
-    readonly state?: readonly KeyChange[];
-    readonly attrs?: Values<string>;
-  };
+  readonly patches?: readonly Patch[];
 }
 
 // Whether a step is given as several deltas rather than one. The store's
@@ -57,8 +55,7 @@ export function isDeltas(delta: Delta | readonly Delta[]): delta is readonly Del
 
 // Values by name that a delta sets, and names whose values it removes, as a
 // collection entry's change sets and removes its fields: board option values
-// by id, and attributes by name. Undo removes a value where its step set one
-// that had none.
+// by id. Undo removes a value where its step set one that had none.
 export interface Values<K extends string> {
   readonly set?: Readonly<Record<K, Json>>;
   readonly unset?: readonly K[];
@@ -73,43 +70,20 @@ export interface BlockMod {
   // null would reach `expr` as NULL.
   readonly unset?: readonly string[];
   readonly name?: string;
-  readonly attrs?: Values<string>;
 }
 
-// A change to the key of the front-end's state that is registered at the path.
-export interface KeyChange {
-  readonly path: readonly string[];
-  readonly change: KeyDelta;
+// A change inside a property that the board's class adds,
+// in the shape of a JSON Patch operation (RFC 6902): its path is a JSON
+// Pointer from the board's top, whose first part names the property,
+// as "/views/main/panels/1" changes the dock's views.
+// An `add` or a `replace` at the property itself, "/views",
+// sets the whole property, which a `remove` may not take away.
+// A patch names the edit id of the property that it was built on,
+// which a command leaves out and the command registry fills in.
+export interface Patch {
+  readonly op: "add" | "remove" | "replace";
+  readonly path: string;
+  // What an `add` or a `replace` puts at the path.
+  readonly value?: Json;
+  readonly edit?: number;
 }
-
-// An entry of a collection is an object.
-export type Entry = Readonly<Record<string, Json>>;
-
-export type KeyDelta = CollectionDelta | ValueDelta;
-
-// A collection's change, by entry id. A `mod` gives an entry the keys its `set`
-// names and removes those its `unset` names.
-export interface CollectionDelta {
-  readonly add?: Readonly<Record<string, Entry>>;
-  readonly mod?: Readonly<
-    Record<
-      string,
-      {
-        readonly edit?: number;
-        readonly set?: Entry;
-        readonly unset?: readonly string[];
-      }
-    >
-  >;
-  readonly rm?: readonly string[];
-}
-
-// Whether a change to front-end state is a value's, rather than a collection's.
-export function isValueDelta(change: KeyDelta): change is ValueDelta {
-  return Object.hasOwn(change, "set") || Object.hasOwn(change, "unset");
-}
-
-// A value's change, which sets the value or removes it.
-export type ValueDelta =
-  | { readonly edit?: number; readonly set: Json; readonly unset?: never }
-  | { readonly edit?: number; readonly unset: true; readonly set?: never };

@@ -235,3 +235,16 @@ table_cell <- function(x) {
 
   result_summary(x)
 }
+
+#' @export
+output_schema.table_output <- function(x, ...) {
+  read_json_schema("outputs/table-output.schema.json")
+}
+
+#' @export
+output_renderer.table_output <- function(x, ...) {
+  chosen_renderer(
+    "table_output",
+    new_renderer("table_output", js_module("js/basic-table.js"))
+  )
+}

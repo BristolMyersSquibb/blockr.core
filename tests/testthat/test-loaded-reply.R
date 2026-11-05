@@ -9,10 +9,16 @@ test_that("R tells the client what it loaded in the fields of the protocol", {
 
   expect_named(
     reply,
-    c("packages", "block_registry", "front_ends", "startup_modules", "modules",
-      "renderers")
+    c("packages", "block_registry", "startup_modules", "modules",
+      "board_classes", "option_versions", "renderers")
   )
-  expect_identical(json(reply$packages), "{\"blockr.test\":\"0.1.0\"}")
+  expect_identical(
+    json(reply$packages),
+    paste0(
+      "{\"blockr.core\":\"", pkg_version("blockr.core"), "\",",
+      "\"blockr.test\":\"0.1.0\"}"
+    )
+  )
   expect_named(reply$block_registry, c("count_block", "letters_block"))
 })
 
@@ -44,7 +50,7 @@ test_that("an entry leaves out the metadata that registration leaves unset", {
   expect_named(
     entry,
     c("id", "name", "description", "keywords", "category", "icon", "inputs",
-      "module", "schema", "state", "arguments", "requests")
+      "module", "version", "schema", "state", "arguments", "requests")
   )
   expect_identical(json(entry$keywords), "[]")
 })
@@ -172,31 +178,71 @@ test_that("R says where it serves what packages declare", {
     paste0("^blockr.test/js/", file, "\\?v=[0-9a-f]{8}$")
   }
 
-  expect_named(reply$front_ends, "blockr.test-grid")
-  expect_named(reply$front_ends[["blockr.test-grid"]], c("module", "css"))
-  expect_match(reply$front_ends[["blockr.test-grid"]]$module, url("grid.js"))
-  expect_match(reply$front_ends[["blockr.test-grid"]]$css, url("grid.css"))
-
   expect_length(reply$startup_modules, 1L)
   expect_named(reply$startup_modules[[1L]], c("package", "module"))
   expect_identical(reply$startup_modules[[1L]]$package, "blockr.test")
   expect_match(reply$startup_modules[[1L]]$module, url("startup.js"))
 
-  expect_named(reply$modules, "blockr.test-picker")
+  # The front-end that the package's board class names is a module like any
+  # other
+  expect_named(reply$modules, c("blockr.test-grid", "blockr.test-picker"))
+  expect_named(reply$modules[["blockr.test-grid"]], c("module", "css"))
+  expect_match(reply$modules[["blockr.test-grid"]]$module, url("grid.js"))
+  expect_match(reply$modules[["blockr.test-grid"]]$css, url("grid.css"))
   expect_match(reply$modules[["blockr.test-picker"]]$module, url("picker.js"))
 })
 
-test_that("R names the renderers it picked, with what each draws", {
+test_that("R names each board class with its package and front-end", {
 
+  expect_identical(
+    json(declared_fields()$board_classes),
+    paste0(
+      "{\"board\":{\"package\":\"blockr.core\",",
+      "\"front_end\":\"blockr.core-basic\",\"version\":1},",
+      "\"grid_board\":{\"package\":\"blockr.test\",",
+      "\"front_end\":\"blockr.test-grid\",\"version\":1}}"
+    )
+  )
+
+  # A class's version is what its method of board_version() returns
+  local_board_front_end("one_board", "blockr.one-grid", "blockr.one", 2L)
+
+  expect_identical(board_classes()$one_board$version, 2L)
+
+  # A method that names no module or no version fails as R builds the reply
+  local_board_front_end("bad_board", 1L, "blockr.bad")
+
+  expect_error(board_classes(), class = "board_front_end_invalid")
+
+  local_board_front_end("bad_board", "blockr.bad-grid", "blockr.bad", 0L)
+
+  expect_error(board_classes(), class = "board_version_invalid")
+})
+
+test_that("R gives the version of each board option that a package versions", {
+
+  expect_identical(json(declared_fields()$option_versions), "{\"grid_gap\":2}")
+  expect_identical(json(option_versions()), "{}")
+
+  # A method that gives no version fails as R builds the reply
+  local_board_option_version("bad_gap", 0L)
+
+  expect_error(option_versions(), class = "board_option_version_invalid")
+})
+
+test_that("R names the renderers that the app names for board options", {
+
+  # The app names one for table outputs too, which R sends with each output
   renderers <- declared_fields()$renderers
 
-  expect_named(renderers, c("blockr.test-dark", "blockr.test-table"))
-  expect_identical(renderers[["blockr.test-table"]]$class, "table_output")
+  expect_named(renderers, "blockr.test-dark")
   expect_identical(renderers[["blockr.test-dark"]]$option, "dark_mode")
   expect_match(
-    renderers[["blockr.test-table"]]$module,
-    "^blockr.test/js/table.js\\?v=[0-9a-f]{8}$"
+    renderers[["blockr.test-dark"]]$module,
+    "^blockr.test/js/dark.js\\?v=[0-9a-f]{8}$"
   )
+
+  expect_identical(json(loaded_reply()$renderers), "{}")
 })
 
 test_that("R keeps the startup modules in the order packages declare them", {
@@ -226,8 +272,8 @@ test_that("R keeps the startup modules in the order packages declare them", {
   expect_identical(
     json(reply$packages),
     paste0(
-      "{\"blockr.dag\":\"1.0.0\",\"blockr.dock\":\"1.0.0\",",
-      "\"blockr.ui\":\"1.0.0\"}"
+      "{\"blockr.core\":\"1.0.0\",\"blockr.dag\":\"1.0.0\",",
+      "\"blockr.dock\":\"1.0.0\",\"blockr.ui\":\"1.0.0\"}"
     )
   )
 })

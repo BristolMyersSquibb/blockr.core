@@ -5,7 +5,7 @@
 
 import { describe, expect, test, vi } from "vitest";
 import { createStore, StoreError } from "../store/index.ts";
-import type { StateKey, Store } from "../store/index.ts";
+import type { BoardClass, Store } from "../store/index.ts";
 import { hello, openedStore } from "../testing/store.ts";
 import type { Json } from "../types/json.ts";
 import { CommandError, createCommands } from "./index.ts";
@@ -36,10 +36,32 @@ function renameB(
   };
 }
 
-const positions: StateKey = {
-  path: ["extensions", "blockr.dag-dag", "positions"],
-  kind: "collection",
-  schema: { type: "object", properties: { x: { type: "number" } } },
+// A board class that keeps a position for each block, as the DAG keeps one,
+// and the command of its package that changes one.
+const placed: BoardClass = {
+  class: "placed_board",
+  parent: "board",
+  properties: {
+    positions: {
+      schema: {
+        type: "object",
+        additionalProperties: { type: "object", properties: { x: { type: "number" } } },
+      },
+      default: {},
+    },
+  },
+};
+
+const move: Command<{ readonly id: string; readonly x: number }> = {
+  id: "test.pkg-move",
+  label: "Move block",
+  args: {
+    type: "object",
+    properties: { id: { type: "string" }, x: { type: "number" } },
+    required: ["id", "x"],
+    additionalProperties: false,
+  },
+  run: (_board, { id, x }) => ({ patches: [{ op: "add", path: `/positions/${id}`, value: { x } }] }),
 };
 
 describe("registering", () => {
@@ -63,12 +85,6 @@ describe("registering", () => {
       "blockr.core-remove_stack",
       "blockr.core-rename_board",
       "blockr.core-set_option",
-      "blockr.core-add_front_end_entry",
-      "blockr.core-change_front_end_entry",
-      "blockr.core-remove_front_end_entry",
-      "blockr.core-set_front_end_value",
-      "blockr.core-set_block_attribute",
-      "blockr.core-set_front_end_attribute",
     ]);
   });
 
@@ -198,7 +214,7 @@ describe("running a command", () => {
   });
 
   test("refuses to run before the store opens a board", async () => {
-    const store = createStore({ client: { request: () => Promise.reject(new Error("No R.")) } });
+    const store = createStore();
     const commands = createCommands(store);
     await expect(commands.run("blockr.core-rename_board", { name: "Sepals" })).rejects.toThrow(
       'The command "blockr.core-rename_board" refused to run\n- The store holds no board until it opens one.',
@@ -343,45 +359,28 @@ describe("planning", () => {
     }).toThrow(/The delta was built on edit \d+ of block "b", which another edit has replaced/);
   });
 
-  test("fills in the edit ids of entries and values of the front-end's state", async () => {
-    const layout: StateKey = {
-      path: ["extensions", "blockr.dag-dag", "layout"],
-      kind: "value",
-      schema: { enum: ["LR", "TB"] },
-      initial: "LR",
-    };
-    const { store, commands } = await setup((store) => {
-      store.register(positions);
-      store.register(layout);
+  test("fills in the edit id of the property that each patch changes", async () => {
+    const { store, commands } = await setup((store) => store.register(placed));
+    await store.open({
+      ...hello,
+      board: { ...hello.board, board: { ...hello.board.board, class: ["placed_board", "board"] } },
     });
-    await commands.run("blockr.core-add_front_end_entry", { path: positions.path, id: "a", entry: { x: 1 } });
+    commands.register(move);
 
-    const entry = await commands.plan("blockr.core-change_front_end_entry", {
-      path: positions.path,
-      id: "a",
-      set: { x: 2 },
-    });
-    expect(entry).toEqual([
+    await commands.run("test.pkg-move", { id: "a", x: 1 });
+    const planned = await commands.plan("test.pkg-move", { id: "a", x: 2 });
+    expect(planned).toEqual([
       {
-        front_end: {
-          state: [
-            {
-              path: positions.path,
-              change: { mod: { a: { edit: store.editId({ path: positions.path, entry: "a" }), set: { x: 2 } } } },
-            },
-          ],
-        },
+        patches: [
+          { op: "add", path: "/positions/a", value: { x: 2 }, edit: store.editId({ property: "positions" }) },
+        ],
       },
     ]);
 
-    const value = await commands.plan("blockr.core-set_front_end_value", { path: layout.path, value: "TB" });
-    expect(value).toEqual([
-      {
-        front_end: {
-          state: [{ path: layout.path, change: { edit: store.editId({ path: layout.path }), set: "TB" } }],
-        },
-      },
-    ]);
+    await commands.run("test.pkg-move", { id: "a", x: 3 });
+    expect(() => {
+      store.apply(planned, "assistant");
+    }).toThrow(/The delta was built on edit \d+ of the property "positions", which another edit has replaced/);
   });
 
   test("keeps the edit ids that a command names itself", async () => {

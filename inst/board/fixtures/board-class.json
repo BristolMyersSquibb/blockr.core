@@ -1,0 +1,42 @@
+{
+  "description": "A board of the class grid_board, which extends core's board and which the package blockr.test defines in JavaScript, with the properties that the class adds beside core's, notes and pinned, as the script gives them. The package ships the schemas of those properties beside its startup module, here in blockr.test/js/startup.schema.json. By them, R writes the blocks of each note as an array, and pinned as a string. The package names the class's front-end through its method of board_front_end(), from whose namespace R records blockr.test among the board's packages. A client builds the board as a grid_board, keeping both properties, only where blockr.test defines the class, and as core's board otherwise, without them.",
+  "format": 1,
+  "packages": {
+    "blockr.core": "0.2.0",
+    "blockr.test": "0.1.0"
+  },
+  "board": {
+    "id": "quiet_heron",
+    "class": [
+      "grid_board",
+      "board"
+    ],
+    "versions": {
+      "grid_board": 1,
+      "board": 1
+    },
+    "name": "Grid",
+    "blocks": {
+      "a": {
+        "registry_id": "letters_block",
+        "version": 1,
+        "state": {
+          "n": 3
+        },
+        "name": "Letters"
+      }
+    },
+    "links": {},
+    "stacks": {},
+    "options": {},
+    "notes": {
+      "check": {
+        "text": "To check",
+        "blocks": [
+          "a"
+        ]
+      }
+    },
+    "pinned": "a"
+  }
+}

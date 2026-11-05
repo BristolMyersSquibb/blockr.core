@@ -137,10 +137,10 @@ test_that("a board writes the volumes of a file browser block as an object", {
   vols <- c(home = "~", data = "/data")
   board <- new_board(blocks = c(a = new_filebrowser_block(volumes = vols)))
 
-  res <- read_json_strictly(encode_message(blockr_ser(board)))
+  res <- read_json_strictly(encode_message(blockr_ser(board)))$board
 
   expect_identical(
-    res$blocks[[1L]]$state,
+    res$blocks$a$state,
     read_json_strictly('{ "volumes": { "home": "~", "data": "/data" } }')
   )
 })

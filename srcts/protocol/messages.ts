@@ -2,13 +2,7 @@
 // inst/protocol/README.md gives them, which the fixtures in
 // inst/protocol/fixtures are checked against.
 
-import type {
-  BlockId,
-  OpeningBoard,
-  OptionId,
-  RegistryId,
-  SavedBoard,
-} from "../types/board.ts";
+import type { BlockId, JsonBoard, OptionId, RegistryId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { BlockOutput } from "../types/outputs.ts";
 import type { RegistryEntry } from "../types/registry.ts";
@@ -19,7 +13,6 @@ export const PROTOCOL_VERSION = "1.0";
 
 export type Kind =
   | "hello"
-  | "open"
   | "blockr_options"
   | "evaluate"
   | "request"
@@ -39,7 +32,6 @@ export type RMessage = (Reply | Progress)[];
 
 export type Request =
   | HelloRequest
-  | OpenRequest
   | BlockrOptionsRequest
   | EvaluateRequest
   | BlockClassRequest
@@ -53,7 +45,6 @@ export type Request =
 
 export type Reply =
   | HelloReply
-  | OpenReply
   | BlockrOptionsReply
   | EvaluateReply
   | RequestReply
@@ -76,12 +67,9 @@ export interface HelloRequest {
   kind: "hello";
   protocol: string;
   capabilities: Capability[];
-  // The packages that a board the client holds already names, as when the
-  // server ended its session while the page lived on, for R to load.
-  packages?: string[];
 }
 
-export type HelloReply = {
+export interface HelloReply {
   id: string;
   status: "ok";
   protocol: string;
@@ -90,56 +78,46 @@ export type HelloReply = {
   // of.
   packages: Record<string, string>;
   block_registry: Record<RegistryId, RegistryEntry>;
-  // Where each front-end's module is served, by the front-end's id.
-  front_ends: Record<string, { module: string; css?: string }>;
   // In the order in which the packages declared them, each package's after
   // those of the packages its NAMESPACE imports.
   startup_modules: { package: string; module: string; css?: string }[];
-  // The modules that packages offer each other, by id.
+  // Where each module that packages offer each other is served,
+  // by the module's id, a front-end's among them, which a board class names.
   modules: Record<string, { module: string; css?: string }>;
-  // The renderers that R picked, by the renderer's id.
+  // The board classes that loaded packages name front-ends for, by class:
+  // each with the package that defines it, whose namespace holds its method of
+  // R's `board_front_end()`, the front-end that the method names, and the
+  // version of the properties it adds, which R's `board_version()` gives.
+  board_classes: Record<string, { package: string; front_end: string; version: number }>;
+  // The version of the shape of each board option's value that a loaded
+  // package gives one through its method of R's `board_option_version()`, by
+  // the board option's id. A board option that it lacks is at version 1.
+  option_versions: Record<OptionId, number>;
+  // The renderers that the app names for board options, by the renderer's id.
   renderers: Record<string, Renderer>;
   lock: Lock | null;
+  // The opening board, as a JSON board: the one an app script built, which R
+  // wrote with every id, or the one that `serve()` was given, which R passes on
+  // as it is.
+  board: JsonBoard;
   // For a block that `serve()` serves alone, the inputs that R binds itself
   // to the data it was given, which the client counts as linked.
   bound?: string[];
-} & (
-  // The opening board, as R sends the one an app script built, or as the saved
-  // file that `serve()` was given holds it, which R passes on as it is.
-  { board: OpeningBoard; file?: never } | { file: SavedBoard; board?: never }
-);
+}
 
-// A renderer that R picked for an output class or for a board option.
-export type Renderer = { module: string; css?: string } & (
-  | { class: string; option?: never }
-  | { option: OptionId; class?: never }
-);
+// A renderer that the app names for a board option, which draws the board
+// option's value in place of its UI, while the renderer of an output comes in
+// the output itself.
+export interface Renderer {
+  module: string;
+  css?: string;
+  option: OptionId;
+}
 
 // The blocks that a locked board leaves open.
 export interface Lock {
   open: BlockId[];
 }
-
-// Opening a board, which the client does itself, having R load the packages
-// that the board names
-
-export interface OpenRequest {
-  id: string;
-  kind: "open";
-  packages: string[];
-}
-
-export type OpenReply = Pick<
-  HelloReply,
-  | "id"
-  | "status"
-  | "packages"
-  | "block_registry"
-  | "front_ends"
-  | "startup_modules"
-  | "modules"
-  | "renderers"
->;
 
 // Reading blockr options, which the client asks R for by name, since it can
 // read neither an R option nor an environment variable of the server

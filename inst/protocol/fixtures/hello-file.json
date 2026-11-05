@@ -1,5 +1,5 @@
 {
-  "description": "The handshake of an app that serves a saved file, as serve(\"cars.json\") does. R has loaded the packages the file names, and passes the file on as it is, in place of a board an app script built, which the client opens as it opens any saved file, running the migrations of the packages whose version the file records differs from the one R loaded.",
+  "description": "The handshake of an app that serves a JSON board, as serve(\"cars.json\") does. R passes the file's text on as it is, in place of a board an app script built, and loads nothing for it, and the client opens it as it opens any JSON board, running the migrations of the packages whose version the file records differs from the one R loaded.",
   "client": [
     {
       "id": "1",
@@ -26,6 +26,7 @@
             "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-database\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
             "inputs": [],
             "module": "blockr.core/dataset-block.js?v=5e0c8b1d",
+            "version": 1,
             "schema": {
               "type": "object",
               "properties": {
@@ -72,6 +73,7 @@
             "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-funnel\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
             "inputs": ["data"],
             "module": "blockr.core/subset-block.js?v=2b6f04d9",
+            "version": 1,
             "schema": {
               "type": "object",
               "properties": {
@@ -97,59 +99,53 @@
             "requests": {}
           }
         },
-        "front_ends": {
+        "startup_modules": [],
+        "modules": {
           "blockr.core-basic": {
             "module": "blockr.core/basic.js?v=0f3d8e21",
             "css": "blockr.core/basic.css?v=6a9b2c4e"
           }
         },
-        "startup_modules": [],
-        "modules": {},
-        "renderers": {
-          "blockr.core-table_output": {
-            "module": "blockr.core/basic-table.js?v=b7e2a915",
-            "class": "table_output"
-          },
-          "blockr.core-text_output": {
-            "module": "blockr.core/basic-text.js?v=3c8f61d0",
-            "class": "text_output"
-          },
-          "blockr.core-plot_output": {
-            "module": "blockr.core/basic-plot.js?v=f19d4a73",
-            "class": "plot_output"
+        "board_classes": {
+          "board": {
+            "package": "blockr.core",
+            "front_end": "blockr.core-basic",
+            "version": 1
           }
         },
+        "option_versions": {},
+        "renderers": {},
         "lock": null,
-        "file": {
+        "board": {
           "format": 1,
           "packages": { "blockr.core": "0.2.0" },
           "board": {
             "id": "amber_tapir",
-            "front_end": {
-              "id": "blockr.core-basic",
-              "state": {},
-              "attrs": {}
-            },
+            "class": ["board"],
+            "versions": { "board": 1 },
             "name": "Cars",
             "blocks": {
               "a": {
                 "registry_id": "blockr.core-dataset_block",
+                "version": 1,
                 "state": { "dataset": "mtcars", "package": "datasets" },
-                "name": "Cars",
-                "attrs": {}
+                "name": "Cars"
               },
               "b": {
                 "registry_id": "blockr.core-subset_block",
+                "version": 1,
                 "state": { "subset": "cyl == 6", "select": "mpg" },
-                "name": "Six cylinders",
-                "attrs": {}
+                "name": "Six cylinders"
               }
             },
             "links": { "ab": { "from": "a", "to": "b", "input": "data" } },
             "stacks": {},
             "options": {
-              "n_rows": 50,
-              "show_conditions": ["warning", "error"]
+              "n_rows": { "value": 50, "version": 1 },
+              "show_conditions": {
+                "value": ["warning", "error"],
+                "version": 1
+              }
             }
           }
         }

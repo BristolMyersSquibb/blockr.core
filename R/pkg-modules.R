@@ -6,25 +6,38 @@ declared_modules <- new.env()
 
 #' Modules a package declares
 #'
-#' Besides its block classes and its front-ends (see [register_front_end()]),
-#' a package declares in R, from its `.onLoad()`, the modules of its client
-#' that R serves: its startup module, at most one, with
+#' Besides its block classes (see [register_block()]), a package declares in
+#' R, from its `.onLoad()`, the modules of its client that R serves: its
+#' startup module, at most one, with
 #' `register_startup_module()`, for what has to run before anything mounts,
-#' such as registering the board options it ships, and the modules it offers
-#' other packages, each with `register_module()` under a name that gives it
-#' the ID `{pkg}-{name}`, as a registry id is, by which `host.module()` and
-#' `CoreApi.module()` reach it in the client. Each is made by [js_module()],
-#' whose package is the one that declares it, so that a module made outside a
-#' package is declared by none, and the stylesheet and JSON Schema beside a
-#' module need no declaration.
+#' such as defining its board classes and registering the board options it
+#' ships, and the modules it offers other packages, each with
+#' `register_module()` under a name that gives it the ID `{pkg}-{name}`, as a
+#' registry id is, by which `host.module()` and `CoreApi.module()` reach it in
+#' the client.
+#' Each is made by [js_module()], whose package is the one that
+#' declares it, so that a module made outside a package is declared by none,
+#' and the stylesheet and JSON Schema beside a module need no declaration.
 #' Declaring a package's startup module, or a module under the same ID, again
 #' replaces it, as when a package is loaded again.
 #'
+#' A front-end is such a module: the module that draws the boards of a board
+#' class, which the class names through its method of [board_front_end()].
+#' So blockr.dock declares `register_module("dock", js_module("dock.js"))`,
+#' and its method of `board_front_end()` for `dock_board` returns
+#' `"blockr.dock-dock"`.
+#' Core declares its basic front-end the same way, as `blockr.core-basic`,
+#' which its method for core's board class `board` names.
+#' The client builds a board as the first class in its class vector that a
+#' loaded package defines, and the front-end of that class, or of its nearest
+#' parent that names one, draws the board.
+#'
 #' Next to its startup module, as `startup.schema.json` next to `startup.js`, a
 #' package puts one JSON Schema, laid out like the board, for the parts of the
-#' board that the package defines: the front-end's state under
-#' `front_end.state` and the values of its board options under `options`, by
-#' their IDs. R shapes the board that an app script builds by it, as it does by
+#' board that the package defines: the properties that its board classes add,
+#' beside core's, and the values of its board options under `options`, by
+#' their IDs.
+#' R shapes the board that an app script builds by it, as it does by
 #' core's schema of the board (see [blockr_ser()]), so that a value of length
 #' one stays an array where the schema has one. R reads nothing else out of
 #' it. Core puts the schema of its own board options next to its runtime in the
@@ -40,8 +53,9 @@ declared_modules <- new.env()
 #' and declaring a startup module again keeps its place.
 #'
 #' R tells the client where it serves each module that a package declares, its
-#' front-ends and renderers included, in its reply to `hello`, with the
-#' versions of the packages they come from. It serves a module,
+#' front-ends included, in its reply to `hello`, with the versions of the
+#' packages they come from, and where it serves a renderer's module in each
+#' output that the renderer draws (see [new_renderer()]). It serves a module,
 #' and the stylesheet beside it, under the package's name, at the module's path
 #' in the package, with a hash of the file's content in the URL, so that no
 #' browser runs a changed file from its cache. It serves only the files it
@@ -55,6 +69,9 @@ declared_modules <- new.env()
 #' # In the `.onLoad()` of a package such as blockr.dplyr
 #' register_startup_module(js_module("js/startup.js"))
 #' register_module("filter", js_module("js/filter.js"))
+#'
+#' # In the `.onLoad()` of blockr.dock, its front-end
+#' register_module("dock", js_module("js/dock.js"))
 #' }
 #'
 #' @return Both `register_startup_module()` and `register_module()` return the
@@ -119,6 +136,46 @@ list_modules <- function() {
 
 get_module <- function(id) {
   get_declared(id, declared_modules, "module", "module_missing")
+}
+
+# The ID `{pkg}-{name}` of what a package declares, as a registry id is,
+# such as a module or a renderer, whose name has to be a non-empty string.
+declared_id <- function(name, package, what, class) {
+
+  check_declaring_package(package, what, class)
+
+  if (!is_nonempty_string(name)) {
+    blockr_abort(
+      "The name of a {what} of package {package} is expected to be a ",
+      "non-empty string.",
+      class = class
+    )
+  }
+
+  paste0(package, "-", name)
+}
+
+get_declared <- function(id, env, what, class) {
+
+  res <- get0(id, envir = env, inherits = FALSE)
+
+  if (is.null(res)) {
+    blockr_abort("No {what} is declared as {id}.", class = class)
+  }
+
+  res
+}
+
+check_declaring_package <- function(package, what, class) {
+
+  if (!is_nonempty_string(package)) {
+    blockr_abort(
+      "A {what} is declared by a package, from its `.onLoad()`.",
+      class = class
+    )
+  }
+
+  invisible(package)
 }
 
 # The JSON Schemas next to core's runtime and next to the startup module of each

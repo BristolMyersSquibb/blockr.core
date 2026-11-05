@@ -1,5 +1,5 @@
 {
-  "description": "The handshake of an app whose script loaded blockr.test, a package that declares a front-end, a startup module, a module that it offers others and two renderers, one for table outputs and one for the board option dark_mode, which the app names in the blockr option renderers. Beside it, the script registered two block classes of its own and built an empty board for the package's front-end. R loads no package for the handshake, so its reply says what the script loaded. R builds the fields that say so from what is registered and declared, and building them builds no block. They give the version of each package that the reply names, here blockr.test alone, since a class from no package names none. R serves each file at a URL that holds a hash of its content: a package's file under the package's name, at its path in the package, with the hash in the query, and a file from no package under blockr-modules, in a directory named by the hash. It writes the starting state of the letters block by the schema that the block's module ships, so that columns, a vector of length one, is an array, and that of the count block, whose module ships no schema, bare.",
+  "description": "The handshake of an app whose script loaded blockr.test, a package that declares a startup module and two modules that it offers others, one of them the front-end that its board class grid_board names through its method of board_front_end(), and that gives its board option grid_gap version 2, through its method of board_option_version(). The app names two renderers of blockr.test in the blockr option renderers, one for table outputs, which R sends with each table output, and one for the board option dark_mode, which it sends here. Beside it, the script registered two block classes of its own and built an empty board of the class grid_board, which R sends as a JSON board, with the id it drew. R loads no package for the handshake, so its reply says what the script loaded. R builds the fields that say so from what is registered and declared, and building them builds no block. They give the version of each package that the reply names, here blockr.core and blockr.test, since a class from no package names none, the board classes that the loaded packages name front-ends for, core's board and blockr.test's grid_board, each with the package whose namespace holds its method, and the versions that the loaded packages give board options, blockr.test's grid_gap. The fixture leaves out what core declares, so the modules lack core's basic front-end, which board names. R serves each file at a URL that holds a hash of its content: a package's file under the package's name, at its path in the package, with the hash in the query, and a file from no package under blockr-modules, in a directory named by the hash. It writes the starting state of the letters block by the schema that the block's module ships, so that columns, a vector of length one, is an array, and that of the count block, whose module ships no schema, bare.",
   "client": [
     {
       "id": "1",
@@ -15,7 +15,7 @@
         "status": "ok",
         "protocol": "1.0",
         "capabilities": ["cancel", "progress"],
-        "packages": { "blockr.test": "0.1.0" },
+        "packages": { "blockr.core": "0.2.0", "blockr.test": "0.1.0" },
         "block_registry": {
           "count_block": {
             "id": "count_block",
@@ -26,6 +26,7 @@
             "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-hash\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
             "inputs": [],
             "module": "blockr-modules/8ae8c1b3/count-block.js",
+            "version": 1,
             "schema": {},
             "state": { "n": 3 },
             "arguments": { "n": {} },
@@ -44,6 +45,7 @@
             "inputs": ["data"],
             "module": "blockr-modules/bf59b37f/letters-block.js",
             "css": "blockr-modules/7dc41faf/letters-block.css",
+            "version": 1,
             "schema": {
               "type": "object",
               "properties": {
@@ -89,12 +91,6 @@
             }
           }
         },
-        "front_ends": {
-          "blockr.test-grid": {
-            "module": "blockr.test/js/grid.js?v=f9b5f4b6",
-            "css": "blockr.test/js/grid.css?v=3e948caf"
-          }
-        },
         "startup_modules": [
           {
             "package": "blockr.test",
@@ -102,27 +98,47 @@
           }
         ],
         "modules": {
+          "blockr.test-grid": {
+            "module": "blockr.test/js/grid.js?v=f9b5f4b6",
+            "css": "blockr.test/js/grid.css?v=3e948caf"
+          },
           "blockr.test-picker": {
             "module": "blockr.test/js/picker.js?v=42980521"
           }
         },
+        "board_classes": {
+          "board": {
+            "package": "blockr.core",
+            "front_end": "blockr.core-basic",
+            "version": 1
+          },
+          "grid_board": {
+            "package": "blockr.test",
+            "front_end": "blockr.test-grid",
+            "version": 1
+          }
+        },
+        "option_versions": { "grid_gap": 2 },
         "renderers": {
           "blockr.test-dark": {
             "module": "blockr.test/js/dark.js?v=5536bd26",
             "option": "dark_mode"
-          },
-          "blockr.test-table": {
-            "module": "blockr.test/js/table.js?v=da68949e",
-            "class": "table_output"
           }
         },
         "lock": null,
         "board": {
-          "front_end": { "id": "blockr.test-grid", "state": {}, "attrs": {} },
-          "blocks": [],
-          "links": [],
-          "stacks": [],
-          "options": {}
+          "format": 1,
+          "packages": { "blockr.core": "0.2.0", "blockr.test": "0.1.0" },
+          "board": {
+            "id": "calm_heron",
+            "class": ["grid_board", "board"],
+            "versions": { "grid_board": 1, "board": 1 },
+            "name": "Calm heron",
+            "blocks": {},
+            "links": {},
+            "stacks": {},
+            "options": {}
+          }
         }
       }
     ]

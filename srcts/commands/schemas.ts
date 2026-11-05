@@ -30,11 +30,6 @@ export const stackId: JsonSchema = {
   description: "The id of a stack, unique among the board's stacks.",
 };
 
-export const entryId: JsonSchema = {
-  ...id,
-  description: "The id of an entry, unique among the entries of its key.",
-};
-
 export const registryId: JsonSchema = {
   type: "string",
   minLength: 1,
@@ -75,20 +70,6 @@ export const optionId: JsonSchema = {
   type: "string",
   minLength: 1,
   description: 'The id of a board option, such as "n_rows".',
-};
-
-export const path: JsonSchema = {
-  type: "array",
-  items: { type: "string", minLength: 1 },
-  minItems: 1,
-  description:
-    'Where a key of the front-end\'s state sits there, such as ["extensions", "blockr.dag-dag", "positions"].',
-};
-
-export const attribute: JsonSchema = {
-  type: "string",
-  minLength: 1,
-  description: 'The name of an attribute, such as "visible".',
 };
 
 export const value: JsonSchema = {

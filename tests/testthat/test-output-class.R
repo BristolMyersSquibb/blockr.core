@@ -74,104 +74,70 @@ test_that("a reply body is made from raw bytes or a file", {
                class = "reply_body_invalid")
 })
 
-test_that("an output class is registered with the schema of its outputs", {
+test_that("an output class gives the schema of its outputs by a method", {
 
-  file <- withr::local_tempfile(fileext = ".json")
-  writeLines('{"type": "object", "properties": {"tags": {"type": "array"}}}',
-             file)
-
-  withr::defer(unregister_output_classes("tags_output"))
-
-  entry <- register_output_class(
+  local_output_class(
     "tags_output",
-    schema = file,
-    requests = list(n = function(result) length(result)),
-    volatile = "n",
-    package = NULL
+    schema = list(
+      type = "object",
+      properties = list(tags = list(type = "array"))
+    )
   )
-
-  expect_s3_class(entry, "output_class_entry")
-  expect_identical(output_class_entry("tags_output"), entry)
-  expect_identical(entry$schema$properties$tags$type, "array")
-
-  expect_snapshot(print(entry))
 
   out <- new_block_output(list(tags = "a"), "tags_output")
 
+  expect_identical(output_schema(out)$properties$tags$type, "array")
   expect_identical(
     as.character(encode_message(shape_output(out)$output)),
     "{\"tags\":[\"a\"]}"
   )
 
-  # The package that registered a class registers it again, as its .onLoad()
-  # does when the package loads again, but no other one.
-  expect_no_error(
-    register_output_class("tags_output", schema = list(), package = NULL)
-  )
-
   expect_error(
-    register_output_class("tags_output", schema = list(), package = "other"),
-    class = "output_class_in_registry"
+    output_schema(new_block_output(list(), "x_output")),
+    class = "output_schema_missing"
   )
 })
 
-test_that("registration checks the class, its schema and its requests", {
+test_that("a package reads a schema from a file that it ships", {
 
-  expect_error(register_output_class(1, list()), class = "output_class_invalid")
-  expect_error(register_output_class("block_output", list()),
-               class = "output_class_invalid")
+  file <- withr::local_tempfile(fileext = ".json")
+  writeLines('{"type": "object", "properties": {"tags": {"type": "array"}}}',
+             file)
 
-  expect_error(
-    register_output_class("x_output", "no-such-file.json", package = NULL),
-    class = "output_class_schema_invalid"
+  expect_identical(
+    read_json_schema(file, package = NULL)$properties$tags$type,
+    "array"
   )
-  expect_error(
-    register_output_class("x_output", "no-such-file.json",
-                          package = "blockr.core"),
-    class = "output_class_schema_invalid"
-  )
-  expect_error(
-    register_output_class("x_output", 1, package = NULL),
-    class = "output_class_schema_invalid"
+  expect_identical(
+    read_json_schema("outputs/table-output.schema.json", "blockr.core")$type,
+    "object"
   )
 
-  expect_error(
-    register_output_class("x_output", list(), requests = list(function() 1)),
-    class = "output_class_requests_invalid"
-  )
-  expect_error(
-    register_output_class("x_output", list(), requests = list(a = 1)),
-    class = "output_class_requests_invalid"
-  )
-  expect_error(
-    register_output_class("x_output", list(),
-                          requests = list(a = function() 1), volatile = "b"),
-    class = "output_class_requests_invalid"
-  )
-
-  expect_null(output_class_entry("x_output"))
+  expect_error(read_json_schema("no-such-file.json", package = NULL),
+               class = "json_schema_file_invalid")
+  expect_error(read_json_schema("no-such-file.json", package = "blockr.core"),
+               class = "json_schema_file_invalid",
+               regexp = "in package blockr.core")
+  expect_error(read_json_schema(1, package = NULL),
+               class = "json_schema_file_invalid")
 })
 
-test_that("core registers its output classes as it loads", {
+test_that("core gives each of its output classes its schema", {
 
   for (cls in c("table_output", "text_output", "plot_output")) {
 
-    entry <- output_class_entry(cls)
+    schema <- output_schema(new_block_output(list(), cls))
 
-    expect_identical(entry$package, "blockr.core")
-    expect_identical(entry$schema$type, "object")
-    expect_true("renderer" %in% names(entry$schema$properties))
+    expect_identical(schema$type, "object")
+    expect_true("renderer" %in% names(schema$properties))
   }
 })
 
 test_that("an output is written by the schema of its most specific class", {
 
-  withr::defer(unregister_output_classes("a_output"))
-
-  register_output_class(
+  local_output_class(
     "a_output",
-    list(type = "object", properties = list(x = list(type = "array"))),
-    package = NULL
+    schema = list(type = "object", properties = list(x = list(type = "array")))
   )
 
   out <- new_block_output(list(x = 1L, y = 2L), c("c_output", "a_output"))
@@ -179,18 +145,16 @@ test_that("an output is written by the schema of its most specific class", {
   expect_identical(as.character(encode_message(shape_output(out)$output)),
                    "{\"x\":[1],\"y\":2}")
 
-  register_output_class(
+  local_output_class(
     "c_output",
-    list(type = "object", properties = list(y = list(type = "array"))),
-    package = NULL
+    schema = list(type = "object", properties = list(y = list(type = "array")))
   )
-  withr::defer(unregister_output_classes("c_output"))
 
   expect_identical(as.character(encode_message(shape_output(out)$output)),
                    "{\"x\":1,\"y\":[2]}")
 
   expect_error(shape_output(new_block_output(list(), "d_output")),
-               class = "output_class_unknown")
+               class = "output_schema_missing")
   expect_error(shape_output(list(x = 1)), class = "block_output_invalid")
 })
 
@@ -207,27 +171,26 @@ test_that("an output's body travels beside its fields", {
   expect_null(shape_output(new_text_output("Hi"))$body)
 })
 
-test_that("a request is resolved by the most specific class that has it", {
+test_that("a subclass's requests come before those of its class", {
 
-  withr::defer(unregister_output_classes(c("base_output", "sub_output")))
-
-  register_output_class(
+  local_output_class(
     "base_output",
-    list(),
     requests = list(
       size = function(result) length(result),
       label = function(result, prefix = "Base") paste(prefix, result[1L])
-    ),
-    package = NULL
+    )
   )
 
-  register_output_class(
+  local_output_class(
     "sub_output",
-    list(),
-    requests = list(
-      label = function(result, prefix = "Sub") paste(prefix, result[1L])
-    ),
-    package = NULL
+    requests = function(x, ...) {
+      c(
+        list(
+          label = function(result, prefix = "Sub") paste(prefix, result[1L])
+        ),
+        NextMethod()
+      )
+    }
   )
 
   out <- new_block_output(list(), c("sub_output", "base_output"))
@@ -243,24 +206,24 @@ test_that("a request is resolved by the most specific class that has it", {
     "A a"
   )
 
-  expect_identical(output_class_request(class(out), "label")$class,
-                   "sub_output")
-
   expect_error(run_output_class_request(out, "nope", letters),
                class = "output_class_request_unknown")
   expect_error(run_output_class_request(out, 1, letters),
                class = "output_class_request_unknown")
   expect_error(run_output_class_request("text_output", "size", letters),
                class = "output_class_request_unknown")
+
+  local_output_class("bad_output", requests = list(1))
+
+  expect_error(run_output_class_request("bad_output", "x", 1),
+               class = "output_class_requests_invalid")
+  expect_error(volatile(1), class = "output_class_requests_invalid")
 })
 
 test_that("a request takes the result, board options, parameters and file", {
 
-  withr::defer(unregister_output_classes("arg_output"))
-
-  register_output_class(
+  local_output_class(
     "arg_output",
-    list(),
     requests = list(
       all = function(result, options, params, file, format = "csv") {
         list(
@@ -271,11 +234,9 @@ test_that("a request takes the result, board options, parameters and file", {
           format = format
         )
       },
-      dots = function(...) list(...),
+      dots = volatile(function(...) list(...)),
       some = function(params) params
-    ),
-    volatile = "dots",
-    package = NULL
+    )
   )
 
   res <- run_output_class_request(

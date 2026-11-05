@@ -11,7 +11,6 @@ import type {
   Condition,
   EvaluateRequest,
   HelloReply,
-  OpenReply,
   OutputRequest,
 } from "../protocol/index.ts";
 import { createStore } from "../store/index.ts";
@@ -31,17 +30,6 @@ import type { BlockStatus, Scheduler, SchedulerOptions } from "./index.ts";
 //
 // And a block served alone, whose input R binds itself.
 const helloBlock = replyOf("hello-block") as HelloReply;
-
-const opened: OpenReply = {
-  id: "",
-  status: "ok",
-  packages: hello.packages,
-  block_registry: hello.block_registry,
-  front_ends: hello.front_ends,
-  startup_modules: [],
-  modules: {},
-  renderers: hello.renderers,
-};
 
 const info = {
   width: 640,
@@ -68,7 +56,7 @@ async function setup(
 ): Promise<{ r: PlayedR; store: Store; scheduler: Scheduler }> {
   const r = playR();
   r.connect(capabilities);
-  const store = createStore({ client: r.client });
+  const store = createStore();
   for (const option of coreOptions) store.options.register(option);
   prepare?.(store);
   await store.open(reply);
@@ -160,12 +148,20 @@ describe("revisions", () => {
     for (const id of ["b", "c", "e"]) expect(after[id]).toBeGreaterThan(top);
   });
 
-  test("stay through a rename, an attribute, a stack, a board option, the board's name, the front-end's state and a state set to what it holds", async () => {
+  test("stay through a rename, a stack, a board option, the board's name, a property of its class and a state set to what it holds", async () => {
     const { store, scheduler } = await setup(
       {},
       {
+        reply: {
+          ...hello,
+          board: { ...hello.board, board: { ...hello.board.board, class: ["zoomed_board", "board"] } },
+        },
         prepare: (store) =>
-          store.register({ path: ["zoom"], kind: "value", schema: { type: "number" } }),
+          store.register({
+            class: "zoomed_board",
+            parent: "board",
+            properties: { zoom: { schema: { type: "number" }, default: 1 } },
+          }),
       },
     );
     const before = revisionsOf(scheduler);
@@ -173,14 +169,14 @@ describe("revisions", () => {
     store.apply({
       blocks: {
         mod: {
-          b: { name: "First rows", attrs: { set: { visible: ["outputs"] } }, state: { n: 6 } },
+          b: { name: "First rows", state: { n: 6 } },
         },
       },
     });
     store.apply({ stacks: { mod: { s1: { name: "Inputs" } } } });
     store.apply({ options: { set: { n_rows: 20 } } });
     store.apply({ name: "Renamed" });
-    store.apply({ front_end: { state: [{ path: ["zoom"], change: { set: 2 } }] } });
+    store.apply({ patches: [{ op: "replace", path: "/zoom", value: 2 }] });
 
     expect(revisionsOf(scheduler)).toEqual(before);
   });
@@ -249,11 +245,7 @@ describe("revisions", () => {
     await evaluateAll(r);
     const top = Math.max(...Object.values(revisionsOf(scheduler)));
 
-    const text = JSON.stringify({ format: 1, packages: hello.packages, board: store.board() });
-    const opening = store.open(text);
-    const request = r.sent.find((item) => item.kind === "open");
-    r.reply({ ...opened, id: request?.id ?? "" });
-    await opening;
+    await store.open(JSON.stringify(store.jsonBoard()));
 
     expect(r.forgets()).toEqual([["a", "b", "c", "d", "e", "f"]]);
     for (const [id, revision] of Object.entries(revisionsOf(scheduler))) {
@@ -265,7 +257,7 @@ describe("revisions", () => {
   test("start with the first board the store opens, where the scheduler is created before the store holds one", async () => {
     const r = playR();
     r.connect();
-    const store = createStore({ client: r.client });
+    const store = createStore();
     for (const option of coreOptions) store.options.register(option);
     const scheduler = createScheduler({ store, client: r.client });
     expect(revisionsOf(scheduler)).toEqual({});
@@ -722,11 +714,7 @@ describe("one-time evaluations", () => {
     await expect(aborted).rejects.toThrow("The step was given up.");
 
     const waiting = scheduler.evaluate(["e"]);
-    const text = JSON.stringify({ format: 1, packages: hello.packages, board: store.board() });
-    const opening = store.open(text);
-    const request = r.sent.find((item) => item.kind === "open");
-    r.reply({ ...opened, id: request?.id ?? "" });
-    await opening;
+    await store.open(JSON.stringify(store.jsonBoard()));
     await expect(waiting).rejects.toThrow("Another board opened.");
   });
 });
@@ -973,7 +961,11 @@ describe("requests", () => {
     const asking = scheduler.request(output(scheduler, "b"));
     const [sent] = r.asked("output");
     expect(sent).toMatchObject({ kind: "output", block: "b", revision: statusOf(scheduler, "b").revision });
-    r.reply({ id: sent?.id ?? "", status: "ok", output: { renderer: "blockr.core-table_output" } });
+    r.reply({
+      id: sent?.id ?? "",
+      status: "ok",
+      output: { renderer: { id: "blockr.core-table_output", module: "blockr.core/js/basic-table.js" } },
+    });
     await expect(asking).resolves.toMatchObject({ reply: { status: "ok" } });
   });
 

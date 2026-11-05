@@ -6,7 +6,15 @@ blocks <- function(...) {
 
   args <- lapply(args, as_block)
 
-  names(args) <- ids_or_empty(names(args), length(args))
+  if (is.null(names(args))) {
+    names(args) <- rand_names(n = length(args))
+  }
+
+  miss <- is.na(names(args)) | names(args) == ""
+
+  if (any(miss)) {
+    names(args)[miss] <- rand_names(names(args)[!miss], sum(miss))
+  }
 
   validate_blocks(
     new_vctr(args, class = "blocks")
@@ -57,11 +65,8 @@ format.blocks <- function(x, ...) {
 
 format_collection <- function(x) {
 
-  out <- Map(
-    function(id, lines) c(id[nzchar(id)], paste0(" ", lines)),
-    ids_or_empty(names(x), length(x)),
-    lapply(x, format)
-  )
+  out <- lapply(x, format)
+  out <- Map(c, names(x), lapply(out, function(x) paste0(" ", x)))
   out <- lapply(out, c, "")
   out <- unlst(out)
 
@@ -132,8 +137,7 @@ validate_blocks <- function(x) {
     )
   }
 
-  ids <- ids_or_empty(names(x), length(x))
-  ids <- ids[nzchar(ids)]
+  ids <- coal(names(x), rep(NA_character_, length(x)))
 
   validate_ids(ids, "Block", "blocks_names_invalid")
 

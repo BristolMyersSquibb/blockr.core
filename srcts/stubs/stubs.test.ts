@@ -12,6 +12,12 @@ import type { BlockFixture } from "./index.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
+// The renderer that R puts in an output, as it would serve the module of the
+// renderer with the id given.
+function drawnBy(id: string): { id: string; module: string } {
+  return { id, module: `${id.replace("-", "/")}.js` };
+}
+
 function json(...path: string[]): unknown {
   return JSON.parse(readFileSync(join(root, ...path), "utf8"));
 }
@@ -222,12 +228,12 @@ describe("the stub of an output's host", () => {
   });
 
   test("records what the renderer emits and the outputs it draws nested in its own", () => {
-    const host = stubOutputHost({ output: { renderer: "blockr.dm-dm", diagram: {} } });
+    const host = stubOutputHost({ output: { renderer: drawnBy("blockr.dm-dm"), diagram: {} } });
     const el = document.createElement("div");
 
     host.emit("select", { table: "flights" });
-    const nested = host.draw(el, "preview", { renderer: "blockr.core-basic_table" });
-    nested.update({ renderer: "blockr.core-basic_table", total: 2 });
+    const nested = host.draw(el, "preview", { renderer: drawnBy("blockr.core-table_output") });
+    nested.update({ renderer: drawnBy("blockr.core-table_output"), total: 2 });
     nested.remove();
 
     expect(host.emitted).toEqual([{ name: "select", payload: { table: "flights" } }]);
@@ -235,18 +241,24 @@ describe("the stub of an output's host", () => {
       {
         key: "preview",
         el,
-        outputs: [{ renderer: "blockr.core-basic_table" }, { renderer: "blockr.core-basic_table", total: 2 }],
+        outputs: [
+          { renderer: drawnBy("blockr.core-table_output") },
+          { renderer: drawnBy("blockr.core-table_output"), total: 2 },
+        ],
         removed: true,
       },
     ]);
   });
 
   test("says what core would while it asks R for a newer output, or once that failed", () => {
-    const host = stubOutputHost({ output: { renderer: "blockr.core-basic_text", text: "1" } });
+    const host = stubOutputHost({ output: { renderer: drawnBy("blockr.core-text_output"), text: "1" } });
     host.setLoading(true);
     expect(host.loading()).toBe(true);
-    host.setOutput({ renderer: "blockr.core-basic_text", text: "2" });
-    expect([host.loading(), host.output()]).toEqual([false, { renderer: "blockr.core-basic_text", text: "2" }]);
+    host.setOutput({ renderer: drawnBy("blockr.core-text_output"), text: "2" });
+    expect([host.loading(), host.output()]).toEqual([
+      false,
+      { renderer: drawnBy("blockr.core-text_output"), text: "2" },
+    ]);
     host.setError({ severity: "error", class: ["simpleError", "error", "condition"], message: "boom" });
     expect(host.error()?.message).toBe("boom");
   });

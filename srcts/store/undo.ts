@@ -4,14 +4,19 @@
 // since, and nothing happens where it is gone.
 
 import type { Board } from "../types/board.ts";
-import { getAt, isObject } from "../util/index.ts";
-import type { CollectionDelta, Delta, KeyChange } from "./delta.ts";
-import type { Registrations } from "./registrations.ts";
+import { isObject } from "../util/index.ts";
+import type { Delta, Patch } from "./delta.ts";
+import { applyPatch, pointer } from "./patch.ts";
+import { recordOf } from "./registrations.ts";
+import type { Built } from "./registrations.ts";
 
-// The part of a delta that still applies to the board: without the removal or
-// change of what is gone, the addition of what is there already, and the
-// links and the places in stacks of blocks that are gone.
-export function fit(delta: Delta, board: Board, registrations: Registrations): Delta {
+// The part of a delta that still applies to the board: without the removal
+// or change of what is gone, the addition of what is there already,
+// the links and the places in stacks of blocks that are gone,
+// and the patches that no longer find their path,
+// as one that changes what another origin removed.
+// A patch at an array's index changes whatever the array holds there now.
+export function fit(delta: Delta, board: Board, built: Built): Delta {
   const blocks = collection(board.blocks, delta.blocks);
   const kept = new Set([
     ...Object.keys(board.blocks).filter((id) => !(blocks.rm ?? []).includes(id)),
@@ -30,20 +35,6 @@ export function fit(delta: Delta, board: Board, registrations: Registrations): D
   const placed = <T extends { blocks?: readonly string[] }>(stack: T): T =>
     stack.blocks === undefined ? stack : { ...stack, blocks: stack.blocks.filter(holds) };
 
-  const state: KeyChange[] = [];
-  for (const { path, change } of delta.front_end?.state ?? []) {
-    const key = registrations.key(path);
-    if (key === undefined) continue;
-    if (key.def.kind === "value") {
-      state.push({ path, change });
-      continue;
-    }
-    const at = getAt(board.front_end.state, path);
-    const entries = isObject(at) ? at : {};
-    const fitted = collection(entries, change as CollectionDelta);
-    if (Object.keys(fitted).length > 0) state.push({ path, change: fitted });
-  }
-
   return prune({
     blocks,
     links: { ...links, ...(Object.keys(before).length === 0 ? {} : { before }) },
@@ -58,11 +49,24 @@ export function fit(delta: Delta, board: Board, registrations: Registrations): D
     },
     ...(delta.options === undefined ? {} : { options: delta.options }),
     ...(delta.name === undefined ? {} : { name: delta.name }),
-    front_end: {
-      ...(state.length === 0 ? {} : { state }),
-      ...(delta.front_end?.attrs === undefined ? {} : { attrs: delta.front_end.attrs }),
-    },
+    patches: patches(delta.patches ?? [], board, built),
   });
+}
+
+// The patches that apply, one after another, to the properties of the
+// board's class.
+function patches(given: readonly Patch[], board: Board, built: Built): Patch[] {
+  let at = recordOf(board);
+  const fitted: Patch[] = [];
+  for (const patch of given) {
+    const parts = pointer(patch.path) ?? [];
+    if (!built.properties.has(parts[0] ?? "")) continue;
+    const applied = applyPatch(at, patch, parts);
+    if ("failure" in applied) continue;
+    at = applied.next;
+    fitted.push(patch);
+  }
+  return fitted;
 }
 
 interface Part<T, M> {
@@ -95,7 +99,9 @@ function collection<T, M>(
 function prune(delta: Delta): Delta {
   const parts: [string, unknown][] = Object.entries(delta);
   return Object.fromEntries(
-    parts.filter(([, part]) => !isObject(part) || Object.keys(part).length > 0),
+    parts.filter(([, part]) =>
+      Array.isArray(part) ? part.length > 0 : !isObject(part) || Object.keys(part).length > 0,
+    ),
   );
 }
 

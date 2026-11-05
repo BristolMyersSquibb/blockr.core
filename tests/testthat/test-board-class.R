@@ -102,17 +102,23 @@ test_that("the getters of a board check that they read one", {
   }
 })
 
-test_that("a board has an ID and a name, which R leaves out unless given", {
+test_that("R draws a board's ID and names the board after it, unless given", {
 
   board <- new_board(id = "sales_review", name = "Q3 numbers")
 
   expect_identical(board_id(board), "sales_review")
   expect_identical(board_name(board), "Q3 numbers")
 
+  expect_identical(board_name(new_board(id = "sales_review")), "Sales review")
+
   board <- new_board()
 
-  expect_null(board_id(board))
-  expect_null(board_name(board))
+  expect_true(is_string(board_id(board)))
+  expect_identical(board_name(board), id_to_sentence_case(board_id(board)))
+
+  withr::local_options(blockr.rand_id = "letters_8")
+
+  expect_match(board_id(new_board()), "^[a-z]{8}$")
 
   for (id in c("123", "0", "")) {
     expect_error(
@@ -128,14 +134,19 @@ test_that("a board has an ID and a name, which R leaves out unless given", {
 
   expect_error(new_board(name = 1L), class = "board_name_invalid")
   expect_error(new_board(name = c("a", "b")), class = "board_name_invalid")
+  expect_error(new_board(name = NA_character_), class = "board_name_invalid")
 
   board <- new_board(id = "sales_review")
   attr(board, "id") <- "42"
 
   expect_error(validate_board(board), "\"42\"", class = "board_id_invalid")
+
+  attr(board, "id") <- NULL
+
+  expect_error(validate_board(board), class = "board_id_invalid")
 })
 
-test_that("blocks, links and stacks without an ID take part in no link", {
+test_that("R draws the IDs of blocks, links and stacks a script leaves out", {
 
   board <- new_board(
     c(a = new_dataset_block(), b = new_head_block(), new_subset_block()),
@@ -143,19 +154,54 @@ test_that("blocks, links and stacks without an ID take part in no link", {
     stacks = list(new_stack("a"))
   )
 
-  expect_identical(board_block_ids(board), c("a", "b", ""))
-  expect_identical(board_link_ids(board), "")
-  expect_identical(board_stack_ids(board), "")
+  ids <- board_block_ids(board)
+
+  expect_identical(ids[1:2], c("a", "b"))
+  expect_false(ids[3L] %in% c("a", "b", ""))
+  expect_length(board_link_ids(board), 1L)
+  expect_length(board_stack_ids(board), 1L)
 
   expect_true(is_acyclic(board))
-  expect_identical(topo_sort(board), c("a", "b"))
+  expect_setequal(topo_sort(board), ids)
+  expect_lt(match("a", topo_sort(board)), match("b", topo_sort(board)))
+})
 
-  expect_error(
-    new_board(
-      c(new_dataset_block(), b = new_head_block()),
-      links = links(from = "", to = "b")
-    ),
-    class = "board_block_link_name_mismatch"
+test_that("a board class's method names its front-end and its package", {
+
+  expect_identical(board_front_end(new_board()), "blockr.core-basic")
+  expect_identical(class_package("board"), "blockr.core")
+
+  local_board_front_end("one_board", "blockr.one-grid", "blockr.one")
+
+  expect_identical(
+    board_front_end(new_board(class = "one_board")),
+    "blockr.one-grid"
+  )
+  expect_identical(class_package("one_board"), "blockr.one")
+
+  # A class without a method of its own is drawn by its parent's front-end,
+  # and comes from no package
+  expect_identical(
+    board_front_end(new_board(class = c("my_board", "one_board"))),
+    "blockr.one-grid"
+  )
+  expect_null(class_package("my_board"))
+})
+
+test_that("a board class's method gives its version, or it is at version 1", {
+
+  expect_identical(board_version(new_board()), 1L)
+
+  local_board_front_end("one_board", "blockr.one-grid", "blockr.one", 2L)
+  local_board_front_end("two_board", "blockr.two-grid", "blockr.two")
+
+  expect_identical(class_version("one_board"), 2L)
+  expect_identical(class_version("two_board"), 1L)
+
+  # The versions of the classes that name a front-end, by class
+  expect_identical(
+    board_versions(c("my_board", "one_board", "two_board", "board")),
+    list(one_board = 2L, two_board = 1L, board = 1L)
   )
 })
 

@@ -1,8 +1,9 @@
 // The board the client holds: plain data, which serializes as it is and names
-// the front-end it is made for and each block's class by id, so that no object
-// in it carries an R class. Its types are read-only, so that nothing changes a
-// board in place: the store makes a new board for every change, sharing what
-// did not change, as copy-on-modify did in R.
+// its own class by the R board's class vector and each block's class by id,
+// so that no other object in it carries an R class.
+// Its types are read-only, so that nothing changes a board in place:
+// the store makes a new board for every change, sharing what did not change,
+// as copy-on-modify did in R.
 
 import type { Json } from "./json.ts";
 
@@ -15,15 +16,21 @@ export type OptionId = string;
 // "blockr.core-head_block".
 export type RegistryId = string;
 
-// What the board's front-end and its extensions keep, which is empty in core: a
-// front-end types its keys by adding them to this interface, as the dock adds
-// its views.
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface FrontEndState {}
-
+// Besides core's properties, below, a board holds those that its board class
+// adds, such as a dock board's views, which core carries without reading them.
+// A board class types its properties by extending this interface,
+// as `interface DockBoard extends Board { views: ... }`.
+// The board declares no index signature, so neither its members nor those types
+// need be assignable to Json.
+// Code that does not import a class's types reads a property as unknown,
+// from the board taken as a record.
 export interface Board {
   readonly id: string;
-  readonly front_end: FrontEnd;
+  // The class vector of the R board it comes from, most specific first,
+  // as ["dock_board", "board"], which the client keeps and saves unchanged.
+  // The client builds the board as the first class in it that a loaded
+  // package defines.
+  readonly class: readonly string[];
   readonly name: string;
   readonly blocks: Readonly<Record<BlockId, Block>>;
   readonly links: Readonly<Record<LinkId, Link>>;
@@ -32,22 +39,11 @@ export interface Board {
   readonly options: Readonly<Record<OptionId, Json>>;
 }
 
-export interface FrontEnd {
-  // The id of the front-end the board is made for, such as "blockr.dock-dock".
-  readonly id: string;
-  // The keys that front-ends add to FrontEndState, and those of packages whose
-  // types a module does not import.
-  readonly state: Readonly<Partial<FrontEndState> & Record<string, unknown>>;
-  readonly attrs: Readonly<Record<string, Json>>;
-}
-
 export interface Block {
   readonly registry_id: RegistryId;
   // Its values for the formals of its class's `expr`, as { n: 6 }.
   readonly state: Readonly<Record<string, Json>>;
   readonly name: string;
-  // Its attributes, values that are not its state, as { visible: ["outputs"] }.
-  readonly attrs: Readonly<Record<string, Json>>;
 }
 
 export interface Link {
@@ -63,26 +59,35 @@ export interface Stack {
   readonly blocks: readonly BlockId[];
 }
 
-// A saved board, the file that only the client writes: the board, the version
-// of the file format, and the version of every package that the board's block
-// classes, its front-end and its front-end's state come from.
-export interface SavedBoard {
+// A JSON board, the one format of a board outside the store: the board, the
+// version of the format, and the version of every package that the board's
+// block classes and board classes come from, which names what to install.
+// The client saves a board as one, and R writes the opening board that an app
+// script built as one, with every id.
+// The board records the version of each shape that a definition outside core
+// gives it, which migrations key on, while the format versions core's own.
+export interface JsonBoard {
   readonly format: number;
   readonly packages: Readonly<Record<string, string>>;
-  readonly board: Board;
+  readonly board: Omit<Board, "blocks" | "options"> & {
+    // The version of each class in the board's class vector that R names one
+    // for, by class, as R's `board_version()` gives it: the version of the
+    // properties that the class adds.
+    readonly versions: Readonly<Record<string, number>>;
+    readonly blocks: Readonly<Record<BlockId, JsonBlock>>;
+    readonly options: Readonly<Record<OptionId, JsonOption>>;
+  };
 }
 
-// The opening board that an app script built, as R sends it. R mints no ids, so
-// it holds the blocks, links and stacks as arrays, in their order, each with
-// its id where the script gave one, and the board's own id and name where it
-// has them. The client keys the collections and mints each missing id as it
-// opens the board.
-export interface OpeningBoard {
-  readonly id?: string;
-  readonly front_end: FrontEnd;
-  readonly name?: string;
-  readonly blocks: readonly (Block & { readonly id?: BlockId })[];
-  readonly links: readonly (Link & { readonly id?: LinkId })[];
-  readonly stacks: readonly (Stack & { readonly id?: StackId })[];
-  readonly options: Readonly<Record<OptionId, Json>>;
+// A block as a JSON board holds it, with the version of its class's state,
+// which the class's entry in the block registry gives.
+export interface JsonBlock extends Block {
+  readonly version: number;
+}
+
+// A board option's value as a JSON board holds it, with the version of the
+// value's shape, which R's `board_option_version()` gives.
+export interface JsonOption {
+  readonly value: Json;
+  readonly version: number;
 }

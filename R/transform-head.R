@@ -46,8 +46,6 @@ head_block <- new_block_class(
 #' @param direction Either "head" or "tail"
 #' @param block_name Name of the block, which defaults to one made from the
 #'   name of its class, such as "Head"
-#' @param visible The sections of the block that show, which core keeps as its
-#'   attribute `visible`
 #'
 #' @block head/tail block
 #' @blockDescr Data head/tail

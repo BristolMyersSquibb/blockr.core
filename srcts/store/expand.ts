@@ -1,32 +1,27 @@
-// Expanding a delta with what follows from it, so that it reaches everything in
-// the board that refers to what it changes: core's part as R's
-// augment_board_update() did, removing a removed block's links and its places
-// in stacks, and each key of the front-end's state through its `expand`. Every
-// `expand` runs again on what the rounds before added, until none adds
-// anything, as ProseMirror calls `appendTransaction` again for what another
-// plugin appended.
+// Expanding a delta with what follows from it,
+// so that it reaches everything in the board that refers to what it changes:
+// core's part as R's augment_board_update() did,
+// removing a removed block's links and its places in stacks,
+// and the properties of the board's class through the `update` of the class and
+// of each of its parents.
+// Every `update` runs again on what the rounds before added,
+// until none adds anything, as ProseMirror calls `appendTransaction` again for
+// what another plugin appended.
 
 import type { Board, Stack, StackId } from "../types/board.ts";
-import { jsonEqual, messageOf, own, pathText } from "../util/index.ts";
-import { isValueDelta } from "./delta.ts";
-import type {
-  CollectionDelta,
-  Delta,
-  Entry,
-  KeyChange,
-  KeyDelta,
-  ValueDelta,
-} from "./delta.ts";
-import type { Registrations } from "./registrations.ts";
+import { jsonEqual, messageOf, own, quoted } from "../util/index.ts";
+import type { Delta, Patch } from "./delta.ts";
+import { malformed, overlap, pointer } from "./patch.ts";
+import type { Built } from "./registrations.ts";
 
-// How many rounds a delta may expand in before the store rejects it, naming
-// the keys that kept adding.
+// How many rounds a delta may expand in before the store rejects it,
+// naming the board classes that kept adding.
 export const ROUNDS = 10;
 
 export function expand(
   delta: Delta,
   board: Board,
-  registrations: Registrations,
+  built: Built,
 ): Delta | { readonly failures: readonly string[] } {
   let expanded = delta;
 
@@ -38,18 +33,22 @@ export function expand(
     const grew = core !== expanded;
     expanded = core;
 
-    for (const { def } of registrations.keys()) {
-      if (def.expand === undefined) continue;
-      let change: KeyDelta | undefined;
+    for (const { def } of built.chain) {
+      if (def.update === undefined) continue;
+      let patches: unknown;
       try {
-        change = def.expand(expanded, board);
+        patches = def.update(expanded, board);
       } catch (error) {
-        failures.push(`The key ${pathText(def.path)} failed to expand the delta: ${messageOf(error)}`);
+        failures.push(`The board class "${def.class}" failed to update the delta: ${messageOf(error)}`);
         continue;
       }
-      if (change === undefined) continue;
-      const merged = merge(expanded, delta, def.path, def.kind, change);
-      if (merged !== expanded) adding.push(pathText(def.path));
+      const wrong = misplaced(def.class, Object.keys(def.properties), patches);
+      if (wrong.length > 0) {
+        failures.push(...wrong);
+        continue;
+      }
+      const merged = merge(expanded, delta, patches as readonly Patch[]);
+      if (merged !== expanded) adding.push(def.class);
       expanded = merged;
     }
 
@@ -58,7 +57,7 @@ export function expand(
     if (round === ROUNDS - 1) {
       return {
         failures: [
-          `The delta kept expanding after ${String(ROUNDS)} rounds, through ${adding.join(", ")}.`,
+          `The delta kept expanding after ${String(ROUNDS)} rounds, through the board class${adding.length > 1 ? "es" : ""} ${quoted(adding)}.`,
         ],
       };
     }
@@ -103,143 +102,55 @@ function expandCore(delta: Delta, board: Board): Delta {
   };
 }
 
-// The delta with what an `expand` returned for its key merged in, or the same
-// delta where that adds nothing new, as an `expand` may return what the delta
-// holds already. What follows from a delta never overrides what the delta given
-// to the store says itself, so that an undo that puts back an entry puts back
-// that entry, and not one an `expand` makes up for a new object.
-function merge(
-  delta: Delta,
-  given: Delta,
-  path: readonly string[],
-  kind: "collection" | "value",
-  change: KeyDelta,
-): Delta {
-  const changes = delta.front_end?.state ?? [];
-  const at = changes.findIndex((other) => jsonEqual(other.path, path));
-  const current = changes[at]?.change;
-  const own = given.front_end?.state?.find((other) => jsonEqual(other.path, path))?.change;
-
-  const merged =
-    kind === "value"
-      ? own !== undefined && isValueDelta(own)
-        ? current
-        : mergeValue(current, change)
-      : mergeCollection(
-          current as CollectionDelta | undefined,
-          held(change as CollectionDelta, own as CollectionDelta | undefined),
-        );
-  if (merged === undefined || merged === current) return delta;
-
-  const next: KeyChange = { path, change: merged };
-  return {
-    ...delta,
-    front_end: {
-      ...delta.front_end,
-      state:
-        at < 0
-          ? [...changes, next]
-          : changes.map((other, i) => (i === at ? next : other)),
-    },
-  };
-}
-
-// A value's change from an `expand`, which keeps the edit id that the delta's
-// own change of the value names.
-function mergeValue(current: KeyDelta | undefined, change: KeyDelta): KeyDelta | undefined {
-  if (!isValueDelta(change)) return current;
-  const next: ValueDelta = change.unset === true ? { unset: true } : { set: change.set };
-  if (current === undefined || !isValueDelta(current)) return next;
-  if (current.unset === next.unset && jsonEqual(current.set, next.set)) return current;
-  return current.edit === undefined ? next : { ...next, edit: current.edit };
-}
-
-// What an `expand` returned for a collection, without the entries the given
-// delta adds and the fields it sets or unsets itself.
-function held(change: CollectionDelta, given: CollectionDelta | undefined): CollectionDelta {
-  if (given === undefined) return change;
-  const fields = (id: string) => [
-    ...Object.keys(own(given.mod ?? {}, id)?.set ?? {}),
-    ...(own(given.mod ?? {}, id)?.unset ?? []),
-  ];
-  return {
-    ...(change.rm === undefined ? {} : { rm: change.rm }),
-    ...(change.add === undefined
-      ? {}
-      : {
-          add: Object.fromEntries(
-            Object.entries(change.add).filter(([id]) => !Object.hasOwn(given.add ?? {}, id)),
-          ),
-        }),
-    ...(change.mod === undefined
-      ? {}
-      : {
-          mod: Object.fromEntries(
-            Object.entries(change.mod).map(([id, entry]) => [
-              id,
-              {
-                ...(entry.set === undefined
-                  ? {}
-                  : {
-                      set: Object.fromEntries(
-                        Object.entries(entry.set).filter(([key]) => !fields(id).includes(key)),
-                      ),
-                    }),
-                ...(entry.unset === undefined
-                  ? {}
-                  : { unset: entry.unset.filter((key) => !fields(id).includes(key)) }),
-              },
-            ]),
-          ),
-        }),
-  };
-}
-
-function mergeCollection(
-  current: CollectionDelta | undefined,
-  change: CollectionDelta,
-): CollectionDelta | undefined {
-  const base = current ?? {};
-  let grew = false;
-
-  const rm = [...(base.rm ?? [])];
-  for (const id of change.rm ?? []) {
-    if (!rm.includes(id)) {
-      rm.push(id);
-      grew = true;
+// What is wrong with what a board class's `update` returned: no array of
+// patches, or a patch outside the properties that the class adds itself.
+function misplaced(cls: string, adds: readonly string[], patches: unknown): string[] {
+  if (!Array.isArray(patches)) {
+    return [`The board class "${cls}" updated the delta with no array of patches.`];
+  }
+  const failures: string[] = [];
+  for (const patch of patches as unknown[]) {
+    const problems = malformed(patch);
+    if (problems.length > 0) {
+      failures.push(`A patch that the board class "${cls}" updated the delta with ${problems.join(", ")}.`);
+      continue;
+    }
+    const { path } = patch as Patch;
+    const property = pointer(path)?.[0] ?? "";
+    if (!adds.includes(property)) {
+      failures.push(
+        `The board class "${cls}" updated the delta with a patch at "${path}", outside the properties it adds.`,
+      );
     }
   }
+  return failures;
+}
 
-  const add: Record<string, Entry> = { ...base.add };
-  for (const [id, entry] of Object.entries(change.add ?? {})) {
-    if (!jsonEqual(own(add, id), entry)) {
-      add[id] = entry;
-      grew = true;
-    }
+// The delta with the patches that an `update` returned appended, or the same
+// delta where that adds nothing new, since an `update` may return what the
+// delta holds already.
+// What follows from a delta never overrides what the delta given to the store
+// says itself.
+// So a patch of an `update` is left out where its path is at, under or above a
+// path that one of the given delta's own patches changes.
+// An undo that puts back a property's old value then puts back that value, and
+// not one that an `update` makes up for a new object.
+function merge(delta: Delta, given: Delta, patches: readonly Patch[]): Delta {
+  const held = delta.patches ?? [];
+  const fixed = (given.patches ?? []).map(({ path }) => pointer(path) ?? []);
+
+  const added: Patch[] = [];
+  for (const patch of patches) {
+    const parts = pointer(patch.path) ?? [];
+    if ([...held, ...added].some((other) => same(other, patch))) continue;
+    if (fixed.some((path) => overlap(path, parts))) continue;
+    added.push(patch);
   }
 
-  const mod: Record<string, NonNullable<CollectionDelta["mod"]>[string]> = {
-    ...base.mod,
-  };
-  for (const [id, entry] of Object.entries(change.mod ?? {})) {
-    const was = own(mod, id);
-    const set = { ...was?.set, ...entry.set };
-    const unset = [...new Set([...(was?.unset ?? []), ...(entry.unset ?? [])])];
-    const next = {
-      ...was,
-      ...(Object.keys(set).length === 0 ? {} : { set }),
-      ...(unset.length === 0 ? {} : { unset }),
-    };
-    if (!jsonEqual(was, next)) {
-      mod[id] = next;
-      grew = true;
-    }
-  }
+  if (added.length === 0) return delta;
+  return { ...delta, patches: [...held, ...added] };
+}
 
-  if (!grew) return current;
-  return {
-    ...(rm.length === 0 ? {} : { rm }),
-    ...(Object.keys(add).length === 0 ? {} : { add }),
-    ...(Object.keys(mod).length === 0 ? {} : { mod }),
-  };
+function same(a: Patch, b: Patch): boolean {
+  return a.op === b.op && a.path === b.path && jsonEqual(a.value, b.value);
 }

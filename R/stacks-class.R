@@ -1,10 +1,10 @@
 #' Similar to [`blocks`][new_block_class()] and [`links`][new_link()], multiple
-#' stacks can be handled using `stacks` container objects. These guarantee
-#' that the IDs given (implemented as [base::names()]) are unique and, as every
-#' ID, strings that are neither empty nor made of digits alone, while a stack
-#' passed without a name has no ID, which the client mints when it opens the
-#' board. They ensure further consistency criteria, such as disallowing
-#' membership in multiple stacks at the same time for a given block.
+#' stacks can be handled using `stacks` container objects.
+#' These guarantee that their IDs (implemented as [base::names()]) are unique
+#' and, as every ID, strings that are neither empty nor made of digits alone.
+#' A stack passed without a name gets an ID that [rand_names()] draws.
+#' They ensure further consistency criteria, such as disallowing membership in
+#' multiple stacks at the same time for a given block.
 #'
 #' Stack container objects (`stacks` objects) can be created with `stacks()`
 #' or `as_stacks()` and inheritance can be tested via `is_stacks()`. Further
@@ -19,7 +19,15 @@ stacks <- function(...) {
 
   args <- lapply(args, as_stack)
 
-  names(args) <- ids_or_empty(names(args), length(args))
+  if (is.null(names(args))) {
+    names(args) <- rand_names(n = length(args))
+  }
+
+  miss <- is.na(names(args)) | names(args) == ""
+
+  if (any(miss)) {
+    names(args)[miss] <- rand_names(names(args)[!miss], sum(miss))
+  }
 
   validate_stacks(
     new_vctr(args, class = "stacks")
@@ -55,8 +63,7 @@ validate_stacks <- function(x) {
     )
   }
 
-  ids <- ids_or_empty(names(x), length(x))
-  ids <- ids[nzchar(ids)]
+  ids <- coal(names(x), rep(NA_character_, length(x)))
 
   validate_ids(ids, "Stack", "stacks_names_invalid")
 

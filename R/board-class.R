@@ -7,30 +7,35 @@
 #' available for retrieving board components (see [board_blocks()]).
 #'
 #' A board holds what the client's board holds: its blocks, links and stacks,
-#' the values of the board options that the script gives, its ID and name, and
-#' the front-end's state. The front-end's state is made of the components
-#' passed in `...`, such as those that a front-end adds through a constructor
-#' of its own. Such a constructor names the board's class in `class`, which
-#' picks the front-end that the board is made for (see [board_front_end()]). A
-#' board takes no board options by default, since a board holds the value of a
+#' the values of the board options that the script gives, its ID and name,
+#' its class and the properties that its class adds beside core's.
+#' Those properties are the components passed in `...`, such as the views that a
+#' constructor like blockr.dock's `new_dock_board()` adds.
+#' Such a constructor names the board's class in `class`.
+#' R writes the board's class vector for the client.
+#' The client builds the board as the first class in the vector that a loaded
+#' package defines in JavaScript, and the front-end that the class names in R
+#' draws the board (see [board_front_end()]).
+#' A board takes no board options by default, since a board holds the value of a
 #' board option only once something sets it (see [new_board_options()]).
 #'
 #' A board has an ID, which identifies it, and a name, which the user calls it
-#' by. A script may leave either out, as it may leave out the IDs of blocks,
-#' links and stacks, since R mints no IDs: the client mints each missing one
-#' when it opens the board, and names a board without a name after its ID.
-#' Every ID that is given, a board's as well as a block's, a link's or a
-#' stack's, is a string that is neither empty nor made of digits alone, since
-#' a JavaScript object puts keys that look like integers first, and the
-#' constructors refuse any other.
+#' by.
+#' A script may leave either out, as it may leave out the IDs of blocks, links
+#' and stacks: R draws each missing ID with [rand_names()], and names a board
+#' without a name after its ID, as `"Calm heron"` for `calm_heron`.
+#' Every ID, a board's as well as a block's, a link's or a stack's, is a string
+#' that is neither empty nor made of digits alone, since a JavaScript object
+#' puts keys that look like integers first, and the constructors refuse any
+#' other.
 #'
 #' @param blocks Set of blocks
 #' @param links Set of links
 #' @param stacks Set of stacks
 #' @param options Board options, with the values the script gives
-#' @param ... The front-end's state, by key
-#' @param id Board ID, which `NULL` leaves for the client to mint
-#' @param name Board name, which `NULL` leaves for the client to set
+#' @param ... The properties that the board's class adds, by name
+#' @param id Board ID, which [rand_names()] draws where it is `NULL`
+#' @param name Board name, which is made from the ID where it is `NULL`
 #' @param class Board sub-class
 #'
 #' @examples
@@ -63,6 +68,12 @@ new_board <- function(blocks = list(), links = list(), stacks = list(),
 
   links <- complete_unary_inputs(links, blocks)
 
+  id <- coal(id, rand_names(), fail_all = FALSE)
+
+  if (is.null(name) && is_string(id)) {
+    name <- id_to_sentence_case(id)
+  }
+
   validate_board(
     structure(
       list(
@@ -81,10 +92,11 @@ new_board <- function(blocks = list(), links = list(), stacks = list(),
 
 complete_unary_inputs <- function(x, blocks) {
 
-  ids <- ids_or_empty(names(blocks), length(blocks))
-  ids <- ids[nzchar(ids) & int_ply(blocks, block_arity) == 1L]
+  ids <- names(blocks)
 
-  to_complete <- x$to %in% ids & (is.na(x$input) | nchar(x$input) == 0L)
+  to_complete <- x$to %in% ids[int_ply(blocks, block_arity) == 1L] & (
+    is.na(x$input) | nchar(x$input) == 0L
+  )
 
   inputs <- lapply(blocks[unique(x$to[to_complete])], block_data_inputs)
 
@@ -95,10 +107,7 @@ complete_unary_inputs <- function(x, blocks) {
 
 validate_board_blocks_links <- function(blocks, links) {
 
-  # A block without an ID is in no link
-  ids <- ids_or_empty(names(blocks), length(blocks))
-  blocks <- blocks[nzchar(ids)]
-  ids <- ids[nzchar(ids)]
+  ids <- names(blocks)
 
   if (!all(links$from %in% ids) || !all(links$to %in% ids)) {
     blockr_abort(
@@ -188,9 +197,9 @@ validate_board.board <- function(x) {
 
   id <- board_id(x)
 
-  if (!(is.null(id) || is_string(id))) {
+  if (!is_string(id)) {
     blockr_abort(
-      "Expecting the board ID to be `NULL` or a string.",
+      "Expecting the board ID to be a string.",
       class = "board_id_invalid"
     )
   }
@@ -199,9 +208,9 @@ validate_board.board <- function(x) {
 
   name <- board_name(x)
 
-  if (!(is.null(name) || is_string(name))) {
+  if (!is_string(name) || is.na(name)) {
     blockr_abort(
-      "Expecting the board name to be `NULL` or a string.",
+      "Expecting the board name to be a string.",
       class = "board_name_invalid"
     )
   }
@@ -245,7 +254,7 @@ as.matrix.board <- function(x, ...) {
   block_ids <- board_block_ids(x)
   links <- board_links(x)
 
-  as_adjacency_matrix(links$from, links$to, block_ids[nzchar(block_ids)])
+  as_adjacency_matrix(links$from, links$to, block_ids)
 }
 
 #' @rdname topo_sort
@@ -296,7 +305,7 @@ is_acyclic.board <- function(x) {
 #' while ID getters (`board_block_ids()`, `board_link_ids()`,
 #' `board_stack_ids()` and `board_option_ids()`) return character vectors, as
 #' does `available_stack_blocks()`, and `board_id()` and `board_name()` return
-#' a string, or `NULL` where the board has none.
+#' a string.
 #'
 #' @export
 board_blocks <- function(x) {
@@ -384,8 +393,7 @@ available_stack_blocks <- function(x, stacks = board_stacks(x),
 
 #' @section ID and name:
 #' The board's ID, which identifies it, is available as `board_id()`, and its
-#' name, which the user calls it by, as `board_name()`. Where the script left
-#' either out, it is `NULL` until the client fills it in.
+#' name, which the user calls it by, as `board_name()`.
 #'
 #' @rdname board_blocks
 #' @export
@@ -399,6 +407,116 @@ board_id <- function(x) {
 board_name <- function(x) {
   check_board(x)
   attr(x, "name", exact = TRUE)
+}
+
+#' Board classes in R
+#'
+#' A board class names the module that draws its boards, its front-end, through
+#' its method of `board_front_end()`, which the package that defines the class
+#' registers as it registers any S3 method.
+#' The method returns the ID of a module that a package declares with
+#' [register_module()], as `"blockr.dock-dock"`, whatever the board holds.
+#' Core's class `board` names core's basic front-end, `blockr.core-basic`.
+#'
+#' The package whose namespace holds the method is the one that defines the
+#' class, so R learns a board class's package from its method, as the JSON
+#' board that [blockr_ser()] writes records it.
+#' R sends every board class that a loaded package names a front-end for, with
+#' its package, its front-end and its version, in its reply to `hello`.
+#' A class without a method of its own, such as one that an app script adds or
+#' one that a package defines in JavaScript alone, comes from no package, and
+#' its parent's front-end draws its boards, as S3 dispatch gives it.
+#'
+#' The version of a class is the version of the shape of the properties that it
+#' adds, a whole number from 1, which its method of `board_version()` gives,
+#' and which is 1 for a class with a front-end but no such method.
+#' A package raises it as it changes that shape, so that the client migrates
+#' the properties that a JSON board holds of an older version.
+#'
+#' @param x Board
+#' @param ... Generic consistency
+#'
+#' @examples
+#' board_front_end(new_board())
+#' board_version(new_board())
+#'
+#' @return `board_front_end()` returns the ID of the module that draws boards of
+#' the class, a string, and `board_version()` the class's version, a whole
+#' number.
+#'
+#' @export
+board_front_end <- function(x, ...) {
+  UseMethod("board_front_end")
+}
+
+#' @rdname board_front_end
+#' @export
+board_front_end.board <- function(x, ...) {
+  "blockr.core-basic"
+}
+
+#' @rdname board_front_end
+#' @export
+board_version <- function(x, ...) {
+  UseMethod("board_version")
+}
+
+#' @rdname board_front_end
+#' @export
+board_version.board <- function(x, ...) {
+  1L
+}
+
+# The package that defines a board class: the one whose namespace holds the
+# class's method of `board_front_end()`, or `NULL` for a class without one or
+# with one that an app script defines.
+class_package <- function(class) {
+
+  method <- class_method("board_front_end", class)
+
+  if (is.function(method)) utils::packageName(environment(method))
+}
+
+# The version of a board class: what its own method of `board_version()`
+# returns, or 1 for a class without one.
+class_version <- function(class) {
+
+  method <- class_method("board_version", class)
+
+  if (!is.function(method)) {
+    return(1L)
+  }
+
+  version <- method(structure(list(), class = unique(c(class, "board"))))
+
+  if (!is_count(version, allow_zero = FALSE)) {
+    blockr_abort(
+      "The method of `board_version()` for board class {class} returns no ",
+      "whole number of 1 or more.",
+      class = "board_version_invalid"
+    )
+  }
+
+  version
+}
+
+# The method of a generic that a board class has of its own, or `NULL`.
+class_method <- function(generic, class) {
+  utils::getS3method(
+    generic,
+    class,
+    optional = TRUE,
+    envir = asNamespace("blockr.core")
+  )
+}
+
+# The versions of the classes in a board's class vector that loaded packages
+# name front-ends for, by class, as a JSON board records them.
+board_versions <- function(classes) {
+
+  known <- Filter(function(cls) not_null(class_package(cls)), classes)
+
+  as_json_object(set_names(lapply(known, class_version), known))
 }
 
 #' @export
@@ -416,8 +534,8 @@ format.board <- function(x, ...) {
 
   out <- c(
     out,
-    if (not_null(board_id(x))) paste0("ID: \"", board_id(x), "\""),
-    if (not_null(board_name(x))) paste0("Name: \"", board_name(x), "\"")
+    paste0("ID: \"", board_id(x), "\""),
+    paste0("Name: \"", board_name(x), "\"")
   )
 
   blk <- board_blocks(x)
@@ -444,7 +562,7 @@ format.board <- function(x, ...) {
       out,
       paste0("Links[", length(lnk), "]:"),
       "",
-      paste0(id_prefix(names(lnk)), format(lnk))
+      paste0(names(lnk), ": ", format(lnk))
     )
   }
 
@@ -485,10 +603,7 @@ print.board <- function(x, ...) {
 #' @export
 str_value.board <- function(x, ...) {
   paste(
-    paste0(
-      "<", class(x)[1L], ">",
-      if (not_null(board_name(x))) paste0(" \"", board_name(x), "\"")
-    ),
+    paste0("<", class(x)[1L], "> \"", board_name(x), "\""),
     str_value(board_blocks(x)),
     str_value(board_links(x)),
     str_value(board_stacks(x)),

@@ -1,21 +1,22 @@
-import type { OpenReply } from "../protocol/index.ts";
-import type { Board, OpeningBoard, SavedBoard } from "../types/board.ts";
-import type { Registrations } from "./registrations.ts";
+import type { HelloReply } from "../protocol/index.ts";
+import type { Board, JsonBoard, OptionId } from "../types/board.ts";
+import type { Json } from "../types/json.ts";
+import type { Built, Registrations } from "./registrations.ts";
 export declare const FORMAT = 1;
-export declare const BASIC_FRONT_END = "blockr.core-basic";
 export type Dropped = {
+    readonly package: string;
+    readonly version: string;
+} | {
     readonly block: string;
     readonly registry_id: string;
     readonly package: string | null;
-} | {
-    readonly front_end: string;
-    readonly package: string | null;
 };
 export declare function parse(text: string): unknown;
-export declare function checkFile(file: unknown): SavedBoard;
-export declare function keyed(opening: OpeningBoard): Board;
-export declare function openFile(file: SavedBoard, reply: OpenReply, registrations: Registrations): {
+export declare function checkJsonBoard(json: unknown): JsonBoard;
+export declare function classOf(board: Board): readonly string[];
+export declare function openJsonBoard(json: JsonBoard, reply: Pick<HelloReply, "packages" | "block_registry" | "board_classes" | "option_versions">, registrations: Registrations): {
     board: Board;
     dropped: Dropped[];
+    built: Built;
 };
-export declare function frontEndOf(board: Board, frontEnds: Readonly<Record<string, unknown>>): string;
+export declare function required(board: Board, built: Built, registrations: Registrations): Promise<Readonly<Record<OptionId, Json>>>;

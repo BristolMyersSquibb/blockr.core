@@ -3,7 +3,22 @@
   "type": "object",
   "properties": {
     "renderer": {
-      "type": "string"
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "module": {
+          "type": "string"
+        },
+        "css": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "module"
+      ]
     },
     "text": {
       "type": "string"

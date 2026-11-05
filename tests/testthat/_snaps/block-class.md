@@ -37,6 +37,5 @@
       print(new_class_head_block)
     Output
       <block_constructor> head_block
-      function (n = 6L, direction = c("head", "tail"), block_name = NULL, 
-          visible = NULL) 
+      function (n = 6L, direction = c("head", "tail"), block_name = NULL) 
 

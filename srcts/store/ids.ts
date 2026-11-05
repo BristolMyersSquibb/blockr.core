@@ -1,7 +1,7 @@
-// Ids, which the client mints for the objects and boards it creates and for
-// each object of a board that R sends without one, in the shapes in which R's
-// rand_names() draws them as well, from the same words (words.ts), so that an
-// id looks the same whichever side minted it.
+// Ids, which the client mints for the objects and boards it creates, in the
+// shapes in which R's rand_names() draws them for what an app script leaves
+// out, from the same words (words.ts), so that an id looks the same whichever
+// side minted it.
 
 import { adjectives, animals } from "./words.ts";
 

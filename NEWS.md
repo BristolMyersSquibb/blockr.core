@@ -15,13 +15,13 @@
 * Boards have an ID and a name, which `new_board()` takes as `id` and `name`
   and `board_id()` and `board_name()` read. The ID takes the place of the one
   `serve()` took until now, and the name that of the `board_name` board
-  option, which is gone with `new_board_name_option()`. R no longer mints IDs:
-  a board, block, link or stack that a script leaves without one has none,
-  where `rand_names()` used to draw it, and the client mints it when it opens
-  the board, as it names a board without a name after its ID. An ID that is
-  given, a board's, a block's, a link's or a stack's, is a string that is
+  option, which is gone with `new_board_name_option()`.
+  Where a script leaves out the ID of a board, a block, a link or a stack,
+  `rand_names()` draws it, and a board without a name is named after its ID,
+  as `"Calm heron"` for `calm_heron`.
+  An ID, a board's, a block's, a link's or a stack's, is a string that is
   neither empty nor made of digits alone, and the constructors refuse any
-  other, naming it (#427).
+  other, naming it (#427, #429).
 * The IDs that `rand_names()` draws take the shapes in which the client mints
   them, so that an ID looks the same whichever side drew it. The blockr option
   `rand_id`, or the argument of that name, names the shape, where the option
@@ -64,10 +64,14 @@
   output as JSON, so nothing assumes a table. The class vector of an output
   ends in `block_output`, and `new_block_output()` makes one. An output may
   hold one binary body, which `new_reply_body()` makes from a raw vector or a
-  file. A package registers each output class with `register_output_class()`.
-  Registration takes the JSON Schema that R writes the outputs by, and the
-  requests that the class's renderers call. The function
-  `run_output_class_request()` runs such a request as R does (#422).
+  file. The package that defines an output class gives what R needs of it
+  through its methods of three generics, so that a subclass has what its class
+  has unless it gives its own: `output_schema()` gives the JSON Schema that R
+  writes the outputs by, which `read_json_schema()` reads from a file that the
+  package ships, `output_requests()` the requests that the class's renderers
+  call, each of which `volatile()` may mark, and `output_renderer()` the
+  renderer that draws the outputs. The function `run_output_class_request()`
+  runs such a request as R does (#422, #465).
 * Core defines three output classes. A table output holds one page of rows
   and the total row count, which may be unknown, as for a lazy table. Its
   coercion `as_table_output()` pages a data frame by the board option
@@ -79,53 +83,68 @@
   `block_eval()` method, so that a change of theme draws the plot again
   without evaluating the block (#422).
 * A package declares in R, from its `.onLoad()`, the modules of its client
-  that R serves: its front-ends with `register_front_end()`, each with its
-  module and the board class it draws, its startup module with
-  `register_startup_module()` and the modules it offers other packages with
-  `register_module()`. A front-end or a module gets the ID `{pkg}-{name}`,
-  two front-ends declared for one board class are an error naming both, and
-  the startup modules keep the order in which packages declare them, which
-  puts each after those of the packages its NAMESPACE imports. R picks a
-  board's front-end with `board_front_end()`, as the one declared for the
-  most specific class in the board's class vector, so that every board has
-  core's basic front-end, `blockr.core-basic`, which core declares for
-  `board`, at least (#424).
-* An output class's registration with `register_output_class()` takes its
-  default renderer, the module that draws its outputs, under the ID
-  `{pkg}-{class}`. Core's are `blockr.core-table_output`,
-  `blockr.core-text_output` and `blockr.core-plot_output`. Another package
-  declares a renderer of its own with `register_renderer()`, under the ID
-  `{pkg}-{name}`, for one output class or one board option, and an app draws
-  with it by naming it in the blockr option `renderers`, so loading a package
-  changes nothing. Such a renderer may bring requests of its own, which
-  `run_output_class_request()` runs when given the renderer. The function
-  `pick_renderers()` gives the renderer that R picks for each output class and
-  board option, whatever the board's front-end (#425).
+  that R serves: its startup module with `register_startup_module()` and the
+  modules it offers other packages with `register_module()`.
+  A module gets the ID `{pkg}-{name}`.
+  The startup modules keep the order in which packages declare them, which
+  puts each after those of the packages its NAMESPACE imports.
+  A front-end is such a module, which a board class names through its method
+  of the generic `board_front_end()`, as core's class `board` names core's
+  basic front-end, `blockr.core-basic`.
+  The package whose namespace holds the method is the one that defines the
+  class, so that R knows a board class's package (#424, #465).
+* A renderer, which `new_renderer()` makes, is a module that draws the
+  outputs of an output class or the value of a board option, under the ID
+  `{pkg}-{name}`. The method of `output_renderer()` for an output class gives
+  the renderer that draws its outputs, as core's give
+  `blockr.core-table_output`, `blockr.core-text_output` and
+  `blockr.core-plot_output`, and R sends it in each output, with where it
+  serves the renderer's module. Another package offers a renderer through a
+  function that makes it, and an app draws with it by naming it in the blockr
+  option `renderers`, for an output class or a board option, which a method
+  takes with `chosen_renderer()`, so loading a package changes nothing. Such a
+  renderer may bring requests of its own, which `run_output_class_request()`
+  runs when given the renderer (#425, #465).
 * R builds what it tells the client about the packages it has loaded, in its
   reply to `hello`, without building a block. That is
   each block class's entry in the block registry, with the metadata that
   registration gives, `link` as `url`, its inputs, the schema of its state,
-  the state a new block starts with, its arg specs and its requests. Beside
-  the entries come the versions of the packages, the front-ends, the startup
-  modules in R's order, the modules that packages offer each other and the
-  renderers that R picked. R serves each module and stylesheet at a URL that
+  the state a new block starts with, its arg specs and its requests.
+  Beside the entries come the versions of the packages, the startup modules
+  in R's order, the modules that packages offer each other, front-ends among
+  them, the board classes that packages name front-ends for, each with its
+  package and its front-end, the versions that packages give board options,
+  and the renderers that the app names for board options.
+  R serves each module and stylesheet at a URL that
   holds a hash of the file's content, so that no browser runs a changed file
   from its cache. It serves a package's files under the package's name, and the
   module of a block class from outside a package at a URL of its own, read
   from the path given, and nothing beside them. Registration refuses a class
   whose starting state is not a plain value, and an arg spec whose example is
-  not one either (#426).
-* R writes the board that an app script builds with `blockr_ser()`, as R
-  sends it to the client: its ID and name where it has them, its blocks,
-  links and stacks as arrays, each with the ID the script gave it, the
-  front-end it is made for, with the front-end's state, and the values of the
-  board options the script gives. It writes each value by a JSON Schema, so
-  that no shape depends on R's JSON writer: core's objects by the schema of
-  the board that the build generates from its TypeScript types into
-  `inst/board`, a block's state by the schema its class's UI ships, and a key
-  of the front-end's state or a board option's value by the schema its
-  package ships beside its startup module, as core ships those of its board
-  options beside its runtime. Writing a board registers the block classes
+  not one either (#426, #465).
+* R writes the board that an app script builds with `blockr_ser()` as a JSON
+  board, the format in which the client saves a board.
+  A JSON board holds the board, with its ID and name, its class vector, its
+  blocks, links and stacks by ID and the values of the board options the
+  script gives, beside the version of the format and the versions of the
+  packages that the board's content comes from: those of the board's classes,
+  by their methods of `board_front_end()`, and those of the blocks' classes.
+  The board records the version of each of its classes, which a method of the
+  generic `board_version()` gives, each block the version of its class's
+  state, which `new_block_class()` takes as `version`, and each board option's
+  value the version of its shape, which a method of the generic
+  `board_option_version()` gives, so that the client migrates what a JSON
+  board holds by the versions of its shapes rather than of packages.
+  Beside them it writes the properties that the board's class adds, which are
+  the components that the board holds besides core's, such as those that a
+  board class's constructor passes to `new_board()`.
+  It writes each value by a JSON Schema, so that no shape depends on R's JSON
+  writer: core's objects by the schema of a JSON board that the build
+  generates from its TypeScript types into `inst/board`, a block's state by
+  the schema its class's UI ships, and a property of the board's class or a
+  board option's value by the schema its package ships beside its startup
+  module, as core ships those of its board options beside its runtime.
+  Writing a board registers the block classes
   that its blocks refer to, from the blocks themselves, and fails on a value
   that JSON cannot hold, such as a function, so that such a board fails as
   the script runs. The board, link and stack constructors lose `ctor` and
@@ -138,7 +157,7 @@
   no board options by default, and `as_table_output()` pages a data frame by
   the `n_rows` that the client sends. Nothing in R reads a board back, since
   the client opens every board itself, so `blockr_deser()` goes, and a file
-  of today's stack is converted by a script of its own (#428).
+  of today's stack is converted by a script of its own (#428, #429, #465).
 * Core's twelve built-in blocks are block classes. Core exports each class
   beside its constructor, such as `head_block` beside `new_head_block()`, and
   registers ten of them when it loads, under IDs such as

@@ -1,7 +1,7 @@
 // The block registry's entries, which R sends the client with its reply to
-// `hello` and to every `open`: each block class by registry id, with what the
-// client cannot read off a class that stays in R. They are read-only, for
-// neither side to edit.
+// `hello`: each block class by registry id, with what the client cannot read
+// off a class that stays in R.
+// They are read-only, for neither side to edit.
 
 import type { OptionId, RegistryId } from "./board.ts";
 import type { Json, JsonSchema } from "./json.ts";
@@ -25,6 +25,9 @@ export interface RegistryEntry {
   // beside it, if it has one.
   readonly module: string;
   readonly css?: string;
+  // The version of the shape of the block's state, which a package raises as
+  // it changes that shape, and which a JSON board records with each block.
+  readonly version: number;
   // The schema of the block's state, as its module ships it.
   readonly schema: JsonSchema;
   // What a new block starts with, from `expr` called without args.

@@ -137,15 +137,6 @@ protocol_r_values <- function() {
         )
       )
     ),
-    `hello-packages` = list(
-      list(
-        proto_hello_reply(
-          block_registry = proto_registry("dataset_block", "head_block"),
-          lock = NULL,
-          board = proto_app_board()
-        )
-      )
-    ),
     `hello-locked` = list(
       list(
         proto_hello_reply(
@@ -159,20 +150,24 @@ protocol_r_values <- function() {
       list(
         proto_hello_reply(
           block_registry = proto_registry("head_block"),
-          renderers = proto_renderers()["blockr.core-table_output"],
+          renderers = obj(),
           lock = NULL,
-          board = obj(
-            front_end = proto_basic(),
-            blocks = list(
-              proto_block(
-                "blockr.core-head_block",
-                obj(n = 6L, direction = "head"),
-                "Head"
-              )
-            ),
-            links = list(),
-            stacks = list(),
-            options = obj(n_rows = 50L)
+          board = proto_json_board(
+            obj(
+              id = "quick_wren",
+              class = proto_class(),
+              name = "Quick wren",
+              blocks = obj(
+                tidy_crab = proto_block(
+                  "blockr.core-head_block",
+                  obj(n = 6L, direction = "head"),
+                  "Head"
+                )
+              ),
+              links = obj(),
+              stacks = obj(),
+              options = obj(n_rows = proto_option(50L))
+            )
           ),
           bound = I("data")
         )
@@ -185,7 +180,7 @@ protocol_r_values <- function() {
           lock = NULL,
           # R passes the file's text on as it is, as a string of class json,
           # which encode_message() writes here from R values.
-          file = encode_message(proto_served_file())
+          board = encode_message(proto_served_file())
         )
       )
     ),
@@ -202,42 +197,7 @@ protocol_r_values <- function() {
             capabilities = I(c("cancel", "progress"))
           ),
           declared_fields(),
-          obj(
-            lock = NULL,
-            board = obj(
-              front_end = obj(
-                id = "blockr.test-grid",
-                state = obj(),
-                attrs = obj()
-              ),
-              blocks = list(),
-              links = list(),
-              stacks = list(),
-              options = obj()
-            )
-          )
-        )
-      )
-    ),
-    open = list(
-      list(
-        c(
-          obj(
-            id = "2",
-            status = "ok",
-            packages = obj(blockr.core = "0.2.0", blockr.io = "0.2.0"),
-            block_registry = proto_registry(
-              "dataset_block", "head_block", "write_block"
-            )
-          ),
-          proto_served(
-            startup_modules = list(
-              obj(
-                package = "blockr.io",
-                module = "blockr.io/startup.js?v=9d1b3e66"
-              )
-            )
-          )
+          obj(lock = NULL, board = proto_declared_board())
         )
       )
     ),
@@ -249,19 +209,6 @@ protocol_r_values <- function() {
           values = obj(
             evaluation_queue = 3L,
             background_evaluation_delay = "30"
-          )
-        )
-      )
-    ),
-    `open-locked` = list(
-      list(
-        proto_error(
-          "2",
-          proto_condition(
-            "error",
-            c("board_locked", "blockr_error", "rlang_error", "error",
-              "condition"),
-            "The board is locked, so it opens no other board."
           )
         )
       )
@@ -529,7 +476,7 @@ proto_pptx <- function() {
 }
 
 proto_hello_reply <- function(block_registry, lock, ...,
-                              renderers = proto_renderers()) {
+                              renderers = obj()) {
 
   served <- proto_served()
   served$renderers <- renderers
@@ -548,36 +495,58 @@ proto_hello_reply <- function(block_registry, lock, ...,
   )
 }
 
-# What the replies to `hello` and `open` of a core app say of the modules that
-# R serves.
-proto_served <- function(startup_modules = list()) {
+# What the reply to `hello` of a core app says of the modules that R serves,
+# among them core's basic front-end, which core's board class names.
+proto_served <- function() {
   obj(
-    front_ends = obj(
+    startup_modules = list(),
+    modules = obj(
       `blockr.core-basic` = obj(
         module = proto_js("basic.js", "0f3d8e21"),
         css = proto_js("basic.css", "6a9b2c4e")
       )
     ),
-    startup_modules = startup_modules,
-    modules = obj(),
-    renderers = proto_renderers()
+    board_classes = obj(
+      board = obj(
+        package = "blockr.core",
+        front_end = "blockr.core-basic",
+        version = 1L
+      )
+    ),
+    option_versions = obj(),
+    renderers = obj()
   )
 }
 
-proto_renderers <- function() {
-  obj(
-    `blockr.core-table_output` = obj(
-      module = proto_js("basic-table.js", "b7e2a915"),
-      class = "table_output"
-    ),
-    `blockr.core-text_output` = obj(
-      module = proto_js("basic-text.js", "3c8f61d0"),
-      class = "text_output"
-    ),
-    `blockr.core-plot_output` = obj(
-      module = proto_js("basic-plot.js", "f19d4a73"),
-      class = "plot_output"
-    )
+# The URLs at which the fixtures have R serve the modules of core's renderers,
+# by their paths in the package, which stand in for URLs that hold a hash of
+# each module's file, so that the fixtures do not change with core's JS.
+proto_renderer_urls <- function() {
+  list(
+    `js/basic-table.js` = proto_js("basic-table.js", "b7e2a915"),
+    `js/basic-text.js` = proto_js("basic-text.js", "3c8f61d0"),
+    `js/basic-plot.js` = proto_js("basic-plot.js", "f19d4a73")
+  )
+}
+
+# Has R serve the modules of core's renderers at the URLs that the fixtures
+# give them until `frame` ends.
+local_fixture_renderer_urls <- function(frame = parent.frame()) {
+
+  served <- served_url
+
+  testthat::local_mocked_bindings(
+    served_url = function(module, suffix = NULL) {
+
+      url <- if (identical(module[["package"]], "blockr.core") &&
+                   is.null(suffix)) {
+        proto_renderer_urls()[[module[["path"]]]]
+      }
+
+      if (is.null(url)) served(module, suffix) else url
+    },
+    .package = "blockr.core",
+    .env = frame
   )
 }
 
@@ -607,8 +576,8 @@ proto_request <- function(inputs = character(), state_args = character(),
   )
 }
 
-# The entries of the block classes named, of core's and one of blockr.io's, as
-# R sends them in the block registry, by registry id.
+# The entries of the block classes named, of core's, as R sends them in the
+# block registry, by registry id.
 proto_registry <- function(...) {
 
   entries <- list(
@@ -621,6 +590,7 @@ proto_registry <- function(...) {
       icon = proto_icon("database"),
       inputs = I(character()),
       module = proto_js("dataset-block.js", "5e0c8b1d"),
+      version = 1L,
       schema = obj(
         type = "object",
         properties = obj(dataset = proto_string(), package = proto_string()),
@@ -668,6 +638,7 @@ proto_registry <- function(...) {
       inputs = I("data"),
       module = proto_js("head-block.js", "9a41f2c7"),
       css = proto_js("head-block.css", "c03e7b58"),
+      version = 1L,
       schema = obj(
         type = "object",
         properties = obj(
@@ -704,6 +675,7 @@ proto_registry <- function(...) {
       icon = proto_icon("union"),
       inputs = I(c("x", "y")),
       module = proto_js("merge-block.js", "77d0a9e3"),
+      version = 1L,
       schema = obj(
         type = "object",
         properties = obj(
@@ -742,6 +714,7 @@ proto_registry <- function(...) {
       icon = proto_icon("funnel"),
       inputs = I("data"),
       module = proto_js("subset-block.js", "2b6f04d9"),
+      version = 1L,
       schema = obj(
         type = "object",
         properties = obj(subset = proto_string(), select = proto_string()),
@@ -774,6 +747,7 @@ proto_registry <- function(...) {
       icon = proto_icon("chevron-bar-expand"),
       inputs = I("..."),
       module = proto_js("rbind-block.js", "e8c1d6a2"),
+      version = 1L,
       schema = obj(
         type = "object",
         properties = obj(),
@@ -794,6 +768,7 @@ proto_registry <- function(...) {
       icon = proto_icon("dice-5"),
       inputs = I("data"),
       module = proto_js("scatter-block.js", "41a7e0bf"),
+      version = 1L,
       schema = obj(
         type = "object",
         properties = obj(x = proto_string(), y = proto_string()),
@@ -823,6 +798,7 @@ proto_registry <- function(...) {
       icon = proto_icon("upload"),
       inputs = I(character()),
       module = proto_js("upload-block.js", "d5932c60"),
+      version = 1L,
       schema = obj(
         type = "object",
         properties = obj(file_path = proto_string()),
@@ -831,38 +807,6 @@ proto_registry <- function(...) {
       state = obj(),
       arguments = obj(),
       requests = obj(upload = proto_request(action = TRUE))
-    ),
-    # A class of blockr.io, which R registers once an open has it load the
-    # package.
-    write_block = obj(
-      id = "blockr.io-write_block",
-      name = "write block",
-      description = "Write data to a file",
-      keywords = I(c("write", "export", "save", "file")),
-      category = "output",
-      icon = proto_icon("floppy"),
-      inputs = I("..."),
-      module = "blockr.io/write-block.js?v=4c2e8a17",
-      schema = obj(
-        type = "object",
-        properties = obj(
-          directory = proto_string(),
-          filename = proto_string(),
-          format = obj(enum = I(c("csv", "xlsx", "parquet"))),
-          auto_write = obj(type = "boolean"),
-          args = obj(type = "object")
-        ),
-        additionalProperties = FALSE
-      ),
-      state = obj(
-        directory = "",
-        filename = "",
-        format = "csv",
-        auto_write = FALSE,
-        args = obj()
-      ),
-      arguments = obj(),
-      requests = obj()
     )
   )
 
@@ -871,150 +815,154 @@ proto_registry <- function(...) {
   set_names(unname(entries), chr_xtr(entries, "id"))
 }
 
-proto_basic <- function() {
-  obj(id = "blockr.core-basic", state = obj(), attrs = obj())
+# The class vector of a board of core's class.
+proto_class <- function() {
+  I("board")
 }
 
-# An object of a board, with its id first where it has one.
-proto_block <- function(registry_id, state, name, attrs = obj(), id = NULL) {
-  c(
-    proto_id(id),
-    obj(registry_id = registry_id, state = state, name = name, attrs = attrs)
+# The objects of a board, which its collections hold by id, a block with the
+# version of its class's state.
+proto_block <- function(registry_id, state, name) {
+  obj(registry_id = registry_id, version = 1L, state = state, name = name)
+}
+
+# The opening board of the app of the fixture hello-declared: the empty board
+# of class grid_board that its script built, with the id that R drew.
+proto_declared_board <- function() {
+  proto_json_board(
+    obj(
+      id = "calm_heron",
+      class = I(c("grid_board", "board")),
+      name = "Calm heron",
+      blocks = obj(),
+      links = obj(),
+      stacks = obj(),
+      options = obj()
+    ),
+    packages = obj(blockr.core = "0.2.0", blockr.test = "0.1.0"),
+    versions = obj(grid_board = 1L, board = 1L)
   )
 }
 
-proto_link <- function(from, to, input, id = NULL) {
-  c(proto_id(id), obj(from = from, to = to, input = input))
+# A board option's value as a JSON board holds it, with the version of its
+# shape.
+proto_option <- function(value, version = 1L) {
+  obj(value = value, version = version)
 }
 
-proto_stack <- function(name, blocks, id = NULL) {
-  c(proto_id(id), obj(name = name, blocks = I(blocks)))
+proto_link <- function(from, to, input) {
+  obj(from = from, to = to, input = input)
 }
 
-proto_id <- function(id) {
-  if (is.null(id)) list() else list(id = id)
+proto_stack <- function(name, blocks) {
+  obj(name = name, blocks = I(blocks))
+}
+
+# A board as a JSON board holds it, beside the format and the packages that
+# its content comes from, here core's alone, with the versions of its classes
+# after its class vector.
+proto_json_board <- function(board, packages = obj(blockr.core = "0.2.0"),
+                             versions = obj(board = 1L)) {
+
+  at <- match("class", names(board))
+
+  board <- c(board[seq_len(at)], list(versions = versions), board[-seq_len(at)])
+
+  obj(format = 1L, packages = packages, board = board)
 }
 
 # The sample board, which the fixtures of evaluations, requests and outputs
-# refer to, as R sends the one an app script built: its collections as arrays,
-# the link from a to f without an id, since the script gave it none, as it gave
-# the board none.
+# refer to, as a JSON board, as R sends the one an app script built, with the
+# ids that R drew for the board and for the link from a to f, which the script
+# gave none.
 proto_board <- function() {
-  obj(
-    front_end = proto_basic(),
-    name = "Iris review",
-    blocks = list(
-      proto_block(
-        "blockr.core-dataset_block",
-        obj(dataset = "iris", package = "datasets"),
-        "Iris",
-        id = "a"
+  proto_json_board(
+    obj(
+      id = "brisk_otter",
+      class = proto_class(),
+      name = "Iris review",
+      blocks = obj(
+        a = proto_block(
+          "blockr.core-dataset_block",
+          obj(dataset = "iris", package = "datasets"),
+          "Iris"
+        ),
+        b = proto_block(
+          "blockr.core-head_block",
+          obj(n = 6L, direction = "head"),
+          "Head"
+        ),
+        c = proto_block(
+          "blockr.core-merge_block",
+          obj(by = I("Species"), all_x = FALSE, all_y = FALSE),
+          "Merge"
+        ),
+        d = proto_block(
+          "blockr.core-subset_block",
+          obj(subset = "log(Sepal.Width - 3) > 0", select = ""),
+          "Wide sepals"
+        ),
+        e = proto_block("blockr.core-rbind_block", obj(), "Bind"),
+        f = proto_block(
+          "blockr.core-scatter_block",
+          obj(x = "Sepal.Length", y = "Sepal.Width"),
+          "Scatter"
+        )
       ),
-      proto_block(
-        "blockr.core-head_block",
-        obj(n = 6L, direction = "head"),
-        "Head",
-        id = "b"
+      links = obj(
+        ab = proto_link("a", "b", "data"),
+        ac = proto_link("a", "c", "x"),
+        bc = proto_link("b", "c", "y"),
+        ad = proto_link("a", "d", "data"),
+        be = proto_link("b", "e", ""),
+        de = proto_link("d", "e", ""),
+        keen_finch = proto_link("a", "f", "data")
       ),
-      proto_block(
-        "blockr.core-merge_block",
-        obj(by = I("Species"), all_x = FALSE, all_y = FALSE),
-        "Merge",
-        id = "c"
-      ),
-      proto_block(
-        "blockr.core-subset_block",
-        obj(subset = "log(Sepal.Width - 3) > 0", select = ""),
-        "Wide sepals",
-        id = "d"
-      ),
-      proto_block("blockr.core-rbind_block", obj(), "Bind", id = "e"),
-      proto_block(
-        "blockr.core-scatter_block",
-        obj(x = "Sepal.Length", y = "Sepal.Width"),
-        "Scatter",
-        obj(visible = I("outputs")),
-        id = "f"
+      stacks = obj(s1 = proto_stack("Input", c("a", "b"))),
+      options = obj(
+        n_rows = proto_option(50L),
+        show_conditions = proto_option(I(c("warning", "error")))
       )
-    ),
-    links = list(
-      proto_link("a", "b", "data", id = "ab"),
-      proto_link("a", "c", "x", id = "ac"),
-      proto_link("b", "c", "y", id = "bc"),
-      proto_link("a", "d", "data", id = "ad"),
-      proto_link("b", "e", "", id = "be"),
-      proto_link("d", "e", "", id = "de"),
-      proto_link("a", "f", "data")
-    ),
-    stacks = list(proto_stack("Input", c("a", "b"), id = "s1")),
-    options = obj(n_rows = 50L, show_conditions = I(c("warning", "error")))
+    )
   )
 }
 
-# The opening board of the small app of the fixture hello-packages.
-proto_app_board <- function() {
-  obj(
-    id = "quiet_heron",
-    front_end = proto_basic(),
-    name = "Penguins",
-    blocks = list(
-      proto_block(
-        "blockr.core-dataset_block",
-        obj(dataset = "penguins", package = "datasets"),
-        "Penguins",
-        id = "a"
-      ),
-      proto_block(
-        "blockr.core-head_block",
-        obj(n = 10L, direction = "tail"),
-        "Tail",
-        id = "b"
-      )
-    ),
-    links = list(proto_link("a", "b", "data", id = "ab")),
-    stacks = list(),
-    options = obj(n_rows = 25L, show_conditions = I("error"))
-  )
-}
-
-# The opening board of the locked app of the fixture hello-locked, into which R
-# wrote `visible` for a, which the script left unset.
+# The opening board of the locked app of the fixture hello-locked.
 proto_locked_board <- function() {
-  obj(
-    id = "steady_lynx",
-    front_end = proto_basic(),
-    name = "Iris report",
-    blocks = list(
-      proto_block(
-        "blockr.core-dataset_block",
-        obj(dataset = "iris", package = "datasets"),
-        "Iris",
-        obj(visible = I("outputs")),
-        id = "a"
+  proto_json_board(
+    obj(
+      id = "steady_lynx",
+      class = proto_class(),
+      name = "Iris report",
+      blocks = obj(
+        a = proto_block(
+          "blockr.core-dataset_block",
+          obj(dataset = "iris", package = "datasets"),
+          "Iris"
+        ),
+        b = proto_block(
+          "blockr.core-head_block",
+          obj(n = 6L, direction = "head"),
+          "Head"
+        )
       ),
-      proto_block(
-        "blockr.core-head_block",
-        obj(n = 6L, direction = "head"),
-        "Head",
-        obj(visible = I(c("inputs", "outputs"))),
-        id = "b"
+      links = obj(ab = proto_link("a", "b", "data")),
+      stacks = obj(),
+      options = obj(
+        n_rows = proto_option(50L),
+        show_conditions = proto_option(I(c("warning", "error")))
       )
-    ),
-    links = list(proto_link("a", "b", "data", id = "ab")),
-    stacks = list(),
-    options = obj(n_rows = 50L, show_conditions = I(c("warning", "error")))
+    )
   )
 }
 
-# The saved file that the app of the fixture hello-file serves, whose board
-# holds its collections keyed by id, as the client wrote it.
+# The JSON board that the app of the fixture hello-file serves, as the client
+# saved it.
 proto_served_file <- function() {
-  obj(
-    format = 1L,
-    packages = obj(blockr.core = "0.2.0"),
-    board = obj(
+  proto_json_board(
+    obj(
       id = "amber_tapir",
-      front_end = proto_basic(),
+      class = proto_class(),
       name = "Cars",
       blocks = obj(
         a = proto_block(
@@ -1030,7 +978,10 @@ proto_served_file <- function() {
       ),
       links = obj(ab = proto_link("a", "b", "data")),
       stacks = obj(),
-      options = obj(n_rows = 50L, show_conditions = I(c("warning", "error")))
+      options = obj(
+        n_rows = proto_option(50L),
+        show_conditions = proto_option(I(c("warning", "error")))
+      )
     )
   )
 }
@@ -1083,12 +1034,16 @@ proto_table_output <- function(data, ...) {
 }
 
 # An output as R sends it in a reply: its fields, written by the schema of its
-# class, after the renderer that R picks for it, and the body beside it
-# announced.
+# class, after the renderer that draws it, at the URL that the fixtures give
+# its module, and the body beside it announced.
 proto_output <- function(x) {
 
   parts <- shape_output(x)
-  renderer <- output_renderer(x, pick_renderers())
+  drawn <- renderer_of(x)
+  renderer <- obj(
+    id = drawn$id,
+    module = proto_renderer_urls()[[drawn$module$path]]
+  )
 
   c(
     list(output = c(list(renderer = renderer), parts$output)),
@@ -1145,10 +1100,7 @@ write_declared_files <- function(dir) {
 # file added.
 local_empty_declarations <- function(frame = parent.frame()) {
 
-  envs <- list(
-    block_registry, declared_front_ends, declared_startup_modules,
-    declared_modules, declared_renderers, output_class_registry
-  )
+  envs <- list(block_registry, declared_startup_modules, declared_modules)
 
   saved <- lapply(envs, as.list, all.names = TRUE)
   paths <- names(shiny::resourcePaths())
@@ -1208,11 +1160,45 @@ local_declared_package <- function(dir, frame = parent.frame()) {
 
   module <- function(path) js_module(path, package = "blockr.test")
 
-  register_front_end("grid", module("js/grid.js"), class = "grid_board")
+  register_module("grid", module("js/grid.js"))
   register_startup_module(module("js/startup.js"))
   register_module("picker", module("js/picker.js"))
-  register_renderer("table", module("js/table.js"), class = "table_output")
-  register_renderer("dark", module("js/dark.js"), option = "dark_mode")
+
+  # The methods, from blockr.test's namespace, of `board_front_end()`, by which
+  # blockr.test names the front-end of its board class grid_board, and of
+  # `board_option_version()`, by which it gives its board option grid_gap
+  # version 2
+  ns <- list2env(list(.packageName = "blockr.test"))
+
+  methods <- list(
+    board_front_end.grid_board = function(x, ...) "blockr.test-grid",
+    board_option_version.grid_gap_option = function(x, ...) 2L
+  )
+
+  for (name in names(methods)) {
+
+    method <- methods[[name]]
+    environment(method) <- ns
+
+    registerS3method(
+      sub("[.].*$", "", name),
+      sub("^[^.]*[.]", "", name),
+      method,
+      envir = asNamespace("blockr.core")
+    )
+  }
+
+  table <- get(".__S3MethodsTable__.", envir = asNamespace("blockr.core"))
+
+  # A frame that declares the package twice has its methods removed by the
+  # second declaration's cleanup, which runs first.
+  withr::defer(
+    rm(
+      list = intersect(names(methods), ls(table, all.names = TRUE)),
+      envir = table
+    ),
+    envir = frame
+  )
 
   invisible()
 }
@@ -1296,10 +1282,16 @@ declared_fields <- function() {
   local_declared_package(dir)
   register_script_blocks(dir)
 
+  module <- function(path) js_module(path, package = "blockr.test")
+
   withr::local_options(
-    blockr.renderers = c(
-      table_output = "blockr.test-table",
-      dark_mode = "blockr.test-dark"
+    blockr.renderers = list(
+      table_output = new_renderer("table", module("js/table.js")),
+      dark_mode = new_renderer(
+        "dark",
+        module("js/dark.js"),
+        option = "dark_mode"
+      )
     )
   )
 

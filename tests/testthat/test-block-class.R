@@ -10,6 +10,7 @@ test_that("a block class holds its fields", {
   expect_identical(class_inputs(rbind_class), "...")
 
   expect_null(head_class$output)
+  expect_identical(head_class$version, 1L)
 
   lst <- new_block_class("lst_block", inputs = alist(x = , y = ),
                          expr = function() bbquote(c(.(x), .(y))),
@@ -29,6 +30,18 @@ test_that("new_block_class() checks a class once", {
 
   ui <- js_module("x.js")
   expr <- function() bbquote(.(data))
+
+  expect_identical(
+    new_block_class("x_block", "data", expr, ui, version = 3L)$version,
+    3L
+  )
+
+  for (version in list(0L, 1.5, "2", c(1L, 2L), NA_integer_)) {
+    expect_error(
+      new_block_class("x_block", "data", expr, ui, version = version),
+      class = "block_class_version_invalid"
+    )
+  }
 
   expect_error(
     new_block_class(1, "data", expr, ui),
@@ -72,11 +85,6 @@ test_that("new_block_class() checks a class once", {
 
   expect_error(
     new_block_class("x_block", "data", function(...) bbquote(.(data)), ui),
-    class = "block_class_args_invalid"
-  )
-
-  expect_error(
-    new_block_class("x_block", "data", function(visible = 1) "data", ui),
     class = "block_class_args_invalid"
   )
 
@@ -199,14 +207,11 @@ test_that("the constructor keeps the state the checks in expr leave", {
   expect_identical(block_state(blk), list(n = 10L, direction = "head"))
   expect_identical(block_name(blk), "Head")
   expect_identical(block_class(blk), head_class)
-  expect_null(attr(blk, "visible"))
 
-  blk <- new_class_head_block(direction = "tail", block_name = "Last",
-                              visible = "outputs")
+  blk <- new_class_head_block(direction = "tail", block_name = "Last")
 
   expect_identical(block_state(blk), list(n = 6L, direction = "tail"))
   expect_identical(block_name(blk), "Last")
-  expect_identical(attr(blk, "visible"), "outputs")
 
   expect_error(block_name(list()), class = "block_class_invalid")
 
@@ -216,14 +221,10 @@ test_that("the constructor keeps the state the checks in expr leave", {
     new_class_head_block(block_name = 1),
     class = "block_name_invalid"
   )
-  expect_error(
-    new_class_head_block(visible = 1),
-    class = "block_visible_invalid"
-  )
 
   expect_identical(
     names(formals(new_class_head_block)),
-    c("n", "direction", "block_name", "visible")
+    c("n", "direction", "block_name")
   )
 
   expect_identical(constructor_class(new_class_head_block), head_class)

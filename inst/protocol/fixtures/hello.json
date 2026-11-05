@@ -1,5 +1,5 @@
 {
-  "description": "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, where each module is served, the renderers R picked, no lock, and the opening board that the app script built. R mints no ids, so that board holds its blocks, links and stacks as arrays, each entry with the id the script gave it, and the link from a to f, which the script gave none, and the board itself, which the script gave a name but no id, without one. The client keys the collections and mints the missing ids as it opens the board.",
+  "description": "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, where each module is served, no renderers, since the app names none for a board option, no lock, and the opening board that the app script built, as a JSON board. R drew the ids that the script left out, that of the link from a to f and the board's, which the script gave a name but no id, so the JSON board holds every id, as one that the client saves does.",
   "client": [
     {
       "id": "1",
@@ -26,6 +26,7 @@
             "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-database\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
             "inputs": [],
             "module": "blockr.core/dataset-block.js?v=5e0c8b1d",
+            "version": 1,
             "schema": {
               "type": "object",
               "properties": {
@@ -69,6 +70,7 @@
             "inputs": ["data"],
             "module": "blockr.core/head-block.js?v=9a41f2c7",
             "css": "blockr.core/head-block.css?v=c03e7b58",
+            "version": 1,
             "schema": {
               "type": "object",
               "properties": {
@@ -111,6 +113,7 @@
             "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-union\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
             "inputs": ["x", "y"],
             "module": "blockr.core/merge-block.js?v=77d0a9e3",
+            "version": 1,
             "schema": {
               "type": "object",
               "properties": {
@@ -160,6 +163,7 @@
             "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-funnel\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
             "inputs": ["data"],
             "module": "blockr.core/subset-block.js?v=2b6f04d9",
+            "version": 1,
             "schema": {
               "type": "object",
               "properties": {
@@ -200,6 +204,7 @@
             "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-chevron-bar-expand\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
             "inputs": ["..."],
             "module": "blockr.core/rbind-block.js?v=e8c1d6a2",
+            "version": 1,
             "schema": {
               "type": "object",
               "properties": {},
@@ -224,6 +229,7 @@
             "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-dice-5\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
             "inputs": ["data"],
             "module": "blockr.core/scatter-block.js?v=41a7e0bf",
+            "version": 1,
             "schema": {
               "type": "object",
               "properties": {
@@ -262,6 +268,7 @@
             "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-upload\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
             "inputs": [],
             "module": "blockr.core/upload-block.js?v=d5932c60",
+            "version": 1,
             "schema": {
               "type": "object",
               "properties": { "file_path": { "type": "string" } },
@@ -279,87 +286,90 @@
             }
           }
         },
-        "front_ends": {
+        "startup_modules": [],
+        "modules": {
           "blockr.core-basic": {
             "module": "blockr.core/basic.js?v=0f3d8e21",
             "css": "blockr.core/basic.css?v=6a9b2c4e"
           }
         },
-        "startup_modules": [],
-        "modules": {},
-        "renderers": {
-          "blockr.core-table_output": {
-            "module": "blockr.core/basic-table.js?v=b7e2a915",
-            "class": "table_output"
-          },
-          "blockr.core-text_output": {
-            "module": "blockr.core/basic-text.js?v=3c8f61d0",
-            "class": "text_output"
-          },
-          "blockr.core-plot_output": {
-            "module": "blockr.core/basic-plot.js?v=f19d4a73",
-            "class": "plot_output"
+        "board_classes": {
+          "board": {
+            "package": "blockr.core",
+            "front_end": "blockr.core-basic",
+            "version": 1
           }
         },
+        "option_versions": {},
+        "renderers": {},
         "lock": null,
         "board": {
-          "front_end": { "id": "blockr.core-basic", "state": {}, "attrs": {} },
-          "name": "Iris review",
-          "blocks": [
-            {
-              "id": "a",
-              "registry_id": "blockr.core-dataset_block",
-              "state": { "dataset": "iris", "package": "datasets" },
-              "name": "Iris",
-              "attrs": {}
+          "format": 1,
+          "packages": { "blockr.core": "0.2.0" },
+          "board": {
+            "id": "brisk_otter",
+            "class": ["board"],
+            "versions": { "board": 1 },
+            "name": "Iris review",
+            "blocks": {
+              "a": {
+                "registry_id": "blockr.core-dataset_block",
+                "version": 1,
+                "state": { "dataset": "iris", "package": "datasets" },
+                "name": "Iris"
+              },
+              "b": {
+                "registry_id": "blockr.core-head_block",
+                "version": 1,
+                "state": { "n": 6, "direction": "head" },
+                "name": "Head"
+              },
+              "c": {
+                "registry_id": "blockr.core-merge_block",
+                "version": 1,
+                "state": { "by": ["Species"], "all_x": false, "all_y": false },
+                "name": "Merge"
+              },
+              "d": {
+                "registry_id": "blockr.core-subset_block",
+                "version": 1,
+                "state": {
+                  "subset": "log(Sepal.Width - 3) > 0",
+                  "select": ""
+                },
+                "name": "Wide sepals"
+              },
+              "e": {
+                "registry_id": "blockr.core-rbind_block",
+                "version": 1,
+                "state": {},
+                "name": "Bind"
+              },
+              "f": {
+                "registry_id": "blockr.core-scatter_block",
+                "version": 1,
+                "state": { "x": "Sepal.Length", "y": "Sepal.Width" },
+                "name": "Scatter"
+              }
             },
-            {
-              "id": "b",
-              "registry_id": "blockr.core-head_block",
-              "state": { "n": 6, "direction": "head" },
-              "name": "Head",
-              "attrs": {}
+            "links": {
+              "ab": { "from": "a", "to": "b", "input": "data" },
+              "ac": { "from": "a", "to": "c", "input": "x" },
+              "bc": { "from": "b", "to": "c", "input": "y" },
+              "ad": { "from": "a", "to": "d", "input": "data" },
+              "be": { "from": "b", "to": "e", "input": "" },
+              "de": { "from": "d", "to": "e", "input": "" },
+              "keen_finch": { "from": "a", "to": "f", "input": "data" }
             },
-            {
-              "id": "c",
-              "registry_id": "blockr.core-merge_block",
-              "state": { "by": ["Species"], "all_x": false, "all_y": false },
-              "name": "Merge",
-              "attrs": {}
-            },
-            {
-              "id": "d",
-              "registry_id": "blockr.core-subset_block",
-              "state": { "subset": "log(Sepal.Width - 3) > 0", "select": "" },
-              "name": "Wide sepals",
-              "attrs": {}
-            },
-            {
-              "id": "e",
-              "registry_id": "blockr.core-rbind_block",
-              "state": {},
-              "name": "Bind",
-              "attrs": {}
-            },
-            {
-              "id": "f",
-              "registry_id": "blockr.core-scatter_block",
-              "state": { "x": "Sepal.Length", "y": "Sepal.Width" },
-              "name": "Scatter",
-              "attrs": { "visible": ["outputs"] }
+            "stacks": { "s1": { "name": "Input", "blocks": ["a", "b"] } },
+            "options": {
+              "n_rows": { "value": 50, "version": 1 },
+              "show_conditions": {
+                "value": ["warning", "error"],
+                "version": 1
+              }
             }
-          ],
-          "links": [
-            { "id": "ab", "from": "a", "to": "b", "input": "data" },
-            { "id": "ac", "from": "a", "to": "c", "input": "x" },
-            { "id": "bc", "from": "b", "to": "c", "input": "y" },
-            { "id": "ad", "from": "a", "to": "d", "input": "data" },
-            { "id": "be", "from": "b", "to": "e", "input": "" },
-            { "id": "de", "from": "d", "to": "e", "input": "" },
-            { "from": "a", "to": "f", "input": "data" }
-          ],
-          "stacks": [{ "id": "s1", "name": "Input", "blocks": ["a", "b"] }],
-          "options": { "n_rows": 50, "show_conditions": ["warning", "error"] }
+          }
         }
       }
     ]

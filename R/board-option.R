@@ -86,6 +86,72 @@ has_board_option_value <- function(x) {
   "value" %in% names(x)
 }
 
+#' Board option versions
+#'
+#' The version of a board option is the version of the shape of its value, a
+#' whole number from 1.
+#' The package that defines a board option gives it through its method of
+#' `board_option_version()` for the board option's class, which is its ID
+#' followed by `_option`, as `n_rows_option`.
+#' A board option without such a method is at version 1.
+#' The package raises the version as it changes that shape, so that the client
+#' migrates the values that a JSON board holds of an older version.
+#' R sends the version of each board option that a method gives one in its
+#' reply to `hello`, and writes each value of a board with its version (see
+#' [blockr_ser()]).
+#'
+#' @param x Board option
+#' @param ... Generic consistency
+#'
+#' @examples
+#' board_option_version(new_n_rows_option(25L))
+#'
+#' @return A whole number.
+#'
+#' @export
+board_option_version <- function(x, ...) {
+  UseMethod("board_option_version")
+}
+
+#' @rdname board_option_version
+#' @export
+board_option_version.board_option <- function(x, ...) {
+  1L
+}
+
+# The version of the board option with the ID `id`, as the method of
+# `board_option_version()` for its class gives it.
+option_version <- function(id) {
+
+  version <- board_option_version(new_board_option(id))
+
+  if (!is_count(version, allow_zero = FALSE)) {
+    blockr_abort(
+      "The method of `board_option_version()` for board option {id} returns ",
+      "no whole number of 1 or more.",
+      class = "board_option_version_invalid"
+    )
+  }
+
+  version
+}
+
+# The version of each board option that a method of `board_option_version()`
+# gives one, by ID, as R sends them in its reply to `hello`.
+option_versions <- function() {
+
+  methods <- utils::.S3methods(
+    "board_option_version",
+    envir = asNamespace("blockr.core")
+  )
+
+  classes <- sub("^board_option_version[.]", "", as.character(methods))
+  classes <- grep("_option$", setdiff(classes, "board_option"), value = TRUE)
+  ids <- sub("_option$", "", classes)
+
+  as_json_object(set_names(lapply(ids, option_version), ids))
+}
+
 #' @export
 format.board_option <- function(x, ...) {
 

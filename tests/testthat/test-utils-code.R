@@ -32,7 +32,7 @@ test_that("code export assigns each block expression to its block id", {
 
   expect_error(
     export_code(list(a = quote(f()), quote(a))),
-    class = "export_code_block_id_missing"
+    class = "export_code_ids_invalid"
   )
   expect_error(
     export_code(list(a = quote(a), a = quote(b))),

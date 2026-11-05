@@ -109,7 +109,7 @@ async function setup(
 ): Promise<Setup> {
   const r = playR();
   r.connect();
-  const store = createStore({ client: r.client });
+  const store = createStore();
   for (const option of [...coreOptions, ...options]) store.options.register(option);
   await store.open(reply);
   const commands = createCommands(store);
@@ -185,7 +185,7 @@ describe("loading", () => {
   test("imports a module and its stylesheet once, however many blocks and mounts use it", async () => {
     const ui = recorder();
     const { store, mounts, imported, sheets } = await setup({ [HEAD]: ui.exports });
-    store.apply({ blocks: { add: { g: { registry_id: head.id, state: { n: 3, direction: "head" }, name: "Head", attrs: {} } } } });
+    store.apply({ blocks: { add: { g: { registry_id: head.id, state: { n: 3, direction: "head" }, name: "Head" } } } });
 
     const els = [document.createElement("div"), document.createElement("div"), document.createElement("div")];
     mounts.mountBlock(els[0] as HTMLElement, "b");
@@ -604,7 +604,7 @@ describe("a mount", () => {
     let load: (exports: unknown) => void = () => undefined;
     const r = playR();
     r.connect();
-    const store = createStore({ client: r.client });
+    const store = createStore();
     for (const option of coreOptions) store.options.register(option);
     await store.open(hello);
     const scheduler = createScheduler({ store, client: r.client });
@@ -683,7 +683,7 @@ describe("a request", () => {
   test("is answered from what core keeps, by class, name, args, board options and revisions, for every block of the class", async () => {
     const { r, store, host, mounts, ui } = await mounted();
     store.apply({
-      blocks: { add: { g: { registry_id: head.id, state: { n: 3, direction: "head" }, name: "Head", attrs: {} } } },
+      blocks: { add: { g: { registry_id: head.id, state: { n: 3, direction: "head" }, name: "Head" } } },
       links: { add: { ag: { from: "a", to: "g", input: "data" } } },
     });
     mounts.mountBlock(document.createElement("div"), "g");
@@ -749,13 +749,18 @@ describe("a request", () => {
   });
 
   test("of an action runs once per call, with the file it sends, and is neither kept nor merged", async () => {
-    const board = hello.board;
-    if (board === undefined) throw new Error("The reply to hello holds no board.");
+    const json = hello.board;
     const reply: HelloReply = {
       ...hello,
       board: {
-        ...board,
-        blocks: [...board.blocks, { id: "u", registry_id: "blockr.core-upload_block", state: {}, name: "Upload", attrs: {} }],
+        ...json,
+        board: {
+          ...json.board,
+          blocks: {
+            ...json.board.blocks,
+            u: { registry_id: "blockr.core-upload_block", version: 1, state: {}, name: "Upload" },
+          },
+        },
       },
     };
     const ui = recorder();

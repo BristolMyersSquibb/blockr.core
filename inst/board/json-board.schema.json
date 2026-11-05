@@ -1,0 +1,191 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "format": {
+      "type": "number"
+    },
+    "packages": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "board": {
+      "type": "object",
+      "properties": {
+        "versions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "blocks": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/JsonBlock"
+          }
+        },
+        "options": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/JsonOption"
+          }
+        },
+        "id": {
+          "type": "string"
+        },
+        "class": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "name": {
+          "type": "string"
+        },
+        "links": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Link"
+          }
+        },
+        "stacks": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Stack"
+          }
+        }
+      },
+      "required": [
+        "blocks",
+        "class",
+        "id",
+        "links",
+        "name",
+        "options",
+        "stacks",
+        "versions"
+      ]
+    }
+  },
+  "required": [
+    "format",
+    "packages",
+    "board"
+  ],
+  "definitions": {
+    "JsonBlock": {
+      "type": "object",
+      "properties": {
+        "registry_id": {
+          "$ref": "#/definitions/RegistryId"
+        },
+        "state": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Json"
+          }
+        },
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "name",
+        "registry_id",
+        "state",
+        "version"
+      ]
+    },
+    "RegistryId": {
+      "type": "string"
+    },
+    "Json": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Json"
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Json"
+          }
+        }
+      ]
+    },
+    "JsonOption": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "$ref": "#/definitions/Json"
+        },
+        "version": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "value",
+        "version"
+      ]
+    },
+    "Link": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "$ref": "#/definitions/BlockId"
+        },
+        "to": {
+          "$ref": "#/definitions/BlockId"
+        },
+        "input": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "from",
+        "to",
+        "input"
+      ]
+    },
+    "BlockId": {
+      "type": "string"
+    },
+    "Stack": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "blocks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BlockId"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "blocks"
+      ]
+    }
+  }
+}

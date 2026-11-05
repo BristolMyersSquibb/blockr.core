@@ -65,8 +65,8 @@ export interface Client {
 }
 
 export interface ClientOptions {
-  // What to name in each session's hello, such as the packages of a board that
-  // the client holds.
+  // What to name in each session's hello: the protocol version and the
+  // capabilities that the client speaks.
   hello(): Omit<HelloRequest, "id" | "kind">;
   // Hears R's reply to each session's hello, the first session's included,
   // once the client has sent what it held for the session.

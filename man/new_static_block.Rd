@@ -7,16 +7,13 @@
 \usage{
 static_block
 
-new_static_block(expression, block_name = NULL, visible = NULL)
+new_static_block(expression, block_name = NULL)
 }
 \arguments{
 \item{expression}{An R expression as a string}
 
 \item{block_name}{Name of the block, which defaults to one made from the
 name of its class, such as "Head"}
-
-\item{visible}{The sections of the block that show, which core keeps as its
-attribute \code{visible}}
 }
 \value{
 The block class \code{static_block} is an object of class \code{block_class},

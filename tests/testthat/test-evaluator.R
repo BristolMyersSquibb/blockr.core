@@ -7,38 +7,36 @@ test_that("R answers the handshake as the fixture hello-declared has it", {
   local_declared_package(dir)
   register_script_blocks(dir)
 
+  module <- function(path) js_module(path, package = "blockr.test")
+
   withr::local_options(
-    blockr.renderers = c(
-      table_output = "blockr.test-table",
-      dark_mode = "blockr.test-dark"
+    blockr.renderers = list(
+      table_output = new_renderer("table", module("js/table.js")),
+      dark_mode = new_renderer(
+        "dark",
+        module("js/dark.js"),
+        option = "dark_mode"
+      )
     )
   )
 
-  board <- obj(
-    front_end = obj(id = "blockr.test-grid", state = obj(), attrs = obj()),
-    blocks = list(),
-    links = list(),
-    stacks = list(),
-    options = obj()
-  )
-
-  session <- local_evaluator(board, hello = FALSE)
+  session <- local_evaluator(proto_declared_board(), hello = FALSE)
 
   expect_fixture_replies(session, "hello-declared")
 })
 
-test_that("R sends the saved file that serve() was given as it is", {
+test_that("R sends the JSON board that serve() was given as it is", {
 
   file <- structure("{\"format\":1,\"board\":{}}", class = "json")
-  session <- local_evaluator(board = NULL, file = file, hello = FALSE)
+  session <- local_evaluator(board = file, hello = FALSE)
 
   session$receive(hello_message())
   session$run()
 
   reply <- last_reply(session)
 
-  expect_null(reply$board)
-  expect_identical(reply$file, file)
+  expect_identical(reply$board, file)
+  expect_false("file" %in% names(reply))
   expect_null(reply$bound)
   expect_null(reply$lock)
   expect_true("lock" %in% names(reply))
@@ -89,11 +87,7 @@ test_that("R names the inputs it binds itself for a block served alone", {
 test_that("an evaluator sends one opening board and binds named data", {
 
   expect_error(new_evaluator(), class = "evaluator_board_invalid")
-
-  expect_error(
-    new_evaluator(board = obj(), file = structure("{}", class = "json")),
-    class = "evaluator_board_invalid"
-  )
+  expect_error(new_evaluator(NULL), class = "evaluator_board_invalid")
 
   expect_error(
     new_evaluator(board = obj(), data = list(datasets::iris)),
@@ -256,6 +250,8 @@ test_that("R replies missing to a revision it does not hold", {
 
 test_that("R runs several requests in one message in the order they arrive", {
 
+  local_fixture_renderer_urls()
+
   session <- local_evaluator()
 
   expect_fixture_replies(session, "several-requests")
@@ -365,6 +361,8 @@ test_that("R captures what an evaluation writes, bounded", {
 
 test_that("R makes a block's output, as the fixtures of outputs have it", {
 
+  local_fixture_renderer_urls()
+
   session <- local_evaluator()
 
   hold_result(session, "a", 2L)
@@ -419,7 +417,7 @@ test_that("R shows a result as text where its class names no output", {
   reply <- last_reply(session)
 
   expect_identical(reply$status, "ok")
-  expect_identical(reply$output$renderer, "blockr.core-text_output")
+  expect_identical(reply$output$renderer$id, "blockr.core-text_output")
   expect_identical(reply$output$text, "[1] \"sales.csv\"")
 })
 
@@ -746,29 +744,20 @@ test_that("a forget drops results and the queued requests that read them", {
   expect_identical(session$sent[[2L]][[1L]]$status, "ok")
 })
 
-test_that("an open forgets every block and replies with what R loaded", {
+test_that("R reads no open, since the client opens every board itself", {
 
   session <- local_evaluator()
 
   hold_result(session, "a", 2L)
 
-  session$receive(list(list(id = "2", kind = "open", packages = "blockr.core")))
-  session$receive(list(output_request("3", "a", 2L)))
+  session$receive(list(list(id = "2", kind = "open")))
   session$run()
 
-  # R forgets the blocks as the open runs, dropping the output queued behind it,
-  # before it replies to the open.
-  expect_identical(
-    session$sent[[1L]][[1L]],
-    list(id = "3", status = "cancelled")
-  )
+  reply <- last_reply(session)
 
-  expect_identical(session$sent[[2L]][[1L]]$status, "ok")
-
-  expect_identical(
-    session$sent[[2L]][[1L]][-(1:2)],
-    loaded_reply()
-  )
+  expect_identical(reply$status, "error")
+  expect_identical(condition_class(reply), "protocol_request_invalid")
+  expect_true(exists("a", envir = session$evaluator$results))
 })
 
 test_that("R reads blockr options, as the fixture blockr-options has it", {
@@ -956,7 +945,7 @@ test_that("the Shiny transport carries the evaluator's replies and bodies", {
   plot <- sent[[5L]][[1L]]
 
   expect_identical(plot$status, "ok")
-  expect_identical(plot$output$renderer, "blockr.core-plot_output")
+  expect_identical(plot$output$renderer$id, "blockr.core-plot_output")
   expect_identical(plot$body$type, "image/png")
   expect_true(nzchar(plot$body$data))
 })

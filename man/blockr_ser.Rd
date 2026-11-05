@@ -42,15 +42,17 @@ blockr_ser(x, ...)
 \item{...}{Generic consistency}
 }
 \value{
-For a board, \code{blockr_ser()} returns the board as R sends it, as a
-list that R's JSON writers write as the board's JSON. Its methods for the
-parts of a board return what the board holds in their place, before the
-board's schemas shape it.
+For a board, \code{blockr_ser()} returns the board as a JSON board, as a
+list that R's JSON writers write as its JSON.
+Its methods for the parts of a board return what the board holds in their
+place, before the schemas shape it.
 }
 \description{
-R writes the board that an app script builds as JSON once: the opening
-board, which it sends the client. The client writes every board that is
-saved. Both write each value of a board by the same JSON Schemas, so that no
+R writes the board that an app script builds as a JSON board once: the
+opening board, which it sends the client.
+A JSON board is the format in which the client saves every board, so R
+writes the opening board as the client would save it.
+Both write each value of a board by the same JSON Schemas, so that no
 shape depends on R's JSON writer. So \code{blockr_ser()} returns the board as R
 values that yyjsonr, jsonlite and Shiny's encoder all write as the same
 JSON. A value that a schema has as an array is marked with \code{\link[=I]{I()}}, so that a
@@ -60,34 +62,54 @@ board itself.
 }
 \section{Writing a board}{
 
-The board is written as R sends it. It holds its own \code{id} and \code{name} only
-where it has them. It holds its blocks, links and stacks as arrays, in their
-order, each entry with its \code{id} where the script gave one, since R mints no
-IDs: the client mints each missing one as it opens the board. It holds the
-value of each board option that the script gives, by ID, and no other.
+A JSON board holds the board under \code{board}, with two things beside it:
+\code{format}, the version of the format, and \code{packages}, the version of each
+package that the board's content comes from, by package.
+Those are the packages of the board's classes, each the package whose
+namespace holds the class's method of \code{\link[=board_front_end]{board_front_end()}}, blockr.core's for
+\code{board} among them, and the packages of the blocks' classes.
+The board holds its \code{id} and \code{name}, and its blocks, links and stacks, each
+by ID, in their order.
+In \code{versions}, it holds the version of each class in its class vector that a
+loaded package names a front-end for, by class (see \code{\link[=board_version]{board_version()}}), and
+each block holds the version of its class's state in \code{version} (see
+\code{\link[=new_block_class]{new_block_class()}}), so that the client migrates by the versions of the
+shapes that a JSON board holds.
+It holds each board option that the script gives a value, by ID, as its
+\code{value} with the \code{version} of the value's shape (see
+\code{\link[=board_option_version]{board_option_version()}}), and no other.
 
-Its \code{front_end} names the front-end that the board is made for, which R
-picks by the board's class (see \code{\link[=board_front_end]{board_front_end()}}), and holds the
-front-end's state. That state is made of the components that the board
-holds besides its blocks, links, stacks and board options, such as those
-that a front-end's constructor adds. Each is written by \code{blockr_ser()}, so
-that a package writes the objects of its own classes there through a
-method.
+Its \code{class} is the board's class vector, most specific class first, as
+\code{c("dock_board", "board")}.
+The client keeps it and saves it unchanged.
+The properties that the board's class adds sit beside core's, each under its
+name.
+They are the components that the board holds besides its blocks, links,
+stacks and board options, such as those that a board class's constructor
+passes to \code{\link[=new_board]{new_board()}}.
+Each is written by \code{blockr_ser()}, so that a package writes the objects of
+its own classes there through a method.
+R checks no property and picks no front-end, since board classes are defined
+in the client.
+The client drops each property that the class it builds the board as does
+not add.
 
-A block is written by the registry ID of its class, with its state, its name
-and core's attribute \code{visible}. Where the block registry holds no entry for
-its class, writing the block registers the class, as a class from outside a
-package, under its name. So a class defined in an app script is registered
-before any session evaluates a block of it.
+A block is written by the registry ID of its class, with its state and its
+name.
+Where the block registry holds no entry for its class, writing the block
+registers the class, as a class from outside a package, under its name.
+So a class defined in an app script is registered before any session
+evaluates a block of it.
 
-Core's objects are written by the JSON Schema of the board that core
+Core's objects are written by the JSON Schema of a JSON board, which core
 generates from its TypeScript types, so that a stack's blocks stay an array
-and an empty collection an object. A block's state is written by the schema
-that its class's UI ships (see \code{\link[=register_block]{register_block()}}), and bare where it ships
-none. The parts of the board that a package defines, such as the front-end's
-state or the values of its board options, are written by the schema that the
-package puts next to its startup module, as core puts the schema of its board
-options next to its runtime (see \code{\link[=register_startup_module]{register_startup_module()}}).
+and an empty collection an object.
+A block's state is written by the schema that its class's UI ships (see
+\code{\link[=register_block]{register_block()}}), and bare where it ships none.
+The parts of the board that a package defines, such as the properties of its
+board classes or the values of its board options, are written by the schema
+that the package puts next to its startup module, as core puts the schema of
+its board options next to its runtime (see \code{\link[=register_startup_module]{register_startup_module()}}).
 
 A board that the format cannot hold fails as it is written, and so as the
 script runs. Every value has to be \code{NULL}, a vector of logicals, numbers or

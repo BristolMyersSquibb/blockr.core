@@ -1,150 +1,77 @@
 {
-  "description": "A board that an app script builds for core's basic front-end, with every id given, so that the client mints none. Its block classes are defined outside a package, so their registry ids are their names. The UI of the join block ships the schema of its state. R writes that block's by, a vector of length one, as an array, and its all_x as a value, while it writes the state of the letters blocks bare. The stack of one block keeps its blocks an array, by the board's schema, and show_conditions is an array, by the schema that core ships beside its runtime. The client keys the collections by id as it opens the board, and the fixture's file is the file that the client then writes.",
+  "description": "A board of core's class board, which an app script builds, with every id given, so that none is drawn at random. Its block classes are defined outside a package, so their registry ids are their names, and the board's content is core's alone. The UI of the join block ships the schema of its state. R writes that block's by, a vector of length one, as an array, and its all_x as a value, while it writes the state of the letters blocks bare. The stack of one block keeps its blocks an array, by the schema of a JSON board, and the value of show_conditions is an array, by the schema that core ships beside its runtime, recorded with the version of its shape, as each board option's value is. The client opens the JSON board and saves it as it is.",
+  "format": 1,
+  "packages": {
+    "blockr.core": "0.2.0"
+  },
   "board": {
     "id": "curious_otter",
-    "front_end": {
-      "id": "blockr.core-basic",
-      "state": {},
-      "attrs": {}
+    "class": [
+      "board"
+    ],
+    "versions": {
+      "board": 1
     },
     "name": "Sales review",
-    "blocks": [
-      {
-        "id": "a",
+    "blocks": {
+      "a": {
         "registry_id": "letters_block",
+        "version": 1,
         "state": {
           "n": 3
         },
-        "name": "Letters",
-        "attrs": {}
+        "name": "Letters"
       },
-      {
-        "id": "b",
+      "b": {
         "registry_id": "letters_block",
+        "version": 1,
         "state": {
           "n": 5
         },
-        "name": "More letters",
-        "attrs": {}
+        "name": "More letters"
       },
-      {
-        "id": "c",
+      "c": {
         "registry_id": "join_block",
+        "version": 1,
         "state": {
           "by": [
             "x"
           ],
           "all_x": false
         },
-        "name": "Join",
-        "attrs": {
-          "visible": [
-            "outputs"
-          ]
-        }
+        "name": "Join"
       }
-    ],
-    "links": [
-      {
-        "id": "ac",
+    },
+    "links": {
+      "ac": {
         "from": "a",
         "to": "c",
         "input": "x"
       },
-      {
-        "id": "bc",
+      "bc": {
         "from": "b",
         "to": "c",
         "input": "y"
       }
-    ],
-    "stacks": [
-      {
-        "id": "s1",
+    },
+    "stacks": {
+      "s1": {
         "name": "Input",
         "blocks": [
           "a"
         ]
       }
-    ],
-    "options": {
-      "n_rows": 25,
-      "show_conditions": [
-        "error"
-      ]
-    }
-  },
-  "file": {
-    "format": 1,
-    "packages": {
-      "blockr.core": "0.2.0"
     },
-    "board": {
-      "id": "curious_otter",
-      "front_end": {
-        "id": "blockr.core-basic",
-        "state": {},
-        "attrs": {}
+    "options": {
+      "n_rows": {
+        "value": 25,
+        "version": 1
       },
-      "name": "Sales review",
-      "blocks": {
-        "a": {
-          "registry_id": "letters_block",
-          "state": {
-            "n": 3
-          },
-          "name": "Letters",
-          "attrs": {}
-        },
-        "b": {
-          "registry_id": "letters_block",
-          "state": {
-            "n": 5
-          },
-          "name": "More letters",
-          "attrs": {}
-        },
-        "c": {
-          "registry_id": "join_block",
-          "state": {
-            "by": [
-              "x"
-            ],
-            "all_x": false
-          },
-          "name": "Join",
-          "attrs": {
-            "visible": [
-              "outputs"
-            ]
-          }
-        }
-      },
-      "links": {
-        "ac": {
-          "from": "a",
-          "to": "c",
-          "input": "x"
-        },
-        "bc": {
-          "from": "b",
-          "to": "c",
-          "input": "y"
-        }
-      },
-      "stacks": {
-        "s1": {
-          "name": "Input",
-          "blocks": [
-            "a"
-          ]
-        }
-      },
-      "options": {
-        "n_rows": 25,
-        "show_conditions": [
+      "show_conditions": {
+        "value": [
           "error"
-        ]
+        ],
+        "version": 1
       }
     }
   }

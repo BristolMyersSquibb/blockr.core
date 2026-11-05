@@ -61,11 +61,13 @@ Core's types are these:
 which the block's UI sends (see \code{\link[=new_block_request]{new_block_request()}}).
 R finds it among the requests of the class that \code{registry_id} names.
 \item The type \code{output_class}, a request of an output class,
-which a renderer sends (see \code{\link[=register_output_class]{register_output_class()}}).
+which a renderer sends (see \code{\link[=output_requests]{output_requests()}}).
 R finds it by the class vector of the latest output that it made from the
-result that \code{output} names, the most specific class first.
-\item The type \code{renderer}, a renderer's own request (see \code{\link[=register_renderer]{register_renderer()}}).
-R finds it among the requests of the renderer that \code{renderer} names.
+result that \code{output} names, through the classes' methods of
+\code{output_requests()}.
+\item The type \code{renderer}, a renderer's own request (see \code{\link[=new_renderer]{new_renderer()}}).
+R finds it among the requests of the renderer that draws that output,
+which has to be the one that \code{renderer} names.
 \item The type \code{option}, a board option's request,
 which the board option's UI sends.
 R finds it among the requests that \code{board_option_requests()} returns for

@@ -2,7 +2,7 @@
 # as inst/protocol/README.md gives them.
 # Each kind has a function of its own: an evaluation, an output,
 # a request, which `request_call()` answers by its type,
-# an `open` and a `blockr_options` request.
+# and a `blockr_options` request.
 
 # The reply to a request, from the function of its kind.
 # An error that R raises itself, as for a block class that is not registered,
@@ -12,7 +12,6 @@ answer_request <- function(ev, job) {
   tryCatch(
     switch(
       job[["kind"]],
-      open = answer_open(ev, job),
       blockr_options = answer_blockr_options(job),
       evaluate = answer_evaluate(ev, job),
       request = answer_object_request(ev, job),
@@ -26,22 +25,6 @@ answer_request <- function(ev, job) {
       )
     }
   )
-}
-
-# An `open` forgets every block, since the client opens another board,
-# and replies with what R has loaded.
-# R loads no package for it, since the app's script has loaded them already.
-answer_open <- function(ev, job) {
-
-  drop_results(ev)
-
-  drop_requests(
-    ev,
-    which(lengths(lst_xtr(ev$queue, "blocks")) > 0L),
-    job[["send"]]
-  )
-
-  c(list(id = job[["id"]], status = "ok"), loaded_reply())
 }
 
 # The value of each blockr option that R has one for,
@@ -141,7 +124,8 @@ answer_evaluate <- function(ev, job) {
 # R calls the coercion that the block's class names,
 # or `as_text_output()` where it names none, with the board option values,
 # the `info` and the parameters that the request carries.
-# The output names the renderer that R picked for it.
+# The output carries the renderer that draws it, with where R serves the
+# renderer's module.
 answer_output <- function(ev, job) {
 
   req <- job[["req"]]
@@ -167,7 +151,7 @@ answer_output <- function(ev, job) {
       list(
         class = class(res),
         parts = shape_output(res),
-        renderer = output_renderer(res, pick_renderers())
+        renderer = output_renderer_reply(renderer_of(res))
       )
     }
   )

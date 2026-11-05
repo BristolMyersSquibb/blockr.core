@@ -102,17 +102,18 @@ test_that("links class", {
   )
 })
 
-test_that("a link may lack an ID, but one given is not made of digits", {
+test_that("R draws a link's missing ID, and refuses one of digits alone", {
 
-  expect_identical(
-    names(links(new_link("a", "b"), bc = new_link("b", "c"))),
-    c("", "bc")
-  )
+  ids <- names(links(new_link("a", "b"), bc = new_link("b", "c")))
 
-  expect_identical(
-    names(links(from = c("a", "b"), to = c("c", "c"))),
-    c("", "")
-  )
+  expect_identical(ids[2L], "bc")
+  expect_false(ids[1L] %in% c("bc", ""))
+
+  ids <- names(links(from = c("a", "b"), to = c("c", "c")))
+
+  expect_length(ids, 2L)
+  expect_true(all(nzchar(ids)))
+  expect_false(anyDuplicated(ids) > 0L)
 
   expect_error(
     links(ab = new_link("a", "b"), `3` = new_link("b", "c")),

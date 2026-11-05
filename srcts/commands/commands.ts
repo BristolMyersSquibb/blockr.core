@@ -7,15 +7,8 @@
 // and extensions through `CoreApi`.
 
 import { computed, signal } from "@preact/signals-core";
-import { isDeltas, isValueDelta } from "../store/index.ts";
-import type {
-  BlockMod,
-  CollectionDelta,
-  Delta,
-  KeyChange,
-  Origin,
-  Store,
-} from "../store/index.ts";
+import { isDeltas, pointer } from "../store/index.ts";
+import type { BlockMod, Delta, Origin, Patch, Store } from "../store/index.ts";
 import type { Board } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import { compile, messageOf, packageOf } from "../util/index.ts";
@@ -206,12 +199,12 @@ export function createCommands(store: Store): Commands {
     return build(command, now, input);
   }
 
-  // The delta with the edit id of each block, entry and value it changes,
+  // The delta with the edit id of each block and each property it changes,
   // where it names none, from the board that the command read.
   function withEdits(delta: Delta): Delta {
     const blocks = delta.blocks?.mod;
-    const state = delta.front_end?.state;
-    if (blocks === undefined && state === undefined) return delta;
+    const patches = delta.patches;
+    if (blocks === undefined && patches === undefined) return delta;
 
     const edit = <T extends { readonly edit?: number }>(change: T, id: number | undefined): T =>
       change.edit !== undefined || id === undefined ? change : { ...change, edit: id };
@@ -231,25 +224,13 @@ export function createCommands(store: Store): Commands {
               ),
             },
           }),
-      ...(state === undefined
+      ...(patches === undefined
         ? {}
         : {
-            front_end: {
-              ...delta.front_end,
-              state: state.map(({ path, change }): KeyChange => {
-                if (isValueDelta(change)) {
-                  return { path, change: edit(change, store.editId({ path })) };
-                }
-                if (change.mod === undefined) return { path, change };
-                const mod: CollectionDelta["mod"] = Object.fromEntries(
-                  Object.entries(change.mod).map(([entry, entryMod]) => [
-                    entry,
-                    edit(entryMod, store.editId({ path, entry })),
-                  ]),
-                );
-                return { path, change: { ...change, mod } };
-              }),
-            },
+            patches: patches.map((patch): Patch => {
+              const property = pointer(patch.path)?.[0];
+              return property === undefined ? patch : edit(patch, store.editId({ property }));
+            }),
           }),
     };
   }

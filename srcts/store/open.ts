@@ -1,205 +1,288 @@
-// Opening a board, which replaces the board the store holds: a saved file, or
-// the opening board that R sends with its reply to `hello`, which the store
-// opens as the saved file it would be. Every board goes the same way from
-// there, so that it ends as the same board whichever way it came in: the store
-// runs the migration of every package whose saved version differs from the
-// one R loaded, drops and names what the app cannot rebuild, and gives the
-// board what packages register for a board that lacks it.
+// Opening a board, which replaces the board the store holds: a JSON board,
+// as the text of a file or as the opening board that R sends with its reply to
+// `hello`.
+// Every board goes the same way, so that it ends as the same board whichever
+// way it came in:
+// 1. The store builds the board as the first class in the board's class vector
+//    that a loaded package defines, or as core's `board` where none is.
+// 2. It migrates what the JSON board holds in an older shape, by the versions
+//    of the shapes that it records: the properties of the classes that it
+//    builds the board as, the states of the blocks and the values of the
+//    board options.
+// 3. It drops and names what the app cannot rebuild,
+//    and drops the properties that the class does not add.
+// 4. It gives the board what packages define for a board that lacks it:
+//    the defaults of the properties of its class, and of the board options that
+//    the class and its parents require.
 
-import type { OpenReply } from "../protocol/index.ts";
-import type { Board, OpeningBoard, SavedBoard } from "../types/board.ts";
+import type { HelloReply } from "../protocol/index.ts";
+import type { Board, JsonBoard, OptionId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import {
   frozenCopy,
-  getAt,
   isObject,
+  listing,
   messageOf,
   own,
   packageOf,
-  setAt,
   without,
 } from "../util/index.ts";
-import { check } from "./check.ts";
+import { check, isClass } from "./check.ts";
 import { commit } from "./commit.ts";
 import { StoreError } from "./error.ts";
 import { expand } from "./expand.ts";
-import { mintId, sentenceCase } from "./ids.ts";
-import type { Checked, Registrations, Saved } from "./registrations.ts";
+import { CORE_PROPERTIES, defaultOf, propertiesOf, recordOf } from "./registrations.ts";
+import type { Built, Registrations } from "./registrations.ts";
 
-// The highest format of a saved file that this client reads and writes.
+// The highest format of a JSON board that this client reads and writes.
 export const FORMAT = 1;
 
-// Core's basic front-end, which draws a board made for a front-end that R
-// serves no module for.
-export const BASIC_FRONT_END = "blockr.core-basic";
+// The collections of a board, which a JSON board holds as objects by id.
+const COLLECTIONS = ["blocks", "links", "stacks", "options"] as const;
 
 // What the store names of what it dropped as it opened a board, since the app
-// cannot rebuild it, with the package to install where its id gives one: a
-// block whose class the block registry lacks, and the front-end the board was
-// made for, where R serves no module for it. What it drops of the front-end
-// state, attributes and board option values it does not name.
+// cannot rebuild it.
+// It names each package that the JSON board lists and R could not load, with
+// the version the JSON board records, so that the user learns what to install.
+// Where such a package defines the board's class, the store builds the board
+// as the next class in its class vector that a loaded package defines.
+// A class's name gives no package, but the JSON board's packages do.
+// It names each block whose class the block registry lacks, with the package
+// to install where its registry id gives one.
+// It does not name what it drops of the properties and board option values.
 export type Dropped =
+  | { readonly package: string; readonly version: string }
   | {
       readonly block: string;
       readonly registry_id: string;
       readonly package: string | null;
-    }
-  | { readonly front_end: string; readonly package: string | null };
+    };
 
 const refused = "The store refused to open the board";
 
-// A saved file's text, as JSON.parse() reads it.
+// A JSON board's text, as JSON.parse() reads it.
 export function parse(text: string): unknown {
   try {
     return JSON.parse(text);
   } catch (error) {
-    throw new StoreError(refused, [`The file holds no JSON: ${messageOf(error)}`]);
+    throw new StoreError(refused, [`The text holds no JSON: ${messageOf(error)}`]);
   }
 }
 
-// A saved file, refusing a format above any this client knows, and a file of
-// today's stack, which has none.
-export function checkFile(file: unknown): SavedBoard {
-  if (!isObject(file)) throw new StoreError(refused, ["The file holds no saved board."]);
-  if (!Object.hasOwn(file, "format")) {
+// A JSON board, refusing a format above any this client knows,
+// a file of today's stack, which has none, a board that names no class and one
+// that holds a collection in no object by id.
+export function checkJsonBoard(json: unknown): JsonBoard {
+  if (!isObject(json)) throw new StoreError(refused, ["The JSON is no JSON board."]);
+  if (!Object.hasOwn(json, "format")) {
     throw new StoreError(refused, [
-      "The file has no format, as a file of today's stack has none, which a conversion outside core turns into a saved file first.",
+      "The JSON board has no format, as a file of today's stack has none, which a conversion outside core turns into a JSON board first.",
     ]);
   }
-  if (typeof file.format !== "number" || !Number.isInteger(file.format)) {
-    throw new StoreError(refused, [`The file's format ${JSON.stringify(file.format)} is no whole number.`]);
+  if (typeof json.format !== "number" || !Number.isInteger(json.format)) {
+    throw new StoreError(refused, [`The JSON board's format ${JSON.stringify(json.format)} is no whole number.`]);
   }
-  if (file.format > FORMAT) {
+  if (json.format > FORMAT) {
     throw new StoreError(refused, [
-      `The file's format is ${String(file.format)}, while this client reads format ${String(FORMAT)} at most.`,
+      `The JSON board's format is ${String(json.format)}, while this client reads format ${String(FORMAT)} at most.`,
     ]);
   }
-  if (!isObject(file.packages) || !Object.values(file.packages).every((v) => typeof v === "string")) {
-    throw new StoreError(refused, ["The file names no packages with their versions."]);
+  if (!isObject(json.packages) || !Object.values(json.packages).every((v) => typeof v === "string")) {
+    throw new StoreError(refused, ["The JSON board names no packages with their versions."]);
   }
-  if (!isObject(file.board)) throw new StoreError(refused, ["The file holds no board."]);
-  return file as unknown as SavedBoard;
+  if (!isObject(json.board)) throw new StoreError(refused, ["The JSON board holds no board."]);
+  classOf(json.board as unknown as Board);
+  const board = json.board;
+  const lacking = COLLECTIONS.filter((name) => !isObject(board[name]));
+  if (lacking.length > 0) {
+    throw new StoreError(refused, [`The board holds its ${listing(lacking)} in no object by id.`]);
+  }
+  checkVersions(board);
+  return json as unknown as JsonBoard;
 }
 
-// The opening board that an app script built, with its collections keyed by
-// id and each id it lacks minted, and named after its id where it has no name.
-export function keyed(opening: OpeningBoard): Board {
+// Whether a value is a version of a shape, a whole number from 1.
+function isVersion(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 1;
+}
+
+// The versions that a JSON board records, which its migrations key on:
+// one for each class that R names one for, one for each block's state and one
+// for each board option's value, which it holds beside the value.
+function checkVersions(board: Readonly<Record<string, unknown>>): void {
   const failures: string[] = [];
-
-  function collection<T extends { readonly id?: string }>(
-    what: string,
-    entries: readonly T[],
-  ): Readonly<Record<string, Omit<T, "id">>> {
-    const given = new Set<string>();
-    for (const entry of entries) {
-      if (entry.id === undefined) continue;
-      if (given.has(entry.id)) {
-        failures.push(`The board holds two ${what}s with the id "${entry.id}".`);
-      }
-      given.add(entry.id);
-    }
-    const taken = (id: string) => given.has(id);
-    return Object.fromEntries(
-      entries.map(({ id, ...entry }) => {
-        const key = id ?? mintId(taken);
-        given.add(key);
-        return [key, entry];
-      }),
-    );
+  if (!isObject(board.versions) || !Object.values(board.versions).every(isVersion)) {
+    failures.push("The board records its classes' versions as no whole numbers from 1 by class.");
   }
-
-  const blocks = collection("block", opening.blocks);
-  const links = collection("link", opening.links);
-  const stacks = collection("stack", opening.stacks);
-
+  for (const [id, block] of Object.entries(board.blocks as Readonly<Record<string, unknown>>)) {
+    if (isObject(block) && !isVersion(block.version)) {
+      failures.push(`The block "${id}" records no version of its class's state.`);
+    }
+  }
+  for (const [id, option] of Object.entries(board.options as Readonly<Record<string, unknown>>)) {
+    if (!isObject(option) || !Object.hasOwn(option, "value") || !isVersion(option.version)) {
+      failures.push(`The board option "${id}" is recorded as no value with the version of its shape.`);
+    }
+  }
   if (failures.length > 0) throw new StoreError(refused, failures);
-
-  const id = opening.id ?? mintId(() => false);
-  return {
-    id,
-    front_end: opening.front_end,
-    name: opening.name ?? sentenceCase(id),
-    blocks,
-    links,
-    stacks,
-    options: opening.options,
-  };
 }
 
-// What the file holds that migrations convert: the front-end state and every
-// block's state, with its class.
-function saved(board: Board): Saved {
-  return frozenCopy({
-    front_end: { state: board.front_end.state as Json },
+// The board's class vector, which the store builds the board by,
+// or a StoreError where the board names none.
+export function classOf(board: Board): readonly string[] {
+  if (!isClass(board.class)) {
+    throw new StoreError(refused, [
+      "The board's class is no array of class names, as R's class vector of a board is.",
+    ]);
+  }
+  return board.class;
+}
+
+// The board that a JSON board holds, without the versions that it records,
+// which only its migrations read, so that each board option holds its value.
+function unversioned(board: JsonBoard["board"]): Board {
+  return {
+    ...without(recordOf(board as unknown as Board), ["versions"]),
     blocks: Object.fromEntries(
       Object.entries(board.blocks).map(([id, block]) => [
         id,
-        { registry_id: block.registry_id, state: block.state },
+        without(block as unknown as Readonly<Record<string, unknown>>, ["version"]),
       ]),
     ),
-  });
+    options: Object.fromEntries(Object.entries(board.options).map(([id, option]) => [id, option.value])),
+  } as unknown as Board;
 }
 
-// The board after the migration of every package whose version the file records
-// differs from the one R loaded, a package the board holds nothing of included,
-// one after another in the order they were registered in, which is the order in
-// which packages declare their startup modules, since those register them and
-// core initializes them in that order, so that a package's comes after those of
-// the packages it imports. Each rewrites the file as the one before it left it,
-// and the board takes the front-end state and the blocks' states the last one
-// returns, while what a migration leaves out is gone, so that the board opens
-// in today's shape.
+// The board without the properties beside core's.
+function coreOf(board: Board): Board {
+  return Object.fromEntries(
+    Object.entries(recordOf(board)).filter(([name]) => CORE_PROPERTIES.includes(name)),
+  ) as unknown as Board;
+}
+
+// The board with what the JSON board holds in an older shape converted to
+// today's: the properties beside core's, by the `migrate` of each class that
+// the board is built as whose version the JSON board records below the one R
+// gives, root first, the state of each block whose version is below its
+// class's, by the class's migration, and the value of each board option whose
+// version is below the one R gives, by the board option's `migrate`.
+// A class or a board option without a migration keeps what the board holds,
+// and so does a class whose version the JSON board records none of,
+// since its writer knew no version of it.
+// A version above the one R gives refuses the board, since no migration
+// converts a board back.
 function migrate(
   board: Board,
-  versions: Readonly<Record<string, string>>,
-  loaded: Readonly<Record<string, string>>,
+  json: JsonBoard["board"],
+  built: Built,
+  reply: Pick<HelloReply, "block_registry" | "board_classes" | "option_versions">,
   registrations: Registrations,
 ): Board {
-  let file = saved(board);
-  let migrated = false;
+  const failures: string[] = [];
+  let changed = false;
 
-  for (const [pkg, migration] of registrations.migrations()) {
-    const version = own(versions, pkg) ?? null;
-    if (version === own(loaded, pkg)) continue;
-
-    let out: unknown;
-    try {
-      out = migration(file, version);
-    } catch (error) {
-      throw new StoreError(refused, [`The migration of ${pkg} failed: ${messageOf(error)}`]);
+  let properties = frozenCopy(propertiesOf(board) as Readonly<Record<string, Json>>);
+  for (const { def } of built.chain) {
+    const from = own(json.versions, def.class);
+    const to = own(reply.board_classes, def.class)?.version;
+    if (from === undefined || to === undefined || from === to) continue;
+    if (from > to) {
+      failures.push(
+        `The board records version ${String(from)} of the board class "${def.class}", while R gives version ${String(to)}.`,
+      );
+      continue;
     }
-    if (!isObject(out) || !isObject(out.front_end) || !isObject(out.blocks)) {
-      throw new StoreError(refused, [
-        `The migration of ${pkg} returned no front-end state and blocks' states.`,
-      ]);
-    }
-    file = frozenCopy(out as Json) as unknown as Saved;
-    migrated = true;
+    if (def.migrate === undefined) continue;
+    const given = properties;
+    properties = migrated(`The migration of the board class "${def.class}"`, () =>
+      def.migrate?.(given, from),
+    );
+    changed = true;
   }
 
-  if (!migrated) return board;
+  const blocks = Object.fromEntries(
+    Object.entries(board.blocks).map(([id, block]) => {
+      const from = own(json.blocks, id)?.version;
+      const to = own(reply.block_registry, block.registry_id)?.version;
+      if (from === undefined || to === undefined || from === to) return [id, block];
+      if (from > to) {
+        failures.push(
+          `The block "${id}" records version ${String(from)} of the state of "${block.registry_id}", while its class is at version ${String(to)}.`,
+        );
+        return [id, block];
+      }
+      const fn = registrations.migration(block.registry_id);
+      if (fn === undefined) return [id, block];
+      changed = true;
+      const state = migrated(`The migration of the block class "${block.registry_id}"`, () =>
+        fn(frozenCopy(block.state), from),
+      );
+      return [id, { ...block, state }];
+    }),
+  );
 
-  const state = file.front_end.state;
-  return {
-    ...board,
-    front_end: { ...board.front_end, state: isObject(state) ? state : {} },
-    blocks: Object.fromEntries(
-      Object.entries(board.blocks).map(([id, block]) => {
-        const state = own(file.blocks, id)?.state;
-        return [id, state === undefined ? block : { ...block, state }];
-      }),
-    ),
-  };
+  const options = Object.fromEntries(
+    Object.entries(board.options).map(([id, value]) => {
+      const from = own(json.options, id)?.version;
+      const to = own(reply.option_versions, id) ?? 1;
+      if (from === undefined || from === to) return [id, value];
+      if (from > to) {
+        failures.push(
+          `The board records version ${String(from)} of the value of the board option "${id}", while R gives version ${String(to)}.`,
+        );
+        return [id, value];
+      }
+      const def = registrations.option(id)?.def;
+      if (def?.migrate === undefined) return [id, value];
+      changed = true;
+      return [
+        id,
+        migratedValue(`The migration of the board option "${id}"`, () => def.migrate?.(frozenCopy(value), from)),
+      ];
+    }),
+  );
+
+  if (failures.length > 0) throw new StoreError(refused, failures);
+  if (!changed) return board;
+  return { ...coreOf(board), ...properties, blocks, options };
 }
 
-// The board that a saved file opens to, with what opening it dropped, or a
-// StoreError naming what refused it.
-export function openFile(
-  file: SavedBoard,
-  reply: OpenReply,
+// What a migration returns, frozen, or a StoreError naming the migration where
+// it fails or returns no object.
+function migrated(what: string, fn: () => unknown): Readonly<Record<string, Json>> {
+  const out = migratedValue(what, fn);
+  if (!isObject(out)) throw new StoreError(refused, [`${what} returned no object.`]);
+  return out;
+}
+
+// What a migration of a value returns, frozen, or a StoreError naming the
+// migration where it fails or returns nothing.
+function migratedValue(what: string, fn: () => unknown): Json {
+  let out: unknown;
+  try {
+    out = fn();
+  } catch (error) {
+    throw new StoreError(refused, [`${what} failed: ${messageOf(error)}`]);
+  }
+  if (out === undefined) throw new StoreError(refused, [`${what} returned nothing.`]);
+  return frozenCopy(out as Json);
+}
+
+// The board that a JSON board opens to, with what the reply to `hello` holds,
+// the block registry, the board classes, the versions of the board options'
+// values and the versions of the packages that R loaded, with what opening it
+// dropped and the class it is built as, or a StoreError naming what refused
+// it.
+// The board options that its class requires come after,
+// since a default may have to wait (see required()).
+export function openJsonBoard(
+  json: JsonBoard,
+  reply: Pick<HelloReply, "packages" | "block_registry" | "board_classes" | "option_versions">,
   registrations: Registrations,
-): { board: Board; dropped: Dropped[] } {
-  const migrated = migrate(file.board, file.packages, reply.packages, registrations);
+): { board: Board; dropped: Dropped[]; built: Built } {
+  const plain = unversioned(json.board);
+  const built = registrations.builtAs(classOf(plain));
+  const migrated = migrate(plain, json.board, built, reply, registrations);
 
   const gone = Object.entries(migrated.blocks)
     .filter(([, block]) => own(reply.block_registry, block.registry_id) === undefined)
@@ -209,144 +292,115 @@ export function openFile(
     return { block: id, registry_id: registryId, package: packageOf(registryId) };
   });
 
-  const { board: pruned, dropped } = prune(migrated, gone, reply.front_ends, registrations);
-  const board = remove(complete(pruned, registrations), gone, registrations);
+  const pruned = prune(migrated, built, registrations);
+  const board = remove(complete(pruned, built), gone, built);
 
-  const failures = check(board, reply.block_registry, registrations);
+  const failures = check(board, reply.block_registry, registrations, built);
   if (failures.length > 0) throw new StoreError(refused, failures);
 
-  const [frontEnd, ...rest] = dropped;
-  return {
-    board,
-    dropped:
-      frontEnd !== undefined && "front_end" in frontEnd
-        ? [frontEnd, ...blocks, ...rest]
-        : [...blocks, ...dropped],
-  };
+  const packages: Dropped[] = Object.entries(json.packages)
+    .filter(([pkg]) => own(reply.packages, pkg) === undefined)
+    .map(([pkg, version]) => ({ package: pkg, version }));
+
+  return { board, dropped: [...packages, ...blocks], built };
 }
 
-// The front-end a board opens with: the one it names, or core's basic one
-// where R serves no module for that.
-export function frontEndOf(
-  board: Board,
-  frontEnds: Readonly<Record<string, unknown>>,
-): string {
-  return own(frontEnds, board.front_end.id) === undefined
-    ? BASIC_FRONT_END
-    : board.front_end.id;
+// The board without the properties that the class it is built as adds neither
+// itself nor through its parents, such as the dock's views on a board built as
+// core's.
+// It lacks as well every board option value that no package registered or
+// that its schema refuses, so that it reads as its default.
+function prune(board: Board, built: Built, registrations: Registrations): Board {
+  const unfit = Object.entries(board.options)
+    .filter(([id, value]) => {
+      const def = registrations.option(id);
+      return def === undefined || def.validate(value).length > 0;
+    })
+    .map(([id]) => id);
+  const kept = Object.fromEntries(
+    Object.entries(recordOf(board)).filter(
+      ([name]) => CORE_PROPERTIES.includes(name) || built.properties.has(name),
+    ),
+  ) as unknown as Board;
+
+  return { ...kept, options: without(board.options, unfit) };
 }
 
-// The board without every key of the front-end state, attribute and board
-// option value that no package registered, and every attribute and board
-// option value that its schema refuses, as one an older version of its
-// package saved, which no migration converts, so that it reads as its initial
-// value or default, and made for the front-end it opens with, which is named
-// where it is another than the one the board was made for. The blocks that go
-// keep what they hold, which goes with them.
-function prune(
-  board: Board,
-  gone: readonly string[],
-  frontEnds: Readonly<Record<string, unknown>>,
-  registrations: Registrations,
-): { board: Board; dropped: Dropped[] } {
-  const dropped: Dropped[] = [];
-
-  let frontEnd = board.front_end;
-  const id = frontEndOf(board, frontEnds);
-  if (id !== frontEnd.id) {
-    dropped.push({ front_end: frontEnd.id, package: packageOf(frontEnd.id) });
-    frontEnd = { ...frontEnd, id };
-  }
-
-  // An attribute or a board option value that no package registered, or that
-  // its schema refuses.
-  const unfit = (
-    values: Readonly<Record<string, Json>>,
-    registered: (name: string) => Checked<unknown> | undefined,
-  ): string[] =>
-    Object.entries(values)
-      .filter(([name, value]) => {
-        const def = registered(name);
-        return def === undefined || def.validate(value).length > 0;
-      })
-      .map(([name]) => name);
-
-  const blocks = Object.fromEntries(
-    Object.entries(board.blocks).map(([id, block]) => {
-      if (gone.includes(id)) return [id, block];
-      const unknown = unfit(block.attrs, (name) => registrations.attribute("block", name));
-      return [id, unknown.length === 0 ? block : { ...block, attrs: without(block.attrs, unknown) }];
-    }),
-  );
-
-  const paths = registrations.keys().map(({ def }) => def.path);
-  const state = pruneState(frontEnd.state, [], paths);
-  const attrs = unfit(frontEnd.attrs, (name) => registrations.attribute("front_end", name));
-  const options = unfit(board.options, (id) => registrations.option(id));
-
+// The board with each property of its class that it lacks,
+// holding the property's default.
+function complete(board: Board, built: Built): Board {
+  const record = recordOf(board);
+  const lacking = [...built.properties.keys()].filter((name) => !Object.hasOwn(record, name));
+  if (lacking.length === 0) return board;
   return {
-    board: {
-      ...board,
-      front_end: { ...frontEnd, state, attrs: without(frontEnd.attrs, attrs) },
-      blocks,
-      options: without(board.options, options),
-    },
-    dropped,
+    ...board,
+    ...Object.fromEntries(lacking.map((name) => [name, defaultOf(built, name)])),
   };
 }
 
 // The board without the blocks, removed as a delta removes them, so that what
-// follows from removing a block goes with it: its links and its places in
-// stacks, and what each key of the front-end's state keeps about it.
-function remove(
-  board: Board,
-  gone: readonly string[],
-  registrations: Registrations,
-): Board {
+// follows from removing a block goes with it: its links, its places in stacks
+// and what the board's class keeps about it, through its `update`.
+function remove(board: Board, gone: readonly string[], built: Built): Board {
   if (gone.length === 0) return board;
-  const delta = expand({ blocks: { rm: gone } }, board, registrations);
+  const delta = expand({ blocks: { rm: gone } }, board, built);
   if ("failures" in delta) throw new StoreError(refused, delta.failures);
-  const committed = commit(board, delta, registrations);
+  const committed = commit(board, delta, built);
   if ("failures" in committed) throw new StoreError(refused, committed.failures);
   return committed.board;
 }
 
-// The state without what lies at no registered key's path, keeping the objects
-// on the way to one that hold something, so that an empty object on the way to
-// nothing is no part of a board.
-function pruneState(
-  state: Readonly<Record<string, unknown>>,
-  at: readonly string[],
-  paths: readonly (readonly string[])[],
-): Readonly<Record<string, unknown>> {
-  let next = state;
-  for (const [key, value] of Object.entries(state)) {
-    const path = [...at, key];
-    const below = paths.filter((other) => path.every((part, i) => other[i] === part));
-    if (below.some((other) => other.length === path.length)) continue;
-    if (below.length > 0 && isObject(value)) {
-      const pruned = pruneState(value, path, below);
-      if (Object.keys(pruned).length === 0) next = without(next, [key]);
-      else if (pruned !== value) next = { ...next, [key]: pruned };
-      continue;
-    }
-    next = without(next, [key]);
+// The values of the board options that the board's class and its parents
+// require and the board lacks: each its definition's default, or what the
+// function that is its default resolves with.
+// A board option that no loaded package defines refuses the board, before the
+// store calls any default, and so does a default that fails or does not fit
+// its schema.
+// What the class requires the board option for would fail later otherwise,
+// where its cause is harder to see.
+export async function required(
+  board: Board,
+  built: Built,
+  registrations: Registrations,
+): Promise<Readonly<Record<OptionId, Json>>> {
+  const by = new Map<OptionId, string>();
+  for (const { def } of built.chain) {
+    for (const id of def.options ?? []) if (!by.has(id)) by.set(id, def.class);
   }
-  return next;
-}
+  const lacking = [...by]
+    .filter(([id]) => !Object.hasOwn(board.options, id))
+    .map(([id, cls]) => ({ id, cls, option: registrations.option(id) }));
 
-// The board with each registered key that it lacks, a collection empty and a
-// value as its initial. A board option it holds no value of needs nothing
-// here: whatever needs one takes the `default` of its definition.
-function complete(board: Board, registrations: Registrations): Board {
-  let state = board.front_end.state;
-  for (const { def } of registrations.keys()) {
-    if (getAt(state, def.path) !== undefined) continue;
-    const value = def.kind === "collection" ? {} : def.initial;
-    if (value !== undefined) state = setAt(state, def.path, value);
+  const missing = lacking.filter(({ option }) => option === undefined);
+  if (missing.length > 0) {
+    throw new StoreError(
+      refused,
+      missing.map(
+        ({ id, cls }) =>
+          `The board class "${cls}" requires the board option "${id}", which no loaded package defines.`,
+      ),
+    );
   }
 
-  return state === board.front_end.state
-    ? board
-    : { ...board, front_end: { ...board.front_end, state } };
+  const defined = lacking.flatMap(({ id, cls, option }) =>
+    option === undefined ? [] : [{ id, cls, option }],
+  );
+  const values = await Promise.all(
+    defined.map(async ({ id, cls, option }): Promise<[OptionId, Json] | string> => {
+      const what = `The default of the board option "${id}", which the board class "${cls}" requires,`;
+      let value: Json;
+      try {
+        const given = option.def.default;
+        value = typeof given === "function" ? await given() : given;
+      } catch (error) {
+        return `${what} failed: ${messageOf(error)}`;
+      }
+      const failures = option.validate(value);
+      return failures.length > 0 ? `${what} ${failures.join(" ")}` : [id, value];
+    }),
+  );
+
+  const failures = values.filter((entry) => typeof entry === "string");
+  if (failures.length > 0) throw new StoreError(refused, failures);
+  return Object.fromEntries(values.filter((entry) => typeof entry !== "string"));
 }

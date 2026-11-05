@@ -13,7 +13,15 @@
 \alias{as_blocks}
 \title{Block classes}
 \usage{
-new_block_class(name, inputs = NULL, expr, ui, requests = NULL, output = NULL)
+new_block_class(
+  name,
+  inputs = NULL,
+  expr,
+  ui,
+  requests = NULL,
+  output = NULL,
+  version = 1L
+)
 
 is_block_class(x)
 
@@ -51,6 +59,11 @@ makes the block expression from}
 \item{output}{Coercion that makes an output from a result, such as
 \code{\link[=as_table_output]{as_table_output()}}, or \code{NULL}, for which R shows results through
 \code{\link[=as_text_output]{as_text_output()}}}
+
+\item{version}{Version of the shape of the class's state, a whole number
+from 1, which a package raises as it changes that shape, so that the
+client migrates the states that a JSON board holds of an older version
+(see \code{\link[=blockr_ser]{blockr_ser()}})}
 
 \item{x}{Object}
 
@@ -129,31 +142,30 @@ Stubs of the hosts ship there too, as \verb{@blockr/core/stubs},
 with which a module's tests mount it
 on the fixture file that \code{\link[=expect_block_fixture]{expect_block_fixture()}} writes.
 
-A class is checked once, when it is defined: no state arg is \code{...},
-\code{block_name} or \code{visible}, no input or state arg shares the name of
-another, the arguments of each request name inputs or state args, but for
+A class is checked once, when it is defined: no state arg is \code{...} or
+\code{block_name}, no input or state arg shares the name of another, the
+arguments of each request name inputs or state args, but for
 parameters, which have a default, for the \code{file} of an action and for those
 that take board options, which are neither, and \code{expr}, called without
 args, cannot run yet or returns a call, a string, a function whose formals
 are the inputs or an object of a class that inherits from \code{blockr_expr},
 holding no function.
 
-The constructor has the formals of \code{expr}, a \code{block_name} and a \code{visible},
-and no \code{...}, so a misspelled state arg fails as an unused argument. It
+The constructor has the formals of \code{expr} and a \code{block_name}, and no
+\code{...}, so a misspelled state arg fails as an unused argument. It
 calls \code{expr} with its args and returns a block, a list of the state that
 the checks in \code{expr} left in the frame it ran in, which leaves out an arg
 that is still unset. A block holds its name, which defaults to one made
-from its class's name by \code{default_block_name()}, and core's attribute
-\code{visible}, which says which of the block's sections show, and refers to its
+from its class's name by \code{default_block_name()}, and refers to its
 class, which every block of the class shares.
 }
 \section{Block vectors}{
 
 Multiple blocks can be combined into a \code{blocks} object, a container for
 an (ordered) set of blocks. Block IDs are handled at the \code{blocks} level,
-which ensures that those given are unique and, as every ID, strings that
-are neither empty nor made of digits alone. A block passed without a name
-has no ID, which the client mints when it opens the board.
+which ensures that they are unique and, as every ID, strings that are
+neither empty nor made of digits alone.
+A block passed without a name gets an ID that \code{\link[=rand_names]{rand_names()}} draws.
 }
 
 \examples{

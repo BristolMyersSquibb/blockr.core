@@ -10,6 +10,7 @@ export {
   listing,
   messageOf,
   own,
+  isPackageName,
   packageOf,
   pathText,
   quoted,

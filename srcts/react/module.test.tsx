@@ -10,7 +10,10 @@ import type { TextOutput } from "../types/outputs.ts";
 import { outputRenderer, reactModule } from "./index.ts";
 import type { ModuleProps, OutputProps } from "./index.ts";
 
-const text = (value: string): TextOutput => ({ renderer: "blockr.core-text_output", text: value });
+const text = (value: string): TextOutput => ({
+  renderer: { id: "blockr.core-text_output", module: "blockr.core/js/basic-text.js" },
+  text: value,
+});
 
 afterEach(() => {
   vi.restoreAllMocks();

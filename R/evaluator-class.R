@@ -12,11 +12,10 @@
 # with the function `send()`, which sends a message of R's,
 # a list of replies and progress notes.
 #
-# The reply to `hello` carries the opening board.
-# It is the board that an app script built,
-# in `board`, as `blockr_ser()` writes it,
-# or the saved file that `serve()` was given,
-# in `file`, as `read_board_json()` returns it.
+# The reply to `hello` carries the opening board in `board`, as a JSON board.
+# It is the board that an app script built, as `blockr_ser()` writes it,
+# or the JSON board that `serve()` was given,
+# as `read_board_json()` returns it, which R passes on as it is.
 # For a block that `serve()` serves alone,
 # `data` holds the data that `serve()` was given, by input.
 # R binds each entry itself to the block's input of that name.
@@ -47,12 +46,11 @@
 # running a queued request, stopping one that has started,
 # and dropping results.
 # The rest is the protocol, which every evaluator shares.
-new_evaluator <- function(board = NULL, file = NULL, data = list()) {
+new_evaluator <- function(board, data = list()) {
 
-  if (is.null(board) == is.null(file)) {
+  if (missing(board) || is.null(board)) {
     blockr_abort(
-      "An evaluator sends either the board that an app script built, in ",
-      "`board`, or the saved file that `serve()` was given, in `file`.",
+      "An evaluator sends the opening board, as a JSON board, in `board`.",
       class = "evaluator_board_invalid"
     )
   }
@@ -68,7 +66,7 @@ new_evaluator <- function(board = NULL, file = NULL, data = list()) {
   ev <- new.env(parent = emptyenv())
 
   ev$opening <- c(
-    if (is.null(file)) list(board = board) else list(file = file),
+    list(board = board),
     if (length(data)) list(bound = I(names(data)))
   )
 
@@ -214,7 +212,6 @@ receive_request <- function(ev, req, send) {
       hello = start_session(ev, req, send),
       cancel = cancel_request(ev, req, send),
       forget = forget_blocks(ev, read_blocks(req), send),
-      open = ,
       blockr_options = ,
       evaluate = ,
       request = ,
@@ -241,8 +238,7 @@ receive_request <- function(ev, req, send) {
 # A `hello` starts the session.
 # A later one starts the session afresh:
 # R forgets every block and drops every request still queued.
-# R loads no package for a `hello`, since the app's script has loaded them,
-# and ignores the packages that it names.
+# R loads no package for a `hello`, since the app's script has loaded them.
 start_session <- function(ev, req, send) {
 
   if (!is_string(req[["protocol"]])) {
@@ -362,7 +358,6 @@ enqueue_request <- function(ev, req, send) {
 
   read <- switch(
     req[["kind"]],
-    open = list(),
     blockr_options = read_blockr_options(req),
     evaluate = read_evaluate(req),
     request = read_request(req),

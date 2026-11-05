@@ -7,16 +7,13 @@
 \usage{
 scatter_block
 
-new_scatter_block(x, y, block_name = NULL, visible = NULL)
+new_scatter_block(x, y, block_name = NULL)
 }
 \arguments{
 \item{x, y}{Columns to place on respective axes}
 
 \item{block_name}{Name of the block, which defaults to one made from the
 name of its class, such as "Head"}
-
-\item{visible}{The sections of the block that show, which core keeps as its
-attribute \code{visible}}
 }
 \value{
 The block class \code{scatter_block} is an object of class

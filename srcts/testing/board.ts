@@ -12,12 +12,12 @@ export function boardOf(
 ): Board {
   return {
     id: "board",
-    front_end: { id: "blockr.core-basic", state: {}, attrs: {} },
+    class: ["board"],
     name: "Board",
     blocks: Object.fromEntries(
       Object.entries(blocks).map(([id, name]) => [
         id,
-        { registry_id: `blockr.core-${name}`, state: {}, name: id, attrs: {} },
+        { registry_id: `blockr.core-${name}`, state: {}, name: id },
       ]),
     ),
     links: Object.fromEntries(

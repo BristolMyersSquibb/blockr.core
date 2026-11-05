@@ -1,5 +1,5 @@
 {
-  "description": "The handshake of an app that serves a block alone, as serve(new_head_block(), data = list(data = iris)) does. R replies with a board of the one block, which has no id, as the board has neither an id nor a name, for the client to mint, and binds the block's input data to the data it was given itself, which bound names, so that the client counts the input as linked and names it in a recipe by the input alone.",
+  "description": "The handshake of an app that serves a block alone, as serve(new_head_block(), data = list(data = iris)) does. R replies with a board of the one block, as a JSON board, with the ids that it drew for the block and for the board, which it names after its id, and binds the block's input data to the data it was given itself, which bound names, so that the client counts the input as linked and names it in a recipe by the input alone.",
   "client": [
     {
       "id": "1",
@@ -30,6 +30,7 @@
             "inputs": ["data"],
             "module": "blockr.core/head-block.js?v=9a41f2c7",
             "css": "blockr.core/head-block.css?v=c03e7b58",
+            "version": 1,
             "schema": {
               "type": "object",
               "properties": {
@@ -57,34 +58,43 @@
             }
           }
         },
-        "front_ends": {
+        "startup_modules": [],
+        "modules": {
           "blockr.core-basic": {
             "module": "blockr.core/basic.js?v=0f3d8e21",
             "css": "blockr.core/basic.css?v=6a9b2c4e"
           }
         },
-        "startup_modules": [],
-        "modules": {},
-        "renderers": {
-          "blockr.core-table_output": {
-            "module": "blockr.core/basic-table.js?v=b7e2a915",
-            "class": "table_output"
+        "board_classes": {
+          "board": {
+            "package": "blockr.core",
+            "front_end": "blockr.core-basic",
+            "version": 1
           }
         },
+        "option_versions": {},
+        "renderers": {},
         "lock": null,
         "board": {
-          "front_end": { "id": "blockr.core-basic", "state": {}, "attrs": {} },
-          "blocks": [
-            {
-              "registry_id": "blockr.core-head_block",
-              "state": { "n": 6, "direction": "head" },
-              "name": "Head",
-              "attrs": {}
-            }
-          ],
-          "links": [],
-          "stacks": [],
-          "options": { "n_rows": 50 }
+          "format": 1,
+          "packages": { "blockr.core": "0.2.0" },
+          "board": {
+            "id": "quick_wren",
+            "class": ["board"],
+            "versions": { "board": 1 },
+            "name": "Quick wren",
+            "blocks": {
+              "tidy_crab": {
+                "registry_id": "blockr.core-head_block",
+                "version": 1,
+                "state": { "n": 6, "direction": "head" },
+                "name": "Head"
+              }
+            },
+            "links": {},
+            "stacks": {},
+            "options": { "n_rows": { "value": 50, "version": 1 } }
+          }
         },
         "bound": ["data"]
       }

@@ -1,8 +1,7 @@
 #' Vector-valued links (i.e. `links` objects) manage IDs that are unique and,
-#' as every ID, strings that are neither empty nor made of digits alone. A link
-#' passed without a name has an empty ID, as it has none until the client mints
-#' one when it opens the board, and operations like concatenation are
-#' guaranteed to not allow duplicated IDs.
+#' as every ID, strings that are neither empty nor made of digits alone.
+#' A link passed without a name gets an ID that [rand_names()] draws, and
+#' operations like concatenation are guaranteed to not allow duplicated IDs.
 #'
 #' In addition to unique IDs, `links` objects are guaranteed to be consistent
 #' in that it is not possible to have multiple links pointing to the same
@@ -18,7 +17,17 @@ links <- function(...) {
 
   if (length(vals)) {
 
-    ids <- ids_or_empty(names(vals), length(vals))
+    if (is.null(names(vals))) {
+      names(vals) <- rand_names(n = length(vals))
+    }
+
+    miss <- is.na(names(vals)) | names(vals) == ""
+
+    if (any(miss)) {
+      names(vals)[miss] <- rand_names(names(vals)[!miss], sum(miss))
+    }
+
+    ids <- names(vals)
 
   } else {
 
@@ -277,9 +286,7 @@ validate_links <- function(x) {
     validate_link(y)
   }
 
-  ids <- field(x, "id")
-
-  validate_ids(ids[nzchar(ids)], "Link", "links_names_invalid")
+  validate_ids(field(x, "id"), "Link", "links_names_invalid")
 
   if (any_dup(field(x, "id")) != 0L) {
     blockr_abort(

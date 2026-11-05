@@ -2,9 +2,9 @@
 // adding, removing and renaming a block, setting and unsetting its state args,
 // appending, prepending and inserting one on a link, adding, changing and
 // removing links, adding, changing, renaming and removing stacks, renaming the
-// board and setting a board option, adding, changing and removing the entries
-// of a key of the front-end's state or setting its value, and setting an
-// attribute of a block or of the front-end.
+// board and setting a board option.
+// The properties that a board class adds are its package's to change, through
+// commands that the package registers.
 //
 // Each reads the board and returns its deltas, leaving the checks of the board
 // to the store, but for a block's state, which the store does not check, and
@@ -12,7 +12,7 @@
 // that changes nothing is the store's to drop, which makes no step of it.
 
 import { mintId, sentenceCase } from "../store/index.ts";
-import type { Attribute, Entry, StateKey, Store } from "../store/index.ts";
+import type { Store } from "../store/index.ts";
 import type {
   Block,
   BlockId,
@@ -24,16 +24,7 @@ import type {
 } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import {
-  compile,
-  getAt,
-  isObject,
-  jsonEqual,
-  own,
-  packageOf,
-  quoted,
-  without,
-} from "../util/index.ts";
+import { compile, own, packageOf, quoted, without } from "../util/index.ts";
 import type { Validate } from "../util/index.ts";
 import { refusal } from "./commands.ts";
 import type { Command } from "./commands.ts";
@@ -104,7 +95,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
     const id = args.id ?? mintId((id) => Object.hasOwn(board.blocks, id));
     return [
       id,
-      { registry_id: entry.id, state, name: args.name ?? blockName(entry.id), attrs: {} },
+      { registry_id: entry.id, state, name: args.name ?? blockName(entry.id) },
       entry,
     ];
   }
@@ -168,19 +159,6 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       `The block class "${entry.id}" has no input to take a link.`,
       `The block class "${entry.id}" has the inputs ${quoted(entry.inputs)}, so the args have to name the one to use.`,
     );
-  }
-
-  function keyAt(path: readonly string[], kind: StateKey["kind"]): StateKey | undefined {
-    const key = store
-      .registered()
-      .find((def): def is StateKey => "path" in def && jsonEqual(def.path, path));
-    return key?.kind === kind ? key : undefined;
-  }
-
-  function attributeOf(on: Attribute["on"], name: string): Attribute | undefined {
-    return store
-      .registered()
-      .find((def): def is Attribute => "on" in def && def.on === on && def.name === name);
   }
 
   const blocks = [
@@ -510,115 +488,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
     }),
   ];
 
-  const frontEnd = [
-    command<{ readonly path: readonly string[]; readonly id?: string; readonly entry: Entry }>({
-      id: "blockr.core-add_front_end_entry",
-      label: "Add front-end entry",
-      description:
-        "Adds an entry to a key of the front-end's state that holds a collection, which the key's schema types.",
-      args: object(
-        {
-          path: schemas.path,
-          id: {
-            ...schemas.entryId,
-            description: "The new entry's id, which is minted where it is left out.",
-          },
-          entry: { type: "object", description: "The new entry, which the key's schema types." },
-        },
-        ["path", "entry"],
-      ),
-      enabled: (_board, { path }) => keyAt(path, "collection") !== undefined,
-      run(board, { path, id, entry }) {
-        const entries = entriesAt(board, path);
-        const key = id ?? mintId((id) => Object.hasOwn(entries, id));
-        return { front_end: { state: [{ path, change: { add: { [key]: entry } } }] } };
-      },
-    }),
-    command<{
-      readonly path: readonly string[];
-      readonly id: string;
-      readonly set?: Entry;
-      readonly unset?: readonly string[];
-    }>({
-      id: "blockr.core-change_front_end_entry",
-      label: "Change front-end entry",
-      description:
-        "Sets and unsets fields of an entry of a key of the front-end's state that holds a collection, which the key's schema types.",
-      args: object(
-        {
-          path: schemas.path,
-          id: schemas.entryId,
-          set: { type: "object", description: "Values of the entry's fields to set." },
-          unset: {
-            type: "array",
-            items: { type: "string" },
-            uniqueItems: true,
-            description: "Names of the entry's fields to unset.",
-          },
-        },
-        ["path", "id"],
-      ),
-      enabled: (board, { path, id }) =>
-        keyAt(path, "collection") !== undefined && Object.hasOwn(entriesAt(board, path), id),
-      run: (_board, { path, id, set, unset }) => ({
-        front_end: {
-          state: [
-            {
-              path,
-              change: {
-                mod: {
-                  [id]: { ...(set === undefined ? {} : { set }), ...(unset === undefined ? {} : { unset }) },
-                },
-              },
-            },
-          ],
-        },
-      }),
-    }),
-    command<{ readonly path: readonly string[]; readonly id: string }>({
-      id: "blockr.core-remove_front_end_entry",
-      label: "Remove front-end entry",
-      description: "Removes an entry of a key of the front-end's state that holds a collection.",
-      args: object({ path: schemas.path, id: schemas.entryId }, ["path", "id"]),
-      enabled: (board, { path, id }) =>
-        keyAt(path, "collection") !== undefined && Object.hasOwn(entriesAt(board, path), id),
-      run: (_board, { path, id }) => ({ front_end: { state: [{ path, change: { rm: [id] } }] } }),
-    }),
-    command<{ readonly path: readonly string[]; readonly value: Json }>({
-      id: "blockr.core-set_front_end_value",
-      label: "Set front-end value",
-      description:
-        "Sets the value of a key of the front-end's state that holds a value, which the key's schema types.",
-      args: object({ path: schemas.path, value: schemas.value }, ["path", "value"]),
-      enabled: (_board, { path }) => keyAt(path, "value") !== undefined,
-      run: (_board, { path, value }) => ({ front_end: { state: [{ path, change: { set: value } }] } }),
-    }),
-    command<{ readonly id: BlockId; readonly name: string; readonly value: Json }>({
-      id: "blockr.core-set_block_attribute",
-      label: "Set block attribute",
-      description:
-        "Sets an attribute of a block, a value that is not its state, such as which of its sections show, which the attribute's schema types.",
-      args: object(
-        { id: schemas.blockId, name: schemas.attribute, value: schemas.value },
-        ["id", "name", "value"],
-      ),
-      enabled: (board, { id, name }) =>
-        Object.hasOwn(board.blocks, id) && attributeOf("block", name) !== undefined,
-      run: (_board, { id, name, value }) => ({
-        blocks: { mod: { [id]: { attrs: { set: { [name]: value } } } } },
-      }),
-    }),
-    command<{ readonly name: string; readonly value: Json }>({
-      id: "blockr.core-set_front_end_attribute",
-      label: "Set front-end attribute",
-      description: "Sets an attribute of the front-end, which the attribute's schema types.",
-      args: object({ name: schemas.attribute, value: schemas.value }, ["name", "value"]),
-      enabled: (_board, { name }) => attributeOf("front_end", name) !== undefined,
-      run: (_board, { name, value }) => ({ front_end: { attrs: { set: { [name]: value } } } }),
-    }),
-  ];
-
-  return [...blocks, ...links, ...stacks, ...board, ...frontEnd];
+  return [...blocks, ...links, ...stacks, ...board];
 }
 
 // The name of a new block, made as R makes one from its class, from the name
@@ -645,11 +515,6 @@ function leave(
         { blocks: stack.blocks.filter((block) => !moving.has(block)) },
       ]),
   );
-}
-
-function entriesAt(board: Board, path: readonly string[]): Readonly<Record<string, unknown>> {
-  const at = getAt(board.front_end.state, path);
-  return isObject(at) ? at : {};
 }
 
 function object(

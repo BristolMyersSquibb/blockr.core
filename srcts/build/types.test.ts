@@ -91,14 +91,14 @@ test("refuses types that do not check", async () => {
   await expect(types(root)).rejects.toThrow("Type 'string' is not assignable to type 'number'.");
 });
 
-// A block's UI module, written against `@blockr/core` as a package writes it,
-// which types its state and the front-end's state it reads.
-const headModule = `import type { BlockModule, Board } from "@blockr/core";
+// A block's UI module and a board class, written against `@blockr/core` as a
+// package writes them.
+// The module types its block's state, and the class types the properties it
+// adds by extending `Board`.
+const headModule = `import type { BlockModule, Board, BoardClass } from "@blockr/core";
 
-declare module "@blockr/core" {
-  interface FrontEndState {
-    views: Record<string, { name: string }>;
-  }
+interface ViewsBoard extends Board {
+  readonly views: Readonly<Record<string, { readonly name: string }>>;
 }
 
 type HeadState = { n: number; direction: "head" | "tail" };
@@ -124,9 +124,19 @@ const head: BlockModule<HeadState> = {
 
 export default head;
 
-export function views(board: Board): string[] {
-  return Object.values(board.front_end.state.views ?? {}).map((view) => view.name);
+export function views(board: ViewsBoard): string[] {
+  return Object.values(board.views).map((view) => view.name);
 }
+
+export const viewsBoard: BoardClass = {
+  class: "views_board",
+  parent: "board",
+  properties: { views: { schema: { type: "object" }, default: {} } },
+  update: (delta, board) =>
+    (delta.blocks?.rm ?? [])
+      .filter((id) => Object.hasOwn((board as ViewsBoard).views, id))
+      .map((id) => ({ op: "remove", path: "/views/" + id })),
+};
 `;
 
 // A block's UI module that draws with the controls core ships,

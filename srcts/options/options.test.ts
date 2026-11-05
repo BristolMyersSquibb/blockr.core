@@ -10,7 +10,6 @@ import { stubOptionHost } from "../stubs/index.ts";
 import { find, pick, texts, toggle, type } from "../testing/inputs.ts";
 import { mountReact, step } from "../testing/react.ts";
 import { reports } from "../testing/reports.ts";
-import { fakeR } from "../testing/store.ts";
 import type { Json } from "../types/json.ts";
 import { coreOptions, darkMode, nRows, optionSchemas, setTheme, showConditions } from "./index.ts";
 import type { BlockrOptions } from "./index.ts";
@@ -62,7 +61,7 @@ describe("core's board options", () => {
 
   test("register with the store, which reads no default as they do", () => {
     const { core, asked } = blockr();
-    const store = createStore({ client: fakeR() });
+    const store = createStore();
 
     for (const option of coreOptions(core)) store.options.register(option);
 

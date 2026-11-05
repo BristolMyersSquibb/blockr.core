@@ -7,16 +7,13 @@
 \usage{
 csv_block
 
-new_csv_block(sep = ",", quote = "\\"", block_name = NULL, visible = NULL)
+new_csv_block(sep = ",", quote = "\\"", block_name = NULL)
 }
 \arguments{
 \item{sep, quote}{Forwarded to \code{\link[utils:read.table]{utils::read.table()}}}
 
 \item{block_name}{Name of the block, which defaults to one made from the
 name of its class, such as "Head"}
-
-\item{visible}{The sections of the block that show, which core keeps as its
-attribute \code{visible}}
 }
 \value{
 The block class \code{csv_block} is an object of class \code{block_class},

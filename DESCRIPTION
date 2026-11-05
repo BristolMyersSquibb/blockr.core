@@ -110,7 +110,6 @@ Collate:
     'evaluator-read.R'
     'file-browser.R'
     'file-upload.R'
-    'front-end.R'
     'link-class.R'
     'links-class.R'
     'loaded-reply.R'
