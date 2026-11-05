@@ -199,6 +199,11 @@
   The client defines core's board options `n_rows`, `show_conditions` and `dark_mode`, each with its UI, and each takes its default from the blockr option of its name, as before.
   The board option `dark_mode` switches the page's theme in the attribute `data-bs-theme` of its root element, which Bootstrap reads too, and `n_rows` takes one row at least.
   A board option's definition in the client holds its UI module and what a new value does on the page, and the host of a renderer gives it the board option values that its output was asked with (#439).
+* Core's built-in blocks have their UIs, one module each, written in React on core's React SDK and styled with Tailwind CSS under core's prefix.
+  The most rows that the head block's number input takes come from the request `n_max`, and the merge block's columns to join by from the request `shared`, while the modules of the static, fixed and row-bind blocks draw nothing.
+  Each module ships the JSON Schema of its block's state beside it, which the build writes from the module's type of the state.
+  R writes the state of the blocks it builds by that schema, and writes a named vector that the schema has as an object, such as the file browser's volumes, as an object.
+  The stub of a block's host answers an upload that a fixture records with the file as the action's argument `file` (#438).
 
 # blockr.core 0.1.4
 

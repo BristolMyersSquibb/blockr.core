@@ -120,13 +120,27 @@ test_that("the file browser block's fixture", {
   expect_true(all(file.create(c("notes.txt", file.path("data", "sales.csv")))))
 
   vols <- list(here = ".")
+  at <- function(path) list(volumes = vols, volume = "here", path = path)
 
   expect_block_fixture(
     filebrowser_block,
-    states = list(list(file_path = "data/sales.csv", volumes = vols)),
+    states = list(list(file_path = "./data/sales.csv", volumes = vols)),
     requests = list(
-      list(name = "list_dir", args = list(volumes = vols)),
-      list(name = "list_dir", args = list(volumes = vols, path = "data"))
+      list(name = "list_dir", args = at("")),
+      list(name = "list_dir", args = at("data"))
     )
+  )
+})
+
+test_that("a board writes the volumes of a file browser block as an object", {
+
+  vols <- c(home = "~", data = "/data")
+  board <- new_board(blocks = c(a = new_filebrowser_block(volumes = vols)))
+
+  res <- read_json_strictly(encode_message(blockr_ser(board)))
+
+  expect_identical(
+    res$blocks[[1L]]$state,
+    read_json_strictly('{ "volumes": { "home": "~", "data": "/data" } }')
   )
 })

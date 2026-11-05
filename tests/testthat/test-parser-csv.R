@@ -42,7 +42,8 @@ test_that("the csv block's fixture", {
     csv_block,
     states = list(
       list(sep = ",", quote = "\""),
-      list(sep = ";", quote = "")
+      list(sep = ";", quote = ""),
+      list(sep = ";", quote = "\"")
     ),
     inputs = list(file = csv)
   )

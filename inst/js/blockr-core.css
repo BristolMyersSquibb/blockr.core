@@ -31,6 +31,7 @@
     --bc-text-sm--line-height: calc(1.25 / .875);
     --bc-font-weight-normal: 400;
     --bc-font-weight-medium: 500;
+    --bc-font-weight-semibold: 600;
     --bc-leading-snug: 1.375;
     --bc-radius-md: .375rem;
     --bc-color-text-default: currentColor;
@@ -92,6 +93,10 @@
   max-height: calc(var(--bc-spacing) * 48);
 }
 
+.bc\:max-h-64 {
+  max-height: calc(var(--bc-spacing) * 64);
+}
+
 .bc\:max-h-full {
   max-height: 100%;
 }
@@ -120,8 +125,16 @@
   cursor: pointer;
 }
 
+.bc\:list-none {
+  list-style-type: none;
+}
+
 .bc\:flex-col {
   flex-direction: column;
+}
+
+.bc\:flex-wrap {
+  flex-wrap: wrap;
 }
 
 .bc\:items-center {
@@ -138,6 +151,10 @@
 
 .bc\:justify-end {
   justify-content: flex-end;
+}
+
+.bc\:gap-0\.5 {
+  gap: calc(var(--bc-spacing) * .5);
 }
 
 .bc\:gap-1 {
@@ -315,12 +332,28 @@
   accent-color: var(--bc-color-bg-accent);
 }
 
+.bc\:opacity-50 {
+  opacity: .5;
+}
+
 .bc\:opacity-60 {
   opacity: .6;
 }
 
 .bc\:\[font\:inherit\] {
   font: inherit;
+}
+
+@media (hover: hover) {
+  .bc\:hover\:bg-current\/5:hover {
+    background-color: currentColor;
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    .bc\:hover\:bg-current\/5:hover {
+      background-color: color-mix(in oklab, currentcolor 5%, transparent);
+    }
+  }
 }
 
 .bc\:focus\:outline-2:focus {
@@ -342,6 +375,11 @@
 
 .bc\:disabled\:opacity-40:disabled {
   opacity: .4;
+}
+
+.bc\:aria-current\:font-semibold[aria-current="true"] {
+  --tw-font-weight: var(--bc-font-weight-semibold);
+  font-weight: var(--bc-font-weight-semibold);
 }
 
 .bc\:aria-invalid\:border-border-danger[aria-invalid="true"] {

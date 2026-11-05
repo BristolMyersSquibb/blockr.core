@@ -15,6 +15,10 @@
     {
       "subset": "Sepal.Width > 3",
       "select": "c(Sepal.Length, Species)"
+    },
+    {
+      "subset": "Sepal.Width > 3",
+      "select": "Species"
     }
   ],
   "requests": []

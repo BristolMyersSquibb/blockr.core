@@ -9,5 +9,14 @@
       "package": "datasets"
     }
   ],
-  "requests": []
+  "requests": [
+    {
+      "name": "datasets",
+      "args": {
+        "package": "datasets"
+      },
+      "options": {},
+      "answer": ["BOD","iris","mtcars"]
+    }
+  ]
 }

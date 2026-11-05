@@ -159,6 +159,35 @@ test("writes the schema of each output type and removes those of types gone", as
   expect(Object.keys(schema.definitions as object)).toEqual(["Json"]);
 }, 60_000);
 
+test("writes the schema of a block's state beside its module, allowing no other property", async () => {
+  await write({
+    "srcts/modules/head-block/index.ts": "export const api = 1;\n",
+    "srcts/modules/head-block/state.ts": [
+      "export type State = Readonly<{",
+      "  /** @asType integer */",
+      "  n: number;",
+      '  direction?: "head" | "tail";',
+      "}>;",
+      "",
+    ].join("\n"),
+    "srcts/modules/none-block/state.ts": "export type State = Readonly<Record<string, never>>;\n",
+    "srcts/modules/basic-table/index.ts": "export const api = 1;\n",
+  });
+
+  expect(await schemas(root)).toEqual(["inst/js/head-block.schema.json", "inst/js/none-block.schema.json"]);
+
+  const read = async (file: string): Promise<unknown> =>
+    JSON.parse(await readFile(join(root, "inst", "js", file), "utf8")) as unknown;
+
+  expect(await read("head-block.schema.json")).toMatchObject({
+    type: "object",
+    properties: { n: { type: "integer" }, direction: { type: "string", enum: ["head", "tail"] } },
+    required: ["n"],
+    additionalProperties: false,
+  });
+  expect(await read("none-block.schema.json")).toMatchObject({ type: "object", properties: {} });
+}, 60_000);
+
 test("writes no schemas without the types and modules they come from", async () => {
   expect(await schemas(root)).toEqual([]);
 });
