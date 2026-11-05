@@ -204,6 +204,7 @@
   Each module ships the JSON Schema of its block's state beside it, which the build writes from the module's type of the state.
   R writes the state of the blocks it builds by that schema, and writes a named vector that the schema has as an object, such as the file browser's volumes, as an object.
   Core offers its inputs to packages that write their modules without React, through `controls()`, which draws the same inputs with core's copy of React, as `@blockr/core/controls` in a build, or through the module `blockr.core-controls`, which `host.module()` reaches.
+  Core's UIs, its renderers included, take their face from the theme's sans, `--bc-font-sans`, as their code takes its mono, `--bc-font-mono`, which a front-end sets to restyle them.
   The stub of a block's host answers an upload that a fixture records with the file as the action's argument `file` (#438).
 
 # blockr.core 0.1.4

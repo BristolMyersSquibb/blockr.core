@@ -107,6 +107,17 @@ test("names the colors of core's UIs as variables of its theme, which follow the
   expect(css).toMatch(/--bc-color-red-600: oklch\(/);
 });
 
+test("takes the face of core's UIs from the theme's sans, which a front-end sets", async () => {
+  await write({ "test.css": `@import "${core}";\n@source inline("bc:font-sans");\n` });
+
+  const css = await stylesheet(join(root, "test.css"));
+
+  expect(css).toMatch(/^\.bc\\:font-sans \{\n {2}font-family: var\(--bc-font-sans\);/m);
+  // Its default is Tailwind's stack of sans faces, so that core's UIs draw in
+  // no serif where the page sets no face.
+  expect(css).toMatch(/--bc-font-sans: [^;]*\bsans-serif\b/);
+});
+
 test("finds the output types, each but BlockOutput, by their names", () => {
   const source = [
     "export interface BlockOutput { renderer: string }",
