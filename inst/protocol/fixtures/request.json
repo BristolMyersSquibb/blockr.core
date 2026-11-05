@@ -4,6 +4,7 @@
     {
       "id": "23",
       "kind": "request",
+      "type": "block_class",
       "registry_id": "blockr.core-head_block",
       "block": "b",
       "name": "n_max",

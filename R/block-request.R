@@ -124,6 +124,15 @@ new_block_request <- function(fun, options = NULL, volatile = FALSE,
 run_block_request <- function(x, name, inputs = list(), args = list(),
                               options = list()) {
 
+  call <- block_request_call(x, name, inputs, args, options)
+
+  do.call(call[["fun"]], call[["args"]], quote = TRUE)
+}
+
+# The function of a block class's request, with the arguments that R binds for
+# it, so that R can resolve a request apart from running it.
+block_request_call <- function(x, name, inputs, args, options) {
+
   cls <- as_block_class(x)
 
   if (!is_string(name) || is.null(cls[["requests"]][[name]])) {
@@ -141,10 +150,9 @@ run_block_request <- function(x, name, inputs = list(), args = list(),
     request_option_ids(req)
   }
 
-  do.call(
-    req[["fun"]],
-    request_args(req[["fun"]], bound, inputs, args, options),
-    quote = TRUE
+  list(
+    fun = req[["fun"]],
+    args = request_args(req[["fun"]], bound, inputs, args, options)
   )
 }
 

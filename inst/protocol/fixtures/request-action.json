@@ -4,6 +4,7 @@
     {
       "id": "25",
       "kind": "request",
+      "type": "block_class",
       "registry_id": "blockr.core-upload_block",
       "block": "u",
       "name": "upload",

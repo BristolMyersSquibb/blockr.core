@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, expect, test } from "vitest";
-import { build, outputTypes, schemaFile, schemas, stylesheet } from "./build.ts";
+import { build, idWords, outputTypes, schemaFile, schemas, stylesheet } from "./build.ts";
 
 // The fixtures import and reference core's stylesheet, so that they test core's
 // setup of Tailwind CSS.
@@ -221,4 +221,22 @@ test("writes the schemas of core's board options next to its runtime", async () 
       },
     },
   });
+});
+
+test("writes the words that ids are made of, one word a line, for R", async () => {
+  await write({
+    "srcts/store/words.ts": [
+      'export const adjectives = ["calm", "keen"];',
+      'export const animals = ["heron"];',
+      "",
+    ].join("\n"),
+  });
+
+  expect(await idWords(root)).toEqual(["inst/ids/adjectives.txt", "inst/ids/animals.txt"]);
+  expect(await readFile(join(root, "inst", "ids", "adjectives.txt"), "utf8")).toBe("calm\nkeen\n");
+  expect(await readFile(join(root, "inst", "ids", "animals.txt"), "utf8")).toBe("heron\n");
+});
+
+test("writes no words without the module they come from", async () => {
+  expect(await idWords(root)).toEqual([]);
 });

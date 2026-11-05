@@ -4,6 +4,7 @@
     {
       "id": "29",
       "kind": "request",
+      "type": "output_class",
       "output": { "block": "h", "revision": 9 },
       "name": "download",
       "args": { "format": "pptx" },

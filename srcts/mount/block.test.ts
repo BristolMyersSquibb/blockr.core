@@ -646,6 +646,7 @@ describe("a request", () => {
     expect(lastRequest(r)).toEqual({
       id: lastRequest(r).id,
       kind: "request",
+      type: "block_class",
       registry_id: head.id,
       block: "b",
       name: "n_max",

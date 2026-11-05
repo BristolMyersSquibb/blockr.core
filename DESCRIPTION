@@ -15,7 +15,15 @@ Authors@R:
              role = c("aut"),
              email = "christoph@cynkra.com"),
       person(family = "Bristol Myers Squibb",
-             role = "fnd")
+             role = "fnd"),
+      person(given = "Rich",
+             family = "FitzJohn",
+             role = "cph",
+             comment = "Word lists of the ids package, in inst/ids"),
+      person(given = "Grant",
+             family = "Forrest",
+             role = "cph",
+             comment = "Word lists of adjective-adjective-animal, in inst/ids")
     )
 Description: A framework for data manipulation and visualization using a
     web-based point and click user interface where analysis pipelines are decomposed into re-usable and parameterizable blocks.
@@ -43,7 +51,9 @@ Imports:
     glue,
     yaml,
     yyjsonr (>= 0.1.22),
-    base64enc
+    base64enc,
+    promises,
+    later
 Suggests:
     testthat (>= 3.0.0),
     memuse,
@@ -52,7 +62,6 @@ Suggests:
     knitr,
     rmarkdown,
     quarto,
-    ids,
     ellmer,
     typedjson,
     spelling,
@@ -86,12 +95,16 @@ Collate:
     'block-roclet.R'
     'blocks-class.R'
     'board-class.R'
+    'board-json.R'
     'board-lock.R'
     'board-option.R'
     'board-options.R'
     'output-table.R'
     'data-dataset.R'
     'data-static.R'
+    'evaluator-answer.R'
+    'evaluator-class.R'
+    'evaluator-read.R'
     'file-browser.R'
     'file-upload.R'
     'front-end.R'
@@ -106,6 +119,8 @@ Collate:
     'pkg-modules.R'
     'plot-scatter.R'
     'protocol.R'
+    'report-progress.R'
+    'request-types.R'
     'served-modules.R'
     'shiny-transport.R'
     'stack-class.R'

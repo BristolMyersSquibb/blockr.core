@@ -13,7 +13,7 @@ export interface CoreApi {
     readonly options: Options;
     readonly lock: Lock | null;
     readonly outputEvents: OutputEvents;
-    request<T = Json>(extension: string, name: string, args?: Json, opts?: RequestOpts): Promise<T | Blob>;
+    request<T = Json>(type: string, fields?: Record<string, Json>, opts?: RequestOpts): Promise<T | Blob>;
     module<T = unknown>(id: string): Promise<T>;
     blockrOption<T extends Json>(name: string, fallback: T): Promise<T>;
     mountBlock(el: HTMLElement, block: BlockId): () => void;

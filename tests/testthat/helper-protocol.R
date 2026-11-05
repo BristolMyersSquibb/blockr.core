@@ -78,6 +78,47 @@ obj <- function(...) {
   res
 }
 
+# The messages that a session of the evaluator sent (see `local_evaluator()`),
+# as JSON, read as `read_json_strictly()` reads a fixture.
+# Each reply body is announced in `body`,
+# as the transport announces it beside the bytes it carries.
+sent_json <- function(session) {
+  lapply(
+    session$sent,
+    function(message) {
+      read_json_strictly(encode_message(lapply(message, announced_body)))
+    }
+  )
+}
+
+announced_body <- function(x) {
+
+  if (is_reply_body(x[["body"]])) {
+    x[["body"]] <- body_announcement(x[["body"]])
+  }
+
+  x
+}
+
+# Has a session of the evaluator receive the client's message of a fixture,
+# changed by `client` as the transport changes it, such as for a body.
+# Then checks that R sends the messages that the fixture holds.
+expect_fixture_replies <- function(session, name, client = identity) {
+
+  fixture <- protocol_fixture(name)
+
+  session$sent <- list()
+  session$receive(client(decode_message(fixture)$client))
+  session$run()
+
+  testthat::expect_identical(
+    sent_json(session),
+    read_json_strictly(fixture)$r,
+    label = paste("what R sends for", name),
+    expected.label = "the fixture's"
+  )
+}
+
 # The R values of the messages R sends in each fixture, by the fixture's name:
 # for each fixture a list of messages, each a list of replies and progress
 # notes.
@@ -363,7 +404,7 @@ protocol_r_values <- function() {
         )
       )
     ),
-    `request-extension` = list(
+    `request-added` = list(
       list(
         obj(
           id = "27",

@@ -26,9 +26,13 @@
 //   left for the preset to map, the stubs bundled for
 //   a test runner, and the package.json that names them.
 //
+// - The words that ids are made of, in srcts/store/words.ts, go into inst/ids,
+//   one word a line, for R's rand_names() to draw from as the client's
+//   mintId() does.
+//
 // The build owns inst/js and inst/types and empties them first, so that
 // nothing is left of a module that is gone. In inst/outputs and inst/board, it
-// owns the schemas only.
+// owns the schemas only, and in inst/ids the files of words.
 
 import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -242,6 +246,31 @@ function typeSchemas(root: string, path: string) {
   };
 }
 
+// Writes the words that ids are made of, from srcts/store/words.ts, into
+// inst/ids, one word a line, adjectives.txt and animals.txt.
+export async function idWords(root: string): Promise<string[]> {
+  const source = join(root, "srcts", "store", "words.ts");
+  if (!existsSync(source)) return [];
+
+  const words = (await import(pathToFileURL(source).href)) as Record<
+    "adjectives" | "animals",
+    readonly string[]
+  >;
+  const out = join(root, "inst", "ids");
+
+  await mkdir(out, { recursive: true });
+
+  const written: string[] = [];
+
+  for (const kind of ["adjectives", "animals"] as const) {
+    const file = join(out, `${kind}.txt`);
+    await writeFile(file, `${words[kind].join("\n")}\n`);
+    written.push(relative(root, file));
+  }
+
+  return written;
+}
+
 async function writeJson(file: string, value: unknown): Promise<void> {
   await writeFile(file, `${JSON.stringify(value, null, 2)}\n`);
 }
@@ -344,7 +373,12 @@ export async function types(root: string): Promise<string[]> {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-  for (const file of [...(await build(root)), ...(await schemas(root)), ...(await types(root))]) {
+  for (const file of [
+    ...(await build(root)),
+    ...(await schemas(root)),
+    ...(await types(root)),
+    ...(await idWords(root)),
+  ]) {
     console.log(file);
   }
 }

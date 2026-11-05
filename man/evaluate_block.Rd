@@ -7,8 +7,6 @@
 \alias{eval_env}
 \alias{result_summary}
 \alias{result_summary.default}
-\alias{block_migrate}
-\alias{block_migrate.block}
 \title{Block evaluation}
 \usage{
 evaluate_block(x, state = list(), inputs = list(), results = list(), ...)
@@ -22,15 +20,10 @@ eval_env(data)
 result_summary(result)
 
 \method{result_summary}{default}(result)
-
-block_migrate(x, version)
-
-\method{block_migrate}{block}(x, version)
 }
 \arguments{
 \item{x}{For \code{evaluate_block()}, a registry id or a block class, and for
-\code{block_eval()} and \code{block_migrate()}, a block's state with its class's
-class vector}
+\code{block_eval()}, a block's state with its class's class vector}
 
 \item{state}{The block's state, a named list of its state args' values}
 
@@ -49,16 +42,14 @@ one-time evaluation}
 \item{data}{Input data (a named list)}
 
 \item{result}{A block's result}
-
-\item{version}{The version of the class's package that saved the state}
 }
 \value{
 The evaluation \code{evaluate_block()} returns an object of class
 \code{block_evaluation}, a list holding its \code{status}, \code{"ok"}, \code{"invalid"} or
 \code{"error"}, the block expression as \code{expr}, the \code{result}, its \code{summary} and
 the \code{conditions} raised, where what was not reached is \code{NULL}. The result
-is what \code{block_eval()} returns, while \code{result_summary()} returns a string,
-\code{block_migrate()} a state and \code{eval_env()} an environment.
+is what \code{block_eval()} returns, while \code{result_summary()} returns a string
+and \code{eval_env()} an environment.
 }
 \description{
 A block is evaluated from its class, its state and the results of the
@@ -95,10 +86,7 @@ package describes its results wherever they appear, such as in a block's
 header and in the cells of a table. Core's method names the result's class
 in full, or its type for an object without a class, with \verb{<function>} for
 any function and \verb{<tibble>} for a tibble. It adds the result's dimensions,
-or the length of a vector. The \code{block_migrate()}
-generic maps a state that an older version of the class's package saved to
-the current state, given that version, where \code{x} is the saved state with the
-class's class vector. Core's method leaves a state as it is.
+or the length of a vector.
 }
 \examples{
 head_block <- new_block_class(

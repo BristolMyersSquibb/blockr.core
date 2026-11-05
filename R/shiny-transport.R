@@ -180,16 +180,7 @@ lost_body_reply <- function(id) {
     error = identity
   )
 
-  # R raised it itself, so it has no phase.
-  rec <- condition_record(cnd, NULL)
-  rec[["phase"]] <- NULL
-
-  list(
-    id = id,
-    status = "error",
-    conditions = list(rec),
-    omitted = list(warning = 0L, message = 0L)
-  )
+  error_reply(id, list(r_condition(cnd)))
 }
 
 # Receives a request's body, which the client posts to the URL that R

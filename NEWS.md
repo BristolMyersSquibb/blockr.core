@@ -22,6 +22,17 @@
   given, a board's, a block's, a link's or a stack's, is a string that is
   neither empty nor made of digits alone, and the constructors refuse any
   other, naming it (#427).
+* The IDs that `rand_names()` draws take the shapes in which the client mints
+  them, so that an ID looks the same whichever side drew it. The blockr option
+  `rand_id`, or the argument of that name, names the shape, where the option
+  took a function before: `adjective_animal`, the default, as `calm_heron`,
+  `adjective_adjective_animal`, `letters_6`, `letters_8` or `letters_12`,
+  `bytes_4` or `bytes_8`, as random bytes in hex, or `uuid`. The words are
+  familiar ones of at most six letters, picked from those of the ids package,
+  which blockr.core ships in `inst/ids`. Where every draw is taken,
+  `rand_names()` counts the ID up, as `calm_heron_2`, where it failed before.
+  The `id_fun` argument and `sample_letters()` go, and the ids package is no
+  longer suggested (#429).
 * A block class is a value made by `new_block_class()`, holding what every
   block of the class shares: its data inputs, the `expr` from whose result
   interpolation makes the block expression, the UI module `js_module()` names,
@@ -33,7 +44,7 @@
   fills in with the upstream ids, and `evaluate_block()` evaluates a block
   from its class, state and upstream results through `block_eval()`. A state
   reads `invalid` where `expr` signals `blockr_invalid()` or uses an unset arg. With
-  them come `result_summary()`, `block_migrate()`, `new_block_request()` and
+  them come `result_summary()`, `new_block_request()` and
   `run_block_request()`, `expect_block_fixture()`, which tests a class
   without Shiny, and `trace_block_classes()`, which a package calls in
   `.onLoad()` so that covr counts the code its classes hold (#421).
@@ -170,6 +181,14 @@
   A package's build resolves that directory as `@blockr/core`, and its module tests take stubs of the hosts from it, as `@blockr/core/stubs`.
   The fixture file that `expect_block_fixture()` writes lists each state as a block given those args holds it, its defaults filled in and written by the schema of the class's UI module.
   The stub of a block's host then refuses a submit of a state that the file does not list (#437).
+* R answers the client through an evaluator, one per session, which takes the messages of the wire protocol that the Shiny transport carries.
+  It keeps the latest result of each block by block id and revision, with the block expression and the registry id, and drops it when the client forgets the block.
+  It evaluates a block from its recipe, makes the block's output with the coercion that its class names, answers requests and reads blockr options.
+  It runs one request at a time, in the order they arrive, and handles a `cancel` or a `forget` between two requests (#430).
+* Every request names its type, and R answers it through the generic `request_call()`, by the class `{type}_request`.
+  Core's types are the requests of block classes, output classes, renderers and board options.
+  A package adds a type of its own with a method of `request_call()`, and gives the requests of a board option it ships with a method of `board_option_requests()` for the board option's class.
+  A request's function reports how far it has come with `report_progress()`, which R sends to the client as progress notes (#430).
 * Core's client draws table, text and plot outputs with renderers of its own, written in React: a table that pages and sorts through its output's parameters, printed text that scrolls at R's width, and a plot's PNG at the size it was drawn at.
   Core's runtime puts the one copy of React on the page, and core's build maps each of its modules' imports of React to that copy.
   Core's React SDK holds what the renderers and core's UIs draw with.
