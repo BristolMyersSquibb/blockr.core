@@ -52,6 +52,9 @@ export interface BlockContext {
 export interface HostRequestOpts extends Omit<RequestOpts, "reads"> {
     file?: File;
 }
+export interface OutputRequestOpts extends HostRequestOpts {
+    scope?: "class" | "renderer";
+}
 export interface OptionHost<V extends Json = Json> {
     readonly option: OptionId;
     value(): V;
@@ -69,7 +72,7 @@ export interface OutputHost {
     error(): Condition | null;
     on(event: "output", fn: () => void): () => void;
     setParams(params: Json): void;
-    request<T = Json>(name: string, args?: Record<string, Json>, opts?: HostRequestOpts): Promise<T | Blob>;
+    request<T = Json>(name: string, args?: Record<string, Json>, opts?: OutputRequestOpts): Promise<T | Blob>;
     emit(name: string, payload: Json): void;
     draw(el: HTMLElement, key: string, output: Json, body?: Blob): Nested;
 }

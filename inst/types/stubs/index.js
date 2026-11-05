@@ -226,9 +226,11 @@ function stubOutputHost(options = {}) {
       on.announce("output");
     },
     request(name, args = {}, opts = {}) {
-      requested.push({ name, args });
+      const scope = opts.scope ?? "class";
+      requested.push({ name, args, scope });
       if (opts.signal?.aborted === true) return Promise.reject(asError(opts.signal.reason));
-      return answer(options.requests ?? [], name, args, "the output class");
+      const answers = (options.requests ?? []).filter((call) => (call.scope ?? "class") === scope);
+      return answer(answers, name, args, scope === "class" ? "the output class" : "the renderer");
     },
     emit(name, payload) {
       emitted.push({ name, payload });
@@ -283,6 +285,9 @@ function unevaluated(revision, running) {
 
 // srcts/mount/load.ts
 var API = 1;
+
+// srcts/mount/output.ts
+var EMPTY = Object.freeze({});
 
 // srcts/mount/block.ts
 var NO_STATUS = Object.freeze(unevaluated(0, false));

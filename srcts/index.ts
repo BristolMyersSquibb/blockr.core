@@ -48,6 +48,7 @@ export type {
   OptionModule,
   OutputHost,
   OutputModule,
+  OutputRequestOpts,
   Rendered,
   State,
 } from "./types/hosts.ts";

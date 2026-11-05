@@ -91,6 +91,14 @@ export interface HostRequestOpts extends Omit<RequestOpts, "reads"> {
   file?: File;
 }
 
+// The options of an output's request: as a host's, and the scope of the
+// request, "class" for one of the output class, as unless given, or
+// "renderer" for one of the renderer's own, which the host sends naming the
+// renderer.
+export interface OutputRequestOpts extends HostRequestOpts {
+  scope?: "class" | "renderer";
+}
+
 export interface OptionHost<V extends Json = Json> {
   readonly option: OptionId;
   // The board option's value in the board, or else its default, announced
@@ -128,12 +136,16 @@ export interface OutputHost {
   // Asks R for an output made with these, which params() returns once it
   // arrives.
   setParams(params: Json): void;
-  // A request of its output class, run with the result the output was made
-  // from.
+  // A request of its output class, or with the scope "renderer" one of the
+  // renderer's own, which R runs with the result that the output was made
+  // from. The host holds it while the block reads stale or unevaluated, sends
+  // it for the output of the block's current revision once core holds that
+  // output, and rejects it at once where the block reads failed, invalid or
+  // waiting, with the block's status.
   request<T = Json>(
     name: string,
     args?: Record<string, Json>,
-    opts?: HostRequestOpts,
+    opts?: OutputRequestOpts,
   ): Promise<T | Blob>;
   // Reports what the user did on the output, such as a selection, for an
   // extension to act on.

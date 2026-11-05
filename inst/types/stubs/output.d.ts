@@ -11,7 +11,9 @@ export interface StubOutputHostOptions {
     readonly block?: BlockId;
     readonly fixtures?: OutputFixtures;
     readonly options?: Readonly<Record<OptionId, Json>>;
-    readonly requests?: readonly Answered[];
+    readonly requests?: readonly (Answered & {
+        readonly scope?: "class" | "renderer";
+    })[];
 }
 export interface Drawn {
     readonly key: string;
@@ -28,6 +30,7 @@ export interface StubOutputHost extends OutputHost {
     readonly requested: readonly {
         readonly name: string;
         readonly args: Readonly<Record<string, Json>>;
+        readonly scope: "class" | "renderer";
     }[];
     readonly drawn: readonly Drawn[];
     setOutput(output: Json, body?: Blob | null, params?: Json): void;

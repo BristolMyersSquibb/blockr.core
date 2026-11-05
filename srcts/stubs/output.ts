@@ -5,7 +5,7 @@
 
 import type { Condition } from "../protocol/index.ts";
 import type { BlockId, OptionId } from "../types/board.ts";
-import type { HostRequestOpts, Nested, OutputHost } from "../types/hosts.ts";
+import type { Nested, OutputHost, OutputRequestOpts } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { OutputFixtures } from "../types/outputs.ts";
 import { asError, jsonEqual } from "../util/index.ts";
@@ -27,8 +27,9 @@ export interface StubOutputHostOptions {
   // host holds it.
   readonly fixtures?: OutputFixtures;
   readonly options?: Readonly<Record<OptionId, Json>>;
-  // What the output class's requests answer.
-  readonly requests?: readonly Answered[];
+  // What the output class's requests answer, and with the scope "renderer"
+  // the renderer's own.
+  readonly requests?: readonly (Answered & { readonly scope?: "class" | "renderer" })[];
 }
 
 // An output drawn nested in the one the host holds, with each output it was
@@ -45,8 +46,12 @@ export interface StubOutputHost extends OutputHost {
   readonly emitted: readonly { readonly name: string; readonly payload: Json }[];
   // The parameters of each setParams().
   readonly asked: readonly Json[];
-  // Each request that the renderer made, with its args.
-  readonly requested: readonly { readonly name: string; readonly args: Readonly<Record<string, Json>> }[];
+  // Each request that the renderer made, with its args and its scope.
+  readonly requested: readonly {
+    readonly name: string;
+    readonly args: Readonly<Record<string, Json>>;
+    readonly scope: "class" | "renderer";
+  }[];
   // Each output it drew nested in its own.
   readonly drawn: readonly Drawn[];
   // Hands the renderer another output, as core does once R sends one, and
@@ -68,7 +73,7 @@ export function stubOutputHost(options: StubOutputHostOptions = {}): StubOutputH
   let error: Condition | null = null;
   const emitted: { name: string; payload: Json }[] = [];
   const asked: Json[] = [];
-  const requested: { name: string; args: Readonly<Record<string, Json>> }[] = [];
+  const requested: { name: string; args: Readonly<Record<string, Json>>; scope: "class" | "renderer" }[] = [];
   const drawn: { key: string; el: HTMLElement; outputs: Json[]; removed: boolean }[] = [];
   const on = announcer(["output"] as const);
 
@@ -108,11 +113,13 @@ export function stubOutputHost(options: StubOutputHostOptions = {}): StubOutputH
     request<T = Json>(
       name: string,
       args: Readonly<Record<string, Json>> = {},
-      opts: HostRequestOpts = {},
+      opts: OutputRequestOpts = {},
     ): Promise<T | Blob> {
-      requested.push({ name, args });
+      const scope = opts.scope ?? "class";
+      requested.push({ name, args, scope });
       if (opts.signal?.aborted === true) return Promise.reject(asError(opts.signal.reason));
-      return answer<T>(options.requests ?? [], name, args, "the output class");
+      const answers = (options.requests ?? []).filter((call) => (call.scope ?? "class") === scope);
+      return answer<T>(answers, name, args, scope === "class" ? "the output class" : "the renderer");
     },
     emit(name, payload) {
       emitted.push({ name, payload });

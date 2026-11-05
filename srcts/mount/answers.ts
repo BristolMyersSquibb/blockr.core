@@ -1,22 +1,33 @@
-// The answers of block classes' requests, which core keeps for the page, as
-// the contract has it
+// The answers of requests that core keeps for one opening of a board, those of
+// block classes, output classes and renderers, as the contract has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract):
-// - Core keeps an answer by its key: the registry id, the request's name, its
-//   args, the values of the board options it sent and the revisions it read.
-//   Every block of the class shares it. An answer never goes stale for its
-//   key, so nothing asks R for it again.
+// - Core keeps an answer by its key. For a block class's request, that is the
+//   registry id, the request's name, its args, the values of the board options
+//   it sent and the revisions it read, so that every block of the class shares
+//   it. For an output class's or a renderer's request, it is the renderer, the
+//   output's block and revision, the request's name, its args and the board
+//   option values and parameters that the output was asked with. An answer
+//   never goes stale for its key, so nothing asks R for it again.
 // - A request merges with an identical one in flight. Once no caller that
 //   merged with it still waits, it is given up, and R gets a cancel.
 // - Core drops an answer once the revisions it read are superseded. No host
 //   method hands out such an answer, and a module keeps the last answer it
 //   got on screen while it asks again.
-// - Core keeps nothing of a volatile request, and neither keeps nor merges an
-//   action, which R runs once per call, or a request that sends a file.
+// - Core keeps nothing of a volatile request, nor of a reply that R marks
+//   volatile, and neither keeps nor merges an action, which R runs once per
+//   call, or a request that sends a file.
 // - Core keeps answers for one opening of a board. Once another board opens,
 //   it drops them and gives up the requests on their way to R, as a page that
 //   starts with that board holds none.
 
-import type { BlockClassRequest, ProgressNote, Reply } from "../protocol/index.ts";
+import type {
+  BlockClassRequest,
+  BlockRevision,
+  OutputClassRequest,
+  ProgressNote,
+  RendererRequest,
+  Reply,
+} from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Json } from "../types/json.ts";
 import { asError, isObject, report } from "../util/index.ts";
@@ -25,8 +36,12 @@ import { asError, isObject, report } from "../util/index.ts";
 // protocol's client gives it.
 export type ClassRequest = Omit<BlockClassRequest, "id" | "body">;
 
+// A request of an output class or of a renderer, as it goes to R but for its
+// id.
+export type OutputAsk = Omit<OutputClassRequest, "id" | "body"> | Omit<RendererRequest, "id" | "body">;
+
 export interface Ask {
-  readonly request: ClassRequest;
+  readonly request: ClassRequest | OutputAsk;
   // The file it sends, which the client announces in the request's `body`.
   readonly body?: Blob;
   // How core shares it: "keep" for an answer that core keeps, "merge" for a
@@ -65,7 +80,7 @@ interface Flight {
 
 interface Kept {
   readonly answer: Answer;
-  readonly request: ClassRequest;
+  readonly request: Ask["request"];
 }
 
 export function createAnswers(scheduler: Pick<Scheduler, "request" | "status" | "subscribe">): Answers {
@@ -79,8 +94,8 @@ export function createAnswers(scheduler: Pick<Scheduler, "request" | "status" | 
   });
 
   // Whether R still holds what the answer read, at the revisions it read.
-  function current(request: ClassRequest): boolean {
-    return request.reads.every(
+  function current(request: Ask["request"]): boolean {
+    return readsOf(request).every(
       (read) => read.block === undefined || scheduler.status(read.block)?.revision === read.revision,
     );
   }
@@ -113,7 +128,13 @@ export function createAnswers(scheduler: Pick<Scheduler, "request" | "status" | 
       // The answer is kept before the request leaves what is in flight, so
       // that an identical request finds one or the other.
       .then((answer) => {
-        if (key !== undefined && ask.share === "keep" && answer.reply.status === "ok" && current(ask.request)) {
+        if (
+          key !== undefined &&
+          ask.share === "keep" &&
+          answer.reply.status === "ok" &&
+          !("volatile" in answer.reply && answer.reply.volatile === true) &&
+          current(ask.request)
+        ) {
           kept.set(key, { answer, request: ask.request });
         }
         return answer;
@@ -193,19 +214,42 @@ export function createAnswers(scheduler: Pick<Scheduler, "request" | "status" | 
 }
 
 
-// What makes two requests identical: the class, the name, the args, the values
-// of the board options sent and the revisions read, but not the block that
-// asks, since every block of the class shares the answer.
-function keyOf(request: ClassRequest): string {
+// What makes two requests identical. For a block class's request, that is the
+// class, the name, the args, the values of the board options sent and the
+// revisions read, but not the block that asks, since every block of the class
+// shares the answer. For an output class's or a renderer's request, it is the
+// renderer, the output it belongs to, the name, the args and the board option
+// values and parameters that the output was asked with.
+function keyOf(request: Ask["request"]): string {
+  if (request.type === "block_class") {
+    return JSON.stringify(
+      sorted([
+        request.type,
+        request.registry_id,
+        request.name,
+        request.args,
+        request.options ?? {},
+        request.reads as unknown as Json,
+      ]),
+    );
+  }
   return JSON.stringify(
     sorted([
-      request.registry_id,
+      request.type,
+      request.type === "renderer" ? request.renderer : null,
+      request.output as unknown as Json,
       request.name,
       request.args,
-      request.options ?? {},
-      request.reads as unknown as Json,
+      request.options,
+      request.params,
     ]),
   );
+}
+
+// The results that a request reads: a block class's, the results it names,
+// and an output class's or a renderer's, the result its output was made from.
+function readsOf(request: Ask["request"]): readonly (BlockRevision | { block?: never })[] {
+  return request.type === "block_class" ? request.reads : [request.output];
 }
 
 // The value with every object's keys in order, so that two values that differ
