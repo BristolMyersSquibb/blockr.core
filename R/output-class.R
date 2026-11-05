@@ -254,8 +254,8 @@ print.reply_body <- function(x, ...) {
 #'   class vector
 #' @param ... Generic consistency
 #' @param fun The function of a request
-#' @param path The path of a JSON Schema's file, relative to the package's
-#'   `inst/`, or as given outside a package
+#' @param path The path of the file that holds a JSON Schema, relative to the
+#'   package's `inst/`, or as given outside a package
 #' @param package The package that ships the file (`NULL` outside a package)
 #' @param name The name of the request
 #' @param result The result that the output was made from
@@ -339,7 +339,7 @@ read_json_schema <- function(path, package = pkg_name(parent.frame())) {
 
   if (!is_string(path)) {
     blockr_abort(
-      "The path of a JSON Schema's file is expected to be a string.",
+      "The path of the file of a JSON Schema is expected to be a string.",
       class = "json_schema_file_invalid"
     )
   }

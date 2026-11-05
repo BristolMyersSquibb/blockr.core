@@ -69,12 +69,14 @@
 #'   )
 #' }
 #'
-#' output_renderer(as_table_output(datasets::BOD))
+#' tbl <- as_table_output(datasets::BOD, options = list(n_rows = 6L))
+#'
+#' output_renderer(tbl)
 #'
 #' # In an app script
 #' options(blockr.renderers = list(table_output = table_preview()))
 #'
-#' output_renderer(as_table_output(datasets::BOD))
+#' output_renderer(tbl)
 #'
 #' options(blockr.renderers = NULL)
 #'
