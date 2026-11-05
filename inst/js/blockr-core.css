@@ -19,11 +19,8 @@
   :root, :host {
     --bc-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
     monospace;
-    --bc-color-red-50: oklch(97.1% .013 17.38);
-    --bc-color-red-300: oklch(80.8% .114 19.571);
     --bc-color-red-500: oklch(63.7% .237 25.331);
     --bc-color-red-600: oklch(57.7% .245 27.325);
-    --bc-color-red-800: oklch(44.4% .177 26.899);
     --bc-color-blue-500: oklch(62.3% .214 259.815);
     --bc-color-blue-600: oklch(54.6% .245 262.881);
     --bc-color-gray-900: oklch(21% .034 264.665);
@@ -36,6 +33,38 @@
     --bc-font-weight-medium: 500;
     --bc-leading-snug: 1.375;
     --bc-radius-md: .375rem;
+    --bc-color-text-default: currentColor;
+    --bc-color-text-muted: currentColor;
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    :root, :host {
+      --bc-color-text-muted: color-mix(in oklab, currentColor 65%, transparent);
+    }
+  }
+
+  :root, :host {
+    --bc-color-text-danger: var(--bc-color-red-600);
+    --bc-color-border-default: currentColor;
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    :root, :host {
+      --bc-color-border-default: color-mix(in oklab, currentColor 25%, transparent);
+    }
+  }
+
+  :root, :host {
+    --bc-color-border-danger: var(--bc-color-red-500);
+    --bc-color-border-accent: var(--bc-color-blue-500);
+    --bc-color-bg-accent: var(--bc-color-blue-600);
+    --bc-color-bg-subtle: currentColor;
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    :root, :host {
+      --bc-color-bg-subtle: color-mix(in oklab, currentColor 5%, transparent);
+    }
   }
 }
 
@@ -158,42 +187,22 @@
   border-bottom-width: 1px;
 }
 
-.bc\:border-current\/10 {
-  border-color: currentColor;
+.bc\:border-border-danger {
+  border-color: var(--bc-color-border-danger);
+}
+
+.bc\:border-border-default, .bc\:border-border-default\/40 {
+  border-color: var(--bc-color-border-default);
 }
 
 @supports (color: color-mix(in lab, red, red)) {
-  .bc\:border-current\/10 {
-    border-color: color-mix(in oklab, currentcolor 10%, transparent);
+  .bc\:border-border-default\/40 {
+    border-color: color-mix(in oklab, var(--bc-color-border-default) 40%, transparent);
   }
 }
 
-.bc\:border-current\/25 {
-  border-color: currentColor;
-}
-
-@supports (color: color-mix(in lab, red, red)) {
-  .bc\:border-current\/25 {
-    border-color: color-mix(in oklab, currentcolor 25%, transparent);
-  }
-}
-
-.bc\:border-red-300 {
-  border-color: var(--bc-color-red-300);
-}
-
-.bc\:bg-current\/5 {
-  background-color: currentColor;
-}
-
-@supports (color: color-mix(in lab, red, red)) {
-  .bc\:bg-current\/5 {
-    background-color: color-mix(in oklab, currentcolor 5%, transparent);
-  }
-}
-
-.bc\:bg-red-50 {
-  background-color: var(--bc-color-red-50);
+.bc\:bg-bg-subtle {
+  background-color: var(--bc-color-bg-subtle);
 }
 
 .bc\:bg-transparent {
@@ -281,12 +290,16 @@
   color: inherit;
 }
 
-.bc\:text-red-600 {
-  color: var(--bc-color-red-600);
+.bc\:text-text-danger {
+  color: var(--bc-color-text-danger);
 }
 
-.bc\:text-red-800 {
-  color: var(--bc-color-red-800);
+.bc\:text-text-default {
+  color: var(--bc-color-text-default);
+}
+
+.bc\:text-text-muted {
+  color: var(--bc-color-text-muted);
 }
 
 .bc\:italic {
@@ -298,24 +311,12 @@
   font-variant-numeric: var(--tw-ordinal, ) var(--tw-slashed-zero, ) var(--tw-numeric-figure, ) var(--tw-numeric-spacing, ) var(--tw-numeric-fraction, );
 }
 
-.bc\:accent-blue-600 {
-  accent-color: var(--bc-color-blue-600);
-}
-
-.bc\:opacity-50 {
-  opacity: .5;
+.bc\:accent-bg-accent {
+  accent-color: var(--bc-color-bg-accent);
 }
 
 .bc\:opacity-60 {
   opacity: .6;
-}
-
-.bc\:opacity-70 {
-  opacity: .7;
-}
-
-.bc\:opacity-75 {
-  opacity: .75;
 }
 
 .bc\:\[font\:inherit\] {
@@ -331,8 +332,8 @@
   outline-offset: 1px;
 }
 
-.bc\:focus\:outline-blue-500:focus {
-  outline-color: var(--bc-color-blue-500);
+.bc\:focus\:outline-border-accent:focus {
+  outline-color: var(--bc-color-border-accent);
 }
 
 .bc\:disabled\:cursor-default:disabled {
@@ -343,8 +344,8 @@
   opacity: .4;
 }
 
-.bc\:aria-invalid\:border-red-500[aria-invalid="true"] {
-  border-color: var(--bc-color-red-500);
+.bc\:aria-invalid\:border-border-danger[aria-invalid="true"] {
+  border-color: var(--bc-color-border-danger);
 }
 
 .bc\:dark\:bg-gray-900:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {

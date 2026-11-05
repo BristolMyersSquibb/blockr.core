@@ -13,6 +13,7 @@ import type { OptionId } from "../types/board.ts";
 import type { OutputHost, OutputModule } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { BlockOutput } from "../types/outputs.ts";
+import { styles } from "../styles/index.ts";
 import { messageOf, report } from "../util/index.ts";
 import { useOutput } from "./hooks.ts";
 
@@ -79,7 +80,7 @@ export function outputRenderer<O extends BlockOutput = BlockOutput, P = Json>(
   function Renderer({ host }: ModuleProps<OutputHost>): ReactElement {
     const now = useOutput(host);
     return (
-      <div className="bc:flex bc:max-h-full bc:flex-col bc:gap-2" aria-busy={now.loading}>
+      <div className="bc:flex bc:max-h-full bc:flex-col bc:gap-2 bc:text-text-default" aria-busy={now.loading}>
         {now.error === null ? null : <Alert message={now.error.message} />}
         <Boundary output={now.output}>
           <div className={`bc:flex bc:min-h-0 bc:flex-col ${now.loading ? "bc:opacity-60" : ""}`}>
@@ -102,7 +103,7 @@ export function outputRenderer<O extends BlockOutput = BlockOutput, P = Json>(
 
 function Alert({ message }: { message: string }): ReactElement {
   return (
-    <p role="alert" className="bc:m-0 bc:text-sm bc:text-red-600 bc:whitespace-pre-wrap">
+    <p role="alert" className={styles.alert}>
       {message}
     </p>
   );

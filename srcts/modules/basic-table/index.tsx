@@ -102,7 +102,7 @@ function Header(props: { column: TableColumn; sort: Sort | undefined; onSort: (s
   const number = isNumber(column);
   const order = sort === undefined ? "none" : sort.desc === true ? "descending" : "ascending";
   return (
-    <th scope="col" aria-sort={order} className="bc:border-b bc:border-current/25 bc:px-2 bc:py-1 bc:align-bottom">
+    <th scope="col" aria-sort={order} className="bc:border-b bc:border-border-default bc:px-2 bc:py-1 bc:align-bottom">
       <button
         type="button"
         className={`bc:flex bc:w-full bc:cursor-pointer bc:items-end bc:gap-1 bc:border-0 bc:bg-transparent bc:p-0 bc:text-inherit bc:[font:inherit] ${number ? "bc:justify-end bc:text-right" : "bc:text-left"}`}
@@ -112,7 +112,7 @@ function Header(props: { column: TableColumn; sort: Sort | undefined; onSort: (s
       >
         <span className={`bc:flex bc:flex-col ${number ? "bc:items-end" : ""}`}>
           <span className="bc:font-medium">{column.name}</span>
-          <span className="bc:text-xs bc:font-normal bc:opacity-60">{column.class}</span>
+          <span className="bc:text-xs bc:font-normal bc:text-text-muted">{column.class}</span>
         </span>
         <span aria-hidden="true">{order === "none" ? "" : order === "descending" ? "↓" : "↑"}</span>
       </button>
@@ -123,8 +123,8 @@ function Header(props: { column: TableColumn; sort: Sort | undefined; onSort: (s
 function Cell({ column, value }: { column: TableColumn; value: Json }): ReactElement {
   const text = cellText(value);
   return (
-    <td className={`bc:border-b bc:border-current/10 bc:px-2 bc:py-1 bc:whitespace-nowrap ${isNumber(column) ? "bc:text-right bc:tabular-nums" : ""}`}>
-      {text ?? <span className="bc:italic bc:opacity-50">NA</span>}
+    <td className={`bc:border-b bc:border-border-default/40 bc:px-2 bc:py-1 bc:whitespace-nowrap ${isNumber(column) ? "bc:text-right bc:tabular-nums" : ""}`}>
+      {text ?? <span className="bc:italic bc:text-text-muted">NA</span>}
     </td>
   );
 }
@@ -133,7 +133,7 @@ function Cell({ column, value }: { column: TableColumn; value: Json }): ReactEle
 // where the table has more than one page.
 function Pager({ table, page, onPage }: { table: TableOutput; page: Page; onPage: (page: number) => void }): ReactElement {
   return (
-    <div className="bc:flex bc:items-center bc:justify-between bc:gap-2 bc:text-xs bc:opacity-75">
+    <div className="bc:flex bc:items-center bc:justify-between bc:gap-2 bc:text-xs bc:text-text-muted">
       <span>{rowsText(table, page)}</span>
       {(page.page > 1 || page.more) && (
         <div className="bc:flex bc:items-center bc:gap-2">
@@ -162,7 +162,7 @@ function PageButton({ text, disabled, onClick }: { text: string; disabled: boole
   return (
     <button
       type="button"
-      className="bc:cursor-pointer bc:rounded bc:border bc:border-current/25 bc:bg-transparent bc:px-2 bc:py-0.5 bc:text-inherit bc:[font:inherit] bc:disabled:cursor-default bc:disabled:opacity-40"
+      className="bc:cursor-pointer bc:rounded bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-0.5 bc:text-inherit bc:[font:inherit] bc:disabled:cursor-default bc:disabled:opacity-40"
       disabled={disabled}
       onClick={onClick}
     >

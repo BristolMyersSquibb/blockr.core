@@ -108,6 +108,23 @@ function snapshotOf(host) {
 var import_react2 = __toESM(require_react(), 1);
 var import_react_dom = __toESM(require_react_dom(), 1);
 var import_client = __toESM(require_client(), 1);
+
+// srcts/styles/styles.ts
+var styles = {
+  stack: "bc:grid bc:gap-3 bc:text-text-default",
+  field: "bc:grid bc:gap-1 bc:text-text-default",
+  label: "bc:text-sm bc:font-medium",
+  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:text-sm bc:text-text-default bc:[font-family:inherit] bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
+  check: "bc:flex bc:items-center bc:gap-2 bc:text-sm bc:text-text-default",
+  checkbox: "bc:accent-bg-accent",
+  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:text-text-default",
+  legend: "bc:text-sm bc:font-medium bc:mb-1 bc:p-0",
+  list: "bc:grid bc:max-h-48 bc:gap-1 bc:overflow-y-auto",
+  hint: "bc:m-0 bc:text-sm bc:text-text-muted",
+  alert: "bc:m-0 bc:text-sm bc:text-text-danger bc:whitespace-pre-wrap"
+};
+
+// srcts/react/module.tsx
 var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
 function reactModule(Draw, options = {}) {
   return {
@@ -126,7 +143,7 @@ function reactModule(Draw, options = {}) {
 function outputRenderer(Draw, options = {}) {
   function Renderer({ host }) {
     const now = useOutput(host);
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bc:flex bc:max-h-full bc:flex-col bc:gap-2", "aria-busy": now.loading, children: [
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bc:flex bc:max-h-full bc:flex-col bc:gap-2 bc:text-text-default", "aria-busy": now.loading, children: [
       now.error === null ? null : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Alert, { message: now.error.message }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Boundary, { output: now.output, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: `bc:flex bc:min-h-0 bc:flex-col ${now.loading ? "bc:opacity-60" : ""}`, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
         Draw,
@@ -145,7 +162,7 @@ function outputRenderer(Draw, options = {}) {
   return reactModule(Renderer, options);
 }
 function Alert({ message }) {
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { role: "alert", className: "bc:m-0 bc:text-sm bc:text-red-600 bc:whitespace-pre-wrap", children: message });
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { role: "alert", className: styles.alert, children: message });
 }
 var Boundary = class extends import_react2.Component {
   state = { failed: null };
@@ -285,7 +302,7 @@ function Header(props) {
   const { column, sort, onSort } = props;
   const number = isNumber(column);
   const order = sort === void 0 ? "none" : sort.desc === true ? "descending" : "ascending";
-  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { scope: "col", "aria-sort": order, className: "bc:border-b bc:border-current/25 bc:px-2 bc:py-1 bc:align-bottom", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { scope: "col", "aria-sort": order, className: "bc:border-b bc:border-border-default bc:px-2 bc:py-1 bc:align-bottom", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
     "button",
     {
       type: "button",
@@ -296,7 +313,7 @@ function Header(props) {
       children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: `bc:flex bc:flex-col ${number ? "bc:items-end" : ""}`, children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "bc:font-medium", children: column.name }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "bc:text-xs bc:font-normal bc:opacity-60", children: column.class })
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "bc:text-xs bc:font-normal bc:text-text-muted", children: column.class })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { "aria-hidden": "true", children: order === "none" ? "" : order === "descending" ? "\u2193" : "\u2191" })
       ]
@@ -305,10 +322,10 @@ function Header(props) {
 }
 function Cell({ column, value }) {
   const text = cellText(value);
-  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { className: `bc:border-b bc:border-current/10 bc:px-2 bc:py-1 bc:whitespace-nowrap ${isNumber(column) ? "bc:text-right bc:tabular-nums" : ""}`, children: text ?? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "bc:italic bc:opacity-50", children: "NA" }) });
+  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { className: `bc:border-b bc:border-border-default/40 bc:px-2 bc:py-1 bc:whitespace-nowrap ${isNumber(column) ? "bc:text-right bc:tabular-nums" : ""}`, children: text ?? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "bc:italic bc:text-text-muted", children: "NA" }) });
 }
 function Pager({ table, page, onPage }) {
-  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2 bc:text-xs bc:opacity-75", children: [
+  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2 bc:text-xs bc:text-text-muted", children: [
     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: rowsText(table, page) }),
     (page.page > 1 || page.more) && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "bc:flex bc:items-center bc:gap-2", children: [
       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
@@ -340,7 +357,7 @@ function PageButton({ text, disabled, onClick }) {
     "button",
     {
       type: "button",
-      className: "bc:cursor-pointer bc:rounded bc:border bc:border-current/25 bc:bg-transparent bc:px-2 bc:py-0.5 bc:text-inherit bc:[font:inherit] bc:disabled:cursor-default bc:disabled:opacity-40",
+      className: "bc:cursor-pointer bc:rounded bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-0.5 bc:text-inherit bc:[font:inherit] bc:disabled:cursor-default bc:disabled:opacity-40",
       disabled,
       onClick,
       children: text

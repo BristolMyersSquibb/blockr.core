@@ -235,7 +235,7 @@ function showError(el: HTMLElement, message: string): void {
   const box = document.createElement("div");
   box.setAttribute("role", "alert");
   box.className =
-    "bc:rounded bc:border bc:border-red-300 bc:bg-red-50 bc:p-2 bc:text-sm bc:text-red-800 bc:whitespace-pre-wrap";
+    "bc:rounded bc:border bc:border-border-danger bc:p-2 bc:text-sm bc:text-text-danger bc:whitespace-pre-wrap";
   box.textContent = message;
   el.replaceChildren(box);
 }

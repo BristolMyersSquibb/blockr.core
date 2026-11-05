@@ -16,7 +16,7 @@ export const api = 1;
 export default outputRenderer<TextOutput>(({ output }) => (
   <pre
     tabIndex={0}
-    className="bc:m-0 bc:min-h-0 bc:overflow-auto bc:rounded bc:bg-current/5 bc:p-2 bc:font-mono bc:text-xs bc:leading-snug bc:whitespace-pre"
+    className="bc:m-0 bc:min-h-0 bc:overflow-auto bc:rounded bc:bg-bg-subtle bc:p-2 bc:font-mono bc:text-xs bc:leading-snug bc:whitespace-pre"
   >
     {output.text}
   </pre>

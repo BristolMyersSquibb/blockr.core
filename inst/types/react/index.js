@@ -259,6 +259,23 @@ function held(host, key) {
 import { Component } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
+
+// srcts/styles/styles.ts
+var styles = {
+  stack: "bc:grid bc:gap-3 bc:text-text-default",
+  field: "bc:grid bc:gap-1 bc:text-text-default",
+  label: "bc:text-sm bc:font-medium",
+  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:text-sm bc:text-text-default bc:[font-family:inherit] bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
+  check: "bc:flex bc:items-center bc:gap-2 bc:text-sm bc:text-text-default",
+  checkbox: "bc:accent-bg-accent",
+  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:text-text-default",
+  legend: "bc:text-sm bc:font-medium bc:mb-1 bc:p-0",
+  list: "bc:grid bc:max-h-48 bc:gap-1 bc:overflow-y-auto",
+  hint: "bc:m-0 bc:text-sm bc:text-text-muted",
+  alert: "bc:m-0 bc:text-sm bc:text-text-danger bc:whitespace-pre-wrap"
+};
+
+// srcts/react/module.tsx
 import { jsx, jsxs } from "react/jsx-runtime";
 function reactModule(Draw, options = {}) {
   return {
@@ -277,7 +294,7 @@ function reactModule(Draw, options = {}) {
 function outputRenderer(Draw, options = {}) {
   function Renderer({ host }) {
     const now = useOutput(host);
-    return /* @__PURE__ */ jsxs("div", { className: "bc:flex bc:max-h-full bc:flex-col bc:gap-2", "aria-busy": now.loading, children: [
+    return /* @__PURE__ */ jsxs("div", { className: "bc:flex bc:max-h-full bc:flex-col bc:gap-2 bc:text-text-default", "aria-busy": now.loading, children: [
       now.error === null ? null : /* @__PURE__ */ jsx(Alert, { message: now.error.message }),
       /* @__PURE__ */ jsx(Boundary, { output: now.output, children: /* @__PURE__ */ jsx("div", { className: `bc:flex bc:min-h-0 bc:flex-col ${now.loading ? "bc:opacity-60" : ""}`, children: /* @__PURE__ */ jsx(
         Draw,
@@ -296,7 +313,7 @@ function outputRenderer(Draw, options = {}) {
   return reactModule(Renderer, options);
 }
 function Alert({ message }) {
-  return /* @__PURE__ */ jsx("p", { role: "alert", className: "bc:m-0 bc:text-sm bc:text-red-600 bc:whitespace-pre-wrap", children: message });
+  return /* @__PURE__ */ jsx("p", { role: "alert", className: styles.alert, children: message });
 }
 var Boundary = class extends Component {
   state = { failed: null };
@@ -319,23 +336,6 @@ var Boundary = class extends Component {
 
 // srcts/inputs/inputs.tsx
 import { useState as useState2 } from "react";
-
-// srcts/styles/styles.ts
-var styles = {
-  stack: "bc:grid bc:gap-3",
-  field: "bc:grid bc:gap-1",
-  label: "bc:text-sm bc:font-medium",
-  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-current/25 bc:bg-transparent bc:px-2 bc:py-1 bc:text-sm bc:text-inherit bc:[font-family:inherit] bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-blue-500 bc:aria-invalid:border-red-500",
-  check: "bc:flex bc:items-center bc:gap-2 bc:text-sm",
-  checkbox: "bc:accent-blue-600",
-  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0",
-  legend: "bc:text-sm bc:font-medium bc:mb-1 bc:p-0",
-  list: "bc:grid bc:max-h-48 bc:gap-1 bc:overflow-y-auto",
-  hint: "bc:m-0 bc:text-sm bc:opacity-70",
-  alert: "bc:m-0 bc:text-sm bc:text-red-600 bc:whitespace-pre-wrap"
-};
-
-// srcts/inputs/inputs.tsx
 import { Fragment, jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
 function Stack({ children }) {
   return /* @__PURE__ */ jsx2("div", { className: styles.stack, children });
