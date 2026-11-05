@@ -65,6 +65,19 @@ test_that("objects shape their properties and further properties", {
   expect_identical(written("a", schema), "\"a\"")
 })
 
+test_that("a named vector that the schema has as an object is written as one", {
+
+  schema <- list(type = "object", additionalProperties = list(type = "string"))
+
+  expect_identical(written(c(home = "~"), schema), "{\"home\":\"~\"}")
+  expect_identical(
+    written(c(a = "/a", b = "/b"), schema),
+    "{\"a\":\"/a\",\"b\":\"/b\"}"
+  )
+  expect_identical(written(set_names(character(), character()), schema), "{}")
+  expect_identical(written(c("a", "b"), schema), "[\"a\",\"b\"]")
+})
+
 test_that("an array shapes its items", {
 
   schema <- list(

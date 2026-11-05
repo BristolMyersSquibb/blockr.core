@@ -5,6 +5,9 @@
 // file does not list, so that the module tests check that the module submits
 // only states that R has checked to run, the pattern of consumer-driven
 // contract tests (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.5#testing).
+//
+// A file that the module sends, such as an upload,
+// answers a request that R recorded with the file as its arg `file`.
 
 import type { BlockStatus } from "../scheduler/index.ts";
 import type { BlockId, OptionId, RegistryId } from "../types/board.ts";
@@ -109,10 +112,13 @@ export function stubBlockHost<S extends State = State>(
         (call) =>
           call.name === name &&
           Object.keys(given).every((arg) => Object.hasOwn(call.args, arg)) &&
-          // The host fills in a state arg from the block's state where the
-          // module passes none.
+          // The host fills in a state arg from the block's state
+          // where the module passes none,
+          // and R gives a file the module sends to the arg `file`.
           Object.entries(call.args).every(([arg, value]) =>
-            jsonEqual(Object.hasOwn(given, arg) ? given[arg] : own(state, arg), value),
+            arg === "file" && opts.file !== undefined && !Object.hasOwn(given, arg)
+              ? sameFile(value, opts.file)
+              : jsonEqual(Object.hasOwn(given, arg) ? given[arg] : own(state, arg), value),
           ) &&
           Object.entries(call.options).every(([id, value]) => jsonEqual(own(context.options, id), value)),
       );
@@ -147,6 +153,18 @@ export function stubBlockHost<S extends State = State>(
       on.announce("context");
     },
   };
+}
+
+// Whether a file that R recorded as an action's arg `file`,
+// as Shiny's fileInput() gives a file, is the one the module sends,
+// by its name, type and size, since its `datapath` is where R wrote it.
+function sameFile(recorded: Json, file: File): boolean {
+  return (
+    isObject(recorded) &&
+    recorded.name === file.name &&
+    recorded.type === file.type &&
+    recorded.size === file.size
+  );
 }
 
 // The values of an object that are defined, as JSON keeps them.

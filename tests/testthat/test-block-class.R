@@ -389,3 +389,19 @@ test_that("a block's board options are those its requests read", {
   expect_setequal(names(board_options(with_opts())), c("n_rows", "dark_mode"))
   expect_length(board_options(new_class_head_block()), 0L)
 })
+
+test_that("each of core's block classes ships its UI module and its schema", {
+
+  ns <- asNamespace("blockr.core")
+  classes <- Filter(is_block_class, mget(ls(ns, pattern = "_block$"), ns))
+
+  expect_length(classes, 12L)
+
+  for (cls in classes) {
+    expect_true(nzchar(module_file(cls[["ui"]])), info = cls[["class"]][1L])
+    expect_setequal(
+      names(class_schema(cls)[["properties"]]),
+      class_state_args(cls)
+    )
+  }
+})

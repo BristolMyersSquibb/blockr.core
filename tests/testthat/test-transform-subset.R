@@ -60,7 +60,8 @@ test_that("the subset block's fixture", {
       list(subset = "", select = ""),
       list(subset = "Sepal.Width > 3", select = ""),
       list(subset = "", select = "Species"),
-      list(subset = "Sepal.Width > 3", select = "c(Sepal.Length, Species)")
+      list(subset = "Sepal.Width > 3", select = "c(Sepal.Length, Species)"),
+      list(subset = "Sepal.Width > 3", select = "Species")
     ),
     inputs = list(data = datasets::iris)
   )

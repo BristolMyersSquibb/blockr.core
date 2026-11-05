@@ -14,6 +14,29 @@
       ],
       "all_x": true,
       "all_y": true
+    },
+    {
+      "by": [
+        "Time",
+        "demand"
+      ],
+      "all_x": false,
+      "all_y": false
+    },
+    {
+      "by": [
+        "demand",
+        "Time"
+      ],
+      "all_x": false,
+      "all_y": false
+    },
+    {
+      "by": [
+        "Time"
+      ],
+      "all_x": true,
+      "all_y": false
     }
   ],
   "requests": [

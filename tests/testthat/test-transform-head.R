@@ -49,7 +49,9 @@ test_that("the head block's fixture", {
     head_block,
     states = list(
       list(n = 6L, direction = "head"),
-      list(n = 10L, direction = "tail")
+      list(n = 10L, direction = "tail"),
+      list(n = 10L, direction = "head"),
+      list(n = 20L, direction = "tail")
     ),
     inputs = list(data = datasets::iris),
     requests = list(list(name = "n_max"))

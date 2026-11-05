@@ -3,8 +3,11 @@
 # and an empty list as an array. Here, a value that the schema has as an array
 # stays an array, marked with `I()`. A data frame becomes an array of its rows.
 # Each row is an array where the schema's items are arrays, and an object
-# otherwise. A value that the schema has as an object becomes a named list, an
-# empty one included. Scalars, values that the schema allows in several forms,
+# otherwise.
+# A value that the schema has as an object becomes a named list, an empty one
+# included, and so does a named vector, such as the file browser's volumes,
+# `c(home = "~")`, whose names R's writer would drop.
+# Scalars, values that the schema allows in several forms,
 # with `anyOf` or `oneOf`, and values it says nothing about stay as they are. A
 # `$ref` is resolved within `root`, the schema as read from its file.
 shape_by_schema <- function(x, schema, root = schema) {
@@ -99,6 +102,10 @@ shape_array <- function(x, schema, root) {
 }
 
 shape_object <- function(x, schema, root) {
+
+  if (is.atomic(x) && !is.object(x) && not_null(names(x))) {
+    x <- as.list(x)
+  }
 
   if (!is.list(x) || is.data.frame(x)) {
     return(x)

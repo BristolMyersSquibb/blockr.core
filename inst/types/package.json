@@ -1,7 +1,7 @@
 {
   "name": "@blockr/core",
   "private": true,
-  "description": "The types that the modules of blockr.core's client are written against, a stub of each host for their tests, and the React SDK, its binding and the build preset that they may be built with, as the R package blockr.core ships them.",
+  "description": "The types that the modules of blockr.core's client are written against, a stub of each host for their tests, the React SDK, its binding and the build preset that they may be built with, and the controls they may draw with, as the R package blockr.core ships them.",
   "type": "module",
   "exports": {
     ".": {
@@ -22,6 +22,10 @@
     "./stubs": {
       "types": "./stubs/index.d.ts",
       "default": "./stubs/index.js"
+    },
+    "./controls": {
+      "types": "./controls/index.d.ts",
+      "default": "./controls/index.js"
     }
   }
 }

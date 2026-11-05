@@ -3,6 +3,10 @@
     {
       "x": "Sepal.Length",
       "y": "Sepal.Width"
+    },
+    {
+      "x": "Sepal.Length",
+      "y": "Petal.Length"
     }
   ],
   "requests": [

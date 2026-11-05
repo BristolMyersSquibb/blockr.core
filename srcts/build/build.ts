@@ -19,6 +19,10 @@
 // - The schemas of core's board options, in srcts/options/schemas.ts, go
 //   next to core's runtime, into blockr-core.schema.json, by which R writes the
 //   value of one that an app script gives.
+// - A block class's UI module whose folder holds a state.ts
+//   ships the JSON Schema of the block's state beside it,
+//   as <name>.schema.json, from the type State that the file exports.
+//   R writes the state of the blocks it builds by it.
 // - The types that modules are written against, srcts/index.ts, and the stubs
 //   of the hosts, srcts/stubs/index.ts, go into inst/types, which a package's
 //   build resolves as `@blockr/core`, and so do core's React SDK, srcts/react,
@@ -27,6 +31,9 @@
 //   SDK, the binding and the preset bundled for a package's build, with React
 //   left for the preset to map, the stubs bundled for
 //   a test runner, and the package.json that names them.
+//   The controls, srcts/controls/index.ts, go there as the SDK does,
+//   as `@blockr/core/controls`, for a package that writes its modules without
+//   React and bundles them.
 //
 // - The words that ids are made of, in srcts/store/words.ts, go into inst/ids,
 //   one word a line, for R's rand_names() to draw from as the client's
@@ -181,14 +188,17 @@ export function schemaFile(type: string): string {
 
 // Writes the JSON Schema of each output type in srcts/types/outputs.ts into
 // inst/outputs, and removes the schema of a type that is gone, then the schema
-// of a JSON board and those beside core's runtime. A schema leaves
-// out no field that a later version may add, since both sides of the wire
-// protocol skip fields they do not know.
+// of a JSON board, those beside core's runtime and those of the block states
+// beside the modules.
+// A schema leaves out no field that a later version may add,
+// since both sides of the wire protocol skip fields they do not know,
+// but for a block's state, which holds its class's state args alone.
 export async function schemas(root: string): Promise<string[]> {
   return [
     ...(await outputSchemas(root)),
     ...(await boardSchema(root)),
     ...(await runtimeSchemas(root)),
+    ...(await stateSchemas(root)),
   ].sort();
 }
 
@@ -265,16 +275,49 @@ async function runtimeSchemas(root: string): Promise<string[]> {
   return [relative(root, file)];
 }
 
+// The JSON Schema of the block's state that each block class's UI module
+// ships beside it,
+// from the type State that state.ts in the module's folder exports,
+// such as inst/js/head-block.schema.json
+// from srcts/modules/head-block/state.ts.
+// R reads it when it registers the class,
+// and refuses one whose properties are not the class's state args,
+// so it allows no other property.
+async function stateSchemas(root: string): Promise<string[]> {
+  const modules = join(root, "srcts", "modules");
+  if (!existsSync(modules)) return [];
+
+  const written: string[] = [];
+
+  for (const dir of await readdir(modules, { withFileTypes: true })) {
+    const source = join(modules, dir.name, "state.ts");
+    if (!dir.isDirectory() || !existsSync(source)) continue;
+
+    const file = join(root, "inst", "js", `${dir.name}.schema.json`);
+    const schema = typeSchemas(root, source, false)("State");
+
+    await mkdir(dirname(file), { recursive: true });
+    // A state with no state args has no properties,
+    // which the schema still lists, as R reads them.
+    await writeJson(file, { ...schema, properties: schema.properties ?? {} });
+    written.push(relative(root, file));
+  }
+
+  return written;
+}
+
 // The JSON Schema of each type that the file at `path` exports, by the type's
 // name, without definitions where it needs none.
-function typeSchemas(root: string, path: string) {
+// An object that its type gives no index signature allows other properties,
+// unless `additionalProperties` is false.
+function typeSchemas(root: string, path: string, additionalProperties = true) {
   const tsconfig = join(root, "tsconfig.client.json");
   const generator = createGenerator({
     path,
     ...(existsSync(tsconfig) ? { tsconfig } : {}),
     expose: "export",
     topRef: false,
-    additionalProperties: true,
+    additionalProperties,
     skipTypeCheck: true,
   });
 
@@ -324,7 +367,7 @@ export const TYPES_PACKAGE = {
   name: "@blockr/core",
   private: true,
   description:
-    "The types that the modules of blockr.core's client are written against, a stub of each host for their tests, and the React SDK, its binding and the build preset that they may be built with, as the R package blockr.core ships them.",
+    "The types that the modules of blockr.core's client are written against, a stub of each host for their tests, the React SDK, its binding and the build preset that they may be built with, and the controls they may draw with, as the R package blockr.core ships them.",
   type: "module",
   exports: {
     ".": { types: "./index.d.ts" },
@@ -332,12 +375,13 @@ export const TYPES_PACKAGE = {
     "./build": { types: "./build/index.d.ts", default: "./build/index.js" },
     "./react": { types: "./react/index.d.ts", default: "./react/index.js" },
     "./stubs": { types: "./stubs/index.d.ts", default: "./stubs/index.js" },
+    "./controls": { types: "./controls/index.d.ts", default: "./controls/index.js" },
   },
 };
 
 // The modules of srcts that the types package bundles,
 // each as the export of its name.
-const BUNDLED = ["stubs", "binding", "react", "build"];
+const BUNDLED = ["stubs", "binding", "react", "build", "controls"];
 
 // Writes inst/types: the declarations of srcts/index.ts and of the modules
 // that BUNDLED names, each file's beside where its source sits in srcts, those

@@ -88,6 +88,19 @@ describe("the stub of a block's host", () => {
     expect(host.state()).toEqual({ n: 2, direction: "head" });
   });
 
+  test("answers an upload that R recorded with the file as its arg file, by the file's name, type and size", async () => {
+    const uploads = json("tests", "testthat", "_snaps", "file-upload", "upload_block.json") as BlockFixture;
+    const host = stubBlockHost(uploads, { state: {} });
+    const file = new File(["Time,demand\n1,8.3\n"], "sales.csv", { type: "text/csv" });
+
+    await expect(host.request("upload", {}, { file })).resolves.toEqual(["uploads/3f9a2c/sales.csv"]);
+    await expect(host.request("upload", {}, { file: new File(["x"], "sales.csv", { type: "text/csv" }) })).rejects.toThrow(
+      'records no answer of the request "upload"',
+    );
+    await expect(host.request("upload")).rejects.toThrow('records no answer of the request "upload"');
+    expect(host.requested[0]).toEqual({ name: "upload", args: {}, file });
+  });
+
   test("announces a state and a context set from outside the module", () => {
     const host = stubBlockHost(datasets);
     const heard: string[] = [];

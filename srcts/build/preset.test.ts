@@ -2,6 +2,8 @@
 // ships as `@blockr/core/build`, as it bundles the React SDK that core ships as
 // `@blockr/core/react`: a module that holds none of React, and that draws with
 // the copy that core's runtime puts on the page.
+// So does a module written without React on the controls that core ships as
+// `@blockr/core/controls`.
 
 import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
@@ -9,7 +11,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as esbuild from "esbuild";
 import { afterEach, beforeEach, expect, test } from "vitest";
-import { stubOutputHost } from "../stubs/index.ts";
+import { stubBlockHost, stubOutputHost } from "../stubs/index.ts";
 import { mountReact } from "../testing/react.ts";
 import type { OutputFixtures, TextOutput } from "../types/outputs.ts";
 import type * as Build from "./index.ts";
@@ -85,6 +87,37 @@ test("the module draws with the copy of React that core's runtime puts on the pa
   expect(mounted.el.querySelector("pre")?.textContent).toBe(sample.output.text);
   mounted.unmount();
   expect(mounted.el.childNodes).toHaveLength(0);
+});
+
+const plainModule = `import type { BlockModule } from "@blockr/core";
+import { controls } from "@blockr/core/controls";
+
+export const api = 1;
+
+const label: BlockModule<{ label: string }> = {
+  render({ el, host, signal }) {
+    const ui = controls(host, signal);
+    ui.text("label", { label: "Label" });
+    el.replaceChildren(ui.el);
+    return ui.cleanup;
+  },
+};
+
+export default label;
+`;
+
+test("bundles the controls into a package's module written without React, which draws them with core's copy", async () => {
+  const file = await bundle(plainModule);
+  const code = await readFile(file, "utf8");
+  expect(code).toContain('globalThis["blockr.core-react"]');
+  expect(code).not.toContain("react.transitional.element");
+
+  const module = (await import(pathToFileURL(file).href)) as unknown;
+  const mounted = await mountReact(module, stubBlockHost({ states: [{ label: "x" }], requests: [] }));
+
+  expect(mounted.el.querySelector("input")?.value).toBe("x");
+  mounted.unmount();
+  expect(mounted.el.querySelector("input")).toBeNull();
 });
 
 test("refuses an entry point of React that core does not share", async () => {
