@@ -137,7 +137,9 @@ once it has added the board options that the default names to the board.
 The types that a module is written against ship in the installed package,
 in the directory \code{system.file("types", package = "blockr.core")}.
 A package's build resolves that directory as \verb{@blockr/core},
-such as after \verb{npm install --no-save} of it.
+such as after \verb{npm install --no-save --install-links} of it.
+The flag installs a copy, from which TypeScript finds the package's own
+React.
 Stubs of the hosts ship there too, as \verb{@blockr/core/stubs},
 with which a module's tests mount it
 on the fixture file that \code{\link[=expect_block_fixture]{expect_block_fixture()}} writes.
