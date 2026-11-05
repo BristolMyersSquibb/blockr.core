@@ -148,7 +148,7 @@ describe("revisions", () => {
     for (const id of ["b", "c", "e"]) expect(after[id]).toBeGreaterThan(top);
   });
 
-  test("stay through a rename, an attribute, a stack, a board option, the board's name, a property of its class and a state set to what it holds", async () => {
+  test("stay through a rename, a stack, a board option, the board's name, a property of its class and a state set to what it holds", async () => {
     const { store, scheduler } = await setup(
       {},
       {
@@ -169,7 +169,7 @@ describe("revisions", () => {
     store.apply({
       blocks: {
         mod: {
-          b: { name: "First rows", attrs: { set: { visible: ["outputs"] } }, state: { n: 6 } },
+          b: { name: "First rows", state: { n: 6 } },
         },
       },
     });

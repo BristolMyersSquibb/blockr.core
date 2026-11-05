@@ -54,7 +54,6 @@ describe("blocks", () => {
       registry_id: head,
       state: { n: 6, direction: "head" },
       name: "Head",
-      attrs: {},
     });
   });
 
@@ -72,7 +71,6 @@ describe("blocks", () => {
       registry_id: head,
       state: { n: 3, direction: "head" },
       name: "Top rows",
-      attrs: {},
     });
   });
 
@@ -429,23 +427,6 @@ describe("the board", () => {
     await expect(refused).rejects.toThrow(StoreError);
     await expect(refused).rejects.toThrow('The value of the board option "n_rows" fails its schema');
   });
-});
-
-describe("attributes", () => {
-  test("set_block_attribute sets an attribute of a block that a package registered", async () => {
-    const { store, commands } = await setup();
-
-    await commands.run("blockr.core-set_block_attribute", { id: "b", name: "visible", value: ["outputs"] });
-    expect(store.board().blocks.b?.attrs).toEqual({ visible: ["outputs"] });
-
-    expect(commands.enabled("blockr.core-set_block_attribute", { id: "b", name: "color", value: "red" })).toBe(
-      false,
-    );
-    await expect(
-      commands.run("blockr.core-set_block_attribute", { id: "b", name: "visible", value: ["nothing"] }),
-    ).rejects.toThrow('The attribute "visible" of block "b" fails its schema');
-  });
-
 });
 
 describe("the schemas", () => {

@@ -4,7 +4,7 @@ export type { ArgSpec, RegistryEntry } from "./types/registry.ts";
 export type { BlockOutput, OutputFixture, OutputFixtures, PlotOutput, TableColumn, TableOutput, TableParams, TextOutput, } from "./types/outputs.ts";
 export type { BlockContext, BlockHost, BlockModule, HostRequestOpts, Nested, OptionHost, OptionModule, OutputHost, OutputModule, Rendered, State, } from "./types/hosts.ts";
 export type { BlockRegistry, CoreApi, OutputEvents, RequestOpts } from "./types/core-api.ts";
-export type { Attribute, BoardClass, Change, Delta, Dropped, Migration, Option, Options, Origin, Patch, Property, Store, StoreError, } from "./store/index.ts";
+export type { BoardClass, Change, Delta, Dropped, Migration, Option, Options, Origin, Patch, Property, Store, StoreError, } from "./store/index.ts";
 export type { Command, CommandError, Commands } from "./commands/index.ts";
 export type { BlockStatus, Demand, Scheduler, Status } from "./scheduler/index.ts";
 export type { Condition, Lock, Omitted, OutputInfo, Phase } from "./protocol/index.ts";

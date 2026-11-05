@@ -55,8 +55,7 @@ export function isDeltas(delta: Delta | readonly Delta[]): delta is readonly Del
 
 // Values by name that a delta sets, and names whose values it removes, as a
 // collection entry's change sets and removes its fields: board option values
-// by id, and attributes by name. Undo removes a value where its step set one
-// that had none.
+// by id. Undo removes a value where its step set one that had none.
 export interface Values<K extends string> {
   readonly set?: Readonly<Record<K, Json>>;
   readonly unset?: readonly K[];
@@ -71,7 +70,6 @@ export interface BlockMod {
   // null would reach `expr` as NULL.
   readonly unset?: readonly string[];
   readonly name?: string;
-  readonly attrs?: Values<string>;
 }
 
 // A change inside a property that the board's class adds,

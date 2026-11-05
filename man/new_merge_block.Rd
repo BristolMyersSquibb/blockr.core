@@ -7,13 +7,7 @@
 \usage{
 merge_block
 
-new_merge_block(
-  by,
-  all_x = FALSE,
-  all_y = FALSE,
-  block_name = NULL,
-  visible = NULL
-)
+new_merge_block(by, all_x = FALSE, all_y = FALSE, block_name = NULL)
 }
 \arguments{
 \item{by}{Column(s) to join on}
@@ -22,9 +16,6 @@ new_merge_block(
 
 \item{block_name}{Name of the block, which defaults to one made from the
 name of its class, such as "Head"}
-
-\item{visible}{The sections of the block that show, which core keeps as its
-attribute \code{visible}}
 }
 \value{
 The block class \code{merge_block} is an object of class \code{block_class},

@@ -7,16 +7,13 @@
 \usage{
 subset_block
 
-new_subset_block(subset = "", select = "", block_name = NULL, visible = NULL)
+new_subset_block(subset = "", select = "", block_name = NULL)
 }
 \arguments{
 \item{subset, select}{Expressions (passed as strings)}
 
 \item{block_name}{Name of the block, which defaults to one made from the
 name of its class, such as "Head"}
-
-\item{visible}{The sections of the block that show, which core keeps as its
-attribute \code{visible}}
 }
 \value{
 The block class \code{subset_block} is an object of class \code{block_class},

@@ -33,8 +33,8 @@ export function opening(graph: Graph, next: () => number): Map<BlockId, number> 
 // block takes a new revision where its class, its state or its recipe's inputs
 // changed, and so does every block downstream of it. A block that a delta
 // removed and added back counts as gone and comes back with a new revision.
-// A rename, an attribute, a stack, a property of the board's class and a
-// board option change no revision.
+// A rename, a stack, a property of the board's class and a board option
+// change no revision.
 export function revise(
   revisions: ReadonlyMap<BlockId, number>,
   before: {

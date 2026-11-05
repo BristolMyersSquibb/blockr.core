@@ -1,10 +1,10 @@
 // What packages register with the store, from their startup modules, before
-// it opens a board: board classes, attributes, board options and the
-// migrations of their block classes' states.
+// it opens a board: board classes, board options and the migrations of their
+// block classes' states.
 // A board class is registered under its R class name, with the properties it
 // adds.
-// A board class, an attribute, a board option id or a block class's migration
-// registered twice fails.
+// A board class, a board option id or a block class's migration registered
+// twice fails.
 
 import { computed, signal } from "@preact/signals-core";
 import type {
@@ -69,14 +69,6 @@ export interface Property {
   readonly default: Json;
 }
 
-// A value kept on every block that is not its state, such as core's `visible`.
-export interface Attribute {
-  readonly name: string;
-  readonly schema: JsonSchema;
-  // What it holds where nothing set it.
-  readonly initial?: Json;
-}
-
 // A board option, whose value the board holds under its id once something sets
 // one, while the package that ships it defines the rest. Until then, whatever
 // needs the board option takes its `default`, a value or a function that core
@@ -106,11 +98,11 @@ export interface Options {
 // A migration converts what older versions of its class wrote into today's
 // shape, so that a board saved and opened again comes back as it was.
 // What a board reads where nothing set a value comes from
-// what packages register instead, a property's `default`,
-// an attribute's `initial` and a board option's `default`.
-// Attributes and board option values are not migrated:
+// what packages register instead, a property's `default`
+// and a board option's `default`.
+// Board option values are not migrated:
 // one that no longer fits its schema is dropped as the board opens,
-// so that it reads as its initial value or default.
+// so that it reads as its default.
 export type Migration = (state: Block["state"], version: number) => Block["state"];
 
 // A registration with the validator of its schema.
@@ -139,13 +131,11 @@ export interface Built {
 }
 
 export interface Registrations {
-  register(def: BoardClass | Attribute): () => void;
-  registered(): readonly (BoardClass | Attribute)[];
+  register(def: BoardClass): () => void;
+  registered(): readonly BoardClass[];
   readonly options: Options;
   registerMigration(registryId: RegistryId, fn: Migration): () => void;
   builtAs(classes: readonly string[]): Built;
-  attributes(): readonly Checked<Attribute>[];
-  attribute(name: string): Checked<Attribute> | undefined;
   option(id: OptionId): Checked<Option> | undefined;
   migration(registryId: RegistryId): Migration | undefined;
 }
@@ -171,20 +161,13 @@ export const CORE_PROPERTIES: readonly string[] = [
 
 export function createRegistrations(): Registrations {
   const classes = signal<ReadonlyMap<string, CheckedClass>>(new Map());
-  const attributes = signal<readonly Checked<Attribute>[]>([]);
   const options = signal<readonly Checked<Option>[]>([]);
   const migrations = signal<ReadonlyMap<RegistryId, Migration>>(new Map());
 
-  const attributeIndex = computed(
-    () => new Map(attributes.value.map((attr) => [attr.def.name, attr])),
-  );
   const optionIndex = computed(
     () => new Map(options.value.map((option) => [option.def.id, option])),
   );
-  const registered = computed(() => [
-    ...[...classes.value.values()].map((cls) => cls.def),
-    ...attributes.value.map((attr) => attr.def),
-  ]);
+  const registered = computed(() => [...classes.value.values()].map((cls) => cls.def));
   const optionDefs = computed(() =>
     Object.fromEntries(options.value.map((option) => [option.def.id, option.def])),
   );
@@ -274,20 +257,6 @@ export function createRegistrations(): Registrations {
     };
   }
 
-  function registerAttribute(def: Attribute): () => void {
-    const what = `the attribute "${def.name}" of blocks`;
-    if (attributeIndex.value.has(def.name)) {
-      throw new Error(`The attribute "${def.name}" of blocks is registered already.`);
-    }
-    const validate = compile(what, def.schema);
-    checkInitial(what, validate, def.initial, "initial value");
-    const item = { def, validate };
-    attributes.value = [...attributes.value, item];
-    return () => {
-      attributes.value = attributes.value.filter((x) => x !== item);
-    };
-  }
-
   function builtAs(vector: readonly string[]): Built {
     for (const name of vector) {
       const cls = classes.value.get(name);
@@ -302,9 +271,7 @@ export function createRegistrations(): Registrations {
   registerClass(CORE_BOARD, true);
 
   return {
-    register(def) {
-      return "class" in def ? registerClass(def) : registerAttribute(def);
-    },
+    register: (def) => registerClass(def),
     registered: () => registered.value,
     options: {
       register(def) {
@@ -337,8 +304,6 @@ export function createRegistrations(): Registrations {
       };
     },
     builtAs,
-    attributes: () => attributes.value,
-    attribute: (name) => attributeIndex.value.get(name),
     option: (id) => optionIndex.value.get(id),
     migration: (registryId) => migrations.value.get(registryId),
   };

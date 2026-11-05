@@ -182,7 +182,6 @@ function head(n = 6, name = "Head"): Block {
     registry_id: "blockr.core-head_block",
     state: { n, direction: "head" },
     name,
-    attrs: {},
   };
 }
 
@@ -203,7 +202,6 @@ function file(
         registry_id: "blockr.core-dataset_block",
         state: { dataset: "mtcars", package: "datasets" },
         name: "Cars",
-        attrs: {},
       },
       b: head(),
     } as Readonly<Record<string, Block & { version?: number }>>,
@@ -234,7 +232,6 @@ describe("opening a board", () => {
       registry_id: "blockr.core-dataset_block",
       state: { dataset: "iris", package: "datasets" },
       name: "Iris",
-      attrs: {},
     });
 
     expect(Object.keys(board.links)).toEqual(["ab", "ac", "bc", "ad", "be", "de", "keen_finch"]);
@@ -277,9 +274,8 @@ describe("opening a board", () => {
               registry_id: "blockr.core-dataset_block",
               state: { dataset: "mtcars", package: "datasets" },
               name: "Cars",
-              attrs: {},
             },
-            x: { registry_id: "blockr.dplyr-filter_block", state: {}, name: "Filter", attrs: {} },
+            x: { registry_id: "blockr.dplyr-filter_block", state: {}, name: "Filter" },
             b: head(),
           },
           links: {
@@ -403,7 +399,6 @@ describe("opening a board", () => {
               registry_id: "blockr.core-dataset_block",
               state: { dataset: "mtcars", package: "datasets" },
               name: "Cars",
-              attrs: { visible: ["outputs"], color: "red" },
             },
             b: head(),
           },
@@ -420,7 +415,6 @@ describe("opening a board", () => {
     const board = store.board();
     expect(board.class).toEqual(["dock_board", "board"]);
     expect(Object.keys(board)).toEqual(["id", "class", "name", "blocks", "links", "stacks", "options"]);
-    expect(board.blocks.a?.attrs).toEqual({ visible: ["outputs"] });
     expect(board.options).toEqual({ n_rows: 20 });
   });
 
@@ -598,9 +592,8 @@ describe("opening a board", () => {
             registry_id: "blockr.core-dataset_block",
             state: { dataset: "mtcars", package: "datasets" },
             name: "Cars",
-            attrs: {},
           },
-          x: { registry_id: "blockr.dplyr-filter_block", state: {}, name: "Filter", attrs: { color: "red" } },
+          x: { registry_id: "blockr.dplyr-filter_block", state: {}, name: "Filter" },
           b: head(),
         },
         links: {
@@ -621,25 +614,13 @@ describe("opening a board", () => {
     expect(board.stacks).toEqual({ s1: { name: "Input", blocks: ["a", "b"] } });
   });
 
-  test("drops an attribute or a board option value that its schema refuses, so that it reads as its initial value or default", async () => {
+  test("drops a board option value that its schema refuses, so that it reads as its default", async () => {
     const store = await opened();
     const dropped = await store.open(
-      file({
-        blocks: {
-          a: {
-            registry_id: "blockr.core-dataset_block",
-            state: { dataset: "mtcars", package: "datasets" },
-            name: "Cars",
-            attrs: { visible: ["header"] },
-          },
-          b: head(),
-        },
-        options: { n_rows: "fifty", show_conditions: ["warning", "error"] },
-      }),
+      file({ options: { n_rows: "fifty", show_conditions: ["warning", "error"] } }),
     );
 
     expect(dropped).toEqual([]);
-    expect(store.board().blocks.a?.attrs).toEqual({});
     expect(store.board().options).toEqual({ show_conditions: ["warning", "error"] });
   });
 
@@ -716,7 +697,6 @@ describe("migrations", () => {
         registry_id: "blockr.core-dataset_block",
         state: { dataset: "mtcars", package: "datasets" },
         name: "Cars",
-        attrs: {},
       },
       b: { ...head(), state: { n: "6", direction: "head" } },
     },
@@ -949,8 +929,6 @@ describe("applying a delta", () => {
     ["a block in two stacks", { stacks: { add: { s2: { name: "More", blocks: ["a"] } } } }, /block "a" sits in the stacks "s1" and "s2", where it sits in one/],
     ["a board option value its schema refuses", { options: { set: { n_rows: -1 } } }, /value of the board option "n_rows" fails its schema: -1 is less than 0\./],
     ["a value of a board option no package registered", { options: { set: { nope: 1 } } }, /board option "nope", which no package registered/],
-    ["an attribute no package registered", { blocks: { mod: { a: { attrs: { set: { color: "red" } } } } } }, /block "a" has the attribute "color", which no package registered/],
-    ["an attribute its schema refuses", { blocks: { mod: { a: { attrs: { set: { visible: ["header"] } } } } } }, /attribute "visible" of block "a" fails its schema at \/0: Instance does not match any of \["inputs","outputs"\]\./],
     ["a block of a class the block registry lacks", { blocks: { add: { g: { ...head(), registry_id: "blockr.foo-bar" } } } }, /class "blockr.foo-bar", which the block registry lacks/],
     ["an id made of digits alone", { blocks: { add: { 7: head() } } }, /block id "7" is empty or made of digits alone/],
     ["removing a block the board lacks", { blocks: { rm: ["z"] } }, /board holds no block "z" to remove/],
@@ -1288,7 +1266,7 @@ describe("undo", () => {
     const before = store.board();
 
     store.apply({
-      blocks: { mod: { d: { state: { extra: 1 } }, a: { attrs: { set: { visible: ["outputs"] } } } } },
+      blocks: { mod: { d: { state: { extra: 1 } }, a: { name: "Renamed" } } },
       options: { set: { seed: 42 } },
     });
     store.undo();
@@ -1538,22 +1516,16 @@ describe("undo", () => {
 });
 
 describe("registering", () => {
-  test("core registers its board class board and its attribute visible", () => {
+  test("core registers its board class board", () => {
     const store = newStore();
-    expect(store.registered()).toEqual([
-      { class: "board", properties: {} },
-      expect.objectContaining({ name: "visible" }),
-    ]);
+    expect(store.registered()).toEqual([{ class: "board", properties: {} }]);
   });
 
-  test("a board class, an attribute or a board option id registered twice fails", () => {
+  test("a board class, a board option id or a block class's migration registered twice fails", () => {
     const store = newStore();
     store.register(dock);
 
     expect(() => store.register({ ...dock })).toThrow('The board class "dock_board" is registered already.');
-    expect(() => store.register({ name: "visible", schema: {} })).toThrow(
-      'The attribute "visible" of blocks is registered already.',
-    );
     expect(() =>
       store.options.register({ id: "n_rows", label: "Rows", category: "Table options", schema: {}, default: 50 }),
     ).toThrow(
@@ -1655,9 +1627,6 @@ describe("registering", () => {
     ).toThrow(
       'The default of the property "views" of the board class "dock_board" fails its schema: Instance type "array" is invalid. Expected "object".',
     );
-    expect(() =>
-      store.register({ name: "pinned", schema: { type: "boolean" }, initial: "yes" }),
-    ).toThrow(/The initial value of the attribute "pinned" of blocks fails its schema/);
   });
 
   test("leaves a default that is a function to whatever needs the board option first", () => {

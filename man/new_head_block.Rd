@@ -7,12 +7,7 @@
 \usage{
 head_block
 
-new_head_block(
-  n = 6L,
-  direction = c("head", "tail"),
-  block_name = NULL,
-  visible = NULL
-)
+new_head_block(n = 6L, direction = c("head", "tail"), block_name = NULL)
 }
 \arguments{
 \item{n}{Number of rows}
@@ -21,9 +16,6 @@ new_head_block(
 
 \item{block_name}{Name of the block, which defaults to one made from the
 name of its class, such as "Head"}
-
-\item{visible}{The sections of the block that show, which core keeps as its
-attribute \code{visible}}
 }
 \value{
 The block class \code{head_block} is an object of class \code{block_class},

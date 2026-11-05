@@ -44,11 +44,12 @@
 #' The client drops each property that the class it builds the board as does
 #' not add.
 #'
-#' A block is written by the registry ID of its class, with its state, its name
-#' and core's attribute `visible`. Where the block registry holds no entry for
-#' its class, writing the block registers the class, as a class from outside a
-#' package, under its name. So a class defined in an app script is registered
-#' before any session evaluates a block of it.
+#' A block is written by the registry ID of its class, with its state and its
+#' name.
+#' Where the block registry holds no entry for its class, writing the block
+#' registers the class, as a class from outside a package, under its name.
+#' So a class defined in an app script is registered before any session
+#' evaluates a block of it.
 #'
 #' Core's objects are written by the JSON Schema of a JSON board, which core
 #' generates from its TypeScript types, so that a stack's blocks stay an array
@@ -147,8 +148,7 @@ blockr_ser.block <- function(x, ...) {
       block_state(x),
       paste0("The state of block \"", block_name(x), "\"")
     ),
-    name = block_name(x),
-    attrs = block_attrs(x)
+    name = block_name(x)
   )
 }
 
@@ -253,19 +253,6 @@ board_properties <- function(x) {
     ),
     keys
   )
-}
-
-# Core's attribute `visible`, which says which of a block's sections show,
-# written as the array of sections that its schema in the client has.
-block_attrs <- function(x) {
-
-  visible <- attr(x, "visible", exact = TRUE)
-
-  if (is.null(visible)) {
-    return(list())
-  }
-
-  list(visible = I(unname(visible)))
 }
 
 # The block registry's entry for a block class, which registers the class

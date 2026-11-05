@@ -11,8 +11,7 @@ filebrowser_block
 new_filebrowser_block(
   file_path,
   volumes = filebrowser_volumes(),
-  block_name = NULL,
-  visible = NULL
+  block_name = NULL
 )
 
 filebrowser_volumes(default = c(home = path.expand("~")))
@@ -25,9 +24,6 @@ from}
 
 \item{block_name}{Name of the block, which defaults to one made from the
 name of its class, such as "Head"}
-
-\item{visible}{The sections of the block that show, which core keeps as its
-attribute \code{visible}}
 
 \item{default}{Default volumes specification (use the blockr option
 "volumes" to override)}

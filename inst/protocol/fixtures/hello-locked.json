@@ -1,5 +1,5 @@
 {
-  "description": "A new session of a locked app, whose script sets blockr.locked to TRUE and shows the inputs of b alone. The client holds its board already, where a reader may have changed b, and keeps it. R replies with the opening board, into which it wrote visible for a, which the script left unset, so that a shows only its output, and with the lock, which leaves b open.",
+  "description": "A new session of a locked app, whose script sets blockr.locked to TRUE and leaves b open. The client holds its board already, where a reader may have changed b, and keeps it. R replies with the opening board and with the lock, which leaves b open.",
   "client": [
     {
       "id": "1",
@@ -140,15 +140,13 @@
                 "registry_id": "blockr.core-dataset_block",
                 "version": 1,
                 "state": { "dataset": "iris", "package": "datasets" },
-                "name": "Iris",
-                "attrs": { "visible": ["outputs"] }
+                "name": "Iris"
               },
               "b": {
                 "registry_id": "blockr.core-head_block",
                 "version": 1,
                 "state": { "n": 6, "direction": "head" },
-                "name": "Head",
-                "attrs": { "visible": ["inputs", "outputs"] }
+                "name": "Head"
               }
             },
             "links": { "ab": { "from": "a", "to": "b", "input": "data" } },

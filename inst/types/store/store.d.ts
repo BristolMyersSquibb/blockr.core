@@ -3,7 +3,7 @@ import type { BlockId, Board, JsonBoard, RegistryId } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import type { Delta, Origin } from "./delta.ts";
 import type { Dropped } from "./open.ts";
-import type { Attribute, BoardClass, Migration, Options } from "./registrations.ts";
+import type { BoardClass, Migration, Options } from "./registrations.ts";
 export type Change = {
     readonly delta: Delta;
     readonly origin: Origin;
@@ -22,8 +22,8 @@ export interface Store {
     redo(origin?: Origin): void;
     canUndo(origin?: Origin): boolean;
     canRedo(origin?: Origin): boolean;
-    register(def: BoardClass | Attribute): () => void;
-    registered(): readonly (BoardClass | Attribute)[];
+    register(def: BoardClass): () => void;
+    registered(): readonly BoardClass[];
     boardClass(classes: readonly string[]): BoardClass;
     frontEnd(classes: readonly string[]): string;
     registerMigration(registryId: RegistryId, fn: Migration): () => void;

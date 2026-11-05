@@ -51,22 +51,21 @@
 #' with which a module's tests mount it
 #' on the fixture file that [expect_block_fixture()] writes.
 #'
-#' A class is checked once, when it is defined: no state arg is `...`,
-#' `block_name` or `visible`, no input or state arg shares the name of
-#' another, the arguments of each request name inputs or state args, but for
+#' A class is checked once, when it is defined: no state arg is `...` or
+#' `block_name`, no input or state arg shares the name of another, the
+#' arguments of each request name inputs or state args, but for
 #' parameters, which have a default, for the `file` of an action and for those
 #' that take board options, which are neither, and `expr`, called without
 #' args, cannot run yet or returns a call, a string, a function whose formals
 #' are the inputs or an object of a class that inherits from `blockr_expr`,
 #' holding no function.
 #'
-#' The constructor has the formals of `expr`, a `block_name` and a `visible`,
-#' and no `...`, so a misspelled state arg fails as an unused argument. It
+#' The constructor has the formals of `expr` and a `block_name`, and no
+#' `...`, so a misspelled state arg fails as an unused argument. It
 #' calls `expr` with its args and returns a block, a list of the state that
 #' the checks in `expr` left in the frame it ran in, which leaves out an arg
 #' that is still unset. A block holds its name, which defaults to one made
-#' from its class's name by `default_block_name()`, and core's attribute
-#' `visible`, which says which of the block's sections show, and refers to its
+#' from its class's name by `default_block_name()`, and refers to its
 #' class, which every block of the class shares.
 #'
 #' @section Block vectors:
@@ -187,7 +186,7 @@ block_constructor <- function(cls) {
 
   formals(ctor) <- c(
     formals(cls[["expr"]]),
-    alist(block_name = NULL, visible = NULL)
+    alist(block_name = NULL)
   )
 
   structure(
@@ -291,7 +290,7 @@ validate_block_class <- function(x) {
   inputs <- class_inputs(x)
   args <- class_state_args(x)
 
-  reserved <- intersect(args, c("...", "block_name", "visible"))
+  reserved <- intersect(args, c("...", "block_name"))
 
   if (length(reserved)) {
     blockr_abort(
@@ -536,19 +535,9 @@ new_class_block <- function(cls, env) {
     )
   }
 
-  visible <- env[["visible"]]
-
-  if (!is.null(visible) && !is.character(visible)) {
-    blockr_abort(
-      "Expecting `visible` to be a character vector.",
-      class = "block_visible_invalid"
-    )
-  }
-
   structure(
     expr_state(cls, mget(given, envir = env)),
     block_name = block_name,
-    visible = visible,
     block_class = cls,
     class = cls[["class"]]
   )

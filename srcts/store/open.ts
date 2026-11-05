@@ -30,7 +30,7 @@ import { commit } from "./commit.ts";
 import { StoreError } from "./error.ts";
 import { expand } from "./expand.ts";
 import { CORE_PROPERTIES, defaultOf, propertiesOf, recordOf } from "./registrations.ts";
-import type { Built, Checked, Registrations } from "./registrations.ts";
+import type { Built, Registrations } from "./registrations.ts";
 
 // The highest format of a JSON board that this client reads and writes.
 export const FORMAT = 1;
@@ -44,8 +44,7 @@ export const FORMAT = 1;
 // A class's name gives no package, but the JSON board's packages do.
 // It names each block whose class the block registry lacks, with the package
 // to install where its registry id gives one.
-// It does not name what it drops of the properties, attributes and board
-// option values.
+// It does not name what it drops of the properties and board option values.
 export type Dropped =
   | { readonly package: string; readonly version: string }
   | {
@@ -246,7 +245,7 @@ export function openJsonBoard(
     return { block: id, registry_id: registryId, package: packageOf(registryId) };
   });
 
-  const pruned = prune(migrated, gone, built, registrations);
+  const pruned = prune(migrated, built, registrations);
   const board = remove(complete(pruned, built), gone, built);
 
   const failures = check(board, reply.block_registry, registrations, built);
@@ -262,46 +261,22 @@ export function openJsonBoard(
 // The board without the properties that the class it is built as adds neither
 // itself nor through its parents, such as the dock's views on a board built as
 // core's.
-// It lacks as well every attribute and board option value that no package
-// registered or that its schema refuses, as one that an older version of its
-// package saved, which no migration converts, so that it reads as its initial
-// value or default.
-// The blocks that go keep what they hold, which goes with them.
-function prune(
-  board: Board,
-  gone: readonly string[],
-  built: Built,
-  registrations: Registrations,
-): Board {
-  // An attribute or a board option value that no package registered, or that
-  // its schema refuses.
-  const unfit = (
-    values: Readonly<Record<string, Json>>,
-    registered: (name: string) => Checked<unknown> | undefined,
-  ): string[] =>
-    Object.entries(values)
-      .filter(([name, value]) => {
-        const def = registered(name);
-        return def === undefined || def.validate(value).length > 0;
-      })
-      .map(([name]) => name);
-
-  const blocks = Object.fromEntries(
-    Object.entries(board.blocks).map(([id, block]) => {
-      if (gone.includes(id)) return [id, block];
-      const unknown = unfit(block.attrs, (name) => registrations.attribute(name));
-      return [id, unknown.length === 0 ? block : { ...block, attrs: without(block.attrs, unknown) }];
-    }),
-  );
-
-  const options = unfit(board.options, (id) => registrations.option(id));
+// It lacks as well every board option value that no package registered or
+// that its schema refuses, so that it reads as its default.
+function prune(board: Board, built: Built, registrations: Registrations): Board {
+  const unfit = Object.entries(board.options)
+    .filter(([id, value]) => {
+      const def = registrations.option(id);
+      return def === undefined || def.validate(value).length > 0;
+    })
+    .map(([id]) => id);
   const kept = Object.fromEntries(
     Object.entries(recordOf(board)).filter(
       ([name]) => CORE_PROPERTIES.includes(name) || built.properties.has(name),
     ),
   ) as unknown as Board;
 
-  return { ...kept, blocks, options: without(board.options, options) };
+  return { ...kept, options: without(board.options, unfit) };
 }
 
 // The board with each property of its class that it lacks,

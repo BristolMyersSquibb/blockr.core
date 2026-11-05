@@ -2,7 +2,7 @@
 // adding, removing and renaming a block, setting and unsetting its state args,
 // appending, prepending and inserting one on a link, adding, changing and
 // removing links, adding, changing, renaming and removing stacks, renaming the
-// board, setting a board option and setting an attribute of a block.
+// board and setting a board option.
 // The properties that a board class adds are its package's to change, through
 // commands that the package registers.
 //
@@ -12,7 +12,7 @@
 // that changes nothing is the store's to drop, which makes no step of it.
 
 import { mintId, sentenceCase } from "../store/index.ts";
-import type { Attribute, Store } from "../store/index.ts";
+import type { Store } from "../store/index.ts";
 import type {
   Block,
   BlockId,
@@ -95,7 +95,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
     const id = args.id ?? mintId((id) => Object.hasOwn(board.blocks, id));
     return [
       id,
-      { registry_id: entry.id, state, name: args.name ?? blockName(entry.id), attrs: {} },
+      { registry_id: entry.id, state, name: args.name ?? blockName(entry.id) },
       entry,
     ];
   }
@@ -159,12 +159,6 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       `The block class "${entry.id}" has no input to take a link.`,
       `The block class "${entry.id}" has the inputs ${quoted(entry.inputs)}, so the args have to name the one to use.`,
     );
-  }
-
-  function attributeOf(name: string): Attribute | undefined {
-    return store
-      .registered()
-      .find((def): def is Attribute => !("class" in def) && def.name === name);
   }
 
   const blocks = [
@@ -494,25 +488,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
     }),
   ];
 
-  const attributes = [
-    command<{ readonly id: BlockId; readonly name: string; readonly value: Json }>({
-      id: "blockr.core-set_block_attribute",
-      label: "Set block attribute",
-      description:
-        "Sets an attribute of a block, a value that is not its state, such as which of its sections show, which the attribute's schema types.",
-      args: object(
-        { id: schemas.blockId, name: schemas.attribute, value: schemas.value },
-        ["id", "name", "value"],
-      ),
-      enabled: (board, { id, name }) =>
-        Object.hasOwn(board.blocks, id) && attributeOf(name) !== undefined,
-      run: (_board, { id, name, value }) => ({
-        blocks: { mod: { [id]: { attrs: { set: { [name]: value } } } } },
-      }),
-    }),
-  ];
-
-  return [...blocks, ...links, ...stacks, ...board, ...attributes];
+  return [...blocks, ...links, ...stacks, ...board];
 }
 
 // The name of a new block, made as R makes one from its class, from the name

@@ -7,12 +7,7 @@
 \usage{
 dataset_block
 
-new_dataset_block(
-  dataset,
-  package = "datasets",
-  block_name = NULL,
-  visible = NULL
-)
+new_dataset_block(dataset, package = "datasets", block_name = NULL)
 }
 \arguments{
 \item{dataset}{Selected dataset}
@@ -21,9 +16,6 @@ new_dataset_block(
 
 \item{block_name}{Name of the block, which defaults to one made from the
 name of its class, such as "Head"}
-
-\item{visible}{The sections of the block that show, which core keeps as its
-attribute \code{visible}}
 }
 \value{
 The block class \code{dataset_block} is an object of class \code{block_class},

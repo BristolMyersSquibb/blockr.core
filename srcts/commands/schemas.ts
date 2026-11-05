@@ -72,12 +72,6 @@ export const optionId: JsonSchema = {
   description: 'The id of a board option, such as "n_rows".',
 };
 
-export const attribute: JsonSchema = {
-  type: "string",
-  minLength: 1,
-  description: 'The name of an attribute of blocks, such as "visible".',
-};
-
 export const value: JsonSchema = {
   description: "A JSON value, which the schema of what it is set on types.",
 };

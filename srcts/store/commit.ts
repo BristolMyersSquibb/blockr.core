@@ -434,20 +434,13 @@ function modifyBlock(
     failures,
   );
   const name = mod.name === old.name ? undefined : mod.name;
-  const attrs = values(
-    old.attrs,
-    mod.attrs,
-    (name) => `the attribute "${name}" of block "${id}"`,
-    failures,
-  );
 
   return {
-    value: { ...old, state: state.next, name: name ?? old.name, attrs: attrs.next },
+    value: { ...old, state: state.next, name: name ?? old.name },
     inverse: {
       ...(Object.keys(state.restore).length === 0 ? {} : { state: state.restore }),
       ...(state.remove.length === 0 ? {} : { unset: state.remove }),
       ...(name === undefined ? {} : { name: old.name }),
-      ...(attrs.inverse === undefined ? {} : { attrs: attrs.inverse }),
     },
   };
 }

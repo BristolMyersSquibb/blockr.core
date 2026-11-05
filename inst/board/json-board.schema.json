@@ -90,18 +90,11 @@
         "name": {
           "type": "string"
         },
-        "attrs": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/Json"
-          }
-        },
         "version": {
           "type": "number"
         }
       },
       "required": [
-        "attrs",
         "name",
         "registry_id",
         "state",

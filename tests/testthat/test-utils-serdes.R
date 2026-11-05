@@ -25,7 +25,7 @@ test_that("a board is written as a JSON board", {
   board <- new_board(
     blocks = c(
       a = new_class_head_block(n = 10L, block_name = "Ten"),
-      b = new_class_head_block(direction = "tail", visible = "outputs")
+      b = new_class_head_block(direction = "tail")
     ),
     links = links(ab = new_link("a", "b", "data")),
     stacks = stacks(s1 = new_stack("a", "Input")),
@@ -58,15 +58,13 @@ test_that("a board is written as a JSON board", {
             "registry_id": "head_block",
             "version": 1,
             "state": { "n": 10, "direction": "head" },
-            "name": "Ten",
-            "attrs": {}
+            "name": "Ten"
           },
           "b": {
             "registry_id": "head_block",
             "version": 1,
             "state": { "n": 6, "direction": "tail" },
-            "name": "Head",
-            "attrs": { "visible": ["outputs"] }
+            "name": "Head"
           }
         },
         "links": { "ab": { "from": "a", "to": "b", "input": "data" } },

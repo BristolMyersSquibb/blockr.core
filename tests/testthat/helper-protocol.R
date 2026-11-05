@@ -780,14 +780,8 @@ proto_class <- function() {
 
 # The objects of a board, which its collections hold by id, a block with the
 # version of its class's state.
-proto_block <- function(registry_id, state, name, attrs = obj()) {
-  obj(
-    registry_id = registry_id,
-    version = 1L,
-    state = state,
-    name = name,
-    attrs = attrs
-  )
+proto_block <- function(registry_id, state, name) {
+  obj(registry_id = registry_id, version = 1L, state = state, name = name)
 }
 
 proto_link <- function(from, to, input) {
@@ -846,8 +840,7 @@ proto_board <- function() {
         f = proto_block(
           "blockr.core-scatter_block",
           obj(x = "Sepal.Length", y = "Sepal.Width"),
-          "Scatter",
-          obj(visible = I("outputs"))
+          "Scatter"
         )
       ),
       links = obj(
@@ -865,8 +858,7 @@ proto_board <- function() {
   )
 }
 
-# The opening board of the locked app of the fixture hello-locked, into which R
-# wrote `visible` for a, which the script left unset.
+# The opening board of the locked app of the fixture hello-locked.
 proto_locked_board <- function() {
   proto_json_board(
     obj(
@@ -877,14 +869,12 @@ proto_locked_board <- function() {
         a = proto_block(
           "blockr.core-dataset_block",
           obj(dataset = "iris", package = "datasets"),
-          "Iris",
-          obj(visible = I("outputs"))
+          "Iris"
         ),
         b = proto_block(
           "blockr.core-head_block",
           obj(n = 6L, direction = "head"),
-          "Head",
-          obj(visible = I(c("inputs", "outputs")))
+          "Head"
         )
       ),
       links = obj(ab = proto_link("a", "b", "data")),

@@ -10,6 +10,5 @@ export declare const state: JsonSchema;
 export declare const stateArgs: JsonSchema;
 export declare const blockIds: JsonSchema;
 export declare const optionId: JsonSchema;
-export declare const attribute: JsonSchema;
 export declare const value: JsonSchema;
 export declare function stateSchema(entry: RegistryEntry): JsonSchema;

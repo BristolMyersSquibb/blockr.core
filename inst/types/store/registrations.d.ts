@@ -14,11 +14,6 @@ export interface Property {
     readonly schema: JsonSchema;
     readonly default: Json;
 }
-export interface Attribute {
-    readonly name: string;
-    readonly schema: JsonSchema;
-    readonly initial?: Json;
-}
 export interface Option {
     readonly id: OptionId;
     readonly label: string;
@@ -48,13 +43,11 @@ export interface Built {
     }>;
 }
 export interface Registrations {
-    register(def: BoardClass | Attribute): () => void;
-    registered(): readonly (BoardClass | Attribute)[];
+    register(def: BoardClass): () => void;
+    registered(): readonly BoardClass[];
     readonly options: Options;
     registerMigration(registryId: RegistryId, fn: Migration): () => void;
     builtAs(classes: readonly string[]): Built;
-    attributes(): readonly Checked<Attribute>[];
-    attribute(name: string): Checked<Attribute> | undefined;
     option(id: OptionId): Checked<Option> | undefined;
     migration(registryId: RegistryId): Migration | undefined;
 }

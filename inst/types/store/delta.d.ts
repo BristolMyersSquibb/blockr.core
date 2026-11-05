@@ -32,7 +32,6 @@ export interface BlockMod {
     readonly state?: Readonly<Record<string, Json>>;
     readonly unset?: readonly string[];
     readonly name?: string;
-    readonly attrs?: Values<string>;
 }
 export interface Patch {
     readonly op: "add" | "remove" | "replace";

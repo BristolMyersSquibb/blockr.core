@@ -20,8 +20,7 @@
         "state": {
           "n": 3
         },
-        "name": "Letters",
-        "attrs": {}
+        "name": "Letters"
       },
       "b": {
         "registry_id": "letters_block",
@@ -29,8 +28,7 @@
         "state": {
           "n": 5
         },
-        "name": "More letters",
-        "attrs": {}
+        "name": "More letters"
       },
       "c": {
         "registry_id": "join_block",
@@ -41,12 +39,7 @@
           ],
           "all_x": false
         },
-        "name": "Join",
-        "attrs": {
-          "visible": [
-            "outputs"
-          ]
-        }
+        "name": "Join"
       }
     },
     "links": {

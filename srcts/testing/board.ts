@@ -17,7 +17,7 @@ export function boardOf(
     blocks: Object.fromEntries(
       Object.entries(blocks).map(([id, name]) => [
         id,
-        { registry_id: `blockr.core-${name}`, state: {}, name: id, attrs: {} },
+        { registry_id: `blockr.core-${name}`, state: {}, name: id },
       ]),
     ),
     links: Object.fromEntries(

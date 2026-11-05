@@ -7,7 +7,6 @@ export { isDeltas } from "./delta.ts";
 export type { BlockMod, Delta, Origin, Patch, Values } from "./delta.ts";
 export { pathOf, pointer } from "./patch.ts";
 export type {
-  Attribute,
   BoardClass,
   Migration,
   Option,

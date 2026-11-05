@@ -1,8 +1,7 @@
 // The checks a board passes after every delta and as it opens,
 // each failure in a sentence: the invariants of core's objects,
 // as R's validate_links() and the board's checks did,
-// and the schemas of the attributes, board options and properties of the
-// board's class.
+// and the schemas of the board options and properties of the board's class.
 // Where a delta changed only some objects, their shapes and schemas
 // are checked alone, since nothing else can have broken them,
 // while the invariants run on the whole board every time.
@@ -71,7 +70,7 @@ function checkBlocks(
 
   for (const [id, block] of Object.entries(board.blocks)) {
     if (changed !== undefined && !changed.blocks.has(id)) continue;
-    const fields = shape(block, { registry_id: "string", state: "object", name: "string", attrs: "object" });
+    const fields = shape(block, { registry_id: "string", state: "object", name: "string" });
     if (fields.length > 0) {
       failures.push(`The block "${id}" ${fields.join(", ")}.`);
       continue;
@@ -80,16 +79,6 @@ function checkBlocks(
       failures.push(
         `The block "${id}" is of the class "${block.registry_id}", which the block registry lacks.`,
       );
-    }
-    for (const [name, value] of Object.entries(block.attrs)) {
-      const attr = registrations.attribute(name);
-      if (attr === undefined) {
-        failures.push(`The block "${id}" has the attribute "${name}", which no package registered.`);
-        continue;
-      }
-      for (const failure of attr.validate(value)) {
-        failures.push(`The attribute "${name}" of block "${id}" ${failure}`);
-      }
     }
   }
 }

@@ -97,8 +97,12 @@ local_board_front_end <- function(class, front_end, package, version = NULL,
     registerS3method(generic, class, method, envir = asNamespace("blockr.core"))
   }
 
+  # A class registered twice in a frame has its methods removed by the second
+  # registration's cleanup, which runs first.
+  keys <- paste0(names(methods), ".", class)
+
   withr::defer(
-    rm(list = paste0(names(methods), ".", class), envir = table),
+    rm(list = intersect(keys, ls(table, all.names = TRUE)), envir = table),
     envir = frame
   )
 
@@ -185,7 +189,7 @@ board_fixture_values <- function() {
         blocks = c(
           a = new_letters_block(block_name = "Letters"),
           b = new_letters_block(n = 5L, block_name = "More letters"),
-          c = new_join_block(by = "x", block_name = "Join", visible = "outputs")
+          c = new_join_block(by = "x", block_name = "Join")
         ),
         links = links(
           ac = new_link("a", "c", "x"),

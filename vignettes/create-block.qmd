@@ -49,7 +49,8 @@ Each field has one job:
 - The field `requests` holds the functions the UI calls for what it needs from R. The head block's UI asks for the number of rows of its input through `n_max`, which caps its numeric input.
 - The field `output` names the coercion through which the block's results show, here as a table.
 
-The constructor takes the state args, a `block_name` and a `visible`. It runs the checks in `expr` and keeps the state they leave:
+The constructor takes the state args and a `block_name`.
+It runs the checks in `expr` and keeps the state they leave:
 
 ```{r}
 new_head_block(n = 10L)

@@ -184,7 +184,7 @@ describe("loading", () => {
   test("imports a module and its stylesheet once, however many blocks and mounts use it", async () => {
     const ui = recorder();
     const { store, mounts, imported, sheets } = await setup({ [HEAD]: ui.exports });
-    store.apply({ blocks: { add: { g: { registry_id: head.id, state: { n: 3, direction: "head" }, name: "Head", attrs: {} } } } });
+    store.apply({ blocks: { add: { g: { registry_id: head.id, state: { n: 3, direction: "head" }, name: "Head" } } } });
 
     const els = [document.createElement("div"), document.createElement("div"), document.createElement("div")];
     mounts.mountBlock(els[0] as HTMLElement, "b");
@@ -681,7 +681,7 @@ describe("a request", () => {
   test("is answered from what core keeps, by class, name, args, board options and revisions, for every block of the class", async () => {
     const { r, store, host, mounts, ui } = await mounted();
     store.apply({
-      blocks: { add: { g: { registry_id: head.id, state: { n: 3, direction: "head" }, name: "Head", attrs: {} } } },
+      blocks: { add: { g: { registry_id: head.id, state: { n: 3, direction: "head" }, name: "Head" } } },
       links: { add: { ag: { from: "a", to: "g", input: "data" } } },
     });
     mounts.mountBlock(document.createElement("div"), "g");
@@ -756,7 +756,7 @@ describe("a request", () => {
           ...json.board,
           blocks: {
             ...json.board.blocks,
-            u: { registry_id: "blockr.core-upload_block", version: 1, state: {}, name: "Upload", attrs: {} },
+            u: { registry_id: "blockr.core-upload_block", version: 1, state: {}, name: "Upload" },
           },
         },
       },

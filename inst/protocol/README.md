@@ -94,7 +94,7 @@ It builds the board as the first class in the board's class vector that a loaded
 It migrates what the JSON board holds in an older shape, by the versions of the shapes that it records: the properties of each class that it builds the board as whose version in `versions` is below the one that R gives in `board_classes`, and the state of each block whose `version` is below the one that its class's entry in the block registry gives, with the migrations that the startup modules registered.
 It names each package that the JSON board lists and R did not load, with the version that the JSON board records.
 It drops each block whose class the block registry lacks, with its links and its places in stacks, naming the package to install from its registry id.
-It drops each property that the class it builds the board as does not add, and each attribute and board option value that no package registered, and replaces its board.
+It drops each property that the class it builds the board as does not add, and each board option value that no package registered, and replaces its board.
 A file of today's stack is converted to a JSON board before it is opened, outside core.
 
 A locked board opens no other board ([Locked boards](#locked-boards)).
@@ -243,7 +243,9 @@ A board that the client opens in place of another has R forget every block of th
 
 ## Locked boards
 
-An app locks a board when it starts, through the blockr option `locked`, which an app sets as `blockr.locked` and a deployment as `BLOCKR_LOCKED`, and the lock stays as the app set it, so that nothing a client sends can loosen it ([Locked boards](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.9#locked-boards)). A locked board loads no other board and keeps everything core keeps in it, its name and its blocks, links, stacks and board options, as the app built them, and every block keeps its opening state but those whose inputs show, as core's attribute `visible` says on the board the app script built. R writes `visible` into each block of the opening board whose script set none, so that it shows only its output, and sends the lock with its reply to `hello`, as the blocks it leaves open, `{ "open": ["b"] }`, or `null` where the app locks nothing.
+An app locks a board when it starts, through the blockr option `locked`, which an app sets as `blockr.locked` and a deployment as `BLOCKR_LOCKED`, and the lock stays as the app set it, so that nothing a client sends can loosen it ([Locked boards](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.9#locked-boards)).
+A locked board loads no other board and keeps everything core keeps in it, its name and its blocks, links, stacks and board options, as the app built them, and every block keeps its opening state but those that the lock leaves open.
+R sends the lock with its reply to `hello`, as the blocks it leaves open, `{ "open": ["b"] }`, or `null` where the app locks nothing.
 The client keeps to it: its store opens no other board and refuses every delta that the lock does not leave open, and a front-end draws no control for one.
 
 That stops only a client that plays by the rules, so R holds the lock in what it runs, comparing nothing a client sends. When the app starts, it builds from the opening board every block's class and the ids its inputs bind to, and for a locked block the block expression it evaluates, so that a locked block's state and the bindings of its inputs are fixed together. A locked block whose opening state cannot run keeps the `blockr_invalid()` that building it signalled, and R replies `invalid` with it to every evaluation of the block. In a locked session:

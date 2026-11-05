@@ -51,7 +51,6 @@ export type {
 } from "./types/hosts.ts";
 export type { BlockRegistry, CoreApi, OutputEvents, RequestOpts } from "./types/core-api.ts";
 export type {
-  Attribute,
   BoardClass,
   Change,
   Delta,

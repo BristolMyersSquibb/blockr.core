@@ -141,15 +141,13 @@
                 "registry_id": "blockr.core-dataset_block",
                 "version": 1,
                 "state": { "dataset": "mtcars", "package": "datasets" },
-                "name": "Cars",
-                "attrs": {}
+                "name": "Cars"
               },
               "b": {
                 "registry_id": "blockr.core-subset_block",
                 "version": 1,
                 "state": { "subset": "cyl == 6", "select": "mpg" },
-                "name": "Six cylinders",
-                "attrs": {}
+                "name": "Six cylinders"
               }
             },
             "links": { "ab": { "from": "a", "to": "b", "input": "data" } },

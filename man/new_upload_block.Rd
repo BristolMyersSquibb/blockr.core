@@ -7,16 +7,13 @@
 \usage{
 upload_block
 
-new_upload_block(file_path, block_name = NULL, visible = NULL)
+new_upload_block(file_path, block_name = NULL)
 }
 \arguments{
 \item{file_path}{Path of the uploaded file}
 
 \item{block_name}{Name of the block, which defaults to one made from the
 name of its class, such as "Head"}
-
-\item{visible}{The sections of the block that show, which core keeps as its
-attribute \code{visible}}
 }
 \value{
 The block class \code{upload_block} is an object of class

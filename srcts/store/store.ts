@@ -26,7 +26,6 @@ import { checkJsonBoard, FORMAT, openJsonBoard, parse, required } from "./open.t
 import type { Dropped } from "./open.ts";
 import { createRegistrations, propertiesOf } from "./registrations.ts";
 import type {
-  Attribute,
   BoardClass,
   Built,
   Migration,
@@ -75,12 +74,10 @@ export interface Store {
   canUndo(origin?: Origin): boolean;
   canRedo(origin?: Origin): boolean;
 
-  // Registers a board class, with the properties it adds,
-  // or an attribute of blocks.
-  // What is registered holds core's board class "board" and its attribute
-  // "visible" too.
-  register(def: BoardClass | Attribute): () => void;
-  registered(): readonly (BoardClass | Attribute)[];
+  // Registers a board class, with the properties it adds.
+  // What is registered holds core's board class "board" too.
+  register(def: BoardClass): () => void;
+  registered(): readonly BoardClass[];
   // The board class that a board of these classes is built as:
   // the first class in the vector that is registered, with its parents,
   // or core's "board" where none is.
@@ -114,8 +111,8 @@ export interface StoreOptions {
   // and the board's class vector:
   // initializing the startup modules of the packages R loaded that it has not
   // initialized yet,
-  // which define their board classes and register their attributes,
-  // board options and migrations, and switching the page to the front-end
+  // which define their board classes and register their board options and
+  // migrations, and switching the page to the front-end
   // that frontEnd() gives for the vector.
   // Which class the store builds the board as, and so the board's front-end,
   // is known only once the startup modules have run.
@@ -141,7 +138,6 @@ interface Applied {
 
 export function createStore(options: StoreOptions = {}): Store {
   const registrations = createRegistrations();
-  registrations.register(visible);
 
   const board = signal<Board | undefined>(undefined);
   // The class that the store built the board as, with its parents,
@@ -456,7 +452,6 @@ export function createStore(options: StoreOptions = {}): Store {
           version: own(registry.value, block.registry_id)?.version ?? 1,
           state: block.state,
           name: block.name,
-          attrs: block.attrs,
         },
       ]),
     );
@@ -529,16 +524,3 @@ export function createStore(options: StoreOptions = {}): Store {
     editId: (of) => edits.get(target(of)),
   };
 }
-
-// Core's attribute, which says which of a block's sections show, its inputs
-// and its outputs, and which a locked board reads.
-const visible: Attribute = {
-  name: "visible",
-  schema: {
-    type: "array",
-    items: { enum: ["inputs", "outputs"] },
-    uniqueItems: true,
-    description: "Which of the block's sections show, its inputs and its outputs.",
-  },
-  initial: ["inputs", "outputs"],
-};

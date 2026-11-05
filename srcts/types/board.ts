@@ -44,8 +44,6 @@ export interface Block {
   // Its values for the formals of its class's `expr`, as { n: 6 }.
   readonly state: Readonly<Record<string, Json>>;
   readonly name: string;
-  // Its attributes, values that are not its state, as { visible: ["outputs"] }.
-  readonly attrs: Readonly<Record<string, Json>>;
 }
 
 export interface Link {

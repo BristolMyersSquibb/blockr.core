@@ -92,8 +92,7 @@
                 "registry_id": "blockr.core-head_block",
                 "version": 1,
                 "state": { "n": 6, "direction": "head" },
-                "name": "Head",
-                "attrs": {}
+                "name": "Head"
               }
             },
             "links": {},
