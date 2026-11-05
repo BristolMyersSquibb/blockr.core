@@ -4,7 +4,7 @@
 
 import { describe, expect, test, vi } from "vitest";
 import type { ErrorReply, HelloReply, OpenReply } from "../protocol/index.ts";
-import { coreOptions, fakeR, hello, loaded, reply } from "../testing/store.ts";
+import { coreOptions, fakeR, hello, loaded, noUi, reply } from "../testing/store.ts";
 import type { Block, Board, OpeningBoard, SavedBoard } from "../types/board.ts";
 import { ROUNDS } from "./expand.ts";
 import { createStore, isId, sentenceCase, StoreError } from "./index.ts";
@@ -12,6 +12,7 @@ import type {
   Change,
   Delta,
   Migration,
+  Option,
   StateKey,
   Store,
   StoreOptions,
@@ -724,7 +725,7 @@ describe("applying a delta", () => {
     ["a cycle", { links: { rm: ["ad"], add: { ed: { from: "e", to: "d", input: "data" } } } }, /links form a cycle through the blocks/],
     ["a stack holding a block the board lacks", { stacks: { add: { s2: { name: "More", blocks: ["z"] } } } }, /stack "s2" holds block "z", which the board lacks/],
     ["a block in two stacks", { stacks: { add: { s2: { name: "More", blocks: ["a"] } } } }, /block "a" sits in the stacks "s1" and "s2", where it sits in one/],
-    ["a board option value its schema refuses", { options: { set: { n_rows: -1 } } }, /value of the board option "n_rows" fails its schema: -1 is less than 0\./],
+    ["a board option value its schema refuses", { options: { set: { n_rows: -1 } } }, /value of the board option "n_rows" fails its schema: -1 is less than 1\./],
     ["a value of a board option no package registered", { options: { set: { nope: 1 } } }, /board option "nope", which no package registered/],
     ["an attribute no package registered", { blocks: { mod: { a: { attrs: { set: { color: "red" } } } } } }, /block "a" has the attribute "color", which no package registered/],
     ["an attribute its schema refuses", { blocks: { mod: { a: { attrs: { set: { visible: ["header"] } } } } } }, /attribute "visible" of block "a" fails its schema at \/0: Instance does not match any of \["inputs","outputs"\]\./],
@@ -1042,6 +1043,7 @@ describe("undo", () => {
         category: "Board options",
         schema: { type: "integer" },
         default: 0,
+        ui: noUi,
       });
     });
     const before = store.board();
@@ -1234,7 +1236,7 @@ describe("registering", () => {
       'The attribute "visible" of blocks is registered already.',
     );
     expect(() =>
-      store.options.register({ id: "n_rows", label: "Rows", category: "Table options", schema: {}, default: 50 }),
+      store.options.register({ id: "n_rows", label: "Rows", category: "Table options", schema: {}, default: 50, ui: noUi }),
     ).toThrow(
       'The board option "n_rows" is registered already.',
     );
@@ -1259,6 +1261,22 @@ describe("registering", () => {
     expect(() => store.register(positions)).not.toThrow();
   });
 
+  test("a board option without a UI module, or with an onChange that is no function, fails", () => {
+    const store = newStore();
+    const seed = { id: "seed", label: "Seed", category: "Board options", schema: {}, default: 1 };
+    // As a package that writes its JS without types may register them.
+    const register = (def: unknown) => store.options.register(def as Option);
+
+    expect(() => register(seed)).toThrow('The board option "seed" has no UI module with a render() function.');
+    expect(() => register({ ...seed, ui: {} })).toThrow(
+      'The board option "seed" has no UI module with a render() function.',
+    );
+    expect(() => register({ ...seed, ui: noUi, onChange: "dark" })).toThrow(
+      'The onChange of the board option "seed" is no function.',
+    );
+    expect(() => register({ ...seed, ui: noUi, onChange: () => undefined })).not.toThrow();
+  });
+
   test("a default or an initial value that its schema refuses fails", () => {
     const store = newStore();
     expect(() =>
@@ -1268,6 +1286,7 @@ describe("registering", () => {
         category: "Board options",
         schema: { type: "integer" },
         default: "one",
+        ui: noUi,
       }),
     ).toThrow(
       'The default of the board option "seed" fails its schema: Instance type "string" is invalid. Expected "integer".',
@@ -1286,6 +1305,7 @@ describe("registering", () => {
       category: "Table options",
       schema: { type: "integer" },
       default: read,
+      ui: noUi,
     });
     expect(read).not.toHaveBeenCalled();
     expect(store.options.registered().page_rows?.default).toBe(read);
@@ -1299,6 +1319,7 @@ describe("registering", () => {
       category: "Board options",
       schema: { $schema: "http://json-schema.org/draft-07/schema#", type: "integer" },
       default: 1,
+      ui: noUi,
     });
     expect(store.options.registered().seed?.default).toBe(1);
   });

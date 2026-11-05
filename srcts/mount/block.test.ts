@@ -15,7 +15,7 @@ import type { Option, Store } from "../store/index.ts";
 import { playR } from "../testing/r.ts";
 import type { PlayedR } from "../testing/r.ts";
 import { reports } from "../testing/reports.ts";
-import { coreOptions, hello } from "../testing/store.ts";
+import { coreOptions, hello, noUi } from "../testing/store.ts";
 import type { BlockId } from "../types/board.ts";
 import type { BlockContext, BlockHost, BlockModule } from "../types/hosts.ts";
 import type { RegistryEntry } from "../types/registry.ts";
@@ -60,6 +60,7 @@ const zoom: Option = {
   category: "View options",
   schema: { type: "number" },
   default: 1,
+  ui: noUi,
 };
 
 // A UI module that keeps each host it is mounted with and its element and

@@ -19,6 +19,15 @@
 #' Their schemas ship beside core's runtime, and R writes the value that a
 #' script gives by them (see [blockr_ser()]).
 #'
+#' Each of core's board options takes its default from the blockr option of
+#' its name, which the client asks R for the first time that something on the
+#' page requires the board option (see [blockr_option()]).
+#' So `options(blockr.n_rows = 25L)`, or the environment variable
+#' `BLOCKR_N_ROWS`, still sets the rows of a page on a board that holds no
+#' value for `n_rows`.
+#' Without a blockr option, `n_rows` takes 50, `show_conditions` warnings and
+#' errors, and `dark_mode` the theme that the user's system prefers.
+#'
 #' Several board options make a `board_options` object, which
 #' `new_board_options()` makes, holding one board option per ID. The predicate
 #' `is_board_options()` tests for one, `as_board_options()` coerces to one and

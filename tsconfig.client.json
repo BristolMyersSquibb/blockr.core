@@ -16,8 +16,9 @@
     "allowImportingTsExtensions": true,
     "skipLibCheck": true,
     "noEmit": true,
+    "jsx": "react-jsx",
     "tsBuildInfoFile": "node_modules/.tmp/tsconfig.client.tsbuildinfo"
   },
   "include": ["srcts"],
-  "exclude": ["srcts/build", "srcts/testing", "srcts/**/*.test.ts"]
+  "exclude": ["srcts/build", "srcts/testing", "srcts/**/*.test.ts", "srcts/**/*.test.tsx"]
 }

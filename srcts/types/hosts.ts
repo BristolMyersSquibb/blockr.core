@@ -117,6 +117,9 @@ export interface OutputHost {
   // The parameters that the output it holds was made with, such as a table's
   // page and sort.
   params(): Json;
+  // The values of the board options that its module names, which the output
+  // it holds was asked with, such as the n_rows by which a table pages.
+  options(): Readonly<Record<OptionId, Json>>;
   // Whether core is asking R for a newer output.
   loading(): boolean;
   // Why the latest ask failed, while output() keeps what it held.

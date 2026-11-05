@@ -22,7 +22,9 @@ export interface StubOutputHostOptions {
   // The block's id, "block" unless given.
   readonly block?: BlockId;
   // The output class's fixtures, from which setParams() takes the output asked
-  // with those parameters and the board option values given.
+  // with those parameters and the board option values, which options() gives.
+  // They are those given, or else those of the first of the fixtures where the
+  // host holds it.
   readonly fixtures?: OutputFixtures;
   readonly options?: Readonly<Record<OptionId, Json>>;
   // What the output class's requests answer.
@@ -61,6 +63,7 @@ export function stubOutputHost(options: StubOutputHostOptions = {}): StubOutputH
   let output: Json = options.output ?? (first?.output as unknown as Json | undefined) ?? null;
   let body = options.body ?? null;
   let params: Json = options.params ?? (options.output === undefined ? (first?.params ?? {}) : {});
+  const values = options.options ?? (options.output === undefined ? (first?.options ?? {}) : {});
   let loading = false;
   let error: Condition | null = null;
   const emitted: { name: string; payload: Json }[] = [];
@@ -74,6 +77,7 @@ export function stubOutputHost(options: StubOutputHostOptions = {}): StubOutputH
     output: () => output,
     body: () => body,
     params: () => params,
+    options: () => values,
     loading: () => loading,
     error: () => error,
     on: on.listen,
@@ -86,7 +90,7 @@ export function stubOutputHost(options: StubOutputHostOptions = {}): StubOutputH
       const found = options.fixtures?.outputs.find(
         (fixture) =>
           jsonEqual(fixture.params, next) &&
-          Object.entries(fixture.options).every(([id, value]) => jsonEqual(options.options?.[id], value)),
+          Object.entries(fixture.options).every(([id, value]) => jsonEqual(values[id], value)),
       );
       if (found === undefined) {
         error = {

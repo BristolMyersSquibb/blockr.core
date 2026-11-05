@@ -1,0 +1,7 @@
+# What `npm run build` writes from srcts/, which GitHub collapses in the diff of
+# a pull request, as it does every file marked as generated, and leaves out of
+# the repository's languages. Their sources in srcts/ are what to review.
+inst/js/** linguist-generated=true
+inst/types/** linguist-generated=true
+inst/outputs/*.schema.json linguist-generated=true
+inst/board/*.schema.json linguist-generated=true

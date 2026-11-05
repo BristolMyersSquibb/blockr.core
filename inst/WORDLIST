@@ -7,6 +7,7 @@ Extensibility
 JS
 LLM
 MCP
+SDK
 Schemas
 TypeScript
 UI
@@ -43,6 +44,7 @@ instantiation
 io
 jsonlite
 lifecycle
+minified
 namespaced
 navbar
 nrow
@@ -74,6 +76,7 @@ stylesheet
 subclass's
 testthat
 tibble
+ui
 uid
 unbuilt
 uncategorized
