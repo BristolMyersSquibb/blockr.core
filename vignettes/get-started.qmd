@@ -30,7 +30,7 @@ As a developer you may have to develop custom blocks. We provide a introduction 
 include_mermaid("board-dag")
 ```
 
-At the top level, a blockr app is made of a __board__ object. That board may contains __blocks__, __stacks__ or group of blocks, and connections between blocks, also known as __links__. You may find interesting to read more about block metadata in this [vignette](https://bristolmyerssquibb.github.io/blockr.core/articles/blocks-registry.html).
+At the top level, a blockr app is made of a __board__ object. That board may contains __blocks__, __stacks__ or group of blocks, and connections between blocks, also known as __links__. You may find interesting to read more about block metadata in this [vignette](https://bristolmyerssquibb.github.io/blockr.core/articles/create-block.html#registration).
 
 ### Define a board
 

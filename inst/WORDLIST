@@ -8,6 +8,7 @@ Extensibility
 JS
 LLM
 MCP
+React's
 SDK
 Schemas
 TypeScript
@@ -15,13 +16,17 @@ UI
 UIs
 UUID
 Unregister
+Vitest
 ai
 another's
 arg
+arg's
 arity
+async
 attr
 blockr
 browsable
+coercions
 covr
 covr's
 cran
@@ -34,7 +39,10 @@ deserialized
 deserializers
 deserializing
 dplyr
+dropdown
+ellmer
 enums
+esbuild
 expr
 extensibility
 fileInput
@@ -48,6 +56,7 @@ lifecycle
 minified
 namespaced
 navbar
+npm
 nrow
 parameterizable
 pharmaverse
@@ -66,6 +75,7 @@ roclets
 roxygen
 rv
 sandboxed
+schema's
 schemas
 sdtm
 selectable
@@ -83,6 +93,7 @@ unbuilt
 uncategorized
 unconfigured
 unlinking
+unmounts
 unstacked
 validator
 variadic
