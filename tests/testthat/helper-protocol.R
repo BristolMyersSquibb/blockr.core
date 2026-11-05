@@ -150,7 +150,7 @@ protocol_r_values <- function() {
       list(
         proto_hello_reply(
           block_registry = proto_registry("head_block"),
-          renderers = proto_renderers()["blockr.core-table_output"],
+          renderers = obj(),
           lock = NULL,
           board = proto_json_board(
             obj(
@@ -476,7 +476,7 @@ proto_pptx <- function() {
 }
 
 proto_hello_reply <- function(block_registry, lock, ...,
-                              renderers = proto_renderers()) {
+                              renderers = obj()) {
 
   served <- proto_served()
   served$renderers <- renderers
@@ -514,24 +514,39 @@ proto_served <- function() {
       )
     ),
     option_versions = obj(),
-    renderers = proto_renderers()
+    renderers = obj()
   )
 }
 
-proto_renderers <- function() {
-  obj(
-    `blockr.core-table_output` = obj(
-      module = proto_js("basic-table.js", "b7e2a915"),
-      class = "table_output"
-    ),
-    `blockr.core-text_output` = obj(
-      module = proto_js("basic-text.js", "3c8f61d0"),
-      class = "text_output"
-    ),
-    `blockr.core-plot_output` = obj(
-      module = proto_js("basic-plot.js", "f19d4a73"),
-      class = "plot_output"
-    )
+# The URLs at which the fixtures have R serve the modules of core's renderers,
+# by their paths in the package, which stand in for URLs that hold a hash of
+# each module's file, so that the fixtures do not change with core's JS.
+proto_renderer_urls <- function() {
+  list(
+    `js/basic-table.js` = proto_js("basic-table.js", "b7e2a915"),
+    `js/basic-text.js` = proto_js("basic-text.js", "3c8f61d0"),
+    `js/basic-plot.js` = proto_js("basic-plot.js", "f19d4a73")
+  )
+}
+
+# Has R serve the modules of core's renderers at the URLs that the fixtures
+# give them until `frame` ends.
+local_fixture_renderer_urls <- function(frame = parent.frame()) {
+
+  served <- served_url
+
+  testthat::local_mocked_bindings(
+    served_url = function(module, suffix = NULL) {
+
+      url <- if (identical(module[["package"]], "blockr.core") &&
+                   is.null(suffix)) {
+        proto_renderer_urls()[[module[["path"]]]]
+      }
+
+      if (is.null(url)) served(module, suffix) else url
+    },
+    .package = "blockr.core",
+    .env = frame
   )
 }
 
@@ -1019,12 +1034,16 @@ proto_table_output <- function(data, ...) {
 }
 
 # An output as R sends it in a reply: its fields, written by the schema of its
-# class, after the renderer that R picks for it, and the body beside it
-# announced.
+# class, after the renderer that draws it, at the URL that the fixtures give
+# its module, and the body beside it announced.
 proto_output <- function(x) {
 
   parts <- shape_output(x)
-  renderer <- output_renderer(x, pick_renderers())
+  drawn <- renderer_of(x)
+  renderer <- obj(
+    id = drawn$id,
+    module = proto_renderer_urls()[[drawn$module$path]]
+  )
 
   c(
     list(output = c(list(renderer = renderer), parts$output)),
@@ -1081,10 +1100,7 @@ write_declared_files <- function(dir) {
 # file added.
 local_empty_declarations <- function(frame = parent.frame()) {
 
-  envs <- list(
-    block_registry, declared_startup_modules, declared_modules,
-    declared_renderers, output_class_registry
-  )
+  envs <- list(block_registry, declared_startup_modules, declared_modules)
 
   saved <- lapply(envs, as.list, all.names = TRUE)
   paths <- names(shiny::resourcePaths())
@@ -1147,8 +1163,6 @@ local_declared_package <- function(dir, frame = parent.frame()) {
   register_module("grid", module("js/grid.js"))
   register_startup_module(module("js/startup.js"))
   register_module("picker", module("js/picker.js"))
-  register_renderer("table", module("js/table.js"), class = "table_output")
-  register_renderer("dark", module("js/dark.js"), option = "dark_mode")
 
   # The methods, from blockr.test's namespace, of `board_front_end()`, by which
   # blockr.test names the front-end of its board class grid_board, and of
@@ -1268,10 +1282,16 @@ declared_fields <- function() {
   local_declared_package(dir)
   register_script_blocks(dir)
 
+  module <- function(path) js_module(path, package = "blockr.test")
+
   withr::local_options(
-    blockr.renderers = c(
-      table_output = "blockr.test-table",
-      dark_mode = "blockr.test-dark"
+    blockr.renderers = list(
+      table_output = new_renderer("table", module("js/table.js")),
+      dark_mode = new_renderer(
+        "dark",
+        module("js/dark.js"),
+        option = "dark_mode"
+      )
     )
   )
 

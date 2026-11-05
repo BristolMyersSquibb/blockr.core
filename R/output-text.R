@@ -48,3 +48,18 @@ as_text_output.default <- function(result, options = list(), info = list(),
                                    params = list(), ...) {
   new_text_output(paste(utils::capture.output(print(result)), collapse = "\n"))
 }
+
+#' @rdname output_schema
+#' @export
+output_schema.text_output <- function(x, ...) {
+  read_json_schema("outputs/text-output.schema.json")
+}
+
+#' @rdname new_renderer
+#' @export
+output_renderer.text_output <- function(x, ...) {
+  chosen_renderer(
+    "text_output",
+    new_renderer("text_output", js_module("js/basic-text.js"))
+  )
+}

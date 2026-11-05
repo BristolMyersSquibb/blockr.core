@@ -7,10 +7,16 @@ test_that("R answers the handshake as the fixture hello-declared has it", {
   local_declared_package(dir)
   register_script_blocks(dir)
 
+  module <- function(path) js_module(path, package = "blockr.test")
+
   withr::local_options(
-    blockr.renderers = c(
-      table_output = "blockr.test-table",
-      dark_mode = "blockr.test-dark"
+    blockr.renderers = list(
+      table_output = new_renderer("table", module("js/table.js")),
+      dark_mode = new_renderer(
+        "dark",
+        module("js/dark.js"),
+        option = "dark_mode"
+      )
     )
   )
 
@@ -244,6 +250,8 @@ test_that("R replies missing to a revision it does not hold", {
 
 test_that("R runs several requests in one message in the order they arrive", {
 
+  local_fixture_renderer_urls()
+
   session <- local_evaluator()
 
   expect_fixture_replies(session, "several-requests")
@@ -353,6 +361,8 @@ test_that("R captures what an evaluation writes, bounded", {
 
 test_that("R makes a block's output, as the fixtures of outputs have it", {
 
+  local_fixture_renderer_urls()
+
   session <- local_evaluator()
 
   hold_result(session, "a", 2L)
@@ -407,7 +417,7 @@ test_that("R shows a result as text where its class names no output", {
   reply <- last_reply(session)
 
   expect_identical(reply$status, "ok")
-  expect_identical(reply$output$renderer, "blockr.core-text_output")
+  expect_identical(reply$output$renderer$id, "blockr.core-text_output")
   expect_identical(reply$output$text, "[1] \"sales.csv\"")
 })
 
@@ -935,7 +945,7 @@ test_that("the Shiny transport carries the evaluator's replies and bodies", {
   plot <- sent[[5L]][[1L]]
 
   expect_identical(plot$status, "ok")
-  expect_identical(plot$output$renderer, "blockr.core-plot_output")
+  expect_identical(plot$output$renderer$id, "blockr.core-plot_output")
   expect_identical(plot$body$type, "image/png")
   expect_true(nzchar(plot$body$data))
 })

@@ -14,11 +14,13 @@
 #'   which the block's UI sends (see [new_block_request()]).
 #'   R finds it among the requests of the class that `registry_id` names.
 #' * The type `output_class`, a request of an output class,
-#'   which a renderer sends (see [register_output_class()]).
+#'   which a renderer sends (see [output_requests()]).
 #'   R finds it by the class vector of the latest output that it made from the
-#'   result that `output` names, the most specific class first.
-#' * The type `renderer`, a renderer's own request (see [register_renderer()]).
-#'   R finds it among the requests of the renderer that `renderer` names.
+#'   result that `output` names, through the classes' methods of
+#'   `output_requests()`.
+#' * The type `renderer`, a renderer's own request (see [new_renderer()]).
+#'   R finds it among the requests of the renderer that draws that output,
+#'   which has to be the one that `renderer` names.
 #' * The type `option`, a board option's request,
 #'   which the board option's UI sends.
 #'   R finds it among the requests that `board_option_requests()` returns for

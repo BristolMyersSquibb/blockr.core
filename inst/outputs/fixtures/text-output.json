@@ -1,12 +1,15 @@
 {
-  "description": "Sample text outputs, as as_text_output() prints a result, at R's width of 80, with the renderer that core declares for text outputs.",
+  "description": "Sample text outputs, as as_text_output() prints a result, at R's width of 80, with the renderer that core gives text outputs.",
   "outputs": [
     {
       "description": "Thirty integers, as print() wraps them at a width of 80.",
       "options": {},
       "params": {},
       "output": {
-        "renderer": "blockr.core-text_output",
+        "renderer": {
+          "id": "blockr.core-text_output",
+          "module": "blockr.core/basic-text.js?v=3c8f61d0"
+        },
         "text": " [1]  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25\n[26] 26 27 28 29 30"
       }
     },
@@ -15,7 +18,10 @@
       "options": {},
       "params": {},
       "output": {
-        "renderer": "blockr.core-text_output",
+        "renderer": {
+          "id": "blockr.core-text_output",
+          "module": "blockr.core/basic-text.js?v=3c8f61d0"
+        },
         "text": " first second \n   \"a\"   \"bb\" "
       }
     }

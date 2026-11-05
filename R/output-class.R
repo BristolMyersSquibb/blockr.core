@@ -1,5 +1,3 @@
-output_class_registry <- new.env()
-
 #' Outputs
 #'
 #' A block's result can be any R object. An output is what R shows of it: the
@@ -23,70 +21,15 @@ output_class_registry <- new.env()
 #' from a raw vector or from a file's path. It takes the body's MIME type and,
 #' for a download, a file name.
 #'
-#' A package registers each output class it defines with
-#' `register_output_class()`, from its `.onLoad()`. Registration takes the JSON
-#' Schema of the class's outputs, as a path relative to the package's `inst/`.
-#' R writes each output by this schema, as it writes a block's state by the
-#' schema that the block class's UI ships. So a vector of length one stays an
-#' array where the schema has an array, and a data frame becomes an array of
-#' its rows.
+#' The package that defines an output class gives R what it needs of the
+#' class, its JSON Schema, its requests and its renderer, through its methods of
+#' three generics (see [output_schema()]).
 #'
-#' Registration also takes the class's default renderer, the module that draws
-#' its outputs, made by [js_module()] in the package that registers the class.
-#' The renderer gets the ID `{pkg}-{class}`, as `blockr.core-table_output` does
-#' for core's tables, and draws the class's outputs unless an app names another
-#' renderer in the blockr option `renderers` (see [register_renderer()]). A
-#' class registered without one, such as a subclass, is drawn by the renderer
-#' of the most specific class in its class vector that has one.
-#'
-#' Registration also takes the class's requests. A request is a function that
-#' the class's renderers call through their host, for what the output does not
-#' hold, such as a download of what they show. R resolves a request by the most
-#' specific class in the output's class vector that has it. A renderer may
-#' bring requests of its own (see [register_renderer()]), and a request that
-#' names a renderer is one of these, never one of the class's. R calls the
-#' request's function with these arguments, each where the function takes it:
-#'
-#' * The result that the output was made from, in `result`.
-#' * The board option values that the output was asked with, in `options`.
-#' * The parameters that the output was asked with, in `params`.
-#' * A file that the renderer sends, such as the bitmap of a chart, in `file`.
-#' * Any other argument, from the `args` that the renderer passes.
-#'
-#' A request may answer with a reply body, such as a file to download. The
-#' client keeps a request's answers, as it keeps the output, unless the class
-#' names the request in `volatile`. No request of an output class writes. The
-#' function `run_output_class_request()` runs a request as R does, to test an
-#' output class, or the requests of a renderer, without Shiny.
-#'
-#' @param x For `new_block_output()`, the output's fields, as a named list, for
-#'   `new_reply_body()`, a raw vector or the path of a file, and for
-#'   `run_output_class_request()`, an output or its class vector
-#' @param class For `new_block_output()`, the output's class vector, without
-#'   `block_output`, and for `register_output_class()`, the name of the output
-#'   class
+#' @param x For `new_block_output()`, the output's fields, as a named list, and
+#'   for `new_reply_body()`, a raw vector or the path of a file
+#' @param class The output's class vector, without `block_output`
 #' @param type The body's MIME type
-#' @param name For `new_reply_body()`, the file name that a download gets, and
-#'   for `run_output_class_request()`, the name of the request
-#' @param schema The JSON Schema of the class's outputs: the path of its file,
-#'   relative to the package's `inst/`, or relative to the working directory
-#'   outside a package
-#' @param requests A named list of the class's requests, each a function
-#' @param volatile The names of the requests whose answers the client never
-#'   keeps
-#' @param package The package that defines the output class (`NULL` outside a
-#'   package)
-#' @param result The result that the output was made from
-#' @param args Further arguments by name, which the renderer passes
-#' @param options The board option values that the output was asked with, by
-#'   board option id
-#' @param params The parameters that the output was asked with
-#' @param file A file that the renderer sends, or `NULL`
-#' @param renderer For `register_output_class()`, the module of the class's
-#'   default renderer, made by [js_module()] in the package that registers the
-#'   class, or `NULL`, and for `run_output_class_request()`, the ID of the
-#'   renderer whose own request it is, or `NULL` for a request of the output
-#'   class
+#' @param name The file name that a download gets
 #'
 #' @examples
 #' out <- new_block_output(list(text = "Hello"), "greeting_output")
@@ -94,27 +37,8 @@ output_class_registry <- new.env()
 #'
 #' new_reply_body(charToRaw("a,b\n1,2\n"), "text/csv", name = "data.csv")
 #'
-#' schema <- tempfile(fileext = ".json")
-#' writeLines(
-#'   '{"type": "object", "properties": {"words": {"type": "array"}}}',
-#'   schema
-#' )
-#'
-#' register_output_class(
-#'   "words_output",
-#'   schema = schema,
-#'   requests = list(count = function(result, params) length(result))
-#' )
-#'
-#' words <- new_block_output(list(words = "hello"), "words_output")
-#'
-#' run_output_class_request(words, "count", result = c("hello", "world"))
-#'
 #' @return The constructor `new_block_output()` returns an object of class
-#' `block_output` and `new_reply_body()` one of class `reply_body`. The function
-#' `register_output_class()` is called for its side effect and returns the
-#' class's registry entry invisibly, while `run_output_class_request()` returns
-#' the request's answer.
+#' `block_output` and `new_reply_body()` one of class `reply_body`.
 #'
 #' @export
 new_block_output <- function(x, class) {
@@ -281,185 +205,194 @@ print.reply_body <- function(x, ...) {
   invisible(x)
 }
 
-#' @rdname new_block_output
+#' Output classes in R
+#'
+#' The package that defines an output class gives R what it needs of the class
+#' through its methods of three generics, which it registers as it registers
+#' any S3 method, so that S3 dispatch gives a subclass what its class gives,
+#' unless it gives its own.
+#' A method answers by the class alone, whatever the output holds, since R also
+#' calls it on an empty output of the class, as it resolves a request of an
+#' output that it made before.
+#'
+#' The method of `output_schema()` returns the JSON Schema of the class's
+#' outputs, by which R writes each output, as it writes a block's state by the
+#' schema that the block class's UI ships, so that a vector of length one stays
+#' an array where the schema has an array, and a data frame becomes an array of
+#' its rows.
+#' The function `read_json_schema()` reads one from a file that the package
+#' ships, relative to its `inst/`, as core reads those that its build
+#' generates into `inst/outputs`.
+#' R sends no output whose classes give no schema.
+#'
+#' The method of `output_requests()` returns the class's requests, a named list
+#' of functions that its renderers call through their host, for what the output
+#' does not hold, such as a download of what they show.
+#' A subclass that adds requests puts them before those of its class, which
+#' `NextMethod()` returns, so that a request of its own takes the place of one
+#' of the same name.
+#' R calls a request's function with these arguments, each where the function
+#' takes it:
+#'
+#' * The result that the output was made from, in `result`.
+#' * The board option values that the output was asked with, in `options`.
+#' * The parameters that the output was asked with, in `params`.
+#' * A file that the renderer sends, such as the bitmap of a chart, in `file`.
+#' * Any other argument, from the `args` that the renderer passes.
+#'
+#' A request may answer with a reply body, such as a file to download.
+#' The client keeps a request's answers, as it keeps the output, unless the
+#' class wraps the request's function in `volatile()`.
+#' No request of an output class writes.
+#' The function `run_output_class_request()` runs a request as R does, to test
+#' an output class, or the requests of a renderer, without Shiny.
+#'
+#' The method of `output_renderer()` gives the renderer that draws the class's
+#' outputs (see [new_renderer()]).
+#'
+#' @param x An output, and for `run_output_class_request()`, an output or its
+#'   class vector
+#' @param ... Generic consistency
+#' @param fun The function of a request
+#' @param path The path of a JSON Schema's file, relative to the package's
+#'   `inst/`, or as given outside a package
+#' @param package The package that ships the file (`NULL` outside a package)
+#' @param name The name of the request
+#' @param result The result that the output was made from
+#' @param args Further arguments by name, which the renderer passes
+#' @param options The board option values that the output was asked with, by
+#'   board option id
+#' @param params The parameters that the output was asked with
+#' @param file A file that the renderer sends, or `NULL`
+#' @param renderer The ID of the renderer whose own request it is, or `NULL`
+#'   for a request of the output class
+#'
+#' @examples
+#' output_schema.words_output <- function(x, ...) {
+#'   list(type = "object", properties = list(words = list(type = "array")))
+#' }
+#'
+#' output_requests.words_output <- function(x, ...) {
+#'   list(count = volatile(function(result) length(result)))
+#' }
+#'
+#' words <- new_block_output(list(words = "hello"), "words_output")
+#'
+#' output_schema(words)
+#' run_output_class_request(words, "count", result = c("hello", "world"))
+#'
+#' @return The generic `output_schema()` returns a JSON Schema, as a list,
+#' `output_requests()` a named list of functions, `volatile()` the function it
+#' is given, marked as volatile, `read_json_schema()` the JSON Schema that it
+#' reads, as a list, and `run_output_class_request()` the request's answer.
+#'
 #' @export
-register_output_class <- function(class, schema, renderer = NULL,
-                                  requests = NULL, volatile = character(),
-                                  package = pkg_name(parent.frame())) {
-
-  if (!is_string(class) || !nzchar(class) || identical(class, "block_output")) {
-    blockr_abort(
-      "An output class is registered under its name, a string other than ",
-      "`block_output`.",
-      class = "output_class_invalid"
-    )
-  }
-
-  if (not_null(renderer) &&
-        !(is_js_module(renderer) && is_nonempty_string(package) &&
-            identical(renderer[["package"]], package))) {
-    blockr_abort(
-      "The default renderer of output class {class} is expected to be a ",
-      "module that the package registering the class makes with ",
-      "`js_module()`.",
-      class = "output_class_invalid"
-    )
-  }
-
-  requests <- coal(requests, list(), fail_all = FALSE)
-
-  if (!is.list(requests) || !all(lgl_ply(requests, is.function)) ||
-        !has_unique_names(requests)) {
-    blockr_abort(
-      "The requests of output class {class} are expected to be a list of ",
-      "functions with unique names.",
-      class = "output_class_requests_invalid"
-    )
-  }
-
-  if (!is.character(volatile) || !all(volatile %in% names(requests))) {
-    blockr_abort(
-      "The volatile requests of output class {class} are expected to be ",
-      "named among its requests.",
-      class = "output_class_requests_invalid"
-    )
-  }
-
-  known <- output_class_entry(class)
-
-  if (not_null(known) && !identical(known[["package"]], package)) {
-
-    owner <- coal(known[["package"]], "a script", fail_all = FALSE)
-
-    blockr_abort(
-      "Output class {class} is registered already, by ", owner, ".",
-      class = "output_class_in_registry"
-    )
-  }
-
-  entry <- structure(
-    list(
-      class = class,
-      package = package,
-      schema = read_output_schema(schema, package),
-      renderer = renderer,
-      requests = requests,
-      volatile = volatile
-    ),
-    class = "output_class_entry"
-  )
-
-  assign(class, entry, envir = output_class_registry)
-
-  invisible(entry)
+output_schema <- function(x, ...) {
+  UseMethod("output_schema")
 }
 
-read_output_schema <- function(schema, package) {
-
-  if (is.list(schema)) {
-    return(schema)
-  }
-
-  if (!is_string(schema)) {
-    blockr_abort(
-      "The schema of an output class is expected to be the path of its file.",
-      class = "output_class_schema_invalid"
-    )
-  }
-
-  path <- schema
-
-  if (not_null(package)) {
-    path <- system.file(schema, package = package)
-  }
-
-  if (!nzchar(path) || !file.exists(path)) {
-    blockr_abort(
-      "Found no schema file {schema} of an output class.",
-      class = "output_class_schema_invalid"
-    )
-  }
-
-  decode_schema(path)
-}
-
-output_class_entry <- function(class) {
-  get0(class, envir = output_class_registry, inherits = FALSE)
-}
-
-unregister_output_classes <- function(class) {
-  rm(list = class, envir = output_class_registry, inherits = FALSE)
-  invisible()
-}
-
+#' @rdname output_schema
 #' @export
-format.output_class_entry <- function(x, ...) {
-  c(
-    paste0("<output_class_entry> ", x[["class"]]),
-    if (not_null(x[["package"]])) paste0("Package: ", x[["package"]]),
-    if (not_null(x[["renderer"]])) {
-      paste0("Renderer: ", default_renderer_id(x))
-    },
-    if (length(x[["requests"]])) {
-      paste0("Requests: ", paste_enum(names(x[["requests"]]), quotes = "\""))
-    }
-  )
-}
-
-#' @export
-print.output_class_entry <- function(x, ...) {
-  cat(format(x, ...), sep = "\n")
-  invisible(x)
-}
-
-# The schema of an output, from the most specific class in its class vector
-# that is registered.
-output_class_schema <- function(class) {
-
-  for (cls in class) {
-
-    entry <- output_class_entry(cls)
-
-    if (not_null(entry)) {
-      return(entry[["schema"]])
-    }
-  }
-
+output_schema.block_output <- function(x, ...) {
   blockr_abort(
-    "Output class {class[1L]} is not registered. A package registers its ",
-    "output classes with `register_output_class()`.",
-    class = "output_class_unknown"
+    "Output class {class(x)[1L]} gives no JSON Schema of its outputs, which ",
+    "its package gives through a method of `output_schema()`.",
+    class = "output_schema_missing"
   )
 }
 
-# A request of an output: where the request names a renderer, one of that
-# renderer's own requests, and otherwise one of the output class's, from the
-# most specific class in the output's class vector that has it.
+#' @rdname output_schema
+#' @export
+output_requests <- function(x, ...) {
+  UseMethod("output_requests")
+}
+
+#' @rdname output_schema
+#' @export
+output_requests.block_output <- function(x, ...) {
+  list()
+}
+
+#' @rdname output_schema
+#' @export
+volatile <- function(fun) {
+
+  if (!is.function(fun)) {
+    blockr_abort(
+      "A volatile request is a function, which `volatile()` marks.",
+      class = "output_class_requests_invalid"
+    )
+  }
+
+  attr(fun, "volatile") <- TRUE
+
+  fun
+}
+
+is_volatile <- function(fun) {
+  isTRUE(attr(fun, "volatile", exact = TRUE))
+}
+
+#' @rdname output_schema
+#' @export
+read_json_schema <- function(path, package = pkg_name(parent.frame())) {
+
+  if (!is_string(path)) {
+    blockr_abort(
+      "The path of a JSON Schema's file is expected to be a string.",
+      class = "json_schema_file_invalid"
+    )
+  }
+
+  file <- if (is.null(package)) path else system.file(path, package = package)
+
+  if (!nzchar(file) || !file.exists(file)) {
+    blockr_abort(
+      "Found no JSON Schema file {path}",
+      if (is.null(package)) "." else " in package {package}.",
+      class = "json_schema_file_invalid"
+    )
+  }
+
+  decode_schema(file)
+}
+
+# A request of an output: where the request names a renderer, one of the
+# requests of the renderer that draws the output, which has to be the one
+# named, and otherwise one of the output class's, as its method of
+# `output_requests()` gives them, a subclass's before its class's.
 output_class_request <- function(class, name, renderer = NULL) {
 
+  out <- structure(list(), class = unique(c(class, "block_output")))
+
   if (not_null(renderer)) {
-    return(renderer_request(renderer, class, name))
+    return(renderer_request(renderer, out, name))
   }
 
-  for (cls in class) {
+  reqs <- output_requests(out)
 
-    entry <- output_class_entry(cls)
-    fun <- entry[["requests"]][[name]]
-
-    if (is.function(fun)) {
-      return(
-        list(fun = fun, volatile = name %in% entry[["volatile"]], class = cls)
-      )
-    }
+  if (!is.list(reqs) || is.object(reqs) || !all(lgl_ply(reqs, is.function)) ||
+        (length(reqs) && (is.null(names(reqs)) || !all(nzchar(names(reqs)))))) {
+    blockr_abort(
+      "The method of `output_requests()` for output class {class[1L]} ",
+      "returns no named list of functions.",
+      class = "output_class_requests_invalid"
+    )
   }
 
-  blockr_abort(
-    "Output class {class[1L]} has no request {name}.",
-    class = "output_class_request_unknown"
-  )
+  fun <- reqs[[name]]
+
+  if (!is.function(fun)) {
+    blockr_abort(
+      "Output class {class[1L]} has no request {name}.",
+      class = "output_class_request_unknown"
+    )
+  }
+
+  list(fun = fun, volatile = is_volatile(fun))
 }
 
-#' @rdname new_block_output
+#' @rdname output_schema
 #' @export
 run_output_class_request <- function(x, name, result, args = list(),
                                      options = list(), params = list(),
@@ -549,7 +482,7 @@ request_call_args <- function(fun, name, args, bound, reserved, class) {
 }
 
 # The parts of an output that R sends. Its fields are shaped by the JSON Schema
-# of the most specific class in its class vector that is registered. Its body,
+# that its classes give, through their methods of `output_schema()`. Its body,
 # if it holds one, travels beside them.
 shape_output <- function(x) {
 
@@ -564,7 +497,7 @@ shape_output <- function(x) {
   body <- lgl_ply(fields, is_reply_body)
 
   list(
-    output = shape_by_schema(fields[!body], output_class_schema(class(x))),
+    output = shape_by_schema(fields[!body], output_schema(x)),
     body = if (any(body)) fields[body][[1L]]
   )
 }

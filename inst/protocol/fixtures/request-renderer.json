@@ -1,5 +1,5 @@
 {
-  "description": "A renderer's own request, as blockr.ui's table preview on another board asks for the labels of an ADaM table's columns, which a table output does not carry. It names the renderer, whose own request it is, so that R finds its function among that renderer's requests alone. R runs it as it runs a request of the output class, with the result the output was made from and the board option values and parameters that output was asked with.",
+  "description": "A renderer's own request, as blockr.ui's table preview on another board asks for the labels of an ADaM table's columns, which a table output does not carry. It names the renderer, whose own request it is, so that R finds its function among the requests of the renderer that draws the output, which has to be the one named, here because the app names the table preview for table outputs. R runs it as it runs a request of the output class, with the result the output was made from and the board option values and parameters that output was asked with.",
   "client": [
     {
       "id": "35",

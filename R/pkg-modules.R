@@ -6,9 +6,9 @@ declared_modules <- new.env()
 
 #' Modules a package declares
 #'
-#' Besides its block classes (see [register_block()]) and its renderers (see
-#' [register_renderer()]), a package declares in R, from its `.onLoad()`, the
-#' modules of its client that R serves: its startup module, at most one, with
+#' Besides its block classes (see [register_block()]), a package declares in
+#' R, from its `.onLoad()`, the modules of its client that R serves: its
+#' startup module, at most one, with
 #' `register_startup_module()`, for what has to run before anything mounts,
 #' such as defining its board classes and registering the board options it
 #' ships, and the modules it offers other packages, each with
@@ -22,15 +22,15 @@ declared_modules <- new.env()
 #' replaces it, as when a package is loaded again.
 #'
 #' A front-end is such a module: the module that draws the boards of a board
-#' class.
-#' The class's definition in JavaScript names its front-end by ID.
+#' class, which the class names through its method of [board_front_end()].
 #' So blockr.dock declares `register_module("dock", js_module("dock.js"))`,
-#' and its definition of `dock_board` names `blockr.dock-dock`.
+#' and its method of `board_front_end()` for `dock_board` returns
+#' `"blockr.dock-dock"`.
 #' Core declares its basic front-end the same way, as `blockr.core-basic`,
-#' which core's board class `board` names.
-#' R declares nothing about a front-end but its module, and picks none.
+#' which its method for core's board class `board` names.
 #' The client builds a board as the first class in its class vector that a
-#' loaded package defines, and that class's front-end draws the board.
+#' loaded package defines, and the front-end of that class, or of its nearest
+#' parent that names one, draws the board.
 #'
 #' Next to its startup module, as `startup.schema.json` next to `startup.js`, a
 #' package puts one JSON Schema, laid out like the board, for the parts of the
@@ -53,8 +53,9 @@ declared_modules <- new.env()
 #' and declaring a startup module again keeps its place.
 #'
 #' R tells the client where it serves each module that a package declares, its
-#' front-ends and renderers included, in its reply to `hello`, with the
-#' versions of the packages they come from. It serves a module,
+#' front-ends included, in its reply to `hello`, with the versions of the
+#' packages they come from, and where it serves a renderer's module in each
+#' output that the renderer draws (see [new_renderer()]). It serves a module,
 #' and the stylesheet beside it, under the package's name, at the module's path
 #' in the package, with a hash of the file's content in the URL, so that no
 #' browser runs a changed file from its cache. It serves only the files it

@@ -20,9 +20,9 @@ module's entry invisibly, a list holding the declaring \code{package} and the
 \code{module}, and for \code{register_module()} the module's \code{id} and \code{name} too.
 }
 \description{
-Besides its block classes (see \code{\link[=register_block]{register_block()}}) and its renderers (see
-\code{\link[=register_renderer]{register_renderer()}}), a package declares in R, from its \code{.onLoad()}, the
-modules of its client that R serves: its startup module, at most one, with
+Besides its block classes (see \code{\link[=register_block]{register_block()}}), a package declares in
+R, from its \code{.onLoad()}, the modules of its client that R serves: its
+startup module, at most one, with
 \code{register_startup_module()}, for what has to run before anything mounts,
 such as defining its board classes and registering the board options it
 ships, and the modules it offers other packages, each with
@@ -37,15 +37,15 @@ replaces it, as when a package is loaded again.
 }
 \details{
 A front-end is such a module: the module that draws the boards of a board
-class.
-The class's definition in JavaScript names its front-end by ID.
+class, which the class names through its method of \code{\link[=board_front_end]{board_front_end()}}.
 So blockr.dock declares \code{register_module("dock", js_module("dock.js"))},
-and its definition of \code{dock_board} names \code{blockr.dock-dock}.
+and its method of \code{board_front_end()} for \code{dock_board} returns
+\code{"blockr.dock-dock"}.
 Core declares its basic front-end the same way, as \code{blockr.core-basic},
-which core's board class \code{board} names.
-R declares nothing about a front-end but its module, and picks none.
+which its method for core's board class \code{board} names.
 The client builds a board as the first class in its class vector that a
-loaded package defines, and that class's front-end draws the board.
+loaded package defines, and the front-end of that class, or of its nearest
+parent that names one, draws the board.
 
 Next to its startup module, as \code{startup.schema.json} next to \code{startup.js}, a
 package puts one JSON Schema, laid out like the board, for the parts of the
@@ -68,8 +68,9 @@ package that its DESCRIPTION alone names only once something asks for it,
 and declaring a startup module again keeps its place.
 
 R tells the client where it serves each module that a package declares, its
-front-ends and renderers included, in its reply to \code{hello}, with the
-versions of the packages they come from. It serves a module,
+front-ends included, in its reply to \code{hello}, with the versions of the
+packages they come from, and where it serves a renderer's module in each
+output that the renderer draws (see \code{\link[=new_renderer]{new_renderer()}}). It serves a module,
 and the stylesheet beside it, under the package's name, at the module's path
 in the package, with a hash of the file's content in the URL, so that no
 browser runs a changed file from its cache. It serves only the files it

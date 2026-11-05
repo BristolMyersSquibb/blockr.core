@@ -1,12 +1,15 @@
 {
-  "description": "Sample plot outputs, as as_plot_output() draws a captured base plot, with the renderer that core declares for plot outputs. The PNG of each is the file its body_file names, beside this one.",
+  "description": "Sample plot outputs, as as_plot_output() draws a captured base plot, with the renderer that core gives plot outputs. The PNG of each is the file its body_file names, beside this one.",
   "outputs": [
     {
       "description": "A scatter plot of iris, drawn at 320 by 200 CSS pixels and a pixel ratio of 2, so that its PNG has 640 by 400 pixels.",
       "options": {},
       "params": {},
       "output": {
-        "renderer": "blockr.core-plot_output",
+        "renderer": {
+          "id": "blockr.core-plot_output",
+          "module": "blockr.core/basic-plot.js?v=f19d4a73"
+        },
         "width": 320,
         "height": 200
       },

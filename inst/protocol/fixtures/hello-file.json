@@ -114,20 +114,7 @@
           }
         },
         "option_versions": {},
-        "renderers": {
-          "blockr.core-table_output": {
-            "module": "blockr.core/basic-table.js?v=b7e2a915",
-            "class": "table_output"
-          },
-          "blockr.core-text_output": {
-            "module": "blockr.core/basic-text.js?v=3c8f61d0",
-            "class": "text_output"
-          },
-          "blockr.core-plot_output": {
-            "module": "blockr.core/basic-plot.js?v=f19d4a73",
-            "class": "plot_output"
-          }
-        },
+        "renderers": {},
         "lock": null,
         "board": {
           "format": 1,

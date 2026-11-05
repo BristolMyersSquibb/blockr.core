@@ -1,5 +1,5 @@
 {
-  "description": "Sample table outputs, as the method of as_table_output() for data frames makes them, with the renderer that core declares for table outputs.",
+  "description": "Sample table outputs, as the method of as_table_output() for data frames makes them, with the renderer that core gives table outputs.",
   "outputs": [
     {
       "description": "The second page of the first seven rows of iris, at three rows to a page, as the board option n_rows gives.",
@@ -10,7 +10,10 @@
         "page": 2
       },
       "output": {
-        "renderer": "blockr.core-table_output",
+        "renderer": {
+          "id": "blockr.core-table_output",
+          "module": "blockr.core/basic-table.js?v=b7e2a915"
+        },
         "columns": [
           {
             "name": "Sepal.Length",
@@ -72,7 +75,10 @@
         }
       },
       "output": {
-        "renderer": "blockr.core-table_output",
+        "renderer": {
+          "id": "blockr.core-table_output",
+          "module": "blockr.core/basic-table.js?v=b7e2a915"
+        },
         "columns": [
           {
             "name": "Ozone",
@@ -135,7 +141,10 @@
       },
       "params": {},
       "output": {
-        "renderer": "blockr.core-table_output",
+        "renderer": {
+          "id": "blockr.core-table_output",
+          "module": "blockr.core/basic-table.js?v=b7e2a915"
+        },
         "columns": [
           {
             "name": "number",
@@ -250,7 +259,10 @@
       },
       "params": {},
       "output": {
-        "renderer": "blockr.core-table_output",
+        "renderer": {
+          "id": "blockr.core-table_output",
+          "module": "blockr.core/basic-table.js?v=b7e2a915"
+        },
         "columns": [
           {
             "name": "Sepal.Length",
@@ -284,7 +296,10 @@
       },
       "params": {},
       "output": {
-        "renderer": "blockr.core-table_output",
+        "renderer": {
+          "id": "blockr.core-table_output",
+          "module": "blockr.core/basic-table.js?v=b7e2a915"
+        },
         "columns": [
           {
             "name": "Sepal.Length",

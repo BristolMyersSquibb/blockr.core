@@ -124,7 +124,8 @@ answer_evaluate <- function(ev, job) {
 # R calls the coercion that the block's class names,
 # or `as_text_output()` where it names none, with the board option values,
 # the `info` and the parameters that the request carries.
-# The output names the renderer that R picked for it.
+# The output carries the renderer that draws it, with where R serves the
+# renderer's module.
 answer_output <- function(ev, job) {
 
   req <- job[["req"]]
@@ -150,7 +151,7 @@ answer_output <- function(ev, job) {
       list(
         class = class(res),
         parts = shape_output(res),
-        renderer = output_renderer(res, pick_renderers())
+        renderer = output_renderer_reply(renderer_of(res))
       )
     }
   )

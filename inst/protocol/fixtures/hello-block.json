@@ -73,12 +73,7 @@
           }
         },
         "option_versions": {},
-        "renderers": {
-          "blockr.core-table_output": {
-            "module": "blockr.core/basic-table.js?v=b7e2a915",
-            "class": "table_output"
-          }
-        },
+        "renderers": {},
         "lock": null,
         "board": {
           "format": 1,

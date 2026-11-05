@@ -50,16 +50,11 @@ export interface HelloReply {
     board: JsonBoard;
     bound?: string[];
 }
-export type Renderer = {
+export interface Renderer {
     module: string;
     css?: string;
-} & ({
-    class: string;
-    option?: never;
-} | {
     option: OptionId;
-    class?: never;
-});
+}
 export interface Lock {
     open: BlockId[];
 }

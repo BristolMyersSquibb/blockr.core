@@ -64,10 +64,14 @@
   output as JSON, so nothing assumes a table. The class vector of an output
   ends in `block_output`, and `new_block_output()` makes one. An output may
   hold one binary body, which `new_reply_body()` makes from a raw vector or a
-  file. A package registers each output class with `register_output_class()`.
-  Registration takes the JSON Schema that R writes the outputs by, and the
-  requests that the class's renderers call. The function
-  `run_output_class_request()` runs such a request as R does (#422).
+  file. The package that defines an output class gives what R needs of it
+  through its methods of three generics, so that a subclass has what its class
+  has unless it gives its own: `output_schema()` gives the JSON Schema that R
+  writes the outputs by, which `read_json_schema()` reads from a file that the
+  package ships, `output_requests()` the requests that the class's renderers
+  call, each of which `volatile()` may mark, and `output_renderer()` the
+  renderer that draws the outputs. The function `run_output_class_request()`
+  runs such a request as R does (#422, #465).
 * Core defines three output classes. A table output holds one page of rows
   and the total row count, which may be unknown, as for a lazy table. Its
   coercion `as_table_output()` pages a data frame by the board option
@@ -89,17 +93,18 @@
   basic front-end, `blockr.core-basic`.
   The package whose namespace holds the method is the one that defines the
   class, so that R knows a board class's package (#424, #465).
-* An output class's registration with `register_output_class()` takes its
-  default renderer, the module that draws its outputs, under the ID
-  `{pkg}-{class}`. Core's are `blockr.core-table_output`,
-  `blockr.core-text_output` and `blockr.core-plot_output`. Another package
-  declares a renderer of its own with `register_renderer()`, under the ID
-  `{pkg}-{name}`, for one output class or one board option, and an app draws
-  with it by naming it in the blockr option `renderers`, so loading a package
-  changes nothing. Such a renderer may bring requests of its own, which
-  `run_output_class_request()` runs when given the renderer. The function
-  `pick_renderers()` gives the renderer that R picks for each output class and
-  board option, whatever the board's front-end (#425).
+* A renderer, which `new_renderer()` makes, is a module that draws the
+  outputs of an output class or the value of a board option, under the ID
+  `{pkg}-{name}`. The method of `output_renderer()` for an output class gives
+  the renderer that draws its outputs, as core's give
+  `blockr.core-table_output`, `blockr.core-text_output` and
+  `blockr.core-plot_output`, and R sends it in each output, with where it
+  serves the renderer's module. Another package offers a renderer through a
+  function that makes it, and an app draws with it by naming it in the blockr
+  option `renderers`, for an output class or a board option, which a method
+  takes with `chosen_renderer()`, so loading a package changes nothing. Such a
+  renderer may bring requests of its own, which `run_output_class_request()`
+  runs when given the renderer (#425, #465).
 * R builds what it tells the client about the packages it has loaded, in its
   reply to `hello`, without building a block. That is
   each block class's entry in the block registry, with the metadata that
@@ -109,7 +114,7 @@
   in R's order, the modules that packages offer each other, front-ends among
   them, the board classes that packages name front-ends for, each with its
   package and its front-end, the versions that packages give board options,
-  and the renderers that R picked.
+  and the renderers that the app names for board options.
   R serves each module and stylesheet at a URL that
   holds a hash of the file's content, so that no browser runs a changed file
   from its cache. It serves a package's files under the package's name, and the

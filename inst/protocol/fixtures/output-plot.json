@@ -25,7 +25,10 @@
         "id": "32",
         "status": "ok",
         "output": {
-          "renderer": "blockr.core-plot_output",
+          "renderer": {
+            "id": "blockr.core-plot_output",
+            "module": "blockr.core/basic-plot.js?v=f19d4a73"
+          },
           "width": 640,
           "height": 400
         },

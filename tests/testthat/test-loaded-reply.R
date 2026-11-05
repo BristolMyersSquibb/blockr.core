@@ -230,17 +230,19 @@ test_that("R gives the version of each board option that a package versions", {
   expect_error(option_versions(), class = "board_option_version_invalid")
 })
 
-test_that("R names the renderers it picked, with what each draws", {
+test_that("R names the renderers that the app names for board options", {
 
+  # The app names one for table outputs too, which R sends with each output
   renderers <- declared_fields()$renderers
 
-  expect_named(renderers, c("blockr.test-dark", "blockr.test-table"))
-  expect_identical(renderers[["blockr.test-table"]]$class, "table_output")
+  expect_named(renderers, "blockr.test-dark")
   expect_identical(renderers[["blockr.test-dark"]]$option, "dark_mode")
   expect_match(
-    renderers[["blockr.test-table"]]$module,
-    "^blockr.test/js/table.js\\?v=[0-9a-f]{8}$"
+    renderers[["blockr.test-dark"]]$module,
+    "^blockr.test/js/dark.js\\?v=[0-9a-f]{8}$"
   )
+
+  expect_identical(json(loaded_reply()$renderers), "{}")
 })
 
 test_that("R keeps the startup modules in the order packages declare them", {

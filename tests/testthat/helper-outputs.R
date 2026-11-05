@@ -26,8 +26,7 @@ output_fixture_values <- function() {
     `table-output` = list(
       description = paste(
         "Sample table outputs, as the method of as_table_output() for data",
-        "frames makes them, with the renderer that core declares for table",
-        "outputs."
+        "frames makes them, with the renderer that core gives table outputs."
       ),
       outputs = list(
         output_sample(
@@ -84,7 +83,7 @@ output_fixture_values <- function() {
     `text-output` = list(
       description = paste(
         "Sample text outputs, as as_text_output() prints a result, at R's",
-        "width of 80, with the renderer that core declares for text outputs."
+        "width of 80, with the renderer that core gives text outputs."
       ),
       outputs = list(
         output_sample(
@@ -102,7 +101,7 @@ output_fixture_values <- function() {
     `plot-output` = list(
       description = paste(
         "Sample plot outputs, as as_plot_output() draws a captured base",
-        "plot, with the renderer that core declares for plot outputs. The",
+        "plot, with the renderer that core gives plot outputs. The",
         "PNG of each is the file its body_file names, beside this one."
       ),
       outputs = list(
@@ -165,14 +164,22 @@ unknown_total_output <- function(result, options, info, params) {
 }
 
 # A sample output: its description, what it was asked with, and the output as R
-# sends it, after the renderer that R picks for its class, core's own. An
-# output with a body announces it, and names the file that holds its bytes.
+# sends it, after the renderer that draws its class, core's own, at the URL that
+# the protocol's fixtures give the renderer's module, which stands in for one
+# that holds a hash of the module's file. An output with a body announces it,
+# and names the file that holds its bytes.
 output_sample <- function(description, coercion, result, options = list(),
                           info = list(), params = list(), body_file = NULL) {
 
   out <- coercion(result, options = options, info = info, params = params)
   parts <- shape_output(out)
-  renderer <- output_renderer(out, pick_renderers())
+  drawn <- renderer_of(out)
+  urls <- list(
+    `js/basic-table.js` = "blockr.core/basic-table.js?v=b7e2a915",
+    `js/basic-text.js` = "blockr.core/basic-text.js?v=3c8f61d0",
+    `js/basic-plot.js` = "blockr.core/basic-plot.js?v=f19d4a73"
+  )
+  renderer <- list(id = drawn$id, module = urls[[drawn$module$path]])
 
   res <- list(
     description = description,

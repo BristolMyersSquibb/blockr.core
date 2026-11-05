@@ -2,8 +2,9 @@
 # `hello`, for neither side to edit: the block registry's entries, where R
 # serves the startup modules and the modules that packages offer each other,
 # the board classes that packages name front-ends for, the versions of the
-# board options that packages give them, the renderers it picked, and the
-# versions of the packages that all of these come from.
+# board options that packages give them, the renderers that the app names for
+# board options, and the versions of the packages that all of these come
+# from.
 # A front-end is a module that its package offers, which a board class names
 # through its method of `board_front_end()`.
 # R loads no package for it: the app's script has loaded them, and loading
@@ -20,7 +21,7 @@ loaded_reply <- function() {
   startup <- startup_modules()
   modules <- lapply(set_names(nm = list_modules()), get_module)
   classes <- board_classes()
-  renderers <- pick_renderers()
+  renderers <- option_renderers()
 
   packages <- unlst(
     lapply(
@@ -38,7 +39,7 @@ loaded_reply <- function() {
     modules = as_json_object(lapply(modules, declared_module_reply)),
     board_classes = as_json_object(classes),
     option_versions = option_versions(),
-    renderers = as_json_object(lapply(renderers, renderer_reply))
+    renderers = as_json_object(lapply(renderers, option_renderer_reply))
   )
 }
 
@@ -227,11 +228,14 @@ startup_module_reply <- function(x) {
   c(list(package = x[["package"]]), served_module(x[["module"]]))
 }
 
-# A renderer that R picked, with where R serves its module and the output class
-# or the board option that it draws.
-renderer_reply <- function(x) {
-  c(
-    served_module(x[["module"]]),
-    Filter(not_null, list(class = x[["class"]], option = x[["option"]]))
-  )
+# A renderer that the app names for a board option, with where R serves its
+# module and the board option that it draws.
+option_renderer_reply <- function(x) {
+  c(served_module(x[["module"]]), list(option = x[["option"]]))
+}
+
+# The renderer of an output as R sends it in the output: its ID, which a
+# request of its own names, and where R serves its module.
+output_renderer_reply <- function(x) {
+  c(list(id = x[["id"]]), served_module(x[["module"]]))
 }

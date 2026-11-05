@@ -93,7 +93,7 @@ export interface HelloReply {
   // package gives one through its method of R's `board_option_version()`, by
   // the board option's id. A board option that it lacks is at version 1.
   option_versions: Record<OptionId, number>;
-  // The renderers that R picked, by the renderer's id.
+  // The renderers that the app names for board options, by the renderer's id.
   renderers: Record<string, Renderer>;
   lock: Lock | null;
   // The opening board, as a JSON board: the one an app script built, which R
@@ -105,11 +105,14 @@ export interface HelloReply {
   bound?: string[];
 }
 
-// A renderer that R picked for an output class or for a board option.
-export type Renderer = { module: string; css?: string } & (
-  | { class: string; option?: never }
-  | { option: OptionId; class?: never }
-);
+// A renderer that the app names for a board option, which draws the board
+// option's value in place of its UI, while the renderer of an output comes in
+// the output itself.
+export interface Renderer {
+  module: string;
+  css?: string;
+  option: OptionId;
+}
 
 // The blocks that a locked board leaves open.
 export interface Lock {

@@ -1,6 +1,11 @@
 import type { Json } from "./json.ts";
 export interface BlockOutput {
-    renderer: string;
+    renderer: OutputRenderer;
+}
+export interface OutputRenderer {
+    id: string;
+    module: string;
+    css?: string;
 }
 export interface TableOutput extends BlockOutput {
     columns: TableColumn[];

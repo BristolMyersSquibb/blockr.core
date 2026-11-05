@@ -31,6 +31,7 @@ export type {
   BlockOutput,
   OutputFixture,
   OutputFixtures,
+  OutputRenderer,
   PlotOutput,
   TableColumn,
   TableOutput,
