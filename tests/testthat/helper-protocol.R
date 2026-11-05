@@ -78,6 +78,47 @@ obj <- function(...) {
   res
 }
 
+# The messages that a session of the evaluator sent (see `local_evaluator()`),
+# as JSON, read as `read_json_strictly()` reads a fixture.
+# Each reply body is announced in `body`,
+# as the transport announces it beside the bytes it carries.
+sent_json <- function(session) {
+  lapply(
+    session$sent,
+    function(message) {
+      read_json_strictly(encode_message(lapply(message, announced_body)))
+    }
+  )
+}
+
+announced_body <- function(x) {
+
+  if (is_reply_body(x[["body"]])) {
+    x[["body"]] <- body_announcement(x[["body"]])
+  }
+
+  x
+}
+
+# Has a session of the evaluator receive the client's message of a fixture,
+# changed by `client` as the transport changes it, such as for a body.
+# Then checks that R sends the messages that the fixture holds.
+expect_fixture_replies <- function(session, name, client = identity) {
+
+  fixture <- protocol_fixture(name)
+
+  session$sent <- list()
+  session$receive(client(decode_message(fixture)$client))
+  session$run()
+
+  testthat::expect_identical(
+    sent_json(session),
+    read_json_strictly(fixture)$r,
+    label = paste("what R sends for", name),
+    expected.label = "the fixture's"
+  )
+}
+
 # The R values of the messages R sends in each fixture, by the fixture's name:
 # for each fixture a list of messages, each a list of replies and progress
 # notes.
@@ -156,22 +197,7 @@ protocol_r_values <- function() {
             capabilities = I(c("cancel", "progress"))
           ),
           declared_fields(),
-          obj(
-            lock = NULL,
-            board = proto_json_board(
-              obj(
-                id = "calm_heron",
-                class = I(c("grid_board", "board")),
-                name = "Calm heron",
-                blocks = obj(),
-                links = obj(),
-                stacks = obj(),
-                options = obj()
-              ),
-              packages = obj(blockr.core = "0.2.0", blockr.test = "0.1.0"),
-              versions = obj(grid_board = 1L, board = 1L)
-            )
-          )
+          obj(lock = NULL, board = proto_declared_board())
         )
       )
     ),
@@ -325,7 +351,7 @@ protocol_r_values <- function() {
         )
       )
     ),
-    `request-extension` = list(
+    `request-added` = list(
       list(
         obj(
           id = "27",
@@ -785,6 +811,24 @@ proto_block <- function(registry_id, state, name) {
   obj(registry_id = registry_id, version = 1L, state = state, name = name)
 }
 
+# The opening board of the app of the fixture hello-declared: the empty board
+# of class grid_board that its script built, with the id that R drew.
+proto_declared_board <- function() {
+  proto_json_board(
+    obj(
+      id = "calm_heron",
+      class = I(c("grid_board", "board")),
+      name = "Calm heron",
+      blocks = obj(),
+      links = obj(),
+      stacks = obj(),
+      options = obj()
+    ),
+    packages = obj(blockr.core = "0.2.0", blockr.test = "0.1.0"),
+    versions = obj(grid_board = 1L, board = 1L)
+  )
+}
+
 # A board option's value as a JSON board holds it, with the version of its
 # shape.
 proto_option <- function(value, version = 1L) {
@@ -1130,10 +1174,14 @@ local_declared_package <- function(dir, frame = parent.frame()) {
     )
   }
 
+  table <- get(".__S3MethodsTable__.", envir = asNamespace("blockr.core"))
+
+  # A frame that declares the package twice has its methods removed by the
+  # second declaration's cleanup, which runs first.
   withr::defer(
     rm(
-      list = names(methods),
-      envir = get(".__S3MethodsTable__.", envir = asNamespace("blockr.core"))
+      list = intersect(names(methods), ls(table, all.names = TRUE)),
+      envir = table
     ),
     envir = frame
   )

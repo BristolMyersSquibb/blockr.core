@@ -8,7 +8,7 @@ export type Capability = "cancel" | "interrupt" | "progress";
 export type ReplyStatus = "ok" | "error" | "cancelled" | "invalid" | "missing";
 export type ClientMessage = Request[];
 export type RMessage = (Reply | Progress)[];
-export type Request = HelloRequest | BlockrOptionsRequest | EvaluateRequest | BlockClassRequest | BoardOptionRequest | ExtensionRequest | OutputClassRequest | RendererRequest | OutputRequest | CancelRequest | ForgetRequest;
+export type Request = HelloRequest | BlockrOptionsRequest | EvaluateRequest | BlockClassRequest | BoardOptionRequest | AddedRequest | OutputClassRequest | RendererRequest | OutputRequest | CancelRequest | ForgetRequest;
 export type Reply = HelloReply | BlockrOptionsReply | EvaluateReply | RequestReply | OutputReply | ErrorReply | CancelledReply | MissingReply;
 export interface Progress {
     id: string;
@@ -122,6 +122,7 @@ export interface Omitted {
 export interface BlockClassRequest {
     id: string;
     kind: "request";
+    type: "block_class";
     registry_id: RegistryId;
     block: BlockId;
     name: string;
@@ -130,38 +131,37 @@ export interface BlockClassRequest {
     options?: Record<OptionId, Json>;
     body?: Body;
     option?: never;
-    extension?: never;
     output?: never;
     renderer?: never;
 }
 export interface BoardOptionRequest {
     id: string;
     kind: "request";
+    type: "option";
     option: OptionId;
     name: string;
     args: Record<string, Json>;
     body?: Body;
     registry_id?: never;
-    extension?: never;
     output?: never;
     renderer?: never;
 }
-export interface ExtensionRequest {
+export interface AddedRequest {
     id: string;
     kind: "request";
-    extension: string;
-    name: string;
-    args: Record<string, Json>;
-    reads: BlockRevision[];
+    type: string;
+    reads?: BlockRevision[];
     body?: Body;
     registry_id?: never;
     option?: never;
     output?: never;
     renderer?: never;
+    [field: string]: Json | BlockRevision[] | Body | undefined;
 }
 export interface OutputClassRequest {
     id: string;
     kind: "request";
+    type: "output_class";
     output: BlockRevision;
     name: string;
     args: Record<string, Json>;
@@ -170,12 +170,12 @@ export interface OutputClassRequest {
     body?: Body;
     registry_id?: never;
     option?: never;
-    extension?: never;
     renderer?: never;
 }
 export interface RendererRequest {
     id: string;
     kind: "request";
+    type: "renderer";
     renderer: string;
     output: BlockRevision;
     name: string;
@@ -185,7 +185,6 @@ export interface RendererRequest {
     body?: Body;
     registry_id?: never;
     option?: never;
-    extension?: never;
 }
 export type RequestReply = {
     id: string;

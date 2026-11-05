@@ -335,6 +335,26 @@ test_that("arg type descriptor constructors build JSON-Schema nodes", {
   expect_error(arg_object(arg_string()), class = "arg_object_unnamed")
 })
 
+test_that("arg_object builds an object type without fields", {
+
+  obj <- arg_object()
+
+  expect_identical(obj[["type"]], "object")
+  expect_named(obj[["properties"]], character())
+  expect_length(obj[["required"]], 0L)
+  expect_true(valid_descriptor(obj))
+
+  expect_true(conforms_to(list(), obj))
+  expect_false(conforms_to(list(a = 1L), obj))
+
+  skip_if_not_installed("typedjson")
+
+  js <- typedjson::json_write_str(obj, typed = FALSE)
+
+  expect_match(js, '"properties":{}', fixed = TRUE)
+  expect_match(js, '"required":[]', fixed = TRUE)
+})
+
 test_that("valid_descriptor accepts the subset and rejects malformed types", {
 
   expect_true(valid_descriptor(arg_string()))

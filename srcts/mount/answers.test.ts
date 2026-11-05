@@ -54,6 +54,7 @@ function fakeScheduler() {
 function ask(block: BlockId, args: Record<string, number> = {}, revision?: number): ClassRequest {
   return {
     kind: "request",
+    type: "block_class",
     registry_id: "blockr.core-head_block",
     block,
     name: "n_max",

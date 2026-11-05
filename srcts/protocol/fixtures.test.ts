@@ -42,9 +42,9 @@ const types: Record<string, string> = {
   "request-error": "Fixture<[BlockClassRequest], [[ErrorReply]]>",
   "request-action": "Fixture<[BlockClassRequest], [[RequestReply]]>",
   "request-option": "Fixture<[BoardOptionRequest], [[RequestReply]]>",
-  "request-extension": "Fixture<[ExtensionRequest], [[RequestReply]]>",
+  "request-added": "Fixture<[AddedRequest], [[RequestReply]]>",
   "request-progress":
-    "Fixture<[ExtensionRequest], [[Progress], [Progress], [RequestReply]]>",
+    "Fixture<[AddedRequest], [[Progress], [Progress], [RequestReply]]>",
   "request-output": "Fixture<[OutputClassRequest], [[RequestReply]]>",
   "request-output-volatile": "Fixture<[OutputClassRequest], [[RequestReply]]>",
   "request-renderer": "Fixture<[RendererRequest], [[RequestReply]]>",

@@ -36,7 +36,7 @@ export type Request =
   | EvaluateRequest
   | BlockClassRequest
   | BoardOptionRequest
-  | ExtensionRequest
+  | AddedRequest
   | OutputClassRequest
   | RendererRequest
   | OutputRequest
@@ -208,13 +208,17 @@ export interface Omitted {
   message: number;
 }
 
-// Requests, by the object that each belongs to
+// Requests, each of a type, which R reads into an object of class
+// `{type}_request` and answers through its method of request_call(). Core's
+// types are block_class, output_class, renderer and option, and a package adds
+// a type with a method of its own.
 
 // A block class's request, which R resolves by registry id. Its `block` names
 // the block that asks, which R reads only on a locked board.
 export interface BlockClassRequest {
   id: string;
   kind: "request";
+  type: "block_class";
   registry_id: RegistryId;
   block: BlockId;
   name: string;
@@ -228,37 +232,40 @@ export interface BlockClassRequest {
   options?: Record<OptionId, Json>;
   body?: Body;
   option?: never;
-  extension?: never;
   output?: never;
   renderer?: never;
 }
 
+// A board option's request, which R finds among the requests that
+// board_option_requests() returns for the board option's class.
 export interface BoardOptionRequest {
   id: string;
   kind: "request";
+  type: "option";
   option: OptionId;
   name: string;
   args: Record<string, Json>;
   body?: Body;
   registry_id?: never;
-  extension?: never;
   output?: never;
   renderer?: never;
 }
 
-export interface ExtensionRequest {
+// A request of a type that a package adds, which R answers through the
+// package's method of request_call(). R reads its `reads`, the results it
+// reads, and passes its other fields to the method as they are, so they are
+// the package's, but for the names of core's own fields.
+export interface AddedRequest {
   id: string;
   kind: "request";
-  // The extension's id, `{pkg}-{name}`.
-  extension: string;
-  name: string;
-  args: Record<string, Json>;
-  reads: BlockRevision[];
+  type: string;
+  reads?: BlockRevision[];
   body?: Body;
   registry_id?: never;
   option?: never;
   output?: never;
   renderer?: never;
+  [field: string]: Json | BlockRevision[] | Body | undefined;
 }
 
 // A request of an output class, which R resolves against the class vector of
@@ -266,6 +273,7 @@ export interface ExtensionRequest {
 export interface OutputClassRequest {
   id: string;
   kind: "request";
+  type: "output_class";
   output: BlockRevision;
   name: string;
   args: Record<string, Json>;
@@ -275,7 +283,6 @@ export interface OutputClassRequest {
   body?: Body;
   registry_id?: never;
   option?: never;
-  extension?: never;
   renderer?: never;
 }
 
@@ -285,6 +292,7 @@ export interface OutputClassRequest {
 export interface RendererRequest {
   id: string;
   kind: "request";
+  type: "renderer";
   // The renderer's id.
   renderer: string;
   output: BlockRevision;
@@ -296,7 +304,6 @@ export interface RendererRequest {
   body?: Body;
   registry_id?: never;
   option?: never;
-  extension?: never;
 }
 
 // An answer as R writes it, every vector as an array, or a file. R marks with

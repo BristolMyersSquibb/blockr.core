@@ -133,7 +133,7 @@ test_that("the handler's send() sends a message", {
     function(message, send) {
       send(list(list(id = message[[1L]][["id"]], status = "ok", value = 1L)))
     },
-    session$setInputs(blockr = '[{"id": "7", "kind": "open"}]')
+    session$setInputs(blockr = '[{"id": "7", "kind": "blockr_options"}]')
   )
 
   expect_identical(
