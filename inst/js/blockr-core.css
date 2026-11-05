@@ -10,6 +10,7 @@
       --tw-numeric-figure: initial;
       --tw-numeric-spacing: initial;
       --tw-numeric-fraction: initial;
+      --tw-outline-style: solid;
     }
   }
 }
@@ -20,8 +21,10 @@
     monospace;
     --bc-color-red-50: oklch(97.1% .013 17.38);
     --bc-color-red-300: oklch(80.8% .114 19.571);
+    --bc-color-red-500: oklch(63.7% .237 25.331);
     --bc-color-red-600: oklch(57.7% .245 27.325);
     --bc-color-red-800: oklch(44.4% .177 26.899);
+    --bc-color-blue-500: oklch(62.3% .214 259.815);
     --bc-color-blue-600: oklch(54.6% .245 262.881);
     --bc-color-gray-100: oklch(96.7% .003 264.542);
     --bc-color-gray-200: oklch(92.8% .006 264.531);
@@ -57,6 +60,14 @@
 
 .bc\:flex {
   display: flex;
+}
+
+.bc\:grid {
+  display: grid;
+}
+
+.bc\:max-h-48 {
+  max-height: calc(var(--bc-spacing) * 48);
 }
 
 .bc\:max-h-full {
@@ -123,8 +134,16 @@
   gap: calc(var(--bc-spacing) * 3);
 }
 
+.bc\:justify-self-stretch {
+  justify-self: stretch;
+}
+
 .bc\:overflow-auto {
   overflow: auto;
+}
+
+.bc\:overflow-y-auto {
+  overflow-y: auto;
 }
 
 .bc\:rounded {
@@ -232,6 +251,10 @@
   vertical-align: bottom;
 }
 
+.bc\:\[font-family\:inherit\] {
+  font-family: inherit;
+}
+
 .bc\:font-mono {
   font-family: var(--bc-font-mono);
 }
@@ -314,6 +337,10 @@
   opacity: .6;
 }
 
+.bc\:opacity-70 {
+  opacity: .7;
+}
+
 .bc\:opacity-75 {
   opacity: .75;
 }
@@ -322,12 +349,29 @@
   font: inherit;
 }
 
+.bc\:focus\:outline-2:focus {
+  outline-style: var(--tw-outline-style);
+  outline-width: 2px;
+}
+
+.bc\:focus\:outline-offset-1:focus {
+  outline-offset: 1px;
+}
+
+.bc\:focus\:outline-blue-500:focus {
+  outline-color: var(--bc-color-blue-500);
+}
+
 .bc\:disabled\:cursor-default:disabled {
   cursor: default;
 }
 
 .bc\:disabled\:opacity-40:disabled {
   opacity: .4;
+}
+
+.bc\:aria-invalid\:border-red-500[aria-invalid="true"] {
+  border-color: var(--bc-color-red-500);
 }
 
 .bc\:dark\:border-gray-600:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
@@ -393,4 +437,10 @@
 @property --tw-numeric-fraction {
   syntax: "*";
   inherits: false
+}
+
+@property --tw-outline-style {
+  syntax: "*";
+  inherits: false;
+  initial-value: solid;
 }
