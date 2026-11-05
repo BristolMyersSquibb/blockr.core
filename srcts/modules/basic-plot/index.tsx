@@ -8,32 +8,15 @@
 
 import { useEffect, useMemo } from "react";
 import type { ReactElement } from "react";
-import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
-import { useOutput } from "../../react/index.ts";
-import type { OutputHost, OutputModule } from "../../types/hosts.ts";
-import { isObject } from "../../util/index.ts";
+import { outputRenderer } from "../../react/index.ts";
+import type { OutputProps } from "../../react/index.ts";
+import type { PlotOutput } from "../../types/outputs.ts";
 
 export const api = 1;
 
-const renderer: OutputModule = {
-  render({ el, host }) {
-    const root = createRoot(el);
-    flushSync(() => {
-      root.render(<PlotOutput host={host} />);
-    });
-    return () => {
-      root.unmount();
-    };
-  },
-};
+export default outputRenderer<PlotOutput>(Plot);
 
-export default renderer;
-
-function PlotOutput({ host }: { host: OutputHost }): ReactElement {
-  const { output, body, loading, error } = useOutput(host);
-  const { width, height } = isObject(output) ? output : {};
-
+function Plot({ output, body }: OutputProps<PlotOutput>): ReactElement | null {
   // The body shows through a URL of its own, which goes once another body or
   // the unmount replaces it.
   const url = useMemo(() => (body === null ? null : URL.createObjectURL(body)), [body]);
@@ -43,23 +26,7 @@ function PlotOutput({ host }: { host: OutputHost }): ReactElement {
     },
     [url],
   );
-
-  return (
-    <div className="bc:flex bc:flex-col bc:gap-2" aria-busy={loading}>
-      {error !== null && (
-        <p role="alert" className="bc:m-0 bc:text-sm bc:text-red-600 bc:whitespace-pre-wrap">
-          {error.message}
-        </p>
-      )}
-      {url !== null && (
-        <img
-          src={url}
-          alt="Plot"
-          width={typeof width === "number" ? width : undefined}
-          height={typeof height === "number" ? height : undefined}
-          className={`bc:block bc:max-w-none ${loading ? "bc:opacity-60" : ""}`}
-        />
-      )}
-    </div>
+  return url === null ? null : (
+    <img src={url} alt="Plot" width={output.width} height={output.height} className="bc:block bc:max-w-none" />
   );
 }

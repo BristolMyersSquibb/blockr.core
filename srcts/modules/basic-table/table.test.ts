@@ -2,12 +2,17 @@
 // says, which parameters it asks for and what it asks for again.
 
 import { describe, expect, test } from "vitest";
-import { cellText, nextSort, pageOf, pageText, paramsFor, retry, rowsText, sortedColumn, tableOf } from "./table.ts";
-import type { Table } from "./table.ts";
+import type { TableOutput } from "../../types/outputs.ts";
+import { cellText, nextSort, pageOf, pageText, paramsFor, retry, rowsText, sortedColumn } from "./table.ts";
 
 // A table of `total` rows, holding a page of `rows` rows.
-function table(rows: number, total: number | null): Table {
-  return { columns: [{ name: "x", class: "integer" }], rows: Array.from({ length: rows }, (_, i) => [i]), total };
+function table(rows: number, total: number | null): TableOutput {
+  return {
+    renderer: "blockr.core-table_output",
+    columns: [{ name: "x", class: "integer" }],
+    rows: Array.from({ length: rows }, (_, i) => [i]),
+    total,
+  };
 }
 
 describe("where a page sits", () => {
@@ -54,7 +59,10 @@ describe("what it asks for", () => {
   });
 
   test("marks the first column of the name that the table is sorted by, as R sorts by it", () => {
-    const repeated = tableOf({ columns: [{ name: "a", class: "integer" }, { name: "b", class: "character" }, { name: "b", class: "integer" }] });
+    const repeated: TableOutput = {
+      ...table(0, 0),
+      columns: [{ name: "a", class: "integer" }, { name: "b", class: "character" }, { name: "b", class: "integer" }],
+    };
     expect(sortedColumn(repeated, { column: "b" })).toBe(1);
     expect(sortedColumn(repeated, { column: "c" })).toBe(-1);
     expect(sortedColumn(repeated, undefined)).toBe(-1);
@@ -74,13 +82,4 @@ describe("what it asks for", () => {
 
 test("shows a cell as R prints it, and a missing value as none", () => {
   expect([1.5, "a", true, false, null].map(cellText)).toEqual(["1.5", "a", "TRUE", "FALSE", null]);
-});
-
-test("reads only what a table output holds", () => {
-  expect(tableOf(null)).toEqual({ columns: [], rows: [], total: null });
-  expect(tableOf({ columns: [{ name: 1 }], rows: [[1], "x"], total: -1 })).toEqual({
-    columns: [{ name: "", class: "" }],
-    rows: [[1], []],
-    total: null,
-  });
 });

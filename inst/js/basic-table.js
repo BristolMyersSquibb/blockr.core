@@ -65,16 +65,19 @@ var require_jsx_runtime = __commonJS({
 });
 
 // srcts/modules/basic-table/index.tsx
-var import_react2 = __toESM(require_react(), 1);
-var import_react_dom = __toESM(require_react_dom(), 1);
-var import_client = __toESM(require_client(), 1);
+var import_react3 = __toESM(require_react(), 1);
 
 // srcts/react/hooks.ts
 var import_react = __toESM(require_react(), 1);
 
 // srcts/util/util.ts
-function isObject(x) {
-  return typeof x === "object" && x !== null && !Array.isArray(x);
+function messageOf(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+function report(error) {
+  queueMicrotask(() => {
+    throw error;
+  });
 }
 
 // srcts/react/hooks.ts
@@ -101,32 +104,75 @@ function snapshotOf(host) {
   return next;
 }
 
+// srcts/react/module.ts
+var import_react2 = __toESM(require_react(), 1);
+var import_react_dom = __toESM(require_react_dom(), 1);
+var import_client = __toESM(require_client(), 1);
+function reactModule(Draw, options = {}) {
+  return {
+    ...options.options === void 0 ? {} : { options: options.options },
+    render({ el, host, signal }) {
+      const root = (0, import_client.createRoot)(el);
+      (0, import_react_dom.flushSync)(() => {
+        root.render((0, import_react2.createElement)(Draw, { host, signal }));
+      });
+      return () => {
+        root.unmount();
+      };
+    }
+  };
+}
+function outputRenderer(Draw, options = {}) {
+  function Renderer({ host }) {
+    const now = useOutput(host);
+    const drawn = (0, import_react2.createElement)(Draw, {
+      output: now.output,
+      body: now.body,
+      params: now.params,
+      options: now.options,
+      loading: now.loading,
+      error: now.error,
+      host
+    });
+    return (0, import_react2.createElement)(
+      "div",
+      { className: "bc:flex bc:max-h-full bc:flex-col bc:gap-2", "aria-busy": now.loading },
+      now.error === null ? null : (0, import_react2.createElement)(Alert, { message: now.error.message }),
+      (0, import_react2.createElement)(
+        Boundary,
+        { output: now.output },
+        (0, import_react2.createElement)("div", { className: `bc:flex bc:min-h-0 bc:flex-col ${now.loading ? "bc:opacity-60" : ""}` }, drawn)
+      )
+    );
+  }
+  return reactModule(Renderer, options);
+}
+function Alert({ message }) {
+  return (0, import_react2.createElement)("p", { role: "alert", className: "bc:m-0 bc:text-sm bc:text-red-600 bc:whitespace-pre-wrap" }, message);
+}
+var Boundary = class extends import_react2.Component {
+  state = { failed: null };
+  static getDerivedStateFromError(error) {
+    return { failed: messageOf(error) };
+  }
+  componentDidCatch(error) {
+    report(error);
+  }
+  componentDidUpdate(before) {
+    if (this.state.failed !== null && before.output !== this.props.output) {
+      this.setState({ failed: null });
+    }
+  }
+  render() {
+    const { failed } = this.state;
+    return failed === null ? this.props.children : (0, import_react2.createElement)(Alert, { message: `The renderer failed to draw the output: ${failed}` });
+  }
+};
+
 // srcts/modules/basic-table/table.ts
 var NUMBERS = /* @__PURE__ */ new Set(["numeric", "integer"]);
 function isNumber(column) {
   return NUMBERS.has(column.class);
-}
-function tableOf(output) {
-  const fields = recordOf(output);
-  return {
-    columns: listOf(fields.columns).map((column) => {
-      const { name, class: type } = recordOf(column);
-      return { name: typeof name === "string" ? name : "", class: typeof type === "string" ? type : "" };
-    }),
-    rows: listOf(fields.rows).map(listOf),
-    total: countOf(fields.total, 0) ?? null
-  };
-}
-function paramsOf(params) {
-  const fields = recordOf(params);
-  const table = {};
-  const page = countOf(fields.page);
-  const size = countOf(fields.page_size);
-  const sort = recordOf(fields.sort);
-  if (page !== void 0) table.page = page;
-  if (size !== void 0) table.page_size = size;
-  if (typeof sort.column === "string") table.sort = sortOf(sort.column, sort.desc === true);
-  return table;
 }
 function pageOf(table, params, nRows) {
   const rows = table.rows.length;
@@ -182,60 +228,34 @@ function sortOf(column, desc) {
 function count(n) {
   return n.toLocaleString("en-US");
 }
-function countOf(value, min = 1) {
-  return typeof value === "number" && Number.isInteger(value) && value >= min ? value : void 0;
-}
-function recordOf(value) {
-  return isObject(value) ? value : {};
-}
-function listOf(value) {
-  return isList(value) ? value : [];
-}
-function isList(value) {
-  return Array.isArray(value);
+function countOf(value) {
+  return typeof value === "number" && Number.isInteger(value) && value >= 1 ? value : void 0;
 }
 
 // srcts/modules/basic-table/index.tsx
 var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
 var api = 1;
-var renderer = {
-  options: ["n_rows"],
-  render({ el, host }) {
-    const root = (0, import_client.createRoot)(el);
-    (0, import_react_dom.flushSync)(() => {
-      root.render(/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableOutput, { host }));
-    });
-    return () => {
-      root.unmount();
-    };
-  }
-};
-var basic_table_default = renderer;
-function TableOutput({ host }) {
-  const now = useOutput(host);
-  const table = tableOf(now.output);
-  const params = paramsOf(now.params);
-  const page = pageOf(table, params, now.options.n_rows);
-  const sorted = sortedColumn(table, params.sort);
+var basic_table_default = outputRenderer(Table, { options: ["n_rows"] });
+function Table({ output, params, options, error, host }) {
+  const page = pageOf(output, params, options.n_rows);
+  const sorted = sortedColumn(output, params.sort);
   const ask = (to, sort) => {
     host.setParams(paramsFor(to, sort, params));
   };
-  const tried = (0, import_react2.useRef)(0);
-  (0, import_react2.useEffect)(() => {
-    if (now.error === null) {
+  const tried = (0, import_react3.useRef)(0);
+  (0, import_react3.useEffect)(() => {
+    if (error === null) {
       tried.current = 0;
       return;
     }
-    const held = paramsOf(now.params);
-    const again = retry(held, tried.current);
+    const again = retry(params, tried.current);
     if (again === void 0) return;
     tried.current = again.tried;
-    host.setParams(paramsFor(1, again.sort, held));
-  }, [host, now]);
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bc:flex bc:max-h-full bc:flex-col bc:gap-2", "aria-busy": now.loading, children: [
-    now.error !== null && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { role: "alert", className: "bc:m-0 bc:text-sm bc:text-red-600 bc:whitespace-pre-wrap", children: now.error.message }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bc:min-h-0 bc:overflow-auto", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("table", { className: `bc:w-full bc:border-collapse bc:text-left bc:text-sm ${now.loading ? "bc:opacity-60" : ""}`, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("tr", { children: table.columns.map((column, j) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+    host.setParams(paramsFor(1, again.sort, params));
+  }, [host, error, params]);
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bc:flex bc:min-h-0 bc:flex-col bc:gap-2", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bc:min-h-0 bc:overflow-auto", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("table", { className: "bc:w-full bc:border-collapse bc:text-left bc:text-sm", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("tr", { children: output.columns.map((column, j) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
         Header,
         {
           column,
@@ -246,12 +266,12 @@ function TableOutput({ host }) {
         },
         j
       )) }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("tbody", { children: table.rows.map((row, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("tr", { children: table.columns.map((column, j) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Cell, { column, value: row[j] ?? null }, j)) }, i)) })
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("tbody", { children: output.rows.map((row, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("tr", { children: output.columns.map((column, j) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Cell, { column, value: row[j] ?? null }, j)) }, i)) })
     ] }) }),
     /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
       Pager,
       {
-        table,
+        table: output,
         page,
         onPage: (to) => {
           ask(to, params.sort);

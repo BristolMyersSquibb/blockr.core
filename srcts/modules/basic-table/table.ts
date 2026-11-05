@@ -1,21 +1,11 @@
 // What the plain table renderer computes from what its host holds, as pure
-// functions: the table output and its parameters, where the page sits in the
-// table, which parameters to ask for, and what to ask for again once an ask
-// failed.
+// functions: where the page sits in the table, which parameters to ask for,
+// and what to ask for again once an ask failed.
 
 import type { Json } from "../../types/json.ts";
-import type { TableColumn, TableParams } from "../../types/outputs.ts";
-import { isObject } from "../../util/index.ts";
+import type { TableColumn, TableOutput, TableParams } from "../../types/outputs.ts";
 
 export type Sort = NonNullable<TableParams["sort"]>;
-
-// A table output, as far as the output holds one.
-export interface Table {
-  readonly columns: readonly TableColumn[];
-  readonly rows: readonly (readonly Json[])[];
-  // The total row count, or null where it is unknown, as for a lazy table.
-  readonly total: number | null;
-}
 
 // Where a page sits in its table.
 export interface Page {
@@ -38,35 +28,11 @@ export function isNumber(column: TableColumn): boolean {
   return NUMBERS.has(column.class);
 }
 
-export function tableOf(output: Json): Table {
-  const fields = recordOf(output);
-  return {
-    columns: listOf(fields.columns).map((column) => {
-      const { name, class: type } = recordOf(column);
-      return { name: typeof name === "string" ? name : "", class: typeof type === "string" ? type : "" };
-    }),
-    rows: listOf(fields.rows).map(listOf),
-    total: countOf(fields.total, 0) ?? null,
-  };
-}
-
-export function paramsOf(params: Json): TableParams {
-  const fields = recordOf(params);
-  const table: TableParams = {};
-  const page = countOf(fields.page);
-  const size = countOf(fields.page_size);
-  const sort = recordOf(fields.sort);
-  if (page !== undefined) table.page = page;
-  if (size !== undefined) table.page_size = size;
-  if (typeof sort.column === "string") table.sort = sortOf(sort.column, sort.desc === true);
-  return table;
-}
-
 // Where the page that the output holds sits. A page holds the rows that the
 // parameters give, or else as many as the board option n_rows gives, by which
 // the coercion pages. Where the total is unknown, a page with fewer rows than
 // a page holds is the last.
-export function pageOf(table: Table, params: TableParams, nRows: Json | undefined): Page {
+export function pageOf(table: TableOutput, params: TableParams, nRows: Json | undefined): Page {
   const rows = table.rows.length;
   const size = params.page_size ?? countOf(nRows) ?? Math.max(rows, 1);
   const page = params.page ?? 1;
@@ -81,7 +47,7 @@ export function pageOf(table: Table, params: TableParams, nRows: Json | undefine
 }
 
 // What the pager says of the rows on the page, as "Rows 4–6 of 7".
-export function rowsText(table: Table, page: Page): string {
+export function rowsText(table: TableOutput, page: Page): string {
   if (page.rows === 0) return "No rows";
   if (table.total !== null && page.last === 1) {
     return `${count(table.total)} ${table.total === 1 ? "row" : "rows"}`;
@@ -114,7 +80,7 @@ export function nextSort(sort: Sort | undefined, column: string): Sort | undefin
 
 // The index of the column that the table is sorted by, or -1. R sorts by the
 // first column of a name that repeats.
-export function sortedColumn(table: Table, sort: Sort | undefined): number {
+export function sortedColumn(table: TableOutput, sort: Sort | undefined): number {
   return sort === undefined ? -1 : table.columns.findIndex((column) => column.name === sort.column);
 }
 
@@ -144,19 +110,7 @@ function count(n: number): string {
   return n.toLocaleString("en-US");
 }
 
-// A whole number of at least `min`, or undefined for anything else.
-function countOf(value: Json | undefined, min = 1): number | undefined {
-  return typeof value === "number" && Number.isInteger(value) && value >= min ? value : undefined;
-}
-
-function recordOf(value: Json | undefined): Readonly<Record<string, Json>> {
-  return isObject(value) ? value : {};
-}
-
-function listOf(value: Json | undefined): readonly Json[] {
-  return isList(value) ? value : [];
-}
-
-function isList(value: Json | undefined): value is readonly Json[] {
-  return Array.isArray(value);
+// A whole number of at least 1, or undefined for anything else.
+function countOf(value: Json | undefined): number | undefined {
+  return typeof value === "number" && Number.isInteger(value) && value >= 1 ? value : undefined;
 }

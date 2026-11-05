@@ -65,16 +65,19 @@ var require_jsx_runtime = __commonJS({
 });
 
 // srcts/modules/basic-plot/index.tsx
-var import_react2 = __toESM(require_react(), 1);
-var import_react_dom = __toESM(require_react_dom(), 1);
-var import_client = __toESM(require_client(), 1);
+var import_react3 = __toESM(require_react(), 1);
 
 // srcts/react/hooks.ts
 var import_react = __toESM(require_react(), 1);
 
 // srcts/util/util.ts
-function isObject(x) {
-  return typeof x === "object" && x !== null && !Array.isArray(x);
+function messageOf(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+function report(error) {
+  queueMicrotask(() => {
+    throw error;
+  });
 }
 
 // srcts/react/hooks.ts
@@ -101,44 +104,84 @@ function snapshotOf(host) {
   return next;
 }
 
+// srcts/react/module.ts
+var import_react2 = __toESM(require_react(), 1);
+var import_react_dom = __toESM(require_react_dom(), 1);
+var import_client = __toESM(require_client(), 1);
+function reactModule(Draw, options = {}) {
+  return {
+    ...options.options === void 0 ? {} : { options: options.options },
+    render({ el, host, signal }) {
+      const root = (0, import_client.createRoot)(el);
+      (0, import_react_dom.flushSync)(() => {
+        root.render((0, import_react2.createElement)(Draw, { host, signal }));
+      });
+      return () => {
+        root.unmount();
+      };
+    }
+  };
+}
+function outputRenderer(Draw, options = {}) {
+  function Renderer({ host }) {
+    const now = useOutput(host);
+    const drawn = (0, import_react2.createElement)(Draw, {
+      output: now.output,
+      body: now.body,
+      params: now.params,
+      options: now.options,
+      loading: now.loading,
+      error: now.error,
+      host
+    });
+    return (0, import_react2.createElement)(
+      "div",
+      { className: "bc:flex bc:max-h-full bc:flex-col bc:gap-2", "aria-busy": now.loading },
+      now.error === null ? null : (0, import_react2.createElement)(Alert, { message: now.error.message }),
+      (0, import_react2.createElement)(
+        Boundary,
+        { output: now.output },
+        (0, import_react2.createElement)("div", { className: `bc:flex bc:min-h-0 bc:flex-col ${now.loading ? "bc:opacity-60" : ""}` }, drawn)
+      )
+    );
+  }
+  return reactModule(Renderer, options);
+}
+function Alert({ message }) {
+  return (0, import_react2.createElement)("p", { role: "alert", className: "bc:m-0 bc:text-sm bc:text-red-600 bc:whitespace-pre-wrap" }, message);
+}
+var Boundary = class extends import_react2.Component {
+  state = { failed: null };
+  static getDerivedStateFromError(error) {
+    return { failed: messageOf(error) };
+  }
+  componentDidCatch(error) {
+    report(error);
+  }
+  componentDidUpdate(before) {
+    if (this.state.failed !== null && before.output !== this.props.output) {
+      this.setState({ failed: null });
+    }
+  }
+  render() {
+    const { failed } = this.state;
+    return failed === null ? this.props.children : (0, import_react2.createElement)(Alert, { message: `The renderer failed to draw the output: ${failed}` });
+  }
+};
+
 // srcts/modules/basic-plot/index.tsx
 var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
 var api = 1;
-var renderer = {
-  render({ el, host }) {
-    const root = (0, import_client.createRoot)(el);
-    (0, import_react_dom.flushSync)(() => {
-      root.render(/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlotOutput, { host }));
-    });
-    return () => {
-      root.unmount();
-    };
-  }
-};
-var basic_plot_default = renderer;
-function PlotOutput({ host }) {
-  const { output, body, loading, error } = useOutput(host);
-  const { width, height } = isObject(output) ? output : {};
-  const url = (0, import_react2.useMemo)(() => body === null ? null : URL.createObjectURL(body), [body]);
-  (0, import_react2.useEffect)(
+var basic_plot_default = outputRenderer(Plot);
+function Plot({ output, body }) {
+  const url = (0, import_react3.useMemo)(() => body === null ? null : URL.createObjectURL(body), [body]);
+  (0, import_react3.useEffect)(
     () => () => {
       if (url !== null) URL.revokeObjectURL(url);
     },
     [url]
   );
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bc:flex bc:flex-col bc:gap-2", "aria-busy": loading, children: [
-    error !== null && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { role: "alert", className: "bc:m-0 bc:text-sm bc:text-red-600 bc:whitespace-pre-wrap", children: error.message }),
-    url !== null && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-      "img",
-      {
-        src: url,
-        alt: "Plot",
-        width: typeof width === "number" ? width : void 0,
-        height: typeof height === "number" ? height : void 0,
-        className: `bc:block bc:max-w-none ${loading ? "bc:opacity-60" : ""}`
-      }
-    )
-  ] });
+  return url === null ? null : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { src: url, alt: "Plot", width: output.width, height: output.height, className: "bc:block bc:max-w-none" });
 }
 export {
   api,

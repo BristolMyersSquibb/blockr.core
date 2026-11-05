@@ -64,26 +64,26 @@ var require_react_production = __commonJS({
     };
     var assign = Object.assign;
     var emptyObject = {};
-    function Component(props, context, updater) {
+    function Component2(props, context, updater) {
       this.props = props;
       this.context = context;
       this.refs = emptyObject;
       this.updater = updater || ReactNoopUpdateQueue;
     }
-    Component.prototype.isReactComponent = {};
-    Component.prototype.setState = function(partialState, callback) {
+    Component2.prototype.isReactComponent = {};
+    Component2.prototype.setState = function(partialState, callback) {
       if ("object" !== typeof partialState && "function" !== typeof partialState && null != partialState)
         throw Error(
           "takes an object of state variables to update or a function which returns an object of state variables."
         );
       this.updater.enqueueSetState(this, partialState, callback, "setState");
     };
-    Component.prototype.forceUpdate = function(callback) {
+    Component2.prototype.forceUpdate = function(callback) {
       this.updater.enqueueForceUpdate(this, callback, "forceUpdate");
     };
     function ComponentDummy() {
     }
-    ComponentDummy.prototype = Component.prototype;
+    ComponentDummy.prototype = Component2.prototype;
     function PureComponent(props, context, updater) {
       this.props = props;
       this.context = context;
@@ -92,7 +92,7 @@ var require_react_production = __commonJS({
     }
     var pureComponentPrototype = PureComponent.prototype = new ComponentDummy();
     pureComponentPrototype.constructor = PureComponent;
-    assign(pureComponentPrototype, Component.prototype);
+    assign(pureComponentPrototype, Component2.prototype);
     pureComponentPrototype.isPureReactComponent = true;
     var isArrayImpl = Array.isArray;
     function noop() {
@@ -317,7 +317,7 @@ var require_react_production = __commonJS({
     };
     exports.Activity = REACT_ACTIVITY_TYPE;
     exports.Children = Children;
-    exports.Component = Component;
+    exports.Component = Component2;
     exports.Fragment = REACT_FRAGMENT_TYPE;
     exports.Profiler = REACT_PROFILER_TYPE;
     exports.PureComponent = PureComponent;
@@ -2971,9 +2971,9 @@ var require_react_dom_client_production = __commonJS({
     function createFiberImplClass(tag, pendingProps, key, mode) {
       return new FiberNode(tag, pendingProps, key, mode);
     }
-    function shouldConstruct(Component) {
-      Component = Component.prototype;
-      return !(!Component || !Component.isReactComponent);
+    function shouldConstruct(Component2) {
+      Component2 = Component2.prototype;
+      return !(!Component2 || !Component2.isReactComponent);
     }
     function createWorkInProgress(current, pendingProps) {
       var workInProgress2 = current.alternate;
@@ -4403,7 +4403,7 @@ var require_react_dom_client_production = __commonJS({
         if (!objectIs(nextDeps[i], prevDeps[i])) return false;
       return true;
     }
-    function renderWithHooks(current, workInProgress2, Component, props, secondArg, nextRenderLanes) {
+    function renderWithHooks(current, workInProgress2, Component2, props, secondArg, nextRenderLanes) {
       renderLanes = nextRenderLanes;
       currentlyRenderingFiber = workInProgress2;
       workInProgress2.memoizedState = null;
@@ -4411,11 +4411,11 @@ var require_react_dom_client_production = __commonJS({
       workInProgress2.lanes = 0;
       ReactSharedInternals.H = null === current || null === current.memoizedState ? HooksDispatcherOnMount : HooksDispatcherOnUpdate;
       shouldDoubleInvokeUserFnsInHooksDEV = false;
-      nextRenderLanes = Component(props, secondArg);
+      nextRenderLanes = Component2(props, secondArg);
       shouldDoubleInvokeUserFnsInHooksDEV = false;
       didScheduleRenderPhaseUpdateDuringThisPass && (nextRenderLanes = renderWithHooksAgain(
         workInProgress2,
-        Component,
+        Component2,
         props,
         secondArg
       ));
@@ -4433,7 +4433,7 @@ var require_react_dom_client_production = __commonJS({
       if (didRenderTooFewHooks) throw Error(formatProdErrorMessage(300));
       null === current || didReceiveUpdate || (current = current.dependencies, null !== current && checkIfContextChanged(current) && (didReceiveUpdate = true));
     }
-    function renderWithHooksAgain(workInProgress2, Component, props, secondArg) {
+    function renderWithHooksAgain(workInProgress2, Component2, props, secondArg) {
       currentlyRenderingFiber = workInProgress2;
       var numberOfReRenders = 0;
       do {
@@ -4451,7 +4451,7 @@ var require_react_dom_client_production = __commonJS({
           null != children.memoCache && (children.memoCache.index = 0);
         }
         ReactSharedInternals.H = HooksDispatcherOnRerender;
-        children = Component(props, secondArg);
+        children = Component2(props, secondArg);
       } while (didScheduleRenderPhaseUpdateDuringThisPass);
       return children;
     }
@@ -5650,17 +5650,17 @@ var require_react_dom_client_production = __commonJS({
       "function" === typeof instance.UNSAFE_componentWillReceiveProps && instance.UNSAFE_componentWillReceiveProps(newProps, nextContext);
       instance.state !== workInProgress2 && classComponentUpdater.enqueueReplaceState(instance, instance.state, null);
     }
-    function resolveClassComponentProps(Component, baseProps) {
+    function resolveClassComponentProps(Component2, baseProps) {
       var newProps = baseProps;
       if ("ref" in baseProps) {
         newProps = {};
         for (var propName in baseProps)
           "ref" !== propName && (newProps[propName] = baseProps[propName]);
       }
-      if (Component = Component.defaultProps) {
+      if (Component2 = Component2.defaultProps) {
         newProps === baseProps && (newProps = assign({}, newProps));
-        for (var propName$77 in Component)
-          void 0 === newProps[propName$77] && (newProps[propName$77] = Component[propName$77]);
+        for (var propName$77 in Component2)
+          void 0 === newProps[propName$77] && (newProps[propName$77] = Component2[propName$77]);
       }
       return newProps;
     }
@@ -5811,8 +5811,8 @@ var require_react_dom_client_production = __commonJS({
         renderLanes2
       );
     }
-    function updateForwardRef(current, workInProgress2, Component, nextProps, renderLanes2) {
-      Component = Component.render;
+    function updateForwardRef(current, workInProgress2, Component2, nextProps, renderLanes2) {
+      Component2 = Component2.render;
       var ref = workInProgress2.ref;
       if ("ref" in nextProps) {
         var propsWithoutRef = {};
@@ -5823,7 +5823,7 @@ var require_react_dom_client_production = __commonJS({
       nextProps = renderWithHooks(
         current,
         workInProgress2,
-        Component,
+        Component2,
         propsWithoutRef,
         ref,
         renderLanes2
@@ -5836,10 +5836,10 @@ var require_react_dom_client_production = __commonJS({
       reconcileChildren(current, workInProgress2, nextProps, renderLanes2);
       return workInProgress2.child;
     }
-    function updateMemoComponent(current, workInProgress2, Component, nextProps, renderLanes2) {
+    function updateMemoComponent(current, workInProgress2, Component2, nextProps, renderLanes2) {
       if (null === current) {
-        var type = Component.type;
-        if ("function" === typeof type && !shouldConstruct(type) && void 0 === type.defaultProps && null === Component.compare)
+        var type = Component2.type;
+        if ("function" === typeof type && !shouldConstruct(type) && void 0 === type.defaultProps && null === Component2.compare)
           return workInProgress2.tag = 15, workInProgress2.type = type, updateSimpleMemoComponent(
             current,
             workInProgress2,
@@ -5848,7 +5848,7 @@ var require_react_dom_client_production = __commonJS({
             renderLanes2
           );
         current = createFiberFromTypeAndProps(
-          Component.type,
+          Component2.type,
           null,
           nextProps,
           workInProgress2,
@@ -5862,9 +5862,9 @@ var require_react_dom_client_production = __commonJS({
       type = current.child;
       if (!checkScheduledUpdateOrContext(current, renderLanes2)) {
         var prevProps = type.memoizedProps;
-        Component = Component.compare;
-        Component = null !== Component ? Component : shallowEqual;
-        if (Component(prevProps, nextProps) && current.ref === workInProgress2.ref)
+        Component2 = Component2.compare;
+        Component2 = null !== Component2 ? Component2 : shallowEqual;
+        if (Component2(prevProps, nextProps) && current.ref === workInProgress2.ref)
           return bailoutOnAlreadyFinishedWork(current, workInProgress2, renderLanes2);
       }
       workInProgress2.flags |= 1;
@@ -5873,7 +5873,7 @@ var require_react_dom_client_production = __commonJS({
       current.return = workInProgress2;
       return workInProgress2.child = current;
     }
-    function updateSimpleMemoComponent(current, workInProgress2, Component, nextProps, renderLanes2) {
+    function updateSimpleMemoComponent(current, workInProgress2, Component2, nextProps, renderLanes2) {
       if (null !== current) {
         var prevProps = current.memoizedProps;
         if (shallowEqual(prevProps, nextProps) && current.ref === workInProgress2.ref)
@@ -5885,7 +5885,7 @@ var require_react_dom_client_production = __commonJS({
       return updateFunctionComponent(
         current,
         workInProgress2,
-        Component,
+        Component2,
         nextProps,
         renderLanes2
       );
@@ -6047,12 +6047,12 @@ var require_react_dom_client_production = __commonJS({
           workInProgress2.flags |= 4194816;
       }
     }
-    function updateFunctionComponent(current, workInProgress2, Component, nextProps, renderLanes2) {
+    function updateFunctionComponent(current, workInProgress2, Component2, nextProps, renderLanes2) {
       prepareToReadContext(workInProgress2);
-      Component = renderWithHooks(
+      Component2 = renderWithHooks(
         current,
         workInProgress2,
-        Component,
+        Component2,
         nextProps,
         void 0,
         renderLanes2
@@ -6062,33 +6062,33 @@ var require_react_dom_client_production = __commonJS({
         return bailoutHooks(current, workInProgress2, renderLanes2), bailoutOnAlreadyFinishedWork(current, workInProgress2, renderLanes2);
       isHydrating && nextProps && pushMaterializedTreeId(workInProgress2);
       workInProgress2.flags |= 1;
-      reconcileChildren(current, workInProgress2, Component, renderLanes2);
+      reconcileChildren(current, workInProgress2, Component2, renderLanes2);
       return workInProgress2.child;
     }
-    function replayFunctionComponent(current, workInProgress2, nextProps, Component, secondArg, renderLanes2) {
+    function replayFunctionComponent(current, workInProgress2, nextProps, Component2, secondArg, renderLanes2) {
       prepareToReadContext(workInProgress2);
       workInProgress2.updateQueue = null;
       nextProps = renderWithHooksAgain(
         workInProgress2,
-        Component,
+        Component2,
         nextProps,
         secondArg
       );
       finishRenderingHooks(current);
-      Component = checkDidRenderIdHook();
+      Component2 = checkDidRenderIdHook();
       if (null !== current && !didReceiveUpdate)
         return bailoutHooks(current, workInProgress2, renderLanes2), bailoutOnAlreadyFinishedWork(current, workInProgress2, renderLanes2);
-      isHydrating && Component && pushMaterializedTreeId(workInProgress2);
+      isHydrating && Component2 && pushMaterializedTreeId(workInProgress2);
       workInProgress2.flags |= 1;
       reconcileChildren(current, workInProgress2, nextProps, renderLanes2);
       return workInProgress2.child;
     }
-    function updateClassComponent(current, workInProgress2, Component, nextProps, renderLanes2) {
+    function updateClassComponent(current, workInProgress2, Component2, nextProps, renderLanes2) {
       prepareToReadContext(workInProgress2);
       if (null === workInProgress2.stateNode) {
-        var context = emptyContextObject, contextType = Component.contextType;
+        var context = emptyContextObject, contextType = Component2.contextType;
         "object" === typeof contextType && null !== contextType && (context = readContext(contextType));
-        context = new Component(nextProps, context);
+        context = new Component2(nextProps, context);
         workInProgress2.memoizedState = null !== context.state && void 0 !== context.state ? context.state : null;
         context.updater = classComponentUpdater;
         workInProgress2.stateNode = context;
@@ -6098,27 +6098,27 @@ var require_react_dom_client_production = __commonJS({
         context.state = workInProgress2.memoizedState;
         context.refs = {};
         initializeUpdateQueue(workInProgress2);
-        contextType = Component.contextType;
+        contextType = Component2.contextType;
         context.context = "object" === typeof contextType && null !== contextType ? readContext(contextType) : emptyContextObject;
         context.state = workInProgress2.memoizedState;
-        contextType = Component.getDerivedStateFromProps;
+        contextType = Component2.getDerivedStateFromProps;
         "function" === typeof contextType && (applyDerivedStateFromProps(
           workInProgress2,
-          Component,
+          Component2,
           contextType,
           nextProps
         ), context.state = workInProgress2.memoizedState);
-        "function" === typeof Component.getDerivedStateFromProps || "function" === typeof context.getSnapshotBeforeUpdate || "function" !== typeof context.UNSAFE_componentWillMount && "function" !== typeof context.componentWillMount || (contextType = context.state, "function" === typeof context.componentWillMount && context.componentWillMount(), "function" === typeof context.UNSAFE_componentWillMount && context.UNSAFE_componentWillMount(), contextType !== context.state && classComponentUpdater.enqueueReplaceState(context, context.state, null), processUpdateQueue(workInProgress2, nextProps, context, renderLanes2), suspendIfUpdateReadFromEntangledAsyncAction(), context.state = workInProgress2.memoizedState);
+        "function" === typeof Component2.getDerivedStateFromProps || "function" === typeof context.getSnapshotBeforeUpdate || "function" !== typeof context.UNSAFE_componentWillMount && "function" !== typeof context.componentWillMount || (contextType = context.state, "function" === typeof context.componentWillMount && context.componentWillMount(), "function" === typeof context.UNSAFE_componentWillMount && context.UNSAFE_componentWillMount(), contextType !== context.state && classComponentUpdater.enqueueReplaceState(context, context.state, null), processUpdateQueue(workInProgress2, nextProps, context, renderLanes2), suspendIfUpdateReadFromEntangledAsyncAction(), context.state = workInProgress2.memoizedState);
         "function" === typeof context.componentDidMount && (workInProgress2.flags |= 4194308);
         nextProps = true;
       } else if (null === current) {
         context = workInProgress2.stateNode;
-        var unresolvedOldProps = workInProgress2.memoizedProps, oldProps = resolveClassComponentProps(Component, unresolvedOldProps);
+        var unresolvedOldProps = workInProgress2.memoizedProps, oldProps = resolveClassComponentProps(Component2, unresolvedOldProps);
         context.props = oldProps;
-        var oldContext = context.context, contextType$jscomp$0 = Component.contextType;
+        var oldContext = context.context, contextType$jscomp$0 = Component2.contextType;
         contextType = emptyContextObject;
         "object" === typeof contextType$jscomp$0 && null !== contextType$jscomp$0 && (contextType = readContext(contextType$jscomp$0));
-        var getDerivedStateFromProps = Component.getDerivedStateFromProps;
+        var getDerivedStateFromProps = Component2.getDerivedStateFromProps;
         contextType$jscomp$0 = "function" === typeof getDerivedStateFromProps || "function" === typeof context.getSnapshotBeforeUpdate;
         unresolvedOldProps = workInProgress2.pendingProps !== unresolvedOldProps;
         contextType$jscomp$0 || "function" !== typeof context.UNSAFE_componentWillReceiveProps && "function" !== typeof context.componentWillReceiveProps || (unresolvedOldProps || oldContext !== contextType) && callComponentWillReceiveProps(
@@ -6135,12 +6135,12 @@ var require_react_dom_client_production = __commonJS({
         oldContext = workInProgress2.memoizedState;
         unresolvedOldProps || oldState !== oldContext || hasForceUpdate ? ("function" === typeof getDerivedStateFromProps && (applyDerivedStateFromProps(
           workInProgress2,
-          Component,
+          Component2,
           getDerivedStateFromProps,
           nextProps
         ), oldContext = workInProgress2.memoizedState), (oldProps = hasForceUpdate || checkShouldComponentUpdate(
           workInProgress2,
-          Component,
+          Component2,
           oldProps,
           nextProps,
           oldState,
@@ -6151,14 +6151,14 @@ var require_react_dom_client_production = __commonJS({
         context = workInProgress2.stateNode;
         cloneUpdateQueue(current, workInProgress2);
         contextType = workInProgress2.memoizedProps;
-        contextType$jscomp$0 = resolveClassComponentProps(Component, contextType);
+        contextType$jscomp$0 = resolveClassComponentProps(Component2, contextType);
         context.props = contextType$jscomp$0;
         getDerivedStateFromProps = workInProgress2.pendingProps;
         oldState = context.context;
-        oldContext = Component.contextType;
+        oldContext = Component2.contextType;
         oldProps = emptyContextObject;
         "object" === typeof oldContext && null !== oldContext && (oldProps = readContext(oldContext));
-        unresolvedOldProps = Component.getDerivedStateFromProps;
+        unresolvedOldProps = Component2.getDerivedStateFromProps;
         (oldContext = "function" === typeof unresolvedOldProps || "function" === typeof context.getSnapshotBeforeUpdate) || "function" !== typeof context.UNSAFE_componentWillReceiveProps && "function" !== typeof context.componentWillReceiveProps || (contextType !== getDerivedStateFromProps || oldState !== oldProps) && callComponentWillReceiveProps(
           workInProgress2,
           context,
@@ -6173,12 +6173,12 @@ var require_react_dom_client_production = __commonJS({
         var newState = workInProgress2.memoizedState;
         contextType !== getDerivedStateFromProps || oldState !== newState || hasForceUpdate || null !== current && null !== current.dependencies && checkIfContextChanged(current.dependencies) ? ("function" === typeof unresolvedOldProps && (applyDerivedStateFromProps(
           workInProgress2,
-          Component,
+          Component2,
           unresolvedOldProps,
           nextProps
         ), newState = workInProgress2.memoizedState), (contextType$jscomp$0 = hasForceUpdate || checkShouldComponentUpdate(
           workInProgress2,
-          Component,
+          Component2,
           contextType$jscomp$0,
           nextProps,
           oldState,
@@ -6193,7 +6193,7 @@ var require_react_dom_client_production = __commonJS({
       context = nextProps;
       markRef(current, workInProgress2);
       nextProps = 0 !== (workInProgress2.flags & 128);
-      context || nextProps ? (context = workInProgress2.stateNode, Component = nextProps && "function" !== typeof Component.getDerivedStateFromError ? null : context.render(), workInProgress2.flags |= 1, null !== current && nextProps ? (workInProgress2.child = reconcileChildFibers(
+      context || nextProps ? (context = workInProgress2.stateNode, Component2 = nextProps && "function" !== typeof Component2.getDerivedStateFromError ? null : context.render(), workInProgress2.flags |= 1, null !== current && nextProps ? (workInProgress2.child = reconcileChildFibers(
         workInProgress2,
         current.child,
         null,
@@ -6201,9 +6201,9 @@ var require_react_dom_client_production = __commonJS({
       ), workInProgress2.child = reconcileChildFibers(
         workInProgress2,
         null,
-        Component,
+        Component2,
         renderLanes2
-      )) : reconcileChildren(current, workInProgress2, Component, renderLanes2), workInProgress2.memoizedState = context.state, current = workInProgress2.child) : current = bailoutOnAlreadyFinishedWork(
+      )) : reconcileChildren(current, workInProgress2, Component2, renderLanes2), workInProgress2.memoizedState = context.state, current = workInProgress2.child) : current = bailoutOnAlreadyFinishedWork(
         current,
         workInProgress2,
         renderLanes2
@@ -14593,6 +14593,11 @@ function report(error) {
     throw error;
   });
 }
+
+// srcts/react/module.ts
+var import_react2 = __toESM(require_react(), 1);
+var import_react_dom = __toESM(require_react_dom(), 1);
+var import_client = __toESM(require_client(), 1);
 
 // srcts/runtime/share-react.ts
 var entries = {

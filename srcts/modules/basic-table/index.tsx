@@ -6,18 +6,15 @@
 // and pages and sorts through the output's parameters, which it sets through
 // its host, so that R makes the page asked for. It names n_rows, by which the
 // coercion pages, as the board option it requires. What it computes is in
-// ./table.ts, and this file only draws, with React. The table takes its
-// colours from the element it draws in, so that it suits a light and a dark
-// front-end alike.
+// ./table.ts, and this file only draws. The table takes its colours from the
+// element it draws in, so that it suits a light and a dark front-end alike.
 
 import { useEffect, useRef } from "react";
 import type { ReactElement } from "react";
-import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
-import { useOutput } from "../../react/index.ts";
-import type { OutputHost, OutputModule } from "../../types/hosts.ts";
+import { outputRenderer } from "../../react/index.ts";
+import type { OutputProps } from "../../react/index.ts";
 import type { Json } from "../../types/json.ts";
-import type { TableColumn } from "../../types/outputs.ts";
+import type { TableColumn, TableOutput, TableParams } from "../../types/outputs.ts";
 import {
   cellText,
   isNumber,
@@ -25,37 +22,19 @@ import {
   pageOf,
   pageText,
   paramsFor,
-  paramsOf,
   retry,
   rowsText,
   sortedColumn,
-  tableOf,
 } from "./table.ts";
-import type { Page, Sort, Table } from "./table.ts";
+import type { Page, Sort } from "./table.ts";
 
 export const api = 1;
 
-const renderer: OutputModule = {
-  options: ["n_rows"],
-  render({ el, host }) {
-    const root = createRoot(el);
-    flushSync(() => {
-      root.render(<TableOutput host={host} />);
-    });
-    return () => {
-      root.unmount();
-    };
-  },
-};
+export default outputRenderer<TableOutput, TableParams>(Table, { options: ["n_rows"] });
 
-export default renderer;
-
-function TableOutput({ host }: { host: OutputHost }): ReactElement {
-  const now = useOutput(host);
-  const table = tableOf(now.output);
-  const params = paramsOf(now.params);
-  const page = pageOf(table, params, now.options.n_rows);
-  const sorted = sortedColumn(table, params.sort);
+function Table({ output, params, options, error, host }: OutputProps<TableOutput, TableParams>): ReactElement {
+  const page = pageOf(output, params, options.n_rows);
+  const sorted = sortedColumn(output, params.sort);
   const ask = (to: number, sort: Sort | undefined): void => {
     host.setParams(paramsFor(to, sort, params));
   };
@@ -65,31 +44,25 @@ function TableOutput({ host }: { host: OutputHost }): ReactElement {
   // the first page unsorted, each once until an output comes without an error.
   const tried = useRef(0);
   useEffect(() => {
-    if (now.error === null) {
+    if (error === null) {
       tried.current = 0;
       return;
     }
-    const held = paramsOf(now.params);
-    const again = retry(held, tried.current);
+    const again = retry(params, tried.current);
     if (again === undefined) return;
     tried.current = again.tried;
-    host.setParams(paramsFor(1, again.sort, held));
-  }, [host, now]);
+    host.setParams(paramsFor(1, again.sort, params));
+  }, [host, error, params]);
 
   return (
-    <div className="bc:flex bc:max-h-full bc:flex-col bc:gap-2" aria-busy={now.loading}>
-      {now.error !== null && (
-        <p role="alert" className="bc:m-0 bc:text-sm bc:text-red-600 bc:whitespace-pre-wrap">
-          {now.error.message}
-        </p>
-      )}
+    <div className="bc:flex bc:min-h-0 bc:flex-col bc:gap-2">
       <div className="bc:min-h-0 bc:overflow-auto">
-        <table className={`bc:w-full bc:border-collapse bc:text-left bc:text-sm ${now.loading ? "bc:opacity-60" : ""}`}>
+        <table className="bc:w-full bc:border-collapse bc:text-left bc:text-sm">
           <thead>
             <tr>
               {/* Columns and rows go by place, since a name may repeat and a
                   page holds other rows as it turns. */}
-              {table.columns.map((column, j) => (
+              {output.columns.map((column, j) => (
                 <Header
                   key={j}
                   column={column}
@@ -102,9 +75,9 @@ function TableOutput({ host }: { host: OutputHost }): ReactElement {
             </tr>
           </thead>
           <tbody>
-            {table.rows.map((row, i) => (
+            {output.rows.map((row, i) => (
               <tr key={i}>
-                {table.columns.map((column, j) => (
+                {output.columns.map((column, j) => (
                   <Cell key={j} column={column} value={row[j] ?? null} />
                 ))}
               </tr>
@@ -113,7 +86,7 @@ function TableOutput({ host }: { host: OutputHost }): ReactElement {
         </table>
       </div>
       <Pager
-        table={table}
+        table={output}
         page={page}
         onPage={(to) => {
           ask(to, params.sort);
@@ -158,7 +131,7 @@ function Cell({ column, value }: { column: TableColumn; value: Json }): ReactEle
 
 // The rows that the page holds, and the buttons to the page before and after,
 // where the table has more than one page.
-function Pager({ table, page, onPage }: { table: Table; page: Page; onPage: (page: number) => void }): ReactElement {
+function Pager({ table, page, onPage }: { table: TableOutput; page: Page; onPage: (page: number) => void }): ReactElement {
   return (
     <div className="bc:flex bc:items-center bc:justify-between bc:gap-2 bc:text-xs bc:opacity-75">
       <span>{rowsText(table, page)}</span>

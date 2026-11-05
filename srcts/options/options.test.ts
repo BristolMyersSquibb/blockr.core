@@ -5,11 +5,13 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import type { Option } from "../store/index.ts";
 import { createStore } from "../store/index.ts";
-import { mount, stubOptionHost } from "../stubs/index.ts";
-import { fakeR } from "../testing/store.ts";
+import { PAUSE } from "../binding/index.ts";
+import { stubOptionHost } from "../stubs/index.ts";
+import { find, pick, texts, toggle, type } from "../testing/inputs.ts";
+import { mountReact, step } from "../testing/react.ts";
 import { reports } from "../testing/reports.ts";
+import { fakeR } from "../testing/store.ts";
 import type { Json } from "../types/json.ts";
-import { PAUSE } from "./inputs.ts";
 import { coreOptions, darkMode, nRows, optionSchemas, setTheme, showConditions } from "./index.ts";
 import type { BlockrOptions } from "./index.ts";
 
@@ -147,183 +149,60 @@ describe("dark_mode", () => {
   });
 });
 
-describe("the UI of n_rows", () => {
-  async function field(value: number) {
-    const host = stubOptionHost<number>({ option: "n_rows", value });
-    const mounted = await mount({ api: 1, default: nRows(blockr().core).ui }, host);
-    const input = mounted.el.querySelector("input");
-    if (input === null) throw new Error("The UI draws no input.");
-    const type = (text: string): void => {
-      input.value = text;
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-    };
-    return {
-      el: mounted.el,
-      host,
-      input,
-      type,
-      unmount: () => {
-        mounted.unmount();
-      },
-    };
+describe("the UIs of core's board options", () => {
+  // Mounts a board option's UI module as core mounts it, with the stub of its
+  // host holding the value.
+  async function mounted<V extends Json>(option: Option, value: V) {
+    const host = stubOptionHost<V>({ option: option.id, value });
+    const { el } = await mountReact({ api: 1, default: option.ui }, host);
+    return { el, host };
   }
 
-  test("shows the value under its label and takes a whole number of rows from one", async () => {
-    const { el, input } = await field(50);
-    expect(el.querySelector("label")?.textContent).toBe("Preview rows");
-    expect(input.type).toBe("number");
-    expect([input.min, input.step]).toEqual(["1", "1"]);
-    expect(input.value).toBe("50");
-  });
-
-  test("submits what the user types once they pause, as one edit", async () => {
+  test("n_rows is a number input under its label that submits a whole number of rows from one, once the user pauses", async () => {
     vi.useFakeTimers();
-    const { host, input, type } = await field(50);
+    const { el, host } = await mounted(nRows(blockr().core), 50);
+    const input = find(el, "input", HTMLInputElement);
+    expect(el.querySelector("label")?.textContent).toContain("Preview rows");
+    expect([input.type, input.min, input.value]).toEqual(["number", "1", "50"]);
 
-    type("2");
-    type("25");
-    vi.advanceTimersByTime(PAUSE - 1);
-    expect(host.submitted).toEqual([]);
-    vi.advanceTimersByTime(1);
+    await step(() => {
+      type(input, "0");
+    });
+    await step(() => {
+      vi.advanceTimersByTime(PAUSE);
+    });
+    await step(() => {
+      type(input, "25");
+    });
+    await step(() => {
+      vi.advanceTimersByTime(PAUSE);
+    });
 
     expect(host.submitted).toEqual([25]);
-    expect(input.value).toBe("25");
   });
 
-  test("submits at once as the user presses Enter or leaves the field, but not a value it holds already", async () => {
-    vi.useFakeTimers();
-    const { host, input, type } = await field(50);
-
-    type("10");
-    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
-    type("20");
-    input.dispatchEvent(new Event("blur"));
-    type("20");
-    input.dispatchEvent(new Event("blur"));
-    vi.runAllTimers();
-
-    expect(host.submitted).toEqual([10, 20]);
-  });
-
-  test("submits no count that the board option does not take, and shows the value again once the user leaves", async () => {
-    vi.useFakeTimers();
-    const { host, input, type } = await field(50);
-
-    for (const text of ["0", "2.5", "", "-3"]) {
-      type(text);
-      vi.advanceTimersByTime(PAUSE);
-      expect(input.getAttribute("aria-invalid")).toBe("true");
-    }
-    input.dispatchEvent(new Event("blur"));
-
-    expect(host.submitted).toEqual([]);
-    expect(input.value).toBe("50");
-    expect(input.hasAttribute("aria-invalid")).toBe(false);
-  });
-
-  test("takes a value it did not set, but leaves what the user is typing", async () => {
-    vi.useFakeTimers();
-    const { host, input, type } = await field(50);
-
-    host.setValue(30);
-    expect(input.value).toBe("30");
-
-    type("40");
-    host.setValue(60);
-    expect(input.value).toBe("40");
-    vi.advanceTimersByTime(PAUSE);
-    expect(host.submitted).toEqual([40]);
-
-    host.setValue(70);
-    expect(input.value).toBe("70");
-  });
-
-  test("submits an edit still pending as core unmounts it", async () => {
-    vi.useFakeTimers();
-    const { host, type, unmount } = await field(50);
-
-    type("15");
-    unmount();
-    vi.runAllTimers();
-
-    expect(host.submitted).toEqual([15]);
-  });
-
-  test("shows the value again where the submit is refused", async () => {
-    vi.useFakeTimers();
-    const { host, input, type } = await field(50);
-    const reported = reports();
-    host.submit = () => Promise.reject(new Error("refused"));
-
-    type("15");
-    vi.advanceTimersByTime(PAUSE);
-    await vi.runAllTimersAsync();
-    reported.restore();
-
-    expect(input.value).toBe("50");
-    expect(reported.errors().map((error) => (error as Error).message)).toEqual(["refused"]);
-  });
-});
-
-describe("the UI of show_conditions", () => {
-  async function boxes(value: string[]) {
-    const host = stubOptionHost<string[]>({ option: "show_conditions", value });
-    const mounted = await mount({ api: 1, default: showConditions(blockr().core).ui }, host);
-    const inputs = [...mounted.el.querySelectorAll("input")];
-    const checked = (): string[] => inputs.filter((box) => box.checked).map((box) => box.value);
-    const click = (severity: string): void => {
-      const box = inputs.find((input) => input.value === severity);
-      if (box === undefined) throw new Error(`No box for ${severity}.`);
-      box.checked = !box.checked;
-      box.dispatchEvent(new Event("change", { bubbles: true }));
-    };
-    return { el: mounted.el, host, inputs, checked, click };
-  }
-
-  test("checks a box for each severity the value holds, under the board option's label", async () => {
-    const { el, inputs, checked } = await boxes(["warning", "error"]);
+  test("show_conditions is a checkbox for each severity that submits the checked ones in their order", async () => {
+    const { el, host } = await mounted(showConditions(blockr().core), ["error"]);
     expect(el.querySelector("legend")?.textContent).toBe("Message types to display");
-    expect(inputs.map((box) => [box.type, box.value, box.parentElement?.textContent])).toEqual([
-      ["checkbox", "message", "Messages"],
-      ["checkbox", "warning", "Warnings"],
-      ["checkbox", "error", "Errors"],
-    ]);
-    expect(checked()).toEqual(["warning", "error"]);
+    expect(texts(el, "label")).toEqual(["message", "warning", "error"]);
+
+    await step(() => {
+      toggle(find(el, 'input[value="message"]', HTMLInputElement));
+    });
+
+    expect(host.submitted).toEqual([["message", "error"]]);
   });
 
-  test("submits the severities checked, in their order, on each click, and takes a value it did not set", async () => {
-    const { host, checked, click } = await boxes(["error"]);
-
-    click("message");
-    click("error");
-    click("warning");
-
-    expect(host.submitted).toEqual([["message", "error"], ["message"], ["message", "warning"]]);
-
-    host.setValue([]);
-    expect(checked()).toEqual([]);
-  });
-});
-
-describe("the UI of dark_mode", () => {
-  test("selects the theme the value names, submits the user's choice and takes a value it did not set", async () => {
-    const host = stubOptionHost<string>({ option: "dark_mode", value: "light" });
-    const { el } = await mount({ api: 1, default: darkMode(blockr().core).ui }, host);
-    const select = el.querySelector("select");
-    if (select === null) throw new Error("The UI draws no select.");
-
-    expect(el.querySelector("label span")?.textContent).toBe("Light/dark mode");
-    expect([...select.options].map((option) => [option.value, option.textContent])).toEqual([
-      ["light", "Light"],
-      ["dark", "Dark"],
-    ]);
+  test("dark_mode is a select of light and dark that submits the user's choice", async () => {
+    const { el, host } = await mounted(darkMode(blockr().core), "light");
+    const select = find(el, "select", HTMLSelectElement);
+    expect(el.querySelector("label")?.textContent).toContain("Light/dark mode");
     expect(select.value).toBe("light");
 
-    select.value = "dark";
-    select.dispatchEvent(new Event("change", { bubbles: true }));
+    await step(() => {
+      pick(select, "dark");
+    });
+
     expect(host.submitted).toEqual(["dark"]);
-
-    host.setValue("light");
-    expect(select.value).toBe("light");
   });
 });

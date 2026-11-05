@@ -279,13 +279,14 @@ describe("while core asks R for an output", () => {
       table.host.setLoading(true);
     });
     expect(busy?.getAttribute("aria-busy")).toBe("true");
-    expect(table.el.querySelector("table")?.classList.contains("bc:opacity-60")).toBe(true);
+    // What the renderer drew dims, inside the frame that outputRenderer() draws.
+    expect(table.el.querySelector("table")?.closest(".bc\\:opacity-60")).not.toBeNull();
 
     await step(() => {
       table.host.setOutput(outputOf(0), null, { page: 2 });
     });
     expect(busy?.getAttribute("aria-busy")).toBe("false");
-    expect(table.el.querySelector("table")?.classList.contains("bc:opacity-60")).toBe(false);
+    expect(table.el.querySelector("table")?.closest(".bc\\:opacity-60")).toBeNull();
   });
 
   test("asks for the first page where an ask fails, then for the first page unsorted", async () => {

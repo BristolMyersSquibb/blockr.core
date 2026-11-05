@@ -26,14 +26,7 @@
     --bc-color-red-800: oklch(44.4% .177 26.899);
     --bc-color-blue-500: oklch(62.3% .214 259.815);
     --bc-color-blue-600: oklch(54.6% .245 262.881);
-    --bc-color-gray-100: oklch(96.7% .003 264.542);
-    --bc-color-gray-200: oklch(92.8% .006 264.531);
-    --bc-color-gray-300: oklch(87.2% .01 258.338);
-    --bc-color-gray-600: oklch(44.6% .03 256.802);
-    --bc-color-gray-700: oklch(37.3% .034 259.733);
-    --bc-color-gray-800: oklch(27.8% .033 256.848);
     --bc-color-gray-900: oklch(21% .034 264.665);
-    --bc-color-white: #fff;
     --bc-spacing: .25rem;
     --bc-text-xs: .75rem;
     --bc-text-xs--line-height: calc(1 / .75);
@@ -76,10 +69,6 @@
 
 .bc\:min-h-0 {
   min-height: 0;
-}
-
-.bc\:w-24 {
-  width: calc(var(--bc-spacing) * 24);
 }
 
 .bc\:w-full {
@@ -189,10 +178,6 @@
   }
 }
 
-.bc\:border-gray-300 {
-  border-color: var(--bc-color-gray-300);
-}
-
 .bc\:border-red-300 {
   border-color: var(--bc-color-red-300);
 }
@@ -213,10 +198,6 @@
 
 .bc\:bg-transparent {
   background-color: #0000;
-}
-
-.bc\:bg-white {
-  background-color: var(--bc-color-white);
 }
 
 .bc\:p-0 {
@@ -296,14 +277,6 @@
   white-space: pre-wrap;
 }
 
-.bc\:text-gray-700 {
-  color: var(--bc-color-gray-700);
-}
-
-.bc\:text-gray-900 {
-  color: var(--bc-color-gray-900);
-}
-
 .bc\:text-inherit {
   color: inherit;
 }
@@ -374,28 +347,8 @@
   border-color: var(--bc-color-red-500);
 }
 
-.bc\:dark\:border-gray-600:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
-  border-color: var(--bc-color-gray-600);
-}
-
-.bc\:dark\:bg-gray-800:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
-  background-color: var(--bc-color-gray-800);
-}
-
 .bc\:dark\:bg-gray-900:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
   background-color: var(--bc-color-gray-900);
-}
-
-.bc\:dark\:text-gray-100:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
-  color: var(--bc-color-gray-100);
-}
-
-.bc\:dark\:text-gray-200:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
-  color: var(--bc-color-gray-200);
-}
-
-.bc\:dark\:scheme-dark:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
-  color-scheme: dark;
 }
 
 @property --tw-border-style {

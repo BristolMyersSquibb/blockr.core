@@ -4,7 +4,7 @@
 // n_rows, the rows of a table output's page, show_conditions, the severities
 // that a front-end shows, and dark_mode, which switches the theme. Each keeps
 // the label and the category of today's R constructor, and takes its schema
-// from ./schemas.ts and its UI module from ./inputs.ts.
+// from ./schemas.ts and its UI module from ./ui.tsx.
 //
 // Each default is a function that reads the blockr option of the board
 // option's name, which today's R constructor reads, through
@@ -19,8 +19,8 @@ import type { OptionId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import { compile, report } from "../util/index.ts";
-import { checkboxGroupInput, numberInput, selectInput } from "./inputs.ts";
 import { optionSchemas } from "./schemas.ts";
+import { checklistUi, numberUi, selectUi } from "./ui.tsx";
 
 // What the constructors read of CoreApi.
 export type BlockrOptions = Pick<CoreApi, "blockrOption">;
@@ -42,15 +42,11 @@ export function nRows(core: BlockrOptions): Option {
     schema,
     default: async () =>
       checked("n_rows", schema, await core.blockrOption<Json>("n_rows", fallback), fallback),
-    ui: numberInput("Preview rows", schema.minimum),
+    ui: numberUi("Preview rows", schema.minimum),
   };
 }
 
-const SEVERITIES = [
-  { value: "message", label: "Messages" },
-  { value: "warning", label: "Warnings" },
-  { value: "error", label: "Errors" },
-] as const;
+const SEVERITIES = ["message", "warning", "error"] as const;
 
 // The severities of a block's conditions that a front-end shows, while R
 // reports every severity.
@@ -68,7 +64,7 @@ export function showConditions(core: BlockrOptions): Option {
       const value = await core.blockrOption<Json>("show_conditions", fallback);
       return checked("show_conditions", schema, typeof value === "string" ? [value] : value, fallback);
     },
-    ui: checkboxGroupInput("Message types to display", SEVERITIES),
+    ui: checklistUi("Message types to display", SEVERITIES),
   };
 }
 
@@ -90,7 +86,7 @@ export function darkMode(core: BlockrOptions): Option {
       if (typeof value === "boolean") return value ? "dark" : "light";
       return checked("dark_mode", schema, value, preferred);
     },
-    ui: selectInput("Light/dark mode", [
+    ui: selectUi("Light/dark mode", "Choose a mode", [
       { value: "light", label: "Light" },
       { value: "dark", label: "Dark" },
     ]),
