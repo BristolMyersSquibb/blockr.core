@@ -71,6 +71,14 @@ test_that("a package declares the modules it offers others", {
   expect_error(get_module("blockr.test-none"), class = "module_missing")
 })
 
+test_that("core offers its inputs drawn without React to other packages", {
+
+  entry <- get_module("blockr.core-controls")
+
+  expect_identical(entry[["package"]], "blockr.core")
+  expect_true(nzchar(module_file(entry[["module"]])))
+})
+
 test_that("declaring a module is checked", {
 
   local_declared(declared_startup_modules)

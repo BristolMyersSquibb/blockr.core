@@ -4,6 +4,10 @@
 
   register_front_end("basic", js_module("js/basic.js"), class = "board")
 
+  # The inputs of core's React SDK drawn without React,
+  # which other packages' modules reach as blockr.core-controls.
+  register_module("controls", js_module("js/controls.js"))
+
   register_core_blocks()
 
   trace_block_classes(pkgname)

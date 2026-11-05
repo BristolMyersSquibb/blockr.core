@@ -32,6 +32,9 @@
 //   SDK, the binding and the preset bundled for a package's build, with React
 //   left for the preset to map, the stubs bundled for
 //   a test runner, and the package.json that names them.
+//   The controls, srcts/controls/index.ts, go there as the stubs do,
+//   as `@blockr/core/controls`, for a package that draws its modules with
+//   them and bundles them.
 //
 // - The words that ids are made of, in srcts/store/words.ts, go into inst/ids,
 //   one word a line, for R's rand_names() to draw from as the client's
@@ -357,7 +360,7 @@ export const TYPES_PACKAGE = {
   name: "@blockr/core",
   private: true,
   description:
-    "The types that the modules of blockr.core's client are written against, a stub of each host for their tests, and the React SDK, its binding and the build preset that they may be built with, as the R package blockr.core ships them.",
+    "The types that the modules of blockr.core's client are written against, a stub of each host for their tests, the React SDK, its binding and the build preset that they may be built with, and the controls they may draw with, as the R package blockr.core ships them.",
   type: "module",
   exports: {
     ".": { types: "./index.d.ts" },
@@ -365,12 +368,13 @@ export const TYPES_PACKAGE = {
     "./build": { types: "./build/index.d.ts", default: "./build/index.js" },
     "./react": { types: "./react/index.d.ts", default: "./react/index.js" },
     "./stubs": { types: "./stubs/index.d.ts", default: "./stubs/index.js" },
+    "./controls": { types: "./controls/index.d.ts", default: "./controls/index.js" },
   },
 };
 
 // The modules of srcts that the types package bundles,
 // each as the export of its name.
-const BUNDLED = ["stubs", "binding", "react", "build"];
+const BUNDLED = ["stubs", "binding", "react", "build", "controls"];
 
 // Writes inst/types: the declarations of srcts/index.ts and of the modules
 // that BUNDLED names, each file's beside where its source sits in srcts, those
