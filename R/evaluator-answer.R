@@ -33,12 +33,13 @@ answer_request <- function(ev, job) {
 # R loads no package for it, since the app's script has loaded them already.
 answer_open <- function(ev, job) {
 
-  blocks <- c(
-    ls(ev$results, all.names = TRUE),
-    unlst(lst_xtr(ev$queue, "blocks"))
-  )
+  drop_results(ev)
 
-  forget_blocks(ev, unique(blocks), job[["send"]])
+  drop_requests(
+    ev,
+    which(lengths(lst_xtr(ev$queue, "blocks")) > 0L),
+    job[["send"]]
+  )
 
   c(list(id = job[["id"]], status = "ok"), loaded_reply())
 }

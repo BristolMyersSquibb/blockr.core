@@ -6,11 +6,11 @@
 # by block id and revision, never by process.
 # So a client that starts a new session with its board loses only recomputation.
 
-# Makes the evaluator of one session.
-# It is a handler for the Shiny transport, `handler(message,
-# send)`, which takes a message, a list of decoded requests,
-# and the function `send()`.
-# That function sends a message of R's, a list of replies and progress notes.
+# Makes the evaluator of one session, an object of class `session_evaluator`.
+# The Shiny transport hands it each message through `receive_requests()`,
+# as a list of decoded requests,
+# with the function `send()`, which sends a message of R's,
+# a list of replies and progress notes.
 #
 # The reply to `hello` carries the opening board.
 # It is the board that an app script built,
@@ -41,6 +41,12 @@
 # So a `cancel` drops a queued request,
 # and a `forget` drops results,
 # with the queued requests that evaluate or read them.
+#
+# Another evaluator, such as one that runs requests in backend processes,
+# differs in four generics: the capabilities that R names,
+# running a queued request, stopping one that has started,
+# and dropping results.
+# The rest is the protocol, which every evaluator shares.
 new_evaluator <- function(board = NULL, file = NULL, data = list()) {
 
   if (is.null(board) == is.null(file)) {
@@ -74,17 +80,89 @@ new_evaluator <- function(board = NULL, file = NULL, data = list()) {
   ev$running <- NULL
   ev$scheduled <- FALSE
 
-  function(message, send) {
-    receive_requests(ev, message, send)
-  }
+  structure(ev, class = c("session_evaluator", "evaluator"))
+}
+
+#' @export
+format.session_evaluator <- function(x, ...) {
+  c(
+    paste0("<", class(x)[1L], ">"),
+    paste0("Session: ", if (x$started) "started" else "waiting for a hello"),
+    paste0("Results: ", length(x$results)),
+    paste0("Queued requests: ", length(x$queue))
+  )
+}
+
+#' @export
+print.session_evaluator <- function(x, ...) {
+  cat(format(x, ...), sep = "\n")
+  invisible(x)
 }
 
 # The capabilities that R names in its reply to `hello`.
-# R drops a request that it has not started, and sends progress notes.
+evaluator_capabilities <- function(x) {
+  UseMethod("evaluator_capabilities")
+}
+
+# The session's evaluator drops a request that it has not started,
+# and sends progress notes.
 # The session's process cannot stop a request that has started,
-# so R names no `interrupt`.
-evaluator_capabilities <- function() {
+# so it names no `interrupt`.
+#' @export
+evaluator_capabilities.session_evaluator <- function(x) {
   c("cancel", "progress")
+}
+
+# Runs a queued request, `job`, and returns a promise of its reply.
+# The promise resolves whatever the block or the request's function did,
+# an `error` included, and rejects only where R itself fails.
+run_request <- function(x, job) {
+  UseMethod("run_request")
+}
+
+# The session's evaluator runs a request in its own process,
+# so the request runs to its end before the promise resolves.
+#' @export
+run_request.session_evaluator <- function(x, job) {
+  promises::promise(
+    function(resolve, reject) {
+      resolve(with_answering(x, job, answer_request(x, job)))
+    }
+  )
+}
+
+# Stops a request that has started, `job`, on a `cancel`,
+# where both sides named the capability `interrupt`.
+# Its promise then resolves to its reply `cancelled`.
+stop_request <- function(x, job) {
+  UseMethod("stop_request")
+}
+
+# The session's evaluator names no `interrupt`,
+# since its process cannot stop a request that has started,
+# so nothing asks it to stop one.
+#' @export
+stop_request.session_evaluator <- function(x, job) {
+  invisible()
+}
+
+# Drops the results of the blocks given, or of every block where `blocks` is
+# `NULL`.
+drop_results <- function(x, blocks = NULL) {
+  UseMethod("drop_results")
+}
+
+#' @export
+drop_results.session_evaluator <- function(x, blocks = NULL) {
+
+  held <- ls(x$results, all.names = TRUE)
+
+  rm(
+    list = if (is.null(blocks)) held else intersect(blocks, held),
+    envir = x$results
+  )
+
+  invisible()
 }
 
 receive_requests <- function(ev, message, send) {
@@ -178,12 +256,12 @@ start_session <- function(ev, req, send) {
   }
 
   if (ev$started) {
-    rm(list = ls(ev$results, all.names = TRUE), envir = ev$results)
+    drop_results(ev)
     drop_requests(ev, seq_along(ev$queue), send)
   }
 
   ev$started <- TRUE
-  ev$shared <- intersect(evaluator_capabilities(), as.character(caps))
+  ev$shared <- intersect(evaluator_capabilities(ev), as.character(caps))
 
   send(
     list(
@@ -192,7 +270,7 @@ start_session <- function(ev, req, send) {
           id = req[["id"]],
           status = "ok",
           protocol = protocol_version(),
-          capabilities = I(evaluator_capabilities())
+          capabilities = I(evaluator_capabilities(ev))
         ),
         loaded_reply(),
         list(lock = NULL),
@@ -205,7 +283,8 @@ start_session <- function(ev, req, send) {
 # A `cancel` drops the request that it names if R has not started it,
 # where both sides named the capability `cancel`.
 # A request that has started runs to its end,
-# and its reply is the one it would have had.
+# and its reply is the one it would have had,
+# unless both sides named `interrupt` too, which has R stop it.
 cancel_request <- function(ev, req, send) {
 
   target <- req[["request"]]
@@ -219,7 +298,20 @@ cancel_request <- function(ev, req, send) {
     return(invisible())
   }
 
-  drop_requests(ev, which(chr_xtr(ev$queue, "id") == target), send)
+  queued <- which(chr_xtr(ev$queue, "id") == target)
+
+  if (length(queued)) {
+    return(drop_requests(ev, queued, send))
+  }
+
+  running <- ev$running
+
+  if (not_null(running) && identical(running[["id"]], target) &&
+        "interrupt" %in% ev$shared) {
+    stop_request(ev, running)
+  }
+
+  invisible()
 }
 
 read_blocks <- function(req) {
@@ -237,10 +329,7 @@ read_blocks <- function(req) {
 # reads one of them, replying `cancelled` to each.
 forget_blocks <- function(ev, blocks, send) {
 
-  rm(
-    list = intersect(blocks, ls(ev$results, all.names = TRUE)),
-    envir = ev$results
-  )
+  drop_results(ev, blocks)
 
   drop_requests(
     ev,
@@ -339,19 +428,6 @@ run_next <- function(ev) {
   )
 
   invisible()
-}
-
-# Runs a request as a function that returns a promise of its reply.
-# The promise resolves whatever the block or the request's function did,
-# an `error` included, and rejects only where R itself fails.
-# In the session's process,
-# the function runs to its end before the promise resolves.
-run_request <- function(ev, job) {
-  promises::promise(
-    function(resolve, reject) {
-      resolve(with_answering(ev, job, answer_request(ev, job)))
-    }
-  )
 }
 
 # Sends a reply in a message of its own.

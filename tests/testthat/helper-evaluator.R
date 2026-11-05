@@ -12,8 +12,7 @@ local_evaluator <- function(board = list(blocks = list()), ..., hello = TRUE,
 
   session <- new.env()
   session$sent <- list()
-
-  handler <- new_evaluator(board = board, ...)
+  session$evaluator <- new_evaluator(board = board, ...)
 
   session$send <- function(message) {
     session$sent[[length(session$sent) + 1L]] <- message
@@ -25,7 +24,7 @@ local_evaluator <- function(board = list(blocks = list()), ..., hello = TRUE,
       message <- decode_message(message)
     }
 
-    handler(message, session$send)
+    receive_requests(session$evaluator, message, session$send)
 
     invisible(session)
   }

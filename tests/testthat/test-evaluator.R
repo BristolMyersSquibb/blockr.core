@@ -887,9 +887,13 @@ test_that("R replies error where it cannot send a reply", {
     width = 500L
   )
 
-  handler <- new_evaluator(board = obj())
-  handler(hello_message(), function(message) NULL)
-  handler(list(list(id = "2", kind = "blockr_options", names = "a")), send)
+  ev <- new_evaluator(board = obj())
+  receive_requests(ev, hello_message(), function(message) NULL)
+  receive_requests(
+    ev,
+    list(list(id = "2", kind = "blockr_options", names = "a")),
+    send
+  )
 
   expect_warning(run_later(), "R failed to send its reply to 2")
 
@@ -905,8 +909,10 @@ test_that("the Shiny transport carries the evaluator's replies and bodies", {
 
   withr::local_options(blockr.log_level = "error")
 
+  ev <- new_evaluator(board = list(blocks = list()))
+
   session <- with_transport(
-    new_evaluator(board = list(blocks = list())),
+    function(message, send) receive_requests(ev, message, send),
     {
       hello <- paste0(
         "[{\"id\": \"1\", \"kind\": \"hello\", \"protocol\": \"1.0\", ",
@@ -1058,4 +1064,69 @@ test_that("R replies error to a type that no method answers", {
       "request_type_unknown", "option_request_unknown")
   )
   expect_null(replies[[3L]]$conditions[[1L]]$phase)
+})
+
+test_that("an evaluator is an object of the class session_evaluator", {
+
+  session <- local_evaluator()
+
+  hold_result(session, "a", 2L)
+
+  ev <- session$evaluator
+
+  expect_s3_class(ev, c("session_evaluator", "evaluator"), exact = TRUE)
+  expect_identical(evaluator_capabilities(ev), c("cancel", "progress"))
+
+  expect_identical(
+    format(ev),
+    c("<session_evaluator>", "Session: started", "Results: 1",
+      "Queued requests: 0")
+  )
+
+  expect_output(print(ev), "<session_evaluator>")
+
+  drop_results(ev, "a")
+
+  expect_identical(format(ev)[3L], "Results: 0")
+  expect_null(stop_request(ev, list(id = "1")))
+})
+
+test_that("an evaluator that names interrupt stops a request that started", {
+
+  stopped <- list()
+
+  testthat::local_mocked_s3_method(
+    "evaluator_capabilities",
+    "test_evaluator",
+    function(x) c("cancel", "interrupt", "progress")
+  )
+
+  testthat::local_mocked_s3_method(
+    "stop_request",
+    "test_evaluator",
+    function(x, job) stopped[[length(stopped) + 1L]] <<- job[["id"]]
+  )
+
+  session <- local_evaluator(hello = FALSE)
+
+  class(session$evaluator) <- c("test_evaluator", class(session$evaluator))
+
+  session$receive(hello_message())
+  session$run()
+
+  expect_identical(
+    last_reply(session)$capabilities,
+    I(c("cancel", "interrupt", "progress"))
+  )
+
+  session$receive(list(evaluate_request("11", "a", 2L, sample_recipe("a"))))
+
+  # R starts the evaluation of a, whose reply is still to go out when the
+  # cancel arrives.
+  later::run_now(all = FALSE)
+
+  session$receive(list(list(kind = "cancel", request = "11")))
+  session$run()
+
+  expect_identical(stopped, list("11"))
 })
