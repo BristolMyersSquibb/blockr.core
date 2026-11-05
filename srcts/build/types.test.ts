@@ -5,7 +5,7 @@
 // against and of the stubs of the hosts, the stubs bundled for a test runner,
 // the React SDK, its binding and the build preset bundled for a package's build,
 // and the package.json that names them.
-// The controls go there as the stubs do.
+// The controls go there as the SDK does.
 
 import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

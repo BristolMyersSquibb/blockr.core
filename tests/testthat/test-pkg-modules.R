@@ -71,7 +71,7 @@ test_that("a package declares the modules it offers others", {
   expect_error(get_module("blockr.test-none"), class = "module_missing")
 })
 
-test_that("core offers its inputs drawn without React to other packages", {
+test_that("core offers its inputs to other packages' modules without React", {
 
   entry <- get_module("blockr.core-controls")
 

@@ -203,7 +203,7 @@
   The most rows that the head block's number input takes come from the request `n_max`, and the merge block's columns to join by from the request `shared`, while the modules of the static, fixed and row-bind blocks draw nothing.
   Each module ships the JSON Schema of its block's state beside it, which the build writes from the module's type of the state.
   R writes the state of the blocks it builds by that schema, and writes a named vector that the schema has as an object, such as the file browser's volumes, as an object.
-  Core offers the same inputs drawn without React, on the same binding, for packages that draw their modules with the DOM alone, through `@blockr/core/controls` in a build, or through the module `blockr.core-controls`, which `host.module()` reaches.
+  Core offers its inputs to packages that write their modules without React, through `controls()`, which draws the same inputs with core's copy of React, as `@blockr/core/controls` in a build, or through the module `blockr.core-controls`, which `host.module()` reaches.
   The stub of a block's host answers an upload that a fixture records with the file as the action's argument `file` (#438).
 
 # blockr.core 0.1.4

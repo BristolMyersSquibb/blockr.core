@@ -1,5 +1,6 @@
-// The inputs drawn without React, on the stub of a block's host and of a
-// board option's host, as a package that draws with the DOM alone uses them.
+// Core's inputs drawn through controls(), on the stub of a block's host and of
+// a board option's host, as a package that writes its modules without React
+// uses them, with no wait for React.
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { stubBlockHost, stubOptionHost } from "../stubs/index.ts";
@@ -63,6 +64,22 @@ describe("the controls of a block's UI", () => {
     expect([label.value, direction.value]).toEqual(["yz", "tail"]);
   });
 
+  test("draw a control before the call that makes or changes it returns, among the module's own elements", () => {
+    const host = stubBlockHost<Form>(fixture, { state: form({}) });
+    const ui = controls(host, abort.signal);
+    ui.text("label", { label: "Label" });
+    const own = document.createElement("p");
+    own.textContent = "A line of the module's own";
+    ui.add(own);
+    const by = ui.checklist("by", { legend: "By columns" });
+    expect(ui.el.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
+
+    by.setChoices(["a", "b"]);
+
+    expect(ui.el.querySelectorAll('input[type="checkbox"]')).toHaveLength(2);
+    expect(texts(ui.el, "label > span, p, legend")).toEqual(["Label", "A line of the module's own", "By columns"]);
+  });
+
   test("submit typing once the user pauses or presses Enter, and keep it while the state changes", async () => {
     const { host, label, direction } = drawn();
 
@@ -116,13 +133,24 @@ describe("the controls of a block's UI", () => {
     expect(host.submitted).toEqual([form({ by: ["b", "a"] })]);
   });
 
-  test("submit typing still pending as the module unmounts", () => {
+  test("submit typing still pending as the module unmounts, and empty their element", () => {
     const { host, ui, label } = drawn();
 
     type(label, "yz");
     ui.cleanup();
 
     expect(host.submitted).toEqual([form({ label: "yz" })]);
+    expect(ui.el.childElementCount).toBe(0);
+  });
+
+  test("end as core aborts the signal, as they do on cleanup", () => {
+    const { host, ui, label } = drawn();
+
+    type(label, "yz");
+    abort.abort();
+
+    expect(host.submitted).toEqual([form({ label: "yz" })]);
+    expect(ui.el.childElementCount).toBe(0);
   });
 });
 
@@ -146,6 +174,9 @@ describe("the controls of a board option's UI", () => {
     expect(() => ui.bind("dark_mode", () => undefined)).toThrow(
       'The host of the board option "n_rows" holds no value "dark_mode".',
     );
+    expect(() => {
+      ui.checkbox("dark_mode", { label: "Dark mode" });
+    }).toThrow('The host of the board option "n_rows" holds no value "dark_mode".');
   });
 
   test("submit the checked strings in the order of the choices where ordered", () => {

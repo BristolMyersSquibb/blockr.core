@@ -1,3 +1,74 @@
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __commonJS = (cb, mod) => function __require() {
+  try {
+    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+  } catch (e) {
+    throw mod = 0, e;
+  }
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
+
+// shared-react:react
+var require_react = __commonJS({
+  "shared-react:react"(exports, module) {
+    var shared = globalThis["blockr.core-react"];
+    if (shared === void 0) throw new Error("React is not on the page: core's runtime puts it there before any module loads.");
+    module.exports = shared["react"];
+  }
+});
+
+// shared-react:react-dom
+var require_react_dom = __commonJS({
+  "shared-react:react-dom"(exports, module) {
+    var shared = globalThis["blockr.core-react"];
+    if (shared === void 0) throw new Error("React is not on the page: core's runtime puts it there before any module loads.");
+    module.exports = shared["react-dom"];
+  }
+});
+
+// shared-react:react-dom/client
+var require_client = __commonJS({
+  "shared-react:react-dom/client"(exports, module) {
+    var shared = globalThis["blockr.core-react"];
+    if (shared === void 0) throw new Error("React is not on the page: core's runtime puts it there before any module loads.");
+    module.exports = shared["react-dom/client"];
+  }
+});
+
+// shared-react:react/jsx-runtime
+var require_jsx_runtime = __commonJS({
+  "shared-react:react/jsx-runtime"(exports, module) {
+    var shared = globalThis["blockr.core-react"];
+    if (shared === void 0) throw new Error("React is not on the page: core's runtime puts it there before any module loads.");
+    module.exports = shared["react/jsx-runtime"];
+  }
+});
+
+// srcts/controls/controls.tsx
+var import_react2 = __toESM(require_react(), 1);
+var import_react_dom = __toESM(require_react_dom(), 1);
+var import_client = __toESM(require_client(), 1);
+
 // srcts/util/util.ts
 function own(record, key) {
   return Object.hasOwn(record, key) ? record[key] : void 0;
@@ -26,12 +97,12 @@ function bind(host, key, show, options = {}) {
   const source = sourceOf(host);
   source.check(key);
   let shown;
-  let typing2 = false;
+  let typing = false;
   let typed;
   let timer;
   let released = false;
   const display = (again = false) => {
-    if (released || typing2) return;
+    if (released || typing) return;
     const value = source.get(key);
     if (!again && shown !== void 0 && jsonEqual(shown.value, value)) return;
     shown = { value };
@@ -50,12 +121,12 @@ function bind(host, key, show, options = {}) {
   };
   const send = () => {
     const value = typed;
-    typing2 = false;
+    typing = false;
     typed = void 0;
     if (value !== void 0) void submit(value);
   };
   const flush = () => {
-    if (!typing2) return;
+    if (!typing) return;
     clearTimeout(timer);
     timer = void 0;
     send();
@@ -73,7 +144,7 @@ function bind(host, key, show, options = {}) {
     },
     type(value, pause = true) {
       if (released) return;
-      typing2 = true;
+      typing = true;
       typed = value;
       clearTimeout(timer);
       timer = pause ? setTimeout(() => {
@@ -172,6 +243,9 @@ function strings(value) {
   return Array.isArray(value) ? value.filter((x) => typeof x === "string") : [];
 }
 
+// srcts/inputs/inputs.tsx
+var import_react = __toESM(require_react(), 1);
+
 // srcts/styles/styles.ts
 var styles = {
   stack: "bc:grid bc:gap-3 bc:text-text-default",
@@ -187,26 +261,254 @@ var styles = {
   alert: "bc:m-0 bc:text-sm bc:text-text-danger bc:whitespace-pre-wrap"
 };
 
-// srcts/controls/controls.ts
+// srcts/inputs/inputs.tsx
+var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
+function Field({ label, children }) {
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: styles.field, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: styles.label, children: label }),
+    children
+  ] });
+}
+function TextInput({
+  bound,
+  label,
+  placeholder,
+  lines = 1,
+  pause = true
+}) {
+  const [text, typed] = useTyped(bound);
+  const shown = text ?? (typeof bound.value === "string" ? bound.value : "");
+  const props = {
+    className: styles.box,
+    value: shown,
+    placeholder,
+    spellCheck: false,
+    onChange: (event) => {
+      typed(event.target.value);
+      bound.type(event.target.value, pause);
+    },
+    onKeyDown: (event) => {
+      if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+      if (lines > 1 && !(event.ctrlKey || event.metaKey)) return;
+      bound.flush();
+    },
+    onBlur: () => {
+      bound.flush();
+    }
+  };
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Field, { label, children: lines > 1 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("textarea", { rows: lines, ...props }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", { type: "text", ...props }) }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Refusal, { error: bound.error })
+  ] });
+}
+function NumberInput({
+  bound,
+  label,
+  min,
+  max
+}) {
+  const [text, typed] = useTyped(bound);
+  const shown = text ?? (typeof bound.value === "number" ? String(bound.value) : "");
+  const read = (input) => {
+    const value = input.trim() === "" ? Number.NaN : Number(input);
+    if (!Number.isInteger(value)) return void 0;
+    if (min !== void 0 && value < min) return void 0;
+    if (max !== void 0 && value > max) return void 0;
+    return value;
+  };
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Field, { label, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+      "input",
+      {
+        type: "number",
+        step: 1,
+        min,
+        max,
+        required: true,
+        className: styles.box,
+        value: shown,
+        "aria-invalid": read(shown) === void 0,
+        onChange: (event) => {
+          typed(event.target.value);
+          bound.type(read(event.target.value));
+        },
+        onKeyDown: (event) => {
+          if (event.key === "Enter" && !event.nativeEvent.isComposing) bound.flush();
+        },
+        onBlur: () => {
+          bound.flush();
+        }
+      }
+    ) }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Refusal, { error: bound.error })
+  ] });
+}
+function Select({
+  bound,
+  label,
+  placeholder,
+  choices
+}) {
+  const current = typeof bound.value === "string" ? bound.value : void 0;
+  const shown = current === void 0 || choices.some((choice) => choice.value === current) ? choices : [...choices, { value: current, label: current }];
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Field, { label, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+      "select",
+      {
+        className: styles.box,
+        value: current ?? "",
+        onChange: (event) => {
+          void bound.commit(event.target.value);
+        },
+        children: [
+          current === void 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "", disabled: true, children: placeholder }),
+          shown.map((choice) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: choice.value, children: choice.label }, choice.value))
+        ]
+      }
+    ) }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Refusal, { error: bound.error })
+  ] });
+}
+function Checkbox({ bound, label }) {
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: styles.check, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "input",
+        {
+          type: "checkbox",
+          className: styles.checkbox,
+          checked: bound.value === true,
+          onChange: (event) => {
+            void bound.commit(event.target.checked);
+          }
+        }
+      ),
+      label
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Refusal, { error: bound.error })
+  ] });
+}
+function Checklist({
+  bound,
+  legend,
+  choices,
+  empty,
+  ordered = false
+}) {
+  const held = strings(bound.value);
+  const known = choices ?? [];
+  const shown = [...known, ...held.filter((value) => !known.includes(value))];
+  const toggle = (value, checked) => {
+    const now = strings(bound.get());
+    const next = checked ? now.includes(value) ? now : [...now, value] : now.filter((other) => other !== value);
+    void bound.commit(
+      ordered ? [...known.filter((choice) => next.includes(choice)), ...next.filter((other) => !known.includes(other))] : next
+    );
+  };
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("fieldset", { className: styles.fieldset, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("legend", { className: styles.legend, children: legend }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: styles.list, children: [
+      shown.map((value) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: styles.check, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          "input",
+          {
+            type: "checkbox",
+            className: styles.checkbox,
+            value,
+            checked: held.includes(value),
+            onChange: (event) => {
+              toggle(value, event.target.checked);
+            }
+          }
+        ),
+        value
+      ] }, value)),
+      choices !== void 0 && empty !== void 0 && shown.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: styles.hint, children: empty })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Refusal, { error: bound.error })
+  ] });
+}
+function Refusal({ error }) {
+  return error === null ? null : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { role: "alert", className: styles.alert, children: error });
+}
+function useTyped(bound) {
+  const [text, setText] = (0, import_react.useState)(null);
+  const [seen, setSeen] = (0, import_react.useState)(bound.value);
+  if (!Object.is(seen, bound.value)) {
+    setSeen(bound.value);
+    setText(null);
+  }
+  return [text, setText];
+}
+
+// srcts/controls/controls.tsx
+var import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
 function controls(host, signal) {
   const el = document.createElement("div");
   el.className = styles.stack;
-  const line = document.createElement("p");
-  line.setAttribute("role", "alert");
-  line.className = styles.alert;
-  line.hidden = true;
-  el.append(line);
+  const root = (0, import_client.createRoot)(el);
+  const items = [];
   const bindings = [];
   const followed = [];
-  signal.addEventListener("abort", () => {
-    for (const request of followed) request.release();
-  }, { once: true });
-  function add(node) {
-    line.before(node);
+  let error = null;
+  let ended = false;
+  const redraw = () => {
+    if (ended) return;
+    const drawn = items.map((item) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react2.Fragment, { children: item.draw() }, item.id));
+    (0, import_react_dom.flushSync)(() => {
+      root.render(
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+          drawn,
+          error === null ? null : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { role: "alert", className: styles.alert, children: error })
+        ] })
+      );
+    });
+  };
+  function put(draw) {
+    items.push({ id: items.length, draw });
+    redraw();
   }
-  function alert(error) {
-    line.textContent = error === null ? "" : messageOf(error);
-    line.hidden = error === null;
+  function add(node) {
+    put(() => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Slot, { node }));
+  }
+  function input(key, draw) {
+    let value;
+    let refusal = null;
+    let made = false;
+    const binding = bind(
+      host,
+      key,
+      (shown) => {
+        value = shown;
+        if (made) redraw();
+      },
+      {
+        settled: (refused) => {
+          refusal = refused === null ? null : messageOf(refused);
+          redraw();
+        }
+      }
+    );
+    bindings.push(binding);
+    made = true;
+    put(
+      () => draw({
+        value,
+        error: refusal,
+        get: () => binding.get(),
+        commit: (next) => binding.commit(next),
+        type: (next, pause) => {
+          binding.type(next, pause);
+        },
+        flush: () => {
+          binding.flush();
+        }
+      })
+    );
+  }
+  function alert(next) {
+    error = next === null ? null : messageOf(next);
+    redraw();
   }
   function get(key) {
     if (!("option" in host)) return own(host.state(), key);
@@ -226,209 +528,71 @@ function controls(host, signal) {
     return request;
   }
   function text(key, options) {
-    const lines = options.lines ?? 1;
-    const input = lines > 1 ? document.createElement("textarea") : document.createElement("input");
-    if (input instanceof HTMLTextAreaElement) input.rows = lines;
-    else input.type = "text";
-    input.className = styles.box;
-    input.spellcheck = false;
-    if (options.placeholder !== void 0) input.placeholder = options.placeholder;
-    const binding = bind2(key, (value) => {
-      const shown = typeof value === "string" ? value : "";
-      if (input.value !== shown) input.value = shown;
-    });
-    typing(input, binding, lines > 1, () => input.value, options.pause ?? true);
-    add(field(options.label, input));
+    input(key, (bound) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(TextInput, { bound, ...options }));
   }
   function number(key, options) {
-    const input = document.createElement("input");
-    input.type = "number";
-    input.step = "1";
-    input.required = true;
-    input.className = styles.box;
-    if (options.min !== void 0) input.min = String(options.min);
     let max;
-    const read = () => {
-      const text2 = input.value.trim();
-      const value = text2 === "" ? Number.NaN : Number(text2);
-      if (!Number.isInteger(value)) return void 0;
-      if (options.min !== void 0 && value < options.min) return void 0;
-      if (max !== void 0 && value > max) return void 0;
-      return value;
-    };
-    const mark = () => {
-      input.setAttribute("aria-invalid", String(read() === void 0));
-    };
-    const binding = bind2(key, (value) => {
-      const shown = typeof value === "number" ? String(value) : "";
-      if (input.value !== shown) input.value = shown;
-      mark();
-    });
-    typing(input, binding, false, read, true);
-    input.addEventListener("input", mark);
-    add(field(options.label, input));
+    input(key, (bound) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(NumberInput, { bound, label: options.label, min: options.min, max }));
     return {
       setMax(next) {
         max = next;
-        if (next === void 0) input.removeAttribute("max");
-        else input.max = String(next);
-        mark();
+        redraw();
       }
     };
   }
   function select(key, options) {
-    const select2 = document.createElement("select");
-    select2.className = styles.box;
     let choices = options.choices ?? [];
-    let current;
-    let built = "";
-    const draw = () => {
-      const shown = current === void 0 || choices.some((choice) => choice.value === current) ? choices : [...choices, { value: current, label: current }];
-      const drawn = JSON.stringify([current === void 0, shown]);
-      if (drawn !== built) {
-        built = drawn;
-        select2.replaceChildren(
-          ...current === void 0 ? [option("", options.placeholder, true)] : [],
-          ...shown.map((choice) => option(choice.value, choice.label))
-        );
-      }
-      select2.value = current ?? "";
-    };
-    const binding = bind2(key, (value) => {
-      current = typeof value === "string" ? value : void 0;
-      draw();
-    });
-    select2.addEventListener("change", () => {
-      void binding.commit(select2.value);
-    });
-    add(field(options.label, select2));
+    input(key, (bound) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Select, { bound, label: options.label, placeholder: options.placeholder, choices }));
     return {
       setChoices(next) {
         choices = next;
-        draw();
+        redraw();
       }
     };
   }
   function checkbox(key, options) {
-    const input = document.createElement("input");
-    input.type = "checkbox";
-    input.className = styles.checkbox;
-    const binding = bind2(key, (value) => {
-      input.checked = value === true;
-    });
-    input.addEventListener("change", () => {
-      void binding.commit(input.checked);
-    });
-    const label = document.createElement("label");
-    label.className = styles.check;
-    label.append(input, options.label);
-    add(label);
+    input(key, (bound) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Checkbox, { bound, label: options.label }));
   }
   function checklist(key, options) {
-    const fieldset = document.createElement("fieldset");
-    fieldset.className = styles.fieldset;
-    const legend = document.createElement("legend");
-    legend.className = styles.legend;
-    legend.textContent = options.legend;
-    const list = document.createElement("div");
-    list.className = styles.list;
-    fieldset.append(legend, list);
-    let choices = options.choices ?? [];
-    let known = options.choices !== void 0;
-    let held = [];
-    let built;
-    const boxes = /* @__PURE__ */ new Map();
-    const draw = () => {
-      const shown = [...choices, ...held.filter((value) => !choices.includes(value))];
-      if (built === void 0 || !jsonEqual(built, shown)) {
-        built = shown;
-        boxes.clear();
-        list.replaceChildren(...shown.map((value) => box(value)));
+    let choices = options.choices;
+    input(key, (bound) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+      Checklist,
+      {
+        bound,
+        legend: options.legend,
+        choices,
+        empty: options.empty,
+        ordered: options.ordered
       }
-      if (known && options.empty !== void 0 && shown.length === 0 && list.childElementCount === 0) {
-        list.append(hint(options.empty));
-      }
-      for (const [value, input] of boxes) input.checked = held.includes(value);
-    };
-    function box(value) {
-      const input = document.createElement("input");
-      input.type = "checkbox";
-      input.value = value;
-      input.className = styles.checkbox;
-      input.addEventListener("change", () => {
-        const now = strings(binding.get());
-        const next = input.checked ? now.includes(value) ? now : [...now, value] : now.filter((other) => other !== value);
-        void binding.commit(
-          options.ordered === true ? [...choices.filter((choice) => next.includes(choice)), ...next.filter((other) => !choices.includes(other))] : next
-        );
-      });
-      boxes.set(value, input);
-      const label = document.createElement("label");
-      label.className = styles.check;
-      label.append(input, value);
-      return label;
-    }
-    const binding = bind2(key, (value) => {
-      held = strings(value);
-      draw();
-    });
-    add(fieldset);
+    ));
     return {
       setChoices(next) {
         choices = next;
-        known = true;
-        built = void 0;
-        draw();
+        redraw();
       }
     };
   }
   function cleanup() {
+    if (ended) return;
+    ended = true;
     for (const binding of bindings) binding.release();
     for (const request of followed) request.release();
+    root.unmount();
   }
+  signal.addEventListener("abort", cleanup, { once: true });
   return { el, add, get, bind: bind2, text, number, select, checkbox, checklist, follow: follow2, alert, cleanup };
 }
-function field(text, control) {
-  const label = document.createElement("label");
-  label.className = styles.field;
-  const span = document.createElement("span");
-  span.className = styles.label;
-  span.textContent = text;
-  label.append(span, control);
-  return label;
-}
-function hint(text) {
-  const p = document.createElement("p");
-  p.className = styles.hint;
-  p.textContent = text;
-  return p;
-}
-function typing(input, binding, multiline, read, pause) {
-  input.addEventListener("input", () => {
-    binding.type(read(), pause);
-  });
-  input.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter" || event.isComposing) return;
-    if (multiline && !(event.ctrlKey || event.metaKey)) return;
-    binding.flush();
-  });
-  input.addEventListener("blur", () => {
-    binding.flush();
-  });
-}
-function option(value, label, placeholder = false) {
-  const option2 = document.createElement("option");
-  option2.value = value;
-  option2.textContent = label;
-  if (placeholder) option2.disabled = true;
-  return option2;
+function Slot({ node }) {
+  const ref = (0, import_react2.useRef)(null);
+  (0, import_react2.useLayoutEffect)(() => {
+    ref.current?.replaceChildren(node);
+  }, [node]);
+  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { ref, className: "bc:contents" });
 }
 export {
   PAUSE,
   choicesOf,
   controls,
-  field,
-  hint,
   strings,
   styles
 };

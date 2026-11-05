@@ -81,6 +81,10 @@
   display: block;
 }
 
+.bc\:contents {
+  display: contents;
+}
+
 .bc\:flex {
   display: flex;
 }

@@ -32,9 +32,9 @@
 //   SDK, the binding and the preset bundled for a package's build, with React
 //   left for the preset to map, the stubs bundled for
 //   a test runner, and the package.json that names them.
-//   The controls, srcts/controls/index.ts, go there as the stubs do,
-//   as `@blockr/core/controls`, for a package that draws its modules with
-//   them and bundles them.
+//   The controls, srcts/controls/index.ts, go there as the SDK does,
+//   as `@blockr/core/controls`, for a package that writes its modules without
+//   React and bundles them.
 //
 // - The words that ids are made of, in srcts/store/words.ts, go into inst/ids,
 //   one word a line, for R's rand_names() to draw from as the client's

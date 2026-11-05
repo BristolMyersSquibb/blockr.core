@@ -45,5 +45,3 @@ export interface Controls<K extends string = string> {
 }
 export declare function controls<S extends State>(host: BlockHost<S>, signal: AbortSignal): Controls<Extract<keyof S, string>>;
 export declare function controls<V extends Json>(host: OptionHost<V>, signal: AbortSignal): Controls;
-export declare function field(text: string, control: HTMLElement): HTMLLabelElement;
-export declare function hint(text: string): HTMLParagraphElement;
