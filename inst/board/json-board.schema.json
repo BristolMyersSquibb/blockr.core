@@ -182,13 +182,17 @@
           }
         },
         "color": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "pattern": "^#([0-9a-fA-F]{3}){1,2}$"
         }
       },
       "required": [
         "name",
-        "blocks"
+        "blocks",
+        "color"
       ]
     }
   }

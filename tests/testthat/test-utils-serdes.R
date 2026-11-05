@@ -68,7 +68,9 @@ test_that("a board is written as a JSON board", {
           }
         },
         "links": { "ab": { "from": "a", "to": "b", "input": "data" } },
-        "stacks": { "s1": { "name": "Input", "blocks": ["a"] } },
+        "stacks": {
+          "s1": { "name": "Input", "blocks": ["a"], "color": null }
+        },
         "options": {
           "n_rows": { "value": 25, "version": 1 },
           "dark_mode": { "value": "dark", "version": 1 }
@@ -113,7 +115,9 @@ test_that("a JSON board holds every ID, and an empty board empty objects", {
         board_link_ids(board)
       ),
       set_names(
-        read_json_strictly('[{ "name": "Empty", "blocks": [] }]'),
+        read_json_strictly(
+          '[{ "name": "Empty", "blocks": [], "color": null }]'
+        ),
         board_stack_ids(board)
       )
     )
@@ -539,7 +543,7 @@ test_that("a board's parts are written by their methods", {
 
   expect_identical(
     blockr_ser(new_stack(c("a", "b"), "Input")),
-    list(name = "Input", blocks = c("a", "b"))
+    list(name = "Input", blocks = c("a", "b"), color = NA_character_)
   )
 
   expect_identical(

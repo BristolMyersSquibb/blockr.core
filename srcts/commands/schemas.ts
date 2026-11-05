@@ -68,9 +68,10 @@ export const blockIds: JsonSchema = {
 };
 
 export const color: JsonSchema = {
-  type: "string",
+  type: ["string", "null"],
   pattern: HEX_COLOR,
-  description: 'A hex colour, such as "#66c2a5", which front-ends draw a stack in.',
+  description:
+    'A hex colour, such as "#66c2a5", which front-ends draw a stack in, or null for none. A front-end draws a stack without a colour in a default of its own.',
 };
 
 export const optionId: JsonSchema = {

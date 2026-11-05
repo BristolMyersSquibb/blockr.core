@@ -229,9 +229,8 @@
   The color is a hex color, such as `"#66c2a5"` or `"#fc8"`.
   The constructor `new_stack()` takes it as `color`, and `stack_color()` reads it.
   A stack without a color is drawn in a default of the front-end's.
-  The JSON board holds a stack's color where the stack has one.
-  Core's commands that add and change a stack take a color, and the client's store refuses a stack whose color is no hex color.
-  A delta's change to a stack removes its color through `unset`, as undo does where a step set a color on a stack that had none (#487).
+  The JSON board holds every stack's color, as `null` for a stack without one.
+  Core's commands that add and change a stack take a color, or `null` for none, and the client's store refuses a stack whose color is no hex color (#487).
 
 # blockr.core 0.1.4
 

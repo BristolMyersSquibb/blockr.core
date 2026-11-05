@@ -411,7 +411,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       readonly id?: StackId;
       readonly name?: string;
       readonly blocks?: readonly BlockId[];
-      readonly color?: string;
+      readonly color?: string | null;
     }>({
       id: "blockr.core-add_stack",
       label: "Add stack",
@@ -427,21 +427,25 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         color: {
           ...schemas.color,
           description:
-            "The new stack's colour, which front-ends draw it in. Where it is left out, the stack has none, and a front-end draws it in a default of its own.",
+            "The new stack's colour, which front-ends draw it in, or null for none. The stack gets null where this is left out, and a front-end draws a stack without a colour in a default of its own.",
         },
       }),
-      run(board, { id, name = "Stack", blocks = [], color }) {
+      run(board, { id, name = "Stack", blocks = [], color = null }) {
         const stack = id ?? mintId((id) => Object.hasOwn(board.stacks, id));
         const left = leave(board, stack, blocks);
         return {
           stacks: {
-            add: { [stack]: { name, blocks, ...(color === undefined ? {} : { color }) } },
+            add: { [stack]: { name, blocks, color } },
             ...(Object.keys(left).length === 0 ? {} : { mod: left }),
           },
         };
       },
     }),
-    command<{ readonly id: StackId; readonly blocks?: readonly BlockId[]; readonly color?: string }>({
+    command<{
+      readonly id: StackId;
+      readonly blocks?: readonly BlockId[];
+      readonly color?: string | null;
+    }>({
       id: "blockr.core-change_stack",
       label: "Change stack",
       description:
@@ -455,7 +459,8 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
           },
           color: {
             ...schemas.color,
-            description: "The stack's colour, which front-ends draw it in, and which it keeps where it is left out.",
+            description:
+              "The stack's colour, which front-ends draw it in, or null to clear it. A front-end draws a stack without a colour in a default of its own. The stack keeps its colour where this is left out.",
           },
         },
         ["id"],

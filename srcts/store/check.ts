@@ -156,12 +156,12 @@ function checkStacks(
   const holder = new Map<string, string>();
   for (const [id, stack] of Object.entries(board.stacks)) {
     if (changed === undefined || changed.stacks.has(id)) {
-      const fields = shape(stack, { name: "string", blocks: "array" }, { color: "string" });
+      const fields = shape(stack, { name: "string", blocks: "array", color: "string or null" });
       if (fields.length > 0) {
         failures.push(`The stack "${id}" ${fields.join(", ")}.`);
         continue;
       }
-      if (stack.color !== undefined && !hexColor.test(stack.color)) {
+      if (stack.color !== null && !hexColor.test(stack.color)) {
         failures.push(
           `The stack "${id}" has the colour "${stack.color}", which is no hex colour, such as "#66c2a5".`,
         );
@@ -222,28 +222,31 @@ function checkProperties(
   }
 }
 
-type Kind = "string" | "object" | "array";
+type Kind = "string" | "string or null" | "object" | "array";
 
 // What an object of core's lacks or holds beyond its fields, which a delta
 // built in plain JS or by a model may get wrong.
-// It may lack a field of `optional`, which holds its kind where it is there.
-function shape(
-  value: unknown,
-  fields: Readonly<Record<string, Kind>>,
-  optional: Readonly<Record<string, Kind>> = {},
-): string[] {
+function shape(value: unknown, fields: Readonly<Record<string, Kind>>): string[] {
   if (!isObject(value)) return ["is no object"];
   const problems: string[] = [];
-  const kinds = { ...fields, ...optional };
-  for (const [field, kind] of Object.entries(kinds)) {
-    if (Object.hasOwn(optional, field) && !Object.hasOwn(value, field)) continue;
-    const x = value[field];
-    const ok =
-      kind === "array" ? Array.isArray(x) : kind === "object" ? isObject(x) : typeof x === kind;
-    if (!ok) problems.push(`has no ${kind} as its ${field}`);
+  for (const [field, kind] of Object.entries(fields)) {
+    if (!fits(value[field], kind)) problems.push(`has no ${kind} as its ${field}`);
   }
   for (const field of Object.keys(value)) {
-    if (!Object.hasOwn(kinds, field)) problems.push(`holds "${field}", which core does not keep`);
+    if (!Object.hasOwn(fields, field)) problems.push(`holds "${field}", which core does not keep`);
   }
   return problems;
+}
+
+function fits(x: unknown, kind: Kind): boolean {
+  switch (kind) {
+    case "array":
+      return Array.isArray(x);
+    case "object":
+      return isObject(x);
+    case "string or null":
+      return x === null || typeof x === "string";
+    case "string":
+      return typeof x === "string";
+  }
 }

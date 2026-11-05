@@ -39,7 +39,7 @@ export interface Delta {
   };
   readonly stacks?: {
     readonly add?: Readonly<Record<StackId, Stack>>;
-    readonly mod?: Readonly<Record<StackId, StackMod>>;
+    readonly mod?: Readonly<Record<StackId, Partial<Stack>>>;
     readonly rm?: readonly StackId[];
   };
   readonly options?: Values<OptionId>;
@@ -70,14 +70,6 @@ export interface BlockMod {
   // null would reach `expr` as NULL.
   readonly unset?: readonly string[];
   readonly name?: string;
-}
-
-// A stack's change, which sets the fields it gives and removes those that
-// `unset` names, of which a stack may lack only its colour.
-// So undo removes a colour where its step set one on a stack that had none,
-// in a change that survives JSON, where a field set to undefined would not.
-export interface StackMod extends Partial<Stack> {
-  readonly unset?: readonly "color"[];
 }
 
 // A change inside a property that the board's class adds,

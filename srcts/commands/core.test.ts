@@ -369,8 +369,8 @@ describe("stacks", () => {
     await commands.run("blockr.core-add_stack", { id: "s2", name: "Joined", blocks: ["b", "c"] });
 
     expect(store.board().stacks).toEqual({
-      s1: { name: "Input", blocks: ["a"] },
-      s2: { name: "Joined", blocks: ["b", "c"] },
+      s1: { name: "Input", blocks: ["a"], color: null },
+      s2: { name: "Joined", blocks: ["b", "c"], color: null },
     });
   });
 
@@ -382,7 +382,7 @@ describe("stacks", () => {
 
     const [id = ""] = added(board.stacks, store.board().stacks);
     expect(isId(id)).toBe(true);
-    expect(store.board().stacks[id]).toEqual({ name: "Stack", blocks: [] });
+    expect(store.board().stacks[id]).toEqual({ name: "Stack", blocks: [], color: null });
   });
 
   test("change_stack sets a stack's blocks, taking them out of the stack they are in", async () => {
@@ -397,17 +397,17 @@ describe("stacks", () => {
     expect(store.board().stacks.s1?.blocks).toEqual(["a", "b"]);
   });
 
-  test("add_stack gives a stack the colour given, and none where it is given none", async () => {
+  test("add_stack gives a stack the colour given, and null for none where it is given none", async () => {
     const { store, commands } = await setup();
 
     await commands.run("blockr.core-add_stack", { id: "s2", blocks: ["c"], color: "#66c2a5" });
     await commands.run("blockr.core-add_stack", { id: "s3", blocks: ["d"] });
 
     expect(store.board().stacks.s2).toStrictEqual({ name: "Stack", blocks: ["c"], color: "#66c2a5" });
-    expect(store.board().stacks.s3).toStrictEqual({ name: "Stack", blocks: ["d"] });
+    expect(store.board().stacks.s3).toStrictEqual({ name: "Stack", blocks: ["d"], color: null });
   });
 
-  test("change_stack sets a stack's colour and keeps its blocks, and undo takes the colour away", async () => {
+  test("change_stack sets a stack's colour, or clears it with null, and keeps its blocks", async () => {
     const { store, commands } = await setup();
 
     await commands.run("blockr.core-change_stack", { id: "s1", color: "#fc8" });
@@ -416,9 +416,14 @@ describe("stacks", () => {
     await commands.run("blockr.core-change_stack", { id: "s1", blocks: ["a"] });
     expect(store.board().stacks.s1).toStrictEqual({ name: "Input", blocks: ["a"], color: "#fc8" });
 
+    await commands.run("blockr.core-change_stack", { id: "s1", color: null });
+    expect(store.board().stacks.s1).toStrictEqual({ name: "Input", blocks: ["a"], color: null });
+
+    store.undo();
+    expect(store.board().stacks.s1?.color).toBe("#fc8");
     store.undo();
     store.undo();
-    expect(store.board().stacks.s1).toStrictEqual({ name: "Input", blocks: ["a", "b"] });
+    expect(store.board().stacks.s1).toStrictEqual({ name: "Input", blocks: ["a", "b"], color: null });
   });
 
   test("add_stack and change_stack refuse a colour that is no hex colour", async () => {

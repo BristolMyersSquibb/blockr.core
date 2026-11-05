@@ -15,7 +15,7 @@ export interface Delta {
     };
     readonly stacks?: {
         readonly add?: Readonly<Record<StackId, Stack>>;
-        readonly mod?: Readonly<Record<StackId, StackMod>>;
+        readonly mod?: Readonly<Record<StackId, Partial<Stack>>>;
         readonly rm?: readonly StackId[];
     };
     readonly options?: Values<OptionId>;
@@ -32,9 +32,6 @@ export interface BlockMod {
     readonly state?: Readonly<Record<string, Json>>;
     readonly unset?: readonly string[];
     readonly name?: string;
-}
-export interface StackMod extends Partial<Stack> {
-    readonly unset?: readonly "color"[];
 }
 export interface Patch {
     readonly op: "add" | "remove" | "replace";

@@ -209,7 +209,7 @@ function file(
       b: head(),
     } as Readonly<Record<string, Block & { version?: number }>>,
     links: { ab: { from: "a", to: "b", input: "data" } },
-    stacks: { s1: { name: "Input", blocks: ["a", "b"] } },
+    stacks: { s1: { name: "Input", blocks: ["a", "b"], color: null } },
     options: { n_rows: 50, show_conditions: ["warning", "error"] },
     ...board,
   };
@@ -245,7 +245,7 @@ describe("opening a board", () => {
 
     expect(Object.keys(board.links)).toEqual(["ab", "ac", "bc", "ad", "be", "de", "keen_finch"]);
     expect(board.links.keen_finch).toEqual({ from: "a", to: "f", input: "data" });
-    expect(board.stacks).toEqual({ s1: { name: "Input", blocks: ["a", "b"] } });
+    expect(board.stacks).toEqual({ s1: { name: "Input", blocks: ["a", "b"], color: null } });
 
     expect(store.blockRegistry()).toBe(hello.block_registry);
     expect(store.packages()).toEqual({ "blockr.core": "0.2.0" });
@@ -291,7 +291,7 @@ describe("opening a board", () => {
             ax: { from: "a", to: "x", input: "data" },
             xb: { from: "x", to: "b", input: "data" },
           },
-          stacks: { s1: { name: "Input", blocks: ["a", "x", "b"] } },
+          stacks: { s1: { name: "Input", blocks: ["a", "x", "b"], color: null } },
         },
         { "blockr.core": "0.2.0", "blockr.dplyr": "0.3.0" },
       ),
@@ -308,7 +308,7 @@ describe("opening a board", () => {
     expect(board.id).toBe("amber_tapir");
     expect(Object.keys(board.blocks)).toEqual(["a", "b"]);
     expect(board.links).toEqual({});
-    expect(board.stacks).toEqual({ s1: { name: "Input", blocks: ["a", "b"] } });
+    expect(board.stacks).toEqual({ s1: { name: "Input", blocks: ["a", "b"], color: null } });
     expect(seen).toEqual([{ opened: board, dropped }]);
   });
 
@@ -344,6 +344,9 @@ describe("opening a board", () => {
     await expect(
       store.open(file({ stacks: { s1: { name: "Input", blocks: ["a", "b"], color: "#66c2a5ff" } } })),
     ).rejects.toThrow(/stack "s1" has the colour "#66c2a5ff", which is no hex colour/);
+    await expect(
+      store.open(file({ stacks: { s1: { name: "Input", blocks: ["a", "b"] } } as unknown as Board["stacks"] })),
+    ).rejects.toThrow(/stack "s1" has no string or null as its color/);
     expect(store.board()).toBe(board);
     expect(seen).toEqual([]);
   });
@@ -353,7 +356,7 @@ describe("opening a board", () => {
     const stacks = {
       s1: { name: "Input", blocks: ["a"], color: "#66c2a5" },
       s2: { name: "Head", blocks: ["b"], color: "#FC8" },
-      s3: { name: "Empty", blocks: [] },
+      s3: { name: "Empty", blocks: [], color: null },
     };
 
     await store.open(file({ stacks }));
@@ -637,7 +640,7 @@ describe("opening a board", () => {
           ax: { from: "a", to: "x", input: "data" },
           xb: { from: "x", to: "b", input: "data" },
         },
-        stacks: { s1: { name: "Input", blocks: ["a", "x", "b"] } },
+        stacks: { s1: { name: "Input", blocks: ["a", "x", "b"], color: null } },
       }),
     );
 
@@ -648,7 +651,7 @@ describe("opening a board", () => {
     expect(viewsOf(board)).toEqual({ main: { panels: ["a", "b"] } });
     expect(positionsOf(board)).toEqual({ a: { x: 0, y: 0 }, b: { x: 2, y: 2 } });
     expect(board.links).toEqual({});
-    expect(board.stacks).toEqual({ s1: { name: "Input", blocks: ["a", "b"] } });
+    expect(board.stacks).toEqual({ s1: { name: "Input", blocks: ["a", "b"], color: null } });
   });
 
   test("drops a board option value that its schema refuses, so that it reads as its default", async () => {
@@ -1050,8 +1053,8 @@ describe("applying a delta", () => {
     ["a link into an input the class lacks", { links: { add: { ab2: { from: "a", to: "b", input: "x" } } } }, /feeds the input "x" of block "b", whose class has no such input/],
     ["a second link into a fixed input", { links: { add: { db: { from: "d", to: "b", input: "data" } } } }, /input "data" of block "b" takes the links "ab" and "db", where it takes one/],
     ["a cycle", { links: { rm: ["ad"], add: { ed: { from: "e", to: "d", input: "data" } } } }, /links form a cycle through the blocks/],
-    ["a stack holding a block the board lacks", { stacks: { add: { s2: { name: "More", blocks: ["z"] } } } }, /stack "s2" holds block "z", which the board lacks/],
-    ["a block in two stacks", { stacks: { add: { s2: { name: "More", blocks: ["a"] } } } }, /block "a" sits in the stacks "s1" and "s2", where it sits in one/],
+    ["a stack holding a block the board lacks", { stacks: { add: { s2: { name: "More", blocks: ["z"], color: null } } } }, /stack "s2" holds block "z", which the board lacks/],
+    ["a block in two stacks", { stacks: { add: { s2: { name: "More", blocks: ["a"], color: null } } } }, /block "a" sits in the stacks "s1" and "s2", where it sits in one/],
     ["a board option value its schema refuses", { options: { set: { n_rows: -1 } } }, /value of the board option "n_rows" fails its schema: -1 is less than 1\./],
     ["a value of a board option no package registered", { options: { set: { nope: 1 } } }, /board option "nope", which no package registered/],
     ["a block of a class the block registry lacks", { blocks: { add: { g: { ...head(), registry_id: "blockr.foo-bar" } } } }, /class "blockr.foo-bar", which the block registry lacks/],
@@ -1067,8 +1070,8 @@ describe("applying a delta", () => {
     ["a block that is no block", { blocks: { add: { g: { ...head(), name: 3 } } } } as unknown as Delta, /block "g" has no string as its name/],
     ["a link holding more than core keeps", { links: { add: { dg: { from: "d", to: "f", input: "data", color: "red" } } } } as unknown as Delta, /link "dg" holds "color", which core does not keep/],
     ["a stack whose colour is no hex colour", { stacks: { add: { s2: { name: "More", blocks: [], color: "red" } } } }, /stack "s2" has the colour "red", which is no hex colour, such as "#66c2a5"\./],
-    ["a stack whose colour is no string", { stacks: { mod: { s1: { color: 1 } } } } as unknown as Delta, /stack "s1" has no string as its color/],
-    ["setting and unsetting a stack's colour", { stacks: { mod: { s1: { color: "#66c2a5", unset: ["color"] } } } }, /change to stack "s1" both sets and unsets "color"/],
+    ["a stack whose colour is no string", { stacks: { mod: { s1: { color: 1 } } } } as unknown as Delta, /stack "s1" has no string or null as its color/],
+    ["a stack without a colour", { stacks: { add: { s2: { name: "More", blocks: [] } } } } as unknown as Delta, /stack "s2" has no string or null as its color/],
   ];
 
   test.each(refusals)("rejects %s, changing nothing", async (_, delta, failure) => {
@@ -1396,33 +1399,31 @@ describe("undo", () => {
 
     store.apply({
       blocks: { mod: { d: { state: { extra: 1 } }, a: { name: "Renamed" } } },
-      stacks: { mod: { s1: { color: "#66c2a5" } } },
       options: { set: { seed: 42 } },
     });
     store.undo();
 
     expect(store.board()).toEqual(before);
     expect(Object.hasOwn(store.board().blocks.d?.state ?? {}, "extra")).toBe(false);
-    expect(Object.hasOwn(store.board().stacks.s1 ?? {}, "color")).toBe(false);
     expect(Object.hasOwn(store.board().options, "seed")).toBe(false);
   });
 
-  test("puts back a stack's colour that a step unset, by a step that survives JSON", async () => {
+  test("sets back a stack's colour, null for none, by steps that survive JSON", async () => {
     const store = await opened();
     const seen = changes(store);
     store.apply({ stacks: { mod: { s1: { color: "#66c2a5" } } } });
-    store.apply({ stacks: { mod: { s1: { unset: ["color"] } } } });
-    expect(store.board().stacks.s1).toStrictEqual({ name: "Input", blocks: ["a", "b"] });
+    store.apply({ stacks: { mod: { s1: { color: null } } } });
+    expect(store.board().stacks.s1?.color).toBeNull();
 
     store.undo();
-    expect(store.board().stacks.s1).toStrictEqual({ name: "Input", blocks: ["a", "b"], color: "#66c2a5" });
+    expect(store.board().stacks.s1?.color).toBe("#66c2a5");
     store.undo();
-    expect(store.board().stacks.s1).toStrictEqual({ name: "Input", blocks: ["a", "b"] });
+    expect(store.board().stacks.s1).toStrictEqual({ name: "Input", blocks: ["a", "b"], color: null });
 
     const undone = seen.slice(2);
     expect(undone).toEqual([
       { delta: { stacks: { mod: { s1: { color: "#66c2a5" } } } }, origin: "user" },
-      { delta: { stacks: { mod: { s1: { unset: ["color"] } } } }, origin: "user" },
+      { delta: { stacks: { mod: { s1: { color: null } } } }, origin: "user" },
     ]);
     expect(JSON.parse(JSON.stringify(undone))).toEqual(undone);
   });

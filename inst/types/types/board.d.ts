@@ -29,7 +29,7 @@ export interface Stack {
     /**
      * @pattern ^#([0-9a-fA-F]{3}){1,2}$
      */
-    readonly color?: string;
+    readonly color: string | null;
 }
 export interface JsonBoard {
     readonly format: number;

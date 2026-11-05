@@ -94,6 +94,9 @@ in the client.
 The client drops each property that the class it builds the board as does
 not add.
 
+A stack is written with its name, its blocks and its color, which is \code{null}
+for a stack without one.
+
 A block is written by the registry ID of its class, with its state and its
 name.
 Where the block registry holds no entry for its class, writing the block
