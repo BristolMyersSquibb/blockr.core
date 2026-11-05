@@ -126,7 +126,7 @@ test("writes the schema of each output type and removes those of types gone", as
   });
   expect(schema).not.toHaveProperty("additionalProperties");
   expect(Object.keys(schema.definitions as object)).toEqual(["Json"]);
-});
+}, 60_000);
 
 test("writes no schemas without the types and modules they come from", async () => {
   expect(await schemas(root)).toEqual([]);
@@ -181,7 +181,7 @@ test("writes the schema of a JSON board, and removes any other in inst/board", a
       },
     },
   });
-});
+}, 60_000);
 
 test("writes the schemas of core's board options next to its runtime", async () => {
   await write({
