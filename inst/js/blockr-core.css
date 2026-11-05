@@ -336,10 +336,6 @@
   accent-color: var(--bc-color-bg-accent);
 }
 
-.bc\:opacity-50 {
-  opacity: .5;
-}
-
 .bc\:opacity-60 {
   opacity: .6;
 }
@@ -349,14 +345,8 @@
 }
 
 @media (hover: hover) {
-  .bc\:hover\:bg-current\/5:hover {
-    background-color: currentColor;
-  }
-
-  @supports (color: color-mix(in lab, red, red)) {
-    .bc\:hover\:bg-current\/5:hover {
-      background-color: color-mix(in oklab, currentcolor 5%, transparent);
-    }
+  .bc\:hover\:bg-bg-subtle:hover {
+    background-color: var(--bc-color-bg-subtle);
   }
 }
 

@@ -351,7 +351,7 @@ function reactModule(Draw, options = {}) {
 // srcts/modules/filebrowser-block/index.tsx
 var import_jsx_runtime3 = __toESM(require_jsx_runtime(), 1);
 var api = 1;
-var link = "bc:cursor-pointer bc:rounded bc:border-0 bc:bg-transparent bc:px-2 bc:py-0.5 bc:text-left bc:text-sm bc:text-inherit bc:[font-family:inherit] bc:hover:bg-current/5 bc:aria-current:font-semibold";
+var link = "bc:cursor-pointer bc:rounded bc:border-0 bc:bg-transparent bc:px-2 bc:py-0.5 bc:text-left bc:text-sm bc:text-inherit bc:[font-family:inherit] bc:hover:bg-bg-subtle bc:aria-current:font-semibold";
 var entry = `${link} bc:justify-self-stretch`;
 function FileBrowserBlock({ host }) {
   const shared = useValue(host, "volumes").value;
@@ -389,7 +389,7 @@ function FileBrowserBlock({ host }) {
       }
     ) }),
     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("nav", { "aria-label": "Directory", className: "bc:flex bc:flex-wrap bc:items-center bc:gap-1 bc:text-sm", children: [volume ?? "", ...dirs].map((name, i) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_react4.Fragment, { children: [
-      i > 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "bc:opacity-50", "aria-hidden": "true", children: "/" }),
+      i > 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "bc:text-text-muted", "aria-hidden": "true", children: "/" }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
         "button",
         {

@@ -38,7 +38,7 @@ interface Place {
 // The classes of the buttons that name a directory or a file,
 // those in the list stretching across it.
 const link =
-  "bc:cursor-pointer bc:rounded bc:border-0 bc:bg-transparent bc:px-2 bc:py-0.5 bc:text-left bc:text-sm bc:text-inherit bc:[font-family:inherit] bc:hover:bg-current/5 bc:aria-current:font-semibold";
+  "bc:cursor-pointer bc:rounded bc:border-0 bc:bg-transparent bc:px-2 bc:py-0.5 bc:text-left bc:text-sm bc:text-inherit bc:[font-family:inherit] bc:hover:bg-bg-subtle bc:aria-current:font-semibold";
 const entry = `${link} bc:justify-self-stretch`;
 
 function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
@@ -99,7 +99,7 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
         {[volume ?? "", ...dirs].map((name, i) => (
           <Fragment key={i}>
             {i > 0 && (
-              <span className="bc:opacity-50" aria-hidden="true">
+              <span className="bc:text-text-muted" aria-hidden="true">
                 /
               </span>
             )}
