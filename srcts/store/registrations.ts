@@ -80,6 +80,12 @@ export interface Option {
   readonly category: string;
   readonly schema: JsonSchema;
   readonly default: Json | (() => Promise<Json>);
+  // Converts the value, as a JSON board holds it, from the version of its
+  // shape that the board records to the one that the package's method of R's
+  // `board_option_version()` gives, and returns it as the board then holds it.
+  // The store calls it as it opens a board whose recorded version of the value
+  // is below R's, with that version.
+  migrate?(value: Json, version: number): Json;
 }
 
 // The board options packages define, by id.
@@ -100,9 +106,6 @@ export interface Options {
 // What a board reads where nothing set a value comes from
 // what packages register instead, a property's `default`
 // and a board option's `default`.
-// Board option values are not migrated:
-// one that no longer fits its schema is dropped as the board opens,
-// so that it reads as its default.
 export type Migration = (state: Block["state"], version: number) => Block["state"];
 
 // A registration with the validator of its schema.
@@ -278,6 +281,9 @@ export function createRegistrations(): Registrations {
         const what = `the board option "${def.id}"`;
         if (optionIndex.value.has(def.id)) {
           throw new Error(`The board option "${def.id}" is registered already.`);
+        }
+        if (def.migrate !== undefined && typeof def.migrate !== "function") {
+          throw new Error(`The board option "${def.id}" has a migrate that is no function.`);
         }
         const validate = compile(what, def.schema);
         if (typeof def.default !== "function") {

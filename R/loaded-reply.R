@@ -1,16 +1,18 @@
 # What R tells the client about the packages it has loaded, in its reply to
 # `hello`, for neither side to edit: the block registry's entries, where R
 # serves the startup modules and the modules that packages offer each other,
-# the board classes that packages name front-ends for, the renderers it
-# picked, and the versions of the packages that all of these come from.
+# the board classes that packages name front-ends for, the versions of the
+# board options that packages give them, the renderers it picked, and the
+# versions of the packages that all of these come from.
 # A front-end is a module that its package offers, which a board class names
 # through its method of `board_front_end()`.
 # R loads no package for it: the app's script has loaded them, and loading
 # them filled the block registry, declared their modules and registered their
 # methods.
 # These are the fields `packages`, `block_registry`, `startup_modules`,
-# `modules`, `board_classes` and `renderers` of inst/protocol/README.md, as R
-# values that `encode_message()` writes as the reply's JSON.
+# `modules`, `board_classes`, `option_versions` and `renderers` of
+# inst/protocol/README.md, as R values that `encode_message()` writes as the
+# reply's JSON.
 # Building them builds no block.
 loaded_reply <- function() {
 
@@ -35,6 +37,7 @@ loaded_reply <- function() {
     startup_modules = unname(lapply(startup, startup_module_reply)),
     modules = as_json_object(lapply(modules, declared_module_reply)),
     board_classes = as_json_object(classes),
+    option_versions = option_versions(),
     renderers = as_json_object(lapply(renderers, renderer_reply))
   )
 }

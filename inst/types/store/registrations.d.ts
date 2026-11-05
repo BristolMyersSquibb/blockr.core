@@ -20,6 +20,7 @@ export interface Option {
     readonly category: string;
     readonly schema: JsonSchema;
     readonly default: Json | (() => Promise<Json>);
+    migrate?(value: Json, version: number): Json;
 }
 export interface Options {
     register(option: Option): () => void;

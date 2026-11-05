@@ -125,7 +125,7 @@ protocol_r_values <- function() {
               ),
               links = obj(),
               stacks = obj(),
-              options = obj(n_rows = 50L)
+              options = obj(n_rows = proto_option(50L))
             )
           ),
           bound = I("data")
@@ -487,6 +487,7 @@ proto_served <- function() {
         version = 1L
       )
     ),
+    option_versions = obj(),
     renderers = proto_renderers()
   )
 }
@@ -784,6 +785,12 @@ proto_block <- function(registry_id, state, name) {
   obj(registry_id = registry_id, version = 1L, state = state, name = name)
 }
 
+# A board option's value as a JSON board holds it, with the version of its
+# shape.
+proto_option <- function(value, version = 1L) {
+  obj(value = value, version = version)
+}
+
 proto_link <- function(from, to, input) {
   obj(from = from, to = to, input = input)
 }
@@ -853,7 +860,10 @@ proto_board <- function() {
         keen_finch = proto_link("a", "f", "data")
       ),
       stacks = obj(s1 = proto_stack("Input", c("a", "b"))),
-      options = obj(n_rows = 50L, show_conditions = I(c("warning", "error")))
+      options = obj(
+        n_rows = proto_option(50L),
+        show_conditions = proto_option(I(c("warning", "error")))
+      )
     )
   )
 }
@@ -879,7 +889,10 @@ proto_locked_board <- function() {
       ),
       links = obj(ab = proto_link("a", "b", "data")),
       stacks = obj(),
-      options = obj(n_rows = 50L, show_conditions = I(c("warning", "error")))
+      options = obj(
+        n_rows = proto_option(50L),
+        show_conditions = proto_option(I(c("warning", "error")))
+      )
     )
   )
 }
@@ -906,7 +919,10 @@ proto_served_file <- function() {
       ),
       links = obj(ab = proto_link("a", "b", "data")),
       stacks = obj(),
-      options = obj(n_rows = 50L, show_conditions = I(c("warning", "error")))
+      options = obj(
+        n_rows = proto_option(50L),
+        show_conditions = proto_option(I(c("warning", "error")))
+      )
     )
   )
 }
@@ -1090,23 +1106,33 @@ local_declared_package <- function(dir, frame = parent.frame()) {
   register_renderer("table", module("js/table.js"), class = "table_output")
   register_renderer("dark", module("js/dark.js"), option = "dark_mode")
 
-  # The method of `board_front_end()` by which blockr.test names the front-end
-  # of its board class grid_board, from blockr.test's namespace
+  # The methods, from blockr.test's namespace, of `board_front_end()`, by which
+  # blockr.test names the front-end of its board class grid_board, and of
+  # `board_option_version()`, by which it gives its board option grid_gap
+  # version 2
   ns <- list2env(list(.packageName = "blockr.test"))
 
-  method <- function(x, ...) "blockr.test-grid"
-  environment(method) <- ns
-
-  registerS3method(
-    "board_front_end",
-    "grid_board",
-    method,
-    envir = asNamespace("blockr.core")
+  methods <- list(
+    board_front_end.grid_board = function(x, ...) "blockr.test-grid",
+    board_option_version.grid_gap_option = function(x, ...) 2L
   )
+
+  for (name in names(methods)) {
+
+    method <- methods[[name]]
+    environment(method) <- ns
+
+    registerS3method(
+      sub("[.].*$", "", name),
+      sub("^[^.]*[.]", "", name),
+      method,
+      envir = asNamespace("blockr.core")
+    )
+  }
 
   withr::defer(
     rm(
-      list = "board_front_end.grid_board",
+      list = names(methods),
       envir = get(".__S3MethodsTable__.", envir = asNamespace("blockr.core"))
     ),
     envir = frame

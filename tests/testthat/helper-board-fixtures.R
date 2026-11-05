@@ -77,32 +77,45 @@ local_versions <- function(..., frame = parent.frame()) {
 local_board_front_end <- function(class, front_end, package, version = NULL,
                                   frame = parent.frame()) {
 
-  ns <- list2env(
-    list(.packageName = package, front_end = front_end, version = version)
-  )
+  local_method("board_front_end", class, front_end, package, frame)
 
-  methods <- list(
-    board_front_end = function(x, ...) front_end,
-    board_version = if (not_null(version)) function(x, ...) version
-  )
-
-  methods <- Filter(not_null, methods)
-  table <- get(".__S3MethodsTable__.", envir = asNamespace("blockr.core"))
-
-  for (generic in names(methods)) {
-
-    method <- methods[[generic]]
-    environment(method) <- ns
-
-    registerS3method(generic, class, method, envir = asNamespace("blockr.core"))
+  if (not_null(version)) {
+    local_method("board_version", class, version, package, frame)
   }
 
-  # A class registered twice in a frame has its methods removed by the second
-  # registration's cleanup, which runs first.
-  keys <- paste0(names(methods), ".", class)
+  invisible()
+}
+
+# Gives the board option `id` a method of `board_option_version()` that gives
+# `version`, from a namespace of `package`, until `frame` ends.
+local_board_option_version <- function(id, version, package = "blockr.test",
+                                       frame = parent.frame()) {
+
+  local_method(
+    "board_option_version",
+    paste0(id, "_option"),
+    version,
+    package,
+    frame
+  )
+}
+
+# A method of `generic` for `class` that returns `value`, from a namespace of
+# `package`, until `frame` ends.
+# A class given a method twice in a frame loses it in the second's cleanup,
+# which runs first.
+local_method <- function(generic, class, value, package, frame) {
+
+  method <- function(x, ...) value
+  environment(method) <- list2env(list(.packageName = package, value = value))
+
+  registerS3method(generic, class, method, envir = asNamespace("blockr.core"))
+
+  table <- get(".__S3MethodsTable__.", envir = asNamespace("blockr.core"))
+  key <- paste0(generic, ".", class)
 
   withr::defer(
-    rm(list = intersect(keys, ls(table, all.names = TRUE)), envir = table),
+    rm(list = intersect(key, ls(table, all.names = TRUE)), envir = table),
     envir = frame
   )
 
@@ -182,8 +195,10 @@ board_fixture_values <- function() {
         "vector of length one, as an array, and its all_x as a value, while",
         "it writes the state of the letters blocks bare. The stack of one",
         "block keeps its blocks an array, by the schema of a JSON board, and",
-        "show_conditions is an array, by the schema that core ships beside",
-        "its runtime. The client opens the JSON board and saves it as it is."
+        "the value of show_conditions is an array, by the schema that core",
+        "ships beside its runtime, recorded with the version of its shape, as",
+        "each board option's value is. The client opens the JSON board and",
+        "saves it as it is."
       ),
       board = new_board(
         blocks = c(

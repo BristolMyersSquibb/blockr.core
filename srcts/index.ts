@@ -17,6 +17,7 @@ export type {
   BlockId,
   Board,
   JsonBlock,
+  JsonOption,
   JsonBoard,
   Link,
   LinkId,

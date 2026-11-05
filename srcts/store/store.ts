@@ -455,7 +455,13 @@ export function createStore(options: StoreOptions = {}): Store {
         },
       ]),
     );
-    const { id, class: classVector, name, links, stacks, options } = next;
+    const options = Object.fromEntries(
+      Object.entries(next.options).map(([id, value]) => [
+        id,
+        { value, version: own(hello?.option_versions ?? {}, id) ?? 1 },
+      ]),
+    );
+    const { id, class: classVector, name, links, stacks } = next;
     return {
       format: FORMAT,
       packages: recorded,

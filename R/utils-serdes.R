@@ -26,8 +26,9 @@
 #' each block holds the version of its class's state in `version` (see
 #' [new_block_class()]), so that the client migrates by the versions of the
 #' shapes that a JSON board holds.
-#' It holds the value of each board option that the script gives, by ID, and no
-#' other.
+#' It holds each board option that the script gives a value, by ID, as its
+#' `value` with the `version` of the value's shape (see
+#' [board_option_version()]), and no other.
 #'
 #' Its `class` is the board's class vector, most specific class first, as
 #' `c("dock_board", "board")`.
@@ -329,25 +330,39 @@ unplain_kind <- function(x) {
   NULL
 }
 
-# Shapes a JSON board by the schemas that give its values' shapes: core's
-# objects by the schema of a JSON board, the parts of the board that packages
-# define, such as the properties of their board classes and the values of their
-# board options, by the schemas next to their startup modules, which are laid
-# out like the board, and each block's state by the schema that its class's UI
-# ships.
+# Shapes a JSON board by the schemas that give its values' shapes: the parts
+# of the board that packages define, such as the properties of their board
+# classes and the values of their board options, by the schemas next to their
+# startup modules, which are laid out like the board, core's objects by the
+# schema of a JSON board, once each board option's value is recorded with its
+# version, and each block's state by the schema that its class's UI ships.
 shape_json_board <- function(x) {
-
-  x <- shape_by_schema(x, json_board_schema())
 
   for (schema in startup_schemas()) {
     x[["board"]] <- shape_by_schema(x[["board"]], schema)
   }
+
+  x[["board"]][["options"]] <- versioned_options(x[["board"]][["options"]])
+
+  x <- shape_by_schema(x, json_board_schema())
 
   x[["board"]][["blocks"]] <- as_json_object(
     lapply(x[["board"]][["blocks"]], shape_block_state)
   )
 
   x
+}
+
+# The values of board options, by ID, as a JSON board holds them, each with
+# the version of its shape.
+versioned_options <- function(x) {
+  as_json_object(
+    Map(
+      function(value, id) list(value = value, version = option_version(id)),
+      x,
+      names(x)
+    )
+  )
 }
 
 # The JSON Schema of a JSON board, which the build generates from `JsonBoard`

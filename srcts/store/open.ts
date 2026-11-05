@@ -7,7 +7,8 @@
 //    that a loaded package defines, or as core's `board` where none is.
 // 2. It migrates what the JSON board holds in an older shape, by the versions
 //    of the shapes that it records: the properties of the classes that it
-//    builds the board as, and the states of the blocks.
+//    builds the board as, the states of the blocks and the values of the
+//    board options.
 // 3. It drops and names what the app cannot rebuild,
 //    and drops the properties that the class does not add.
 // 4. It gives the board what packages define for a board that lacks it:
@@ -20,6 +21,7 @@ import type { Json } from "../types/json.ts";
 import {
   frozenCopy,
   isObject,
+  listing,
   messageOf,
   own,
   packageOf,
@@ -34,6 +36,9 @@ import type { Built, Registrations } from "./registrations.ts";
 
 // The highest format of a JSON board that this client reads and writes.
 export const FORMAT = 1;
+
+// The collections of a board, which a JSON board holds as objects by id.
+const COLLECTIONS = ["blocks", "links", "stacks", "options"] as const;
 
 // What the store names of what it dropped as it opened a board, since the app
 // cannot rebuild it.
@@ -65,7 +70,8 @@ export function parse(text: string): unknown {
 }
 
 // A JSON board, refusing a format above any this client knows,
-// a file of today's stack, which has none, and a board that names no class.
+// a file of today's stack, which has none, a board that names no class and one
+// that holds a collection in no object by id.
 export function checkJsonBoard(json: unknown): JsonBoard {
   if (!isObject(json)) throw new StoreError(refused, ["The JSON is no JSON board."]);
   if (!Object.hasOwn(json, "format")) {
@@ -86,7 +92,12 @@ export function checkJsonBoard(json: unknown): JsonBoard {
   }
   if (!isObject(json.board)) throw new StoreError(refused, ["The JSON board holds no board."]);
   classOf(json.board as unknown as Board);
-  checkVersions(json.board);
+  const board = json.board;
+  const lacking = COLLECTIONS.filter((name) => !isObject(board[name]));
+  if (lacking.length > 0) {
+    throw new StoreError(refused, [`The board holds its ${listing(lacking)} in no object by id.`]);
+  }
+  checkVersions(board);
   return json as unknown as JsonBoard;
 }
 
@@ -96,17 +107,21 @@ function isVersion(value: unknown): value is number {
 }
 
 // The versions that a JSON board records, which its migrations key on:
-// one for each class that R names one for, and one for each block's state.
+// one for each class that R names one for, one for each block's state and one
+// for each board option's value, which it holds beside the value.
 function checkVersions(board: Readonly<Record<string, unknown>>): void {
   const failures: string[] = [];
   if (!isObject(board.versions) || !Object.values(board.versions).every(isVersion)) {
     failures.push("The board records its classes' versions as no whole numbers from 1 by class.");
   }
-  if (isObject(board.blocks)) {
-    for (const [id, block] of Object.entries(board.blocks)) {
-      if (isObject(block) && !isVersion(block.version)) {
-        failures.push(`The block "${id}" records no version of its class's state.`);
-      }
+  for (const [id, block] of Object.entries(board.blocks as Readonly<Record<string, unknown>>)) {
+    if (isObject(block) && !isVersion(block.version)) {
+      failures.push(`The block "${id}" records no version of its class's state.`);
+    }
+  }
+  for (const [id, option] of Object.entries(board.options as Readonly<Record<string, unknown>>)) {
+    if (!isObject(option) || !Object.hasOwn(option, "value") || !isVersion(option.version)) {
+      failures.push(`The board option "${id}" is recorded as no value with the version of its shape.`);
     }
   }
   if (failures.length > 0) throw new StoreError(refused, failures);
@@ -124,7 +139,7 @@ export function classOf(board: Board): readonly string[] {
 }
 
 // The board that a JSON board holds, without the versions that it records,
-// which only its migrations read.
+// which only its migrations read, so that each board option holds its value.
 function unversioned(board: JsonBoard["board"]): Board {
   return {
     ...without(recordOf(board as unknown as Board), ["versions"]),
@@ -134,6 +149,7 @@ function unversioned(board: JsonBoard["board"]): Board {
         without(block as unknown as Readonly<Record<string, unknown>>, ["version"]),
       ]),
     ),
+    options: Object.fromEntries(Object.entries(board.options).map(([id, option]) => [id, option.value])),
   } as unknown as Board;
 }
 
@@ -147,9 +163,10 @@ function coreOf(board: Board): Board {
 // The board with what the JSON board holds in an older shape converted to
 // today's: the properties beside core's, by the `migrate` of each class that
 // the board is built as whose version the JSON board records below the one R
-// gives, root first, and the state of each block whose version is below its
-// class's, by the class's migration.
-// A class without a migration keeps what the board holds,
+// gives, root first, the state of each block whose version is below its
+// class's, by the class's migration, and the value of each board option whose
+// version is below the one R gives, by the board option's `migrate`.
+// A class or a board option without a migration keeps what the board holds,
 // and so does a class whose version the JSON board records none of,
 // since its writer knew no version of it.
 // A version above the one R gives refuses the board, since no migration
@@ -158,7 +175,7 @@ function migrate(
   board: Board,
   json: JsonBoard["board"],
   built: Built,
-  reply: Pick<HelloReply, "block_registry" | "board_classes">,
+  reply: Pick<HelloReply, "block_registry" | "board_classes" | "option_versions">,
   registrations: Registrations,
 ): Board {
   const failures: string[] = [];
@@ -204,33 +221,63 @@ function migrate(
     }),
   );
 
+  const options = Object.fromEntries(
+    Object.entries(board.options).map(([id, value]) => {
+      const from = own(json.options, id)?.version;
+      const to = own(reply.option_versions, id) ?? 1;
+      if (from === undefined || from === to) return [id, value];
+      if (from > to) {
+        failures.push(
+          `The board records version ${String(from)} of the value of the board option "${id}", while R gives version ${String(to)}.`,
+        );
+        return [id, value];
+      }
+      const def = registrations.option(id)?.def;
+      if (def?.migrate === undefined) return [id, value];
+      changed = true;
+      return [
+        id,
+        migratedValue(`The migration of the board option "${id}"`, () => def.migrate?.(frozenCopy(value), from)),
+      ];
+    }),
+  );
+
   if (failures.length > 0) throw new StoreError(refused, failures);
   if (!changed) return board;
-  return { ...coreOf(board), ...properties, blocks };
+  return { ...coreOf(board), ...properties, blocks, options };
 }
 
 // What a migration returns, frozen, or a StoreError naming the migration where
 // it fails or returns no object.
 function migrated(what: string, fn: () => unknown): Readonly<Record<string, Json>> {
+  const out = migratedValue(what, fn);
+  if (!isObject(out)) throw new StoreError(refused, [`${what} returned no object.`]);
+  return out;
+}
+
+// What a migration of a value returns, frozen, or a StoreError naming the
+// migration where it fails or returns nothing.
+function migratedValue(what: string, fn: () => unknown): Json {
   let out: unknown;
   try {
     out = fn();
   } catch (error) {
     throw new StoreError(refused, [`${what} failed: ${messageOf(error)}`]);
   }
-  if (!isObject(out)) throw new StoreError(refused, [`${what} returned no object.`]);
-  return frozenCopy(out as Json) as Readonly<Record<string, Json>>;
+  if (out === undefined) throw new StoreError(refused, [`${what} returned nothing.`]);
+  return frozenCopy(out as Json);
 }
 
 // The board that a JSON board opens to, with what the reply to `hello` holds,
-// the block registry, the board classes and the versions of the packages that
-// R loaded, with what opening it dropped and the class it is built as, or a
-// StoreError naming what refused it.
+// the block registry, the board classes, the versions of the board options'
+// values and the versions of the packages that R loaded, with what opening it
+// dropped and the class it is built as, or a StoreError naming what refused
+// it.
 // The board options that its class requires come after,
 // since a default may have to wait (see required()).
 export function openJsonBoard(
   json: JsonBoard,
-  reply: Pick<HelloReply, "packages" | "block_registry" | "board_classes">,
+  reply: Pick<HelloReply, "packages" | "block_registry" | "board_classes" | "option_versions">,
   registrations: Registrations,
 ): { board: Board; dropped: Dropped[]; built: Built } {
   const plain = unversioned(json.board);

@@ -69,17 +69,25 @@ export interface Stack {
 export interface JsonBoard {
   readonly format: number;
   readonly packages: Readonly<Record<string, string>>;
-  readonly board: Omit<Board, "blocks"> & {
+  readonly board: Omit<Board, "blocks" | "options"> & {
     // The version of each class in the board's class vector that R names one
     // for, by class, as R's `board_version()` gives it: the version of the
     // properties that the class adds.
     readonly versions: Readonly<Record<string, number>>;
     readonly blocks: Readonly<Record<BlockId, JsonBlock>>;
+    readonly options: Readonly<Record<OptionId, JsonOption>>;
   };
 }
 
 // A block as a JSON board holds it, with the version of its class's state,
 // which the class's entry in the block registry gives.
 export interface JsonBlock extends Block {
+  readonly version: number;
+}
+
+// A board option's value as a JSON board holds it, with the version of the
+// value's shape, which R's `board_option_version()` gives.
+export interface JsonOption {
+  readonly value: Json;
   readonly version: number;
 }

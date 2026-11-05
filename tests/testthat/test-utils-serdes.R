@@ -69,7 +69,10 @@ test_that("a board is written as a JSON board", {
         },
         "links": { "ab": { "from": "a", "to": "b", "input": "data" } },
         "stacks": { "s1": { "name": "Input", "blocks": ["a"] } },
-        "options": { "n_rows": 25, "dark_mode": "dark" }
+        "options": {
+          "n_rows": { "value": 25, "version": 1 },
+          "dark_mode": { "value": "dark", "version": 1 }
+        }
       }'
     )
   )
@@ -304,7 +307,12 @@ test_that("the board holds the board options the script gives, by schema", {
 
   expect_identical(
     read_json_strictly(encode_message(blockr_ser(board)))$board$options,
-    read_json_strictly('{ "show_conditions": ["error"], "n_rows": 5 }')
+    read_json_strictly(
+      '{
+        "show_conditions": { "value": ["error"], "version": 1 },
+        "n_rows": { "value": 5, "version": 1 }
+      }'
+    )
   )
 
   # The schema next to core's runtime, which is the first that R applies after
@@ -363,6 +371,7 @@ test_that("a board's class and its properties are written by the schemas", {
   )
 
   register_startup_module(test_module("js/startup.js"))
+  local_board_option_version("tags", 2L)
 
   board <- new_board(
     options = new_board_option("tags", "draft"),
@@ -374,8 +383,9 @@ test_that("a board's class and its properties are written by the schemas", {
     class = "grid_board"
   )
 
-  # The properties come after core's, in their order,
-  # and what the schema leaves out keeps the shape that R's writer gives it
+  # The properties come after core's, in their order, what the schema leaves
+  # out keeps the shape that R's writer gives it, and a board option's value
+  # is shaped by the schema before it is recorded with its version
   expect_identical(
     read_json_strictly(encode_message(blockr_ser(board)))$board,
     read_json_strictly(
@@ -387,7 +397,7 @@ test_that("a board's class and its properties are written by the schemas", {
         "blocks": {},
         "links": {},
         "stacks": {},
-        "options": { "tags": ["draft"] },
+        "options": { "tags": { "value": ["draft"], "version": 2 } },
         "panels": {
           "p1": { "title": "Main", "blocks": ["a"] },
           "p2": {}
@@ -456,7 +466,10 @@ test_that("R applies the schema of every package that has one", {
   res <- read_json_strictly(encode_message(blockr_ser(board)))$board
 
   expect_identical(res["views"], read_json_strictly('{ "views": ["main"] }'))
-  expect_identical(res$options, read_json_strictly('{ "tags": ["draft"] }'))
+  expect_identical(
+    res$options,
+    read_json_strictly('{ "tags": { "value": ["draft"], "version": 1 } }')
+  )
 })
 
 test_that("a JSON board records the package of each class and block class", {

@@ -10,7 +10,7 @@ test_that("R tells the client what it loaded in the fields of the protocol", {
   expect_named(
     reply,
     c("packages", "block_registry", "startup_modules", "modules",
-      "board_classes", "renderers")
+      "board_classes", "option_versions", "renderers")
   )
   expect_identical(
     json(reply$packages),
@@ -217,6 +217,17 @@ test_that("R names each board class with its package and front-end", {
   local_board_front_end("bad_board", "blockr.bad-grid", "blockr.bad", 0L)
 
   expect_error(board_classes(), class = "board_version_invalid")
+})
+
+test_that("R gives the version of each board option that a package versions", {
+
+  expect_identical(json(declared_fields()$option_versions), "{\"grid_gap\":2}")
+  expect_identical(json(option_versions()), "{}")
+
+  # A method that gives no version fails as R builds the reply
+  local_board_option_version("bad_gap", 0L)
+
+  expect_error(option_versions(), class = "board_option_version_invalid")
 })
 
 test_that("R names the renderers it picked, with what each draws", {

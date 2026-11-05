@@ -108,7 +108,8 @@
   Beside the entries come the versions of the packages, the startup modules
   in R's order, the modules that packages offer each other, front-ends among
   them, the board classes that packages name front-ends for, each with its
-  package and its front-end, and the renderers that R picked.
+  package and its front-end, the versions that packages give board options,
+  and the renderers that R picked.
   R serves each module and stylesheet at a URL that
   holds a hash of the file's content, so that no browser runs a changed file
   from its cache. It serves a package's files under the package's name, and the
@@ -124,10 +125,11 @@
   packages that the board's content comes from: those of the board's classes,
   by their methods of `board_front_end()`, and those of the blocks' classes.
   The board records the version of each of its classes, which a method of the
-  generic `board_version()` gives, and each block the version of its class's
-  state, which `new_block_class()` takes as `version`, so that the client
-  migrates what a JSON board holds by the versions of its shapes rather than
-  of packages.
+  generic `board_version()` gives, each block the version of its class's
+  state, which `new_block_class()` takes as `version`, and each board option's
+  value the version of its shape, which a method of the generic
+  `board_option_version()` gives, so that the client migrates what a JSON
+  board holds by the versions of its shapes rather than of packages.
   Beside them it writes the properties that the board's class adds, which are
   the components that the board holds besides core's, such as those that a
   board class's constructor passes to `new_board()`.

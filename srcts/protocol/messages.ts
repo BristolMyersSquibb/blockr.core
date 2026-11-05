@@ -89,6 +89,10 @@ export interface HelloReply {
   // R's `board_front_end()`, the front-end that the method names, and the
   // version of the properties it adds, which R's `board_version()` gives.
   board_classes: Record<string, { package: string; front_end: string; version: number }>;
+  // The version of the shape of each board option's value that a loaded
+  // package gives one through its method of R's `board_option_version()`, by
+  // the board option's id. A board option that it lacks is at version 1.
+  option_versions: Record<OptionId, number>;
   // The renderers that R picked, by the renderer's id.
   renderers: Record<string, Renderer>;
   lock: Lock | null;

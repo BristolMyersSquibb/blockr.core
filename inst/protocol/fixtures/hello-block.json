@@ -72,6 +72,7 @@
             "version": 1
           }
         },
+        "option_versions": {},
         "renderers": {
           "blockr.core-table_output": {
             "module": "blockr.core/basic-table.js?v=b7e2a915",
@@ -97,7 +98,7 @@
             },
             "links": {},
             "stacks": {},
-            "options": { "n_rows": 50 }
+            "options": { "n_rows": { "value": 50, "version": 1 } }
           }
         },
         "bound": ["data"]

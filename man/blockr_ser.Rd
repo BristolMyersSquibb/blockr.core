@@ -75,8 +75,9 @@ loaded package names a front-end for, by class (see \code{\link[=board_version]{
 each block holds the version of its class's state in \code{version} (see
 \code{\link[=new_block_class]{new_block_class()}}), so that the client migrates by the versions of the
 shapes that a JSON board holds.
-It holds the value of each board option that the script gives, by ID, and no
-other.
+It holds each board option that the script gives a value, by ID, as its
+\code{value} with the \code{version} of the value's shape (see
+\code{\link[=board_option_version]{board_option_version()}}), and no other.
 
 Its \code{class} is the board's class vector, most specific class first, as
 \code{c("dock_board", "board")}.

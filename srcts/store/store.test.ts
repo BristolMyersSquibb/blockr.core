@@ -6,7 +6,7 @@ import { describe, expect, test, vi } from "vitest";
 import type { HelloReply } from "../protocol/index.ts";
 import { coreOptions, hello, reply } from "../testing/store.ts";
 import type { Block, Board } from "../types/board.ts";
-import type { JsonSchema } from "../types/json.ts";
+import type { Json, JsonSchema } from "../types/json.ts";
 import { ROUNDS } from "./expand.ts";
 import { createStore, StoreError } from "./index.ts";
 import type {
@@ -14,6 +14,7 @@ import type {
   Change,
   Delta,
   Migration,
+  Option,
   Patch,
   Store,
 } from "./index.ts";
@@ -188,10 +189,12 @@ function head(n = 6, name = "Head"): Block {
 // The text of a JSON board of a core board, with what `board` gives in place of
 // its parts, a board class's properties among them.
 // Each block records version 1 of its class's state unless it gives another,
-// and the board version 1 of core's class unless it gives versions.
+// the board version 1 of core's class unless it gives versions, and each board
+// option version 1 of its value unless `optionVersions` gives another.
 function file(
   board: Partial<Board> & Readonly<Record<string, unknown>>,
   packages: Readonly<Record<string, string>> = { "blockr.core": "0.2.0" },
+  optionVersions: Readonly<Record<string, number>> = {},
 ): string {
   const given = {
     id: "amber_tapir",
@@ -213,7 +216,13 @@ function file(
   const versions = (board.versions as Readonly<Record<string, number>> | undefined) ?? { board: 1 };
   const entries: readonly [string, Block & { version?: number }][] = Object.entries(given.blocks);
   const blocks = Object.fromEntries(entries.map(([id, block]) => [id, { version: 1, ...block }]));
-  return JSON.stringify({ format: 1, packages, board: { ...given, versions, blocks } });
+  const options = Object.fromEntries(
+    Object.entries(given.options).map(([id, value]) => [
+      id,
+      { value, version: optionVersions[id] ?? 1 },
+    ]),
+  );
+  return JSON.stringify({ format: 1, packages, board: { ...given, versions, blocks, options } });
 }
 
 describe("opening a board", () => {
@@ -564,7 +573,14 @@ describe("opening a board", () => {
       ...replied,
       board: {
         ...replied.board,
-        board: { ...board, versions: replied.board.board.versions, blocks: {}, links: {}, stacks: {} },
+        board: {
+          ...board,
+          versions: replied.board.board.versions,
+          blocks: {},
+          links: {},
+          stacks: {},
+          options: replied.board.board.options,
+        },
       },
     });
     for (const [id, block] of Object.entries(board.blocks)) {
@@ -765,6 +781,93 @@ describe("migrations", () => {
     await expect(
       opening.open(file({ blocks: { a: { ...head(), version: "1" } as unknown as Block } })),
     ).rejects.toThrow('The block "a" records no version of its class\'s state.');
+    await expect(
+      opening.open(
+        JSON.stringify({ ...json, board: { ...json.board, options: { n_rows: 50, seed: { value: 1 } } } }),
+      ),
+    ).rejects.toThrow(
+      [
+        'The board option "n_rows" is recorded as no value with the version of its shape.',
+        'The board option "seed" is recorded as no value with the version of its shape.',
+      ].join("\n- "),
+    );
+    await expect(
+      opening.open(JSON.stringify({ ...json, board: { ...json.board, links: [], options: null } })),
+    ).rejects.toThrow("The board holds its links and options in no object by id.");
+  });
+});
+
+describe("migrating board option values", () => {
+  // A board option whose versions before 2 held its value as a string.
+  const fromString = (value: Json, version: number): Json => (version < 2 ? Number(value) : value);
+  const seed: Option = {
+    id: "seed",
+    label: "Seed",
+    category: "Board options",
+    schema: { type: "integer" },
+    default: 0,
+    migrate: fromString,
+  };
+
+  // A core app whose package gives the seed version 2 of its value.
+  const replied: HelloReply = { ...hello, option_versions: { seed: 2 } };
+
+  function store(option: Option = seed): Promise<Store> {
+    return opened((store) => store.options.register(option), replied);
+  }
+
+  test("migrates a value of an older version by the board option's migrate, and saves it at today's", async () => {
+    const migrate = vi.fn(fromString);
+    const opening = await store({ ...seed, migrate });
+    await opening.open(file({ options: { seed: "42", n_rows: 50 } }, undefined, { seed: 1 }));
+
+    expect(migrate).toHaveBeenCalledOnce();
+    expect(migrate.mock.calls[0]).toEqual(["42", 1]);
+    expect(opening.board().options).toEqual({ seed: 42, n_rows: 50 });
+
+    const saved = opening.jsonBoard();
+    expect(saved.board.options).toEqual({
+      seed: { value: 42, version: 2 },
+      n_rows: { value: 50, version: 1 },
+    });
+  });
+
+  test("keeps a value without a migration, and drops one that then fails its schema", async () => {
+    const opening = await store({ ...seed, migrate: undefined });
+    await opening.open(file({ options: { seed: 7 } }, undefined, { seed: 1 }));
+    expect(opening.board().options).toEqual({ seed: 7 });
+
+    await opening.open(file({ options: { seed: "seven" } }, undefined, { seed: 1 }));
+    expect(opening.board().options).toEqual({});
+  });
+
+  test("refuses a board that holds a value above today's version, or that a migration fails on", async () => {
+    const opening = await store();
+    await expect(
+      opening.open(file({ options: { seed: 1 } }, undefined, { seed: 3 })),
+    ).rejects.toThrow('The board records version 3 of the value of the board option "seed", while R gives version 2.');
+
+    const failing = await store({
+      ...seed,
+      migrate: () => {
+        throw new Error("The seed is unreadable.");
+      },
+    });
+    await expect(
+      failing.open(file({ options: { seed: "x" } }, undefined, { seed: 1 })),
+    ).rejects.toThrow('The migration of the board option "seed" failed: The seed is unreadable.');
+
+    const empty = await store({ ...seed, migrate: () => undefined as unknown as Json });
+    await expect(
+      empty.open(file({ options: { seed: "x" } }, undefined, { seed: 1 })),
+    ).rejects.toThrow('The migration of the board option "seed" returned nothing.');
+  });
+
+  test("takes a board option that R gives no version as at version 1", async () => {
+    const opening = await opened((store) => store.options.register(seed));
+    await expect(
+      opening.open(file({ options: { seed: 1 } }, undefined, { seed: 2 })),
+    ).rejects.toThrow('The board records version 2 of the value of the board option "seed", while R gives version 1.');
   });
 });
 
@@ -1609,7 +1712,7 @@ describe("registering", () => {
     expect(() => store.register(dock)).not.toThrow();
   });
 
-  test("a default or an initial value that its schema refuses fails", () => {
+  test("a default that its schema refuses fails", () => {
     const store = newStore();
     expect(() =>
       store.options.register({
@@ -1627,6 +1730,26 @@ describe("registering", () => {
     ).toThrow(
       'The default of the property "views" of the board class "dock_board" fails its schema: Instance type "array" is invalid. Expected "object".',
     );
+  });
+
+  test("a board class's update or migrate, or a board option's migrate, that is no function fails", () => {
+    const store = newStore();
+    expect(() => store.register({ ...dock, update: "views" } as unknown as BoardClass)).toThrow(
+      'The board class "dock_board" has an update that is no function.',
+    );
+    expect(() => store.register({ ...dock, migrate: 3 } as unknown as BoardClass)).toThrow(
+      'The board class "dock_board" has a migrate that is no function.',
+    );
+    expect(() =>
+      store.options.register({
+        id: "seed",
+        label: "Seed",
+        category: "Board options",
+        schema: { type: "integer" },
+        default: 0,
+        migrate: "yes",
+      } as unknown as Option),
+    ).toThrow('The board option "seed" has a migrate that is no function.');
   });
 
   test("leaves a default that is a function to whatever needs the board option first", () => {

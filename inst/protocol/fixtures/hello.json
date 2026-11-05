@@ -300,6 +300,7 @@
             "version": 1
           }
         },
+        "option_versions": {},
         "renderers": {
           "blockr.core-table_output": {
             "module": "blockr.core/basic-table.js?v=b7e2a915",
@@ -375,8 +376,11 @@
             },
             "stacks": { "s1": { "name": "Input", "blocks": ["a", "b"] } },
             "options": {
-              "n_rows": 50,
-              "show_conditions": ["warning", "error"]
+              "n_rows": { "value": 50, "version": 1 },
+              "show_conditions": {
+                "value": ["warning", "error"],
+                "version": 1
+              }
             }
           }
         }

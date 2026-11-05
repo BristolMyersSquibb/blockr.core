@@ -44,6 +44,7 @@ export interface HelloReply {
         front_end: string;
         version: number;
     }>;
+    option_versions: Record<OptionId, number>;
     renderers: Record<string, Renderer>;
     lock: Lock | null;
     board: JsonBoard;

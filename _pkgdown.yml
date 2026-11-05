@@ -55,6 +55,7 @@ reference:
     - new_board
     - board_blocks
     - new_board_options
+    - board_option_version
     - locked-board
 - subtitle: Front-ends and modules
   desc: What a package declares in R of its client

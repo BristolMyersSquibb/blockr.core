@@ -26,6 +26,12 @@
             "$ref": "#/definitions/JsonBlock"
           }
         },
+        "options": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/JsonOption"
+          }
+        },
         "id": {
           "type": "string"
         },
@@ -48,12 +54,6 @@
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/Stack"
-          }
-        },
-        "options": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/Json"
           }
         }
       },
@@ -130,6 +130,21 @@
             "$ref": "#/definitions/Json"
           }
         }
+      ]
+    },
+    "JsonOption": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "$ref": "#/definitions/Json"
+        },
+        "version": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "value",
+        "version"
       ]
     },
     "Link": {
