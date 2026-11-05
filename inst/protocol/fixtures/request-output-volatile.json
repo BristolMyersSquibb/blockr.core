@@ -4,6 +4,7 @@
     {
       "id": "36",
       "kind": "request",
+      "type": "output_class",
       "output": { "block": "h", "revision": 9 },
       "name": "templates",
       "args": {},

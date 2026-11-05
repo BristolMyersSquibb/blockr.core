@@ -29,8 +29,9 @@ export interface CoreApi {
   // What renderers report that the user did, such as a selection, for
   // extensions to act on.
   readonly outputEvents: OutputEvents;
-  // An extension's request, by the extension's id.
-  request<T = Json>(extension: string, name: string, args?: Json, opts?: RequestOpts): Promise<T | Blob>;
+  // A request of a type that a package adds, with the fields that the package
+  // gives it, which the package's method of request_call() answers in R.
+  request<T = Json>(type: string, fields?: Record<string, Json>, opts?: RequestOpts): Promise<T | Blob>;
   // A module another package offers, by id.
   module<T = unknown>(id: string): Promise<T>;
   // A blockr option, asked of R once per page, or the fallback where R has

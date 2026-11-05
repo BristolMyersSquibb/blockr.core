@@ -1,9 +1,10 @@
 {
-  "description": "A request of a board option, as blockr.io's data directory lists the server's directories, which R resolves by the board option's id.",
+  "description": "A request of a board option, as blockr.io's data directory lists the server's directories. R finds it among the requests that board_option_requests() returns for the board option data_dir, by its class data_dir_option, for which blockr.io has a method.",
   "client": [
     {
       "id": "26",
       "kind": "request",
+      "type": "option",
       "option": "data_dir",
       "name": "list_dir",
       "args": { "path": "~" }

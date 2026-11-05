@@ -4,6 +4,7 @@
     {
       "id": "24",
       "kind": "request",
+      "type": "block_class",
       "registry_id": "blockr.core-dataset_block",
       "block": "a",
       "name": "datasets",

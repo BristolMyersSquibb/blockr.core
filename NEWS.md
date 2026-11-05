@@ -181,6 +181,14 @@
   A package's build resolves that directory as `@blockr/core`, and its module tests take stubs of the hosts from it, as `@blockr/core/stubs`.
   The fixture file that `expect_block_fixture()` writes lists each state as a block given those args holds it, its defaults filled in and written by the schema of the class's UI module.
   The stub of a block's host then refuses a submit of a state that the file does not list (#437).
+* R answers the client through an evaluator, one per session, which takes the messages of the wire protocol that the Shiny transport carries.
+  It keeps the latest result of each block by block id and revision, with the block expression and the registry id, and drops it when the client forgets the block.
+  It evaluates a block from its recipe, makes the block's output with the coercion that its class names, answers requests and reads blockr options.
+  It runs one request at a time, in the order they arrive, and handles a `cancel` or a `forget` between two requests (#430).
+* Every request names its type, and R answers it through the generic `request_call()`, by the class `{type}_request`.
+  Core's types are the requests of block classes, output classes, renderers and board options.
+  A package adds a type of its own with a method of `request_call()`, and gives the requests of a board option it ships with a method of `board_option_requests()` for the board option's class.
+  A request's function reports how far it has come with `report_progress()`, which R sends to the client as progress notes (#430).
 
 # blockr.core 0.1.4
 

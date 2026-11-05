@@ -108,6 +108,7 @@ export async function blockRequest(
 
     const request: ClassRequest = {
       kind: "request",
+      type: "block_class",
       registry_id: entry.id,
       block,
       name,
