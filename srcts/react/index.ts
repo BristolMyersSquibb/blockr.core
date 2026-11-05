@@ -3,5 +3,5 @@
 // React sits on the page.
 
 export { REACT_ENTRIES, REACT_GLOBAL } from "./global.ts";
-export { useOutput } from "./hooks.ts";
-export type { OutputSnapshot } from "./hooks.ts";
+export { useOutput, useRequest, useValue } from "./hooks.ts";
+export type { Answered, Bound, OutputSnapshot, RequestOptions } from "./hooks.ts";

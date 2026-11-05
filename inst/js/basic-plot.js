@@ -71,6 +71,13 @@ var import_client = __toESM(require_client(), 1);
 
 // srcts/react/hooks.ts
 var import_react = __toESM(require_react(), 1);
+
+// srcts/util/util.ts
+function isObject(x) {
+  return typeof x === "object" && x !== null && !Array.isArray(x);
+}
+
+// srcts/react/hooks.ts
 var snapshots = /* @__PURE__ */ new WeakMap();
 function useOutput(host) {
   const subscribe = (0, import_react.useCallback)((notify) => host.on("output", notify), [host]);
@@ -92,11 +99,6 @@ function snapshotOf(host) {
   }
   snapshots.set(host, next);
   return next;
-}
-
-// srcts/util/util.ts
-function isObject(x) {
-  return typeof x === "object" && x !== null && !Array.isArray(x);
 }
 
 // srcts/modules/basic-plot/index.tsx

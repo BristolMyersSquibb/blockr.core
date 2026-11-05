@@ -14584,6 +14584,16 @@ var REACT_GLOBAL = "blockr.core-react";
 // srcts/react/hooks.ts
 var import_react = __toESM(require_react(), 1);
 
+// srcts/util/util.ts
+function asError(error) {
+  return error instanceof Error ? error : new Error(String(error));
+}
+function report(error) {
+  queueMicrotask(() => {
+    throw error;
+  });
+}
+
 // srcts/runtime/share-react.ts
 var entries = {
   react,
@@ -14593,16 +14603,6 @@ var entries = {
 };
 if (!Object.hasOwn(globalThis, REACT_GLOBAL)) {
   Object.defineProperty(globalThis, REACT_GLOBAL, { value: Object.freeze(entries) });
-}
-
-// srcts/util/util.ts
-function asError(error) {
-  return error instanceof Error ? error : new Error(String(error));
-}
-function report(error) {
-  queueMicrotask(() => {
-    throw error;
-  });
 }
 
 // srcts/protocol/client.ts
