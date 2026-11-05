@@ -59,7 +59,10 @@ test_that("a scatter block captures the plot it draws", {
 test_that("the scatter block's fixture", {
   expect_block_fixture(
     scatter_block,
-    states = list(list(x = "Sepal.Length", y = "Sepal.Width")),
+    states = list(
+      list(x = "Sepal.Length", y = "Sepal.Width"),
+      list(x = "Sepal.Length", y = "Petal.Length")
+    ),
     inputs = list(data = datasets::iris),
     requests = list(list(name = "columns"))
   )

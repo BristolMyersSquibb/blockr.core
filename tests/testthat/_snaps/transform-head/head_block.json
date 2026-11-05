@@ -7,6 +7,14 @@
     {
       "n": 10,
       "direction": "tail"
+    },
+    {
+      "n": 10,
+      "direction": "head"
+    },
+    {
+      "n": 20,
+      "direction": "tail"
     }
   ],
   "requests": [

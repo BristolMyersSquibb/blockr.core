@@ -7,12 +7,18 @@ list_datasets <- function(package) {
     inherits(do.call("::", list(pkg, x)), "data.frame")
   }
 
-  datasets <- utils::data(package = package)
-  datasets <- datasets$results[, "Item"]
-
-  options <- gsub("\\s+\\(.+\\)$", "", datasets)
+  options <- package_data(package)
 
   options[lgl_ply(options, is_dataset_eligible, package)]
+}
+
+# The names of the data sets that a package ships,
+# as `utils::data()` lists them,
+# which the tests replace,
+# since what the datasets package holds depends on the version of R.
+package_data <- function(package) {
+  datasets <- utils::data(package = package)
+  gsub("\\s+\\(.+\\)$", "", datasets$results[, "Item"])
 }
 
 #' @rdname new_dataset_block

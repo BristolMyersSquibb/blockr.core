@@ -107,6 +107,17 @@ test("names the colors of core's UIs as variables of its theme, which follow the
   expect(css).toMatch(/--bc-color-red-600: oklch\(/);
 });
 
+test("takes the face of core's UIs from the theme's sans, which a front-end sets", async () => {
+  await write({ "test.css": `@import "${core}";\n@source inline("bc:font-sans");\n` });
+
+  const css = await stylesheet(join(root, "test.css"));
+
+  expect(css).toMatch(/^\.bc\\:font-sans \{\n {2}font-family: var\(--bc-font-sans\);/m);
+  // Its default is Tailwind's stack of sans faces, so that core's UIs draw in
+  // no serif where the page sets no face.
+  expect(css).toMatch(/--bc-font-sans: [^;]*\bsans-serif\b/);
+});
+
 test("finds the output types, each but BlockOutput, by their names", () => {
   const source = [
     "export interface BlockOutput { renderer: string }",
@@ -157,6 +168,35 @@ test("writes the schema of each output type and removes those of types gone", as
   });
   expect(schema).not.toHaveProperty("additionalProperties");
   expect(Object.keys(schema.definitions as object)).toEqual(["Json"]);
+}, 60_000);
+
+test("writes the schema of a block's state beside its module, allowing no other property", async () => {
+  await write({
+    "srcts/modules/head-block/index.ts": "export const api = 1;\n",
+    "srcts/modules/head-block/state.ts": [
+      "export type State = Readonly<{",
+      "  /** @asType integer */",
+      "  n: number;",
+      '  direction?: "head" | "tail";',
+      "}>;",
+      "",
+    ].join("\n"),
+    "srcts/modules/none-block/state.ts": "export type State = Readonly<Record<string, never>>;\n",
+    "srcts/modules/basic-table/index.ts": "export const api = 1;\n",
+  });
+
+  expect(await schemas(root)).toEqual(["inst/js/head-block.schema.json", "inst/js/none-block.schema.json"]);
+
+  const read = async (file: string): Promise<unknown> =>
+    JSON.parse(await readFile(join(root, "inst", "js", file), "utf8")) as unknown;
+
+  expect(await read("head-block.schema.json")).toMatchObject({
+    type: "object",
+    properties: { n: { type: "integer" }, direction: { type: "string", enum: ["head", "tail"] } },
+    required: ["n"],
+    additionalProperties: false,
+  });
+  expect(await read("none-block.schema.json")).toMatchObject({ type: "object", properties: {} });
 }, 60_000);
 
 test("writes no schemas without the types and modules they come from", async () => {

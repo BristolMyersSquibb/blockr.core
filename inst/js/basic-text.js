@@ -108,13 +108,13 @@ var import_client = __toESM(require_client(), 1);
 
 // srcts/styles/styles.ts
 var styles = {
-  stack: "bc:grid bc:gap-3 bc:text-text-default",
-  field: "bc:grid bc:gap-1 bc:text-text-default",
+  stack: "bc:grid bc:gap-3 bc:font-sans bc:text-text-default",
+  field: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default",
   label: "bc:text-sm bc:font-medium",
-  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:text-sm bc:text-text-default bc:[font-family:inherit] bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
-  check: "bc:flex bc:items-center bc:gap-2 bc:text-sm bc:text-text-default",
+  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
+  check: "bc:flex bc:items-center bc:gap-2 bc:font-sans bc:text-sm bc:text-text-default",
   checkbox: "bc:accent-bg-accent",
-  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:text-text-default",
+  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans bc:text-text-default",
   legend: "bc:text-sm bc:font-medium bc:mb-1 bc:p-0",
   list: "bc:grid bc:max-h-48 bc:gap-1 bc:overflow-y-auto",
   hint: "bc:m-0 bc:text-sm bc:text-text-muted",
@@ -140,7 +140,7 @@ function reactModule(Draw, options = {}) {
 function outputRenderer(Draw, options = {}) {
   function Renderer({ host }) {
     const now = useOutput(host);
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bc:flex bc:max-h-full bc:flex-col bc:gap-2 bc:text-text-default", "aria-busy": now.loading, children: [
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bc:flex bc:max-h-full bc:flex-col bc:gap-2 bc:font-sans bc:text-text-default", "aria-busy": now.loading, children: [
       now.error === null ? null : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Alert, { message: now.error.message }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Boundary, { output: now.output, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: `bc:flex bc:min-h-0 bc:flex-col ${now.loading ? "bc:opacity-60" : ""}`, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
         Draw,

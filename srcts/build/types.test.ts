@@ -5,6 +5,7 @@
 // against and of the stubs of the hosts, the stubs bundled for a test runner,
 // the React SDK, its binding and the build preset bundled for a package's build,
 // and the package.json that names them.
+// The controls go there as the SDK does.
 
 import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -128,6 +129,33 @@ export function views(board: Board): string[] {
 }
 `;
 
+// A block's UI module that draws with the controls core ships,
+// as a package writes it.
+const mergeModule = `import type { BlockModule } from "@blockr/core";
+import { controls, strings } from "@blockr/core/controls";
+
+type MergeState = { by?: string[]; all_x: boolean };
+
+export const api = 1;
+
+const merge: BlockModule<MergeState> = {
+  render({ el, host, signal }) {
+    const ui = controls(host, signal);
+    const by = ui.checklist("by", { legend: "By columns", empty: "No column is shared." });
+    ui.checkbox("all_x", { label: "Keep the rows of x that y does not match" });
+    ui.follow("shared", {
+      answer(answer) {
+        by.setChoices(strings(answer));
+      },
+    });
+    el.replaceChildren(ui.el);
+    return ui.cleanup;
+  },
+};
+
+export default merge;
+`;
+
 const headTest = `import { mount, stubBlockHost } from "@blockr/core/stubs";
 import type { BlockFixture, StubBlockHost } from "@blockr/core/stubs";
 import * as head from "./head-block.ts";
@@ -141,7 +169,7 @@ export const submitted: number = host.submitted.length;
 `;
 
 test.each(["bundler", "nodenext"] as const)(
-  "a package's module and its test type-check against what core ships, as %s resolution finds it",
+  "a package's modules and their test type-check against what core ships, as %s resolution finds it",
   async (resolution) => {
     await mkdir(join(root, "node_modules", "@blockr"), { recursive: true });
     await symlink(join(repo, "inst", "types"), join(root, "node_modules", "@blockr", "core"), "dir");
@@ -149,9 +177,11 @@ test.each(["bundler", "nodenext"] as const)(
       "package.json": JSON.stringify({ name: "blockr.test", private: true, type: "module" }),
       "src/head-block.ts": headModule,
       "src/head-block.test.ts": headTest,
+      "src/merge-block.ts": mergeModule,
     });
 
-    const program = ts.createProgram([join(root, "src/head-block.ts"), join(root, "src/head-block.test.ts")], {
+    const sources = ["head-block.ts", "head-block.test.ts", "merge-block.ts"].map((file) => join(root, "src", file));
+    const program = ts.createProgram(sources, {
       target: ts.ScriptTarget.ES2022,
       lib: ["lib.es2022.d.ts", "lib.dom.d.ts"],
       module: resolution === "bundler" ? ts.ModuleKind.Preserve : ts.ModuleKind.NodeNext,

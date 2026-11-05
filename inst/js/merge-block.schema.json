@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "by": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "all_x": {
+      "type": "boolean"
+    },
+    "all_y": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "all_x",
+    "all_y"
+  ],
+  "additionalProperties": false
+}

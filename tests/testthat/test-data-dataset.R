@@ -51,14 +51,22 @@ test_that("a dataset block lists the data frames a package exports", {
   expect_false(dataset_block[["requests"]][["datasets"]][["volatile"]])
 })
 
-# The fixture records no answer of the request `datasets`, since what the
-# datasets package holds depends on the version of R.
+# What the datasets package holds depends on the version of R,
+# so the fixture records the answer of the request `datasets`
+# for a package that ships BOD, iris, mtcars and the table Titanic,
+# which is no data frame.
 test_that("the dataset block's fixture", {
+
+  local_mocked_bindings(
+    package_data = function(package) c("BOD", "iris", "mtcars", "Titanic")
+  )
+
   expect_block_fixture(
     dataset_block,
     states = list(
       list(dataset = "iris", package = "datasets"),
       list(dataset = "BOD", package = "datasets")
-    )
+    ),
+    requests = list(list(name = "datasets", args = list(package = "datasets")))
   )
 })

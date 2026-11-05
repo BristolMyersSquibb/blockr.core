@@ -99,10 +99,11 @@ function stubBlockHost(fixture, options = {}) {
       requested.push({ name, args: given, ...opts.file === void 0 ? {} : { file: opts.file } });
       if (opts.signal?.aborted === true) return Promise.reject(asError(opts.signal.reason));
       const found = fixture.requests.find(
-        (call) => call.name === name && Object.keys(given).every((arg) => Object.hasOwn(call.args, arg)) && // The host fills in a state arg from the block's state where the
-        // module passes none.
+        (call) => call.name === name && Object.keys(given).every((arg) => Object.hasOwn(call.args, arg)) && // The host fills in a state arg from the block's state
+        // where the module passes none,
+        // and R gives a file the module sends to the arg `file`.
         Object.entries(call.args).every(
-          ([arg, value]) => jsonEqual(Object.hasOwn(given, arg) ? given[arg] : own(state, arg), value)
+          ([arg, value]) => arg === "file" && opts.file !== void 0 && !Object.hasOwn(given, arg) ? sameFile(value, opts.file) : jsonEqual(Object.hasOwn(given, arg) ? given[arg] : own(state, arg), value)
         ) && Object.entries(call.options).every(([id, value]) => jsonEqual(own(context.options, id), value))
       );
       if (found === void 0) {
@@ -134,6 +135,9 @@ function stubBlockHost(fixture, options = {}) {
       on.announce("context");
     }
   };
+}
+function sameFile(recorded, file) {
+  return isObject(recorded) && recorded.name === file.name && recorded.type === file.type && recorded.size === file.size;
 }
 function defined(x) {
   return Object.fromEntries(Object.entries(x).filter(([, value]) => value !== void 0));
