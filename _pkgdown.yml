@@ -63,6 +63,7 @@ reference:
     - register_renderer
     - register_startup_module
     - register_requests
+    - report_progress
 - title: Block classes
   desc: Core's built-in blocks, each a block class with its constructor.
   contents:

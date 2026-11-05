@@ -471,9 +471,9 @@ run_output_class_request <- function(x, name, result, args = list(),
   do.call(call[["fun"]], call[["args"]], quote = TRUE)
 }
 
-# The function of a request of an output, or of a renderer, with the arguments
-# that R binds for it and whether the request is volatile, so that R can
-# resolve a request apart from running it.
+# The function of a request of an output, or of a renderer,
+# with the arguments that R binds for it and whether the request is volatile,
+# so that R can resolve a request apart from running it.
 output_request_call <- function(x, name, result, args, options, params, file,
                                 renderer) {
 
@@ -522,10 +522,12 @@ output_request_call <- function(x, name, result, args, options, params, file,
   )
 }
 
-# The arguments that R calls a request's function with: those that the client
-# passes in `args`, by name, and the values that R binds itself, in `bound`,
-# where the function takes them. The client passes none of the arguments that
-# `reserved` names, which R binds where it has a value for them.
+# The arguments that R calls a request's function with:
+# those that the client passes in `args`, by name,
+# and the values that R binds itself, in `bound`,
+# where the function takes them.
+# The client passes none of the arguments that `reserved` names,
+# which R binds where it has a value for them.
 request_call_args <- function(fun, name, args, bound, reserved, class) {
 
   fmls <- formal_names(fun)

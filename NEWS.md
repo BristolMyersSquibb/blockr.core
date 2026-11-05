@@ -185,7 +185,8 @@
   It keeps the latest result of each block by block id and revision, with the block expression and the registry id, and drops it when the client forgets the block.
   It evaluates a block from its recipe, makes the block's output with the coercion that its class names, answers requests and reads blockr options.
   It runs one request at a time, in the order they arrive, and handles a `cancel` or a `forget` between two requests (#430).
-* A package registers the requests of a board option or an extension with `register_requests()`, under the board option's ID or under the extension's ID `{pkg}-{name}` (#430).
+* A package registers the requests of a board option or an extension with `register_requests()`, under the board option's ID or under the extension's ID `{pkg}-{name}`.
+  A request's function reports how far it has come with `report_progress()`, which R sends to the client as progress notes (#430).
 
 # blockr.core 0.1.4
 

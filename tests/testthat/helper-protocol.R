@@ -78,10 +78,10 @@ obj <- function(...) {
   res
 }
 
-# The messages that a session of the evaluator sent (see `local_evaluator()`)
-# as JSON, read as `read_json_strictly()` reads a fixture, with each reply body
-# announced in `body`, as the transport announces it beside the bytes it
-# carries.
+# The messages that a session of the evaluator sent (see `local_evaluator()`),
+# as JSON, read as `read_json_strictly()` reads a fixture.
+# Each reply body is announced in `body`,
+# as the transport announces it beside the bytes it carries.
 sent_json <- function(session) {
   lapply(
     session$sent,
@@ -101,8 +101,8 @@ announced_body <- function(x) {
 }
 
 # Has a session of the evaluator receive the client's message of a fixture,
-# changed by `client` as the transport changes it, such as for a body, and
-# checks that R sends the messages that the fixture holds.
+# changed by `client` as the transport changes it, such as for a body.
+# Then checks that R sends the messages that the fixture holds.
 expect_fixture_replies <- function(session, name, client = identity) {
 
   fixture <- protocol_fixture(name)

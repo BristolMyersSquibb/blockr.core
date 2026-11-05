@@ -75,9 +75,9 @@ evaluate_block <- function(x, state = list(), inputs = list(),
   eval_block_class(as_block_class(x), state, inputs, results, list(...))
 }
 
-# Evaluates a block of the class `cls`, as `evaluate_block()` does, with the
-# parameters of a one-time evaluation given as a list, so that a parameter
-# reaches `block_eval()` whatever its name.
+# Evaluates a block of the class `cls`, as `evaluate_block()` does,
+# with the parameters of a one-time evaluation given as a list,
+# so that a parameter reaches `block_eval()` whatever its name.
 eval_block_class <- function(cls, state, inputs, results, params) {
 
   data <- input_results(class_inputs(cls), inputs, results)

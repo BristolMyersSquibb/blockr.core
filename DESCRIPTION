@@ -120,6 +120,7 @@ Collate:
     'plot-scatter.R'
     'protocol.R'
     'register-requests.R'
+    'report-progress.R'
     'served-modules.R'
     'shiny-transport.R'
     'stack-class.R'

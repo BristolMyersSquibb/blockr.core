@@ -523,11 +523,11 @@ test_that("a request's function sends progress notes while it runs", {
   expect_identical(last_reply(quiet)$status, "ok")
 
   # Outside a request, R sends nothing.
-  expect_false(send_progress_note(0.5))
+  expect_false(report_progress(0.5))
 
-  expect_error(send_progress_note(2), class = "request_progress_invalid")
+  expect_error(report_progress(2), class = "request_progress_invalid")
   expect_error(
-    send_progress_note(message = 1),
+    report_progress(message = 1),
     class = "request_progress_invalid"
   )
 })
@@ -670,8 +670,8 @@ test_that("R runs one request at a time, between them handling messages", {
     )
   )
 
-  # R runs the evaluation of a, and returns to its event loop before it starts
-  # the next.
+  # R runs the evaluation of a,
+  # and returns to its event loop before it starts the next.
   later::run_now(all = FALSE)
 
   session$receive(list(list(kind = "cancel", request = "12")))
@@ -938,8 +938,8 @@ test_that("the Shiny transport carries the evaluator's replies and bodies", {
 
   sent <- lapply(transport_sent(session), read_json_strictly)
 
-  # The message that starts the session, the reply to hello, and one message
-  # for each reply.
+  # The message that starts the session, the reply to hello,
+  # and one message for each reply.
   expect_length(sent, 5L)
   expect_identical(sent[[2L]][[1L]]$id, "1")
   expect_identical(sent[[3L]][[1L]]$status, "ok")

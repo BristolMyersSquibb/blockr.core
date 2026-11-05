@@ -27,44 +27,50 @@ board}
 package, where only a board option's requests can be registered)}
 }
 \value{
-The requests' entry, invisibly: a list holding the \code{id} of the
-board option or the extension, the \code{package} that registered them, the
-\code{requests} and \code{allow_locked}.
+The requests' entry,
+invisibly: a list holding the \code{id} of the board option or the extension,
+the \code{package} that registered them, the \code{requests} and \code{allow_locked}.
 }
 \description{
-A request asks R for an answer that the client needs, by running a function
-that an object registers in R. A block class names its own requests (see
-\code{\link[=new_block_request]{new_block_request()}}). An output class and a renderer are registered with
-their requests (see \code{\link[=register_output_class]{register_output_class()}} and \code{\link[=register_renderer]{register_renderer()}}).
-A board option and an extension have no definition in R, so a package
-registers their requests with \code{register_requests()}, from its \code{.onLoad()}.
-It registers those of a board option under the board option's ID, in
-\code{option}. It registers those of an extension under the extension's name, in
-\code{extension}, which gives the extension's ID \code{{pkg}-{name}}, as a registry
-id is. The client names the board option or the extension by that ID when
-it sends a request.
+A request asks R for an answer that the client needs,
+by running a function that an object registers in R.
+A block class names its own requests (see \code{\link[=new_block_request]{new_block_request()}}).
+An output class and a renderer are registered with their requests (see
+\code{\link[=register_output_class]{register_output_class()}} and \code{\link[=register_renderer]{register_renderer()}}).
+A board option and an extension have no definition in R,
+so a package registers their requests with \code{register_requests()},
+from its \code{.onLoad()}.
+A board option's requests go under the board option's ID, in \code{option}.
+An extension's requests go under the extension's name, in \code{extension},
+which gives the extension's ID \code{{pkg}-{name}}, as a registry id is.
+The client names the board option or the extension by that ID,
+when it sends a request.
 }
 \details{
 Registering the requests of a board option or an extension again replaces
-them, as when a package is loaded again. A package cannot register requests
-under an ID that another package has taken.
+them, as when a package is loaded again.
+A package cannot take an ID that another package registered requests under.
 
-R calls a board option's request with the arguments that the client passes,
-by name. It calls an extension's request with those arguments as well, and
-with the blocks that the request reads, in its argument \code{reads}. That is a
-list by block ID, and each entry is a list of the block's \code{result} and the
-block expression \code{expr} that R built for it. A request that receives a
-file, such as an upload, gets it in its argument \code{file}. That is a list of
-the path of the temporary file that R wrote the bytes to, in \code{datapath},
-and the file's \code{name}, \code{type} and \code{size}. R binds \code{reads} and \code{file} only
-where the request's function takes them, and the client passes neither.
+R calls a board option's request with the client's arguments, by name.
+It calls an extension's request with those arguments as well,
+and with the blocks that the request reads, in its argument \code{reads}.
+That is a list by block ID,
+and each entry is a list of the block's \code{result} and the block expression
+\code{expr} that R built for it.
+A request that receives a file, such as an upload,
+gets it in its argument \code{file}.
+That is a list of the path of the temporary file that R wrote the bytes to,
+in \code{datapath}, and the file's \code{name}, \code{type} and \code{size}.
+R binds \code{reads} and \code{file} only where the request's function takes them,
+and the client passes neither.
+A long request reports how far it has come with \code{\link[=report_progress]{report_progress()}}.
 
-A request answers with a value, which R writes with every vector as an
-array, or with a file, as a reply body that \code{\link[=new_reply_body]{new_reply_body()}} makes. The
-client never keeps the answer of a board option's or an extension's
-request, and such a request may write. A package names in \code{allow_locked}
-the requests that may run on a locked board, such as one that only reads,
-as the code export does.
+A request answers with a value, which R writes with every vector as an array,
+or with a file, as a reply body that \code{\link[=new_reply_body]{new_reply_body()}} makes.
+The client never keeps the answer of a board option's or an extension's
+request, and such a request may write.
+A package names in \code{allow_locked} the requests that may run on a locked
+board, such as one that only reads, as the code export does.
 }
 \examples{
 register_requests(

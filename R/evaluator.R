@@ -1,36 +1,46 @@
 # The session's evaluator answers the messages of the wire protocol that the
-# client sends, as inst/protocol/README.md gives them, and the Shiny transport
-# carries them (see `shiny_transport()`). R holds no board: what a request
-# needs travels with it. The evaluator keeps only the results of the blocks it
-# evaluated, by block id and revision, never by process. So a client that
-# starts a new session with its board loses only recomputation.
+# client sends, as inst/protocol/README.md gives them,
+# and the Shiny transport carries them (see `shiny_transport()`).
+# R holds no board: what a request needs travels with it.
+# The evaluator keeps only the results of the blocks it evaluated,
+# by block id and revision, never by process.
+# So a client that starts a new session with its board loses only recomputation.
 
-# Makes the evaluator of one session. It is a handler for the Shiny transport,
-# `handler(message, send)`, which takes a message, a list of decoded requests,
-# and the function `send()`. That function sends a message of R's, a list of
-# replies and progress notes.
+# Makes the evaluator of one session.
+# It is a handler for the Shiny transport, `handler(message,
+# send)`, which takes a message, a list of decoded requests,
+# and the function `send()`.
+# That function sends a message of R's, a list of replies and progress notes.
 #
-# The reply to `hello` carries the opening board. It is the board that an app
-# script built, in `board`, as `blockr_ser()` writes it, or the saved file
-# that `serve()` was given, in `file`, as `read_board_json()` returns it. For
-# a block that `serve()` serves alone, `data` holds the data that `serve()`
-# was given, by input. R binds each entry itself to the block's input of that
-# name.
+# The reply to `hello` carries the opening board.
+# It is the board that an app script built,
+# in `board`, as `blockr_ser()` writes it,
+# or the saved file that `serve()` was given,
+# in `file`, as `read_board_json()` returns it.
+# For a block that `serve()` serves alone,
+# `data` holds the data that `serve()` was given, by input.
+# R binds each entry itself to the block's input of that name.
 #
-# The results live in an environment keyed by block id. For each block that R
-# evaluated, it holds the revision, value, block expression and registry id of
-# the latest evaluation. It also holds the class vector of the latest output
-# that R made from that value, by which R resolves a request of the output. A
-# block's entry changes only once its next evaluation ends, so the previous
-# value stays while the next computes.
+# The results live in an environment keyed by block id.
+# For each block that R evaluated, it holds the revision,
+# value, block expression and registry id of the latest evaluation.
+# It also holds the class vector of the latest output that R made from that
+# value, by which R resolves a request of the output.
+# A block's entry changes only once its next evaluation ends,
+# so the previous value stays while the next computes.
 #
-# R runs the requests that ask it for work one at a time, in the order they
-# arrive. It runs each as a function that returns a promise of its reply, so
-# where a request runs stays R's choice. For now, a request runs in the
-# session's process and holds the process until it ends. Between two requests,
-# R returns to its event loop, and handles the messages that came in meanwhile
-# before the next request starts. So a `cancel` drops a queued request, and a
-# `forget` drops results and the queued requests that evaluate or read them.
+# R runs the requests that ask it for work one at a time,
+# in the order they arrive.
+# It runs each as a function that returns a promise of its reply,
+# so where a request runs stays R's choice.
+# For now, a request runs in the session's process,
+# and holds the process until it ends.
+# Between two requests, R returns to its event loop,
+# and handles the messages that came in meanwhile,
+# before the next request starts.
+# So a `cancel` drops a queued request,
+# and a `forget` drops results,
+# with the queued requests that evaluate or read them.
 new_evaluator <- function(board = NULL, file = NULL, data = list()) {
 
   if (is.null(board) == is.null(file)) {
@@ -69,9 +79,10 @@ new_evaluator <- function(board = NULL, file = NULL, data = list()) {
   }
 }
 
-# The capabilities that R names in its reply to `hello`. R drops a request
-# that it has not started, and sends progress notes. The session's process
-# cannot stop a request that has started, so R names no `interrupt`.
+# The capabilities that R names in its reply to `hello`.
+# R drops a request that it has not started, and sends progress notes.
+# The session's process cannot stop a request that has started,
+# so R names no `interrupt`.
 evaluator_capabilities <- function() {
   c("cancel", "progress")
 }
@@ -87,10 +98,12 @@ receive_requests <- function(ev, message, send) {
   invisible()
 }
 
-# Handles one request. R ignores every request before a session's `hello`. It
-# acts on a `hello`, a `cancel` and a `forget` at once, and queues the other
-# kinds, which ask it for work. A request that R cannot read gets an `error`
-# where it has an id, and R ignores it where it has none.
+# Handles one request.
+# R ignores every request before a session's `hello`.
+# It acts on a `hello`, a `cancel` and a `forget` at once,
+# and queues the other kinds, which ask it for work.
+# A request that R cannot read gets an `error` where it has an id,
+# and R ignores it where it has none.
 receive_request <- function(ev, req, send) {
 
   if (!is.list(req) || is.null(names(req))) {
@@ -147,10 +160,11 @@ receive_request <- function(ev, req, send) {
   invisible()
 }
 
-# A `hello` starts the session. A later one starts the session afresh: R
-# forgets every block and drops every request still queued. R loads no
-# package for a `hello`, since the app's script has loaded them, and ignores
-# the packages that it names.
+# A `hello` starts the session.
+# A later one starts the session afresh:
+# R forgets every block and drops every request still queued.
+# R loads no package for a `hello`, since the app's script has loaded them,
+# and ignores the packages that it names.
 start_session <- function(ev, req, send) {
 
   if (!is_string(req[["protocol"]])) {
@@ -188,9 +202,10 @@ start_session <- function(ev, req, send) {
   )
 }
 
-# A `cancel` drops the request that it names if R has not started it, where
-# both sides named the capability `cancel`. A request that has started runs to
-# its end, and its reply is the one it would have had.
+# A `cancel` drops the request that it names if R has not started it,
+# where both sides named the capability `cancel`.
+# A request that has started runs to its end,
+# and its reply is the one it would have had.
 cancel_request <- function(ev, req, send) {
 
   target <- req[["request"]]
@@ -218,8 +233,8 @@ read_blocks <- function(req) {
   as.character(blocks)
 }
 
-# Forgets blocks: drops their results and every queued request that evaluates
-# or reads one of them, replying `cancelled` to each.
+# Forgets blocks: drops their results and every queued request that evaluates or
+# reads one of them, replying `cancelled` to each.
 forget_blocks <- function(ev, blocks, send) {
 
   rm(
@@ -234,8 +249,8 @@ forget_blocks <- function(ev, blocks, send) {
   )
 }
 
-# Drops the queued requests at the positions given, replying `cancelled` to
-# each, in one message.
+# Drops the queued requests at the positions given,
+# replying `cancelled` to each, in one message.
 drop_requests <- function(ev, positions, send) {
 
   if (!length(positions)) {
@@ -250,9 +265,10 @@ drop_requests <- function(ev, positions, send) {
   )
 }
 
-# Reads a request that asks R for work, and queues it. The queue keeps with it
-# the blocks that it evaluates or reads, so that a `forget` can drop it, and
-# the function `send()` that its reply goes through.
+# Reads a request that asks R for work, and queues it.
+# The queue keeps with it the blocks that it evaluates or reads,
+# so that a `forget` can drop it,
+# and the function `send()` that its reply goes through.
 enqueue_request <- function(ev, req, send) {
 
   read <- switch(
@@ -325,10 +341,11 @@ run_next <- function(ev) {
   invisible()
 }
 
-# Runs a request as a function that returns a promise of its reply. The
-# promise resolves whatever the block or the request's function did, an
-# `error` included, and rejects only where R itself fails. In the session's
-# process, the function runs to its end before the promise resolves.
+# Runs a request as a function that returns a promise of its reply.
+# The promise resolves whatever the block or the request's function did,
+# an `error` included, and rejects only where R itself fails.
+# In the session's process,
+# the function runs to its end before the promise resolves.
 run_request <- function(ev, job) {
   promises::promise(
     function(resolve, reject) {
@@ -337,61 +354,10 @@ run_request <- function(ev, job) {
   )
 }
 
-# The request that R is answering. A request's function sends its progress
-# notes through it while it runs.
-answering <- new.env(parent = emptyenv())
-
-with_answering <- function(ev, job, expr) {
-
-  prev <- answering$job
-
-  answering$job <- list(
-    id = job[["id"]],
-    send = job[["send"]],
-    progress = "progress" %in% ev$shared
-  )
-
-  on.exit(answering$job <- prev)
-
-  expr
-}
-
-# Sends a progress note for the request that R is answering, where both sides
-# named the capability `progress`. The note holds the share of the work done,
-# from 0 to 1, in `value`, and what the request is doing in `message`. Either
-# may be left out. Outside a request, nothing is sent.
-send_progress_note <- function(value = NULL, message = NULL) {
-
-  if (!(is.null(value) || (is_number(value) && value >= 0 && value <= 1))) {
-    blockr_abort(
-      "The progress of a request is a share of the work done, from 0 to 1.",
-      class = "request_progress_invalid"
-    )
-  }
-
-  if (!(is.null(message) || (is_string(message) && !is.na(message)))) {
-    blockr_abort(
-      "The progress message of a request is a string.",
-      class = "request_progress_invalid"
-    )
-  }
-
-  job <- answering$job
-
-  if (is.null(job) || !isTRUE(job[["progress"]])) {
-    return(invisible(FALSE))
-  }
-
-  note <- Filter(not_null, list(value = value, message = message))
-
-  job[["send"]](list(list(id = job[["id"]], progress = as_json_object(note))))
-
-  invisible(TRUE)
-}
-
-# Sends a reply in a message of its own. Where R cannot send it, as when its
-# JSON cannot be written, R sends an `error` in its place, since the client
-# waits for a reply to every request with an id.
+# Sends a reply in a message of its own.
+# Where R cannot send it, as when its JSON cannot be written,
+# R sends an `error` in its place,
+# since the client waits for a reply to every request with an id.
 deliver_reply <- function(job, reply) {
   tryCatch(
     job[["send"]](list(reply)),

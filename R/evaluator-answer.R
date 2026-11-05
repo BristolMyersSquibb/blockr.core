@@ -1,12 +1,12 @@
-# The evaluator's answers to the requests that it queues, as
-# inst/protocol/README.md gives them. Each kind has a function of its own: an
-# evaluation, an output, a request of an object, an `open` and a
-# `blockr_options` request.
+# The evaluator's answers to the requests that it queues,
+# as inst/protocol/README.md gives them.
+# Each kind has a function of its own: an evaluation, an output,
+# a request of an object, an `open` and a `blockr_options` request.
 
-# The reply to a request, from the function of its kind. An error that R
-# raises itself, as for a block class that is not registered, becomes an
-# `error` that names no phase. The reply to an `evaluate` then carries an
-# evaluation's fields.
+# The reply to a request, from the function of its kind.
+# An error that R raises itself, as for a block class that is not registered,
+# becomes an `error` that names no phase.
+# The reply to an `evaluate` then carries an evaluation's fields.
 answer_request <- function(ev, job) {
   tryCatch(
     switch(
@@ -27,9 +27,9 @@ answer_request <- function(ev, job) {
   )
 }
 
-# An `open` forgets every block, since the client opens another board, and
-# replies with what R has loaded. R loads no package for it, since the app's
-# script has loaded them already.
+# An `open` forgets every block, since the client opens another board,
+# and replies with what R has loaded.
+# R loads no package for it, since the app's script has loaded them already.
 answer_open <- function(ev, job) {
 
   blocks <- c(
@@ -42,9 +42,10 @@ answer_open <- function(ev, job) {
   c(list(id = job[["id"]], status = "ok"), loaded_reply())
 }
 
-# The value of each blockr option that R has one for, as `blockr_option()`
-# reads it, by name. R leaves out the others. It answers for any name, since a
-# client can read whatever the R process can.
+# The value of each blockr option that R has one for,
+# as `blockr_option()` reads it, by name.
+# R leaves out the others.
+# It answers for any name, since a client can read whatever the R process can.
 answer_blockr_options <- function(job) {
 
   names <- job[["req"]][["names"]]
@@ -66,10 +67,11 @@ answer_blockr_options <- function(job) {
   list(id = job[["id"]], status = "ok", values = as_json_object(values))
 }
 
-# Evaluates a block from its recipe, as `evaluate_block()` does, with each
-# upstream result at the revision that the recipe names. R keeps the result
-# under the block's id. An evaluation that leaves no result, as one that
-# fails, leaves R no result of the block.
+# Evaluates a block from its recipe, as `evaluate_block()` does,
+# with each upstream result at the revision that the recipe names.
+# R keeps the result under the block's id.
+# An evaluation that leaves no result, as one that fails,
+# leaves R no result of the block.
 answer_evaluate <- function(ev, job) {
 
   req <- job[["req"]]
@@ -128,10 +130,11 @@ answer_evaluate <- function(ev, job) {
   )
 }
 
-# Makes a block's output from its result at a revision. R calls the coercion
-# that the block's class names, or `as_text_output()` where it names none,
-# with the board option values, the `info` and the parameters that the request
-# carries. The output names the renderer that R picked for it.
+# Makes a block's output from its result at a revision.
+# R calls the coercion that the block's class names,
+# or `as_text_output()` where it names none, with the board option values,
+# the `info` and the parameters that the request carries.
+# The output names the renderer that R picked for it.
 answer_output <- function(ev, job) {
 
   req <- job[["req"]]
@@ -195,10 +198,12 @@ answer_object_request <- function(ev, job) {
   )
 }
 
-# A block class's request, by registry id. R binds its inputs to the results
-# at the revisions that it reads, and a variadic block's `...` in link order.
-# It takes the state args and parameters from `args`, and the board options
-# from `options`. An action receives the request's body in `file`.
+# A block class's request, by registry id.
+# R binds its inputs to the results at the revisions that it reads,
+# and a variadic block's `...` in link order.
+# It takes the state args and parameters from `args`,
+# and the board options from `options`.
+# An action receives the request's body in `file`.
 answer_block_request <- function(ev, job) {
 
   req <- job[["req"]]
@@ -227,8 +232,8 @@ answer_block_request <- function(ev, job) {
   answer_call(job[["id"]], call)
 }
 
-# A board option's request, by the board option's id. R calls it with its
-# args by name, and with the request's body in `file`.
+# A board option's request, by the board option's id.
+# R calls it with its args by name, and with the request's body in `file`.
 answer_option_request <- function(job) {
 
   req <- job[["req"]]
@@ -250,10 +255,11 @@ answer_option_request <- function(job) {
   )
 }
 
-# An extension's request, by the extension's id. R calls it with its args by
-# name, the request's body in `file` and, in `reads`, each block that it
-# reads, by id. Each is a list of the block's result and the block expression
-# that R built for it.
+# An extension's request, by the extension's id.
+# R calls it with its args by name, the request's body in `file` and,
+# in `reads`, each block that it reads, by id.
+# Each is a list of the block's result,
+# and of the block expression that R built for it.
 answer_extension_request <- function(ev, job) {
 
   req <- job[["req"]]
@@ -292,9 +298,9 @@ answer_extension_request <- function(ev, job) {
 }
 
 # A request of an output class, or of a renderer where the request names one.
-# R resolves it against the class vector of the latest output that it made
-# from the result at the revision that the request names. It runs the request
-# with that result.
+# R resolves it against the class vector of the latest output that it made from
+# the result at the revision that the request names.
+# It runs the request with that result.
 answer_output_request <- function(ev, job) {
 
   req <- job[["req"]]
@@ -327,10 +333,11 @@ answer_output_request <- function(ev, job) {
   answer_call(job[["id"]], call, call[["volatile"]])
 }
 
-# Runs a request's function with the arguments that R bound for it, and
-# replies with its answer. The answer is a value, written with every vector as
-# an array, or a reply body. R marks a reply volatile where it resolved the
-# request to one that its output class makes volatile.
+# Runs a request's function with the arguments that R bound for it,
+# and replies with its answer.
+# The answer is a value, written with every vector as an array, or a reply body.
+# R marks a reply volatile where it resolved the request to one that its output
+# class makes volatile.
 answer_call <- function(id, call, volatile = FALSE) {
 
   ran <- run_phase(
@@ -356,8 +363,9 @@ answer_call <- function(id, call, volatile = FALSE) {
   )
 }
 
-# The result that R holds for a block at a revision. It is `NULL` where R
-# holds none, as when R forgot the block or replaced the result.
+# The result that R holds for a block at a revision.
+# It is `NULL` where R holds none,
+# as when R forgot the block or replaced the result.
 held_result <- function(ev, block, revision) {
 
   held <- get0(block, envir = ev$results, inherits = FALSE)
@@ -369,8 +377,8 @@ held_result <- function(ev, block, revision) {
   held
 }
 
-# The block revisions that R does not hold, of those that a recipe's inputs or
-# a request's reads name, each once.
+# The block revisions that R does not hold,
+# of those that a recipe's inputs or a request's reads name, each once.
 lacking_results <- function(ev, reads) {
 
   res <- list()
@@ -392,12 +400,14 @@ lacking_results <- function(ev, reads) {
 }
 
 # The results that a recipe's inputs bind, or a block class request's reads,
-# by the data inputs `names` of the block's class. In `inputs`, the upstream
-# ids are named by input, as `interpolate()` takes them. A variadic block's go
-# under `...` in link order, each named by its link's input. In `results`, the
-# results are named by id. An input named alone is one that R binds itself to
-# the data that `serve()` was given, and the block expression names that data
-# by the input.
+# by the data inputs `names` of the block's class.
+# In `inputs`, the upstream ids are named by input,
+# as `interpolate()` takes them.
+# A variadic block's go under `...` in link order,
+# each named by its link's input.
+# In `results`, the results are named by id.
+# An input named alone is one that R binds itself to the data that `serve()` was
+# given, and the block expression names that data by the input.
 bind_inputs <- function(ev, reads, names) {
 
   named <- setdiff(names, "...")
@@ -452,8 +462,8 @@ bind_inputs <- function(ev, reads, names) {
   list(inputs = inputs, results = results)
 }
 
-# The results that a block class's request reads, by input, as
-# `run_block_request()` takes them.
+# The results that a block class's request reads,
+# by input, as `run_block_request()` takes them.
 input_values <- function(bound) {
 
   ids <- bound[["inputs"]]
@@ -472,8 +482,8 @@ missing_reply <- function(id, lacking) {
   list(id = id, status = "missing", missing = lacking)
 }
 
-# An `error` with the conditions raised, bounded as an evaluation's are. It
-# carries an evaluation's fields where `fields` gives the block and revision.
+# An `error` with the conditions raised, bounded as an evaluation's are.
+# It carries an evaluation's fields where `fields` gives the block and revision.
 error_reply <- function(id, conditions, fields = NULL) {
 
   res <- c(
@@ -496,9 +506,9 @@ r_condition <- function(cnd) {
   res
 }
 
-# The first few conditions of each severity, as a reply carries them. The
-# others are counted by severity in `omitted`, which counts no errors, since an
-# error ends what raised it.
+# The first few conditions of each severity, as a reply carries them.
+# The others are counted by severity in `omitted`, which counts no errors,
+# since an error ends what raised it.
 bounded_conditions <- function(conditions, max = max_conditions()) {
 
   severity <- chr_xtr(conditions, "severity")
@@ -518,8 +528,8 @@ bounded_conditions <- function(conditions, max = max_conditions()) {
   )
 }
 
-# A condition as a reply carries it, with its class vector as an array and its
-# message bounded.
+# A condition as a reply carries it,
+# with its class vector as an array and its message bounded.
 condition_reply <- function(x) {
   c(
     list(severity = x[["severity"]], class = I(x[["class"]])),
@@ -528,17 +538,18 @@ condition_reply <- function(x) {
   )
 }
 
-# How much of an evaluation R sends, which is R's to choose: the number of
-# conditions of each severity, and the number of characters of the standard
-# output, of the standard error and of a condition's message.
+# How much of an evaluation R sends, which is R's to choose:
+# the number of conditions of each severity,
+# and the number of characters of the standard output,
+# of the standard error and of a condition's message.
 max_conditions <- function() 5L
 
 max_output_chars <- function() 65536L
 
 max_message_chars <- function() 8192L
 
-# The text cut to `max` characters, with the characters it leaves out
-# counted. The text is made valid UTF-8, which JSON needs.
+# The text cut to `max` characters, with the characters it leaves out counted.
+# The text is made valid UTF-8, which JSON needs.
 bounded_text <- function(x, max) {
 
   x <- enc2utf8(paste(x, collapse = "\n"))
@@ -559,8 +570,8 @@ bounded_text <- function(x, max) {
   )
 }
 
-# Runs `expr` with its standard output and error captured as text, and puts
-# back the sinks that were in place.
+# Runs `expr` with its standard output and error captured as text,
+# and puts back the sinks that were in place.
 capture_streams <- function(expr) {
 
   out_lines <- character()

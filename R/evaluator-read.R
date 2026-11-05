@@ -1,20 +1,21 @@
-# Reading the requests that the evaluator queues. R checks the fields of each
-# kind as inst/protocol/README.md gives them. So R replies `error` at once to a
-# request that it cannot read, rather than once the request's turn comes. A
-# map that a request leaves out, such as its `args`, reads as empty.
+# Reading the requests that the evaluator queues.
+# R checks the fields of each kind as inst/protocol/README.md gives them.
+# So R replies `error` at once to a request that it cannot read,
+# rather than once the request's turn comes.
+# A map that a request leaves out, such as its `args`, reads as empty.
 
 protocol_abort <- function(..., envir = parent.frame()) {
   blockr_abort(..., class = "protocol_request_invalid", envir = envir)
 }
 
-# Whether a value is a vector of strings, as an array of strings decodes, or
-# an empty array, which decodes as an empty list.
+# Whether a value is a vector of strings, as an array of strings decodes,
+# or an empty array, which decodes as an empty list.
 is_strings <- function(x) {
   (is.character(x) && !anyNA(x)) || (is.list(x) && !length(x))
 }
 
-# Whether a value is a JSON object as R decodes it, a named list, or an empty
-# array or object.
+# Whether a value is a JSON object as R decodes it,
+# a named list, or an empty array or object.
 is_json_object <- function(x) {
   is.list(x) && has_unique_names(x)
 }
@@ -64,9 +65,10 @@ read_output <- function(req) {
   )
 }
 
-# A request names the one object that it belongs to: a block class by its
-# registry id, a board option or an extension by its id, or an output by its
-# block and revision. A renderer's own request names the renderer as well.
+# A request names the one object that it belongs to:
+# a block class by its registry id, a board option or an extension by its id,
+# or an output by its block and revision.
+# A renderer's own request names the renderer as well.
 read_request <- function(req) {
 
   if (!is_nonempty_string(req[["name"]])) {
@@ -137,9 +139,10 @@ read_block_revision <- function(x, what) {
   list(block = x[["block"]], revision = x[["revision"]])
 }
 
-# The results that a recipe's inputs or a request's reads name, each by its
-# block and revision. Where `input` is set, each names the input that it feeds
-# as well. An input named alone is one that R binds itself.
+# The results that a recipe's inputs or a request's reads name,
+# each by its block and revision.
+# Where `input` is set, each names the input that it feeds as well.
+# An input named alone is one that R binds itself.
 read_reads <- function(x, input) {
 
   x <- coal(x, list(), fail_all = FALSE)

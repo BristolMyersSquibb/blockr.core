@@ -1,9 +1,10 @@
 # A session of the evaluator, which a test drives as the Shiny transport does:
-# `receive()` hands it a message, as JSON or decoded, `run()` has R run what it
-# queued, as its event loop does, and `sent` holds the messages that R sent, in
-# their order, each a list of replies and progress notes. The session starts
-# with the client's hello, unless `hello` is `FALSE`, and logs only errors,
-# since core's modules have no files yet.
+# `receive()` hands it a message, as JSON or decoded,
+# `run()` has R run what it queued, as its event loop does,
+# and `sent` holds the messages that R sent,
+# in their order, each a list of replies and progress notes.
+# The session starts with the client's hello, unless `hello` is `FALSE`,
+# and logs only errors, since core's modules have no files yet.
 local_evaluator <- function(board = list(blocks = list()), ..., hello = TRUE,
                             frame = parent.frame()) {
 
@@ -70,8 +71,8 @@ run_later <- function(max = 1000L) {
   stop("R's event loop still holds callbacks after ", max, " runs.")
 }
 
-# The recipe of a block of the sample board of the protocol's fixtures, with
-# the inputs given.
+# The recipe of a block of the sample board of the protocol's fixtures,
+# with the inputs given.
 sample_recipe <- function(block, inputs = list()) {
 
   recipes <- list(
@@ -145,8 +146,8 @@ output_request <- function(id, block, revision,
   )
 }
 
-# Has R hold the result of a block at a revision, from the recipe given, or
-# from the block's on the sample board, and forgets what R sent for it.
+# Has R hold the result of a block at a revision, from the recipe given,
+# or from the block's on the sample board, and forgets what R sent for it.
 hold_result <- function(session, block, revision, inputs = list(),
                         recipe = sample_recipe(block, inputs)) {
 
@@ -171,8 +172,8 @@ hold_result <- function(session, block, revision, inputs = list(),
   invisible(session)
 }
 
-# Has R make an output of a block that it holds, so that it knows the output's
-# class vector, and forgets what R sent for it.
+# Has R make an output of a block that it holds,
+# so that it knows the output's class vector, and forgets what R sent for it.
 make_output <- function(session, block, revision,
                         options = as_json_object(list())) {
 
@@ -196,8 +197,8 @@ last_reply <- function(session) {
   msg[[length(msg)]]
 }
 
-# A request's body as the transport hands it to the evaluator: the file at
-# `path` that R wrote its bytes to, with its name, size and type.
+# A request's body as the transport hands it to the evaluator:
+# the file at `path` that R wrote its bytes to, with its name, size and type.
 received_body <- function(req, bytes, path) {
 
   writeBin(bytes, path)
@@ -210,15 +211,15 @@ received_body <- function(req, bytes, path) {
   req
 }
 
-# The MIME type of a PowerPoint file, which the stand-ins' downloads answer
-# with.
+# The MIME type of a PowerPoint file,
+# which the stand-ins' downloads answer with.
 pptx_type <- paste0(
   "application/",
   "vnd.openxmlformats-officedocument.presentationml.presentation"
 )
 
-# Registers a block class under the registry id given, as a package does, for
-# the duration of `frame`.
+# Registers a block class under the registry id given, as a package does,
+# for the duration of `frame`.
 local_block_class <- function(cls, id, frame = parent.frame()) {
 
   name <- cls[["class"]][1L]
@@ -236,9 +237,10 @@ local_block_class <- function(cls, id, frame = parent.frame()) {
   invisible(entry)
 }
 
-# The write block of blockr.io, whose block expression is its input's result
-# here, and which writes in manual mode only when its save button passes
-# `save`, as its block_eval() method has it.
+# The write block of blockr.io,
+# whose block expression is its input's result here,
+# and which writes in manual mode only when its save button passes `save`,
+# as its block_eval() method has it.
 write_block_class <- new_block_class(
   "write_block",
   inputs = "...",
@@ -249,8 +251,8 @@ write_block_class <- new_block_class(
   ui = js_module("write-block.js", package = NULL)
 )
 
-# Registers the write block of blockr.io, with its block_eval() method, for the
-# duration of `frame`.
+# Registers the write block of blockr.io, with its block_eval() method,
+# for the duration of `frame`.
 local_write_block <- function(frame = parent.frame()) {
 
   testthat::local_mocked_s3_method(
@@ -268,8 +270,8 @@ local_write_block <- function(frame = parent.frame()) {
   local_block_class(write_block_class, "blockr.io-write_block", frame)
 }
 
-# A block class whose outputs are charts, of the output class that
-# `local_chart_output()` registers.
+# A block class whose outputs are charts,
+# of the output class that `local_chart_output()` registers.
 chart_block_class <- new_block_class(
   "chart_block",
   inputs = "data",
@@ -280,9 +282,10 @@ chart_block_class <- new_block_class(
   }
 )
 
-# An output class of blockr.viz for charts, with a download of the chart and
-# a volatile request for the templates that a directory of the server holds,
-# and a block class whose outputs are charts, for the duration of `frame`.
+# An output class of blockr.viz for charts,
+# with a download of the chart and a volatile request for the templates that a
+# directory of the server holds, and a block class whose outputs are charts,
+# for the duration of `frame`.
 local_chart_output <- function(frame = parent.frame()) {
 
   register_output_class(
@@ -312,8 +315,8 @@ local_chart_output <- function(frame = parent.frame()) {
   local_block_class(chart_block_class, "chart_block", frame)
 }
 
-# A block class whose result is a table with labelled columns, as an ADaM
-# table has them.
+# A block class whose result is a table with labelled columns,
+# as an ADaM table has them.
 adsl_block_class <- new_block_class(
   "adsl_block",
   expr = function() {
@@ -336,8 +339,9 @@ local_labelled_block <- function(frame = parent.frame()) {
   local_block_class(adsl_block_class, "adsl_block", frame)
 }
 
-# The table preview of blockr.ui, a renderer of table outputs with a request
-# of its own for the labels of a table's columns, for the duration of `frame`.
+# The table preview of blockr.ui,
+# a renderer of table outputs with a request of its own for the labels of a
+# table's columns, for the duration of `frame`.
 local_table_preview <- function(frame = parent.frame()) {
 
   register_renderer(
@@ -355,9 +359,10 @@ local_table_preview <- function(frame = parent.frame()) {
   )
 }
 
-# Requests that packages register for a board option and two extensions, as
-# blockr.io lists the server's directories, blockr.code exports a script and
-# blockr.md exports a report, sending progress, for the duration of `frame`.
+# Requests that packages register for a board option and two extensions,
+# as blockr.io lists the server's directories,
+# blockr.code exports a script and blockr.md exports a report, sending progress,
+# for the duration of `frame`.
 local_registered_requests <- function(frame = parent.frame()) {
 
   register_requests(
@@ -388,8 +393,8 @@ local_registered_requests <- function(frame = parent.frame()) {
   register_requests(
     list(
       export = function(reads, format) {
-        send_progress_note(0.3, "Rendering the report")
-        send_progress_note(0.8, "Converting to PowerPoint")
+        report_progress(0.3, "Rendering the report")
+        report_progress(0.8, "Converting to PowerPoint")
         new_reply_body(
           charToRaw(format),
           pptx_type,
