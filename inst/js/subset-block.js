@@ -95,11 +95,12 @@ function bind(host, key, show, options = {}) {
   const source = sourceOf(host);
   source.check(key);
   let shown;
+  let typing = false;
   let typed;
   let timer;
   let released = false;
   const display = (again = false) => {
-    if (released || timer !== void 0) return;
+    if (released || typing) return;
     const value = source.get(key);
     if (!again && shown !== void 0 && jsonEqual(shown.value, value)) return;
     shown = { value };
@@ -118,11 +119,12 @@ function bind(host, key, show, options = {}) {
   };
   const send = () => {
     const value = typed;
+    typing = false;
     typed = void 0;
     if (value !== void 0) void submit(value);
   };
   const flush = () => {
-    if (timer === void 0) return;
+    if (!typing) return;
     clearTimeout(timer);
     timer = void 0;
     send();
@@ -138,14 +140,15 @@ function bind(host, key, show, options = {}) {
       if (!took) display(true);
       return took;
     },
-    type(value) {
+    type(value, pause = true) {
       if (released) return;
+      typing = true;
       typed = value;
       clearTimeout(timer);
-      timer = setTimeout(() => {
+      timer = pause ? setTimeout(() => {
         timer = void 0;
         send();
-      }, PAUSE);
+      }, PAUSE) : void 0;
     },
     flush,
     release() {
@@ -220,7 +223,8 @@ function TextInput({
   bound,
   label,
   placeholder,
-  lines = 1
+  lines = 1,
+  pause = true
 }) {
   const [text, typed] = useTyped(bound);
   const shown = text ?? (typeof bound.value === "string" ? bound.value : "");
@@ -231,7 +235,7 @@ function TextInput({
     spellCheck: false,
     onChange: (event) => {
       typed(event.target.value);
-      bound.type(event.target.value);
+      bound.type(event.target.value, pause);
     },
     onKeyDown: (event) => {
       if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
@@ -285,8 +289,8 @@ function useValue(host, key) {
       error,
       get: () => binding.current?.get() ?? held(host, name),
       commit: (next) => binding.current?.commit(next) ?? Promise.resolve(false),
-      type: (next) => {
-        binding.current?.type(next);
+      type: (next, pause) => {
+        binding.current?.type(next, pause);
       },
       flush: () => {
         binding.current?.flush();
@@ -324,8 +328,24 @@ var import_jsx_runtime3 = __toESM(require_jsx_runtime(), 1);
 var api = 1;
 function SubsetBlock({ host }) {
   return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Stack, { children: [
-    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(TextInput, { bound: useValue(host, "subset"), label: "Subset", placeholder: "Enter a row subsetting expression." }),
-    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(TextInput, { bound: useValue(host, "select"), label: "Select", placeholder: "Enter a column selection expression." })
+    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+      TextInput,
+      {
+        bound: useValue(host, "subset"),
+        label: "Subset",
+        placeholder: "Enter a row subsetting expression.",
+        pause: false
+      }
+    ),
+    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+      TextInput,
+      {
+        bound: useValue(host, "select"),
+        label: "Select",
+        placeholder: "Enter a column selection expression.",
+        pause: false
+      }
+    )
   ] });
 }
 var subset_block_default = reactModule(SubsetBlock);

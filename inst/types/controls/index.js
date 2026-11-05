@@ -26,11 +26,12 @@ function bind(host, key, show, options = {}) {
   const source = sourceOf(host);
   source.check(key);
   let shown;
+  let typing2 = false;
   let typed;
   let timer;
   let released = false;
   const display = (again = false) => {
-    if (released || timer !== void 0) return;
+    if (released || typing2) return;
     const value = source.get(key);
     if (!again && shown !== void 0 && jsonEqual(shown.value, value)) return;
     shown = { value };
@@ -49,11 +50,12 @@ function bind(host, key, show, options = {}) {
   };
   const send = () => {
     const value = typed;
+    typing2 = false;
     typed = void 0;
     if (value !== void 0) void submit(value);
   };
   const flush = () => {
-    if (timer === void 0) return;
+    if (!typing2) return;
     clearTimeout(timer);
     timer = void 0;
     send();
@@ -69,14 +71,15 @@ function bind(host, key, show, options = {}) {
       if (!took) display(true);
       return took;
     },
-    type(value) {
+    type(value, pause = true) {
       if (released) return;
+      typing2 = true;
       typed = value;
       clearTimeout(timer);
-      timer = setTimeout(() => {
+      timer = pause ? setTimeout(() => {
         timer = void 0;
         send();
-      }, PAUSE);
+      }, PAUSE) : void 0;
     },
     flush,
     release() {
@@ -234,7 +237,7 @@ function controls(host, signal) {
       const shown = typeof value === "string" ? value : "";
       if (input.value !== shown) input.value = shown;
     });
-    typing(input, binding, lines > 1, () => input.value);
+    typing(input, binding, lines > 1, () => input.value, options.pause ?? true);
     add(field(options.label, input));
   }
   function number(key, options) {
@@ -261,7 +264,7 @@ function controls(host, signal) {
       if (input.value !== shown) input.value = shown;
       mark();
     });
-    typing(input, binding, false, read);
+    typing(input, binding, false, read, true);
     input.addEventListener("input", mark);
     add(field(options.label, input));
     return {
@@ -400,9 +403,9 @@ function hint(text) {
   p.textContent = text;
   return p;
 }
-function typing(input, binding, multiline, read) {
+function typing(input, binding, multiline, read, pause) {
   input.addEventListener("input", () => {
-    binding.type(read());
+    binding.type(read(), pause);
   });
   input.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" || event.isComposing) return;

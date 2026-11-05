@@ -47,7 +47,9 @@ export interface Controls<K extends string = string> {
   // but while the user is typing in the control.
   bind(key: K, show: (value: Json | undefined) => void): Binding;
   // A text input for a string, a text area where it spans lines.
-  text(key: K, options: { label: string; placeholder?: string; lines?: number }): void;
+  // Where `pause` is false, as for code, it submits what the user typed only
+  // once the user lets go, on Enter or as the user leaves it.
+  text(key: K, options: { label: string; placeholder?: string; lines?: number; pause?: boolean }): void;
   // A number input for an integer, no smaller than `min`.
   number(key: K, options: { label: string; min?: number }): NumberInput;
   // A select of one string, which shows `placeholder` while the value is
@@ -133,7 +135,10 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
     return request;
   }
 
-  function text(key: string, options: { label: string; placeholder?: string; lines?: number }): void {
+  function text(
+    key: string,
+    options: { label: string; placeholder?: string; lines?: number; pause?: boolean },
+  ): void {
     const lines = options.lines ?? 1;
     const input = lines > 1 ? document.createElement("textarea") : document.createElement("input");
     if (input instanceof HTMLTextAreaElement) input.rows = lines;
@@ -146,7 +151,7 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
       const shown = typeof value === "string" ? value : "";
       if (input.value !== shown) input.value = shown;
     });
-    typing(input, binding, lines > 1, () => input.value);
+    typing(input, binding, lines > 1, () => input.value, options.pause ?? true);
     add(field(options.label, input));
   }
 
@@ -177,7 +182,7 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
       if (input.value !== shown) input.value = shown;
       mark();
     });
-    typing(input, binding, false, read);
+    typing(input, binding, false, read, true);
     input.addEventListener("input", mark);
     add(field(options.label, input));
 
@@ -359,11 +364,18 @@ export function hint(text: string): HTMLParagraphElement {
 }
 
 // Has a binding take what the user types into the input after each
-// keystroke, and submit it at once on Enter,
-// or on Ctrl or Cmd with Enter in a text area, and as the user leaves it.
-function typing(input: HTMLElement, binding: Binding, multiline: boolean, read: () => Json | undefined): void {
+// keystroke, which it submits once the user pauses, unless `pause` is false,
+// and at once on Enter, or on Ctrl or Cmd with Enter in a text area,
+// and as the user leaves it.
+function typing(
+  input: HTMLElement,
+  binding: Binding,
+  multiline: boolean,
+  read: () => Json | undefined,
+  pause: boolean,
+): void {
   input.addEventListener("input", () => {
-    binding.type(read());
+    binding.type(read(), pause);
   });
   input.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" || event.isComposing) return;

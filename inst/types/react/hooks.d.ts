@@ -16,7 +16,7 @@ export interface Bound {
     readonly error: string | null;
     get(): Json | undefined;
     commit(value: Json): Promise<boolean>;
-    type(value: Json | undefined): void;
+    type(value: Json | undefined, pause?: boolean): void;
     flush(): void;
 }
 export declare function useValue<S extends State>(host: BlockHost<S>, key: Extract<keyof S, string>): Bound;

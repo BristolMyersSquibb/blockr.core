@@ -62,7 +62,7 @@ export interface Bound {
   readonly error: string | null;
   get(): Json | undefined;
   commit(value: Json): Promise<boolean>;
-  type(value: Json | undefined): void;
+  type(value: Json | undefined, pause?: boolean): void;
   flush(): void;
 }
 
@@ -97,8 +97,8 @@ export function useValue(host: BlockHost | OptionHost, key?: string): Bound {
       error,
       get: () => binding.current?.get() ?? held(host, name),
       commit: (next: Json) => binding.current?.commit(next) ?? Promise.resolve(false),
-      type: (next: Json | undefined) => {
-        binding.current?.type(next);
+      type: (next: Json | undefined, pause?: boolean) => {
+        binding.current?.type(next, pause);
       },
       flush: () => {
         binding.current?.flush();

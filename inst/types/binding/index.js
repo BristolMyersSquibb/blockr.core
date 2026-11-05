@@ -23,11 +23,12 @@ function bind(host, key, show, options = {}) {
   const source = sourceOf(host);
   source.check(key);
   let shown;
+  let typing = false;
   let typed;
   let timer;
   let released = false;
   const display = (again = false) => {
-    if (released || timer !== void 0) return;
+    if (released || typing) return;
     const value = source.get(key);
     if (!again && shown !== void 0 && jsonEqual(shown.value, value)) return;
     shown = { value };
@@ -46,11 +47,12 @@ function bind(host, key, show, options = {}) {
   };
   const send = () => {
     const value = typed;
+    typing = false;
     typed = void 0;
     if (value !== void 0) void submit(value);
   };
   const flush = () => {
-    if (timer === void 0) return;
+    if (!typing) return;
     clearTimeout(timer);
     timer = void 0;
     send();
@@ -66,14 +68,15 @@ function bind(host, key, show, options = {}) {
       if (!took) display(true);
       return took;
     },
-    type(value) {
+    type(value, pause = true) {
       if (released) return;
+      typing = true;
       typed = value;
       clearTimeout(timer);
-      timer = setTimeout(() => {
+      timer = pause ? setTimeout(() => {
         timer = void 0;
         send();
-      }, PAUSE);
+      }, PAUSE) : void 0;
     },
     flush,
     release() {

@@ -41,14 +41,18 @@ test("shows the text, and takes a text set from outside", async () => {
   expect(area.value).toBe("");
 });
 
-test("submits the text once the user pauses typing", async () => {
+test("submits the text once the user leaves it, not as the user pauses", async () => {
   const { host, area } = await mounted(empty);
 
   await step(() => {
     type(area, "{nrow(data)} rows");
   });
-  await wait(PAUSE);
+  await wait(PAUSE * 4);
+  expect(host.submitted).toEqual([]);
 
+  await step(() => {
+    area.blur();
+  });
   expect(host.submitted).toEqual([rows]);
 });
 
