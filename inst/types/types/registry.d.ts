@@ -1,5 +1,6 @@
 import type { OptionId, RegistryId } from "./board.ts";
 import type { Json, JsonSchema } from "./json.ts";
+import type { OutputRenderer } from "./outputs.ts";
 export interface RegistryEntry {
     readonly id: RegistryId;
     readonly name: string;
@@ -24,6 +25,7 @@ export interface RegistryEntry {
         readonly volatile?: true;
         readonly action?: true;
     }>>;
+    readonly renderer?: OutputRenderer;
 }
 export interface ArgSpec {
     readonly description?: string;

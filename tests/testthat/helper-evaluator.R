@@ -357,12 +357,14 @@ local_table_preview <- function(frame = parent.frame()) {
   )
 }
 
-# An output class, with the methods that give its schema, its requests and its
-# renderer, where they are given, for the duration of `frame`. A function given
-# is the method itself, as one that calls `NextMethod()`, and anything else is
-# what the method returns.
+# An output class, with the methods that give its schema, its requests, its
+# renderer and its coercion, where they are given, for the duration of `frame`.
+# A function given for the first three is the method itself, as one that calls
+# `NextMethod()`, and anything else is what the method returns, while the
+# method of `output_coercion()` returns the coercion given.
 local_output_class <- function(class, schema = NULL, requests = NULL,
-                               renderer = NULL, frame = parent.frame()) {
+                               renderer = NULL, coercion = NULL,
+                               frame = parent.frame()) {
 
   method <- function(value) {
     if (is.function(value)) value else function(x, ...) value
@@ -379,6 +381,10 @@ local_output_class <- function(class, schema = NULL, requests = NULL,
     ),
     method
   )
+
+  if (not_null(coercion)) {
+    methods$output_coercion <- function(x, ...) coercion
+  }
 
   table <- get(".__S3MethodsTable__.", envir = asNamespace("blockr.core"))
 

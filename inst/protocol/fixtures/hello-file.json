@@ -55,6 +55,10 @@
                 "state_args": ["package"],
                 "options": []
               }
+            },
+            "renderer": {
+              "id": "blockr.core-table_output",
+              "module": "blockr.core/basic-table.js?v=b7e2a915"
             }
           },
           "blockr.core-subset_block": {
@@ -96,7 +100,11 @@
                 "type": { "type": "string" }
               }
             },
-            "requests": {}
+            "requests": {},
+            "renderer": {
+              "id": "blockr.core-table_output",
+              "module": "blockr.core/basic-table.js?v=b7e2a915"
+            }
           }
         },
         "startup_modules": [],

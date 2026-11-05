@@ -6,6 +6,7 @@ test_that("R answers the handshake as the fixture hello-declared has it", {
   local_empty_declarations()
   local_declared_package(dir)
   register_script_blocks(dir)
+  local_fixture_renderer_urls()
 
   module <- function(path) js_module(path, package = "blockr.test")
 

@@ -5,6 +5,7 @@
 
 import type { OptionId, RegistryId } from "./board.ts";
 import type { Json, JsonSchema } from "./json.ts";
+import type { OutputRenderer } from "./outputs.ts";
 
 export interface RegistryEntry {
   readonly id: RegistryId;
@@ -50,6 +51,13 @@ export interface RegistryEntry {
       }
     >
   >;
+  // The renderer of the class's outputs: that of the output class whose
+  // coercion the class names, which R knows where the output class gives its
+  // coercion through its method of `output_coercion()`. Core loads it, and
+  // adds the board options that it names to the board, before it asks for a
+  // block's first output, so that the request carries the board options that
+  // the coercion reads. An output still names the renderer that draws it.
+  readonly renderer?: OutputRenderer;
 }
 
 // An arg spec, as `new_arg_spec()` makes it, without the fields it leaves

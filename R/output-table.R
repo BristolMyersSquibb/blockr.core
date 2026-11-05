@@ -13,8 +13,9 @@
 #' element in `info`, and the output's parameters in `params`. The method for
 #' data frames reads three parameters. It shows page `params$page`, the first
 #' by default. A page holds `params$page_size` rows, or else as many as the
-#' board option `n_rows` gives, whose value the client sends with every output
-#' request, the default of its definition where the board holds none. The rows
+#' board option `n_rows` gives. Every renderer of table outputs names `n_rows`,
+#' so that the client adds it to the board before it asks for the first table
+#' output of a block, and sends its value with every output request. The rows
 #' are sorted by the column that `params$sort$column` names, from the largest
 #' value where `params$sort$desc` is `TRUE`. Asking for a page past the last
 #' one, or for a sort by a column that the table lacks, is an error, so that
@@ -239,6 +240,11 @@ table_cell <- function(x) {
 #' @export
 output_schema.table_output <- function(x, ...) {
   read_json_schema("outputs/table-output.schema.json")
+}
+
+#' @export
+output_coercion.table_output <- function(x, ...) {
+  as_table_output
 }
 
 #' @export

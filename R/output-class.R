@@ -208,7 +208,7 @@ print.reply_body <- function(x, ...) {
 #' Output classes in R
 #'
 #' The package that defines an output class gives R what it needs of the class
-#' through its methods of three generics, which it registers as it registers
+#' through its methods of four generics, which it registers as it registers
 #' any S3 method, so that S3 dispatch gives a subclass what its class gives,
 #' unless it gives its own.
 #' A method answers by the class alone, whatever the output holds, since R also
@@ -250,6 +250,23 @@ print.reply_body <- function(x, ...) {
 #' The method of `output_renderer()` gives the renderer that draws the class's
 #' outputs (see [new_renderer()]).
 #'
+#' The method of `output_coercion()` returns the class's coercion, the generic
+#' that makes the class's outputs from a result, as core's method for table
+#' outputs returns [as_table_output()].
+#' A block class names that coercion in its `output` field (see
+#' [new_block_class()]), so the method tells R which output class a block
+#' class's outputs are of before R makes one.
+#' R then names the renderer of that class in the block class's entry of the
+#' block registry.
+#' The client loads that renderer, and adds the board options that it names to
+#' the board, before it asks for a block's first output, so that the board
+#' holds every board option that the coercion reads, such as the `n_rows` of
+#' table outputs.
+#' A subclass that a method of its class's coercion makes, such as a lazy
+#' table's, gives no method of its own, since each output that R sends names
+#' the renderer that draws it, and the client draws it with that one.
+#' Two classes whose methods return the same coercion are an error.
+#'
 #' @param x An output, and for `run_output_class_request()`, an output or its
 #'   class vector
 #' @param ... Generic consistency
@@ -268,6 +285,10 @@ print.reply_body <- function(x, ...) {
 #'   for a request of the output class
 #'
 #' @examples
+#' as_words_output <- function(result, ...) {
+#'   new_block_output(list(words = as.character(result)), "words_output")
+#' }
+#'
 #' output_schema.words_output <- function(x, ...) {
 #'   list(type = "object", properties = list(words = list(type = "array")))
 #' }
@@ -276,15 +297,22 @@ print.reply_body <- function(x, ...) {
 #'   list(count = volatile(function(result) length(result)))
 #' }
 #'
-#' words <- new_block_output(list(words = "hello"), "words_output")
+#' output_coercion.words_output <- function(x, ...) {
+#'   as_words_output
+#' }
+#'
+#' words <- as_words_output("hello")
 #'
 #' output_schema(words)
 #' run_output_class_request(words, "count", result = c("hello", "world"))
+#' identical(output_coercion(words), as_words_output)
 #'
 #' @return The generic `output_schema()` returns a JSON Schema, as a list,
-#' `output_requests()` a named list of functions, `volatile()` the function it
-#' is given, marked as volatile, `read_json_schema()` the JSON Schema that it
-#' reads, as a list, and `run_output_class_request()` the request's answer.
+#' `output_requests()` a named list of functions, `output_coercion()` the
+#' coercion that makes the class's outputs, or `NULL` where the class gives
+#' none, `volatile()` the function it is given, marked as volatile,
+#' `read_json_schema()` the JSON Schema that it reads, as a list, and
+#' `run_output_class_request()` the request's answer.
 #'
 #' @export
 output_schema <- function(x, ...) {
@@ -311,6 +339,57 @@ output_requests <- function(x, ...) {
 #' @export
 output_requests.block_output <- function(x, ...) {
   list()
+}
+
+#' @rdname output_schema
+#' @export
+output_coercion <- function(x, ...) {
+  UseMethod("output_coercion")
+}
+
+#' @rdname output_schema
+#' @export
+output_coercion.block_output <- function(x, ...) {
+  NULL
+}
+
+# The coercion that each output class gives through its method of
+# `output_coercion()`, by class, among the methods that R finds from core's
+# namespace: those that packages register, and those that an app script
+# defines.
+output_coercions <- function() {
+
+  methods <- utils::.S3methods(
+    "output_coercion",
+    envir = asNamespace("blockr.core")
+  )
+
+  classes <- sub("^output_coercion[.]", "", as.character(methods))
+  classes <- set_names(nm = setdiff(classes, "block_output"))
+
+  res <- lapply(classes, function(cls) {
+    output_coercion(structure(list(), class = c(cls, "block_output")))
+  })
+
+  Filter(is.function, res)
+}
+
+# The output class whose method of `output_coercion()` gives the coercion,
+# among the `coercions` that `output_coercions()` gives, or `NULL` where none
+# gives it.
+coercion_class <- function(coercion, coercions = output_coercions()) {
+
+  hits <- names(Filter(function(x) identical(x, coercion), coercions))
+
+  if (length(hits) > 1L) {
+    blockr_abort(
+      "Output classes {hits} give the same coercion through their methods of ",
+      "`output_coercion()`, where a coercion makes the outputs of one class.",
+      class = "output_coercion_invalid"
+    )
+  }
+
+  if (length(hits)) hits else NULL
 }
 
 #' @rdname output_schema

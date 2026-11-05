@@ -550,6 +550,16 @@ local_fixture_renderer_urls <- function(frame = parent.frame()) {
   )
 }
 
+# The renderer of core's outputs of a kind, "table", "text" or "plot", as R
+# names it in a block class's entry of the block registry and in each output,
+# at the URL that the fixtures give its module.
+proto_renderer <- function(kind) {
+  obj(
+    id = paste0("blockr.core-", kind, "_output"),
+    module = proto_renderer_urls()[[paste0("js/basic-", kind, ".js")]]
+  )
+}
+
 proto_js <- function(file, hash) {
   paste0("blockr.core/", file, "?v=", hash)
 }
@@ -612,7 +622,8 @@ proto_registry <- function(...) {
       ),
       requests = obj(
         datasets = proto_request(state_args = "package")
-      )
+      ),
+      renderer = proto_renderer("table")
     ),
     head_block = obj(
       id = "blockr.core-head_block",
@@ -661,7 +672,8 @@ proto_registry <- function(...) {
           type = obj(type = "string", enum = I(c("head", "tail")))
         )
       ),
-      requests = obj(n_max = proto_request("data"))
+      requests = obj(n_max = proto_request("data")),
+      renderer = proto_renderer("table")
     ),
     merge_block = obj(
       id = "blockr.core-merge_block",
@@ -701,7 +713,8 @@ proto_registry <- function(...) {
           type = obj(type = "boolean")
         )
       ),
-      requests = obj(shared = proto_request(c("x", "y")))
+      requests = obj(shared = proto_request(c("x", "y"))),
+      renderer = proto_renderer("table")
     ),
     subset_block = obj(
       id = "blockr.core-subset_block",
@@ -734,7 +747,8 @@ proto_registry <- function(...) {
           type = proto_string()
         )
       ),
-      requests = obj()
+      requests = obj(),
+      renderer = proto_renderer("table")
     ),
     rbind_block = obj(
       id = "blockr.core-rbind_block",
@@ -755,7 +769,8 @@ proto_registry <- function(...) {
       ),
       state = obj(),
       arguments = obj(),
-      requests = obj()
+      requests = obj(),
+      renderer = proto_renderer("table")
     ),
     scatter_block = obj(
       id = "blockr.core-scatter_block",
@@ -787,7 +802,8 @@ proto_registry <- function(...) {
           type = proto_string()
         )
       ),
-      requests = obj(columns = proto_request("data"))
+      requests = obj(columns = proto_request("data")),
+      renderer = proto_renderer("plot")
     ),
     upload_block = obj(
       id = "blockr.core-upload_block",
@@ -806,7 +822,8 @@ proto_registry <- function(...) {
       ),
       state = obj(),
       arguments = obj(),
-      requests = obj(upload = proto_request(action = TRUE))
+      requests = obj(upload = proto_request(action = TRUE)),
+      renderer = proto_renderer("text")
     )
   )
 
@@ -1283,6 +1300,8 @@ declared_fields <- function() {
   register_script_blocks(dir)
 
   module <- function(path) js_module(path, package = "blockr.test")
+
+  local_fixture_renderer_urls()
 
   withr::local_options(
     blockr.renderers = list(

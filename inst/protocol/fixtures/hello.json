@@ -1,5 +1,5 @@
 {
-  "description": "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, where each module is served, no renderers, since the app names none for a board option, no lock, and the opening board that the app script built, as a JSON board. R drew the ids that the script left out, that of the link from a to f and the board's, which the script gave a name but no id, so the JSON board holds every id, as one that the client saves does.",
+  "description": "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, each with the renderer of its outputs, where each module is served, no renderers, since the app names none for a board option, no lock, and the opening board that the app script built, as a JSON board. R drew the ids that the script left out, that of the link from a to f and the board's, which the script gave a name but no id, so the JSON board holds every id, as one that the client saves does.",
   "client": [
     {
       "id": "1",
@@ -55,6 +55,10 @@
                 "state_args": ["package"],
                 "options": []
               }
+            },
+            "renderer": {
+              "id": "blockr.core-table_output",
+              "module": "blockr.core/basic-table.js?v=b7e2a915"
             }
           },
           "blockr.core-head_block": {
@@ -95,6 +99,10 @@
             },
             "requests": {
               "n_max": { "inputs": ["data"], "state_args": [], "options": [] }
+            },
+            "renderer": {
+              "id": "blockr.core-table_output",
+              "module": "blockr.core/basic-table.js?v=b7e2a915"
             }
           },
           "blockr.core-merge_block": {
@@ -145,6 +153,10 @@
                 "state_args": [],
                 "options": []
               }
+            },
+            "renderer": {
+              "id": "blockr.core-table_output",
+              "module": "blockr.core/basic-table.js?v=b7e2a915"
             }
           },
           "blockr.core-subset_block": {
@@ -186,7 +198,11 @@
                 "type": { "type": "string" }
               }
             },
-            "requests": {}
+            "requests": {},
+            "renderer": {
+              "id": "blockr.core-table_output",
+              "module": "blockr.core/basic-table.js?v=b7e2a915"
+            }
           },
           "blockr.core-rbind_block": {
             "id": "blockr.core-rbind_block",
@@ -212,7 +228,11 @@
             },
             "state": {},
             "arguments": {},
-            "requests": {}
+            "requests": {},
+            "renderer": {
+              "id": "blockr.core-table_output",
+              "module": "blockr.core/basic-table.js?v=b7e2a915"
+            }
           },
           "blockr.core-scatter_block": {
             "id": "blockr.core-scatter_block",
@@ -257,6 +277,10 @@
                 "state_args": [],
                 "options": []
               }
+            },
+            "renderer": {
+              "id": "blockr.core-plot_output",
+              "module": "blockr.core/basic-plot.js?v=f19d4a73"
             }
           },
           "blockr.core-upload_block": {
@@ -283,6 +307,10 @@
                 "options": [],
                 "action": true
               }
+            },
+            "renderer": {
+              "id": "blockr.core-text_output",
+              "module": "blockr.core/basic-text.js?v=3c8f61d0"
             }
           }
         },

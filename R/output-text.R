@@ -55,6 +55,11 @@ output_schema.text_output <- function(x, ...) {
 }
 
 #' @export
+output_coercion.text_output <- function(x, ...) {
+  as_text_output
+}
+
+#' @export
 output_renderer.text_output <- function(x, ...) {
   chosen_renderer(
     "text_output",
