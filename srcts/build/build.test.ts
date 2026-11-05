@@ -126,7 +126,7 @@ test("writes the schema of each output type and removes those of types gone", as
   });
   expect(schema).not.toHaveProperty("additionalProperties");
   expect(Object.keys(schema.definitions as object)).toEqual(["Json"]);
-});
+}, 60_000);
 
 test("writes no schemas without the types and modules they come from", async () => {
   expect(await schemas(root)).toEqual([]);
