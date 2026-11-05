@@ -44,12 +44,9 @@ export interface Binding {
   commit(value: Json): Promise<boolean>;
   // Takes what the user typed, which it submits once the user pauses,
   // unless the user types on.
-  // Where `pause` is false, it waits for flush() instead,
-  // which the control calls as the user lets go,
-  // as suits code, which does not parse while it is half typed.
   // Until then, the control is shown nothing the host announces.
   // Given undefined, as for a number out of range, it submits nothing.
-  type(value: Json | undefined, pause?: boolean): void;
+  type(value: Json | undefined): void;
   // Submits what the user typed at once,
   // as on Enter or as the user leaves the control.
   flush(): void;
@@ -109,17 +106,15 @@ export function bind(
   const source = sourceOf(host);
   source.check(key);
 
-  // The value the control last showed, whether the user is typing,
-  // what the user typed, the pause the binding waits for, if it waits for one,
-  // and whether the binding has ended.
+  // The value the control last showed, what the user typed while the
+  // binding waits for the pause, and whether the binding has ended.
   let shown: { readonly value: Json | undefined } | undefined;
-  let typing = false;
   let typed: Json | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let released = false;
 
   const display = (again = false): void => {
-    if (released || typing) return;
+    if (released || timer !== undefined) return;
     const value = source.get(key);
     if (!again && shown !== undefined && jsonEqual(shown.value, value)) return;
     shown = { value };
@@ -142,13 +137,12 @@ export function bind(
 
   const send = (): void => {
     const value = typed;
-    typing = false;
     typed = undefined;
     if (value !== undefined) void submit(value);
   };
 
   const flush = (): void => {
-    if (!typing) return;
+    if (timer === undefined) return;
     clearTimeout(timer);
     timer = undefined;
     send();
@@ -166,17 +160,14 @@ export function bind(
       if (!took) display(true);
       return took;
     },
-    type(value, pause = true) {
+    type(value) {
       if (released) return;
-      typing = true;
       typed = value;
       clearTimeout(timer);
-      timer = pause
-        ? setTimeout(() => {
-            timer = undefined;
-            send();
-          }, PAUSE)
-        : undefined;
+      timer = setTimeout(() => {
+        timer = undefined;
+        send();
+      }, PAUSE);
     },
     flush,
     release() {

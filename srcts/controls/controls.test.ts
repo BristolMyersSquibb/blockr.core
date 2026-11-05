@@ -95,22 +95,6 @@ describe("the controls of a block's UI", () => {
     expect(host.submitted).toHaveLength(2);
   });
 
-  test("submit code typed into a text area only once the user presses Ctrl or Cmd with Enter", async () => {
-    const host = stubBlockHost<Form>(fixture, { state: form({}) });
-    const ui = controls(host, abort.signal);
-    ui.text("label", { label: "Label", lines: 3, pause: false });
-    document.body.append(ui.el);
-    const area = find(ui.el, "textarea", HTMLTextAreaElement);
-
-    type(area, "yz");
-    await vi.advanceTimersByTimeAsync(PAUSE * 4);
-    press(area, "Enter");
-    expect(host.submitted).toEqual([]);
-
-    press(area, "Enter", { ctrlKey: true });
-    expect(host.submitted).toEqual([form({ label: "yz" })]);
-  });
-
   test("submit a pick at once, and say why the host refused one, showing the state again", async () => {
     const { host, ui, direction, by } = drawn();
 

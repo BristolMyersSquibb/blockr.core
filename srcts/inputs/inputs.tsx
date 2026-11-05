@@ -32,21 +32,16 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 }
 
 // A text input for a string, or a text area where it spans lines.
-// Where `pause` is false, as for code, it submits what the user typed only
-// once the user lets go, on Enter or as the user leaves it,
-// rather than once the user pauses.
 export function TextInput({
   bound,
   label,
   placeholder,
   lines = 1,
-  pause = true,
 }: {
   bound: Bound;
   label: string;
   placeholder?: string;
   lines?: number;
-  pause?: boolean;
 }): ReactElement {
   const [text, typed] = useTyped(bound);
   const shown = text ?? (typeof bound.value === "string" ? bound.value : "");
@@ -57,7 +52,7 @@ export function TextInput({
     spellCheck: false,
     onChange: (event: { target: { value: string } }) => {
       typed(event.target.value);
-      bound.type(event.target.value, pause);
+      bound.type(event.target.value);
     },
     onKeyDown: (event: { key: string; ctrlKey: boolean; metaKey: boolean; nativeEvent: KeyboardEvent }) => {
       if (event.key !== "Enter" || event.nativeEvent.isComposing) return;

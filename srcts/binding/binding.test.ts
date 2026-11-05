@@ -70,22 +70,6 @@ describe("a binding", () => {
     expect(shown).toEqual(["x", "y"]);
   });
 
-  test("holds what the user typed until the user lets go, where it waits for no pause", async () => {
-    const host = stubBlockHost(fixture);
-    const shown: (Json | undefined)[] = [];
-    const label = bind(host, "label", (value) => shown.push(value));
-
-    label.type("y", false);
-    host.setState({ columns: ["a", "b"], label: "x" });
-    await vi.advanceTimersByTimeAsync(PAUSE * 4);
-    expect(host.submitted).toEqual([]);
-    expect(shown).toEqual(["x"]);
-
-    label.flush();
-    expect(host.submitted).toEqual([{ columns: ["a", "b"], label: "y" }]);
-    expect(shown).toEqual(["x", "y"]);
-  });
-
   test("submits nothing where the user typed no value, and what is pending as it ends", async () => {
     const host = stubBlockHost(fixture);
     const shown: (Json | undefined)[] = [];

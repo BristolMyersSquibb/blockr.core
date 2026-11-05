@@ -34,12 +34,11 @@ function bind(host, key, show, options = {}) {
   const source = sourceOf(host);
   source.check(key);
   let shown;
-  let typing = false;
   let typed;
   let timer;
   let released = false;
   const display = (again = false) => {
-    if (released || typing) return;
+    if (released || timer !== void 0) return;
     const value = source.get(key);
     if (!again && shown !== void 0 && jsonEqual(shown.value, value)) return;
     shown = { value };
@@ -58,12 +57,11 @@ function bind(host, key, show, options = {}) {
   };
   const send = () => {
     const value = typed;
-    typing = false;
     typed = void 0;
     if (value !== void 0) void submit(value);
   };
   const flush = () => {
-    if (!typing) return;
+    if (timer === void 0) return;
     clearTimeout(timer);
     timer = void 0;
     send();
@@ -79,15 +77,14 @@ function bind(host, key, show, options = {}) {
       if (!took) display(true);
       return took;
     },
-    type(value, pause = true) {
+    type(value) {
       if (released) return;
-      typing = true;
       typed = value;
       clearTimeout(timer);
-      timer = pause ? setTimeout(() => {
+      timer = setTimeout(() => {
         timer = void 0;
         send();
-      }, PAUSE) : void 0;
+      }, PAUSE);
     },
     flush,
     release() {
@@ -223,8 +220,8 @@ function useValue(host, key) {
       error,
       get: () => binding.current?.get() ?? held(host, name),
       commit: (next) => binding.current?.commit(next) ?? Promise.resolve(false),
-      type: (next, pause) => {
-        binding.current?.type(next, pause);
+      type: (next) => {
+        binding.current?.type(next);
       },
       flush: () => {
         binding.current?.flush();
@@ -353,8 +350,7 @@ function TextInput({
   bound,
   label,
   placeholder,
-  lines = 1,
-  pause = true
+  lines = 1
 }) {
   const [text, typed] = useTyped(bound);
   const shown = text ?? (typeof bound.value === "string" ? bound.value : "");
@@ -365,7 +361,7 @@ function TextInput({
     spellCheck: false,
     onChange: (event) => {
       typed(event.target.value);
-      bound.type(event.target.value, pause);
+      bound.type(event.target.value);
     },
     onKeyDown: (event) => {
       if (event.key !== "Enter" || event.nativeEvent.isComposing) return;

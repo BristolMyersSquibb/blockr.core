@@ -43,18 +43,16 @@ test("shows each expression the state holds", async () => {
   expect(host.requested).toEqual([]);
 });
 
-test("submits an expression once the user presses Enter, not as the user pauses, as one edit", async () => {
+test("submits an expression once the user pauses typing, as one edit", async () => {
   const { host, rowInput } = await mounted(none);
 
   await step(() => {
     type(rowInput, "Sepal.Width > 3");
   });
-  await wait(PAUSE * 4);
+  await wait(PAUSE - 1);
   expect(host.submitted).toEqual([]);
 
-  await step(() => {
-    press(rowInput, "Enter");
-  });
+  await wait(1);
   expect(host.submitted).toEqual([rows]);
 });
 

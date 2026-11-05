@@ -56,9 +56,7 @@ export interface Controls<K extends string = string> {
   // controls.
   bind(key: K, show: (value: Json | undefined) => void): Binding;
   // A text input for a string, a text area where it spans lines.
-  // Where `pause` is false, as for code, it submits what the user typed only
-  // once the user lets go, on Enter or as the user leaves it.
-  text(key: K, options: { label: string; placeholder?: string; lines?: number; pause?: boolean }): void;
+  text(key: K, options: { label: string; placeholder?: string; lines?: number }): void;
   // A number input for an integer, no smaller than `min`.
   number(key: K, options: { label: string; min?: number }): NumberInput;
   // A select of one string, which shows `placeholder` while the value is
@@ -172,8 +170,8 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
         error: refusal,
         get: () => binding.get(),
         commit: (next) => binding.commit(next),
-        type: (next, pause) => {
-          binding.type(next, pause);
+        type: (next) => {
+          binding.type(next);
         },
         flush: () => {
           binding.flush();
@@ -209,7 +207,7 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
     return request;
   }
 
-  function text(key: string, options: { label: string; placeholder?: string; lines?: number; pause?: boolean }): void {
+  function text(key: string, options: { label: string; placeholder?: string; lines?: number }): void {
     input(key, (bound) => <inputs.TextInput bound={bound} {...options} />);
   }
 

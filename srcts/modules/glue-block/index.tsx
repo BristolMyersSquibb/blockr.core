@@ -1,7 +1,5 @@
 // The UI of the glue block: a text area for the text that glue::glue() fills
-// in, which refers to each input by the name of its link,
-// submitted once the user presses Ctrl or Cmd with Enter or leaves it,
-// since the code between its braces does not parse while it is half typed.
+// in, which refers to each input by the name of its link.
 
 import type { ReactElement } from "react";
 import { Stack, TextInput } from "../../inputs/index.ts";
@@ -15,7 +13,7 @@ export const api = 1;
 function GlueBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   return (
     <Stack>
-      <TextInput bound={useValue(host, "text")} label="Text" placeholder="{nrow(data)} rows" lines={4} pause={false} />
+      <TextInput bound={useValue(host, "text")} label="Text" placeholder="{nrow(data)} rows" lines={4} />
     </Stack>
   );
 }

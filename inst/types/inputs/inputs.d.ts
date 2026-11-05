@@ -8,12 +8,11 @@ export declare function Field({ label, children }: {
     label: string;
     children: ReactNode;
 }): ReactElement;
-export declare function TextInput({ bound, label, placeholder, lines, pause, }: {
+export declare function TextInput({ bound, label, placeholder, lines, }: {
     bound: Bound;
     label: string;
     placeholder?: string;
     lines?: number;
-    pause?: boolean;
 }): ReactElement;
 export declare function NumberInput({ bound, label, min, max, }: {
     bound: Bound;

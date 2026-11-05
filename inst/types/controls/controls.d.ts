@@ -19,7 +19,6 @@ export interface Controls<K extends string = string> {
         label: string;
         placeholder?: string;
         lines?: number;
-        pause?: boolean;
     }): void;
     number(key: K, options: {
         label: string;

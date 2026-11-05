@@ -5,7 +5,7 @@ export declare const PAUSE = 500;
 export interface Binding {
     get(): Json | undefined;
     commit(value: Json): Promise<boolean>;
-    type(value: Json | undefined, pause?: boolean): void;
+    type(value: Json | undefined): void;
     flush(): void;
     release(): void;
 }

@@ -1,7 +1,5 @@
 // The UI of the subset block: a text input for each of its R expressions,
-// one that selects rows and one that selects columns,
-// each submitted once the user presses Enter or leaves it,
-// since an expression does not parse while it is half typed.
+// one that selects rows and one that selects columns.
 
 import type { ReactElement } from "react";
 import { Stack, TextInput } from "../../inputs/index.ts";
@@ -15,18 +13,8 @@ export const api = 1;
 function SubsetBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   return (
     <Stack>
-      <TextInput
-        bound={useValue(host, "subset")}
-        label="Subset"
-        placeholder="Enter a row subsetting expression."
-        pause={false}
-      />
-      <TextInput
-        bound={useValue(host, "select")}
-        label="Select"
-        placeholder="Enter a column selection expression."
-        pause={false}
-      />
+      <TextInput bound={useValue(host, "subset")} label="Subset" placeholder="Enter a row subsetting expression." />
+      <TextInput bound={useValue(host, "select")} label="Select" placeholder="Enter a column selection expression." />
     </Stack>
   );
 }
