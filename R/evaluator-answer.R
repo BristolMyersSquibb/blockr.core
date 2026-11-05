@@ -1,7 +1,8 @@
 # The evaluator's answers to the requests that it queues,
 # as inst/protocol/README.md gives them.
 # Each kind has a function of its own: an evaluation, an output,
-# a request of an object, an `open` and a `blockr_options` request.
+# a request, which `request_call()` answers by its type,
+# an `open` and a `blockr_options` request.
 
 # The reply to a request, from the function of its kind.
 # An error that R raises itself, as for a block class that is not registered,
@@ -85,7 +86,12 @@ answer_evaluate <- function(ev, job) {
 
   entry <- get_registry_entry(recipe[["registry_id"]])
   cls <- entry[["block_class"]]
-  bound <- bind_inputs(ev, recipe[["inputs"]], class_inputs(cls))
+
+  bound <- bind_inputs(
+    recipe[["inputs"]],
+    held_reads(ev, recipe[["inputs"]]),
+    class_inputs(cls)
+  )
 
   ran <- capture_streams(
     eval_block_class(
@@ -187,24 +193,10 @@ answer_output <- function(ev, job) {
   )
 }
 
-# A request, resolved by the id of the object it belongs to.
+# A request, which R answers through `request_call()`, by the request's class.
+# First R checks the results that the request reads, whatever its type,
+# and replies `missing` where it lacks one.
 answer_object_request <- function(ev, job) {
-  switch(
-    job[["req"]][["object"]],
-    block_class = answer_block_request(ev, job),
-    option = answer_option_request(job),
-    extension = answer_extension_request(ev, job),
-    output = answer_output_request(ev, job)
-  )
-}
-
-# A block class's request, by registry id.
-# R binds its inputs to the results at the revisions that it reads,
-# and a variadic block's `...` in link order.
-# It takes the state args and parameters from `args`,
-# and the board options from `options`.
-# An action receives the request's body in `file`.
-answer_block_request <- function(ev, job) {
 
   req <- job[["req"]]
   lacking <- lacking_results(ev, req[["reads"]])
@@ -213,122 +205,7 @@ answer_block_request <- function(ev, job) {
     return(missing_reply(job[["id"]], lacking))
   }
 
-  entry <- get_registry_entry(req[["registry_id"]])
-  bound <- bind_inputs(ev, req[["reads"]], entry[["inputs"]])
-  args <- req[["args"]]
-
-  if (isTRUE(entry[["requests"]][[req[["name"]]]][["action"]])) {
-    args[["file"]] <- req[["body"]]
-  }
-
-  call <- block_request_call(
-    req[["registry_id"]],
-    req[["name"]],
-    input_values(bound),
-    args,
-    req[["options"]]
-  )
-
-  answer_call(job[["id"]], call)
-}
-
-# A board option's request, by the board option's id.
-# R calls it with its args by name, and with the request's body in `file`.
-answer_option_request <- function(job) {
-
-  req <- job[["req"]]
-  fun <- registered_request("option", req[["option"]], req[["name"]])
-
-  answer_call(
-    job[["id"]],
-    list(
-      fun = fun,
-      args = request_call_args(
-        fun,
-        req[["name"]],
-        req[["args"]],
-        Filter(not_null, list(file = req[["body"]])),
-        "file",
-        "registered_request_args_invalid"
-      )
-    )
-  )
-}
-
-# An extension's request, by the extension's id.
-# R calls it with its args by name, the request's body in `file` and,
-# in `reads`, each block that it reads, by id.
-# Each is a list of the block's result,
-# and of the block expression that R built for it.
-answer_extension_request <- function(ev, job) {
-
-  req <- job[["req"]]
-  lacking <- lacking_results(ev, req[["reads"]])
-
-  if (length(lacking)) {
-    return(missing_reply(job[["id"]], lacking))
-  }
-
-  fun <- registered_request("extension", req[["extension"]], req[["name"]])
-
-  ids <- chr_xtr(req[["reads"]], "block")
-
-  reads <- lapply(
-    set_names(nm = ids),
-    function(id) {
-      held <- ev$results[[id]]
-      list(result = held[["result"]], expr = held[["expr"]])
-    }
-  )
-
-  answer_call(
-    job[["id"]],
-    list(
-      fun = fun,
-      args = request_call_args(
-        fun,
-        req[["name"]],
-        req[["args"]],
-        Filter(not_null, list(reads = reads, file = req[["body"]])),
-        c("reads", "file"),
-        "registered_request_args_invalid"
-      )
-    )
-  )
-}
-
-# A request of an output class, or of a renderer where the request names one.
-# R resolves it against the class vector of the latest output that it made from
-# the result at the revision that the request names.
-# It runs the request with that result.
-answer_output_request <- function(ev, job) {
-
-  req <- job[["req"]]
-  out <- req[["output"]]
-  held <- held_result(ev, out[["block"]], out[["revision"]])
-
-  if (is.null(held)) {
-    return(missing_reply(job[["id"]], list(out)))
-  }
-
-  if (is.null(held[["output"]])) {
-    blockr_abort(
-      "R made no output of block {out$block} at revision {out$revision}, so ",
-      "it knows of no output class to resolve request {req$name} by.",
-      class = "output_request_unresolved"
-    )
-  }
-
-  call <- output_request_call(
-    held[["output"]],
-    req[["name"]],
-    held[["result"]],
-    req[["args"]],
-    req[["options"]],
-    req[["params"]],
-    req[["body"]],
-    req[["renderer"]]
-  )
+  call <- request_call(req, held_reads(ev, req[["reads"]]))
 
   answer_call(job[["id"]], call, call[["volatile"]])
 }
@@ -399,16 +276,59 @@ lacking_results <- function(ev, reads) {
   unique(res)
 }
 
+# The results that R holds of what a recipe's inputs or a request's reads
+# name, by block id.
+# Each is a list of its `result`, its block expression `expr`,
+# and the class vector of the latest output that R made from it in `output`.
+# An input named alone is one that R binds itself to the data that `serve()`
+# was given, so its entry, named by the input, holds that data as its result.
+held_reads <- function(ev, reads) {
+
+  res <- list()
+
+  for (read in reads) {
+
+    block <- read[["block"]]
+
+    if (not_null(block)) {
+      held <- ev$results[[block]]
+      res[block] <- list(
+        list(
+          result = held[["result"]],
+          expr = held[["expr"]],
+          output = held[["output"]]
+        )
+      )
+      next
+    }
+
+    input <- read[["input"]]
+
+    if (!input %in% names(ev$data)) {
+      blockr_abort(
+        "R binds no data to input {input} itself, so the input names a ",
+        "block.",
+        class = "evaluator_input_unbound"
+      )
+    }
+
+    res[input] <- list(list(result = ev$data[[input]]))
+  }
+
+  res
+}
+
 # The results that a recipe's inputs bind, or a block class request's reads,
-# by the data inputs `names` of the block's class.
+# by the data inputs `names` of the block's class,
+# from the results that R holds of them, `held`.
 # In `inputs`, the upstream ids are named by input,
 # as `interpolate()` takes them.
 # A variadic block's go under `...` in link order,
 # each named by its link's input.
 # In `results`, the results are named by id.
-# An input named alone is one that R binds itself to the data that `serve()` was
-# given, and the block expression names that data by the input.
-bind_inputs <- function(ev, reads, names) {
+# An input named alone is one that R binds itself to the data that `serve()`
+# was given, and the block expression names that data by the input.
+bind_inputs <- function(reads, held, names) {
 
   named <- setdiff(names, "...")
   inputs <- list()
@@ -418,25 +338,9 @@ bind_inputs <- function(ev, reads, names) {
   for (read in reads) {
 
     input <- read[["input"]]
+    id <- coal(read[["block"]], input, fail_all = FALSE)
 
-    if (is.null(read[["block"]])) {
-
-      if (!input %in% names(ev$data)) {
-        blockr_abort(
-          "R binds no data to input {input} itself, so the input names a ",
-          "block.",
-          class = "evaluator_input_unbound"
-        )
-      }
-
-      id <- input
-      results[id] <- list(ev$data[[input]])
-
-    } else {
-
-      id <- read[["block"]]
-      results[id] <- list(ev$results[[id]][["result"]])
-    }
+    results[id] <- list(held[[id]][["result"]])
 
     if (input %in% named) {
       inputs[[input]] <- id

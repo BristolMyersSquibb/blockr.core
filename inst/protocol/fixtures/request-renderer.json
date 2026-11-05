@@ -4,6 +4,7 @@
     {
       "id": "35",
       "kind": "request",
+      "type": "renderer",
       "output": { "block": "a", "revision": 3 },
       "renderer": "blockr.ui-table_preview",
       "name": "labels",

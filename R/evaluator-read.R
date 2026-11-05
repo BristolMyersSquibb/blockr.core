@@ -65,67 +65,80 @@ read_output <- function(req) {
   )
 }
 
-# A request names the one object that it belongs to:
-# a block class by its registry id, a board option or an extension by its id,
-# or an output by its block and revision.
-# A renderer's own request names the renderer as well.
+# A request names its type, and R reads it into an object of class
+# `{type}_request`, which `request_call()` answers.
+# R reads the fields of core's types.
+# Of a type that a package adds, R reads only `reads`, the results that the
+# request reads, and leaves the other fields as the client sent them.
 read_request <- function(req) {
+
+  type <- req[["type"]]
+
+  if (!is_string(type) || !grepl("^[A-Za-z][A-Za-z0-9_.]*$", type)) {
+    protocol_abort(
+      "A request names its type in `type`, as a name such as `block_class`."
+    )
+  }
+
+  read <- switch(
+    type,
+    block_class = c(
+      list(
+        registry_id = read_id(req, "registry_id"),
+        reads = read_reads(req[["reads"]], input = TRUE),
+        options = read_map(req, "options")
+      ),
+      read_call(req)
+    ),
+    output_class = read_output_request(req, NULL),
+    renderer = read_output_request(req, read_id(req, "renderer")),
+    option = c(list(option = read_id(req, "option")), read_call(req)),
+    c(
+      req[setdiff(names(req), "reads")],
+      list(reads = read_reads(req[["reads"]], input = FALSE))
+    )
+  )
+
+  structure(read, class = c(paste0(type, "_request"), "request"))
+}
+
+# The fields that every request of core's types has: the name of the request,
+# its args and, where it carries one, its body.
+read_call <- function(req) {
 
   if (!is_nonempty_string(req[["name"]])) {
     protocol_abort("A request names the request it runs, in `name`.")
   }
 
-  objects <- c("registry_id", "option", "extension", "output")
-  object <- objects[!lgl_ply(req[objects], is.null)]
+  list(name = req[["name"]], args = read_map(req, "args"), body = req[["body"]])
+}
 
-  if (length(object) != 1L) {
+read_id <- function(req, field) {
+
+  if (!is_nonempty_string(req[[field]])) {
     protocol_abort(
-      "A request names the one object it belongs to, in `registry_id`, ",
-      "`option`, `extension` or `output`."
+      "A request of type {req$type} names an id in `{field}`."
     )
   }
 
-  if (!identical(object, "output") && !is_nonempty_string(req[[object]])) {
-    protocol_abort("A request names the object it belongs to by its id.")
-  }
+  req[[field]]
+}
 
-  renderer <- req[["renderer"]]
+# A request of an output's class or of its renderer.
+# R counts the output as the result that the request reads.
+read_output_request <- function(req, renderer) {
 
-  if (not_null(renderer) &&
-        (!identical(object, "output") || !is_nonempty_string(renderer))) {
-    protocol_abort(
-      "A request of a renderer names the renderer by its id, beside the ",
-      "output it belongs to."
-    )
-  }
-
-  res <- switch(
-    object,
-    registry_id = list(
-      object = "block_class",
-      registry_id = req[["registry_id"]],
-      reads = read_reads(req[["reads"]], input = TRUE),
-      options = read_map(req, "options")
-    ),
-    option = list(object = "option", option = req[["option"]]),
-    extension = list(
-      object = "extension",
-      extension = req[["extension"]],
-      reads = read_reads(req[["reads"]], input = FALSE)
-    ),
-    output = list(
-      object = "output",
-      output = read_block_revision(req[["output"]], "The output of a request"),
-      renderer = renderer,
-      options = read_map(req, "options"),
-      params = read_map(req, "params")
-    )
-  )
+  output <- read_block_revision(req[["output"]], "The output of a request")
 
   c(
-    res,
-    list(name = req[["name"]], args = read_map(req, "args")),
-    list(body = req[["body"]])
+    list(
+      output = output,
+      renderer = renderer,
+      reads = list(output),
+      options = read_map(req, "options"),
+      params = read_map(req, "params")
+    ),
+    read_call(req)
   )
 }
 
@@ -192,13 +205,19 @@ read_map <- function(x, field) {
 }
 
 # The blocks that a request evaluates or reads, by which a `forget` drops it.
+# Of a request that `request_call()` answers, these are the blocks of `reads`,
+# since the other fields of a type that a package adds are the package's.
 request_blocks <- function(read) {
+
+  if (inherits(read, "request")) {
+    return(unique(unlst(lst_xtr(read[["reads"]], "block"))))
+  }
+
   unique(
     c(
       read[["fields"]][["block"]],
       read[["output"]][["block"]],
-      unlst(lst_xtr(read[["recipe"]][["inputs"]], "block")),
-      unlst(lst_xtr(read[["reads"]], "block"))
+      unlst(lst_xtr(read[["recipe"]][["inputs"]], "block"))
     )
   )
 }

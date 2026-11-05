@@ -70,6 +70,7 @@ test_that("R names the inputs it binds itself for a block served alone", {
       list(
         id = "3",
         kind = "request",
+        type = "block_class",
         registry_id = "blockr.core-head_block",
         block = "b",
         name = "n_max",
@@ -466,30 +467,30 @@ test_that("an action receives the request's body in file", {
   )
 })
 
-test_that("R answers a board option's request by the board option's id", {
+test_that("R answers a board option's request by the board option's class", {
 
-  local_registered_requests()
+  local_request_types()
 
   session <- local_evaluator()
 
   expect_fixture_replies(session, "request-option")
 })
 
-test_that("R answers an extension's request with the blocks it reads", {
+test_that("R answers a request of a type that a package adds", {
 
-  local_registered_requests()
+  local_request_types()
 
   session <- local_evaluator()
 
   hold_result(session, "a", 2L)
   hold_result(session, "b", 3L, list(read_of("a", 2L, "data")))
 
-  expect_fixture_replies(session, "request-extension")
+  expect_fixture_replies(session, "request-added")
 })
 
 test_that("a request's function sends progress notes while it runs", {
 
-  local_registered_requests()
+  local_request_types()
 
   session <- local_evaluator()
 
@@ -620,6 +621,7 @@ test_that("a request names its failures by phase, and lacking results", {
     list(
       id = id,
       kind = "request",
+      type = "block_class",
       registry_id = "blockr.core-head_block",
       block = "b",
       name = name,
@@ -951,4 +953,109 @@ test_that("the Shiny transport carries the evaluator's replies and bodies", {
   expect_identical(plot$output$renderer, "blockr.core-plot_output")
   expect_identical(plot$body$type, "image/png")
   expect_true(nzchar(plot$body$data))
+})
+
+test_that("R answers a type that a package adds with the fields it gives", {
+
+  got <- NULL
+
+  testthat::local_mocked_s3_method(
+    "request_call",
+    "notes_request",
+    function(x, reads, ...) {
+      got <<- list(x = x, reads = reads)
+      list(fun = function(text) toupper(text), args = list(text = x$text))
+    }
+  )
+
+  session <- local_evaluator()
+
+  hold_result(session, "a", 2L)
+
+  session$receive(
+    list(
+      list(
+        id = "2",
+        kind = "request",
+        type = "notes",
+        text = "hello",
+        reads = list(read_of("a", 2L))
+      )
+    )
+  )
+
+  session$run()
+
+  expect_identical(unclass(last_reply(session)$value), "[\"HELLO\"]")
+  expect_s3_class(got$x, c("notes_request", "request"), exact = TRUE)
+  expect_identical(got$x$text, "hello")
+  expect_identical(names(got$reads), "a")
+  expect_identical(got$reads$a$expr, quote(datasets::iris))
+  expect_identical(nrow(got$reads$a$result), 150L)
+})
+
+test_that("R checks what a request of any type reads, and forgets it", {
+
+  local_request_types()
+
+  session <- local_evaluator()
+
+  hold_result(session, "a", 2L)
+
+  code <- function(id, revision) {
+    list(
+      id = id,
+      kind = "request",
+      type = "code",
+      name = "script",
+      reads = list(read_of("a", revision))
+    )
+  }
+
+  session$receive(list(code("2", 7L)))
+  session$run()
+
+  expect_identical(
+    last_reply(session),
+    list(id = "2", status = "missing",
+         missing = list(list(block = "a", revision = 7L)))
+  )
+
+  session$sent <- list()
+
+  session$receive(list(code("3", 2L)))
+  session$receive(list(list(kind = "forget", blocks = "a")))
+  session$run()
+
+  expect_identical(
+    session$sent,
+    list(list(list(id = "3", status = "cancelled")))
+  )
+})
+
+test_that("R replies error to a type that no method answers", {
+
+  session <- local_evaluator()
+
+  session$receive(
+    list(
+      list(id = "2", kind = "request", type = "nothing", name = "x"),
+      list(id = "3", kind = "request", type = "option", option = "data_dir",
+           name = "list_dir", args = obj()),
+      list(id = "4", kind = "request", type = "no such type", name = "x"),
+      list(id = "5", kind = "request", name = "x", registry_id = "a")
+    )
+  )
+
+  session$run()
+
+  replies <- lapply(session$sent, `[[`, 1L)
+
+  expect_identical(chr_xtr(replies, "id"), c("4", "5", "2", "3"))
+  expect_identical(
+    chr_ply(replies, condition_class),
+    c("protocol_request_invalid", "protocol_request_invalid",
+      "request_type_unknown", "option_request_unknown")
+  )
+  expect_null(replies[[3L]]$conditions[[1L]]$phase)
 })

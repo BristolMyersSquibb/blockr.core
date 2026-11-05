@@ -1,0 +1,25 @@
+{
+  "description": "A request of a type that a package adds, here code, as a code export could ask for the script of a and b. R reads it into an object of class code_request and answers it through the package's method of request_call(), with the results that the request reads, each with the block expression that R built for it. The fields beside type and reads are the package's.",
+  "client": [
+    {
+      "id": "27",
+      "kind": "request",
+      "type": "code",
+      "name": "script",
+      "args": {},
+      "reads": [
+        { "block": "a", "revision": 2 },
+        { "block": "b", "revision": 3 }
+      ]
+    }
+  ],
+  "r": [
+    [
+      {
+        "id": "27",
+        "status": "ok",
+        "value": ["a <- datasets::iris", "b <- utils::head(a, n = 6L)"]
+      }
+    ]
+  ]
+}

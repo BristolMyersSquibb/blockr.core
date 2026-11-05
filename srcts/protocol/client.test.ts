@@ -152,7 +152,7 @@ const evaluate: Parameters<Client["request"]>[0] = {
 
 const echo: Parameters<Client["request"]>[0] = {
   kind: "request",
-  extension: "blockr.test-echo",
+  type: "echo",
   name: "echo",
   args: {},
   reads: [],

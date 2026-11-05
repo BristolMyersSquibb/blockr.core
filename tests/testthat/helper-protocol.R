@@ -404,7 +404,7 @@ protocol_r_values <- function() {
         )
       )
     ),
-    `request-extension` = list(
+    `request-added` = list(
       list(
         obj(
           id = "27",

@@ -359,56 +359,55 @@ local_table_preview <- function(frame = parent.frame()) {
   )
 }
 
-# Requests that packages register for a board option and two extensions,
-# as blockr.io lists the server's directories,
-# blockr.code exports a script and blockr.md exports a report, sending progress,
-# for the duration of `frame`.
-local_registered_requests <- function(frame = parent.frame()) {
+# The script of the blocks that a request reads, as a code export would write
+# it, from each block's id and block expression.
+code_script <- function(reads) {
+  paste(names(reads), "<-", chr_ply(reads, function(x) deparse1(x[["expr"]])))
+}
 
-  register_requests(
-    list(
-      list_dir = function(path = "") {
-        list(path = "/home/analyst", dirs = c("data", "projects"))
-      }
-    ),
-    option = "data_dir",
-    package = "blockr.io"
+# An export of a report to a file of the format given, which reports its
+# progress.
+report_export <- function(reads, format) {
+
+  report_progress(0.3, "Rendering the report")
+  report_progress(0.8, "Converting to PowerPoint")
+
+  new_reply_body(charToRaw(format), pptx_type, name = paste0("report.", format))
+}
+
+# The requests that packages give, for the duration of `frame`:
+# blockr.io gives the requests of its board option data_dir,
+# a code export adds the type code, for the script of the blocks it reads,
+# and a report's export adds the type report, which reports progress.
+local_request_types <- function(frame = parent.frame()) {
+
+  testthat::local_mocked_s3_method(
+    "board_option_requests",
+    "data_dir_option",
+    function(x, ...) {
+      list(
+        list_dir = function(path = "") {
+          list(path = "/home/analyst", dirs = c("data", "projects"))
+        }
+      )
+    },
+    frame = frame
   )
 
-  register_requests(
-    list(
-      script = function(reads) {
-        paste(
-          names(reads),
-          "<-",
-          chr_ply(reads, function(x) deparse1(x[["expr"]]))
-        )
-      }
-    ),
-    extension = "code",
-    allow_locked = "script",
-    package = "blockr.code"
+  testthat::local_mocked_s3_method(
+    "request_call",
+    "code_request",
+    function(x, reads, ...) list(fun = code_script, args = list(reads = reads)),
+    frame = frame
   )
 
-  register_requests(
-    list(
-      export = function(reads, format) {
-        report_progress(0.3, "Rendering the report")
-        report_progress(0.8, "Converting to PowerPoint")
-        new_reply_body(
-          charToRaw(format),
-          pptx_type,
-          name = paste0("report.", format)
-        )
-      }
-    ),
-    extension = "md",
-    package = "blockr.md"
-  )
-
-  withr::defer(
-    unregister_requests("data_dir", c("blockr.code-code", "blockr.md-md")),
-    envir = frame
+  testthat::local_mocked_s3_method(
+    "request_call",
+    "report_request",
+    function(x, reads, ...) {
+      list(fun = report_export, args = c(x[["args"]], list(reads = reads)))
+    },
+    frame = frame
   )
 }
 

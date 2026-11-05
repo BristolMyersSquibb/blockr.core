@@ -880,7 +880,7 @@ describe("evaluation in the background", () => {
     await tick(1000);
     const a = pendingOf(r, "a");
 
-    const listing = scheduler.request({ kind: "request", option: "data_dir", name: "list_dir", args: {} });
+    const listing = scheduler.request({ kind: "request", type: "option", option: "data_dir", name: "list_dir", args: {} });
     await tick(4999);
     expect(r.cancels()).toEqual([]);
     await tick(1);
@@ -900,7 +900,7 @@ describe("evaluation in the background", () => {
     const { r, scheduler } = await setup({ backgroundEvaluationDelay: 1 });
     scheduler.start();
     await tick(1000);
-    void scheduler.request({ kind: "request", option: "data_dir", name: "list_dir", args: {} });
+    void scheduler.request({ kind: "request", type: "option", option: "data_dir", name: "list_dir", args: {} });
     await tick(60_000);
     expect(r.cancels()).toEqual([]);
   });
@@ -1003,7 +1003,7 @@ describe("requests", () => {
     expect(statusOf(scheduler, "b").revision).toBe(edited);
   });
 
-  test("go again to the next session for an output, an output class's and a block class's request, and reject for an action, a board option's and an extension's", async () => {
+  test("go again to the next session for an output, an output class's and a block class's request, and reject for an action, a board option's and one of a type that a package adds", async () => {
     const { r, scheduler } = await setup();
     scheduler.demand("test", ["b"]);
     scheduler.start();
@@ -1014,6 +1014,7 @@ describe("requests", () => {
       scheduler.request(output(scheduler, "b")),
       scheduler.request({
         kind: "request",
+        type: "output_class",
         output: { block: "b", revision: at },
         name: "download",
         args: {},
@@ -1022,6 +1023,7 @@ describe("requests", () => {
       }),
       scheduler.request({
         kind: "request",
+        type: "block_class",
         registry_id: "blockr.core-head_block",
         block: "b",
         name: "n_max",
@@ -1032,14 +1034,15 @@ describe("requests", () => {
     const rejected = [
       scheduler.request({
         kind: "request",
+        type: "block_class",
         registry_id: "blockr.core-upload_block",
         block: "b",
         name: "upload",
         args: {},
         reads: [],
       }),
-      scheduler.request({ kind: "request", option: "data_dir", name: "list_dir", args: {} }),
-      scheduler.request({ kind: "request", extension: "blockr.code-code", name: "script", args: {}, reads: [] }),
+      scheduler.request({ kind: "request", type: "option", option: "data_dir", name: "list_dir", args: {} }),
+      scheduler.request({ kind: "request", type: "code", name: "script", args: {}, reads: [] }),
     ];
     // The ids of the outputs and requests sent, in order.
     const asked = () =>
