@@ -28,7 +28,7 @@
 #' So `options(blockr.n_rows = 25L)`, or the environment variable
 #' `BLOCKR_N_ROWS`, still sets the rows of a page on a board that holds no
 #' value for `n_rows`.
-#' Without a blockr option, `n_rows` takes 50, `show_conditions` warnings and
+#' Without a blockr option, `n_rows` takes 10, `show_conditions` warnings and
 #' errors, and `dark_mode` the theme that the user's system prefers.
 #'
 #' Several board options make a `board_options` object, which
