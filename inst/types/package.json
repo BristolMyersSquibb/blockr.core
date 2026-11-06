@@ -28,7 +28,7 @@
       "default": "./controls/index.js"
     }
   },
-  "dependencies": {
+  "peerDependencies": {
     "react": "19.3.1",
     "react-dom": "19.3.1"
   }

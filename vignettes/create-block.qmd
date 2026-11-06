@@ -546,13 +546,16 @@ await esbuild.build({
 The package installs its tools from npm, and core's types from the installed blockr.core, under the name `@blockr/core`:
 
 ```sh
-npm install --save-dev esbuild react react-dom @types/react typescript vitest happy-dom
+npm install --save-dev esbuild @types/react typescript vitest happy-dom
 npm install --no-save --install-links \
   "$(Rscript -e 'cat(system.file("types", package = "blockr.core"))')"
 ```
 
-The flag `--install-links` installs a copy of the types, from which TypeScript finds the package's own React.
-A link to the R library would leave React's types unresolved.
+The types name the React that core puts on the page as their peer, at its version, so npm installs that React with them, and the package installs none of its own.
+Its tests then run on the React that its modules run on in the app.
+Where the package asks for another version of React, npm refuses it rather than install a second copy, on which React's hooks would fail.
+The flag `--install-links` installs a copy of the types, from which TypeScript finds React's types.
+A link to the R library would leave them unresolved.
 Since npm removes a package installed with `--no-save` at its next install, the package installs the types again after each `npm install` or `npm ci`.
 
 The schema can be written by hand, or generated from the type, such as with `ts-json-schema-generator`:

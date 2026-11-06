@@ -4,8 +4,8 @@
 // `@blockr/core`: the declarations of the types that modules are written
 // against and of the stubs of the hosts, the stubs bundled for a test runner,
 // the React SDK, its binding and the build preset bundled for a package's build,
-// and the package.json that names them and depends on the React that core's
-// runtime bundles.
+// and the package.json that names them and the React that core's runtime
+// bundles as its peer.
 // The controls go there as the SDK does.
 
 import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
@@ -102,10 +102,10 @@ async function importedPackages(name: string): Promise<string[]> {
   return [...new Set(bare.map((specifier) => specifier.split("/").slice(0, specifier.startsWith("@") ? 2 : 1).join("/")))];
 }
 
-test("what a package's tests load imports no package but the React that `@blockr/core` depends on, at the version that core's runtime bundles", async () => {
+test("what a package's tests load imports no package but the React that `@blockr/core` names as its peer, at the version that core's runtime bundles", async () => {
   const manifest = JSON.parse(await readFile(join(repo, "inst/types/package.json"), "utf8")) as typeof TYPES_PACKAGE;
   const installed = createRequire(import.meta.url);
-  expect(manifest.dependencies).toEqual({
+  expect(manifest.peerDependencies).toEqual({
     react: (installed("react/package.json") as { version: string }).version,
     "react-dom": (installed("react-dom/package.json") as { version: string }).version,
   });
@@ -113,7 +113,7 @@ test("what a package's tests load imports no package but the React that `@blockr
   // The stubs draw core's UIs, the board options' among them, with React.
   expect(await importedPackages("stubs")).toContain("react");
   for (const name of ["stubs", "react", "binding", "controls"]) {
-    expect((await importedPackages(name)).filter((pkg) => !Object.hasOwn(manifest.dependencies, pkg))).toEqual([]);
+    expect((await importedPackages(name)).filter((pkg) => !Object.hasOwn(manifest.peerDependencies, pkg))).toEqual([]);
   }
 });
 

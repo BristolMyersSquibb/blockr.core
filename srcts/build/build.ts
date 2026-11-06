@@ -30,8 +30,8 @@
 //   export of its name, such as `@blockr/core/react`: their declarations, the
 //   SDK, the binding and the preset bundled for a package's build, with React
 //   left for the preset to map, the stubs bundled for
-//   a test runner, and the package.json that names them and depends on the
-//   React that the runtime bundles.
+//   a test runner, and the package.json that names them and the React that
+//   the runtime bundles as its peer.
 //   The controls, srcts/controls/index.ts, go there as the SDK does,
 //   as `@blockr/core/controls`, for a package that writes its modules without
 //   React and bundles them.
@@ -370,11 +370,12 @@ function versionOf(name: string): string {
 // `@blockr/core`, the stubs of the hosts, as `@blockr/core/stubs`, and core's
 // React SDK, its binding and the build preset, as `@blockr/core/react`,
 // `@blockr/core/binding` and `@blockr/core/build`.
-// Its bundles leave React an import, so it depends on the React that core's
-// runtime bundles, at that version.
-// So npm installs that React with `@blockr/core`, which a package's tests then
-// run on, the stubs drawing core's UIs with it, while a package's build maps
-// every import of React to the copy on the page.
+// Its bundles leave React an import, so it names the React that core's
+// runtime bundles, at that version, as its peer.
+// So npm installs that React with `@blockr/core` where a package has none, and
+// refuses a package that asks for another, so that a package's tests run on
+// one copy of the app's React, the stubs drawing core's UIs with it, while a
+// package's build maps every import of React to the copy on the page.
 export const TYPES_PACKAGE = {
   name: "@blockr/core",
   private: true,
@@ -389,7 +390,7 @@ export const TYPES_PACKAGE = {
     "./stubs": { types: "./stubs/index.d.ts", default: "./stubs/index.js" },
     "./controls": { types: "./controls/index.d.ts", default: "./controls/index.js" },
   },
-  dependencies: { react: versionOf("react"), "react-dom": versionOf("react-dom") },
+  peerDependencies: { react: versionOf("react"), "react-dom": versionOf("react-dom") },
 };
 
 // The modules of srcts that the types package bundles,
