@@ -3805,6 +3805,7 @@ function mountOutput(deps, el, block) {
   let drawing;
   let options = store.board().options;
   const waiting2 = /* @__PURE__ */ new Set();
+  const broken = /* @__PURE__ */ new WeakSet();
   function bound() {
     return !ended() && deps.opening() === made && Object.hasOwn(store.board().blocks, block);
   }
@@ -3981,7 +3982,8 @@ function mountOutput(deps, el, block) {
     if (ended()) return;
     if (failure instanceof ModuleError) {
       showError(el, failure.message);
-      report(failure);
+      if (!broken.has(failure)) report(failure);
+      broken.add(failure);
       return;
     }
     failed3(
@@ -4067,7 +4069,8 @@ function mountOutput(deps, el, block) {
   }
   function setParamsAt(path, value2) {
     if (!bound()) return;
-    const next = path.length === 0 ? value2 : setAt(shelf.params, path, value2);
+    const given = value2 === void 0 ? void 0 : frozenCopy(value2);
+    const next = path.length === 0 ? given : setAt(shelf.params, path, given);
     if (jsonEqual(next, shelf.params)) return;
     shelf.params = next;
     announceTo(shelf.mounts);

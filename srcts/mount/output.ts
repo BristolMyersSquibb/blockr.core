@@ -34,7 +34,7 @@ import type { BlockId, OptionId } from "../types/board.ts";
 import type { Nested, OutputHost, OutputRequestOpts } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { OutputRenderer } from "../types/outputs.ts";
-import { asError, getAt, isObject, jsonEqual, messageOf, own, packageOf, report, setAt } from "../util/index.ts";
+import { asError, frozenCopy, getAt, isObject, jsonEqual, messageOf, own, packageOf, report, setAt } from "../util/index.ts";
 import type { Answers, OutputAsk } from "./answers.ts";
 import { ModuleError } from "./load.ts";
 import type { Loader } from "./load.ts";
@@ -223,6 +223,9 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
 
   // Requests of the output that wait for the output of the current revision.
   const waiting = new Set<() => void>();
+  // The renderers that failed to load, each reported once, however many
+  // outputs name it.
+  const broken = new WeakSet();
 
   function bound(): boolean {
     return !ended() && deps.opening() === made && Object.hasOwn(store.board().blocks, block);
@@ -442,7 +445,8 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     if (ended()) return;
     if (failure instanceof ModuleError) {
       showError(el, failure.message);
-      report(failure);
+      if (!broken.has(failure)) report(failure);
+      broken.add(failure);
       return;
     }
     failed(
@@ -541,7 +545,9 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
   // mount of the block asks again.
   function setParamsAt(path: readonly string[], value: Json | undefined): void {
     if (!bound()) return;
-    const next = path.length === 0 ? (value as Readonly<Record<string, Json>>) : (setAt(shelf.params, path, value) as Readonly<Record<string, Json>>);
+    // A copy that nothing changes, since every mount of the block shares it.
+    const given = value === undefined ? undefined : frozenCopy(value);
+    const next = (path.length === 0 ? given : setAt(shelf.params, path, given)) as Readonly<Record<string, Json>>;
     if (jsonEqual(next, shelf.params)) return;
     shelf.params = next;
     announceTo(shelf.mounts);
