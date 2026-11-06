@@ -6337,6 +6337,7 @@ function randomUuid() {
 // srcts/store/registrations.ts
 var CORE_BOARD = {
   class: "board",
+  options: ["show_conditions", "dark_mode"],
   properties: {}
 };
 var CORE_PROPERTIES = [
@@ -7518,6 +7519,7 @@ function createStore(options = {}) {
   const registry = y({});
   const packages = y({});
   const history = y(/* @__PURE__ */ new Map());
+  let dropped = [];
   const subscribers = /* @__PURE__ */ new Set();
   const edits = /* @__PURE__ */ new Map();
   let lastStep = 0;
@@ -7697,7 +7699,6 @@ function createStore(options = {}) {
     guard2();
     busy = true;
     try {
-      const { dropped } = opened;
       const next = Object.keys(values2).length === 0 ? opened.board : { ...opened.board, options: { ...opened.board.options, ...values2 } };
       board.value = next;
       built2 = opened.built;
@@ -7705,8 +7706,9 @@ function createStore(options = {}) {
       const step2 = ++lastStep;
       for (const key of everyTarget(next, opened.built)) edits.set(key, step2);
       history.value = /* @__PURE__ */ new Map();
-      announce2({ opened: next, dropped }, next);
-      return dropped;
+      dropped = opened.dropped;
+      announce2({ opened: next, dropped: opened.dropped }, next);
+      return opened.dropped;
     } finally {
       busy = false;
     }
@@ -7790,6 +7792,7 @@ function createStore(options = {}) {
       return board.value;
     },
     hasBoard: () => board.value !== void 0,
+    dropped: () => dropped,
     subscribe(fn) {
       const wrapped = (change, next) => {
         fn(change, next);
@@ -7958,24 +7961,13 @@ function coreCommands(store) {
       entry
     ];
   }
-  function freeInputs(board2, to, except) {
-    const block = own(board2.blocks, to);
-    if (block === void 0) return void 0;
-    const inputs = own(store.blockRegistry(), block.registry_id)?.inputs;
-    if (inputs === void 0) return void 0;
-    if (inputs.includes("...")) return [""];
-    const fed = new Set(
-      Object.entries(board2.links).filter(([id2, link]) => id2 !== except && link.to === to).map(([, link]) => link.input)
-    );
-    return inputs.filter((input2) => !fed.has(input2));
-  }
   function linkable(board2, to, given) {
     if (!Object.hasOwn(board2.blocks, to)) return false;
-    return named(given) || (freeInputs(board2, to)?.length ?? 0) > 0;
+    return named(given) || (freeInputs(board2, store.blockRegistry(), to)?.length ?? 0) > 0;
   }
   function linkInput(command2, board2, to, given, except) {
     if (named(given)) return given;
-    const free = freeInputs(board2, to, except) ?? [];
+    const free = freeInputs(board2, store.blockRegistry(), to, except) ?? [];
     return one(
       command2,
       free,
@@ -8298,6 +8290,17 @@ function coreCommands(store) {
     })
   ];
   return [...blocks, ...links, ...stacks, ...board];
+}
+function freeInputs(board, registry, to, except) {
+  const block = own(board.blocks, to);
+  if (block === void 0) return void 0;
+  const inputs = own(registry, block.registry_id)?.inputs;
+  if (inputs === void 0) return void 0;
+  if (inputs.includes("...")) return [""];
+  const fed = new Set(
+    Object.entries(board.links).filter(([id2, link]) => id2 !== except && link.to === to).map(([, link]) => link.input)
+  );
+  return inputs.filter((input2) => !fed.has(input2));
 }
 function blockName(registryId2) {
   const pkg = packageOf(registryId2);
