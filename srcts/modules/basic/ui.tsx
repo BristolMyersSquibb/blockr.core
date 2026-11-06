@@ -17,6 +17,10 @@ export const classes = {
     "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-accent bc:bg-bg-accent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-on-accent bc:cursor-pointer bc:disabled:cursor-default bc:disabled:opacity-50",
   quiet:
     "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border-0 bc:bg-transparent bc:px-1.5 bc:py-0.5 bc:font-sans bc:text-xs bc:text-text-muted bc:cursor-pointer bc:hover:bg-bg-subtle",
+  // The board's page, which draws no background of its own, so that the
+  // page's, which the browser draws in the page's theme, shows to its edges.
+  page: "bc:text-gray-900 bc:dark:text-gray-100",
+  // What sits over the board, as a dialog or a menu does.
   surface: "bc:bg-white bc:text-gray-900 bc:dark:bg-gray-900 bc:dark:text-gray-100",
   // Opaque, since core measures the background behind an output for the plots
   // that R draws, and reads a translucent one as opaque.

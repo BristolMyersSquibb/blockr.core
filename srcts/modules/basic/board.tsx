@@ -67,7 +67,7 @@ function Page(): ReactElement {
   };
 
   return (
-    <div className={`${classes.surface} bc:flex bc:min-h-full bc:flex-col bc:gap-4 bc:p-4 bc:font-sans`}>
+    <div className={`${classes.page} bc:flex bc:min-h-full bc:flex-col bc:gap-4 bc:p-4 bc:font-sans`}>
       <Toolbar
         board={board}
         show={(kind) => {
