@@ -27,7 +27,7 @@ export interface Stack {
     readonly name: string;
     readonly blocks: readonly BlockId[];
     /**
-     * @pattern ^#([0-9a-fA-F]{3}){1,2}$
+     * @pattern ^#[0-9a-fA-F]{6}$
      */
     readonly color: string | null;
 }

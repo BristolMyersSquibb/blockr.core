@@ -351,11 +351,11 @@ describe("opening a board", () => {
     expect(seen).toEqual([]);
   });
 
-  test("opens a board whose stacks have hex colours, in long or short form, or none", async () => {
+  test("opens a board whose stacks have hex colours, in either case, or none", async () => {
     const store = await opened();
     const stacks = {
       s1: { name: "Input", blocks: ["a"], color: "#66c2a5" },
-      s2: { name: "Head", blocks: ["b"], color: "#FC8" },
+      s2: { name: "Head", blocks: ["b"], color: "#FC8D62" },
       s3: { name: "Empty", blocks: [], color: null },
     };
 
@@ -1069,7 +1069,8 @@ describe("applying a delta", () => {
     ["a patch that is no patch", { patches: [{ op: "move", path: "views" }] } as unknown as Delta, /The patch 1 has the op "move", where it takes "add", "remove" or "replace", has the path "views", which is no JSON Pointer below the board's top\./],
     ["a block that is no block", { blocks: { add: { g: { ...head(), name: 3 } } } } as unknown as Delta, /block "g" has no string as its name/],
     ["a link holding more than core keeps", { links: { add: { dg: { from: "d", to: "f", input: "data", color: "red" } } } } as unknown as Delta, /link "dg" holds "color", which core does not keep/],
-    ["a stack whose colour is no hex colour", { stacks: { add: { s2: { name: "More", blocks: [], color: "red" } } } }, /stack "s2" has the colour "red", which is no hex colour, such as "#66c2a5"\./],
+    ["a stack whose colour is no hex colour", { stacks: { add: { s2: { name: "More", blocks: [], color: "red" } } } }, /stack "s2" has the colour "red", which is no hex colour of six digits, such as "#66c2a5"\./],
+    ["a stack whose colour is a hex colour in short", { stacks: { add: { s2: { name: "More", blocks: [], color: "#fc8" } } } }, /stack "s2" has the colour "#fc8", which is no hex colour of six digits/],
     ["a stack whose colour is no string", { stacks: { mod: { s1: { color: 1 } } } } as unknown as Delta, /stack "s1" has no string or null as its color/],
     ["a stack without a colour", { stacks: { add: { s2: { name: "More", blocks: [] } } } } as unknown as Delta, /stack "s2" has no string or null as its color/],
   ];

@@ -226,7 +226,7 @@
   Core's UIs, its renderers included, take their face from the theme's sans, `--bc-font-sans`, as their code takes its mono, `--bc-font-mono`, which a front-end sets to restyle them.
   The stub of a block's host answers an upload that a fixture records with the file as the action's argument `file` (#438).
 * A stack may have a color, which front-ends draw it in, as the stacks of blockr.dock had until now.
-  The color is a hex color, such as `"#66c2a5"` or `"#fc8"`.
+  The color is a hex color of six digits, such as `"#66c2a5"`.
   The constructor `new_stack()` takes it as `color`, and `stack_color()` reads it.
   A stack without a color is drawn in a default of the front-end's.
   The JSON board holds every stack's color, as `null` for a stack without one.

@@ -19,8 +19,8 @@
 #'
 #' @param blocks Set of blocks
 #' @param name Stack name
-#' @param color Stack color, as a hex color such as `"#66c2a5"`, or `"#fc8"` in
-#'   short, or `NULL` for none
+#' @param color Stack color, as a hex color of six digits such as `"#66c2a5"`,
+#'   or `NULL` for none
 #' @param ... Extensibility
 #' @param class (Optional) stack sub-class
 #'
@@ -136,7 +136,8 @@ validate_stack.stack <- function(x) {
 
   if (not_null(color) && !is_hex_color(color)) {
     blockr_abort(
-      "Expecting the stack color to be a hex color, such as \"#66c2a5\".",
+      "Expecting the stack color to be a hex color of six digits, such as ",
+      "\"#66c2a5\".",
       class = "stack_color_invalid"
     )
   }
@@ -343,7 +344,7 @@ c.stack <- function(...) {
   as_stacks(res)
 }
 
-# A hex color, such as "#66c2a5", or "#fc8" in short.
+# A hex color of six digits, such as "#66c2a5".
 is_hex_color <- function(x) {
   is_string(x) && grepl(hex_color_pattern(), x)
 }
@@ -353,5 +354,5 @@ is_hex_color <- function(x) {
 # The client's store checks a stack by the same pattern, which
 # srcts/store/check.ts holds as `HEX_COLOR`.
 hex_color_pattern <- function() {
-  "^#([0-9a-fA-F]{3}){1,2}$"
+  "^#[0-9a-fA-F]{6}$"
 }

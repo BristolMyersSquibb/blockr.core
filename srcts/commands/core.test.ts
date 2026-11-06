@@ -410,17 +410,17 @@ describe("stacks", () => {
   test("change_stack sets a stack's colour, or clears it with null, and keeps its blocks", async () => {
     const { store, commands } = await setup();
 
-    await commands.run("blockr.core-change_stack", { id: "s1", color: "#fc8" });
-    expect(store.board().stacks.s1).toStrictEqual({ name: "Input", blocks: ["a", "b"], color: "#fc8" });
+    await commands.run("blockr.core-change_stack", { id: "s1", color: "#fc8d62" });
+    expect(store.board().stacks.s1).toStrictEqual({ name: "Input", blocks: ["a", "b"], color: "#fc8d62" });
 
     await commands.run("blockr.core-change_stack", { id: "s1", blocks: ["a"] });
-    expect(store.board().stacks.s1).toStrictEqual({ name: "Input", blocks: ["a"], color: "#fc8" });
+    expect(store.board().stacks.s1).toStrictEqual({ name: "Input", blocks: ["a"], color: "#fc8d62" });
 
     await commands.run("blockr.core-change_stack", { id: "s1", color: null });
     expect(store.board().stacks.s1).toStrictEqual({ name: "Input", blocks: ["a"], color: null });
 
     store.undo();
-    expect(store.board().stacks.s1?.color).toBe("#fc8");
+    expect(store.board().stacks.s1?.color).toBe("#fc8d62");
     store.undo();
     store.undo();
     expect(store.board().stacks.s1).toStrictEqual({ name: "Input", blocks: ["a", "b"], color: null });

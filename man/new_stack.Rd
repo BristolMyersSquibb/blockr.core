@@ -47,8 +47,8 @@ as_stacks(x, ...)
 
 \item{name}{Stack name}
 
-\item{color}{Stack color, as a hex color such as \code{"#66c2a5"}, or \code{"#fc8"} in
-short, or \code{NULL} for none}
+\item{color}{Stack color, as a hex color of six digits such as \code{"#66c2a5"},
+or \code{NULL} for none}
 
 \item{...}{Extensibility}
 

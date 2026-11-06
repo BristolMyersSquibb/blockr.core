@@ -57,13 +57,13 @@ export interface Link {
 export interface Stack {
   readonly name: string;
   readonly blocks: readonly BlockId[];
-  // The colour that front-ends draw the stack in, a hex colour such as
-  // "#66c2a5", or "#fc8" in short, or null for none.
+  // The colour that front-ends draw the stack in, a hex colour of six digits
+  // such as "#66c2a5", or null for none.
   // A front-end draws a stack without a colour in a default of its own.
   // The pattern is the store's HEX_COLOR, by which the store checks a stack,
   // and a test holds the two to each other.
   /**
-   * @pattern ^#([0-9a-fA-F]{3}){1,2}$
+   * @pattern ^#[0-9a-fA-F]{6}$
    */
   readonly color: string | null;
 }

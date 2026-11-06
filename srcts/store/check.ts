@@ -15,11 +15,11 @@ import { isId } from "./ids.ts";
 import { recordOf } from "./registrations.ts";
 import type { Built, Registrations } from "./registrations.ts";
 
-// A stack's colour: a hex colour, such as "#66c2a5", or "#fc8" in short,
-// as blockr.dock took one until now.
+// A stack's colour: a hex colour of six digits, such as "#66c2a5",
+// the one form that a colour input takes.
 // The JSON Schema of a JSON board, which the build generates from core's types,
 // holds the same pattern.
-export const HEX_COLOR = "^#([0-9a-fA-F]{3}){1,2}$";
+export const HEX_COLOR = "^#[0-9a-fA-F]{6}$";
 
 const hexColor = new RegExp(HEX_COLOR);
 
@@ -163,7 +163,7 @@ function checkStacks(
       }
       if (stack.color !== null && !hexColor.test(stack.color)) {
         failures.push(
-          `The stack "${id}" has the colour "${stack.color}", which is no hex colour, such as "#66c2a5".`,
+          `The stack "${id}" has the colour "${stack.color}", which is no hex colour of six digits, such as "#66c2a5".`,
         );
       }
     }

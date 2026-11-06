@@ -98,7 +98,7 @@ test_that("a stack may have a color, which is a hex color", {
   x <- new_stack(c("a", "b"), "Input", color = "#66c2a5")
 
   expect_identical(stack_color(x), "#66c2a5")
-  expect_identical(stack_color(new_stack("a", color = "#FC8")), "#FC8")
+  expect_identical(stack_color(new_stack("a", color = "#FC8D62")), "#FC8D62")
   expect_null(stack_color(new_stack("a")))
   expect_null(stack_color(new_stack("a", color = NULL)))
 
@@ -116,8 +116,8 @@ test_that("a stack may have a color, which is a hex color", {
   expect_identical(stack_color(setdiff(x, "b")), "#66c2a5")
   expect_identical(stack_color(stacks(s = x)[["s"]]), "#66c2a5")
 
-  for (color in list("teal", "#66c2a", "66c2a5", "#66c2a5ff", NA_character_,
-                     c("#fff", "#000"), 1)) {
+  for (color in list("teal", "#fc8", "#66c2a", "66c2a5", "#66c2a5ff",
+                     NA_character_, c("#ffffff", "#000000"), 1)) {
     expect_error(new_stack("a", color = color), class = "stack_color_invalid")
   }
 })
