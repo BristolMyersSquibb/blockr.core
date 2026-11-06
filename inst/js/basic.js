@@ -458,24 +458,26 @@ var BlockCard = (0, import_react4.memo)(function BlockCard2({
           ) }) : null
         ] }),
         inputs ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Mounted, { mount: mountUi, label: "Inputs", className: "bc:min-w-0" }) : null,
-        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
           "div",
           {
             role: "region",
             "aria-label": "Output",
             "data-ready": ready,
-            className: `bc:min-w-0 bc:transition-opacity ${ready ? "" : "bc:opacity-50 bc:grayscale"} ${replied ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:overflow-hidden bc:pb-4" : ""}`,
-            children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-              Mounted,
-              {
-                mount: mountOutput,
-                className: replied ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"
-              }
-            )
+            className: `bc:min-w-0 bc:transition-opacity ${ready ? "" : "bc:opacity-50 bc:grayscale"} ${replied ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`,
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+                Mounted,
+                {
+                  mount: mountOutput,
+                  className: replied ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"
+                }
+              ),
+              replied ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { className: "bc:m-0 bc:min-h-4 bc:shrink-0 bc:px-5 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted", children: status.summary }) : null
+            ]
           }
         ),
-        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Conditions, { status, severities }),
-        status === void 0 || status.summary === null ? null : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { className: "bc:m-0 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted", children: status.summary })
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Conditions, { status, severities })
       ]
     }
   );

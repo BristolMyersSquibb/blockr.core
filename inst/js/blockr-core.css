@@ -230,6 +230,10 @@
   min-height: 0;
 }
 
+.bc\:min-h-4 {
+  min-height: calc(var(--bc-spacing) * 4);
+}
+
 .bc\:min-h-24 {
   min-height: calc(var(--bc-spacing) * 24);
 }
@@ -268,6 +272,10 @@
 
 .bc\:flex-1 {
   flex: 1;
+}
+
+.bc\:shrink-0 {
+  flex-shrink: 0;
 }
 
 .bc\:border-collapse {
@@ -477,6 +485,10 @@
   padding-inline: calc(var(--bc-spacing) * 2);
 }
 
+.bc\:px-5 {
+  padding-inline: calc(var(--bc-spacing) * 5);
+}
+
 .bc\:py-0\.5 {
   padding-block: calc(var(--bc-spacing) * .5);
 }
@@ -491,10 +503,6 @@
 
 .bc\:pb-3 {
   padding-bottom: calc(var(--bc-spacing) * 3);
-}
-
-.bc\:pb-4 {
-  padding-bottom: calc(var(--bc-spacing) * 4);
 }
 
 .bc\:text-center {
