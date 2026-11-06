@@ -11,8 +11,9 @@ import { find, pick, texts, toggle, type } from "../testing/inputs.ts";
 import { mountReact, step } from "../testing/react.ts";
 import { reports } from "../testing/reports.ts";
 import type { Json } from "../types/json.ts";
-import { coreOptions, darkMode, nRows, optionSchemas, setTheme, showConditions } from "./index.ts";
-import type { BlockrOptions } from "./index.ts";
+import { optionSchemas, setTheme } from "../options/index.ts";
+import type { BlockrOptions } from "../options/index.ts";
+import { coreOptions, darkMode, nRows, showConditions } from "./index.ts";
 
 // CoreApi's blockrOption(), with the values that R holds, which records what
 // it is asked for.
