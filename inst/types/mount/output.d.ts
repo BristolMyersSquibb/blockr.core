@@ -39,7 +39,6 @@ interface Shelf {
 export interface Shelves {
     of(block: BlockId): Shelf;
     drop(block: BlockId): void;
-    clear(): void;
 }
 export declare function createShelves(): Shelves;
 export interface OutputDeps {
@@ -49,7 +48,7 @@ export interface OutputDeps {
     readonly answers: Answers;
     readonly shelves: Shelves;
     readonly measure: Measure;
-    readonly opening: () => number;
+    readonly replaced: AbortSignal;
     readonly addOptions: (ids: readonly OptionId[], by: string) => Promise<void>;
     readonly emit: (event: OutputEvent) => void;
 }

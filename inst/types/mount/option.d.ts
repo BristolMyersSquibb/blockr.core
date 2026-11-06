@@ -11,7 +11,7 @@ export interface OptionDeps {
     readonly scheduler: Pick<Scheduler, "request">;
     readonly loader: Loader;
     readonly renderers: () => Readonly<Record<string, Renderer>>;
-    readonly opening: () => number;
+    readonly replaced: AbortSignal;
     readonly addOptions: (ids: readonly OptionId[], by: string) => Promise<void>;
     readonly defaultOf: (id: OptionId, def: Option) => Promise<Json>;
 }

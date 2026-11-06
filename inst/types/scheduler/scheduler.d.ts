@@ -39,5 +39,7 @@ export interface SchedulerOptions {
     readonly backgroundEvaluationDelay?: number;
     readonly gateVisibility?: boolean;
     readonly bound?: readonly string[];
+    readonly nextRevision?: () => number;
+    readonly signal?: AbortSignal;
 }
 export declare function createScheduler(options: SchedulerOptions): Scheduler;
