@@ -493,6 +493,14 @@
   padding-bottom: calc(var(--bc-spacing) * 3);
 }
 
+.bc\:pb-4 {
+  padding-bottom: calc(var(--bc-spacing) * 4);
+}
+
+.bc\:text-center {
+  text-align: center;
+}
+
 .bc\:text-left {
   text-align: left;
 }
@@ -725,6 +733,14 @@
 
 .bc\:dark\:text-gray-100:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
   color: var(--bc-color-gray-100);
+}
+
+:root[data-bs-theme="dark"] {
+  color-scheme: dark;
+}
+
+:root[data-bs-theme="light"] {
+  color-scheme: light;
 }
 
 @property --tw-border-style {

@@ -8776,7 +8776,7 @@ function coreOptions(core) {
 }
 function nRows(core) {
   const schema = optionSchemas.n_rows;
-  const fallback = 50;
+  const fallback = 10;
   return {
     id: "n_rows",
     label: "Preview rows",

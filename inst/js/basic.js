@@ -215,6 +215,10 @@ var classes = {
   button: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50",
   primary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-accent bc:bg-bg-accent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-on-accent bc:cursor-pointer bc:disabled:cursor-default bc:disabled:opacity-50",
   quiet: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border-0 bc:bg-transparent bc:px-1.5 bc:py-0.5 bc:font-sans bc:text-xs bc:text-text-muted bc:cursor-pointer bc:hover:bg-bg-subtle",
+  // The board's page, which draws no background of its own, so that the
+  // page's, which the browser draws in the page's theme, shows to its edges.
+  page: "bc:text-gray-900 bc:dark:text-gray-100",
+  // What sits over the board, as a dialog or a menu does.
   surface: "bc:bg-white bc:text-gray-900 bc:dark:bg-gray-900 bc:dark:text-gray-100",
   // Opaque, since core measures the background behind an output for the plots
   // that R draws, and reads a translucent one as opaque.
@@ -460,18 +464,18 @@ var BlockCard = (0, import_react4.memo)(function BlockCard2({
             role: "region",
             "aria-label": "Output",
             "data-ready": ready,
-            className: `bc:min-w-0 bc:transition-opacity ${ready ? "" : "bc:opacity-50 bc:grayscale"}`,
+            className: `bc:min-w-0 bc:transition-opacity ${ready ? "" : "bc:opacity-50 bc:grayscale"} ${replied ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:overflow-hidden bc:pb-4" : ""}`,
             children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
               Mounted,
               {
                 mount: mountOutput,
-                className: replied ? "bc:h-96 bc:min-h-24 bc:resize-y bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"
+                className: replied ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"
               }
             )
           }
         ),
         /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Conditions, { status, severities }),
-        status === void 0 || status.summary === null ? null : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { className: "bc:m-0 bc:font-mono bc:text-xs bc:text-text-muted", children: status.summary })
+        status === void 0 || status.summary === null ? null : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { className: "bc:m-0 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted", children: status.summary })
       ]
     }
   );
@@ -1237,7 +1241,7 @@ function Page() {
       `block-${id2}`
     );
   };
-  return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: `${classes.surface} bc:flex bc:min-h-full bc:flex-col bc:gap-4 bc:p-4 bc:font-sans`, children: [
+  return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: `${classes.page} bc:flex bc:min-h-full bc:flex-col bc:gap-4 bc:p-4 bc:font-sans`, children: [
     /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
       Toolbar,
       {
