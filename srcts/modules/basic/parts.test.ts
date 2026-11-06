@@ -30,7 +30,8 @@ describe("where each block goes", () => {
   });
 });
 
-// A scheduler that keeps each demand with its blocks and evaluation priority.
+// A scheduler that keeps each demand with its blocks and evaluation priority,
+// and refuses to set a demand that was released, as core's does.
 function played() {
   const demands: { owner: string; priority: number | undefined; blocks: unknown; released: boolean }[] = [];
   const scheduler = {
@@ -39,6 +40,7 @@ function played() {
       demands.push(demand);
       return {
         set(next: unknown) {
+          if (demand.released) throw new Error(`The demand of ${owner} was released, so it can no longer be set.`);
           demand.blocks = next;
         },
         release() {
@@ -126,9 +128,19 @@ describe("what the front-end demands", () => {
     expect(demands[1]?.blocks).toEqual(["b"]);
     expect(p.observed.has(c)).toBe(false);
 
+    const unwatchD = shown.watch("d", laidOut(200));
+    shown.measure();
+    expect(demands[1]?.blocks).toEqual(["a", "b", "d"]);
+
     shown.release();
     expect(demands.map(({ released }) => released)).toEqual([true, true]);
     expect(p.disconnected()).toBe(true);
+
+    // A card in view that goes after the release sets nothing, as the cards
+    // go once the front-end has ended.
+    unwatchD();
+    shown.measure();
+    expect(demands[1]?.blocks).toEqual(["a", "b", "d"]);
   });
 
   test("of the blocks in view is measured alone where the page reports nothing", () => {

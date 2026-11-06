@@ -31,6 +31,7 @@ export interface InView {
 }
 
 export interface Shown extends InView {
+  // Releases both demands, after which the cards that go set nothing.
   release(): void;
 }
 
@@ -40,8 +41,10 @@ export function demandShown(core: Pick<CoreApi, "scheduler">, view: View = windo
 
   const watched = new Map<Element, BlockId>();
   const seen = new Set<Element>();
+  let released = false;
 
   function update(): void {
+    if (released) return;
     near.set([...new Set([...seen].flatMap((el) => watched.get(el) ?? []))]);
   }
 
@@ -74,6 +77,7 @@ export function demandShown(core: Pick<CoreApi, "scheduler">, view: View = windo
       update();
     },
     release() {
+      released = true;
       observer?.disconnect();
       every.release();
       near.release();
