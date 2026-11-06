@@ -214,7 +214,7 @@ var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
 var classes = {
   button: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50",
   primary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-accent bc:bg-bg-accent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-on-accent bc:cursor-pointer bc:disabled:cursor-default bc:disabled:opacity-50",
-  quiet: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border-0 bc:bg-transparent bc:px-1.5 bc:py-0.5 bc:font-sans bc:text-xs bc:text-text-muted bc:cursor-pointer bc:hover:bg-bg-subtle bc:aria-pressed:text-text-default bc:aria-pressed:bg-bg-subtle",
+  quiet: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border-0 bc:bg-transparent bc:px-1.5 bc:py-0.5 bc:font-sans bc:text-xs bc:text-text-muted bc:cursor-pointer bc:hover:bg-bg-subtle",
   surface: "bc:bg-white bc:text-gray-900 bc:dark:bg-gray-900 bc:dark:text-gray-100",
   // Opaque, since core measures the background behind an output for the plots
   // that R draws, and reads a translucent one as opaque.
@@ -376,10 +376,8 @@ var import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
 var BlockCard = (0, import_react4.memo)(function BlockCard2({
   id: id2,
   block,
-  hidden,
   severities,
   prependable,
-  toggle,
   add
 }) {
   const front = useFrontEnd();
@@ -394,8 +392,7 @@ var BlockCard = (0, import_react4.memo)(function BlockCard2({
   const mountUi = (0, import_react4.useCallback)((el) => core.mountBlock(el, id2), [core, id2]);
   const mountOutput = (0, import_react4.useCallback)((el) => core.mountOutput(el, id2), [core, id2]);
   const { lock } = core;
-  const inputs = lock === null ? !hidden.includes("inputs") : lock.open.includes(id2);
-  const output = lock === null ? !hidden.includes("output") : true;
+  const inputs = lock === null || lock.open.includes(id2);
   const entry = own(core.blockRegistry(), block.registry_id);
   const ready = status?.status === "ready";
   const replied = status !== void 0 && status.evaluated !== null;
@@ -422,64 +419,42 @@ var BlockCard = (0, import_react4.memo)(function BlockCard2({
           ) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h3", { className: classes.heading, children: block.name }),
           /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "bc:text-xs bc:text-text-muted", children: entry?.name ?? block.registry_id }),
           /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(StatusBadge, { status }),
-          lock === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "bc:ml-auto bc:flex bc:items-center bc:gap-1", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-              Toggle,
-              {
-                pressed: inputs,
-                onClick: () => {
-                  toggle(id2, "inputs");
-                },
-                children: "Inputs"
-              }
-            ),
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-              Toggle,
-              {
-                pressed: output,
-                onClick: () => {
-                  toggle(id2, "output");
-                },
-                children: "Output"
-              }
-            ),
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-              Menu,
-              {
-                label: `Actions of ${block.name}`,
-                items: [
-                  {
-                    label: "Rename",
-                    onSelect: () => {
-                      setRenaming(true);
-                    }
-                  },
-                  {
-                    label: "Add block before",
-                    disabled: !prependable,
-                    onSelect: () => {
-                      add({ kind: "before", to: id2 });
-                    }
-                  },
-                  {
-                    label: "Add block after",
-                    onSelect: () => {
-                      add({ kind: "after", from: id2 });
-                    }
-                  },
-                  {
-                    label: "Remove",
-                    onSelect: () => {
-                      void runCommand(front, "blockr.core-remove_block", { id: id2 });
-                    }
+          lock === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "bc:ml-auto bc:flex bc:items-center bc:gap-1", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+            Menu,
+            {
+              label: `Actions of ${block.name}`,
+              items: [
+                {
+                  label: "Rename",
+                  onSelect: () => {
+                    setRenaming(true);
                   }
-                ]
-              }
-            )
-          ] }) : null
+                },
+                {
+                  label: "Add block before",
+                  disabled: !prependable,
+                  onSelect: () => {
+                    add({ kind: "before", to: id2 });
+                  }
+                },
+                {
+                  label: "Add block after",
+                  onSelect: () => {
+                    add({ kind: "after", from: id2 });
+                  }
+                },
+                {
+                  label: "Remove",
+                  onSelect: () => {
+                    void runCommand(front, "blockr.core-remove_block", { id: id2 });
+                  }
+                }
+              ]
+            }
+          ) }) : null
         ] }),
         inputs ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Mounted, { mount: mountUi, label: "Inputs", className: "bc:min-w-0" }) : null,
-        output ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
           "div",
           {
             role: "region",
@@ -494,7 +469,7 @@ var BlockCard = (0, import_react4.memo)(function BlockCard2({
               }
             )
           }
-        ) : null,
+        ),
         /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Conditions, { status, severities }),
         status === void 0 || status.summary === null ? null : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { className: "bc:m-0 bc:font-mono bc:text-xs bc:text-text-muted", children: status.summary })
       ]
@@ -525,9 +500,6 @@ function StackGroup({ stack, children }) {
       ]
     }
   );
-}
-function Toggle({ pressed, onClick, children }) {
-  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", "aria-pressed": pressed, className: classes.quiet, onClick, children });
 }
 var TONES = {
   ready: "bc:text-text-success",
@@ -1234,7 +1206,6 @@ function Toolbar({ board, show }) {
 
 // srcts/modules/basic/board.tsx
 var import_jsx_runtime8 = __toESM(require_jsx_runtime(), 1);
-var NONE = [];
 function BasicBoard({ front }) {
   return /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(FrontEndContext, { value: front, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(Page, {}) });
 }
@@ -1245,13 +1216,6 @@ function Page() {
   const shown = board.options.show_conditions;
   const severities = (0, import_react10.useMemo)(() => severitiesOf(shown), [shown]);
   const [dialog, setDialog] = (0, import_react10.useState)(null);
-  const [hidden, setHidden] = (0, import_react10.useState)({});
-  const toggle = (0, import_react10.useCallback)((block, section) => {
-    setHidden((last) => {
-      const now = last[block] ?? NONE;
-      return { ...last, [block]: now.includes(section) ? now.filter((s) => s !== section) : [...now, section] };
-    });
-  }, []);
   const add = (0, import_react10.useCallback)((mode) => {
     setDialog({ kind: "add", mode });
   }, []);
@@ -1266,10 +1230,8 @@ function Page() {
       {
         id: id2,
         block,
-        hidden: hidden[id2] ?? NONE,
         severities,
         prependable: (freeInputs(board, core.blockRegistry(), id2)?.length ?? 0) > 0,
-        toggle,
         add
       },
       `block-${id2}`

@@ -715,14 +715,6 @@
   border-color: var(--bc-color-border-danger);
 }
 
-.bc\:aria-pressed\:bg-bg-subtle[aria-pressed="true"] {
-  background-color: var(--bc-color-bg-subtle);
-}
-
-.bc\:aria-pressed\:text-text-default[aria-pressed="true"] {
-  color: var(--bc-color-text-default);
-}
-
 .bc\:dark\:bg-gray-800:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
   background-color: var(--bc-color-gray-800);
 }
