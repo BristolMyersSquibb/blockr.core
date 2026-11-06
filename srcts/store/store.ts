@@ -42,6 +42,10 @@ export interface Store {
   board(): Board;
   // Whether the store holds a board. It holds one once it has opened one.
   hasBoard(): boolean;
+  // What the store dropped as it opened the board it holds, as it told its
+  // followers then, so that a front-end that draws the board once it is open
+  // tells the user what to install. It is empty until the store opens a board.
+  dropped(): readonly Dropped[];
   // Calls `fn` after every commit, once for each delta as expanded, and after
   // every opening of a board, with the board as it then is.
   subscribe(fn: (change: Change, board: Board) => void): () => void;
@@ -157,6 +161,7 @@ export function createStore(options: StoreOptions = {}): Store {
   const registry = signal<Readonly<Record<RegistryId, RegistryEntry>>>({});
   const packages = signal<Readonly<Record<string, string>>>({});
   const history = signal<ReadonlyMap<Origin, History>>(new Map());
+  let dropped: readonly Dropped[] = [];
   const subscribers = new Set<(change: Change, board: Board) => void>();
 
   // The edit ids, kept beside the board rather than in it.
@@ -409,7 +414,6 @@ export function createStore(options: StoreOptions = {}): Store {
     guard();
     busy = true;
     try {
-      const { dropped } = opened;
       const next: Board =
         Object.keys(values).length === 0
           ? opened.board
@@ -421,9 +425,10 @@ export function createStore(options: StoreOptions = {}): Store {
       const step = ++lastStep;
       for (const key of everyTarget(next, opened.built)) edits.set(key, step);
       history.value = new Map();
+      dropped = opened.dropped;
 
-      announce({ opened: next, dropped }, next);
-      return dropped;
+      announce({ opened: next, dropped: opened.dropped }, next);
+      return opened.dropped;
     } finally {
       busy = false;
     }
@@ -511,6 +516,7 @@ export function createStore(options: StoreOptions = {}): Store {
       return board.value;
     },
     hasBoard: () => board.value !== undefined,
+    dropped: () => dropped,
     subscribe(fn) {
       const wrapped = (change: Change, next: Board) => {
         fn(change, next);
