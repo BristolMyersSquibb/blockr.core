@@ -655,28 +655,6 @@ describe("opening a board", () => {
     expect(built.board()).toEqual(board);
   });
 
-  test("keeps what it dropped as it opened its board, for a front-end that draws the board once it is open", async () => {
-    const replied = newStore();
-    expect(replied.dropped()).toEqual([]);
-    await replied.open(hello);
-    expect(replied.dropped()).toEqual([]);
-
-    const store = unopened();
-    const dropped = await store.open(
-      file({
-        blocks: { x: { registry_id: "blockr.dplyr-filter_block", state: {}, name: "Filter" } },
-        links: {},
-        stacks: {},
-      }),
-    );
-    expect(dropped).toEqual([{ block: "x", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" }]);
-    expect(store.dropped()).toBe(dropped);
-
-    // An edit leaves it.
-    store.apply({ name: "Renamed" });
-    expect(store.dropped()).toBe(dropped);
-  });
-
   test("drops a block whose class the block registry lacks as a delta removes it, with what its board class keeps about it", async () => {
     const store = unopened((store) => store.register(dock));
     const dropped = await store.open(

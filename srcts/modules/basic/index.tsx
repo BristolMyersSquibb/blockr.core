@@ -8,14 +8,13 @@
 // It is written in React, on the one copy of React that core puts on the
 // page, and it takes no extensions.
 //
-// Its render() takes four steps:
+// Its render() takes three steps:
 // 1. It demands every block, and the blocks in view higher still, from the
 //    board, so that the scheduler evaluates first what the page first shows.
-// 2. It tells the user what the store dropped as the board opened.
-// 3. It draws the board, and then demands the blocks in view as the page lays
-//    out their cards.
-// 4. It binds undo and redo to their shortcuts.
-// The cleanup that render() returns undoes all four.
+// 2. It draws the board that the store holds, and then demands the blocks in
+//    view as the page lays out their cards.
+// 3. It binds undo and redo to their shortcuts.
+// The cleanup that render() returns undoes all three.
 
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
@@ -33,8 +32,6 @@ export default {
     const doc = el.ownerDocument;
     const shown = demandShown(core, doc.defaultView ?? window);
     const notices = createNotices();
-    for (const item of core.store.dropped()) notices.dropped(item);
-
     const front: FrontEnd = { core, notices, inView: shown };
     const root = createRoot(el);
     flushSync(() => {

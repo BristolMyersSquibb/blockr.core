@@ -96,8 +96,8 @@ function Page(): ReactElement {
   );
 }
 
-// What the store dropped as the board opened, and the edits it refused, each
-// until the user dismisses it.
+// The edits that the store or the command registry refused, each until the
+// user dismisses it.
 function Notices(): ReactElement | null {
   const { notices } = useFrontEnd();
   const list = useNotices(notices);
@@ -107,10 +107,8 @@ function Notices(): ReactElement | null {
       {list.map((notice) => (
         <li
           key={notice.id}
-          role={notice.kind === "refused" ? "alert" : "status"}
-          className={`bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border bc:p-2 bc:text-sm ${
-            notice.kind === "refused" ? "bc:border-border-danger bc:text-text-danger" : "bc:border-border-default bc:text-text-warning"
-          }`}
+          role="alert"
+          className="bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border bc:border-border-danger bc:p-2 bc:text-sm bc:text-text-danger"
         >
           <span className="bc:flex-1 bc:whitespace-pre-wrap">{notice.text}</span>
           <button

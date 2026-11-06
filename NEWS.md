@@ -260,11 +260,10 @@
   A card's menu renames or removes its block, or adds a block before or after it.
   The output of a block that is not ready is grayed out, where the page cleared it until now.
   Undo and redo are bound to Mod+Z, and Mod+Shift+Z or Mod+Y, with Mod either Ctrl or Cmd.
-  The page tells the user what the store dropped as the board opened and which edit the store refused.
+  The front-end tells the user which edit the store refused.
   The front-end demands every block above the default evaluation priority, and the blocks in view higher still, where the page parked the blocks of collapsed stacks until now.
   On a locked board, it draws no control for what the lock fixes.
-  Core's board class `board` requires the board options `show_conditions` and `dark_mode`, so that every board gets them as it opens.
-  The store's `dropped()` gives what the store dropped as it opened its board (#441).
+  Core's board class `board` requires the board options `show_conditions` and `dark_mode`, so that every board gets them as it opens (#441).
 
 # blockr.core 0.1.4
 

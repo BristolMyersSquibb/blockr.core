@@ -5,7 +5,6 @@
 
 import { act } from "react";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import type { HelloReply } from "../../protocol/index.ts";
 import { HELLO, stubCore } from "../../stubs/index.ts";
 import type { StubCoreOptions } from "../../stubs/index.ts";
 import { choose, find, pick, press, texts, type } from "../../testing/inputs.ts";
@@ -416,32 +415,6 @@ describe("the toolbar", () => {
 });
 
 describe("what the user learns", () => {
-  // The board of the fixture hello, saved with blockr.dock and with a block of
-  // blockr.dplyr, neither of which the app loads.
-  const dropping: HelloReply = {
-    ...HELLO,
-    board: {
-      ...HELLO.board,
-      packages: { ...HELLO.board.packages, "blockr.dock": "0.2.1" },
-      board: {
-        ...HELLO.board.board,
-        blocks: { ...HELLO.board.board.blocks, x: { registry_id: "blockr.dplyr-filter_block", version: 1, state: {}, name: "Filter" } },
-      },
-    },
-  };
-
-  test("is what the store dropped as the board opened, until the user dismisses it", async () => {
-    const { el } = await drawn({ hello: dropping });
-
-    expect(texts(el, '[role="status"] span')).toEqual([
-      "The board was saved with blockr.dock 0.2.1, which the app does not load, so the board dropped what it held of that package. Install blockr.dock to open it in full.",
-      'The board dropped the block "x", since the app offers no block class blockr.dplyr-filter_block. Install blockr.dplyr to open it.',
-    ]);
-
-    await click(button(find(el, '[role="status"]'), "Dismiss"));
-    expect(el.querySelectorAll('[role="status"]')).toHaveLength(1);
-  });
-
   test("is which edit the store refused", async () => {
     const { el, board } = await drawn();
 

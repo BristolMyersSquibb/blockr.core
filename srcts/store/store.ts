@@ -42,10 +42,6 @@ export interface Store {
   board(): Board;
   // Whether the store holds a board. It holds one once it has opened one.
   hasBoard(): boolean;
-  // What the store dropped as it opened its board, as it told its followers
-  // then, so that a front-end that draws the board once it is open tells the
-  // user what to install. It is empty until the store opens its board.
-  dropped(): readonly Dropped[];
   // Calls `fn` after every commit, once for each delta as expanded, and after
   // every opening of a board, with the board as it then is.
   subscribe(fn: (change: Change, board: Board) => void): () => void;
@@ -180,7 +176,6 @@ export function createStore(options: StoreOptions = {}): Store {
   const registry = signal<Readonly<Record<RegistryId, RegistryEntry>>>(options.hello?.block_registry ?? {});
   const packages = signal<Readonly<Record<string, string>>>(options.hello?.packages ?? {});
   const history = signal<ReadonlyMap<Origin, History>>(new Map());
-  let dropped: readonly Dropped[] = [];
   const subscribers = new Set<(change: Change, board: Board) => void>();
   // Whether the store opens a board, or has opened one, which it does once.
   let opening = false;
@@ -474,7 +469,6 @@ export function createStore(options: StoreOptions = {}): Store {
         built = opened.built;
         const step = ++lastStep;
         for (const key of everyTarget(opened.board, opened.built)) edits.set(key, step);
-        dropped = opened.dropped;
         announce({ opened: opened.board, dropped: opened.dropped }, opened.board);
         return opened.dropped;
       } finally {
@@ -577,7 +571,6 @@ export function createStore(options: StoreOptions = {}): Store {
       return board.value;
     },
     hasBoard: () => board.value !== undefined,
-    dropped: () => dropped,
     subscribe(fn) {
       // An ended store announces nothing more.
       if (ended()) return () => undefined;
