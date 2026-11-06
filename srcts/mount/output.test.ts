@@ -15,7 +15,7 @@ import { playR } from "../testing/r.ts";
 import type { PlayedR } from "../testing/r.ts";
 import { reports } from "../testing/reports.ts";
 import { coreOptions, hello, noUi } from "../testing/store.ts";
-import type { Nested, OutputHost, OutputModule } from "../types/hosts.ts";
+import type { OutputHost, OutputModule } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { OutputRenderer } from "../types/outputs.ts";
 import type { RegistryEntry } from "../types/registry.ts";
@@ -578,43 +578,6 @@ describe("a request", () => {
     await tick();
     s.r.reply({ id: requests(s.r)[0]?.id ?? "", status: "error", conditions: [failure], omitted: { warning: 0, message: 0 } });
     await expect(download).rejects.toMatchObject({ status: "error", conditions: [failure] });
-  });
-});
-
-describe("a nested output", () => {
-  test("is drawn by the renderer it names, with its parameters under its key in its parent's", async () => {
-    const dm = renderer([]);
-    const table = renderer();
-    const DM: OutputRenderer = { id: "blockr.dm-dm_output", module: "blockr.dm/dm-output.js?v=1" };
-    const s = await setup({ [TABLE.module]: table.exports, [DM.module]: dm.exports });
-    await ready(s);
-    s.r.reply({ id: lastOutput(s.r).id, status: "ok", output: { renderer: DM, diagram: {}, preview: { renderer: TABLE, columns: [], rows: [], total: 3 } } });
-    await tick();
-
-    const box = document.createElement("div");
-    const nested: Nested = dm.host().draw(box, "preview", { renderer: TABLE, columns: [], rows: [], total: 3 });
-    await tick();
-    expect(table.mounts).toHaveLength(1);
-    expect(table.host().output()).toMatchObject({ total: 3 });
-    expect(table.host().params()).toEqual({});
-    expect(s.store.board().options).toMatchObject({ n_rows: 50 });
-
-    table.host().setParams({ page: 2 });
-    await tick();
-    const asked = lastOutput(s.r);
-    expect(asked.params).toEqual({ preview: { page: 2 } });
-
-    nested.update({ renderer: TABLE, columns: [], rows: [], total: 4 });
-    expect(table.host().output()).toMatchObject({ total: 4 });
-    await expect(table.host().request("download")).rejects.toThrow("has no requests of its own");
-
-    // Removing it drops its parameters, which leaves those of the output that
-    // the parent holds, so core gives up asking for the other.
-    nested.remove();
-    await tick();
-    expect(table.cleanups()).toBe(1);
-    expect(s.r.cancels()).toEqual([asked.id]);
-    expect(outputs(s.r)).toHaveLength(2);
   });
 });
 

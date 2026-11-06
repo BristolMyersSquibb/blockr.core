@@ -15,12 +15,6 @@ export interface StubOutputHostOptions {
         readonly scope?: "class" | "renderer";
     })[];
 }
-export interface Drawn {
-    readonly key: string;
-    readonly el: HTMLElement;
-    readonly outputs: readonly Json[];
-    readonly removed: boolean;
-}
 export interface StubOutputHost extends OutputHost {
     readonly emitted: readonly {
         readonly name: string;
@@ -32,7 +26,6 @@ export interface StubOutputHost extends OutputHost {
         readonly args: Readonly<Record<string, Json>>;
         readonly scope: "class" | "renderer";
     }[];
-    readonly drawn: readonly Drawn[];
     setOutput(output: Json, body?: Blob | null, params?: Json): void;
     setLoading(loading: boolean): void;
     setError(error: Condition | null): void;

@@ -31,10 +31,10 @@ import type { Store } from "../store/index.ts";
 import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
 import type { Condition, OutputInfo, OutputReply, Reply } from "../protocol/index.ts";
 import type { BlockId, OptionId } from "../types/board.ts";
-import type { Nested, OutputHost, OutputRequestOpts } from "../types/hosts.ts";
+import type { OutputHost, OutputRequestOpts } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { OutputRenderer } from "../types/outputs.ts";
-import { asError, frozenCopy, getAt, isObject, jsonEqual, messageOf, own, packageOf, report, setAt } from "../util/index.ts";
+import { asError, frozenCopy, isObject, jsonEqual, messageOf, own, packageOf, report } from "../util/index.ts";
 import type { Answers, OutputAsk } from "./answers.ts";
 import { ModuleError } from "./load.ts";
 import type { Loader } from "./load.ts";
@@ -163,7 +163,6 @@ interface Drawing {
   readonly host: Announcing;
   readonly controller: AbortController;
   cleanup: (() => void) | undefined;
-  readonly nested: Set<Inner>;
 }
 
 // A host, with what only its mount calls: announce() tells its renderer of a
@@ -171,20 +170,6 @@ interface Drawing {
 interface Announcing extends OutputHost {
   announce(): void;
   drop(): void;
-}
-
-// The renderer of a nested output that core mounted.
-interface InnerMount {
-  readonly prepared: Prepared;
-  readonly controller: AbortController;
-  cleanup: (() => void) | undefined;
-}
-
-// An output drawn nested in another, with what its parent's mount calls.
-interface Inner extends Nested {
-  announce(): void;
-  // Unmounts it with its parent, leaving its parameters as they are.
-  unmount(): void;
 }
 
 // Mounts the output of the block in the element until the returned cleanup
@@ -479,14 +464,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
 
   function mountRenderer(prepared: Prepared): void {
     const signal = new AbortController();
-    const nested = new Set<Inner>();
-    const current: Drawing = {
-      prepared,
-      host: outputHost(prepared, nested),
-      controller: signal,
-      cleanup: undefined,
-      nested,
-    };
+    const current: Drawing = { prepared, host: outputHost(prepared), controller: signal, cleanup: undefined };
     drawing = current;
     el.replaceChildren();
     void (async () => {
@@ -511,7 +489,6 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     const current = drawing;
     if (current === undefined) return;
     drawing = undefined;
-    for (const inner of [...current.nested]) inner.unmount();
     current.host.drop();
     current.controller.abort();
     if (current.cleanup !== undefined) attempt(current.cleanup);
@@ -519,9 +496,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
   }
 
   function announce(): void {
-    if (drawing === undefined) return;
-    drawing.host.announce();
-    for (const inner of [...drawing.nested]) inner.announce();
+    drawing?.host.announce();
   }
 
   function wake(): void {
@@ -540,14 +515,12 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     );
   }
 
-  // Replaces the parameters at the path in the block's, a nested output's
-  // under its key, or drops them where `value` is undefined, so that every
-  // mount of the block asks again.
-  function setParamsAt(path: readonly string[], value: Json | undefined): void {
+  // Replaces the block's parameters, so that every mount of the block asks
+  // again.
+  function replaceParams(value: Readonly<Record<string, Json>>): void {
     if (!bound()) return;
     // A copy that nothing changes, since every mount of the block shares it.
-    const given = value === undefined ? undefined : frozenCopy(value);
-    const next = (path.length === 0 ? given : setAt(shelf.params, path, given)) as Readonly<Record<string, Json>>;
+    const next = frozenCopy(value);
     if (jsonEqual(next, shelf.params)) return;
     shelf.params = next;
     announceTo(shelf.mounts);
@@ -652,7 +625,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     return undefined;
   }
 
-  function outputHost(prepared: Prepared, nested: Set<Inner>): Announcing {
+  function outputHost(prepared: Prepared): Announcing {
     const listeners = new Set<() => void>();
     let named: { for: Made | undefined; values: Readonly<Record<OptionId, Json>> } | undefined;
     let following = true;
@@ -687,7 +660,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
       },
       setParams(params) {
         if (!isObject(params)) throw new TypeError("An output's parameters are an object.");
-        if (following) setParamsAt([], params);
+        if (following) replaceParams(params);
       },
       request<T = Json>(
         name: string,
@@ -702,10 +675,6 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
       emit(name, payload) {
         if (following && bound()) deps.emit({ block, name, payload });
       },
-      draw(at, key, output, body) {
-        if (!following) throw new Error("A renderer that core unmounted nests no output.");
-        return nest(nested, [key], at, output, body ?? null);
-      },
       announce() {
         if (following) announceTo(listeners);
       },
@@ -714,148 +683,6 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         listeners.clear();
       },
     };
-  }
-
-  // Draws an output nested in the one the mount holds, with the renderer that
-  // the nested output names, under the path of keys that leads to it. Its
-  // parameters are the entry under the path in the block's, and it has no
-  // requests of its own, since R resolves a request against the output it
-  // made, the one that nests it.
-  function nest(siblings: Set<Inner>, path: readonly string[], el: HTMLElement, first: Json, firstBody: Blob | null): Nested {
-    const key = path.at(-1);
-    if (typeof key !== "string" || key === "") throw new TypeError("A nested output is drawn under a non-empty key.");
-    let output = checkNested(first);
-    let body = firstBody;
-    const listeners = new Set<() => void>();
-    let inner: InnerMount | undefined;
-    let options: { for: Made | undefined; prepared: Prepared; values: Readonly<Record<OptionId, Json>> } | undefined;
-    let gone = false;
-
-    const host: OutputHost = {
-      block,
-      output: () => output,
-      body: () => body,
-      params: () => (getAt(held?.asked.params, path) ?? EMPTY) as Json,
-      options() {
-        if (inner === undefined) return EMPTY;
-        let memo = options;
-        if (memo === undefined || memo.for !== held || memo.prepared !== inner.prepared) {
-          memo = { for: held, prepared: inner.prepared, values: optionsFor(inner.prepared, held?.asked) };
-          options = memo;
-        }
-        return memo.values;
-      },
-      loading: () => asking !== undefined,
-      error: () => null,
-      on(event, fn) {
-        // A module in plain JS may name another event, which the types refuse.
-        const heard: string = event;
-        if (heard !== "output") {
-          throw new Error(`The host of an output announces "output", not ${JSON.stringify(event)}.`);
-        }
-        const wrapped = (): void => {
-          fn();
-        };
-        listeners.add(wrapped);
-        return () => {
-          listeners.delete(wrapped);
-        };
-      },
-      setParams(params) {
-        if (!isObject(params)) throw new TypeError("An output's parameters are an object.");
-        if (!gone) setParamsAt(path, params);
-      },
-      request() {
-        return Promise.reject(
-          new Error(
-            `An output nested in another has no requests of its own, since R resolves a request against the output that it made, the one that nests it under "${key}".`,
-          ),
-        );
-      },
-      emit(name, payload) {
-        if (!gone && bound()) deps.emit({ block, name, payload });
-      },
-      draw(at, below, nested, nestedBody) {
-        if (gone) throw new Error(`The output nested under "${key}" was removed, so it nests no other.`);
-        return nest(siblings, [...path, below], at, nested, nestedBody ?? null);
-      },
-    };
-
-    function mountInner(): void {
-      const named = rendererOf(output);
-      prepare(named).then(
-        (prepared) => {
-          if (gone || inner !== undefined || rendererOf(output).id !== prepared.renderer.id) return;
-          const signal = new AbortController();
-          const current: InnerMount = { prepared, controller: signal, cleanup: undefined };
-          inner = current;
-          el.replaceChildren();
-          void (async () => {
-            try {
-              const rendered = await prepared.mod.render({ el, host, signal: signal.signal });
-              if (typeof rendered !== "function") return;
-              if (signal.signal.aborted) attempt(rendered);
-              else current.cleanup = rendered;
-            } catch (failure) {
-              if (signal.signal.aborted) return;
-              const why = new ModuleError(prepared.renderer.module, packageOf(prepared.renderer.id), `failed in render(): ${messageOf(failure)}`, {
-                cause: failure,
-              });
-              showError(el, why.message);
-              report(why);
-            }
-          })();
-        },
-        (failure: unknown) => {
-          if (gone) return;
-          showError(el, messageOf(failure));
-          report(failure);
-        },
-      );
-    }
-
-    function unmountInner(): void {
-      const current = inner;
-      if (current === undefined) return;
-      inner = undefined;
-      current.controller.abort();
-      if (current.cleanup !== undefined) attempt(current.cleanup);
-      el.replaceChildren();
-    }
-
-    const handle: Inner = {
-      update(next, nextBody) {
-        if (gone) return;
-        const checked = checkNested(next);
-        const before = rendererOf(output).id;
-        output = checked;
-        body = nextBody ?? null;
-        if (rendererOf(checked).id !== before) {
-          unmountInner();
-          mountInner();
-        } else {
-          announceTo(listeners);
-        }
-      },
-      remove() {
-        if (gone) return;
-        handle.unmount();
-        setParamsAt(path, undefined);
-      },
-      announce() {
-        if (!gone) announceTo(listeners);
-      },
-      unmount() {
-        if (gone) return;
-        gone = true;
-        siblings.delete(handle);
-        listeners.clear();
-        unmountInner();
-      },
-    };
-    siblings.add(handle);
-    mountInner();
-    return handle;
   }
 
   // Follows the board, the block's status and the element's size.
@@ -908,19 +735,6 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
   sync();
 
   return end;
-}
-
-// The renderer that an output names, as R sends one in every output.
-function rendererOf(output: Json): OutputRenderer {
-  return (output as unknown as { renderer: OutputRenderer }).renderer;
-}
-
-function checkNested(output: Json): Json {
-  const named = isObject(output) ? output.renderer : undefined;
-  if (!isObject(named) || typeof named.id !== "string" || typeof named.module !== "string") {
-    throw new TypeError("A nested output names the renderer that draws it, as R puts one in every output.");
-  }
-  return output;
 }
 
 // What makes two asks of one block's output identical: the revision, the

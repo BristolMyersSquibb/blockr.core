@@ -638,33 +638,6 @@ function jsonEqual(a2, b2) {
   }
   return false;
 }
-function getAt(root, path) {
-  let at = root;
-  for (const key of path) {
-    if (!isObject(at) || !Object.hasOwn(at, key)) return void 0;
-    at = at[key];
-  }
-  return at;
-}
-function setAt(root, path, value2) {
-  const [key, ...rest] = path;
-  if (key === void 0) return root;
-  if (rest.length === 0) {
-    if (value2 === void 0) return without(root, [key]);
-    return { ...root, [key]: value2 };
-  }
-  const below = own(root, key);
-  if (value2 === void 0) {
-    if (!isObject(below)) return root;
-    const next = setAt(below, rest, void 0);
-    if (next === below) return root;
-    return Object.keys(next).length === 0 ? without(root, [key]) : { ...root, [key]: next };
-  }
-  return {
-    ...root,
-    [key]: setAt(isObject(below) ? below : {}, rest, value2)
-  };
-}
 function without(record, keys) {
   if (!keys.some((key) => Object.hasOwn(record, key))) return record;
   return Object.fromEntries(
@@ -3893,14 +3866,7 @@ function mountOutput(deps, el, block) {
   }
   function mountRenderer(prepared) {
     const signal = new AbortController();
-    const nested = /* @__PURE__ */ new Set();
-    const current3 = {
-      prepared,
-      host: outputHost(prepared, nested),
-      controller: signal,
-      cleanup: void 0,
-      nested
-    };
+    const current3 = { prepared, host: outputHost(prepared), controller: signal, cleanup: void 0 };
     drawing = current3;
     el.replaceChildren();
     void (async () => {
@@ -3924,16 +3890,13 @@ function mountOutput(deps, el, block) {
     const current3 = drawing;
     if (current3 === void 0) return;
     drawing = void 0;
-    for (const inner of [...current3.nested]) inner.unmount();
     current3.host.drop();
     current3.controller.abort();
     if (current3.cleanup !== void 0) attempt(current3.cleanup);
     el.replaceChildren();
   }
   function announce2() {
-    if (drawing === void 0) return;
-    drawing.host.announce();
-    for (const inner of [...drawing.nested]) inner.announce();
+    drawing?.host.announce();
   }
   function wake() {
     announceTo(waiting2);
@@ -3947,10 +3910,9 @@ function mountOutput(deps, el, block) {
       })
     );
   }
-  function setParamsAt(path, value2) {
+  function replaceParams(value2) {
     if (!bound()) return;
-    const given = value2 === void 0 ? void 0 : frozenCopy(value2);
-    const next = path.length === 0 ? given : setAt(shelf.params, path, given);
+    const next = frozenCopy(value2);
     if (jsonEqual(next, shelf.params)) return;
     shelf.params = next;
     announceTo(shelf.mounts);
@@ -4040,7 +4002,7 @@ function mountOutput(deps, el, block) {
     }
     return void 0;
   }
-  function outputHost(prepared, nested) {
+  function outputHost(prepared) {
     const listeners = /* @__PURE__ */ new Set();
     let named3;
     let following = true;
@@ -4074,7 +4036,7 @@ function mountOutput(deps, el, block) {
       },
       setParams(params) {
         if (!isObject(params)) throw new TypeError("An output's parameters are an object.");
-        if (following) setParamsAt([], params);
+        if (following) replaceParams(params);
       },
       request(name3, args = {}, opts = {}) {
         const invalid = checkRequest(name3, args, opts);
@@ -4085,10 +4047,6 @@ function mountOutput(deps, el, block) {
       emit(name3, payload) {
         if (following && bound()) deps.emit({ block, name: name3, payload });
       },
-      draw(at, key, output, body) {
-        if (!following) throw new Error("A renderer that core unmounted nests no output.");
-        return nest(nested, [key], at, output, body ?? null);
-      },
       announce() {
         if (following) announceTo(listeners);
       },
@@ -4097,137 +4055,6 @@ function mountOutput(deps, el, block) {
         listeners.clear();
       }
     };
-  }
-  function nest(siblings, path, el2, first, firstBody) {
-    const key = path.at(-1);
-    if (typeof key !== "string" || key === "") throw new TypeError("A nested output is drawn under a non-empty key.");
-    let output = checkNested(first);
-    let body = firstBody;
-    const listeners = /* @__PURE__ */ new Set();
-    let inner;
-    let options2;
-    let gone = false;
-    const host = {
-      block,
-      output: () => output,
-      body: () => body,
-      params: () => getAt(held2?.asked.params, path) ?? EMPTY,
-      options() {
-        if (inner === void 0) return EMPTY;
-        let memo = options2;
-        if (memo === void 0 || memo.for !== held2 || memo.prepared !== inner.prepared) {
-          memo = { for: held2, prepared: inner.prepared, values: optionsFor(inner.prepared, held2?.asked) };
-          options2 = memo;
-        }
-        return memo.values;
-      },
-      loading: () => asking !== void 0,
-      error: () => null,
-      on(event, fn) {
-        const heard = event;
-        if (heard !== "output") {
-          throw new Error(`The host of an output announces "output", not ${JSON.stringify(event)}.`);
-        }
-        const wrapped = () => {
-          fn();
-        };
-        listeners.add(wrapped);
-        return () => {
-          listeners.delete(wrapped);
-        };
-      },
-      setParams(params) {
-        if (!isObject(params)) throw new TypeError("An output's parameters are an object.");
-        if (!gone) setParamsAt(path, params);
-      },
-      request() {
-        return Promise.reject(
-          new Error(
-            `An output nested in another has no requests of its own, since R resolves a request against the output that it made, the one that nests it under "${key}".`
-          )
-        );
-      },
-      emit(name3, payload) {
-        if (!gone && bound()) deps.emit({ block, name: name3, payload });
-      },
-      draw(at, below, nested, nestedBody) {
-        if (gone) throw new Error(`The output nested under "${key}" was removed, so it nests no other.`);
-        return nest(siblings, [...path, below], at, nested, nestedBody ?? null);
-      }
-    };
-    function mountInner() {
-      const named3 = rendererOf(output);
-      prepare(named3).then(
-        (prepared) => {
-          if (gone || inner !== void 0 || rendererOf(output).id !== prepared.renderer.id) return;
-          const signal = new AbortController();
-          const current3 = { prepared, controller: signal, cleanup: void 0 };
-          inner = current3;
-          el2.replaceChildren();
-          void (async () => {
-            try {
-              const rendered = await prepared.mod.render({ el: el2, host, signal: signal.signal });
-              if (typeof rendered !== "function") return;
-              if (signal.signal.aborted) attempt(rendered);
-              else current3.cleanup = rendered;
-            } catch (failure) {
-              if (signal.signal.aborted) return;
-              const why = new ModuleError(prepared.renderer.module, packageOf(prepared.renderer.id), `failed in render(): ${messageOf(failure)}`, {
-                cause: failure
-              });
-              showError(el2, why.message);
-              report(why);
-            }
-          })();
-        },
-        (failure) => {
-          if (gone) return;
-          showError(el2, messageOf(failure));
-          report(failure);
-        }
-      );
-    }
-    function unmountInner() {
-      const current3 = inner;
-      if (current3 === void 0) return;
-      inner = void 0;
-      current3.controller.abort();
-      if (current3.cleanup !== void 0) attempt(current3.cleanup);
-      el2.replaceChildren();
-    }
-    const handle = {
-      update(next, nextBody) {
-        if (gone) return;
-        const checked3 = checkNested(next);
-        const before = rendererOf(output).id;
-        output = checked3;
-        body = nextBody ?? null;
-        if (rendererOf(checked3).id !== before) {
-          unmountInner();
-          mountInner();
-        } else {
-          announceTo(listeners);
-        }
-      },
-      remove() {
-        if (gone) return;
-        handle.unmount();
-        setParamsAt(path, void 0);
-      },
-      announce() {
-        if (!gone) announceTo(listeners);
-      },
-      unmount() {
-        if (gone) return;
-        gone = true;
-        siblings.delete(handle);
-        listeners.clear();
-        unmountInner();
-      }
-    };
-    siblings.add(handle);
-    mountInner();
-    return handle;
   }
   const offStore = store.subscribe((change, next) => {
     if ("opened" in change || !Object.hasOwn(next.blocks, block)) {
@@ -4274,16 +4101,6 @@ function mountOutput(deps, el, block) {
   if (shelf.last !== void 0) take(shelf.last);
   sync();
   return end;
-}
-function rendererOf(output) {
-  return output.renderer;
-}
-function checkNested(output) {
-  const named2 = isObject(output) ? output.renderer : void 0;
-  if (!isObject(named2) || typeof named2.id !== "string" || typeof named2.module !== "string") {
-    throw new TypeError("A nested output names the renderer that draws it, as R puts one in every output.");
-  }
-  return output;
 }
 function keyOf2(asked) {
   return JSON.stringify([asked.revision, sorted2(asked.options), sorted2(asked.info), sorted2(asked.params)]);

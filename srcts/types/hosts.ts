@@ -150,12 +150,4 @@ export interface OutputHost {
   // Reports what the user did on the output, such as a selection, for an
   // extension to act on.
   emit(name: string, payload: Json): void;
-  // Draws an output nested in this one, with the renderer that R names in it.
-  draw(el: HTMLElement, key: string, output: Json, body?: Blob): Nested;
-}
-
-export interface Nested {
-  // Hands the nested renderer a new output without mounting it again.
-  update(output: Json, body?: Blob): void;
-  remove(): void;
 }

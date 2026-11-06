@@ -74,9 +74,4 @@ export interface OutputHost {
     setParams(params: Json): void;
     request<T = Json>(name: string, args?: Record<string, Json>, opts?: OutputRequestOpts): Promise<T | Blob>;
     emit(name: string, payload: Json): void;
-    draw(el: HTMLElement, key: string, output: Json, body?: Blob): Nested;
-}
-export interface Nested {
-    update(output: Json, body?: Blob): void;
-    remove(): void;
 }

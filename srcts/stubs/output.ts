@@ -1,11 +1,11 @@
 // A stub of the host of an output's renderer, which holds an output, answers
 // the renderer's change of parameters from its output class's fixtures, those
 // that R's constructor writes, and keeps a record of what the renderer
-// emitted, asked for and drew nested in its output.
+// emitted and asked for.
 
 import type { Condition } from "../protocol/index.ts";
 import type { BlockId, OptionId } from "../types/board.ts";
-import type { Nested, OutputHost, OutputRequestOpts } from "../types/hosts.ts";
+import type { OutputHost, OutputRequestOpts } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { OutputFixtures } from "../types/outputs.ts";
 import { asError, jsonEqual } from "../util/index.ts";
@@ -32,15 +32,6 @@ export interface StubOutputHostOptions {
   readonly requests?: readonly (Answered & { readonly scope?: "class" | "renderer" })[];
 }
 
-// An output drawn nested in the one the host holds, with each output it was
-// handed since, and whether it was removed.
-export interface Drawn {
-  readonly key: string;
-  readonly el: HTMLElement;
-  readonly outputs: readonly Json[];
-  readonly removed: boolean;
-}
-
 export interface StubOutputHost extends OutputHost {
   // Each event the renderer emitted.
   readonly emitted: readonly { readonly name: string; readonly payload: Json }[];
@@ -52,8 +43,6 @@ export interface StubOutputHost extends OutputHost {
     readonly args: Readonly<Record<string, Json>>;
     readonly scope: "class" | "renderer";
   }[];
-  // Each output it drew nested in its own.
-  readonly drawn: readonly Drawn[];
   // Hands the renderer another output, as core does once R sends one, and
   // announces it.
   setOutput(output: Json, body?: Blob | null, params?: Json): void;
@@ -74,7 +63,6 @@ export function stubOutputHost(options: StubOutputHostOptions = {}): StubOutputH
   const emitted: { name: string; payload: Json }[] = [];
   const asked: Json[] = [];
   const requested: { name: string; args: Readonly<Record<string, Json>>; scope: "class" | "renderer" }[] = [];
-  const drawn: { key: string; el: HTMLElement; outputs: Json[]; removed: boolean }[] = [];
   const on = announcer(["output"] as const);
 
   return {
@@ -89,7 +77,6 @@ export function stubOutputHost(options: StubOutputHostOptions = {}): StubOutputH
     emitted,
     asked,
     requested,
-    drawn,
     setParams(next) {
       asked.push(next);
       const found = options.fixtures?.outputs.find(
@@ -123,18 +110,6 @@ export function stubOutputHost(options: StubOutputHostOptions = {}): StubOutputH
     },
     emit(name, payload) {
       emitted.push({ name, payload });
-    },
-    draw(el, key, nested): Nested {
-      const entry = { key, el, outputs: [nested], removed: false };
-      drawn.push(entry);
-      return {
-        update(next) {
-          entry.outputs.push(next);
-        },
-        remove() {
-          entry.removed = true;
-        },
-      };
     },
     setOutput(next, nextBody = null, nextParams) {
       output = next;

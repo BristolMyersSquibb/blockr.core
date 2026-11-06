@@ -43,7 +43,6 @@ export type {
   BlockHost,
   BlockModule,
   HostRequestOpts,
-  Nested,
   OptionHost,
   OptionModule,
   OutputHost,
