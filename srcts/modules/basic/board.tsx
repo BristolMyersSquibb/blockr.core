@@ -12,7 +12,6 @@ import { styles } from "../../styles/index.ts";
 import type { BlockId } from "../../types/board.ts";
 import type { Json } from "../../types/json.ts";
 import { BlockCard, StackGroup } from "./card.tsx";
-import type { Section } from "./card.tsx";
 import { FrontEndContext, useFrontEnd } from "./context.ts";
 import type { FrontEnd } from "./context.ts";
 import { useBoard, useNotices } from "./hooks.ts";
@@ -27,8 +26,6 @@ import type { ToolbarDialog } from "./toolbar.tsx";
 import { classes } from "./ui.tsx";
 
 type Shown = { readonly kind: "add"; readonly mode: AddMode } | { readonly kind: Exclude<ToolbarDialog, "add"> };
-
-const NONE: readonly Section[] = [];
 
 export function BasicBoard({ front }: { front: FrontEnd }): ReactElement {
   return (
@@ -47,14 +44,6 @@ function Page(): ReactElement {
   const shown = board.options.show_conditions;
   const severities = useMemo(() => severitiesOf(shown), [shown]);
   const [dialog, setDialog] = useState<Shown | null>(null);
-  const [hidden, setHidden] = useState<Readonly<Record<BlockId, readonly Section[]>>>({});
-
-  const toggle = useCallback((block: BlockId, section: Section) => {
-    setHidden((last) => {
-      const now = last[block] ?? NONE;
-      return { ...last, [block]: now.includes(section) ? now.filter((s) => s !== section) : [...now, section] };
-    });
-  }, []);
   const add = useCallback((mode: AddMode) => {
     setDialog({ kind: "add", mode });
   }, []);
@@ -70,10 +59,8 @@ function Page(): ReactElement {
         key={`block-${id}`}
         id={id}
         block={block}
-        hidden={hidden[id] ?? NONE}
         severities={severities}
         prependable={(freeInputs(board, core.blockRegistry(), id)?.length ?? 0) > 0}
-        toggle={toggle}
         add={add}
       />
     );

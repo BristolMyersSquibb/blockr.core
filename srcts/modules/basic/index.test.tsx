@@ -181,26 +181,6 @@ describe("a card", () => {
     expect(find(card(el, "Merge"), "[data-status]").textContent).toBe("waiting");
   });
 
-  test("hides and shows its block's UI and output with its toggles", async () => {
-    const { el } = await drawn();
-    const iris = () => card(el, "Iris");
-
-    await click(button(iris(), "Inputs"));
-    expect(button(iris(), "Inputs").getAttribute("aria-pressed")).toBe("false");
-    expect(iris().textContent).not.toContain("UI of a");
-    expect(iris().textContent).toContain("Output of a");
-
-    await click(button(iris(), "Output"));
-    expect(iris().querySelector('[aria-label="Output"]')).toBeNull();
-
-    await click(button(iris(), "Inputs"));
-    await click(button(iris(), "Output"));
-    expect(iris().textContent).toContain("UI of a");
-    expect(iris().textContent).toContain("Output of a");
-    // The other cards keep their sections.
-    expect(card(el, "Head").textContent).toContain("UI of b");
-  });
-
   test("renames and removes its block from its menu, through core's commands", async () => {
     const { el, board } = await drawn();
 
@@ -528,7 +508,7 @@ describe("a locked board", () => {
     expect(buttons(find(el, '[role="toolbar"]'))).toEqual(["Undo", "Redo", "Save"]);
     expect(el.querySelector('button[aria-label="Rename board"]')).toBeNull();
     expect(el.querySelector('input[type="file"]')).toBeNull();
-    // No card has a menu or toggles.
+    // No card has a menu.
     expect(el.querySelectorAll("article button")).toHaveLength(0);
 
     expect(card(el, "Head").textContent).toContain("UI of b");

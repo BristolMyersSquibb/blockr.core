@@ -2,9 +2,8 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#cores-basic-front-end).
 //
 // A card shows these, top to bottom:
-// - The block's name, its class and its status, with toggles for its UI and
-//   its output, and a menu to rename or remove the block or to add a block
-//   before or after it.
+// - The block's name, its class and its status, and a menu to rename or
+//   remove the block or to add a block before or after it.
 // - The block's UI and its output, which core mounts.
 // - The conditions of the block's latest evaluation, of the severities that
 //   the board option show_conditions names.
@@ -16,9 +15,10 @@
 // 0 by 0, and R draws a plot at that size. So the card gives the output a
 // height of its own, which the user may drag to another. It does so from the
 // block's first reply on, since there is nothing to draw before.
+// The card always shows the block's UI and its output, with no toggles to
+// hide them, which a front-end built on core's may add.
 // On a locked board, the card draws no control for what the lock fixes. It
-// has no menu and no toggles, and it shows the UI only of a block that the
-// lock leaves open.
+// has no menu, and it shows the UI only of a block that the lock leaves open.
 
 import { memo, useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
@@ -31,32 +31,24 @@ import { useStatus } from "./hooks.ts";
 import type { AddMode } from "./picker.tsx";
 import { classes, Menu, Mounted, NameField } from "./ui.tsx";
 
-// The sections of a card that the user can hide.
-export type Section = "inputs" | "output";
-
 type Severity = Condition["severity"];
 
 export interface CardProps {
   readonly id: BlockId;
   readonly block: Block;
-  // The sections that the user hid.
-  readonly hidden: readonly Section[];
   // The severities of the conditions that the card shows.
   readonly severities: readonly Severity[];
   // Whether the block takes a link from a new block, which it does while an
   // input of it is free.
   readonly prependable: boolean;
-  readonly toggle: (block: BlockId, section: Section) => void;
   readonly add: (mode: AddMode) => void;
 }
 
 export const BlockCard = memo(function BlockCard({
   id,
   block,
-  hidden,
   severities,
   prependable,
-  toggle,
   add,
 }: CardProps): ReactElement {
   const front = useFrontEnd();
@@ -74,8 +66,7 @@ export const BlockCard = memo(function BlockCard({
   const mountOutput = useCallback((el: HTMLElement) => core.mountOutput(el, id), [core, id]);
 
   const { lock } = core;
-  const inputs = lock === null ? !hidden.includes("inputs") : lock.open.includes(id);
-  const output = lock === null ? !hidden.includes("output") : true;
+  const inputs = lock === null || lock.open.includes(id);
   const entry = own(core.blockRegistry(), block.registry_id);
   const ready = status?.status === "ready";
   const replied = status !== undefined && status.evaluated !== null;
@@ -105,22 +96,6 @@ export const BlockCard = memo(function BlockCard({
         <StatusBadge status={status} />
         {lock === null ? (
           <div className="bc:ml-auto bc:flex bc:items-center bc:gap-1">
-            <Toggle
-              pressed={inputs}
-              onClick={() => {
-                toggle(id, "inputs");
-              }}
-            >
-              Inputs
-            </Toggle>
-            <Toggle
-              pressed={output}
-              onClick={() => {
-                toggle(id, "output");
-              }}
-            >
-              Output
-            </Toggle>
             <Menu
               label={`Actions of ${block.name}`}
               items={[
@@ -155,19 +130,17 @@ export const BlockCard = memo(function BlockCard({
         ) : null}
       </header>
       {inputs ? <Mounted mount={mountUi} label="Inputs" className="bc:min-w-0" /> : null}
-      {output ? (
-        <div
-          role="region"
-          aria-label="Output"
-          data-ready={ready}
-          className={`bc:min-w-0 bc:transition-opacity ${ready ? "" : "bc:opacity-50 bc:grayscale"}`}
-        >
-          <Mounted
-            mount={mountOutput}
-            className={replied ? "bc:h-96 bc:min-h-24 bc:resize-y bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"}
-          />
-        </div>
-      ) : null}
+      <div
+        role="region"
+        aria-label="Output"
+        data-ready={ready}
+        className={`bc:min-w-0 bc:transition-opacity ${ready ? "" : "bc:opacity-50 bc:grayscale"}`}
+      >
+        <Mounted
+          mount={mountOutput}
+          className={replied ? "bc:h-96 bc:min-h-24 bc:resize-y bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"}
+        />
+      </div>
       <Conditions status={status} severities={severities} />
       {status === undefined || status.summary === null ? null : (
         <p className="bc:m-0 bc:font-mono bc:text-xs bc:text-text-muted">{status.summary}</p>
@@ -196,14 +169,6 @@ export function StackGroup({ stack, children }: { stack: Stack; children: ReactN
       </header>
       {children}
     </section>
-  );
-}
-
-function Toggle({ pressed, onClick, children }: { pressed: boolean; onClick: () => void; children: ReactNode }): ReactElement {
-  return (
-    <button type="button" aria-pressed={pressed} className={classes.quiet} onClick={onClick}>
-      {children}
-    </button>
   );
 }
 
