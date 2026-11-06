@@ -1,23 +1,14 @@
-flowchart TD
+flowchart LR
   subgraph board[Board]
 
-    subgraph stack1[Stack 1]
+    subgraph stack[Stack ac]
       direction TB
-      import[Data 1]
-      transform[Transform]
-      visualize[Visualize]
-      import2[Data 2]
-      merge[Merge data]
-      transform2[Subset columns]
-      import --> transform --> |filter| merge --> |left join| visualize
-      import2 --> transform2 --> |subset| merge
+      a[a: Dataset BOD]
+      c[c: Merge by Time]
     end
 
-    subgraph stack2[Stack 2]
-      direction TB
-      import3[Data 3]
-      llm[Transform LLM]
-      visualise_llm[Visualize LLM]
-      import3 --> llm --> visualise_llm
-    end
+    b[b: Dataset ChickWeight]
+
+    a --> |x| c
+    b --> |y| c
   end
