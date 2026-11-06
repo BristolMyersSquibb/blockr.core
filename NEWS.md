@@ -258,7 +258,7 @@
   It draws each stack as a group of its blocks' cards.
   A card shows its block's name, class and status, the block's UI and output, the conditions of the severities that the board option `show_conditions` names, and the summary of the block's result.
   A card's menu renames or removes its block, or adds a block before or after it, and its toggles show and hide the block's UI and output.
-  The output of a block that is not ready is greyed out, where the page cleared it until now.
+  The output of a block that is not ready is grayed out, where the page cleared it until now.
   Undo and redo are bound to Mod+Z, and Mod+Shift+Z or Mod+Y, with Mod either Ctrl or Cmd.
   The page tells the user what the store dropped as the board opened and which edit the store refused.
   The front-end demands every block above the default evaluation priority, and the blocks in view higher still, where the page parked the blocks of collapsed stacks until now.
