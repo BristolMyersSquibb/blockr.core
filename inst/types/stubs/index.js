@@ -3822,7 +3822,7 @@ function mountOutput(deps, el, block) {
     if (status?.status !== "ready") return void 0;
     return { asked: { revision: status.revision, options: values2(ids2), info, params: shelf.params }, ids: ids2 };
   }
-  function fits(asked, want, ids2) {
+  function fits2(asked, want, ids2) {
     if (asked.revision !== want.revision || !jsonEqual(asked.info, want.info)) return false;
     if (!jsonEqual(asked.params, want.params)) return false;
     if (ids2 === null) return jsonEqual(asked.options, want.options);
@@ -3832,9 +3832,9 @@ function mountOutput(deps, el, block) {
     if (ended()) return;
     const want = wanted();
     if (want !== void 0) {
-      if (held2 !== void 0 && fits(held2.asked, want.asked, want.ids)) {
+      if (held2 !== void 0 && fits2(held2.asked, want.asked, want.ids)) {
         stopAsking();
-      } else if (shelf.last !== void 0 && shelf.last !== held2 && fits(shelf.last.asked, want.asked, want.ids)) {
+      } else if (shelf.last !== void 0 && shelf.last !== held2 && fits2(shelf.last.asked, want.asked, want.ids)) {
         stopAsking();
         take(shelf.last);
       } else {
@@ -6076,6 +6076,8 @@ function defaultOf(built2, name2) {
 }
 
 // srcts/store/check.ts
+var HEX_COLOR = "^#[0-9a-fA-F]{6}$";
+var hexColor = new RegExp(HEX_COLOR);
 function check(board, registry, registrations, built2, changed) {
   const failures = [];
   if (!isId(board.id)) {
@@ -6166,10 +6168,15 @@ function checkStacks(board, changed, failures) {
   const holder = /* @__PURE__ */ new Map();
   for (const [id2, stack] of Object.entries(board.stacks)) {
     if (changed === void 0 || changed.stacks.has(id2)) {
-      const fields = shape(stack, { name: "string", blocks: "array" });
+      const fields = shape(stack, { name: "string", blocks: "array", color: "string or null" });
       if (fields.length > 0) {
         failures.push(`The stack "${id2}" ${fields.join(", ")}.`);
         continue;
+      }
+      if (stack.color !== null && !hexColor.test(stack.color)) {
+        failures.push(
+          `The stack "${id2}" has the colour "${stack.color}", which is no hex colour of six digits, such as "#66c2a5".`
+        );
       }
     }
     for (const block of stack.blocks) {
@@ -6216,14 +6223,24 @@ function shape(value2, fields) {
   if (!isObject(value2)) return ["is no object"];
   const problems = [];
   for (const [field, kind] of Object.entries(fields)) {
-    const x2 = value2[field];
-    const ok = kind === "array" ? Array.isArray(x2) : kind === "object" ? isObject(x2) : typeof x2 === kind;
-    if (!ok) problems.push(`has no ${kind} as its ${field}`);
+    if (!fits(value2[field], kind)) problems.push(`has no ${kind} as its ${field}`);
   }
   for (const field of Object.keys(value2)) {
     if (!Object.hasOwn(fields, field)) problems.push(`holds "${field}", which core does not keep`);
   }
   return problems;
+}
+function fits(x2, kind) {
+  switch (kind) {
+    case "array":
+      return Array.isArray(x2);
+    case "object":
+      return isObject(x2);
+    case "string or null":
+      return x2 === null || typeof x2 === "string";
+    case "string":
+      return typeof x2 === "string";
+  }
 }
 
 // srcts/store/patch.ts
@@ -7412,6 +7429,11 @@ var blockIds = {
   uniqueItems: true,
   description: "Ids of blocks, in order."
 };
+var color = {
+  type: ["string", "null"],
+  pattern: HEX_COLOR,
+  description: 'A hex colour, such as "#66c2a5", which front-ends draw a stack in, or null for none. A front-end draws a stack without a colour in a default of its own.'
+};
 var optionId = {
   type: "string",
   minLength: 1,
@@ -7756,14 +7778,18 @@ function coreCommands(store) {
           description: "The new stack's id, which is minted where it is left out."
         },
         name: { ...name, description: `The new stack's name, "Stack" where it is left out.` },
-        blocks: { ...blockIds, description: "The blocks of the new stack, in order." }
+        blocks: { ...blockIds, description: "The blocks of the new stack, in order." },
+        color: {
+          ...color,
+          description: "The new stack's colour, which front-ends draw it in, or null for none. The stack gets null where this is left out, and a front-end draws a stack without a colour in a default of its own."
+        }
       }),
-      run(board2, { id: id2, name: name2 = "Stack", blocks: blocks2 = [] }) {
+      run(board2, { id: id2, name: name2 = "Stack", blocks: blocks2 = [], color: color2 = null }) {
         const stack = id2 ?? mintId((id3) => Object.hasOwn(board2.stacks, id3));
         const left2 = leave(board2, stack, blocks2);
         return {
           stacks: {
-            add: { [stack]: { name: name2, blocks: blocks2 } },
+            add: { [stack]: { name: name2, blocks: blocks2, color: color2 } },
             ...Object.keys(left2).length === 0 ? {} : { mod: left2 }
           }
         };
@@ -7772,17 +7798,32 @@ function coreCommands(store) {
     command({
       id: "blockr.core-change_stack",
       label: "Change stack",
-      description: "Sets the blocks of a stack, taking each out of the stack it is in, since a block sits in one stack at most.",
+      description: "Changes the blocks of a stack or its colour, taking each block out of the stack it is in, since a block sits in one stack at most.",
       args: object(
         {
           id: stackId,
-          blocks: { ...blockIds, description: "The blocks of the stack, in order." }
+          blocks: {
+            ...blockIds,
+            description: "The blocks of the stack, in order, which it keeps where they are left out."
+          },
+          color: {
+            ...color,
+            description: "The stack's colour, which front-ends draw it in, or null to clear it. A front-end draws a stack without a colour in a default of its own. The stack keeps its colour where this is left out."
+          }
         },
-        ["id", "blocks"]
+        ["id"]
       ),
       enabled: (board2, { id: id2 }) => Object.hasOwn(board2.stacks, id2),
-      run: (board2, { id: id2, blocks: blocks2 }) => ({
-        stacks: { mod: { ...leave(board2, id2, blocks2), [id2]: { blocks: blocks2 } } }
+      run: (board2, { id: id2, blocks: blocks2, color: color2 }) => ({
+        stacks: {
+          mod: {
+            ...blocks2 === void 0 ? {} : leave(board2, id2, blocks2),
+            [id2]: {
+              ...blocks2 === void 0 ? {} : { blocks: blocks2 },
+              ...color2 === void 0 ? {} : { color: color2 }
+            }
+          }
+        }
       })
     }),
     command({
@@ -9096,7 +9137,7 @@ var hello_default = {
               de: { from: "d", to: "e", input: "" },
               keen_finch: { from: "a", to: "f", input: "data" }
             },
-            stacks: { s1: { name: "Input", blocks: ["a", "b"] } },
+            stacks: { s1: { name: "Input", blocks: ["a", "b"], color: null } },
             options: {
               n_rows: { value: 50, version: 1 },
               show_conditions: {
