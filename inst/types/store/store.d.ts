@@ -18,6 +18,7 @@ export interface Store {
     apply(delta: Delta | readonly Delta[], origin?: Origin): void;
     open(given: string | HelloReply): Promise<Dropped[]>;
     jsonBoard(): JsonBoard;
+    save(): string;
     undo(origin?: Origin): void;
     redo(origin?: Origin): void;
     canUndo(origin?: Origin): boolean;

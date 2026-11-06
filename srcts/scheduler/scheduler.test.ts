@@ -245,7 +245,7 @@ describe("revisions", () => {
     await evaluateAll(r);
     const top = Math.max(...Object.values(revisionsOf(scheduler)));
 
-    await store.open(JSON.stringify(store.jsonBoard()));
+    await store.open(store.save());
 
     expect(r.forgets()).toEqual([["a", "b", "c", "d", "e", "f"]]);
     for (const [id, revision] of Object.entries(revisionsOf(scheduler))) {
@@ -714,7 +714,7 @@ describe("one-time evaluations", () => {
     await expect(aborted).rejects.toThrow("The step was given up.");
 
     const waiting = scheduler.evaluate(["e"]);
-    await store.open(JSON.stringify(store.jsonBoard()));
+    await store.open(store.save());
     await expect(waiting).rejects.toThrow("Another board opened.");
   });
 });
