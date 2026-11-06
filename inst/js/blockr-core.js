@@ -7935,6 +7935,10 @@ function createStore(options = {}) {
       board: { id: id2, class: classVector, versions, name: name3, blocks, links, stacks, options: options2, ...propertiesOf(next) }
     };
   }
+  function save() {
+    return `${JSON.stringify(jsonBoard(), null, 2)}
+`;
+  }
   function frontEnd(classes) {
     if (hello === void 0) {
       throw new Error("The store knows the front-ends of board classes only once R has answered `hello`.");
@@ -7989,6 +7993,7 @@ function createStore(options = {}) {
     registerMigration: (registryId2, fn) => registrations.registerMigration(registryId2, fn),
     options: registrations.options,
     jsonBoard,
+    save,
     blockRegistry: () => registry.value,
     packages: () => packages.value,
     editId: (of) => edits.get(target(of))
