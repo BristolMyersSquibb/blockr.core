@@ -264,7 +264,7 @@
   The front-end demands every block above the default evaluation priority, and the blocks in view higher still, where the page parked the blocks of collapsed stacks until now.
   On a locked board, it draws no control for what the lock fixes.
   Core's board class `board` requires the board options `show_conditions` and `dark_mode`, so that every board gets them as it opens.
-  The page's color scheme follows the theme that `dark_mode` switches the page to, so that the browser draws the page's background, form controls and scrollbars in that theme too.
+  The page's color scheme follows the theme that `dark_mode` switches the page to, so that the browser draws the page's background, form controls and scroll bars in that theme too.
   Where no blockr option sets `n_rows`, a table output's page holds 10 rows, where it held 50 (#441).
 
 # blockr.core 0.1.4
