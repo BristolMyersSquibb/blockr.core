@@ -6,6 +6,7 @@
 \alias{is_stack}
 \alias{stack_blocks}
 \alias{stack_name}
+\alias{stack_color}
 \alias{validate_stack}
 \alias{as_stack}
 \alias{stacks}
@@ -16,6 +17,7 @@
 new_stack(
   blocks = character(),
   name = default_stack_name,
+  color = NULL,
   ...,
   class = character()
 )
@@ -27,6 +29,8 @@ is_stack(x)
 stack_blocks(x)
 
 stack_name(x, name)
+
+stack_color(x)
 
 validate_stack(x)
 
@@ -43,6 +47,9 @@ as_stacks(x, ...)
 
 \item{name}{Stack name}
 
+\item{color}{Stack color, as a hex color of six digits such as \code{"#66c2a5"},
+or \code{NULL} for none}
+
 \item{...}{Extensibility}
 
 \item{class}{(Optional) stack sub-class}
@@ -55,15 +62,20 @@ Construction and coercion via \code{new_stack()}/\code{as_stack()} and
 respectively, while inheritance testing via \code{is_stack()} and \code{is_stacks()}
 returns scalar logicals. Attribute getters \code{stack_name()} and
 \code{stack_blocks()} return scalar and vector-valued character vectors.
+The getter \code{stack_color()} returns a string, or \code{NULL} for a stack without a
+color.
 }
 \description{
 Multiple (related) blocks can be grouped together into stacks. Such a
 grouping has no functional implications, rather it is an organizational tool
 to help users manage more complex pipelines. Stack objects constitute a set
 of attributes, the most important of which is \code{blocks} (a character vector
-of block IDs). Each \code{stack} may have an arbitrary \code{name} and the class can
-be extended by adding further attributes, maybe something like \code{color},
-coupled with sub-classing.
+of block IDs).
+Each \code{stack} may have an arbitrary \code{name}, and a \code{color}, which front-ends
+draw it in.
+A front-end draws a stack without a color in a default of its own.
+The class can be extended by adding further attributes, coupled with
+sub-classing.
 
 Stack container objects (\code{stacks} objects) can be created with \code{stacks()}
 or \code{as_stacks()} and inheritance can be tested via \code{is_stacks()}. Further
@@ -72,15 +84,17 @@ of base R generics.
 }
 \details{
 Individual stacks can be created using \code{new_stack()} or \code{as_stack()} and
-inheritance can be tested with \code{is_stack()}. Attributes can be retrieved
-with \code{stack_blocks()} and \code{stack_name()}, while validation is available as
-(generic) \code{validate_stack()}.
+inheritance can be tested with \code{is_stack()}.
+Attributes can be retrieved with \code{stack_blocks()}, \code{stack_name()} and
+\code{stack_color()}, while validation is available as (generic)
+\code{validate_stack()}.
 }
 \examples{
-stk <- new_stack(letters[1:5], "Alphabet 1")
+stk <- new_stack(letters[1:5], "Alphabet 1", color = "#66c2a5")
 
 stack_blocks(stk)
 stack_name(stk)
+stack_color(stk)
 
 stks <- c(start = stk, cont = new_stack(letters[6:10], "Alphabet cont."))
 names(stks)

@@ -45,6 +45,9 @@
 #' The client drops each property that the class it builds the board as does
 #' not add.
 #'
+#' A stack is written with its name, its blocks and its color, which is `null`
+#' for a stack without one.
+#'
 #' A block is written by the registry ID of its class, with its state and its
 #' name.
 #' Where the block registry holds no entry for its class, writing the block
@@ -174,7 +177,11 @@ blockr_ser.stacks <- function(x, ...) {
 #' @rdname blockr_ser
 #' @export
 blockr_ser.stack <- function(x, ...) {
-  list(name = stack_name(x), blocks = stack_blocks(x))
+  list(
+    name = stack_name(x),
+    blocks = stack_blocks(x),
+    color = coal(stack_color(x), NA_character_)
+  )
 }
 
 #' @rdname blockr_ser

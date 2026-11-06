@@ -197,7 +197,8 @@ board_fixture_values <- function() {
         "block keeps its blocks an array, by the schema of a JSON board, and",
         "the value of show_conditions is an array, by the schema that core",
         "ships beside its runtime, recorded with the version of its shape, as",
-        "each board option's value is. The client opens the JSON board and",
+        "each board option's value is. The stack has a color, a hex color",
+        "that front-ends draw it in. The client opens the JSON board and",
         "saves it as it is."
       ),
       board = new_board(
@@ -210,7 +211,7 @@ board_fixture_values <- function() {
           ac = new_link("a", "c", "x"),
           bc = new_link("b", "c", "y")
         ),
-        stacks = stacks(s1 = new_stack("a", "Input")),
+        stacks = stacks(s1 = new_stack("a", "Input", color = "#66c2a5")),
         options = c(
           new_n_rows_option(25L),
           new_show_conditions_option("error")
