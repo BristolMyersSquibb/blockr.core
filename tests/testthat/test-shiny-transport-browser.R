@@ -70,12 +70,30 @@ port_open <- function(port) {
   )
 }
 
-# Opens a URL on the page and waits for it to load, by when its modules have
-# run.
-navigate <- function(page, url) {
+# Opens a URL on the page and waits until the page's script has defined `app`.
+# The load event alone does not show that:
+# the wait for it ends at the page's next load event,
+# whichever document fires it.
+# So `navigate()` also asks the page for `app` until it has one.
+navigate <- function(page, url, timeout = 30) {
+
   loaded <- page$Page$loadEventFired(wait_ = FALSE)
   page$Page$navigate(url, wait_ = FALSE)
   page$wait_for(loaded)
+
+  deadline <- Sys.time() + timeout
+
+  while (!page_eval(page, "window.app !== undefined")) {
+
+    if (Sys.time() > deadline) {
+      stop(
+        "The page at ", page_eval(page, "location.href"),
+        " defined no `app` within ", timeout, " seconds."
+      )
+    }
+
+    Sys.sleep(0.1)
+  }
 }
 
 # Evaluates JS on the page, awaiting a promise, and gives the value.

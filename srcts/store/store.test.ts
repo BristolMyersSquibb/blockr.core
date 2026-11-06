@@ -589,7 +589,7 @@ describe("opening a board", () => {
     // As the client saves it, which the user opens.
     const viaClient = newStore();
     await viaClient.open(replied);
-    await viaClient.open(JSON.stringify(viaR.jsonBoard()));
+    await viaClient.open(viaR.save());
 
     // As a user builds it on an empty board.
     const built = newStore();
@@ -671,10 +671,32 @@ describe("opening a board", () => {
     expect(() => {
       store.apply({ name: "Built" });
     }).toThrow("The store rejected the delta\n- The store holds no board until it opens one.");
+    expect(() => store.save()).toThrow("The store holds no board until it opens one.");
     expect(store.canUndo()).toBe(false);
 
     await store.open(hello);
     expect(store.hasBoard()).toBe(true);
+  });
+});
+
+describe("saving a board", () => {
+  test("writes the board it holds as the text of its JSON board, which another store opens to the same board", async () => {
+    const store = await docked();
+    store.apply([
+      { name: "Renamed" },
+      { blocks: { mod: { b: { state: { n: 3 } } } } },
+      { patches: [{ op: "replace", path: "/views/main/panels", value: ["b", "a"] }] },
+    ]);
+
+    const text = store.save();
+    expect(text).toBe(`${JSON.stringify(store.jsonBoard(), null, 2)}\n`);
+
+    const other = await docked();
+    await other.open(text);
+    expect(other.board()).toEqual(store.board());
+    expect(other.board().name).toBe("Renamed");
+    expect(other.board().blocks.b?.state).toEqual({ n: 3, direction: "head" });
+    expect(viewsOf(other.board())).toEqual({ main: { panels: ["b", "a"] } });
   });
 });
 
@@ -773,7 +795,7 @@ describe("migrations", () => {
   test("runs no migration of what a JSON board holds at today's version", async () => {
     const head = vi.fn<Migration>((state) => state);
     const opening = await store(head);
-    await opening.open(JSON.stringify(opening.jsonBoard()));
+    await opening.open(opening.save());
     expect(head).not.toHaveBeenCalled();
   });
 

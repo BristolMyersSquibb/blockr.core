@@ -66,6 +66,14 @@ export interface Store {
   // each class that the board is built as that R names one for, and of each
   // block's state, as the class's entry in the block registry gives it.
   jsonBoard(): JsonBoard;
+  // The text of the board's file: its JSON board, written with
+  // JSON.stringify(), indented by two spaces and ending in a newline, as R
+  // writes the fixtures of boards.
+  // The store opens the text to the same board.
+  // It saves nothing itself: core's basic front-end downloads the text, and
+  // session management saves it where it decides.
+  // It asks R for nothing, so a board saves while R is busy or gone.
+  save(): string;
 
   // Reverts or applies again that origin's last step, or throws a StoreError
   // where another origin has since changed what the step changed.
@@ -469,6 +477,10 @@ export function createStore(options: StoreOptions = {}): Store {
     };
   }
 
+  function save(): string {
+    return `${JSON.stringify(jsonBoard(), null, 2)}\n`;
+  }
+
   function frontEnd(classes: readonly string[]): string {
     if (hello === undefined) {
       throw new Error("The store knows the front-ends of board classes only once R has answered `hello`.");
@@ -525,6 +537,7 @@ export function createStore(options: StoreOptions = {}): Store {
     registerMigration: (registryId, fn) => registrations.registerMigration(registryId, fn),
     options: registrations.options,
     jsonBoard,
+    save,
     blockRegistry: () => registry.value,
     packages: () => packages.value,
     editId: (of) => edits.get(target(of)),

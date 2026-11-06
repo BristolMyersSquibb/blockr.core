@@ -141,7 +141,7 @@ test("the check fails a fixture with a field that its type lacks", () => {
 
 // R loaded the packages at the versions that the JSON board records, so that
 // the store runs no migration.
-test.each(names)("the store opens %s and saves it as it is", async (name) => {
+test.each(names)("the store opens %s, saves it as R wrote it, and opens the text to the same board", async (name) => {
   const json = jsonOf(read(name));
   const store = createStore();
   for (const option of coreOptions) store.options.register(option);
@@ -161,11 +161,18 @@ test.each(names)("the store opens %s and saves it as it is", async (name) => {
     board: json,
   });
 
-  expect(store.jsonBoard()).toEqual(json);
+  // The text holds each value as R wrote it, an array as an array and an
+  // object as an object, with the properties in R's order.
+  const text = store.save();
+  expect(text).toBe(`${JSON.stringify(json, null, 2)}\n`);
 
   // A collection keeps the order of its entries, as JSON.parse() keeps the
   // order of keys that do not look like integers.
+  const board = store.board();
   for (const key of ["blocks", "links", "stacks"] as const) {
-    expect(Object.keys(store.board()[key])).toEqual(Object.keys(json.board[key]));
+    expect(Object.keys(board[key])).toEqual(Object.keys(json.board[key]));
   }
+
+  await store.open(text);
+  expect(store.board()).toEqual(board);
 });
