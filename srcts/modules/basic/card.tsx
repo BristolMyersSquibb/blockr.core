@@ -13,8 +13,9 @@
 // the card greys the output out while the block is not ready.
 // Core asks R for an output only once the output's element measures more than
 // 0 by 0, and R draws a plot at that size. So the card gives the output a
-// height of its own, which the user may drag to another. It does so from the
-// block's first reply on, since there is nothing to draw before.
+// height of its own, which the user may drag to another by the handle below
+// it, clear of the output's own controls. It does so from the block's first
+// reply on, since there is nothing to draw before.
 // The card always shows the block's UI and its output, with no toggles to
 // hide them, which a front-end built on core's may add.
 // On a locked board, the card draws no control for what the lock fixes. It
@@ -134,16 +135,18 @@ export const BlockCard = memo(function BlockCard({
         role="region"
         aria-label="Output"
         data-ready={ready}
-        className={`bc:min-w-0 bc:transition-opacity ${ready ? "" : "bc:opacity-50 bc:grayscale"}`}
+        className={`bc:min-w-0 bc:transition-opacity ${ready ? "" : "bc:opacity-50 bc:grayscale"} ${
+          replied ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:overflow-hidden bc:pb-4" : ""
+        }`}
       >
         <Mounted
           mount={mountOutput}
-          className={replied ? "bc:h-96 bc:min-h-24 bc:resize-y bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"}
+          className={replied ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"}
         />
       </div>
       <Conditions status={status} severities={severities} />
       {status === undefined || status.summary === null ? null : (
-        <p className="bc:m-0 bc:font-mono bc:text-xs bc:text-text-muted">{status.summary}</p>
+        <p className="bc:m-0 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted">{status.summary}</p>
       )}
     </article>
   );
