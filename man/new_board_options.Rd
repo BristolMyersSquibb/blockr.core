@@ -100,6 +100,9 @@ its definition in the client.
 Core ships three board options: \code{n_rows}, the rows of a table output's page,
 \code{show_conditions}, the severities of a block's conditions that a front-end
 shows, and \code{dark_mode}, which switches between the light and the dark theme.
+Core's board class \code{board} requires \code{show_conditions} and \code{dark_mode}.
+So the client gives every board that lacks a value of either one its
+default as the board opens.
 Their schemas ship beside core's runtime, and R writes the value that a
 script gives by them (see \code{\link[=blockr_ser]{blockr_ser()}}).
 
@@ -109,7 +112,7 @@ page requires the board option (see \code{\link[=blockr_option]{blockr_option()}
 So \code{options(blockr.n_rows = 25L)}, or the environment variable
 \code{BLOCKR_N_ROWS}, still sets the rows of a page on a board that holds no
 value for \code{n_rows}.
-Without a blockr option, \code{n_rows} takes 50, \code{show_conditions} warnings and
+Without a blockr option, \code{n_rows} takes 10, \code{show_conditions} warnings and
 errors, and \code{dark_mode} the theme that the user's system prefers.
 
 Several board options make a \code{board_options} object, which

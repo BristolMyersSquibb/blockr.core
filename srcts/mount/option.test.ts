@@ -102,17 +102,21 @@ async function tick(ms = 0): Promise<void> {
   await vi.advanceTimersByTimeAsync(ms);
 }
 
-// The board options n_rows and show_conditions of core, with the UI given
-// for n_rows, and a board option dark_mode whose default is a function.
+// The board options n_rows, show_conditions and dark_mode of core, with the UI
+// given for n_rows, and a board option theme whose default is a function,
+// which core's board class does not require.
 function options(nRows: OptionModule, calls: { count: number } = { count: 0 }, dark: OptionModule = nRows): Option[] {
-  const [rows, conditions] = coreOptions;
-  if (rows === undefined || conditions === undefined) throw new Error("The fixtures lack core's board options.");
+  const [rows, conditions, darkMode] = coreOptions;
+  if (rows === undefined || conditions === undefined || darkMode === undefined) {
+    throw new Error("The fixtures lack core's board options.");
+  }
   return [
     { ...rows, ui: nRows },
     conditions,
+    darkMode,
     {
-      id: "dark_mode",
-      label: "Light/dark mode",
+      id: "theme",
+      label: "Theme",
       category: "Theme options",
       schema: { enum: ["light", "dark"] },
       default: () => {
@@ -153,17 +157,17 @@ describe("the host", () => {
     const calls = { count: 0 };
     const dark = ui();
     const s = await setup(options(ui().mod, calls, dark.mod));
-    s.mounts.mountOption(document.createElement("div"), "dark_mode");
-    s.mounts.mountOption(document.createElement("div"), "dark_mode");
+    s.mounts.mountOption(document.createElement("div"), "theme");
+    s.mounts.mountOption(document.createElement("div"), "theme");
     await tick();
 
     expect(dark.mounts.map(({ host }) => host.value())).toEqual(["light", "light"]);
     expect(calls.count).toBe(1);
     // The board takes the value only once something sets it.
-    expect(Object.hasOwn(s.store.board().options, "dark_mode")).toBe(false);
+    expect(Object.hasOwn(s.store.board().options, "theme")).toBe(false);
 
     await dark.host().submit("dark");
-    expect(s.store.board().options).toMatchObject({ dark_mode: "dark" });
+    expect(s.store.board().options).toMatchObject({ theme: "dark" });
     expect(dark.mounts.map(({ seen }) => seen)).toEqual([
       ["light", "dark"],
       ["light", "dark"],
@@ -215,9 +219,9 @@ describe("a mount", () => {
     const dark = ui(["n_rows"]);
     const s = await setup(options(ui().mod, { count: 0 }, own.mod), {
       modules: { [DARK]: dark.exports },
-      renderers: { "blockr.test-dark": { module: DARK, option: "dark_mode" } },
+      renderers: { "blockr.test-dark": { module: DARK, option: "theme" } },
     });
-    s.mounts.mountOption(document.createElement("div"), "dark_mode");
+    s.mounts.mountOption(document.createElement("div"), "theme");
     await tick();
 
     expect(s.imported).toEqual([DARK]);
@@ -226,24 +230,25 @@ describe("a mount", () => {
   });
 
   test("adds the board options that its module names to the board", async () => {
-    const dark = ui(["show_conditions"]);
+    const dark = ui(["n_rows"]);
     const s = await setup(options(ui().mod, { count: 0 }, dark.mod), {
       reply: { ...hello, board: { ...hello.board, board: { ...hello.board.board, options: {} } } },
     });
-    s.mounts.mountOption(document.createElement("div"), "dark_mode");
+    s.mounts.mountOption(document.createElement("div"), "theme");
     await tick();
 
-    expect(s.store.board().options).toEqual({ show_conditions: ["warning", "error"] });
+    // Beside those that core's board class requires.
+    expect(s.store.board().options).toEqual({ show_conditions: ["warning", "error"], dark_mode: "light", n_rows: 50 });
   });
 
   test("shows an error where the renderer cannot be used", async () => {
     const reported = reports();
     const s = await setup(options(ui().mod), {
       modules: { [DARK]: { api: 2, default: ui().mod } },
-      renderers: { "blockr.test-dark": { module: DARK, option: "dark_mode" } },
+      renderers: { "blockr.test-dark": { module: DARK, option: "theme" } },
     });
     const el = document.createElement("div");
-    s.mounts.mountOption(el, "dark_mode");
+    s.mounts.mountOption(el, "theme");
     await tick();
     reported.restore();
 

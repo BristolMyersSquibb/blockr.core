@@ -69,15 +69,15 @@ describe("core's board options", () => {
     expect(asked).toEqual([]);
   });
 
-  test("take as their defaults the blockr options of their names, else today's fallbacks", async () => {
+  test("take as their defaults the blockr options of their names, else their fallbacks", async () => {
     prefers("light");
     const { core, asked } = blockr();
 
-    expect(await defaultOf(nRows(core))).toBe(50);
+    expect(await defaultOf(nRows(core))).toBe(10);
     expect(await defaultOf(showConditions(core))).toEqual(["warning", "error"]);
     expect(await defaultOf(darkMode(core))).toBe("light");
     expect(asked).toEqual([
-      { name: "n_rows", fallback: 50 },
+      { name: "n_rows", fallback: 10 },
       { name: "show_conditions", fallback: ["warning", "error"] },
       { name: "dark_mode", fallback: null },
     ]);
@@ -117,9 +117,9 @@ describe("core's board options", () => {
       reported.restore();
     }
 
-    expect(defaults).toEqual([50, ["warning", "error"], "dark"]);
+    expect(defaults).toEqual([10, ["warning", "error"], "dark"]);
     expect(reported.errors().map((error) => (error as Error).message)).toEqual([
-      "The blockr option n_rows is 0, which the board option n_rows does not take, so its default is 50.",
+      "The blockr option n_rows is 0, which the board option n_rows does not take, so its default is 10.",
       'The blockr option show_conditions is ["fatal"], which the board option show_conditions does not take, so its default is ["warning","error"].',
       'The blockr option dark_mode is "blue", which the board option dark_mode does not take, so its default is "dark".',
     ]);

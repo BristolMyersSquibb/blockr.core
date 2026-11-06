@@ -34,6 +34,19 @@
 @import "tailwindcss/theme.css" layer(theme) prefix(bc);
 @import "tailwindcss/utilities.css" source(none);
 @custom-variant dark (&:where([data-bs-theme="dark"], [data-bs-theme="dark"] *));
+
+/*
+ * The browser draws the page's background, form controls and scrollbars in
+ * the theme that core switches the page to, as Bootstrap has it under the
+ * same attribute. It is the one style that core gives an element not its
+ * own: the page's root, whose theme core sets.
+ */
+:root[data-bs-theme="dark"] {
+  color-scheme: dark;
+}
+:root[data-bs-theme="light"] {
+  color-scheme: light;
+}
 @source "../**/*.{ts,tsx}";
 @source not "../build";
 @source not "../**/*.test.{ts,tsx}";
@@ -42,6 +55,9 @@
   --color-text-default: currentColor;
   --color-text-muted: color-mix(in oklab, currentColor 65%, transparent);
   --color-text-danger: var(--bc-color-red-600);
+  --color-text-warning: var(--bc-color-amber-600);
+  --color-text-success: var(--bc-color-green-600);
+  --color-text-on-accent: var(--bc-color-white);
   --color-border-default: color-mix(in oklab, currentColor 25%, transparent);
   --color-border-danger: var(--bc-color-red-500);
   --color-border-accent: var(--bc-color-blue-500);

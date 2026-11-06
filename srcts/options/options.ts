@@ -8,8 +8,9 @@
 //
 // Each default is a function that reads the blockr option of the board
 // option's name, which today's R constructor reads, through
-// CoreApi.blockrOption(), with today's fallback, so that a deployment still
-// sets the default. Core calls the function only once a component requires
+// CoreApi.blockrOption(), with a fallback, so that a deployment still sets
+// the default. The fallbacks are today's, but for n_rows, whose page holds 10
+// rows where today's holds 50. Core calls the function only once a component requires
 // the board option, so that nothing is read before then. Where R holds a value
 // that the board option's schema refuses, the default reports it and takes
 // the fallback.
@@ -34,7 +35,7 @@ export function coreOptions(core: BlockrOptions): Option[] {
 // reads, so that every renderer of table outputs requires it.
 export function nRows(core: BlockrOptions): Option {
   const schema = optionSchemas.n_rows;
-  const fallback = 50;
+  const fallback = 10;
   return {
     id: "n_rows",
     label: "Preview rows",

@@ -16,6 +16,9 @@
 #' Core ships three board options: `n_rows`, the rows of a table output's page,
 #' `show_conditions`, the severities of a block's conditions that a front-end
 #' shows, and `dark_mode`, which switches between the light and the dark theme.
+#' Core's board class `board` requires `show_conditions` and `dark_mode`.
+#' So the client gives every board that lacks a value of either one its
+#' default as the board opens.
 #' Their schemas ship beside core's runtime, and R writes the value that a
 #' script gives by them (see [blockr_ser()]).
 #'
@@ -25,7 +28,7 @@
 #' So `options(blockr.n_rows = 25L)`, or the environment variable
 #' `BLOCKR_N_ROWS`, still sets the rows of a page on a board that holds no
 #' value for `n_rows`.
-#' Without a blockr option, `n_rows` takes 50, `show_conditions` warnings and
+#' Without a blockr option, `n_rows` takes 10, `show_conditions` warnings and
 #' errors, and `dark_mode` the theme that the user's system prefers.
 #'
 #' Several board options make a `board_options` object, which

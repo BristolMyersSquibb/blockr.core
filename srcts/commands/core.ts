@@ -100,29 +100,11 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
     ];
   }
 
-  // The inputs of block `to` that no link feeds, or undefined where the board
-  // lacks the block or the block registry its class. A variadic block's is an
-  // empty input, which takes its link in link order. The link `except`, which
-  // is about to change, feeds nothing.
-  function freeInputs(board: Board, to: BlockId, except?: LinkId): readonly string[] | undefined {
-    const block = own(board.blocks, to);
-    if (block === undefined) return undefined;
-    const inputs = own(store.blockRegistry(), block.registry_id)?.inputs;
-    if (inputs === undefined) return undefined;
-    if (inputs.includes("...")) return [""];
-    const fed = new Set(
-      Object.entries(board.links)
-        .filter(([id, link]) => id !== except && link.to === to)
-        .map(([, link]) => link.input),
-    );
-    return inputs.filter((input) => !fed.has(input));
-  }
-
   // Whether a new link can go to block `to`, into the input given or a free
   // one.
   function linkable(board: Board, to: BlockId, given?: string): boolean {
     if (!Object.hasOwn(board.blocks, to)) return false;
-    return named(given) || (freeInputs(board, to)?.length ?? 0) > 0;
+    return named(given) || (freeInputs(board, store.blockRegistry(), to)?.length ?? 0) > 0;
   }
 
   // The input of block `to` that a new link goes to: the one given, and
@@ -138,7 +120,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
     except?: LinkId,
   ): string {
     if (named(given)) return given;
-    const free = freeInputs(board, to, except) ?? [];
+    const free = freeInputs(board, store.blockRegistry(), to, except) ?? [];
     return one(
       command,
       free,
@@ -515,6 +497,30 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
   ];
 
   return [...blocks, ...links, ...stacks, ...board];
+}
+
+// The inputs of block `to` that no link feeds, by which the commands find the
+// input that a new link goes to, and a front-end the inputs that it offers.
+// It is undefined where the board lacks the block or the block registry its
+// class. A variadic block's is an empty input, which takes its link in link
+// order. The link `except`, which is about to change, feeds nothing.
+export function freeInputs(
+  board: Pick<Board, "blocks" | "links">,
+  registry: Readonly<Record<RegistryId, RegistryEntry>>,
+  to: BlockId,
+  except?: LinkId,
+): readonly string[] | undefined {
+  const block = own(board.blocks, to);
+  if (block === undefined) return undefined;
+  const inputs = own(registry, block.registry_id)?.inputs;
+  if (inputs === undefined) return undefined;
+  if (inputs.includes("...")) return [""];
+  const fed = new Set(
+    Object.entries(board.links)
+      .filter(([id, link]) => id !== except && link.to === to)
+      .map(([, link]) => link.input),
+  );
+  return inputs.filter((input) => !fed.has(input));
 }
 
 // The name of a new block, made as R makes one from its class, from the name

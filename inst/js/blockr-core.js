@@ -4773,7 +4773,7 @@ function coreOptions(core) {
 }
 function nRows(core) {
   const schema = optionSchemas.n_rows;
-  const fallback = 50;
+  const fallback = 10;
   return {
     id: "n_rows",
     label: "Preview rows",
@@ -6341,6 +6341,7 @@ function randomUuid() {
 // srcts/store/registrations.ts
 var CORE_BOARD = {
   class: "board",
+  options: ["show_conditions", "dark_mode"],
   properties: {}
 };
 var CORE_PROPERTIES = [
@@ -7998,24 +7999,13 @@ function coreCommands(store) {
       entry
     ];
   }
-  function freeInputs(board2, to, except) {
-    const block = own(board2.blocks, to);
-    if (block === void 0) return void 0;
-    const inputs = own(store.blockRegistry(), block.registry_id)?.inputs;
-    if (inputs === void 0) return void 0;
-    if (inputs.includes("...")) return [""];
-    const fed = new Set(
-      Object.entries(board2.links).filter(([id2, link]) => id2 !== except && link.to === to).map(([, link]) => link.input)
-    );
-    return inputs.filter((input2) => !fed.has(input2));
-  }
   function linkable(board2, to, given) {
     if (!Object.hasOwn(board2.blocks, to)) return false;
-    return named(given) || (freeInputs(board2, to)?.length ?? 0) > 0;
+    return named(given) || (freeInputs(board2, store.blockRegistry(), to)?.length ?? 0) > 0;
   }
   function linkInput(command2, board2, to, given, except) {
     if (named(given)) return given;
-    const free = freeInputs(board2, to, except) ?? [];
+    const free = freeInputs(board2, store.blockRegistry(), to, except) ?? [];
     return one(
       command2,
       free,
@@ -8338,6 +8328,17 @@ function coreCommands(store) {
     })
   ];
   return [...blocks, ...links, ...stacks, ...board];
+}
+function freeInputs(board, registry, to, except) {
+  const block = own(board.blocks, to);
+  if (block === void 0) return void 0;
+  const inputs = own(registry, block.registry_id)?.inputs;
+  if (inputs === void 0) return void 0;
+  if (inputs.includes("...")) return [""];
+  const fed = new Set(
+    Object.entries(board.links).filter(([id2, link]) => id2 !== except && link.to === to).map(([, link]) => link.input)
+  );
+  return inputs.filter((input2) => !fed.has(input2));
 }
 function blockName(registryId2) {
   const pkg = packageOf(registryId2);

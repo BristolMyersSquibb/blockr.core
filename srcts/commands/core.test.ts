@@ -11,7 +11,7 @@ import type { Store } from "../store/index.ts";
 import { hello, openedStore } from "../testing/store.ts";
 import type { Board } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { blockName, CommandError, createCommands, schemas, stateSchema } from "./index.ts";
+import { blockName, CommandError, createCommands, freeInputs, schemas, stateSchema } from "./index.ts";
 import type { Commands } from "./index.ts";
 
 async function setup(
@@ -360,6 +360,18 @@ describe("links", () => {
     expect(Object.hasOwn(store.board().links, "ab")).toBe(false);
     expect(commands.enabled("blockr.core-remove_link", { id: "ab" })).toBe(false);
   });
+  test("free inputs are those of a block that no link feeds, an empty one for a variadic block, and none of a block the board lacks", async () => {
+    const { store } = await setup();
+    const board = store.board();
+    const registry = store.blockRegistry();
+
+    expect(freeInputs(board, registry, "c")).toEqual([]);
+    expect(freeInputs(board, registry, "c", "bc")).toEqual(["y"]);
+    expect(freeInputs(board, registry, "e")).toEqual([""]);
+    expect(freeInputs(board, registry, "a")).toEqual([]);
+    expect(freeInputs(board, registry, "z")).toBeUndefined();
+    expect(freeInputs(board, {}, "c")).toBeUndefined();
+  });
 });
 
 describe("stacks", () => {
@@ -464,7 +476,7 @@ describe("the board", () => {
     await commands.run("blockr.core-set_option", { id: "n_rows", value: 25 });
     expect(store.board().options.n_rows).toBe(25);
 
-    expect(commands.enabled("blockr.core-set_option", { id: "dark_mode", value: true })).toBe(false);
+    expect(commands.enabled("blockr.core-set_option", { id: "zoom", value: 2 })).toBe(false);
     const refused = commands.run("blockr.core-set_option", { id: "n_rows", value: -1 });
     await expect(refused).rejects.toThrow(StoreError);
     await expect(refused).rejects.toThrow('The value of the board option "n_rows" fails its schema');

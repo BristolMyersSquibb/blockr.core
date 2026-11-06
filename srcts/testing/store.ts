@@ -25,7 +25,9 @@ export const hello = reply("hello") as HelloReply;
 // nothing.
 export const noUi: OptionModule = { render: () => undefined };
 
-// Core's board options, as the fixtures' boards hold their values.
+// Core's board options, as the fixtures' boards hold their values, and
+// dark_mode, which core's board class requires too, with the light theme as
+// its default, so that no test reads the theme of the system it runs on.
 export const coreOptions: readonly Option[] = [
   {
     id: "n_rows",
@@ -41,6 +43,14 @@ export const coreOptions: readonly Option[] = [
     category: "Board options",
     schema: { type: "array", items: { enum: ["message", "warning", "error"] } },
     default: ["warning", "error"],
+    ui: noUi,
+  },
+  {
+    id: "dark_mode",
+    label: "Light/dark mode",
+    category: "Theme options",
+    schema: { enum: ["light", "dark"] },
+    default: "light",
     ui: noUi,
   },
 ];

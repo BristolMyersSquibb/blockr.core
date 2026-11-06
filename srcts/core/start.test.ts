@@ -16,10 +16,14 @@ const BASIC = "blockr.core/basic.js?v=0f3d8e21";
 const DOCK = "blockr.dock/dock.js?v=1";
 
 // R, played over a transport: the test starts sessions and sends replies.
+// Once the test has answered the blockr options that the scheduler reads, R
+// answers each later request for blockr options itself, with no values, as
+// the one for the default of dark_mode, which core's board class requires.
 function playedR() {
   const sent: Request[] = [];
   const replied = new Set<string>();
   let listener: TransportListener | undefined;
+  let answering = false;
   const heard = (): TransportListener => {
     if (listener === undefined) throw new Error("Core listens to nothing yet.");
     return listener;
@@ -27,6 +31,12 @@ function playedR() {
   const transport: Transport = {
     send(message) {
       sent.push(...message);
+      for (const request of message) {
+        if (!answering || request.kind !== "blockr_options") continue;
+        void Promise.resolve().then(() => {
+          heard().received({ id: request.id, status: "ok", values: {} }, null);
+        });
+      }
       return Promise.resolve();
     },
     listen(given) {
@@ -57,6 +67,7 @@ function playedR() {
     // Answers the latest blockr options request.
     options(values: Readonly<Record<string, number | string | boolean | null>> = {}): void {
       const asked = last("blockr_options");
+      answering = true;
       heard().received({ id: asked.id ?? "", status: "ok", values }, null);
     },
     reply(item: Reply): void {
