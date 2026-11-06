@@ -16,6 +16,7 @@ export interface Client {
     }>;
     forget(blocks: BlockId[]): void;
     capabilities(): ReadonlySet<Capability>;
+    hello(): void;
 }
 export interface ClientOptions {
     hello(): Omit<HelloRequest, "id" | "kind">;

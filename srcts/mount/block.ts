@@ -16,6 +16,8 @@
 // at once, each with a host of its own. A host is bound to the board it was
 // made on and to its block. Once another board opens or the block leaves the
 // board, core ends the mount, and the host's submit() and evaluate() reject.
+// Core makes the mounts anew for each board that opens, with a signal that
+// aborts as the next board opens, which ends every mount.
 
 import type { Commands } from "../commands/index.ts";
 import type { Renderer } from "../protocol/index.ts";
@@ -43,7 +45,7 @@ import { mountOption } from "./option.ts";
 import { createShelves, mountOutput } from "./output.ts";
 import type { OutputEvent } from "./output.ts";
 import { blockRequest } from "./requests.ts";
-import { attempt, moduleOf, showError } from "./shared.ts";
+import { attempt, moduleOf, onAbort, REPLACED, showError } from "./shared.ts";
 
 export interface Mounts {
   // Mounts the UI module of the block's class in the element until the
@@ -76,6 +78,8 @@ export interface MountsOptions {
   readonly emit?: (event: OutputEvent) => void;
   // Measures an output's element, through the DOM unless given.
   readonly measure?: Measure;
+  // Ends every mount as it aborts, as another board opens.
+  readonly signal?: AbortSignal;
 }
 
 // The origin of what core changes on the board itself, such as the board
@@ -87,28 +91,21 @@ const NO_STATUS = Object.freeze(unevaluated(0, false));
 
 export function createMounts(options: MountsOptions): Mounts {
   const { store, commands, scheduler, loader } = options;
-  const answers = createAnswers(scheduler);
+  // Aborts as another board opens in place of this one.
+  const replaced = options.signal ?? new AbortController().signal;
+  const answers = createAnswers(scheduler, replaced);
   const shelves = createShelves();
   const measure = options.measure ?? domMeasure();
   const emit = options.emit ?? ((): void => undefined);
   const renderers = options.renderers ?? ((): Readonly<Record<string, Renderer>> => ({}));
 
-  // What core keeps for one opening of a board, which it drops once another
-  // board opens, as a page that starts with that board holds none of it: the
-  // answers of requests, the defaults of board options, and of each block's
-  // output its parameters and its last output. How many boards the store has
-  // opened tells a host whether its board is still the store's.
+  // What core keeps of the board, which goes with the mounts as another board
+  // opens: the answers of requests, the defaults of board options, and of each
+  // block's output its parameters and its last output.
   const defaults = new Map<OptionId, Promise<Json>>();
-  let openings = 0;
   store.subscribe((change) => {
-    if (!("opened" in change)) {
-      for (const id of change.delta.blocks?.rm ?? []) shelves.drop(id);
-      return;
-    }
-    openings++;
-    answers.clear();
-    defaults.clear();
-    shelves.clear();
+    if ("opened" in change) return;
+    for (const id of change.delta.blocks?.rm ?? []) shelves.drop(id);
   });
 
   function defaultOf(id: OptionId, def: { default: Json | (() => Promise<Json>) }): Promise<Json> {
@@ -122,7 +119,6 @@ export function createMounts(options: MountsOptions): Mounts {
   }
 
   async function addOptions(ids: readonly OptionId[], by: string): Promise<void> {
-    const opening = openings;
     await Promise.all(
       ids.map(async (id) => {
         if (Object.hasOwn(store.board().options, id)) return;
@@ -141,7 +137,7 @@ export function createMounts(options: MountsOptions): Mounts {
         // Something may have set it while the default resolved, and another
         // board may have opened, which takes the board options its own mounts
         // require.
-        if (openings !== opening || Object.hasOwn(store.board().options, id)) return;
+        if (replaced.aborted || Object.hasOwn(store.board().options, id)) return;
         try {
           await commands.run("blockr.core-set_option", { id, value }, CORE);
         } catch (error) {
@@ -152,6 +148,7 @@ export function createMounts(options: MountsOptions): Mounts {
   }
 
   function mountBlock(el: HTMLElement, block: BlockId): () => void {
+    if (replaced.aborted) throw new Error(REPLACED);
     const found = own(store.board().blocks, block);
     if (found === undefined) {
       throw new Error(`The board holds no block "${block}" to mount.`);
@@ -171,6 +168,7 @@ export function createMounts(options: MountsOptions): Mounts {
 
     const end = (): void => {
       if (ended()) return;
+      offEnd();
       host.drop();
       controller.abort();
       // The cleanup runs where render() has returned it, and runs at once
@@ -187,9 +185,10 @@ export function createMounts(options: MountsOptions): Mounts {
       answers,
       block,
       entry,
-      opening: () => openings,
+      replaced,
       unbound: end,
     });
+    const offEnd = onAbort(replaced, end);
 
     void (async () => {
       let exports: unknown;
@@ -237,13 +236,13 @@ export function createMounts(options: MountsOptions): Mounts {
     mountBlock,
     mountOutput: (el, block) =>
       mountOutput(
-        { store, scheduler, loader, answers, shelves, measure, opening: () => openings, addOptions, emit },
+        { store, scheduler, loader, answers, shelves, measure, replaced, addOptions, emit },
         el,
         block,
       ),
     mountOption: (el, option) =>
       mountOption(
-        { store, commands, scheduler, loader, renderers, opening: () => openings, addOptions, defaultOf },
+        { store, commands, scheduler, loader, renderers, replaced, addOptions, defaultOf },
         el,
         option,
       ),
@@ -259,8 +258,8 @@ interface HostDeps {
   readonly answers: Answers;
   readonly block: BlockId;
   readonly entry: RegistryEntry;
-  // How many boards the store has opened.
-  readonly opening: () => number;
+  // Aborts as another board opens in place of the host's.
+  readonly replaced: AbortSignal;
   // What ends the mount once the host is no longer bound to its board and
   // its block.
   readonly unbound: () => void;
@@ -275,15 +274,14 @@ interface MountedHost extends BlockHost {
 
 function blockHost(deps: HostDeps): MountedHost {
   const { store, commands, scheduler, block, entry } = deps;
-  const made = deps.opening();
 
   // The board as the host last heard it from the store.
   let seen = store.board();
   let named: readonly OptionId[] = [];
   let state = blockOf(seen)?.state ?? {};
   let context = contextOf(blockOf(seen));
-  // Whether the host follows the board, and whether it saw its block leave or
-  // another board open, after which it changes nothing.
+  // Whether the host follows the board, and whether it saw its block leave,
+  // after which it changes nothing.
   let following = true;
   let gone = false;
   const listeners = { state: new Set<() => void>(), context: new Set<() => void>() };
@@ -320,7 +318,7 @@ function blockHost(deps: HostDeps): MountedHost {
   // host that its mount dropped is bound while the board holds its block, so
   // that a module can submit an edit still pending as it unmounts.
   function bound(): boolean {
-    return !gone && deps.opening() === made && Object.hasOwn(store.board().blocks, block);
+    return !gone && !deps.replaced.aborted && Object.hasOwn(store.board().blocks, block);
   }
 
   function announce(event: keyof typeof listeners): void {
@@ -357,11 +355,7 @@ function blockHost(deps: HostDeps): MountedHost {
     deps.unbound();
   }
 
-  const offStore = store.subscribe((change, board) => {
-    if ("opened" in change) {
-      unbind();
-      return;
-    }
+  const offStore = store.subscribe((_change, board) => {
     seen = board;
     refresh();
   });
@@ -380,9 +374,9 @@ function blockHost(deps: HostDeps): MountedHost {
 
   const unboundError = (): Error =>
     new Error(
-      deps.opening() === made
-        ? `Block "${block}" left the board, so its host no longer changes it.`
-        : `Another board opened, so the host of block "${block}" no longer changes it.`,
+      deps.replaced.aborted
+        ? `Another board opened, so the host of block "${block}" no longer changes it.`
+        : `Block "${block}" left the board, so its host no longer changes it.`,
     );
 
   return {

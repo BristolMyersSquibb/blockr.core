@@ -14,5 +14,6 @@ export interface CoreParts {
     readonly lock: Lock | null;
     readonly renderers: () => Readonly<Record<string, Renderer>>;
     readonly measure?: Measure;
+    readonly signal?: AbortSignal;
 }
 export declare function createCore(parts: CoreParts): CoreApi;

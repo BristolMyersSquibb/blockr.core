@@ -4,7 +4,8 @@
 // registry applies them through the store as one step of the origin it is
 // given, so that every edit, whoever makes it, is one undo step and passes the
 // store's checks. Core creates one for each store and hands it to front-ends
-// and extensions through `CoreApi`.
+// and extensions through `CoreApi`. It ends with the store, as another board
+// opens.
 
 import { computed, signal } from "@preact/signals-core";
 import { isDeltas, pointer } from "../store/index.ts";
@@ -82,18 +83,19 @@ interface Registered {
   readonly validate: Validate | undefined;
 }
 
-export function createCommands(store: Store): Commands {
+export interface CommandsOptions {
+  // Ends the command registry as it aborts, as another board opens in a new
+  // store: from then on the registry runs and plans no command, and drops a
+  // command still in its prepare() rather than run it.
+  readonly signal?: AbortSignal;
+}
+
+export function createCommands(store: Store, options: CommandsOptions = {}): Commands {
   const commands = signal<ReadonlyMap<string, Registered>>(new Map());
   const registered = computed(() =>
     Object.fromEntries([...commands.value].map(([id, { command }]) => [id, command])),
   );
-
-  // How many boards the store has opened, so that a command still in its
-  // prepare() as a board opens is dropped rather than run on that board.
-  let openings = 0;
-  store.subscribe((change) => {
-    if ("opened" in change) openings++;
-  });
+  const ended = (): boolean => options.signal?.aborted === true;
 
   function register<A extends Json, P>(command: Command<A, P>): () => void {
     const { id } = command;
@@ -144,6 +146,9 @@ export function createCommands(store: Store): Commands {
   }
 
   function current(id: string): Board {
+    if (ended()) {
+      throw refusal(id, ["Another board opened in a new store, so this command registry runs no command."]);
+    }
     if (!store.hasBoard()) {
       throw refusal(id, ["The store holds no board until it opens one."]);
     }
@@ -184,14 +189,13 @@ export function createCommands(store: Store): Commands {
     board: Board,
     args: Json,
   ): Promise<Delta[]> {
-    const opened = openings;
     let input: unknown;
     try {
       input = await command.prepare?.(board, args);
     } catch (error) {
       throw failed(command, error);
     }
-    if (openings !== opened) {
+    if (ended()) {
       throw refusal(command.id, ["A board opened while it prepared, which drops it."]);
     }
     const now = current(command.id);

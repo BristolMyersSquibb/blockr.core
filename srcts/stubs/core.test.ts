@@ -46,6 +46,30 @@ describe("the CoreApi for tests", () => {
     stop();
   });
 
+  test("starts core again for a board that the test opens, whose CoreApi `core` then gives, as R drops what it held", async () => {
+    const s = await stubCore({ modules: { [TABLE]: renderer().exports } });
+    const before = s.core;
+    before.scheduler.demand("test", ["b"]);
+    await s.settled();
+    const outputs = s.sent.filter((request) => request.kind === "output").length;
+
+    await before.store.open(JSON.stringify({ ...HELLO.board, board: { ...HELLO.board.board, name: "Opened" } }));
+    const after = s.core;
+    expect(after).not.toBe(before);
+    expect(after.store.board().name).toBe("Opened");
+    expect(s.sent.filter((request) => request.kind === "hello")).toHaveLength(2);
+
+    after.scheduler.demand("test", ["b"]);
+    after.mountOutput(document.createElement("div"), "b");
+    await s.settled();
+    expect(after.scheduler.status("b")?.status).toBe("ready");
+    // The output of b at its new revision, which R made from its result at
+    // that revision, since it holds none from before.
+    const output = s.sent.filter((request) => request.kind === "output").slice(outputs);
+    expect(output).toHaveLength(1);
+    expect(output[0]).toMatchObject({ block: "b", revision: after.scheduler.status("b")?.revision });
+  });
+
   test("evaluates what is demanded, as R replies ok to every evaluation", async () => {
     const { core, settled } = await stubCore();
     core.scheduler.demand("test", ["b"]);

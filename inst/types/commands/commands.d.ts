@@ -23,4 +23,7 @@ export declare class CommandError extends Error {
     constructor(message: string, failures: readonly string[], options?: ErrorOptions);
 }
 export declare function refusal(id: string, failures: readonly string[]): CommandError;
-export declare function createCommands(store: Store): Commands;
+export interface CommandsOptions {
+    readonly signal?: AbortSignal;
+}
+export declare function createCommands(store: Store, options?: CommandsOptions): Commands;

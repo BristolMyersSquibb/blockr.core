@@ -2,10 +2,11 @@
 // transport, registers its own board options with their UIs, and draws each
 // board that opens with its front-end in the page's element, as srcts/core
 // starts it.
-// While core starts, the element says that the board is loading, as today's
-// page waits for the board that a loader resolves. Where core cannot start, or
-// R now runs other versions of packages than the page loaded, the element
-// tells the user to reload the page.
+// While core starts, as the page starts and as another board opens, the
+// element says that the board is loading, as today's page waits for the board
+// that a loader resolves. Where core cannot start, or R now runs other
+// versions of packages than the page loaded, the element tells the user to
+// reload the page.
 
 import { showError } from "../mount/index.ts";
 import type { LoaderOptions, Measure } from "../mount/index.ts";
@@ -13,7 +14,7 @@ import { coreOptions } from "../options/index.ts";
 import type { Transport } from "../protocol/index.ts";
 import { shinyTransport } from "../transport/index.ts";
 import { report } from "../util/index.ts";
-import { pageFrontEnds, start } from "../core/index.ts";
+import { loadingNote, pageFrontEnds, start } from "../core/index.ts";
 import type { Changed, Started } from "../core/index.ts";
 
 export interface PageOptions {
@@ -30,7 +31,7 @@ export interface PageOptions {
 
 export function startPage(options: PageOptions): Started {
   const { el } = options;
-  el.replaceChildren(note("status", "Loading the board…"));
+  el.replaceChildren(loadingNote());
   return start({
     transport: options.transport ?? shinyTransport(),
     ...(options.loader === undefined ? {} : { loader: options.loader }),
@@ -45,14 +46,6 @@ export function startPage(options: PageOptions): Started {
       report(error);
     },
   });
-}
-
-function note(role: "status" | "alert", text: string): HTMLElement {
-  const box = document.createElement("div");
-  box.setAttribute("role", role);
-  box.className = "bc:p-4 bc:font-sans bc:text-sm bc:text-text-muted";
-  box.textContent = text;
-  return box;
 }
 
 // Tells the user that R now runs other versions of packages than the page

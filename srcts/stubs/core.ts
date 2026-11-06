@@ -7,11 +7,13 @@
 // Core starts as it does on the page, with core's board options and their UIs:
 // it initializes the startup modules given, in their order, opens the board of
 // R's reply to hello, and draws it with the module given for its front-end
-// where the test gives an element to draw in.
+// where the test gives an element to draw in. A board that the test opens
+// later through the store's open() starts core again, as on the page.
 // R, played from the fixtures, replies to the client's hello with the
-// reply of the fixture hello unless given, evaluates every block as ok, makes
-// a block's output from the sample outputs of its class's renderer, and answers
-// a request with what the test gives.
+// reply of the fixture hello unless given, and drops what it holds at a later
+// hello, as R does. It evaluates every block as ok, makes a block's output
+// from the sample outputs of its class's renderer, and answers a request with
+// what the test gives.
 
 import { pageFrontEnds, start } from "../core/index.ts";
 import type { Measure } from "../mount/index.ts";
@@ -109,6 +111,8 @@ export interface StubCoreOptions {
 }
 
 export interface StubCore {
+  // The CoreApi of the board that is open, which core makes anew for each
+  // board that opens.
   readonly core: CoreApi;
   // Each message that core sent R, in order, each session's hello included.
   readonly sent: readonly Request[];
@@ -153,9 +157,11 @@ export async function stubCore(options: StubCoreOptions = {}): Promise<StubCore>
     measure: options.measure ?? { info: () => INFO, watch: () => () => undefined },
   });
 
-  const core = await started.ready;
+  const first = await started.ready;
   return {
-    core,
+    get core() {
+      return started.core() ?? first;
+    },
     sent: r.sent,
     settled: async () => {
       for (let quiet = 0; quiet < 3; ) {
@@ -213,6 +219,8 @@ function fixtureR(hello: HelloReply, options: StubCoreOptions) {
     const { id } = request;
     switch (request.kind) {
       case "hello":
+        // A later hello starts the session afresh.
+        results.clear();
         return [{ ...hello, id }];
       case "blockr_options": {
         const values = options.blockrOptions ?? {};
