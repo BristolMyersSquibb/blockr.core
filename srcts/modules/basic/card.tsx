@@ -4,18 +4,19 @@
 // A card shows these, top to bottom:
 // - The block's name, its class and its status, and a menu to rename or
 //   remove the block or to add a block before or after it.
-// - The block's UI and its output, which core mounts.
+// - The block's UI and its output, which core mounts, with the summary of the
+//   block's result below the output.
 // - The conditions of the block's latest evaluation, of the severities that
 //   the board option show_conditions names.
-// - The summary of the block's result.
 //
 // Core keeps drawing a block's last output whatever the block's status. So
 // the card greys the output out while the block is not ready.
 // Core asks R for an output only once the output's element measures more than
 // 0 by 0, and R draws a plot at that size. So the card gives the output a
-// height of its own, which the user may drag to another by the handle below
-// it, clear of the output's own controls. It does so from the block's first
-// reply on, since there is nothing to draw before.
+// height of its own, which the user may drag to another. The handle sits at
+// the end of the summary's line, clear of the output's own controls. The card
+// does so from the block's first reply on, since there is nothing to draw
+// before.
 // The card always shows the block's UI and its output, with no toggles to
 // hide them, which a front-end built on core's may add.
 // On a locked board, the card draws no control for what the lock fixes. It
@@ -136,18 +137,22 @@ export const BlockCard = memo(function BlockCard({
         aria-label="Output"
         data-ready={ready}
         className={`bc:min-w-0 bc:transition-opacity ${ready ? "" : "bc:opacity-50 bc:grayscale"} ${
-          replied ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:overflow-hidden bc:pb-4" : ""
+          replied ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""
         }`}
       >
         <Mounted
           mount={mountOutput}
           className={replied ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"}
         />
+        {/* The line of the summary, the last of the box, whose end holds the
+            handle, so it keeps a line's height without a summary too. */}
+        {replied ? (
+          <p className="bc:m-0 bc:min-h-4 bc:shrink-0 bc:px-5 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted">
+            {status.summary}
+          </p>
+        ) : null}
       </div>
       <Conditions status={status} severities={severities} />
-      {status === undefined || status.summary === null ? null : (
-        <p className="bc:m-0 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted">{status.summary}</p>
-      )}
     </article>
   );
 });

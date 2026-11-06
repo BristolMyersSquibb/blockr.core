@@ -256,7 +256,7 @@
   It is written in React on core's React SDK and styled with Tailwind CSS under core's prefix.
   Its toolbar adds a block from the block registry's entries, edits links and stacks, sets the board options that the board holds, renames the board, and saves the board as a file or opens one.
   It draws each stack as a group of its blocks' cards.
-  A card shows its block's name, class and status, the block's UI and output, the conditions of the severities that the board option `show_conditions` names, and the summary of the block's result.
+  A card shows its block's name, class and status, the block's UI and output with the summary of the block's result below it, and the conditions of the severities that the board option `show_conditions` names.
   A card's menu renames or removes its block, or adds a block before or after it.
   The output of a block that is not ready is grayed out, where the page cleared it until now.
   Undo and redo are bound to Mod+Z, and Mod+Shift+Z or Mod+Y, with Mod either Ctrl or Cmd.

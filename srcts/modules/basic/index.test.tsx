@@ -149,7 +149,9 @@ describe("a card", () => {
     });
 
     const head = card(el, "Head");
-    expect(head.textContent).toContain("<data.frame> [6 × 5]");
+    // The summary is the last line of the output's box, whose end holds the
+    // handle that resizes the box.
+    expect(find(head, '[aria-label="Output"]').lastElementChild?.textContent).toBe("<data.frame> [6 × 5]");
     // The board holds show_conditions at warnings and errors.
     expect(texts(head, "[data-severity]")).toEqual(["warning: Few rows"]);
     expect(head.textContent).toContain("2 more warnings not kept");
