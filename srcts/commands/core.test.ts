@@ -11,7 +11,7 @@ import type { Store } from "../store/index.ts";
 import { hello, openedStore } from "../testing/store.ts";
 import type { Board } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { blockName, CommandError, createCommands, schemas, stateSchema } from "./index.ts";
+import { blockName, CommandError, createCommands, freeInputs, schemas, stateSchema } from "./index.ts";
 import type { Commands } from "./index.ts";
 
 async function setup(
@@ -359,6 +359,18 @@ describe("links", () => {
     await commands.run("blockr.core-remove_link", { id: "ab" });
     expect(Object.hasOwn(store.board().links, "ab")).toBe(false);
     expect(commands.enabled("blockr.core-remove_link", { id: "ab" })).toBe(false);
+  });
+  test("free inputs are those of a block that no link feeds, an empty one for a variadic block, and none of a block the board lacks", async () => {
+    const { store } = await setup();
+    const board = store.board();
+    const registry = store.blockRegistry();
+
+    expect(freeInputs(board, registry, "c")).toEqual([]);
+    expect(freeInputs(board, registry, "c", "bc")).toEqual(["y"]);
+    expect(freeInputs(board, registry, "e")).toEqual([""]);
+    expect(freeInputs(board, registry, "a")).toEqual([]);
+    expect(freeInputs(board, registry, "z")).toBeUndefined();
+    expect(freeInputs(board, {}, "c")).toBeUndefined();
   });
 });
 
