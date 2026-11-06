@@ -14,7 +14,6 @@ export type Change = {
 export interface Store {
     board(): Board;
     hasBoard(): boolean;
-    dropped(): readonly Dropped[];
     subscribe(fn: (change: Change, board: Board) => void): () => void;
     apply(delta: Delta | readonly Delta[], origin?: Origin): void;
     open(given: string | HelloReply): Promise<Dropped[]>;

@@ -1268,8 +1268,8 @@ function Notices() {
   return /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("ul", { "aria-label": "Notices", className: classes.list, children: list.map((notice) => /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
     "li",
     {
-      role: notice.kind === "refused" ? "alert" : "status",
-      className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border bc:p-2 bc:text-sm ${notice.kind === "refused" ? "bc:border-border-danger bc:text-text-danger" : "bc:border-border-default bc:text-text-warning"}`,
+      role: "alert",
+      className: "bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border bc:border-border-danger bc:p-2 bc:text-sm bc:text-text-danger",
       children: [
         /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "bc:flex-1 bc:whitespace-pre-wrap", children: notice.text }),
         /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
@@ -1353,16 +1353,10 @@ function createNotices() {
     notices = next;
     for (const fn of [...listeners]) fn();
   }
-  function add(kind, text) {
-    set([...notices, { id: ++last, kind, text }]);
-  }
   return {
     list: () => notices,
-    dropped(item) {
-      add("dropped", droppedText(item));
-    },
     refused(error) {
-      add("refused", messageOf(error));
+      set([...notices, { id: ++last, text: messageOf(error) }]);
     },
     dismiss(id2) {
       if (notices.some((notice) => notice.id === id2)) set(notices.filter((notice) => notice.id !== id2));
@@ -1377,13 +1371,6 @@ function createNotices() {
       };
     }
   };
-}
-function droppedText(item) {
-  if ("block" in item) {
-    const install = item.package === null ? "" : ` Install ${item.package} to open it.`;
-    return `The board dropped the block "${item.block}", since the app offers no block class ${item.registry_id}.${install}`;
-  }
-  return `The board was saved with ${item.package} ${item.version}, which the app does not load, so the board dropped what it held of that package. Install ${item.package} to open it in full.`;
 }
 
 // srcts/modules/basic/shortcuts.ts
@@ -1424,7 +1411,6 @@ var basic_default = {
     const doc = el.ownerDocument;
     const shown = demandShown(core, doc.defaultView ?? window);
     const notices = createNotices();
-    for (const item of core.store.dropped()) notices.dropped(item);
     const front = { core, notices, inView: shown };
     const root = (0, import_client.createRoot)(el);
     (0, import_react_dom.flushSync)(() => {

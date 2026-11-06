@@ -7087,7 +7087,6 @@ function createStore(options = {}) {
   const registry = a(options.hello?.block_registry ?? {});
   const packages = a(options.hello?.packages ?? {});
   const history = a(/* @__PURE__ */ new Map());
-  let dropped = [];
   const subscribers = /* @__PURE__ */ new Set();
   let opening2 = false;
   const ended = () => options.signal?.aborted === true;
@@ -7297,7 +7296,6 @@ function createStore(options = {}) {
         built2 = opened.built;
         const step2 = ++lastStep;
         for (const key of everyTarget(opened.board, opened.built)) edits.set(key, step2);
-        dropped = opened.dropped;
         announce2({ opened: opened.board, dropped: opened.dropped }, opened.board);
         return opened.dropped;
       } finally {
@@ -7394,7 +7392,6 @@ function createStore(options = {}) {
       return board.value;
     },
     hasBoard: () => board.value !== void 0,
-    dropped: () => dropped,
     subscribe(fn) {
       if (ended()) return () => void 0;
       const wrapped = (change, next) => {
