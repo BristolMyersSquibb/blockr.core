@@ -1,0 +1,412 @@
+---
+title: "3. Block expressions"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{3. Block expressions}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(blockr.core)
+```
+
+A block class's `expr` builds the code that a block runs, its __block expression__.
+R evaluates the block expression, and an exported script holds it, assigned to the block's ID.
+This vignette shows what `expr` may return and how interpolation turns it into the block expression.
+The [Create a block class](create-block.html) vignette covers the rest of a block class.
+
+Each case below evaluates a block `b` whose data input is linked to a block `a`.
+It shows the line that a script holds for `b`, through this helper:
+
+```{r}
+in_script <- function(res) {
+  export_code(list(b = res$expr))$b
+}
+```
+
+## What `expr` returns
+
+The `expr` of a class is a function whose formals are the class's __state args__.
+Its body checks them and returns what interpolation makes the block expression from.
+R calls `expr` with the block's state and passes what it returns to the generic `interpolate()`, together with the IDs of the upstream blocks.
+What `expr` returns is one of four:
+
+- A call, built with any tool, such as `bquote()`, `rlang::expr()` or `call()`, which writes the data inputs bare.
+- A string, built such as with `sprintf()` or `glue::glue()`, which R parses into such a call.
+- A function whose formals are the data inputs, written bare in its body, where `.()` stands for a value of the block state.
+- An object of a class that inherits from `blockr_expr`, which writes the data inputs as __placeholders__, such as what `bbquote()` returns.
+
+The head block keeps the first `n` rows of its input.
+Written as a call, its block expression calls a function of the data inputs with the upstream IDs:
+
+```{r}
+head_call <- new_block_class(
+  "head_block",
+  inputs = "data",
+  expr = function(n = 6L) bquote(utils::head(data, n = .(n))),
+  ui = js_module("js/head-block.js")
+)
+
+res <- evaluate_block(head_call, list(n = 10L), list(data = "a"),
+                      list(a = datasets::iris))
+res
+
+in_script(res)
+```
+
+A string and a function give the same block expression:
+
+```{r}
+head_string <- new_block_class(
+  "head_block",
+  inputs = "data",
+  expr = function(n = 6L) sprintf("utils::head(data, n = %dL)", n),
+  ui = js_module("js/head-block.js")
+)
+
+head_function <- new_block_class(
+  "head_block",
+  inputs = "data",
+  expr = function(n = 6L) function(data) utils::head(data, n = .(n)),
+  ui = js_module("js/head-block.js")
+)
+
+in_script(
+  evaluate_block(head_string, list(n = 10L), list(data = "a"),
+                 list(a = datasets::iris))
+)
+
+in_script(
+  evaluate_block(head_function, list(n = 10L), list(data = "a"),
+                 list(a = datasets::iris))
+)
+```
+
+In the body of the function, base `bquote()` fills in each `.()` from the frame that `expr` ran in, which holds the state args.
+
+Written with `bbquote()`, the data input is a placeholder, `.(data)`, and interpolation puts the upstream ID in its place.
+The block expression is then the idiomatic R that a person would write:
+
+```{r}
+head_block <- new_block_class(
+  "head_block",
+  inputs = "data",
+  expr = function(n = 6L) bbquote(utils::head(.(data), n = .(n))),
+  ui = js_module("js/head-block.js")
+)
+
+in_script(
+  evaluate_block(head_block, list(n = 10L), list(data = "a"),
+                 list(a = datasets::iris))
+)
+```
+
+That is the default, which core's own classes use.
+Whatever `expr` returns, R runs the block expression that the script holds, with each upstream block's result bound to its ID.
+So the code that a script exports is the code that ran.
+
+A block without data inputs, such as one that reads a dataset, has nothing to bind.
+Its block expression is the call as `expr` returns it:
+
+```{r}
+res <- evaluate_block(dataset_block, list(dataset = "BOD"))
+in_script(res)
+```
+
+## What `inputs` is
+
+The data inputs of a class are the results of the blocks upstream of it, which links bind.
+A class gives them in its `inputs`, in one of three forms:
+
+- A character vector names them: `"data"`, `c("x", "y")` for a merge, or `"..."` for a variadic block, which takes any number of inputs.
+- A list from `alist()` gives them as formals: `alist(x = , y = )`.
+- A function gives them as its formals and checks them in its body.
+
+A class without data inputs, such as a block that reads a file, leaves `inputs` out.
+No input has a default, so every input has to be linked before a block runs.
+
+A function given as `inputs` signals an error where the inputs do not fit and returns `NULL` otherwise.
+A failed check makes the block's status `error`, recorded in the phase `inputs`:
+
+```{r}
+res <- evaluate_block(merge_block, list(by = "Time"), list(x = "a", y = "b"),
+                      list(a = datasets::BOD, b = letters))
+res
+```
+
+## Placeholders with `bbquote()`
+
+In the code given to `bbquote()`, `.()` around the name of a data input is a placeholder, and `.()` around the name of a state arg stands for the arg's value.
+The `bbquote()` function fills in the values it finds in the frame that `expr` ran in and leaves the placeholders for interpolation.
+
+A placeholder keeps an input apart from a column of the same name.
+Some functions evaluate an argument in the data, as `subset()` does, where a bare name can be either.
+A subset by the column `threshold`, compared with the state arg `threshold`, keeps the column:
+
+```{r}
+over_block <- new_block_class(
+  "over_block",
+  inputs = "data",
+  expr = function(threshold = 2) {
+    bbquote(subset(.(data), threshold > .(threshold)))
+  },
+  ui = js_module("js/over-block.js")
+)
+
+res <- evaluate_block(over_block, list(threshold = 4), list(data = "a"),
+                      list(a = data.frame(threshold = c(1, 5, 10))))
+
+in_script(res)
+res$result
+```
+
+Base `bquote()` keeps no placeholder, since it fills in every `.()` it finds.
+It looks the name of a data input up in the frame that `expr` ran in and in the environments around it.
+For `.(data)`, it finds the function `utils::data()` and puts it in the call, which `new_block_class()` refuses:
+
+```{r, error = TRUE}
+new_block_class(
+  "head_block",
+  inputs = "data",
+  expr = function(n = 6L) bquote(utils::head(.(data), n = .(n))),
+  ui = js_module("js/head-block.js")
+)
+```
+
+For an input that is named like nothing on the search path, such as `x`, base `bquote()` fails with `object 'x' not found`.
+
+In `bbquote()`, `.()` takes a single name.
+A value that the block expression needs is worked out in the body of `expr` first, and then filled in by its name:
+
+```{r}
+more_block <- new_block_class(
+  "more_block",
+  inputs = "data",
+  expr = function(n = 6L) {
+    m <- n + 1L
+    bbquote(utils::head(.(data), n = .(m)))
+  },
+  ui = js_module("js/more-block.js")
+)
+
+in_script(
+  evaluate_block(more_block, list(n = 2L), list(data = "a"),
+                 list(a = datasets::iris))
+)
+```
+
+With `splice = TRUE`, `..()` splices the elements of a list into the call as arguments.
+This block keeps the columns that its state names:
+
+```{r}
+select_block <- new_block_class(
+  "select_block",
+  inputs = "data",
+  expr = function(columns = "Time") {
+    cols <- lapply(columns, as.name)
+    bbquote(subset(.(data), select = c(..(cols))), splice = TRUE)
+  },
+  ui = js_module("js/select-block.js")
+)
+
+in_script(
+  evaluate_block(select_block, list(columns = c("Time", "demand")),
+                 list(data = "a"), list(a = datasets::BOD))
+)
+```
+
+Core's subset block splices its arguments in the same way.
+It parses them with `str2lang()` from the strings that a user types.
+So a board can run any R code, and the deployment limits what the R process may do.
+
+## Variadic blocks
+
+A variadic block names its inputs `"..."`, and a board links any number of blocks to it.
+In the code given to `bbquote()`, `...` as an argument of a call stands for those inputs, in link order.
+An input whose link has a name, such as `b2`, keeps that name:
+
+```{r}
+res <- evaluate_block(rbind_block, list(), list(... = list("a", b2 = "b")),
+                      list(a = datasets::BOD, b = datasets::BOD))
+in_script(res)
+```
+
+A call, a string or a function that `expr` returns has `...` as a formal of the function that the block expression calls:
+
+```{r}
+rbind_call <- new_block_class(
+  "rbind_block",
+  inputs = "...",
+  expr = function() quote(rbind(...)),
+  ui = js_module("js/rbind-block.js")
+)
+
+res <- evaluate_block(rbind_call, list(), list(... = list("a", b2 = "b")),
+                      list(a = datasets::BOD, b = datasets::BOD))
+in_script(res)
+```
+
+Inside a function that the block expression defines, `...` is the function's own, and interpolation leaves it alone.
+
+## A class of a package's own
+
+A package can write its block expressions in a form of its own, without changing core.
+It adds a class that inherits from `blockr_expr`, and an `interpolate()` method for that class, which puts the upstream IDs in place of its placeholders.
+This class holds a template, in which `{data}` stands for the data input:
+
+```{r}
+new_template_expr <- function(template) {
+  structure(template, class = c("template_expr", "blockr_expr"))
+}
+
+interpolate.template_expr <- function(x, inputs) {
+  str2lang(glue::glue_data(inputs, unclass(x)))
+}
+```
+
+A class's `expr` fills in its state args with `glue::glue()`, which writes `{{data}}` as `{data}`, and leaves the placeholder for interpolation:
+
+```{r}
+head_template <- new_block_class(
+  "head_block",
+  inputs = "data",
+  expr = function(n = 6L) {
+    new_template_expr(glue::glue("utils::head({{data}}, n = {deparse(n)})"))
+  },
+  ui = js_module("js/head-block.js")
+)
+
+in_script(
+  evaluate_block(head_template, list(n = 10L), list(data = "a"),
+                 list(a = datasets::iris))
+)
+```
+
+In a package, the method is registered on core's generic with the roxygen tag `@exportS3Method blockr.core::interpolate`.
+The packages generics and ellmer export an `interpolate()` of their own, so attaching either after blockr.core masks core's.
+
+## Unset args
+
+A state arg without a default starts unset, and it stays out of the block's state until something sets it.
+The merge block's `by` has no default, since a user has to pick the columns to join by:
+
+```{r}
+new_merge_block()
+```
+
+A body that uses an unset arg makes R run nothing and report the status `invalid`, naming the arg.
+The same holds where `bbquote()` fills in an unset arg, such as `.(by)`, and where base `bquote()` does so in the body of a function that `expr` returns.
+The merge block reads `invalid` until a user picks its columns:
+
+```{r}
+evaluate_block(merge_block, list(), list(x = "a", y = "b"),
+               list(a = datasets::BOD, b = datasets::BOD))
+```
+
+A body that can do without an unset arg tests it with `missing()`.
+This merge joins by the columns its inputs share until a user picks some:
+
+```{r}
+shared_merge <- new_block_class(
+  "shared_merge_block",
+  inputs = c("x", "y"),
+  expr = function(by) {
+    if (missing(by)) {
+      return(bbquote(merge(.(x), .(y))))
+    }
+    bbquote(merge(.(x), .(y), by = .(by)))
+  },
+  ui = js_module("js/merge-block.js")
+)
+
+in_script(
+  evaluate_block(shared_merge, list(), list(x = "a", y = "b"),
+                 list(a = datasets::BOD, b = datasets::BOD))
+)
+```
+
+A state that is set but cannot run signals `blockr_invalid()` with a message, which R reports with the status `invalid`.
+The merge block signals it for a selection that a user emptied, which reaches R as an empty list:
+
+```{r}
+evaluate_block(merge_block, list(by = list()), list(x = "a", y = "b"),
+               list(a = datasets::BOD, b = datasets::BOD))
+```
+
+## A state arg written bare
+
+A state arg is written `.(n)`, so that `bbquote()` fills in its value.
+Written bare, as `n`, it stays a name in the block expression.
+A bare name looks like a column of the data, so nothing catches it before the block runs.
+Where no function evaluates the argument in the data, the first evaluation fails:
+
+```{r}
+bare_block <- new_block_class(
+  "bare_block",
+  inputs = "data",
+  expr = function(n = 6L) bbquote(utils::head(.(data), n = n)),
+  ui = js_module("js/bare-block.js")
+)
+
+evaluate_block(bare_block, list(n = 10L), list(data = "a"),
+               list(a = datasets::iris))
+```
+
+Where a function evaluates the argument in the data, a column of that name takes the arg's place, and the block runs on the wrong value.
+This block keeps the rows where `x` exceeds the column `threshold`, whatever the state arg `threshold` holds:
+
+```{r}
+bare_subset <- new_block_class(
+  "bare_subset_block",
+  inputs = "data",
+  expr = function(threshold = 1) bbquote(subset(.(data), x > threshold)),
+  ui = js_module("js/bare-subset-block.js")
+)
+
+res <- evaluate_block(bare_subset, list(threshold = 1), list(data = "a"),
+                      list(a = data.frame(x = 1:3, threshold = 2)))
+
+in_script(res)
+res$result
+```
+
+## The `.()` of data.table
+
+In data.table, `.()` stands for `list()`, as in `dt[, .(total = sum(value)), by = id]`.
+In the code given to `bbquote()`, `.()` is the syntax of `bbquote()` itself.
+So `bbquote()` reads data.table's `.()` as its own:
+
+- Around the name of a state arg, such as `.(id)` with a state arg `id`, it fills in the arg's value.
+- Around the name of a data input, such as `.(x)` with an input `x`, it is a placeholder, which interpolation replaces with an upstream ID.
+- Around anything else, such as `.(total = sum(value))` or `.(id, value)`, it evaluates the first argument, as base `bquote()` does, which fails or drops the rest.
+
+So a class that builds data.table code with `bbquote()` writes `list()` in place of `.()`.
+Here `interpolate()` makes the block expression from what `expr` returns, without running it:
+
+```{r}
+total_block <- new_block_class(
+  "total_block",
+  inputs = "data",
+  expr = function(by = "id") {
+    bbquote(.(data)[, list(total = sum(value)), by = .(by)])
+  },
+  ui = js_module("js/total-block.js")
+)
+
+interpolate(total_block$expr(by = "id"), list(data = "a"))
+```
+
+The same holds in the body of a function that `expr` returns, where base `bquote()` fills in every `.()`.
+In a call or a string, nothing fills in `.()`, so data.table's stays as it is:
+
+```{r}
+interpolate("data[, .(total = sum(value)), by = id]", list(data = "a"))
+```

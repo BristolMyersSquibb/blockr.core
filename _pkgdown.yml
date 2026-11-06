@@ -13,10 +13,10 @@ navbar:
     menu:
     - text: Get started
       href: articles/get-started.html
-    - text: Create a block
+    - text: Create a block class
       href: articles/create-block.html
-    - text: Browse for blocks
-      href: articles/blocks-registry.html
+    - text: Block expressions
+      href: articles/block-expressions.html
 
 reference:
 - title: Board objects

@@ -23,7 +23,7 @@
 #'
 #' ```r
 #' .onLoad <- function(libname, pkgname) {
-#'   register_package_blocks(pkgname)
+#'   register_package_blocks(package = pkgname)
 #'   trace_block_classes(pkgname)
 #' }
 #' ```
