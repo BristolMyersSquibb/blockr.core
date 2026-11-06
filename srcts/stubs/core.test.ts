@@ -42,7 +42,10 @@ describe("the CoreApi for tests", () => {
     expect(core.blockRegistry()).toBe(HELLO.block_registry);
     expect(Object.keys(core.options.registered())).toEqual(["n_rows", "show_conditions", "dark_mode"]);
     expect(core.lock).toBeNull();
-    expect(sent.map((request) => request.kind)).toEqual(["hello", "blockr_options"]);
+    // The second asks for the blockr option behind the default of dark_mode,
+    // which core's board class requires and the board lacks.
+    expect(sent.map((request) => request.kind)).toEqual(["hello", "blockr_options", "blockr_options"]);
+    expect(sent[2]).toMatchObject({ names: ["dark_mode"] });
     stop();
   });
 

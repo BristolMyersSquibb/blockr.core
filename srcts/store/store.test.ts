@@ -260,7 +260,8 @@ describe("opening a board", () => {
 
     expect(board.name).toBe("Quick wren");
     expect(Object.keys(board.blocks)).toEqual(["tidy_crab"]);
-    expect(board.options).toEqual({ n_rows: 50 });
+    // It writes in those that core's board class requires.
+    expect(board.options).toEqual({ n_rows: 50, show_conditions: ["warning", "error"], dark_mode: "light" });
   });
 
   test("opens the JSON board that serve() was given, which R passed on as it is", async () => {
@@ -443,7 +444,7 @@ describe("opening a board", () => {
     const board = store.board();
     expect(board.class).toEqual(["dock_board", "board"]);
     expect(Object.keys(board)).toEqual(["id", "class", "name", "blocks", "links", "stacks", "options"]);
-    expect(board.options).toEqual({ n_rows: 20 });
+    expect(board.options).toEqual({ n_rows: 20, show_conditions: ["warning", "error"], dark_mode: "light" });
   });
 
   test("drops a property that its class does not add, without naming it", async () => {
@@ -489,7 +490,9 @@ describe("opening a board", () => {
 
     await store.open(file({ class: ["noted_board", "board"], options: { n_rows: 20 } }));
 
-    expect(store.board().options).toEqual({ n_rows: 20, view_tabs: true, page_rows: 25 });
+    // Core's board class, the root of the chain, requires show_conditions and
+    // dark_mode.
+    expect(store.board().options).toEqual({ n_rows: 20, view_tabs: true, page_rows: 25, show_conditions: ["warning", "error"], dark_mode: "light" });
     expect(read).toHaveBeenCalledOnce();
     expect(store.canUndo()).toBe(false);
   });
@@ -576,7 +579,7 @@ describe("opening a board", () => {
     expect(store.board().name).toBe("Iris review");
   });
 
-  test("ends at the same board whichever way the board comes in, and saves the JSON board R sent as it is", async () => {
+  test("ends at the same board whichever way the board comes in, and saves the JSON board R sent as it is, with the board options its class requires", async () => {
     // Unlocked, so that the store opens a JSON board on it.
     const replied: HelloReply = { ...(reply("hello-locked") as HelloReply), lock: null };
 
@@ -584,7 +587,13 @@ describe("opening a board", () => {
     const viaR = newStore();
     await viaR.open(replied);
     const board = viaR.board();
-    expect(viaR.jsonBoard()).toEqual(replied.board);
+    // With dark_mode at its default, which core's board class requires and the
+    // board lacks.
+    const { options } = replied.board.board;
+    expect(viaR.jsonBoard()).toEqual({
+      ...replied.board,
+      board: { ...replied.board.board, options: { ...options, dark_mode: { value: "light", version: 1 } } },
+    });
 
     // As the client saves it, which the user opens.
     const viaClient = newStore();
@@ -661,7 +670,7 @@ describe("opening a board", () => {
     );
 
     expect(dropped).toEqual([]);
-    expect(store.board().options).toEqual({ show_conditions: ["warning", "error"] });
+    expect(store.board().options).toEqual({ show_conditions: ["warning", "error"], dark_mode: "light" });
   });
 
   test("holds no board until it opens one", async () => {
@@ -870,22 +879,24 @@ describe("migrating board option values", () => {
 
     expect(migrate).toHaveBeenCalledOnce();
     expect(migrate.mock.calls[0]).toEqual(["42", 1]);
-    expect(opening.board().options).toEqual({ seed: 42, n_rows: 50 });
+    expect(opening.board().options).toEqual({ seed: 42, n_rows: 50, show_conditions: ["warning", "error"], dark_mode: "light" });
 
     const saved = opening.jsonBoard();
     expect(saved.board.options).toEqual({
       seed: { value: 42, version: 2 },
       n_rows: { value: 50, version: 1 },
+      show_conditions: { value: ["warning", "error"], version: 1 },
+      dark_mode: { value: "light", version: 1 },
     });
   });
 
   test("keeps a value without a migration, and drops one that then fails its schema", async () => {
     const opening = await store({ ...seed, migrate: undefined });
     await opening.open(file({ options: { seed: 7 } }, undefined, { seed: 1 }));
-    expect(opening.board().options).toEqual({ seed: 7 });
+    expect(opening.board().options).toEqual({ seed: 7, show_conditions: ["warning", "error"], dark_mode: "light" });
 
     await opening.open(file({ options: { seed: "seven" } }, undefined, { seed: 1 }));
-    expect(opening.board().options).toEqual({});
+    expect(opening.board().options).toEqual({ show_conditions: ["warning", "error"], dark_mode: "light" });
   });
 
   test("refuses a board that holds a value above today's version, or that a migration fails on", async () => {
@@ -1281,7 +1292,7 @@ describe("applying a delta", () => {
         { name: "Iris review" },
         { blocks: { mod: { b: { state: { n: 6 }, unset: ["nothing"], name: "Head" } } } },
         { links: { mod: { ab: { input: "data" } } }, stacks: { mod: { s1: { blocks: ["a", "b"] } } } },
-        { options: { set: { n_rows: 50 }, unset: ["dark_mode"] } },
+        { options: { set: { n_rows: 50 }, unset: ["zoom"] } },
         {
           patches: [
             { op: "replace", path: "/views/main/panels/0", value: "a" },
@@ -1693,7 +1704,7 @@ describe("undo", () => {
 describe("registering", () => {
   test("core registers its board class board", () => {
     const store = newStore();
-    expect(store.registered()).toEqual([{ class: "board", properties: {} }]);
+    expect(store.registered()).toEqual([{ class: "board", options: ["show_conditions", "dark_mode"], properties: {} }]);
   });
 
   test("a board class, a board option id or a block class's migration registered twice fails", () => {

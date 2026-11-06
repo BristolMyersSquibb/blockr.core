@@ -202,7 +202,8 @@ describe("asking", () => {
     const el = await ready(s);
 
     expect(s.imported).toEqual([TABLE.module]);
-    expect(s.store.board().options).toEqual({ n_rows: 50, zoom: 1 });
+    // Beside those that core's board class requires.
+    expect(s.store.board().options).toEqual({ show_conditions: ["warning", "error"], dark_mode: "light", n_rows: 50, zoom: 1 });
     expect(outputs(s.r)).toHaveLength(1);
     expect(lastOutput(s.r)).toMatchObject({
       kind: "output",
@@ -431,7 +432,7 @@ describe("the renderer", () => {
     };
     const s = await setup({ [TEXT.module]: text.exports }, { reply: plain });
     await ready(s);
-    expect(lastOutput(s.r).options).toEqual({ show_conditions: ["error"] });
+    expect(lastOutput(s.r).options).toEqual({ show_conditions: ["error"], dark_mode: "light" });
 
     s.r.reply({ id: lastOutput(s.r).id, status: "ok", output: { renderer: TEXT, text: "a" } });
     await tick();

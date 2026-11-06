@@ -153,8 +153,12 @@ export interface Registrations {
 // Core's board class.
 // The store builds a board as it where no class in the board's class vector
 // is registered, so core's basic front-end draws every board at least.
+// It requires the board options that core's basic front-end reads, the
+// severities of the conditions it shows and the theme, as today's default
+// board options are these two, so that every board gets them as it opens.
 export const CORE_BOARD: BoardClass = {
   class: "board",
+  options: ["show_conditions", "dark_mode"],
   properties: {},
 };
 

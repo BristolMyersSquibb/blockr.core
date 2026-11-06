@@ -464,7 +464,7 @@ describe("the board", () => {
     await commands.run("blockr.core-set_option", { id: "n_rows", value: 25 });
     expect(store.board().options.n_rows).toBe(25);
 
-    expect(commands.enabled("blockr.core-set_option", { id: "dark_mode", value: true })).toBe(false);
+    expect(commands.enabled("blockr.core-set_option", { id: "zoom", value: 2 })).toBe(false);
     const refused = commands.run("blockr.core-set_option", { id: "n_rows", value: -1 });
     await expect(refused).rejects.toThrow(StoreError);
     await expect(refused).rejects.toThrow('The value of the board option "n_rows" fails its schema');
