@@ -39,7 +39,9 @@ const MODULES: Readonly<Record<string, unknown>> = {
 
 interface Drawn {
   el: HTMLElement;
-  core: CoreApi;
+  // The CoreApi of the board that is open, which core makes anew for each
+  // board that opens.
+  readonly core: CoreApi;
   board: () => Board;
   settled: () => Promise<void>;
   stop: () => void;
@@ -55,7 +57,9 @@ async function drawn(options: StubCoreOptions = {}): Promise<Drawn> {
   await settled();
   return {
     el,
-    core: stubbed.core,
+    get core() {
+      return stubbed.core;
+    },
     board: () => stubbed.core.store.board(),
     settled,
     stop: stubbed.stop,
@@ -409,23 +413,25 @@ describe("the toolbar", () => {
   });
 
   test("opens a file that the user picks, drawn as the page draws it, and says why the store refused one", async () => {
-    const { el, core, settled } = await drawn();
-    const saved = JSON.parse(core.store.save()) as { board: Board };
+    const page = await drawn();
+    const saved = JSON.parse(page.core.store.save()) as { board: Board };
     const text = JSON.stringify({ ...saved, board: { ...saved.board, name: "Opened" } });
 
     await step(() => {
-      choose(find(el, 'input[type="file"]', HTMLInputElement), new File([text], "board.json", { type: "application/json" }));
+      choose(find(page.el, 'input[type="file"]', HTMLInputElement), new File([text], "board.json", { type: "application/json" }));
     });
-    await settled();
-    expect(core.store.board().name).toBe("Opened");
-    expect(find(el, "h1").textContent).toBe("Opened");
+    await page.settled();
+    // Core starts again for the board, with a CoreApi of its own.
+    expect(page.board().name).toBe("Opened");
+    expect(find(page.el, "h1").textContent).toBe("Opened");
+    expect(page.el.querySelectorAll("article")).toHaveLength(6);
 
     await step(() => {
-      choose(find(el, 'input[type="file"]', HTMLInputElement), new File(["{}"], "board.json"));
+      choose(find(page.el, 'input[type="file"]', HTMLInputElement), new File(["{}"], "board.json"));
     });
-    await settled();
-    expect(core.store.board().name).toBe("Opened");
-    expect(find(el, '[role="alert"]').textContent).toContain("The store refused to open the board");
+    await page.settled();
+    expect(page.board().name).toBe("Opened");
+    expect(find(page.el, '[role="alert"]').textContent).toContain("The store refused to open the board");
   });
 });
 

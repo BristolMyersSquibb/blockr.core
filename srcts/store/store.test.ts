@@ -134,6 +134,19 @@ async function opened(
   return store;
 }
 
+// A store that has R's reply to `hello`, with which it opens a JSON board's
+// text, once what `setup` registers is registered. It holds no board yet, since
+// a store opens one board.
+function unopened(
+  setup?: (store: Store) => void,
+  replied: HelloReply = hello,
+): Store {
+  const store = createStore({ hello: replied });
+  for (const option of coreOptions) store.options.register(option);
+  setup?.(store);
+  return store;
+}
+
 // The reply to `hello` of a dock app, which loaded blockr.dock, whose method
 // of R's `board_front_end()` names the dock's front-end,
 // and whose opening board is a dock board with a view of the panels of a and b,
@@ -273,7 +286,7 @@ describe("opening a board", () => {
   });
 
   test("opens a JSON board with the block registry of the reply to hello, dropping each block whose class it lacks", async () => {
-    const store = await opened();
+    const store = unopened();
     const seen = changes(store);
 
     const dropped = await store.open(
@@ -314,8 +327,7 @@ describe("opening a board", () => {
   });
 
   test("refuses a file above the format it knows, naming both, and a file of today's stack", async () => {
-    const store = await opened();
-    const board = store.board();
+    const store = unopened();
 
     await expect(store.open(JSON.stringify({ format: 2, packages: {}, board: {} }))).rejects.toThrow(
       /format is 2, while this client reads format 1 at most/,
@@ -324,19 +336,18 @@ describe("opening a board", () => {
       /no format, as a file of today's stack has none/,
     );
     await expect(store.open("{")).rejects.toThrow(StoreError);
-    expect(store.board()).toBe(board);
+    expect(store.hasBoard()).toBe(false);
   });
 
   test("refuses to open a board with an id made of digits alone, naming it", async () => {
-    const store = await opened();
+    const store = unopened();
     await expect(store.open(file({ blocks: { 12: head() }, links: {}, stacks: {} }))).rejects.toThrow(
       /block id "12" is empty or made of digits alone/,
     );
   });
 
   test("refuses to open a board that fails a check, changing nothing", async () => {
-    const store = await opened();
-    const board = store.board();
+    const store = unopened();
     const seen = changes(store);
 
     await expect(store.open(file({ links: { ab: { from: "a", to: "b", input: "x" } } }))).rejects.toThrow(
@@ -348,12 +359,12 @@ describe("opening a board", () => {
     await expect(
       store.open(file({ stacks: { s1: { name: "Input", blocks: ["a", "b"] } } as unknown as Board["stacks"] })),
     ).rejects.toThrow(/stack "s1" has no string or null as its color/);
-    expect(store.board()).toBe(board);
+    expect(store.hasBoard()).toBe(false);
     expect(seen).toEqual([]);
   });
 
   test("opens a board whose stacks have hex colours, in either case, or none", async () => {
-    const store = await opened();
+    const store = unopened();
     const stacks = {
       s1: { name: "Input", blocks: ["a"], color: "#66c2a5" },
       s2: { name: "Head", blocks: ["b"], color: "#FC8D62" },
@@ -366,11 +377,11 @@ describe("opening a board", () => {
   });
 
   test("refuses a JSON board on a locked board, and before R has answered hello", async () => {
-    const store = await opened(undefined, reply("hello-locked") as HelloReply);
-    const board = store.board();
+    const store = unopened(undefined, reply("hello-locked") as HelloReply);
 
     await expect(store.open(file({}))).rejects.toThrow(/The board is locked, so it opens no other board/);
-    expect(store.board()).toBe(board);
+    await expect(store.check(file({}))).rejects.toThrow(/The board is locked, so it opens no other board/);
+    expect(store.hasBoard()).toBe(false);
 
     await expect(newStore().open(file({}))).rejects.toThrow(
       /The store opens a JSON board only once R has answered `hello`/,
@@ -379,18 +390,24 @@ describe("opening a board", () => {
 
   test("runs what has to run before it opens a board, given the reply to hello and the board's class vector", async () => {
     const order: string[] = [];
-    const store = createStore({
-      loaded(reply, classes) {
-        order.push(`loaded ${classes.join(" ")}`);
-        expect(reply).toBe(docking);
-        if (!store.registered().includes(dock)) store.register(dock);
-        expect(store.boardClass(classes)).toBe(dock);
-      },
-    });
-    store.subscribe(() => order.push("opened"));
-    for (const option of coreOptions) store.options.register(option);
+    // A store that opens R's board, or a JSON board's text with R's reply.
+    const make = (given?: HelloReply): Store => {
+      const store = createStore({
+        ...(given === undefined ? {} : { hello: given }),
+        loaded(reply, classes) {
+          order.push(`loaded ${classes.join(" ")}`);
+          expect(reply).toBe(docking);
+          store.register(dock);
+          expect(store.boardClass(classes)).toBe(dock);
+        },
+      });
+      store.subscribe(() => order.push("opened"));
+      for (const option of coreOptions) store.options.register(option);
+      return store;
+    };
 
-    await store.open(docking);
+    await make().open(docking);
+    const store = make(docking);
     await store.open(file({ class: ["dock_board", "board"], views: {}, extensions: {} }));
 
     expect(order).toEqual(["loaded dock_board board", "opened", "loaded dock_board board", "opened"]);
@@ -398,7 +415,7 @@ describe("opening a board", () => {
   });
 
   test("builds a board as the first class in its class vector that a package defines, dropping what the classes it skips add", async () => {
-    const store = await opened((store) => store.register(dock));
+    const store = unopened((store) => store.register(dock));
     const dropped = await store.open(
       file({
         class: ["grid_board", "dock_board", "board"],
@@ -416,7 +433,7 @@ describe("opening a board", () => {
   });
 
   test("builds a board whose classes no package defines as core's, naming the packages that R could not load, and dropping what no package registered", async () => {
-    const store = await opened();
+    const store = unopened();
     const dropped = await store.open(
       file(
         {
@@ -448,7 +465,7 @@ describe("opening a board", () => {
   });
 
   test("drops a property that its class does not add, without naming it", async () => {
-    const store = await opened((store) => store.register(dock));
+    const store = unopened((store) => store.register(dock));
     const dropped = await store.open(
       file({ class: ["dock_board", "board"], views: {}, extensions: {}, zoom: 2 }),
     );
@@ -458,7 +475,7 @@ describe("opening a board", () => {
   });
 
   test("gives each property of its class that the board lacks its default", async () => {
-    const store = await opened((store) => store.register(dock));
+    const store = unopened((store) => store.register(dock));
     await store.open(file({ class: ["dock_board", "board"], views: { main: { panels: [] } } }));
 
     expect(viewsOf(store.board())).toEqual({ main: { panels: [] } });
@@ -467,7 +484,7 @@ describe("opening a board", () => {
 
   test("gives the board options that its class and its parents require their defaults where it lacks them, as no step", async () => {
     const read = vi.fn(() => Promise.resolve(25));
-    const store = await opened((store) => {
+    const store = unopened((store) => {
       store.options.register({
         id: "view_tabs",
         label: "View tabs",
@@ -499,7 +516,7 @@ describe("opening a board", () => {
 
   test("refuses a board whose class requires a board option that no package defines, naming both, before it calls a default", async () => {
     const read = vi.fn(() => Promise.resolve(25));
-    const store = await opened((store) => {
+    const store = unopened((store) => {
       store.options.register({
         id: "page_rows",
         label: "Rows a page shows",
@@ -510,17 +527,16 @@ describe("opening a board", () => {
       });
       store.register({ ...dock, options: ["view_tabs", "page_rows"] });
     });
-    const board = store.board();
 
     await expect(store.open(file({ class: ["dock_board", "board"] }))).rejects.toThrow(
       'The store refused to open the board\n- The board class "dock_board" requires the board option "view_tabs", which no loaded package defines.',
     );
     expect(read).not.toHaveBeenCalled();
-    expect(store.board()).toBe(board);
+    expect(store.hasBoard()).toBe(false);
   });
 
   test("refuses a board where the default of a board option that its class requires fails or does not fit its schema", async () => {
-    const store = await opened((store) => {
+    const store = unopened((store) => {
       store.options.register({
         id: "page_rows",
         label: "Rows a page shows",
@@ -539,7 +555,6 @@ describe("opening a board", () => {
       });
       store.register({ ...dock, options: ["page_rows", "view_tabs"] });
     });
-    const board = store.board();
 
     const refused = store.open(file({ class: ["dock_board", "board"] }));
     await expect(refused).rejects.toThrow(
@@ -548,11 +563,11 @@ describe("opening a board", () => {
     await expect(refused).rejects.toThrow(
       'The default of the board option "view_tabs", which the board class "dock_board" requires, fails its schema: Instance type "string" is invalid. Expected "boolean".',
     );
-    expect(store.board()).toBe(board);
+    expect(store.hasBoard()).toBe(false);
   });
 
   test("refuses a board whose class is no class vector", async () => {
-    const store = await opened();
+    const store = unopened();
 
     await expect(store.open(file({ class: [] }))).rejects.toThrow(
       /The board's class is no array of class names/,
@@ -563,20 +578,36 @@ describe("opening a board", () => {
   });
 
   test("refuses a board whose property fails its schema", async () => {
-    const store = await opened((store) => store.register(dock));
+    const store = unopened((store) => store.register(dock));
     await expect(
       store.open(file({ class: ["dock_board", "board"], views: { main: { panels: "a" } } })),
     ).rejects.toThrow(/The property "views" fails its schema at \/main\/panels: Instance type "string" is invalid\. Expected "array"\./);
   });
 
-  test("opening a board starts a new undo history", async () => {
+  test("opens one board, and refuses another once it holds one or while it opens one", async () => {
     const store = await opened();
     store.apply({ name: "Renamed" });
+    const refusal =
+      "The store refused to open the board\n- The store holds a board or opens one already: a store opens one board, and core opens the next in a new store as it starts again.";
+
+    await expect(store.open(hello)).rejects.toThrow(refusal);
+    await expect(store.open(file({}))).rejects.toThrow(refusal);
+    expect(store.board().name).toBe("Renamed");
     expect(store.canUndo()).toBe(true);
 
-    await store.open(hello);
-    expect(store.canUndo()).toBe(false);
-    expect(store.board().name).toBe("Iris review");
+    const other = newStore();
+    const first = other.open(hello);
+    await expect(other.open(hello)).rejects.toThrow(refusal);
+    await first;
+    expect(other.board().name).toBe("Iris review");
+  });
+
+  test("opens a board once it has refused one, which it does not hold", async () => {
+    const store = unopened();
+    await expect(store.open(file({ class: [] }))).rejects.toThrow(StoreError);
+
+    await store.open(file({}));
+    expect(store.board().name).toBe("Cars");
   });
 
   test("ends at the same board whichever way the board comes in, and saves the JSON board R sent as it is, with the board options its class requires", async () => {
@@ -596,8 +627,7 @@ describe("opening a board", () => {
     });
 
     // As the client saves it, which the user opens.
-    const viaClient = newStore();
-    await viaClient.open(replied);
+    const viaClient = unopened(undefined, replied);
     await viaClient.open(viaR.save());
 
     // As a user builds it on an empty board.
@@ -625,13 +655,13 @@ describe("opening a board", () => {
     expect(built.board()).toEqual(board);
   });
 
-  test("keeps what it dropped as it opened the board it holds, for a front-end that draws the board once it is open", async () => {
-    const store = newStore();
-    expect(store.dropped()).toEqual([]);
+  test("keeps what it dropped as it opened its board, for a front-end that draws the board once it is open", async () => {
+    const replied = newStore();
+    expect(replied.dropped()).toEqual([]);
+    await replied.open(hello);
+    expect(replied.dropped()).toEqual([]);
 
-    await store.open(hello);
-    expect(store.dropped()).toEqual([]);
-
+    const store = unopened();
     const dropped = await store.open(
       file({
         blocks: { x: { registry_id: "blockr.dplyr-filter_block", state: {}, name: "Filter" } },
@@ -642,15 +672,13 @@ describe("opening a board", () => {
     expect(dropped).toEqual([{ block: "x", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" }]);
     expect(store.dropped()).toBe(dropped);
 
-    // An edit leaves it, and the next opening replaces it.
+    // An edit leaves it.
     store.apply({ name: "Renamed" });
     expect(store.dropped()).toBe(dropped);
-    await store.open(hello);
-    expect(store.dropped()).toEqual([]);
   });
 
   test("drops a block whose class the block registry lacks as a delta removes it, with what its board class keeps about it", async () => {
-    const store = await opened((store) => store.register(dock));
+    const store = unopened((store) => store.register(dock));
     const dropped = await store.open(
       file({
         class: ["dock_board", "board"],
@@ -688,13 +716,72 @@ describe("opening a board", () => {
   });
 
   test("drops a board option value that its schema refuses, so that it reads as its default", async () => {
-    const store = await opened();
+    const store = unopened();
     const dropped = await store.open(
       file({ options: { n_rows: "fifty", show_conditions: ["warning", "error"] } }),
     );
 
     expect(dropped).toEqual([]);
     expect(store.board().options).toEqual({ show_conditions: ["warning", "error"], dark_mode: "light" });
+  });
+
+  test("checks a JSON board's text as it would open it, holding nothing and running nothing that has to run before an opening", async () => {
+    const loaded = vi.fn();
+    const store = createStore({ loaded });
+    for (const option of coreOptions) store.options.register(option);
+    store.register(dock);
+    await store.open(docking);
+    loaded.mockClear();
+    const board = store.board();
+    const seen = changes(store);
+
+    const dropped = await store.check(
+      file(
+        {
+          class: ["dock_board", "board"],
+          views: { main: { panels: ["a", "x"] } },
+          blocks: { a: head(), x: { registry_id: "blockr.dplyr-filter_block", state: {}, name: "Filter" } },
+          links: {},
+          stacks: {},
+        },
+        { "blockr.core": "0.2.0", "blockr.dplyr": "0.3.0" },
+      ),
+    );
+
+    expect(dropped).toEqual([
+      { package: "blockr.dplyr", version: "0.3.0" },
+      { block: "x", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
+    ]);
+    expect(store.board()).toBe(board);
+    expect(seen).toEqual([]);
+    expect(loaded).not.toHaveBeenCalled();
+  });
+
+  test("checks a JSON board's text with what is registered, rejecting with what would refuse it", async () => {
+    const store = await opened((store) => store.register({ ...dock, options: ["view_tabs"] }));
+    const board = store.board();
+
+    await expect(store.check("{")).rejects.toThrow(StoreError);
+    await expect(store.check(file({ class: ["dock_board", "board"] }))).rejects.toThrow(
+      'The board class "dock_board" requires the board option "view_tabs", which no loaded package defines.',
+    );
+    expect(store.board()).toBe(board);
+
+    // The head block's class at version 2 of its state, which migrates the
+    // state that the file records at version 1.
+    const head = hello.block_registry["blockr.core-head_block"];
+    if (head === undefined) throw new Error("The fixture has no head block.");
+    const migrating = unopened(
+      (store) =>
+        store.registerMigration("blockr.core-head_block", () => {
+          throw new Error("The n is unreadable.");
+        }),
+      { ...hello, block_registry: { ...hello.block_registry, "blockr.core-head_block": { ...head, version: 2 } } },
+    );
+    await expect(migrating.check(file({}))).rejects.toThrow(
+      'The migration of the block class "blockr.core-head_block" failed: The n is unreadable.',
+    );
+    expect(migrating.hasBoard()).toBe(false);
   });
 
   test("holds no board until it opens one", async () => {
@@ -712,6 +799,49 @@ describe("opening a board", () => {
   });
 });
 
+describe("a store that ends", () => {
+  // Why an ended store refuses a change.
+  const ended = "Another board opened in a new store, so this store changes its board no more.";
+
+  test("drops its subscribers and refuses every change once its signal aborts", async () => {
+    const controller = new AbortController();
+    const store = createStore({ signal: controller.signal });
+    for (const option of coreOptions) store.options.register(option);
+    await store.open(hello);
+    store.apply({ name: "Renamed" });
+    const seen = changes(store);
+
+    controller.abort();
+    const late = changes(store);
+
+    expect(() => {
+      store.apply({ name: "Again" });
+    }).toThrow(`The store rejected the delta\n- ${ended}`);
+    expect(() => {
+      store.undo();
+    }).toThrow(`The store refused to undo the step\n- ${ended}`);
+    await expect(store.open(file({}))).rejects.toThrow(ended);
+    await expect(store.check(file({}))).rejects.toThrow(ended);
+    expect(store.board().name).toBe("Renamed");
+    expect(seen).toEqual([]);
+    expect(late).toEqual([]);
+  });
+
+  test("refuses the board that it opens as its signal aborts", async () => {
+    const controller = new AbortController();
+    const store = createStore({
+      signal: controller.signal,
+      loaded: () => {
+        controller.abort();
+      },
+    });
+    for (const option of coreOptions) store.options.register(option);
+
+    await expect(store.open(hello)).rejects.toThrow(ended);
+    expect(store.hasBoard()).toBe(false);
+  });
+});
+
 describe("saving a board", () => {
   test("writes the board it holds as the text of its JSON board, which another store opens to the same board", async () => {
     const store = await docked();
@@ -724,7 +854,7 @@ describe("saving a board", () => {
     const text = store.save();
     expect(text).toBe(`${JSON.stringify(store.jsonBoard(), null, 2)}\n`);
 
-    const other = await docked();
+    const other = unopened((store) => store.register(dock), docking);
     await other.open(text);
     expect(other.board()).toEqual(store.board());
     expect(other.board().name).toBe("Renamed");
@@ -797,8 +927,8 @@ describe("migrations", () => {
     },
   });
 
-  function store(head?: Migration): Promise<Store> {
-    return opened((store) => {
+  function store(head?: Migration): Store {
+    return unopened((store) => {
       store.register(migrating);
       if (head !== undefined) store.registerMigration("blockr.core-head_block", head);
     }, replied);
@@ -806,7 +936,7 @@ describe("migrations", () => {
 
   test("migrates what a JSON board holds of an older version, by the version it records", async () => {
     const head = vi.fn<Migration>((state) => ({ ...state, n: Number(state.n) }));
-    const opening = await store(head);
+    const opening = store(head);
     const dropped = await opening.open(old);
 
     expect(head).toHaveBeenCalledOnce();
@@ -827,13 +957,14 @@ describe("migrations", () => {
 
   test("runs no migration of what a JSON board holds at today's version", async () => {
     const head = vi.fn<Migration>((state) => state);
-    const opening = await store(head);
-    await opening.open(opening.save());
+    const viaR = store();
+    await viaR.open(replied);
+    await store(head).open(viaR.save());
     expect(head).not.toHaveBeenCalled();
   });
 
   test("refuses to open a board that a migration fails on, or that holds a version above today's", async () => {
-    const opening = await store(() => {
+    const opening = store(() => {
       throw new Error("The n is unreadable.");
     });
     await expect(opening.open(old)).rejects.toThrow(
@@ -846,13 +977,13 @@ describe("migrations", () => {
       views: { main: { panels: ["a", "b"] } },
       extensions: {},
     });
-    await expect((await store()).open(newer)).rejects.toThrow(
+    await expect(store().open(newer)).rejects.toThrow(
       'The board records version 4 of the board class "dock_board", while R gives version 3.',
     );
   });
 
   test("refuses a JSON board without the versions it records", async () => {
-    const opening = await store();
+    const opening = store();
     const json = JSON.parse(old) as { board: Record<string, unknown> };
     await expect(
       opening.open(JSON.stringify({ ...json, board: { ...json.board, versions: { dock_board: 0 } } })),
@@ -892,13 +1023,13 @@ describe("migrating board option values", () => {
   // A core app whose package gives the seed version 2 of its value.
   const replied: HelloReply = { ...hello, option_versions: { seed: 2 } };
 
-  function store(option: Option = seed): Promise<Store> {
-    return opened((store) => store.options.register(option), replied);
+  function store(option: Option = seed): Store {
+    return unopened((store) => store.options.register(option), replied);
   }
 
   test("migrates a value of an older version by the board option's migrate, and saves it at today's", async () => {
     const migrate = vi.fn(fromString);
-    const opening = await store({ ...seed, migrate });
+    const opening = store({ ...seed, migrate });
     await opening.open(file({ options: { seed: "42", n_rows: 50 } }, undefined, { seed: 1 }));
 
     expect(migrate).toHaveBeenCalledOnce();
@@ -915,21 +1046,22 @@ describe("migrating board option values", () => {
   });
 
   test("keeps a value without a migration, and drops one that then fails its schema", async () => {
-    const opening = await store({ ...seed, migrate: undefined });
+    const opening = store({ ...seed, migrate: undefined });
     await opening.open(file({ options: { seed: 7 } }, undefined, { seed: 1 }));
     expect(opening.board().options).toEqual({ seed: 7, show_conditions: ["warning", "error"], dark_mode: "light" });
 
-    await opening.open(file({ options: { seed: "seven" } }, undefined, { seed: 1 }));
-    expect(opening.board().options).toEqual({ show_conditions: ["warning", "error"], dark_mode: "light" });
+    const unfit = store({ ...seed, migrate: undefined });
+    await unfit.open(file({ options: { seed: "seven" } }, undefined, { seed: 1 }));
+    expect(unfit.board().options).toEqual({ show_conditions: ["warning", "error"], dark_mode: "light" });
   });
 
   test("refuses a board that holds a value above today's version, or that a migration fails on", async () => {
-    const opening = await store();
+    const opening = store();
     await expect(
       opening.open(file({ options: { seed: 1 } }, undefined, { seed: 3 })),
     ).rejects.toThrow('The board records version 3 of the value of the board option "seed", while R gives version 2.');
 
-    const failing = await store({
+    const failing = store({
       ...seed,
       migrate: () => {
         throw new Error("The seed is unreadable.");
@@ -939,14 +1071,14 @@ describe("migrating board option values", () => {
       failing.open(file({ options: { seed: "x" } }, undefined, { seed: 1 })),
     ).rejects.toThrow('The migration of the board option "seed" failed: The seed is unreadable.');
 
-    const empty = await store({ ...seed, migrate: () => undefined as unknown as Json });
+    const empty = store({ ...seed, migrate: () => undefined as unknown as Json });
     await expect(
       empty.open(file({ options: { seed: "x" } }, undefined, { seed: 1 })),
     ).rejects.toThrow('The migration of the board option "seed" returned nothing.');
   });
 
   test("takes a board option that R gives no version as at version 1", async () => {
-    const opening = await opened((store) => store.options.register(seed));
+    const opening = unopened((store) => store.options.register(seed));
     await expect(
       opening.open(file({ options: { seed: 1 } }, undefined, { seed: 2 })),
     ).rejects.toThrow('The board records version 2 of the value of the board option "seed", while R gives version 1.');
@@ -1033,7 +1165,7 @@ describe("applying a delta", () => {
   });
 
   test("runs the update of the board's class and of each of its parents, each for its own properties", async () => {
-    const store = await opened((store) => {
+    const store = unopened((store) => {
       store.register(dock);
       store.register(noted);
     });
@@ -1052,7 +1184,7 @@ describe("applying a delta", () => {
 
   test("leaves out what an update returns at a path that the delta's own patches change", async () => {
     // A class that notes every block added, in place of a note the delta gives.
-    const store = await opened((store) => {
+    const store = unopened((store) => {
       store.register(dock);
       store.register({
         ...noted,
@@ -1083,7 +1215,7 @@ describe("applying a delta", () => {
         return [{ op: "replace", path: "/count", value: Number(last?.value ?? 0) + 1 }];
       },
     };
-    const store = await opened((store) => store.register(counting));
+    const store = unopened((store) => store.register(counting));
     await store.open(file({ class: ["counting_board", "board"] }));
 
     expect(() => {
@@ -1092,7 +1224,7 @@ describe("applying a delta", () => {
   });
 
   test("rejects a delta that an update follows with a patch outside the properties its class adds", async () => {
-    const store = await opened((store) => {
+    const store = unopened((store) => {
       store.register(dock);
       store.register({ ...noted, update: () => [{ op: "replace", path: "/views", value: {} }] });
     });
@@ -1795,7 +1927,10 @@ describe("registering", () => {
   });
 
   test("saves a board with the package of each class it is built as that R names, and of each block's class", async () => {
-    const store = await docked((store) => store.register(noted));
+    const store = unopened((store) => {
+      store.register(dock);
+      store.register(noted);
+    }, docking);
     await store.open(
       JSON.stringify({ ...docking.board, board: { ...docking.board.board, class: ["noted_board", "dock_board", "board"] } }),
     );

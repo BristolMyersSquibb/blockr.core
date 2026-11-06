@@ -55,6 +55,17 @@ export function attempt(fn: () => void): void {
   }
 }
 
+// Calls `fn` once the signal aborts, and returns what stops that.
+export function onAbort(signal: AbortSignal, fn: () => void): () => void {
+  signal.addEventListener("abort", fn, { once: true });
+  return () => {
+    signal.removeEventListener("abort", fn);
+  };
+}
+
+// Why core mounts nothing on a board that another has replaced.
+export const REPLACED = "Another board opened, so core mounts nothing more of the board before.";
+
 // Calls each listener, reporting what one throws, so that the others still
 // hear of it.
 export function announceTo(listeners: Iterable<() => void>): void {

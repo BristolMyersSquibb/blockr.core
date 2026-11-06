@@ -42,9 +42,9 @@ export interface Store {
   board(): Board;
   // Whether the store holds a board. It holds one once it has opened one.
   hasBoard(): boolean;
-  // What the store dropped as it opened the board it holds, as it told its
-  // followers then, so that a front-end that draws the board once it is open
-  // tells the user what to install. It is empty until the store opens a board.
+  // What the store dropped as it opened its board, as it told its followers
+  // then, so that a front-end that draws the board once it is open tells the
+  // user what to install. It is empty until the store opens its board.
   dropped(): readonly Dropped[];
   // Calls `fn` after every commit, once for each delta as expanded, and after
   // every opening of a board, with the board as it then is.
@@ -58,9 +58,20 @@ export interface Store {
   apply(delta: Delta | readonly Delta[], origin?: Origin): void;
   // Opens the opening board that R sent with its reply to `hello`, or a JSON
   // board given as its text, with the block registry of the last such reply,
-  // and replaces the board, resolving with what it dropped.
+  // and resolves with what it dropped.
   // A locked board opens no JSON board.
+  // A store opens one board, and refuses another once it holds one. Through
+  // `CoreApi`, open() starts core again in place with the board given, in a
+  // new store, once the store on the page has checked the board
+  // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#opening-a-board).
   open(given: string | HelloReply): Promise<Dropped[]>;
+  // Opens a JSON board given as its text as open() would, with what is
+  // registered and the last reply to `hello`, without holding it: it resolves
+  // with what opening the board would drop, or rejects with the StoreError that
+  // would refuse it, having changed nothing. It runs nothing that has to run
+  // before an opening, so that core checks a board this way before it stops the
+  // core on the page for it.
+  check(text: string): Promise<Dropped[]>;
   // The board as a JSON board, as a file holds it.
   // It records the version of each package that the board's content comes
   // from: the package of each class that the board is built as, core's among
@@ -115,21 +126,28 @@ export interface Store {
   editId(of: { readonly block: BlockId } | { readonly property: string }): number | undefined;
 }
 
-// The store sends R nothing: it opens every board with what the reply to
-// `hello` holds, and the scheduler has R forget the blocks of a board that
-// another replaces.
+// The store sends R nothing: it opens its board with what the reply to `hello`
+// holds, and core has R drop the results of a board that another replaces with
+// the `hello` with which it starts again.
 export interface StoreOptions {
+  // The reply to `hello` that the store opens a JSON board's text with, where
+  // it opens no reply's board, as core opens the board given as it starts
+  // again.
+  readonly hello?: HelloReply;
   // What has to run before the store opens a board, given the reply to `hello`
-  // and the board's class vector:
-  // initializing the startup modules of the packages R loaded that it has not
-  // initialized yet,
-  // which define their board classes and register their board options and
-  // migrations, and switching the page to the front-end
-  // that frontEnd() gives for the vector.
-  // Which class the store builds the board as, and so the board's front-end,
-  // is known only once the startup modules have run.
+  // and the board's class vector: importing the front-end that frontEnd()
+  // gives for the vector. Which class the store builds the board as, and so
+  // the board's front-end, is known only once the startup modules have run,
+  // which define their board classes.
   readonly loaded?: (reply: HelloReply, classes: readonly string[]) => void | Promise<void>;
+  // Ends the store as it aborts, as another board opens in a new store: the
+  // store drops its subscribers and refuses every change from then on, so that
+  // nothing changes or follows the board before.
+  readonly signal?: AbortSignal;
 }
+
+// Why an ended store refuses a change.
+const ENDED = "Another board opened in a new store, so this store changes its board no more.";
 
 // What takes one step back, on an origin's undo list, or applies it again, on
 // its redo list: the deltas to apply, each with where what it adds back goes,
@@ -156,13 +174,25 @@ export function createStore(options: StoreOptions = {}): Store {
   // as it was registered when the board opened.
   let built: Built | undefined;
   // The last reply to `hello`, whose block registry and package versions the
-  // store opens every board with, and whose lock keeps it from opening one.
-  let hello: HelloReply | undefined;
-  const registry = signal<Readonly<Record<RegistryId, RegistryEntry>>>({});
-  const packages = signal<Readonly<Record<string, string>>>({});
+  // store opens its board with, and whose lock keeps it from opening a JSON
+  // board.
+  let hello: HelloReply | undefined = options.hello;
+  const registry = signal<Readonly<Record<RegistryId, RegistryEntry>>>(options.hello?.block_registry ?? {});
+  const packages = signal<Readonly<Record<string, string>>>(options.hello?.packages ?? {});
   const history = signal<ReadonlyMap<Origin, History>>(new Map());
   let dropped: readonly Dropped[] = [];
   const subscribers = new Set<(change: Change, board: Board) => void>();
+  // Whether the store opens a board, or has opened one, which it does once.
+  let opening = false;
+
+  const ended = (): boolean => options.signal?.aborted === true;
+  options.signal?.addEventListener(
+    "abort",
+    () => {
+      subscribers.clear();
+    },
+    { once: true },
+  );
 
   // The edit ids, kept beside the board rather than in it.
   // One count numbers the steps, the opening of a board,
@@ -189,8 +219,9 @@ export function createStore(options: StoreOptions = {}): Store {
 
   // The board the store holds, with the class it built the board as,
   // or a StoreError where it holds none yet, so that nothing builds on a board
-  // that no opening made.
+  // that no opening made, or where the store has ended.
   function current(refused: string): { board: Board; built: Built } {
+    if (ended()) throw new StoreError(refused, [ENDED]);
     if (board.value !== undefined && built !== undefined) return { board: board.value, built };
     throw new StoreError(refused, ["The store holds no board until it opens one."]);
   }
@@ -374,30 +405,33 @@ export function createStore(options: StoreOptions = {}): Store {
     }
   }
 
-  async function open(given: string | HelloReply): Promise<Dropped[]> {
-    let json: JsonBoard;
-    let reply: HelloReply;
+  const refusedOpen = "The store refused to open the board";
 
-    if (typeof given === "string") {
-      const refused = "The store refused to open the board";
-      if (hello === undefined) {
-        throw new StoreError(refused, ["The store opens a JSON board only once R has answered `hello`."]);
-      }
-      if (hello.lock !== null) {
-        throw new StoreError(refused, ["The board is locked, so it opens no other board."]);
-      }
-      reply = hello;
-      json = checkJsonBoard(parse(given));
-    } else {
-      reply = given;
+  // The JSON board given, with the reply to `hello` that the store opens it
+  // with: a reply's opening board with that reply, which the store keeps as
+  // its last, or a JSON board's text with the last reply, which a locked board
+  // opens none of.
+  function jsonOf(given: string | HelloReply): { json: JsonBoard; reply: HelloReply } {
+    if (typeof given !== "string") {
       hello = given;
       registry.value = given.block_registry;
       packages.value = given.packages;
-      json = checkJsonBoard(given.board);
+      return { json: checkJsonBoard(given.board), reply: given };
     }
+    if (hello === undefined) {
+      throw new StoreError(refusedOpen, ["The store opens a JSON board only once R has answered `hello`."]);
+    }
+    if (hello.lock !== null) {
+      throw new StoreError(refusedOpen, ["The board is locked, so it opens no other board."]);
+    }
+    return { json: checkJsonBoard(parse(given)), reply: hello };
+  }
 
-    await options.loaded?.(reply, json.board.class);
-
+  // The board that a JSON board opens to, as openJsonBoard() builds and
+  // migrates it, with the values of the board options that its class
+  // requires, whose defaults may have to wait, as one read from a blockr
+  // option asks R for it.
+  async function build(json: JsonBoard, reply: HelloReply): Promise<{ board: Board; built: Built; dropped: Dropped[] }> {
     guard();
     let opened: ReturnType<typeof openJsonBoard>;
     busy = true;
@@ -406,32 +440,59 @@ export function createStore(options: StoreOptions = {}): Store {
     } finally {
       busy = false;
     }
-
-    // The board options that its class requires, whose defaults may have to
-    // wait, as one read from a blockr option asks R for it.
     const values = await required(opened.board, opened.built, registrations);
+    const next: Board =
+      Object.keys(values).length === 0
+        ? opened.board
+        : { ...opened.board, options: { ...opened.board.options, ...values } };
+    return { board: next, built: opened.built, dropped: opened.dropped };
+  }
 
-    guard();
-    busy = true;
-    try {
-      const next: Board =
-        Object.keys(values).length === 0
-          ? opened.board
-          : { ...opened.board, options: { ...opened.board.options, ...values } };
+  function stillOpen(): void {
+    if (ended()) throw new StoreError(refusedOpen, [ENDED]);
+  }
 
-      board.value = next;
-      built = opened.built;
-      edits.clear();
-      const step = ++lastStep;
-      for (const key of everyTarget(next, opened.built)) edits.set(key, step);
-      history.value = new Map();
-      dropped = opened.dropped;
-
-      announce({ opened: next, dropped: opened.dropped }, next);
-      return opened.dropped;
-    } finally {
-      busy = false;
+  async function open(given: string | HelloReply): Promise<Dropped[]> {
+    stillOpen();
+    if (opening) {
+      throw new StoreError(refusedOpen, [
+        "The store holds a board or opens one already: a store opens one board, and core opens the next in a new store as it starts again.",
+      ]);
     }
+    opening = true;
+    try {
+      const { json, reply } = jsonOf(given);
+      await options.loaded?.(reply, json.board.class);
+      stillOpen();
+      const opened = await build(json, reply);
+      stillOpen();
+
+      guard();
+      busy = true;
+      try {
+        board.value = opened.board;
+        built = opened.built;
+        const step = ++lastStep;
+        for (const key of everyTarget(opened.board, opened.built)) edits.set(key, step);
+        dropped = opened.dropped;
+        announce({ opened: opened.board, dropped: opened.dropped }, opened.board);
+        return opened.dropped;
+      } finally {
+        busy = false;
+      }
+    } catch (error) {
+      // A board that the store refused leaves it free to open another.
+      opening = board.value !== undefined;
+      throw error;
+    }
+  }
+
+  async function checkText(text: string): Promise<Dropped[]> {
+    stillOpen();
+    const { json, reply } = jsonOf(text);
+    const opened = await build(json, reply);
+    stillOpen();
+    return opened.dropped;
   }
 
   function jsonBoard(): JsonBoard {
@@ -518,6 +579,8 @@ export function createStore(options: StoreOptions = {}): Store {
     hasBoard: () => board.value !== undefined,
     dropped: () => dropped,
     subscribe(fn) {
+      // An ended store announces nothing more.
+      if (ended()) return () => undefined;
       const wrapped = (change: Change, next: Board) => {
         fn(change, next);
       };
@@ -528,6 +591,7 @@ export function createStore(options: StoreOptions = {}): Store {
     },
     apply,
     open,
+    check: checkText,
     undo: (origin = "user") => {
       revert(origin, true);
     },

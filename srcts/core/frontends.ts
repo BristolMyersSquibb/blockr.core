@@ -1,16 +1,15 @@
-// Drawing front-ends in the page's element, as core switches the page to the
-// front-end of the class that each board it opens is built as
-// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#switching-front-ends):
-// - As the store opens a board, core imports the module of its front-end and
-//   ends the front-end on the page, whether it is another or the same. Ending
-//   it aborts its signal and runs the cleanup that its render() returned.
+// Drawing front-ends in the page's element, as core draws each board that it
+// opens with the front-end of the class that the board is built as
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#opening-a-board):
+// - As the store opens a board, core imports the module of its front-end.
 // - Once the board is open, core calls the front-end's render() with the
-//   element, CoreApi and the signal.
-// A front-end releases what it holds as its signal aborts. Core releases it
-// all the same: the CoreApi that a front-end gets keeps its demands,
-// subscriptions and mounts, and core releases them as the front-end ends, so
-// that nothing that a front-end kept of a board outlives the opening of
-// another, as a page that starts with that board would hold none of it.
+//   element, CoreApi and a signal, which aborts as the next board opens, since
+//   core starts again for that board.
+// - As the signal aborts, core runs the cleanup that render() returned, and the
+//   element says that the board is loading until the next front-end draws.
+// A front-end releases what it holds as its signal aborts, as a module does as
+// core unmounts it. Core ends what the front-end mounted with the same abort,
+// and drops the rest of what it ran for the board.
 
 import { attempt, ModuleError, moduleOf, showError } from "../mount/index.ts";
 import type { CoreApi } from "../types/core-api.ts";
@@ -26,8 +25,18 @@ interface FrontEndArgs {
 
 interface Drawn {
   readonly controller: AbortController;
-  readonly release: () => void;
+  readonly off: () => void;
   cleanup: (() => void) | undefined;
+}
+
+// What the element says while core starts, as the page starts and as another
+// board opens.
+export function loadingNote(): HTMLElement {
+  const box = document.createElement("div");
+  box.setAttribute("role", "status");
+  box.className = "bc:p-4 bc:font-sans bc:text-sm bc:text-text-muted";
+  box.textContent = "Loading the board…";
+  return box;
 }
 
 // The front-ends of the page, drawn in the element.
@@ -39,10 +48,10 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
     const current = drawn;
     if (current === undefined) return;
     drawn = undefined;
+    current.off();
     current.controller.abort();
-    current.release();
     if (current.cleanup !== undefined) attempt(current.cleanup);
-    el.replaceChildren();
+    el.replaceChildren(loadingNote());
   }
 
   return {
@@ -68,10 +77,10 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
       end();
       next = prepared;
     },
-    async render(core) {
+    async render(core, signal) {
       const prepared = next;
       next = undefined;
-      if (prepared === undefined) return;
+      if (prepared === undefined || signal.aborted) return;
       el.replaceChildren();
       if (prepared.render === undefined) {
         showError(
@@ -84,11 +93,20 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
         return;
       }
       const controller = new AbortController();
-      const scope = scoped(core);
-      const current: Drawn = { controller, release: scope.release, cleanup: undefined };
+      const ending = (): void => {
+        if (drawn === current) end();
+      };
+      signal.addEventListener("abort", ending, { once: true });
+      const current: Drawn = {
+        controller,
+        off: () => {
+          signal.removeEventListener("abort", ending);
+        },
+        cleanup: undefined,
+      };
       drawn = current;
       try {
-        const rendered = await prepared.render({ el, core: scope.core, signal: controller.signal });
+        const rendered = await prepared.render({ el, core, signal: controller.signal });
         if (typeof rendered !== "function") return;
         if (controller.signal.aborted) attempt(rendered);
         else current.cleanup = rendered;
@@ -100,52 +118,6 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
         showError(el, why.message);
         report(why);
       }
-    },
-  };
-}
-
-// The CoreApi that one front-end gets, which keeps what the front-end holds,
-// its demands, subscriptions and mounts, and releases them all at once.
-export function scoped(core: CoreApi): { core: CoreApi; release: () => void } {
-  const held = new Set<() => void>();
-  const keep = (release: () => void): (() => void) => {
-    const once = (): void => {
-      if (!held.delete(once)) return;
-      release();
-    };
-    held.add(once);
-    return once;
-  };
-
-  const scheduler: CoreApi["scheduler"] = {
-    ...core.scheduler,
-    demand(owner, blocks, options) {
-      const demand = core.scheduler.demand(owner, blocks, options);
-      const release = keep(() => {
-        demand.release();
-      });
-      return {
-        set: (next, given) => {
-          demand.set(next, given);
-        },
-        release,
-      };
-    },
-    subscribe: (fn) => keep(core.scheduler.subscribe(fn)),
-  };
-
-  return {
-    core: {
-      ...core,
-      store: { ...core.store, subscribe: (fn) => keep(core.store.subscribe(fn)) },
-      scheduler,
-      outputEvents: { subscribe: (fn) => keep(core.outputEvents.subscribe(fn)) },
-      mountBlock: (el, block) => keep(core.mountBlock(el, block)),
-      mountOutput: (el, block) => keep(core.mountOutput(el, block)),
-      mountOption: (el, option) => keep(core.mountOption(el, option)),
-    },
-    release() {
-      for (const release of [...held]) attempt(release);
     },
   };
 }

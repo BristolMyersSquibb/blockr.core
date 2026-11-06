@@ -10,7 +10,8 @@
 // - It keeps each block's status from R's replies.
 //
 // There is one scheduler per board. Core creates it beside the store and hands
-// it to front-ends and extensions through `CoreApi`.
+// it to front-ends and extensions through `CoreApi`, and ends it as another
+// board opens, which core opens with a scheduler of its own.
 //
 // What the scheduler knows sits in signals. They change only in its passes and
 // in its handlers of what happens, such as a change to the board, a reply from
@@ -64,8 +65,8 @@ export interface Scheduler {
   // without keeping them so. It resolves with each block's status by id once
   // none of the blocks reads stale or unevaluated, at whatever revision each
   // has by then. A block that leaves the board meanwhile is left out. The
-  // evaluation rejects once it is left with no block, or when another board
-  // opens. It stops once the signal aborts.
+  // evaluation rejects once it is left with no block, or when the scheduler
+  // ends as another board opens. It stops once the signal aborts.
   //
   // With parameters, it evaluates each block once, whether the block is stale
   // or not. R passes the parameters to the block's block_eval() method. Each
@@ -96,11 +97,12 @@ export interface Scheduler {
   // When the session ends before R replies, it sends an output, an output
   // class's request and a block class's request to the next session again. It
   // rejects an action, a board option's request and one of a type that a
-  // package adds with the SessionEndedError, since they may have run. A reply
-  // of `missing` goes back to the caller. The caller asks again once the
-  // blocks are evaluated at their current revisions. Only a fault in R makes R
-  // lack a result that reads ready at the block's current revision. The
-  // scheduler then invalidates that block first.
+  // package adds with the SessionEndedError, since they may have run. Once the
+  // scheduler has ended, it rejects every request. A reply of `missing` goes
+  // back to the caller. The caller asks again once the blocks are evaluated at
+  // their current revisions. Only a fault in R makes R lack a result that reads
+  // ready at the block's current revision. The scheduler then invalidates that
+  // block first.
   request(
     request: Extract<Parameters<Client["request"]>[0], { kind: "request" | "output" }>,
     options?: RequestOptions,
@@ -114,8 +116,8 @@ export interface Scheduler {
   // Lets the scheduler send evaluations. It holds them from its creation until
   // then. Core calls it once the front-end's render() has returned.
   start(): void;
-  // Holds evaluations again until start(), as while the page switches to
-  // another front-end.
+  // Holds evaluations again until start(), as while the page switches the
+  // board's front-end alone, in place.
   hold(): void;
   // Hears that R answered the hello of a new session. That session holds no
   // results, so every block gets a new revision. Every block then reads stale
@@ -155,9 +157,17 @@ export interface SchedulerOptions {
   // has the scheduler demand every block.
   readonly gateVisibility?: boolean;
   // The inputs that R binds itself, for a block that `serve()` serves alone,
-  // from R's reply to hello. They count as linked on the board R sent, until
-  // another board opens.
+  // from R's reply to hello. They count as linked on the board R sent.
   readonly bound?: readonly string[];
+  // Gives the next revision, from one count for the page, so that the
+  // scheduler that core starts as another board opens gives a block id a
+  // revision above any it had. A count of the scheduler's own unless given.
+  readonly nextRevision?: () => number;
+  // Ends the scheduler as it aborts, as another board opens: it sends R
+  // nothing more, rejects every one-time evaluation and every request, and
+  // tells its subscribers nothing more, while the replies to what it sent
+  // count for nothing.
+  readonly signal?: AbortSignal;
 }
 
 // The client's request() of an output or a request.
@@ -255,9 +265,12 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   // scheduler sends. So the ids of what it sends go up in the order it sends
   // them.
   let ids = 0;
-  const count = counter();
-  // What stopped the scheduler, such as running out of revisions.
+  const count = options.nextRevision ?? counter();
+  // What stopped the scheduler, such as running out of revisions, or its end
+  // as another board opens.
   let stopped: unknown;
+  const ended = (): boolean => options.signal?.aborted === true;
+  const endedError = (): Error => new Error("Another board opened.");
   // Since when R has had nothing else to run than evaluations below 0, as the
   // last pass found.
   let idleSince: number | undefined;
@@ -277,33 +290,13 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
 
   // Following the board
 
-  // A board that opens holds no result in R, since the scheduler has R forget
-  // every block of the board it replaces. So every block of it reads
-  // unevaluated, with a revision above any its id had.
-  // Every one-time evaluation rejects, and the replies to the evaluations sent
-  // count for nothing.
+  // The board that the store opens holds no result in R, since R's session
+  // starts afresh with the `hello` with which core starts for that board. So
+  // every block of it reads unevaluated, with a revision above any its id had
+  // on the page.
   const opened = action((next: Board) => {
-    const before = board.value;
-    if (before !== undefined) {
-      const old = Object.keys(before.blocks);
-      // This forget also clears what an evaluation sent since may have left in
-      // R.
-      if (old.length > 0) client.forget(old);
-      bound.value = new Set();
-    }
-
-    sent.value = new Map(
-      [...sent.value].map(([id, evaluation]) => [id, { ...evaluation, orphaned: true }]),
-    );
-    const error = new Error("Another board opened.");
-    update({
-      oneTimes: new Map(),
-      settled: [...oneTimes.value.keys()].map((id) => [id, { error }]),
-    });
-
     registry.value = store.blockRegistry();
     board.value = next;
-    outcomes.value = new Map();
     revisions.value = opening(graph.value, revision);
   });
 
@@ -405,7 +398,6 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
       oneTime: oneTime === undefined ? undefined : { id: oneTime.id, priority: oneTime.priority },
       background: item.background === true,
       cancelled: false,
-      orphaned: false,
     });
     if (oneTime !== undefined) {
       oneTimes.value = evaluations.sent(oneTimes.value, oneTime.id, item.block, { id, recipe });
@@ -459,7 +451,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   // evaluation with parameters goes to that one-time evaluation too.
   const answered = action((id: number, reply: Reply) => {
     const evaluation = done(id);
-    if (evaluation === undefined || evaluation.orphaned) return;
+    if (evaluation === undefined || ended()) return;
     if (reply.status === "missing") lacking(reply.missing);
 
     const outcome = outcomeOf(reply, evaluation.revision);
@@ -490,7 +482,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   // it, the block fails with why, rather than being sent again and again.
   const unanswered = action((id: number, error: unknown) => {
     const evaluation = done(id);
-    if (evaluation === undefined || evaluation.orphaned) return;
+    if (evaluation === undefined || ended()) return;
     if (evaluation.oneTime !== undefined) {
       end(evaluation.oneTime.id, { error });
     } else if (
@@ -613,7 +605,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   // without parameters whose blocks are current settle, and the subscribers
   // hear which statuses changed. A pass is due, unless what the scheduler
   // knows is what the last pass left.
-  effect(() => {
+  const dispose = effect(() => {
     const now = statuses.value;
     const settled = evaluations.settle(oneTimes.value, now);
     if (settled.settled.length > 0) {
@@ -639,10 +631,27 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     if (state.value !== planned) schedule();
   });
 
-  store.subscribe((change, next) => {
+  const offStore = store.subscribe((change, next) => {
     if ("opened" in change || board.peek() === undefined) opened(next);
     else applied(change.delta, next);
   });
+
+  // The end, as another board opens: the scheduler stops following the board
+  // and planning, tells its subscribers nothing more, and rejects every
+  // one-time evaluation.
+  function stop(): void {
+    stopped = endedError();
+    if (passTimer !== undefined) clearTimeout(passTimer);
+    passTimer = undefined;
+    wake(undefined);
+    dispose();
+    offStore();
+    subscribers.clear();
+    const error = endedError();
+    update({ oneTimes: new Map(), settled: [...oneTimes.peek().keys()].map((id) => [id, { error }]) });
+  }
+  if (ended()) stop();
+  else options.signal?.addEventListener("abort", stop, { once: true });
 
   return {
     demand: action((owner, blocks, { priority } = {}) => {
@@ -666,6 +675,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     }),
 
     evaluate: action((blocks, params, { priority, signal: abort } = {}) => {
+      if (ended()) return Promise.reject(endedError());
       const at = priority ?? 0;
       const invalid = priorityError(at);
       if (invalid !== undefined) return Promise.reject(invalid);
@@ -711,6 +721,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
 
     async request(request, requestOptions = {}) {
       for (;;) {
+        if (ended()) throw endedError();
         const id = ++ids;
         asked.value = new Map(asked.peek()).set(id, { id, at: Date.now() });
         try {
@@ -718,7 +729,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
           if (result.reply.status === "missing") lacking(result.reply.missing);
           return result;
         } catch (error) {
-          if (error instanceof SessionEndedError && resendable(request)) continue;
+          if (error instanceof SessionEndedError && resendable(request) && !ended()) continue;
           throw error;
         } finally {
           const rest = new Map(asked.peek());
@@ -745,13 +756,9 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
 }
 
 // The blocks that R is evaluating: those of the evaluations sent and not yet
-// answered, except those sent before another board opened.
+// answered.
 function running(sent: ReadonlyMap<number, Sent>): Set<BlockId> {
-  const blocks = new Set<BlockId>();
-  for (const evaluation of sent.values()) {
-    if (!evaluation.orphaned) blocks.add(evaluation.block);
-  }
-  return blocks;
+  return new Set([...sent.values()].map((evaluation) => evaluation.block));
 }
 
 // The blocks whose status is another object than before, in the order of the

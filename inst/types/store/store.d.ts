@@ -18,6 +18,7 @@ export interface Store {
     subscribe(fn: (change: Change, board: Board) => void): () => void;
     apply(delta: Delta | readonly Delta[], origin?: Origin): void;
     open(given: string | HelloReply): Promise<Dropped[]>;
+    check(text: string): Promise<Dropped[]>;
     jsonBoard(): JsonBoard;
     save(): string;
     undo(origin?: Origin): void;
@@ -39,6 +40,8 @@ export interface Store {
     }): number | undefined;
 }
 export interface StoreOptions {
+    readonly hello?: HelloReply;
     readonly loaded?: (reply: HelloReply, classes: readonly string[]) => void | Promise<void>;
+    readonly signal?: AbortSignal;
 }
 export declare function createStore(options?: StoreOptions): Store;

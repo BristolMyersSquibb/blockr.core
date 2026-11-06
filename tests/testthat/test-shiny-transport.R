@@ -559,6 +559,128 @@ test_that("a request whose body is no object goes as it is", {
   )
 })
 
+test_that("a later hello drops the bodies posted and those still to fetch", {
+
+  big <- as.raw(rep(0:255, length.out = 2^20 + 1))
+  got <- list()
+
+  # A handler that answers a request with a body that R serves from a URL.
+  handler <- function(message, send) {
+
+    got[[length(got) + 1L]] <<- message
+
+    if (length(message) && identical(message[[1L]][["kind"]], "request")) {
+
+      req <- message[[1L]]
+
+      send(
+        list(
+          list(
+            id = req[["id"]],
+            status = "ok",
+            body = new_reply_body(big, "application/octet-stream")
+          )
+        )
+      )
+    }
+  }
+
+  hello <- function(id) {
+    paste0(
+      '[{"id": "', id, '", "kind": "hello", "protocol": "1.0",',
+      ' "capabilities": []}]'
+    )
+  }
+
+  upload <- function(id) {
+    paste0(
+      '[{"id": "', id, '", "kind": "request", "name": "upload",',
+      ' "body": {"type": "image/png"}}]'
+    )
+  }
+
+  with_transport(
+    handler,
+    {
+
+      session$setInputs(blockr = hello("1"))
+
+      transport_post(session, "2", as.raw(1:4))
+      session$setInputs(blockr = upload("2"))
+
+      datapath <- got[[2L]][[1L]][["body"]][["datapath"]]
+
+      expect_true(file.exists(datapath))
+      expect_identical(
+        transport_http(session, "blockr-body-2")[["status"]],
+        200L
+      )
+
+      # A body posted for a request that the client sends after the hello.
+      transport_post(session, "3", as.raw(5:8))
+
+      session$setInputs(blockr = hello("4"))
+
+      # The handler hears the hello once the bodies are gone.
+      expect_identical(got[[3L]][[1L]][["kind"]], "hello")
+      expect_false(file.exists(datapath))
+      expect_length(
+        list.files(dirname(datapath), all.files = TRUE, no.. = TRUE),
+        0L
+      )
+
+      res <- transport_http(session, "blockr-body-2")
+      expect_identical(res[["status"]], 404L)
+      expect_identical(
+        session$data_objs[["blockr-body-2"]][["filter"]],
+        body_gone
+      )
+
+      session$setInputs(blockr = upload("3"))
+
+      reply <- decode_message(utils::tail(transport_sent(session), 1L))[[1L]]
+
+      expect_identical(reply[["id"]], "3")
+      expect_identical(reply[["status"]], "error")
+
+      # The handler gets the message without the request.
+      expect_identical(got[[4L]], list())
+    }
+  )
+})
+
+test_that("a body that the client deleted is none that a hello drops", {
+
+  served <- new.env(parent = emptyenv())
+
+  with_transport(
+    function(message, send) NULL,
+    {
+
+      send_message(
+        list(
+          list(
+            id = "5",
+            status = "ok",
+            body = new_reply_body(
+              as.raw(rep(1L, 2^20 + 1)),
+              "application/octet-stream"
+            )
+          )
+        ),
+        session,
+        served = served
+      )
+
+      expect_identical(ls(served), "blockr-body-5")
+
+      transport_http(session, "blockr-body-5", "DELETE")
+
+      expect_identical(ls(served), character())
+    }
+  )
+})
+
 test_that("the transport takes posted bodies that name their request alone", {
 
   with_transport(

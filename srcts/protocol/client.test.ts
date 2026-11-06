@@ -409,6 +409,117 @@ describe("a session that ends", () => {
   });
 });
 
+describe("another hello in the session", () => {
+  test("gives up what waits on R and what the client holds, and holds what comes until R answers it", async () => {
+    const t = setup();
+    ready(t);
+    const waiting = t.client.request(echo);
+    const waitingId = idOf(t.sent, "request");
+    const firstHello = idOf(t.sent, "hello");
+
+    t.client.hello();
+    const held = t.client.request(evaluate);
+
+    await expect(waiting).rejects.toBeInstanceOf(SessionEndedError);
+    expect(t.messages().at(-1)).toEqual([
+      { id: idOf(t.sent, "hello"), kind: "hello", protocol: "1.0", capabilities: ["cancel", "progress"] },
+    ]);
+    expect(idOf(t.sent, "hello")).not.toBe(firstHello);
+    expect([...t.client.capabilities()]).toEqual([]);
+
+    // What R replies to a request before the hello, such as cancelled to one
+    // that the hello drops, is ignored.
+    t.receive({ id: waitingId, status: "cancelled" });
+    expect(t.sent).toHaveLength(3);
+
+    t.receive({ ...helloReply, id: idOf(t.sent, "hello") });
+    await settle();
+    expect(t.sessions).toHaveLength(2);
+    expect(t.messages().at(-1)).toEqual([{ ...evaluate, id: idOf(t.sent, "evaluate") }]);
+
+    t.receive({ ...okReply, id: idOf(t.sent, "evaluate") });
+    expect((await held).reply.status).toBe("ok");
+  });
+
+  test("gives up what the client holds for a session whose hello R has not answered", async () => {
+    const t = setup();
+    t.start();
+    const held = t.client.request(echo);
+    t.client.forget(["z"]);
+
+    t.client.hello();
+    await expect(held).rejects.toBeInstanceOf(SessionEndedError);
+
+    t.receive({ ...helloReply, id: idOf(t.sent, "hello") });
+    await settle();
+    expect(t.sessions).toHaveLength(1);
+    expect(t.messages().map((message) => message.map((m) => m.kind))).toEqual([["hello"], ["hello"]]);
+  });
+
+  test("goes once the message whose body the transport is sending has gone, so that R hears it first", async () => {
+    const t = setup();
+    ready(t);
+    let sendBody: () => void = () => undefined;
+    const send = t.fake.send.bind(t.fake);
+    t.fake.send = (message, bodies) =>
+      bodies.size === 0
+        ? send(message, bodies)
+        : new Promise((resolve) => {
+            sendBody = () => {
+              resolve(send(message, bodies));
+            };
+          });
+
+    const upload = t.client.request(echo, { body: new Blob(["x"]) });
+    t.client.hello();
+    await expect(upload).rejects.toBeInstanceOf(SessionEndedError);
+    expect(t.messages().map((message) => message.map((m) => m.kind))).toEqual([["hello"]]);
+
+    sendBody();
+    await settle();
+    expect(t.messages().map((message) => message.map((m) => m.kind))).toEqual([["hello"], ["request"], ["hello"]]);
+  });
+
+  test("goes nowhere where its session ends first, and the next session sends its own", async () => {
+    const t = setup();
+    ready(t);
+    let sendBody: () => void = () => undefined;
+    const send = t.fake.send.bind(t.fake);
+    t.fake.send = (message, bodies) =>
+      bodies.size === 0
+        ? send(message, bodies)
+        : new Promise((resolve) => {
+            sendBody = () => {
+              resolve(send(message, bodies));
+            };
+          });
+
+    void t.client.request(echo, { body: new Blob(["x"]) }).catch(() => undefined);
+    t.client.hello();
+    t.end();
+    sendBody();
+    await settle();
+    expect(t.messages().map((message) => message.map((m) => m.kind))).toEqual([["hello"], ["request"]]);
+
+    t.start();
+    expect(t.messages().map((message) => message.map((m) => m.kind))).toEqual([["hello"], ["request"], ["hello"]]);
+  });
+
+  test("sends nothing where no session runs, as the next session sends its hello as it starts", async () => {
+    const t = setup();
+    ready(t);
+    t.end();
+    const held = t.client.request(echo);
+
+    t.client.hello();
+    await expect(held).rejects.toBeInstanceOf(SessionEndedError);
+    expect(t.sent).toHaveLength(1);
+
+    t.start();
+    expect(t.messages().map((message) => message.map((m) => m.kind))).toEqual([["hello"], ["hello"]]);
+  });
+});
+
 describe("a request given up", () => {
   test("before it was sent ends cancelled, sending nothing", async () => {
     const t = setup();

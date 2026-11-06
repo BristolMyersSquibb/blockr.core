@@ -56,11 +56,12 @@ export const coreOptions: readonly Option[] = [
 ];
 
 // A store with core's board options that has opened the board of the reply to
-// `hello`, once `setup` has registered what a test needs.
-export async function openedStore(setup?: (store: Store) => void): Promise<Store> {
+// `hello`, that of the fixture hello unless given, once `setup` has registered
+// what a test needs.
+export async function openedStore(setup?: (store: Store) => void, replied: HelloReply = hello): Promise<Store> {
   const store = createStore();
   for (const option of coreOptions) store.options.register(option);
   setup?.(store);
-  await store.open(hello);
+  await store.open(replied);
   return store;
 }

@@ -9,7 +9,7 @@ export interface FrontEnds {
     } | {
         readonly error: Error;
     }, loader: Loader): Promise<void>;
-    render(core: CoreApi): Promise<void>;
+    render(core: CoreApi, signal: AbortSignal): Promise<void>;
 }
 export interface Changed {
     readonly package: string;
@@ -27,6 +27,7 @@ export interface StartOptions {
 }
 export interface Started {
     readonly ready: Promise<CoreApi>;
+    core(): CoreApi | undefined;
     stop(): void;
 }
 export declare function start(options: StartOptions): Started;

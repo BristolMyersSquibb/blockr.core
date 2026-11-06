@@ -58,6 +58,12 @@ function playedR() {
       const asked = last("hello");
       heard().received({ ...reply, id: asked.id ?? "" }, null);
     },
+    // Answers the latest hello with the reply given, as R answers the hello
+    // with which core starts again in the session.
+    answer(reply: HelloReply = hello): void {
+      const asked = last("hello");
+      heard().received({ ...reply, id: asked.id ?? "" }, null);
+    },
     // Answers the latest blockr options request.
     options(values: Readonly<Record<string, number | string | boolean | null>> = {}): void {
       const asked = last("blockr_options");
@@ -345,100 +351,293 @@ describe("a board opened later", () => {
     },
   };
   const dockBoard = JSON.stringify({ ...hello.board, board: { ...hello.board.board, id: "dock_one", class: ["dock_board", "board"], name: "Docked" } });
+  const named = (name: string): string => JSON.stringify({ ...hello.board, board: { ...hello.board.board, name } });
 
-  test("switches the page to the front-end of its class, ending the one on the page first", async () => {
-    const basic = frontEnd();
-    const dock = frontEnd();
-    const s = setup({ "blockr.dock/startup.js?v=1": dockStartup, [BASIC]: basic.exports, [DOCK]: dock.exports });
-    s.r.session(docked);
+  // Starts the page on the reply given, whose blockr options R holds none of.
+  async function started(modules: Readonly<Record<string, unknown>>, reply: HelloReply = hello, given: Partial<StartOptions> = {}) {
+    const s = setup(modules, given);
+    s.r.session(reply);
     await tick();
     s.r.options();
     const core = await s.started.ready;
+    return { ...s, core };
+  }
 
-    await core.store.open(dockBoard);
+  // Opens the board through the store's open(), and answers the hello with
+  // which core starts again.
+  async function reopen(s: Setup, core: CoreApi, text: string, reply: HelloReply = hello): Promise<unknown> {
+    const opening = core.store.open(text);
+    await tick();
+    s.r.answer(reply);
+    return opening;
+  }
+
+  test("is checked by the store on the page first, so that a board it refuses leaves the page as it was, with the reason", async () => {
+    const basic = frontEnd();
+    const s = await started({ [BASIC]: basic.exports });
+    const sent = s.r.sent.length;
+
+    await expect(s.core.store.open("{")).rejects.toThrow("The store refused to open the board\n- The text holds no JSON");
+    s.core.store.register({ class: "strict_board", parent: "board", options: ["nowhere"], properties: {} });
+    const strict = JSON.stringify({ ...hello.board, board: { ...hello.board.board, class: ["strict_board", "board"] } });
+    await expect(s.core.store.open(strict)).rejects.toThrow('requires the board option "nowhere", which no loaded package defines');
+
+    expect(s.r.sent.slice(sent)).toEqual([]);
+    expect(basic.renders).toHaveLength(1);
+    expect(basic.renders[0]?.signal.aborted).toBe(false);
+    expect(s.el.textContent).toBe("Iris review");
+    expect(s.started.core()).toBe(s.core);
+    s.core.store.apply({ name: "Still open" });
+    expect(s.core.store.board().name).toBe("Still open");
+  });
+
+  test("ends everything core ran for the board with one abort, and starts core again as the page starts, once R has answered another hello", async () => {
+    const events: string[] = [];
+    const initialized: { core: CoreApi; signal: AbortSignal }[] = [];
+    const session = {
+      api: 1,
+      default: {
+        initialize({ core, signal }: { core: CoreApi; signal: AbortSignal }) {
+          events.push(`blockr.session starts, board open: ${String(core.store.hasBoard())}`);
+          initialized.push({ core, signal });
+          signal.addEventListener("abort", () => events.push("blockr.session ends"));
+        },
+      },
+    };
+    const drawn = gate();
+    const hold: { wait?: Promise<void> } = {};
+    const renders: { core: CoreApi; signal: AbortSignal }[] = [];
+    const front = {
+      api: 1,
+      default: {
+        async render({ el, core, signal }: { el: HTMLElement; core: CoreApi; signal: AbortSignal }) {
+          renders.push({ core, signal });
+          signal.addEventListener("abort", () => events.push("the front-end ends"));
+          core.scheduler.demand("front-end", (board) => Object.keys(board.blocks));
+          el.textContent = core.store.board().name;
+          await hold.wait;
+          return () => events.push("the front-end cleans up");
+        },
+      },
+    };
+    const s = await started({ "blockr.session/startup.js?v=1": session, [BASIC]: front }, withStartup("blockr.session"));
+    await s.r.evaluateAll();
+    const top = Math.max(...Object.keys(s.core.store.board().blocks).map((id) => s.core.scheduler.status(id)?.revision ?? 0));
+    const sent = s.r.sent.length;
+
+    hold.wait = drawn.opened;
+    const opening = s.core.store.open(named("Opened"));
+    await tick();
+
+    // One abort ended what core ran for the board, and core waits for R to
+    // answer the hello with which it starts again.
+    expect([...events].sort()).toEqual(
+      ["blockr.session starts, board open: false", "blockr.session ends", "the front-end ends", "the front-end cleans up"].sort(),
+    );
+    expect(s.r.sent.slice(sent).map((request) => request.kind)).toEqual(["hello"]);
+    expect(s.started.core()).toBeUndefined();
+    expect(s.el.textContent).toBe("Loading the board…");
+    expect(() => {
+      s.core.store.apply({ name: "Late" });
+    }).toThrow("Another board opened in a new store, so this store changes its board no more.");
+
+    s.r.answer(withStartup("blockr.session"));
+    await tick(100);
+    const next = s.started.core();
+    expect(next).toBeDefined();
+    expect(next).not.toBe(s.core);
+    expect(next?.store).not.toBe(s.core.store);
+    expect(next?.store.board().name).toBe("Opened");
+    expect(next?.store.canUndo()).toBe(false);
+    expect(initialized.map((entry) => entry.core)).toEqual([s.core, next]);
+    expect(initialized[1]?.signal.aborted).toBe(false);
+    expect(renders.map((entry) => entry.core)).toEqual([s.core, next]);
+    expect(s.el.textContent).toBe("Opened");
+    // The scheduler holds its evaluations until render() has resolved.
+    expect(s.r.sent.slice(sent).map((request) => request.kind)).toEqual(["hello"]);
+
+    drawn.open();
+    expect(await opening).toEqual([]);
+    await tick(100);
+    const evaluated = s.r.evaluations().filter((request) => s.r.sent.indexOf(request) >= sent);
+    expect(evaluated.length).toBeGreaterThan(0);
+    // Every revision of the board that opened is above any the page gave, and
+    // R forgets nothing, since the hello dropped every result.
+    for (const request of evaluated) expect(request.revision).toBeGreaterThan(top);
+    expect(s.r.kinds()).not.toContain("forget");
+  });
+
+  test("finds nothing of the board before: no demand, subscription or mount that its front-end or a startup module made", async () => {
+    const heard: string[] = [];
+    const mounted: AbortSignal[] = [];
+    let initialized = 0;
+    const session = {
+      api: 1,
+      default: {
+        initialize({ core }: { core: CoreApi }) {
+          const at = ++initialized;
+          core.store.subscribe(() => heard.push(`startup module ${String(at)} hears the store`));
+          core.scheduler.subscribe(() => heard.push(`startup module ${String(at)} hears the scheduler`));
+          // As the page starts, it demands c, which nothing demands later.
+          if (at === 1) core.scheduler.demand("blockr.session", ["c"]);
+        },
+      },
+    };
+    let renders = 0;
+    const front = {
+      api: 1,
+      default: {
+        render({ el, core }: { el: HTMLElement; core: CoreApi }) {
+          const at = ++renders;
+          core.store.subscribe(() => heard.push(`front-end ${String(at)} hears the store`));
+          core.scheduler.subscribe(() => heard.push(`front-end ${String(at)} hears the scheduler`));
+          core.scheduler.demand("front-end", at === 1 ? ["b"] : ["a"]);
+          const card = document.createElement("div");
+          el.append(card);
+          core.mountBlock(card, "b");
+        },
+      },
+    };
+    const head = {
+      api: 1,
+      default: {
+        render({ signal }: { signal: AbortSignal }) {
+          mounted.push(signal);
+        },
+      },
+    };
+    const s = await started(
+      { "blockr.session/startup.js?v=1": session, [BASIC]: front, "blockr.core/head-block.js?v=9a41f2c7": head },
+      withStartup("blockr.session"),
+    );
+    await s.r.evaluateAll();
+    expect(new Set(s.r.evaluations().map((request) => request.block))).toEqual(new Set(["a", "b", "c"]));
+    expect(mounted).toHaveLength(1);
+
+    await reopen(s, s.core, named("Opened"), withStartup("blockr.session"));
+    const sent = s.r.sent.length;
+    await s.r.evaluateAll();
+    const next = s.started.core();
+    heard.length = 0;
+    next?.store.apply({ blocks: { mod: { a: { name: "Renamed" } } } });
+    next?.scheduler.invalidate("a");
+    await tick(100);
+
+    // What the first front-end and the first startup module held heard
+    // nothing, and demanded nothing of the board that opened.
+    expect([...new Set(heard)].sort()).toEqual([
+      "front-end 2 hears the scheduler",
+      "front-end 2 hears the store",
+      "startup module 2 hears the scheduler",
+      "startup module 2 hears the store",
+    ]);
+    expect(new Set(s.r.evaluations().filter((request) => s.r.sent.indexOf(request) >= sent).map((request) => request.block))).toEqual(
+      new Set(["a"]),
+    );
+    expect(mounted).toHaveLength(2);
+    expect(mounted[0]?.aborted).toBe(true);
+    expect(mounted[1]?.aborted).toBe(false);
+    // R answered the hello with which core started again, and the page sent
+    // two hellos in one session.
+    expect(s.r.kinds().filter((kind) => kind === "hello")).toHaveLength(2);
+  });
+
+  test("switches the page to the front-end of its class", async () => {
+    const basic = frontEnd();
+    const dock = frontEnd();
+    const s = await started({ "blockr.dock/startup.js?v=1": dockStartup, [BASIC]: basic.exports, [DOCK]: dock.exports }, docked);
+
+    await reopen(s, s.core, dockBoard, docked);
 
     expect(basic.renders[0]?.signal.aborted).toBe(true);
     expect(basic.cleanups()).toBe(1);
     expect(dock.renders).toHaveLength(1);
     expect(s.el.textContent).toBe("Docked");
+
+    // A board of core's class opened in a dock app is drawn by core's basic
+    // front-end, which starts again.
+    await reopen(s, s.started.core() ?? s.core, named("Basic again"), docked);
+    expect(dock.renders[0]?.signal.aborted).toBe(true);
+    expect(basic.renders).toHaveLength(2);
+    expect(s.el.textContent).toBe("Basic again");
   });
 
-  test("starts the front-end again where it is the page's already, and holds the scheduler until render() has resolved", async () => {
-    const drawn = gate();
-    // What render() waits on, nothing as the page starts.
-    const hold: { wait?: Promise<void> } = {};
-    const renders: AbortSignal[] = [];
-    const exports = {
+  test("opens no board through the store of a board before, and opens them one at a time", async () => {
+    const basic = frontEnd();
+    const s = await started({ [BASIC]: basic.exports });
+
+    const first = s.core.store.open(named("First"));
+    const second = s.core.store.open(named("Second"));
+    await tick();
+    s.r.answer();
+    await first;
+    await expect(second).rejects.toThrow("Another board opened since, so this store opens no board.");
+    expect(s.started.core()?.store.board().name).toBe("First");
+    expect(s.r.kinds().filter((kind) => kind === "hello")).toHaveLength(2);
+  });
+
+  test("that fails to open after all opens the board before in the new store, and open() rejects with the reason", async () => {
+    // A startup module that registers the board option its class requires as
+    // the page starts only, so that the board checks as the page holds it but
+    // fails to open as core starts again.
+    let initialized = 0;
+    const strict = {
       api: 1,
       default: {
-        async render({ core, signal }: { el: HTMLElement; core: CoreApi; signal: AbortSignal }) {
-          renders.push(signal);
-          core.scheduler.demand("front-end", (board) => Object.keys(board.blocks));
-          await hold.wait;
+        initialize({ core }: { core: CoreApi }) {
+          core.store.register({ class: "strict_board", parent: "board", options: ["zoom"], properties: {} });
+          if (++initialized === 1) {
+            core.options.register({ id: "zoom", label: "Zoom", category: "View", schema: { type: "number" }, default: 1, ui: { render: () => undefined } });
+          }
         },
       },
     };
-    const s = setup({ [BASIC]: exports });
-    s.r.session();
-    await tick();
-    s.r.options();
-    const core = await s.started.ready;
-    await s.r.evaluateAll();
-    const before = s.r.evaluations().length;
-
-    hold.wait = drawn.opened;
-    const opening = core.store.open(JSON.stringify(hello.board));
-    await tick(100);
-    expect(renders).toHaveLength(2);
-    expect(renders[0]?.aborted).toBe(true);
-    expect(renders[1]?.aborted).toBe(false);
-    expect(s.r.evaluations()).toHaveLength(before);
-
-    drawn.open();
-    await opening;
-    await tick(100);
-    expect(s.r.evaluations().length).toBeGreaterThan(before);
-  });
-
-  test("that fails to open leaves the board the store holds drawn by its front-end", async () => {
     const basic = frontEnd();
-    const s = setup({ [BASIC]: basic.exports });
-    s.r.session();
-    await tick();
-    s.r.options();
-    const core = await s.started.ready;
+    const s = await started({ "blockr.strict/startup.js?v=1": strict, [BASIC]: basic.exports }, withStartup("blockr.strict"));
+    s.core.store.apply({ name: "Kept" });
+    const board = JSON.stringify({ ...hello.board, board: { ...hello.board.board, class: ["strict_board", "board"] } });
 
-    // A board of a class that requires a board option no package registers
-    // fails once the front-end is imported.
     const reported = reports();
-    core.store.register({ class: "strict_board", parent: "board", options: ["nowhere"], properties: {} });
-    const strict = JSON.stringify({ ...hello.board, board: { ...hello.board.board, class: ["strict_board", "board"] } });
-    await expect(core.store.open(strict)).rejects.toThrow("no loaded package defines");
+    const opening = reopen(s, s.core, board, withStartup("blockr.strict"));
+    await expect(opening).rejects.toThrow('requires the board option "zoom", which no loaded package defines');
     reported.restore();
 
+    expect(s.started.core()?.store.board().name).toBe("Kept");
     expect(basic.renders).toHaveLength(2);
     expect(basic.renders[1]?.signal.aborted).toBe(false);
-    expect(s.el.textContent).toBe("Iris review");
+    expect(s.el.textContent).toBe("Kept");
   });
 
-  test("releases what the front-end held of the board before: its demands and its mounts", async () => {
-    const basic = frontEnd();
-    const s = setup({ [BASIC]: basic.exports });
-    s.r.session();
+  test("shows why where R refuses the hello with which core starts again", async () => {
+    let failed: Error | undefined;
+    const s = await started({ [BASIC]: frontEnd().exports }, hello, { fail: (error) => (failed = error) });
+
+    const opening = s.core.store.open(named("Opened"));
     await tick();
-    s.r.options();
-    const core = await s.started.ready;
-    const scoped = basic.renders[0]?.core;
-    const heard: string[] = [];
-    scoped?.store.subscribe(() => {
-      heard.push("store");
-    });
+    s.r.answer({ ...hello, protocol: "2.0" });
+    await expect(opening).rejects.toThrow("R speaks version 2.0 of the wire protocol");
+    expect(failed?.message).toContain("Reload the page");
+    expect(s.started.core()).toBeUndefined();
+  });
 
-    await core.store.open(JSON.stringify(hello.board));
-    core.store.apply({ name: "Renamed" });
+  test("ignores a board that a startup module names as it opens, since only one that runs as the page starts names one", async () => {
+    const session = {
+      api: 1,
+      default: {
+        initialize: () => named("From the URL"),
+      },
+    };
+    const s = await started({ "blockr.session/startup.js?v=1": session, [BASIC]: frontEnd().exports }, withStartup("blockr.session"));
+    expect(s.core.store.board().name).toBe("From the URL");
 
-    // The first front-end hears nothing of the board that replaced its own.
-    expect(heard).toEqual([]);
+    const reported = reports();
+    await reopen(s, s.core, named("Opened"), withStartup("blockr.session"));
+    reported.restore();
+
+    expect(s.started.core()?.store.board().name).toBe("Opened");
+    expect(reported.errors().map((error) => (error as Error).message)).toContain(
+      "The startup module of blockr.session named a board to open as another board opened, which core ignores, since only a startup module that runs as the page starts names one.",
+    );
   });
 });
 

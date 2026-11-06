@@ -61,7 +61,6 @@ function sent(block: BlockId, fields: Partial<Sent> = {}): Sent {
     oneTime: undefined,
     background: false,
     cancelled: false,
-    orphaned: false,
     ...fields,
   };
 }

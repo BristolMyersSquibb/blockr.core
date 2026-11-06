@@ -296,8 +296,10 @@ describe("preparing", () => {
     expect(run).not.toHaveBeenCalled();
   });
 
-  test("drops a command still in its prepare() when a board opens", async () => {
-    const { store, commands } = await setup();
+  test("drops a command still in its prepare() as another board opens, and runs none after", async () => {
+    const store = await openedStore();
+    const controller = new AbortController();
+    const commands = createCommands(store, { signal: controller.signal });
     const ready = Promise.withResolvers<null>();
     const run = vi.fn(() => ({ name: "Never" }));
     commands.register<Json, null>({
@@ -308,11 +310,16 @@ describe("preparing", () => {
     });
 
     const done = commands.run("test.pkg-later");
-    await store.open(hello);
+    controller.abort();
     ready.resolve(null);
 
     await expect(done).rejects.toThrow("A board opened while it prepared, which drops it.");
     expect(run).not.toHaveBeenCalled();
+    await expect(commands.run("blockr.core-rename_board", { name: "Sepals" })).rejects.toThrow(
+      'The command "blockr.core-rename_board" refused to run\n- Another board opened in a new store, so this command registry runs no command.',
+    );
+    await expect(commands.plan("blockr.core-rename_board", { name: "Sepals" })).rejects.toThrow(CommandError);
+    expect(commands.enabled("blockr.core-rename_board", { name: "Sepals" })).toBe(false);
     expect(store.board().name).toBe("Iris review");
   });
 
@@ -360,11 +367,11 @@ describe("planning", () => {
   });
 
   test("fills in the edit id of the property that each patch changes", async () => {
-    const { store, commands } = await setup((store) => store.register(placed));
-    await store.open({
+    const store = await openedStore((store) => store.register(placed), {
       ...hello,
       board: { ...hello.board, board: { ...hello.board.board, class: ["placed_board", "board"] } },
     });
+    const commands = createCommands(store);
     commands.register(move);
 
     await commands.run("test.pkg-move", { id: "a", x: 1 });

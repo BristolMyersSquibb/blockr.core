@@ -27,8 +27,6 @@ export interface Sent {
   // Whether it was sent as evaluation in the background.
   readonly background: boolean;
   readonly cancelled: boolean;
-  // Whether another board opened since. Its reply then counts for nothing.
-  readonly orphaned: boolean;
 }
 
 // An output or a request sent and not yet answered.
@@ -110,7 +108,6 @@ export function planOf(input: {
       (evaluation) =>
         evaluation.block === id &&
         evaluation.revision === at &&
-        !evaluation.orphaned &&
         !evaluation.cancelled &&
         !cancelled.has(evaluation.id),
     );
@@ -136,7 +133,7 @@ export function planOf(input: {
       if (other.id > evaluation.id) since = Math.min(since ?? other.at, other.at);
     }
     for (const other of sent) {
-      if (other.id <= evaluation.id || other.orphaned) continue;
+      if (other.id <= evaluation.id) continue;
       if ((priorityOf(other) ?? -Infinity) > priority) {
         since = Math.min(since ?? other.at, other.at);
       }
@@ -153,8 +150,7 @@ export function planOf(input: {
       (evaluation) =>
         evaluation.oneTime !== undefined &&
         evaluation.block === id &&
-        evaluation.revision === at &&
-        !evaluation.orphaned,
+        evaluation.revision === at,
     );
 
   // What to cancel, in three cases:
@@ -170,7 +166,7 @@ export function planOf(input: {
   };
 
   for (const evaluation of sent) {
-    if (evaluation.cancelled || evaluation.orphaned || evaluation.oneTime !== undefined) continue;
+    if (evaluation.cancelled || evaluation.oneTime !== undefined) continue;
     const at = revisions.get(evaluation.block);
     // R drops the evaluation of a block that left the board, as it forgets the
     // block.
@@ -244,7 +240,7 @@ export function planOf(input: {
   // nothing needs, one at a time, at -1.
   const busy =
     asked.length > 0 ||
-    sent.some((evaluation) => (priorityOf(evaluation) ?? 0) >= 0 || evaluation.orphaned) ||
+    sent.some((evaluation) => (priorityOf(evaluation) ?? 0) >= 0) ||
     queued.some((item) => item.priority >= 0);
 
   let idleSince = input.idleSince;

@@ -247,6 +247,11 @@
   An output is measured, asked of R and drawn by the renderer that R names in it, and a renderer calls its output class's requests and its own through its host.
   Core ships a `CoreApi` for tests beside the stubs of its hosts, `stubCore()` in `@blockr/core/stubs`, which answers for R from the fixtures of the wire protocol and registers core's board options with their UIs, as the page does.
   The package `@blockr/core` names the React that core's runtime bundles, at that version, as its peer, so that npm installs that React with it and a package's tests run on it with no React of their own, while npm refuses a second copy at another version (#440).
+* Opening a board starts core's client again in place, with no reload, so that nothing of the board before outlives the opening.
+  The store on the page checks the board first, with its `check()`, and a board that it refuses leaves the page as it was, with the reason.
+  One abort then ends everything that core ran for the board before: the front-end and what it mounted, the startup modules, the store with its undo history, the command registry, the board options, the scheduler with its demands, and what core kept of outputs and answers.
+  Core sends another hello, on which R drops every result, queued request and request body of the board before, and starts as the page does, with a new `CoreApi` for the startup modules and the front-end.
+  A store opens one board, and the scheduler of the next board gives each block a revision above any that the page has given (#497).
 * Core's basic front-end, `blockr.core-basic`, draws every board whose class no other front-end draws.
   It is written in React on core's React SDK and styled with Tailwind CSS under core's prefix.
   Its toolbar adds a block from the block registry's entries, edits links and stacks, sets the board options that the board holds, renames the board, and saves the board as a file or opens one.
@@ -259,7 +264,7 @@
   The front-end demands every block above the default evaluation priority, and the blocks in view higher still, where the page parked the blocks of collapsed stacks until now.
   On a locked board, it draws no control for what the lock fixes.
   Core's board class `board` requires the board options `show_conditions` and `dark_mode`, so that every board gets them as it opens.
-  The store's `dropped()` gives what the store dropped as it opened the board it holds (#441).
+  The store's `dropped()` gives what the store dropped as it opened its board (#441).
 
 # blockr.core 0.1.4
 

@@ -7,7 +7,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { createCommands } from "../commands/index.ts";
 import type { HelloReply, OutputInfo, OutputRequest, Request } from "../protocol/index.ts";
-import { createScheduler } from "../scheduler/index.ts";
+import { counter, createScheduler } from "../scheduler/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import { createStore } from "../store/index.ts";
 import type { Option, Store } from "../store/index.ts";
@@ -106,6 +106,10 @@ interface Setup {
   imported: string[];
   events: OutputEvent[];
   size: ReturnType<typeof measuring>;
+  // Ends what core runs for the board, as core does as another board opens,
+  // and opens the board of the reply given in a new store with new mounts, on
+  // the same R and the same loader, as core starts again.
+  readonly next: (reply?: HelloReply) => Promise<Setup>;
 }
 
 async function setup(
@@ -114,12 +118,6 @@ async function setup(
 ): Promise<Setup> {
   const r = playR();
   r.connect();
-  const store = createStore();
-  for (const option of [...coreOptions, zoom]) store.options.register(option);
-  await store.open(reply);
-  const commands = createCommands(store);
-  const scheduler = createScheduler({ store, client: r.client });
-  scheduler.start();
   const imported: string[] = [];
   const loader = createLoader({
     importer(url) {
@@ -132,17 +130,44 @@ async function setup(
   });
   const events: OutputEvent[] = [];
   const size = measuring(info);
-  const mounts = createMounts({
-    store,
-    commands,
-    scheduler,
-    loader,
-    measure: size.measure,
-    emit: (event) => {
-      events.push(event);
-    },
-  });
-  return { r, store, scheduler, mounts, imported, events, size };
+  const page = counter();
+
+  async function open(given: HelloReply): Promise<Setup> {
+    const controller = new AbortController();
+    const { signal } = controller;
+    const store = createStore({ signal });
+    for (const option of [...coreOptions, zoom]) store.options.register(option);
+    await store.open(given);
+    const commands = createCommands(store, { signal });
+    const scheduler = createScheduler({ store, client: r.client, nextRevision: page, signal });
+    scheduler.start();
+    const mounts = createMounts({
+      store,
+      commands,
+      scheduler,
+      loader,
+      measure: size.measure,
+      emit: (event) => {
+        events.push(event);
+      },
+      signal,
+    });
+    return {
+      r,
+      store,
+      scheduler,
+      mounts,
+      imported,
+      events,
+      size,
+      next: (after = bare) => {
+        controller.abort();
+        return open(after);
+      },
+    };
+  }
+
+  return open(reply);
 }
 
 async function tick(ms = 0): Promise<void> {
@@ -390,11 +415,11 @@ describe("what core keeps", () => {
     await tick();
     table.host().setParams({ page: 2 });
 
-    await s.store.open(bare);
-    s.scheduler.demand("again", ["b"]);
+    const next = await s.next();
+    next.scheduler.demand("again", ["b"]);
     await evaluateAll(s.r);
     const el = document.createElement("div");
-    s.mounts.mountOutput(el, "b");
+    next.mounts.mountOutput(el, "b");
     await tick();
 
     expect(el.textContent).toBe("");
@@ -609,9 +634,12 @@ describe("a mount", () => {
     s.r.reply({ id: lastOutput(s.r).id, status: "ok", output: { renderer: TABLE, columns: [], rows: [], total: 150 } });
     await tick();
     expect(other.textContent).toContain("150");
-    await s.store.open(bare);
+    await s.next();
     expect(table.cleanups()).toBe(2);
     expect(other.textContent).toBe("");
+    expect(() => s.mounts.mountOutput(document.createElement("div"), "a")).toThrow(
+      "Another board opened, so core mounts nothing more of the board before.",
+    );
   });
 
   test("throws for a block that the board lacks", async () => {

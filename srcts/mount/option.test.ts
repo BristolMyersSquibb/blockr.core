@@ -58,6 +58,8 @@ interface Setup {
   store: Store;
   mounts: Mounts;
   imported: string[];
+  // Ends what core runs for the board, as core does as another board opens.
+  end(): void;
 }
 
 async function setup(
@@ -66,11 +68,13 @@ async function setup(
 ): Promise<Setup> {
   const r = playR();
   r.connect();
-  const store = createStore();
+  const controller = new AbortController();
+  const { signal } = controller;
+  const store = createStore({ signal });
   for (const option of options) store.options.register(option);
   await store.open(reply);
-  const commands = createCommands(store);
-  const scheduler = createScheduler({ store, client: r.client });
+  const commands = createCommands(store, { signal });
+  const scheduler = createScheduler({ store, client: r.client, signal });
   scheduler.start();
   const imported: string[] = [];
   const loader = createLoader({
@@ -82,8 +86,16 @@ async function setup(
     },
     stylesheet: () => Promise.resolve(),
   });
-  const mounts = createMounts({ store, commands, scheduler, loader, renderers: () => renderers });
-  return { r, store, mounts, imported };
+  const mounts = createMounts({ store, commands, scheduler, loader, renderers: () => renderers, signal });
+  return {
+    r,
+    store,
+    mounts,
+    imported,
+    end: () => {
+      controller.abort();
+    },
+  };
 }
 
 async function tick(ms = 0): Promise<void> {
@@ -244,7 +256,7 @@ describe("a mount", () => {
     expect(reported.errors().filter((error) => error instanceof ModuleError)).toHaveLength(1);
   });
 
-  test("ends once another board opens, after which submit() rejects", async () => {
+  test("ends once another board opens, after which submit() rejects and core mounts nothing more", async () => {
     const rows = ui();
     const s = await setup(options(rows.mod));
     const el = document.createElement("div");
@@ -252,11 +264,14 @@ describe("a mount", () => {
     await tick();
     const host = rows.host();
 
-    await s.store.open(hello);
+    s.end();
     expect(rows.cleanups()).toBe(1);
     expect(rows.mounts[0]?.signal.aborted).toBe(true);
     expect(el.textContent).toBe("");
     await expect(host.submit(10)).rejects.toThrow("Another board opened");
+    expect(() => s.mounts.mountOption(document.createElement("div"), "n_rows")).toThrow(
+      "Another board opened, so core mounts nothing more of the board before.",
+    );
   });
 
   test("ends as its cleanup runs, and throws for a board option that no package registers", async () => {

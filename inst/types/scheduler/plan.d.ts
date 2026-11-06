@@ -13,7 +13,6 @@ export interface Sent {
     } | undefined;
     readonly background: boolean;
     readonly cancelled: boolean;
-    readonly orphaned: boolean;
 }
 export interface Asked {
     readonly id: number;

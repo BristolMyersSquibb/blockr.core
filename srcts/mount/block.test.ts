@@ -8,7 +8,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { CommandError, createCommands } from "../commands/index.ts";
 import type { BlockClassRequest, Condition, HelloReply } from "../protocol/index.ts";
-import { createScheduler } from "../scheduler/index.ts";
+import { counter, createScheduler } from "../scheduler/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import { createStore } from "../store/index.ts";
 import type { Option, Store } from "../store/index.ts";
@@ -97,6 +97,10 @@ interface Setup {
   mounts: Mounts;
   imported: string[];
   sheets: string[];
+  // Ends what core runs for the board, as core does as another board opens,
+  // and opens the board of the reply given in a new store with new mounts, on
+  // the same R and the same loader, as core starts again.
+  readonly next: (reply?: HelloReply) => Promise<Setup>;
 }
 
 async function setup(
@@ -109,12 +113,6 @@ async function setup(
 ): Promise<Setup> {
   const r = playR();
   r.connect();
-  const store = createStore();
-  for (const option of [...coreOptions, ...options]) store.options.register(option);
-  await store.open(reply);
-  const commands = createCommands(store);
-  const scheduler = createScheduler({ store, client: r.client });
-  scheduler.start();
   const imported: string[] = [];
   const sheets: string[] = [];
   const loader = createLoader({
@@ -130,8 +128,33 @@ async function setup(
     },
     modules: () => offered,
   });
-  const mounts = createMounts({ store, commands, scheduler, loader });
-  return { r, store, scheduler, mounts, imported, sheets };
+  const page = counter();
+
+  async function open(given: HelloReply): Promise<Setup> {
+    const controller = new AbortController();
+    const { signal } = controller;
+    const store = createStore({ signal });
+    for (const option of [...coreOptions, ...options]) store.options.register(option);
+    await store.open(given);
+    const commands = createCommands(store, { signal });
+    const scheduler = createScheduler({ store, client: r.client, nextRevision: page, signal });
+    scheduler.start();
+    const mounts = createMounts({ store, commands, scheduler, loader, signal });
+    return {
+      r,
+      store,
+      scheduler,
+      mounts,
+      imported,
+      sheets,
+      next: (after = hello) => {
+        controller.abort();
+        return open(after);
+      },
+    };
+  }
+
+  return open(reply);
 }
 
 // Lets the time pass, running the scheduler's passes, the replies that are due
@@ -296,21 +319,21 @@ describe("board options", () => {
         return Promise.resolve(2);
       },
     };
-    const { store, mounts } = await setup({ [HEAD]: ui.exports }, { options: [lazy] });
+    const s = await setup({ [HEAD]: ui.exports }, { options: [lazy] });
 
-    mounts.mountBlock(document.createElement("div"), "b");
-    mounts.mountBlock(document.createElement("div"), "b");
+    s.mounts.mountBlock(document.createElement("div"), "b");
+    s.mounts.mountBlock(document.createElement("div"), "b");
     await tick();
-    expect(store.board().options.zoom).toBe(2);
+    expect(s.store.board().options.zoom).toBe(2);
 
     expect(calls).toBe(1);
 
     // A board that opens later lacks it, and gets it as a page that starts
     // with that board would.
-    await store.open(hello);
-    mounts.mountBlock(document.createElement("div"), "b");
+    const next = await s.next();
+    next.mounts.mountBlock(document.createElement("div"), "b");
     await tick();
-    expect(store.board().options.zoom).toBe(2);
+    expect(next.store.board().options.zoom).toBe(2);
     expect(calls).toBe(2);
   });
 
@@ -318,21 +341,22 @@ describe("board options", () => {
     const ui = recorder(["zoom"]);
     const pending: ((value: number) => void)[] = [];
     const lazy: Option = { ...zoom, default: () => new Promise((done) => pending.push(done)) };
-    const { store, mounts } = await setup({ [HEAD]: ui.exports }, { options: [lazy] });
+    const s = await setup({ [HEAD]: ui.exports }, { options: [lazy] });
 
-    mounts.mountBlock(document.createElement("div"), "b");
+    s.mounts.mountBlock(document.createElement("div"), "b");
     await tick();
-    await store.open(hello);
+    const next = await s.next();
     pending[0]?.(2);
     await tick();
-    expect(Object.hasOwn(store.board().options, "zoom")).toBe(false);
+    expect(Object.hasOwn(s.store.board().options, "zoom")).toBe(false);
+    expect(Object.hasOwn(next.store.board().options, "zoom")).toBe(false);
     expect(ui.mounts).toHaveLength(0);
 
-    mounts.mountBlock(document.createElement("div"), "b");
+    next.mounts.mountBlock(document.createElement("div"), "b");
     await tick();
     pending[1]?.(3);
     await tick();
-    expect(store.board().options.zoom).toBe(3);
+    expect(next.store.board().options.zoom).toBe(3);
   });
 
   test("keep a value set while the default resolves", async () => {
@@ -560,9 +584,10 @@ describe("a mount", () => {
     expect(cleaned).toBe(true);
   });
 
-  test("ends once another board opens, after which submit() and evaluate() reject", async () => {
+  test("ends once another board opens, after which submit() and evaluate() reject and core mounts nothing more", async () => {
     const ui = recorder();
-    const { store, mounts } = await setup({ [HEAD]: ui.exports });
+    const s = await setup({ [HEAD]: ui.exports });
+    const { store, mounts } = s;
     const el = document.createElement("div");
     mounts.mountBlock(el, "b");
     await tick();
@@ -571,7 +596,7 @@ describe("a mount", () => {
     host.on("state", () => heard.push("state"));
     host.on("context", () => heard.push("context"));
 
-    await store.open(hello);
+    await s.next();
 
     expect(ui.mounts[0]?.signal.aborted).toBe(true);
     expect(ui.cleanups()).toBe(1);
@@ -582,6 +607,9 @@ describe("a mount", () => {
     );
     await expect(host.evaluate({ save: true })).rejects.toThrow("Another board opened");
     expect(store.board().blocks.b?.state.n).toBe(6);
+    expect(() => mounts.mountBlock(document.createElement("div"), "b")).toThrow(
+      "Another board opened, so core mounts nothing more of the board before.",
+    );
   });
 
   test("ends once its block leaves the board, after which submit() rejects, though undo brings the block back", async () => {
@@ -890,7 +918,8 @@ describe("a request", () => {
 
   test("is kept for one opening of a board, as a page that starts with the next board holds none", async () => {
     const dataset = recorder();
-    const { r, store, mounts } = await setup({ "blockr.core/dataset-block.js?v=5e0c8b1d": dataset.exports });
+    const s = await setup({ "blockr.core/dataset-block.js?v=5e0c8b1d": dataset.exports });
+    const { r, mounts } = s;
     mounts.mountBlock(document.createElement("div"), "a");
     await tick();
     const first = dataset.host().request("datasets");
@@ -900,8 +929,8 @@ describe("a request", () => {
     await expect(dataset.host().request("datasets")).resolves.toEqual(["iris"]);
     expect(requests(r)).toHaveLength(1);
 
-    await store.open(hello);
-    mounts.mountBlock(document.createElement("div"), "a");
+    const next = await s.next();
+    next.mounts.mountBlock(document.createElement("div"), "a");
     await tick();
     void dataset.host(1).request("datasets");
     await tick();
@@ -910,13 +939,13 @@ describe("a request", () => {
   });
 
   test("stops once another board opens, and asks nothing of the next board, though it holds a block of the same id", async () => {
-    const { r, store, host } = await mounted();
+    const { r, host, next } = await mounted();
     const max = host.request("n_max");
     const stopped = expect(max).rejects.toThrow('Another board opened, so the host of block "b" no longer changes it.');
     await evaluateAll(r);
     const sent = lastRequest(r);
 
-    await store.open(withRequests);
+    await next(withRequests);
     expect(r.cancels()).toEqual([sent.id]);
     r.reply({ id: sent.id, status: "cancelled" });
     await stopped;
@@ -926,7 +955,7 @@ describe("a request", () => {
   });
 
   test("that R answers missing stops once another board opens, rather than asking again on it", async () => {
-    const { r, store, scheduler, host } = await mounted();
+    const { r, scheduler, host, next } = await mounted();
     const max = host.request("n_max");
     const stopped = expect(max).rejects.toThrow("Another board opened.");
     await evaluateAll(r);
@@ -934,7 +963,7 @@ describe("a request", () => {
 
     r.reply({ id: sent.id, status: "missing", missing: [{ block: "a", revision: revisionOf(scheduler, "a") }] });
     await tick();
-    await store.open(withRequests);
+    await next(withRequests);
     await stopped;
     await evaluateAll(r);
 
