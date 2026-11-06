@@ -247,6 +247,19 @@
   An output is measured, asked of R and drawn by the renderer that R names in it, and a renderer calls its output class's requests and its own through its host.
   Core ships a `CoreApi` for tests beside the stubs of its hosts, `stubCore()` in `@blockr/core/stubs`, which answers for R from the fixtures of the wire protocol and registers core's board options with their UIs, as the page does.
   The package `@blockr/core` names the React that core's runtime bundles, at that version, as its peer, so that npm installs that React with it and a package's tests run on it with no React of their own, while npm refuses a second copy at another version (#440).
+* Core's basic front-end, `blockr.core-basic`, draws every board whose class no other front-end draws.
+  It is written in React on core's React SDK and styled with Tailwind CSS under core's prefix.
+  Its toolbar adds a block from the block registry's entries, edits links and stacks, sets the board options that the board holds, renames the board, and saves the board as a file or opens one.
+  It draws each stack as a group of its blocks' cards.
+  A card shows its block's name, class and status, the block's UI and output, the conditions of the severities that the board option `show_conditions` names, and the summary of the block's result.
+  A card's menu renames or removes its block, or adds a block before or after it, and its toggles show and hide the block's UI and output.
+  The output of a block that is not ready is greyed out, where the page cleared it until now.
+  Undo and redo are bound to Mod+Z, and Mod+Shift+Z or Mod+Y, with Mod either Ctrl or Cmd.
+  The page tells the user what the store dropped as the board opened and which edit the store refused.
+  The front-end demands every block above the default evaluation priority, and the blocks in view higher still, where the page parked the blocks of collapsed stacks until now.
+  On a locked board, it draws no control for what the lock fixes.
+  Core's board class `board` requires the board options `show_conditions` and `dark_mode`, so that every board gets them as it opens.
+  The store's `dropped()` gives what the store dropped as it opened the board it holds (#441).
 
 # blockr.core 0.1.4
 
