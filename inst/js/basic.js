@@ -1340,7 +1340,9 @@ function demandShown(core, view = window) {
   const near = core.scheduler.demand(OWNER, [], { priority: IN_VIEW });
   const watched = /* @__PURE__ */ new Map();
   const seen = /* @__PURE__ */ new Set();
+  let released = false;
   function update() {
+    if (released) return;
     near.set([...new Set([...seen].flatMap((el) => watched.get(el) ?? []))]);
   }
   const Observer = view.IntersectionObserver;
@@ -1368,6 +1370,7 @@ function demandShown(core, view = window) {
       update();
     },
     release() {
+      released = true;
       observer?.disconnect();
       every.release();
       near.release();
