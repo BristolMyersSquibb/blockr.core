@@ -26,6 +26,8 @@
     --bc-color-blue-500: oklch(62.3% .214 259.815);
     --bc-color-blue-600: oklch(54.6% .245 262.881);
     --bc-color-gray-900: oklch(21% .034 264.665);
+    --bc-color-black: #000;
+    --bc-color-white: #fff;
     --bc-spacing: .25rem;
     --bc-text-xs: .75rem;
     --bc-text-xs--line-height: calc(1 / .75);
@@ -69,6 +71,22 @@
       --bc-color-bg-subtle: color-mix(in oklab, currentColor 5%, transparent);
     }
   }
+}
+
+.bc\:fixed {
+  position: fixed;
+}
+
+.bc\:inset-x-0 {
+  inset-inline: 0;
+}
+
+.bc\:top-0 {
+  top: 0;
+}
+
+.bc\:z-50 {
+  z-index: 50;
 }
 
 .bc\:m-0 {
@@ -232,12 +250,24 @@
   background-color: #0000;
 }
 
+.bc\:bg-white {
+  background-color: var(--bc-color-white);
+}
+
 .bc\:p-0 {
   padding: 0;
 }
 
 .bc\:p-2 {
   padding: calc(var(--bc-spacing) * 2);
+}
+
+.bc\:p-3 {
+  padding: calc(var(--bc-spacing) * 3);
+}
+
+.bc\:p-4 {
+  padding: calc(var(--bc-spacing) * 4);
 }
 
 .bc\:px-2 {
@@ -311,6 +341,10 @@
 
 .bc\:whitespace-pre-wrap {
   white-space: pre-wrap;
+}
+
+.bc\:text-black {
+  color: var(--bc-color-black);
 }
 
 .bc\:text-inherit {

@@ -1,10 +1,10 @@
 # What R tells the client about the packages it has loaded, in its reply to
-# `hello`, for neither side to edit: the block registry's entries, where R
-# serves the startup modules and the modules that packages offer each other,
-# the board classes that packages name front-ends for, the versions of the
-# board options that packages give them, the renderers that the app names for
-# board options, and the versions of the packages that all of these come
-# from.
+# `hello`, for neither side to edit: the block registry's entries, each with
+# the renderer of its class's outputs, where R serves the startup modules and
+# the modules that packages offer each other, the board classes that packages
+# name front-ends for, the versions of the board options that packages give
+# them, the renderers that the app names for board options, and the versions of
+# the packages that all of these come from.
 # A front-end is a module that its package offers, which a board class names
 # through its method of `board_front_end()`.
 # R loads no package for it: the app's script has loaded them, and loading
@@ -23,9 +23,12 @@ loaded_reply <- function() {
   classes <- board_classes()
   renderers <- option_renderers()
 
+  coercions <- output_coercions()
+  drawn <- lapply(entries, entry_renderer, coercions)
+
   packages <- unlst(
     lapply(
-      list(entries, startup, modules, classes, renderers),
+      list(entries, startup, modules, classes, renderers, drawn),
       lst_xtr,
       "package"
     ),
@@ -34,7 +37,7 @@ loaded_reply <- function() {
 
   list(
     packages = package_versions(packages),
-    block_registry = as_json_object(lapply(entries, registry_entry_reply)),
+    block_registry = as_json_object(Map(registry_entry_reply, entries, drawn)),
     startup_modules = unname(lapply(startup, startup_module_reply)),
     modules = as_json_object(lapply(modules, declared_module_reply)),
     board_classes = as_json_object(classes),
@@ -106,11 +109,12 @@ package_versions <- function(packages) {
 # gives, with `register_block()`'s `link` as `url`, and what the client cannot
 # read off a class that stays in R. Those are its data inputs, where R serves
 # its UI module, the schema of its state that the module ships, the state a
-# new block starts with, its arg specs and its requests. A class whose module
-# ships no schema has the empty schema, which allows any state, and its state
-# is written bare, so that its module takes a value of length one in either
-# form.
-registry_entry_reply <- function(x) {
+# new block starts with, its arg specs, its requests and the renderer of its
+# outputs, `renderer` from `entry_renderer()`, where R knows one. A class whose
+# module ships no schema has the empty schema, which allows any state, and its
+# state is written bare, so that its module takes a value of length one in
+# either form.
+registry_entry_reply <- function(x, renderer = NULL) {
 
   what <- paste("Block class", x[["block_class"]][["class"]][1L])
 
@@ -143,7 +147,33 @@ registry_entry_reply <- function(x) {
         lapply(x[["arguments"]], arg_spec_reply, what)
       ),
       requests = as_json_object(lapply(x[["requests"]], request_entry_reply))
-    )
+    ),
+    if (not_null(renderer)) list(renderer = output_renderer_reply(renderer))
+  )
+}
+
+# The renderer of a block class's outputs, which R names in the class's entry
+# of the block registry, so that the client loads it, and adds the board
+# options that it names to the board, before it asks for a block's first
+# output: the renderer of the output class whose method of `output_coercion()`
+# gives the coercion that the block class names, or `as_text_output()` where it
+# names none, from the `coercions` that `output_coercions()` gives. It is
+# `NULL` where no output class gives that coercion, or where R knows no
+# renderer for the class, so that the client learns the renderer from the first
+# output, and R reports its error there.
+entry_renderer <- function(x, coercions = output_coercions()) {
+
+  cls <- x[["block_class"]]
+  coercion <- coal(cls[["output"]], as_text_output, fail_all = FALSE)
+  class <- coercion_class(coercion, coercions)
+
+  if (is.null(class)) {
+    return(NULL)
+  }
+
+  tryCatch(
+    renderer_of(structure(list(), class = c(class, "block_output"))),
+    output_renderer_missing = function(e) NULL
   )
 }
 

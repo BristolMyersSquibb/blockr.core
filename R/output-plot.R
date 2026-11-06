@@ -354,6 +354,11 @@ output_schema.plot_output <- function(x, ...) {
 }
 
 #' @export
+output_coercion.plot_output <- function(x, ...) {
+  as_plot_output
+}
+
+#' @export
 output_renderer.plot_output <- function(x, ...) {
   chosen_renderer(
     "plot_output",

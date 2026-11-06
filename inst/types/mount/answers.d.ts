@@ -1,8 +1,9 @@
-import type { BlockClassRequest, ProgressNote, Reply } from "../protocol/index.ts";
+import type { BlockClassRequest, OutputClassRequest, ProgressNote, RendererRequest, Reply } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 export type ClassRequest = Omit<BlockClassRequest, "id" | "body">;
+export type OutputAsk = Omit<OutputClassRequest, "id" | "body"> | Omit<RendererRequest, "id" | "body">;
 export interface Ask {
-    readonly request: ClassRequest;
+    readonly request: ClassRequest | OutputAsk;
     readonly body?: Blob;
     readonly share: "keep" | "merge" | "once";
 }

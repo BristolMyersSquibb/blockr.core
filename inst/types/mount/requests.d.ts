@@ -13,11 +13,19 @@ export declare class RequestError extends Error {
         readonly input: string;
         readonly status: BlockStatus;
     }[];
+    readonly blocks: readonly {
+        readonly block: BlockId;
+        readonly status: BlockStatus;
+    }[];
     constructor(message: string, fields?: {
         status?: Exclude<ReplyStatus, "ok">;
         conditions?: readonly Condition[];
         inputs?: readonly {
             readonly input: string;
+            readonly status: BlockStatus;
+        }[];
+        blocks?: readonly {
+            readonly block: BlockId;
             readonly status: BlockStatus;
         }[];
     });

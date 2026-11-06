@@ -227,27 +227,10 @@ describe("the stub of an output's host", () => {
     expect(stubOutputHost({ output: { renderer: "blockr.core-text_output", text: "1" } }).options()).toEqual({});
   });
 
-  test("records what the renderer emits and the outputs it draws nested in its own", () => {
-    const host = stubOutputHost({ output: { renderer: drawnBy("blockr.dm-dm"), diagram: {} } });
-    const el = document.createElement("div");
-
-    host.emit("select", { table: "flights" });
-    const nested = host.draw(el, "preview", { renderer: drawnBy("blockr.core-table_output") });
-    nested.update({ renderer: drawnBy("blockr.core-table_output"), total: 2 });
-    nested.remove();
-
-    expect(host.emitted).toEqual([{ name: "select", payload: { table: "flights" } }]);
-    expect(host.drawn).toEqual([
-      {
-        key: "preview",
-        el,
-        outputs: [
-          { renderer: drawnBy("blockr.core-table_output") },
-          { renderer: drawnBy("blockr.core-table_output"), total: 2 },
-        ],
-        removed: true,
-      },
-    ]);
+  test("records what the renderer emits", () => {
+    const host = stubOutputHost({ output: { renderer: drawnBy("blockr.core-table_output"), columns: [], rows: [], total: 0 } });
+    host.emit("select", { rows: [1] });
+    expect(host.emitted).toEqual([{ name: "select", payload: { rows: [1] } }]);
   });
 
   test("says what core would while it asks R for a newer output, or once that failed", () => {

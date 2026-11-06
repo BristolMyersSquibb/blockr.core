@@ -3,7 +3,9 @@ export type { BlockFixture, StubBlockHost, StubBlockHostOptions } from "./block.
 export { stubOptionHost } from "./option.ts";
 export type { Answered, StubOptionHost, StubOptionHostOptions } from "./option.ts";
 export { stubOutputHost } from "./output.ts";
-export type { Drawn, StubOutputHost, StubOutputHostOptions } from "./output.ts";
+export type { StubOutputHost, StubOutputHostOptions } from "./output.ts";
 export { mount } from "./mount.ts";
 export type { Mounted } from "./mount.ts";
 export { READY } from "./util.ts";
+export { HELLO, INFO, stubCore } from "./core.ts";
+export type { Answer, StubCore, StubCoreOptions } from "./core.ts";

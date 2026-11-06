@@ -27,5 +27,9 @@
       "types": "./controls/index.d.ts",
       "default": "./controls/index.js"
     }
+  },
+  "peerDependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   }
 }

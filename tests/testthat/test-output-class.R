@@ -133,6 +133,43 @@ test_that("core gives each of its output classes its schema", {
   }
 })
 
+test_that("an output class gives the coercion that makes its outputs", {
+
+  coercions <- output_coercions()
+
+  expect_identical(coercions$table_output, as_table_output)
+  expect_identical(coercions$text_output, as_text_output)
+  expect_identical(coercions$plot_output, as_plot_output)
+  expect_null(output_coercion(new_block_output(list(), "words_output")))
+
+  expect_identical(coercion_class(as_table_output), "table_output")
+  expect_identical(coercion_class(as_plot_output), "plot_output")
+  expect_null(coercion_class(function(result, ...) result))
+
+  # A subclass that a method of its class's coercion makes gives no method of
+  # its own, and S3 dispatch gives it its class's
+  lazy <- new_block_output(list(), c("lazy_table_output", "table_output"))
+
+  expect_identical(output_coercion(lazy), as_table_output)
+  expect_identical(coercion_class(as_table_output), "table_output")
+
+  as_words_output <- function(result, ...) {
+    new_block_output(list(words = result), "words_output")
+  }
+
+  local_output_class("words_output", coercion = as_words_output)
+
+  expect_identical(coercion_class(as_words_output), "words_output")
+
+  # A coercion makes the outputs of one class
+  local_output_class("pages_output", coercion = as_table_output)
+
+  expect_error(
+    coercion_class(as_table_output),
+    class = "output_coercion_invalid"
+  )
+})
+
 test_that("an output is written by the schema of its most specific class", {
 
   local_output_class(

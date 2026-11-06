@@ -50,7 +50,8 @@ test_that("an entry leaves out the metadata that registration leaves unset", {
   expect_named(
     entry,
     c("id", "name", "description", "keywords", "category", "icon", "inputs",
-      "module", "version", "schema", "state", "arguments", "requests")
+      "module", "version", "schema", "state", "arguments", "requests",
+      "renderer")
   )
   expect_identical(json(entry$keywords), "[]")
 })
@@ -228,6 +229,71 @@ test_that("R gives the version of each board option that a package versions", {
   local_board_option_version("bad_gap", 0L)
 
   expect_error(option_versions(), class = "board_option_version_invalid")
+})
+
+test_that("an entry names the renderer of its class's outputs", {
+
+  local_fixture_renderer_urls()
+
+  head <- get_registry_entry("blockr.core-head_block")
+
+  expect_identical(
+    json(registry_entry_reply(head, entry_renderer(head))$renderer),
+    paste0(
+      "{\"id\":\"blockr.core-table_output\",",
+      "\"module\":\"blockr.core/basic-table.js?v=b7e2a915\"}"
+    )
+  )
+
+  # A class that names no coercion shows its results as text
+  upload <- get_registry_entry("blockr.core-upload_block")
+
+  expect_identical(entry_renderer(upload)$id, "blockr.core-text_output")
+
+  # A class whose coercion no output class gives has no renderer up front, so
+  # that the client learns it from the first output
+  raw <- list(
+    block_class = list(output = function(result, ...) new_text_output("raw"))
+  )
+
+  expect_null(entry_renderer(raw))
+  expect_null(registry_entry_reply(head, NULL)$renderer)
+
+  # Nor has one whose output class has no renderer
+  local_output_class("words_output", coercion = identity)
+
+  expect_null(entry_renderer(list(block_class = list(output = identity))))
+})
+
+test_that("the renderer the app names for an output class is in the entry", {
+
+  local_mocked_bindings(
+    pkg_version = function(pkg = parent.frame()) package_version("1.0.0")
+  )
+
+  preview <- new_renderer("preview", test_module("js/preview.js", "blockr.ui"))
+
+  # R finds no file for the renderer's module, nor for core's front-end
+  withr::local_options(
+    blockr.renderers = list(table_output = preview),
+    blockr.log_level = "error"
+  )
+
+  head <- get_registry_entry("blockr.core-head_block")
+
+  expect_identical(entry_renderer(head), preview)
+
+  # The reply names the version of the package that the renderer comes from
+  reply <- loaded_reply()
+
+  expect_identical(
+    reply$block_registry[["blockr.core-head_block"]]$renderer$id,
+    "blockr.ui-preview"
+  )
+  expect_identical(
+    json(reply$packages),
+    "{\"blockr.core\":\"1.0.0\",\"blockr.ui\":\"1.0.0\"}"
+  )
 })
 
 test_that("R names the renderers that the app names for board options", {

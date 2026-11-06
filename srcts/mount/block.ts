@@ -18,6 +18,7 @@
 // board, core ends the mount, and the host's submit() and evaluate() reject.
 
 import type { Commands } from "../commands/index.ts";
+import type { Renderer } from "../protocol/index.ts";
 import { unevaluated } from "../scheduler/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
@@ -34,14 +35,28 @@ import type { RegistryEntry } from "../types/registry.ts";
 import { isObject, jsonEqual, messageOf, own, packageOf, report } from "../util/index.ts";
 import { createAnswers } from "./answers.ts";
 import type { Answers } from "./answers.ts";
-import { API, ModuleError } from "./load.ts";
+import { ModuleError } from "./load.ts";
 import type { Loader } from "./load.ts";
+import { domMeasure } from "./measure.ts";
+import type { Measure } from "./measure.ts";
+import { mountOption } from "./option.ts";
+import { createShelves, mountOutput } from "./output.ts";
+import type { OutputEvent } from "./output.ts";
 import { blockRequest } from "./requests.ts";
+import { attempt, moduleOf, showError } from "./shared.ts";
 
 export interface Mounts {
   // Mounts the UI module of the block's class in the element until the
   // returned cleanup runs. It throws where the board holds no such block.
   mountBlock(el: HTMLElement, block: BlockId): () => void;
+  // Mounts the block's output, measured, asked of R and drawn by the renderer
+  // that R names in it, until the returned cleanup runs (./output.ts). It
+  // throws where the board holds no such block.
+  mountOutput(el: HTMLElement, block: BlockId): () => void;
+  // Mounts a board option's UI, or the renderer that the app names for it,
+  // until the returned cleanup runs (./option.ts). It throws where no package
+  // registers such a board option.
+  mountOption(el: HTMLElement, option: OptionId): () => void;
   // Adds the board options to the board, each with its definition's default
   // where the board lacks it. Core calls a default that is a function once per
   // opening of a board and keeps its result. The origin of what it adds is
@@ -54,6 +69,13 @@ export interface MountsOptions {
   readonly commands: Pick<Commands, "run">;
   readonly scheduler: Pick<Scheduler, "evaluate" | "inputs" | "request" | "status" | "subscribe">;
   readonly loader: Loader;
+  // The renderers that the app names for board options, by the renderer's id,
+  // as R's reply to `hello` gives them. There are none unless given.
+  readonly renderers?: () => Readonly<Record<string, Renderer>>;
+  // Hears each event that an output's renderer emits.
+  readonly emit?: (event: OutputEvent) => void;
+  // Measures an output's element, through the DOM unless given.
+  readonly measure?: Measure;
 }
 
 // The origin of what core changes on the board itself, such as the board
@@ -66,19 +88,27 @@ const NO_STATUS = Object.freeze(unevaluated(0, false));
 export function createMounts(options: MountsOptions): Mounts {
   const { store, commands, scheduler, loader } = options;
   const answers = createAnswers(scheduler);
+  const shelves = createShelves();
+  const measure = options.measure ?? domMeasure();
+  const emit = options.emit ?? ((): void => undefined);
+  const renderers = options.renderers ?? ((): Readonly<Record<string, Renderer>> => ({}));
 
   // What core keeps for one opening of a board, which it drops once another
   // board opens, as a page that starts with that board holds none of it: the
-  // answers of requests and the defaults of board options. How many boards
-  // the store has opened tells a host whether its board is still the
-  // store's.
+  // answers of requests, the defaults of board options, and of each block's
+  // output its parameters and its last output. How many boards the store has
+  // opened tells a host whether its board is still the store's.
   const defaults = new Map<OptionId, Promise<Json>>();
   let openings = 0;
   store.subscribe((change) => {
-    if (!("opened" in change)) return;
+    if (!("opened" in change)) {
+      for (const id of change.delta.blocks?.rm ?? []) shelves.drop(id);
+      return;
+    }
     openings++;
     answers.clear();
     defaults.clear();
+    shelves.clear();
   });
 
   function defaultOf(id: OptionId, def: { default: Json | (() => Promise<Json>) }): Promise<Json> {
@@ -203,49 +233,22 @@ export function createMounts(options: MountsOptions): Mounts {
     return end;
   }
 
-  return { mountBlock, addOptions };
-}
-
-// What a module exports, as a block's UI module, or a ModuleError that says
-// why it is none.
-function moduleOf(exports: unknown, module: string, pkg: string | null): BlockModule {
-  if (!isObject(exports) || typeof exports.api !== "number") {
-    throw new ModuleError(module, pkg, "declares no major of core's JS API, as `export const api = 1`.");
-  }
-  if (exports.api !== API) {
-    throw new ModuleError(
-      module,
-      pkg,
-      `was built against major ${String(exports.api)} of core's JS API, where core's is ${String(API)}.`,
-    );
-  }
-  const mod = exports.default;
-  if (!isObject(mod) || typeof mod.render !== "function") {
-    throw new ModuleError(module, pkg, "has no default export with a render() function.");
-  }
-  const named: unknown = mod.options;
-  if (named !== undefined && !(Array.isArray(named) && named.every((id) => typeof id === "string"))) {
-    throw new ModuleError(module, pkg, "names its board options in something other than an array of their ids.");
-  }
-  return mod as unknown as BlockModule;
-}
-
-// Shows why a module cannot draw in its element, in place of what it drew.
-function showError(el: HTMLElement, message: string): void {
-  const box = document.createElement("div");
-  box.setAttribute("role", "alert");
-  box.className =
-    "bc:rounded bc:border bc:border-border-danger bc:p-2 bc:font-sans bc:text-sm bc:text-text-danger bc:whitespace-pre-wrap";
-  box.textContent = message;
-  el.replaceChildren(box);
-}
-
-function attempt(fn: () => void): void {
-  try {
-    fn();
-  } catch (error) {
-    report(error);
-  }
+  return {
+    mountBlock,
+    mountOutput: (el, block) =>
+      mountOutput(
+        { store, scheduler, loader, answers, shelves, measure, opening: () => openings, addOptions, emit },
+        el,
+        block,
+      ),
+    mountOption: (el, option) =>
+      mountOption(
+        { store, commands, scheduler, loader, renderers, opening: () => openings, addOptions, defaultOf },
+        el,
+        option,
+      ),
+    addOptions,
+  };
 }
 
 interface HostDeps {

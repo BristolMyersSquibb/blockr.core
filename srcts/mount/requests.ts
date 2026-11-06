@@ -27,13 +27,17 @@ import type { Answers, ClassRequest } from "./answers.ts";
 // blocks it lacks evaluated again.
 const ATTEMPTS = 3;
 
-// Why a request of a block class rejects: R's reply, by its status and
-// conditions, or, where the request did not go to R, the inputs it reads that
-// could not be evaluated, each with the status of the block that feeds it.
+// Why a request rejects: R's reply, by its status and conditions, or, where
+// the request did not go to R, the blocks it reads that could not be
+// evaluated, each with its status. A block class's request names them by the
+// inputs they feed, in `inputs`, and other requests by block, in `blocks`, as
+// the request of an output names the block of the output where no result of it
+// is in sight.
 export class RequestError extends Error {
   readonly status: Exclude<ReplyStatus, "ok"> | null;
   readonly conditions: readonly Condition[];
   readonly inputs: readonly { readonly input: string; readonly status: BlockStatus }[];
+  readonly blocks: readonly { readonly block: BlockId; readonly status: BlockStatus }[];
 
   constructor(
     message: string,
@@ -41,6 +45,7 @@ export class RequestError extends Error {
       status?: Exclude<ReplyStatus, "ok">;
       conditions?: readonly Condition[];
       inputs?: readonly { readonly input: string; readonly status: BlockStatus }[];
+      blocks?: readonly { readonly block: BlockId; readonly status: BlockStatus }[];
     } = {},
   ) {
     const conditions = fields.conditions ?? [];
@@ -49,6 +54,7 @@ export class RequestError extends Error {
     this.status = fields.status ?? null;
     this.conditions = conditions;
     this.inputs = fields.inputs ?? [];
+    this.blocks = fields.blocks ?? [];
   }
 }
 
