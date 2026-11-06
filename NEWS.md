@@ -65,13 +65,14 @@
   ends in `block_output`, and `new_block_output()` makes one. An output may
   hold one binary body, which `new_reply_body()` makes from a raw vector or a
   file. The package that defines an output class gives what R needs of it
-  through its methods of three generics, so that a subclass has what its class
+  through its methods of four generics, so that a subclass has what its class
   has unless it gives its own: `output_schema()` gives the JSON Schema that R
   writes the outputs by, which `read_json_schema()` reads from a file that the
   package ships, `output_requests()` the requests that the class's renderers
-  call, each of which `volatile()` may mark, and `output_renderer()` the
-  renderer that draws the outputs. The function `run_output_class_request()`
-  runs such a request as R does (#422, #465).
+  call, each of which `volatile()` may mark, `output_renderer()` the
+  renderer that draws the outputs, and `output_coercion()` the coercion that
+  makes them. The function `run_output_class_request()`
+  runs such a request as R does (#422, #440, #465).
 * Core defines three output classes. A table output holds one page of rows
   and the total row count, which may be unknown, as for a lazy table. Its
   coercion `as_table_output()` pages a data frame by the board option
@@ -99,12 +100,16 @@
   the renderer that draws its outputs, as core's give
   `blockr.core-table_output`, `blockr.core-text_output` and
   `blockr.core-plot_output`, and R sends it in each output, with where it
-  serves the renderer's module. Another package offers a renderer through a
+  serves the renderer's module.
+  R also names it in the entry of each block class whose coercion the output
+  class gives, so that the client loads the renderer, and adds the board
+  options that it names to the board, before it asks for a block's first
+  output. Another package offers a renderer through a
   function that makes it, and an app draws with it by naming it in the blockr
   option `renderers`, for an output class or a board option, which a method
   takes with `chosen_renderer()`, so loading a package changes nothing. Such a
   renderer may bring requests of its own, which `run_output_class_request()`
-  runs when given the renderer (#425, #465).
+  runs when given the renderer (#425, #440, #465).
 * R builds what it tells the client about the packages it has loaded, in its
   reply to `hello`, without building a block. That is
   each block class's entry in the block registry, with the metadata that
@@ -225,6 +230,16 @@
   Core offers its inputs to packages that write their modules without React, through `controls()`, which draws the same inputs with core's copy of React, as `@blockr/core/controls` in a build, or through the module `blockr.core-controls`, which `host.module()` reaches.
   Core's UIs, its renderers included, take their face from the theme's sans, `--bc-font-sans`, as their code takes its mono, `--bc-font-mono`, which a front-end sets to restyle them.
   The stub of a block's host answers an upload that a fixture records with the file as the action's argument `file` (#438).
+* Core's client starts the page in the order of the startup modules, through `startPage()` in its runtime.
+  Once R has answered its hello, core asks R in one request for the blockr options that its scheduler reads.
+  It then initializes the startup module of each package that R has loaded, one at a time in R's order, and opens the board that R sent, or the one that a startup module names in its place.
+  It draws the board with the front-end of the class that the board is built as, and lets the scheduler send once the front-end's `render()` has returned.
+  A board opened later switches the page to the front-end of its class in the same way, and a later session that names a loaded package at another version has the page ask the user to reload it.
+  Front-ends, extensions and startup modules work on the board through `CoreApi`.
+  Its `mountBlock()`, `mountOutput()` and `mountOption()` mount a block's UI, a block's output and a board option's UI, and its `blockrOption()` reads a blockr option once per page.
+  Its `request()` sends a request of a type that a package adds, once the blocks that the request reads are evaluated.
+  An output is measured, asked of R and drawn by the renderer that R names in it, and a renderer calls its output class's requests and its own through its host.
+  Core ships a `CoreApi` for tests beside the stubs of its hosts, `stubCore()` in `@blockr/core/stubs`, which answers for R from the fixtures of the wire protocol (#440).
 
 # blockr.core 0.1.4
 
