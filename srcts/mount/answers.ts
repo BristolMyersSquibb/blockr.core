@@ -16,9 +16,10 @@
 // - Core keeps nothing of a volatile request, nor of a reply that R marks
 //   volatile, and neither keeps nor merges an action, which R runs once per
 //   call, or a request that sends a file.
-// - Core keeps answers for one opening of a board. Once another board opens,
-//   it drops them and gives up the requests on their way to R, as a page that
-//   starts with that board holds none.
+// - Core keeps answers for the board it makes the mounts for. As another board
+//   opens, the signal that ends the mounts drops them and gives up the
+//   requests on their way to R, as a page that starts with that board holds
+//   none.
 
 import type {
   BlockClassRequest,
@@ -63,9 +64,6 @@ export interface Answers {
     ask: Ask,
     options?: { signal?: AbortSignal; progress?: (note: ProgressNote) => void },
   ): Promise<Answer>;
-  // Drops every answer and gives up every request on its way to R, as
-  // another board opens.
-  clear(): void;
   // How many answers core keeps, for tests.
   size(): number;
 }
@@ -83,9 +81,23 @@ interface Kept {
   readonly request: Ask["request"];
 }
 
-export function createAnswers(scheduler: Pick<Scheduler, "request" | "status" | "subscribe">): Answers {
+export function createAnswers(
+  scheduler: Pick<Scheduler, "request" | "status" | "subscribe">,
+  signal?: AbortSignal,
+): Answers {
   const kept = new Map<string, Kept>();
   const flights = new Map<string, Flight>();
+
+  signal?.addEventListener(
+    "abort",
+    () => {
+      kept.clear();
+      const given = [...flights.values()];
+      flights.clear();
+      for (const flight of given) flight.controller.abort();
+    },
+    { once: true },
+  );
 
   // A status that changes may be a revision that moved on, which supersedes
   // what an answer read.
@@ -202,12 +214,6 @@ export function createAnswers(scheduler: Pick<Scheduler, "request" | "status" | 
       if (answer !== undefined) return Promise.resolve(answer);
       const flight = (key === undefined ? undefined : flights.get(key)) ?? start(ask, key);
       return join(flight, key, signal, progress);
-    },
-    clear() {
-      kept.clear();
-      const given = [...flights.values()];
-      flights.clear();
-      for (const flight of given) flight.controller.abort();
     },
     size: () => kept.size,
   };

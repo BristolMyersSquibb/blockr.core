@@ -22,6 +22,7 @@ import { coreOptions, hello, reply as replyOf } from "../testing/store.ts";
 import type { BlockId } from "../types/board.ts";
 import { createScheduler } from "./index.ts";
 import type { BlockStatus, Scheduler, SchedulerOptions } from "./index.ts";
+import { counter } from "./revisions.ts";
 
 // The sample board:
 // - The dataset a feeds the head b, the subset d and the scatter f.
@@ -82,6 +83,18 @@ function revisionsOf(scheduler: Scheduler): Record<BlockId, number> {
       return status === undefined ? [] : [[id, status.revision]];
     }),
   );
+}
+
+// The request of the block's output at its current revision.
+function output(scheduler: Scheduler, block: BlockId): Omit<OutputRequest, "id"> {
+  return {
+    kind: "output",
+    block,
+    revision: statusOf(scheduler, block).revision,
+    options: { n_rows: 50 },
+    info,
+    params: {},
+  };
 }
 
 // The latest evaluation of a block that R has not replied to.
@@ -238,19 +251,25 @@ describe("revisions", () => {
     expect(pendingOf(r, "f").revision).toBe(statusOf(scheduler, "f").revision);
   });
 
-  test("start afresh when another board opens, whose blocks R forgets every one of", async () => {
-    const { r, store, scheduler } = await setup();
+  test("of the scheduler of a board that opens later go above any the page has given, from the page's count, with nothing for R to forget", async () => {
+    const page = counter();
+    const controller = new AbortController();
+    const { r, store, scheduler } = await setup({ nextRevision: page, signal: controller.signal });
     scheduler.demand("test", ["b"]);
     scheduler.start();
     await evaluateAll(r);
     const top = Math.max(...Object.values(revisionsOf(scheduler)));
 
-    await store.open(store.save());
+    controller.abort();
+    const next = createStore({ hello });
+    for (const option of coreOptions) next.options.register(option);
+    await next.open(store.save());
+    const after = createScheduler({ store: next, client: r.client, nextRevision: page });
 
-    expect(r.forgets()).toEqual([["a", "b", "c", "d", "e", "f"]]);
-    for (const [id, revision] of Object.entries(revisionsOf(scheduler))) {
+    expect(r.forgets()).toEqual([]);
+    for (const [id, revision] of Object.entries(revisionsOf(after))) {
       expect(revision).toBeGreaterThan(top);
-      expect(statusOf(scheduler, id).status).toBe("unevaluated");
+      expect(statusOf(after, id).status).toBe("unevaluated");
     }
   });
 
@@ -698,8 +717,9 @@ describe("one-time evaluations", () => {
     await expect(scheduler.evaluate(["z"])).rejects.toThrow(/holds none of the blocks "z"/);
   });
 
-  test("leave out a block that leaves the board, rejecting once left with none, and reject when another board opens or the signal aborts", async () => {
-    const { r, store, scheduler } = await setup();
+  test("leave out a block that leaves the board, rejecting once left with none, and reject when the scheduler ends or the signal aborts", async () => {
+    const ending = new AbortController();
+    const { r, store, scheduler } = await setup({ signal: ending.signal });
     scheduler.start();
     const both = scheduler.evaluate(["d", "f"]);
     const alone = scheduler.evaluate(["f"]);
@@ -714,8 +734,54 @@ describe("one-time evaluations", () => {
     await expect(aborted).rejects.toThrow("The step was given up.");
 
     const waiting = scheduler.evaluate(["e"]);
-    await store.open(store.save());
+    ending.abort();
     await expect(waiting).rejects.toThrow("Another board opened.");
+    await expect(scheduler.evaluate(["e"])).rejects.toThrow("Another board opened.");
+  });
+});
+
+describe("the end", () => {
+  test("comes as its signal aborts: the scheduler sends R nothing more, rejects every request, tells its subscribers nothing more, and takes no reply", async () => {
+    const controller = new AbortController();
+    const { r, store, scheduler } = await setup({ signal: controller.signal });
+    scheduler.demand("test", ["b"]);
+    scheduler.start();
+    await tick();
+    const sent = r.evaluations().length;
+    expect(sent).toBeGreaterThan(0);
+    const heard: (readonly BlockId[])[] = [];
+    scheduler.subscribe((changed) => heard.push(changed));
+
+    controller.abort();
+    for (const request of r.pending()) r.evaluated(request);
+    store.apply({ blocks: { mod: { b: { state: { n: 3 } } } } });
+    scheduler.demand("test", ["e"]);
+    await tick(1000);
+
+    expect(r.evaluations()).toHaveLength(sent);
+    expect(heard).toEqual([]);
+    expect(statusOf(scheduler, "a").status).toBe("unevaluated");
+    await expect(
+      scheduler.request({ kind: "request", type: "option", option: "data_dir", name: "list_dir", args: {} }),
+    ).rejects.toThrow("Another board opened.");
+  });
+
+  test("sends no request that was waiting on R again once the session ends after it", async () => {
+    const controller = new AbortController();
+    const { r, scheduler } = await setup({ signal: controller.signal });
+    scheduler.demand("test", ["b"]);
+    scheduler.start();
+    await evaluateAll(r);
+    const asking = scheduler.request(output(scheduler, "b"));
+    await tick();
+    expect(r.asked("output")).toHaveLength(1);
+
+    controller.abort();
+    r.end();
+    await expect(asking).rejects.toBeInstanceOf(SessionEndedError);
+    r.connect();
+    await tick();
+    expect(r.asked("output")).toHaveLength(1);
   });
 });
 
@@ -941,16 +1007,6 @@ describe("a new session", () => {
 });
 
 describe("requests", () => {
-  function output(scheduler: Scheduler, block: BlockId): Omit<OutputRequest, "id"> {
-    return {
-      kind: "output",
-      block,
-      revision: statusOf(scheduler, block).revision,
-      options: { n_rows: 50 },
-      info,
-      params: {},
-    };
-  }
 
   test("go to R as they are and resolve with R's reply", async () => {
     const { r, scheduler } = await setup();

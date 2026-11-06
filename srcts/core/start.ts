@@ -3,40 +3,55 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#starting-the-page):
 // 1. The protocol's client sends each session's hello as R starts the session.
 // 2. Once R has answered the first, core asks R for the blockr options that its
-//    scheduler reads, and creates the store, the command registry with core's
-//    board options, the scheduler and CoreApi.
+//    scheduler reads, and creates for the board that it opens the store, the
+//    command registry with core's board options, the scheduler and CoreApi.
 // 3. It initializes the startup module of every package that R has loaded, one
 //    at a time in R's order, awaiting each initialize(). It names one that
 //    fails and carries on.
 // 4. It opens the board that R sent, or in its place the one that a startup
 //    module resolves with, unless the board is locked or two startup modules
 //    resolve with one, where it keeps R's and names the packages.
-// 5. As the store opens a board, core imports the module of the front-end of
-//    the class that the board is built as and ends the front-end on the page.
-//    Once the board is open, it calls the front-end's render(), and starts the
-//    scheduler once render() has returned, so that the scheduler sends R
-//    nothing before.
+// 5. As the store opens the board, core imports the module of the front-end of
+//    the class that the board is built as. Once the board is open, it calls the
+//    front-end's render(), and starts the scheduler once render() has returned,
+//    so that the scheduler sends R nothing before.
 //
-// A board opened later goes the same way, through the store's open(), which
-// CoreApi gives: the store awaits what core runs as R has replied, before it
-// migrates or drops anything, and the scheduler holds its evaluations until
-// the front-end's render() has returned, as at the start
-// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#switching-front-ends).
-// The reply to a later session's hello has the scheduler give every block a
-// new revision, and makes core ask for the page to be reloaded where it names a
-// loaded package at another version.
+// A board opened later, through the store's open() that CoreApi gives, starts
+// core again in place, as Opening a board has it
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#opening-a-board):
+// 1. The store on the page checks the board as it would open it. A board that
+//    it refuses leaves the page as it was, and open() rejects with the reason.
+// 2. One abort ends everything that core runs for the board on the page: the
+//    front-end and what it mounted, every startup module, the store with its
+//    undo history, the command registry, the board options, the scheduler with
+//    its demands, and what core keeps of outputs and answers.
+// 3. Core sends another hello, which R takes as a fresh start of the session,
+//    so that R drops every result and request of the board before.
+// 4. Once R has answered it, core starts as the page does, from step 2 on,
+//    with the board given in place of R's. Where that board fails to open after
+//    all, core opens the board before in the new store, and open() rejects with
+//    the reason.
+// Only what is fixed for the page outlives an opening: the code and
+// stylesheets that have loaded, the page's element, the transport with its
+// session, the protocol's client, the blockr options that core has read, the
+// lock, and the revisions given, so that the next scheduler gives a block id a
+// revision above any it had.
+//
+// The reply to a later session's hello, for the board that is open, has the
+// scheduler give every block a new revision, and makes core ask for the page to
+// be reloaded where it names a loaded package at another version.
 
 import { createCommands } from "../commands/index.ts";
 import { API, createLoader, ModuleError } from "../mount/index.ts";
 import type { Loader, LoaderOptions, Measure, Source } from "../mount/index.ts";
 import { createClient, PROTOCOL_VERSION } from "../protocol/index.ts";
 import type { Capability, HelloReply, Reply, Transport } from "../protocol/index.ts";
-import { createScheduler } from "../scheduler/index.ts";
+import { counter, createScheduler } from "../scheduler/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
-import { createStore } from "../store/index.ts";
+import { createStore, StoreError } from "../store/index.ts";
 import type { Dropped, Option, Store } from "../store/index.ts";
 import type { CoreApi } from "../types/core-api.ts";
-import { isObject, messageOf, own, quoted, report } from "../util/index.ts";
+import { asError, isObject, messageOf, own, quoted, report } from "../util/index.ts";
 import { createBlockrOptions } from "./blockr-options.ts";
 import { createCore } from "./core.ts";
 
@@ -48,17 +63,17 @@ const CAPABILITIES: Capability[] = ["cancel", "interrupt", "progress"];
 export interface FrontEnds {
   // Imports the module of the front-end, by its id, from where R serves it,
   // which is undefined where R serves no such module, and ends the front-end
-  // on the page, whether it is another or the same. Core calls it as the store
-  // opens a board, once the startup modules that the opening brings have
-  // initialized, with why no front-end draws the board where R names none for
-  // its class.
+  // on the page, if any. Core calls it as the store opens a board, once the
+  // startup modules have initialized, with why no front-end draws the board
+  // where R names none for its class.
   prepare(
     front: { readonly id: string; readonly source: Source | undefined } | { readonly error: Error },
     loader: Loader,
   ): Promise<void>;
-  // Calls the render() of the front-end that prepare() imported, and resolves
-  // once render() has returned or resolved.
-  render(core: CoreApi): Promise<void>;
+  // Calls the render() of the front-end that prepare() imported, with CoreApi,
+  // and resolves once render() has returned or resolved. The front-end ends as
+  // the signal aborts, as the next board opens.
+  render(core: CoreApi, signal: AbortSignal): Promise<void>;
 }
 
 // A package that a later reply names at another version than the page loaded.
@@ -81,7 +96,7 @@ export interface StartOptions {
   // another version, rather than load a second copy of it.
   readonly reload?: (changed: readonly Changed[]) => void;
   // Shows why core cannot start, as where R speaks another major of the
-  // protocol.
+  // protocol, or why no board is open once another failed to open.
   readonly fail?: (error: Error) => void;
 }
 
@@ -89,16 +104,27 @@ export interface Started {
   // Resolves with CoreApi once the first board is open and its front-end has
   // rendered, or rejects with why core could not start.
   readonly ready: Promise<CoreApi>;
-  // Ends what core started: it aborts the startup modules' signal, and core
+  // The CoreApi of the board that is open, which core makes anew for each
+  // board that opens, or undefined while core starts.
+  core(): CoreApi | undefined;
+  // Ends what core started: it aborts what core runs for the board, and core
   // hears no later session.
   stop(): void;
 }
 
-// What core holds once R has answered the first hello.
+// What core runs for one board, which the abort of its controller ends.
 interface Running {
   readonly store: Store;
   readonly scheduler: Scheduler;
   readonly core: CoreApi;
+  readonly controller: AbortController;
+}
+
+// A board that opens later, as its text, and the text of the board before,
+// which core opens in its place where it fails to open after all.
+interface Later {
+  readonly text: string;
+  readonly before: string;
 }
 
 export function start(options: StartOptions): Started {
@@ -108,11 +134,18 @@ export function start(options: StartOptions): Started {
   });
 
   // The first reply to hello, whose package versions are those the page
-  // loaded, and the latest, whose modules and renderers core uses.
+  // loaded and whose lock holds for the page, and the latest, whose modules
+  // and renderers core uses.
   let first: HelloReply | undefined;
   let latest: HelloReply | undefined;
+  // What core runs for the board that is open.
   let running: Running | undefined;
-  const initialized = new Set<string>();
+  const holdsBoard = (): boolean => running?.store.hasBoard() === true;
+  // An opening that waits for R to answer the hello with which core starts
+  // again.
+  let restarting: { resolve: (reply: HelloReply) => void; reject: (error: Error) => void } | undefined;
+  // The revisions that the page gives, from one count for the page.
+  const nextRevision = counter();
 
   let settle: { resolve: (core: CoreApi) => void; reject: (error: unknown) => void } | undefined;
   const ready = new Promise<CoreApi>((resolve, reject) => {
@@ -137,6 +170,10 @@ export function start(options: StartOptions): Started {
       if (first === undefined) {
         settle?.reject(error);
         fail(error);
+      } else if (restarting !== undefined) {
+        const waiting = restarting;
+        restarting = undefined;
+        waiting.reject(error);
       } else {
         report(error);
       }
@@ -146,86 +183,153 @@ export function start(options: StartOptions): Started {
     latest = hello;
     if (first === undefined) {
       first = hello;
-      boot(hello).then(
-        (core) => settle?.resolve(core),
+      boot(hello, undefined).then(
+        ({ core }) => settle?.resolve(core),
         (failure: unknown) => {
           settle?.reject(failure);
-          fail(failure instanceof Error ? failure : new Error(messageOf(failure)));
+          fail(asError(failure));
         },
       );
       return;
     }
-    // A new session holds no results.
-    running?.scheduler.session();
     const changed = changedPackages(first, hello);
     if (changed.length > 0) (options.reload ?? askReload)(changed);
+    if (restarting !== undefined) {
+      const waiting = restarting;
+      restarting = undefined;
+      waiting.resolve(hello);
+      return;
+    }
+    // A new session holds no results.
+    running?.scheduler.session();
   }
 
-  async function boot(reply: HelloReply): Promise<CoreApi> {
+  // Starts core for one board, with what R's reply to hello holds, as the page
+  // starts and as each later board opens: the store, the command registry, the
+  // scheduler and CoreApi, each of which the abort of the opening's controller
+  // ends. It initializes the startup modules with that CoreApi and signal,
+  // opens the board in the store, draws it with its front-end and starts the
+  // scheduler, and resolves with CoreApi and what the store dropped.
+  async function boot(reply: HelloReply, later: Later | undefined): Promise<{ core: CoreApi; dropped: Dropped[] }> {
+    // The opening ends as the next board opens, or as the page stops.
+    const controller = new AbortController();
+    const { signal } = controller;
+    const ending = (): void => {
+      controller.abort();
+    };
+    if (page.signal.aborted) ending();
+    page.signal.addEventListener("abort", ending, { once: true });
+    signal.addEventListener(
+      "abort",
+      () => {
+        page.signal.removeEventListener("abort", ending);
+      },
+      { once: true },
+    );
+
     // The blockr options that the scheduler reads, asked at once, in one
-    // request, before the scheduler starts.
+    // request, before the scheduler starts, and kept for the page.
     const [evaluationQueue, backgroundEvaluationDelay, gateVisibility] = await Promise.all([
       blockrOptions.read("evaluation_queue", 2),
       blockrOptions.read("background_evaluation_delay", Infinity),
       blockrOptions.read("gate_visibility", true),
     ]);
 
-    const store = createStore({ loaded });
-    const commands = createCommands(store);
+    const store: Store = createStore({
+      hello: reply,
+      loaded: (_reply, classes) => prepare(store, classes),
+      signal,
+    });
+    const commands = createCommands(store, { signal });
     for (const option of options.options({ blockrOption: (name, fallback) => blockrOptions.read(name, fallback) })) {
       store.options.register(option);
     }
+    // R binds inputs itself for the board that it sent alone.
+    const bound = later === undefined ? reply.bound : undefined;
     const scheduler = createScheduler({
       store,
       client,
       evaluationQueue,
       backgroundEvaluationDelay,
       gateVisibility,
-      ...(reply.bound === undefined ? {} : { bound: reply.bound }),
+      nextRevision,
+      signal,
+      ...(bound === undefined ? {} : { bound }),
     });
     const core = createCore({
-      store: { ...store, open },
+      store: {
+        ...store,
+        open: (given) => reopen(given, controller),
+      },
       commands,
       scheduler,
       loader,
       blockrOptions,
-      lock: reply.lock,
+      lock: (first ?? reply).lock,
       renderers: () => latest?.renderers ?? {},
+      signal,
       ...(options.measure === undefined ? {} : { measure: options.measure }),
     });
-    running = { store, scheduler, core };
+    running = { store, scheduler, core, controller };
 
-    const named = await initialize(reply, true);
-    const instead = chosen(reply, named);
-    if (instead === undefined) {
-      await open(reply);
+    const named = await initialize(reply, core, signal, later === undefined);
+
+    let dropped: Dropped[] = [];
+    let failure: Error | undefined;
+    if (later === undefined) {
+      const instead = chosen(reply, named);
+      if (instead === undefined) {
+        dropped = await store.open(reply);
+      } else {
+        try {
+          dropped = await store.open(instead);
+        } catch (error) {
+          report(error);
+          dropped = await store.open(reply);
+        }
+      }
     } else {
       try {
-        await open(instead);
+        dropped = await store.open(later.text);
       } catch (error) {
-        report(error);
-        await open(reply);
+        failure = asError(error);
+        try {
+          await store.open(later.before);
+        } catch (again) {
+          report(again);
+          throw failure;
+        }
       }
     }
-    return core;
+
+    try {
+      await options.frontEnds?.render(core, signal);
+    } finally {
+      scheduler.start();
+    }
+    if (failure !== undefined) throw failure;
+    return { core, dropped };
   }
 
-  // Initializes the startup module of each package that the reply names and
-  // that core has not initialized yet, one at a time in R's order, and
-  // resolves with the boards that they name, where they may name one.
-  async function initialize(reply: HelloReply, naming: boolean): Promise<{ package: string; text: string }[]> {
-    const core = running?.core;
-    if (core === undefined) return [];
+  // Initializes the startup module of each package that the reply names, one
+  // at a time in R's order, with CoreApi and the signal of the board that
+  // opens, and resolves with the boards that they name, where they may name
+  // one, as the page starts.
+  async function initialize(
+    reply: HelloReply,
+    core: CoreApi,
+    signal: AbortSignal,
+    naming: boolean,
+  ): Promise<{ package: string; text: string }[]> {
     const named: { package: string; text: string }[] = [];
     for (const entry of reply.startup_modules) {
-      if (initialized.has(entry.package)) continue;
-      initialized.add(entry.package);
+      if (signal.aborted) break;
       try {
         const source = entry.css === undefined ? { module: entry.module } : { module: entry.module, css: entry.css };
         const mod = startupOf(await loader.load(source, entry.package), entry.module, entry.package);
         let result: unknown;
         try {
-          result = await mod.initialize({ core, signal: page.signal });
+          result = await mod.initialize({ core, signal });
         } catch (error) {
           throw new ModuleError(entry.module, entry.package, `failed in initialize(): ${messageOf(error)}`, { cause: error });
         }
@@ -273,79 +377,79 @@ export function start(options: StartOptions): Started {
     return { ...reply, board: board as HelloReply["board"] };
   }
 
-  // What the store runs once R has replied to an opening, before it migrates
-  // or drops anything: the startup modules that the opening brings, which define
-  // their board classes, and then the import of the front-end of the class
-  // that the store builds the board as, which ends the one on the page.
-  async function loaded(reply: HelloReply, classes: readonly string[]): Promise<void> {
-    const current = running;
-    if (current === undefined) return;
-    current.scheduler.hold();
-    await initialize(reply, false);
-    await prepare(current, classes);
-  }
-
-  // Imports the front-end of the class that a board of these classes is built
-  // as, which ends the one on the page.
-  async function prepare(current: Running, classes: readonly string[]): Promise<void> {
+  // What the store runs once R has replied, before it migrates or drops
+  // anything: the import of the front-end of the class that the store builds
+  // the board as, which the startup modules have defined by then.
+  async function prepare(store: Store, classes: readonly string[]): Promise<void> {
     if (options.frontEnds === undefined) return;
-    prepared++;
     let id: string;
     try {
-      id = current.store.frontEnd(classes);
+      id = store.frontEnd(classes);
     } catch (error) {
-      await options.frontEnds.prepare({ error: error instanceof Error ? error : new Error(messageOf(error)) }, loader);
+      await options.frontEnds.prepare({ error: asError(error) }, loader);
       return;
     }
     await options.frontEnds.prepare({ id, source: own(latest?.modules ?? {}, id) }, loader);
   }
 
-  // Openings run one at a time, each through the store, and then draw the
-  // board that the store holds with the front-end that the opening imported.
-  // Where the opening failed once it had ended the front-end on the page, core
-  // draws the board that the store still holds with that board's front-end.
+  // Openings run one at a time.
   let queue: Promise<unknown> = Promise.resolve();
-  // How many times core has imported a front-end, which tells an opening that
-  // failed whether it ended the front-end on the page.
-  let prepared = 0;
 
-  function open(given: string | HelloReply): Promise<Dropped[]> {
-    const run = queue.then(() => opening(given));
+  // Opens a board in place of the one that the store of the opening holds,
+  // whose controller is given, by starting core again for it.
+  function reopen(given: string | HelloReply, of: AbortController): Promise<Dropped[]> {
+    const run = queue.then(() => reopening(given, of));
     queue = run.catch(() => undefined);
     return run;
   }
 
-  async function opening(given: string | HelloReply): Promise<Dropped[]> {
+  async function reopening(given: string | HelloReply, of: AbortController): Promise<Dropped[]> {
+    const refused = "The store refused to open the board";
     const current = running;
-    if (current === undefined) throw new Error("Core opens a board only once R has answered its hello.");
-    const before = prepared;
+    if (current?.controller !== of || of.signal.aborted) {
+      throw new StoreError(refused, ["Another board opened since, so this store opens no board."]);
+    }
+    if (!current.store.hasBoard()) {
+      throw new StoreError(refused, ["The store holds no board yet, so it opens none in place of it."]);
+    }
+    const text = typeof given === "string" ? given : JSON.stringify(given.board);
+
+    await current.store.check(text);
+    const before = current.store.save();
+
+    of.abort();
+    running = undefined;
     try {
-      const dropped = await current.store.open(given);
-      await draw(current);
+      const reply = await afresh();
+      const { dropped } = await boot(reply, { text, before });
       return dropped;
     } catch (error) {
-      if (prepared !== before && current.store.hasBoard()) {
-        await prepare(current, current.store.board().class);
-        await draw(current);
-      } else {
-        current.scheduler.start();
-      }
+      if (!page.signal.aborted && !holdsBoard()) fail(asError(error));
       throw error;
     }
   }
 
-  async function draw(current: Running): Promise<void> {
-    try {
-      await options.frontEnds?.render(current.core);
-    } finally {
-      current.scheduler.start();
-    }
+  // Sends the hello with which core starts again, and resolves with R's reply
+  // to it, or to the hello of the next session where the session ends first.
+  function afresh(): Promise<HelloReply> {
+    return new Promise((resolve, reject) => {
+      if (page.signal.aborted) {
+        reject(new Error("Core has stopped."));
+        return;
+      }
+      restarting = { resolve, reject };
+      client.hello();
+    });
   }
 
   return {
     ready,
+    core: () => running?.core,
     stop() {
       page.abort();
+      const waiting = restarting;
+      restarting = undefined;
+      waiting?.reject(new Error("Core has stopped."));
     },
   };
 }

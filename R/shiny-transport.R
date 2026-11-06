@@ -23,11 +23,19 @@
 # A request's body reaches the handler as the request's `body`, a list of its
 # `name`, where it has one, its `size`, its `type` and in `datapath` the file
 # that R wrote its bytes to, as `shiny::fileInput()` gives a file, which stays
-# until the session ends. A reply's body is given in its `body` too, as a reply
-# body that `new_reply_body()` makes, such as `shape_output()` gives for an
-# output, which `send()` carries beside the reply as the blockr options
-# `max_message_body` and `message_body_encoding` say, which the transport reads
-# as it sets a session up (see `carry_body()`).
+# until the session ends or a later `hello` starts it afresh (below). A reply's
+# body is given in its `body` too, as a reply body that `new_reply_body()`
+# makes, such as `shape_output()` gives for an output, which `send()` carries
+# beside the reply as the blockr options `max_message_body` and
+# `message_body_encoding` say, which the transport reads as it sets a session
+# up (see `carry_body()`).
+#
+# A `hello` starts the session, and a later one starts it afresh, as core's
+# client sends one as it starts again for another board. So the transport drops
+# the bodies that it holds for the session as a `hello` arrives, before it
+# hands the message on: those that requests posted, with their files, and those
+# that wait for the client to fetch them (see `drop_bodies()`), as the
+# evaluator drops every result and queued request.
 shiny_transport <- function(handler, session = get_session()) {
 
   if (!is.function(handler)) {
@@ -53,7 +61,11 @@ shiny_transport <- function(handler, session = get_session()) {
 
   bodies <- new.env(parent = emptyenv())
 
-  send <- function(message) send_message(message, session, opts)
+  # The names under which R serves the bodies that wait for the client to
+  # fetch them.
+  served <- new.env(parent = emptyenv())
+
+  send <- function(message) send_message(message, session, opts, served)
 
   body_url <- session$registerDataObj(
     "blockr-bodies",
@@ -74,7 +86,13 @@ shiny_transport <- function(handler, session = get_session()) {
 
   shiny::observeEvent(
     session$input[["blockr"]],
-    receive_message(session$input[["blockr"]], handler, send, bodies),
+    receive_message(
+      session$input[["blockr"]],
+      handler,
+      send,
+      bodies,
+      function() drop_bodies(dir, bodies, served, session)
+    ),
     ignoreInit = TRUE
   )
 
@@ -97,7 +115,10 @@ session_start <- function(body_url) {
   list(body_url = body_url)
 }
 
-receive_message <- function(text, handler, send, bodies) {
+# Hands a message to the handler, once it has dropped the bodies of the session
+# where the message holds a `hello`, which `afresh()` does.
+receive_message <- function(text, handler, send, bodies,
+                            afresh = function() invisible()) {
 
   # Checked first, since yyjsonr prints the text where it fails to parse it.
   message <- if (is_string(text) && yyjsonr::validate_json_str(text)) {
@@ -111,6 +132,10 @@ receive_message <- function(text, handler, send, bodies) {
     return(invisible())
   }
 
+  if (any(lgl_ply(message, is_hello))) {
+    afresh()
+  }
+
   message <- with_bodies(message, bodies, send)
 
   tryCatch(
@@ -119,6 +144,30 @@ receive_message <- function(text, handler, send, bodies) {
       log_error("The Shiny transport's handler failed: {conditionMessage(e)}")
     }
   )
+
+  invisible()
+}
+
+is_hello <- function(req) {
+  is.list(req) && identical(req[["kind"]], "hello")
+}
+
+# Drops the bodies that the transport holds for the session, as a `hello`
+# starts it afresh: those that requests posted, by request id in `bodies`, with
+# their files in `dir`, and those that wait for the client to fetch them, by
+# the names in `served`, whose URLs then answer as for a body that the client
+# fetched already.
+drop_bodies <- function(dir, bodies, served, session) {
+
+  rm(list = ls(bodies, all.names = TRUE), envir = bodies)
+
+  unlink(list.files(dir, full.names = TRUE, all.files = TRUE, no.. = TRUE))
+
+  for (name in ls(served, all.names = TRUE)) {
+    session$registerDataObj(name, NULL, body_gone)
+  }
+
+  rm(list = ls(served, all.names = TRUE), envir = served)
 
   invisible()
 }
@@ -231,8 +280,10 @@ write_input <- function(input, path) {
 
 # Sends a message of R's in the order of its items, with a reply whose body
 # travels in a binary frame in a frame of its own, and the items between such
-# replies together.
-send_message <- function(message, session, opts = message_body_opts()) {
+# replies together. The names of the bodies that R serves from a URL go into
+# `served`, where given, until the client deletes them.
+send_message <- function(message, session, opts = message_body_opts(),
+                         served = NULL) {
 
   if (!is.list(message) || not_null(names(message))) {
     blockr_abort(
@@ -242,7 +293,7 @@ send_message <- function(message, session, opts = message_body_opts()) {
     )
   }
 
-  parts <- lapply(message, carry_body, session, opts)
+  parts <- lapply(message, carry_body, session, opts, served)
   run <- list()
 
   for (part in parts) {
@@ -294,7 +345,7 @@ send_frame <- function(item, bytes, session) {
 # finished what it runs next, and a large body holds up neither R nor the
 # messages behind it on the websocket. A reply whose `body` is no reply body
 # goes as it is.
-carry_body <- function(item, session, opts) {
+carry_body <- function(item, session, opts, served = NULL) {
 
   body <- if (is.list(item)) item[["body"]]
 
@@ -312,7 +363,8 @@ carry_body <- function(item, session, opts) {
       x,
       body[["type"]],
       item[["id"]],
-      session
+      session,
+      served
     )
     return(list(item = item))
   }
@@ -378,11 +430,16 @@ message_body_opts <- function() {
 # the body's place, `body_gone()`, is defined here rather than where the body
 # is served, so that it holds on to nothing, where a function made in the
 # serving one would hold its frame and so the body. A body that the client
-# never deletes stays until the session ends, and the file of a body given as
-# one stays.
-serve_body <- function(x, type, id, session) {
+# never deletes stays until the session ends, or until a `hello` starts it
+# afresh, which drops the bodies whose names are in `served`, and the file of a
+# body given as one stays.
+serve_body <- function(x, type, id, session, served = NULL) {
 
   name <- paste0("blockr-body-", id)
+
+  if (not_null(served)) {
+    assign(name, TRUE, envir = served)
+  }
 
   session$registerDataObj(
     name,
@@ -394,6 +451,7 @@ serve_body <- function(x, type, id, session) {
       # Answered with 200 and a text, where Chrome, given 204, failed the next
       # request that it sent over the same connection more often than not.
       if (identical(method, "DELETE")) {
+        drop_served(name, served)
         session$registerDataObj(name, NULL, body_gone)
         return(shiny::httpResponse(200L, "text/plain", "Deleted."))
       }
@@ -411,6 +469,16 @@ serve_body <- function(x, type, id, session) {
       )
     }
   )
+}
+
+# Drops the name of a body that the client deleted from those that R serves.
+drop_served <- function(name, served) {
+
+  if (not_null(served) && exists(name, envir = served, inherits = FALSE)) {
+    rm(list = name, envir = served)
+  }
+
+  invisible()
 }
 
 body_gone <- function(data, req) {

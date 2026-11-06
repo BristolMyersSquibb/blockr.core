@@ -62,6 +62,18 @@ export interface Client {
   // The capabilities that both sides named in the hello of the current
   // session. It holds none while no session is ready.
   capabilities(): ReadonlySet<Capability>;
+  // Sends another hello in the session, which R takes as a fresh start of the
+  // session, as core starts again for a board that opens:
+  // 1. The client gives up every request that waits on R or that it holds,
+  //    each of which rejects with a SessionEndedError, since it may or may not
+  //    have run.
+  // 2. It sends the hello once every message whose body it is sending has
+  //    gone, so that R hears such a message before the hello, which drops it.
+  // 3. It holds what it is asked to send until R has answered the hello, and
+  //    hands the reply to its session(), as for a session that starts.
+  // Where no session runs, the client sends the next session's hello as that
+  // session starts, as always.
+  hello(): void;
 }
 
 export interface ClientOptions {
@@ -133,6 +145,11 @@ export function createClient(
 
   const waiting = new Map<string, Call>();
   let held: Outbound[] = [];
+  // The messages with bodies that the transport is sending, and a count of
+  // the sessions that ended, so that a hello waiting for those messages goes
+  // only where its session is still the one that runs.
+  const sending = new Set<Promise<void>>();
+  let ends = 0;
 
   function mint(): string {
     next += 1;
@@ -163,7 +180,7 @@ export function createClient(
       waiting.set(call.id, call);
     }
 
-    transport
+    const sent = transport
       .send(
         outbound.map((entry) => entry.message),
         bodies,
@@ -184,6 +201,11 @@ export function createClient(
           }
         },
       );
+
+    if (bodies.size > 0) {
+      sending.add(sent);
+      void sent.finally(() => sending.delete(sent));
+    }
   }
 
   function cancel(call: Call): void {
@@ -215,6 +237,7 @@ export function createClient(
   function end(): void {
     state = "none";
     shared = new Set();
+    ends += 1;
 
     const lost = [...waiting.values()];
     waiting.clear();
@@ -224,7 +247,7 @@ export function createClient(
     }
   }
 
-  function hello(): void {
+  function sendHello(): void {
     const named = options.hello();
     const id = mint();
 
@@ -267,7 +290,7 @@ export function createClient(
     started() {
       end();
       state = "started";
-      hello();
+      sendHello();
     },
     ended() {
       end();
@@ -349,6 +372,26 @@ export function createClient(
       queue({ message: { kind: "forget", blocks } });
     },
     capabilities: () => shared,
+    hello() {
+      const runs = state !== "none";
+      const lost = held;
+      held = [];
+      end();
+      for (const { call } of lost) {
+        call?.settle({ error: new SessionEndedError(call.id) });
+      }
+      if (!runs) return;
+
+      state = "started";
+      if (sending.size === 0) {
+        sendHello();
+        return;
+      }
+      const at = ends;
+      void Promise.allSettled([...sending]).then(() => {
+        if (ends === at) sendHello();
+      });
+    },
   };
 }
 

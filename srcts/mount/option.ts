@@ -25,7 +25,7 @@ import { isObject, messageOf, own, packageOf, report } from "../util/index.ts";
 import { ModuleError } from "./load.ts";
 import type { Loader } from "./load.ts";
 import { RequestError } from "./requests.ts";
-import { announceTo, attempt, moduleOf, showError } from "./shared.ts";
+import { announceTo, attempt, moduleOf, onAbort, REPLACED, showError } from "./shared.ts";
 import type { Mountable } from "./shared.ts";
 
 export interface OptionDeps {
@@ -35,10 +35,10 @@ export interface OptionDeps {
   readonly loader: Loader;
   // The renderers that the app names for board options, by the renderer's id.
   readonly renderers: () => Readonly<Record<string, Renderer>>;
-  // How many boards the store has opened.
-  readonly opening: () => number;
+  // Aborts as another board opens, which ends the mount.
+  readonly replaced: AbortSignal;
   readonly addOptions: (ids: readonly OptionId[], by: string) => Promise<void>;
-  // The board option's default for this opening.
+  // The board option's default, the same for every mount on the board.
   readonly defaultOf: (id: OptionId, def: Option) => Promise<Json>;
 }
 
@@ -52,13 +52,13 @@ interface OptionArgs {
 // runs. It throws where no package registers such a board option.
 export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId): () => void {
   const { store, loader } = deps;
+  if (deps.replaced.aborted) throw new Error(REPLACED);
   const def = own(store.options.registered(), option);
   if (def === undefined) {
     throw new Error(`No package registers the board option "${option}" whose UI to mount.`);
   }
   const chosen = Object.entries(deps.renderers()).find(([, renderer]) => renderer.option === option);
 
-  const made = deps.opening();
   const controller = new AbortController();
   const ended = (): boolean => controller.signal.aborted;
   const listeners = new Set<() => void>();
@@ -68,7 +68,7 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
   let cleanup: (() => void) | undefined;
 
   function bound(): boolean {
-    return !ended() && deps.opening() === made;
+    return !ended() && !deps.replaced.aborted;
   }
 
   const unboundError = (): Error =>
@@ -115,11 +115,7 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
     },
   };
 
-  const offStore = store.subscribe((change, board) => {
-    if ("opened" in change) {
-      end();
-      return;
-    }
+  const offStore = store.subscribe((_change, board) => {
     if (board.options === seen) return;
     seen = board.options;
     const next = current();
@@ -128,9 +124,12 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
     announceTo(listeners);
   });
 
+  const offEnd = onAbort(deps.replaced, end);
+
   function end(): void {
     if (ended()) return;
     controller.abort();
+    offEnd();
     offStore();
     listeners.clear();
     if (cleanup !== undefined) attempt(cleanup);

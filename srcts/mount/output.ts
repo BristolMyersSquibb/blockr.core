@@ -20,10 +20,11 @@
 //    drawing the last output, whatever the block's status, with `loading()`
 //    while it asks and `error()` where the latest ask failed.
 //
-// Core keeps two things of each block's output for one opening of a board, on
-// the block's shelf: its parameters, which every mount of the output shares,
-// and the last output that R made, with what it was asked with, which a mount
-// draws without asking R where it would ask with the same.
+// Core keeps two things of each block's output on the block's shelf: its
+// parameters, which every mount of the output shares, and the last output that
+// R made, with what it was asked with, which a mount draws without asking R
+// where it would ask with the same. The shelves go with the mounts, which core
+// makes anew for each board that opens.
 // A mount is bound to the board it was made on and to its block. Once another
 // board opens or the block leaves the board, core ends the mount.
 
@@ -40,7 +41,7 @@ import { ModuleError } from "./load.ts";
 import type { Loader } from "./load.ts";
 import type { Measure } from "./measure.ts";
 import { RequestError } from "./requests.ts";
-import { announceTo, attempt, moduleOf, showError } from "./shared.ts";
+import { announceTo, attempt, moduleOf, onAbort, REPLACED, showError } from "./shared.ts";
 import type { Mountable } from "./shared.ts";
 
 // How long core waits for an element's size to settle before it asks R for an
@@ -85,7 +86,7 @@ interface Flight {
 // React's useSyncExternalStore needs.
 const EMPTY: Readonly<Record<string, Json>> = Object.freeze({});
 
-// What core keeps of a block's output for one opening of a board.
+// What core keeps of a block's output.
 interface Shelf {
   params: Readonly<Record<string, Json>>;
   last: Made | undefined;
@@ -98,8 +99,6 @@ export interface Shelves {
   of(block: BlockId): Shelf;
   // Drops the shelf of a block that left the board.
   drop(block: BlockId): void;
-  // Drops every shelf and gives up every ask, as another board opens.
-  clear(): void;
 }
 
 export function createShelves(): Shelves {
@@ -123,10 +122,6 @@ export function createShelves(): Shelves {
       giveUp(shelf);
       shelves.delete(block);
     },
-    clear() {
-      for (const shelf of shelves.values()) giveUp(shelf);
-      shelves.clear();
-    },
   };
 }
 
@@ -137,8 +132,8 @@ export interface OutputDeps {
   readonly answers: Answers;
   readonly shelves: Shelves;
   readonly measure: Measure;
-  // How many boards the store has opened.
-  readonly opening: () => number;
+  // Aborts as another board opens, which ends the mount.
+  readonly replaced: AbortSignal;
   readonly addOptions: (ids: readonly OptionId[], by: string) => Promise<void>;
   readonly emit: (event: OutputEvent) => void;
 }
@@ -176,6 +171,7 @@ interface Announcing extends OutputHost {
 // runs. It throws where the board holds no such block.
 export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): () => void {
   const { store, scheduler, loader, measure } = deps;
+  if (deps.replaced.aborted) throw new Error(REPLACED);
   const found = own(store.board().blocks, block);
   if (found === undefined) {
     throw new Error(`The board holds no block "${block}" whose output to mount.`);
@@ -185,7 +181,6 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     throw new Error(`The block registry has no class "${found.registry_id}" for block "${block}".`);
   }
 
-  const made = deps.opening();
   const shelf = deps.shelves.of(block);
   const controller = new AbortController();
   const ended = (): boolean => controller.signal.aborted;
@@ -213,14 +208,14 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
   const broken = new WeakSet();
 
   function bound(): boolean {
-    return !ended() && deps.opening() === made && Object.hasOwn(store.board().blocks, block);
+    return !ended() && !deps.replaced.aborted && Object.hasOwn(store.board().blocks, block);
   }
 
   const unboundError = (): Error =>
     new Error(
-      deps.opening() === made
-        ? `Block "${block}" left the board, so the host of its output no longer asks R.`
-        : `Another board opened, so the host of the output of block "${block}" no longer asks R.`,
+      deps.replaced.aborted
+        ? `Another board opened, so the host of the output of block "${block}" no longer asks R.`
+        : `Block "${block}" left the board, so the host of its output no longer asks R.`,
     );
 
   // Loads a renderer and adds the board options that it names to the board.
@@ -339,7 +334,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         )
         .then((answer) => {
           // The last output that R made is the block's, whichever mount asked.
-          if (answer.reply.status === "ok" && "output" in answer.reply && deps.opening() === made) {
+          if (answer.reply.status === "ok" && "output" in answer.reply && !deps.replaced.aborted) {
             shelf.last = { asked, output: answer.reply.output, body: answer.body };
           }
           return answer;
@@ -685,9 +680,10 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     };
   }
 
-  // Follows the board, the block's status and the element's size.
-  const offStore = store.subscribe((change, next) => {
-    if ("opened" in change || !Object.hasOwn(next.blocks, block)) {
+  // Follows the board, the block's status and the element's size, until the
+  // block leaves the board or another board opens.
+  const offStore = store.subscribe((_change, next) => {
+    if (!Object.hasOwn(next.blocks, block)) {
       end();
       return;
     }
@@ -715,9 +711,12 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     );
   });
 
+  const offEnd = onAbort(deps.replaced, end);
+
   function end(): void {
     if (ended()) return;
     controller.abort();
+    offEnd();
     offStore();
     offScheduler();
     shelf.mounts.delete(sync);

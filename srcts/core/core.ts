@@ -1,9 +1,10 @@
 // CoreApi, what core gives a front-end, an extension and a startup module, as
 // Front-ends and extension points has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#what-core-gives-a-front-end).
-// Core makes one for a page, on the store, the command registry and the
-// scheduler that it creates there, and hands it to each startup module's
-// initialize() and to the front-end's render() (./start.ts).
+// Core makes one for each board that opens, on the store, the command registry
+// and the scheduler that it creates for that board, and hands it to each
+// startup module's initialize() and to the front-end's render() (./start.ts).
+// It ends with them, as the next board opens.
 //
 // Beside what it hands out, it calls the onChange() of each board option whose
 // value changes, as the board opens or a delta sets it, so that a new value of
@@ -37,12 +38,23 @@ export interface CoreParts {
   readonly renderers: () => Readonly<Record<string, Renderer>>;
   // Measures an output's element, through the DOM unless given.
   readonly measure?: Measure;
+  // Ends what CoreApi runs as it aborts, as another board opens: every mount,
+  // and what core keeps of outputs and answers, while the outputs' events
+  // reach nobody more.
+  readonly signal?: AbortSignal;
 }
 
 export function createCore(parts: CoreParts): CoreApi {
   const { store, commands, scheduler, loader, blockrOptions } = parts;
 
   const listeners = new Set<(event: OutputEvent) => void>();
+  parts.signal?.addEventListener(
+    "abort",
+    () => {
+      listeners.clear();
+    },
+    { once: true },
+  );
   const outputEvents: OutputEvents = {
     subscribe(fn) {
       const wrapped = (event: OutputEvent): void => {
@@ -62,6 +74,7 @@ export function createCore(parts: CoreParts): CoreApi {
     loader,
     renderers: parts.renderers,
     ...(parts.measure === undefined ? {} : { measure: parts.measure }),
+    ...(parts.signal === undefined ? {} : { signal: parts.signal }),
     emit(event) {
       for (const fn of [...listeners]) {
         try {

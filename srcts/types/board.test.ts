@@ -14,7 +14,8 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { beforeAll, expect, test } from "vitest";
 import { createStore, HEX_COLOR } from "../store/index.ts";
-import type { BoardClass } from "../store/index.ts";
+import type { HelloReply } from "../protocol/index.ts";
+import type { BoardClass, Store } from "../store/index.ts";
 import { coreOptions, hello } from "../testing/store.ts";
 import { declaration, typecheck } from "../testing/typecheck.ts";
 import type { JsonBoard } from "./board.ts";
@@ -143,11 +144,7 @@ test("the check fails a fixture with a field that its type lacks", () => {
 // the store runs no migration.
 test.each(names)("the store opens %s, saves it as R wrote it, and opens the text to the same board", async (name) => {
   const json = jsonOf(read(name));
-  const store = createStore();
-  for (const option of coreOptions) store.options.register(option);
-  store.register(grid);
-
-  await store.open({
+  const replied: HelloReply = {
     ...hello,
     packages: json.packages,
     board_classes: {
@@ -159,7 +156,17 @@ test.each(names)("the store opens %s, saves it as R wrote it, and opens the text
       join_block: entry("join_block", ["x", "y"]),
     },
     board: json,
-  });
+  };
+  // A store of the app, which opens one board.
+  const app = (): Store => {
+    const store = createStore({ hello: replied });
+    for (const option of coreOptions) store.options.register(option);
+    store.register(grid);
+    return store;
+  };
+  const store = app();
+
+  await store.open(replied);
 
   // The text holds each value as R wrote it, an array as an array and an
   // object as an object, with the properties in R's order.
@@ -173,6 +180,7 @@ test.each(names)("the store opens %s, saves it as R wrote it, and opens the text
     expect(Object.keys(board[key])).toEqual(Object.keys(json.board[key]));
   }
 
-  await store.open(text);
-  expect(store.board()).toEqual(board);
+  const other = app();
+  await other.open(text);
+  expect(other.board()).toEqual(board);
 });
