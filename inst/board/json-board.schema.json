@@ -180,11 +180,19 @@
           "items": {
             "$ref": "#/definitions/BlockId"
           }
+        },
+        "color": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^#[0-9a-fA-F]{6}$"
         }
       },
       "required": [
         "name",
-        "blocks"
+        "blocks",
+        "color"
       ]
     }
   }

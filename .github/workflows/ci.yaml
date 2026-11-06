@@ -10,10 +10,6 @@ jobs:
     uses: BristolMyersSquibb/blockr.ci/.github/workflows/ci.yaml@main
     with:
       typescript-dir: '.'
-      lintr-exclusions: |
-        vignettes/create-block.qmd
-        vignettes/blocks-registry.qmd
-        vignettes/get-started.qmd
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       BLOCKR_PAT: ${{ secrets.BLOCKR_PAT }}

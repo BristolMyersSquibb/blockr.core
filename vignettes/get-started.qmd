@@ -1,8 +1,8 @@
 ---
-title: "1. Getting started"
+title: "1. Get started"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{1. Getting started}
+  %\VignetteIndexEntry{1. Get started}
   %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
 ---
@@ -18,26 +18,30 @@ knitr::opts_chunk$set(
 library(blockr.core)
 ```
 
-## {blockr} for developers
+With blockr, a user analyzes and visualizes data in the browser, by pointing and clicking.
+The analysis lives on a __board__.
+A board holds __blocks__, each one step of the analysis, such as reading a dataset, joining two tables or drawing a plot.
+A __link__ passes the result of one block to a data input of another, and a board's links never form a cycle.
+A __stack__ groups blocks that belong together, such as the steps of one part of the analysis.
 
-As a developer you may have to develop custom blocks. We provide a introduction below.
+This board joins two datasets:
 
-### Introduction
-
-`blockr.core` decomposes entire data pipeline workflows into smaller units called __block__, responsible for performing a single __task__. At the end of the day, you obtain a __DAG__ to create powerful data __workflows__.
-
-```{r, echo=FALSE}
+```{r, echo = FALSE}
 include_mermaid("board-dag")
 ```
 
-At the top level, a blockr app is made of a __board__ object. That board may contains __blocks__, __stacks__ or group of blocks, and connections between blocks, also known as __links__. You may find interesting to read more about block metadata in this [vignette](https://bristolmyerssquibb.github.io/blockr.core/articles/blocks-registry.html).
+Block `a` reads the dataset `BOD`, and block `b` reads the dataset `ChickWeight`.
+Block `c` merges the two by their column `Time`.
+The link from `a` feeds the input `x` of block `c`, and the link from `b` feeds its input `y`.
+The stack `ac` holds blocks `a` and `c`.
 
-### Define a board
+## Define a board
 
-A board is created with `new_board()`, from blocks, the links between them and stacks of blocks:
+An app script builds a board with the constructors of its parts.
+This script builds the board above:
 
 ```{r simple-board}
-new_board(
+board <- new_board(
   blocks = c(
     a = new_dataset_block("BOD"),
     b = new_dataset_block("ChickWeight"),
@@ -47,12 +51,23 @@ new_board(
     ac = new_link("a", "c", "x"),
     bc = new_link("b", "c", "y")
   ),
-  stacks = list(ac = c("a", "c"))
+  stacks = list(ac = c("a", "c")),
+  id = "example"
 )
+
+board
 ```
 
-### What's next?
+The names in `blocks` are the IDs of the blocks, by which links and stacks name them.
+Each block comes from the constructor of its block class, such as `new_merge_block()`, which takes the block's state, here the column to join by.
+A link names the block it comes from, the block it goes to and the data input it feeds.
+An ID that a script leaves out is drawn at random, such as `calm_heron`, and a board without a name is named after its ID.
+The script gives this board's ID, so that the page shows the same one each time it is built.
 
-#### Develop new blocks
+A board also holds __board options__, such as the number of rows that a table shows on a page, which a user changes while the app runs.
+While the app runs, the browser holds the board, and R evaluates its blocks.
 
-If you had to develop custom blocks, you can read this [vignette](https://bristolmyerssquibb.github.io/blockr.core/articles/create-block.html).
+## What's next
+
+- [Create a block class](create-block.html) shows how a package writes a block class: its R side, its UI module in the browser and its tests.
+- [Block expressions](block-expressions.html) shows how a block class builds the R code that a block runs.

@@ -1,8 +1,8 @@
 ---
-title: "2. Create a block"
+title: "2. Create a block class"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{2. Create a block}
+  %\VignetteIndexEntry{2. Create a block class}
   %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
 ---
@@ -18,16 +18,36 @@ knitr::opts_chunk$set(
 library(blockr.core)
 ```
 
-## Block classes
+A __block__ is one step of a board, such as keeping the first rows of a table.
+Every block is an instance of a __block class__, which a package defines once.
+This guide shows how a package writes a block class, on the examples of core's built-in blocks.
 
-A __block__ is an instance of a __block class__. A block class is a value made by `new_block_class()`, which holds everything that is the same for every block of the class. The constructor that app scripts call is made from the class by `block_constructor()`. A package exports both: the class, from whose fields another class can be built, and the constructor.
+A block class has two halves.
+Its R side is plain functions, which build the code that a block runs and answer what its UI asks of R.
+Its UI is a module that runs in the browser, where the client holds the state of every block.
+The two halves meet only in JSON.
+The guide covers the R side first, then the UI module, and then how a package registers and tests a class.
+Its last section ports a block from `new_block()`.
+The [Block expressions](block-expressions.html) vignette covers in detail how a class builds the code that a block runs.
 
-The head block that blockr.core ships is defined as follows:
+## The block class
+
+A block class is one value, made by `new_block_class()`.
+It holds everything that is the same for every block of the class.
+The head block, which keeps the first or last `n` rows of a data frame, is defined in core as follows:
 
 ```{r}
 head_block <- new_block_class(
   "head_block",
-  inputs = function(data) stopifnot(is.data.frame(data)),
+  inputs = function(data) {
+    if (!is.data.frame(data)) {
+      blockr_abort(
+        "The head block takes a data frame, not an object of class ",
+        "{class(data)[1L]}.",
+        class = "head_block_inputs_invalid"
+      )
+    }
+  },
   expr = function(n = 6L, direction = c("head", "tail")) {
     direction <- match.arg(direction)
     fn <- if (direction == "tail") quote(utils::tail) else quote(utils::head)
@@ -37,36 +57,818 @@ head_block <- new_block_class(
   requests = list(n_max = function(data) nrow(data)),
   output = as_table_output
 )
+```
 
+Each argument of `new_block_class()` has one job:
+
+- The argument `name` gives the class's name, which leads the class vector of every block of the class.
+- The argument `inputs` gives the __data inputs__, the results of the blocks upstream, which links bind. Given as a function, its formals name the inputs and its body checks them.
+- The argument `expr` builds the block's R code. Its formals are the __state args__, whose values a user sets through the block's UI, and its body checks them. It returns what interpolation makes the __block expression__ from, the code that R evaluates for the block.
+- The argument `ui` names the module that draws the block's UI in the browser, by its path in the package's `inst/`.
+- The argument `requests` holds the functions that the UI calls for what it needs from R. The head block's UI asks for the number of rows of its input through `n_max`, which caps its number input.
+- The argument `output` names the coercion through which the block's results show, here as a table.
+- The argument `version`, which the head block leaves at 1, gives the version of the shape of the class's state.
+
+A class keeps these as its properties, such as `head_block$expr`.
+The function `new_block_class()` checks a class once, as it makes it, so that no block of the class is checked again.
+It refuses a request whose function takes an argument that is neither an input nor a state arg and has no default.
+It calls `expr` without args and refuses a class whose `expr` returns something that interpolation cannot use.
+
+The constructor that app scripts call is a function that `block_constructor()` makes from the class:
+
+```{r}
 new_head_block <- block_constructor(head_block)
 ```
 
-Each field has one job:
-
-- The field `inputs` names the data inputs, the results of the blocks upstream. Given as a function, its formals name them and its body checks them.
-- The field `expr` builds the block's R code. Its formals are the __state args__, whose values a user sets through the block's UI. Its body checks them and returns what interpolation turns into the __block expression__: here a call made by `bbquote()`, where `.(data)` is a placeholder for the data input and `.(n)` is filled in with the value of `n`.
-- The field `ui` names the module that draws the block's UI in the browser.
-- The field `requests` holds the functions the UI calls for what it needs from R. The head block's UI asks for the number of rows of its input through `n_max`, which caps its numeric input.
-- The field `output` names the coercion through which the block's results show, here as a table.
-
-The constructor takes the state args and a `block_name`.
-It runs the checks in `expr` and keeps the state they leave:
+The constructor has the formals of `expr` and a `block_name`.
+It calls `expr` with its args, so that the checks in `expr`, such as `match.arg()`, run as the constructor runs.
+The block keeps the state that the checks left in the frame where `expr` ran:
 
 ```{r}
 new_head_block(n = 10L)
 ```
 
-## Evaluating a block
+The constructor takes no `...`, so a misspelled state arg fails:
 
-R evaluates a block from its class, its state and the results of the blocks upstream, without building a block. It calls `expr` with the state, puts the IDs of the upstream blocks in place of the placeholders and runs the result:
+```{r, error = TRUE}
+new_head_block(m = 10L)
+```
+
+A block refers to its class, which every block of the class shares, and copies nothing of it.
+A package exports both the class and the constructor, as core exports `head_block` and `new_head_block()`.
+App scripts call the constructor.
+Another package can build a class of its own from the properties of the class, such as a head block whose results show as printed text:
 
 ```{r}
-evaluate_block(
-  head_block,
-  state = list(n = 3L),
-  inputs = list(data = "a"),
-  results = list(a = datasets::iris)
+head_text_block <- new_block_class(
+  "head_text_block",
+  inputs = head_block$inputs,
+  expr = head_block$expr,
+  ui = head_block$ui,
+  output = as_text_output
 )
 ```
 
-A state that cannot run yet makes the block `invalid`, such as one that leaves an argument without a default unset. See `?new_block_class` and `?interpolate` for the rules of `expr`, `?new_block_request` for requests, and `?expect_block_fixture` for testing a block class without Shiny.
+## The block state
+
+A block's state is its values of the state args.
+The client holds the state of every block as plain JSON, as the block's UI wrote it.
+So the UI owns the shape of the state.
+Its module ships the shape as a JSON Schema in a file beside it, such as `head-block.schema.json` beside `head-block.js`:
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "n": { "type": "integer", "minimum": 0 },
+    "direction": { "type": "string", "enum": ["head", "tail"] }
+  },
+  "required": ["n", "direction"],
+  "additionalProperties": false
+}
+```
+
+R reads the schema when the package registers the class, and the schema's properties have to be the class's state args.
+When an app script builds a board, R writes the state of each block by the schema.
+So a vector of length one stays an array where the schema has one.
+R also sends the schema to the client, where the command that sets a block's state refuses an edit that the schema refuses.
+
+The class's author writes `expr` against what R makes of that JSON.
+R decodes the state that the client sends into plain values:
+
+| JSON | R |
+|---|---|
+| `"a"` and `["a"]` | `"a"` |
+| `10` and `[10]` | `10L` |
+| `2.5` | `2.5` |
+| `["a", "b"]` | `c("a", "b")` |
+| `[]` | `list()` |
+| `[1, "a"]` | `list(1L, "a")` |
+| `{"k": 1}` | `list(k = 1L)` |
+| `[{"x": 1}, {"x": 2}]` | `list(list(x = 1L), list(x = 2L))` |
+
+R turns no array into a data frame or a matrix, and nothing it decodes becomes code.
+A selection that a user emptied arrives as an empty array, which R decodes as an empty list.
+So the merge block tests its `by` with `length()`, which works for an empty list and an empty character vector alike:
+
+```{r}
+evaluate_block(merge_block, list(by = list()), list(x = "a", y = "b"),
+               list(a = datasets::BOD, b = datasets::BOD))
+```
+
+A state arg that a user has to pick has no default.
+It starts unset, as the merge block's `by` does, and it stays out of the block's state until a user sets it.
+The block reads `invalid` until then:
+
+```{r}
+new_merge_block()
+
+evaluate_block(merge_block, list(), list(x = "a", y = "b"),
+               list(a = datasets::BOD, b = datasets::BOD))
+```
+
+The __arg specs__ describe each state arg for models and tools, such as an assistant that builds blocks, while the schema gives its shape.
+A package writes them in the tags it registers the class with (see "Registration" below).
+
+A class gives the version of its state's shape in `version`, a whole number from 1.
+A package raises it whenever it changes that shape, such as by renaming a state arg.
+A saved board records with each block the version of its state.
+As the client opens a board saved at an older version, it migrates the state in JS, with the migration that the package registers for the class in its startup module.
+No migration runs in R, since the UI owns the shape.
+
+## The block expression
+
+R calls a class's `expr` with a block's state, and interpolation turns what it returns into the block expression.
+Core's classes write it with `bbquote()`.
+In the code given to `bbquote()`, `.(data)` is a __placeholder__ for the data input, which interpolation replaces with the ID of the upstream block, and `.(n)` stands for the value of the state arg `n`:
+
+```{r}
+res <- evaluate_block(head_block, list(n = 3L, direction = "tail"),
+                      list(data = "a"), list(a = datasets::iris))
+res
+
+export_code(list(b = res$expr))
+```
+
+An exported script assigns the block expression to the block's ID, as `export_code()` does here.
+R runs the same expression, with the result of block `a` bound to `a`.
+So the code that a script exports is the code that ran.
+
+The function `expr` never sees the data of an input.
+A class whose block expression depends on the data says so in the expression, as `utils::head(.(data), n = min(10L, nrow(.(data))))` caps `n` at the rows it gets.
+Or its UI asks R for what a user picks from through a request, such as the columns of the input, and the user's pick goes into the state.
+
+The body of `expr` signals `blockr_invalid()` with a message for a state that is set but cannot run, such as a selection that a user emptied.
+R then runs nothing and reports the block as `invalid`.
+A body that can do without an unset arg tests it with `missing()`.
+
+A block may parse a string into code, as the subset block does with what a user types.
+So a board can run any R code, and the deployment limits what the R process may do.
+
+The [Block expressions](block-expressions.html) vignette covers everything `expr` may return, placeholders, variadic blocks and the pitfalls.
+
+## Requests
+
+A __request__ is a function that a class's UI calls for what it needs from R, such as the head block's `n_max`.
+Its answer never enters the block's state.
+R binds each of the function's arguments by name:
+
+- An input, to the result of the upstream block linked to it.
+- A variadic block's `...`, to its inputs in link order.
+- A state arg, to the value that the request carries. The UI passes a value or the client fills it in from the block's state, and an unset arg stays missing.
+- Any other argument, to a __parameter__ that the UI passes. A parameter has to have a default.
+
+The function `run_block_request()` runs a request as R does, without Shiny:
+
+```{r}
+run_block_request(head_block, "n_max", list(data = datasets::iris))
+```
+
+A request is bounded by its author.
+There is no generic request for the values of a column, since one column can hold millions of values.
+A class that lists values for a user to pick from writes a request of its own, which returns a bounded number of them.
+This class filters a data frame by the values of one column.
+Its request `values` returns at most `limit` values that start with what a user typed:
+
+```{r}
+filter_block <- new_block_class(
+  "filter_block",
+  inputs = "data",
+  expr = function(column, values = character()) {
+    bbquote(.(data)[.(data)[[.(column)]] %in% .(values), , drop = FALSE])
+  },
+  ui = js_module("js/filter-block.js"),
+  requests = list(
+    columns = function(data) names(data),
+    values = function(data, column, query = "", limit = 100L) {
+      vals <- unique(as.character(data[[column]]))
+      utils::head(vals[startsWith(vals, query)], limit)
+    }
+  ),
+  output = as_table_output
+)
+
+run_block_request(filter_block, "values", list(data = datasets::iris),
+                  args = list(column = "Species", query = "v"))
+```
+
+The state arg `column` comes from the block's state, while the parameters `query` and `limit` come from the UI.
+A parameter holds only what the UI shows, such as the text typed into a search box, and never what the block computes.
+The function `expr` never sees a parameter, so no parameter changes a block's expression or its state.
+
+The client keeps each answer by the class, the request's name, its state args, parameters and board option values, and the revisions of the inputs it read.
+So a dropdown that a user opens again shows its values without asking R.
+After a change upstream, the module asks R again.
+A request names only the inputs and state args that its answer depends on, since the client keeps the answer by them.
+How many requests a class has is up to its author.
+Values that change together go in one request.
+A value that changes for other reasons gets a request of its own, as the filter block's `columns` does beside its `values`, which change with each search.
+
+R writes an answer with every vector as an array, a vector of length one included.
+So a module reads a single value as `answer[0]`.
+
+A request made by `new_block_request()` can be one of two other kinds:
+
+- With `volatile = TRUE`, the client keeps no answer and asks R every time. That suits a cheap lookup outside the board, such as a directory listing, and nothing expensive. Core's file browser lists a directory through the volatile request `list_dir`.
+- With `action = TRUE`, the request acts rather than reads, such as an upload. R runs it once per call, it may write, and the client keeps no answer.
+
+Core's upload block keeps the file that a user picks through the action `upload`:
+
+```{r}
+upload_block$requests$upload
+```
+
+R calls an action with the file that the module sends in the argument `file`.
+That is a list of the path where R wrote the bytes, and the file's name, MIME type and size, as Shiny's `fileInput()` gives them.
+The action keeps the file where its package decides and returns its path.
+The module then submits that path into the block's state, as `file_path`.
+
+A request reads a __board option__, an option that a user changes while the app runs, only where `new_block_request()` names it by its constructor, in `options`.
+The client then sends the board option's value with each request, and keeps the answers by it.
+
+## Outputs
+
+A block's result can be any R object.
+An __output__ is what the client shows of it.
+The coercion that a class names in `output` makes the output from the result.
+Core has three such coercions:
+
+- The function `as_table_output()` shows a table one page at a time, with as many rows to a page as the board option `n_rows` gives.
+- The function `as_plot_output()` shows a plot as an image, drawn at the size of the element that shows it.
+- The function `as_text_output()` shows any result as `print()` shows it. R shows the results of a class that leaves `output` out through this coercion.
+
+A coercion is a generic that dispatches on the class of the result.
+So a package that knows another class of table adds an `as_table_output()` method that returns a table output, rather than a block class.
+Every block whose class names `as_table_output` then shows such a result as a table.
+A method for lazy tables, which pages them in their database, has this shape, with illustrative helpers:
+
+```{r, eval = FALSE}
+as_table_output.tbl_lazy <- function(result, options = list(), info = list(),
+                                     params = list(), ...) {
+  page <- fetch_page(result, params, options)
+  new_table_output(
+    columns = data.frame(name = colnames(page), class = column_classes(page)),
+    rows = page,
+    total = NA
+  )
+}
+```
+
+The plot coercion draws a ggplot by printing it.
+A base plot is different: it is drawn while the block expression runs, which returns nothing to print.
+So a class whose block expression draws a base plot captures the plot with a `block_eval()` method, as core's scatter block does (see "Evaluation" below):
+
+```{r, eval = FALSE}
+block_eval.scatter_block <- function(x, expr, env, ...) {
+  capture_plot(expr, env)
+}
+```
+
+A __renderer__ is the module that draws an output in the browser.
+The package that defines an output class gives its renderer, and an app picks another, such as a richer table, through the blockr option `renderers`.
+So a block class never names how its output looks.
+A package that needs an output class of its own makes one with `new_block_output()` and gives its JSON Schema, requests and renderer through methods of `output_schema()`, `output_requests()` and `output_renderer()`.
+
+## Evaluation
+
+R evaluates a block from its class, its state and the results of the blocks upstream, and it builds no block to do so.
+The function `evaluate_block()` runs these steps as R does:
+
+1. R looks the class up by its registry ID.
+2. R runs the checks of a function given as `inputs` with the upstream results.
+3. R calls `expr` with the block's state.
+4. Interpolation turns what `expr` returns into the block expression.
+5. The generic `block_eval()` runs the block expression, with each upstream block's result bound to its ID.
+6. The generic `result_summary()` describes the result in a few words, which the block's header shows.
+
+The status is `ok` where the block ran.
+It is `invalid` where `expr` used an unset arg, or where `expr` or a `block_eval()` method signaled `blockr_invalid()`.
+It is `error` where a check of the inputs or anything else failed.
+R records each condition with the phase that raised it.
+
+A class has no say in when its blocks are evaluated: the client evaluates what its front-end shows and what packages ask for.
+A class whose block expression may run only when its UI asks, such as a write block in manual mode, has a `block_eval()` method.
+The method decides whether and how the block expression runs, never what it computes.
+This write block writes only where its state holds `auto_write` or its UI passes the parameter `save`:
+
+```{r}
+write_block <- new_block_class(
+  "write_block",
+  inputs = "data",
+  expr = function(path = "data.csv", auto_write = FALSE) {
+    bbquote(utils::write.csv(.(data), .(path), row.names = FALSE))
+  },
+  ui = js_module("js/write-block.js")
+)
+
+block_eval.write_block <- function(x, expr, env, save = FALSE, ...) {
+  if (!isTRUE(x$auto_write) && !save) {
+    blockr_invalid("Save to write the file.")
+  }
+  NextMethod()
+}
+
+path <- tempfile(fileext = ".csv")
+
+res <- evaluate_block(write_block, list(path = path), list(data = "a"),
+                      list(a = datasets::BOD))
+res$status
+file.exists(path)
+
+res <- evaluate_block(write_block, list(path = path), list(data = "a"),
+                      list(a = datasets::BOD), save = TRUE)
+res$status
+file.exists(path)
+```
+
+The write block's save button asks for a __one-time evaluation__ with the parameter, `host.evaluate({ save: true })`, which R passes on to `block_eval()`.
+An exported script holds the write, so running it writes the file.
+
+R keeps the result of each block and binds it as an input of every block downstream.
+So nothing that a class runs may change its inputs in place.
+Copy-on-modify covers most R objects, but not a data.table changed by reference, an environment or an R6 object.
+A data.table block that adds a column copies its input first:
+
+```{r, eval = FALSE}
+bbquote(data.table::copy(.(data))[, total := cumsum(value)])
+```
+
+R evaluates a block again whenever a new R session starts with the board, since a result lives only in the session that computed it.
+So a block that draws random numbers keeps a seed in its state, to give the same result each time:
+
+```{r}
+sample_block <- new_block_class(
+  "sample_block",
+  inputs = "data",
+  expr = function(n = 5L, seed = 1L) {
+    bbquote({
+      set.seed(.(seed))
+      .(data)[sample(nrow(.(data)), .(n)), , drop = FALSE]
+    })
+  },
+  ui = js_module("js/sample-block.js"),
+  output = as_table_output
+)
+
+res <- evaluate_block(sample_block, list(n = 3L, seed = 42L), list(data = "a"),
+                      list(a = datasets::iris))
+res$result
+```
+
+Its UI draws a new sample by submitting a new seed when a user asks for one.
+
+## The UI module
+
+A class's UI is an ES module that its package ships in `inst/`.
+Core loads it the first time it shows a block of the class, and mounts it with a __host__, through which the module reads and edits its one block.
+The module exports the major of core's JS API that it was built against, and a default with a `render()` function:
+
+```ts
+import type { BlockModule } from "@blockr/core";
+
+type State = { n: number; direction: "head" | "tail" };
+
+export const api = 1;
+
+const head: BlockModule<State> = {
+  render({ el, host, signal }) {
+    const draw = (): void => {
+      el.textContent = `${host.state().direction} ${host.state().n}`;
+    };
+    draw();
+    return host.on("state", draw);
+  },
+};
+
+export default head;
+```
+
+Core calls `render()` whenever it mounts the module, with the element to draw in, the host and a signal.
+The function may be async, and it may return its cleanup, which core runs as it unmounts the module and aborts the signal.
+The host gives the module everything it may use:
+
+| Host | Gives |
+|---|---|
+| `block`, `class` | the block's ID and its class's registry ID |
+| `state()` | the block's state |
+| `context()` | the block's name, status, linked inputs and the values of the board options that the module names |
+| `on("state", fn)`, `on("context", fn)` | a subscription to changes of either, which returns the function that ends it |
+| `submit(change)` | one edit of the state, which rejects with what refused it |
+| `request(name, args, opts)` | a request of the class, with state args and parameters in `args` |
+| `evaluate(params)` | a one-time evaluation of the block with parameters, which its `block_eval()` method reads |
+| `module(id)` | a module that another package offers, by its ID |
+
+A module meets the contract of a block's UI by these rules:
+
+1. A module submits only when the user acts, never to fill in a value once data arrives. So a state arg that the user has to pick stays unset, and the block reads `invalid` until then. The summarize and join blocks of blockr.dplyr, in their `new_block()` versions, break this rule: they fill in their first or shared columns once the data arrives ([`summarize-block.js#L601-L607`](https://github.com/BristolMyersSquibb/blockr.dplyr/blob/bdac6b38f7097425bfe96883032531cc919f6ee7/inst/js/summarize-block.js#L601-L607), [`join-block.js#L678-L680`](https://github.com/BristolMyersSquibb/blockr.dplyr/blob/bdac6b38f7097425bfe96883032531cc919f6ee7/inst/js/join-block.js#L678-L680)).
+2. A module takes changes of the state that it did not make, since undo, an assistant and extensions make them too. It updates its inputs in place, but leaves alone the one that the user is editing.
+3. An input that changes with every keystroke submits once the user pauses, presses Enter or leaves it. So a burst of typing is one edit and one undo step. A module submits an edit still pending as core unmounts it.
+4. A module builds each submit from `host.state()` as it submits, so that it keeps an edit made in the meantime, such as a condition that an assistant added to a filter.
+5. A module draws only inside its element and keeps nothing on the page, such as an element ID, since core can mount one block's UI in several places at once.
+
+Core's React SDK and its controls keep these rules for every input that they bind.
+A module may also name the board options it shows in `options`, an array of their IDs beside `render()`, and its context then holds their values.
+
+### Written in React
+
+A module written in React draws with the one copy of React that core puts on the page.
+Core's React SDK, `@blockr/core/react`, holds the hooks that follow the host and the inputs that core's own UIs draw with.
+This is the head block's UI, with a number input whose maximum the request `n_max` gives:
+
+```tsx
+import type { ReactElement } from "react";
+import type { BlockHost } from "@blockr/core";
+import { NumberInput, reactModule, Select, Stack, useRequest, useValue } from "@blockr/core/react";
+import type { ModuleProps } from "@blockr/core/react";
+import type { State } from "./state.ts";
+
+export const api = 1;
+
+const ends = [
+  { value: "head", label: "Head" },
+  { value: "tail", label: "Tail" },
+];
+
+function HeadBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
+  const rows = useRequest(host, "n_max").answer;
+  const max = Array.isArray(rows) && typeof rows[0] === "number" ? rows[0] : undefined;
+  return (
+    <Stack>
+      <NumberInput bound={useValue(host, "n")} label="Number of rows" min={0} max={max} />
+      <Select bound={useValue(host, "direction")} label="Direction" placeholder="Choose an end" choices={ends} />
+    </Stack>
+  );
+}
+
+export default reactModule(HeadBlock);
+```
+
+The SDK holds these:
+
+- The function `reactModule()` makes a module from a component.
+- The hook `useValue()` binds a state arg to an input, by the contract's rules.
+- The hook `useRequest()` follows a request, which it asks again whenever its args or the revisions of the block's inputs change.
+- The inputs `Checkbox`, `Checklist`, `Field`, `NumberInput`, `Select`, `Stack` and `TextInput`, each on one bound value.
+- For the renderers of output classes, the function `outputRenderer()` and the hook `useOutput()`.
+
+The state's type sits in `state.ts`, from which the package's build writes the JSON Schema:
+
+```ts
+export type State = Readonly<{
+  /**
+   * @asType integer
+   * @minimum 0
+   */
+  n: number;
+  direction: "head" | "tail";
+}>;
+```
+
+An arg without a default is optional in the type, as the merge block's `by?: readonly string[]` is, since a new block leaves it unset.
+
+A package keeps such sources outside `inst/`, such as in `srcts/`, and builds them into `inst/js/`.
+It builds with esbuild and core's build preset, `@blockr/core/build`.
+The preset maps every import of React to the copy that core puts on the page, so that the module's bundle holds no React.
+A script `build.ts` builds the module, and Node runs it as it is from version 22.18:
+
+```ts
+import * as esbuild from "esbuild";
+import { preset } from "@blockr/core/build";
+
+await esbuild.build({
+  ...preset,
+  entryPoints: { "head-block": "srcts/head-block/index.tsx" },
+  outdir: "inst/js",
+});
+```
+
+The package installs its tools from npm, and core's types from the installed blockr.core, under the name `@blockr/core`:
+
+```sh
+npm install --save-dev esbuild react react-dom @types/react typescript vitest happy-dom
+npm install --no-save --install-links \
+  "$(Rscript -e 'cat(system.file("types", package = "blockr.core"))')"
+```
+
+The flag `--install-links` installs a copy of the types, from which TypeScript finds the package's own React.
+A link to the R library would leave React's types unresolved.
+Since npm removes a package installed with `--no-save` at its next install, the package installs the types again after each `npm install` or `npm ci`.
+
+The schema can be written by hand, or generated from the type, such as with `ts-json-schema-generator`:
+
+```sh
+npx ts-json-schema-generator --path srcts/head-block/state.ts --type State \
+  --no-top-ref --no-type-check -o inst/js/head-block.schema.json
+```
+
+That schema allows no state arg that the type lacks and requires each one that the type does not mark optional.
+The package commits what it builds into `inst/js/`, since `R CMD check` and CRAN run no Node, and leaves the rest out of the R package in `.Rbuildignore`:
+
+```
+^srcts$
+^node_modules$
+^package(-lock)?\.json$
+^tsconfig\.json$
+^build\.ts$
+^vitest\.config\.ts$
+```
+
+### Written without React
+
+A module written in plain JS or TypeScript draws with core's controls, the same inputs that the React SDK offers, through `controls()`.
+A package that bundles its modules imports `controls()` from `@blockr/core/controls`.
+A package that builds nothing reaches the controls through its host, as the module `blockr.core-controls`, and writes its modules in JS, type-checked through `// @ts-check`:
+
+```js
+// @ts-check
+
+export const api = 1;
+
+const ends = [
+  { value: "head", label: "Head" },
+  { value: "tail", label: "Tail" },
+];
+
+/** @type {import("@blockr/core").BlockModule<{ n: number; direction: "head" | "tail" }>} */
+export default {
+  async render({ el, host, signal }) {
+    const { controls } = /** @type {typeof import("@blockr/core/controls")} */ (
+      await host.module("blockr.core-controls")
+    );
+    const ui = controls(host, signal);
+    const n = ui.number("n", { label: "Number of rows", min: 0 });
+    ui.select("direction", { label: "Direction", placeholder: "Choose an end", choices: ends });
+    ui.follow("n_max", {
+      answer(rows) {
+        n.setMax(Array.isArray(rows) && typeof rows[0] === "number" ? rows[0] : undefined);
+      },
+    });
+    el.replaceChildren(ui.el);
+    return ui.cleanup;
+  },
+};
+```
+
+A widget of a package's own binds to a state arg through `bind()` of `@blockr/core/binding`, which keeps the contract's rules without React.
+A package that builds nothing writes the schema of the state by hand.
+
+### Where the files go
+
+A module and what it ships sit in one folder of `inst/`, under one name:
+
+| File | Holds |
+|---|---|
+| `inst/js/head-block.js` | the module, which the class names as `js_module("js/head-block.js")` |
+| `inst/js/head-block.schema.json` | the JSON Schema of the state |
+| `inst/js/head-block.css` | the module's stylesheet, if it has one |
+
+R serves each file at a URL that holds a hash of its content, so that no browser runs a changed file from its cache.
+A class defined outside a package, such as in an app script, names a module beside the script, and `js_module()` resolves the path against the working directory.
+
+## Registration
+
+A package registers its block classes in the __block registry__, under a __registry ID__ `{pkg}-{name}`, such as `blockr.core-head_block`.
+The registry holds each class with its metadata, so that R evaluates a block, and resolves a request, without building a block.
+R sends the client each class's entry, with its data inputs, its module, the schema of its state, the state a new block starts with, its arg specs and its requests.
+
+A package declares the metadata in roxygen tags on the constructor.
+These are the head block's:
+
+```r
+#' @block head/tail block
+#' @blockDescr Data head/tail
+#' @blockCategory transform
+#' @blockIcon eye
+#' @blockArg n Number of rows to keep.
+#'   [example] 10L
+#'   [type] arg_integer()
+#' @blockArg direction Row end to keep, either head (first) or tail (last).
+#'   [example] "tail"
+#'   [type] arg_enum(c("head", "tail"))
+#' @export
+new_head_block <- block_constructor(head_block)
+```
+
+With `blockr.core::block_registration_roclet` in the `Roxygen` field of its `DESCRIPTION`, `devtools::document()` writes the tags into `inst/registry/blocks.yml`.
+The package then registers every class it declares there as it loads:
+
+```r
+.onLoad <- function(libname, pkgname) {
+  register_package_blocks(package = pkgname)
+  trace_block_classes(pkgname)
+}
+```
+
+The call to `trace_block_classes()` lets covr count the lines of the functions that the classes hold (see "Testing" below).
+See `?block_registration_roclet` for every tag.
+
+A package builds its classes while R installs it, as R sources its files.
+A class that names a function of its own package, such as a request, finds that function only once R has sourced the file that defines it.
+An `@include` tag, from which roxygen writes the `Collate` field, makes R source that file first.
+
+Registration reads the class from its constructor, and a class defined outside a package is registered with the constructor as a function.
+Its registry ID is then the class's name alone:
+
+```{r}
+register_block(new_head_block, "Head", "Keeps the first or last rows")
+
+available_blocks()[["head_block"]]
+
+unregister_blocks("head_block")
+```
+
+## Testing
+
+A class is tested without Shiny.
+Its R tests run its expression and its requests with core's helpers, and its module tests mount the module on a stub of its host, which core ships.
+The two share one fixture file, since the two halves of the class meet only in JSON.
+
+### The R tests
+
+The function `evaluate_block()` evaluates the class with a state and sample inputs, and `run_block_request()` runs a request:
+
+```{r, eval = FALSE}
+test_that("the head block keeps the last rows", {
+  res <- evaluate_block(head_block, list(n = 2L, direction = "tail"),
+                        list(data = "a"), list(a = datasets::BOD))
+  expect_identical(res$status, "ok")
+  expect_identical(res$expr, quote(utils::tail(a, n = 2L)))
+  expect_identical(run_block_request(head_block, "n_max",
+                                     list(data = datasets::BOD)), 6L)
+})
+```
+
+The function `expect_block_fixture()` writes the fixture file.
+It checks that the block expression of each listed state runs on the sample inputs.
+It then records what each listed request answers, and keeps both as a testthat snapshot:
+
+```{r, eval = FALSE}
+test_that("the head block's fixture", {
+  expect_block_fixture(
+    head_block,
+    states = list(
+      list(n = 6L, direction = "head"),
+      list(n = 10L, direction = "tail")
+    ),
+    inputs = list(data = datasets::iris),
+    requests = list(list(name = "n_max"))
+  )
+})
+```
+
+In `tests/testthat/test-head-block.R`, this writes `tests/testthat/_snaps/head-block/head_block.json`:
+
+```json
+{
+  "states": [
+    { "n": 6, "direction": "head" },
+    { "n": 10, "direction": "tail" }
+  ],
+  "requests": [
+    { "name": "n_max", "args": {}, "options": {}, "answer": [150] }
+  ]
+}
+```
+
+The package commits the snapshot.
+A change to what a request answers then fails the test until the new snapshot is accepted with `testthat::snapshot_accept()`.
+
+A class's functions live inside a value, where covr finds none of them, so a coverage report would show none of their lines.
+Under covr, `trace_block_classes()` in the package's `.onLoad()` binds them in the namespace, where covr counts them.
+
+### The module tests
+
+The module tests run in Vitest with `happy-dom`, through a `vitest.config.ts`:
+
+```ts
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: { environment: "happy-dom" },
+});
+```
+
+The stub of a block's host, `stubBlockHost()` of `@blockr/core/stubs`, takes the fixture file and a state.
+It answers the module's requests from the file, and it refuses a submit of a state that the file does not list.
+So the module tests check that the module submits only states that the R tests ran.
+The stub keeps what the module submitted, in `submitted`, and what it requested, in `requested`.
+A module drawn with React is mounted inside React's `act()`, which runs what React scheduled before the test reads the page:
+
+```ts
+import { act } from "react";
+import { expect, test } from "vitest";
+import { mount, stubBlockHost } from "@blockr/core/stubs";
+import type { BlockFixture } from "@blockr/core/stubs";
+import recorded from "../testthat/_snaps/head-block/head_block.json";
+import * as head from "../../srcts/head-block/index.tsx";
+import type { State } from "../../srcts/head-block/state.ts";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const fixture: BlockFixture = recorded;
+
+test("caps n at the rows of its input and submits a pick", async () => {
+  const host = stubBlockHost<State>(fixture, { state: { n: 10, direction: "head" } });
+  const view = await act(() => mount(head, host));
+
+  const n = view.el.querySelector("input") as HTMLInputElement;
+  const direction = view.el.querySelector("select") as HTMLSelectElement;
+  expect(n.max).toBe("150");
+
+  await act(async () => {
+    direction.value = "tail";
+    direction.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  expect(host.submitted).toEqual([{ n: 10, direction: "tail" }]);
+
+  act(() => view.unmount());
+});
+```
+
+The stub's `setState()` and `setContext()` change the state or the context from outside the module, as undo or a new revision of an input does.
+A module that reaches other packages' modules through its host gets them from the stub's option `modules`, such as `{ "blockr.core-controls": controls }`, with `controls` imported from `@blockr/core/controls`.
+
+## Porting a block from `new_block()`
+
+A block made by `new_block()` runs its UI logic in R: a Shiny module server keeps its state in reactives and returns its expression as one.
+A block class keeps none of that in R.
+This is the head block as it was defined with `new_block()`, with its UI function and roxygen left out:
+
+```{r, eval = FALSE}
+new_head_block <- function(n = 6L, direction = c("head", "tail"), ...) {
+
+  direction <- match.arg(direction)
+
+  new_transform_block(
+    function(id, data) {
+      moduleServer(
+        id,
+        function(input, output, session) {
+
+          nrw <- reactiveVal(n)
+          til <- reactiveVal(isTRUE(direction == "tail"))
+
+          observeEvent(input$n, nrw(input$n))
+          observeEvent(input$tail, til(input$tail))
+
+          observeEvent(
+            nrow(data()),
+            updateNumericInput(inputId = "n", value = nrw(), min = 1L,
+                               max = nrow(data()))
+          )
+
+          list(
+            expr = reactive(
+              if (isTRUE(til())) {
+                bbquote(utils::tail(.(data), n = .(n)), list(n = nrw()))
+              } else {
+                bbquote(utils::head(.(data), n = .(n)), list(n = nrw()))
+              }
+            ),
+            state = list(
+              n = nrw,
+              direction = reactive(if (isTRUE(til())) "tail" else "head")
+            )
+          )
+        }
+      )
+    },
+    ui_function,
+    dat_val = function(data) stopifnot(is.data.frame(data)),
+    expr_type = "bquoted",
+    class = "head_block",
+    ...
+  )
+}
+```
+
+Each part of it has a new home:
+
+| `new_block()` | A block class |
+|---|---|
+| the constructor's args and its checks, such as `match.arg()` | the formals of `expr` and the checks in its body |
+| the server's `expr`, a reactive | the value that `expr` returns, from the state args |
+| the server's `state`, reactives of every constructor arg | the formals of `expr`, which are the state |
+| what the server computes from the data for the UI, such as `updateNumericInput(max = nrow(data()))` | a request, such as `n_max` |
+| the Shiny UI and the observers that keep it in step with the state | the UI module |
+| `dat_valid` | a function given as `inputs` |
+| `allow_empty_state` | a state arg without a default |
+| `expr_type` | the class of what `expr` returns |
+| `external_ctrl` | nothing, since every state arg can be set from outside |
+| the specializations, such as `new_transform_block()` | the coercion named in `output` |
+| methods of `block_output()` and `block_ui()` | the coercion and the renderer of an output class |
+| `block_summary()` | `result_summary()`, which dispatches on the result |
+| `testServer()` | `evaluate_block()`, `run_block_request()`, `expect_block_fixture()` and the stub hosts |
+
+A port takes these steps:
+
+1. The author writes `expr` with the constructor's args as its formals and its defaults, and moves the constructor's checks into its body.
+2. The author writes the block expression that the server built in the body of `expr`, from the state args where the server read reactives.
+3. The author turns each value that the server computed from the data for the UI into a request, and each check in `dat_valid` into a function given as `inputs`.
+4. The author writes the UI as a module, which ships the schema of the state, and names it in `ui`.
+5. The author names the coercion of the block's output in `output`, in place of the specialization that the block was built with.
+6. The author makes the constructor with `block_constructor()` and keeps the roxygen tags that register it.
+7. The author replaces the block's `testServer()` tests with tests of `expr` and the requests, and with the fixture file and the module tests.
+
+The head block's class at the top of this guide is the result.

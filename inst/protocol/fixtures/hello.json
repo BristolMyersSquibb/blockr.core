@@ -389,7 +389,7 @@
               "de": { "from": "d", "to": "e", "input": "" },
               "keen_finch": { "from": "a", "to": "f", "input": "data" }
             },
-            "stacks": { "s1": { "name": "Input", "blocks": ["a", "b"] } },
+            "stacks": { "s1": { "name": "Input", "blocks": ["a", "b"], "color": null } },
             "options": {
               "n_rows": { "value": 50, "version": 1 },
               "show_conditions": {

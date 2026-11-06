@@ -871,8 +871,9 @@ proto_link <- function(from, to, input) {
   obj(from = from, to = to, input = input)
 }
 
-proto_stack <- function(name, blocks) {
-  obj(name = name, blocks = I(blocks))
+# A stack as a JSON board holds it, whose color is null where `color` is NA.
+proto_stack <- function(name, blocks, color = NA) {
+  obj(name = name, blocks = I(blocks), color = color)
 }
 
 # A board as a JSON board holds it, beside the format and the packages that

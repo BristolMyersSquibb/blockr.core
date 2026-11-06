@@ -26,6 +26,10 @@ export interface Link {
 export interface Stack {
     readonly name: string;
     readonly blocks: readonly BlockId[];
+    /**
+     * @pattern ^#[0-9a-fA-F]{6}$
+     */
+    readonly color: string | null;
 }
 export interface JsonBoard {
     readonly format: number;
