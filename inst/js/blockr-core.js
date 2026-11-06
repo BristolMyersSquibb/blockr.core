@@ -4415,71 +4415,6 @@ var optionSchemas = {
   }
 };
 
-// srcts/options/definitions.ts
-function nRowsDefinition(core) {
-  const schema = optionSchemas.n_rows;
-  const fallback = 50;
-  return {
-    id: "n_rows",
-    label: "Preview rows",
-    category: "Table options",
-    schema,
-    default: async () => checked2("n_rows", schema, await core.blockrOption("n_rows", fallback), fallback)
-  };
-}
-var SEVERITIES = ["message", "warning", "error"];
-function showConditionsDefinition(core) {
-  const schema = optionSchemas.show_conditions;
-  const fallback = ["warning", "error"];
-  return {
-    id: "show_conditions",
-    label: "Message types to display",
-    category: "Board options",
-    schema,
-    // R writes a blockr option of one severity as a string, as an
-    // environment variable gives it.
-    default: async () => {
-      const value2 = await core.blockrOption("show_conditions", fallback);
-      return checked2("show_conditions", schema, typeof value2 === "string" ? [value2] : value2, fallback);
-    }
-  };
-}
-function darkModeDefinition(core) {
-  const schema = optionSchemas.dark_mode;
-  return {
-    id: "dark_mode",
-    label: "Light/dark mode",
-    category: "Theme options",
-    schema,
-    default: async () => {
-      const value2 = await core.blockrOption("dark_mode", null);
-      const preferred = preferredTheme();
-      if (value2 === null) return preferred;
-      if (typeof value2 === "boolean") return value2 ? "dark" : "light";
-      return checked2("dark_mode", schema, value2, preferred);
-    },
-    onChange(value2) {
-      setTheme(value2);
-    }
-  };
-}
-function setTheme(theme) {
-  document.documentElement.setAttribute("data-bs-theme", theme === "dark" ? "dark" : "light");
-}
-function preferredTheme() {
-  return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
-function checked2(id2, schema, value2, fallback) {
-  const failures = compile(`the board option "${id2}"`, schema)(value2);
-  if (failures.length === 0) return value2;
-  report(
-    new Error(
-      `The blockr option ${id2} is ${JSON.stringify(value2)}, which the board option ${id2} does not take, so its default is ${JSON.stringify(fallback)}.`
-    )
-  );
-  return fallback;
-}
-
 // srcts/inputs/inputs.tsx
 var import_react = __toESM(require_react(), 1);
 
@@ -4790,7 +4725,7 @@ function reactModule(Draw, options = {}) {
   };
 }
 
-// srcts/option-ui/ui.tsx
+// srcts/options/ui.tsx
 var import_jsx_runtime3 = __toESM(require_jsx_runtime(), 1);
 function numberUi(label, min) {
   function NumberUi({ host }) {
@@ -4811,24 +4746,78 @@ function selectUi(label, placeholder, choices) {
   return reactModule(SelectUi);
 }
 
-// srcts/option-ui/options.ts
+// srcts/options/options.ts
 function coreOptions(core) {
   return [nRows(core), showConditions(core), darkMode(core)];
 }
 function nRows(core) {
-  return { ...nRowsDefinition(core), ui: numberUi("Preview rows", optionSchemas.n_rows.minimum) };
+  const schema = optionSchemas.n_rows;
+  const fallback = 50;
+  return {
+    id: "n_rows",
+    label: "Preview rows",
+    category: "Table options",
+    schema,
+    default: async () => checked2("n_rows", schema, await core.blockrOption("n_rows", fallback), fallback),
+    ui: numberUi("Preview rows", schema.minimum)
+  };
 }
+var SEVERITIES = ["message", "warning", "error"];
 function showConditions(core) {
-  return { ...showConditionsDefinition(core), ui: checklistUi("Message types to display", SEVERITIES) };
+  const schema = optionSchemas.show_conditions;
+  const fallback = ["warning", "error"];
+  return {
+    id: "show_conditions",
+    label: "Message types to display",
+    category: "Board options",
+    schema,
+    // R writes a blockr option of one severity as a string, as an
+    // environment variable gives it.
+    default: async () => {
+      const value2 = await core.blockrOption("show_conditions", fallback);
+      return checked2("show_conditions", schema, typeof value2 === "string" ? [value2] : value2, fallback);
+    },
+    ui: checklistUi("Message types to display", SEVERITIES)
+  };
 }
 function darkMode(core) {
+  const schema = optionSchemas.dark_mode;
   return {
-    ...darkModeDefinition(core),
+    id: "dark_mode",
+    label: "Light/dark mode",
+    category: "Theme options",
+    schema,
+    default: async () => {
+      const value2 = await core.blockrOption("dark_mode", null);
+      const preferred = preferredTheme();
+      if (value2 === null) return preferred;
+      if (typeof value2 === "boolean") return value2 ? "dark" : "light";
+      return checked2("dark_mode", schema, value2, preferred);
+    },
     ui: selectUi("Light/dark mode", "Choose a mode", [
       { value: "light", label: "Light" },
       { value: "dark", label: "Dark" }
-    ])
+    ]),
+    onChange(value2) {
+      setTheme(value2);
+    }
   };
+}
+function setTheme(theme) {
+  document.documentElement.setAttribute("data-bs-theme", theme === "dark" ? "dark" : "light");
+}
+function preferredTheme() {
+  return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+function checked2(id2, schema, value2, fallback) {
+  const failures = compile(`the board option "${id2}"`, schema)(value2);
+  if (failures.length === 0) return value2;
+  report(
+    new Error(
+      `The blockr option ${id2} is ${JSON.stringify(value2)}, which the board option ${id2} does not take, so its default is ${JSON.stringify(fallback)}.`
+    )
+  );
+  return fallback;
 }
 
 // srcts/transport/shiny.ts

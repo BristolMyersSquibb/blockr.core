@@ -5,18 +5,15 @@
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { EvaluateRequest, HelloReply, Reply, Request, Transport, TransportListener } from "../protocol/index.ts";
-import { coreDefinitions } from "../options/index.ts";
+import { coreOptions } from "../options/index.ts";
 import { reports } from "../testing/reports.ts";
 import { hello } from "../testing/store.ts";
 import type { CoreApi } from "../types/core-api.ts";
-import type { OptionModule } from "../types/hosts.ts";
 import { pageFrontEnds, start } from "./index.ts";
 import type { Changed, StartOptions } from "./index.ts";
 
 const BASIC = "blockr.core/basic.js?v=0f3d8e21";
 const DOCK = "blockr.dock/dock.js?v=1";
-
-const noUi: OptionModule = { render: () => undefined };
 
 // R, played over a transport: the test starts sessions and sends replies.
 function playedR() {
@@ -121,7 +118,7 @@ function setup(modules: Readonly<Record<string, unknown>>, given: Partial<StartO
       },
       stylesheet: () => Promise.resolve(),
     },
-    options: (core) => coreDefinitions(core).map((definition) => ({ ...definition, ui: noUi })),
+    options: coreOptions,
     frontEnds: pageFrontEnds(el),
     measure: { info: () => null, watch: () => () => undefined },
     ...given,

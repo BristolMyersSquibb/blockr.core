@@ -2,8 +2,12 @@
 // the board of the fixture hello, with R played from the protocol's fixtures,
 // as a front-end, an extension or a startup module would use it.
 
+import { act } from "react";
 import { describe, expect, test } from "vitest";
 import type { Option } from "../store/index.ts";
+import { find } from "../testing/inputs.ts";
+// React's act() environment, for the UIs of core's board options.
+import "../testing/react.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { OutputHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
@@ -73,6 +77,19 @@ describe("the CoreApi for tests", () => {
     await expect(core.request("other")).rejects.toThrow("R replied error");
     await expect(core.blockrOption("n_rows", 50)).resolves.toBe(25);
     await expect(core.blockrOption("gate_visibility", true)).resolves.toBe(true);
+  });
+
+  test("draws core's board options with their UIs, as the page does", async () => {
+    const { core, settled } = await stubCore();
+    const el = document.createElement("div");
+    await act(async () => {
+      core.mountOption(el, "n_rows");
+      await settled();
+    });
+
+    // The value that the board of the fixture hello holds.
+    expect(el.textContent).toContain("Preview rows");
+    expect(find(el, "input", HTMLInputElement).value).toBe("50");
   });
 
   test("initializes the startup modules given before the board opens, and calls a board option's onChange", async () => {

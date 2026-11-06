@@ -30,7 +30,8 @@
 //   export of its name, such as `@blockr/core/react`: their declarations, the
 //   SDK, the binding and the preset bundled for a package's build, with React
 //   left for the preset to map, the stubs bundled for
-//   a test runner, and the package.json that names them.
+//   a test runner, and the package.json that names them and depends on the
+//   React that the runtime bundles.
 //   The controls, srcts/controls/index.ts, go there as the SDK does,
 //   as `@blockr/core/controls`, for a package that writes its modules without
 //   React and bundles them.
@@ -45,6 +46,7 @@
 
 import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import tailwindcss from "@tailwindcss/postcss";
@@ -359,10 +361,20 @@ async function writeJson(file: string, value: unknown): Promise<void> {
   await writeFile(file, `${JSON.stringify(value, null, 2)}\n`);
 }
 
+// The version of a package that core's build resolves.
+function versionOf(name: string): string {
+  return (createRequire(import.meta.url)(`${name}/package.json`) as { version: string }).version;
+}
+
 // The package that inst/types is: the types modules are written against, as
 // `@blockr/core`, the stubs of the hosts, as `@blockr/core/stubs`, and core's
 // React SDK, its binding and the build preset, as `@blockr/core/react`,
 // `@blockr/core/binding` and `@blockr/core/build`.
+// Its bundles leave React an import, so it depends on the React that core's
+// runtime bundles, at that version.
+// So npm installs that React with `@blockr/core`, which a package's tests then
+// run on, the stubs drawing core's UIs with it, while a package's build maps
+// every import of React to the copy on the page.
 export const TYPES_PACKAGE = {
   name: "@blockr/core",
   private: true,
@@ -377,6 +389,7 @@ export const TYPES_PACKAGE = {
     "./stubs": { types: "./stubs/index.d.ts", default: "./stubs/index.js" },
     "./controls": { types: "./controls/index.d.ts", default: "./controls/index.js" },
   },
+  dependencies: { react: versionOf("react"), "react-dom": versionOf("react-dom") },
 };
 
 // The modules of srcts that the types package bundles,
@@ -438,7 +451,9 @@ export async function types(root: string): Promise<string[]> {
       target: "es2022",
       jsx: "automatic",
       // React stays an import, which the build preset maps to core's copy as
-      // a package's build bundles the React SDK into its module.
+      // a package's build bundles the React SDK into its module, and which a
+      // package's tests resolve to the React that npm installs with
+      // `@blockr/core`.
       external: ["react", "react/*", "react-dom", "react-dom/*"],
       logLevel: "warning",
       metafile: true,

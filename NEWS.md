@@ -239,7 +239,8 @@
   Its `mountBlock()`, `mountOutput()` and `mountOption()` mount a block's UI, a block's output and a board option's UI, and its `blockrOption()` reads a blockr option once per page.
   Its `request()` sends a request of a type that a package adds, once the blocks that the request reads are evaluated.
   An output is measured, asked of R and drawn by the renderer that R names in it, and a renderer calls its output class's requests and its own through its host.
-  Core ships a `CoreApi` for tests beside the stubs of its hosts, `stubCore()` in `@blockr/core/stubs`, which answers for R from the fixtures of the wire protocol (#440).
+  Core ships a `CoreApi` for tests beside the stubs of its hosts, `stubCore()` in `@blockr/core/stubs`, which answers for R from the fixtures of the wire protocol and registers core's board options with their UIs, as the page does.
+  The package `@blockr/core` depends on the React that core's runtime bundles, at that version, so that npm installs it with `@blockr/core` and a package's tests run on it with no React of their own (#440).
 
 # blockr.core 0.1.4
 

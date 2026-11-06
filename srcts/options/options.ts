@@ -1,11 +1,10 @@
-// What core's board options define besides their UIs, which srcts/option-ui
-// gives them, so that code without React, such as the CoreApi for tests,
-// registers them as well, as Board options has it
+// Core's board options, each an instance of Option that a constructor makes
+// from CoreApi, as Board options has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.1#board-options):
 // n_rows, the rows of a table output's page, show_conditions, the severities
 // that a front-end shows, and dark_mode, which switches the theme. Each keeps
 // the label and the category of today's R constructor, and takes its schema
-// from ./schemas.ts.
+// from ./schemas.ts and its UI module from ./ui.tsx.
 //
 // Each default is a function that reads the blockr option of the board
 // option's name, which today's R constructor reads, through
@@ -21,22 +20,19 @@ import type { CoreApi } from "../types/core-api.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import { compile, report } from "../util/index.ts";
 import { optionSchemas } from "./schemas.ts";
+import { checklistUi, numberUi, selectUi } from "./ui.tsx";
 
 // What the constructors read of CoreApi.
 export type BlockrOptions = Pick<CoreApi, "blockrOption">;
 
-// A board option's definition without its UI module.
-export type Definition = Omit<Option, "ui">;
-
-// The definitions of core's board options, in the order that core registers
-// them.
-export function coreDefinitions(core: BlockrOptions): Definition[] {
-  return [nRowsDefinition(core), showConditionsDefinition(core), darkModeDefinition(core)];
+// Core's board options, which core registers before the store opens a board.
+export function coreOptions(core: BlockrOptions): Option[] {
+  return [nRows(core), showConditions(core), darkMode(core)];
 }
 
 // The rows of a table output's page, which the coercion of table outputs
 // reads, so that every renderer of table outputs requires it.
-export function nRowsDefinition(core: BlockrOptions): Definition {
+export function nRows(core: BlockrOptions): Option {
   const schema = optionSchemas.n_rows;
   const fallback = 50;
   return {
@@ -46,15 +42,15 @@ export function nRowsDefinition(core: BlockrOptions): Definition {
     schema,
     default: async () =>
       checked("n_rows", schema, await core.blockrOption<Json>("n_rows", fallback), fallback),
+    ui: numberUi("Preview rows", schema.minimum),
   };
 }
 
-// The severities that show_conditions takes, in the order its UI lists them.
-export const SEVERITIES = ["message", "warning", "error"] as const;
+const SEVERITIES = ["message", "warning", "error"] as const;
 
 // The severities of a block's conditions that a front-end shows, while R
 // reports every severity.
-export function showConditionsDefinition(core: BlockrOptions): Definition {
+export function showConditions(core: BlockrOptions): Option {
   const schema = optionSchemas.show_conditions;
   const fallback = ["warning", "error"] as const;
   return {
@@ -68,6 +64,7 @@ export function showConditionsDefinition(core: BlockrOptions): Definition {
       const value = await core.blockrOption<Json>("show_conditions", fallback);
       return checked("show_conditions", schema, typeof value === "string" ? [value] : value, fallback);
     },
+    ui: checklistUi("Message types to display", SEVERITIES),
   };
 }
 
@@ -75,7 +72,7 @@ export function showConditionsDefinition(core: BlockrOptions): Definition {
 // NULL, under which the page follows the theme that the user's system
 // prefers, so the default is that theme where no blockr option sets one. As
 // today, TRUE stands for dark and FALSE for light.
-export function darkModeDefinition(core: BlockrOptions): Definition {
+export function darkMode(core: BlockrOptions): Option {
   const schema = optionSchemas.dark_mode;
   return {
     id: "dark_mode",
@@ -89,6 +86,10 @@ export function darkModeDefinition(core: BlockrOptions): Definition {
       if (typeof value === "boolean") return value ? "dark" : "light";
       return checked("dark_mode", schema, value, preferred);
     },
+    ui: selectUi("Light/dark mode", "Choose a mode", [
+      { value: "light", label: "Light" },
+      { value: "dark", label: "Dark" },
+    ]),
     onChange(value) {
       setTheme(value);
     },

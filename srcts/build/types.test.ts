@@ -4,10 +4,12 @@
 // `@blockr/core`: the declarations of the types that modules are written
 // against and of the stubs of the hosts, the stubs bundled for a test runner,
 // the React SDK, its binding and the build preset bundled for a package's build,
-// and the package.json that names them.
+// and the package.json that names them and depends on the React that core's
+// runtime bundles.
 // The controls go there as the SDK does.
 
 import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -89,6 +91,30 @@ test("refuses types that do not check", async () => {
   await write({ "srcts/index.ts": "export const n: number = 'one';\n" });
 
   await expect(types(root)).rejects.toThrow("Type 'string' is not assignable to type 'number'.");
+});
+
+// The packages that the bundle that core ships under the name given imports,
+// each by its scope and name, as npm installs it.
+async function importedPackages(name: string): Promise<string[]> {
+  const text = await readFile(join(repo, "inst", "types", name, "index.js"), "utf8");
+  const specifiers = ts.preProcessFile(text, true, true).importedFiles.map((file) => file.fileName);
+  const bare = specifiers.filter((specifier) => !specifier.startsWith(".") && !specifier.startsWith("node:"));
+  return [...new Set(bare.map((specifier) => specifier.split("/").slice(0, specifier.startsWith("@") ? 2 : 1).join("/")))];
+}
+
+test("what a package's tests load imports no package but the React that `@blockr/core` depends on, at the version that core's runtime bundles", async () => {
+  const manifest = JSON.parse(await readFile(join(repo, "inst/types/package.json"), "utf8")) as typeof TYPES_PACKAGE;
+  const installed = createRequire(import.meta.url);
+  expect(manifest.dependencies).toEqual({
+    react: (installed("react/package.json") as { version: string }).version,
+    "react-dom": (installed("react-dom/package.json") as { version: string }).version,
+  });
+
+  // The stubs draw core's UIs, the board options' among them, with React.
+  expect(await importedPackages("stubs")).toContain("react");
+  for (const name of ["stubs", "react", "binding", "controls"]) {
+    expect((await importedPackages(name)).filter((pkg) => !Object.hasOwn(manifest.dependencies, pkg))).toEqual([]);
+  }
 });
 
 // A block's UI module and a board class, written against `@blockr/core` as a
@@ -305,7 +331,8 @@ test.each(["bundler", "nodenext"] as const)(
   async (resolution) => {
     await mkdir(join(root, "node_modules", "@blockr"), { recursive: true });
     await symlink(join(repo, "inst", "types"), join(root, "node_modules", "@blockr", "core"), "dir");
-    // What a package installs to write its modules in React and build them.
+    // The React that npm installs with `@blockr/core`, and what a package
+    // installs to type its modules in React and build them.
     for (const name of ["react", "@types/react", "esbuild"]) {
       await mkdir(dirname(join(root, "node_modules", name)), { recursive: true });
       await symlink(join(repo, "node_modules", name), join(root, "node_modules", name), "dir");

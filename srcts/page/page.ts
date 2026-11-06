@@ -9,7 +9,7 @@
 
 import { showError } from "../mount/index.ts";
 import type { LoaderOptions, Measure } from "../mount/index.ts";
-import { coreOptions } from "../option-ui/index.ts";
+import { coreOptions } from "../options/index.ts";
 import type { Transport } from "../protocol/index.ts";
 import { shinyTransport } from "../transport/index.ts";
 import { report } from "../util/index.ts";

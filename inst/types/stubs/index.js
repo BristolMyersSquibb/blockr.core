@@ -1933,7 +1933,7 @@ function createClient(transport, options) {
   let state2 = "none";
   let shared = /* @__PURE__ */ new Set();
   const waiting2 = /* @__PURE__ */ new Map();
-  let held = [];
+  let held2 = [];
   function mint() {
     next += 1;
     return String(next);
@@ -1979,9 +1979,9 @@ function createClient(transport, options) {
     quietly(transport.send([{ kind: "cancel", request: call.id }], /* @__PURE__ */ new Map()));
   }
   function abort(entry, call) {
-    const index = held.indexOf(entry);
+    const index = held2.indexOf(entry);
     if (index >= 0) {
-      held.splice(index, 1);
+      held2.splice(index, 1);
       call.settle(cancelled(call.id));
     } else if (call.sent) {
       cancel(call);
@@ -1993,7 +1993,7 @@ function createClient(transport, options) {
     if (state2 === "ready") {
       dispatch([entry]);
     } else {
-      held.push(entry);
+      held2.push(entry);
     }
   }
   function end() {
@@ -2024,8 +2024,8 @@ function createClient(transport, options) {
           const theirs = new Set(reply.capabilities);
           shared = new Set(named2.capabilities.filter((c2) => theirs.has(c2)));
           state2 = "ready";
-          const outbound = held;
-          held = [];
+          const outbound = held2;
+          held2 = [];
           dispatch(outbound);
         }
         guard(() => {
@@ -3596,8 +3596,8 @@ function mountOption(deps, el, option) {
   }
   const unboundError = () => new Error(`Another board opened, so the host of the board option "${option}" no longer changes it.`);
   function current2() {
-    const held = own(store.board().options, option);
-    return held === void 0 ? fallback : held;
+    const held2 = own(store.board().options, option);
+    return held2 === void 0 ? fallback : held2;
   }
   const host = {
     option,
@@ -3758,7 +3758,7 @@ function mountOutput(deps, el, block) {
   let ready;
   const preparing = /* @__PURE__ */ new Map();
   let info = measure.info(el);
-  let held;
+  let held2;
   let asking;
   let error = null;
   let drawing;
@@ -3832,9 +3832,9 @@ function mountOutput(deps, el, block) {
     if (ended()) return;
     const want = wanted();
     if (want !== void 0) {
-      if (held !== void 0 && fits(held.asked, want.asked, want.ids)) {
+      if (held2 !== void 0 && fits(held2.asked, want.asked, want.ids)) {
         stopAsking();
-      } else if (shelf.last !== void 0 && shelf.last !== held && fits(shelf.last.asked, want.asked, want.ids)) {
+      } else if (shelf.last !== void 0 && shelf.last !== held2 && fits(shelf.last.asked, want.asked, want.ids)) {
         stopAsking();
         take(shelf.last);
       } else {
@@ -3932,7 +3932,7 @@ function mountOutput(deps, el, block) {
   }
   function failed3(condition, conditions) {
     error = condition;
-    if (held === void 0) {
+    if (held2 === void 0) {
       showError(el, conditions.length > 0 ? conditions.map((c2) => c2.message).join("\n") : condition.message);
     }
     announce2();
@@ -3951,7 +3951,7 @@ function mountOutput(deps, el, block) {
     );
   }
   function take(next) {
-    held = next;
+    held2 = next;
     error = null;
     const named3 = next.output.renderer;
     if (renderer?.id !== named3.id) expect(named3);
@@ -3959,7 +3959,7 @@ function mountOutput(deps, el, block) {
     if (drawing === void 0) {
       prepare(named3).then(
         (prepared) => {
-          if (ended() || drawing !== void 0 || held?.output.renderer.id !== prepared.renderer.id) return;
+          if (ended() || drawing !== void 0 || held2?.output.renderer.id !== prepared.renderer.id) return;
           mountRenderer(prepared);
         },
         (failure) => {
@@ -4048,8 +4048,8 @@ function mountOutput(deps, el, block) {
           );
           return true;
         }
-        if (status.status === "ready" && held?.asked.revision === status.revision) {
-          resolve(held);
+        if (status.status === "ready" && held2?.asked.revision === status.revision) {
+          resolve(held2);
           return true;
         }
         return false;
@@ -4114,13 +4114,13 @@ function mountOutput(deps, el, block) {
     let following = true;
     return {
       block,
-      output: () => held?.output ?? null,
-      body: () => held?.body ?? null,
-      params: () => held?.asked.params ?? EMPTY,
+      output: () => held2?.output ?? null,
+      body: () => held2?.body ?? null,
+      params: () => held2?.asked.params ?? EMPTY,
       options() {
         let memo = named3;
-        if (memo === void 0 || memo.for !== held) {
-          memo = { for: held, values: optionsFor(prepared, held?.asked) };
+        if (memo === void 0 || memo.for !== held2) {
+          memo = { for: held2, values: optionsFor(prepared, held2?.asked) };
           named3 = memo;
         }
         return memo.values;
@@ -4842,13 +4842,13 @@ function pageFrontEnds(el) {
   };
 }
 function scoped(core) {
-  const held = /* @__PURE__ */ new Set();
+  const held2 = /* @__PURE__ */ new Set();
   const keep = (release) => {
     const once2 = () => {
-      if (!held.delete(once2)) return;
+      if (!held2.delete(once2)) return;
       release();
     };
-    held.add(once2);
+    held2.add(once2);
     return once2;
   };
   const scheduler = {
@@ -4878,7 +4878,7 @@ function scoped(core) {
       mountOption: (el, option) => keep(core.mountOption(el, option))
     },
     release() {
-      for (const release of [...held]) attempt(release);
+      for (const release of [...held2]) attempt(release);
     }
   };
 }
@@ -6723,17 +6723,17 @@ function misplaced(cls, adds, patches2) {
   return failures;
 }
 function merge(delta, given, patches2) {
-  const held = delta.patches ?? [];
+  const held2 = delta.patches ?? [];
   const fixed2 = (given.patches ?? []).map(({ path }) => pointer(path) ?? []);
   const added = [];
   for (const patch2 of patches2) {
     const parts = pointer(patch2.path) ?? [];
-    if ([...held, ...added].some((other) => same(other, patch2))) continue;
+    if ([...held2, ...added].some((other) => same(other, patch2))) continue;
     if (fixed2.some((path) => overlap(path, parts))) continue;
     added.push(patch2);
   }
   if (added.length === 0) return delta;
-  return { ...delta, patches: [...held, ...added] };
+  return { ...delta, patches: [...held2, ...added] };
 }
 function same(a2, b2) {
   return a2.op === b2.op && a2.path === b2.path && jsonEqual(a2.value, b2.value);
@@ -8299,11 +8299,342 @@ var optionSchemas = {
   }
 };
 
-// srcts/options/definitions.ts
-function coreDefinitions(core) {
-  return [nRowsDefinition(core), showConditionsDefinition(core), darkModeDefinition(core)];
+// srcts/inputs/inputs.tsx
+import { useState } from "react";
+
+// srcts/binding/binding.ts
+var PAUSE = 500;
+function bind2(host, key, show, options = {}) {
+  const source = sourceOf(host);
+  source.check(key);
+  let shown;
+  let typed;
+  let timer;
+  let released = false;
+  const display = (again = false) => {
+    if (released || timer !== void 0) return;
+    const value2 = source.get(key);
+    if (!again && shown !== void 0 && jsonEqual(shown.value, value2)) return;
+    shown = { value: value2 };
+    show(value2);
+  };
+  const submit = async (value2) => {
+    if (jsonEqual(source.get(key), value2)) return true;
+    try {
+      await source.submit(key, value2);
+    } catch (error) {
+      options.settled?.(error);
+      return false;
+    }
+    options.settled?.(null);
+    return true;
+  };
+  const send = () => {
+    const value2 = typed;
+    typed = void 0;
+    if (value2 !== void 0) void submit(value2);
+  };
+  const flush = () => {
+    if (timer === void 0) return;
+    clearTimeout(timer);
+    timer = void 0;
+    send();
+  };
+  const off = source.onValues(() => {
+    display();
+  });
+  display(true);
+  return {
+    get: () => source.get(key),
+    async commit(value2) {
+      const took = await submit(value2);
+      if (!took) display(true);
+      return took;
+    },
+    type(value2) {
+      if (released) return;
+      typed = value2;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = void 0;
+        send();
+      }, PAUSE);
+    },
+    flush,
+    release() {
+      if (released) return;
+      released = true;
+      off();
+      flush();
+    }
+  };
 }
-function nRowsDefinition(core) {
+function sourceOf(host) {
+  if ("option" in host) {
+    const check2 = (key) => {
+      if (key !== host.option) {
+        throw new Error(`The host of the board option "${host.option}" holds no value "${key}".`);
+      }
+    };
+    return {
+      check: check2,
+      get(key) {
+        check2(key);
+        return host.value();
+      },
+      submit(key, value2) {
+        check2(key);
+        return host.submit(value2);
+      },
+      onValues: (fn) => host.on("value", fn),
+      onContext: () => () => void 0,
+      inputs: () => null,
+      request: (name2, args, opts) => host.request(name2, args, opts)
+    };
+  }
+  return {
+    check: () => void 0,
+    get: (key) => own(host.state(), key),
+    submit: (key, value2) => host.submit({ [key]: value2 }),
+    onValues: (fn) => host.on("state", fn),
+    onContext: (fn) => host.on("context", fn),
+    inputs: () => host.context().inputs.map((input2) => ({ input: input2.input, revision: input2.revision })),
+    request: (name2, args, opts) => host.request(name2, args, opts)
+  };
+}
+function strings(value2) {
+  return Array.isArray(value2) ? value2.filter((x2) => typeof x2 === "string") : [];
+}
+
+// srcts/styles/styles.ts
+var styles = {
+  stack: "bc:grid bc:gap-3 bc:font-sans bc:text-text-default",
+  field: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default",
+  label: "bc:text-sm bc:font-medium",
+  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
+  check: "bc:flex bc:items-center bc:gap-2 bc:font-sans bc:text-sm bc:text-text-default",
+  checkbox: "bc:accent-bg-accent",
+  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans bc:text-text-default",
+  legend: "bc:text-sm bc:font-medium bc:mb-1 bc:p-0",
+  list: "bc:grid bc:max-h-48 bc:gap-1 bc:overflow-y-auto",
+  hint: "bc:m-0 bc:text-sm bc:text-text-muted",
+  alert: "bc:m-0 bc:text-sm bc:text-text-danger bc:whitespace-pre-wrap"
+};
+
+// srcts/inputs/inputs.tsx
+import { Fragment, jsx, jsxs } from "react/jsx-runtime";
+function Field({ label, children }) {
+  return /* @__PURE__ */ jsxs("label", { className: styles.field, children: [
+    /* @__PURE__ */ jsx("span", { className: styles.label, children: label }),
+    children
+  ] });
+}
+function NumberInput({
+  bound,
+  label,
+  min,
+  max
+}) {
+  const [text, typed] = useTyped(bound);
+  const shown = text ?? (typeof bound.value === "number" ? String(bound.value) : "");
+  const read = (input2) => {
+    const value2 = input2.trim() === "" ? Number.NaN : Number(input2);
+    if (!Number.isInteger(value2)) return void 0;
+    if (min !== void 0 && value2 < min) return void 0;
+    if (max !== void 0 && value2 > max) return void 0;
+    return value2;
+  };
+  return /* @__PURE__ */ jsxs(Fragment, { children: [
+    /* @__PURE__ */ jsx(Field, { label, children: /* @__PURE__ */ jsx(
+      "input",
+      {
+        type: "number",
+        step: 1,
+        min,
+        max,
+        required: true,
+        className: styles.box,
+        value: shown,
+        "aria-invalid": read(shown) === void 0,
+        onChange: (event) => {
+          typed(event.target.value);
+          bound.type(read(event.target.value));
+        },
+        onKeyDown: (event) => {
+          if (event.key === "Enter" && !event.nativeEvent.isComposing) bound.flush();
+        },
+        onBlur: () => {
+          bound.flush();
+        }
+      }
+    ) }),
+    /* @__PURE__ */ jsx(Refusal, { error: bound.error })
+  ] });
+}
+function Select({
+  bound,
+  label,
+  placeholder,
+  choices
+}) {
+  const current2 = typeof bound.value === "string" ? bound.value : void 0;
+  const shown = current2 === void 0 || choices.some((choice) => choice.value === current2) ? choices : [...choices, { value: current2, label: current2 }];
+  return /* @__PURE__ */ jsxs(Fragment, { children: [
+    /* @__PURE__ */ jsx(Field, { label, children: /* @__PURE__ */ jsxs(
+      "select",
+      {
+        className: styles.box,
+        value: current2 ?? "",
+        onChange: (event) => {
+          void bound.commit(event.target.value);
+        },
+        children: [
+          current2 === void 0 && /* @__PURE__ */ jsx("option", { value: "", disabled: true, children: placeholder }),
+          shown.map((choice) => /* @__PURE__ */ jsx("option", { value: choice.value, children: choice.label }, choice.value))
+        ]
+      }
+    ) }),
+    /* @__PURE__ */ jsx(Refusal, { error: bound.error })
+  ] });
+}
+function Checklist({
+  bound,
+  legend,
+  choices,
+  empty: empty2,
+  ordered = false
+}) {
+  const held2 = strings(bound.value);
+  const known = choices ?? [];
+  const shown = [...known, ...held2.filter((value2) => !known.includes(value2))];
+  const toggle = (value2, checked3) => {
+    const now = strings(bound.get());
+    const next = checked3 ? now.includes(value2) ? now : [...now, value2] : now.filter((other) => other !== value2);
+    void bound.commit(
+      ordered ? [...known.filter((choice) => next.includes(choice)), ...next.filter((other) => !known.includes(other))] : next
+    );
+  };
+  return /* @__PURE__ */ jsxs("fieldset", { className: styles.fieldset, children: [
+    /* @__PURE__ */ jsx("legend", { className: styles.legend, children: legend }),
+    /* @__PURE__ */ jsxs("div", { className: styles.list, children: [
+      shown.map((value2) => /* @__PURE__ */ jsxs("label", { className: styles.check, children: [
+        /* @__PURE__ */ jsx(
+          "input",
+          {
+            type: "checkbox",
+            className: styles.checkbox,
+            value: value2,
+            checked: held2.includes(value2),
+            onChange: (event) => {
+              toggle(value2, event.target.checked);
+            }
+          }
+        ),
+        value2
+      ] }, value2)),
+      choices !== void 0 && empty2 !== void 0 && shown.length === 0 && /* @__PURE__ */ jsx("p", { className: styles.hint, children: empty2 })
+    ] }),
+    /* @__PURE__ */ jsx(Refusal, { error: bound.error })
+  ] });
+}
+function Refusal({ error }) {
+  return error === null ? null : /* @__PURE__ */ jsx("p", { role: "alert", className: styles.alert, children: error });
+}
+function useTyped(bound) {
+  const [text, setText] = useState(null);
+  const [seen, setSeen] = useState(bound.value);
+  if (!Object.is(seen, bound.value)) {
+    setSeen(bound.value);
+    setText(null);
+  }
+  return [text, setText];
+}
+
+// srcts/react/hooks.ts
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState as useState2, useSyncExternalStore } from "react";
+function useValue(host, key) {
+  const name2 = key ?? ("option" in host ? host.option : "");
+  const [value2, setValue] = useState2(() => held(host, name2));
+  const [error, setError] = useState2(null);
+  const binding = useRef(null);
+  useLayoutEffect(() => {
+    const bound = bind2(host, name2, setValue, {
+      settled: (refused2) => {
+        setError(refused2 === null ? null : messageOf(refused2));
+      }
+    });
+    binding.current = bound;
+    return () => {
+      binding.current = null;
+      bound.release();
+    };
+  }, [host, name2]);
+  return useMemo(
+    () => ({
+      value: value2,
+      error,
+      get: () => binding.current?.get() ?? held(host, name2),
+      commit: (next) => binding.current?.commit(next) ?? Promise.resolve(false),
+      type: (next) => {
+        binding.current?.type(next);
+      },
+      flush: () => {
+        binding.current?.flush();
+      }
+    }),
+    [value2, error, host, name2]
+  );
+}
+function held(host, key) {
+  return "option" in host ? host.value() : own(host.state(), key);
+}
+
+// srcts/react/module.tsx
+import { Component } from "react";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
+import { jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
+function reactModule(Draw, options = {}) {
+  return {
+    ...options.options === void 0 ? {} : { options: options.options },
+    render({ el, host, signal }) {
+      const root = createRoot(el);
+      flushSync(() => {
+        root.render(/* @__PURE__ */ jsx2(Draw, { host, signal }));
+      });
+      return () => {
+        root.unmount();
+      };
+    }
+  };
+}
+
+// srcts/options/ui.tsx
+import { jsx as jsx3 } from "react/jsx-runtime";
+function numberUi(label, min) {
+  function NumberUi({ host }) {
+    return /* @__PURE__ */ jsx3(NumberInput, { bound: useValue(host), label, min });
+  }
+  return reactModule(NumberUi);
+}
+function checklistUi(legend, choices) {
+  function ChecklistUi({ host }) {
+    return /* @__PURE__ */ jsx3(Checklist, { bound: useValue(host), legend, choices, ordered: true });
+  }
+  return reactModule(ChecklistUi);
+}
+function selectUi(label, placeholder, choices) {
+  function SelectUi({ host }) {
+    return /* @__PURE__ */ jsx3(Select, { bound: useValue(host), label, placeholder, choices });
+  }
+  return reactModule(SelectUi);
+}
+
+// srcts/options/options.ts
+function coreOptions(core) {
+  return [nRows(core), showConditions(core), darkMode(core)];
+}
+function nRows(core) {
   const schema = optionSchemas.n_rows;
   const fallback = 50;
   return {
@@ -8311,10 +8642,12 @@ function nRowsDefinition(core) {
     label: "Preview rows",
     category: "Table options",
     schema,
-    default: async () => checked2("n_rows", schema, await core.blockrOption("n_rows", fallback), fallback)
+    default: async () => checked2("n_rows", schema, await core.blockrOption("n_rows", fallback), fallback),
+    ui: numberUi("Preview rows", schema.minimum)
   };
 }
-function showConditionsDefinition(core) {
+var SEVERITIES = ["message", "warning", "error"];
+function showConditions(core) {
   const schema = optionSchemas.show_conditions;
   const fallback = ["warning", "error"];
   return {
@@ -8327,10 +8660,11 @@ function showConditionsDefinition(core) {
     default: async () => {
       const value2 = await core.blockrOption("show_conditions", fallback);
       return checked2("show_conditions", schema, typeof value2 === "string" ? [value2] : value2, fallback);
-    }
+    },
+    ui: checklistUi("Message types to display", SEVERITIES)
   };
 }
-function darkModeDefinition(core) {
+function darkMode(core) {
   const schema = optionSchemas.dark_mode;
   return {
     id: "dark_mode",
@@ -8344,6 +8678,10 @@ function darkModeDefinition(core) {
       if (typeof value2 === "boolean") return value2 ? "dark" : "light";
       return checked2("dark_mode", schema, value2, preferred);
     },
+    ui: selectUi("Light/dark mode", "Choose a mode", [
+      { value: "light", label: "Light" },
+      { value: "dark", label: "Dark" }
+    ]),
     onChange(value2) {
       setTheme(value2);
     }
@@ -9198,7 +9536,6 @@ var INFO = Object.freeze({
   accent: "#0d6efd",
   font: "sans-serif"
 });
-var noUi = { render: () => void 0 };
 async function stubCore(options = {}) {
   const startup = options.startup ?? {};
   const base = options.hello ?? HELLO;
@@ -9226,7 +9563,7 @@ async function stubCore(options = {}) {
       },
       stylesheet: () => Promise.resolve()
     },
-    options: (core2) => coreDefinitions(core2).map((definition) => ({ ...definition, ui: noUi })),
+    options: coreOptions,
     ...options.el === void 0 ? {} : { frontEnds: pageFrontEnds(options.el) },
     measure: options.measure ?? { info: () => INFO, watch: () => () => void 0 }
   });
@@ -9312,11 +9649,11 @@ function fixtureR(hello, options) {
         return [reply];
       }
       case "output": {
-        const held = results.get(request.block);
-        if (held?.revision !== request.revision) {
+        const held2 = results.get(request.block);
+        if (held2?.revision !== request.revision) {
           return [{ id: id2, status: "missing", missing: [{ block: request.block, revision: request.revision }] }];
         }
-        const made = options.output?.(request) ?? sample(held.registry_id);
+        const made = options.output?.(request) ?? sample(held2.registry_id);
         if (made === void 0) return [failed2(id2, "output", `The fixtures hold no output of block "${request.block}".`)];
         const reply = { id: id2, status: "ok", output: made.output };
         return made.body === void 0 ? [reply] : [{ ...reply, body: { type: made.body.type } }, made.body];

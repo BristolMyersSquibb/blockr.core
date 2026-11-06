@@ -4,17 +4,18 @@
 // a startup module runs in a test runner on a board, needing neither R nor a
 // browser (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#testing).
 //
-// Core starts as it does on the page: it initializes the startup modules
-// given, in their order, opens the board of R's reply to hello, and draws it
-// with the module given for its front-end where the test gives an element to
-// draw in. R, played from the fixtures, replies to the client's hello with the
+// Core starts as it does on the page, with core's board options and their UIs:
+// it initializes the startup modules given, in their order, opens the board of
+// R's reply to hello, and draws it with the module given for its front-end
+// where the test gives an element to draw in.
+// R, played from the fixtures, replies to the client's hello with the
 // reply of the fixture hello unless given, evaluates every block as ok, makes
 // a block's output from the sample outputs of its class's renderer, and answers
 // a request with what the test gives.
 
 import { pageFrontEnds, start } from "../core/index.ts";
 import type { Measure } from "../mount/index.ts";
-import { coreDefinitions } from "../options/index.ts";
+import { coreOptions } from "../options/index.ts";
 import type {
   ClientMessage,
   EvaluateReply,
@@ -31,7 +32,6 @@ import type {
 } from "../protocol/index.ts";
 import type { BlockId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
-import type { OptionModule } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { BlockOutput, OutputFixtures } from "../types/outputs.ts";
 import { isObject, messageOf, own } from "../util/index.ts";
@@ -120,10 +120,6 @@ export interface StubCore {
   readonly stop: () => void;
 }
 
-// The UI module of a board option that the CoreApi for tests registers in
-// place of the React UIs of core's, which draws nothing.
-const noUi: OptionModule = { render: () => undefined };
-
 export async function stubCore(options: StubCoreOptions = {}): Promise<StubCore> {
   const startup = options.startup ?? {};
   const base = options.hello ?? HELLO;
@@ -152,7 +148,7 @@ export async function stubCore(options: StubCoreOptions = {}): Promise<StubCore>
       },
       stylesheet: () => Promise.resolve(),
     },
-    options: (core) => coreDefinitions(core).map((definition) => ({ ...definition, ui: noUi })),
+    options: coreOptions,
     ...(options.el === undefined ? {} : { frontEnds: pageFrontEnds(options.el) }),
     measure: options.measure ?? { info: () => INFO, watch: () => () => undefined },
   });
