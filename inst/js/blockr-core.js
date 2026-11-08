@@ -4243,6 +4243,7 @@ function createMounts(options) {
       let mod;
       try {
         mod = moduleOf(exports, entry.module, pkg);
+        checkOptions(mod, entry, pkg);
       } catch (error) {
         fail(error);
         return;
@@ -4281,6 +4282,17 @@ function createMounts(options) {
     ),
     addOptions
   };
+}
+function checkOptions(mod, entry, pkg) {
+  const named2 = new Set(mod.options ?? []);
+  const gaps = Object.entries(entry.requests).flatMap(([name3, request]) => {
+    const left2 = [...new Set(request.options)].filter((id2) => !named2.has(id2));
+    if (left2.length === 0) return [];
+    return [`- The request "${name3}" reads the board option${left2.length === 1 ? "" : "s"} ${quoted(left2)}.`];
+  });
+  if (gaps.length === 0) return;
+  const what = `leaves out of its \`options\` board options that requests of block class "${entry.id}" read:`;
+  throw new ModuleError(entry.module, pkg, [what, ...gaps].join("\n"));
 }
 function blockHost(deps) {
   const { store, commands, scheduler, block, entry } = deps;
