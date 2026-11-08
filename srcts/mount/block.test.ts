@@ -303,10 +303,12 @@ describe("board options", () => {
     expect(store.board().options).toMatchObject({ zoom: 1, n_rows: 25 });
     // The module renders once the board holds them.
     expect(ui.mounts[0]?.context.options).toEqual({ zoom: 1, n_rows: 25 });
-    // The user's undo leaves them on the board.
+    // Undo leaves them on the board, since a step that sets only board option
+    // values is no undo step.
     store.undo();
-    expect(store.board().options).toMatchObject({ zoom: 1, n_rows: 50 });
-    expect(store.canUndo("blockr.core")).toBe(true);
+    store.undo("blockr.core");
+    expect(store.board().options).toMatchObject({ zoom: 1, n_rows: 25 });
+    expect([store.canUndo(), store.canUndo("blockr.core")]).toEqual([false, false]);
   });
 
   test("take a default that is a function, which core calls once per opening of a board", async () => {
@@ -386,6 +388,84 @@ describe("board options", () => {
       'Error: The board option "nowhere", which the UI module of block class "blockr.core-head_block" requires, is defined by no package loaded.',
     );
     expect(ui.mounts).toHaveLength(1);
+  });
+
+  test("that a request of the class reads refuse a module that leaves one out, with an error in its element, while the page carries on", async () => {
+    const reported = reports();
+    const ui = recorder(["zoom"]);
+    const { store, mounts, scheduler, r } = await setup(
+      { [HEAD]: ui.exports, [MERGE]: recorder().exports },
+      { reply: withRequests, options: [zoom] },
+    );
+    const el = document.createElement("div");
+    const other = document.createElement("div");
+    mounts.mountBlock(el, "b");
+    mounts.mountBlock(other, "c");
+    scheduler.demand("test", ["b"]);
+    await evaluateAll(r);
+    reported.restore();
+
+    expect(el.querySelector("[role=alert]")?.textContent).toBe(
+      'The module blockr.core/head-block.js of blockr.core leaves out of its `options` board options that requests of block class "blockr.core-head_block" read:\n' +
+        '- The request "columns" reads the board option "n_rows".',
+    );
+    expect(reported.errors().filter((error) => error instanceof ModuleError)).toHaveLength(1);
+    // Core calls no render() and adds none of the module's board options,
+    // though the board holds a value for the one it leaves out.
+    expect(ui.mounts).toHaveLength(0);
+    expect(Object.hasOwn(store.board().options, "zoom")).toBe(false);
+    // The rest of the page, the block's evaluation included, carries on.
+    expect(other.textContent).toBe("n = undefined");
+    expect(scheduler.status("b")?.status).toBe("ready");
+  });
+
+  test("left out are named with each request that reads them", async () => {
+    const reported = reports();
+    const reply: HelloReply = {
+      ...hello,
+      block_registry: {
+        ...hello.block_registry,
+        [head.id]: {
+          ...head,
+          requests: {
+            ...head.requests,
+            columns: { inputs: ["data"], state_args: ["direction"], options: ["n_rows"] },
+            page: { inputs: ["data"], state_args: [], options: ["n_rows", "zoom"] },
+          },
+        },
+      },
+    };
+    const { mounts } = await setup({ [HEAD]: recorder().exports }, { reply, options: [zoom] });
+    const el = document.createElement("div");
+    mounts.mountBlock(el, "b");
+    await tick();
+    reported.restore();
+
+    expect(el.textContent).toBe(
+      'The module blockr.core/head-block.js of blockr.core leaves out of its `options` board options that requests of block class "blockr.core-head_block" read:\n' +
+        '- The request "columns" reads the board option "n_rows".\n' +
+        '- The request "page" reads the board options "n_rows" and "zoom".',
+    );
+  });
+
+  test("that a request reads are checked against the class of each block that a module mounts for", async () => {
+    const reported = reports();
+    const ui = recorder();
+    // The merge block's class has the head block's module draw it too.
+    const merge = entryOf("blockr.core-merge_block");
+    const reply: HelloReply = {
+      ...withRequests,
+      block_registry: { ...withRequests.block_registry, [merge.id]: { ...merge, module: HEAD } },
+    };
+    const { mounts } = await setup({ [HEAD]: ui.exports }, { reply });
+    const [b, c] = [document.createElement("div"), document.createElement("div")];
+    mounts.mountBlock(b, "b");
+    mounts.mountBlock(c, "c");
+    await tick();
+    reported.restore();
+
+    expect(b.querySelector("[role=alert]")?.textContent).toContain('The request "columns" reads the board option "n_rows".');
+    expect(ui.mounts.map(({ host }) => host.block)).toEqual(["c"]);
   });
 });
 
@@ -655,7 +735,7 @@ describe("a mount", () => {
 
 describe("a request", () => {
   async function mounted(reply: HelloReply = withRequests) {
-    const ui = recorder();
+    const ui = recorder(["n_rows"]);
     const all = await setup({ [HEAD]: ui.exports, [UPLOAD]: ui.exports }, { reply });
     all.mounts.mountBlock(document.createElement("div"), "b");
     await tick();

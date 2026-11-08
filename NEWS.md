@@ -275,6 +275,10 @@
   It keeps an edit ID for each plugin, checks a plugin's state against the schema of its class after every change, calls each class's `update` once for each of its plugins, and holds a board to one frontend and one storage plugin at most.
   The plugins of the board that the app script builds are the plugins of every board that the app opens: opening a board keeps each of its plugins that the opening board holds under the same ID and of the same class, migrating its state by its class's `migrate`, drops and names the others, and gives the board each other plugin of the opening board with its class's default state.
   So no patch adds, removes or replaces a plugin, and core's command `blockr.core-set_plugin_state` changes a plugin's state (#504).
+* Core refuses a block class's UI module whose `options` leaves out a board option that a request of the class reads.
+  It shows an error in the block's element in place of the module's UI, as it does for a module that declares another major of core's JS API.
+  The error names the module and its package, each board option that the module leaves out, and the requests that read it.
+  The rest of the page, the block's evaluation included, carries on (#502).
 
 # blockr.core 0.1.4
 

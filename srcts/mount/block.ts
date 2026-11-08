@@ -2,14 +2,18 @@
 // contract has it (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract):
 // 1. Core loads the module of the block's class, with its stylesheet, once
 //    per page, and refuses one that declares another major of its JS API.
-// 2. It adds the board options that the module names to the board, each with
+// 2. It refuses a module whose `options` leaves out a board option that a
+//    request of the block's class reads, as the class's registry entry names
+//    them.
+// 3. It adds the board options that the module names to the board, each with
 //    its definition's default where the board lacks it.
-// 3. It calls the module's render() with the element, a host of the block's
+// 4. It calls the module's render() with the element, a host of the block's
 //    own and a signal, which it aborts once the mount ends, and runs the
 //    cleanup that render() returns.
-// Where the module fails to load, declares another major or throws in
-// render(), core shows an error in the element that names the module and its
-// package, while the page and the block's evaluation carry on.
+// Where the module fails to load, declares another major, leaves out such a
+// board option or throws in render(), core shows an error in the element that
+// names the module and its package, while the page and the block's evaluation
+// carry on.
 //
 // A host keeps nothing of its own: the state is the store's, the status the
 // scheduler's and the answers core's, so one block mounts in several places
@@ -34,7 +38,7 @@ import type {
 } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { isObject, jsonEqual, messageOf, own, packageOf, report } from "../util/index.ts";
+import { isObject, jsonEqual, messageOf, own, packageOf, quoted, report } from "../util/index.ts";
 import { createAnswers } from "./answers.ts";
 import type { Answers } from "./answers.ts";
 import { ModuleError } from "./load.ts";
@@ -62,7 +66,7 @@ export interface Mounts {
   // Adds the board options to the board, each with its definition's default
   // where the board lacks it. Core calls a default that is a function once per
   // opening of a board and keeps its result. The origin of what it adds is
-  // "blockr.core", so that the user's undo leaves it.
+  // "blockr.core".
   addOptions(ids: readonly OptionId[], by: string): Promise<void>;
 }
 
@@ -203,6 +207,7 @@ export function createMounts(options: MountsOptions): Mounts {
       let mod: BlockModule;
       try {
         mod = moduleOf(exports, entry.module, pkg);
+        checkOptions(mod, entry, pkg);
       } catch (error) {
         fail(error);
         return;
@@ -248,6 +253,24 @@ export function createMounts(options: MountsOptions): Mounts {
       ),
     addOptions,
   };
+}
+
+// Refuses a module whose `options` leaves out a board option that a request
+// of the block's class reads, as the class's registry entry names them, so
+// that the gap shows on the first mount rather than as a request that reaches
+// R without the value
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.13#which-board-options-a-board-holds).
+// It throws a ModuleError that names each such request and board option.
+function checkOptions(mod: BlockModule, entry: RegistryEntry, pkg: string | null): void {
+  const named = new Set(mod.options ?? []);
+  const gaps = Object.entries(entry.requests).flatMap(([name, request]) => {
+    const left = [...new Set(request.options)].filter((id) => !named.has(id));
+    if (left.length === 0) return [];
+    return [`- The request "${name}" reads the board option${left.length === 1 ? "" : "s"} ${quoted(left)}.`];
+  });
+  if (gaps.length === 0) return;
+  const what = `leaves out of its \`options\` board options that requests of block class "${entry.id}" read:`;
+  throw new ModuleError(entry.module, pkg, [what, ...gaps].join("\n"));
 }
 
 interface HostDeps {

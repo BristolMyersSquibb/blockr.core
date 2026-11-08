@@ -47,6 +47,8 @@ export interface Store {
   // them, having changed nothing. What changes nothing makes no step: a delta
   // that changes nothing is no delta, and a step keeps of the others only what
   // they change.
+  // A step that sets or removes only board option values is no undo step:
+  // it leaves the origin's undo and redo lists as they are.
   apply(delta: Delta | readonly Delta[], origin?: Origin): void;
   // Opens the opening board that R sent with its reply to `hello`, or a JSON
   // board given as its text, with the block registry of the last such reply,
@@ -85,6 +87,8 @@ export interface Store {
 
   // Reverts or applies again that origin's last step, or throws a StoreError
   // where another origin has since changed what the step changed.
+  // Neither changes a board option's value, since a board option never changes
+  // what the board computes.
   undo(origin?: Origin): void;
   redo(origin?: Origin): void;
   canUndo(origin?: Origin): boolean;
@@ -130,6 +134,7 @@ const ENDED = "Another board opened in a new store, so this store changes its bo
 // its redo list: the deltas to apply, each with where what it adds back goes,
 // taken from the board the step replaced, so that applying them sets back what
 // the step changed.
+// The deltas hold no board option values (./commit.ts).
 type Step = readonly Inverse[];
 
 interface History {
@@ -221,6 +226,9 @@ export function createStore(options: StoreOptions = {}): Store {
   // changes nothing is no delta, which is neither applied nor announced. Undo
   // and redo apply only what still fits the board, and a delta of which
   // nothing does applies as nothing.
+  // A delta that sets or removes only board option values is applied and
+  // announced, but leaves no inverse, since an inverse holds no board option
+  // values.
   function run(
     start: Board,
     deltas: readonly Delta[],
@@ -244,7 +252,8 @@ export function createStore(options: StoreOptions = {}): Store {
 
       const committed = commit(current, expanded, how.places?.[i]);
       if ("failures" in committed) throw fail(committed.failures);
-      if (isEmpty(committed.inverse.delta)) continue;
+      const undoable = !isEmpty(committed.inverse.delta);
+      if (!undoable && committed.changed.options.size === 0) continue;
 
       const failures = check(
         committed.board,
@@ -255,7 +264,7 @@ export function createStore(options: StoreOptions = {}): Store {
       if (failures.length > 0) throw fail(failures);
 
       applied.push({ delta: expanded, board: committed.board, changed: committed.changed });
-      inverses.unshift(committed.inverse);
+      if (undoable) inverses.unshift(committed.inverse);
       current = committed.board;
     }
 
@@ -325,7 +334,9 @@ export function createStore(options: StoreOptions = {}): Store {
       const { applied, inverses } = run(start, deltas, {}, refused);
       if (applied.length === 0) return;
       number(applied, applied.at(-1)?.board ?? start);
-      setSteps(origin, { undo: [...steps(origin).undo, inverses], redo: [] });
+      if (inverses.length > 0) {
+        setSteps(origin, { undo: [...steps(origin).undo, inverses], redo: [] });
+      }
 
       for (const { delta, board: next } of applied) {
         board.value = next;

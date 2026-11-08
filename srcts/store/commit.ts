@@ -2,8 +2,12 @@
 // whatever the delta did not change, and the inverse that undo applies, taken
 // from the board the delta replaces, so that no package writes undo code.
 // Setting what a value holds already changes nothing, so the inverse holds
-// only what the delta changed, and is empty for a delta that changes nothing,
-// which the store therefore applies as no step.
+// only what the delta changed.
+// It holds no board option values, since undo leaves them as they are:
+// a board option never changes what the board computes
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.13#which-board-options-a-board-holds).
+// A delta that changes nothing has an empty inverse and sets or removes no
+// board option value, and the store applies it as no step.
 
 import type {
   Block,
@@ -41,9 +45,9 @@ export interface Changed {
   readonly blocks: ReadonlySet<BlockId>;
   readonly links: ReadonlySet<LinkId>;
   readonly stacks: ReadonlySet<StackId>;
-  // Set rather than removed, by id.
+  // Set or removed, by id, which the inverse leaves out.
   readonly options: ReadonlySet<OptionId>;
-  // The plugins that a patch added, removed or changed, by id.
+  // The plugins that a patch changed, by id.
   readonly plugins: ReadonlySet<PluginId>;
   // What has an edit id that the delta added, changed or removed, as target()
   // names it.
@@ -130,7 +134,6 @@ export function commit(
     ...(empty(blocks.inverse) ? {} : { blocks: blocks.inverse }),
     ...(empty(links.inverse) ? {} : { links: links.inverse }),
     ...(empty(stacks.inverse) ? {} : { stacks: stacks.inverse }),
-    ...(options.inverse === undefined ? {} : { options: options.inverse }),
     ...(delta.name === undefined || delta.name === board.name ? {} : { name: board.name }),
     ...(patched.inverse.length === 0 ? {} : { patches: patched.inverse }),
   };
@@ -150,7 +153,7 @@ export function commit(
       blocks: new Set(blocks.changed),
       links: new Set(links.changed),
       stacks: new Set(stacks.changed),
-      options: options.set,
+      options: options.changed,
       plugins: patched.plugins,
       targets,
     },
@@ -163,10 +166,10 @@ export function commit(
 // An `add` of a member that `placed` gives a place for goes in that place, and
 // each member that a patch removes leaves its place for the patch that adds
 // it back.
-// A patch changes the board's plugins, never one of core's objects: at a
-// plugin's own path it sets or removes the whole plugin, and below that path
-// it changes the plugin's name or its state, which a plugin always holds, and
-// never its class.
+// A patch changes the board's plugins, never one of core's objects: it changes
+// a plugin's name or its state, which a plugin always holds, and never the
+// plugin as a whole or its class, since the app's opening board sets the
+// plugins that a board holds.
 function patch(
   board: Board,
   patches: readonly Patch[],
@@ -353,6 +356,7 @@ function empty(part: Part<unknown, unknown>): boolean {
 interface Changes {
   readonly next: Readonly<Record<string, Json>>;
   readonly set: readonly string[];
+  readonly unset: readonly string[];
   readonly restore: Readonly<Record<string, Json>>;
   readonly remove: readonly string[];
 }
@@ -390,13 +394,15 @@ function changes(
         ? current
         : { ...without(current, removing), ...Object.fromEntries(setting) },
     set: setting.map(([name]) => name),
+    unset: removing,
     restore,
     remove,
   };
 }
 
-// Values by name that a delta sets and removes, with the change that sets
-// back what changed, or none where nothing did.
+// Values by name that a delta sets and removes, with the names of those it
+// changes: each that it sets to another value, and each that it removes where
+// the record holds one.
 function values(
   current: Readonly<Record<string, Json>>,
   change: Values<string> | undefined,
@@ -404,11 +410,10 @@ function values(
   failures: string[],
 ): {
   next: Readonly<Record<string, Json>>;
-  inverse: Values<string> | undefined;
-  set: ReadonlySet<string>;
+  changed: ReadonlySet<string>;
 } {
   if (change === undefined) {
-    return { next: current, inverse: undefined, set: new Set() };
+    return { next: current, changed: new Set() };
   }
   const result = changes(
     current,
@@ -417,17 +422,10 @@ function values(
     (name) => `The change both sets and unsets ${what(name)}.`,
     failures,
   );
-  const changed = Object.keys(result.restore).length > 0 || result.remove.length > 0;
 
   return {
     next: result.next,
-    inverse: changed
-      ? {
-          ...(Object.keys(result.restore).length === 0 ? {} : { set: result.restore }),
-          ...(result.remove.length === 0 ? {} : { unset: result.remove }),
-        }
-      : undefined,
-    set: new Set(result.set),
+    changed: new Set([...result.set, ...result.unset]),
   };
 }
 

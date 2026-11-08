@@ -4349,6 +4349,7 @@ function createMounts(options) {
       let mod;
       try {
         mod = moduleOf(exports, entry.module, pkg);
+        checkOptions(mod, entry, pkg);
       } catch (error) {
         fail(error);
         return;
@@ -4387,6 +4388,17 @@ function createMounts(options) {
     ),
     addOptions
   };
+}
+function checkOptions(mod, entry, pkg) {
+  const named2 = new Set(mod.options ?? []);
+  const gaps = Object.entries(entry.requests).flatMap(([name2, request]) => {
+    const left2 = [...new Set(request.options)].filter((id2) => !named2.has(id2));
+    if (left2.length === 0) return [];
+    return [`- The request "${name2}" reads the board option${left2.length === 1 ? "" : "s"} ${quoted(left2)}.`];
+  });
+  if (gaps.length === 0) return;
+  const what = `leaves out of its \`options\` board options that requests of block class "${entry.id}" read:`;
+  throw new ModuleError(entry.module, pkg, [what, ...gaps].join("\n"));
 }
 function blockHost(deps) {
   const { store, commands, scheduler, block, entry } = deps;
@@ -6297,7 +6309,6 @@ function commit(board, delta, places = {}) {
     ...empty(blocks.inverse) ? {} : { blocks: blocks.inverse },
     ...empty(links.inverse) ? {} : { links: links.inverse },
     ...empty(stacks.inverse) ? {} : { stacks: stacks.inverse },
-    ...options.inverse === void 0 ? {} : { options: options.inverse },
     ...delta.name === void 0 || delta.name === board.name ? {} : { name: board.name },
     ...patched.inverse.length === 0 ? {} : { patches: patched.inverse }
   };
@@ -6316,7 +6327,7 @@ function commit(board, delta, places = {}) {
       blocks: new Set(blocks.changed),
       links: new Set(links.changed),
       stacks: new Set(stacks.changed),
-      options: options.set,
+      options: options.changed,
       plugins: patched.plugins,
       targets
     }
@@ -6458,13 +6469,14 @@ function changes(current2, set, unset, both, failures) {
   return {
     next: setting2.length === 0 && removing.length === 0 ? current2 : { ...without(current2, removing), ...Object.fromEntries(setting2) },
     set: setting2.map(([name2]) => name2),
+    unset: removing,
     restore,
     remove: remove2
   };
 }
 function values(current2, change, what, failures) {
   if (change === void 0) {
-    return { next: current2, inverse: void 0, set: /* @__PURE__ */ new Set() };
+    return { next: current2, changed: /* @__PURE__ */ new Set() };
   }
   const result = changes(
     current2,
@@ -6473,14 +6485,9 @@ function values(current2, change, what, failures) {
     (name2) => `The change both sets and unsets ${what(name2)}.`,
     failures
   );
-  const changed = Object.keys(result.restore).length > 0 || result.remove.length > 0;
   return {
     next: result.next,
-    inverse: changed ? {
-      ...Object.keys(result.restore).length === 0 ? {} : { set: result.restore },
-      ...result.remove.length === 0 ? {} : { unset: result.remove }
-    } : void 0,
-    set: new Set(result.set)
+    changed: /* @__PURE__ */ new Set([...result.set, ...result.unset])
   };
 }
 function modifyBlock(old, mod, id2, failures) {
@@ -7122,7 +7129,8 @@ function createStore(options = {}) {
       if ("failures" in expanded) throw fail(expanded.failures);
       const committed = commit(current3, expanded, how.places?.[i2]);
       if ("failures" in committed) throw fail(committed.failures);
-      if (isEmpty(committed.inverse.delta)) continue;
+      const undoable = !isEmpty(committed.inverse.delta);
+      if (!undoable && committed.changed.options.size === 0) continue;
       const failures = check(
         committed.board,
         registry.value,
@@ -7131,7 +7139,7 @@ function createStore(options = {}) {
       );
       if (failures.length > 0) throw fail(failures);
       applied.push({ delta: expanded, board: committed.board, changed: committed.changed });
-      inverses.unshift(committed.inverse);
+      if (undoable) inverses.unshift(committed.inverse);
       current3 = committed.board;
     }
     return { applied, inverses };
@@ -7186,7 +7194,9 @@ function createStore(options = {}) {
       const { applied, inverses } = run(start2, deltas, {}, refused2);
       if (applied.length === 0) return;
       number(applied, applied.at(-1)?.board ?? start2);
-      setSteps(origin, { undo: [...steps(origin).undo, inverses], redo: [] });
+      if (inverses.length > 0) {
+        setSteps(origin, { undo: [...steps(origin).undo, inverses], redo: [] });
+      }
       for (const { delta: delta2, board: next } of applied) {
         board.value = next;
         announce2({ delta: delta2, origin }, next);

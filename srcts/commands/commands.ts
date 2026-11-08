@@ -2,8 +2,10 @@
 // assistant's tools run alike, each a command that a package registers, core's
 // own among them. A command reads the board and returns deltas, and the command
 // registry applies them through the store as one step of the origin it is
-// given, so that every edit, whoever makes it, is one undo step and passes the
-// store's checks. Core creates one for each store and hands it to plugins,
+// given, so that every edit, whoever makes it, passes the store's checks.
+// The step is one undo step, unless it sets or removes only board option
+// values (../store/store.ts).
+// Core creates a command registry for each store and hands it to plugins,
 // a frontend among them, through `CoreApi`. It ends with the store, as another
 // board opens.
 

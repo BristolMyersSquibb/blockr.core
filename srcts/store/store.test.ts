@@ -1817,6 +1817,17 @@ describe("undo", () => {
   });
 
   test("removes again what a step set where there was none", async () => {
+    const store = await opened();
+    const before = store.board();
+
+    store.apply({ blocks: { mod: { d: { state: { extra: 1 } }, a: { name: "Renamed" } } } });
+    store.undo();
+
+    expect(store.board()).toEqual(before);
+    expect(Object.hasOwn(store.board().blocks.d?.state ?? {}, "extra")).toBe(false);
+  });
+
+  test("leaves the board option values that its step set or removed, and so does redo, while both take back and apply again the rest of the step", async () => {
     const store = await opened((store) => {
       store.options.register({
         id: "seed",
@@ -1827,17 +1838,49 @@ describe("undo", () => {
         ui: noUi,
       });
     });
-    const before = store.board();
+    const seen = changes(store);
 
-    store.apply({
-      blocks: { mod: { d: { state: { extra: 1 } }, a: { name: "Renamed" } } },
-      options: { set: { seed: 42 } },
-    });
+    store.apply([
+      { options: { set: { n_rows: 20, seed: 42 } } },
+      { blocks: { mod: { b: { state: { n: 7 } } } }, options: { unset: ["show_conditions"] }, name: "Renamed" },
+    ]);
+    const { options } = store.board();
+    expect(options).toEqual({ n_rows: 20, seed: 42, dark_mode: "light" });
+
     store.undo();
+    expect([store.board().blocks.b?.state.n, store.board().name]).toEqual([6, "Iris review"]);
+    expect(store.board().options).toBe(options);
 
-    expect(store.board()).toEqual(before);
-    expect(Object.hasOwn(store.board().blocks.d?.state ?? {}, "extra")).toBe(false);
-    expect(Object.hasOwn(store.board().options, "seed")).toBe(false);
+    store.redo();
+    expect([store.board().blocks.b?.state.n, store.board().name]).toEqual([7, "Renamed"]);
+    expect(store.board().options).toBe(options);
+
+    // What the undo and the redo announce holds no board option values.
+    expect(seen.slice(2)).toEqual([
+      { delta: { blocks: { mod: { b: { state: { n: 6 } } } }, name: "Iris review" }, origin: "user" },
+      { delta: { blocks: { mod: { b: { state: { n: 7 } } } }, name: "Renamed" }, origin: "user" },
+    ]);
+  });
+
+  test("a step that sets or removes only board option values is no undo step, and leaves the origin's undo and redo steps as they are", async () => {
+    const store = await opened();
+    store.apply({ name: "Renamed" });
+    store.apply({ name: "Again" });
+    store.undo();
+    const seen = changes(store);
+
+    const delta: Delta = { options: { set: { n_rows: 20 }, unset: ["show_conditions"] } };
+    store.apply(delta);
+    expect(seen).toEqual([{ delta, origin: "user" }]);
+    expect([store.canUndo(), store.canRedo()]).toEqual([true, true]);
+
+    store.redo();
+    expect(store.board().name).toBe("Again");
+    store.undo();
+    store.undo();
+    expect(store.board().name).toBe("Iris review");
+    expect(store.canUndo()).toBe(false);
+    expect(store.board().options).toEqual({ n_rows: 20, dark_mode: "light" });
   });
 
   test("sets back a stack's colour, null for none, by steps that survive JSON", async () => {
@@ -1978,15 +2021,15 @@ describe("undo", () => {
   test("undoes each origin's steps apart", async () => {
     const store = await opened();
     store.apply({ name: "Renamed" });
-    store.apply({ options: { set: { n_rows: 20 } } }, "assistant");
+    store.apply({ stacks: { mod: { s1: { name: "Inputs" } } } }, "assistant");
 
     store.undo();
     expect(store.board().name).toBe("Iris review");
-    expect(store.board().options.n_rows).toBe(20);
+    expect(store.board().stacks.s1?.name).toBe("Inputs");
     expect(store.canUndo("assistant")).toBe(true);
 
     store.undo("assistant");
-    expect(store.board().options.n_rows).toBe(50);
+    expect(store.board().stacks.s1?.name).toBe("Input");
   });
 
   test("sets back what its step changed over what another origin changed since, as the last writer", async () => {
@@ -2076,7 +2119,7 @@ describe("undo", () => {
     const store = await opened();
     store.apply({ name: "Renamed" });
     store.undo();
-    store.apply({ options: { set: { n_rows: 20 } } }, "assistant");
+    store.apply({ stacks: { mod: { s1: { name: "Inputs" } } } }, "assistant");
     expect(store.canRedo()).toBe(true);
 
     store.apply({ name: "Again" });
