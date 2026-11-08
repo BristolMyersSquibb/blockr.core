@@ -27,31 +27,26 @@ declared_modules <- new.env()
 #' Core declares its basic frontend the same way, as `blockr.core-basic`,
 #' which draws the board.
 #'
-#' Next to its startup module, as `startup.schema.json` next to `startup.js`, a
-#' package puts the JSON Schemas of what it defines of a board: the state of
-#' the plugins of each plugin class that it registers, under `plugins` by the
-#' class's ID, and the value of each board option that it registers, under
-#' `options` by the board option's ID, as blockr.dag might:
-#'
-#' ```
-#' {
-#'   "plugins": {
-#'     "blockr.dag-dag_plugin": {
-#'       "type": "object",
-#'       "properties": { "positions": { "type": "object" } }
-#'     }
-#'   },
-#'   "options": { "grid_gap": { "type": "integer", "minimum": 0 } }
-#' }
-#' ```
-#'
-#' So R finds the schema of a plugin's state by the plugin's class, whatever ID
-#' the plugin has on a board.
-#' R shapes the board that an app script builds by them, as it does by
-#' core's schema of the board (see [blockr_ser()]), so that a value of length
-#' one stays an array where a schema has one. R reads nothing else out of
-#' them. Core puts the schemas of its own board options next to its runtime in
-#' the same way.
+#' Next to its startup module, a package puts a JSON Schema for each plugin
+#' class and each board option that it registers, in a file of its own, as a
+#' block class's UI module ships the schema of the block's state next to it.
+#' The schema of the state of the plugins of the class `{pkg}-{name}_plugin`
+#' goes in `{name}_plugin.schema.json`, and that of the value of the board
+#' option `{id}` in `{id}_option.schema.json`, each named by the class in R of
+#' the plugins or of the board option, on which [plugin_version()] and
+#' [board_option_version()] dispatch.
+#' So blockr.dag might put the schema of the class `blockr.dag-dag_plugin` in
+#' `dag_plugin.schema.json`, and that of a board option `grid_gap` in
+#' `grid_gap_option.schema.json`.
+#' R finds the schema of a plugin's state next to the startup module of the
+#' package that its class's ID names, whatever ID the plugin has on a board,
+#' and the schema of a board option's value next to that of any package.
+#' R shapes the board that an app script builds by them, as it does by core's
+#' schema of the board (see [blockr_ser()]), so that a value of length one stays
+#' an array where a schema has one.
+#' R reads nothing else out of them.
+#' Core puts the schemas of its own board options next to its runtime in the
+#' same way, as `n_rows_option.schema.json`.
 #'
 #' R keeps the startup modules in the order in which packages declare them,
 #' which is the order in which their namespaces load, since R runs the
@@ -188,57 +183,64 @@ check_declaring_package <- function(package, what, class) {
   invisible(package)
 }
 
-# The JSON Schemas next to core's runtime and next to the startup module of each
-# package that R has loaded, by which R writes the board an app script built:
-# for each package, the schemas of the state of its plugin classes under
-# `plugins`, by the class's ID, and of the values of its board options under
-# `options`, by the board option's ID.
-startup_schemas <- function() {
-
-  modules <- c(
+# Core's runtime and the startup module of each package that R has loaded, in
+# R's order, next to which core puts the JSON Schemas of its board options and
+# a package those of its plugin classes and board options, by which R writes
+# the board an app script built.
+schema_modules <- function() {
+  c(
     list(list(package = "blockr.core", module = core_runtime())),
     startup_modules()
   )
-
-  res <- list()
-
-  for (entry in modules) {
-
-    file <- module_file(entry[["module"]], ".schema.json")
-
-    if (nzchar(file)) {
-      res <- c(res, list(read_startup_schema(file, entry[["package"]])))
-    }
-  }
-
-  res
 }
 
 core_runtime <- function() {
   js_module("js/blockr-core.js", package = "blockr.core")
 }
 
-read_startup_schema <- function(file, pkg) {
+# The JSON Schema of the state of the plugins of the class with the ID `id`,
+# `{pkg}-{name}_plugin`, in `{name}_plugin.schema.json` next to the startup
+# module of the package `{pkg}`, or `NULL` where there is none.
+plugin_class_schema <- function(id) {
 
-  res <- decode_schema(file)
-
-  is_object <- function(x) {
-    is.list(x) && (!length(x) || not_null(names(x)))
+  for (entry in schema_modules()) {
+    if (identical(entry[["package"]], id_package(id))) {
+      return(schema_beside(entry[["module"]], id_class(id)))
+    }
   }
 
-  parts <- c("plugins", "options")
+  NULL
+}
 
-  if (!is_object(res) || !all(names(res) %in% parts) ||
-        !all(lgl_ply(res, is_object)) ||
-        !all(lgl_ply(unlst(unname(res)), is_object))) {
-    blockr_abort(
-      "The schemas that package {pkg} puts next to its startup module, in ",
-      "{file}, are expected to be a JSON object that holds JSON Schemas ",
-      "under {parts}, the state of each plugin class by the class's ID and ",
-      "the value of each board option by its ID.",
-      class = "startup_schema_invalid"
-    )
+# The JSON Schema of the value of the board option with the ID `id`, in
+# `{id}_option.schema.json` next to core's runtime or a startup module, the
+# first that R finds in R's order, or `NULL` where there is none.
+# R looks next to each, since a board option's ID names no package.
+board_option_schema <- function(id) {
+
+  for (entry in schema_modules()) {
+
+    schema <- schema_beside(entry[["module"]], paste0(id, "_option"))
+
+    if (not_null(schema)) {
+      return(schema)
+    }
   }
 
-  res
+  NULL
+}
+
+# The JSON Schema in `{class}.schema.json` next to a module, decoded, or `NULL`
+# where there is none.
+schema_beside <- function(module, class) {
+
+  dir <- dirname(module_path(module))
+  name <- paste0(class, ".schema.json")
+
+  file <- package_file(
+    if (identical(dir, ".")) name else file.path(dir, name),
+    module[["package"]]
+  )
+
+  if (nzchar(file)) decode_schema(file)
 }

@@ -311,11 +311,12 @@ test_that("the board holds the board options the script gives, by schema", {
     )
   )
 
-  # The schemas next to core's runtime, which are the first that R applies
-  options <- startup_schemas()[[1L]]$options
+  # Core puts the schema of each of its board options next to its runtime
+  for (id in c("n_rows", "show_conditions", "dark_mode")) {
+    expect_type(board_option_schema(id), "list")
+  }
 
-  expect_setequal(names(options), c("n_rows", "show_conditions", "dark_mode"))
-  expect_identical(options$show_conditions$type, "array")
+  expect_identical(board_option_schema("show_conditions")$type, "array")
 })
 
 test_that("a plugin's state is written by the schema of its class", {
@@ -323,46 +324,44 @@ test_that("a plugin's state is written by the schema of its class", {
   local_declared(declared_startup_modules)
 
   dir <- withr::local_tempdir()
+  dir.create(file.path(dir, "js"))
 
   writeLines(
     '{
-      "plugins": {
-        "blockr.test-notes_plugin": {
+      "type": "object",
+      "properties": {
+        "notes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "text": { "type": "string" },
+              "blocks": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "flags": {
           "type": "object",
           "properties": {
-            "notes": {
-              "type": "object",
-              "additionalProperties": {
-                "type": "object",
-                "properties": {
-                  "text": { "type": "string" },
-                  "blocks": { "type": "array", "items": { "type": "string" } }
-                }
-              }
-            },
-            "flags": {
-              "type": "object",
-              "properties": {
-                "starred": { "type": "array", "items": { "type": "string" } }
-              }
-            },
-            "pinned": { "type": "string" }
+            "starred": { "type": "array", "items": { "type": "string" } }
           }
-        }
-      },
-      "options": {
-        "tags": { "type": "array", "items": { "type": "string" } }
+        },
+        "pinned": { "type": "string" }
       }
     }',
-    file.path(dir, "startup.schema.json")
+    file.path(dir, "js", "notes_plugin.schema.json")
   )
 
+  writeLines(
+    '{ "type": "array", "items": { "type": "string" } }',
+    file.path(dir, "js", "tags_option.schema.json")
+  )
+
+  # The files of blockr.test, and none of core's
   local_mocked_bindings(
-    module_file = function(module, suffix) {
-      if (identical(module$package, "blockr.test")) {
-        return(file.path(dir, "startup.schema.json"))
-      }
-      ""
+    package_file = function(path, package) {
+      path <- file.path(dir, path)
+      if (identical(package, "blockr.test") && file.exists(path)) path else ""
     }
   )
 
@@ -449,44 +448,41 @@ test_that("a plugin's state is written by the schema of its class", {
   )
 })
 
-test_that("R applies the schemas of every package that has some", {
+test_that("R finds a class's schema next to its package's startup module", {
 
   local_declared(declared_startup_modules)
 
-  dir <- withr::local_tempdir()
+  dirs <- list(
+    blockr.one = withr::local_tempdir(),
+    blockr.two = withr::local_tempdir()
+  )
+
+  for (dir in dirs) {
+    dir.create(file.path(dir, "js"))
+  }
 
   writeLines(
-    '{
-      "plugins": {
-        "blockr.one-views_plugin": {
-          "properties": { "views": { "type": "array" } }
-        }
-      }
-    }',
-    file.path(dir, "views.schema.json")
+    '{ "properties": { "views": { "type": "array" } } }',
+    file.path(dirs$blockr.one, "js", "views_plugin.schema.json")
   )
 
   writeLines(
-    '{ "options": { "tags": { "type": "array" } } }',
-    file.path(dir, "tags.schema.json")
-  )
-
-  files <- list(
-    blockr.one = "views.schema.json",
-    blockr.two = "tags.schema.json"
+    '{ "type": "array" }',
+    file.path(dirs$blockr.two, "js", "tags_option.schema.json")
   )
 
   local_mocked_bindings(
-    module_file = function(module, suffix) {
-      file <- files[[coal(module$package, "")]]
-      if (is.null(file)) "" else file.path(dir, file)
+    package_file = function(path, package) {
+      dir <- dirs[[coal(package, "")]]
+      path <- if (is.null(dir)) "" else file.path(dir, path)
+      if (nzchar(path) && file.exists(path)) path else ""
     }
   )
 
   register_startup_module(test_module("js/startup.js", "blockr.one"))
   register_startup_module(test_module("js/startup.js", "blockr.two"))
 
-  local_versions(blockr.one = "0.1.0")
+  local_versions(blockr.one = "0.1.0", blockr.three = "0.1.0")
 
   views <- plugin_ctor(
     function(views = "main") NULL,
@@ -494,9 +490,16 @@ test_that("R applies the schemas of every package that has some", {
     "blockr.one"
   )
 
+  # A class of the same name from a package that ships no schema
+  other <- plugin_ctor(
+    function(views = "main") NULL,
+    "views_plugin",
+    "blockr.three"
+  )
+
   board <- new_board(
     options = new_board_option("tags", "draft"),
-    plugins = views()
+    plugins = list(views(), other = other())
   )
 
   res <- read_json_strictly(encode_message(blockr_ser(board)))$board
@@ -505,6 +508,13 @@ test_that("R applies the schemas of every package that has some", {
     res$plugins$views$state,
     read_json_strictly('{ "views": ["main"] }')
   )
+  expect_identical(
+    res$plugins$other$state,
+    read_json_strictly('{ "views": "main" }')
+  )
+
+  # A board option's ID names no package, so its schema is the one next to
+  # any startup module
   expect_identical(
     res$options,
     read_json_strictly('{ "tags": { "value": ["draft"], "version": 1 } }')
@@ -559,45 +569,6 @@ test_that("a JSON board records the package and version of each plugin class", {
   expect_identical(
     board_packages(list(blocks = blocks, plugins = plugins)),
     list(blockr.one = "1.2.0", blockr.two = "0.3.0")
-  )
-})
-
-test_that("the schemas next to a startup module are schemas by id", {
-
-  dir <- withr::local_tempdir()
-  file <- file.path(dir, "startup.schema.json")
-
-  wrong <- c(
-    '["views"]',
-    '"views"',
-    "3",
-    # A schema laid out like the board, as packages put one there before
-    '{ "type": "object", "properties": { "views": { "type": "array" } } }',
-    '{ "plugins": ["blockr.test-notes_plugin"] }',
-    '{ "options": { "tags": true } }'
-  )
-
-  for (json in wrong) {
-    writeLines(json, file)
-    expect_error(
-      read_startup_schema(file, "blockr.test"),
-      "The schemas that package blockr.test puts next to its startup module",
-      class = "startup_schema_invalid"
-    )
-  }
-
-  writeLines("{}", file)
-
-  expect_length(read_startup_schema(file, "blockr.test"), 0L)
-
-  writeLines(
-    '{ "plugins": { "blockr.test-notes_plugin": {} }, "options": {} }',
-    file
-  )
-
-  expect_named(
-    read_startup_schema(file, "blockr.test"),
-    c("plugins", "options")
   )
 })
 

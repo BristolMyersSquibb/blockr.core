@@ -150,9 +150,9 @@ fixture_plugins <- list(
 # What the package blockr.test of the fixtures declares from its `.onLoad()`:
 # the module blockr.test-grid, the UI of its frontend, and a startup module,
 # beside which the package ships the schema of the state of its plugin class
-# notes_plugin, here in the fixtures' blockr.test/, as it would install it, at
-# the version 0.1.0. Its method of `plugin_version()` gives that class version
-# 2.
+# notes_plugin, in notes_plugin.schema.json, its files here in the fixtures'
+# blockr.test/, as it would install them, at the version 0.1.0.
+# Its method of `plugin_version()` gives that class version 2.
 # The block registry and what packages declare are restored once `frame` ends,
 # so that the classes that writing a fixture registers go too.
 local_fixture_package <- function(frame = parent.frame()) {
@@ -176,16 +176,15 @@ local_fixture_package <- function(frame = parent.frame()) {
 
   local_versions(blockr.test = "0.1.0", frame = frame)
 
-  installed <- module_file
+  installed <- package_file
 
   testthat::local_mocked_bindings(
-    module_file = function(module, suffix = NULL) {
+    package_file = function(path, package) {
 
-      if (!identical(module[["package"]], "blockr.test")) {
-        return(installed(module, suffix))
+      if (!identical(package, "blockr.test")) {
+        return(installed(path, package))
       }
 
-      path <- module_path(module, suffix)
       path <- file.path(board_fixture_dir(), "blockr.test", path)
 
       if (file.exists(path)) path else ""
@@ -249,8 +248,8 @@ board_fixture_values <- function() {
         "plugins check and later are two plugins of the class",
         "blockr.test-notes_plugin, each under its name in that list. The",
         "package ships the schema of the state of its notes class beside its",
-        "startup module, by the class's id, here in",
-        "blockr.test/js/startup.schema.json. By that schema, R writes the",
+        "startup module, in a file named by the class in R, here",
+        "blockr.test/js/notes_plugin.schema.json. By that schema, R writes the",
         "notes of both plugins as arrays, and the blocks of each note as an",
         "array, whatever the plugin's id. It writes the state of grid, whose",
         "class the package gives no schema, bare. The package gives the notes",

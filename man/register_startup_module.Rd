@@ -42,30 +42,26 @@ its ID in JavaScript (see \code{\link[=new_plugin]{new_plugin()}}).
 Core declares its basic frontend the same way, as \code{blockr.core-basic},
 which draws the board.
 
-Next to its startup module, as \code{startup.schema.json} next to \code{startup.js}, a
-package puts the JSON Schemas of what it defines of a board: the state of
-the plugins of each plugin class that it registers, under \code{plugins} by the
-class's ID, and the value of each board option that it registers, under
-\code{options} by the board option's ID, as blockr.dag might:
-
-\if{html}{\out{<div class="sourceCode">}}\preformatted{\{
-  "plugins": \{
-    "blockr.dag-dag_plugin": \{
-      "type": "object",
-      "properties": \{ "positions": \{ "type": "object" \} \}
-    \}
-  \},
-  "options": \{ "grid_gap": \{ "type": "integer", "minimum": 0 \} \}
-\}
-}\if{html}{\out{</div>}}
-
-So R finds the schema of a plugin's state by the plugin's class, whatever ID
-the plugin has on a board.
-R shapes the board that an app script builds by them, as it does by
-core's schema of the board (see \code{\link[=blockr_ser]{blockr_ser()}}), so that a value of length
-one stays an array where a schema has one. R reads nothing else out of
-them. Core puts the schemas of its own board options next to its runtime in
-the same way.
+Next to its startup module, a package puts a JSON Schema for each plugin
+class and each board option that it registers, in a file of its own, as a
+block class's UI module ships the schema of the block's state next to it.
+The schema of the state of the plugins of the class \verb{\{pkg\}-\{name\}_plugin}
+goes in \verb{\{name\}_plugin.schema.json}, and that of the value of the board
+option \code{{id}} in \verb{\{id\}_option.schema.json}, each named by the class in R of
+the plugins or of the board option, on which \code{\link[=plugin_version]{plugin_version()}} and
+\code{\link[=board_option_version]{board_option_version()}} dispatch.
+So blockr.dag might put the schema of the class \code{blockr.dag-dag_plugin} in
+\code{dag_plugin.schema.json}, and that of a board option \code{grid_gap} in
+\code{grid_gap_option.schema.json}.
+R finds the schema of a plugin's state next to the startup module of the
+package that its class's ID names, whatever ID the plugin has on a board,
+and the schema of a board option's value next to that of any package.
+R shapes the board that an app script builds by them, as it does by core's
+schema of the board (see \code{\link[=blockr_ser]{blockr_ser()}}), so that a value of length one stays
+an array where a schema has one.
+R reads nothing else out of them.
+Core puts the schemas of its own board options next to its runtime in the
+same way, as \code{n_rows_option.schema.json}.
 
 R keeps the startup modules in the order in which packages declare them,
 which is the order in which their namespaces load, since R runs the

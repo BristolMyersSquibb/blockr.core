@@ -1,0 +1,12 @@
+{
+  "type": "array",
+  "items": {
+    "enum": [
+      "message",
+      "warning",
+      "error"
+    ]
+  },
+  "uniqueItems": true,
+  "description": "The severities of a block's conditions that the board shows"
+}

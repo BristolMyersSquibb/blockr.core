@@ -107,11 +107,9 @@ const classes: readonly PluginClass[] = [
   {
     id: "blockr.test-notes_plugin",
     state: {
-      schema: (
-        JSON.parse(readFileSync(join(fixtures, "blockr.test", "js", "startup.schema.json"), "utf8")) as {
-          readonly plugins: Readonly<Record<string, JsonSchema>>;
-        }
-      ).plugins["blockr.test-notes_plugin"] ?? {},
+      schema: JSON.parse(
+        readFileSync(join(fixtures, "blockr.test", "js", "notes_plugin.schema.json"), "utf8"),
+      ) as JsonSchema,
       default: { notes: [] },
     },
   },

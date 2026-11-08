@@ -141,9 +141,9 @@
   writer: core's objects by the schema of a JSON board that the build
   generates from its TypeScript types into `inst/board`, a block's state by
   the schema its class's UI ships, and a plugin's state or a board option's
-  value by the schema its package ships beside its startup module, by the ID
-  of the plugin's class or of the board option, as core ships those of its
-  board options beside its runtime.
+  value by the schema its package ships beside its startup module, in a file
+  named by the class of the plugin or of the board option, as core ships
+  those of its board options beside its runtime.
   Writing a board registers the block classes
   that its blocks refer to, from the blocks themselves, and fails on a value
   that JSON cannot hold, such as a function, so that such a board fails as
@@ -269,7 +269,7 @@
   The board constructor `new_board()` takes a board's plugins in `plugins`, each under its name in the list or the name of its class without `_plugin`, and refuses a second frontend or a second storage plugin, while it loses `class` and `...`, so that every board is of class `board`.
   The generics `board_front_end()` and `board_version()` go.
   The generic `plugin_version()` gives the version of a plugin class's state, which R sends in its reply to `hello` in `plugin_versions`, in place of `board_classes`.
-  Beside its startup module, a package ships the schemas of the state of its plugin classes under `plugins`, by the class's ID, and those of its board options under `options`, by their IDs, where it shipped one schema laid out like the board before.
+  Beside its startup module, a package ships the schema of the state of each of its plugin classes and of the value of each of its board options in a file of its own, named by the class in R, as `dag_plugin.schema.json` for the class `blockr.dag-dag_plugin` and `grid_gap_option.schema.json` for the board option `grid_gap`, where it shipped one schema laid out like the board before.
   In the client, a startup module registers each plugin class through `core.plugins.register()`, which the store reads for the schema and the default of the state, its `update` and its `migrate`.
   The store keeps each plugin under its ID in the board's `plugins`, with its class's ID, its name and its state, and a change inside a plugin's state is a patch under `/plugins/{id}/state`.
   It keeps an edit ID for each plugin, checks a plugin's state against the schema of its class after every change, calls each class's `update` once for each of its plugins, and holds a board to one frontend and one storage plugin at most.

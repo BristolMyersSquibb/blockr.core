@@ -16,9 +16,9 @@
 //   inst/outputs, by which R writes the outputs of its class.
 // - A JSON board, JsonBoard in srcts/types/board.ts, gets its JSON Schema in
 //   inst/board, by which R writes the board an app script built.
-// - The schemas of core's board options, in srcts/options/schemas.ts, go
-//   next to core's runtime, into blockr-core.schema.json, under `options` by
-//   id, by which R writes the value of one that an app script gives.
+// - The schema of each of core's board options, in srcts/options/schemas.ts,
+//   goes next to core's runtime, into <id>_option.schema.json,
+//   by which R writes the value of one that an app script gives.
 // - A block class's UI module whose folder holds a state.ts
 //   ships the JSON Schema of the block's state beside it,
 //   as <name>.schema.json, from the type State that the file exports.
@@ -255,23 +255,31 @@ async function boardSchema(root: string): Promise<string[]> {
   return [relative(root, file)];
 }
 
-// The JSON Schemas next to core's runtime, of what core defines of a board: the
-// values of its board options, under `options` by id, as a package puts those
-// of its board options next to its startup module, beside those of the state
-// of its plugin classes under `plugins`.
+// The JSON Schemas next to core's runtime, of what core defines of a board:
+// the value of each of its board options, in a file of its own named by the
+// board option's class in R, as n_rows_option.schema.json,
+// as a package puts those of its board options and of its plugin classes'
+// state next to its startup module.
 async function runtimeSchemas(root: string): Promise<string[]> {
   const source = join(root, "srcts", "options", "schemas.ts");
   if (!existsSync(source)) return [];
 
   const { optionSchemas } = (await import(pathToFileURL(source).href)) as {
-    optionSchemas: unknown;
+    optionSchemas: Readonly<Record<string, unknown>>;
   };
-  const file = join(root, "inst", "js", "blockr-core.schema.json");
+  const out = join(root, "inst", "js");
 
-  await mkdir(dirname(file), { recursive: true });
-  await writeJson(file, { options: optionSchemas });
+  await mkdir(out, { recursive: true });
 
-  return [relative(root, file)];
+  const written: string[] = [];
+
+  for (const [id, schema] of Object.entries(optionSchemas)) {
+    const file = join(out, `${id}_option.schema.json`);
+    await writeJson(file, schema);
+    written.push(relative(root, file));
+  }
+
+  return written;
 }
 
 // The JSON Schema of the block's state that each block class's UI module

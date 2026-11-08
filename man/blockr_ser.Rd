@@ -102,10 +102,11 @@ and an empty collection an object.
 A block's state is written by the schema that its class's UI ships (see
 \code{\link[=register_block]{register_block()}}), and bare where it ships none.
 The state of each plugin and the value of each board option are written by
-the schema that the package of the plugin's class or of the board option
-puts next to its startup module, by the ID of the class or of the board
-option, as core puts the schemas of its board options next to its runtime
-(see \code{\link[=register_startup_module]{register_startup_module()}}), and bare where no package gives one.
+the schema that a package puts next to its startup module in a file of its
+own, named by the class in R of the plugin or of the board option, as
+\code{dag_plugin.schema.json} or \code{n_rows_option.schema.json}, and core next to
+its runtime for its own board options (see \code{\link[=register_startup_module]{register_startup_module()}}).
+Each is written bare where no package gives one.
 
 A board that the format cannot hold fails as it is written, and so as the
 script runs. Every value has to be \code{NULL}, a vector of logicals, numbers or

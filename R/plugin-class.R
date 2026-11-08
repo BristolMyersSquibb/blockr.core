@@ -210,15 +210,21 @@ id_package <- function(ids) {
   sub("-.*$", "", ids)
 }
 
+# The class that each ID names, as `dag_plugin` for `blockr.dag-dag_plugin`,
+# the part after the first `-`.
+id_class <- function(ids) {
+  sub("^[^-]*-", "", ids)
+}
+
 # The version of the plugin class with the ID `id`, `{pkg}-{name}_plugin`: what
 # the method of `plugin_version()` for `{name}_plugin` returns, called on an
 # object of class `c("{name}_plugin", "plugin")`, as R calls it for a class
 # that it knows by its ID alone.
 plugin_class_version <- function(id) {
 
-  class <- sub("^[^-]*-", "", id)
-
-  version <- plugin_version(structure(list(), class = c(class, "plugin")))
+  version <- plugin_version(
+    structure(list(), class = c(id_class(id), "plugin"))
+  )
 
   if (!is_count(version, allow_zero = FALSE)) {
     blockr_abort(

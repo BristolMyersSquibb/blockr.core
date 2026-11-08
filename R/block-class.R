@@ -246,11 +246,15 @@ module_path <- function(module, suffix = NULL) {
 # its package's installed files, or at the path of a module made outside a
 # package, and `""` where there is none.
 module_file <- function(module, suffix = NULL) {
+  package_file(module_path(module, suffix), module[["package"]])
+}
 
-  path <- module_path(module, suffix)
+# The file at `path` among the installed files of `package`, relative to its
+# `inst/`, or at `path` itself for no package, and `""` where there is none.
+package_file <- function(path, package) {
 
-  if (not_null(module[["package"]])) {
-    path <- system.file(path, package = module[["package"]])
+  if (not_null(package)) {
+    path <- system.file(path, package = package)
   }
 
   if (nzchar(path) && file.exists(path)) path else ""

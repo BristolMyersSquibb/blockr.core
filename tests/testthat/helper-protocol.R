@@ -1147,17 +1147,17 @@ local_empty_declarations <- function(frame = parent.frame()) {
 # declares from its `.onLoad()`, at the version 0.1.0, until `frame` ends.
 local_declared_package <- function(dir, frame = parent.frame()) {
 
-  installed <- module_file
+  installed <- package_file
   version <- pkg_version
 
   testthat::local_mocked_bindings(
-    module_file = function(module, suffix = NULL) {
+    package_file = function(path, package) {
 
-      if (!identical(module[["package"]], "blockr.test")) {
-        return(installed(module, suffix))
+      if (!identical(package, "blockr.test")) {
+        return(installed(path, package))
       }
 
-      path <- file.path(dir, "blockr.test", module_path(module, suffix))
+      path <- file.path(dir, "blockr.test", path)
 
       if (file.exists(path)) path else ""
     },

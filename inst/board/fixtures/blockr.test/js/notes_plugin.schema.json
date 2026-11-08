@@ -1,0 +1,16 @@
+{
+  "type": "object",
+  "properties": {
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": { "type": "string" },
+          "blocks": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["text", "blocks"]
+      }
+    }
+  }
+}

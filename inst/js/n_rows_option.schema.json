@@ -1,0 +1,5 @@
+{
+  "type": "integer",
+  "minimum": 1,
+  "description": "How many rows of a table a block's output shows"
+}
