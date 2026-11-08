@@ -52,7 +52,10 @@ block_registry <- new.env()
 #'   assembly. Retrieved with [block_metadata()]
 #' @param keywords Optional character vector of free-text search terms for block
 #'   discovery, retrieved with [block_metadata()]
-#' @param package Package where constructor is defined (or `NULL`)
+#' @param package Package where constructor is defined (or `NULL`).
+#'   For `register_package_blocks()`, the package whose registry is read.
+#'   It defaults to the package that calls `register_package_blocks()`, as
+#'   from its `.onLoad()`
 #' @param overwrite Overwrite existing entry
 #'
 #' @examples
@@ -464,8 +467,18 @@ create_block <- function(id, ...) {
 #'
 #' @rdname register_block
 #' @export
-register_package_blocks <- function(which = "all", package = pkg_name(),
+register_package_blocks <- function(which = "all",
+                                    package = pkg_name(parent.frame()),
                                     overwrite = TRUE) {
+
+  if (!is_string(package)) {
+    blockr_abort(
+      "The package to register blocks from is expected to be a string. A ",
+      "call from outside a package, such as from the console, has to pass ",
+      "`package`.",
+      class = "registry_package_invalid"
+    )
+  }
 
   file <- system.file("registry/blocks.yml", package = package)
 

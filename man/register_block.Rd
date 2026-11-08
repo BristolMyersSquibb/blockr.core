@@ -53,7 +53,11 @@ registry_metadata(blocks = list_blocks(), fields = "all")
 
 create_block(id, ...)
 
-register_package_blocks(which = "all", package = pkg_name(), overwrite = TRUE)
+register_package_blocks(
+  which = "all",
+  package = pkg_name(parent.frame()),
+  overwrite = TRUE
+)
 }
 \arguments{
 \item{ctor}{Block constructor}
@@ -89,7 +93,10 @@ assembly. Retrieved with \code{\link[=block_metadata]{block_metadata()}}}
 \item{keywords}{Optional character vector of free-text search terms for block
 discovery, retrieved with \code{\link[=block_metadata]{block_metadata()}}}
 
-\item{package}{Package where constructor is defined (or \code{NULL})}
+\item{package}{Package where constructor is defined (or \code{NULL}).
+For \code{register_package_blocks()}, the package whose registry is read.
+It defaults to the package that calls \code{register_package_blocks()}, as
+from its \code{.onLoad()}}
 
 \item{overwrite}{Overwrite existing entry}
 

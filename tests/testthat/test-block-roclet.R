@@ -301,6 +301,43 @@ test_that("register_package_blocks registers a subset and keeps examples", {
   )
 })
 
+test_that("register_package_blocks reads the registry of its caller", {
+
+  curr <- list_blocks()
+
+  withr::defer(
+    {
+      unregister_blocks()
+      register_core_blocks(curr)
+    }
+  )
+
+  unregister_blocks()
+
+  # A function in the namespace of utils stands in for a package's `.onLoad()`.
+  # The utils package ships no registry, so its call registers nothing.
+  on_load <- function() blockr.core::register_package_blocks()
+  environment(on_load) <- asNamespace("utils")
+
+  on_load()
+
+  expect_length(list_blocks(), 0L)
+
+  environment(on_load) <- asNamespace("blockr.core")
+
+  on_load()
+
+  expect_contains(list_blocks(), "dataset_block")
+})
+
+test_that("register_package_blocks needs a package outside of one", {
+
+  outside <- function() blockr.core::register_package_blocks()
+  environment(outside) <- globalenv()
+
+  expect_error(outside(), class = "registry_package_invalid")
+})
+
 test_that("the shipped core registry is complete", {
 
   file <- system.file("registry/blocks.yml", package = "blockr.core")
