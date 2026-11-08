@@ -20,11 +20,11 @@ export interface Block {
     readonly state: Readonly<Record<string, Json>>;
     readonly name: string;
 }
-export type Plugin = {
+export interface Plugin {
     readonly class: PluginClassId;
     readonly name: string;
     readonly state: Json;
-};
+}
 export interface Link {
     readonly from: BlockId;
     readonly to: BlockId;

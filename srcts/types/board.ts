@@ -45,15 +45,12 @@ export interface Block {
 
 // A plugin, which names its class by the class's id and keeps its state in the
 // shape that its class's schema gives, such as the DAG's positions.
-// It is declared with `type`, so that it is assignable to Json, as the value
-// of a patch that adds a plugin is.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions -- an interface would not be assignable to Json
-export type Plugin = {
+export interface Plugin {
   readonly class: PluginClassId;
   // What the user calls it, which titles its panel, as "Notes".
   readonly name: string;
   readonly state: Json;
-};
+}
 
 export interface Link {
   readonly from: BlockId;

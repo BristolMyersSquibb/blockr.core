@@ -5898,34 +5898,28 @@ function randomUuid() {
 
 // srcts/store/plugins.ts
 var ROLES = ["frontend", "storage"];
-function rolesOf(def) {
-  return ROLES.filter((role) => def[role] !== void 0);
-}
 function inRole(plugins, classOf2, role) {
   return Object.entries(plugins).filter(([, plugin]) => classOf2(plugin.class)?.[role] !== void 0).map(([id2]) => id2);
 }
 function defaultState(def) {
   return frozenCopy(def.state === void 0 ? {} : def.state.default);
 }
-function shortName(id2) {
-  const pkg = packageOf(id2);
-  const name2 = pkg === null ? id2 : id2.slice(pkg.length + 1);
-  return name2.replace(/_plugin$/, "");
+function keptPlugins(board, opening2, classOf2) {
+  return Object.fromEntries(
+    Object.entries(board).filter(
+      (entry) => isObject(entry[1]) && typeof entry[1].class === "string" && own(opening2, entry[0])?.class === entry[1].class && classOf2(entry[1].class) !== void 0
+    )
+  );
 }
-function takeOver(board, opening2, classOf2) {
-  const held2 = new Set(Object.values(board.plugins).map((plugin) => plugin.class));
-  const filled = new Set(ROLES.filter((role) => inRole(board.plugins, classOf2, role).length > 0));
-  const adds = {};
-  const holds = (id2) => Object.hasOwn(board.plugins, id2) || Object.hasOwn(adds, id2);
+function appPlugins(board, opening2, classOf2) {
+  const kept = keptPlugins(board, opening2, classOf2);
+  const plugins = {};
   for (const [id2, plugin] of Object.entries(opening2)) {
     const def = classOf2(plugin.class);
     if (def === void 0) continue;
-    const roles = rolesOf(def);
-    if (roles.length > 0 ? roles.some((role) => filled.has(role)) : held2.has(plugin.class)) continue;
-    for (const role of roles) filled.add(role);
-    adds[holds(id2) ? mintId(holds) : id2] = { class: plugin.class, name: plugin.name, state: defaultState(def) };
+    plugins[id2] = own(kept, id2) ?? { class: plugin.class, name: plugin.name, state: defaultState(def) };
   }
-  return adds;
+  return plugins;
 }
 
 // srcts/store/check.ts
@@ -6364,7 +6358,9 @@ function outside(parts, op) {
   const [top, plugin, part] = parts;
   if (top !== "plugins") return `changes "${top ?? ""}", where a patch changes the board's plugins alone`;
   if (plugin === void 0) return "changes the board's plugins as a whole, where a patch changes one plugin";
-  if (part === void 0) return void 0;
+  if (part === void 0) {
+    return `changes the plugin "${plugin}" as a whole, where a patch changes a plugin's name or its state, since the app's opening board sets the plugins that a board holds`;
+  }
   if (part !== "name" && part !== "state") {
     return `changes "${part}" of the plugin "${plugin}", where a patch below a plugin changes its name or its state`;
   }
@@ -6982,23 +6978,22 @@ function migratedValue(what, fn) {
   return frozenCopy(out);
 }
 function openJsonBoard(json, reply, registrations) {
-  const migrated2 = migrate(unversioned(json.board), json.board, reply, registrations);
-  const unknown = Object.entries(migrated2.plugins).flatMap(([id2, plugin]) => {
+  const opening2 = openingPlugins(reply.board);
+  const pluginClass = (id2) => registrations.plugin(id2)?.def;
+  const read = unversioned(json.board);
+  const held2 = keptPlugins(read.plugins, opening2, pluginClass);
+  const plugins = Object.entries(read.plugins).flatMap(([id2, plugin]) => {
     const cls = classOf(plugin);
-    return cls === void 0 || registrations.plugin(cls) !== void 0 ? [] : [{ id: id2, cls }];
+    return cls === void 0 || Object.hasOwn(held2, id2) ? [] : [{ plugin: id2, class: cls, package: packageOf(cls) }];
   });
-  const plugins = unknown.map(({ id: id2, cls }) => ({ plugin: id2, class: cls, package: packageOf(cls) }));
-  const known = { ...migrated2, plugins: without(migrated2.plugins, unknown.map(({ id: id2 }) => id2)) };
-  const gone = Object.entries(known.blocks).filter(([, block]) => own(reply.block_registry, block.registry_id) === void 0).map(([id2]) => id2);
+  const migrated2 = migrate({ ...read, plugins: held2 }, json.board, reply, registrations);
+  const gone = Object.entries(migrated2.blocks).filter(([, block]) => own(reply.block_registry, block.registry_id) === void 0).map(([id2]) => id2);
   const blocks = gone.map((id2) => {
-    const registryId2 = known.blocks[id2]?.registry_id ?? "";
+    const registryId2 = migrated2.blocks[id2]?.registry_id ?? "";
     return { block: id2, registry_id: registryId2, package: packageOf(registryId2) };
   });
-  const kept = remove(prune2(known, registrations), gone, registrations);
-  const board = {
-    ...kept,
-    plugins: { ...kept.plugins, ...takeOver(kept, openingPlugins(reply.board), (id2) => registrations.plugin(id2)?.def) }
-  };
+  const kept = remove(prune2(migrated2, registrations), gone, registrations);
+  const board = { ...kept, plugins: appPlugins(kept.plugins, opening2, pluginClass) };
   const failures = check(board, reply.block_registry, registrations);
   if (failures.length > 0) throw new StoreError(refused, failures);
   const packages = Object.entries(json.packages).filter(([pkg]) => own(reply.packages, pkg) === void 0).map(([pkg, version]) => ({ package: pkg, version }));
@@ -7012,7 +7007,7 @@ function openingPlugins(opening2) {
   if (!isObject(plugins)) return {};
   return Object.fromEntries(
     Object.entries(plugins).filter(
-      (entry) => isObject(entry[1]) && typeof entry[1].class === "string" && typeof entry[1].name === "string"
+      (entry) => isObject(entry[1]) && typeof entry[1].class === "string"
     )
   );
 }
@@ -7099,13 +7094,6 @@ function createStore(options = {}) {
     if (board.value !== void 0) return board.value;
     throw new StoreError(refused2, ["The store holds no board until it opens one."]);
   }
-  function locked(delta) {
-    if (hello?.lock === null || hello?.lock === void 0) return [];
-    return (delta.patches ?? []).flatMap(({ path }) => {
-      const [top, , part] = pointer(path) ?? [];
-      return top === "plugins" && part !== "state" ? [`The board is locked, which fixes the plugins it holds, so it takes no patch at "${path}".`] : [];
-    });
-  }
   function announce2(change, next) {
     for (const fn of [...subscribers]) {
       try {
@@ -7130,8 +7118,6 @@ function createStore(options = {}) {
       const fail = (failures2) => new StoreError(refused2, failures2.map((failure) => prefix + failure));
       const delta = how.fit === true ? fit(given, current3) : given;
       if (how.fit === true && isEmpty(delta)) continue;
-      const fixed2 = locked(delta);
-      if (fixed2.length > 0) throw fail(fixed2);
       const expanded = expand(delta, current3, registrations);
       if ("failures" in expanded) throw fail(expanded.failures);
       const committed = commit(current3, expanded, how.places?.[i2]);
@@ -7392,7 +7378,6 @@ function createStore(options = {}) {
     plugins: registrations.plugins,
     registerMigration: (registryId2, fn) => registrations.registerMigration(registryId2, fn),
     options: registrations.options,
-    takenOver: (given) => takeOver(given, openingPlugins(hello?.board), (id2) => registrations.plugin(id2)?.def),
     jsonBoard,
     save,
     blockRegistry: () => registry.value,
@@ -7460,11 +7445,6 @@ var value = {
 var pluginId = {
   ...id,
   description: "The id of a plugin, unique among the board's plugins."
-};
-var pluginClassId = {
-  type: "string",
-  pattern: "^[A-Za-z][A-Za-z0-9.]*[A-Za-z0-9]-.+_plugin$",
-  description: 'The id of a plugin class, which a package registers, such as "blockr.dag-dag_plugin".'
 };
 var statePatches = {
   type: "array",
@@ -7891,67 +7871,7 @@ function coreCommands(store, options = {}) {
       run: (_board, { id: id2, value: value2 }) => ({ options: { set: { [id2]: value2 } } })
     })
   ];
-  const pluginClass = (id2) => own(store.plugins.registered(), id2);
   const plugins = [
-    command({
-      id: "blockr.core-add_plugin",
-      label: "Add plugin",
-      description: "Adds a plugin of a class that a package registers, with its class's default state. A frontend or a storage plugin replaces the one that the board holds.",
-      args: object(
-        {
-          class: { ...pluginClassId, description: "The class of the new plugin." },
-          id: {
-            ...pluginId,
-            description: "The new plugin's id, which is the name of its class without its package and without _plugin where it is left out, as dag for blockr.dag-dag_plugin, or minted where the board holds a plugin under that id."
-          },
-          name: {
-            ...name,
-            description: "The new plugin's name, which titles its panel and which its class gives where it is left out."
-          }
-        },
-        ["class"]
-      ),
-      enabled: (_board, args) => pluginClass(args.class) !== void 0,
-      run(board2, args) {
-        const def = pluginClass(args.class);
-        if (def === void 0) {
-          throw refusal(this.id, [`No package registers the plugin class "${args.class}".`]);
-        }
-        const replaced = new Set(rolesOf(def).flatMap((role) => inRole(board2.plugins, pluginClass, role)));
-        const holds = (id3) => Object.hasOwn(board2.plugins, id3) && !replaced.has(id3);
-        if (args.id !== void 0 && holds(args.id)) {
-          throw refusal(this.id, [`The board holds a plugin "${args.id}" already.`]);
-        }
-        const short = shortName(def.id);
-        const id2 = args.id ?? (holds(short) ? mintId(holds) : short);
-        const patches2 = [
-          ...[...replaced].map((old) => ({ op: "remove", path: pathOf(["plugins", old]) })),
-          {
-            op: "add",
-            path: pathOf(["plugins", id2]),
-            value: { class: def.id, name: args.name ?? pluginName(def.id), state: defaultState(def) }
-          }
-        ];
-        return { patches: patches2 };
-      }
-    }),
-    command({
-      id: "blockr.core-remove_plugin",
-      label: "Remove plugin",
-      description: "Removes a plugin with its state. Where the board then lacks a plugin that it takes over from the app's opening board, it takes that plugin over in the same step, with its class's default state.",
-      args: object({ id: pluginId }, ["id"]),
-      enabled: (board2, { id: id2 }) => Object.hasOwn(board2.plugins, id2),
-      run(board2, { id: id2 }) {
-        if (!Object.hasOwn(board2.plugins, id2)) return [];
-        const taken = store.takenOver({ ...board2, plugins: without(board2.plugins, [id2]) });
-        const reset = own(taken, id2);
-        const patches2 = [
-          reset === void 0 ? { op: "remove", path: pathOf(["plugins", id2]) } : { op: "replace", path: pathOf(["plugins", id2]), value: reset },
-          ...Object.entries(taken).filter(([other]) => other !== id2).map(([other, plugin]) => ({ op: "add", path: pathOf(["plugins", other]), value: plugin }))
-        ];
-        return { patches: patches2 };
-      }
-    }),
     command({
       id: "blockr.core-set_plugin_state",
       label: "Set plugin state",
@@ -7986,9 +7906,6 @@ function blockName(registryId2) {
   const pkg = packageOf(registryId2);
   const name2 = pkg === null ? registryId2 : registryId2.slice(pkg.length + 1);
   return sentenceCase(name2.replace(/_block$/, ""));
-}
-function pluginName(id2) {
-  return sentenceCase(shortName(id2));
 }
 function leave(board, id2, blocks) {
   const moving = new Set(blocks);

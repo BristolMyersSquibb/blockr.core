@@ -2,8 +2,8 @@
 // actions did: adding, removing and renaming a block, setting and unsetting its
 // state args, appending, prepending and inserting one on a link, adding,
 // changing and removing links, adding, changing, renaming and removing stacks,
-// renaming the board and setting a board option, and adding and removing a
-// plugin and setting a plugin's state.
+// renaming the board and setting a board option, and setting a plugin's
+// state, while the app's opening board sets which plugins a board holds.
 // Besides core's command for any plugin's state, a plugin class's package
 // registers commands of its own for what its plugins keep.
 //
@@ -12,22 +12,13 @@
 // which these commands check against the schema of the block's class. An edit
 // that changes nothing is the store's to drop, which makes no step of it.
 
-import {
-  defaultState,
-  inRole,
-  mintId,
-  pathOf,
-  rolesOf,
-  sentenceCase,
-  shortName,
-} from "../store/index.ts";
+import { mintId, pathOf, sentenceCase } from "../store/index.ts";
 import type { Patch, Store } from "../store/index.ts";
 import type {
   Block,
   BlockId,
   Board,
   LinkId,
-  PluginClassId,
   PluginId,
   RegistryId,
   Stack,
@@ -522,77 +513,7 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
     }),
   ];
 
-  const pluginClass = (id: PluginClassId) => own(store.plugins.registered(), id);
-
   const plugins = [
-    command<{ readonly class: PluginClassId; readonly id?: PluginId; readonly name?: string }>({
-      id: "blockr.core-add_plugin",
-      label: "Add plugin",
-      description:
-        "Adds a plugin of a class that a package registers, with its class's default state. A frontend or a storage plugin replaces the one that the board holds.",
-      args: object(
-        {
-          class: { ...schemas.pluginClassId, description: "The class of the new plugin." },
-          id: {
-            ...schemas.pluginId,
-            description:
-              "The new plugin's id, which is the name of its class without its package and without _plugin where it is left out, as dag for blockr.dag-dag_plugin, or minted where the board holds a plugin under that id.",
-          },
-          name: {
-            ...schemas.name,
-            description: "The new plugin's name, which titles its panel and which its class gives where it is left out.",
-          },
-        },
-        ["class"],
-      ),
-      enabled: (_board, args) => pluginClass(args.class) !== undefined,
-      run(board, args) {
-        const def = pluginClass(args.class);
-        if (def === undefined) {
-          throw refusal(this.id, [`No package registers the plugin class "${args.class}".`]);
-        }
-        const replaced = new Set(rolesOf(def).flatMap((role) => inRole(board.plugins, pluginClass, role)));
-        const holds = (id: string) => Object.hasOwn(board.plugins, id) && !replaced.has(id);
-        if (args.id !== undefined && holds(args.id)) {
-          throw refusal(this.id, [`The board holds a plugin "${args.id}" already.`]);
-        }
-        const short = shortName(def.id);
-        const id = args.id ?? (holds(short) ? mintId(holds) : short);
-        const patches: Patch[] = [
-          ...[...replaced].map((old): Patch => ({ op: "remove", path: pathOf(["plugins", old]) })),
-          {
-            op: "add",
-            path: pathOf(["plugins", id]),
-            value: { class: def.id, name: args.name ?? pluginName(def.id), state: defaultState(def) },
-          },
-        ];
-        return { patches };
-      },
-    }),
-    command<{ readonly id: PluginId }>({
-      id: "blockr.core-remove_plugin",
-      label: "Remove plugin",
-      description:
-        "Removes a plugin with its state. Where the board then lacks a plugin that it takes over from the app's opening board, it takes that plugin over in the same step, with its class's default state.",
-      args: object({ id: schemas.pluginId }, ["id"]),
-      enabled: (board, { id }) => Object.hasOwn(board.plugins, id),
-      run(board, { id }) {
-        if (!Object.hasOwn(board.plugins, id)) return [];
-        const taken = store.takenOver({ ...board, plugins: without(board.plugins, [id]) });
-        // A plugin that it takes over under the id of the one it removes takes
-        // that one's place, as a reset of the plugin to its default state.
-        const reset = own(taken, id);
-        const patches: Patch[] = [
-          reset === undefined
-            ? { op: "remove", path: pathOf(["plugins", id]) }
-            : { op: "replace", path: pathOf(["plugins", id]), value: reset },
-          ...Object.entries(taken)
-            .filter(([other]) => other !== id)
-            .map(([other, plugin]): Patch => ({ op: "add", path: pathOf(["plugins", other]), value: plugin })),
-        ];
-        return { patches };
-      },
-    }),
     command<{ readonly plugin: PluginId; readonly patches: readonly StatePatch[] }>({
       id: "blockr.core-set_plugin_state",
       label: "Set plugin state",
@@ -645,12 +566,6 @@ export function blockName(registryId: RegistryId): string {
   const pkg = packageOf(registryId);
   const name = pkg === null ? registryId : registryId.slice(pkg.length + 1);
   return sentenceCase(name.replace(/_block$/, ""));
-}
-
-// The name of a new plugin, made as R makes one from its class, from the name
-// in the class's id: "Dag" for "blockr.dag-dag_plugin".
-export function pluginName(id: PluginClassId): string {
-  return sentenceCase(shortName(id));
 }
 
 // The changes that take the blocks out of every stack but `id`, since a block

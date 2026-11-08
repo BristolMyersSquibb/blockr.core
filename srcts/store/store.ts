@@ -11,7 +11,7 @@
 
 import { signal } from "@preact/signals-core";
 import type { HelloReply } from "../protocol/index.ts";
-import type { BlockId, Board, JsonBoard, Plugin, PluginId, RegistryId } from "../types/board.ts";
+import type { BlockId, Board, JsonBoard, PluginId, RegistryId } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import { own, packageOf, report } from "../util/index.ts";
 import { check } from "./check.ts";
@@ -21,10 +21,9 @@ import { isDeltas } from "./delta.ts";
 import type { Delta, Origin } from "./delta.ts";
 import { StoreError } from "./error.ts";
 import { expand } from "./expand.ts";
-import { pluginOf, pointer } from "./patch.ts";
-import { takeOver } from "./plugins.ts";
+import { pluginOf } from "./patch.ts";
 import { fit, isEmpty } from "./undo.ts";
-import { checkJsonBoard, FORMAT, openingPlugins, openJsonBoard, parse, required } from "./open.ts";
+import { checkJsonBoard, FORMAT, openJsonBoard, parse, required } from "./open.ts";
 import type { Dropped } from "./open.ts";
 import { createRegistrations } from "./registrations.ts";
 import type { Migration, Options, Plugins } from "./registrations.ts";
@@ -97,14 +96,6 @@ export interface Store {
   registerMigration(registryId: RegistryId, fn: Migration): () => void;
   // The board options packages define, by id.
   readonly options: Options;
-  // The plugins that the board given takes over from the app's opening board,
-  // the board of the last reply to `hello`, by id: each plugin of a class
-  // that the board holds no plugin of, and the opening board's frontend or
-  // storage plugin only where the board holds none, each with its class's
-  // default state. As a board opens, it takes them over, and so does a board
-  // from which a command removes a plugin.
-  takenOver(board: Board): Readonly<Record<PluginId, Plugin>>;
-
   // The block registry's entries that the store opened the board with, and
   // the versions of the packages R loaded, from the reply to `hello`.
   blockRegistry(): Readonly<Record<RegistryId, RegistryEntry>>;
@@ -207,20 +198,6 @@ export function createStore(options: StoreOptions = {}): Store {
     throw new StoreError(refused, ["The store holds no board until it opens one."]);
   }
 
-  // What the board lock refuses of a delta: each patch that adds, removes or
-  // renames a plugin, since the lock fixes which plugins the board holds, with
-  // their classes and names, while what sits inside a plugin's state stays
-  // the plugin's own to lock.
-  function locked(delta: Delta): string[] {
-    if (hello?.lock === null || hello?.lock === undefined) return [];
-    return (delta.patches ?? []).flatMap(({ path }) => {
-      const [top, , part] = pointer(path) ?? [];
-      return top === "plugins" && part !== "state"
-        ? [`The board is locked, which fixes the plugins it holds, so it takes no patch at "${path}".`]
-        : [];
-    });
-  }
-
   function announce(change: Change, next: Board): void {
     for (const fn of [...subscribers]) {
       try {
@@ -261,9 +238,6 @@ export function createStore(options: StoreOptions = {}): Store {
 
       const delta = how.fit === true ? fit(given, current) : given;
       if (how.fit === true && isEmpty(delta)) continue;
-
-      const fixed = locked(delta);
-      if (fixed.length > 0) throw fail(fixed);
 
       const expanded = expand(delta, current, registrations);
       if ("failures" in expanded) throw fail(expanded.failures);
@@ -422,9 +396,9 @@ export function createStore(options: StoreOptions = {}): Store {
   }
 
   // The board that a JSON board opens to, as openJsonBoard() migrates it and
-  // completes it with what it takes over, with the values of the board options
-  // that core's basic frontend requires, whose defaults may have to wait, as
-  // one read from a blockr option asks R for it.
+  // gives it the plugins of the app's opening board, with the values of the
+  // board options that core's basic frontend requires, whose defaults may have
+  // to wait, as one read from a blockr option asks R for it.
   async function build(json: JsonBoard, reply: HelloReply): Promise<{ board: Board; dropped: Dropped[] }> {
     guard();
     let opened: ReturnType<typeof openJsonBoard>;
@@ -576,8 +550,6 @@ export function createStore(options: StoreOptions = {}): Store {
     plugins: registrations.plugins,
     registerMigration: (registryId, fn) => registrations.registerMigration(registryId, fn),
     options: registrations.options,
-    takenOver: (given) =>
-      takeOver(given, openingPlugins(hello?.board), (id) => registrations.plugin(id)?.def),
     jsonBoard,
     save,
     blockRegistry: () => registry.value,

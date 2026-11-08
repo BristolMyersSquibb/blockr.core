@@ -273,8 +273,8 @@
   In the client, a startup module registers each plugin class through `core.plugins.register()`, which the store reads for the schema and the default of the state, its `update` and its `migrate`.
   The store keeps each plugin under its ID in the board's `plugins`, with its class's ID, its name and its state, and a change inside a plugin's state is a patch under `/plugins/{id}/state`.
   It keeps an edit ID for each plugin, checks a plugin's state against the schema of its class after every change, calls each class's `update` once for each of its plugins, and holds a board to one frontend and one storage plugin at most.
-  Opening a board migrates the state of each plugin by its class's `migrate`, drops each plugin whose class no package registers, naming the package, and takes over what the board lacks of the plugins of the opening board, each with its class's default state.
-  Core's commands `blockr.core-add_plugin`, `blockr.core-remove_plugin` and `blockr.core-set_plugin_state` add a plugin, remove one and change a plugin's state, and under the board lock the store refuses adding and removing a plugin (#504).
+  The plugins of the board that the app script builds are the plugins of every board that the app opens: opening a board keeps each of its plugins that the opening board holds under the same ID and of the same class, migrating its state by its class's `migrate`, drops and names the others, and gives the board each other plugin of the opening board with its class's default state.
+  So no patch adds, removes or replaces a plugin, and core's command `blockr.core-set_plugin_state` changes a plugin's state (#504).
 
 # blockr.core 0.1.4
 

@@ -11,8 +11,8 @@
 // 4. It opens the board that R sent, or in its place the one that a startup
 //    module resolves with, unless the board is locked or two startup modules
 //    resolve with one, where it keeps R's and names the packages. A board that
-//    a startup module names takes over what it lacks of the plugins of the
-//    board that R sent.
+//    a startup module names holds the plugins of the board that R sent, each
+//    with the state that the named board gives it.
 // 5. As the store opens the board, core imports the module of core's basic
 //    front-end, which draws every board. Once the board is open, it calls the
 //    front-end's render(), and starts the scheduler once render() has returned,
@@ -356,8 +356,7 @@ export function start(options: StartOptions): Started {
 
   // The text of the board that a startup module named in place of the board
   // that R sent, or undefined where core opens R's. The store opens it with
-  // the reply, so that it takes over what it lacks of the plugins of the board
-  // that R sent.
+  // the reply, so that it holds the plugins of the board that R sent.
   function chosen(reply: HelloReply, named: readonly { package: string; text: string }[]): string | undefined {
     const [only, ...more] = named;
     if (only === undefined) return undefined;

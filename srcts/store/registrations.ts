@@ -40,8 +40,8 @@ export interface PluginClass {
   readonly options?: readonly OptionId[];
   // What each of its plugins keeps in the board: the schema of the state, with
   // descriptions and examples for a model, against which the store checks the
-  // state after every change, and the state that a plugin starts with as a
-  // command adds it or a board takes it over.
+  // state after every change, and the state that a plugin of the app's
+  // opening board starts with on a board that opens without it.
   // The plugins of a class without one each keep an empty object.
   readonly state?: { readonly schema: JsonSchema; readonly default: Json };
   // The patches to the state of the plugin `plugin` that follow from a change,

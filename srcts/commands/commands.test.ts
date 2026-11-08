@@ -89,8 +89,6 @@ describe("registering", () => {
       "blockr.core-remove_stack",
       "blockr.core-rename_board",
       "blockr.core-set_option",
-      "blockr.core-add_plugin",
-      "blockr.core-remove_plugin",
       "blockr.core-set_plugin_state",
     ]);
   });

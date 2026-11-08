@@ -282,9 +282,10 @@ describe("starting the page", () => {
     expect(core.store.board().name).toBe("From the URL");
   });
 
-  test("has the board that a startup module names take over what it lacks of the plugins of R's", async () => {
-    // A package whose plugin class the board that R sent holds a plugin of,
-    // with a state that the board that the startup module names lacks.
+  test("has the board that a startup module names hold the plugins of R's, each with the state that the named board gives it", async () => {
+    // A package whose plugin class the board that R sent holds two plugins of,
+    // and the board that its startup module names holds one of them and one
+    // of its own.
     const notes = {
       api: 1,
       default: {
@@ -293,12 +294,25 @@ describe("starting the page", () => {
             id: "blockr.notes-notes_plugin",
             state: { schema: { type: "object" }, default: { text: "" } },
           });
-          return JSON.stringify({ ...hello.board, board: { ...hello.board.board, name: "From the URL" } });
+          return JSON.stringify({
+            ...hello.board,
+            board: {
+              ...hello.board.board,
+              name: "From the URL",
+              plugins: {
+                todo: { class: "blockr.notes-notes_plugin", name: "To do", state: { text: "Call back" } },
+                later: { class: "blockr.notes-notes_plugin", name: "Later", state: { text: "Soon" } },
+              },
+            },
+          });
         },
       },
     };
     const reply = withPlugins(
-      { todo: { class: "blockr.notes-notes_plugin", name: "To do", state: { text: "Buy milk" } } },
+      {
+        todo: { class: "blockr.notes-notes_plugin", name: "To do", state: { text: "Buy milk" } },
+        done: { class: "blockr.notes-notes_plugin", name: "Done", state: { text: "Paid" } },
+      },
       withStartup("blockr.notes"),
     );
     const s = setup({ "blockr.notes/startup.js?v=1": notes, [BASIC]: frontEnd().exports });
@@ -309,7 +323,8 @@ describe("starting the page", () => {
 
     expect(core.store.board().name).toBe("From the URL");
     expect(core.store.board().plugins).toEqual({
-      todo: { class: "blockr.notes-notes_plugin", name: "To do", state: { text: "" } },
+      todo: { class: "blockr.notes-notes_plugin", name: "To do", state: { text: "Call back" } },
+      done: { class: "blockr.notes-notes_plugin", name: "Done", state: { text: "" } },
     });
   });
 
@@ -389,7 +404,12 @@ describe("a board opened later", () => {
 
   test("is checked by the store on the page first, so that a board it refuses leaves the page as it was, with the reason", async () => {
     const basic = frontEnd();
-    const s = await started({ [BASIC]: basic.exports });
+    // R's board holds a plugin of a class that a package registers once the
+    // page has started.
+    const s = await started(
+      { [BASIC]: basic.exports },
+      withPlugins({ strict: { class: "test.pkg-strict_plugin", name: "Strict", state: { zoom: 1 } } }),
+    );
     const sent = s.r.sent.length;
 
     await expect(s.core.store.open("{")).rejects.toThrow("The store refused to open the board\n- The text holds no JSON");
@@ -596,7 +616,11 @@ describe("a board opened later", () => {
       },
     };
     const basic = frontEnd();
-    const s = await started({ "blockr.strict/startup.js?v=1": strict, [BASIC]: basic.exports }, withStartup("blockr.strict"));
+    const reply = withPlugins(
+      { zoom: { class: "blockr.strict-zoom_plugin", name: "Zoom", state: { zoom: 1 } } },
+      withStartup("blockr.strict"),
+    );
+    const s = await started({ "blockr.strict/startup.js?v=1": strict, [BASIC]: basic.exports }, reply);
     s.core.store.apply({ name: "Kept" });
     const board = JSON.stringify({
       ...hello.board,
@@ -604,7 +628,7 @@ describe("a board opened later", () => {
     });
 
     const reported = reports();
-    const opening = reopen(s, s.core, board, withStartup("blockr.strict"));
+    const opening = reopen(s, s.core, board, reply);
     await expect(opening).rejects.toThrow('The state of the plugin "zoom"');
     reported.restore();
 

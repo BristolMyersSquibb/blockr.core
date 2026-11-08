@@ -1,5 +1,5 @@
 import type { HelloReply } from "../protocol/index.ts";
-import type { BlockId, Board, JsonBoard, Plugin, PluginId, RegistryId } from "../types/board.ts";
+import type { BlockId, Board, JsonBoard, PluginId, RegistryId } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import type { Delta, Origin } from "./delta.ts";
 import type { Dropped } from "./open.ts";
@@ -27,7 +27,6 @@ export interface Store {
     readonly plugins: Plugins;
     registerMigration(registryId: RegistryId, fn: Migration): () => void;
     readonly options: Options;
-    takenOver(board: Board): Readonly<Record<PluginId, Plugin>>;
     blockRegistry(): Readonly<Record<RegistryId, RegistryEntry>>;
     packages(): Readonly<Record<string, string>>;
     editId(of: {

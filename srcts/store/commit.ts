@@ -213,12 +213,16 @@ function patch(
 }
 
 // Why a patch at the path `parts` changes what no patch may, in a clause, or
-// undefined where it changes a plugin or what a plugin holds.
+// undefined where it changes a plugin's name or its state.
+// No patch adds, removes or replaces a plugin, since the app's opening board
+// sets the plugins that a board holds.
 function outside(parts: readonly string[], op: Patch["op"]): string | undefined {
   const [top, plugin, part] = parts;
   if (top !== "plugins") return `changes "${top ?? ""}", where a patch changes the board's plugins alone`;
   if (plugin === undefined) return "changes the board's plugins as a whole, where a patch changes one plugin";
-  if (part === undefined) return undefined;
+  if (part === undefined) {
+    return `changes the plugin "${plugin}" as a whole, where a patch changes a plugin's name or its state, since the app's opening board sets the plugins that a board holds`;
+  }
   if (part !== "name" && part !== "state") {
     return `changes "${part}" of the plugin "${plugin}", where a patch below a plugin changes its name or its state`;
   }

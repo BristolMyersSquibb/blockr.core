@@ -90,12 +90,6 @@ export const pluginId: JsonSchema = {
   description: "The id of a plugin, unique among the board's plugins.",
 };
 
-export const pluginClassId: JsonSchema = {
-  type: "string",
-  pattern: "^[A-Za-z][A-Za-z0-9.]*[A-Za-z0-9]-.+_plugin$",
-  description: 'The id of a plugin class, which a package registers, such as "blockr.dag-dag_plugin".',
-};
-
 // The patches of a plugin's state, each in the shape of a JSON Patch
 // operation, at a JSON Pointer within the state, "" for the whole state.
 export const statePatches: JsonSchema = {

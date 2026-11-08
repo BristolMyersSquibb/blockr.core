@@ -23,6 +23,11 @@
 #' A board holds at most one frontend, a plugin of class `frontend_plugin`, and
 #' one storage plugin, a plugin of class `storage_plugin`, and the constructor
 #' refuses a second of either.
+#' The plugins of the board that an app script builds are the app's: every
+#' board that the app opens holds them, each with the name and the state of
+#' the board's plugin under its ID where that plugin is of the same class, and
+#' with its class's default state otherwise, while the board's other plugins
+#' go.
 #'
 #' A board has an ID, which identifies it, and a name, which the user calls it
 #' by.
