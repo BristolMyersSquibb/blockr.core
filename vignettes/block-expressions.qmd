@@ -184,6 +184,7 @@ new_block_class(
 For an input that is named like nothing on the search path, such as `x`, base `bquote()` fails with `object 'x' not found`.
 
 In `bbquote()`, `.()` takes a single name.
+The `bbquote()` function leaves any other `.()` as it is, so `.(n + 1L)` stays in the block expression and fails when the block is evaluated.
 A value that the block expression needs is worked out in the body of `expr` first, and then filled in by its name:
 
 ```{r}
@@ -381,14 +382,14 @@ res$result
 ## The `.()` of data.table
 
 In data.table, `.()` stands for `list()`, as in `dt[, .(total = sum(value)), by = id]`.
-In the code given to `bbquote()`, `.()` is the syntax of `bbquote()` itself.
-So `bbquote()` reads data.table's `.()` as its own:
+In the code given to `bbquote()`, `.()` around a single name is the syntax of `bbquote()` itself.
+So `bbquote()` reads a `.()` of data.table that holds a single name as its own:
 
 - Around the name of a state arg, such as `.(id)` with a state arg `id`, it fills in the arg's value.
 - Around the name of a data input, such as `.(x)` with an input `x`, it is a placeholder, which interpolation replaces with an upstream ID.
-- Around anything else, such as `.(total = sum(value))` or `.(id, value)`, it evaluates the first argument, as base `bquote()` does, which fails or drops the rest.
 
-So a class that builds data.table code with `bbquote()` writes `list()` in place of `.()`.
+A class that builds data.table code with `bbquote()` writes `list()` in place of such a `.()`, as `list(x)` for the column `x` of a block with an input `x`.
+The `bbquote()` function leaves any other `.()` as it is, such as `.(total = sum(value))`, `.(n = .N)` or `.(id, value)`.
 Here `interpolate()` makes the block expression from what `expr` returns, without running it:
 
 ```{r}
@@ -396,7 +397,7 @@ total_block <- new_block_class(
   "total_block",
   inputs = "data",
   expr = function(by = "id") {
-    bbquote(.(data)[, list(total = sum(value)), by = .(by)])
+    bbquote(.(data)[, .(total = sum(value)), by = .(by)])
   },
   ui = js_module("js/total-block.js")
 )
@@ -404,7 +405,7 @@ total_block <- new_block_class(
 interpolate(total_block$expr(by = "id"), list(data = "a"))
 ```
 
-The same holds in the body of a function that `expr` returns, where base `bquote()` fills in every `.()`.
+In the body of a function that `expr` returns, base `bquote()` fills in every `.()`, so a class writes `list()` there for every `.()` of data.table.
 In a call or a string, nothing fills in `.()`, so data.table's stays as it is:
 
 ```{r}

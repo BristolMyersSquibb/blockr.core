@@ -23,6 +23,12 @@
 #'
 #' This also works with `..()` and splicing.
 #'
+#' Both `.()` and `..()` take a single name. The `bbquote()` function leaves a
+#' call to either that holds anything else as it is, such as data.table's
+#' `.(total = sum(value))` or `.(n = .N)`, where [base::bquote()] would
+#' evaluate its first argument. A `.()` around a single name inside such a call
+#' is filled in as anywhere else.
+#'
 #' @inheritParams base::bquote
 #'
 #' @examples
@@ -39,16 +45,35 @@
 #' @export
 bbquote <- function(expr, where = parent.frame(), splice = FALSE) {
 
-  maybe_dots <- function(x) {
-    is.call(x) && length(x) == 2 && is.name(x[[2]])
-  }
-
   is_dot <- function(x) {
-    maybe_dots(x) && identical(x[[1]], quote(.))
+    is_single_name_call(x, quote(.))
   }
 
   is_dots <- function(x) {
-    maybe_dots(x) && identical(x[[1]], quote(..))
+    is_single_name_call(x, quote(..))
+  }
+
+  # Base bquote() evaluates the first argument of every call to `.`, and with
+  # `splice = TRUE` of every call to `..`. So a call to either that holds
+  # anything but a single name goes to it under another function name, and
+  # the result gets the original name back.
+  rename_calls <- function(x, from, to, keep = function(x) FALSE) {
+
+    if (is.pairlist(x)) {
+      return(as.pairlist(lapply(x, rename_calls, from, to, keep)))
+    }
+
+    if (!is.call(x)) {
+      return(x)
+    }
+
+    fun <- x[[1L]]
+
+    if (is.name(fun) && as.character(fun) %in% from && !keep(x)) {
+      x[[1L]] <- as.name(to[match(as.character(fun), from)])
+    }
+
+    as.call(lapply(x, rename_calls, from, to, keep))
   }
 
   find_dots <- function(x) {
@@ -143,11 +168,26 @@ bbquote <- function(expr, where = parent.frame(), splice = FALSE) {
     }
   }
 
-  new_bquoted_expr(
-    process_splices(
-      eval(call("bquote", expr_sub, subst_list, splice = splice))
-    )
+  funs <- c(".", "..")
+  hidden <- c(".bbquote_dot", ".bbquote_dots")
+
+  expr_sub <- rename_calls(
+    expr_sub,
+    funs,
+    hidden,
+    keep = function(x) is_dot(x) || is_dots(x)
   )
+
+  res <- eval(call("bquote", expr_sub, subst_list, splice = splice))
+
+  new_bquoted_expr(process_splices(rename_calls(res, hidden, funs)))
+}
+
+# The syntax of bbquote() is a call to `.` or `..` around a single name, given
+# without an argument name, so that data.table's `.(n = .N)` is not.
+is_single_name_call <- function(x, fun) {
+  is.call(x) && length(x) == 2L && identical(x[[1L]], fun) &&
+    is.name(x[[2L]]) && !nzchar(coal(names(x)[2L], ""))
 }
 
 as_dot_call <- function(x) {

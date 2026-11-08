@@ -157,6 +157,54 @@ test_that("bbquote preserves missing arguments", {
   )
 })
 
+test_that("bbquote leaves a .() or ..() that holds more than a name", {
+
+  expect_identical(
+    bbquote(.(data)[, .(total = sum(value)), by = .(by)], list(by = "id")),
+    new_bquoted_expr(quote(.(data)[, .(total = sum(value)), by = "id"]))
+  )
+
+  expect_identical(
+    bbquote(.(x)[.(y), .(x, y), on = "id"], list()),
+    new_bquoted_expr(quote(.(x)[.(y), .(x, y), on = "id"]))
+  )
+
+  expect_identical(
+    bbquote(dt[, .(n = .N), by = .(n)], list(n = "grp")),
+    new_bquoted_expr(quote(dt[, .(n = .N), by = "grp"]))
+  )
+
+  expect_identical(
+    bbquote(dt[, .(n = n)], list(n = 1L)),
+    new_bquoted_expr(quote(dt[, .(n = n)]))
+  )
+
+  expect_identical(
+    bbquote(dt[, .()], list()),
+    new_bquoted_expr(quote(dt[, .()]))
+  )
+
+  expect_identical(
+    bbquote(dt[, .(total = sum(.(col)))], list(col = quote(value))),
+    new_bquoted_expr(quote(dt[, .(total = sum(value))]))
+  )
+
+  expect_identical(
+    bbquote(function(x = .(a, b)) .(n = x), list()),
+    new_bquoted_expr(quote(function(x = .(a, b)) .(n = x)))
+  )
+
+  expect_identical(
+    bbquote(f(..(bc), ..(x, y), ..(c(a, b))), list(bc = 1:2), splice = TRUE),
+    new_bquoted_expr(quote(f(1L, 2L, ..(x, y), ..(c(a, b)))))
+  )
+
+  expect_identical(
+    bbquote(f(..(n = bc)), list(bc = 1:2), splice = TRUE),
+    new_bquoted_expr(quote(f(..(n = bc))))
+  )
+})
+
 test_that("bbquote returns a bquoted_expr", {
 
   res <- bbquote(utils::head(.(data), n = .(n)), list(n = 10L))

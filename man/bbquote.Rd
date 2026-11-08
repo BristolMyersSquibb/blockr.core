@@ -51,6 +51,12 @@ bbquote(utils::head(.(data), n = .(n)))
 }\if{html}{\out{</div>}}
 
 This also works with \code{..()} and splicing.
+
+Both \code{.()} and \code{..()} take a single name. The \code{bbquote()} function leaves a
+call to either that holds anything else as it is, such as data.table's
+\code{.(total = sum(value))} or \code{.(n = .N)}, where \code{\link[base:bquote]{base::bquote()}} would
+evaluate its first argument. A \code{.()} around a single name inside such a call
+is filled in as anywhere else.
 }
 \examples{
 bbquote(utils::head(.(data), n = .(n)), list(n = 10L))

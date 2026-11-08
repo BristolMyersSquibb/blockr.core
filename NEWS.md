@@ -270,6 +270,9 @@
   It shows an error in the block's element in place of the module's UI, as it does for a module that declares another major of core's JS API.
   The error names the module and its package, each board option that the module leaves out, and the requests that read it.
   The rest of the page, the block's evaluation included, carries on (#502).
+* The `bbquote()` function leaves a call to `.()` or `..()` that holds anything but a single name as it is, such as data.table's `.(total = sum(value))`, `.(n = .N)` or `.(x, y)`.
+  Until now, base `bquote()` evaluated the first argument of such a call, so that data.table code failed or lost arguments.
+  A placeholder is a `.()` around the name of a data input, without an argument name, so interpolation leaves data.table's `.(n = data)` as it is in a block with an input `data` (#496).
 
 # blockr.core 0.1.4
 

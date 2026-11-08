@@ -30,7 +30,8 @@
 #' expression defines, so that `bbquote(utils::head(.(data), n = 10L))` gives
 #' `utils::head(a, n = 10L)` and `bbquote(rbind(...))` gives `rbind(a, b2 = b)`.
 #' A placeholder is a call to `.` whose only argument is the name of a data
-#' input, so any other call to `.`, such as data.table's in `j`, stays as it is.
+#' input, given without an argument name, so any other call to `.`, such as
+#' data.table's `.(total = sum(value))` or `.(n = .N)` in `j`, stays as it is.
 #'
 #' A package adds a class of its own that inherits from `blockr_expr`, with an
 #' `interpolate()` method, such as one that fills in a template, without
@@ -214,7 +215,6 @@ is_variadic_dots <- function(x, inputs) {
 }
 
 is_placeholder <- function(x, inputs) {
-  is.call(x) && length(x) == 2L && identical(x[[1L]], quote(.)) &&
-    is.name(x[[2L]]) &&
+  is_single_name_call(x, quote(.)) &&
     as.character(x[[2L]]) %in% setdiff(names(inputs), "...")
 }

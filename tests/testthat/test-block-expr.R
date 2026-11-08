@@ -176,6 +176,30 @@ test_that("placeholders are filled in wherever they are", {
   )
 })
 
+test_that("a .() that holds more than a name stays as it is", {
+
+  total <- function(by = "id") {
+    bbquote(.(data)[, .(total = sum(value)), by = .(by)])
+  }
+
+  expect_identical(
+    interpolate(total(), list(data = "a")),
+    quote(a[, .(total = sum(value)), by = "id"])
+  )
+
+  join <- function() bbquote(.(x)[.(y), .(x, y), on = "id"])
+
+  expect_identical(
+    interpolate(join(), list(x = "a", y = "b")),
+    quote(a[b, .(x, y), on = "id"])
+  )
+
+  expect_identical(
+    interpolate(bbquote(.(data)[, .(n = data)]), list(data = "a")),
+    quote(a[, .(n = data)])
+  )
+})
+
 test_that("bquoted_exprs print as the call they hold", {
   expect_snapshot(print(bbquote(utils::head(.(data), n = 10L))))
 })

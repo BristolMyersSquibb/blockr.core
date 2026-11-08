@@ -60,7 +60,8 @@ stands for a variadic block's inputs, but for the \code{...} of a function the
 expression defines, so that \code{bbquote(utils::head(.(data), n = 10L))} gives
 \code{utils::head(a, n = 10L)} and \code{bbquote(rbind(...))} gives \code{rbind(a, b2 = b)}.
 A placeholder is a call to \code{.} whose only argument is the name of a data
-input, so any other call to \code{.}, such as data.table's in \code{j}, stays as it is.
+input, given without an argument name, so any other call to \code{.}, such as
+data.table's \code{.(total = sum(value))} or \code{.(n = .N)} in \code{j}, stays as it is.
 
 A package adds a class of its own that inherits from \code{blockr_expr}, with an
 \code{interpolate()} method, such as one that fills in a template, without
