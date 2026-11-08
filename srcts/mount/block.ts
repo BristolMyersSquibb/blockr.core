@@ -62,7 +62,7 @@ export interface Mounts {
   // Adds the board options to the board, each with its definition's default
   // where the board lacks it. Core calls a default that is a function once per
   // opening of a board and keeps its result. The origin of what it adds is
-  // "blockr.core", so that the user's undo leaves it.
+  // "blockr.core".
   addOptions(ids: readonly OptionId[], by: string): Promise<void>;
 }
 

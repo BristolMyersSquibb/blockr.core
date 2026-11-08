@@ -149,7 +149,7 @@ describe("the host", () => {
     expect(el.textContent).toBe("50");
 
     s.store.apply({ options: { set: { n_rows: 25 } } });
-    s.store.undo();
+    s.store.apply({ options: { set: { n_rows: 50 } } });
     expect(rows.mounts[0]?.seen).toEqual([50, 25, 50]);
   });
 
@@ -172,9 +172,14 @@ describe("the host", () => {
       ["light", "dark"],
       ["light", "dark"],
     ]);
-    // The submit is one step of the user.
-    s.store.undo();
+    // The submit is no undo step, since undo leaves board option values as
+    // they are.
+    expect(s.store.canUndo()).toBe(false);
+    // Removing the value gives the default again, which core does not resolve
+    // again.
+    s.store.apply({ options: { unset: ["theme"] } });
     expect(dark.host().value()).toBe("light");
+    expect(calls.count).toBe(1);
   });
 
   test("rejects a submit with what refused it", async () => {
