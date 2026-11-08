@@ -1,3 +1,4 @@
+import type { Lock } from "../protocol/index.ts";
 import type { Delta, Origin, Store } from "../store/index.ts";
 import type { Board } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
@@ -25,5 +26,6 @@ export declare class CommandError extends Error {
 export declare function refusal(id: string, failures: readonly string[]): CommandError;
 export interface CommandsOptions {
     readonly signal?: AbortSignal;
+    readonly lock?: Lock | null;
 }
 export declare function createCommands(store: Store, options?: CommandsOptions): Commands;

@@ -26,11 +26,10 @@ bypasses any \code{display: none}, so the refusal has to happen on the
 server.
 }
 \details{
-\code{is_board_locked()} reports whether a board is locked and dispatches
-on the board, so a subclass can source the state however it likes
-(for example gating an unlock behind an authenticated request). The
-default \code{board} method reads the \code{blockr.locked} option, and
-\code{blockr.dock}'s \code{is_dock_locked()} delegates here.
+The generic \code{is_board_locked()} reports whether a board is locked.
+Its method for \code{board}, the class of every board, reads the
+\code{blockr.locked} option, and \code{blockr.dock}'s \code{is_dock_locked()} delegates
+here.
 }
 \section{Scope}{
  Locking guards against forged \emph{client input} -- a
@@ -38,11 +37,9 @@ browser that sets Shiny inputs but cannot run server-side R. It is
 \strong{not} a defense against code executing in the session: blockr
 evaluates arbitrary R, which can flip the option, rebind this generic
 or mutate board state directly, and no in-process flag can prevent
-that. A subclass method may raise the bar (e.g. an authenticated
-unlock) but cannot close the gap on its own -- a hard boundary has to
-live where the user's code does not run (a sandboxed evaluator, or an
-ephemeral read-only deployment). Treat locking as a guard for
-non-malicious users.
+that. A hard boundary has to live where the user's code does not run
+(a sandboxed evaluator, or an ephemeral read-only deployment). Treat
+locking as a guard for non-malicious users.
 }
 
 \examples{

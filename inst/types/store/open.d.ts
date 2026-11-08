@@ -1,7 +1,7 @@
 import type { HelloReply } from "../protocol/index.ts";
-import type { Board, JsonBoard, OptionId } from "../types/board.ts";
+import type { Board, JsonBoard, OptionId, Plugin, PluginId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
-import type { Built, Registrations } from "./registrations.ts";
+import type { Registrations } from "./registrations.ts";
 export declare const FORMAT = 1;
 export type Dropped = {
     readonly package: string;
@@ -10,13 +10,16 @@ export type Dropped = {
     readonly block: string;
     readonly registry_id: string;
     readonly package: string | null;
+} | {
+    readonly plugin: PluginId;
+    readonly class: string;
+    readonly package: string | null;
 };
 export declare function parse(text: string): unknown;
 export declare function checkJsonBoard(json: unknown): JsonBoard;
-export declare function classOf(board: Board): readonly string[];
-export declare function openJsonBoard(json: JsonBoard, reply: Pick<HelloReply, "packages" | "block_registry" | "board_classes" | "option_versions">, registrations: Registrations): {
+export declare function openJsonBoard(json: JsonBoard, reply: Pick<HelloReply, "packages" | "block_registry" | "plugin_versions" | "option_versions" | "board">, registrations: Registrations): {
     board: Board;
     dropped: Dropped[];
-    built: Built;
 };
-export declare function required(board: Board, built: Built, registrations: Registrations): Promise<Readonly<Record<OptionId, Json>>>;
+export declare function openingPlugins(opening: JsonBoard | undefined): Readonly<Record<PluginId, Plugin>>;
+export declare function required(board: Board, registrations: Registrations): Promise<Readonly<Record<OptionId, Json>>>;

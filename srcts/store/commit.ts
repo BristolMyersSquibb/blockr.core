@@ -12,6 +12,7 @@ import type {
   Link,
   LinkId,
   OptionId,
+  PluginId,
   Stack,
   StackId,
 } from "../types/board.ts";
@@ -19,8 +20,6 @@ import type { Json } from "../types/json.ts";
 import { jsonEqual, own, without } from "../util/index.ts";
 import type { BlockMod, Delta, Patch, Values } from "./delta.ts";
 import { applyPatch, malformed, pointer } from "./patch.ts";
-import { recordOf } from "./registrations.ts";
-import type { Built } from "./registrations.ts";
 
 // Where each entry that an inverse adds back goes, before the entry named or
 // last, by collection: "blocks", "links" or "stacks".
@@ -44,8 +43,8 @@ export interface Changed {
   readonly stacks: ReadonlySet<StackId>;
   // Set rather than removed, by id.
   readonly options: ReadonlySet<OptionId>;
-  // The properties that a patch changed, by name.
-  readonly properties: ReadonlySet<string>;
+  // The plugins that a patch added, removed or changed, by id.
+  readonly plugins: ReadonlySet<PluginId>;
   // What has an edit id that the delta added, changed or removed, as target()
   // names it.
   readonly targets: ReadonlySet<string>;
@@ -57,19 +56,18 @@ export interface Committed {
   readonly changed: Changed;
 }
 
-// What has an edit id: a block, or a property that the board's class adds.
-export type Target = { readonly block: BlockId } | { readonly property: string };
+// What has an edit id: a block or a plugin.
+export type Target = { readonly block: BlockId } | { readonly plugin: PluginId };
 
 export function target(of: Target): string {
   return "block" in of
     ? JSON.stringify(["block", of.block])
-    : JSON.stringify(["property", of.property]);
+    : JSON.stringify(["plugin", of.plugin]);
 }
 
 export function commit(
   board: Board,
   delta: Delta,
-  built: Built,
   places: Places = {},
 ): Committed | { readonly failures: readonly string[] } {
   const failures: string[] = [];
@@ -122,8 +120,8 @@ export function commit(
     options: options.next,
   };
 
-  const patched = patch(next, delta.patches ?? [], built, places.patches ?? {}, failures);
-  for (const property of patched.properties) targets.add(target({ property }));
+  const patched = patch(next, delta.patches ?? [], places.patches ?? {}, failures);
+  for (const plugin of patched.plugins) targets.add(target({ plugin }));
   next = patched.board;
 
   if (failures.length > 0) return { failures };
@@ -153,7 +151,7 @@ export function commit(
       links: new Set(links.changed),
       stacks: new Set(stacks.changed),
       options: options.set,
-      properties: patched.properties,
+      plugins: patched.plugins,
       targets,
     },
   };
@@ -161,28 +159,29 @@ export function commit(
 
 // The board after the patches, applied in their order,
 // with the patches that take them back, in the order that does,
-// and the properties they changed.
+// and the plugins they changed.
 // An `add` of a member that `placed` gives a place for goes in that place, and
 // each member that a patch removes leaves its place for the patch that adds
 // it back.
-// A patch changes a property that the board's class adds, never one of core's,
-// and takes no property away, since a board holds every property of its class.
+// A patch changes the board's plugins, never one of core's objects: at a
+// plugin's own path it sets or removes the whole plugin, and below that path
+// it changes the plugin's name or its state, which a plugin always holds, and
+// never its class.
 function patch(
   board: Board,
   patches: readonly Patch[],
-  built: Built,
   placed: Readonly<Record<string, string | null>>,
   failures: string[],
 ): {
   board: Board;
   inverse: Patch[];
   places: Readonly<Record<string, string | null>>;
-  properties: ReadonlySet<string>;
+  plugins: ReadonlySet<PluginId>;
 } {
-  let next: Readonly<Record<string, unknown>> = recordOf(board);
+  let next: Readonly<Record<string, unknown>> = board as unknown as Readonly<Record<string, unknown>>;
   const inverse: Patch[] = [];
   const places: Record<string, string | null> = {};
-  const properties = new Set<string>();
+  const plugins = new Set<PluginId>();
 
   for (const [i, given] of patches.entries()) {
     const name = `The patch ${String(i + 1)}`;
@@ -192,17 +191,9 @@ function patch(
       continue;
     }
     const parts = pointer(given.path) ?? [];
-    const [property = ""] = parts;
-    if (!built.properties.has(property)) {
-      failures.push(
-        `${name}, ${given.op} at "${given.path}", changes "${property}", which the board class "${built.def.class}" does not add.`,
-      );
-      continue;
-    }
-    if (parts.length === 1 && given.op === "remove") {
-      failures.push(
-        `${name} removes the property "${property}", which a board of the class "${built.def.class}" always holds.`,
-      );
+    const misplaced = outside(parts, given.op);
+    if (misplaced !== undefined) {
+      failures.push(`${name}, ${given.op} at "${given.path}", ${misplaced}.`);
       continue;
     }
     const place = given.op === "add" ? own(placed, given.path) : undefined;
@@ -215,10 +206,26 @@ function patch(
     if (applied.inverse === undefined) continue;
     inverse.unshift(applied.inverse);
     if (applied.place !== undefined) places[applied.inverse.path] = applied.place;
-    properties.add(property);
+    plugins.add(parts[1] ?? "");
   }
 
-  return { board: next as unknown as Board, inverse, places, properties };
+  return { board: next as unknown as Board, inverse, places, plugins };
+}
+
+// Why a patch at the path `parts` changes what no patch may, in a clause, or
+// undefined where it changes a plugin or what a plugin holds.
+function outside(parts: readonly string[], op: Patch["op"]): string | undefined {
+  const [top, plugin, part] = parts;
+  if (top !== "plugins") return `changes "${top ?? ""}", where a patch changes the board's plugins alone`;
+  if (plugin === undefined) return "changes the board's plugins as a whole, where a patch changes one plugin";
+  if (part === undefined) return undefined;
+  if (part !== "name" && part !== "state") {
+    return `changes "${part}" of the plugin "${plugin}", where a patch below a plugin changes its name or its state`;
+  }
+  if (parts.length === 3 && op === "remove") {
+    return `removes the ${part} of the plugin "${plugin}", which a plugin always holds`;
+  }
+  return undefined;
 }
 
 interface Part<T, M> {

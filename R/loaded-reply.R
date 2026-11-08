@@ -1,17 +1,15 @@
 # What R tells the client about the packages it has loaded, in its reply to
 # `hello`, for neither side to edit: the block registry's entries, each with
 # the renderer of its class's outputs, where R serves the startup modules and
-# the modules that packages offer each other, the board classes that packages
-# name front-ends for, the versions of the board options that packages give
-# them, the renderers that the app names for board options, and the versions of
-# the packages that all of these come from.
-# A front-end is a module that its package offers, which a board class names
-# through its method of `board_front_end()`.
+# the modules that packages offer each other, the versions of the plugin
+# classes and of the board options that packages give them, the renderers that
+# the app names for board options, and the versions of the packages that all
+# of these come from.
 # R loads no package for it: the app's script has loaded them, and loading
 # them filled the block registry, declared their modules and registered their
 # methods.
 # These are the fields `packages`, `block_registry`, `startup_modules`,
-# `modules`, `board_classes`, `option_versions` and `renderers` of
+# `modules`, `plugin_versions`, `option_versions` and `renderers` of
 # inst/protocol/README.md, as R values that `encode_message()` writes as the
 # reply's JSON.
 # Building them builds no block.
@@ -20,19 +18,22 @@ loaded_reply <- function() {
   entries <- available_blocks()
   startup <- startup_modules()
   modules <- lapply(set_names(nm = list_modules()), get_module)
-  classes <- board_classes()
+  plugins <- plugin_versions()
   renderers <- option_renderers()
 
   coercions <- output_coercions()
   drawn <- lapply(entries, entry_renderer, coercions)
 
-  packages <- unlst(
-    lapply(
-      list(entries, startup, modules, classes, renderers, drawn),
-      lst_xtr,
-      "package"
+  packages <- c(
+    unlst(
+      lapply(
+        list(entries, startup, modules, renderers, drawn),
+        lst_xtr,
+        "package"
+      ),
+      recursive = TRUE
     ),
-    recursive = TRUE
+    id_package(names(plugins))
   )
 
   list(
@@ -40,55 +41,10 @@ loaded_reply <- function() {
     block_registry = as_json_object(Map(registry_entry_reply, entries, drawn)),
     startup_modules = unname(lapply(startup, startup_module_reply)),
     modules = as_json_object(lapply(modules, declared_module_reply)),
-    board_classes = as_json_object(classes),
+    plugin_versions = plugins,
     option_versions = option_versions(),
     renderers = as_json_object(lapply(renderers, option_renderer_reply))
   )
-}
-
-# The board classes that loaded packages name front-ends for, by class, each
-# with its package, whose namespace holds its method of `board_front_end()`,
-# the front-end that the method names and the class's version.
-# R calls each method on an empty board of its class, and leaves out a method
-# that an app script defines, since its class comes from no package.
-board_classes <- function() {
-
-  methods <- utils::.S3methods(
-    "board_front_end",
-    envir = asNamespace("blockr.core")
-  )
-
-  classes <- sub("^board_front_end[.]", "", as.character(methods))
-  classes <- set_names(nm = classes)
-
-  res <- lapply(classes, function(class) {
-
-    package <- class_package(class)
-
-    if (is.null(package)) {
-      return(NULL)
-    }
-
-    front_end <- board_front_end(
-      structure(list(), class = unique(c(class, "board")))
-    )
-
-    if (!is_nonempty_string(front_end)) {
-      blockr_abort(
-        "The method of `board_front_end()` for board class {class} of ",
-        "package {package} returns no module ID.",
-        class = "board_front_end_invalid"
-      )
-    }
-
-    list(
-      package = package,
-      front_end = front_end,
-      version = class_version(class)
-    )
-  })
-
-  Filter(not_null, res)
 }
 
 # The version of each package, by name, in the order of the names.
@@ -249,7 +205,7 @@ request_entry_reply <- function(x) {
   )
 }
 
-# Where R serves a module that a package offers others, such as a front-end.
+# Where R serves a module that a package offers others, such as a frontend.
 declared_module_reply <- function(x) {
   served_module(x[["module"]])
 }

@@ -592,20 +592,14 @@ constructor_class <- function(ctor) {
 }
 
 block_state <- function(x) {
-
-  res <- unclass(x)
-  attributes(res) <- NULL
-  names(res) <- names(x)
-
-  res
+  bare_list(x)
 }
 
 #' @param class A block class's class vector
 #' @rdname new_block_class
 #' @export
 default_block_name <- function(class) {
-  res <- gsub("_", " ", sub("_block$", "", class[1L]))
-  paste0(toupper(substr(res, 1L, 1L)), substring(res, 2L))
+  default_name(class, "_block")
 }
 
 validate_block <- function(x) {

@@ -69,13 +69,7 @@
             "css": "blockr.core/basic.css?v=6a9b2c4e"
           }
         },
-        "board_classes": {
-          "board": {
-            "package": "blockr.core",
-            "front_end": "blockr.core-basic",
-            "version": 1
-          }
-        },
+        "plugin_versions": {},
         "option_versions": {},
         "renderers": {},
         "lock": null,
@@ -84,8 +78,7 @@
           "packages": { "blockr.core": "0.2.0" },
           "board": {
             "id": "quick_wren",
-            "class": ["board"],
-            "versions": { "board": 1 },
+            "versions": {},
             "name": "Quick wren",
             "blocks": {
               "tidy_crab": {
@@ -97,7 +90,8 @@
             },
             "links": {},
             "stacks": {},
-            "options": { "n_rows": { "value": 50, "version": 1 } }
+            "options": { "n_rows": { "value": 50, "version": 1 } },
+            "plugins": {}
           }
         },
         "bound": ["data"]

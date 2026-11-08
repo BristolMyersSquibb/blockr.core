@@ -5,8 +5,8 @@
 
 import { describe, expect, test, vi } from "vitest";
 import { createStore, StoreError } from "../store/index.ts";
-import type { BoardClass, Store } from "../store/index.ts";
-import { hello, openedStore } from "../testing/store.ts";
+import type { PluginClass, Store } from "../store/index.ts";
+import { openedStore, withPlugins } from "../testing/store.ts";
 import type { Json } from "../types/json.ts";
 import { CommandError, createCommands } from "./index.ts";
 import type { Command, Commands } from "./index.ts";
@@ -36,19 +36,21 @@ function renameB(
   };
 }
 
-// A board class that keeps a position for each block, as the DAG keeps one,
-// and the command of its package that changes one.
-const placed: BoardClass = {
-  class: "placed_board",
-  parent: "board",
-  properties: {
-    positions: {
-      schema: {
-        type: "object",
-        additionalProperties: { type: "object", properties: { x: { type: "number" } } },
+// A plugin class that keeps a position for each block, as the DAG keeps one,
+// and the command of its package that changes one, for the plugin "placed".
+const placed: PluginClass = {
+  id: "test.pkg-placed_plugin",
+  state: {
+    schema: {
+      type: "object",
+      properties: {
+        positions: {
+          type: "object",
+          additionalProperties: { type: "object", properties: { x: { type: "number" } } },
+        },
       },
-      default: {},
     },
+    default: { positions: {} },
   },
 };
 
@@ -61,7 +63,9 @@ const move: Command<{ readonly id: string; readonly x: number }> = {
     required: ["id", "x"],
     additionalProperties: false,
   },
-  run: (_board, { id, x }) => ({ patches: [{ op: "add", path: `/positions/${id}`, value: { x } }] }),
+  run: (_board, { id, x }) => ({
+    patches: [{ op: "add", path: `/plugins/placed/state/positions/${id}`, value: { x } }],
+  }),
 };
 
 describe("registering", () => {
@@ -85,6 +89,9 @@ describe("registering", () => {
       "blockr.core-remove_stack",
       "blockr.core-rename_board",
       "blockr.core-set_option",
+      "blockr.core-add_plugin",
+      "blockr.core-remove_plugin",
+      "blockr.core-set_plugin_state",
     ]);
   });
 
@@ -366,11 +373,11 @@ describe("planning", () => {
     }).toThrow(/The delta was built on edit \d+ of block "b", which another edit has replaced/);
   });
 
-  test("fills in the edit id of the property that each patch changes", async () => {
-    const store = await openedStore((store) => store.register(placed), {
-      ...hello,
-      board: { ...hello.board, board: { ...hello.board.board, class: ["placed_board", "board"] } },
-    });
+  test("fills in the edit id of the plugin that each patch changes", async () => {
+    const store = await openedStore(
+      (store) => store.plugins.register(placed),
+      withPlugins({ placed: { class: placed.id, name: "Placed", state: { positions: {} } } }),
+    );
     const commands = createCommands(store);
     commands.register(move);
 
@@ -379,7 +386,12 @@ describe("planning", () => {
     expect(planned).toEqual([
       {
         patches: [
-          { op: "add", path: "/positions/a", value: { x: 2 }, edit: store.editId({ property: "positions" }) },
+          {
+            op: "add",
+            path: "/plugins/placed/state/positions/a",
+            value: { x: 2 },
+            edit: store.editId({ plugin: "placed" }),
+          },
         ],
       },
     ]);
@@ -387,7 +399,7 @@ describe("planning", () => {
     await commands.run("test.pkg-move", { id: "a", x: 3 });
     expect(() => {
       store.apply(planned, "assistant");
-    }).toThrow(/The delta was built on edit \d+ of the property "positions", which another edit has replaced/);
+    }).toThrow(/The delta was built on edit \d+ of the plugin "placed", which another edit has replaced/);
   });
 
   test("keeps the edit ids that a command names itself", async () => {

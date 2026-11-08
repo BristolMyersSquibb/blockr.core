@@ -10,8 +10,8 @@ declared_modules <- new.env()
 #' R, from its `.onLoad()`, the modules of its client that R serves: its
 #' startup module, at most one, with
 #' `register_startup_module()`, for what has to run before anything mounts,
-#' such as defining its board classes and registering the board options it
-#' ships, and the modules it offers other packages, each with
+#' such as registering its plugin classes and the board options it ships, and
+#' the modules it offers other packages, each with
 #' `register_module()` under a name that gives it the ID `{pkg}-{name}`, as a
 #' registry id is, by which `host.module()` and `CoreApi.module()` reach it in
 #' the client.
@@ -21,27 +21,37 @@ declared_modules <- new.env()
 #' Declaring a package's startup module, or a module under the same ID, again
 #' replaces it, as when a package is loaded again.
 #'
-#' A front-end is such a module: the module that draws the boards of a board
-#' class, which the class names through its method of [board_front_end()].
-#' So blockr.dock declares `register_module("dock", js_module("dock.js"))`,
-#' and its method of `board_front_end()` for `dock_board` returns
-#' `"blockr.dock-dock"`.
-#' Core declares its basic front-end the same way, as `blockr.core-basic`,
-#' which its method for core's board class `board` names.
-#' The client builds a board as the first class in its class vector that a
-#' loaded package defines, and the front-end of that class, or of its nearest
-#' parent that names one, draws the board.
+#' The module that a plugin class names, such as the UI that every frontend
+#' places for each of its plugins, is such a module, which the class names by
+#' its ID in JavaScript (see [new_plugin()]).
+#' Core declares its basic frontend the same way, as `blockr.core-basic`,
+#' which draws the board.
 #'
 #' Next to its startup module, as `startup.schema.json` next to `startup.js`, a
-#' package puts one JSON Schema, laid out like the board, for the parts of the
-#' board that the package defines: the properties that its board classes add,
-#' beside core's, and the values of its board options under `options`, by
-#' their IDs.
-#' R shapes the board that an app script builds by it, as it does by
+#' package puts the JSON Schemas of what it defines of a board: the state of
+#' the plugins of each plugin class that it registers, under `plugins` by the
+#' class's ID, and the value of each board option that it registers, under
+#' `options` by the board option's ID, as blockr.dag might:
+#'
+#' ```
+#' {
+#'   "plugins": {
+#'     "blockr.dag-dag_plugin": {
+#'       "type": "object",
+#'       "properties": { "positions": { "type": "object" } }
+#'     }
+#'   },
+#'   "options": { "grid_gap": { "type": "integer", "minimum": 0 } }
+#' }
+#' ```
+#'
+#' So R finds the schema of a plugin's state by the plugin's class, whatever ID
+#' the plugin has on a board.
+#' R shapes the board that an app script builds by them, as it does by
 #' core's schema of the board (see [blockr_ser()]), so that a value of length
-#' one stays an array where the schema has one. R reads nothing else out of
-#' it. Core puts the schema of its own board options next to its runtime in the
-#' same way.
+#' one stays an array where a schema has one. R reads nothing else out of
+#' them. Core puts the schemas of its own board options next to its runtime in
+#' the same way.
 #'
 #' R keeps the startup modules in the order in which packages declare them,
 #' which is the order in which their namespaces load, since R runs the
@@ -52,8 +62,8 @@ declared_modules <- new.env()
 #' package that its DESCRIPTION alone names only once something asks for it,
 #' and declaring a startup module again keeps its place.
 #'
-#' R tells the client where it serves each module that a package declares, its
-#' front-ends included, in its reply to `hello`, with the versions of the
+#' R tells the client where it serves each module that a package declares, those
+#' of plugin classes included, in its reply to `hello`, with the versions of the
 #' packages they come from, and where it serves a renderer's module in each
 #' output that the renderer draws (see [new_renderer()]). It serves a module,
 #' and the stylesheet beside it, under the package's name, at the module's path
@@ -70,7 +80,7 @@ declared_modules <- new.env()
 #' register_startup_module(js_module("js/startup.js"))
 #' register_module("filter", js_module("js/filter.js"))
 #'
-#' # In the `.onLoad()` of blockr.dock, its front-end
+#' # In the `.onLoad()` of blockr.dock, the module of its frontend
 #' register_module("dock", js_module("js/dock.js"))
 #' }
 #'
@@ -179,10 +189,10 @@ check_declaring_package <- function(package, what, class) {
 }
 
 # The JSON Schemas next to core's runtime and next to the startup module of each
-# package that R has loaded, by which R writes the board an app script built.
-# Each is one JSON Schema, laid out like the board, for the parts of the board
-# that its package defines, such as the values of its board options under
-# `options`.
+# package that R has loaded, by which R writes the board an app script built:
+# for each package, the schemas of the state of its plugin classes under
+# `plugins`, by the class's ID, and of the values of its board options under
+# `options`, by the board option's ID.
 startup_schemas <- function() {
 
   modules <- c(
@@ -212,10 +222,20 @@ read_startup_schema <- function(file, pkg) {
 
   res <- decode_schema(file)
 
-  if (!is.list(res) || (length(res) && is.null(names(res)))) {
+  is_object <- function(x) {
+    is.list(x) && (!length(x) || not_null(names(x)))
+  }
+
+  parts <- c("plugins", "options")
+
+  if (!is_object(res) || !all(names(res) %in% parts) ||
+        !all(lgl_ply(res, is_object)) ||
+        !all(lgl_ply(unlst(unname(res)), is_object))) {
     blockr_abort(
-      "The schema that package {pkg} puts next to its startup module, in ",
-      "{file}, is expected to be a JSON object.",
+      "The schemas that package {pkg} puts next to its startup module, in ",
+      "{file}, are expected to be a JSON object that holds JSON Schemas ",
+      "under {parts}, the state of each plugin class by the class's ID and ",
+      "the value of each board option by its ID.",
       class = "startup_schema_invalid"
     )
   }

@@ -2,7 +2,7 @@
 // inst/protocol/README.md gives them, which the fixtures in
 // inst/protocol/fixtures are checked against.
 
-import type { BlockId, JsonBoard, OptionId, RegistryId } from "../types/board.ts";
+import type { BlockId, JsonBoard, OptionId, PluginClassId, RegistryId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { BlockOutput } from "../types/outputs.ts";
 import type { RegistryEntry } from "../types/registry.ts";
@@ -82,13 +82,12 @@ export interface HelloReply {
   // those of the packages its NAMESPACE imports.
   startup_modules: { package: string; module: string; css?: string }[];
   // Where each module that packages offer each other is served,
-  // by the module's id, a front-end's among them, which a board class names.
+  // by the module's id, those of plugin classes among them.
   modules: Record<string, { module: string; css?: string }>;
-  // The board classes that loaded packages name front-ends for, by class:
-  // each with the package that defines it, whose namespace holds its method of
-  // R's `board_front_end()`, the front-end that the method names, and the
-  // version of the properties it adds, which R's `board_version()` gives.
-  board_classes: Record<string, { package: string; front_end: string; version: number }>;
+  // The version of the state of each plugin class that a loaded package gives
+  // one through its method of R's `plugin_version()`, by the class's id. A
+  // plugin class that it lacks is at version 1.
+  plugin_versions: Record<PluginClassId, number>;
   // The version of the shape of each board option's value that a loaded
   // package gives one through its method of R's `board_option_version()`, by
   // the board option's id. A board option that it lacks is at version 1.

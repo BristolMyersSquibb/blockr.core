@@ -1,8 +1,9 @@
 // The store: the TypeScript object in core's JS API that holds a board and
 // through which every change to it passes, as a delta, whoever makes it. There
-// is one per board, which core creates and hands to front-ends, extensions and
-// modules through `CoreApi` and their hosts, rather than a global, so that
-// tests, and a page that shows two boards one day, can create more than one.
+// is one per board, which core creates and hands to plugins, a frontend among
+// them, and modules through `CoreApi` and their hosts, rather than a global, so
+// that tests, and a page that shows two boards one day, can create more than
+// one.
 //
 // It derives what it holds with signals inside, while its getters return the
 // same object until the change that replaces it is announced, as React's
@@ -10,7 +11,7 @@
 
 import { signal } from "@preact/signals-core";
 import type { HelloReply } from "../protocol/index.ts";
-import type { BlockId, Board, JsonBoard, RegistryId } from "../types/board.ts";
+import type { BlockId, Board, JsonBoard, Plugin, PluginId, RegistryId } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import { own, packageOf, report } from "../util/index.ts";
 import { check } from "./check.ts";
@@ -20,17 +21,13 @@ import { isDeltas } from "./delta.ts";
 import type { Delta, Origin } from "./delta.ts";
 import { StoreError } from "./error.ts";
 import { expand } from "./expand.ts";
-import { pointer } from "./patch.ts";
+import { pluginOf, pointer } from "./patch.ts";
+import { takeOver } from "./plugins.ts";
 import { fit, isEmpty } from "./undo.ts";
-import { checkJsonBoard, FORMAT, openJsonBoard, parse, required } from "./open.ts";
+import { checkJsonBoard, FORMAT, openingPlugins, openJsonBoard, parse, required } from "./open.ts";
 import type { Dropped } from "./open.ts";
-import { createRegistrations, propertiesOf } from "./registrations.ts";
-import type {
-  BoardClass,
-  Built,
-  Migration,
-  Options,
-} from "./registrations.ts";
+import { createRegistrations } from "./registrations.ts";
+import type { Migration, Options, Plugins } from "./registrations.ts";
 
 export type Change =
   | { readonly delta: Delta; readonly origin: Origin }
@@ -70,12 +67,13 @@ export interface Store {
   check(text: string): Promise<Dropped[]>;
   // The board as a JSON board, as a file holds it.
   // It records the version of each package that the board's content comes
-  // from: the package of each class that the board is built as, core's among
-  // them, as the reply to `hello` gives it, and the package of each block's
-  // class, which its registry id names.
+  // from, as the reply to `hello` gives it: the package of each plugin's
+  // class, which the class's id names, and the package of each block's class,
+  // which its registry id names.
   // It records the versions of the shapes that the board holds as well: of
-  // each class that the board is built as that R names one for, and of each
-  // block's state, as the class's entry in the block registry gives it.
+  // each plugin class whose plugins it holds, as the reply to `hello` gives it,
+  // 1 where it gives none, and of each block's state, as the class's entry in
+  // the block registry gives it.
   jsonBoard(): JsonBoard;
   // The text of the board's file: its JSON board, written with
   // JSON.stringify(), indented by two spaces and ending in a newline, as R
@@ -93,33 +91,28 @@ export interface Store {
   canUndo(origin?: Origin): boolean;
   canRedo(origin?: Origin): boolean;
 
-  // Registers a board class, with the properties it adds.
-  // What is registered holds core's board class "board" too.
-  register(def: BoardClass): () => void;
-  registered(): readonly BoardClass[];
-  // The board class that a board of these classes is built as:
-  // the first class in the vector that is registered, with its parents,
-  // or core's "board" where none is.
-  boardClass(classes: readonly string[]): BoardClass;
-  // The id of the module that draws a board of these classes: the front-end
-  // that R names for the class it is built as, as the reply to `hello` gives
-  // it, or for that class's nearest parent that R names one for.
-  // Core switches the page to it.
-  frontEnd(classes: readonly string[]): string;
+  // The plugin classes packages define, by id.
+  readonly plugins: Plugins;
   // A block class's one migration of its state, by its registry id.
   registerMigration(registryId: RegistryId, fn: Migration): () => void;
   // The board options packages define, by id.
   readonly options: Options;
+  // The plugins that the board given takes over from the app's opening board,
+  // the board of the last reply to `hello`, by id: each plugin of a class
+  // that the board holds no plugin of, and the opening board's frontend or
+  // storage plugin only where the board holds none, each with its class's
+  // default state. As a board opens, it takes them over, and so does a board
+  // from which a command removes a plugin.
+  takenOver(board: Board): Readonly<Record<PluginId, Plugin>>;
 
   // The block registry's entries that the store opened the board with, and
   // the versions of the packages R loaded, from the reply to `hello`.
   blockRegistry(): Readonly<Record<RegistryId, RegistryEntry>>;
   packages(): Readonly<Record<string, string>>;
 
-  // The edit id of a block, or of a property that the board's class adds,
-  // which only their own edits change and which a delta names to be refused
-  // where another edit came first.
-  editId(of: { readonly block: BlockId } | { readonly property: string }): number | undefined;
+  // The edit id of a block or of a plugin, which only their own edits change
+  // and which a delta names to be refused where another edit came first.
+  editId(of: { readonly block: BlockId } | { readonly plugin: PluginId }): number | undefined;
 }
 
 // The store sends R nothing: it opens its board with what the reply to `hello`
@@ -130,12 +123,9 @@ export interface StoreOptions {
   // it opens no reply's board, as core opens the board given as it starts
   // again.
   readonly hello?: HelloReply;
-  // What has to run before the store opens a board, given the reply to `hello`
-  // and the board's class vector: importing the front-end that frontEnd()
-  // gives for the vector. Which class the store builds the board as, and so
-  // the board's front-end, is known only once the startup modules have run,
-  // which define their board classes.
-  readonly loaded?: (reply: HelloReply, classes: readonly string[]) => void | Promise<void>;
+  // What has to run before the store opens a board, given the reply to
+  // `hello`, such as importing the frontend that draws the board.
+  readonly loaded?: (reply: HelloReply) => void | Promise<void>;
   // Ends the store as it aborts, as another board opens in a new store: the
   // store drops its subscribers and refuses every change from then on, so that
   // nothing changes or follows the board before.
@@ -166,12 +156,9 @@ export function createStore(options: StoreOptions = {}): Store {
   const registrations = createRegistrations();
 
   const board = signal<Board | undefined>(undefined);
-  // The class that the store built the board as, with its parents,
-  // as it was registered when the board opened.
-  let built: Built | undefined;
-  // The last reply to `hello`, whose block registry and package versions the
-  // store opens its board with, and whose lock keeps it from opening a JSON
-  // board.
+  // The last reply to `hello`, whose block registry, versions and opening board
+  // the store opens its board with, and whose lock keeps it from opening a JSON
+  // board and from changing which plugins the board holds.
   let hello: HelloReply | undefined = options.hello;
   const registry = signal<Readonly<Record<RegistryId, RegistryEntry>>>(options.hello?.block_registry ?? {});
   const packages = signal<Readonly<Record<string, string>>>(options.hello?.packages ?? {});
@@ -191,34 +178,47 @@ export function createStore(options: StoreOptions = {}): Store {
 
   // The edit ids, kept beside the board rather than in it.
   // One count numbers the steps, the opening of a board,
-  // an undo and a redo included, and the edit id of a block,
-  // or of a property of the board's class, is the number of the step that last
-  // changed it.
+  // an undo and a redo included, and the edit id of a block or of a plugin is
+  // the number of the step that last changed it.
   // No number is given out twice, so an id names one version of what it
   // belongs to.
   const edits = new Map<string, number>();
   let lastStep = 0;
 
   // Whether the store is applying or announcing a change,
-  // during which a subscriber, a board class's update or a migration may not
+  // during which a subscriber, a plugin class's update or a migration may not
   // change the board.
   let busy = false;
 
   function guard(): void {
     if (busy) {
       throw new Error(
-        "The store is applying or announcing a change, which a subscriber, a board class's update or a migration may not change, since what follows from a delta is a board class's update.",
+        "The store is applying or announcing a change, which a subscriber, a plugin class's update or a migration may not change, since what follows from a delta is a plugin class's update.",
       );
     }
   }
 
-  // The board the store holds, with the class it built the board as,
-  // or a StoreError where it holds none yet, so that nothing builds on a board
-  // that no opening made, or where the store has ended.
-  function current(refused: string): { board: Board; built: Built } {
+  // The board the store holds, or a StoreError where it holds none yet, so
+  // that nothing builds on a board that no opening made, or where the store
+  // has ended.
+  function current(refused: string): Board {
     if (ended()) throw new StoreError(refused, [ENDED]);
-    if (board.value !== undefined && built !== undefined) return { board: board.value, built };
+    if (board.value !== undefined) return board.value;
     throw new StoreError(refused, ["The store holds no board until it opens one."]);
+  }
+
+  // What the board lock refuses of a delta: each patch that adds, removes or
+  // renames a plugin, since the lock fixes which plugins the board holds, with
+  // their classes and names, while what sits inside a plugin's state stays
+  // the plugin's own to lock.
+  function locked(delta: Delta): string[] {
+    if (hello?.lock === null || hello?.lock === undefined) return [];
+    return (delta.patches ?? []).flatMap(({ path }) => {
+      const [top, , part] = pointer(path) ?? [];
+      return top === "plugins" && part !== "state"
+        ? [`The board is locked, which fixes the plugins it holds, so it takes no patch at "${path}".`]
+        : [];
+    });
   }
 
   function announce(change: Change, next: Board): void {
@@ -246,7 +246,6 @@ export function createStore(options: StoreOptions = {}): Store {
   // nothing does applies as nothing.
   function run(
     start: Board,
-    as: Built,
     deltas: readonly Delta[],
     how: { fit?: boolean; places?: readonly Inverse["places"][] },
     refused: string,
@@ -260,13 +259,16 @@ export function createStore(options: StoreOptions = {}): Store {
       const fail = (failures: readonly string[]) =>
         new StoreError(refused, failures.map((failure) => prefix + failure));
 
-      const delta = how.fit === true ? fit(given, current, as) : given;
+      const delta = how.fit === true ? fit(given, current) : given;
       if (how.fit === true && isEmpty(delta)) continue;
 
-      const expanded = expand(delta, current, as);
+      const fixed = locked(delta);
+      if (fixed.length > 0) throw fail(fixed);
+
+      const expanded = expand(delta, current, registrations);
       if ("failures" in expanded) throw fail(expanded.failures);
 
-      const committed = commit(current, expanded, as, how.places?.[i]);
+      const committed = commit(current, expanded, how.places?.[i]);
       if ("failures" in committed) throw fail(committed.failures);
       if (isEmpty(committed.inverse.delta)) continue;
 
@@ -274,7 +276,6 @@ export function createStore(options: StoreOptions = {}): Store {
         committed.board,
         registry.value,
         registrations,
-        as,
         committed.changed,
       );
       if (failures.length > 0) throw fail(failures);
@@ -287,16 +288,15 @@ export function createStore(options: StoreOptions = {}): Store {
     return { applied, inverses };
   }
 
-  // Whether the board holds what an edit id belongs to: a block,
-  // since a board holds every property of its class.
+  // Whether the board holds what an edit id belongs to, a block or a plugin.
   function exists(next: Board, key: string): boolean {
     const [kind, id] = JSON.parse(key) as [string, string];
-    return kind !== "block" || Object.hasOwn(next.blocks, id);
+    return Object.hasOwn(kind === "block" ? next.blocks : next.plugins, id);
   }
 
   function describe(key: string): string {
     const [kind, id] = JSON.parse(key) as [string, string];
-    return kind === "block" ? `block "${id}"` : `the property "${id}"`;
+    return kind === "block" ? `block "${id}"` : `the plugin "${id}"`;
   }
 
   // The edit ids that the deltas name and that differ from those the board had
@@ -319,8 +319,8 @@ export function createStore(options: StoreOptions = {}): Store {
         compare(target({ block: id }), mod.edit);
       }
       for (const patch of delta.patches ?? []) {
-        const property = pointer(patch.path)?.[0];
-        if (property !== undefined) compare(target({ property }), patch.edit);
+        const plugin = pluginOf(patch.path);
+        if (plugin !== undefined) compare(target({ plugin }), patch.edit);
       }
     }
     return [...new Set(failures)];
@@ -344,11 +344,11 @@ export function createStore(options: StoreOptions = {}): Store {
     busy = true;
     try {
       const refused = "The store rejected the delta";
-      const { board: start, built: as } = current(refused);
+      const start = current(refused);
       const failures = named(deltas);
       if (failures.length > 0) throw new StoreError(refused, failures);
 
-      const { applied, inverses } = run(start, as, deltas, {}, refused);
+      const { applied, inverses } = run(start, deltas, {}, refused);
       if (applied.length === 0) return;
       number(applied, applied.at(-1)?.board ?? start);
       setSteps(origin, { undo: [...steps(origin).undo, inverses], redo: [] });
@@ -375,10 +375,9 @@ export function createStore(options: StoreOptions = {}): Store {
     busy = true;
     try {
       const refused = back ? "The store refused to undo the step" : "The store refused to redo the step";
-      const { board: start, built: as } = current(refused);
+      const start = current(refused);
       const { applied, inverses } = run(
         start,
-        as,
         step.map(({ delta }) => delta),
         { fit: true, places: step.map(({ places }) => places) },
         refused,
@@ -422,11 +421,11 @@ export function createStore(options: StoreOptions = {}): Store {
     return { json: checkJsonBoard(parse(given)), reply: hello };
   }
 
-  // The board that a JSON board opens to, as openJsonBoard() builds and
-  // migrates it, with the values of the board options that its class
-  // requires, whose defaults may have to wait, as one read from a blockr
-  // option asks R for it.
-  async function build(json: JsonBoard, reply: HelloReply): Promise<{ board: Board; built: Built; dropped: Dropped[] }> {
+  // The board that a JSON board opens to, as openJsonBoard() migrates it and
+  // completes it with what it takes over, with the values of the board options
+  // that core's basic frontend requires, whose defaults may have to wait, as
+  // one read from a blockr option asks R for it.
+  async function build(json: JsonBoard, reply: HelloReply): Promise<{ board: Board; dropped: Dropped[] }> {
     guard();
     let opened: ReturnType<typeof openJsonBoard>;
     busy = true;
@@ -435,12 +434,12 @@ export function createStore(options: StoreOptions = {}): Store {
     } finally {
       busy = false;
     }
-    const values = await required(opened.board, opened.built, registrations);
+    const values = await required(opened.board, registrations);
     const next: Board =
       Object.keys(values).length === 0
         ? opened.board
         : { ...opened.board, options: { ...opened.board.options, ...values } };
-    return { board: next, built: opened.built, dropped: opened.dropped };
+    return { board: next, dropped: opened.dropped };
   }
 
   function stillOpen(): void {
@@ -457,7 +456,7 @@ export function createStore(options: StoreOptions = {}): Store {
     opening = true;
     try {
       const { json, reply } = jsonOf(given);
-      await options.loaded?.(reply, json.board.class);
+      await options.loaded?.(reply);
       stillOpen();
       const opened = await build(json, reply);
       stillOpen();
@@ -466,9 +465,8 @@ export function createStore(options: StoreOptions = {}): Store {
       busy = true;
       try {
         board.value = opened.board;
-        built = opened.built;
         const step = ++lastStep;
-        for (const key of everyTarget(opened.board, opened.built)) edits.set(key, step);
+        for (const key of everyTarget(opened.board)) edits.set(key, step);
         announce({ opened: opened.board, dropped: opened.dropped }, opened.board);
         return opened.dropped;
       } finally {
@@ -491,13 +489,12 @@ export function createStore(options: StoreOptions = {}): Store {
 
   function jsonBoard(): JsonBoard {
     const next = board.value;
-    if (next === undefined || built === undefined) {
+    if (next === undefined) {
       throw new Error("The store holds no board until it opens one.");
     }
-    const classes = hello?.board_classes ?? {};
-    const chain = new Set(built.chain.map(({ def }) => def.class));
+    const classes = [...new Set(Object.values(next.plugins).map((plugin) => plugin.class))];
     const owned = new Set([
-      ...built.chain.flatMap(({ def }) => own(classes, def.class)?.package ?? []),
+      ...classes.flatMap((cls) => packageOf(cls) ?? []),
       ...Object.values(next.blocks).flatMap(({ registry_id }) => packageOf(registry_id) ?? []),
     ]);
     const recorded = Object.fromEntries(
@@ -507,10 +504,7 @@ export function createStore(options: StoreOptions = {}): Store {
       }),
     );
     const versions = Object.fromEntries(
-      next.class.flatMap((cls) => {
-        const version = chain.has(cls) ? own(classes, cls)?.version : undefined;
-        return version === undefined ? [] : [[cls, version]];
-      }),
+      classes.map((cls) => [cls, own(hello?.plugin_versions ?? {}, cls) ?? 1]),
     );
     const blocks = Object.fromEntries(
       Object.entries(next.blocks).map(([id, block]) => [
@@ -529,11 +523,11 @@ export function createStore(options: StoreOptions = {}): Store {
         { value, version: own(hello?.option_versions ?? {}, id) ?? 1 },
       ]),
     );
-    const { id, class: classVector, name, links, stacks } = next;
+    const { id, name, links, stacks, plugins } = next;
     return {
       format: FORMAT,
       packages: recorded,
-      board: { id, class: classVector, versions, name, blocks, links, stacks, options, ...propertiesOf(next) },
+      board: { id, versions, name, blocks, links, stacks, options, plugins },
     };
   }
 
@@ -541,24 +535,10 @@ export function createStore(options: StoreOptions = {}): Store {
     return `${JSON.stringify(jsonBoard(), null, 2)}\n`;
   }
 
-  function frontEnd(classes: readonly string[]): string {
-    if (hello === undefined) {
-      throw new Error("The store knows the front-ends of board classes only once R has answered `hello`.");
-    }
-    const { chain } = registrations.builtAs(classes);
-    for (const { def } of [...chain].reverse()) {
-      const named = own(hello.board_classes, def.class)?.front_end;
-      if (named !== undefined) return named;
-    }
-    throw new Error(
-      `R names no front-end for the board class "${chain.at(-1)?.def.class ?? ""}" or for its parents.`,
-    );
-  }
-
-  function everyTarget(next: Board, as: Built): string[] {
+  function everyTarget(next: Board): string[] {
     const targets: Target[] = [
       ...Object.keys(next.blocks).map((id) => ({ block: id })),
-      ...[...as.properties.keys()].map((property) => ({ property })),
+      ...Object.keys(next.plugins).map((id) => ({ plugin: id })),
     ];
     return targets.map(target);
   }
@@ -593,12 +573,11 @@ export function createStore(options: StoreOptions = {}): Store {
     },
     canUndo: (origin = "user") => steps(origin).undo.length > 0,
     canRedo: (origin = "user") => steps(origin).redo.length > 0,
-    register: (def) => registrations.register(def),
-    registered: () => registrations.registered(),
-    boardClass: (classes) => registrations.builtAs(classes).def,
-    frontEnd,
+    plugins: registrations.plugins,
     registerMigration: (registryId, fn) => registrations.registerMigration(registryId, fn),
     options: registrations.options,
+    takenOver: (given) =>
+      takeOver(given, openingPlugins(hello?.board), (id) => registrations.plugin(id)?.def),
     jsonBoard,
     save,
     blockRegistry: () => registry.value,

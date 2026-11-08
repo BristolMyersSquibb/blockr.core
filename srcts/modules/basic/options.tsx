@@ -2,8 +2,8 @@
 // Core mounts the UI of each with mountOption(), or the renderer that the app
 // names for it. The dialog groups them by the category that each definition
 // gives.
-// The board holds a board option once something sets one, as where the
-// board's class requires it or a mounted module names it.
+// The board holds a board option once something sets one, as where core's
+// basic front-end requires it or a mounted module names it.
 
 import { useCallback } from "react";
 import type { ReactElement } from "react";

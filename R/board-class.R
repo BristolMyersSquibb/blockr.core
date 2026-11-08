@@ -7,36 +7,41 @@
 #' available for retrieving board components (see [board_blocks()]).
 #'
 #' A board holds what the client's board holds: its blocks, links and stacks,
-#' the values of the board options that the script gives, its ID and name,
-#' its class and the properties that its class adds beside core's.
-#' Those properties are the components passed in `...`, such as the views that a
-#' constructor like blockr.dock's `new_dock_board()` adds.
-#' Such a constructor names the board's class in `class`.
-#' R writes the board's class vector for the client.
-#' The client builds the board as the first class in the vector that a loaded
-#' package defines in JavaScript, and the front-end that the class names in R
-#' draws the board (see [board_front_end()]).
+#' the values of the board options that the script gives, its plugins, and its
+#' ID and name.
+#' Every board is of class `board`: what a package adds to a board, such as the
+#' views of a frontend like blockr.dock's, is the state of one of its plugins
+#' (see [new_plugin()]).
 #' A board takes no board options by default, since a board holds the value of a
 #' board option only once something sets it (see [new_board_options()]).
+#'
+#' A board holds its plugins in `plugins`, each under its ID, which is its name
+#' in the list given, or the name of its class without `_plugin` where the list
+#' gives it none, as `dag` for a plugin of class `dag_plugin`.
+#' So two plugins of one class need names of their own, as two documents of
+#' `blockr.md` do.
+#' A board holds at most one frontend, a plugin of class `frontend_plugin`, and
+#' one storage plugin, a plugin of class `storage_plugin`, and the constructor
+#' refuses a second of either.
 #'
 #' A board has an ID, which identifies it, and a name, which the user calls it
 #' by.
 #' A script may leave either out, as it may leave out the IDs of blocks, links
 #' and stacks: R draws each missing ID with [rand_names()], and names a board
 #' without a name after its ID, as `"Calm heron"` for `calm_heron`.
-#' Every ID, a board's as well as a block's, a link's or a stack's, is a string
-#' that is neither empty nor made of digits alone, since a JavaScript object
-#' puts keys that look like integers first, and the constructors refuse any
-#' other.
+#' Every ID, a board's as well as a block's, a link's, a stack's or a plugin's,
+#' is a string that is neither empty nor made of digits alone, since a
+#' JavaScript object puts keys that look like integers first, and the
+#' constructors refuse any other.
 #'
 #' @param blocks Set of blocks
 #' @param links Set of links
 #' @param stacks Set of stacks
 #' @param options Board options, with the values the script gives
-#' @param ... The properties that the board's class adds, by name
+#' @param plugins The board's plugins, a list of plugins made by their packages'
+#'   constructors, each by its ID
 #' @param id Board ID, which [rand_names()] draws where it is `NULL`
 #' @param name Board name, which is made from the ID where it is `NULL`
-#' @param class Board sub-class
 #'
 #' @examples
 #' brd <- new_board(
@@ -58,13 +63,14 @@
 #'
 #' @export
 new_board <- function(blocks = list(), links = list(), stacks = list(),
-                      options = list(), ..., id = NULL, name = NULL,
-                      class = character()) {
+                      options = list(), plugins = list(), id = NULL,
+                      name = NULL) {
 
   blocks <- as_blocks(blocks)
   links <- as_links(links)
   stacks <- as_stacks(stacks)
   options <- as_board_options(options)
+  plugins <- as_board_plugins(plugins)
 
   links <- complete_unary_inputs(links, blocks)
 
@@ -81,13 +87,78 @@ new_board <- function(blocks = list(), links = list(), stacks = list(),
         links = links,
         stacks = stacks,
         options = options,
-        ...
+        plugins = plugins
       ),
       id = id,
       name = name,
-      class = c(class, "board")
+      class = "board"
     )
   )
+}
+
+# The plugins of a board, by ID: each under its name in the list given, or the
+# name of its class without `_plugin` where the list gives it none.
+as_board_plugins <- function(x) {
+
+  if (is_plugin(x)) {
+    x <- list(x)
+  }
+
+  if (!is.list(x) || is.object(x) || !all(lgl_ply(x, is_plugin))) {
+    blockr_abort(
+      "Expecting the plugins of a board to be a list of plugins.",
+      class = "board_plugins_invalid"
+    )
+  }
+
+  ids <- coal(names(x), rep("", length(x)), fail_all = FALSE)
+  unnamed <- is.na(ids) | !nzchar(ids)
+  ids[unnamed] <- chr_ply(x[unnamed], default_plugin_id)
+
+  set_names(x, ids)
+}
+
+validate_board_plugins <- function(plugins) {
+
+  if (!is.list(plugins) || !all(lgl_ply(plugins, is_plugin))) {
+    blockr_abort(
+      "Expecting the plugins of a board to be a list of plugins.",
+      class = "board_plugins_invalid"
+    )
+  }
+
+  ids <- coal(names(plugins), character(), fail_all = FALSE)
+
+  validate_ids(ids, "Plugin", "board_plugin_id_invalid")
+
+  twice <- unique(ids[duplicated(ids)])
+
+  if (length(twice)) {
+    blockr_abort(
+      "Plugin IDs are required to be unique among a board's plugins, which ",
+      "does not hold for {twice}. Two plugins of one class need names of ",
+      "their own.",
+      class = "board_plugin_id_invalid"
+    )
+  }
+
+  for (role in list(
+    list(test = is_frontend_plugin, what = "frontend"),
+    list(test = is_storage_plugin, what = "storage plugin")
+  )) {
+
+    held <- ids[lgl_ply(plugins, role$test)]
+
+    if (length(held) > 1L) {
+      blockr_abort(
+        "A board holds at most one {role$what}, while the plugins {held} are ",
+        "{role$what}s.",
+        class = "board_plugins_invalid"
+      )
+    }
+  }
+
+  invisible(plugins)
 }
 
 complete_unary_inputs <- function(x, blocks) {
@@ -219,6 +290,7 @@ validate_board.board <- function(x) {
 
   validate_board_blocks_links(blks, validate_links(board_links(x)))
   validate_board_blocks_stacks(blks, validate_stacks(board_stacks(x)))
+  validate_board_plugins(board_plugins(x))
 
   x
 }
@@ -296,12 +368,15 @@ is_acyclic.board <- function(x) {
 #'
 #' board_options(brd)
 #'
+#' board_plugins(brd)
+#'
 #' board_id(brd)
 #' board_name(brd)
 #'
 #' @return Functions for retrieving components (`board_blocks()`,
 #' `board_links()`, `board_stacks()` and `board_options()`) return objects of
 #' the corresponding classes `blocks`, `links`, `stacks` and `board_options`,
+#' and `board_plugins()` a list of plugins by ID,
 #' while ID getters (`board_block_ids()`, `board_link_ids()`,
 #' `board_stack_ids()` and `board_option_ids()`) return character vectors, as
 #' does `available_stack_blocks()`, and `board_id()` and `board_name()` return
@@ -382,6 +457,17 @@ board_option_ids <- function(x) {
   chr_ply(board_options(x), board_option_id)
 }
 
+#' @section Plugins:
+#' A board's plugins can be retrieved using `board_plugins()`, a list of
+#' plugins by ID (see [new_plugin()]).
+#'
+#' @rdname board_blocks
+#' @export
+board_plugins <- function(x) {
+  check_board(x)
+  x[["plugins"]]
+}
+
 #' @param blocks,stacks Sets of blocks/stacks
 #' @rdname board_blocks
 #' @export
@@ -409,116 +495,6 @@ board_name <- function(x) {
   attr(x, "name", exact = TRUE)
 }
 
-#' Board classes in R
-#'
-#' A board class names the module that draws its boards, its front-end, through
-#' its method of `board_front_end()`, which the package that defines the class
-#' registers as it registers any S3 method.
-#' The method returns the ID of a module that a package declares with
-#' [register_module()], as `"blockr.dock-dock"`, whatever the board holds.
-#' Core's class `board` names core's basic front-end, `blockr.core-basic`.
-#'
-#' The package whose namespace holds the method is the one that defines the
-#' class, so R learns a board class's package from its method, as the JSON
-#' board that [blockr_ser()] writes records it.
-#' R sends every board class that a loaded package names a front-end for, with
-#' its package, its front-end and its version, in its reply to `hello`.
-#' A class without a method of its own, such as one that an app script adds or
-#' one that a package defines in JavaScript alone, comes from no package, and
-#' its parent's front-end draws its boards, as S3 dispatch gives it.
-#'
-#' The version of a class is the version of the shape of the properties that it
-#' adds, a whole number from 1, which its method of `board_version()` gives,
-#' and which is 1 for a class with a front-end but no such method.
-#' A package raises it as it changes that shape, so that the client migrates
-#' the properties that a JSON board holds of an older version.
-#'
-#' @param x Board
-#' @param ... Generic consistency
-#'
-#' @examples
-#' board_front_end(new_board())
-#' board_version(new_board())
-#'
-#' @return `board_front_end()` returns the ID of the module that draws boards of
-#' the class, a string, and `board_version()` the class's version, a whole
-#' number.
-#'
-#' @export
-board_front_end <- function(x, ...) {
-  UseMethod("board_front_end")
-}
-
-#' @rdname board_front_end
-#' @export
-board_front_end.board <- function(x, ...) {
-  "blockr.core-basic"
-}
-
-#' @rdname board_front_end
-#' @export
-board_version <- function(x, ...) {
-  UseMethod("board_version")
-}
-
-#' @rdname board_front_end
-#' @export
-board_version.board <- function(x, ...) {
-  1L
-}
-
-# The package that defines a board class: the one whose namespace holds the
-# class's method of `board_front_end()`, or `NULL` for a class without one or
-# with one that an app script defines.
-class_package <- function(class) {
-
-  method <- class_method("board_front_end", class)
-
-  if (is.function(method)) utils::packageName(environment(method))
-}
-
-# The version of a board class: what its own method of `board_version()`
-# returns, or 1 for a class without one.
-class_version <- function(class) {
-
-  method <- class_method("board_version", class)
-
-  if (!is.function(method)) {
-    return(1L)
-  }
-
-  version <- method(structure(list(), class = unique(c(class, "board"))))
-
-  if (!is_count(version, allow_zero = FALSE)) {
-    blockr_abort(
-      "The method of `board_version()` for board class {class} returns no ",
-      "whole number of 1 or more.",
-      class = "board_version_invalid"
-    )
-  }
-
-  version
-}
-
-# The method of a generic that a board class has of its own, or `NULL`.
-class_method <- function(generic, class) {
-  utils::getS3method(
-    generic,
-    class,
-    optional = TRUE,
-    envir = asNamespace("blockr.core")
-  )
-}
-
-# The versions of the classes in a board's class vector that loaded packages
-# name front-ends for, by class, as a JSON board records them.
-board_versions <- function(classes) {
-
-  known <- Filter(function(cls) not_null(class_package(cls)), classes)
-
-  as_json_object(set_names(lapply(known, class_version), known))
-}
-
 #' @export
 format.board <- function(x, ...) {
 
@@ -526,14 +502,8 @@ format.board <- function(x, ...) {
     c(paste0(nme, x[1L]), x[-1L], "")
   }
 
-  out <- ""
-
-  for (cl in rev(class(x))) {
-    out <- paste0("<", cl, out, ">")
-  }
-
   out <- c(
-    out,
+    "<board>",
     paste0("ID: \"", board_id(x), "\""),
     paste0("Name: \"", board_name(x), "\"")
   )
@@ -586,12 +556,31 @@ format.board <- function(x, ...) {
     out <- out[-length(out)]
   }
 
-  c(
+  out <- c(
     out,
     "",
     "Options:",
     format(as_board_options(x))
   )
+
+  plg <- board_plugins(x)
+
+  if (length(plg)) {
+
+    plg <- lapply(plg, format, ...)
+
+    out <- c(
+      out,
+      "",
+      paste0("Plugins[", length(plg), "]:"),
+      "",
+      unlst(map(paste_name_append_empty, plg, names(plg)))
+    )
+
+    out <- out[-length(out)]
+  }
+
+  out
 }
 
 #' @export
@@ -603,12 +592,25 @@ print.board <- function(x, ...) {
 #' @export
 str_value.board <- function(x, ...) {
   paste(
-    paste0("<", class(x)[1L], "> \"", board_name(x), "\""),
-    str_value(board_blocks(x)),
-    str_value(board_links(x)),
-    str_value(board_stacks(x)),
-    str_value(as_board_options(x)),
-    sep = "\n"
+    c(
+      paste0("<board> \"", board_name(x), "\""),
+      str_value(board_blocks(x)),
+      str_value(board_links(x)),
+      str_value(board_stacks(x)),
+      str_value(as_board_options(x)),
+      if (length(board_plugins(x))) {
+        paste0(
+          "plugins: ",
+          paste0(
+            names(board_plugins(x)),
+            " ",
+            chr_ply(board_plugins(x), str_value),
+            collapse = ", "
+          )
+        )
+      }
+    ),
+    collapse = "\n"
   )
 }
 

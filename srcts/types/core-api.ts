@@ -9,7 +9,7 @@
 import type { Commands } from "../commands/index.ts";
 import type { Lock } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
-import type { Options, Store } from "../store/index.ts";
+import type { Options, PluginClass, Store } from "../store/index.ts";
 import type { BlockId, OptionId, RegistryId } from "./board.ts";
 import type { Json } from "./json.ts";
 import type { RegistryEntry } from "./registry.ts";
@@ -30,6 +30,11 @@ export interface CoreApi {
   blockRegistry(): BlockRegistry;
   // The board options that packages define, by id.
   readonly options: Options;
+  // The plugin classes that packages define, each of which a package's
+  // startup module registers under the class's id.
+  readonly plugins: {
+    register(def: PluginClass): () => void;
+  };
   // The blocks that a locked board leaves open, from R's reply to `hello`.
   readonly lock: Lock | null;
   // What renderers report that the user did, such as a selection, for

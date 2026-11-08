@@ -6,12 +6,14 @@
 // from a to f, and the stack s1 of a and b.
 
 import { describe, expect, test } from "vitest";
+import type { HelloReply } from "../protocol/index.ts";
 import { isId, StoreError } from "../store/index.ts";
-import type { Store } from "../store/index.ts";
-import { hello, openedStore } from "../testing/store.ts";
-import type { Board } from "../types/board.ts";
+import type { PluginClass, Store } from "../store/index.ts";
+import { hello, openedStore, withPlugins } from "../testing/store.ts";
+import type { Board, Plugin } from "../types/board.ts";
+import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { blockName, CommandError, createCommands, freeInputs, schemas, stateSchema } from "./index.ts";
+import { blockName, CommandError, createCommands, freeInputs, pluginName, schemas, stateSchema } from "./index.ts";
 import type { Commands } from "./index.ts";
 
 async function setup(
@@ -480,6 +482,190 @@ describe("the board", () => {
     const refused = commands.run("blockr.core-set_option", { id: "n_rows", value: -1 });
     await expect(refused).rejects.toThrow(StoreError);
     await expect(refused).rejects.toThrow('The value of the board option "n_rows" fails its schema');
+  });
+});
+
+// The plugin classes of the plugins tests: the DAG, which keeps a position for
+// each block, the notes, of which a board may hold several, the dock and
+// another frontend, and two storage plugins.
+const dag: PluginClass = {
+  id: "blockr.dag-dag_plugin",
+  state: {
+    schema: {
+      type: "object",
+      properties: {
+        positions: {
+          type: "object",
+          additionalProperties: {
+            type: "object",
+            properties: { x: { type: "number" }, y: { type: "number" } },
+            required: ["x", "y"],
+          },
+        },
+      },
+      required: ["positions"],
+    },
+    default: { positions: {} },
+  },
+};
+const notes: PluginClass = {
+  id: "blockr.notes-notes_plugin",
+  state: { schema: { type: "object" }, default: { text: "" } },
+};
+const dock: PluginClass = { id: "blockr.dock-dock_plugin", frontend: "blockr.dock-dock" };
+const grid: PluginClass = { id: "blockr.grid-grid_plugin", frontend: "blockr.grid-grid" };
+const save = { save: () => Promise.resolve(), open: () => Promise.resolve(null) };
+const session: PluginClass = { id: "blockr.session-session_plugin", storage: save };
+const drive: PluginClass = { id: "blockr.drive-drive_plugin", storage: save };
+
+function plugin(def: PluginClass, name: string, state: Json = {}): Plugin {
+  return { class: def.id, name, state };
+}
+
+// A store with the plugin classes above, which has opened the board of R's
+// reply to hello with the plugins given in its opening board, and the command
+// registry of that store.
+async function pluginStore(
+  plugins: Readonly<Record<string, Plugin>>,
+  lock: HelloReply["lock"] = null,
+): Promise<{ store: Store; commands: Commands }> {
+  const store = await openedStore((store) => {
+    for (const def of [dag, notes, dock, grid, session, drive]) store.plugins.register(def);
+  }, { ...withPlugins(plugins), lock });
+  return { store, commands: createCommands(store, { lock }) };
+}
+
+describe("plugins", () => {
+  test("add_plugin adds a plugin of a registered class with its class's default state, under the name of its class and an id from it", async () => {
+    const { store, commands } = await pluginStore({});
+
+    await commands.run("blockr.core-add_plugin", { class: dag.id });
+    expect(store.board().plugins).toEqual({ dag: plugin(dag, "Dag", { positions: {} }) });
+    expect(pluginName("blockr.dag-dag_plugin")).toBe("Dag");
+
+    // A second plugin of the class gets an id that the client mints.
+    await commands.run("blockr.core-add_plugin", { class: dag.id });
+    const [, minted = ""] = Object.keys(store.board().plugins);
+    expect(isId(minted)).toBe(true);
+    expect(minted).not.toBe("dag");
+
+    // A class without a state gives its plugins an empty object.
+    await commands.run("blockr.core-add_plugin", { class: grid.id, id: "page", name: "Page" });
+    expect(store.board().plugins.page).toEqual(plugin(grid, "Page", {}));
+
+    // One undo takes each back.
+    store.undo();
+    expect(Object.hasOwn(store.board().plugins, "page")).toBe(false);
+  });
+
+  test("add_plugin refuses a class that no package registers, and an id that the board holds", async () => {
+    const { commands } = await pluginStore({ dag: plugin(dag, "DAG", { positions: {} }) });
+
+    expect(commands.enabled("blockr.core-add_plugin", { class: "blockr.md-md_plugin" })).toBe(false);
+    await expect(commands.run("blockr.core-add_plugin", { class: "blockr.md-md_plugin" })).rejects.toThrow(
+      CommandError,
+    );
+    await expect(commands.run("blockr.core-add_plugin", { class: notes.id, id: "dag" })).rejects.toThrow(
+      'The board holds a plugin "dag" already.',
+    );
+    await expect(commands.run("blockr.core-add_plugin", { class: "dag" })).rejects.toThrow(/The args/);
+  });
+
+  test("add_plugin replaces the board's frontend or storage plugin with the one it adds, in the same step", async () => {
+    const { store, commands } = await pluginStore({
+      dock: plugin(dock, "Dock"),
+      session: plugin(session, "Session"),
+    });
+
+    await commands.run("blockr.core-add_plugin", { class: grid.id });
+    expect(Object.keys(store.board().plugins)).toEqual(["session", "grid"]);
+
+    // The frontend that it replaces may give the new one its id.
+    await commands.run("blockr.core-add_plugin", { class: dock.id, id: "grid", name: "Dock" });
+    expect(store.board().plugins).toEqual({ session: plugin(session, "Session"), grid: plugin(dock, "Dock") });
+
+    await commands.run("blockr.core-add_plugin", { class: drive.id });
+    expect(Object.keys(store.board().plugins)).toEqual(["grid", "drive"]);
+
+    store.undo();
+    expect(Object.keys(store.board().plugins)).toEqual(["session", "grid"]);
+  });
+
+  test("remove_plugin removes a plugin with its state, and takes over in the same step what the board then lacks of the opening board's", async () => {
+    const { store, commands } = await pluginStore({
+      dock: plugin(dock, "Dock"),
+      dag: plugin(dag, "DAG", { positions: { a: { x: 1, y: 2 } } }),
+    });
+    await commands.run("blockr.core-add_plugin", { class: notes.id, id: "todo", name: "To do" });
+
+    // A plugin that the opening board lacks goes.
+    await commands.run("blockr.core-remove_plugin", { id: "todo" });
+    expect(Object.keys(store.board().plugins)).toEqual(["dock", "dag"]);
+
+    // A plugin of the opening board comes back with its class's default state,
+    // in its place.
+    await commands.run("blockr.core-remove_plugin", { id: "dag" });
+    expect(store.board().plugins).toEqual({
+      dock: plugin(dock, "Dock"),
+      dag: plugin(dag, "DAG", { positions: {} }),
+    });
+
+    // A frontend of another class that the board holds in place of the opening
+    // board's gives way to it.
+    await commands.run("blockr.core-add_plugin", { class: grid.id });
+    await commands.run("blockr.core-remove_plugin", { id: "grid" });
+    expect(store.board().plugins).toEqual({
+      dag: plugin(dag, "DAG", { positions: {} }),
+      dock: plugin(dock, "Dock"),
+    });
+
+    // One undo takes the removal and what it took over back.
+    store.undo();
+    expect(Object.keys(store.board().plugins)).toEqual(["dag", "grid"]);
+
+    expect(commands.enabled("blockr.core-remove_plugin", { id: "nowhere" })).toBe(false);
+  });
+
+  test("set_plugin_state patches within a plugin's state, which the class's schema checks", async () => {
+    const { store, commands } = await pluginStore({ dag: plugin(dag, "DAG", { positions: {} }) });
+
+    await commands.run(
+      "blockr.core-set_plugin_state",
+      { plugin: "dag", patches: [{ op: "add", path: "/positions/a", value: { x: 40, y: 80 } }] },
+      "assistant",
+    );
+    expect(store.board().plugins.dag?.state).toEqual({ positions: { a: { x: 40, y: 80 } } });
+    expect(store.canUndo("assistant")).toBe(true);
+
+    expect(await commands.plan("blockr.core-set_plugin_state", { plugin: "dag", patches: [{ op: "replace", path: "", value: { positions: {} } }] })).toEqual([
+      {
+        patches: [
+          { op: "replace", path: "/plugins/dag/state", value: { positions: {} }, edit: store.editId({ plugin: "dag" }) },
+        ],
+      },
+    ]);
+
+    await expect(
+      commands.run("blockr.core-set_plugin_state", {
+        plugin: "dag",
+        patches: [{ op: "add", path: "/positions/b", value: { x: "left", y: 0 } }],
+      }),
+    ).rejects.toThrow(StoreError);
+    await expect(
+      commands.run("blockr.core-set_plugin_state", { plugin: "dag", patches: [{ op: "move", path: "/positions" }] }),
+    ).rejects.toThrow(/The args/);
+    expect(commands.enabled("blockr.core-set_plugin_state", { plugin: "nowhere", patches: [] })).toBe(false);
+  });
+
+  test("on a locked board, set_plugin_state is not enabled, and the store refuses adding and removing a plugin", async () => {
+    const { store, commands } = await pluginStore({ dag: plugin(dag, "DAG", { positions: {} }) }, { open: [] });
+
+    expect(commands.enabled("blockr.core-set_plugin_state", { plugin: "dag", patches: [] })).toBe(false);
+    await expect(commands.run("blockr.core-add_plugin", { class: notes.id })).rejects.toThrow(
+      /The board is locked, which fixes the plugins it holds, so it takes no patch at "\/plugins\/notes"\./,
+    );
+    await expect(commands.run("blockr.core-remove_plugin", { id: "dag" })).rejects.toThrow(/The board is locked/);
+    expect(Object.keys(store.board().plugins)).toEqual(["dag"]);
   });
 });
 

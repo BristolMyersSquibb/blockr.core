@@ -11,6 +11,7 @@
 \alias{blockr_ser.stack}
 \alias{blockr_ser.board_options}
 \alias{blockr_ser.board_option}
+\alias{blockr_ser.plugin}
 \alias{blockr_ser.default}
 \title{Serialization}
 \usage{
@@ -33,6 +34,8 @@ blockr_ser(x, ...)
 \method{blockr_ser}{board_options}(x, ...)
 
 \method{blockr_ser}{board_option}(x, ...)
+
+\method{blockr_ser}{plugin}(x, ...)
 
 \method{blockr_ser}{default}(x, ...)
 }
@@ -65,34 +68,23 @@ board itself.
 A JSON board holds the board under \code{board}, with two things beside it:
 \code{format}, the version of the format, and \code{packages}, the version of each
 package that the board's content comes from, by package.
-Those are the packages of the board's classes, each the package whose
-namespace holds the class's method of \code{\link[=board_front_end]{board_front_end()}}, blockr.core's for
-\code{board} among them, and the packages of the blocks' classes.
-The board holds its \code{id} and \code{name}, and its blocks, links and stacks, each
-by ID, in their order.
-In \code{versions}, it holds the version of each class in its class vector that a
-loaded package names a front-end for, by class (see \code{\link[=board_version]{board_version()}}), and
-each block holds the version of its class's state in \code{version} (see
-\code{\link[=new_block_class]{new_block_class()}}), so that the client migrates by the versions of the
-shapes that a JSON board holds.
+Those are the packages of the plugins' classes, each the package that the
+ID of the class names, and the packages of the blocks' classes.
+The board holds its \code{id} and \code{name}, and its blocks, links, stacks and
+plugins, each by ID, in their order.
+In \code{versions}, it holds the version of each plugin class whose plugins it
+holds, by the class's ID (see \code{\link[=plugin_version]{plugin_version()}}), and each block holds the
+version of its class's state in \code{version} (see \code{\link[=new_block_class]{new_block_class()}}), so that
+the client migrates by the versions of the shapes that a JSON board holds.
 It holds each board option that the script gives a value, by ID, as its
 \code{value} with the \code{version} of the value's shape (see
 \code{\link[=board_option_version]{board_option_version()}}), and no other.
 
-Its \code{class} is the board's class vector, most specific class first, as
-\code{c("dock_board", "board")}.
-The client keeps it and saves it unchanged.
-The properties that the board's class adds sit beside core's, each under its
-name.
-They are the components that the board holds besides its blocks, links,
-stacks and board options, such as those that a board class's constructor
-passes to \code{\link[=new_board]{new_board()}}.
-Each is written by \code{blockr_ser()}, so that a package writes the objects of
-its own classes there through a method.
-R checks no property and picks no front-end, since board classes are defined
-in the client.
-The client drops each property that the class it builds the board as does
-not add.
+A plugin is written by the ID of its class, with its name and its state
+(see \code{\link[=new_plugin]{new_plugin()}}).
+R checks no plugin's state, since the plugin's class is defined in the
+client, which checks the state against the class's schema as it opens the
+board.
 
 A stack is written with its name, its blocks and its color, which is \code{null}
 for a stack without one.
@@ -109,10 +101,11 @@ generates from its TypeScript types, so that a stack's blocks stay an array
 and an empty collection an object.
 A block's state is written by the schema that its class's UI ships (see
 \code{\link[=register_block]{register_block()}}), and bare where it ships none.
-The parts of the board that a package defines, such as the properties of its
-board classes or the values of its board options, are written by the schema
-that the package puts next to its startup module, as core puts the schema of
-its board options next to its runtime (see \code{\link[=register_startup_module]{register_startup_module()}}).
+The state of each plugin and the value of each board option are written by
+the schema that the package of the plugin's class or of the board option
+puts next to its startup module, by the ID of the class or of the board
+option, as core puts the schemas of its board options next to its runtime
+(see \code{\link[=register_startup_module]{register_startup_module()}}), and bare where no package gives one.
 
 A board that the format cannot hold fails as it is written, and so as the
 script runs. Every value has to be \code{NULL}, a vector of logicals, numbers or

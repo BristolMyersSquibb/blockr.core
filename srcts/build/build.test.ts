@@ -270,15 +270,9 @@ test("writes the schemas of core's board options next to its runtime", async () 
   const file = join(root, "inst", "js", "blockr-core.schema.json");
 
   expect(JSON.parse(await readFile(file, "utf8"))).toEqual({
-    type: "object",
-    properties: {
-      options: {
-        type: "object",
-        properties: {
-          n_rows: { type: "integer", minimum: 0 },
-          show_conditions: { type: "array", items: { enum: ["error"] } },
-        },
-      },
+    options: {
+      n_rows: { type: "integer", minimum: 0 },
+      show_conditions: { type: "array", items: { enum: ["error"] } },
     },
   });
 });

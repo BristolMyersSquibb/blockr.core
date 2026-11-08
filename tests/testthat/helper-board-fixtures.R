@@ -70,20 +70,34 @@ local_versions <- function(..., frame = parent.frame()) {
   )
 }
 
-# Gives board class `class` a method of `board_front_end()` that names
-# `front_end`, and one of `board_version()` that gives `version` where it is
-# given, from a namespace of `package`, as that package registers them, until
-# `frame` ends.
-local_board_front_end <- function(class, front_end, package, version = NULL,
-                                  frame = parent.frame()) {
+# Gives the plugin class `class`, `{name}_plugin`, a method of
+# `plugin_version()` that gives `version`, from a namespace of `package`, as
+# that package registers it, until `frame` ends.
+local_plugin_version <- function(class, version, package = "blockr.test",
+                                 frame = parent.frame()) {
+  local_method("plugin_version", class, version, package, frame)
+}
 
-  local_method("board_front_end", class, front_end, package, frame)
+# A plugin constructor of `package`, which makes plugins of the class vector
+# `class` with the args of `fun`, the state that its body returns, and a name,
+# as a constructor that the package defines does, from a namespace of the
+# package.
+plugin_ctor <- function(fun, class, package = "blockr.test") {
 
-  if (not_null(version)) {
-    local_method("board_version", class, version, package, frame)
+  ns <- list2env(
+    list(.packageName = package),
+    parent = asNamespace("blockr.core")
+  )
+
+  ctor <- function() {
+    state <- setdiff(names(formals(sys.function())), "plugin_name")
+    new_plugin(mget(state, envir = environment()), plugin_name, class)
   }
 
-  invisible()
+  formals(ctor) <- c(formals(fun), alist(plugin_name = NULL))
+  environment(ctor) <- list2env(list(class = class), parent = ns)
+
+  ctor
 }
 
 # Gives the board option `id` a method of `board_option_version()` that gives
@@ -122,12 +136,23 @@ local_method <- function(generic, class, value, package, frame) {
   invisible()
 }
 
+# The plugin constructors of the package blockr.test of the fixtures, whose
+# classes it defines in JavaScript: a frontend, of the class grid_plugin, and
+# the notes of the class notes_plugin.
+fixture_plugins <- list(
+  grid = plugin_ctor(
+    function(columns = 2L) NULL,
+    c("grid_plugin", "frontend_plugin")
+  ),
+  notes = plugin_ctor(function(notes = list()) NULL, "notes_plugin")
+)
+
 # What the package blockr.test of the fixtures declares from its `.onLoad()`:
-# the module blockr.test-grid, the front-end that its board class
-# `grid_board` names through its method of `board_front_end()`, and a startup
-# module, beside which the package ships the schemas of the properties that
-# `grid_board` adds, here in the fixtures' blockr.test/, as it would install
-# them, at the version 0.1.0.
+# the module blockr.test-grid, the UI of its frontend, and a startup module,
+# beside which the package ships the schema of the state of its plugin class
+# notes_plugin, here in the fixtures' blockr.test/, as it would install it, at
+# the version 0.1.0. Its method of `plugin_version()` gives that class version
+# 2.
 # The block registry and what packages declare are restored once `frame` ends,
 # so that the classes that writing a fixture registers go too.
 local_fixture_package <- function(frame = parent.frame()) {
@@ -147,12 +172,7 @@ local_fixture_package <- function(frame = parent.frame()) {
 
   register_startup_module(js_module("js/startup.js", package = "blockr.test"))
 
-  local_board_front_end(
-    "grid_board",
-    "blockr.test-grid",
-    "blockr.test",
-    frame = frame
-  )
+  local_plugin_version("notes_plugin", 2L, frame = frame)
 
   local_versions(blockr.test = "0.1.0", frame = frame)
 
@@ -187,10 +207,10 @@ board_fixture_values <- function() {
   list(
     board = list(
       description = paste(
-        "A board of core's class board, which an app script builds, with",
-        "every id given, so that none is drawn at random. Its block classes",
-        "are defined outside a package, so their registry ids are their",
-        "names, and the board's content is core's alone. The UI of the join",
+        "A board that an app script builds, with every id given, so that",
+        "none is drawn at random. Its block classes are defined outside a",
+        "package, so their registry ids are their names, and it holds no",
+        "plugin, so the JSON board records no package. The UI of the join",
         "block ships the schema of its state. R writes that block's by, a",
         "vector of length one, as an array, and its all_x as a value, while",
         "it writes the state of the letters blocks bare. The stack of one",
@@ -220,28 +240,38 @@ board_fixture_values <- function() {
         name = "Sales review"
       )
     ),
-    `board-class` = list(
+    plugins = list(
       description = paste(
-        "A board of the class grid_board, which extends core's board and",
-        "which the package blockr.test defines in JavaScript, with the",
-        "properties that the class adds beside core's, notes and pinned, as",
-        "the script gives them. The package ships the schemas of those",
-        "properties beside its startup module, here in",
-        "blockr.test/js/startup.schema.json. By them, R writes the blocks of",
-        "each note as an array, and pinned as a string. The",
-        "package names the class's front-end through its method of",
-        "board_front_end(), from whose namespace R records blockr.test among",
-        "the board's packages. A client builds the board as a grid_board,",
-        "keeping both properties, only where blockr.test defines the class,",
-        "and as core's board otherwise, without them."
+        "A board that holds three plugins of the package blockr.test, which",
+        "defines their classes in JavaScript. The plugin grid, of the class",
+        "blockr.test-grid_plugin, is a frontend. It takes its id from its",
+        "class, since the list of the board's plugins gives it no name. The",
+        "plugins check and later are two plugins of the class",
+        "blockr.test-notes_plugin, each under its name in that list. The",
+        "package ships the schema of the state of its notes class beside its",
+        "startup module, by the class's id, here in",
+        "blockr.test/js/startup.schema.json. By that schema, R writes the",
+        "notes of both plugins as arrays, and the blocks of each note as an",
+        "array, whatever the plugin's id. It writes the state of grid, whose",
+        "class the package gives no schema, bare. The package gives the notes",
+        "class version 2 through its method of plugin_version(), and the",
+        "grid class has no such method, so the board records it at version 1.",
+        "R records blockr.test among the board's packages, as the ids of the",
+        "plugins' classes name it. A client keeps the plugins of a class only",
+        "where blockr.test registers the class, and drops them otherwise."
       ),
       board = new_board(
         blocks = c(a = new_letters_block(block_name = "Letters")),
-        notes = list(check = list(text = "To check", blocks = "a")),
-        pinned = "a",
+        plugins = list(
+          fixture_plugins$grid(plugin_name = "Grid"),
+          check = fixture_plugins$notes(
+            notes = list(list(text = "To check", blocks = "a")),
+            plugin_name = "Check"
+          ),
+          later = fixture_plugins$notes(plugin_name = "Later")
+        ),
         id = "quiet_heron",
-        name = "Grid",
-        class = "grid_board"
+        name = "Grid"
       )
     )
   )

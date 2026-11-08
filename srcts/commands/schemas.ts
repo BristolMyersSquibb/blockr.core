@@ -1,5 +1,6 @@
-// The schemas of what every block, link or stack shares, such as a block's id
-// and name, which core gives and builds the args of its commands from. A
+// The schemas of what every block, link, stack or plugin shares, such as a
+// block's id and name, which core gives and builds the args of its commands
+// from. A
 // block's state is not among them. Each block class gives the schema of its
 // state, which its UI ships, and stateSchema() describes it by the class's arg
 // specs. That schema is the same for every block of the class. So for one
@@ -82,6 +83,40 @@ export const optionId: JsonSchema = {
 
 export const value: JsonSchema = {
   description: "A JSON value, which the schema of what it is set on types.",
+};
+
+export const pluginId: JsonSchema = {
+  ...id,
+  description: "The id of a plugin, unique among the board's plugins.",
+};
+
+export const pluginClassId: JsonSchema = {
+  type: "string",
+  pattern: "^[A-Za-z][A-Za-z0-9.]*[A-Za-z0-9]-.+_plugin$",
+  description: 'The id of a plugin class, which a package registers, such as "blockr.dag-dag_plugin".',
+};
+
+// The patches of a plugin's state, each in the shape of a JSON Patch
+// operation, at a JSON Pointer within the state, "" for the whole state.
+export const statePatches: JsonSchema = {
+  type: "array",
+  items: {
+    type: "object",
+    properties: {
+      op: { enum: ["add", "remove", "replace"] },
+      path: {
+        type: "string",
+        pattern: "^(/.*)?$",
+        description:
+          'A JSON Pointer within the plugin\'s state, such as "/positions/a", or "" for the whole state.',
+      },
+      value: { description: "What an add or a replace puts at the path." },
+    },
+    required: ["op", "path"],
+    additionalProperties: false,
+  },
+  description:
+    "Changes of a plugin's state, as JSON Patch operations, which apply in their order and which the schema of the plugin's class types.",
 };
 
 const described = new WeakMap<RegistryEntry, JsonSchema>();

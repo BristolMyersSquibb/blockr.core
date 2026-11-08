@@ -1,20 +1,34 @@
-import type { Block, Board, OptionId, RegistryId } from "../types/board.ts";
+import type { Block, Board, OptionId, PluginClassId, PluginId, RegistryId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { OptionModule } from "../types/hosts.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import type { Validate } from "../util/index.ts";
 import type { Delta, Patch } from "./delta.ts";
-export interface BoardClass {
-    readonly class: string;
-    readonly parent?: string;
+export interface PluginClass {
+    readonly id: PluginClassId;
     readonly options?: readonly OptionId[];
-    readonly properties: Readonly<Record<string, Property>>;
-    migrate?(properties: Readonly<Record<string, Json>>, version: number): Readonly<Record<string, Json>>;
-    update?(delta: Delta, board: Board): readonly Patch[];
+    readonly state?: {
+        readonly schema: JsonSchema;
+        readonly default: Json;
+    };
+    update?(delta: Delta, board: Board, plugin: PluginId): readonly Patch[];
+    migrate?(state: Json, version: number): Json;
+    readonly ui?: string;
+    readonly frontend?: string;
+    readonly storage?: Storage;
+    start?(args: {
+        readonly core: CoreApi;
+        readonly plugin: PluginId;
+        readonly signal: AbortSignal;
+    }): (() => void) | undefined;
 }
-export interface Property {
-    readonly schema: JsonSchema;
-    readonly default: Json;
+export interface Storage {
+    save(board: string): Promise<void>;
+    open(): Promise<string | null>;
+}
+export interface Plugins {
+    register(def: PluginClass): () => void;
+    registered(): Readonly<Record<PluginClassId, PluginClass>>;
 }
 export interface Option {
     readonly id: OptionId;
@@ -35,30 +49,14 @@ export interface Checked<T> {
     readonly def: T;
     readonly validate: Validate;
 }
-export interface CheckedClass {
-    readonly def: BoardClass;
-    readonly validate: Readonly<Record<string, Validate>>;
-}
-export interface Built {
-    readonly def: BoardClass;
-    readonly chain: readonly CheckedClass[];
-    readonly properties: ReadonlyMap<string, {
-        readonly owner: CheckedClass;
-        readonly validate: Validate;
-    }>;
-}
 export interface Registrations {
-    register(def: BoardClass): () => void;
-    registered(): readonly BoardClass[];
+    readonly plugins: Plugins;
     readonly options: Options;
     registerMigration(registryId: RegistryId, fn: Migration): () => void;
-    builtAs(classes: readonly string[]): Built;
+    plugin(id: PluginClassId): Checked<PluginClass> | undefined;
     option(id: OptionId): Checked<Option> | undefined;
     migration(registryId: RegistryId): Migration | undefined;
 }
-export declare const CORE_BOARD: BoardClass;
-export declare const CORE_PROPERTIES: readonly string[];
+export declare const BASIC_OPTIONS: readonly OptionId[];
 export declare function createRegistrations(): Registrations;
-export declare function recordOf(board: Board): Readonly<Record<string, unknown>>;
-export declare function propertiesOf(board: Board): Readonly<Record<string, unknown>>;
-export declare function defaultOf(built: Built, name: string): Json | undefined;
+export declare function isPluginClassId(id: string): boolean;

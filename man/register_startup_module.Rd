@@ -24,8 +24,8 @@ Besides its block classes (see \code{\link[=register_block]{register_block()}}),
 R, from its \code{.onLoad()}, the modules of its client that R serves: its
 startup module, at most one, with
 \code{register_startup_module()}, for what has to run before anything mounts,
-such as defining its board classes and registering the board options it
-ships, and the modules it offers other packages, each with
+such as registering its plugin classes and the board options it ships, and
+the modules it offers other packages, each with
 \code{register_module()} under a name that gives it the ID \code{{pkg}-{name}}, as a
 registry id is, by which \code{host.module()} and \code{CoreApi.module()} reach it in
 the client.
@@ -36,27 +36,36 @@ Declaring a package's startup module, or a module under the same ID, again
 replaces it, as when a package is loaded again.
 }
 \details{
-A front-end is such a module: the module that draws the boards of a board
-class, which the class names through its method of \code{\link[=board_front_end]{board_front_end()}}.
-So blockr.dock declares \code{register_module("dock", js_module("dock.js"))},
-and its method of \code{board_front_end()} for \code{dock_board} returns
-\code{"blockr.dock-dock"}.
-Core declares its basic front-end the same way, as \code{blockr.core-basic},
-which its method for core's board class \code{board} names.
-The client builds a board as the first class in its class vector that a
-loaded package defines, and the front-end of that class, or of its nearest
-parent that names one, draws the board.
+The module that a plugin class names, such as the UI that every frontend
+places for each of its plugins, is such a module, which the class names by
+its ID in JavaScript (see \code{\link[=new_plugin]{new_plugin()}}).
+Core declares its basic frontend the same way, as \code{blockr.core-basic},
+which draws the board.
 
 Next to its startup module, as \code{startup.schema.json} next to \code{startup.js}, a
-package puts one JSON Schema, laid out like the board, for the parts of the
-board that the package defines: the properties that its board classes add,
-beside core's, and the values of its board options under \code{options}, by
-their IDs.
-R shapes the board that an app script builds by it, as it does by
+package puts the JSON Schemas of what it defines of a board: the state of
+the plugins of each plugin class that it registers, under \code{plugins} by the
+class's ID, and the value of each board option that it registers, under
+\code{options} by the board option's ID, as blockr.dag might:
+
+\if{html}{\out{<div class="sourceCode">}}\preformatted{\{
+  "plugins": \{
+    "blockr.dag-dag_plugin": \{
+      "type": "object",
+      "properties": \{ "positions": \{ "type": "object" \} \}
+    \}
+  \},
+  "options": \{ "grid_gap": \{ "type": "integer", "minimum": 0 \} \}
+\}
+}\if{html}{\out{</div>}}
+
+So R finds the schema of a plugin's state by the plugin's class, whatever ID
+the plugin has on a board.
+R shapes the board that an app script builds by them, as it does by
 core's schema of the board (see \code{\link[=blockr_ser]{blockr_ser()}}), so that a value of length
-one stays an array where the schema has one. R reads nothing else out of
-it. Core puts the schema of its own board options next to its runtime in the
-same way.
+one stays an array where a schema has one. R reads nothing else out of
+them. Core puts the schemas of its own board options next to its runtime in
+the same way.
 
 R keeps the startup modules in the order in which packages declare them,
 which is the order in which their namespaces load, since R runs the
@@ -67,8 +76,8 @@ the order only for the packages its NAMESPACE imports, since R loads a
 package that its DESCRIPTION alone names only once something asks for it,
 and declaring a startup module again keeps its place.
 
-R tells the client where it serves each module that a package declares, its
-front-ends included, in its reply to \code{hello}, with the versions of the
+R tells the client where it serves each module that a package declares, those
+of plugin classes included, in its reply to \code{hello}, with the versions of the
 packages they come from, and where it serves a renderer's module in each
 output that the renderer draws (see \code{\link[=new_renderer]{new_renderer()}}). It serves a module,
 and the stylesheet beside it, under the package's name, at the module's path
@@ -82,7 +91,7 @@ names, and nothing else of the package.
 register_startup_module(js_module("js/startup.js"))
 register_module("filter", js_module("js/filter.js"))
 
-# In the `.onLoad()` of blockr.dock, its front-end
+# In the `.onLoad()` of blockr.dock, the module of its frontend
 register_module("dock", js_module("js/dock.js"))
 }
 
