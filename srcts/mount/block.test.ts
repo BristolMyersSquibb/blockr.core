@@ -303,10 +303,12 @@ describe("board options", () => {
     expect(store.board().options).toMatchObject({ zoom: 1, n_rows: 25 });
     // The module renders once the board holds them.
     expect(ui.mounts[0]?.context.options).toEqual({ zoom: 1, n_rows: 25 });
-    // The user's undo leaves them on the board.
+    // Undo leaves them on the board, since a step that sets only board option
+    // values is no undo step.
     store.undo();
-    expect(store.board().options).toMatchObject({ zoom: 1, n_rows: 50 });
-    expect(store.canUndo("blockr.core")).toBe(true);
+    store.undo("blockr.core");
+    expect(store.board().options).toMatchObject({ zoom: 1, n_rows: 25 });
+    expect([store.canUndo(), store.canUndo("blockr.core")]).toEqual([false, false]);
   });
 
   test("take a default that is a function, which core calls once per opening of a board", async () => {

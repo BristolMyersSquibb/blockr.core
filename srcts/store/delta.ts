@@ -55,7 +55,8 @@ export function isDeltas(delta: Delta | readonly Delta[]): delta is readonly Del
 
 // Values by name that a delta sets, and names whose values it removes, as a
 // collection entry's change sets and removes its fields: board option values
-// by id. Undo removes a value where its step set one that had none.
+// by id.
+// Undo and redo leave them as they are (./commit.ts).
 export interface Values<K extends string> {
   readonly set?: Readonly<Record<K, Json>>;
   readonly unset?: readonly K[];
