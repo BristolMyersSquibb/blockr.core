@@ -266,6 +266,10 @@
   Core's board class `board` requires the board options `show_conditions` and `dark_mode`, so that every board gets them as it opens.
   The page's color scheme follows the theme that `dark_mode` switches the page to, so that the browser draws the page's background, form controls and scroll bars in that theme too.
   Where no blockr option sets `n_rows`, a table output's page holds 10 rows, where it held 50 (#441).
+* Core refuses a block class's UI module whose `options` leaves out a board option that a request of the class reads.
+  It shows an error in the block's element in place of the module's UI, as it does for a module that declares another major of core's JS API.
+  The error names the module and its package, each board option that the module leaves out, and the requests that read it.
+  The rest of the page, the block's evaluation included, carries on (#502).
 
 # blockr.core 0.1.4
 

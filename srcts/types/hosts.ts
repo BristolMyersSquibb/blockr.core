@@ -26,7 +26,10 @@ export type State = Readonly<Record<string, Json>>;
 // function may be async and may return its cleanup, which core runs when it
 // aborts the signal. The default may name the board options the module
 // requires. Core adds each to the board, with its definition's default where
-// the board lacks it, before it calls render().
+// the board lacks it, before it calls render(). A block class's UI module
+// names among them every board option that a request of its class reads, as
+// the class's registry entry names them, and core refuses a module that leaves
+// one out.
 export interface BlockModule<S extends State = State> {
   readonly options?: readonly OptionId[];
   render(args: { el: HTMLElement; host: BlockHost<S>; signal: AbortSignal }): Rendered;
