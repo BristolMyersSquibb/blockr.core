@@ -203,6 +203,7 @@
   `ctor_fun()` (#469).
 * The package ships the TypeScript types that the UI modules of block classes are written against, in `system.file("types", package = "blockr.core")`.
   A package's build resolves that directory as `@blockr/core`, and its module tests take stubs of the hosts from it, as `@blockr/core/stubs`.
+  The function `install_js_types()` installs a copy of those types into a package's `node_modules`, with the types of the package's other dependencies that ship them, and a package calls it in the `pre` scripts that npm runs before each script that reads them (#495).
   The fixture file that `expect_block_fixture()` writes lists each state as a block given those args holds it, its defaults filled in and written by the schema of the class's UI module.
   The stub of a block's host then refuses a submit of a state that the file does not list (#437).
 * R answers the client through an evaluator, one per session, which takes the messages of the wire protocol that the Shiny transport carries.

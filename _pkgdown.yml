@@ -64,6 +64,7 @@ reference:
     - board_front_end
     - new_renderer
     - register_startup_module
+    - install_js_types
     - request_call
     - report_progress
 - title: Block classes
