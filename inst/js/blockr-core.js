@@ -3403,29 +3403,54 @@ function watchRatio(fn) {
     query?.removeEventListener("change", changed);
   };
 }
+var WHITE = [255, 255, 255, 1];
 function backgroundOf(el) {
+  const layers = [];
   for (let at = el; at !== null; at = at.parentElement) {
-    const colour = getComputedStyle(at).backgroundColor;
-    if (!transparent(colour)) return hexOf(colour);
+    const value2 = getComputedStyle(at).backgroundColor;
+    if (value2 === "") continue;
+    const colour = rgbaOf(value2);
+    if (colour === null) return null;
+    if (colour[3] >= 1) return hex(layers.reduceRight(over, colour));
+    if (colour[3] > 0) layers.push(colour);
   }
-  return null;
+  return hex(layers.reduceRight(over, behindPage()));
 }
-function transparent(colour) {
-  return colour === "" || colour === "transparent" || /^rgba\(.*,\s*0\)$/.test(colour);
+function behindPage() {
+  const probe = document.createElement("div");
+  probe.style.cssText = "display: none; background-color: Canvas";
+  document.documentElement.append(probe);
+  const colour = rgbaOf(getComputedStyle(probe).backgroundColor);
+  probe.remove();
+  return colour !== null && colour[3] >= 1 ? colour : WHITE;
+}
+function over(behind, [r2, g2, b2, alpha]) {
+  const mix = (front, back) => front * alpha + back * (1 - alpha);
+  return [mix(r2, behind[0]), mix(g2, behind[1]), mix(b2, behind[2]), 1];
 }
 function hexOf(colour) {
-  const text = colour.trim();
-  if (/^#[0-9a-f]{6}$/i.test(text)) return text.toLowerCase();
-  if (/^#[0-9a-f]{3}$/i.test(text)) {
-    const [r2, g2, b2] = [text.charAt(1), text.charAt(2), text.charAt(3)];
-    return `#${r2}${r2}${g2}${g2}${b2}${b2}`.toLowerCase();
-  }
-  const rgb = /^rgba?\(\s*(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)/.exec(text);
-  if (rgb !== null) return hex(rgb.slice(1, 4).map(Number));
-  return text === "" ? null : drawn(text);
+  const rgba = rgbaOf(colour);
+  return rgba === null ? null : hex(rgba);
 }
-function hex(channels) {
-  return `#${channels.map((c2) => Math.round(Math.min(255, Math.max(0, c2))).toString(16).padStart(2, "0")).join("")}`;
+var RGB = /^rgba?\(\s*(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)(?:\s*[,/]\s*(\d+(?:\.\d+)?)(%?))?\s*\)$/;
+function rgbaOf(colour) {
+  const text = colour.trim();
+  if (text === "") return null;
+  if (text === "transparent") return [0, 0, 0, 0];
+  const long = /^#[0-9a-f]{3}$/i.test(text) ? text.replace(/[0-9a-f]/gi, "$&$&") : text;
+  if (/^#[0-9a-f]{6}$/i.test(long)) {
+    const [r2 = 0, g2 = 0, b2 = 0] = [1, 3, 5].map((at) => parseInt(long.slice(at, at + 2), 16));
+    return [r2, g2, b2, 1];
+  }
+  const rgb = RGB.exec(text);
+  if (rgb !== null) {
+    const [, r2 = "0", g2 = "0", b2 = "0", alpha = "1", percent] = rgb;
+    return [Number(r2), Number(g2), Number(b2), Math.min(1, Number(alpha) / (percent === "%" ? 100 : 1))];
+  }
+  return drawn(text);
+}
+function hex([r2, g2, b2]) {
+  return `#${[r2, g2, b2].map((c2) => Math.round(Math.min(255, Math.max(0, c2))).toString(16).padStart(2, "0")).join("")}`;
 }
 function drawn(colour) {
   try {
@@ -3434,8 +3459,8 @@ function drawn(colour) {
     context.fillStyle = "#000000";
     context.fillStyle = colour;
     context.fillRect(0, 0, 1, 1);
-    const [r2 = 0, g2 = 0, b2 = 0] = context.getImageData(0, 0, 1, 1).data;
-    return hex([r2, g2, b2]);
+    const [r2 = 0, g2 = 0, b2 = 0, alpha = 0] = context.getImageData(0, 0, 1, 1).data;
+    return [r2, g2, b2, alpha / 255];
   } catch {
     return null;
   }
