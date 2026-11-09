@@ -790,14 +790,14 @@ test_that("R reads blockr options, as the fixture blockr-options has it", {
   )
 })
 
-test_that("R leaves out a blockr option it cannot read or send, and warns", {
+test_that("R leaves out a blockr option it cannot read or write, and warns", {
 
   local_table_preview()
 
   withr::local_options(
     blockr.evaluation_queue = 3L,
     blockr.gate_visibility = FALSE,
-    blockr.volumes = list(home = function() "~")
+    blockr.release = as.Date("2026-11-09")
   )
 
   withr::local_envvar(BLOCKR_EVALUATION_QUEUE = "4")
@@ -815,14 +815,14 @@ test_that("R leaves out a blockr option it cannot read or send, and warns", {
       list(
         id = "2",
         kind = "blockr_options",
-        names = c("evaluation_queue", "renderers", "volumes", "gate_visibility")
+        names = c("evaluation_queue", "renderers", "release", "gate_visibility")
       )
     )
   )
 
   warnings <- testthat::capture_warnings(session$run())
 
-  expect_length(warnings, 3L)
+  expect_length(warnings, 2L)
 
   expect_match(
     warnings[1L],
@@ -836,24 +836,23 @@ test_that("R leaves out a blockr option it cannot read or send, and warns", {
   expect_match(
     warnings[2L],
     paste(
-      "R leaves blockr option renderers out of its reply, since it holds a",
-      "value of class renderer, which R cannot write as JSON."
-    ),
-    fixed = TRUE
-  )
-
-  expect_match(
-    warnings[3L],
-    paste(
-      "R leaves blockr option volumes out of its reply, since it holds a",
-      "function, which R cannot write as JSON."
+      "R leaves blockr option renderers out of its reply, since it cannot",
+      "write it as JSON:"
     ),
     fixed = TRUE
   )
 
   expect_identical(
-    last_reply(session),
-    list(id = "2", status = "ok", values = list(gate_visibility = FALSE))
+    sent_json(session),
+    list(
+      list(
+        list(
+          id = "2",
+          status = "ok",
+          values = list(release = "2026-11-09", gate_visibility = FALSE)
+        )
+      )
+    )
   )
 })
 

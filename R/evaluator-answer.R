@@ -47,12 +47,14 @@ answer_blockr_options <- function(job) {
 }
 
 # The value of a blockr option as R sends it, or `NULL` where R sends none.
+# R writes the value as JSON on its own, as it writes a message,
+# and `encode_message()` puts that JSON in the reply as it is.
 # R sends none for a blockr option that is not set.
 # It also sends none for one that `blockr_option()` refuses,
 # as where its R option and its environment variable disagree,
-# and for one whose value R cannot write as JSON,
-# as `renderers`, which holds renderer objects.
+# and for one whose value it cannot write as JSON, such as a function.
 # For those two, R warns in its log, naming the blockr option.
+# R checks nothing else, since the code that reads a blockr option checks it.
 sendable_blockr_option <- function(name) {
 
   res <- tryCatch(
@@ -66,17 +68,20 @@ sendable_blockr_option <- function(name) {
     }
   )
 
-  kind <- nested_unplain_kind(res)
-
-  if (not_null(kind)) {
-    log_warn(
-      "R leaves blockr option {name} out of its reply, since it holds {kind}, ",
-      "which R cannot write as JSON."
-    )
+  if (is.null(res)) {
     return(NULL)
   }
 
-  res
+  tryCatch(
+    json_str(res, auto_unbox = TRUE),
+    error = function(e) {
+      log_warn(
+        "R leaves blockr option {name} out of its reply, since it cannot ",
+        "write it as JSON: {conditionMessage(e)}"
+      )
+      NULL
+    }
+  )
 }
 
 # Evaluates a block from its recipe, as `evaluate_block()` does,

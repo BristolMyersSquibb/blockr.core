@@ -320,32 +320,6 @@ unplain_kind <- function(x) {
   NULL
 }
 
-# What keeps a value, or any value that it holds, from being plain, as an error
-# names it, or `NULL` for a value that is plain all through, `NULL` included.
-nested_unplain_kind <- function(x) {
-
-  if (is.null(x)) {
-    return(NULL)
-  }
-
-  kind <- unplain_kind(x)
-
-  if (not_null(kind) || !is.list(x)) {
-    return(kind)
-  }
-
-  for (el in x) {
-
-    kind <- nested_unplain_kind(el)
-
-    if (not_null(kind)) {
-      return(kind)
-    }
-  }
-
-  NULL
-}
-
 # Shapes a JSON board by the schemas that give its values' shapes: the state of
 # each plugin and the value of each board option by the schemas next to the
 # startup modules of packages, each in a file named by the class in R of the

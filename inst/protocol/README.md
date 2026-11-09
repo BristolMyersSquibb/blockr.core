@@ -117,8 +117,10 @@ R replies `ok` with the value of each that it has one for, as `blockr_option()` 
 
 R answers each name on its own.
 It leaves out a blockr option that it cannot read, as where its R option and its environment variable disagree, which `blockr_option()` refuses.
-It also leaves out one whose value it cannot write as JSON, such as `renderers`, which holds renderer objects.
+It also leaves out one whose value it cannot write as JSON, such as a function.
 R warns of each such blockr option in its log, naming it.
+R writes every other value as it writes the rest of the reply.
+A factor then arrives as its labels and a date as a string, and the code that reads the blockr option checks what it gets.
 The client takes the fallback of each blockr option that R leaves out, while the request's other names get their values ([Blockr options](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.13#blockr-options)).
 
 The client asks for a blockr option once per page, the first time its code reads it through `CoreApi.blockrOption()`, and keeps the value, since a blockr option is fixed for the app.
