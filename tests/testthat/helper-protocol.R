@@ -351,7 +351,7 @@ protocol_r_values <- function() {
         )
       )
     ),
-    `request-added` = list(
+    `request-plugin` = list(
       list(
         obj(
           id = "27",

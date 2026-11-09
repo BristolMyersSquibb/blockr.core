@@ -4653,33 +4653,32 @@ function logicalOf(text) {
 }
 
 // srcts/core/requests.ts
-var CORE_TYPES = ["block_class", "output_class", "renderer", "option"];
-var CORE_FIELDS = ["id", "kind", "type", "reads", "body", "registry_id", "option", "output", "renderer"];
 var ATTEMPTS3 = 3;
-async function addedRequest(deps, type, fields, opts) {
-  if (typeof type !== "string" || type === "") {
-    throw new TypeError("A request names its type, a non-empty string.");
+async function pluginRequest(deps, plugin, name2, args, opts) {
+  if (typeof plugin !== "string" || plugin === "") {
+    throw new TypeError("A plugin's request names the plugin by its id, a non-empty string.");
   }
-  if (CORE_TYPES.includes(type)) {
-    throw new Error(`A request of type "${type}" is core's own, which a host sends, rather than one that a package adds.`);
+  const held2 = own(deps.store.board().plugins, plugin);
+  if (held2 === void 0) {
+    throw new Error(`The board holds no plugin "${plugin}", so its request did not go to R.`);
   }
-  if (!isObject(fields)) {
-    throw new TypeError(`The fields of a request of type "${type}" are an object.`);
+  if (typeof name2 !== "string" || name2 === "") {
+    throw new TypeError(`A request of the plugin "${plugin}" is named by a non-empty string.`);
   }
-  const taken = Object.keys(fields).filter((name2) => CORE_FIELDS.includes(name2));
-  if (taken.length > 0) {
-    throw new Error(`A request of type "${type}" cannot hold the fields ${quoted(taken)}, which are core's.`);
+  if (!isObject(args)) {
+    throw new TypeError(`The args of the request "${name2}" of the plugin "${plugin}" are an object.`);
   }
   const reads = opts.reads ?? [];
   if (!Array.isArray(reads) || !reads.every((block) => typeof block === "string")) {
-    throw new TypeError(`The blocks that a request of type "${type}" reads are an array of their ids.`);
+    throw new TypeError(`The blocks that the request "${name2}" of the plugin "${plugin}" reads are an array of their ids.`);
   }
-  const what = `The request of type "${type}"`;
+  const what = `The request "${name2}" of the plugin "${plugin}"`;
   for (let attempt3 = 1; ; attempt3++) {
     const revisions = await readsOf3(deps, what, reads, opts.signal);
     const { reply, body } = await deps.scheduler.request(
-      { kind: "request", type, ...fields, ...reads.length === 0 ? {} : { reads: revisions } },
+      { kind: "request", type: "plugin", plugin: held2.class, name: name2, args: { ...args }, reads: revisions },
       {
+        ...opts.file === void 0 ? {} : { body: opts.file },
         ...opts.signal === void 0 ? {} : { signal: opts.signal },
         ...opts.progress === void 0 ? {} : { progress: opts.progress.bind(opts) }
       }
@@ -4692,9 +4691,9 @@ async function addedRequest(deps, type, fields, opts) {
         if (attempt3 < ATTEMPTS3) continue;
         throw new RequestError(`${what} gave up, since R kept lacking the results it reads.`, { status: "missing" });
       case "cancelled":
-        throw new RequestError(`R cancelled the request of type "${type}".`, { status: "cancelled" });
+        throw new RequestError(`R cancelled the request "${name2}" of the plugin "${plugin}".`, { status: "cancelled" });
       default:
-        throw new RequestError(`R replied ${reply.status} to the request of type "${type}".`, {
+        throw new RequestError(`R replied ${reply.status} to the request "${name2}" of the plugin "${plugin}".`, {
           status: reply.status,
           conditions: "conditions" in reply ? reply.conditions : []
         });
@@ -4785,7 +4784,7 @@ function createCore(parts) {
     },
     lock: parts.lock,
     outputEvents,
-    request: (type, fields = {}, opts = {}) => addedRequest({ scheduler }, type, fields, opts),
+    request: (plugin, name2, args = {}, opts = {}) => pluginRequest({ store, scheduler }, plugin, name2, args, opts),
     module: (id2) => loader.module(id2),
     blockrOption: (name2, fallback) => blockrOptions.read(name2, fallback),
     mountBlock: (el, block) => mounts.mountBlock(el, block),

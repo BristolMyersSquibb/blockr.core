@@ -3,6 +3,6 @@ export type { BlockrOptions } from "./blockr-options.ts";
 export { createCore } from "./core.ts";
 export type { CoreParts } from "./core.ts";
 export { loadingNote, pageFrontEnds } from "./frontends.ts";
-export { addedRequest } from "./requests.ts";
+export { pluginRequest } from "./requests.ts";
 export { start } from "./start.ts";
 export type { Changed, FrontEnds, Started, StartOptions } from "./start.ts";
