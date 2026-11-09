@@ -421,8 +421,9 @@ report_export <- function(reads, format) {
 
 # The requests that packages give, for the duration of `frame`:
 # blockr.io gives the requests of its board option data_dir,
-# a code export adds the type code, for the script of the blocks it reads,
-# and a report's export adds the type report, which reports progress.
+# blockr.code's plugin class gives the request script, for the script of the
+# blocks it reads, and blockr.md's gives the request export, which reports
+# progress.
 local_request_types <- function(frame = parent.frame()) {
 
   testthat::local_mocked_s3_method(
@@ -439,18 +440,16 @@ local_request_types <- function(frame = parent.frame()) {
   )
 
   testthat::local_mocked_s3_method(
-    "request_call",
-    "code_request",
-    function(x, reads, ...) list(fun = code_script, args = list(reads = reads)),
+    "plugin_requests",
+    "code_plugin",
+    function(x, ...) list(script = code_script),
     frame = frame
   )
 
   testthat::local_mocked_s3_method(
-    "request_call",
-    "report_request",
-    function(x, reads, ...) {
-      list(fun = report_export, args = c(x[["args"]], list(reads = reads)))
-    },
+    "plugin_requests",
+    "md_plugin",
+    function(x, ...) list(export = report_export),
     frame = frame
   )
 }

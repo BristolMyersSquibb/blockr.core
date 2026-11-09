@@ -65,7 +65,7 @@ reference:
     - new_renderer
     - register_startup_module
     - install_js_types
-    - request_call
+    - request-types
     - report_progress
 - title: Block classes
   desc: Core's built-in blocks, each a block class with its constructor.

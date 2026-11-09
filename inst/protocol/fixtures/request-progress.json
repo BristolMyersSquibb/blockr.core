@@ -1,10 +1,11 @@
 {
-  "description": "A long request of a type that a package adds, here report, as an export of a report to PowerPoint could be. R sends progress notes for it, each in a message of its own, as the package's function reports them, before it replies with the file as the reply's binary body, which body announces with its MIME type and name.",
+  "description": "A long request of a plugin, as blockr.md's export of a document to PowerPoint could be. R sends progress notes for it, each in a message of its own, as the request's function reports them, before it replies with the file as the reply's binary body, which body announces with its MIME type and name.",
   "client": [
     {
       "id": "28",
       "kind": "request",
-      "type": "report",
+      "type": "plugin",
+      "plugin": "blockr.md-md_plugin",
       "name": "export",
       "args": { "format": "pptx" },
       "reads": [{ "block": "c", "revision": 4 }]
