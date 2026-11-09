@@ -6,8 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import { strings } from "../../binding/index.ts";
-import { Field, Stack } from "../../inputs/index.ts";
-import { reactModule, useValue } from "../../react/index.ts";
+import { Field, reactModule, Stack, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";

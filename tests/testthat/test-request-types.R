@@ -14,17 +14,6 @@ test_that("a board option has no requests unless its package gives them", {
   expect_identical(requests$list_dir("~"), "~")
 })
 
-test_that("a type without a method of request_call() is refused", {
-
-  x <- structure(list(name = "x"), class = c("nothing_request", "request"))
-
-  expect_error(
-    request_call(x, list()),
-    "R answers no request of type nothing",
-    class = "request_type_unknown"
-  )
-})
-
 test_that("R binds what it passes a request itself", {
 
   fun <- function(path, reads) list(path, reads)

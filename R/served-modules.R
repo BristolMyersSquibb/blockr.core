@@ -112,3 +112,39 @@ dir_path <- function(dir) {
 served_dir <- function() {
   file.path(tempdir(), "blockr-served")
 }
+
+# The import map of the page that R serves, as the script tag for the page's
+# head. It gives each import that core's build leaves in a module, such as
+# `react` and `@blockr/core/react`, the URL at which R serves the file that
+# blockr.core ships for it, as inst/js/import-map.json names them.
+# R serves the files that those import in turn beside them.
+# A browser takes an import map only ahead of the page's first module script,
+# so the page puts this tag before any such script.
+# The map gives each URL relative to the page, starting with `./`, since it
+# takes no other relative URL.
+import_map <- function() {
+
+  map <- yyjsonr::read_json_file(
+    system.file("js", "import-map.json", package = "blockr.core")
+  )
+
+  core_file <- function(file) {
+    served_url(js_module(file.path("js", file), package = "blockr.core"))
+  }
+
+  for (file in map[["files"]]) {
+    core_file(file)
+  }
+
+  imports <- lapply(
+    map[["imports"]],
+    function(file) paste0("./", core_file(file))
+  )
+
+  shiny::tags$script(
+    type = "importmap",
+    shiny::HTML(
+      yyjsonr::write_json_str(list(imports = imports), auto_unbox = TRUE)
+    )
+  )
+}

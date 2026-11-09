@@ -3,8 +3,7 @@
 // which the request n_max gives, and a select of the end it keeps them from.
 
 import type { ReactElement } from "react";
-import { NumberInput, Select, Stack } from "../../inputs/index.ts";
-import { reactModule, useRequest, useValue } from "../../react/index.ts";
+import { NumberInput, reactModule, Select, Stack, useRequest, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
 import type { State } from "./state.ts";

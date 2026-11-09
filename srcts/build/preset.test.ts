@@ -1,28 +1,29 @@
 // What a package's build makes of its module with the build preset that core
-// ships as `@blockr/core/build`, as it bundles the React SDK that core ships as
-// `@blockr/core/react`: a module that holds none of React, and that draws with
-// the copy that core's runtime puts on the page.
-// So does a module written without React on the controls that core ships as
-// `@blockr/core/controls`.
+// ships as `@blockr/core/build`, as it imports the React SDK that core ships as
+// `@blockr/core/react`: a module that holds none of React and none of the SDK,
+// but imports them, as the page that R serves resolves them through its import
+// map. So does a module written without React on the controls that core ships
+// as `@blockr/core/controls`.
+// Here the tests resolve those imports, to React in node_modules and to the
+// SDK's sources, as vitest.config.ts sets out.
 
 import { readFileSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as esbuild from "esbuild";
 import { afterEach, beforeEach, expect, test } from "vitest";
 import { stubBlockHost, stubOutputHost } from "../stubs/index.ts";
+import type { BlockFixture } from "../stubs/index.ts";
 import { mountReact } from "../testing/react.ts";
 import type { OutputFixtures, TextOutput } from "../types/outputs.ts";
+import { IMPORTS } from "../import-map/index.ts";
 import type * as Build from "./index.ts";
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
 // The build preset as core ships it.
 const { preset } = (await import(pathToFileURL(join(repo, "inst/types/build/index.js")).href)) as typeof Build;
-
-// Core's runtime as it ships, which puts the one copy of React on the page.
-await import(pathToFileURL(join(repo, "inst/js/blockr-core.js")).href);
 
 let root: string;
 
@@ -31,10 +32,9 @@ beforeEach(async () => {
   // outside it into a test that runs in a page.
   const scratch = join(repo, "node_modules", ".tmp");
   await mkdir(scratch, { recursive: true });
+  // It installs nothing of `@blockr/core`, since its build resolves nothing of
+  // it from disk: the preset leaves what a module imports of it imports.
   root = await mkdtemp(join(scratch, "blockr-core-preset-"));
-  // A package's build resolves `@blockr/core` as what core ships.
-  await mkdir(join(root, "node_modules", "@blockr"), { recursive: true });
-  await symlink(join(repo, "inst", "types"), join(root, "node_modules", "@blockr", "core"), "dir");
 });
 
 afterEach(async () => {
@@ -65,16 +65,22 @@ export const api = 1;
 export default outputRenderer<TextOutput>(({ output }) => <pre>{output.text}</pre>);
 `;
 
-test("bundles the React SDK into a package's module, but none of React", async () => {
+// The packages that the code of a bundle imports, by the specifier of each.
+function importsOf(code: string): string[] {
+  return [...new Set([...code.matchAll(/^(?:import|export)\b[^;]*?\bfrom\s*"([^"]+)"/gm)].map((m) => m[1] ?? ""))].sort();
+}
+
+test("leaves a package's module importing React and the React SDK, which the import map names", async () => {
   const code = await readFile(await bundle(textRenderer), "utf8");
 
-  expect(code).toContain("function outputRenderer(");
-  expect(code).toContain('globalThis["blockr.core-react"]');
+  expect(importsOf(code)).toEqual(["@blockr/core/react", "react/jsx-runtime"]);
+  expect(importsOf(code).every((name) => (IMPORTS as readonly string[]).includes(name))).toBe(true);
+  expect(code).not.toContain("function outputRenderer(");
   // React marks each element it makes with this symbol.
   expect(code).not.toContain("react.transitional.element");
 });
 
-test("the module draws with the copy of React that core's runtime puts on the page", async () => {
+test("the module draws with the React and the SDK that it imports", async () => {
   const fixtures = JSON.parse(
     readFileSync(join(repo, "inst", "outputs", "fixtures", "text-output.json"), "utf8"),
   ) as OutputFixtures<TextOutput>;
@@ -106,10 +112,11 @@ const label: BlockModule<{ label: string }> = {
 export default label;
 `;
 
-test("bundles the controls into a package's module written without React, which draws them with core's copy", async () => {
+test("leaves a package's module written without React importing the controls, with which it draws", async () => {
   const file = await bundle(plainModule);
   const code = await readFile(file, "utf8");
-  expect(code).toContain('globalThis["blockr.core-react"]');
+  expect(importsOf(code)).toEqual(["@blockr/core/controls"]);
+  expect(code).not.toContain("function controls(");
   expect(code).not.toContain("react.transitional.element");
 
   const module = (await import(pathToFileURL(file).href)) as unknown;
@@ -120,8 +127,42 @@ test("bundles the controls into a package's module written without React, which 
   expect(mounted.el.querySelector("input")).toBeNull();
 });
 
-test("refuses an entry point of React that core does not share", async () => {
+test("core's own block module, as core ships it, imports React and the SDK, and draws with them", async () => {
+  const code = readFileSync(join(repo, "inst", "js", "head-block.js"), "utf8");
+  expect(importsOf(code)).toEqual(["@blockr/core/react", "react/jsx-runtime"]);
+  expect(code).not.toContain("function reactModule(");
+
+  const fixture = JSON.parse(
+    readFileSync(join(repo, "tests/testthat/_snaps/transform-head/head_block.json"), "utf8"),
+  ) as BlockFixture;
+  const module = (await import(pathToFileURL(join(repo, "inst", "js", "head-block.js")).href)) as unknown;
+  const mounted = await mountReact(module, stubBlockHost(fixture));
+
+  expect(mounted.el.querySelector("input")).not.toBeNull();
+  mounted.unmount();
+  expect(mounted.el.querySelector("input")).toBeNull();
+});
+
+test("React's entry points, as core ships them, read one React", async () => {
+  const react = (await import(pathToFileURL(join(repo, "inst", "js", "react.js")).href)) as typeof import("react");
+  const client = (await import(pathToFileURL(join(repo, "inst", "js", "react-dom-client.js")).href)) as typeof import("react-dom/client");
+
+  // A hook of react.js works in a component that react-dom-client.js draws,
+  // which it does only where both read the same React.
+  const el = document.createElement("div");
+  const Counter = () => react.createElement("span", null, String(react.useState(41)[0] + 1));
+  const view = client.createRoot(el);
+  react.startTransition(() => {
+    view.render(react.createElement(Counter));
+  });
+  await new Promise((done) => setTimeout(done, 50));
+
+  expect(el.textContent).toBe("42");
+  view.unmount();
+});
+
+test("refuses an entry point of React that the import map does not name", async () => {
   await expect(
     bundle(`import { renderToString } from "react-dom/server";\n\nexport const html = renderToString(null);\n`),
-  ).rejects.toThrow("A module imports react-dom/server, which core does not share.");
+  ).rejects.toThrow("A module imports react-dom/server, which the page's import map does not name.");
 });

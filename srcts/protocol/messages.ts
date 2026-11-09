@@ -36,7 +36,7 @@ export type Request =
   | EvaluateRequest
   | BlockClassRequest
   | BoardOptionRequest
-  | AddedRequest
+  | PluginRequest
   | OutputClassRequest
   | RendererRequest
   | OutputRequest
@@ -210,10 +210,10 @@ export interface Omitted {
   message: number;
 }
 
-// Requests, each of a type, which R reads into an object of class
-// `{type}_request` and answers through its method of request_call(). Core's
-// types are block_class, output_class, renderer and option, and a package adds
-// a type with a method of its own.
+// Requests. Each names one of core's types: block_class, output_class,
+// renderer, option or plugin. R reads a request into an object of class
+// `{type}_request` and answers it through its method of request_call(). No
+// package adds a type, and R replies error to a request of any other type.
 
 // A block class's request, which R resolves by registry id. Its `block` names
 // the block that asks, which R reads only on a locked board.
@@ -253,21 +253,25 @@ export interface BoardOptionRequest {
   renderer?: never;
 }
 
-// A request of a type that a package adds, which R answers through the
-// package's method of request_call(). R reads its `reads`, the results it
-// reads, and passes its other fields to the method as they are, so they are
-// the package's, but for the names of core's own fields.
-export interface AddedRequest {
+// A plugin's request, which R finds among the requests that
+// plugin_requests() returns for the plugin's class. It names the class by the
+// class's id, as "blockr.md-md_plugin", since R holds no board. R calls the
+// request's function with its args by name, and with the results it reads.
+export interface PluginRequest {
   id: string;
   kind: "request";
-  type: string;
-  reads?: BlockRevision[];
+  type: "plugin";
+  plugin: PluginClassId;
+  name: string;
+  args: Record<string, Json>;
+  // The results it reads, by block and revision, which the client has
+  // evaluated first.
+  reads: BlockRevision[];
   body?: Body;
   registry_id?: never;
   option?: never;
   output?: never;
   renderer?: never;
-  [field: string]: Json | BlockRevision[] | Body | undefined;
 }
 
 // A request of an output class, which R resolves against the class vector of

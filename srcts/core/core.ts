@@ -16,12 +16,12 @@ import type { Loader, Measure, OutputEvent } from "../mount/index.ts";
 import type { Lock, Renderer } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
-import type { Board, OptionId } from "../types/board.ts";
+import type { Board, OptionId, PluginId } from "../types/board.ts";
 import type { CoreApi, OutputEvents } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { jsonEqual, own, report } from "../util/index.ts";
 import type { BlockrOptions } from "./blockr-options.ts";
-import { addedRequest } from "./requests.ts";
+import { pluginRequest } from "./requests.ts";
 
 export interface CoreParts {
   // The store as front-ends and extensions see it, whose open() starts core
@@ -105,8 +105,8 @@ export function createCore(parts: CoreParts): CoreApi {
     },
     lock: parts.lock,
     outputEvents,
-    request: <T = Json>(type: string, fields: Record<string, Json> = {}, opts = {}) =>
-      addedRequest({ scheduler }, type, fields, opts) as Promise<T | Blob>,
+    request: <T = Json>(plugin: PluginId, name: string, args: Readonly<Record<string, Json>> = {}, opts = {}) =>
+      pluginRequest({ store, scheduler }, plugin, name, args, opts) as Promise<T | Blob>,
     module: <T = unknown>(id: string) => loader.module(id) as Promise<T>,
     blockrOption: (name, fallback) => blockrOptions.read(name, fallback),
     mountBlock: (el, block) => mounts.mountBlock(el, block),

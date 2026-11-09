@@ -1,10 +1,12 @@
 // @vitest-environment node
 
+import { createRequire } from "node:module";
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { afterEach, beforeEach, expect, test } from "vitest";
+import { IMPORTS, REACT_ENTRIES, importFile } from "../import-map/index.ts";
 import { build, idWords, outputTypes, schemaFile, schemas, stylesheet } from "./build.ts";
 
 // The fixtures import and reference core's stylesheet, so that they test core's
@@ -42,7 +44,8 @@ test("bundles the runtime and each module, each with its stylesheet beside it", 
   await build(root);
 
   const out = join(root, "inst/js");
-  expect((await readdir(out)).sort()).toEqual([
+  // Beside them, the build writes React's entry points and the import map.
+  expect((await readdir(out)).filter((file) => !/^react|^import-map/.test(file)).sort()).toEqual([
     "blockr-core.css",
     "blockr-core.js",
     "head-block.css",
@@ -60,19 +63,74 @@ test("bundles the runtime and each module, each with its stylesheet beside it", 
   expect(own).not.toMatch(/--bc-[\w-]+:/);
 });
 
-test("starts the runtime's bundle with the copy of React that it shares, minified, ahead of core's own code", async () => {
-  await write({
-    "srcts/runtime/share-react.ts": "globalThis.shared = [1, 2].map((n) => n * 2);\n",
-    "srcts/runtime/index.ts": "export const runtime = 'core';\n",
-  });
+test("writes each of React's entry points as an ES module, exporting what the entry point exports, all on one React", async () => {
+  await write({ "srcts/runtime/index.ts": "export const runtime = 'core';\n" });
 
   const written = await build(root);
 
-  const js = await readFile(join(root, "inst/js/blockr-core.js"), "utf8");
-  expect(written).toEqual(["inst/js/blockr-core.js"]);
-  expect(js).toContain("globalThis.shared=[1,2].map(");
-  expect(js).toContain('var runtime = "core";');
-  expect(js.indexOf("globalThis.shared")).toBeLessThan(js.indexOf("var runtime"));
+  const out = join(root, "inst/js");
+  const bundles = (await readdir(out)).filter((file) => /^react-[0-9a-f]{8}\.js$/.test(file));
+  expect(bundles).toHaveLength(1);
+  expect(written).toEqual(
+    ["blockr-core.js", "import-map.json", ...bundles, ...REACT_ENTRIES.map(importFile)].map((file) => `inst/js/${file}`).sort(),
+  );
+  // The bundle keeps React's license comments.
+  expect(await readFile(join(out, bundles[0] ?? ""), "utf8")).toContain("@license React");
+
+  // Each entry point exports what React's does in production, bar the two
+  // names that its development build alone exports.
+  const installed = createRequire(import.meta.url);
+  for (const name of REACT_ENTRIES) {
+    const module = (await import(pathToFileURL(join(out, importFile(name))).href)) as Record<string, unknown>;
+    const exported = Object.keys(installed(name) as object).filter((key) => !["act", "captureOwnerStack"].includes(key));
+    expect(Object.keys(module).sort()).toEqual([...exported, "default"].sort());
+  }
+});
+
+test("builds the SDK, the binding and the controls on their own, which the runtime and the modules import by name", async () => {
+  const imports = (up: string) =>
+    [
+      `import { sdk } from "${up}/react/index.ts";`,
+      `import { input } from "${up}/inputs/index.ts";`,
+      `import { binding } from "${up}/binding/index.ts";`,
+      `import { controls } from "${up}/controls/index.ts";`,
+      "export const all = [sdk, input, binding, controls];",
+      "",
+    ].join("\n");
+  await write({
+    "srcts/react/index.ts": 'import { binding } from "../binding/index.ts";\nexport const sdk = "the sdk " + binding;\nexport { input } from "../inputs/index.ts";\n',
+    "srcts/inputs/index.ts": "export const input = 'the input';\n",
+    "srcts/binding/index.ts": "export const binding = 'the binding';\n",
+    "srcts/controls/index.ts": 'import { input } from "../inputs/index.ts";\nexport const controls = "the controls " + input;\n',
+    "srcts/runtime/index.ts": imports(".."),
+    "srcts/modules/head-block/index.ts": imports("../.."),
+  });
+
+  await build(root);
+
+  const read = (file: string) => readFile(join(root, "inst/js", file), "utf8");
+  for (const file of ["blockr-core.js", "head-block.js"]) {
+    const code = await read(file);
+    for (const text of ["the sdk", "the input", "the binding", "the controls"]) {
+      expect(code).not.toContain(text);
+    }
+    for (const name of ["@blockr/core/react", "@blockr/core/binding", "@blockr/core/controls"]) {
+      expect(code).toContain(`from "${name}"`);
+    }
+  }
+  // The SDK holds the inputs, and imports the binding.
+  expect(await read("blockr-core-react.js")).toContain("the input");
+  expect(await read("blockr-core-react.js")).toContain('from "@blockr/core/binding"');
+  expect(await read("blockr-core-binding.js")).toContain("the binding");
+  // The controls take the inputs from the SDK.
+  expect(await read("blockr-core-controls.js")).toContain('from "@blockr/core/react"');
+  expect(await read("blockr-core-controls.js")).not.toContain("the input");
+
+  // The import map names each import by its file, and the bundle of React,
+  // which the entry points of React import, beside them.
+  const map = JSON.parse(await read("import-map.json")) as { imports: Record<string, string>; files: string[] };
+  expect(map.imports).toEqual(Object.fromEntries(IMPORTS.map((name) => [name, importFile(name)])));
+  expect(map.files).toEqual([expect.stringMatching(/^react-[0-9a-f]{8}\.js$/)]);
 });
 
 test("keeps core's utilities under its prefix and outside layers, without Preflight", async () => {

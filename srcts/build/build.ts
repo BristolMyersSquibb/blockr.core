@@ -2,14 +2,18 @@
 // since R CMD check and CRAN run no Node. Run: npm run build
 //
 // - Core's runtime, srcts/runtime/index.ts, is bundled into blockr-core.js.
-//   The file starts with the one copy of React, which
-//   srcts/runtime/share-react.ts puts on the page, minified, since it changes
-//   only with React's version. Core's own code follows unminified, its imports
-//   of React mapped to that copy as a module's are.
 // - A module, srcts/modules/<name>/index.ts or index.tsx, is bundled into
-//   <name>.js on its own, by the build preset of ./preset.ts, which maps each
-//   import of React to the copy that core's runtime puts on the page, so that
-//   its bundle holds no React.
+//   <name>.js on its own, by the build preset of ./preset.ts.
+// - Core's React SDK, srcts/react, its binding, srcts/binding, and its
+//   controls, srcts/controls, are bundled into files of their own,
+//   blockr-core-react.js, blockr-core-binding.js and blockr-core-controls.js.
+// - React's entry points, such as `react` and `react-dom/client`, are written
+//   as ES modules of their own, such as react.js and react-dom-client.js,
+//   which read one minified bundle of React, react-<hash>.js.
+// - The runtime, the modules and the SDK, the binding and the controls leave
+//   their imports of React and of each other imports, which the page that R
+//   serves resolves through its import map, as inst/js/import-map.json lays
+//   it out. So the page runs one copy of each, and so do a package's modules.
 // - An index.css beside either is its stylesheet, built with Tailwind CSS into
 //   blockr-core.css or <name>.css.
 // - Each output type in srcts/types/outputs.ts gets its JSON Schema in
@@ -28,13 +32,14 @@
 //   build resolves as `@blockr/core`, and so do core's React SDK, srcts/react,
 //   its binding, srcts/binding, and the build preset, srcts/build, each as the
 //   export of its name, such as `@blockr/core/react`: their declarations, the
-//   SDK, the binding and the preset bundled for a package's build, with React
-//   left for the preset to map, the stubs bundled for
+//   SDK and the binding bundled for a package's tests, whose build leaves its
+//   imports of them to the page's import map, the preset bundled for a
+//   package's build, with React left an import, the stubs bundled for
 //   a test runner, and the package.json that names them and the React that
 //   the runtime bundles as its peer.
 //   The controls, srcts/controls/index.ts, go there as the SDK does,
 //   as `@blockr/core/controls`, for a package that writes its modules without
-//   React and bundles them.
+//   React.
 //
 // - The words that ids are made of, in srcts/store/words.ts, go into inst/ids,
 //   one word a line, for R's rand_names() to draw from as the client's
@@ -44,6 +49,8 @@
 // nothing is left of a module that is gone. In inst/outputs and inst/board, it
 // owns the schemas only, and in inst/ids the files of words.
 
+import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -54,7 +61,13 @@ import * as esbuild from "esbuild";
 import postcss from "postcss";
 import { createGenerator } from "ts-json-schema-generator";
 import ts from "typescript";
+import { IMPORTS, importFile, REACT_ENTRIES } from "../import-map/index.ts";
+import type { Import } from "../import-map/index.ts";
 import { preset } from "./preset.ts";
+
+// Core's repo, whose node_modules holds the React that the build writes into
+// inst/js.
+const repo = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
 interface Entry {
   name: string;
@@ -94,30 +107,105 @@ export async function stylesheet(file: string): Promise<string> {
   return result.css;
 }
 
-// The one copy of React that core's runtime puts on the page, from
-// share-react.ts in the runtime's directory, as a minified script that keeps
-// React's license comments, which the runtime's bundle starts with.
-async function reactCopy(root: string, dir: string) {
-  const entry = join(dir, "share-react.ts");
-  if (!existsSync(entry)) return undefined;
-  return await esbuild.build({
-    absWorkingDir: root,
-    entryPoints: [entry],
+// The names that each of React's entry points exports in production, which its
+// ES module exports as well. A child process requires them, since this process
+// may hold React's development build, which exports more.
+function reactNames(): Record<string, string[]> {
+  const script = `console.log(JSON.stringify(Object.fromEntries(${JSON.stringify(REACT_ENTRIES)}.map((name) => [name, Object.keys(require(name))]))));`;
+  const out = execFileSync(process.execPath, ["-e", script], {
+    cwd: repo,
+    env: { ...process.env, NODE_ENV: "production" },
+    encoding: "utf8",
+  });
+  return JSON.parse(out) as Record<string, string[]>;
+}
+
+// Writes React's entry points into `out` as ES modules of their own, each
+// exporting the names that the entry point exports, from one minified bundle of
+// React and ReactDOM, so that all of them read one React.
+// The bundle keeps React's license comments, and its name holds a hash of its
+// content, as react-3f2a9c1d.js, so that no browser runs an old React from its
+// cache, since the entry points import it by that name.
+async function reactModules(out: string): Promise<string[]> {
+  const result = await esbuild.build({
+    absWorkingDir: repo,
+    stdin: {
+      contents: REACT_ENTRIES.map((name, i) => `export * as entry${String(i)} from ${JSON.stringify(name)};`).join("\n"),
+      resolveDir: repo,
+      loader: "js",
+    },
     bundle: true,
     write: false,
-    format: "iife",
+    format: "esm",
     platform: "browser",
     target: preset.target,
+    define: preset.define,
     minify: true,
     legalComments: "inline",
-    define: preset.define,
     logLevel: "warning",
   });
+  if (result.warnings.length > 0) {
+    throw new Error("esbuild warned, as printed above");
+  }
+
+  const text = result.outputFiles[0]?.text ?? "";
+  const bundle = `react-${createHash("sha256").update(text).digest("hex").slice(0, 8)}.js`;
+  await writeFile(join(out, bundle), text);
+
+  const names = reactNames();
+  const written = [bundle];
+  for (const [i, name] of REACT_ENTRIES.entries()) {
+    const exported = (names[name] ?? []).filter((key) => key !== "default" && /^[A-Za-z_$][\w$]*$/.test(key));
+    const file = importFile(name);
+    await writeFile(
+      join(out, file),
+      [
+        `// ${name}, as an ES module, from the bundle of React that blockr.core ships.`,
+        `import { entry${String(i)} as m } from "./${bundle}";`,
+        "export default m.default;",
+        `export const { ${exported.join(", ")} } = m;`,
+        "",
+      ].join("\n"),
+    );
+    written.push(file);
+  }
+  return written;
+}
+
+// Core's libraries for modules, each by its name in the import map and the
+// directory of its source in srcts.
+const LIBRARIES = [
+  ["@blockr/core/react", "react"],
+  ["@blockr/core/binding", "binding"],
+  ["@blockr/core/controls", "controls"],
+] as const;
+
+// Maps the imports in core's sources of core's React SDK, its binding and its
+// controls, from their sources in srcts, to their names in the import map,
+// which the preset leaves imports.
+// The SDK holds the inputs, so an import of srcts/inputs is one of the SDK.
+// The build of a library bundles the library's own sources, which `own` names.
+function sourceImports(src: string, own?: Import): esbuild.Plugin {
+  const libraries: readonly (readonly [Import, string])[] = [...LIBRARIES, ["@blockr/core/react", "inputs"]];
+  const names = new Map(
+    libraries.filter(([name]) => name !== own).map(([name, dir]) => [join(src, dir, "index.ts"), name] as const),
+  );
+  return {
+    name: "blockr.core-source-imports",
+    setup(build) {
+      build.onResolve({ filter: /^\.\.?\// }, async (args) => {
+        const name = names.get(resolve(args.resolveDir, args.path));
+        if (name === undefined) return undefined;
+        return await build.resolve(name, { kind: args.kind, resolveDir: args.resolveDir });
+      });
+    },
+  };
 }
 
 export async function build(root: string): Promise<string[]> {
   const out = join(root, "inst", "js");
-  const { runtime, modules } = await entries(join(root, "srcts"));
+  const src = join(root, "srcts");
+  const { runtime, modules } = await entries(src);
 
   await rm(out, { recursive: true, force: true });
   await mkdir(out, { recursive: true });
@@ -129,34 +217,52 @@ export async function build(root: string): Promise<string[]> {
     logLevel: "warning",
     metafile: true,
   } satisfies esbuild.BuildOptions;
-  // The runtime maps its imports of React to the copy that its bundle starts
-  // with, as a module does, and is written behind that copy below.
-  const core = await esbuild.build({
-    ...options,
-    write: false,
-    entryPoints: [{ in: entryFile(runtime.dir), out: runtime.name }],
-  });
-  const copy = await reactCopy(root, runtime.dir);
-  const bundled =
-    modules.length === 0
+  const plugins = (own?: Import) => [sourceImports(src, own), ...preset.plugins];
+  const libraries = LIBRARIES.filter(([, dir]) => existsSync(join(src, dir, "index.ts")));
+
+  const results = [
+    await esbuild.build({
+      ...options,
+      plugins: plugins(),
+      entryPoints: [{ in: entryFile(runtime.dir), out: runtime.name }],
+    }),
+    ...(modules.length === 0
       ? []
       : [
           await esbuild.build({
             ...options,
+            plugins: plugins(),
             entryPoints: modules.map((entry) => ({ in: entryFile(entry.dir), out: entry.name })),
           }),
-        ];
+        ]),
+    ...(await Promise.all(
+      libraries.map(([name, dir]) =>
+        esbuild.build({
+          ...options,
+          plugins: plugins(name),
+          entryPoints: [{ in: join(src, dir, "index.ts"), out: importFile(name).replace(/\.js$/, "") }],
+        }),
+      ),
+    )),
+  ];
 
-  if ([core, ...(copy === undefined ? [] : [copy]), ...bundled].some((result) => result.warnings.length > 0)) {
+  if (results.some((result) => result.warnings.length > 0)) {
     throw new Error("esbuild warned, as printed above");
   }
 
-  for (const file of core.outputFiles) {
-    const start = file.path.endsWith(".js") ? (copy?.outputFiles[0]?.text ?? "") : "";
-    await writeFile(file.path, start + file.text);
-  }
+  const written = results.flatMap((result) => Object.keys(result.metafile.outputs));
+  const react = await reactModules(out);
+  written.push(...react.map((file) => relative(root, join(out, file))));
 
-  const written = [core, ...bundled].flatMap((result) => Object.keys(result.metafile.outputs));
+  // The import map that the page R serves holds, as R reads it: each import by
+  // the file in inst/js that it resolves to, and the files that those import in
+  // turn, which R serves beside them.
+  const imports = Object.fromEntries(
+    IMPORTS.filter((name) => existsSync(join(out, importFile(name)))).map((name) => [name, importFile(name)]),
+  );
+  const map = join(out, "import-map.json");
+  await writeJson(map, { imports, files: react.filter((file) => !Object.values(imports).includes(file)) });
+  written.push(relative(root, map));
 
   for (const entry of [runtime, ...modules]) {
     const css = join(entry.dir, "index.css");
@@ -380,7 +486,8 @@ function versionOf(name: string): string {
 // So npm installs that React with `@blockr/core` where a package has none, and
 // refuses a package that asks for another, so that a package's tests run on
 // one copy of the app's React, the stubs drawing core's UIs with it, while a
-// package's build maps every import of React to the copy on the page.
+// package's build leaves its imports of React, and of the SDK, the binding
+// and the controls, to the page's import map.
 export const TYPES_PACKAGE = {
   name: "@blockr/core",
   private: true,
@@ -456,10 +563,8 @@ export async function types(root: string): Promise<string[]> {
       platform: "neutral",
       target: "es2022",
       jsx: "automatic",
-      // React stays an import, which the build preset maps to core's copy as
-      // a package's build bundles the React SDK into its module, and which a
-      // package's tests resolve to the React that npm installs with
-      // `@blockr/core`.
+      // React stays an import, which a package's tests resolve to the React
+      // that npm installs with `@blockr/core`.
       external: ["react", "react/*", "react-dom", "react-dom/*"],
       logLevel: "warning",
       metafile: true,
