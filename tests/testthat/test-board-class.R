@@ -166,42 +166,74 @@ test_that("R draws the IDs of blocks, links and stacks a script leaves out", {
   expect_lt(match("a", topo_sort(board)), match("b", topo_sort(board)))
 })
 
-test_that("a board class's method names its front-end and its package", {
+test_that("a board holds its plugins, each by its name or its class's", {
 
-  expect_identical(board_front_end(new_board()), "blockr.core-basic")
-  expect_identical(class_package("board"), "blockr.core")
+  notes <- plugin_ctor(function(text = "") NULL, "notes_plugin")
+  grid <- plugin_ctor(function() NULL, c("grid_plugin", "frontend_plugin"))
 
-  local_board_front_end("one_board", "blockr.one-grid", "blockr.one")
-
-  expect_identical(
-    board_front_end(new_board(class = "one_board")),
-    "blockr.one-grid"
+  board <- new_board(
+    plugins = list(grid(), todo = notes("To do"), done = notes("Done"))
   )
-  expect_identical(class_package("one_board"), "blockr.one")
 
-  # A class without a method of its own is drawn by its parent's front-end,
-  # and comes from no package
+  expect_identical(names(board_plugins(board)), c("grid", "todo", "done"))
+  expect_true(all(lgl_ply(board_plugins(board), is_plugin)))
   expect_identical(
-    board_front_end(new_board(class = c("my_board", "one_board"))),
-    "blockr.one-grid"
+    plugin_state(board_plugins(board)$todo),
+    list(text = "To do")
   )
-  expect_null(class_package("my_board"))
+
+  # Every board is of class board
+  expect_identical(class(board), "board")
+  expect_identical(board_plugins(new_board()), set_names(list(), character()))
+
+  # A board holds a plugin given alone
+  expect_identical(names(board_plugins(new_board(plugins = grid()))), "grid")
+
+  # A board takes no other component and no class
+  expect_error(new_board(views = list()), "unused argument")
+  expect_error(new_board(class = "dock_board"), "unused argument")
 })
 
-test_that("a board class's method gives its version, or it is at version 1", {
+test_that("a board refuses plugin IDs that break the rules of every ID", {
 
-  expect_identical(board_version(new_board()), 1L)
+  notes <- plugin_ctor(function() NULL, "notes_plugin")
 
-  local_board_front_end("one_board", "blockr.one-grid", "blockr.one", 2L)
-  local_board_front_end("two_board", "blockr.two-grid", "blockr.two")
+  # Two plugins of one class need names of their own
+  expect_error(
+    new_board(plugins = list(notes(), notes())),
+    "notes",
+    class = "board_plugin_id_invalid"
+  )
 
-  expect_identical(class_version("one_board"), 2L)
-  expect_identical(class_version("two_board"), 1L)
+  expect_error(
+    new_board(plugins = list(`42` = notes())),
+    "\"42\"",
+    class = "board_plugin_id_invalid"
+  )
 
-  # The versions of the classes that name a front-end, by class
-  expect_identical(
-    board_versions(c("my_board", "one_board", "two_board", "board")),
-    list(one_board = 2L, two_board = 1L, board = 1L)
+  expect_error(new_board(plugins = list(1L)), class = "board_plugins_invalid")
+  expect_error(new_board(plugins = "notes"), class = "board_plugins_invalid")
+})
+
+test_that("a board holds at most one frontend and one storage plugin", {
+
+  dock <- plugin_ctor(function() NULL, c("dock_plugin", "frontend_plugin"))
+  grid <- plugin_ctor(function() NULL, c("grid_plugin", "frontend_plugin"))
+  session <- plugin_ctor(function() NULL, c("session_plugin", "storage_plugin"))
+  drive <- plugin_ctor(function() NULL, c("drive_plugin", "storage_plugin"))
+
+  expect_silent(new_board(plugins = list(dock(), session())))
+
+  expect_error(
+    new_board(plugins = list(dock(), grid())),
+    "frontend",
+    class = "board_plugins_invalid"
+  )
+
+  expect_error(
+    new_board(plugins = list(session(), drive())),
+    "storage plugin",
+    class = "board_plugins_invalid"
   )
 })
 
@@ -257,8 +289,30 @@ test_that("a board has a compact str_value()", {
   expect_true("<stacks[1]>" %in% lines)
   expect_true("  s1: <stack> \"my stack\": a, b" %in% lines)
   expect_true(any(startsWith(lines, "<board_options[")))
+  expect_false(any(startsWith(lines, "plugins")))
 
   expect_identical(capture.output(str(board))[1L], " <board> \"My board\"")
+
+  notes <- plugin_ctor(function() NULL, "notes_plugin")
+
+  lines <- strsplit(str_value(new_board(plugins = notes())), "\n")[[1L]]
+
+  expect_identical(
+    lines[length(lines)],
+    "plugins: notes <notes_plugin> \"Notes\""
+  )
+})
+
+test_that("a board prints its plugins", {
+
+  notes <- plugin_ctor(function(text = "") NULL, "notes_plugin")
+
+  out <- format(new_board(plugins = list(todo = notes("To do")), name = "B"))
+
+  expect_identical(out[1L], "<board>")
+  expect_true("Plugins[1]:" %in% out)
+  expect_true("todo<notes_plugin> \"Notes\"" %in% out)
+  expect_true("text: To do" %in% out)
 })
 
 test_that("empty variadic link inputs stay unnamed", {

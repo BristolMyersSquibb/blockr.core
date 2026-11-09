@@ -12,7 +12,6 @@ export function boardOf(
 ): Board {
   return {
     id: "board",
-    class: ["board"],
     name: "Board",
     blocks: Object.fromEntries(
       Object.entries(blocks).map(([id, name]) => [
@@ -25,6 +24,7 @@ export function boardOf(
     ),
     stacks: {},
     options: {},
+    plugins: {},
   };
 }
 

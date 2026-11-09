@@ -155,7 +155,6 @@ protocol_r_values <- function() {
           board = proto_json_board(
             obj(
               id = "quick_wren",
-              class = proto_class(),
               name = "Quick wren",
               blocks = obj(
                 tidy_crab = proto_block(
@@ -166,7 +165,8 @@ protocol_r_values <- function() {
               ),
               links = obj(),
               stacks = obj(),
-              options = obj(n_rows = proto_option(50L))
+              options = obj(n_rows = proto_option(50L)),
+              plugins = obj()
             )
           ),
           bound = I("data")
@@ -496,7 +496,7 @@ proto_hello_reply <- function(block_registry, lock, ...,
 }
 
 # What the reply to `hello` of a core app says of the modules that R serves,
-# among them core's basic front-end, which core's board class names.
+# among them core's basic frontend, which draws the board.
 proto_served <- function() {
   obj(
     startup_modules = list(),
@@ -506,13 +506,7 @@ proto_served <- function() {
         css = proto_js("basic.css", "6a9b2c4e")
       )
     ),
-    board_classes = obj(
-      board = obj(
-        package = "blockr.core",
-        front_end = "blockr.core-basic",
-        version = 1L
-      )
-    ),
+    plugin_versions = obj(),
     option_versions = obj(),
     renderers = obj()
   )
@@ -832,11 +826,6 @@ proto_registry <- function(...) {
   set_names(unname(entries), chr_xtr(entries, "id"))
 }
 
-# The class vector of a board of core's class.
-proto_class <- function() {
-  I("board")
-}
-
 # The objects of a board, which its collections hold by id, a block with the
 # version of its class's state.
 proto_block <- function(registry_id, state, name) {
@@ -844,20 +833,27 @@ proto_block <- function(registry_id, state, name) {
 }
 
 # The opening board of the app of the fixture hello-declared: the empty board
-# of class grid_board that its script built, with the id that R drew.
+# that its script built, with the id that R drew, which holds a plugin of
+# blockr.test's class grid_plugin, whose state blockr.test gives version 2.
 proto_declared_board <- function() {
   proto_json_board(
     obj(
       id = "calm_heron",
-      class = I(c("grid_board", "board")),
       name = "Calm heron",
       blocks = obj(),
       links = obj(),
       stacks = obj(),
-      options = obj()
+      options = obj(),
+      plugins = obj(
+        grid = obj(
+          class = "blockr.test-grid_plugin",
+          name = "Grid",
+          state = obj()
+        )
+      )
     ),
     packages = obj(blockr.core = "0.2.0", blockr.test = "0.1.0"),
-    versions = obj(grid_board = 1L, board = 1L)
+    versions = obj(`blockr.test-grid_plugin` = 2L)
   )
 }
 
@@ -877,12 +873,12 @@ proto_stack <- function(name, blocks, color = NA) {
 }
 
 # A board as a JSON board holds it, beside the format and the packages that
-# its content comes from, here core's alone, with the versions of its classes
-# after its class vector.
+# its content comes from, here core's alone, with the versions of its plugin
+# classes after its id.
 proto_json_board <- function(board, packages = obj(blockr.core = "0.2.0"),
-                             versions = obj(board = 1L)) {
+                             versions = obj()) {
 
-  at <- match("class", names(board))
+  at <- match("id", names(board))
 
   board <- c(board[seq_len(at)], list(versions = versions), board[-seq_len(at)])
 
@@ -897,7 +893,6 @@ proto_board <- function() {
   proto_json_board(
     obj(
       id = "brisk_otter",
-      class = proto_class(),
       name = "Iris review",
       blocks = obj(
         a = proto_block(
@@ -940,7 +935,8 @@ proto_board <- function() {
       options = obj(
         n_rows = proto_option(50L),
         show_conditions = proto_option(I(c("warning", "error")))
-      )
+      ),
+      plugins = obj()
     )
   )
 }
@@ -950,7 +946,6 @@ proto_locked_board <- function() {
   proto_json_board(
     obj(
       id = "steady_lynx",
-      class = proto_class(),
       name = "Iris report",
       blocks = obj(
         a = proto_block(
@@ -969,7 +964,8 @@ proto_locked_board <- function() {
       options = obj(
         n_rows = proto_option(50L),
         show_conditions = proto_option(I(c("warning", "error")))
-      )
+      ),
+      plugins = obj()
     )
   )
 }
@@ -980,7 +976,6 @@ proto_served_file <- function() {
   proto_json_board(
     obj(
       id = "amber_tapir",
-      class = proto_class(),
       name = "Cars",
       blocks = obj(
         a = proto_block(
@@ -999,7 +994,8 @@ proto_served_file <- function() {
       options = obj(
         n_rows = proto_option(50L),
         show_conditions = proto_option(I(c("warning", "error")))
-      )
+      ),
+      plugins = obj()
     )
   )
 }
@@ -1071,8 +1067,9 @@ proto_output <- function(x) {
 
 # What R tells the client about the packages it has loaded, for the package
 # blockr.test, which no library holds: it declares, from its `.onLoad()`, a
-# front-end, a startup module, a module that it offers others and two
-# renderers, one for table outputs and one for the board option dark_mode.
+# startup module, two modules that it offers others and two renderers, one for
+# table outputs and one for the board option dark_mode, and it gives the state
+# of its plugin class grid_plugin version 2.
 # Beside it, a script defines two block classes, one whose module ships a
 # stylesheet and the schema of its state, and one whose module ships neither.
 # The helper writes the files of all of them, so that their content, and so the
@@ -1150,17 +1147,17 @@ local_empty_declarations <- function(frame = parent.frame()) {
 # declares from its `.onLoad()`, at the version 0.1.0, until `frame` ends.
 local_declared_package <- function(dir, frame = parent.frame()) {
 
-  installed <- module_file
+  installed <- package_file
   version <- pkg_version
 
   testthat::local_mocked_bindings(
-    module_file = function(module, suffix = NULL) {
+    package_file = function(path, package) {
 
-      if (!identical(module[["package"]], "blockr.test")) {
-        return(installed(module, suffix))
+      if (!identical(package, "blockr.test")) {
+        return(installed(path, package))
       }
 
-      path <- file.path(dir, "blockr.test", module_path(module, suffix))
+      path <- file.path(dir, "blockr.test", path)
 
       if (file.exists(path)) path else ""
     },
@@ -1182,14 +1179,14 @@ local_declared_package <- function(dir, frame = parent.frame()) {
   register_startup_module(module("js/startup.js"))
   register_module("picker", module("js/picker.js"))
 
-  # The methods, from blockr.test's namespace, of `board_front_end()`, by which
-  # blockr.test names the front-end of its board class grid_board, and of
-  # `board_option_version()`, by which it gives its board option grid_gap
+  # The methods, from blockr.test's namespace, of `plugin_version()`, by which
+  # blockr.test gives the state of its plugin class grid_plugin version 2, and
+  # of `board_option_version()`, by which it gives its board option grid_gap
   # version 2
   ns <- list2env(list(.packageName = "blockr.test"))
 
   methods <- list(
-    board_front_end.grid_board = function(x, ...) "blockr.test-grid",
+    plugin_version.grid_plugin = function(x, ...) 2L,
     board_option_version.grid_gap_option = function(x, ...) 2L
   )
 

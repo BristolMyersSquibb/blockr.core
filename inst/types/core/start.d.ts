@@ -2,12 +2,11 @@ import type { Loader, LoaderOptions, Measure, Source } from "../mount/index.ts";
 import type { Transport } from "../protocol/index.ts";
 import type { Option } from "../store/index.ts";
 import type { CoreApi } from "../types/core-api.ts";
+export declare const BASIC = "blockr.core-basic";
 export interface FrontEnds {
     prepare(front: {
         readonly id: string;
         readonly source: Source | undefined;
-    } | {
-        readonly error: Error;
     }, loader: Loader): Promise<void>;
     render(core: CoreApi, signal: AbortSignal): Promise<void>;
 }

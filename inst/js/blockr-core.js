@@ -4162,7 +4162,7 @@ function createMounts(options) {
     if ("opened" in change) return;
     for (const id2 of change.delta.blocks?.rm ?? []) shelves.drop(id2);
   });
-  function defaultOf2(id2, def) {
+  function defaultOf(id2, def) {
     let value2 = defaults.get(id2);
     if (value2 === void 0) {
       const given = def.default;
@@ -4182,7 +4182,7 @@ function createMounts(options) {
         }
         let value2;
         try {
-          value2 = await defaultOf2(id2, def);
+          value2 = await defaultOf(id2, def);
         } catch (error) {
           report(new Error(`The default of the board option "${id2}" failed: ${messageOf(error)}`, { cause: error }));
           return;
@@ -4276,7 +4276,7 @@ function createMounts(options) {
       block
     ),
     mountOption: (el, option) => mountOption(
-      { store, commands, scheduler, loader, renderers, replaced, addOptions, defaultOf: defaultOf2 },
+      { store, commands, scheduler, loader, renderers, replaced, addOptions, defaultOf },
       el,
       option
     ),
@@ -5220,6 +5220,9 @@ function createCore(parts) {
     },
     blockRegistry: () => store.blockRegistry(),
     options: store.options,
+    plugins: {
+      register: (def) => store.plugins.register(def)
+    },
     lock: parts.lock,
     outputEvents,
     request: (type, fields = {}, opts = {}) => addedRequest({ scheduler }, type, fields, opts),
@@ -5273,15 +5276,10 @@ function pageFrontEnds(el) {
   return {
     async prepare(front, loader) {
       let prepared;
-      if ("error" in front) {
-        end();
-        next = { id: "", module: "", error: front.error };
-        return;
-      }
       const { id: id2, source } = front;
       const pkg = packageOf(id2);
       if (source === void 0) {
-        prepared = { id: id2, module: id2, error: new Error(`R serves no module ${id2}, which R names as the front-end of the board's class.`) };
+        prepared = { id: id2, module: id2, error: new Error(`R serves no module ${id2}, the front-end that draws the board.`) };
       } else {
         try {
           const mod = moduleOf(await loader.load(source, pkg), source.module, pkg);
@@ -5299,10 +5297,7 @@ function pageFrontEnds(el) {
       if (prepared === void 0 || signal.aborted) return;
       el.replaceChildren();
       if (prepared.render === void 0) {
-        showError(
-          el,
-          prepared.id === "" ? `No front-end draws the board: ${messageOf(prepared.error)}` : `The front-end ${prepared.id} cannot draw the board: ${messageOf(prepared.error)}`
-        );
+        showError(el, `The front-end ${prepared.id} cannot draw the board: ${messageOf(prepared.error)}`);
         report(prepared.error);
         return;
       }
@@ -6350,189 +6345,36 @@ function randomUuid() {
   return [text.slice(0, 8), text.slice(8, 12), text.slice(12, 16), text.slice(16, 20), text.slice(20)].join("-");
 }
 
-// srcts/store/registrations.ts
-var CORE_BOARD = {
-  class: "board",
-  options: ["show_conditions", "dark_mode"],
-  properties: {}
-};
-var CORE_PROPERTIES = [
-  "id",
-  "class",
-  "name",
-  "blocks",
-  "links",
-  "stacks",
-  "options"
-];
-function createRegistrations() {
-  const classes = y(/* @__PURE__ */ new Map());
-  const options = y([]);
-  const migrations = y(/* @__PURE__ */ new Map());
-  const optionIndex = O(
-    () => new Map(options.value.map((option) => [option.def.id, option]))
-  );
-  const registered = O(() => [...classes.value.values()].map((cls) => cls.def));
-  const optionDefs = O(
-    () => Object.fromEntries(options.value.map((option) => [option.def.id, option.def]))
-  );
-  function checkInitial(what, validate2, initial, field) {
-    if (initial === void 0) return;
-    const failures = validate2(initial);
-    if (failures.length > 0) {
-      throw new Error(`The ${field} of ${what} ${failures.join(" ")}`);
-    }
-  }
-  function chainOf(cls) {
-    const chain = [cls];
-    let parent = cls.def.parent;
-    while (parent !== void 0) {
-      const next = classes.value.get(parent);
-      if (next === void 0 || chain.includes(next)) return void 0;
-      chain.unshift(next);
-      parent = next.def.parent;
-    }
-    return chain;
-  }
-  function registerClass(def, root = false) {
-    const name3 = def.class;
-    if (typeof name3 !== "string" || name3 === "") {
-      throw new Error(`The board class ${JSON.stringify(name3)} has no name.`);
-    }
-    const what = `the board class "${name3}"`;
-    if (classes.value.has(name3)) {
-      throw new Error(`The board class "${name3}" is registered already.`);
-    }
-    const parent = def.parent === void 0 ? void 0 : classes.value.get(def.parent);
-    if (!root && parent === void 0) {
-      throw new Error(
-        def.parent === void 0 ? `The board class "${name3}" names no parent, which every board class but core's "board" does.` : `The board class "${name3}" extends "${def.parent}", which no package registered.`
-      );
-    }
-    if (def.update !== void 0 && typeof def.update !== "function") {
-      throw new Error(`The board class "${name3}" has an update that is no function.`);
-    }
-    if (def.migrate !== void 0 && typeof def.migrate !== "function") {
-      throw new Error(`The board class "${name3}" has a migrate that is no function.`);
-    }
-    const inherited = /* @__PURE__ */ new Map();
-    for (const cls of (parent === void 0 ? void 0 : chainOf(parent)) ?? []) {
-      for (const property of Object.keys(cls.def.properties)) inherited.set(property, cls.def.class);
-    }
-    const validate2 = {};
-    for (const [property, given] of Object.entries(def.properties)) {
-      if (CORE_PROPERTIES.includes(property)) {
-        throw new Error(`The board class "${name3}" adds the property "${property}", which every board holds as core's.`);
-      }
-      const owner = inherited.get(property);
-      if (owner !== void 0) {
-        throw new Error(
-          `The board class "${name3}" adds the property "${property}", which its parent "${owner}" adds already.`
-        );
-      }
-      const of = `the property "${property}" of ${what}`;
-      if (!Object.hasOwn(given, "default")) {
-        throw new Error(`The property "${property}" of ${what} has no default.`);
-      }
-      validate2[property] = compile(of, given.schema);
-      checkInitial(of, validate2[property], given.default, "default");
-    }
-    const item = { def, validate: validate2 };
-    classes.value = new Map([...classes.value, [name3, item]]);
-    return () => {
-      if (classes.value.get(name3) !== item) return;
-      const rest = new Map(classes.value);
-      rest.delete(name3);
-      classes.value = rest;
-    };
-  }
-  function builtAs(vector) {
-    for (const name3 of vector) {
-      const cls = classes.value.get(name3);
-      const chain = cls === void 0 ? void 0 : chainOf(cls);
-      if (chain !== void 0) return built(chain);
-    }
-    const core = classes.value.get(CORE_BOARD.class);
-    if (core === void 0) throw new Error(`Core's board class "board" is not registered.`);
-    return built([core]);
-  }
-  registerClass(CORE_BOARD, true);
-  return {
-    register: (def) => registerClass(def),
-    registered: () => registered.value,
-    options: {
-      register(def) {
-        const what = `the board option "${def.id}"`;
-        if (optionIndex.value.has(def.id)) {
-          throw new Error(`The board option "${def.id}" is registered already.`);
-        }
-        const ui = def.ui;
-        if (!isObject(ui) || typeof ui.render !== "function") {
-          throw new Error(`The board option "${def.id}" has no UI module with a render() function.`);
-        }
-        const { onChange } = def;
-        if (onChange !== void 0 && typeof onChange !== "function") {
-          throw new Error(`The onChange of the board option "${def.id}" is no function.`);
-        }
-        if (def.migrate !== void 0 && typeof def.migrate !== "function") {
-          throw new Error(`The board option "${def.id}" has a migrate that is no function.`);
-        }
-        const validate2 = compile(what, def.schema);
-        if (typeof def.default !== "function") {
-          checkInitial(what, validate2, def.default, "default");
-        }
-        const item = { def, validate: validate2 };
-        options.value = [...options.value, item];
-        return () => {
-          options.value = options.value.filter((x2) => x2 !== item);
-        };
-      },
-      registered: () => optionDefs.value
-    },
-    registerMigration(registryId2, fn) {
-      if (migrations.value.has(registryId2)) {
-        throw new Error(`The block class "${registryId2}" has a migration registered already.`);
-      }
-      migrations.value = new Map([...migrations.value, [registryId2, fn]]);
-      return () => {
-        if (migrations.value.get(registryId2) !== fn) return;
-        const rest = new Map(migrations.value);
-        rest.delete(registryId2);
-        migrations.value = rest;
-      };
-    },
-    builtAs,
-    option: (id2) => optionIndex.value.get(id2),
-    migration: (registryId2) => migrations.value.get(registryId2)
-  };
+// srcts/store/plugins.ts
+var ROLES = ["frontend", "storage"];
+function inRole(plugins, classOf2, role) {
+  return Object.entries(plugins).filter(([, plugin]) => classOf2(plugin.class)?.[role] !== void 0).map(([id2]) => id2);
 }
-function built(chain) {
-  const properties = /* @__PURE__ */ new Map();
-  for (const cls of chain) {
-    for (const [name3, validate2] of Object.entries(cls.validate)) {
-      properties.set(name3, { owner: cls, validate: validate2 });
-    }
-  }
-  const def = chain.at(-1)?.def ?? CORE_BOARD;
-  return { def, chain, properties };
+function defaultState(def) {
+  return frozenCopy(def.state === void 0 ? {} : def.state.default);
 }
-function recordOf(board) {
-  return board;
-}
-function propertiesOf(board) {
+function keptPlugins(board, opening2, classOf2) {
   return Object.fromEntries(
-    Object.entries(recordOf(board)).filter(([name3]) => !CORE_PROPERTIES.includes(name3))
+    Object.entries(board).filter(
+      (entry) => isObject(entry[1]) && typeof entry[1].class === "string" && own(opening2, entry[0])?.class === entry[1].class && classOf2(entry[1].class) !== void 0
+    )
   );
 }
-function defaultOf(built2, name3) {
-  const at = built2.properties.get(name3);
-  return at === void 0 ? void 0 : own(at.owner.def.properties, name3)?.default;
+function appPlugins(board, opening2, classOf2) {
+  const kept = keptPlugins(board, opening2, classOf2);
+  const plugins = {};
+  for (const [id2, plugin] of Object.entries(opening2)) {
+    const def = classOf2(plugin.class);
+    if (def === void 0) continue;
+    plugins[id2] = own(kept, id2) ?? { class: plugin.class, name: plugin.name, state: defaultState(def) };
+  }
+  return plugins;
 }
 
 // srcts/store/check.ts
 var HEX_COLOR = "^#[0-9a-fA-F]{6}$";
 var hexColor = new RegExp(HEX_COLOR);
-function check(board, registry, registrations, built2, changed) {
+function check(board, registry, registrations, changed) {
   const failures = [];
   if (!isId(board.id)) {
     failures.push(`The board's id "${board.id}" is empty or made of digits alone.`);
@@ -6540,18 +6382,12 @@ function check(board, registry, registrations, built2, changed) {
   if (typeof board.name !== "string") {
     failures.push("The board's name is no string.");
   }
-  if (!isClass(board.class)) {
-    failures.push("The board's class is no array of class names, as R's class vector of a board is.");
-  }
   checkBlocks(board, registry, registrations, changed, failures);
   checkLinks(board, registry, changed, failures);
   checkStacks(board, changed, failures);
   checkValues(board, registrations, changed, failures);
-  checkProperties(board, built2, changed, failures);
+  checkPlugins(board, registrations, changed, failures);
   return failures;
-}
-function isClass(x2) {
-  return Array.isArray(x2) && x2.length > 0 && x2.every((cls) => typeof cls === "string" && cls !== "");
 }
 function ids(what, record, failures) {
   for (const id2 of Object.keys(record)) {
@@ -6661,18 +6497,36 @@ function checkValues(board, registrations, changed, failures) {
     }
   }
 }
-function checkProperties(board, built2, changed, failures) {
-  const record = recordOf(board);
-  for (const [name3, { validate: validate2 }] of built2.properties) {
-    if (changed !== void 0 && !changed.properties.has(name3)) continue;
-    const value2 = own(record, name3);
-    if (value2 === void 0) {
-      failures.push(`The board holds no value of the property "${name3}" of its class.`);
+function checkPlugins(board, registrations, changed, failures) {
+  ids("plugin", board.plugins, failures);
+  for (const [id2, plugin] of Object.entries(board.plugins)) {
+    if (changed !== void 0 && !changed.plugins.has(id2)) continue;
+    const fields = shape(plugin, { class: "string", name: "string", state: "value" });
+    if (fields.length > 0) {
+      failures.push(`The plugin "${id2}" ${fields.join(", ")}.`);
       continue;
     }
-    for (const failure of validate2(value2)) failures.push(`The property "${name3}" ${failure}`);
+    const cls = registrations.plugin(plugin.class);
+    if (cls === void 0) {
+      failures.push(`The plugin "${id2}" is of the class "${plugin.class}", which no package registered.`);
+      continue;
+    }
+    for (const failure of cls.validate(plugin.state)) {
+      failures.push(`The state of the plugin "${id2}" ${failure}`);
+    }
+  }
+  const classOf2 = (id2) => registrations.plugin(id2)?.def;
+  for (const role of ROLES) {
+    const held2 = inRole(board.plugins, classOf2, role);
+    if (held2.length > 1) {
+      failures.push(`The board holds the ${ROLE_NAMES[role]} ${quoted(held2)}, where it holds one at most.`);
+    }
   }
 }
+var ROLE_NAMES = {
+  frontend: "frontends",
+  storage: "storage plugins"
+};
 function shape(value2, fields) {
   if (!isObject(value2)) return ["is no object"];
   const problems = [];
@@ -6686,6 +6540,8 @@ function shape(value2, fields) {
 }
 function fits(x2, kind) {
   switch (kind) {
+    case "value":
+      return x2 !== void 0;
     case "array":
       return Array.isArray(x2);
     case "object":
@@ -6703,6 +6559,10 @@ function pointer(path) {
   const parts = path.slice(1).split("/");
   if (parts.some((part) => /~(?![01])/.test(part))) return void 0;
   return parts.map((part) => part.replaceAll("~1", "/").replaceAll("~0", "~"));
+}
+function pluginOf(path) {
+  const [top, plugin] = pointer(path) ?? [];
+  return top === "plugins" ? plugin : void 0;
 }
 function pathOf(parts) {
   return parts.map((part) => `/${part.replaceAll("~", "~0").replaceAll("/", "~1")}`).join("");
@@ -6831,9 +6691,9 @@ function arrayIndex(part) {
 
 // srcts/store/commit.ts
 function target(of) {
-  return "block" in of ? JSON.stringify(["block", of.block]) : JSON.stringify(["property", of.property]);
+  return "block" in of ? JSON.stringify(["block", of.block]) : JSON.stringify(["plugin", of.plugin]);
 }
-function commit(board, delta, built2, places = {}) {
+function commit(board, delta, places = {}) {
   const failures = [];
   const targets = /* @__PURE__ */ new Set();
   const blocks = collection(
@@ -6878,8 +6738,8 @@ function commit(board, delta, built2, places = {}) {
     stacks: stacks.next,
     options: options.next
   };
-  const patched = patch(next, delta.patches ?? [], built2, places.patches ?? {}, failures);
-  for (const property of patched.properties) targets.add(target({ property }));
+  const patched = patch(next, delta.patches ?? [], places.patches ?? {}, failures);
+  for (const plugin of patched.plugins) targets.add(target({ plugin }));
   next = patched.board;
   if (failures.length > 0) return { failures };
   const inverse = {
@@ -6905,16 +6765,16 @@ function commit(board, delta, built2, places = {}) {
       links: new Set(links.changed),
       stacks: new Set(stacks.changed),
       options: options.changed,
-      properties: patched.properties,
+      plugins: patched.plugins,
       targets
     }
   };
 }
-function patch(board, patches2, built2, placed, failures) {
-  let next = recordOf(board);
+function patch(board, patches2, placed, failures) {
+  let next = board;
   const inverse = [];
   const places = {};
-  const properties = /* @__PURE__ */ new Set();
+  const plugins = /* @__PURE__ */ new Set();
   for (const [i2, given] of patches2.entries()) {
     const name3 = `The patch ${String(i2 + 1)}`;
     const problems = malformed(given);
@@ -6923,17 +6783,9 @@ function patch(board, patches2, built2, placed, failures) {
       continue;
     }
     const parts = pointer(given.path) ?? [];
-    const [property = ""] = parts;
-    if (!built2.properties.has(property)) {
-      failures.push(
-        `${name3}, ${given.op} at "${given.path}", changes "${property}", which the board class "${built2.def.class}" does not add.`
-      );
-      continue;
-    }
-    if (parts.length === 1 && given.op === "remove") {
-      failures.push(
-        `${name3} removes the property "${property}", which a board of the class "${built2.def.class}" always holds.`
-      );
+    const misplaced2 = outside(parts, given.op);
+    if (misplaced2 !== void 0) {
+      failures.push(`${name3}, ${given.op} at "${given.path}", ${misplaced2}.`);
       continue;
     }
     const place = given.op === "add" ? own(placed, given.path) : void 0;
@@ -6946,9 +6798,24 @@ function patch(board, patches2, built2, placed, failures) {
     if (applied.inverse === void 0) continue;
     inverse.unshift(applied.inverse);
     if (applied.place !== void 0) places[applied.inverse.path] = applied.place;
-    properties.add(property);
+    plugins.add(parts[1] ?? "");
   }
-  return { board: next, inverse, places, properties };
+  return { board: next, inverse, places, plugins };
+}
+function outside(parts, op) {
+  const [top, plugin, part] = parts;
+  if (top !== "plugins") return `changes "${top ?? ""}", where a patch changes the board's plugins alone`;
+  if (plugin === void 0) return "changes the board's plugins as a whole, where a patch changes one plugin";
+  if (part === void 0) {
+    return `changes the plugin "${plugin}" as a whole, where a patch changes a plugin's name or its state, since the app's opening board sets the plugins that a board holds`;
+  }
+  if (part !== "name" && part !== "state") {
+    return `changes "${part}" of the plugin "${plugin}", where a patch below a plugin changes its name or its state`;
+  }
+  if (parts.length === 3 && op === "remove") {
+    return `removes the ${part} of the plugin "${plugin}", which a plugin always holds`;
+  }
+  return void 0;
 }
 function collection(name3, current2, part, modify, places, before, failures) {
   if (part === void 0) {
@@ -7106,7 +6973,7 @@ var StoreError = class extends Error {
 
 // srcts/store/expand.ts
 var ROUNDS = 10;
-function expand(delta, board, built2) {
+function expand(delta, board, registrations) {
   let expanded = delta;
   for (let round = 0; round < ROUNDS; round++) {
     const adding = [];
@@ -7114,22 +6981,23 @@ function expand(delta, board, built2) {
     const core = expandCore(expanded, board);
     const grew = core !== expanded;
     expanded = core;
-    for (const { def } of built2.chain) {
-      if (def.update === void 0) continue;
+    for (const [id2, plugin] of Object.entries(board.plugins)) {
+      const def = registrations.plugin(plugin.class)?.def;
+      if (def?.update === void 0) continue;
       let patches2;
       try {
-        patches2 = def.update(expanded, board);
+        patches2 = def.update(expanded, board, id2);
       } catch (error) {
-        failures.push(`The board class "${def.class}" failed to update the delta: ${messageOf(error)}`);
+        failures.push(`The plugin class "${def.id}" failed to update the delta for the plugin "${id2}": ${messageOf(error)}`);
         continue;
       }
-      const wrong = misplaced(def.class, Object.keys(def.properties), patches2);
+      const wrong = misplaced(def.id, id2, patches2);
       if (wrong.length > 0) {
         failures.push(...wrong);
         continue;
       }
       const merged = merge(expanded, delta, patches2);
-      if (merged !== expanded) adding.push(def.class);
+      if (merged !== expanded) adding.push(id2);
       expanded = merged;
     }
     if (failures.length > 0) return { failures };
@@ -7137,7 +7005,7 @@ function expand(delta, board, built2) {
     if (round === ROUNDS - 1) {
       return {
         failures: [
-          `The delta kept expanding after ${String(ROUNDS)} rounds, through the board class${adding.length > 1 ? "es" : ""} ${quoted(adding)}.`
+          `The delta kept expanding after ${String(ROUNDS)} rounds, through the update of the plugin${adding.length > 1 ? "s" : ""} ${quoted(adding)}.`
         ]
       };
     }
@@ -7167,23 +7035,20 @@ function expandCore(delta, board) {
     ...Object.keys(placed).length === 0 ? {} : { stacks: { ...delta.stacks, mod: { ...stacksMod, ...placed } } }
   };
 }
-function misplaced(cls, adds, patches2) {
-  if (!Array.isArray(patches2)) {
-    return [`The board class "${cls}" updated the delta with no array of patches.`];
-  }
+function misplaced(cls, id2, patches2) {
+  const of = `The plugin class "${cls}" updated the delta for the plugin "${id2}"`;
+  if (!Array.isArray(patches2)) return [`${of} with no array of patches.`];
   const failures = [];
   for (const patch2 of patches2) {
     const problems = malformed(patch2);
     if (problems.length > 0) {
-      failures.push(`A patch that the board class "${cls}" updated the delta with ${problems.join(", ")}.`);
+      failures.push(`${of} with a patch that ${problems.join(", ")}.`);
       continue;
     }
     const { path } = patch2;
-    const property = pointer(path)?.[0] ?? "";
-    if (!adds.includes(property)) {
-      failures.push(
-        `The board class "${cls}" updated the delta with a patch at "${path}", outside the properties it adds.`
-      );
+    const [top, plugin, part] = pointer(path) ?? [];
+    if (top !== "plugins" || plugin !== id2 || part !== "state") {
+      failures.push(`${of} with a patch at "${path}", outside that plugin's state.`);
     }
   }
   return failures;
@@ -7206,7 +7071,7 @@ function same(a2, b2) {
 }
 
 // srcts/store/undo.ts
-function fit(delta, board, built2) {
+function fit(delta, board) {
   const blocks = collection2(board.blocks, delta.blocks);
   const kept = /* @__PURE__ */ new Set([
     ...Object.keys(board.blocks).filter((id2) => !(blocks.rm ?? []).includes(id2)),
@@ -7233,15 +7098,15 @@ function fit(delta, board, built2) {
     },
     ...delta.options === void 0 ? {} : { options: delta.options },
     ...delta.name === void 0 ? {} : { name: delta.name },
-    patches: patches(delta.patches ?? [], board, built2)
+    patches: patches(delta.patches ?? [], board)
   });
 }
-function patches(given, board, built2) {
-  let at = recordOf(board);
+function patches(given, board) {
+  let at = board;
   const fitted = [];
   for (const patch2 of given) {
     const parts = pointer(patch2.path) ?? [];
-    if (!built2.properties.has(parts[0] ?? "")) continue;
+    if (parts[0] !== "plugins") continue;
     const applied = applyPatch(at, patch2, parts);
     if ("failure" in applied) continue;
     at = applied.next;
@@ -7273,9 +7138,135 @@ function isEmpty(delta) {
   return Object.keys(prune(delta)).length === 0;
 }
 
+// srcts/store/registrations.ts
+var BASIC_OPTIONS = ["show_conditions", "dark_mode"];
+function createRegistrations() {
+  const classes = y(/* @__PURE__ */ new Map());
+  const options = y([]);
+  const migrations = y(/* @__PURE__ */ new Map());
+  const optionIndex = O(
+    () => new Map(options.value.map((option) => [option.def.id, option]))
+  );
+  const classDefs = O(
+    () => Object.fromEntries([...classes.value].map(([id2, cls]) => [id2, cls.def]))
+  );
+  const optionDefs = O(
+    () => Object.fromEntries(options.value.map((option) => [option.def.id, option.def]))
+  );
+  function checkInitial(what, validate2, initial, field) {
+    if (initial === void 0) return;
+    const failures = validate2(initial);
+    if (failures.length > 0) {
+      throw new Error(`The ${field} of ${what} ${failures.join(" ")}`);
+    }
+  }
+  function registerPlugin(def) {
+    const { id: id2 } = def;
+    if (typeof id2 !== "string" || !isPluginClassId(id2)) {
+      throw new Error(
+        `The plugin class id ${JSON.stringify(id2)} is not named as R names a plugin class, "{pkg}-{name}_plugin".`
+      );
+    }
+    if (classes.value.has(id2)) {
+      throw new Error(`The plugin class "${id2}" is registered already.`);
+    }
+    const given = def;
+    for (const [member, article] of [["update", "an"], ["migrate", "a"], ["start", "a"]]) {
+      if (given[member] !== void 0 && typeof given[member] !== "function") {
+        throw new Error(`The plugin class "${id2}" has ${article} ${member} that is no function.`);
+      }
+    }
+    for (const member of ["ui", "frontend"]) {
+      if (given[member] !== void 0 && (typeof given[member] !== "string" || given[member] === "")) {
+        throw new Error(`The plugin class "${id2}" has a ${member} that is no module's id.`);
+      }
+    }
+    const storage = given.storage;
+    if (storage !== void 0 && (!isObject(storage) || typeof storage.save !== "function" || typeof storage.open !== "function")) {
+      throw new Error(`The plugin class "${id2}" has a storage without save() and open() functions.`);
+    }
+    if (given.options !== void 0 && (!Array.isArray(given.options) || !given.options.every((option) => typeof option === "string"))) {
+      throw new Error(`The plugin class "${id2}" requires board options that are no array of their ids.`);
+    }
+    const what = `the state of the plugin class "${id2}"`;
+    let validate2 = () => [];
+    const state2 = given.state;
+    if (state2 !== void 0) {
+      if (!isObject(state2) || !isObject(state2.schema) || !Object.hasOwn(state2, "default")) {
+        throw new Error(`The plugin class "${id2}" gives a state without a schema and a default.`);
+      }
+      validate2 = compile(what, state2.schema);
+      checkInitial(what, validate2, state2.default, "default");
+    }
+    const item = { def, validate: validate2 };
+    classes.value = new Map([...classes.value, [id2, item]]);
+    return () => {
+      if (classes.value.get(id2) !== item) return;
+      const rest = new Map(classes.value);
+      rest.delete(id2);
+      classes.value = rest;
+    };
+  }
+  return {
+    plugins: {
+      register: registerPlugin,
+      registered: () => classDefs.value
+    },
+    options: {
+      register(def) {
+        const what = `the board option "${def.id}"`;
+        if (optionIndex.value.has(def.id)) {
+          throw new Error(`The board option "${def.id}" is registered already.`);
+        }
+        const ui = def.ui;
+        if (!isObject(ui) || typeof ui.render !== "function") {
+          throw new Error(`The board option "${def.id}" has no UI module with a render() function.`);
+        }
+        const { onChange } = def;
+        if (onChange !== void 0 && typeof onChange !== "function") {
+          throw new Error(`The onChange of the board option "${def.id}" is no function.`);
+        }
+        if (def.migrate !== void 0 && typeof def.migrate !== "function") {
+          throw new Error(`The board option "${def.id}" has a migrate that is no function.`);
+        }
+        const validate2 = compile(what, def.schema);
+        if (typeof def.default !== "function") {
+          checkInitial(what, validate2, def.default, "default");
+        }
+        const item = { def, validate: validate2 };
+        options.value = [...options.value, item];
+        return () => {
+          options.value = options.value.filter((x2) => x2 !== item);
+        };
+      },
+      registered: () => optionDefs.value
+    },
+    registerMigration(registryId2, fn) {
+      if (migrations.value.has(registryId2)) {
+        throw new Error(`The block class "${registryId2}" has a migration registered already.`);
+      }
+      migrations.value = new Map([...migrations.value, [registryId2, fn]]);
+      return () => {
+        if (migrations.value.get(registryId2) !== fn) return;
+        const rest = new Map(migrations.value);
+        rest.delete(registryId2);
+        migrations.value = rest;
+      };
+    },
+    plugin: (id2) => classes.value.get(id2),
+    option: (id2) => optionIndex.value.get(id2),
+    migration: (registryId2) => migrations.value.get(registryId2)
+  };
+}
+function isPluginClassId(id2) {
+  const pkg = packageOf(id2);
+  return pkg !== null && /^.+_plugin$/.test(id2.slice(pkg.length + 1));
+}
+
 // srcts/store/open.ts
 var FORMAT = 1;
-var COLLECTIONS = ["blocks", "links", "stacks", "options"];
+var COLLECTIONS = ["blocks", "links", "stacks", "options", "plugins"];
+var PROPERTIES = ["id", "name", ...COLLECTIONS];
 var refused = "The store refused to open the board";
 function parse(text) {
   try {
@@ -7303,7 +7294,6 @@ function checkJsonBoard(json) {
     throw new StoreError(refused, ["The JSON board names no packages with their versions."]);
   }
   if (!isObject(json.board)) throw new StoreError(refused, ["The JSON board holds no board."]);
-  classOf(json.board);
   const board = json.board;
   const lacking = COLLECTIONS.filter((name3) => !isObject(board[name3]));
   if (lacking.length > 0) {
@@ -7318,7 +7308,7 @@ function isVersion(value2) {
 function checkVersions(board) {
   const failures = [];
   if (!isObject(board.versions) || !Object.values(board.versions).every(isVersion)) {
-    failures.push("The board records its classes' versions as no whole numbers from 1 by class.");
+    failures.push("The board records the versions of its plugin classes as no whole numbers from 1 by class.");
   }
   for (const [id2, block] of Object.entries(board.blocks)) {
     if (isObject(block) && !isVersion(block.version)) {
@@ -7332,17 +7322,10 @@ function checkVersions(board) {
   }
   if (failures.length > 0) throw new StoreError(refused, failures);
 }
-function classOf(board) {
-  if (!isClass(board.class)) {
-    throw new StoreError(refused, [
-      "The board's class is no array of class names, as R's class vector of a board is."
-    ]);
-  }
-  return board.class;
-}
 function unversioned(board) {
+  const record = board;
   return {
-    ...without(recordOf(board), ["versions"]),
+    ...Object.fromEntries(Object.entries(record).filter(([name3]) => PROPERTIES.includes(name3))),
     blocks: Object.fromEntries(
       Object.entries(board.blocks).map(([id2, block]) => [
         id2,
@@ -7352,47 +7335,46 @@ function unversioned(board) {
     options: Object.fromEntries(Object.entries(board.options).map(([id2, option]) => [id2, option.value]))
   };
 }
-function coreOf(board) {
-  return Object.fromEntries(
-    Object.entries(recordOf(board)).filter(([name3]) => CORE_PROPERTIES.includes(name3))
-  );
-}
-function migrate(board, json, built2, reply, registrations) {
-  const failures = [];
-  let changed = false;
-  let properties = frozenCopy(propertiesOf(board));
-  for (const { def } of built2.chain) {
-    const from = own(json.versions, def.class);
-    const to = own(reply.board_classes, def.class)?.version;
-    if (from === void 0 || to === void 0 || from === to) continue;
-    if (from > to) {
-      failures.push(
-        `The board records version ${String(from)} of the board class "${def.class}", while R gives version ${String(to)}.`
+function migrate(board, json, reply, registrations) {
+  const failures = /* @__PURE__ */ new Set();
+  const changed = /* @__PURE__ */ new Set();
+  const plugins = Object.fromEntries(
+    Object.entries(board.plugins).map(([id2, plugin]) => {
+      const cls = classOf(plugin);
+      const def = cls === void 0 ? void 0 : registrations.plugin(cls)?.def;
+      if (cls === void 0 || def === void 0) return [id2, plugin];
+      const from = own(json.versions, cls);
+      const to = own(reply.plugin_versions, cls) ?? 1;
+      if (from === void 0 || from === to) return [id2, plugin];
+      if (from > to) {
+        failures.add(
+          `The board records version ${String(from)} of the plugin class "${cls}", while R gives version ${String(to)}.`
+        );
+        return [id2, plugin];
+      }
+      if (def.migrate === void 0) return [id2, plugin];
+      changed.add("plugins");
+      const state2 = migratedValue(
+        `The migration of the plugin class "${cls}"`,
+        () => def.migrate?.(frozenCopy(plugin.state), from)
       );
-      continue;
-    }
-    if (def.migrate === void 0) continue;
-    const given = properties;
-    properties = migrated(
-      `The migration of the board class "${def.class}"`,
-      () => def.migrate?.(given, from)
-    );
-    changed = true;
-  }
+      return [id2, { ...plugin, state: state2 }];
+    })
+  );
   const blocks = Object.fromEntries(
     Object.entries(board.blocks).map(([id2, block]) => {
       const from = own(json.blocks, id2)?.version;
       const to = own(reply.block_registry, block.registry_id)?.version;
       if (from === void 0 || to === void 0 || from === to) return [id2, block];
       if (from > to) {
-        failures.push(
+        failures.add(
           `The block "${id2}" records version ${String(from)} of the state of "${block.registry_id}", while its class is at version ${String(to)}.`
         );
         return [id2, block];
       }
       const fn = registrations.migration(block.registry_id);
       if (fn === void 0) return [id2, block];
-      changed = true;
+      changed.add("blocks");
       const state2 = migrated(
         `The migration of the block class "${block.registry_id}"`,
         () => fn(frozenCopy(block.state), from)
@@ -7406,23 +7388,23 @@ function migrate(board, json, built2, reply, registrations) {
       const to = own(reply.option_versions, id2) ?? 1;
       if (from === void 0 || from === to) return [id2, value2];
       if (from > to) {
-        failures.push(
+        failures.add(
           `The board records version ${String(from)} of the value of the board option "${id2}", while R gives version ${String(to)}.`
         );
         return [id2, value2];
       }
       const def = registrations.option(id2)?.def;
       if (def?.migrate === void 0) return [id2, value2];
-      changed = true;
+      changed.add("options");
       return [
         id2,
         migratedValue(`The migration of the board option "${id2}"`, () => def.migrate?.(frozenCopy(value2), from))
       ];
     })
   );
-  if (failures.length > 0) throw new StoreError(refused, failures);
-  if (!changed) return board;
-  return { ...coreOf(board), ...properties, blocks, options };
+  if (failures.size > 0) throw new StoreError(refused, [...failures]);
+  if (changed.size === 0) return board;
+  return { ...board, plugins, blocks, options };
 }
 function migrated(what, fn) {
   const out = migratedValue(what, fn);
@@ -7440,71 +7422,72 @@ function migratedValue(what, fn) {
   return frozenCopy(out);
 }
 function openJsonBoard(json, reply, registrations) {
-  const plain = unversioned(json.board);
-  const built2 = registrations.builtAs(classOf(plain));
-  const migrated2 = migrate(plain, json.board, built2, reply, registrations);
+  const opening2 = openingPlugins(reply.board);
+  const pluginClass = (id2) => registrations.plugin(id2)?.def;
+  const read = unversioned(json.board);
+  const held2 = keptPlugins(read.plugins, opening2, pluginClass);
+  const plugins = Object.entries(read.plugins).flatMap(([id2, plugin]) => {
+    const cls = classOf(plugin);
+    return cls === void 0 || Object.hasOwn(held2, id2) ? [] : [{ plugin: id2, class: cls, package: packageOf(cls) }];
+  });
+  const migrated2 = migrate({ ...read, plugins: held2 }, json.board, reply, registrations);
   const gone = Object.entries(migrated2.blocks).filter(([, block]) => own(reply.block_registry, block.registry_id) === void 0).map(([id2]) => id2);
   const blocks = gone.map((id2) => {
     const registryId2 = migrated2.blocks[id2]?.registry_id ?? "";
     return { block: id2, registry_id: registryId2, package: packageOf(registryId2) };
   });
-  const pruned = prune2(migrated2, built2, registrations);
-  const board = remove(complete(pruned, built2), gone, built2);
-  const failures = check(board, reply.block_registry, registrations, built2);
+  const kept = remove(prune2(migrated2, registrations), gone, registrations);
+  const board = { ...kept, plugins: appPlugins(kept.plugins, opening2, pluginClass) };
+  const failures = check(board, reply.block_registry, registrations);
   if (failures.length > 0) throw new StoreError(refused, failures);
   const packages = Object.entries(json.packages).filter(([pkg]) => own(reply.packages, pkg) === void 0).map(([pkg, version]) => ({ package: pkg, version }));
-  return { board, dropped: [...packages, ...blocks], built: built2 };
+  return { board, dropped: [...packages, ...blocks, ...plugins] };
 }
-function prune2(board, built2, registrations) {
+function classOf(plugin) {
+  return isObject(plugin) && typeof plugin.class === "string" ? plugin.class : void 0;
+}
+function openingPlugins(opening2) {
+  const plugins = isObject(opening2) && isObject(opening2.board) ? opening2.board.plugins : void 0;
+  if (!isObject(plugins)) return {};
+  return Object.fromEntries(
+    Object.entries(plugins).filter(
+      (entry) => isObject(entry[1]) && typeof entry[1].class === "string"
+    )
+  );
+}
+function prune2(board, registrations) {
   const unfit = Object.entries(board.options).filter(([id2, value2]) => {
     const def = registrations.option(id2);
     return def === void 0 || def.validate(value2).length > 0;
   }).map(([id2]) => id2);
-  const kept = Object.fromEntries(
-    Object.entries(recordOf(board)).filter(
-      ([name3]) => CORE_PROPERTIES.includes(name3) || built2.properties.has(name3)
-    )
-  );
-  return { ...kept, options: without(board.options, unfit) };
+  return { ...board, options: without(board.options, unfit) };
 }
-function complete(board, built2) {
-  const record = recordOf(board);
-  const lacking = [...built2.properties.keys()].filter((name3) => !Object.hasOwn(record, name3));
-  if (lacking.length === 0) return board;
-  return {
-    ...board,
-    ...Object.fromEntries(lacking.map((name3) => [name3, defaultOf(built2, name3)]))
-  };
-}
-function remove(board, gone, built2) {
+function remove(board, gone, registrations) {
   if (gone.length === 0) return board;
-  const delta = expand({ blocks: { rm: gone } }, board, built2);
+  const delta = expand({ blocks: { rm: gone } }, board, registrations);
   if ("failures" in delta) throw new StoreError(refused, delta.failures);
-  const committed = commit(board, delta, built2);
+  const committed = commit(board, delta);
   if ("failures" in committed) throw new StoreError(refused, committed.failures);
   return committed.board;
 }
-async function required(board, built2, registrations) {
-  const by = /* @__PURE__ */ new Map();
-  for (const { def } of built2.chain) {
-    for (const id2 of def.options ?? []) if (!by.has(id2)) by.set(id2, def.class);
-  }
-  const lacking = [...by].filter(([id2]) => !Object.hasOwn(board.options, id2)).map(([id2, cls]) => ({ id: id2, cls, option: registrations.option(id2) }));
+async function required(board, registrations) {
+  const lacking = BASIC_OPTIONS.filter((id2) => !Object.hasOwn(board.options, id2)).map((id2) => ({
+    id: id2,
+    option: registrations.option(id2)
+  }));
   const missing = lacking.filter(({ option }) => option === void 0);
   if (missing.length > 0) {
     throw new StoreError(
       refused,
       missing.map(
-        ({ id: id2, cls }) => `The board class "${cls}" requires the board option "${id2}", which no loaded package defines.`
+        ({ id: id2 }) => `Core's basic frontend requires the board option "${id2}", which no loaded package defines.`
       )
     );
   }
-  const defined = lacking.flatMap(
-    ({ id: id2, cls, option }) => option === void 0 ? [] : [{ id: id2, cls, option }]
-  );
+  const defined = lacking.flatMap(({ id: id2, option }) => option === void 0 ? [] : [{ id: id2, option }]);
   const values2 = await Promise.all(
-    defined.map(async ({ id: id2, cls, option }) => {
-      const what = `The default of the board option "${id2}", which the board class "${cls}" requires,`;
+    defined.map(async ({ id: id2, option }) => {
+      const what = `The default of the board option "${id2}", which core's basic frontend requires,`;
       let value2;
       try {
         const given = option.def.default;
@@ -7526,7 +7509,6 @@ var ENDED = "Another board opened in a new store, so this store changes its boar
 function createStore(options = {}) {
   const registrations = createRegistrations();
   const board = y(void 0);
-  let built2;
   let hello = options.hello;
   const registry = y(options.hello?.block_registry ?? {});
   const packages = y(options.hello?.packages ?? {});
@@ -7547,13 +7529,13 @@ function createStore(options = {}) {
   function guard2() {
     if (busy) {
       throw new Error(
-        "The store is applying or announcing a change, which a subscriber, a board class's update or a migration may not change, since what follows from a delta is a board class's update."
+        "The store is applying or announcing a change, which a subscriber, a plugin class's update or a migration may not change, since what follows from a delta is a plugin class's update."
       );
     }
   }
   function current2(refused2) {
     if (ended()) throw new StoreError(refused2, [ENDED]);
-    if (board.value !== void 0 && built2 !== void 0) return { board: board.value, built: built2 };
+    if (board.value !== void 0) return board.value;
     throw new StoreError(refused2, ["The store holds no board until it opens one."]);
   }
   function announce2(change, next) {
@@ -7571,18 +7553,18 @@ function createStore(options = {}) {
   function setSteps(origin, steps2) {
     history.value = new Map([...history.value, [origin, steps2]]);
   }
-  function run(start2, as, deltas, how, refused2) {
+  function run(start2, deltas, how, refused2) {
     const applied = [];
     const inverses = [];
     let current3 = start2;
     for (const [i2, given] of deltas.entries()) {
       const prefix = deltas.length > 1 ? `Delta ${String(i2 + 1)}: ` : "";
       const fail = (failures2) => new StoreError(refused2, failures2.map((failure) => prefix + failure));
-      const delta = how.fit === true ? fit(given, current3, as) : given;
+      const delta = how.fit === true ? fit(given, current3) : given;
       if (how.fit === true && isEmpty(delta)) continue;
-      const expanded = expand(delta, current3, as);
+      const expanded = expand(delta, current3, registrations);
       if ("failures" in expanded) throw fail(expanded.failures);
-      const committed = commit(current3, expanded, as, how.places?.[i2]);
+      const committed = commit(current3, expanded, how.places?.[i2]);
       if ("failures" in committed) throw fail(committed.failures);
       const undoable = !isEmpty(committed.inverse.delta);
       if (!undoable && committed.changed.options.size === 0) continue;
@@ -7590,7 +7572,6 @@ function createStore(options = {}) {
         committed.board,
         registry.value,
         registrations,
-        as,
         committed.changed
       );
       if (failures.length > 0) throw fail(failures);
@@ -7602,11 +7583,11 @@ function createStore(options = {}) {
   }
   function exists(next, key) {
     const [kind, id2] = JSON.parse(key);
-    return kind !== "block" || Object.hasOwn(next.blocks, id2);
+    return Object.hasOwn(kind === "block" ? next.blocks : next.plugins, id2);
   }
   function describe2(key) {
     const [kind, id2] = JSON.parse(key);
-    return kind === "block" ? `block "${id2}"` : `the property "${id2}"`;
+    return kind === "block" ? `block "${id2}"` : `the plugin "${id2}"`;
   }
   function named2(deltas) {
     const failures = [];
@@ -7624,8 +7605,8 @@ function createStore(options = {}) {
         compare(target({ block: id2 }), mod.edit);
       }
       for (const patch2 of delta.patches ?? []) {
-        const property = pointer(patch2.path)?.[0];
-        if (property !== void 0) compare(target({ property }), patch2.edit);
+        const plugin = pluginOf(patch2.path);
+        if (plugin !== void 0) compare(target({ plugin }), patch2.edit);
       }
     }
     return [...new Set(failures)];
@@ -7644,10 +7625,10 @@ function createStore(options = {}) {
     busy = true;
     try {
       const refused2 = "The store rejected the delta";
-      const { board: start2, built: as } = current2(refused2);
+      const start2 = current2(refused2);
       const failures = named2(deltas);
       if (failures.length > 0) throw new StoreError(refused2, failures);
-      const { applied, inverses } = run(start2, as, deltas, {}, refused2);
+      const { applied, inverses } = run(start2, deltas, {}, refused2);
       if (applied.length === 0) return;
       number(applied, applied.at(-1)?.board ?? start2);
       if (inverses.length > 0) {
@@ -7669,10 +7650,9 @@ function createStore(options = {}) {
     busy = true;
     try {
       const refused2 = back ? "The store refused to undo the step" : "The store refused to redo the step";
-      const { board: start2, built: as } = current2(refused2);
+      const start2 = current2(refused2);
       const { applied, inverses } = run(
         start2,
-        as,
         step2.map(({ delta }) => delta),
         { fit: true, places: step2.map(({ places }) => places) },
         refused2
@@ -7715,9 +7695,9 @@ function createStore(options = {}) {
     } finally {
       busy = false;
     }
-    const values2 = await required(opened.board, opened.built, registrations);
+    const values2 = await required(opened.board, registrations);
     const next = Object.keys(values2).length === 0 ? opened.board : { ...opened.board, options: { ...opened.board.options, ...values2 } };
-    return { board: next, built: opened.built, dropped: opened.dropped };
+    return { board: next, dropped: opened.dropped };
   }
   function stillOpen() {
     if (ended()) throw new StoreError(refusedOpen, [ENDED]);
@@ -7732,7 +7712,7 @@ function createStore(options = {}) {
     opening2 = true;
     try {
       const { json, reply } = jsonOf(given);
-      await options.loaded?.(reply, json.board.class);
+      await options.loaded?.(reply);
       stillOpen();
       const opened = await build(json, reply);
       stillOpen();
@@ -7740,9 +7720,8 @@ function createStore(options = {}) {
       busy = true;
       try {
         board.value = opened.board;
-        built2 = opened.built;
         const step2 = ++lastStep;
-        for (const key of everyTarget(opened.board, opened.built)) edits.set(key, step2);
+        for (const key of everyTarget(opened.board)) edits.set(key, step2);
         announce2({ opened: opened.board, dropped: opened.dropped }, opened.board);
         return opened.dropped;
       } finally {
@@ -7762,13 +7741,12 @@ function createStore(options = {}) {
   }
   function jsonBoard() {
     const next = board.value;
-    if (next === void 0 || built2 === void 0) {
+    if (next === void 0) {
       throw new Error("The store holds no board until it opens one.");
     }
-    const classes = hello?.board_classes ?? {};
-    const chain = new Set(built2.chain.map(({ def }) => def.class));
+    const classes = [...new Set(Object.values(next.plugins).map((plugin) => plugin.class))];
     const owned = /* @__PURE__ */ new Set([
-      ...built2.chain.flatMap(({ def }) => own(classes, def.class)?.package ?? []),
+      ...classes.flatMap((cls) => packageOf(cls) ?? []),
       ...Object.values(next.blocks).flatMap(({ registry_id }) => packageOf(registry_id) ?? [])
     ]);
     const recorded = Object.fromEntries(
@@ -7778,10 +7756,7 @@ function createStore(options = {}) {
       })
     );
     const versions = Object.fromEntries(
-      next.class.flatMap((cls) => {
-        const version = chain.has(cls) ? own(classes, cls)?.version : void 0;
-        return version === void 0 ? [] : [[cls, version]];
-      })
+      classes.map((cls) => [cls, own(hello?.plugin_versions ?? {}, cls) ?? 1])
     );
     const blocks = Object.fromEntries(
       Object.entries(next.blocks).map(([id3, block]) => [
@@ -7800,34 +7775,21 @@ function createStore(options = {}) {
         { value: value2, version: own(hello?.option_versions ?? {}, id3) ?? 1 }
       ])
     );
-    const { id: id2, class: classVector, name: name3, links, stacks } = next;
+    const { id: id2, name: name3, links, stacks, plugins } = next;
     return {
       format: FORMAT,
       packages: recorded,
-      board: { id: id2, class: classVector, versions, name: name3, blocks, links, stacks, options: options2, ...propertiesOf(next) }
+      board: { id: id2, versions, name: name3, blocks, links, stacks, options: options2, plugins }
     };
   }
   function save() {
     return `${JSON.stringify(jsonBoard(), null, 2)}
 `;
   }
-  function frontEnd(classes) {
-    if (hello === void 0) {
-      throw new Error("The store knows the front-ends of board classes only once R has answered `hello`.");
-    }
-    const { chain } = registrations.builtAs(classes);
-    for (const { def } of [...chain].reverse()) {
-      const named3 = own(hello.board_classes, def.class)?.front_end;
-      if (named3 !== void 0) return named3;
-    }
-    throw new Error(
-      `R names no front-end for the board class "${chain.at(-1)?.def.class ?? ""}" or for its parents.`
-    );
-  }
-  function everyTarget(next, as) {
+  function everyTarget(next) {
     const targets = [
       ...Object.keys(next.blocks).map((id2) => ({ block: id2 })),
-      ...[...as.properties.keys()].map((property) => ({ property }))
+      ...Object.keys(next.plugins).map((id2) => ({ plugin: id2 }))
     ];
     return targets.map(target);
   }
@@ -7860,10 +7822,7 @@ function createStore(options = {}) {
     },
     canUndo: (origin = "user") => steps(origin).undo.length > 0,
     canRedo: (origin = "user") => steps(origin).redo.length > 0,
-    register: (def) => registrations.register(def),
-    registered: () => registrations.registered(),
-    boardClass: (classes) => registrations.builtAs(classes).def,
-    frontEnd,
+    plugins: registrations.plugins,
     registerMigration: (registryId2, fn) => registrations.registerMigration(registryId2, fn),
     options: registrations.options,
     jsonBoard,
@@ -7930,6 +7889,28 @@ var optionId = {
 var value = {
   description: "A JSON value, which the schema of what it is set on types."
 };
+var pluginId = {
+  ...id,
+  description: "The id of a plugin, unique among the board's plugins."
+};
+var statePatches = {
+  type: "array",
+  items: {
+    type: "object",
+    properties: {
+      op: { enum: ["add", "remove", "replace"] },
+      path: {
+        type: "string",
+        pattern: "^(/.*)?$",
+        description: `A JSON Pointer within the plugin's state, such as "/positions/a", or "" for the whole state.`
+      },
+      value: { description: "What an add or a replace puts at the path." }
+    },
+    required: ["op", "path"],
+    additionalProperties: false
+  },
+  description: "Changes of a plugin's state, as JSON Patch operations, which apply in their order and which the schema of the plugin's class types."
+};
 var described = /* @__PURE__ */ new WeakMap();
 function stateSchema(entry) {
   const known = described.get(entry);
@@ -7978,7 +7959,7 @@ var newBlock = {
     description: "Values of the new block's state args, which the schema of its class types, in place of those its class starts a block with."
   }
 };
-function coreCommands(store) {
+function coreCommands(store, options = {}) {
   const validators = /* @__PURE__ */ new WeakMap();
   function stateFailures(entry, state2) {
     let validate2 = validators.get(entry);
@@ -8337,7 +8318,25 @@ function coreCommands(store) {
       run: (_board, { id: id2, value: value2 }) => ({ options: { set: { [id2]: value2 } } })
     })
   ];
-  return [...blocks, ...links, ...stacks, ...board];
+  const plugins = [
+    command({
+      id: "blockr.core-set_plugin_state",
+      label: "Set plugin state",
+      description: "Changes a plugin's state by patches at paths within that state, as JSON Patch has them, which the schema of the plugin's class types. It is not enabled on a locked board, where only the commands of a plugin's class know what the plugin locks.",
+      args: object(
+        {
+          plugin: { ...pluginId, description: "The plugin whose state the patches change." },
+          patches: statePatches
+        },
+        ["plugin", "patches"]
+      ),
+      enabled: (board2, { plugin }) => options.locked !== true && Object.hasOwn(board2.plugins, plugin),
+      run: (_board, { plugin, patches: patches2 }) => ({
+        patches: patches2.map((patch2) => ({ ...patch2, path: `${pathOf(["plugins", plugin, "state"])}${patch2.path}` }))
+      })
+    })
+  ];
+  return [...blocks, ...links, ...stacks, ...board, ...plugins];
 }
 function freeInputs(board, registry, to, except) {
   const block = own(board.blocks, to);
@@ -8503,8 +8502,8 @@ function createCommands(store, options = {}) {
       },
       ...patches2 === void 0 ? {} : {
         patches: patches2.map((patch2) => {
-          const property = pointer(patch2.path)?.[0];
-          return property === void 0 ? patch2 : edit(patch2, store.editId({ property }));
+          const plugin = pluginOf(patch2.path);
+          return plugin === void 0 ? patch2 : edit(patch2, store.editId({ plugin }));
         })
       }
     };
@@ -8529,7 +8528,9 @@ function createCommands(store, options = {}) {
       return deltas(id2, given);
     }
   };
-  for (const command2 of coreCommands(store)) registry.register(command2);
+  for (const command2 of coreCommands(store, { locked: (options.lock ?? null) !== null })) {
+    registry.register(command2);
+  }
   return registry;
 }
 function isCommandId(id2) {
@@ -8552,6 +8553,7 @@ function attempt2(command2, fn) {
 
 // srcts/core/start.ts
 var CAPABILITIES = ["cancel", "interrupt", "progress"];
+var BASIC = "blockr.core-basic";
 function start(options) {
   const page = new AbortController();
   const fail = options.fail ?? ((error) => {
@@ -8637,10 +8639,10 @@ function start(options) {
     ]);
     const store = createStore({
       hello: reply,
-      loaded: (_reply, classes) => prepare(store, classes),
+      loaded: () => prepare(),
       signal
     });
-    const commands = createCommands(store, { signal });
+    const commands = createCommands(store, { signal, lock: reply.lock });
     for (const option of options.options({ blockrOption: (name3, fallback) => blockrOptions.read(name3, fallback) })) {
       store.options.register(option);
     }
@@ -8750,25 +8752,16 @@ function start(options) {
       report(new Error(`The board is locked, so core opens the board that R sent rather than the one that ${only.package} named.`));
       return void 0;
     }
-    let board;
     try {
-      board = JSON.parse(only.text);
+      JSON.parse(only.text);
     } catch (error) {
       report(new Error(`The startup module of ${only.package} named a board that holds no JSON, so core opens the board that R sent: ${messageOf(error)}`));
       return void 0;
     }
-    return { ...reply, board };
+    return only.text;
   }
-  async function prepare(store, classes) {
-    if (options.frontEnds === void 0) return;
-    let id2;
-    try {
-      id2 = store.frontEnd(classes);
-    } catch (error) {
-      await options.frontEnds.prepare({ error: asError(error) }, loader);
-      return;
-    }
-    await options.frontEnds.prepare({ id: id2, source: own(latest?.modules ?? {}, id2) }, loader);
+  async function prepare() {
+    await options.frontEnds?.prepare({ id: BASIC, source: own(latest?.modules ?? {}, BASIC) }, loader);
   }
   let queue = Promise.resolve();
   function reopen(given, of) {

@@ -24,8 +24,8 @@ import type { BlockrOptions } from "./blockr-options.ts";
 import { addedRequest } from "./requests.ts";
 
 export interface CoreParts {
-  // The store as front-ends and extensions see it, whose open() switches the
-  // page to the front-end of the board it opens (./start.ts).
+  // The store as front-ends and extensions see it, whose open() starts core
+  // again for the board it opens (./start.ts).
   readonly store: Store;
   readonly commands: Commands;
   readonly scheduler: Scheduler;
@@ -100,6 +100,9 @@ export function createCore(parts: CoreParts): CoreApi {
     },
     blockRegistry: () => store.blockRegistry(),
     options: store.options,
+    plugins: {
+      register: (def) => store.plugins.register(def),
+    },
     lock: parts.lock,
     outputEvents,
     request: <T = Json>(type: string, fields: Record<string, Json> = {}, opts = {}) =>
