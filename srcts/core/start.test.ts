@@ -6,12 +6,13 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { EvaluateRequest, HelloReply, Reply, Request, Transport, TransportListener } from "../protocol/index.ts";
 import { coreOptions } from "../options/index.ts";
+import type { Option } from "../store/index.ts";
 import { reports } from "../testing/reports.ts";
 import { hello, withPlugins } from "../testing/store.ts";
 import { startPage } from "../page/index.ts";
 import type { JsonBoard } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
-import type { JsonSchema } from "../types/json.ts";
+import type { Json, JsonSchema } from "../types/json.ts";
 import { pageFrontEnds, start } from "./index.ts";
 import type { Changed, StartOptions } from "./index.ts";
 
@@ -726,6 +727,107 @@ describe("a board opened later", () => {
     expect(reported.errors().map((error) => (error as Error).message)).toContain(
       "The startup module of blockr.session named a board to open as another board opened, which core ignores, since only a startup module that runs as the page starts names one.",
     );
+  });
+});
+
+describe("board options", () => {
+  const STARTUP = "blockr.test/startup.js?v=1";
+
+  // A startup module that registers the board option given, as the package
+  // that ships it does.
+  function registering(option: Option) {
+    return {
+      api: 1,
+      default: {
+        initialize({ core }: { core: CoreApi }) {
+          core.options.register(option);
+        },
+      },
+    };
+  }
+
+  // Starts the page on the board of the fixture hello, with a package that
+  // registers the board option given.
+  async function started(option: Option) {
+    const s = setup({ [STARTUP]: registering(option), [BASIC]: frontEnd().exports });
+    s.r.session(withStartup("blockr.test"));
+    await tick();
+    s.r.options();
+    const core = await s.started.ready;
+    await tick();
+    return { ...s, core };
+  }
+
+  // Opens a board that holds the values given, and answers the hello with
+  // which core starts again.
+  async function reopen(s: Setup, core: CoreApi, values: Readonly<Record<string, Json>>): Promise<CoreApi> {
+    const options = Object.fromEntries(Object.entries(values).map(([id, value]) => [id, { value, version: 1 }]));
+    const opening = core.store.open(JSON.stringify({ ...hello.board, board: { ...hello.board.board, options } }));
+    await tick();
+    s.r.answer(withStartup("blockr.test"));
+    await opening;
+    await tick();
+    const next = s.started.core();
+    if (next === undefined) throw new Error("No board is open.");
+    return next;
+  }
+
+  test("have their onChange called as each board opens, with the board's value, which core adds with the default where the board lacks it", async () => {
+    const heard: Json[] = [];
+    let calls = 0;
+    const zoom: Option = {
+      id: "zoom",
+      label: "Zoom",
+      category: "View options",
+      schema: { type: "number" },
+      default: () => {
+        calls++;
+        return Promise.resolve(1);
+      },
+      ui: { render: () => undefined },
+      onChange(value) {
+        heard.push(value);
+      },
+    };
+    const s = await started(zoom);
+    // Though nothing on the page requires zoom.
+    expect(heard).toEqual([1]);
+    expect(s.core.store.board().options.zoom).toBe(1);
+
+    // A delta that removes the value has core add the default again, which it
+    // resolves again, since it keeps none.
+    s.core.store.apply({ options: { set: { zoom: 2 } } });
+    s.core.store.apply({ options: { unset: ["zoom"] } });
+    await tick();
+    expect(heard).toEqual([1, 2, 1]);
+    expect(s.core.store.board().options.zoom).toBe(1);
+    expect(calls).toBe(2);
+
+    // Each board that opens later has it called again.
+    const next = await reopen(s, s.core, { zoom: 3 });
+    expect(heard).toEqual([1, 2, 1, 3]);
+    await reopen(s, next, {});
+    expect(heard).toEqual([1, 2, 1, 3, 1]);
+    expect(calls).toBe(3);
+  });
+
+  test("give their values as the board holds them through value()", async () => {
+    const zoom: Option = {
+      id: "zoom",
+      label: "Zoom",
+      category: "View options",
+      schema: { type: "number" },
+      default: 1,
+      ui: { render: () => undefined },
+    };
+    const s = await started(zoom);
+    // The board of the fixture hello holds n_rows, while nothing on the page
+    // requires zoom, so the board holds no value of it.
+    expect(s.core.options.value("n_rows")).toBe(50);
+    expect(s.core.options.value("zoom")).toBeUndefined();
+
+    s.core.store.apply({ options: { set: { zoom: 3 } } });
+    expect(s.core.options.value("zoom")).toBe(3);
   });
 });
 

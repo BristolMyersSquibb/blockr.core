@@ -258,6 +258,7 @@ R also names a renderer before any output exists: in the `renderer` of each bloc
 The client loads that renderer, and adds the board options it names to the board, before it asks for a block's first output, so that the request carries every board option that the coercion reads, such as the `n_rows` by which a table output pages.
 Where the output that comes back names another renderer, as an output of a subclass with a renderer of its own does, the client draws the output with that one.
 An entry has no `renderer` where no output class gives the class's coercion, and the client then learns the renderer from the block's first output.
+That first request carries the value of every board option that a loaded package defines: the board's, or else the board option's default, which the client sends without adding it to the board, so that a coercion that wraps `as_table_output()` gets `n_rows` on a fresh board too.
 
 The contracts of core's output classes, for tables, text and plots, are their TypeScript types in [`srcts/types/outputs.ts`](../../srcts/types/outputs.ts). The build generates the JSON Schema of each class's outputs from its type, into [`inst/outputs`](../outputs/), and R writes the outputs by it. Sample outputs of each class, which every renderer of the class is tested on, are in [`inst/outputs/fixtures`](../outputs/fixtures/).
 

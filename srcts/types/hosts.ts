@@ -24,19 +24,20 @@ export type State = Readonly<Record<string, Json>>;
 // render() whenever it mounts the module, with the element to draw in, the
 // host, and a signal that it aborts when it unmounts the module. The render()
 // function may be async and may return its cleanup, which core runs when it
-// aborts the signal. The default may name the board options the module
-// requires. Core adds each to the board, with its definition's default where
-// the board lacks it, before it calls render(). A block class's UI module
-// names among them every board option that a request of its class reads, as
-// the class's registry entry names them, and core refuses a module that leaves
-// one out.
+// aborts the signal. The default of a block class's UI module or of an
+// output's renderer may name the board options the module requires. Core adds
+// each to the board, with its definition's default where the board lacks it,
+// before it calls render(). A block class's UI module names among them every
+// board option that a request of its class reads, as the class's registry
+// entry names them, and core refuses a module that leaves one out.
 export interface BlockModule<S extends State = State> {
   readonly options?: readonly OptionId[];
   render(args: { el: HTMLElement; host: BlockHost<S>; signal: AbortSignal }): Rendered;
 }
 
+// A board option's UI, or the renderer that the app names for it, reads its
+// own board option's value alone, so it names no board options.
 export interface OptionModule<V extends Json = Json> {
-  readonly options?: readonly OptionId[];
   render(args: { el: HTMLElement; host: OptionHost<V>; signal: AbortSignal }): Rendered;
 }
 
@@ -102,8 +103,9 @@ export interface OutputRequestOpts extends HostRequestOpts {
 
 export interface OptionHost<V extends Json = Json> {
   readonly option: OptionId;
-  // The board option's value in the board, or else its default, announced
-  // through "value" once resolved.
+  // The board option's value in the board, which core adds to the board with
+  // the board option's default before it calls render(), where the board
+  // lacks it. The host announces each change of it through "value".
   value(): V;
   on(event: "value", fn: () => void): () => void;
   // Runs core's command that sets a board option.

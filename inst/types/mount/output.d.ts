@@ -42,14 +42,18 @@ export interface Shelves {
 }
 export declare function createShelves(): Shelves;
 export interface OutputDeps {
-    readonly store: Pick<Store, "board" | "blockRegistry" | "subscribe">;
+    readonly store: Pick<Store, "board" | "blockRegistry" | "options" | "subscribe">;
     readonly scheduler: Pick<Scheduler, "request" | "status" | "subscribe">;
     readonly loader: Loader;
     readonly answers: Answers;
     readonly shelves: Shelves;
     readonly measure: Measure;
     readonly replaced: AbortSignal;
-    readonly addOptions: (ids: readonly OptionId[], by: string) => Promise<void>;
+    readonly addOptions: (ids: readonly OptionId[], by: string) => Promise<readonly string[]>;
+    readonly keepOptions: (ids: readonly OptionId[], by: string, failed: (failures: readonly string[]) => void) => {
+        readonly stop: () => void;
+    };
+    readonly defaultsOf: (ids: readonly OptionId[], by: string) => Promise<Readonly<Record<OptionId, Json>>>;
     readonly emit: (event: OutputEvent) => void;
 }
 export declare function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): () => void;

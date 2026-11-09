@@ -114,7 +114,11 @@ interface Setup {
 
 async function setup(
   modules: Readonly<Record<string, unknown>> = {},
-  { reply = bare, info = INFO }: { reply?: HelloReply; info?: OutputInfo | null } = {},
+  {
+    reply = bare,
+    info = INFO,
+    options = [],
+  }: { reply?: HelloReply; info?: OutputInfo | null; options?: readonly Option[] } = {},
 ): Promise<Setup> {
   const r = playR();
   r.connect();
@@ -136,7 +140,7 @@ async function setup(
     const controller = new AbortController();
     const { signal } = controller;
     const store = createStore({ signal });
-    for (const option of [...coreOptions, zoom]) store.options.register(option);
+    for (const option of [...coreOptions, zoom, ...options]) store.options.register(option);
     await store.open(given);
     const commands = createCommands(store, { signal });
     const scheduler = createScheduler({ store, client: r.client, nextRevision: page, signal });
@@ -427,6 +431,76 @@ describe("what core keeps", () => {
   });
 });
 
+describe("board options", () => {
+  test("whose default fails show why in the element, and core asks R for no output", async () => {
+    const reported = reports();
+    const table = renderer(["n_rows", "broken"]);
+    const broken: Option = { ...zoom, id: "broken", default: () => Promise.reject(new Error("No value today.")) };
+    const s = await setup({ [TABLE.module]: table.exports }, { options: [broken] });
+    const el = await ready(s);
+    reported.restore();
+
+    const why = `The default of the board option "broken", which the renderer "${TABLE.id}" requires, failed: No value today.`;
+    expect(el.querySelector("[role=alert]")?.textContent).toBe(why);
+    expect(reported.errors().map(String)).toEqual([`Error: ${why}`]);
+    expect(outputs(s.r)).toHaveLength(0);
+    expect(table.mounts).toHaveLength(0);
+  });
+
+  test("that the renderer names and that do not go onto the board again reach it through error(), until the board holds a value", async () => {
+    const reported = reports();
+    const table = renderer(["n_rows", "once"]);
+    let calls = 0;
+    const once: Option = {
+      ...zoom,
+      id: "once",
+      default: () => (++calls === 1 ? Promise.resolve(1) : Promise.reject(new Error("No value any more."))),
+    };
+    const s = await setup({ [TABLE.module]: table.exports }, { options: [once] });
+    await ready(s);
+    expect(lastOutput(s.r).options).toEqual({ n_rows: 50, once: 1 });
+    replyTable(s.r, lastOutput(s.r));
+    await tick();
+    expect(table.host().error()).toBeNull();
+
+    // The renderer keeps its output and gets why, while core asks R for
+    // nothing as long as the board lacks the value.
+    s.store.apply({ options: { unset: ["once"] } });
+    await tick();
+    reported.restore();
+    const why = `The default of the board option "once", which the renderer "${TABLE.id}" requires, failed: No value any more.`;
+    expect(table.host().error()?.message).toBe(why);
+    expect(table.host().output()).toMatchObject({ total: 150 });
+    expect(outputs(s.r)).toHaveLength(1);
+    expect(reported.errors().map(String)).toEqual([`Error: ${why}`]);
+
+    // Once the board holds a value, core asks again, and the next output
+    // clears the error.
+    s.store.apply({ options: { set: { once: 2 } } });
+    await tick();
+    expect(outputs(s.r)).toHaveLength(2);
+    expect(lastOutput(s.r).options).toEqual({ n_rows: 50, once: 2 });
+    replyTable(s.r, lastOutput(s.r));
+    await tick();
+    expect(table.host().error()).toBeNull();
+  });
+
+  test("that the renderer names come onto the board again once a delta removes them, while it draws", async () => {
+    const table = renderer();
+    const s = await setup({ [TABLE.module]: table.exports });
+    s.store.apply({ options: { set: { n_rows: 25 } } });
+    await ready(s);
+    expect(lastOutput(s.r).options).toEqual({ n_rows: 25 });
+    replyTable(s.r, lastOutput(s.r));
+    await tick();
+
+    s.store.apply({ options: { unset: ["n_rows"] } });
+    await tick();
+    expect(s.store.board().options.n_rows).toBe(50);
+    expect(lastOutput(s.r).options).toEqual({ n_rows: 50 });
+  });
+});
+
 describe("the renderer", () => {
   test("that an output names in place of the entry's draws it, with the board options it names", async () => {
     const table = renderer();
@@ -443,7 +517,7 @@ describe("the renderer", () => {
     expect(lastOutput(s.r).options).toEqual({ zoom: 1 });
   });
 
-  test("is learned from the first output where the entry names none, which goes with every board option the board holds", async () => {
+  test("is learned from the first output where the entry names none, which goes with every board option that a loaded package defines", async () => {
     const text = renderer([]);
     const plain: HelloReply = {
       ...bare,
@@ -457,7 +531,11 @@ describe("the renderer", () => {
     };
     const s = await setup({ [TEXT.module]: text.exports }, { reply: plain });
     await ready(s);
-    expect(lastOutput(s.r).options).toEqual({ show_conditions: ["error"], dark_mode: "light" });
+    // The board's values, and the defaults of those that it lacks, which the
+    // board does not take, so that a coercion that wraps as_table_output() gets
+    // n_rows.
+    expect(lastOutput(s.r).options).toEqual({ n_rows: 50, show_conditions: ["error"], dark_mode: "light", zoom: 1 });
+    expect(s.store.board().options).toEqual({ show_conditions: ["error"], dark_mode: "light" });
 
     s.r.reply({ id: lastOutput(s.r).id, status: "ok", output: { renderer: TEXT, text: "a" } });
     await tick();
