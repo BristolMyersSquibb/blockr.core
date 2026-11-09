@@ -122,6 +122,13 @@ test_that("a stack may have a color, which is a hex color", {
   }
 })
 
+test_that("a stack takes core's properties and nothing else", {
+
+  expect_error(new_stack("a", "Input", NULL, "extra"), "unused argument")
+  expect_error(new_stack("a", collapsed = TRUE), "unused argument")
+  expect_error(new_stack("a", class = "dock_stack"), "unused argument")
+})
+
 test_that("a stack's color has the pattern of the schema of a JSON board", {
 
   stack <- json_board_schema()[["definitions"]][["Stack"]]

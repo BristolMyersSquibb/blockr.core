@@ -14,13 +14,7 @@
 \alias{as_stacks}
 \title{Stacks}
 \usage{
-new_stack(
-  blocks = character(),
-  name = default_stack_name,
-  color = NULL,
-  ...,
-  class = character()
-)
+new_stack(blocks = character(), name = default_stack_name, color = NULL)
 
 default_stack_name()
 
@@ -50,10 +44,6 @@ as_stacks(x, ...)
 \item{color}{Stack color, as a hex color of six digits such as \code{"#66c2a5"},
 or \code{NULL} for none}
 
-\item{...}{Extensibility}
-
-\item{class}{(Optional) stack sub-class}
-
 \item{x}{Stack object}
 }
 \value{
@@ -74,8 +64,6 @@ of block IDs).
 Each \code{stack} may have an arbitrary \code{name}, and a \code{color}, which front-ends
 draw it in.
 A front-end draws a stack without a color in a default of its own.
-The class can be extended by adding further attributes, coupled with
-sub-classing.
 
 Stack container objects (\code{stacks} objects) can be created with \code{stacks()}
 or \code{as_stacks()} and inheritance can be tested via \code{is_stacks()}. Further

@@ -270,6 +270,9 @@
   It shows an error in the block's element in place of the module's UI, as it does for a module that declares another major of core's JS API.
   The error names the module and its package, each board option that the module leaves out, and the requests that read it.
   The rest of the page, the block's evaluation included, carries on (#502).
+* The constructors `new_link()` and `new_stack()` lose `...` and `class`, so that a link and a stack hold core's properties and nothing else.
+  A script that passes another argument to either constructor fails at that call, as a block constructor fails for a misspelled state arg.
+  Until now, `blockr_ser()` dropped what `...` added without a word, since a JSON board has no place for it (#511).
 
 # blockr.core 0.1.4
 
