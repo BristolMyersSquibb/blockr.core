@@ -280,6 +280,47 @@ test_that("an evaluation that fails leaves R no result of its block", {
   expect_identical(session$sent[[2L]][[1L]]$status, "missing")
 })
 
+test_that("a summary that is no string replies ok, and R keeps the result", {
+
+  cls <- new_block_class(
+    "odd_block",
+    expr = function() quote(structure(1, class = "odd_result")),
+    ui = js_module("odd-block.js", package = NULL)
+  )
+
+  local_block_class(cls, "odd_block")
+
+  testthat::local_mocked_s3_method(
+    "result_summary",
+    "odd_result",
+    function(result) c("a", "b")
+  )
+
+  session <- local_evaluator()
+
+  session$receive(
+    list(
+      evaluate_request(
+        "2", "k", 1L,
+        list(registry_id = "odd_block", state = obj(), inputs = list())
+      ),
+      output_request("3", "k", 1L)
+    )
+  )
+
+  session$run()
+
+  reply <- session$sent[[1L]][[1L]]
+
+  expect_identical(reply$status, "ok")
+  expect_null(reply$summary)
+  expect_true("summary" %in% names(reply))
+  expect_identical(reply$conditions[[1L]]$phase, "result_summary")
+  expect_identical(condition_class(reply), "result_summary_invalid")
+
+  expect_identical(session$sent[[2L]][[1L]]$status, "ok")
+})
+
 test_that("R replies error where it cannot evaluate a recipe", {
 
   session <- local_evaluator()

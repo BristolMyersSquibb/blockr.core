@@ -34,6 +34,10 @@
 #' in full, or its type for an object without a class, with `<function>` for
 #' any function and `<tibble>` for a tibble. It adds the result's dimensions,
 #' or the length of a vector.
+#' A method returns a string, and any other value fails the summary,
+#' as an error does.
+#' The block's status then stays `ok`, since the block ran, but its evaluation
+#' holds no summary.
 #'
 #' @param x For `evaluate_block()`, a registry id or a block class, and for
 #'   `block_eval()`, a block's state with its class's class vector
@@ -133,7 +137,7 @@ eval_block_class <- function(cls, state, inputs, results, params,
     )
   }
 
-  summary <- run_phase("result_summary", result_summary(ran[["value"]]))
+  summary <- run_phase("result_summary", check_summary(ran[["value"]]))
 
   new_block_evaluation(
     "ok",
@@ -172,6 +176,27 @@ check_inputs <- function(cls, data) {
   }
 
   invisible()
+}
+
+# The summary of a result from `result_summary()`.
+# A method is expected to return a string.
+# Where it returns anything else, the check signals an error,
+# so that the phase result_summary records the failure,
+# as it records an error that the method signals.
+check_summary <- function(result) {
+
+  res <- result_summary(result)
+
+  if (!is_string(res)) {
+    blockr_abort(
+      "The `result_summary()` method for a result of class ",
+      "{class(result)[1L]} is expected to return a string, but it returned an ",
+      "object of class {class(res)[1L]} and length {length(res)}.",
+      class = "result_summary_invalid"
+    )
+  }
+
+  res
 }
 
 as_block_class <- function(x) {
