@@ -6,6 +6,7 @@ import type { HostRequestOpts } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import type { Answers } from "./answers.ts";
+import type { Defaults } from "./defaults.ts";
 export declare class RequestError extends Error {
     readonly status: Exclude<ReplyStatus, "ok"> | null;
     readonly conditions: readonly Condition[];
@@ -34,6 +35,7 @@ export interface RequestDeps {
     readonly store: Pick<Store, "board">;
     readonly scheduler: Pick<Scheduler, "evaluate" | "inputs">;
     readonly answers: Answers;
+    readonly defaults: Pick<Defaults, "resolve" | "values">;
     readonly bound: () => boolean;
     readonly unboundError: () => Error;
 }

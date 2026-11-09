@@ -10,7 +10,11 @@ export interface CoreApi {
     readonly commands: Commands;
     readonly scheduler: Pick<Scheduler, "demand" | "evaluate" | "invalidate" | "status" | "subscribe">;
     blockRegistry(): BlockRegistry;
-    readonly options: Options;
+    readonly options: Options & {
+        value(option: OptionId): Json | undefined;
+        inUse(): readonly OptionId[];
+        subscribe(fn: () => void): () => void;
+    };
     readonly plugins: {
         register(def: PluginClass): () => void;
     };

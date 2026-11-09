@@ -6,16 +6,20 @@
 // startup module's initialize() and to the front-end's render() (./start.ts).
 // It ends with them, as the next board opens.
 //
-// Beside what it hands out, it calls the onChange() of each board option whose
-// value changes, as the board opens or a delta sets it, so that a new value of
-// dark_mode switches the page's theme.
+// Beside what it hands out, it calls the onChange() of every board option that
+// has one as the board opens, with the board's value or else the board
+// option's default, which it resolves then whether or not anything on the page
+// requires the board option, and again as a delta sets or removes the value,
+// so that what onChange() does on the page follows the board that is open, as
+// the theme that dark_mode switches does
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.13#defining-a-board-option).
 
 import type { Commands } from "../commands/index.ts";
 import { createMounts } from "../mount/index.ts";
 import type { Loader, Measure, OutputEvent } from "../mount/index.ts";
 import type { Lock, Renderer } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
-import type { Store } from "../store/index.ts";
+import type { Option, Store } from "../store/index.ts";
 import type { Board, OptionId, PluginId } from "../types/board.ts";
 import type { CoreApi, OutputEvents } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
@@ -85,6 +89,7 @@ export function createCore(parts: CoreParts): CoreApi {
       }
     },
   });
+  const { defaults } = mounts;
 
   const api: CoreApi = {
     store,
@@ -99,7 +104,22 @@ export function createCore(parts: CoreParts): CoreApi {
       subscribe: (fn) => scheduler.subscribe(fn),
     },
     blockRegistry: () => store.blockRegistry(),
-    options: store.options,
+    options: {
+      register: (def) => store.options.register(def),
+      registered: () => store.options.registered(),
+      value: (id) => defaults.value(id),
+      inUse: () => defaults.inUse(),
+      subscribe(fn) {
+        const offStore = store.subscribe((change) => {
+          if ("opened" in change || change.delta.options !== undefined) fn();
+        });
+        const offDefaults = defaults.subscribe(fn);
+        return () => {
+          offStore();
+          offDefaults();
+        };
+      },
+    },
     plugins: {
       register: (def) => store.plugins.register(def),
     },
@@ -114,22 +134,40 @@ export function createCore(parts: CoreParts): CoreApi {
     mountOption: (el, option) => mounts.mountOption(el, option),
   };
 
-  // The values of the board options as each onChange() last heard them.
-  let heard: Board["options"] = {};
+  // The value that each onChange() last heard, by the board option's id.
+  const heard = new Map<OptionId, Json>();
   store.subscribe((change, board) => {
-    const before = "opened" in change ? {} : heard;
-    if (board.options === heard && !("opened" in change)) return;
-    heard = board.options;
-    for (const [id, value] of Object.entries(board.options)) {
-      if (!jsonEqual(own(before, id), value)) changed(id, value);
-    }
+    const ids =
+      "opened" in change
+        ? Object.keys(store.options.registered())
+        : [...Object.keys(change.delta.options?.set ?? {}), ...(change.delta.options?.unset ?? [])];
+    for (const id of ids) follow(id, board);
   });
 
-  function changed(id: OptionId, value: Json): void {
+  // Calls the board option's onChange(), if it has one, with the board's value,
+  // or else with the default once core has resolved it, unless a value came
+  // meanwhile, whose own call came first.
+  function follow(id: OptionId, board: Board): void {
     const def = own(store.options.registered(), id);
     if (def?.onChange === undefined) return;
+    const held = own(board.options, id);
+    if (held !== undefined) {
+      call(def, held);
+      return;
+    }
+    void defaults.resolve([id], "its onChange").then(() => {
+      if (parts.signal?.aborted === true || !store.hasBoard() || Object.hasOwn(store.board().options, id)) return;
+      const value = defaults.value(id);
+      if (value !== undefined) call(def, value);
+    });
+  }
+
+  // Calls onChange() with a value other than the one it last heard.
+  function call(def: Option, value: Json): void {
+    if (heard.has(def.id) && jsonEqual(heard.get(def.id), value)) return;
+    heard.set(def.id, value);
     try {
-      def.onChange(value, api);
+      def.onChange?.(value, api);
     } catch (error) {
       report(error);
     }

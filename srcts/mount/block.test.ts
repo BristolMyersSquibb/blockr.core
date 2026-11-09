@@ -292,7 +292,7 @@ describe("loading", () => {
 });
 
 describe("board options", () => {
-  test("come onto the board as a module that names them loads, each with its default where the board lacks it", async () => {
+  test("reach a module that names them as the board holds them, or else as their defaults, which stay beside the board", async () => {
     const ui = recorder(["zoom", "n_rows"]);
     const { store, mounts } = await setup({ [HEAD]: ui.exports }, { options: [zoom] });
     store.apply({ options: { set: { n_rows: 25 } } });
@@ -300,14 +300,13 @@ describe("board options", () => {
     mounts.mountBlock(document.createElement("div"), "b");
     await tick();
 
-    expect(store.board().options).toMatchObject({ zoom: 1, n_rows: 25 });
-    // The module renders once the board holds them.
+    // The module renders once core has resolved the default of zoom, which
+    // the board does not take, so that a saved board holds no default.
     expect(ui.mounts[0]?.context.options).toEqual({ zoom: 1, n_rows: 25 });
-    // Undo leaves them on the board, since a step that sets only board option
-    // values is no undo step.
-    store.undo();
-    store.undo("blockr.core");
-    expect(store.board().options).toMatchObject({ zoom: 1, n_rows: 25 });
+    expect(Object.hasOwn(store.board().options, "zoom")).toBe(false);
+    expect(Object.keys(store.jsonBoard().board.options)).not.toContain("zoom");
+    expect(mounts.defaults.value("zoom")).toBe(1);
+    // Core changed nothing on the board, so it has no step to undo.
     expect([store.canUndo(), store.canUndo("blockr.core")]).toEqual([false, false]);
   });
 
@@ -326,20 +325,20 @@ describe("board options", () => {
     s.mounts.mountBlock(document.createElement("div"), "b");
     s.mounts.mountBlock(document.createElement("div"), "b");
     await tick();
-    expect(s.store.board().options.zoom).toBe(2);
-
+    expect(ui.mounts.map(({ context }) => context.options)).toEqual([{ zoom: 2 }, { zoom: 2 }]);
+    expect(Object.hasOwn(s.store.board().options, "zoom")).toBe(false);
     expect(calls).toBe(1);
 
-    // A board that opens later lacks it, and gets it as a page that starts
-    // with that board would.
+    // A board that opens later gets it as a page that starts with that board
+    // would.
     const next = await s.next();
     next.mounts.mountBlock(document.createElement("div"), "b");
     await tick();
-    expect(next.store.board().options.zoom).toBe(2);
+    expect(ui.mounts.at(-1)?.context.options).toEqual({ zoom: 2 });
     expect(calls).toBe(2);
   });
 
-  test("whose default resolves once another board opened land on neither board", async () => {
+  test("whose default resolves once another board opened reach no module of either board", async () => {
     const ui = recorder(["zoom"]);
     const pending: ((value: number) => void)[] = [];
     const lazy: Option = { ...zoom, default: () => new Promise((done) => pending.push(done)) };
@@ -350,15 +349,15 @@ describe("board options", () => {
     const next = await s.next();
     pending[0]?.(2);
     await tick();
-    expect(Object.hasOwn(s.store.board().options, "zoom")).toBe(false);
-    expect(Object.hasOwn(next.store.board().options, "zoom")).toBe(false);
     expect(ui.mounts).toHaveLength(0);
+    expect(next.mounts.defaults.value("zoom")).toBeUndefined();
 
     next.mounts.mountBlock(document.createElement("div"), "b");
     await tick();
     pending[1]?.(3);
     await tick();
-    expect(next.store.board().options.zoom).toBe(3);
+    expect(ui.mounts[0]?.context.options).toEqual({ zoom: 3 });
+    expect(Object.hasOwn(next.store.board().options, "zoom")).toBe(false);
   });
 
   test("keep a value set while the default resolves", async () => {
@@ -374,6 +373,63 @@ describe("board options", () => {
     await tick();
 
     expect(store.board().options.zoom).toBe(3);
+    expect(ui.mounts[0]?.context.options).toEqual({ zoom: 3 });
+  });
+
+  test("give the default again once a delta removes the value, which core resolves then where it has not yet", async () => {
+    const ui = recorder(["zoom"]);
+    let calls = 0;
+    const lazy: Option = {
+      ...zoom,
+      default: () => {
+        calls++;
+        return Promise.resolve(2);
+      },
+    };
+    const { store, mounts } = await setup({ [HEAD]: ui.exports }, { options: [lazy] });
+    store.apply({ options: { set: { zoom: 5 } } });
+    mounts.mountBlock(document.createElement("div"), "b");
+    await tick();
+    const host = ui.host();
+    // The board holds a value, so nothing reads the default.
+    expect(host.context().options).toEqual({ zoom: 5 });
+    expect(calls).toBe(0);
+
+    const heard: unknown[] = [];
+    host.on("context", () => heard.push(host.context().options));
+    store.apply({ options: { unset: ["zoom"] } });
+    // The context keeps the value it gave while the default resolves.
+    expect(host.context().options).toEqual({ zoom: 5 });
+    await tick();
+    expect(heard).toEqual([{ zoom: 2 }]);
+    expect(calls).toBe(1);
+
+    // Once resolved, the default comes at once.
+    store.apply({ options: { set: { zoom: 4 } } });
+    store.apply({ options: { unset: ["zoom"] } });
+    expect(host.context().options).toEqual({ zoom: 2 });
+    expect(calls).toBe(1);
+  });
+
+  test("whose default fails or does not fit are reported, naming what requires them, and the module renders without them", async () => {
+    const reported = reports();
+    const ui = recorder(["broken", "unfit", "zoom"]);
+    const broken: Option = { ...zoom, id: "broken", default: () => Promise.reject(new Error("No zoom today.")) };
+    const unfit: Option = { ...zoom, id: "unfit", default: () => Promise.resolve("big") };
+    const { mounts } = await setup({ [HEAD]: ui.exports }, { options: [zoom, broken, unfit] });
+    mounts.mountBlock(document.createElement("div"), "b");
+    mounts.mountBlock(document.createElement("div"), "b");
+    await tick();
+    reported.restore();
+
+    const what = 'which the UI module of block class "blockr.core-head_block" requires';
+    const errors = reported.errors().map(String);
+    // Each once, however many mounts require it.
+    expect(errors).toEqual([
+      `Error: The default of the board option "broken", ${what}, failed: No zoom today.`,
+      expect.stringMatching(new RegExp(`^Error: The default of the board option "unfit", ${what}, fails its schema: `)),
+    ]);
+    expect(ui.mounts.map(({ context }) => context.options)).toEqual([{ zoom: 1 }, { zoom: 1 }]);
   });
 
   test("that no package defines are reported, and the module still renders", async () => {
@@ -775,6 +831,19 @@ describe("a request", () => {
     void host.request("columns", { direction: "tail" });
     await tick();
     expect(lastRequest(r)).toMatchObject({ args: { direction: "tail" }, options: { n_rows: 50 } });
+  });
+
+  test("sends the default of a board option it names where the board holds no value, which the board does not take", async () => {
+    const { r, store, host } = await mounted({
+      ...withRequests,
+      board: { ...withRequests.board, board: { ...withRequests.board.board, options: {} } },
+    });
+
+    void host.request("columns");
+    await evaluateAll(r);
+    // The default of n_rows in the fixtures.
+    expect(lastRequest(r)).toMatchObject({ name: "columns", options: { n_rows: 50 } });
+    expect(Object.hasOwn(store.board().options, "n_rows")).toBe(false);
   });
 
   test("that reads no inputs goes to R at once", async () => {

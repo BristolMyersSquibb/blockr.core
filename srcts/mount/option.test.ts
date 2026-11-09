@@ -182,6 +182,23 @@ describe("the host", () => {
     expect(calls.count).toBe(1);
   });
 
+  test("gives the default once a delta removes the value, which core resolves then where it has not yet", async () => {
+    const calls = { count: 0 };
+    const dark = ui();
+    const s = await setup(options(ui().mod, calls, dark.mod));
+    s.store.apply({ options: { set: { theme: "dark" } } });
+    s.mounts.mountOption(document.createElement("div"), "theme");
+    await tick();
+    expect(dark.host().value()).toBe("dark");
+    expect(calls.count).toBe(0);
+
+    s.store.apply({ options: { unset: ["theme"] } });
+    await tick();
+    expect(dark.host().value()).toBe("light");
+    expect(dark.mounts[0]?.seen).toEqual(["dark", "light"]);
+    expect(calls.count).toBe(1);
+  });
+
   test("rejects a submit with what refused it", async () => {
     const rows = ui();
     const s = await setup(options(rows.mod));
@@ -234,7 +251,8 @@ describe("a mount", () => {
     expect(dark.host().value()).toBe("light");
   });
 
-  test("adds the board options that its module names to the board", async () => {
+  test("resolves no other board option for its module, which reads its own value alone", async () => {
+    // A module in plain JS may still name board options, which core ignores.
     const dark = ui(["n_rows"]);
     const s = await setup(options(ui().mod, { count: 0 }, dark.mod), {
       reply: { ...hello, board: { ...hello.board, board: { ...hello.board.board, options: {} } } },
@@ -242,8 +260,35 @@ describe("a mount", () => {
     s.mounts.mountOption(document.createElement("div"), "theme");
     await tick();
 
-    // Beside those that core's basic front-end requires.
-    expect(s.store.board().options).toEqual({ show_conditions: ["warning", "error"], dark_mode: "light", n_rows: 50 });
+    expect(dark.host().value()).toBe("light");
+    expect(s.mounts.defaults.value("n_rows")).toBeUndefined();
+    // The board holds only those that core's basic front-end requires.
+    expect(s.store.board().options).toEqual({ show_conditions: ["warning", "error"], dark_mode: "light" });
+  });
+
+  test("shows why in its element, and renders nothing, where the board holds no value and the default fails", async () => {
+    const reported = reports();
+    const broken = ui();
+    const s = await setup([
+      ...options(ui().mod),
+      {
+        id: "broken",
+        label: "Broken",
+        category: "Test options",
+        schema: { type: "number" },
+        default: () => Promise.reject(new Error("No value today.")),
+        ui: broken.mod,
+      },
+    ]);
+    const el = document.createElement("div");
+    s.mounts.mountOption(el, "broken");
+    await tick();
+    reported.restore();
+
+    const why = 'The default of the board option "broken", which the UI of the board option "broken" requires, failed: No value today.';
+    expect(el.textContent).toBe(why);
+    expect(reported.errors().map(String)).toEqual([`Error: ${why}`]);
+    expect(broken.mounts).toHaveLength(0);
   });
 
   test("shows an error where the renderer cannot be used", async () => {

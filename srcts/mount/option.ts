@@ -4,11 +4,13 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract):
 // 1. Core loads the renderer's module, where the app names one, or else takes
 //    the UI module of the board option's definition.
-// 2. It adds the board options that the module names to the board, each with
-//    its definition's default where the board lacks it.
-// 3. It resolves the board option's value, the board's or else its default for
-//    this opening, and calls the module's render() with the element, the host
-//    and a signal, which it aborts once the mount ends.
+// 2. It resolves the board option's value, the board's or else its default for
+//    this opening, which core keeps beside the board (./defaults.ts), and
+//    calls the module's render() with the element, the host and a signal,
+//    which it aborts once the mount ends. Where the board holds no value and
+//    the default fails or does not fit, it shows why in the element instead.
+// The module reads its own board option's value alone, so core resolves no
+// other board option for it.
 // The host gives the value as the board holds it, or else the default, and
 // announces each change of it. A submit runs core's command that sets a board
 // option, and a request goes to the board option's requests in R, whose
@@ -17,11 +19,12 @@
 import type { Commands } from "../commands/index.ts";
 import type { Renderer } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
-import type { Option, Store } from "../store/index.ts";
+import type { Store } from "../store/index.ts";
 import type { OptionId } from "../types/board.ts";
 import type { HostRequestOpts, OptionHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import { isObject, messageOf, own, packageOf, report } from "../util/index.ts";
+import type { Defaults } from "./defaults.ts";
 import { ModuleError } from "./load.ts";
 import type { Loader } from "./load.ts";
 import { RequestError } from "./requests.ts";
@@ -37,9 +40,8 @@ export interface OptionDeps {
   readonly renderers: () => Readonly<Record<string, Renderer>>;
   // Aborts as another board opens, which ends the mount.
   readonly replaced: AbortSignal;
-  readonly addOptions: (ids: readonly OptionId[], by: string) => Promise<void>;
   // The board option's default, the same for every mount on the board.
-  readonly defaultOf: (id: OptionId, def: Option) => Promise<Json>;
+  readonly defaults: Pick<Defaults, "resolve" | "settled" | "subscribe" | "value">;
 }
 
 interface OptionArgs {
@@ -63,9 +65,9 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
   const ended = (): boolean => controller.signal.aborted;
   const listeners = new Set<() => void>();
   let value: Json | undefined;
-  let fallback: Json | undefined;
   let seen = store.board().options;
   let cleanup: (() => void) | undefined;
+  const by = `the UI of the board option "${option}"`;
 
   function bound(): boolean {
     return !ended() && !deps.replaced.aborted;
@@ -74,10 +76,15 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
   const unboundError = (): Error =>
     new Error(`Another board opened, so the host of the board option "${option}" no longer changes it.`);
 
-  // The value as the board holds it, or else the default.
-  function current(): Json | undefined {
-    const held = own(store.board().options, option);
-    return held === undefined ? fallback : held;
+  // Takes the value as the board holds it, or else the default, and announces
+  // it where it changed. While core resolves the default, as after a delta
+  // removed the value, the host keeps the value it gave.
+  function follow(): void {
+    const next = deps.defaults.value(option);
+    if (next === undefined && !deps.defaults.settled([option])) return;
+    if (next === value) return;
+    value = next;
+    announceTo(listeners);
   }
 
   const host: OptionHost = {
@@ -118,11 +125,12 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
   const offStore = store.subscribe((_change, board) => {
     if (board.options === seen) return;
     seen = board.options;
-    const next = current();
-    if (next === value) return;
-    value = next;
-    announceTo(listeners);
+    // A delta that removes the value gives the default again, which core
+    // resolves then where it has not yet.
+    if (!Object.hasOwn(board.options, option)) void deps.defaults.resolve([option], by);
+    follow();
   });
+  const offDefaults = deps.defaults.subscribe(follow);
 
   const offEnd = onAbort(deps.replaced, end);
 
@@ -131,6 +139,7 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
     controller.abort();
     offEnd();
     offStore();
+    offDefaults();
     listeners.clear();
     if (cleanup !== undefined) attempt(cleanup);
     el.replaceChildren();
@@ -147,16 +156,19 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
         const source = renderer.css === undefined ? { module: renderer.module } : { module: renderer.module, css: renderer.css };
         mod = moduleOf<OptionArgs>(await loader.load(source, pkg), renderer.module, pkg);
       }
-      if (ended()) return;
-      await deps.addOptions(mod.options ?? [], `the UI of the board option "${option}"`);
-      if (ended()) return;
-      fallback = Object.hasOwn(store.board().options, option) ? undefined : await deps.defaultOf(option, def);
     } catch (error) {
       fail(error);
       return;
     }
     if (ended()) return;
-    value = current();
+    const failures = await deps.defaults.resolve([option], by);
+    if (ended()) return;
+    value = deps.defaults.value(option);
+    // Core has reported why the board option has no value.
+    if (value === undefined && failures.length > 0) {
+      showError(el, failures.join("\n"));
+      return;
+    }
 
     try {
       const rendered = await mod.render({ el, host, signal: controller.signal });

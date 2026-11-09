@@ -165,9 +165,11 @@ describe("the CoreApi for tests", () => {
     });
 
     expect(seen).toBe(core);
+    // As the board opened, with the default, since the board holds no value.
+    expect(changes).toEqual([1]);
     core.store.apply({ options: { set: { zoom: 2 } } });
     core.store.apply({ options: { set: { n_rows: 10 } } });
-    expect(changes).toEqual([2]);
+    expect(changes).toEqual([1, 2]);
   });
 
   test("draws the board with the front-end given, in the element given, and hears what renderers emit", async () => {

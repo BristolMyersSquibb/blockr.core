@@ -133,7 +133,9 @@ that it was built against, as \verb{export const api = 1},
 and a default with a \code{render()} function.
 Core calls \code{render()} with the element to draw in,
 the block's host and a signal,
-once it has added the board options that the default names to the board.
+once it has resolved the board options that the default names,
+each the board's value or else its default,
+which the client keeps beside the board rather than in it.
 The types that a module is written against ship in the installed package,
 in the directory \code{system.file("types", package = "blockr.core")}.
 A package's build resolves that directory as \verb{@blockr/core},

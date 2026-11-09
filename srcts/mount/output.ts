@@ -3,18 +3,21 @@
 // for the mount, as the contract has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract):
 // 1. Core loads the renderer that the block class's entry in the block registry
-//    names, and adds the board options that the renderer names to the board,
-//    each with its definition's default where the board lacks it. So the board
-//    holds what the output's coercion reads before core asks for an output.
+//    names, and resolves the default of each board option that the renderer
+//    names and the board holds no value for, which it keeps beside the board
+//    for the opening (./defaults.ts). So core has what the output's coercion
+//    reads before it asks for an output.
 // 2. Once the block reads ready and the element measures more than 0 by 0, core
 //    asks R for the output, through the scheduler, with the block's revision,
-//    the values of the board options that the renderer names, the info it
-//    measured and the block's parameters, unless it keeps an output asked with
-//    the same ones.
+//    the values of the board options that the renderer names, the board's or
+//    else their defaults, the info it measured and the block's parameters,
+//    unless it keeps an output asked with the same ones. Where it knows no
+//    renderer, it asks with the value of every board option that a loaded
+//    package defines.
 // 3. It mounts the renderer that the output names once it has the output, and
 //    hands it each output that comes after. An output that names another
 //    renderer than the one drawing, as one of a subclass may, is drawn by that
-//    one, with what it names added to the board.
+//    one, once core has resolved what it names.
 // 4. It asks again when the revision, one of those board options, the info or
 //    the parameters change, while the block reads ready. Meanwhile it keeps
 //    drawing the last output, whatever the block's status, with `loading()`
@@ -37,6 +40,7 @@ import type { Json } from "../types/json.ts";
 import type { OutputRenderer } from "../types/outputs.ts";
 import { asError, frozenCopy, isObject, jsonEqual, messageOf, own, packageOf, report } from "../util/index.ts";
 import type { Answers, OutputAsk } from "./answers.ts";
+import type { Defaults } from "./defaults.ts";
 import { ModuleError } from "./load.ts";
 import type { Loader } from "./load.ts";
 import type { Measure } from "./measure.ts";
@@ -126,7 +130,7 @@ export function createShelves(): Shelves {
 }
 
 export interface OutputDeps {
-  readonly store: Pick<Store, "board" | "blockRegistry" | "subscribe">;
+  readonly store: Pick<Store, "board" | "blockRegistry" | "options" | "subscribe">;
   readonly scheduler: Pick<Scheduler, "request" | "status" | "subscribe">;
   readonly loader: Loader;
   readonly answers: Answers;
@@ -134,7 +138,7 @@ export interface OutputDeps {
   readonly measure: Measure;
   // Aborts as another board opens, which ends the mount.
   readonly replaced: AbortSignal;
-  readonly addOptions: (ids: readonly OptionId[], by: string) => Promise<void>;
+  readonly defaults: Defaults;
   readonly emit: (event: OutputEvent) => void;
 }
 
@@ -144,8 +148,8 @@ interface OutputArgs {
   signal: AbortSignal;
 }
 
-// A renderer loaded and checked, with the board options it names, which are
-// on the board by then.
+// A renderer loaded and checked, with the board options it names, whose
+// defaults core has resolved by then.
 interface Prepared {
   readonly renderer: OutputRenderer;
   readonly mod: Mountable<OutputArgs>;
@@ -170,7 +174,7 @@ interface Announcing extends OutputHost {
 // Mounts the output of the block in the element until the returned cleanup
 // runs. It throws where the board holds no such block.
 export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): () => void {
-  const { store, scheduler, loader, measure } = deps;
+  const { store, scheduler, loader, measure, defaults } = deps;
   if (deps.replaced.aborted) throw new Error(REPLACED);
   const found = own(store.board().blocks, block);
   if (found === undefined) {
@@ -188,10 +192,12 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
   // The renderer that draws the block's output: the one that the block
   // class's entry names until an output names one, and the one that the last
   // output named after. The mount asks with the board options it names once it
-  // is loaded. Where neither names one, the mount asks with every board option
-  // the board holds, and learns the renderer from the first output.
+  // is loaded, and requires them while it asks with them. Where neither names
+  // one, the mount asks with every board option that a loaded package
+  // defines, and learns the renderer from the first output.
   let renderer: OutputRenderer | undefined = entry.renderer;
   let ready: Prepared | undefined;
+  let release: (() => void) | undefined;
   const preparing = new Map<string, Promise<Prepared>>();
 
   let info = measure.info(el);
@@ -218,7 +224,13 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         : `Block "${block}" left the board, so the host of its output no longer asks R.`,
     );
 
-  // Loads a renderer and adds the board options that it names to the board.
+  // What requires the board options that the mount asks with.
+  function requiredBy(): string {
+    return renderer === undefined ? `the first output of block "${block}"` : `the renderer "${renderer.id}"`;
+  }
+
+  // Loads a renderer and resolves the defaults of the board options that it
+  // names.
   function prepare(given: OutputRenderer): Promise<Prepared> {
     let loading = preparing.get(given.id);
     if (loading === undefined) {
@@ -227,7 +239,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         const source = given.css === undefined ? { module: given.module } : { module: given.module, css: given.css };
         const mod = moduleOf<OutputArgs>(await loader.load(source, pkg), given.module, pkg);
         const named = mod.options ?? [];
-        await deps.addOptions(named, `the renderer "${given.id}"`);
+        await defaults.resolve(named, `the renderer "${given.id}"`);
         return { renderer: given, mod, named };
       })();
       preparing.set(given.id, loading);
@@ -243,6 +255,8 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
       (prepared) => {
         if (ended() || renderer?.id !== prepared.renderer.id) return;
         ready = prepared;
+        release?.();
+        release = defaults.require(prepared.named, `the renderer "${prepared.renderer.id}"`);
         sync();
       },
       (failure: unknown) => {
@@ -259,31 +273,29 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     return ready?.renderer.id === renderer.id ? ready.named : undefined;
   }
 
-  // The values that the board holds now of the board options named, or of
-  // every one. Within a change to the board, the scheduler may announce a new
-  // status before the store has told the mount of the change, so the mount
-  // reads the board from the store rather than from what it last heard.
-  function values(ids: readonly OptionId[] | null): Readonly<Record<OptionId, Json>> {
-    const options = store.board().options;
-    if (ids === null) return options;
-    return Object.fromEntries(
-      ids.flatMap((id) => {
-        const value = own(options, id);
-        return value === undefined ? [] : [[id, value]];
-      }),
-    );
-  }
-
   // What the mount would ask R for now, or undefined where it asks for
-  // nothing: while the element measures nothing, the renderer loads or the
-  // block reads anything but ready.
+  // nothing: while the element measures nothing, the renderer loads, the
+  // block reads anything but ready, or a default that it asks with resolves.
+  // It asks with the values of the board options named, or of every one that
+  // a loaded package defines, the board's or else their defaults. Within a
+  // change to the board, the scheduler may announce a new status before the
+  // store has told the mount of the change, so the mount reads the board from
+  // the store rather than from what it last heard.
   function wanted(): { asked: Asked; ids: readonly OptionId[] | null } | undefined {
     if (info === null) return undefined;
     const ids = named();
     if (ids === undefined) return undefined;
     const status = scheduler.status(block);
     if (status?.status !== "ready") return undefined;
-    return { asked: { revision: status.revision, options: values(ids), info, params: shelf.params }, ids };
+    const sent = ids ?? Object.keys(store.options.registered());
+    // As after a delta removed a value whose default core had not resolved,
+    // the mount asks once the default has settled, which the defaults
+    // announce.
+    if (!defaults.settled(sent)) {
+      void defaults.resolve(sent, requiredBy());
+      return undefined;
+    }
+    return { asked: { revision: status.revision, options: defaults.values(sent), info, params: shelf.params }, ids };
   }
 
   // Whether an output asked with `asked` is the one that `want` asks for.
@@ -499,12 +511,12 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
   }
 
   // The values of the board options that a renderer names, which an output
-  // was asked with, and for those that it was not asked with, the board's.
+  // was asked with, and for those that it was not asked with, the board's or
+  // else their defaults.
   function optionsFor(prepared: Prepared, asked: Asked | undefined): Readonly<Record<OptionId, Json>> {
-    const now = store.board().options;
     return Object.fromEntries(
       prepared.named.flatMap((id) => {
-        const value = asked !== undefined && Object.hasOwn(asked.options, id) ? asked.options[id] : own(now, id);
+        const value = asked !== undefined && Object.hasOwn(asked.options, id) ? asked.options[id] : defaults.value(id);
         return value === undefined ? [] : [[id, value]];
       }),
     );
@@ -694,6 +706,8 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
   const offScheduler = scheduler.subscribe((changed) => {
     if (changed.includes(block)) sync();
   });
+  // A default that settles may be what the mount waits for to ask.
+  const offDefaults = defaults.subscribe(sync);
   shelf.mounts.add(sync);
 
   let settling: ReturnType<typeof setTimeout> | undefined;
@@ -719,6 +733,8 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     offEnd();
     offStore();
     offScheduler();
+    offDefaults();
+    release?.();
     shelf.mounts.delete(sync);
     stopWatching();
     if (settling !== undefined) clearTimeout(settling);

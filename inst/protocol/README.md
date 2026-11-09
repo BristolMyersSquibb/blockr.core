@@ -194,7 +194,7 @@ The fields of core's types:
 |---|---|
 | `args` | what the request's function takes by name: for a block class's request, the state args its function names, which the host fills in from the block's state where the module passes none, and the parameters the UI gives it |
 | `reads` | the results that the request reads: for a block class's request by the input each feeds, as a recipe's inputs are, and for a plugin's request each by block and revision |
-| `options` | the values of the board options it reads, since R holds none: for a block class's request where it reads any, and for an output class's or a renderer's request those its output was asked with |
+| `options` | the values of the board options it reads, since R holds none, each the board's value or else the default that the client resolved: for a block class's request where it reads any, and for an output class's or a renderer's request those its output was asked with |
 | `params` | the parameters that the output of an output class's or a renderer's request was asked with |
 | `body` | optional, a binary body that the request carries ([Binary bodies](#binary-bodies)), such as the file an upload action receives |
 
@@ -240,16 +240,18 @@ An `output` asks for the output that the coercion its block's class names in `ou
 | Field | Holds |
 |---|---|
 | `block`, `revision` | the result the output is made from |
-| `options` | the values of the board options, by id, since R holds none |
+| `options` | the values of the board options, by id, since R holds none, each the board's value or else the default that the client resolved |
 | `info` | what the client measured for the output's element: `width` and `height` in CSS pixels, `pixel_ratio`, the colours `bg`, `fg` and `accent`, and `font` |
 | `params` | the output's parameters, which its renderer keeps, such as a table's `{ "page": 2, "sort": { "column": "x" } }`, in the shape that the output class's contract gives |
 
 R replies `ok` with the output in `output`, a description in JSON whose `renderer` is the renderer that draws it, as the method of `output_renderer()` for the most specific class in the output's class vector that has one gives it, with its id and where R serves its module, `{ "id": "blockr.core-table_output", "module": "blockr.core/js/basic-table.js?v=b7e2a915" }`, which the client loads the first time an output names it and mounts to draw it ([Renderers](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#renderers)), and whose other fields its output class's contract gives, with at most one binary body, such as a plot's PNG beside its output. A coercion that fails makes R reply `error`, with the phase `output`, which leaves the block's status as it was.
 
 R also names a renderer before any output exists: in the `renderer` of each block class's entry in the block registry, the renderer of the output class whose coercion the class names, as the method of `output_coercion()` for that output class gives the coercion.
-The client loads that renderer, and adds the board options it names to the board, before it asks for a block's first output, so that the request carries every board option that the coercion reads, such as the `n_rows` by which a table output pages.
+The client loads that renderer, and resolves the default of each board option that it names and the board holds no value for, before it asks for a block's first output, so that the request carries every board option that the coercion reads, such as the `n_rows` by which a table output pages.
+The client keeps those defaults beside the board, so that a board holds only the values that a script, a file or a command set.
 Where the output that comes back names another renderer, as an output of a subclass with a renderer of its own does, the client draws the output with that one.
 An entry has no `renderer` where no output class gives the class's coercion, and the client then learns the renderer from the block's first output.
+That first request carries the value of every board option that a loaded package defines, the board's or else its default, so that a coercion that wraps `as_table_output()` gets `n_rows` on a fresh board too.
 
 The contracts of core's output classes, for tables, text and plots, are their TypeScript types in [`srcts/types/outputs.ts`](../../srcts/types/outputs.ts). The build generates the JSON Schema of each class's outputs from its type, into [`inst/outputs`](../outputs/), and R writes the outputs by it. Sample outputs of each class, which every renderer of the class is tested on, are in [`inst/outputs/fixtures`](../outputs/fixtures/).
 

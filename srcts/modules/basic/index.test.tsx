@@ -341,16 +341,23 @@ describe("the toolbar", () => {
     expect(Object.keys(board().blocks)).toContain("b");
   });
 
-  test("sets the board options that the board holds through their UIs, by category", async () => {
-    const { el, board, settled } = await drawn();
+  test("sets the board options that something on the page requires or that the board holds, through their UIs, by category", async () => {
+    const table = entries.find((entry) => entry.renderer?.id === "blockr.core-table_output")?.renderer;
+    if (table === undefined) throw new Error("No block class of the fixtures draws a table.");
+    const { el, board, settled } = await drawn({
+      hello: { ...HELLO, board: { ...HELLO.board, board: { ...HELLO.board.board, options: {} } } },
+      modules: { [table.module]: { api: 1, default: { ...stub("Output").default, options: ["n_rows"] } } },
+    });
 
     await click(button(el, "Options"));
     await settled();
-    // The board holds n_rows, which the table renderer names, and
-    // show_conditions and dark_mode, which core's basic front-end requires.
-    expect(Object.keys(board().options).sort()).toEqual(["dark_mode", "n_rows", "show_conditions"]);
+    // The board holds show_conditions and dark_mode, which core's basic
+    // front-end requires, while the table renderer requires n_rows, whose
+    // default the board does not take.
+    expect(Object.keys(board().options).sort()).toEqual(["dark_mode", "show_conditions"]);
     expect(texts(dialog(el), "h3")).toEqual(["Table options", "Board options", "Theme options"]);
     expect(dialog(el).textContent).toContain("Preview rows");
+    expect(find(dialog(el), 'section[aria-label="Table options"] input', HTMLInputElement).value).toBe("10");
     expect(dialog(el).textContent).toContain("Message types to display");
 
     await step(() => {

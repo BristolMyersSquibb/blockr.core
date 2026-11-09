@@ -4,6 +4,7 @@ import type { OutputInfo, OutputReply, Reply } from "../protocol/index.ts";
 import type { BlockId, OptionId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { Answers } from "./answers.ts";
+import type { Defaults } from "./defaults.ts";
 import type { Loader } from "./load.ts";
 import type { Measure } from "./measure.ts";
 export interface OutputEvent {
@@ -42,14 +43,14 @@ export interface Shelves {
 }
 export declare function createShelves(): Shelves;
 export interface OutputDeps {
-    readonly store: Pick<Store, "board" | "blockRegistry" | "subscribe">;
+    readonly store: Pick<Store, "board" | "blockRegistry" | "options" | "subscribe">;
     readonly scheduler: Pick<Scheduler, "request" | "status" | "subscribe">;
     readonly loader: Loader;
     readonly answers: Answers;
     readonly shelves: Shelves;
     readonly measure: Measure;
     readonly replaced: AbortSignal;
-    readonly addOptions: (ids: readonly OptionId[], by: string) => Promise<void>;
+    readonly defaults: Defaults;
     readonly emit: (event: OutputEvent) => void;
 }
 export declare function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): () => void;

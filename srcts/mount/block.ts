@@ -5,11 +5,14 @@
 // 2. It refuses a module whose `options` leaves out a board option that a
 //    request of the block's class reads, as the class's registry entry names
 //    them.
-// 3. It adds the board options that the module names to the board, each with
-//    its definition's default where the board lacks it.
+// 3. It resolves the default of each board option that the module names and
+//    the board holds no value for, which it keeps beside the board for the
+//    opening (./defaults.ts).
 // 4. It calls the module's render() with the element, a host of the block's
 //    own and a signal, which it aborts once the mount ends, and runs the
-//    cleanup that render() returns.
+//    cleanup that render() returns. The host's context gives the module the
+//    values of the board options it names, the board's or else their
+//    defaults.
 // Where the module fails to load, declares another major, leaves out such a
 // board option or throws in render(), core shows an error in the element that
 // names the module and its package, while the page and the block's evaluation
@@ -41,6 +44,8 @@ import type { RegistryEntry } from "../types/registry.ts";
 import { isObject, jsonEqual, messageOf, own, packageOf, quoted, report } from "../util/index.ts";
 import { createAnswers } from "./answers.ts";
 import type { Answers } from "./answers.ts";
+import { createDefaults } from "./defaults.ts";
+import type { Defaults } from "./defaults.ts";
 import { ModuleError } from "./load.ts";
 import type { Loader } from "./load.ts";
 import { domMeasure } from "./measure.ts";
@@ -63,11 +68,9 @@ export interface Mounts {
   // until the returned cleanup runs (./option.ts). It throws where no package
   // registers such a board option.
   mountOption(el: HTMLElement, option: OptionId): () => void;
-  // Adds the board options to the board, each with its definition's default
-  // where the board lacks it. Core calls a default that is a function once per
-  // opening of a board and keeps its result. The origin of what it adds is
-  // "blockr.core".
-  addOptions(ids: readonly OptionId[], by: string): Promise<void>;
+  // The defaults of the board options that the mounts require, which core
+  // resolves for the opening and keeps beside the board (./defaults.ts).
+  readonly defaults: Defaults;
 }
 
 export interface MountsOptions {
@@ -86,10 +89,6 @@ export interface MountsOptions {
   readonly signal?: AbortSignal;
 }
 
-// The origin of what core changes on the board itself, such as the board
-// options that a module requires.
-const CORE = "blockr.core";
-
 // The status of a block that the scheduler has not seen yet.
 const NO_STATUS = Object.freeze(unevaluated(0, false));
 
@@ -106,50 +105,11 @@ export function createMounts(options: MountsOptions): Mounts {
   // What core keeps of the board, which goes with the mounts as another board
   // opens: the answers of requests, the defaults of board options, and of each
   // block's output its parameters and its last output.
-  const defaults = new Map<OptionId, Promise<Json>>();
+  const defaults = createDefaults({ store, signal: replaced });
   store.subscribe((change) => {
     if ("opened" in change) return;
     for (const id of change.delta.blocks?.rm ?? []) shelves.drop(id);
   });
-
-  function defaultOf(id: OptionId, def: { default: Json | (() => Promise<Json>) }): Promise<Json> {
-    let value = defaults.get(id);
-    if (value === undefined) {
-      const given = def.default;
-      value = typeof given === "function" ? Promise.resolve().then(given) : Promise.resolve(given);
-      defaults.set(id, value);
-    }
-    return value;
-  }
-
-  async function addOptions(ids: readonly OptionId[], by: string): Promise<void> {
-    await Promise.all(
-      ids.map(async (id) => {
-        if (Object.hasOwn(store.board().options, id)) return;
-        const def = own(store.options.registered(), id);
-        if (def === undefined) {
-          report(new Error(`The board option "${id}", which ${by} requires, is defined by no package loaded.`));
-          return;
-        }
-        let value: Json;
-        try {
-          value = await defaultOf(id, def);
-        } catch (error) {
-          report(new Error(`The default of the board option "${id}" failed: ${messageOf(error)}`, { cause: error }));
-          return;
-        }
-        // Something may have set it while the default resolved, and another
-        // board may have opened, which takes the board options its own mounts
-        // require.
-        if (replaced.aborted || Object.hasOwn(store.board().options, id)) return;
-        try {
-          await commands.run("blockr.core-set_option", { id, value }, CORE);
-        } catch (error) {
-          report(error);
-        }
-      }),
-    );
-  }
 
   function mountBlock(el: HTMLElement, block: BlockId): () => void {
     if (replaced.aborted) throw new Error(REPLACED);
@@ -169,11 +129,14 @@ export function createMounts(options: MountsOptions): Mounts {
     const { signal } = controller;
     const ended = (): boolean => signal.aborted;
     let cleanup: (() => void) | undefined;
+    // Ends what the module requires of the board options, once it has loaded.
+    let release: (() => void) | undefined;
 
     const end = (): void => {
       if (ended()) return;
       offEnd();
       host.drop();
+      release?.();
       controller.abort();
       // The cleanup runs where render() has returned it, and runs at once
       // where render() resolves with it later.
@@ -187,6 +150,7 @@ export function createMounts(options: MountsOptions): Mounts {
       scheduler,
       loader,
       answers,
+      defaults,
       block,
       entry,
       replaced,
@@ -214,7 +178,9 @@ export function createMounts(options: MountsOptions): Mounts {
       }
 
       const named = mod.options ?? [];
-      await addOptions(named, `the UI module of block class "${entry.id}"`);
+      const by = `the UI module of block class "${entry.id}"`;
+      release = defaults.require(named, by);
+      await defaults.resolve(named, by);
       if (ended()) return;
       host.name(named);
 
@@ -241,17 +207,13 @@ export function createMounts(options: MountsOptions): Mounts {
     mountBlock,
     mountOutput: (el, block) =>
       mountOutput(
-        { store, scheduler, loader, answers, shelves, measure, replaced, addOptions, emit },
+        { store, scheduler, loader, answers, shelves, measure, replaced, defaults, emit },
         el,
         block,
       ),
     mountOption: (el, option) =>
-      mountOption(
-        { store, commands, scheduler, loader, renderers, replaced, addOptions, defaultOf },
-        el,
-        option,
-      ),
-    addOptions,
+      mountOption({ store, commands, scheduler, loader, renderers, replaced, defaults }, el, option),
+    defaults,
   };
 }
 
@@ -279,6 +241,7 @@ interface HostDeps {
   readonly scheduler: Pick<Scheduler, "evaluate" | "inputs" | "status" | "subscribe">;
   readonly loader: Loader;
   readonly answers: Answers;
+  readonly defaults: Defaults;
   readonly block: BlockId;
   readonly entry: RegistryEntry;
   // Aborts as another board opens in place of the host's.
@@ -296,13 +259,13 @@ interface MountedHost extends BlockHost {
 }
 
 function blockHost(deps: HostDeps): MountedHost {
-  const { store, commands, scheduler, block, entry } = deps;
+  const { store, commands, scheduler, defaults, block, entry } = deps;
 
   // The board as the host last heard it from the store.
   let seen = store.board();
   let named: readonly OptionId[] = [];
   let state = blockOf(seen)?.state ?? {};
-  let context = contextOf(blockOf(seen));
+  let context = contextOf(blockOf(seen), {});
   // Whether the host follows the board, and whether it saw its block leave,
   // after which it changes nothing.
   let following = true;
@@ -313,7 +276,9 @@ function blockHost(deps: HostDeps): MountedHost {
     return own(board.blocks, block);
   }
 
-  function contextOf(now: Block | undefined): BlockContext {
+  // The context, given the board options of the context before, which one
+  // keeps while core resolves its default.
+  function contextOf(now: Block | undefined, before: BlockContext["options"]): BlockContext {
     const recipe = scheduler.inputs(block)?.recipe ?? [];
     return Object.freeze({
       name: now?.name ?? "",
@@ -325,14 +290,8 @@ function blockHost(deps: HostDeps): MountedHost {
             : [Object.freeze({ input: input.input, revision: scheduler.status(input.block)?.revision ?? 0 })],
         ),
       ),
-      options: Object.freeze(
-        Object.fromEntries(
-          named.flatMap((id) => {
-            const value = own(seen.options, id);
-            return value === undefined ? [] : [[id, value]];
-          }),
-        ),
-      ),
+      // The board's values, or else the defaults that core resolved.
+      options: Object.freeze(defaults.values(named, seen.options, before)),
     });
   }
 
@@ -364,7 +323,7 @@ function blockHost(deps: HostDeps): MountedHost {
     }
     const stateChanged = now.state !== state;
     if (stateChanged) state = now.state;
-    const next = contextOf(now);
+    const next = contextOf(now, context.options);
     const contextChanged = !sameContext(context, next);
     if (contextChanged) context = next;
     if (stateChanged) announce("state");
@@ -388,11 +347,17 @@ function blockHost(deps: HostDeps): MountedHost {
   const offScheduler = scheduler.subscribe(() => {
     if (following && store.board() === seen) refresh();
   });
+  // A default that settles, as after a delta removed a value, is news to the
+  // context where the module names the board option.
+  const offDefaults = defaults.subscribe(() => {
+    if (following && store.board() === seen) refresh();
+  });
 
   function stop(): void {
     following = false;
     offStore();
     offScheduler();
+    offDefaults();
   }
 
   const unboundError = (): Error =>
@@ -452,7 +417,7 @@ function blockHost(deps: HostDeps): MountedHost {
     },
     name(options) {
       named = options;
-      context = contextOf(blockOf(seen));
+      context = contextOf(blockOf(seen), context.options);
     },
     drop: stop,
   };

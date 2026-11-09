@@ -6,10 +6,11 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { EvaluateRequest, HelloReply, Reply, Request, Transport, TransportListener } from "../protocol/index.ts";
 import { coreOptions } from "../options/index.ts";
+import type { Option } from "../store/index.ts";
 import { reports } from "../testing/reports.ts";
 import { hello, withPlugins } from "../testing/store.ts";
 import type { CoreApi } from "../types/core-api.ts";
-import type { JsonSchema } from "../types/json.ts";
+import type { Json, JsonSchema } from "../types/json.ts";
 import { pageFrontEnds, start } from "./index.ts";
 import type { Changed, StartOptions } from "./index.ts";
 
@@ -668,6 +669,119 @@ describe("a board opened later", () => {
     expect(reported.errors().map((error) => (error as Error).message)).toContain(
       "The startup module of blockr.session named a board to open as another board opened, which core ignores, since only a startup module that runs as the page starts names one.",
     );
+  });
+});
+
+describe("board options", () => {
+  const STARTUP = "blockr.test/startup.js?v=1";
+
+  // A startup module that registers the board option given, as the package
+  // that ships it does.
+  function registering(option: Option) {
+    return {
+      api: 1,
+      default: {
+        initialize({ core }: { core: CoreApi }) {
+          core.options.register(option);
+        },
+      },
+    };
+  }
+
+  // Starts the page on the board of the fixture hello, with a package that
+  // registers the board option given.
+  async function started(option: Option) {
+    const s = setup({ [STARTUP]: registering(option), [BASIC]: frontEnd().exports });
+    s.r.session(withStartup("blockr.test"));
+    await tick();
+    s.r.options();
+    const core = await s.started.ready;
+    await tick();
+    return { ...s, core };
+  }
+
+  // Opens a board that holds the values given, and answers the hello with
+  // which core starts again.
+  async function reopen(s: Setup, core: CoreApi, values: Readonly<Record<string, Json>>): Promise<CoreApi> {
+    const options = Object.fromEntries(Object.entries(values).map(([id, value]) => [id, { value, version: 1 }]));
+    const opening = core.store.open(JSON.stringify({ ...hello.board, board: { ...hello.board.board, options } }));
+    await tick();
+    s.r.answer(withStartup("blockr.test"));
+    await opening;
+    await tick();
+    const next = s.started.core();
+    if (next === undefined) throw new Error("No board is open.");
+    return next;
+  }
+
+  test("have their onChange called as each board opens, with the board's value or else the default, and as a delta sets or removes the value", async () => {
+    const heard: Json[] = [];
+    let calls = 0;
+    const zoom: Option = {
+      id: "zoom",
+      label: "Zoom",
+      category: "View options",
+      schema: { type: "number" },
+      default: () => {
+        calls++;
+        return Promise.resolve(1);
+      },
+      ui: { render: () => undefined },
+      onChange(value) {
+        heard.push(value);
+      },
+    };
+    const s = await started(zoom);
+    // Though nothing on the page requires zoom, and the board holds no value.
+    expect(heard).toEqual([1]);
+    expect(Object.hasOwn(s.core.store.board().options, "zoom")).toBe(false);
+
+    s.core.store.apply({ options: { set: { zoom: 2 } } });
+    s.core.store.apply({ options: { unset: ["zoom"] } });
+    await tick();
+    expect(heard).toEqual([1, 2, 1]);
+    expect(calls).toBe(1);
+
+    // Each board that opens later has it called again, with the board's value
+    // or else a default resolved for that opening.
+    const next = await reopen(s, s.core, { zoom: 3 });
+    expect(heard).toEqual([1, 2, 1, 3]);
+    await reopen(s, next, {});
+    expect(heard).toEqual([1, 2, 1, 3, 1]);
+    expect(calls).toBe(2);
+  });
+
+  test("give the board's value or else the default through value(), and list in inUse() those that the board holds or something requires", async () => {
+    const zoom: Option = {
+      id: "zoom",
+      label: "Zoom",
+      category: "View options",
+      schema: { type: "number" },
+      default: 1,
+      ui: { render: () => undefined },
+    };
+    const s = await started(zoom);
+    const { options } = s.core;
+    // The board of the fixture hello holds n_rows and show_conditions, and
+    // dark_mode, which core's basic front-end requires, while nothing on the
+    // page requires zoom, whose default core has not resolved.
+    expect(options.value("n_rows")).toBe(50);
+    expect(options.value("zoom")).toBeUndefined();
+    expect(options.inUse()).toEqual(["n_rows", "show_conditions", "dark_mode"]);
+    expect(options.inUse()).toBe(options.inUse());
+
+    let announced = 0;
+    const off = options.subscribe(() => {
+      announced++;
+    });
+    s.core.store.apply({ options: { set: { zoom: 3 } } });
+    expect(announced).toBe(1);
+    expect(options.value("zoom")).toBe(3);
+    expect(options.inUse()).toEqual(["n_rows", "show_conditions", "dark_mode", "zoom"]);
+    off();
+    s.core.store.apply({ options: { unset: ["zoom"] } });
+    expect(announced).toBe(1);
+    expect(options.inUse()).toEqual(["n_rows", "show_conditions", "dark_mode"]);
   });
 });
 
