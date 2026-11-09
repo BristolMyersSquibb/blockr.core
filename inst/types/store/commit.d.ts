@@ -1,6 +1,5 @@
-import type { BlockId, Board, LinkId, OptionId, StackId } from "../types/board.ts";
+import type { BlockId, Board, LinkId, OptionId, PluginId, StackId } from "../types/board.ts";
 import type { Delta } from "./delta.ts";
-import type { Built } from "./registrations.ts";
 export type Places = Readonly<Record<string, Readonly<Record<string, string | null>>>>;
 export interface Inverse {
     readonly delta: Delta;
@@ -11,7 +10,7 @@ export interface Changed {
     readonly links: ReadonlySet<LinkId>;
     readonly stacks: ReadonlySet<StackId>;
     readonly options: ReadonlySet<OptionId>;
-    readonly properties: ReadonlySet<string>;
+    readonly plugins: ReadonlySet<PluginId>;
     readonly targets: ReadonlySet<string>;
 }
 export interface Committed {
@@ -22,9 +21,9 @@ export interface Committed {
 export type Target = {
     readonly block: BlockId;
 } | {
-    readonly property: string;
+    readonly plugin: PluginId;
 };
 export declare function target(of: Target): string;
-export declare function commit(board: Board, delta: Delta, built: Built, places?: Places): Committed | {
+export declare function commit(board: Board, delta: Delta, places?: Places): Committed | {
     readonly failures: readonly string[];
 };

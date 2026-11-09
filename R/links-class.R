@@ -9,6 +9,8 @@
 #' behave like edges in a directed acyclic graph (DAG) in that cycles are
 #' detected and disallowed.
 #'
+#' @param ... For `links()`, the links to combine, or their fields, such as
+#'   `from` and `to`, as vectors, and otherwise generic consistency
 #' @rdname new_link
 #' @export
 links <- function(...) {

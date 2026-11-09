@@ -1,0 +1,7 @@
+{
+  "enum": [
+    "light",
+    "dark"
+  ],
+  "description": "Whether the board shows in its light or its dark theme"
+}

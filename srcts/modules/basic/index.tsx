@@ -1,8 +1,7 @@
 // Core's basic front-end, blockr.core-basic, as Front-ends and extension
 // points has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#cores-basic-front-end).
-// Core's board class `board` names it, so it draws every board whose class no
-// other front-end draws.
+// It draws every board.
 // It does what today's front-end does wherever core's commands and store do
 // the work, so it only draws. It works on the board through CoreApi alone.
 // It is written in React, on the one copy of React that core puts on the

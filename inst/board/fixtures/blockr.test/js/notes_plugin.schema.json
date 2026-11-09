@@ -2,8 +2,8 @@
   "type": "object",
   "properties": {
     "notes": {
-      "type": "object",
-      "additionalProperties": {
+      "type": "array",
+      "items": {
         "type": "object",
         "properties": {
           "text": { "type": "string" },
@@ -11,7 +11,6 @@
         },
         "required": ["text", "blocks"]
       }
-    },
-    "pinned": { "type": "string" }
+    }
   }
 }

@@ -1,0 +1,58 @@
+{
+  "description": "A board that holds three plugins of the package blockr.test, which defines their classes in JavaScript. The plugin grid, of the class blockr.test-grid_plugin, is a frontend. It takes its id from its class, since the list of the board's plugins gives it no name. The plugins check and later are two plugins of the class blockr.test-notes_plugin, each under its name in that list. The package ships the schema of the state of its notes class beside its startup module, in a file named by the class in R, here blockr.test/js/notes_plugin.schema.json. By that schema, R writes the notes of both plugins as arrays, and the blocks of each note as an array, whatever the plugin's id. It writes the state of grid, whose class the package gives no schema, bare. The package gives the notes class version 2 through its method of plugin_version(), and the grid class has no such method, so the board records it at version 1. R records blockr.test among the board's packages, as the ids of the plugins' classes name it. A client keeps the plugins of a class only where blockr.test registers the class, and drops them otherwise.",
+  "format": 1,
+  "packages": {
+    "blockr.test": "0.1.0"
+  },
+  "board": {
+    "id": "quiet_heron",
+    "versions": {
+      "blockr.test-grid_plugin": 1,
+      "blockr.test-notes_plugin": 2
+    },
+    "name": "Grid",
+    "blocks": {
+      "a": {
+        "registry_id": "letters_block",
+        "version": 1,
+        "state": {
+          "n": 3
+        },
+        "name": "Letters"
+      }
+    },
+    "links": {},
+    "stacks": {},
+    "options": {},
+    "plugins": {
+      "grid": {
+        "class": "blockr.test-grid_plugin",
+        "name": "Grid",
+        "state": {
+          "columns": 2
+        }
+      },
+      "check": {
+        "class": "blockr.test-notes_plugin",
+        "name": "Check",
+        "state": {
+          "notes": [
+            {
+              "text": "To check",
+              "blocks": [
+                "a"
+              ]
+            }
+          ]
+        }
+      },
+      "later": {
+        "class": "blockr.test-notes_plugin",
+        "name": "Later",
+        "state": {
+          "notes": []
+        }
+      }
+    }
+  }
+}

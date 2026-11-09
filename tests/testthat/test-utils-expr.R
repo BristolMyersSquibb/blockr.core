@@ -157,6 +157,45 @@ test_that("bbquote preserves missing arguments", {
   )
 })
 
+test_that("bbquote throws an error for a .() or ..() that holds more", {
+
+  expect_error(
+    bbquote(.(data)[, .(total = sum(value)), by = .(by)], list(by = "id")),
+    class = "bbquote_invalid"
+  )
+
+  expect_error(
+    bbquote(.(x)[.(y), .(x, y), on = "id"], list()),
+    class = "bbquote_invalid"
+  )
+
+  expect_error(bbquote(dt[, .(n = .N)], list()), class = "bbquote_invalid")
+  expect_error(bbquote(dt[, .(n = n)], list(n = 1L)), class = "bbquote_invalid")
+  expect_error(bbquote(dt[, .()], list()), class = "bbquote_invalid")
+
+  expect_error(
+    bbquote(utils::head(.(data), n = .(n + 1L)), list(n = 1L)),
+    class = "bbquote_invalid"
+  )
+
+  expect_error(
+    bbquote(function(x = .(a, b)) x, list()),
+    class = "bbquote_invalid"
+  )
+
+  expect_error(
+    bbquote(f(..(bc), ..(c(a, b))), list(bc = 1:2), splice = TRUE),
+    class = "bbquote_invalid"
+  )
+
+  expect_error(bbquote(f(..(n = bc)), list()), class = "bbquote_invalid")
+
+  expect_identical(
+    bbquote(f(.(j)), list(j = quote(.(n = .N)))),
+    new_bquoted_expr(quote(f(.(n = .N))))
+  )
+})
+
 test_that("bbquote returns a bquoted_expr", {
 
   res <- bbquote(utils::head(.(data), n = .(n)), list(n = 10L))

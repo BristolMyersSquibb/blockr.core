@@ -6,8 +6,8 @@
 // Each fixture is type-checked as the value of a variable of its type,
 // as the fixtures of the wire protocol are, and every id is given,
 // so that nothing is drawn at random.
-// A board holds the properties of its class beside core's,
-// which core's types leave open.
+// A board holds core's properties alone, its plugins among them, so a fixture
+// that holds another fails the check.
 
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -15,17 +15,18 @@ import { fileURLToPath } from "node:url";
 import { beforeAll, expect, test } from "vitest";
 import { createStore, HEX_COLOR } from "../store/index.ts";
 import type { HelloReply } from "../protocol/index.ts";
-import type { BoardClass, Store } from "../store/index.ts";
+import type { PluginClass, Store } from "../store/index.ts";
 import { coreOptions, hello } from "../testing/store.ts";
 import { declaration, typecheck } from "../testing/typecheck.ts";
 import type { JsonBoard } from "./board.ts";
+import type { JsonSchema } from "./json.ts";
 import type { RegistryEntry } from "./registry.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const fixtures = join(root, "inst", "board", "fixtures");
 const board = join(root, "srcts", "types", "board.ts");
 
-const type = "JsonBoard & { description: string; board: Readonly<Record<string, unknown>> }";
+const type = "JsonBoard & { description: string }";
 
 interface Fixture extends JsonBoard {
   description: string;
@@ -98,16 +99,21 @@ function entry(id: string, inputs: readonly string[]): RegistryEntry {
   };
 }
 
-// The board class that blockr.test defines, which the fixture board-class is
-// built as.
-const grid: BoardClass = {
-  class: "grid_board",
-  parent: "board",
-  properties: {
-    notes: { schema: { type: "object" }, default: {} },
-    pinned: { schema: { type: "string" }, default: "" },
+// The plugin classes that blockr.test defines, whose plugins the fixture
+// plugins holds: a frontend, and the notes, whose state R wrote by the schema
+// that blockr.test ships.
+const classes: readonly PluginClass[] = [
+  { id: "blockr.test-grid_plugin", frontend: "blockr.test-grid" },
+  {
+    id: "blockr.test-notes_plugin",
+    state: {
+      schema: JSON.parse(
+        readFileSync(join(fixtures, "blockr.test", "js", "notes_plugin.schema.json"), "utf8"),
+      ) as JsonSchema,
+      default: { notes: [] },
+    },
   },
-};
+];
 
 function jsonOf({ format, packages, board }: Fixture): JsonBoard {
   return { format, packages, board };
@@ -128,7 +134,7 @@ test("the JSON Schema of a JSON board checks a stack's colour by the pattern of 
 
 test("there are fixtures", () => {
   expect(names).toContain("board");
-  expect(names).toContain("board-class");
+  expect(names).toContain("plugins");
 });
 
 test.each(names)("%s meets the type of a JSON board", (name) => {
@@ -140,9 +146,10 @@ test("the check fails a fixture with a field that its type lacks", () => {
   expect(found.join("\n")).toMatch(/'"class"' does not exist in type 'JsonBlock'/);
 });
 
-// R loaded the packages at the versions that the JSON board records, so that
-// the store runs no migration.
-// The store gives the board options that core's board class requires their
+// R loaded the packages at the versions that the JSON board records, and gives
+// the plugin classes the versions it records, so that the store runs no
+// migration.
+// The store gives the board options that core's basic frontend requires their
 // defaults where the board lacks them, so the text holds those too, after the
 // values that R wrote.
 test.each(names)("the store opens %s, saves it as R wrote it, and opens the text to the same board", async (name) => {
@@ -150,10 +157,7 @@ test.each(names)("the store opens %s, saves it as R wrote it, and opens the text
   const replied: HelloReply = {
     ...hello,
     packages: json.packages,
-    board_classes: {
-      ...hello.board_classes,
-      grid_board: { package: "blockr.test", front_end: "blockr.test-grid", version: 1 },
-    },
+    plugin_versions: { "blockr.test-notes_plugin": 2 },
     block_registry: {
       letters_block: entry("letters_block", []),
       join_block: entry("join_block", ["x", "y"]),
@@ -164,7 +168,7 @@ test.each(names)("the store opens %s, saves it as R wrote it, and opens the text
   const app = (): Store => {
     const store = createStore({ hello: replied });
     for (const option of coreOptions) store.options.register(option);
-    store.register(grid);
+    for (const def of classes) store.plugins.register(def);
     return store;
   };
   const store = app();
@@ -186,7 +190,7 @@ test.each(names)("the store opens %s, saves it as R wrote it, and opens the text
   // A collection keeps the order of its entries, as JSON.parse() keeps the
   // order of keys that do not look like integers.
   const board = store.board();
-  for (const key of ["blocks", "links", "stacks"] as const) {
+  for (const key of ["blocks", "links", "stacks", "plugins"] as const) {
     expect(Object.keys(board[key])).toEqual(Object.keys(json.board[key]));
   }
 

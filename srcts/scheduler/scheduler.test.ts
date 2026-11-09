@@ -18,7 +18,7 @@ import type { Store } from "../store/index.ts";
 import { playR } from "../testing/r.ts";
 import { reports } from "../testing/reports.ts";
 import type { PlayedR } from "../testing/r.ts";
-import { coreOptions, hello, reply as replyOf } from "../testing/store.ts";
+import { coreOptions, hello, reply as replyOf, withPlugins } from "../testing/store.ts";
 import type { BlockId } from "../types/board.ts";
 import { createScheduler } from "./index.ts";
 import type { BlockStatus, Scheduler, SchedulerOptions } from "./index.ts";
@@ -161,19 +161,15 @@ describe("revisions", () => {
     for (const id of ["b", "c", "e"]) expect(after[id]).toBeGreaterThan(top);
   });
 
-  test("stay through a rename, a stack, a board option, the board's name, a property of its class and a state set to what it holds", async () => {
+  test("stay through a rename, a stack, a board option, the board's name, a plugin's state and a state set to what it holds", async () => {
     const { store, scheduler } = await setup(
       {},
       {
-        reply: {
-          ...hello,
-          board: { ...hello.board, board: { ...hello.board.board, class: ["zoomed_board", "board"] } },
-        },
+        reply: withPlugins({ zoom: { class: "test.pkg-zoom_plugin", name: "Zoom", state: { zoom: 1 } } }),
         prepare: (store) =>
-          store.register({
-            class: "zoomed_board",
-            parent: "board",
-            properties: { zoom: { schema: { type: "number" }, default: 1 } },
+          store.plugins.register({
+            id: "test.pkg-zoom_plugin",
+            state: { schema: { type: "object", properties: { zoom: { type: "number" } } }, default: { zoom: 1 } },
           }),
       },
     );
@@ -189,7 +185,7 @@ describe("revisions", () => {
     store.apply({ stacks: { mod: { s1: { name: "Inputs" } } } });
     store.apply({ options: { set: { n_rows: 20 } } });
     store.apply({ name: "Renamed" });
-    store.apply({ patches: [{ op: "replace", path: "/zoom", value: 2 }] });
+    store.apply({ patches: [{ op: "replace", path: "/plugins/zoom/state/zoom", value: 2 }] });
 
     expect(revisionsOf(scheduler)).toEqual(before);
   });
@@ -594,22 +590,6 @@ describe("demand and scheduling", () => {
     scheduler.start();
     await evaluateAll(r);
     expect(r.evaluations().map((request) => request.block).sort()).toEqual(["a", "b", "c", "d", "e", "f"]);
-  });
-
-  test("hold evaluations from hold() until start() again, as while the page switches front-ends", async () => {
-    const { r, scheduler } = await setup();
-    scheduler.demand("test", ["a"]);
-    scheduler.start();
-    await evaluateAll(r);
-
-    scheduler.hold();
-    scheduler.invalidate("a");
-    await tick(60_000);
-    expect(r.pending()).toEqual([]);
-
-    scheduler.start();
-    await tick();
-    expect(r.pending().map((request) => request.block)).toEqual(["a"]);
   });
 
   test("fail a block whose evaluation the transport could not send, naming why, until its revision moves", async () => {

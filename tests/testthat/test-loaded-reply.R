@@ -10,7 +10,7 @@ test_that("R tells the client what it loaded in the fields of the protocol", {
   expect_named(
     reply,
     c("packages", "block_registry", "startup_modules", "modules",
-      "board_classes", "option_versions", "renderers")
+      "plugin_versions", "option_versions", "renderers")
   )
   expect_identical(
     json(reply$packages),
@@ -184,7 +184,7 @@ test_that("R says where it serves what packages declare", {
   expect_identical(reply$startup_modules[[1L]]$package, "blockr.test")
   expect_match(reply$startup_modules[[1L]]$module, url("startup.js"))
 
-  # The front-end that the package's board class names is a module like any
+  # The module that the package's plugin class names is a module like any
   # other
   expect_named(reply$modules, c("blockr.test-grid", "blockr.test-picker"))
   expect_named(reply$modules[["blockr.test-grid"]], c("module", "css"))
@@ -193,31 +193,40 @@ test_that("R says where it serves what packages declare", {
   expect_match(reply$modules[["blockr.test-picker"]]$module, url("picker.js"))
 })
 
-test_that("R names each board class with its package and front-end", {
+test_that("R gives the version of each plugin class that a package versions", {
 
   expect_identical(
-    json(declared_fields()$board_classes),
-    paste0(
-      "{\"board\":{\"package\":\"blockr.core\",",
-      "\"front_end\":\"blockr.core-basic\",\"version\":1},",
-      "\"grid_board\":{\"package\":\"blockr.test\",",
-      "\"front_end\":\"blockr.test-grid\",\"version\":1}}"
+    json(declared_fields()$plugin_versions),
+    "{\"blockr.test-grid_plugin\":2}"
+  )
+  expect_identical(json(plugin_versions()), "{}")
+
+  # By the class's id, whose package is the one whose namespace holds the
+  # method, which names the package among those of the reply
+  local_plugin_version("dag_plugin", 3L, "blockr.one")
+  local_versions(blockr.one = "1.2.0")
+
+  expect_identical(plugin_versions(), list(`blockr.one-dag_plugin` = 3L))
+  expect_identical(loaded_reply()$packages$blockr.one, "1.2.0")
+
+  # A method that an app script defines, from no namespace, gives no version
+  method <- function(x, ...) 2L
+  environment(method) <- globalenv()
+  ns <- asNamespace("blockr.core")
+  registerS3method("plugin_version", "mine_plugin", method, envir = ns)
+  withr::defer(
+    rm(
+      list = "plugin_version.mine_plugin",
+      envir = get(".__S3MethodsTable__.", envir = ns)
     )
   )
 
-  # A class's version is what its method of board_version() returns
-  local_board_front_end("one_board", "blockr.one-grid", "blockr.one", 2L)
+  expect_identical(plugin_versions(), list(`blockr.one-dag_plugin` = 3L))
 
-  expect_identical(board_classes()$one_board$version, 2L)
+  # A method that gives no version fails as R builds the reply
+  local_plugin_version("bad_plugin", 0L, "blockr.bad")
 
-  # A method that names no module or no version fails as R builds the reply
-  local_board_front_end("bad_board", 1L, "blockr.bad")
-
-  expect_error(board_classes(), class = "board_front_end_invalid")
-
-  local_board_front_end("bad_board", "blockr.bad-grid", "blockr.bad", 0L)
-
-  expect_error(board_classes(), class = "board_version_invalid")
+  expect_error(plugin_versions(), class = "plugin_version_invalid")
 })
 
 test_that("R gives the version of each board option that a package versions", {
@@ -338,7 +347,7 @@ test_that("R keeps the startup modules in the order packages declare them", {
   expect_identical(
     json(reply$packages),
     paste0(
-      "{\"blockr.core\":\"1.0.0\",\"blockr.dag\":\"1.0.0\",",
+      "{\"blockr.dag\":\"1.0.0\",",
       "\"blockr.dock\":\"1.0.0\",\"blockr.ui\":\"1.0.0\"}"
     )
   )

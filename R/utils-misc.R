@@ -534,6 +534,25 @@ to_sentence_case <- function(x, replace = character(), with = character()) {
   chr_ply(strsplit(trimws(x), " ", fixed = TRUE), to_case_collapse)
 }
 
+# The name that an object of class vector `class` takes where it is given
+# none: the name of its own class without `suffix`, its underscores as spaces
+# and its first letter upper case, as "Dataset" for "dataset_block".
+default_name <- function(class, suffix) {
+  res <- gsub("_", " ", sub(paste0(suffix, "$"), "", class[1L]))
+  paste0(toupper(substr(res, 1L, 1L)), substring(res, 2L))
+}
+
+# The values of a classed list by name, without its class and its other
+# attributes, as the state of a block or of a plugin.
+bare_list <- function(x) {
+
+  res <- unclass(x)
+  attributes(res) <- NULL
+  names(res) <- names(x)
+
+  res
+}
+
 #' @rdname rand_names
 #' @export
 id_to_sentence_case <- function(x) {

@@ -51,6 +51,19 @@ test_that("link class", {
   expect_s3_class(c(lnk, chr), "links")
 })
 
+test_that("a link takes core's properties and nothing else", {
+
+  expect_error(new_link("a", "b", "x", "y"), "unused argument")
+  expect_error(new_link("a", "b", weight = 1), "unused argument")
+  expect_error(new_link("a", "b", class = "weighted_link"), "unused argument")
+
+  expect_error(links(from = "a", to = "b", weight = 1), "unused argument")
+  expect_error(
+    as_link(list(from = "a", to = "b", weight = 1)),
+    "unused argument"
+  )
+})
+
 test_that("a link has a compact str_value()", {
 
   expect_identical(
