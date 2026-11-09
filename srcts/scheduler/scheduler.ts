@@ -36,7 +36,7 @@ import type { Delta, Store } from "../store/index.ts";
 import type { BlockId, Board, RegistryId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { asError, logicalOf, messageOf, numberOf, own, report } from "../util/index.ts";
+import { asError, asLogical, asNumber, messageOf, own, report } from "../util/index.ts";
 import * as evaluations from "./evaluations.ts";
 import type { OneTime, Settled } from "./evaluations.ts";
 import { needsOf } from "./needs.ts";
@@ -785,7 +785,7 @@ function changedSince(
 // does one that is no whole number where the blockr option counts.
 function setting(value: Json | undefined, fallback: number, name: string, counts = false): number {
   if (value === undefined) return fallback;
-  const number = typeof value === "string" ? numberOf(value) : value;
+  const number = typeof value === "string" ? asNumber(value) : value;
   if (number === -1) return Infinity;
   if (typeof number === "number" && Number.isFinite(number) && number >= 0 && (!counts || Number.isInteger(number))) {
     return number;
@@ -800,7 +800,7 @@ function setting(value: Json | undefined, fallback: number, name: string, counts
 // as.logical() reads it, so that "FALSE" is false, and any other value fails.
 function flag(value: Json | undefined, fallback: boolean, name: string): boolean {
   if (value === undefined) return fallback;
-  const logical = typeof value === "string" ? logicalOf(value) : value;
+  const logical = typeof value === "string" ? asLogical(value) : value;
   if (typeof logical === "boolean") return logical;
   throw new TypeError(`The blockr option ${name} is ${shown(value)}, where it takes TRUE or FALSE.`);
 }

@@ -150,14 +150,14 @@ export function isPackageName(name: unknown): name is string {
 // The number that text holds, such as an environment variable's value, or NaN
 // where it holds no finite number, as "", "a" and "Inf" do, while Number()
 // reads "" as 0.
-export function numberOf(text: string): number {
+export function asNumber(text: string): number {
   const number = text.trim() === "" ? NaN : Number(text);
   return Number.isFinite(number) ? number : NaN;
 }
 
 // A logical as R's as.logical() reads one from text, such as an environment
 // variable's value, or undefined.
-export function logicalOf(text: string): boolean | undefined {
+export function asLogical(text: string): boolean | undefined {
   const trimmed = text.trim();
   if (["TRUE", "true", "True", "T"].includes(trimmed)) return true;
   if (["FALSE", "false", "False", "F"].includes(trimmed)) return false;

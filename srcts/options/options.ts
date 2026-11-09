@@ -23,7 +23,7 @@ import type { Option } from "../store/index.ts";
 import type { OptionId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
-import { compile, logicalOf, numberOf } from "../util/index.ts";
+import { asLogical, asNumber, compile } from "../util/index.ts";
 import { optionSchemas } from "./schemas.ts";
 import { checklistUi, numberUi, selectUi } from "./ui.tsx";
 
@@ -49,7 +49,7 @@ export function nRows(core: BlockrOptions): Option {
     default: async () => {
       const value = await core.blockrOption("n_rows");
       if (value === undefined) return fallback;
-      return checked("n_rows", schema, value, typeof value === "string" ? numberOf(value) : value);
+      return checked("n_rows", schema, value, typeof value === "string" ? asNumber(value) : value);
     },
     ui: numberUi("Preview rows", schema.minimum),
   };
@@ -93,7 +93,7 @@ export function darkMode(core: BlockrOptions): Option {
     default: async () => {
       const value = await core.blockrOption("dark_mode");
       if (value === undefined) return preferredTheme();
-      const logical = typeof value === "string" ? logicalOf(value) : value;
+      const logical = typeof value === "string" ? asLogical(value) : value;
       if (typeof logical === "boolean") return logical ? "dark" : "light";
       return checked("dark_mode", schema, value);
     },

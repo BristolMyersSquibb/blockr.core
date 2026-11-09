@@ -274,7 +274,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
 
   for (const command of coreCommands(store, {
     locked: options.lock?.board === true,
-    randId: shapeOf(options.randId),
+    randId: options.randId === undefined ? "adjective_animal" : asRandId(options.randId),
   })) {
     registry.register(command);
   }
@@ -282,12 +282,10 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   return registry;
 }
 
-// The shape of the ids that core's commands mint, which the blockr option
-// rand_id names, "adjective_animal" where it is not given. A value that names
-// no shape fails, as it does in R's rand_names(), a value that is no string
-// among them.
-function shapeOf(randId: Json | undefined): RandId {
-  if (randId === undefined) return "adjective_animal";
+// The blockr option rand_id as the shape of the ids that core's commands
+// mint. A value that names no shape fails, as it does in R's rand_names(), a
+// value that is no string among them.
+function asRandId(randId: Json): RandId {
   if (isRandId(randId)) return randId;
   throw new RangeError(`The blockr option rand_id is ${JSON.stringify(randId)}, where it takes one of ${quoted(RAND_IDS)}.`);
 }

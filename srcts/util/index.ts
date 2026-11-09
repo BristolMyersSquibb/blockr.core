@@ -3,14 +3,14 @@
 
 export {
   asError,
+  asLogical,
+  asNumber,
   frozenCopy,
   getAt,
   isObject,
   jsonEqual,
   listing,
-  logicalOf,
   messageOf,
-  numberOf,
   own,
   isPackageName,
   packageOf,
