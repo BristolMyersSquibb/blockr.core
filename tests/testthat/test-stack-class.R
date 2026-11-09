@@ -127,6 +127,15 @@ test_that("a stack takes core's properties and nothing else", {
   expect_error(new_stack("a", "Input", NULL, "extra"), "unused argument")
   expect_error(new_stack("a", collapsed = TRUE), "unused argument")
   expect_error(new_stack("a", class = "dock_stack"), "unused argument")
+
+  expect_error(
+    as_stack(list(blocks = "a", collapsed = TRUE)),
+    "unused argument"
+  )
+  expect_error(
+    stacks(list(blocks = "a", collapsed = TRUE)),
+    "unused argument"
+  )
 })
 
 test_that("a stack's color has the pattern of the schema of a JSON board", {

@@ -58,6 +58,10 @@ test_that("a link takes core's properties and nothing else", {
   expect_error(new_link("a", "b", class = "weighted_link"), "unused argument")
 
   expect_error(links(from = "a", to = "b", weight = 1), "unused argument")
+  expect_error(
+    as_link(list(from = "a", to = "b", weight = 1)),
+    "unused argument"
+  )
 })
 
 test_that("a link has a compact str_value()", {

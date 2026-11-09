@@ -272,7 +272,8 @@
   The rest of the page, the block's evaluation included, carries on (#502).
 * The constructors `new_link()` and `new_stack()` lose `...` and `class`, so that a link and a stack hold core's properties and nothing else.
   A script that passes another argument to either constructor fails at that call, as a block constructor fails for a misspelled state arg.
-  Until now, `blockr_ser()` dropped what `...` added without a word, since a JSON board has no place for it (#511).
+  Until now, `blockr_ser()` dropped what `...` added without a word, since a JSON board has no place for it.
+  A stack given as a list fails as well for an entry other than `blocks`, `name` and `color`, which `as_stack()` dropped until now (#511).
 
 # blockr.core 0.1.4
 

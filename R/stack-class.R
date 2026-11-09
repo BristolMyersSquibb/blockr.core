@@ -262,7 +262,7 @@ as_stack.character <- function(x) new_stack(x)
 
 #' @export
 as_stack.list <- function(x) {
-  do.call(new_stack, x[intersect(c("blocks", "name", "color"), names(x))])
+  do.call(new_stack, x)
 }
 
 #' @export
