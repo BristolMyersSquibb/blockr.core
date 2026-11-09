@@ -93,8 +93,8 @@ all inherit from \code{blocks} and \code{is_blocks()} returns a scalar logical.
 A block class is a value made by \code{new_block_class()}, holding everything
 that is the same for every block of the class, and the constructor that app
 scripts call is a function that \code{block_constructor()} makes from it. A
-package exports both: the class, from whose fields another class can be
-built, and the constructor.
+package exports both: the class, from whose properties another class can
+be built, and the constructor.
 }
 \details{
 Every class has an \code{expr}, a function whose formals are the state args and
@@ -125,8 +125,8 @@ package at a URL of its own, read from the path given, each at a URL that
 holds a hash of the file's content. A class further takes a
 named list of \code{requests}, for what its UI asks of R, each a function or made
 by \code{\link[=new_block_request]{new_block_request()}}, which names the board options it reads, and the
-coercion that makes an output from a result, as \code{output}. A field a class
-leaves out is \code{NULL}.
+coercion that makes an output from a result, as \code{output}. A property that
+a class leaves out is \code{NULL}.
 
 A UI module is an ES module that exports the major of core's JS API
 that it was built against, as \verb{export const api = 1},

@@ -33,7 +33,7 @@ A request asks R for an answer that the client needs,
 rather than for a block's result.
 Every request names its type in \code{type}, one of core's five,
 and R reads it into an object of class \verb{\{type\}_request},
-which holds the request's fields.
+which holds the request's properties.
 By the request's type, R then finds the function that answers the request,
 and binds the function's arguments.
 Core's types are these:

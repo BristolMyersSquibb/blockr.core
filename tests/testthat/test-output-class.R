@@ -34,7 +34,7 @@ test_that("an output is a list of fields of a class ending in block_output", {
   )
 })
 
-test_that("outputs print their class, fields and body", {
+test_that("outputs print their class, properties and body", {
 
   body <- new_reply_body(as.raw(seq_len(2000L) %% 256L), "image/png")
 

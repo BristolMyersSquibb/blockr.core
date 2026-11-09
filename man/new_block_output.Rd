@@ -10,8 +10,8 @@ new_block_output(x, class)
 new_reply_body(x, type, name = NULL)
 }
 \arguments{
-\item{x}{For \code{new_block_output()}, the output's fields, as a named list, and
-for \code{new_reply_body()}, a raw vector or the path of a file}
+\item{x}{For \code{new_block_output()}, the output's properties, as a named list,
+and for \code{new_reply_body()}, a raw vector or the path of a file}
 
 \item{class}{The output's class vector, without \code{block_output}}
 
@@ -25,7 +25,7 @@ The constructor \code{new_block_output()} returns an object of class
 }
 \description{
 A block's result can be any R object. An output is what R shows of it: the
-coercion that a block class names in its \code{output} field makes an output
+coercion that a block class names in its \code{output} property makes an output
 from the result (see \code{\link[=new_block_class]{new_block_class()}}). R sends the output to the client
 as JSON, and a renderer draws it there. So nothing in the protocol assumes a
 table.
@@ -34,12 +34,13 @@ table.
 An output is an S3 object of an output class, whose class vector ends in
 \code{block_output}. The package that defines an output class gives it two
 functions. A constructor makes an output of the class and checks its
-fields. A coercion is a generic that makes an output from a result, by the
+properties.
+A coercion is a generic that makes an output from a result, by the
 result's class. Core defines three output classes, for tables, text and
 plots (see \code{\link[=new_table_output]{new_table_output()}}, \code{\link[=new_text_output]{new_text_output()}} and
 \code{\link[=new_plot_output]{new_plot_output()}}). Their constructors build on \code{new_block_output()}.
 Another package extends an output class with a subclass. Its outputs hold
-every field of the class and add fields of their own.
+every property of the class and add properties of their own.
 
 An output may hold one binary body, such as a plot's PNG. R sends the body
 beside the JSON, not in it. The function \code{new_reply_body()} makes a body

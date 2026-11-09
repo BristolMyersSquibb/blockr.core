@@ -41,8 +41,8 @@
 #' @param rows One page of the table's rows, as a data frame with a column for
 #'   each of `columns`
 #' @param total The table's total row count, or `NA` where it is unknown
-#' @param ... For `new_table_output()`, further fields, which a subclass adds,
-#'   and otherwise passed on to methods
+#' @param ... For `new_table_output()`, further properties, which a subclass
+#'   adds, and otherwise passed on to methods
 #' @param class The classes of a subclass, which come before `table_output`
 #' @param result The result to make an output from
 #' @param options The values of the board options, by board option id

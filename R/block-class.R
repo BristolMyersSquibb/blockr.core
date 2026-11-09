@@ -3,8 +3,8 @@
 #' A block class is a value made by `new_block_class()`, holding everything
 #' that is the same for every block of the class, and the constructor that app
 #' scripts call is a function that `block_constructor()` makes from it. A
-#' package exports both: the class, from whose fields another class can be
-#' built, and the constructor.
+#' package exports both: the class, from whose properties another class can
+#' be built, and the constructor.
 #'
 #' Every class has an `expr`, a function whose formals are the state args and
 #' whose body checks them, as a constructor checks its args, and returns what
@@ -34,8 +34,8 @@
 #' holds a hash of the file's content. A class further takes a
 #' named list of `requests`, for what its UI asks of R, each a function or made
 #' by [new_block_request()], which names the board options it reads, and the
-#' coercion that makes an output from a result, as `output`. A field a class
-#' leaves out is `NULL`.
+#' coercion that makes an output from a result, as `output`. A property that
+#' a class leaves out is `NULL`.
 #'
 #' A UI module is an ES module that exports the major of core's JS API
 #' that it was built against, as `export const api = 1`,

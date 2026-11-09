@@ -23,8 +23,8 @@ capture_plot(expr, env)
 
 \item{width, height}{The size the plot was drawn at, in CSS pixels}
 
-\item{...}{For \code{new_plot_output()}, further fields, which a subclass adds,
-and otherwise passed on to methods}
+\item{...}{For \code{new_plot_output()}, further properties, which a subclass
+adds, and otherwise passed on to methods}
 
 \item{class}{The classes of a subclass, which come before \code{plot_output}}
 
