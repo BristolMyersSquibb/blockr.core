@@ -1,5 +1,5 @@
 // A block's card and a stack's group, as core's basic front-end draws them
-// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#cores-basic-front-end).
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#cores-basic-frontend).
 //
 // A card shows these, top to bottom:
 // - The block's name, its class and its status, and a menu to rename or

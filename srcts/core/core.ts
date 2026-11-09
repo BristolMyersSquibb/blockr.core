@@ -1,6 +1,6 @@
 // CoreApi, what core gives a front-end, an extension and a startup module, as
-// Front-ends and extension points has it
-// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#what-core-gives-a-front-end).
+// Drawing the board has it
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#what-core-gives-plugins).
 // Core makes one for each board that opens, on the store, the command registry
 // and the scheduler that it creates for that board, and hands it to each
 // startup module's initialize() and to the front-end's render() (./start.ts).

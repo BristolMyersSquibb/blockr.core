@@ -1,6 +1,6 @@
 // What core gives a front-end, an extension and a startup module: `CoreApi`,
-// through which they work on the board, as Front-ends and extension points
-// has it (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#what-core-gives-a-front-end).
+// through which they work on the board, as Drawing the board has it
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#what-core-gives-plugins).
 // Core makes one for each board that opens, and ends it as the next board
 // opens, with the signal that the startup modules and the front-end get
 // beside it. The modules that core mounts inside a front-end's layout get a
