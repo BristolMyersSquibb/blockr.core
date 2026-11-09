@@ -93,7 +93,6 @@ function playedR() {
               revision: request.revision,
               summary: null,
               conditions: [],
-              omitted: { warning: 0, message: 0 },
               stdout: "",
               stderr: "",
             },
@@ -300,7 +299,6 @@ describe("starting the page", () => {
           message: "Conflicting options set for evaluation_queue: check environment variable BLOCKR_EVALUATION_QUEUE and option blockr.evaluation_queue.",
         },
       ],
-      omitted: { warning: 0, message: 0 },
     });
 
     await expect(s.started.ready).rejects.toThrow("Conflicting options set for evaluation_queue");

@@ -56,7 +56,8 @@ Imports:
     yyjsonr (>= 0.1.22),
     base64enc,
     promises,
-    later
+    later,
+    fastmap (>= 1.1.0)
 Suggests:
     testthat (>= 3.0.0),
     memuse,

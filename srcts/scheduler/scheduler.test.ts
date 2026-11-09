@@ -360,7 +360,6 @@ describe("statuses", () => {
           message: 'This block is waiting for its input "data" to be linked.',
         },
       ],
-      omitted: { warning: 0, message: 0 },
       stdout: "",
       stderr: "",
       summary: null,

@@ -88,7 +88,6 @@ describe("reading a blockr option", () => {
             message: "Conflicting options set for queue: check environment variable BLOCKR_QUEUE and option blockr.queue.",
           },
         ],
-        omitted: { warning: 0, message: 0 },
       },
     });
 

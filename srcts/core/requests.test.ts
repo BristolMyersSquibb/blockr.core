@@ -100,7 +100,7 @@ describe("a plugin's request", () => {
 
   test("rejects with the reply's status and conditions", async () => {
     const condition = { severity: "error" as const, class: ["simpleError", "error", "condition"], phase: "request" as const, message: "no" };
-    const s = setup([{ id: "1", status: "error", conditions: [condition], omitted: { warning: 0, message: 0 } }]);
+    const s = setup([{ id: "1", status: "error", conditions: [condition] }]);
     const sent = pluginRequest(s.deps, "code", "script", {}, {});
     await expect(sent).rejects.toMatchObject({ status: "error", conditions: [condition] });
     await expect(sent).rejects.toThrow('R replied error to the request "script" of the plugin "code".');

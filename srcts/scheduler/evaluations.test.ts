@@ -32,7 +32,6 @@ function outcome(status: Outcome["status"], id: BlockId): Outcome {
     revision: at(id),
     summary: null,
     conditions: [],
-    omitted: { warning: 0, message: 0 },
     stdout: "",
     stderr: "",
   };
@@ -87,7 +86,6 @@ function ok(oneTimes: ReadonlyMap<number, OneTime>, id: number, block: BlockId) 
     revision: at(block),
     summary: null,
     conditions: [],
-    omitted: { warning: 0, message: 0 },
     stdout: "Wrote iris.csv",
     stderr: "",
   };
