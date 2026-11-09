@@ -34,9 +34,9 @@ export interface Demand {
 export interface SchedulerOptions {
     readonly store: Pick<Store, "board" | "hasBoard" | "subscribe" | "blockRegistry">;
     readonly client: Pick<Client, "request" | "forget" | "capabilities">;
-    readonly evaluationQueue?: number;
-    readonly backgroundEvaluationDelay?: number;
-    readonly gateVisibility?: boolean;
+    readonly evaluationQueue?: Json | undefined;
+    readonly backgroundEvaluationDelay?: Json | undefined;
+    readonly gateVisibility?: Json | undefined;
     readonly bound?: readonly string[];
     readonly nextRevision?: () => number;
     readonly signal?: AbortSignal;

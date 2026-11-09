@@ -14,3 +14,5 @@ export declare function quoted(items: readonly string[]): string;
 export declare function pathText(path: readonly string[]): string;
 export declare function packageOf(id: string): string | null;
 export declare function isPackageName(name: unknown): name is string;
+export declare function numberOf(text: string): number;
+export declare function logicalOf(text: string): boolean | undefined;

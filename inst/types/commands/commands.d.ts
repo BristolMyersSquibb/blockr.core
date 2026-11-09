@@ -27,6 +27,6 @@ export declare function refusal(id: string, failures: readonly string[]): Comman
 export interface CommandsOptions {
     readonly signal?: AbortSignal;
     readonly lock?: Lock | null;
-    readonly randId?: string;
+    readonly randId?: Json | undefined;
 }
 export declare function createCommands(store: Store, options?: CommandsOptions): Commands;

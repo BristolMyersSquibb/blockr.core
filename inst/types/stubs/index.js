@@ -59,6 +59,16 @@ function packageOf(id2) {
 function isPackageName(name2) {
   return typeof name2 === "string" && /^[A-Za-z][A-Za-z0-9.]*[A-Za-z0-9]$/.test(name2);
 }
+function numberOf(text) {
+  const trimmed = text.trim();
+  if (/^[+-]?inf(inity)?$/i.test(trimmed)) return trimmed.startsWith("-") ? -Infinity : Infinity;
+  return trimmed === "" ? NaN : Number(trimmed);
+}
+function logicalOf(text) {
+  if (["TRUE", "true", "True", "T"].includes(text)) return true;
+  if (["FALSE", "false", "False", "F"].includes(text)) return false;
+  return void 0;
+}
 
 // node_modules/@cfworker/json-schema/dist/esm/deep-compare-strict.js
 function deepCompareStrict(a2, b2) {
@@ -2677,6 +2687,7 @@ function createScheduler(options) {
   const { store, client } = options;
   const queue = setting(options.evaluationQueue, 2, "evaluation_queue", true);
   const delay = setting(options.backgroundEvaluationDelay, Infinity, "background_evaluation_delay");
+  const gated = flag(options.gateVisibility, true, "gate_visibility");
   const board = a(void 0);
   const registry = a({});
   const bound = a(new Set(options.bound ?? []));
@@ -2964,7 +2975,7 @@ function createScheduler(options) {
     }
     demands.value = new Map(demands.value).set(id2, { owner, priority, blocks: demanded });
   }
-  if (options.gateVisibility === false) {
+  if (!gated) {
     demanding(++ids2, "blockr.core", (all) => Object.keys(all.blocks), 0);
   }
   if (store.hasBoard()) opened(store.board());
@@ -3111,11 +3122,22 @@ function changedSince(before, now) {
 }
 function setting(value2, fallback, name2, counts = false) {
   if (value2 === void 0) return fallback;
-  const whole = !counts || Number.isInteger(value2) || value2 === Infinity;
-  if (typeof value2 === "number" && value2 >= 0 && whole) return value2;
+  const number = typeof value2 === "string" ? numberOf(value2) : value2;
+  if (typeof number === "number" && number >= 0 && (!counts || Number.isInteger(number) || number === Infinity)) {
+    return number;
+  }
   throw new RangeError(
-    `The blockr option ${name2} is ${String(value2)}, where it takes ${counts ? "a whole number" : "a number"} of 0 or more.`
+    `The blockr option ${name2} is ${shown(value2)}, where it takes ${counts ? "a whole number" : "a number"} of 0 or more.`
   );
+}
+function flag(value2, fallback, name2) {
+  if (value2 === void 0) return fallback;
+  const logical = typeof value2 === "string" ? logicalOf(value2) : value2;
+  if (typeof logical === "boolean") return logical;
+  throw new TypeError(`The blockr option ${name2} is ${shown(value2)}, where it takes TRUE or FALSE.`);
+}
+function shown(value2) {
+  return typeof value2 === "number" ? String(value2) : JSON.stringify(value2);
 }
 function checked(priority) {
   const at = priority ?? 0;
@@ -4589,15 +4611,15 @@ function createBlockrOptions(client) {
       return;
     }
     for (const [name2, settle2] of names) {
-      settle2.resolve(Object.hasOwn(values2, name2) ? { value: values2[name2] ?? null } : null);
+      settle2.resolve(Object.hasOwn(values2, name2) ? values2[name2] ?? null : void 0);
     }
   }
   return {
-    async read(name2, fallback) {
+    async read(name2) {
       if (typeof name2 !== "string" || name2 === "") {
         throw new TypeError("A blockr option is read by its name, a non-empty string.");
       }
-      return converted(name2, await ask(name2), fallback);
+      return ask(name2);
     }
   };
 }
@@ -4616,34 +4638,6 @@ async function valuesOf(client, names) {
     }
     return reply.values;
   }
-}
-function converted(name2, found, fallback) {
-  if (found === null) return fallback;
-  const { value: value2 } = found;
-  if (typeof fallback === "number") {
-    if (value2 === null) return Infinity;
-    const number = typeof value2 === "string" ? numberOf(value2) : value2;
-    if (typeof number === "number" && !Number.isNaN(number)) return number;
-  } else if (typeof fallback === "boolean") {
-    const logical = typeof value2 === "string" ? logicalOf(value2) : value2;
-    if (typeof logical === "boolean") return logical;
-  } else if (typeof fallback === "string") {
-    if (typeof value2 === "string") return value2;
-  } else {
-    return value2;
-  }
-  throw new TypeError(`The blockr option ${name2} is ${JSON.stringify(value2)}, which is no ${typeof fallback}.`);
-}
-function numberOf(text) {
-  const trimmed = text.trim();
-  if (/^[+-]?inf(inity)?$/i.test(trimmed)) return trimmed.startsWith("-") ? -Infinity : Infinity;
-  return trimmed === "" ? NaN : Number(trimmed);
-}
-function logicalOf(text) {
-  const trimmed = text.trim();
-  if (["TRUE", "true", "True", "T"].includes(trimmed)) return true;
-  if (["FALSE", "false", "False", "F"].includes(trimmed)) return false;
-  return void 0;
 }
 
 // srcts/core/requests.ts
@@ -4780,7 +4774,7 @@ function createCore(parts) {
     outputEvents,
     request: (plugin, name2, args = {}, opts = {}) => pluginRequest({ store, scheduler }, plugin, name2, args, opts),
     module: (id2) => loader.module(id2),
-    blockrOption: (name2, fallback) => blockrOptions.read(name2, fallback),
+    blockrOption: (name2) => blockrOptions.read(name2),
     mountBlock: (el, block) => mounts.mountBlock(el, block),
     mountOutput: (el, block) => mounts.mountOutput(el, block),
     mountOption: (el, option) => mounts.mountOption(el, option)
@@ -8210,10 +8204,10 @@ function start(options) {
       { once: true }
     );
     const [evaluationQueue, backgroundEvaluationDelay, gateVisibility, randId] = await Promise.all([
-      blockrOptions.read("evaluation_queue", 2),
-      blockrOptions.read("background_evaluation_delay", Infinity),
-      blockrOptions.read("gate_visibility", true),
-      blockrOptions.read("rand_id", "adjective_animal")
+      blockrOptions.read("evaluation_queue"),
+      blockrOptions.read("background_evaluation_delay"),
+      blockrOptions.read("gate_visibility"),
+      blockrOptions.read("rand_id")
     ]);
     const store = createStore({
       hello: reply,
@@ -8221,7 +8215,7 @@ function start(options) {
       signal
     });
     const commands = createCommands(store, { signal, lock: reply.lock, randId });
-    for (const option of options.options({ blockrOption: (name2, fallback) => blockrOptions.read(name2, fallback) })) {
+    for (const option of options.options({ blockrOption: (name2) => blockrOptions.read(name2) })) {
       store.options.register(option);
     }
     const bound = later === void 0 ? reply.bound : void 0;
@@ -8465,15 +8459,15 @@ var PAUSE = 500;
 function bind2(host, key, show, options = {}) {
   const source = sourceOf(host);
   source.check(key);
-  let shown;
+  let shown2;
   let typed;
   let timer;
   let released = false;
   const display = (again = false) => {
     if (released || timer !== void 0) return;
     const value2 = source.get(key);
-    if (!again && shown !== void 0 && jsonEqual(shown.value, value2)) return;
-    shown = { value: value2 };
+    if (!again && shown2 !== void 0 && jsonEqual(shown2.value, value2)) return;
+    shown2 = { value: value2 };
     show(value2);
   };
   const submit = async (value2) => {
@@ -8594,7 +8588,7 @@ function NumberInput({
   max
 }) {
   const [text, typed] = useTyped(bound);
-  const shown = text ?? (typeof bound.value === "number" ? String(bound.value) : "");
+  const shown2 = text ?? (typeof bound.value === "number" ? String(bound.value) : "");
   const read = (input2) => {
     const value2 = input2.trim() === "" ? Number.NaN : Number(input2);
     if (!Number.isInteger(value2)) return void 0;
@@ -8612,8 +8606,8 @@ function NumberInput({
         max,
         required: true,
         className: styles.box,
-        value: shown,
-        "aria-invalid": read(shown) === void 0,
+        value: shown2,
+        "aria-invalid": read(shown2) === void 0,
         onChange: (event) => {
           typed(event.target.value);
           bound.type(read(event.target.value));
@@ -8636,7 +8630,7 @@ function Select({
   choices
 }) {
   const current2 = typeof bound.value === "string" ? bound.value : void 0;
-  const shown = current2 === void 0 || choices.some((choice) => choice.value === current2) ? choices : [...choices, { value: current2, label: current2 }];
+  const shown2 = current2 === void 0 || choices.some((choice) => choice.value === current2) ? choices : [...choices, { value: current2, label: current2 }];
   return /* @__PURE__ */ jsxs(Fragment, { children: [
     /* @__PURE__ */ jsx(Field, { label, children: /* @__PURE__ */ jsxs(
       "select",
@@ -8648,7 +8642,7 @@ function Select({
         },
         children: [
           current2 === void 0 && /* @__PURE__ */ jsx("option", { value: "", disabled: true, children: placeholder }),
-          shown.map((choice) => /* @__PURE__ */ jsx("option", { value: choice.value, children: choice.label }, choice.value))
+          shown2.map((choice) => /* @__PURE__ */ jsx("option", { value: choice.value, children: choice.label }, choice.value))
         ]
       }
     ) }),
@@ -8664,7 +8658,7 @@ function Checklist({
 }) {
   const held2 = strings(bound.value);
   const known = choices ?? [];
-  const shown = [...known, ...held2.filter((value2) => !known.includes(value2))];
+  const shown2 = [...known, ...held2.filter((value2) => !known.includes(value2))];
   const toggle = (value2, checked3) => {
     const now = strings(bound.get());
     const next = checked3 ? now.includes(value2) ? now : [...now, value2] : now.filter((other) => other !== value2);
@@ -8675,7 +8669,7 @@ function Checklist({
   return /* @__PURE__ */ jsxs("fieldset", { className: styles.fieldset, children: [
     /* @__PURE__ */ jsx("legend", { className: styles.legend, children: legend }),
     /* @__PURE__ */ jsxs("div", { className: styles.list, children: [
-      shown.map((value2) => /* @__PURE__ */ jsxs("label", { className: styles.check, children: [
+      shown2.map((value2) => /* @__PURE__ */ jsxs("label", { className: styles.check, children: [
         /* @__PURE__ */ jsx(
           "input",
           {
@@ -8690,7 +8684,7 @@ function Checklist({
         ),
         value2
       ] }, value2)),
-      choices !== void 0 && empty2 !== void 0 && shown.length === 0 && /* @__PURE__ */ jsx("p", { className: styles.hint, children: empty2 })
+      choices !== void 0 && empty2 !== void 0 && shown2.length === 0 && /* @__PURE__ */ jsx("p", { className: styles.hint, children: empty2 })
     ] }),
     /* @__PURE__ */ jsx(Refusal, { error: bound.error })
   ] });
@@ -8800,7 +8794,12 @@ function nRows(core) {
     label: "Preview rows",
     category: "Table options",
     schema,
-    default: async () => checked2("n_rows", schema, await core.blockrOption("n_rows", fallback)),
+    // A string reads as R's as.numeric() reads it.
+    default: async () => {
+      const value2 = await core.blockrOption("n_rows");
+      if (value2 === void 0) return fallback;
+      return checked2("n_rows", schema, value2, typeof value2 === "string" ? numberOf(value2) : value2);
+    },
     ui: numberUi("Preview rows", schema.minimum)
   };
 }
@@ -8816,8 +8815,9 @@ function showConditions(core) {
     // R writes a blockr option of one severity as a string, as an
     // environment variable gives it.
     default: async () => {
-      const value2 = await core.blockrOption("show_conditions", fallback);
-      return checked2("show_conditions", schema, typeof value2 === "string" ? [value2] : value2);
+      const value2 = await core.blockrOption("show_conditions");
+      if (value2 === void 0) return fallback;
+      return checked2("show_conditions", schema, value2, typeof value2 === "string" ? [value2] : value2);
     },
     ui: checklistUi("Message types to display", SEVERITIES)
   };
@@ -8830,10 +8830,10 @@ function darkMode(core) {
     category: "Theme options",
     schema,
     default: async () => {
-      const value2 = await core.blockrOption("dark_mode", null);
-      const preferred = preferredTheme();
-      if (value2 === null) return preferred;
-      if (typeof value2 === "boolean") return value2 ? "dark" : "light";
+      const value2 = await core.blockrOption("dark_mode");
+      if (value2 === void 0) return preferredTheme();
+      const logical = typeof value2 === "string" ? logicalOf(value2) : value2;
+      if (typeof logical === "boolean") return logical ? "dark" : "light";
       return checked2("dark_mode", schema, value2);
     },
     ui: selectUi("Light/dark mode", "Choose a mode", [
@@ -8851,10 +8851,10 @@ function setTheme(theme) {
 function preferredTheme() {
   return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
-function checked2(id2, schema, value2) {
-  const failures = compile(`the board option "${id2}"`, schema)(value2);
-  if (failures.length === 0) return value2;
-  throw new TypeError(`The blockr option ${id2} is ${JSON.stringify(value2)}, which the board option ${id2} does not take.`);
+function checked2(id2, schema, sent2, value2 = sent2) {
+  const json = typeof value2 !== "number" || Number.isFinite(value2);
+  if (json && compile(`the board option "${id2}"`, schema)(value2).length === 0) return value2;
+  throw new TypeError(`The blockr option ${id2} is ${JSON.stringify(sent2)}, which the board option ${id2} does not take.`);
 }
 
 // inst/protocol/fixtures/hello.json

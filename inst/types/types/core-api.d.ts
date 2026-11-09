@@ -18,7 +18,7 @@ export interface CoreApi {
     readonly outputEvents: OutputEvents;
     request<T = Json>(plugin: PluginId, name: string, args?: Readonly<Record<string, Json>>, opts?: RequestOpts): Promise<T | Blob>;
     module<T = unknown>(id: string): Promise<T>;
-    blockrOption<T extends Json>(name: string, fallback: T): Promise<T>;
+    blockrOption(name: string): Promise<Json | undefined>;
     mountBlock(el: HTMLElement, block: BlockId): () => void;
     mountOutput(el: HTMLElement, block: BlockId): () => void;
     mountOption(el: HTMLElement, option: OptionId): () => void;
