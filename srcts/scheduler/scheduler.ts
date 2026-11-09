@@ -116,9 +116,6 @@ export interface Scheduler {
   // Lets the scheduler send evaluations. It holds them from its creation until
   // then. Core calls it once the front-end's render() has returned.
   start(): void;
-  // Holds evaluations again until start(), as while the page switches the
-  // board's front-end alone, in place.
-  hold(): void;
   // Hears that R answered the hello of a new session. That session holds no
   // results, so every block gets a new revision. Every block then reads stale
   // until it is evaluated again.
@@ -743,10 +740,6 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
 
     start: action(() => {
       holding.value = false;
-    }),
-
-    hold: action(() => {
-      holding.value = true;
     }),
 
     session: action(() => {

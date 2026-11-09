@@ -8,8 +8,6 @@
 #' Each `stack` may have an arbitrary `name`, and a `color`, which front-ends
 #' draw it in.
 #' A front-end draws a stack without a color in a default of its own.
-#' The class can be extended by adding further attributes, coupled with
-#' sub-classing.
 #'
 #' Individual stacks can be created using `new_stack()` or `as_stack()` and
 #' inheritance can be tested with `is_stack()`.
@@ -21,8 +19,6 @@
 #' @param name Stack name
 #' @param color Stack color, as a hex color of six digits such as `"#66c2a5"`,
 #'   or `NULL` for none
-#' @param ... Extensibility
-#' @param class (Optional) stack sub-class
 #'
 #' @examples
 #' stk <- new_stack(letters[1:5], "Alphabet 1", color = "#66c2a5")
@@ -49,7 +45,7 @@
 #'
 #' @export
 new_stack <- function(blocks = character(), name = default_stack_name,
-                      color = NULL, ..., class = character()) {
+                      color = NULL) {
 
   if (is_blocks(blocks)) {
     blocks <- names(blocks)
@@ -72,8 +68,7 @@ new_stack <- function(blocks = character(), name = default_stack_name,
       blocks,
       name = name,
       color = color,
-      ...,
-      class = c(class, "stack")
+      class = "stack"
     )
   )
 }
@@ -267,7 +262,7 @@ as_stack.character <- function(x) new_stack(x)
 
 #' @export
 as_stack.list <- function(x) {
-  do.call(new_stack, x[intersect(c("blocks", "name", "color"), names(x))])
+  do.call(new_stack, x)
 }
 
 #' @export

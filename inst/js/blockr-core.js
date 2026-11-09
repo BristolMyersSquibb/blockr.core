@@ -2985,9 +2985,6 @@ function createScheduler(options) {
     start: E(() => {
       holding.value = false;
     }),
-    hold: E(() => {
-      holding.value = true;
-    }),
     session: E(() => {
       revisions.value = bump(graph.value, revisions.value, new Set(revisions.value.keys()), revision);
     })

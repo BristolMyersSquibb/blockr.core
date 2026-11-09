@@ -4,9 +4,7 @@
 #' one block is passed as (data) input to the next. Source and destination are
 #' identified by `from` and `to` attributes and in case of polyadic receiving
 #' blocks, the `input` attribute identified which of the data inputs is the
-#' intended destination. In principle, the `link` object may be extended via
-#' sub-classing and passing further attributes, but this has not been properly
-#' tested so far.
+#' intended destination.
 #'
 #' A links is created via the `new_link()` constructor and for a vector of
 #' links, the container object `links` is provided and a corresponding
@@ -18,8 +16,6 @@
 #'
 #' @param from,to Block ID(s)
 #' @param input Block argument
-#' @param ... Extensibility
-#' @param class (Optional) link sub-class
 #'
 #' @examples
 #' lnks <- links(from = c("a", "b"), to = c("b", "c"), input = c("x", "y"))
@@ -50,8 +46,7 @@
 #' an error.
 #'
 #' @export
-new_link <- function(from = "", to = "", input = "", ...,
-                     class = character()) {
+new_link <- function(from = "", to = "", input = "") {
 
   if (length(from) && is_empty(input)) {
     input <- ""
@@ -59,8 +54,8 @@ new_link <- function(from = "", to = "", input = "", ...,
 
   validate_link(
     new_vctr(
-      list(from = from, to = to, input = input, ...),
-      class = c(class, "link")
+      list(from = from, to = to, input = input),
+      class = "link"
     )
   )
 }

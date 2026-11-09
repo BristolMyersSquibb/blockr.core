@@ -282,6 +282,10 @@
 * The `bbquote()` function throws an error for a call to `.()` or `..()` that holds anything but a single name, such as `.(n + 1L)` or data.table's `.(total = sum(value))`, `.(n = .N)` or `.(x, y)`.
   Until now, base `bquote()` evaluated the first argument of such a call, so that `.(total = sum(value))` failed with `could not find function "sum"` and `.(n = .N)` silently became `.(.N)`.
   A class that builds data.table code returns a call or a string instead (#496).
+* The constructors `new_link()` and `new_stack()` lose `...` and `class`, so that a link and a stack hold core's properties and nothing else.
+  A script that passes another argument to either constructor fails at that call, as a block constructor fails for a misspelled state arg.
+  Until now, `blockr_ser()` dropped what `...` added without a word, since a JSON board has no place for it.
+  A stack given as a list fails as well for an entry other than `blocks`, `name` and `color`, which `as_stack()` dropped until now (#511).
 * R answers a `blockr_options` request name by name.
   It leaves out a blockr option that `blockr_option()` refuses, as where its R option and its environment variable disagree, and one whose value it cannot write as JSON, such as a function.
   R warns in its log of each blockr option that it leaves out, naming it, and the client takes the fallback of that blockr option alone.

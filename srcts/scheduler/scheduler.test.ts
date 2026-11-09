@@ -592,22 +592,6 @@ describe("demand and scheduling", () => {
     expect(r.evaluations().map((request) => request.block).sort()).toEqual(["a", "b", "c", "d", "e", "f"]);
   });
 
-  test("hold evaluations from hold() until start() again, as while the page switches front-ends", async () => {
-    const { r, scheduler } = await setup();
-    scheduler.demand("test", ["a"]);
-    scheduler.start();
-    await evaluateAll(r);
-
-    scheduler.hold();
-    scheduler.invalidate("a");
-    await tick(60_000);
-    expect(r.pending()).toEqual([]);
-
-    scheduler.start();
-    await tick();
-    expect(r.pending().map((request) => request.block)).toEqual(["a"]);
-  });
-
   test("fail a block whose evaluation the transport could not send, naming why, until its revision moves", async () => {
     const { r, store, scheduler } = await setup();
     r.refuse.add("evaluate");

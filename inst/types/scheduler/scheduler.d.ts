@@ -23,7 +23,6 @@ export interface Scheduler {
     }>;
     inputs(id: BlockId): Inputs | undefined;
     start(): void;
-    hold(): void;
     session(): void;
 }
 export interface Demand {
