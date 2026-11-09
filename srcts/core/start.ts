@@ -9,7 +9,7 @@
 //    at a time in R's order, awaiting each initialize(). It names one that
 //    fails and carries on.
 // 4. It opens the board that R sent, or in its place the one that a startup
-//    module resolves with, unless the board is locked or two startup modules
+//    module resolves with, unless the load lock is on or two startup modules
 //    resolve with one, where it keeps R's and names the packages. A board that
 //    a startup module names holds the plugins of the board that R sent, each
 //    with the state that the named board gives it.
@@ -36,7 +36,7 @@
 // Only what is fixed for the page outlives an opening: the code and
 // stylesheets that have loaded, the page's element, the transport with its
 // session, the protocol's client, the blockr options that core has read, the
-// lock, and the revisions given, so that the next scheduler gives a block id a
+// locks, and the revisions given, so that the next scheduler gives a block id a
 // revision above any it had.
 //
 // Core takes a later reply to hello, as of a later session or of the hello with
@@ -147,7 +147,7 @@ export function start(options: StartOptions): Started {
     report(error);
   });
 
-  // The first reply to hello, whose lock holds for the page. And the latest
+  // The first reply to hello, whose locks hold for the page. And the latest
   // reply that names no package at another version than the page loaded,
   // whose modules and renderers core uses, and with which a board that opens
   // later starts core again.
@@ -432,8 +432,12 @@ export function start(options: StartOptions): Started {
       report(new Error(`The startup modules of ${packages} each named a board to open, so core opens the board that R sent.`));
       return undefined;
     }
-    if (reply.lock !== null) {
-      report(new Error(`The board is locked, so core opens the board that R sent rather than the one that ${only.package} named.`));
+    if (reply.lock.load) {
+      report(
+        new Error(
+          `The load lock is on, so core opens the board that R sent rather than the one that ${only.package} named.`,
+        ),
+      );
       return undefined;
     }
     try {

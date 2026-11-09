@@ -6,6 +6,7 @@
       "kind": "evaluate",
       "block": "e",
       "revision": 7,
+      "locked": null,
       "recipe": {
         "registry_id": "blockr.core-rbind_block",
         "state": {},

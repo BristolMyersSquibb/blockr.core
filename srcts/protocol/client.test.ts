@@ -144,6 +144,7 @@ const evaluate: Parameters<Client["request"]>[0] = {
   kind: "evaluate",
   block: "a",
   revision: 2,
+  locked: null,
   recipe: {
     registry_id: "blockr.core-dataset_block",
     state: { dataset: "iris", package: "datasets" },

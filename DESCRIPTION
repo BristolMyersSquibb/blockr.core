@@ -107,6 +107,7 @@ Collate:
     'data-static.R'
     'evaluator-answer.R'
     'evaluator-class.R'
+    'evaluator-lock.R'
     'evaluator-read.R'
     'file-browser.R'
     'file-upload.R'

@@ -2606,7 +2606,8 @@ function createScheduler(options) {
   function send(item) {
     const recipe = recipeOf(item.block);
     const at = revisions.value.get(item.block);
-    if (recipe === void 0 || at === void 0) return;
+    const block = board.value === void 0 ? void 0 : own(board.value.blocks, item.block);
+    if (recipe === void 0 || at === void 0 || block === void 0) return;
     let oneTime;
     if (item.oneTime !== void 0) {
       const found = oneTimes.value.get(item.oneTime);
@@ -2633,6 +2634,7 @@ function createScheduler(options) {
         kind: "evaluate",
         block: item.block,
         revision: at,
+        locked: block.locked,
         recipe,
         ...oneTime === void 0 ? {} : { params: oneTime.params }
       },
@@ -6032,7 +6034,12 @@ function checkBlocks(board, registry, registrations, changed, failures) {
   ids("block", board.blocks, failures);
   for (const [id2, block] of Object.entries(board.blocks)) {
     if (changed !== void 0 && !changed.blocks.has(id2)) continue;
-    const fields = shape(block, { registry_id: "string", state: "object", name: "string" });
+    const fields = shape(block, {
+      registry_id: "string",
+      state: "object",
+      name: "string",
+      locked: "boolean or null"
+    });
     if (fields.length > 0) {
       failures.push(`The block "${id2}" ${fields.join(", ")}.`);
       continue;
@@ -6182,6 +6189,8 @@ function fits(x2, kind) {
       return isObject(x2);
     case "string or null":
       return x2 === null || typeof x2 === "string";
+    case "boolean or null":
+      return x2 === null || typeof x2 === "boolean";
     case "string":
       return typeof x2 === "string";
   }
@@ -6570,12 +6579,19 @@ function modifyBlock(old, mod, id2, failures) {
     failures
   );
   const name3 = mod.name === old.name ? void 0 : mod.name;
+  const locked2 = mod.locked === void 0 || mod.locked === old.locked ? void 0 : mod.locked;
   return {
-    value: { ...old, state: state2.next, name: name3 ?? old.name },
+    value: {
+      ...old,
+      state: state2.next,
+      name: name3 ?? old.name,
+      locked: locked2 === void 0 ? old.locked : locked2
+    },
     inverse: {
       ...Object.keys(state2.restore).length === 0 ? {} : { state: state2.restore },
       ...state2.remove.length === 0 ? {} : { unset: state2.remove },
-      ...name3 === void 0 ? {} : { name: old.name }
+      ...name3 === void 0 ? {} : { name: old.name },
+      ...locked2 === void 0 ? {} : { locked: old.locked }
     }
   };
 }
@@ -6702,6 +6718,55 @@ function merge(delta, given, patches2) {
 }
 function same(a2, b2) {
   return a2.op === b2.op && a2.path === b2.path && jsonEqual(a2.value, b2.value);
+}
+
+// srcts/store/lock.ts
+function fixes(board, block, boardLock) {
+  if (!boardLock) return false;
+  const held = board === void 0 ? void 0 : own(board.blocks, block);
+  return held?.locked !== false;
+}
+function lockFailures(before, inverse) {
+  const failures = [];
+  const refuse = (verb, one2, several, ids2) => {
+    if (ids2.length === 0) return;
+    failures.push(`The board lock refuses to ${verb} ${ids2.length === 1 ? one2 : several} ${quoted(ids2)}.`);
+  };
+  const blocks = inverse.blocks;
+  const mods = Object.entries(blocks?.mod ?? {});
+  refuse("add", "block", "blocks", blocks?.rm ?? []);
+  refuse("remove", "block", "blocks", Object.keys(blocks?.add ?? {}));
+  refuse("rename", "block", "blocks", mods.filter(([, mod]) => mod.name !== void 0).map(([id2]) => id2));
+  refuse(
+    "change",
+    "the lock of block",
+    "the locks of the blocks",
+    mods.filter(([, mod]) => mod.locked !== void 0).map(([id2]) => id2)
+  );
+  for (const [id2, mod] of mods) {
+    if (mod.state === void 0 && mod.unset === void 0) continue;
+    const locked2 = own(before.blocks, id2)?.locked;
+    if (locked2 === true) {
+      failures.push(`The lock of block "${id2}" fixes its state under the board lock.`);
+    } else if (locked2 === null) {
+      failures.push(`The board lock fixes the state of block "${id2}", whose lock follows the board lock.`);
+    }
+  }
+  for (const [part, one2, several] of [
+    [inverse.links, "link", "links"],
+    [inverse.stacks, "stack", "stacks"]
+  ]) {
+    refuse("add", one2, several, part?.rm ?? []);
+    refuse("change", one2, several, Object.keys(part?.mod ?? {}));
+    refuse("remove", one2, several, Object.keys(part?.add ?? {}));
+  }
+  if (inverse.name !== void 0) failures.push("The board lock refuses to rename the board.");
+  const renamed = (inverse.patches ?? []).flatMap((patch2) => {
+    const [, plugin, part] = pointer(patch2.path) ?? [];
+    return plugin === void 0 || part === "state" ? [] : [plugin];
+  });
+  refuse("rename", "plugin", "plugins", [...new Set(renamed)]);
+  return failures;
 }
 
 // srcts/store/undo.ts
@@ -7200,6 +7265,10 @@ function createStore(options = {}) {
       if ("failures" in expanded) throw fail(expanded.failures);
       const committed = commit(current3, expanded, how.places?.[i2]);
       if ("failures" in committed) throw fail(committed.failures);
+      if (hello?.lock.board === true) {
+        const locked2 = lockFailures(current3, committed.inverse.delta);
+        if (locked2.length > 0) throw fail(locked2);
+      }
       const undoable = !isEmpty(committed.inverse.delta);
       if (!undoable && committed.changed.options.size === 0) continue;
       const failures = check(
@@ -7315,8 +7384,10 @@ function createStore(options = {}) {
     if (hello === void 0) {
       throw new StoreError(refusedOpen, ["The store opens a JSON board only once R has answered `hello`."]);
     }
-    if (hello.lock !== null) {
-      throw new StoreError(refusedOpen, ["The board is locked, so it opens no other board."]);
+    if (hello.lock.load) {
+      throw new StoreError(refusedOpen, [
+        "The load lock fixes the app to its opening board, so the store opens no other board."
+      ]);
     }
     return { json: checkJsonBoard(parse(given)), reply: hello };
   }
@@ -7399,7 +7470,8 @@ function createStore(options = {}) {
           registry_id: block.registry_id,
           version: own(registry.value, block.registry_id)?.version ?? 1,
           state: block.state,
-          name: block.name
+          name: block.name,
+          locked: block.locked
         }
       ])
     );
@@ -7435,6 +7507,7 @@ function createStore(options = {}) {
       return board.value;
     },
     hasBoard: () => board.value !== void 0,
+    locked: (block) => fixes(board.value, block, hello?.lock.board === true),
     subscribe(fn) {
       if (ended()) return () => void 0;
       const wrapped = (change, next) => {
@@ -7509,6 +7582,10 @@ var blockIds = {
   items: blockId,
   uniqueItems: true,
   description: "Ids of blocks, in order."
+};
+var locked = {
+  type: ["boolean", "null"],
+  description: "A block's lock, which fixes its state where the board lock is on: true locks the block, false leaves it open, and null follows the board lock."
 };
 var color = {
   type: ["string", "null"],
@@ -7620,7 +7697,7 @@ function coreCommands(store, options = {}) {
     const id2 = args.id ?? mintId((id3) => Object.hasOwn(board2.blocks, id3));
     return [
       id2,
-      { registry_id: entry.id, state: state2, name: args.name ?? blockName(entry.id) },
+      { registry_id: entry.id, state: state2, name: args.name ?? blockName(entry.id), locked: null },
       entry
     ];
   }
@@ -7674,6 +7751,14 @@ function coreCommands(store, options = {}) {
       args: object({ id: blockId, name: name2 }, ["id", "name"]),
       enabled: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
       run: (_board, { id: id2, name: name3 }) => ({ blocks: { mod: { [id2]: { name: name3 } } } })
+    }),
+    command({
+      id: "blockr.core-set_block_lock",
+      label: "Set block lock",
+      description: "Sets a block's lock, which fixes its state where the board lock is on: true locks the block, false leaves it open to readers, and null has it follow the board lock.",
+      args: object({ id: blockId, locked }, ["id", "locked"]),
+      enabled: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
+      run: (_board, { id: id2, locked: locked2 }) => ({ blocks: { mod: { [id2]: { locked: locked2 } } } })
     }),
     command({
       id: "blockr.core-set_block",
@@ -8162,7 +8247,7 @@ function createCommands(store, options = {}) {
       return deltas(id2, given);
     }
   };
-  for (const command2 of coreCommands(store, { locked: (options.lock ?? null) !== null })) {
+  for (const command2 of coreCommands(store, { locked: options.lock?.board === true })) {
     registry.register(command2);
   }
   return registry;
@@ -8417,8 +8502,12 @@ function start(options) {
       report(new Error(`The startup modules of ${packages} each named a board to open, so core opens the board that R sent.`));
       return void 0;
     }
-    if (reply.lock !== null) {
-      report(new Error(`The board is locked, so core opens the board that R sent rather than the one that ${only.package} named.`));
+    if (reply.lock.load) {
+      report(
+        new Error(
+          `The load lock is on, so core opens the board that R sent rather than the one that ${only.package} named.`
+        )
+      );
       return void 0;
     }
     try {
