@@ -11,6 +11,8 @@
 #' basic operations such as concatenation and subsetting are available by means
 #' of base R generics.
 #'
+#' @param ... For `stacks()`, the stacks to combine, and otherwise generic
+#'   consistency
 #' @rdname new_stack
 #' @export
 stacks <- function(...) {

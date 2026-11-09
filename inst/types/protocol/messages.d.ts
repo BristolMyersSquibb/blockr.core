@@ -1,4 +1,4 @@
-import type { BlockId, JsonBoard, OptionId, RegistryId } from "../types/board.ts";
+import type { BlockId, JsonBoard, OptionId, PluginClassId, RegistryId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { BlockOutput } from "../types/outputs.ts";
 import type { RegistryEntry } from "../types/registry.ts";
@@ -39,11 +39,7 @@ export interface HelloReply {
         module: string;
         css?: string;
     }>;
-    board_classes: Record<string, {
-        package: string;
-        front_end: string;
-        version: number;
-    }>;
+    plugin_versions: Record<PluginClassId, number>;
     option_versions: Record<OptionId, number>;
     renderers: Record<string, Renderer>;
     lock: Lock | null;

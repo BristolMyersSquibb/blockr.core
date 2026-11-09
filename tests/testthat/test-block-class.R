@@ -365,6 +365,29 @@ test_that("blocks of a class print, combine and report their state args", {
   )
 })
 
+test_that("str_value() is extensible via NextMethod()", {
+
+  registerS3method(
+    "str_value", "test_subblock",
+    function(x, ...) paste0(NextMethod(), " [extra]"),
+    envir = asNamespace("blockr.core")
+  )
+
+  new_test_subblock <- block_constructor(
+    new_block_class(
+      "test_subblock",
+      inputs = "data",
+      expr = function(n = 6L) bbquote(utils::head(.(data), n = .(n))),
+      ui = js_module("head-block.js", package = "blockr.core")
+    )
+  )
+
+  blk <- new_test_subblock()
+
+  expect_identical(str_value(blk), "<test_subblock> n [extra]")
+  expect_identical(capture.output(str(blk)), " <test_subblock> n [extra]")
+})
+
 test_that("a block's board options are those its requests read", {
 
   with_opts <- block_constructor(

@@ -4,9 +4,10 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#packaging):
 // the hosts that core gives the modules it mounts, `CoreApi`, and the types of
 // the board, of its updates and of core's outputs.
-// A board class types the properties it adds by extending `Board`, as
-// `interface DockBoard extends Board { views: ... }`, and defines itself as a
-// `BoardClass`.
+// A plugin class defines itself as a `PluginClass`, and types the state of its
+// plugins itself, with `type` rather than `interface`, as
+// `type DockState = { views: ... }`, since only such a type is assignable to
+// the `Json` that core holds a plugin's state as.
 // Nothing here runs: a module reaches core's
 // runtime through its host, so that one copy of it runs on the page, and the
 // stubs of the hosts, which tests run, come from `@blockr/core/stubs`.
@@ -22,6 +23,9 @@ export type {
   Link,
   LinkId,
   OptionId,
+  Plugin,
+  PluginClassId,
+  PluginId,
   RegistryId,
   Stack,
   StackId,
@@ -53,7 +57,6 @@ export type {
 } from "./types/hosts.ts";
 export type { BlockRegistry, CoreApi, OutputEvents, RequestOpts } from "./types/core-api.ts";
 export type {
-  BoardClass,
   Change,
   Delta,
   Dropped,
@@ -62,7 +65,9 @@ export type {
   Options,
   Origin,
   Patch,
-  Property,
+  PluginClass,
+  Plugins,
+  Storage,
   Store,
   StoreError,
 } from "./store/index.ts";

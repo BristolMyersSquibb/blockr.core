@@ -121,6 +121,7 @@ Collate:
     'parser-csv.R'
     'pkg-modules.R'
     'plot-scatter.R'
+    'plugin-class.R'
     'protocol.R'
     'report-progress.R'
     'request-types.R'

@@ -58,10 +58,10 @@ reference:
     - new_board_options
     - board_option_version
     - locked-board
-- subtitle: Front-ends and modules
+- subtitle: Plugins and modules
   desc: What a package declares in R of its client
   contents:
-    - board_front_end
+    - new_plugin
     - new_renderer
     - register_startup_module
     - install_js_types

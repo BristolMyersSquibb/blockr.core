@@ -128,15 +128,13 @@ test("what a package's tests load imports no package but the React that `@blockr
   }
 });
 
-// A block's UI module and a board class, written against `@blockr/core` as a
+// A block's UI module and a plugin class, written against `@blockr/core` as a
 // package writes them.
-// The module types its block's state, and the class types the properties it
-// adds by extending `Board`.
-const headModule = `import type { BlockModule, Board, BoardClass } from "@blockr/core";
+// The module types its block's state, and the class types the state of its
+// plugins with `type`, so that the state is assignable to `Json`.
+const headModule = `import type { BlockModule, Board, Json, PluginClass } from "@blockr/core";
 
-interface ViewsBoard extends Board {
-  readonly views: Readonly<Record<string, { readonly name: string }>>;
-}
+type ViewsState = { readonly views: Readonly<Record<string, { readonly name: string }>> };
 
 type HeadState = { n: number; direction: "head" | "tail" };
 
@@ -161,18 +159,24 @@ const head: BlockModule<HeadState> = {
 
 export default head;
 
-export function views(board: ViewsBoard): string[] {
-  return Object.values(board.views).map((view) => view.name);
+export function viewsOf(board: Board, plugin: string): ViewsState["views"] {
+  const state = board.plugins[plugin]?.state as ViewsState | undefined;
+  return state?.views ?? {};
 }
 
-export const viewsBoard: BoardClass = {
-  class: "views_board",
-  parent: "board",
-  properties: { views: { schema: { type: "object" }, default: {} } },
-  update: (delta, board) =>
+const initial: ViewsState = { views: {} };
+const json: Json = initial;
+
+export const viewsPlugin: PluginClass = {
+  id: "blockr.views-views_plugin",
+  state: { schema: { type: "object" }, default: json },
+  start: ({ signal }) => {
+    signal.addEventListener("abort", () => undefined);
+  },
+  update: (delta, board, plugin) =>
     (delta.blocks?.rm ?? [])
-      .filter((id) => Object.hasOwn((board as ViewsBoard).views, id))
-      .map((id) => ({ op: "remove", path: "/views/" + id })),
+      .filter((id) => Object.hasOwn(viewsOf(board, plugin), id))
+      .map((id) => ({ op: "remove", path: "/plugins/" + plugin + "/state/views/" + id })),
 };
 `;
 

@@ -17,6 +17,10 @@ function messageOf(error) {
 var HEX_COLOR = "^#[0-9a-fA-F]{6}$";
 var hexColor = new RegExp(HEX_COLOR);
 
+// srcts/store/open.ts
+var COLLECTIONS = ["blocks", "links", "stacks", "options", "plugins"];
+var PROPERTIES = ["id", "name", ...COLLECTIONS];
+
 // srcts/commands/schemas.ts
 var id = { type: "string", pattern: "\\D" };
 var blockId = {
@@ -43,6 +47,10 @@ var name = {
 var state = {
   type: "object",
   description: "Values of a block's state args, which the schema of its class types."
+};
+var pluginId = {
+  ...id,
+  description: "The id of a plugin, unique among the board's plugins."
 };
 
 // srcts/commands/core.ts

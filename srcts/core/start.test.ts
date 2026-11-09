@@ -1,24 +1,24 @@
-// Starting core in the order of the startup modules, and switching the page to
-// the front-end of each board that opens, with R played over a transport whose
-// replies the test sends, on the board of the fixture hello, which core's basic
-// front-end, blockr.core-basic, draws.
+// Starting core in the order of the startup modules, and starting it again for
+// each board that opens, with R played over a transport whose replies the test
+// sends, on the board of the fixture hello, which core's basic front-end,
+// blockr.core-basic, draws, as it draws every board.
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { EvaluateRequest, HelloReply, Reply, Request, Transport, TransportListener } from "../protocol/index.ts";
 import { coreOptions } from "../options/index.ts";
 import { reports } from "../testing/reports.ts";
-import { hello } from "../testing/store.ts";
+import { hello, withPlugins } from "../testing/store.ts";
 import type { CoreApi } from "../types/core-api.ts";
+import type { JsonSchema } from "../types/json.ts";
 import { pageFrontEnds, start } from "./index.ts";
 import type { Changed, StartOptions } from "./index.ts";
 
 const BASIC = "blockr.core/basic.js?v=0f3d8e21";
-const DOCK = "blockr.dock/dock.js?v=1";
 
 // R, played over a transport: the test starts sessions and sends replies.
 // Once the test has answered the blockr options that the scheduler reads, R
 // answers each later request for blockr options itself, with no values, as
-// the one for the default of dark_mode, which core's board class requires.
+// the one for the default of dark_mode, which core's basic front-end requires.
 function playedR() {
   const sent: Request[] = [];
   const replied = new Set<string>();
@@ -282,6 +282,52 @@ describe("starting the page", () => {
     expect(core.store.board().name).toBe("From the URL");
   });
 
+  test("has the board that a startup module names hold the plugins of R's, each with the state that the named board gives it", async () => {
+    // A package whose plugin class the board that R sent holds two plugins of,
+    // and the board that its startup module names holds one of them and one
+    // of its own.
+    const notes = {
+      api: 1,
+      default: {
+        initialize({ core }: { core: CoreApi }) {
+          core.plugins.register({
+            id: "blockr.notes-notes_plugin",
+            state: { schema: { type: "object" }, default: { text: "" } },
+          });
+          return JSON.stringify({
+            ...hello.board,
+            board: {
+              ...hello.board.board,
+              name: "From the URL",
+              plugins: {
+                todo: { class: "blockr.notes-notes_plugin", name: "To do", state: { text: "Call back" } },
+                later: { class: "blockr.notes-notes_plugin", name: "Later", state: { text: "Soon" } },
+              },
+            },
+          });
+        },
+      },
+    };
+    const reply = withPlugins(
+      {
+        todo: { class: "blockr.notes-notes_plugin", name: "To do", state: { text: "Buy milk" } },
+        done: { class: "blockr.notes-notes_plugin", name: "Done", state: { text: "Paid" } },
+      },
+      withStartup("blockr.notes"),
+    );
+    const s = setup({ "blockr.notes/startup.js?v=1": notes, [BASIC]: frontEnd().exports });
+    s.r.session(reply);
+    await tick();
+    s.r.options();
+    const core = await s.started.ready;
+
+    expect(core.store.board().name).toBe("From the URL");
+    expect(core.store.board().plugins).toEqual({
+      todo: { class: "blockr.notes-notes_plugin", name: "To do", state: { text: "Call back" } },
+      done: { class: "blockr.notes-notes_plugin", name: "Done", state: { text: "" } },
+    });
+  });
+
   test.each([
     ["the board is locked", { lock: { open: ["b"] } }, ["blockr.session"], "The board is locked, so core opens the board that R sent rather than the one that blockr.session named."],
     ["two startup modules name one", {}, ["blockr.session", "blockr.other"], 'The startup modules of "blockr.session" and "blockr.other" each named a board to open, so core opens the board that R sent.'],
@@ -335,22 +381,6 @@ describe("starting the page", () => {
 });
 
 describe("a board opened later", () => {
-  // The reply to hello, in which blockr.dock names its front-end for its board
-  // class dock_board, which its startup module defines.
-  const docked: HelloReply = {
-    ...withStartup("blockr.dock"),
-    modules: { ...hello.modules, "blockr.dock-dock": { module: DOCK } },
-    board_classes: { ...hello.board_classes, dock_board: { package: "blockr.dock", front_end: "blockr.dock-dock", version: 1 } },
-  };
-  const dockStartup = {
-    api: 1,
-    default: {
-      initialize({ core }: { core: CoreApi }) {
-        core.store.register({ class: "dock_board", parent: "board", properties: {} });
-      },
-    },
-  };
-  const dockBoard = JSON.stringify({ ...hello.board, board: { ...hello.board.board, id: "dock_one", class: ["dock_board", "board"], name: "Docked" } });
   const named = (name: string): string => JSON.stringify({ ...hello.board, board: { ...hello.board.board, name } });
 
   // Starts the page on the reply given, whose blockr options R holds none of.
@@ -374,13 +404,24 @@ describe("a board opened later", () => {
 
   test("is checked by the store on the page first, so that a board it refuses leaves the page as it was, with the reason", async () => {
     const basic = frontEnd();
-    const s = await started({ [BASIC]: basic.exports });
+    // R's board holds a plugin of a class that a package registers once the
+    // page has started.
+    const s = await started(
+      { [BASIC]: basic.exports },
+      withPlugins({ strict: { class: "test.pkg-strict_plugin", name: "Strict", state: { zoom: 1 } } }),
+    );
     const sent = s.r.sent.length;
 
     await expect(s.core.store.open("{")).rejects.toThrow("The store refused to open the board\n- The text holds no JSON");
-    s.core.store.register({ class: "strict_board", parent: "board", options: ["nowhere"], properties: {} });
-    const strict = JSON.stringify({ ...hello.board, board: { ...hello.board.board, class: ["strict_board", "board"] } });
-    await expect(s.core.store.open(strict)).rejects.toThrow('requires the board option "nowhere", which no loaded package defines');
+    s.core.plugins.register({
+      id: "test.pkg-strict_plugin",
+      state: { schema: { type: "object", required: ["zoom"] }, default: { zoom: 1 } },
+    });
+    const strict = JSON.stringify({
+      ...hello.board,
+      board: { ...hello.board.board, plugins: { strict: { class: "test.pkg-strict_plugin", name: "Strict", state: {} } } },
+    });
+    await expect(s.core.store.open(strict)).rejects.toThrow('The state of the plugin "strict"');
 
     expect(s.r.sent.slice(sent)).toEqual([]);
     expect(basic.renders).toHaveLength(1);
@@ -542,26 +583,6 @@ describe("a board opened later", () => {
     expect(s.r.kinds().filter((kind) => kind === "hello")).toHaveLength(2);
   });
 
-  test("switches the page to the front-end of its class", async () => {
-    const basic = frontEnd();
-    const dock = frontEnd();
-    const s = await started({ "blockr.dock/startup.js?v=1": dockStartup, [BASIC]: basic.exports, [DOCK]: dock.exports }, docked);
-
-    await reopen(s, s.core, dockBoard, docked);
-
-    expect(basic.renders[0]?.signal.aborted).toBe(true);
-    expect(basic.cleanups()).toBe(1);
-    expect(dock.renders).toHaveLength(1);
-    expect(s.el.textContent).toBe("Docked");
-
-    // A board of core's class opened in a dock app is drawn by core's basic
-    // front-end, which starts again.
-    await reopen(s, s.started.core() ?? s.core, named("Basic again"), docked);
-    expect(dock.renders[0]?.signal.aborted).toBe(true);
-    expect(basic.renders).toHaveLength(2);
-    expect(s.el.textContent).toBe("Basic again");
-  });
-
   test("opens no board through the store of a board before, and opens them one at a time", async () => {
     const basic = frontEnd();
     const s = await started({ [BASIC]: basic.exports });
@@ -577,29 +598,38 @@ describe("a board opened later", () => {
   });
 
   test("that fails to open after all opens the board before in the new store, and open() rejects with the reason", async () => {
-    // A startup module that registers the board option its class requires as
-    // the page starts only, so that the board checks as the page holds it but
+    // A startup module that registers its plugin class with a schema that a
+    // zoom of any kind fits as the page starts, and with one that only a
+    // number fits later, so that the board checks as the page holds it but
     // fails to open as core starts again.
     let initialized = 0;
     const strict = {
       api: 1,
       default: {
         initialize({ core }: { core: CoreApi }) {
-          core.store.register({ class: "strict_board", parent: "board", options: ["zoom"], properties: {} });
-          if (++initialized === 1) {
-            core.options.register({ id: "zoom", label: "Zoom", category: "View", schema: { type: "number" }, default: 1, ui: { render: () => undefined } });
-          }
+          const zoom: JsonSchema = ++initialized === 1 ? {} : { type: "number" };
+          core.plugins.register({
+            id: "blockr.strict-zoom_plugin",
+            state: { schema: { type: "object", properties: { zoom } }, default: { zoom: 1 } },
+          });
         },
       },
     };
     const basic = frontEnd();
-    const s = await started({ "blockr.strict/startup.js?v=1": strict, [BASIC]: basic.exports }, withStartup("blockr.strict"));
+    const reply = withPlugins(
+      { zoom: { class: "blockr.strict-zoom_plugin", name: "Zoom", state: { zoom: 1 } } },
+      withStartup("blockr.strict"),
+    );
+    const s = await started({ "blockr.strict/startup.js?v=1": strict, [BASIC]: basic.exports }, reply);
     s.core.store.apply({ name: "Kept" });
-    const board = JSON.stringify({ ...hello.board, board: { ...hello.board.board, class: ["strict_board", "board"] } });
+    const board = JSON.stringify({
+      ...hello.board,
+      board: { ...hello.board.board, plugins: { zoom: { class: "blockr.strict-zoom_plugin", name: "Zoom", state: { zoom: "big" } } } },
+    });
 
     const reported = reports();
-    const opening = reopen(s, s.core, board, withStartup("blockr.strict"));
-    await expect(opening).rejects.toThrow('requires the board option "zoom", which no loaded package defines');
+    const opening = reopen(s, s.core, board, reply);
+    await expect(opening).rejects.toThrow('The state of the plugin "zoom"');
     reported.restore();
 
     expect(s.started.core()?.store.board().name).toBe("Kept");

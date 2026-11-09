@@ -10,7 +10,7 @@
 \alias{validate_links}
 \title{Board links}
 \usage{
-new_link(from = "", to = "", input = "", ..., class = character())
+new_link(from = "", to = "", input = "")
 
 is_link(x)
 
@@ -29,11 +29,10 @@ validate_links(x)
 
 \item{input}{Block argument}
 
-\item{...}{Extensibility}
-
-\item{class}{(Optional) link sub-class}
-
 \item{x}{Links object}
+
+\item{...}{For \code{links()}, the links to combine, or their fields, such as
+\code{from} and \code{to}, as vectors, and otherwise generic consistency}
 }
 \value{
 Both \code{new_link()}/\code{as_link()}, and \code{links()}/\code{as_links()} return
@@ -47,9 +46,7 @@ Two blocks can be connected via a (directed) link. This means the result from
 one block is passed as (data) input to the next. Source and destination are
 identified by \code{from} and \code{to} attributes and in case of polyadic receiving
 blocks, the \code{input} attribute identified which of the data inputs is the
-intended destination. In principle, the \code{link} object may be extended via
-sub-classing and passing further attributes, but this has not been properly
-tested so far.
+intended destination.
 
 In addition to unique IDs, \code{links} objects are guaranteed to be consistent
 in that it is not possible to have multiple links pointing to the same

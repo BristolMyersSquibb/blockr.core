@@ -1,9 +1,9 @@
 // What packages register with the store, from their startup modules, before
-// it opens a board: board classes, board options and the migrations of their
+// it opens a board: plugin classes, board options and the migrations of their
 // block classes' states.
-// A board class is registered under its R class name, with the properties it
-// adds.
-// A board class, a board option id or a block class's migration registered
+// A plugin class is registered under its id, `{pkg}-{name}_plugin`, as R names
+// the class.
+// A plugin class, a board option id or a block class's migration registered
 // twice fails.
 
 import { computed, signal } from "@preact/signals-core";
@@ -11,64 +11,80 @@ import type {
   Block,
   Board,
   OptionId,
+  PluginClassId,
+  PluginId,
   RegistryId,
 } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { OptionModule } from "../types/hosts.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
-import { compile, isObject, own } from "../util/index.ts";
+import { compile, isObject, packageOf } from "../util/index.ts";
 import type { Validate } from "../util/index.ts";
 import type { Delta, Patch } from "./delta.ts";
 
-// A board class, which the package that ships it defines in JS under its R
-// class name, so that the definition and R's class meet at the name.
-// It names its parent and the board options it requires, and gives the
-// properties it adds beside core's, each with a schema and a default.
-// Its package and its front-end come from R, where the package names the
-// class's front-end through its method of `board_front_end()`, from its
-// namespace, and R sends both with its reply to `hello`.
-// A class that R names no front-end for comes from no package, and its
-// parent's front-end draws it.
-// What sits inside a property is the class's own design.
-// The store applies patches to a property without knowing that design.
-export interface BoardClass {
-  // The R class it defines, as "dock_board".
-  readonly class: string;
-  // The class it extends, as "board", which a package registers before it.
-  // Only core's `board` has none.
-  readonly parent?: string;
-  // The board options it requires, which the board gets with their defaults as
-  // it opens, where it lacks them.
+// A plugin class, which the package that ships it defines in JS under the
+// class's id, as R names the class, so that the definition and R's class meet
+// at the id.
+// A class sets any mix of its members, or none of `ui`, `frontend` and
+// `storage`, as a plugin without a place on the screen does.
+// The store reads `state`, `update` and `migrate`, and tells a frontend and a
+// storage plugin by `frontend` and `storage`, of which a board holds at most
+// one each.
+// Core reads the rest.
+// What sits inside a plugin's state is the class's own design, and the store
+// applies patches to it without knowing that design.
+export interface PluginClass {
+  // As "blockr.dag-dag_plugin".
+  readonly id: PluginClassId;
+  // The board options its plugins require.
   readonly options?: readonly OptionId[];
-  readonly properties: Readonly<Record<string, Property>>;
-  // Converts the properties beside core's, as a JSON board holds them, from
-  // the version of this class that the board records to the one R gives,
-  // which R's `board_version()` gives, and returns them as the board then
-  // holds them, so that what it leaves out is gone.
-  // The store calls it as it opens a board whose recorded version of the class
-  // is below R's, with that version, for the class and each of its parents,
-  // root first.
-  // It changes only the properties that its own class adds, which nothing but
-  // the package enforces, and may rename, split and merge them.
-  migrate?(properties: Readonly<Record<string, Json>>, version: number): Readonly<Record<string, Json>>;
-  // The patches to its own properties that follow from a change, such as
-  // removing a removed block's panels from the dock's views.
-  // The store applies them in the same step.
+  // What each of its plugins keeps in the board: the schema of the state, with
+  // descriptions and examples for a model, against which the store checks the
+  // state after every change, and the state that a plugin of the app's
+  // opening board starts with on a board that opens without it.
+  // The plugins of a class without one each keep an empty object.
+  readonly state?: { readonly schema: JsonSchema; readonly default: Json };
+  // The patches to the state of the plugin `plugin` that follow from a change,
+  // such as removing a removed block's position from the DAG's positions.
+  // The store calls it once for each plugin of the class that the board holds
+  // before the change, with every change it applies, and applies what it
+  // returns in the same step.
   // It gets the delta, as expanded so far, and the board before the delta,
   // so that it sees what the delta removes.
   // It reads nothing else: it calls no R and reads nothing on screen, so that
   // every peer that applies a change computes the same patches.
   // It mints an id only into the step it is part of.
-  update?(delta: Delta, board: Board): readonly Patch[];
+  update?(delta: Delta, board: Board, plugin: PluginId): readonly Patch[];
+  // Converts a plugin's state, as a JSON board holds it, from the version of
+  // the class that the board records to the one that R's `plugin_version()`
+  // gives, and returns it as the board then holds it, so that what it leaves
+  // out is gone.
+  // The store calls it as it opens a board whose recorded version of the class
+  // is below R's, with that version, for each plugin of the class.
+  migrate?(state: Json, version: number): Json;
+  // The module that every frontend places, once for each plugin of the class.
+  readonly ui?: string;
+  // A frontend's: the module that draws the page.
+  readonly frontend?: string;
+  // A storage plugin's: what every frontend's save and open controls call.
+  readonly storage?: Storage;
+  // What runs while the open board holds the plugin, until the signal aborts.
+  // It may return a cleanup, which core runs as the signal aborts.
+  start?(args: { readonly core: CoreApi; readonly plugin: PluginId; readonly signal: AbortSignal }): (() => void) | undefined;
 }
 
-// A property that a board class adds.
-export interface Property {
-  // What values it takes, with descriptions and examples for a model.
-  // The store checks the whole property against it after every change.
-  readonly schema: JsonSchema;
-  // What a board that lacks it holds as it opens.
-  readonly default: Json;
+// What a storage plugin saves boards and opens them through.
+export interface Storage {
+  // Saves the JSON board's text, as the store's save() writes it.
+  save(board: string): Promise<void>;
+  // The text of the board that the user picks, or null where they pick none.
+  open(): Promise<string | null>;
+}
+
+// The plugin classes that packages define, by id.
+export interface Plugins {
+  register(def: PluginClass): () => void;
+  registered(): Readonly<Record<PluginClassId, PluginClass>>;
 }
 
 // A board option, whose value the board holds under its id once something sets
@@ -111,7 +127,7 @@ export interface Options {
 // A migration converts what older versions of its class wrote into today's
 // shape, so that a board saved and opened again comes back as it was.
 // What a board reads where nothing set a value comes from
-// what packages register instead, a property's `default`
+// what packages register instead, a plugin class's default state
 // and a board option's `default`.
 export type Migration = (state: Block["state"], version: number) => Block["state"];
 
@@ -121,67 +137,34 @@ export interface Checked<T> {
   readonly validate: Validate;
 }
 
-// A board class with the validators of its properties' schemas, by name.
-export interface CheckedClass {
-  readonly def: BoardClass;
-  readonly validate: Readonly<Record<string, Validate>>;
-}
-
-// The class that a board is built as: the first in the board's class vector
-// that is registered, or core's `board` where none is.
-export interface Built {
-  readonly def: BoardClass;
-  // The class and its parents, core's `board` first,
-  // whose properties a board built as the class holds.
-  readonly chain: readonly CheckedClass[];
-  // Of each property that the chain adds,
-  // the class that adds it and the validator of its schema,
-  // by the property's name.
-  readonly properties: ReadonlyMap<string, { readonly owner: CheckedClass; readonly validate: Validate }>;
-}
-
 export interface Registrations {
-  register(def: BoardClass): () => void;
-  registered(): readonly BoardClass[];
+  readonly plugins: Plugins;
   readonly options: Options;
   registerMigration(registryId: RegistryId, fn: Migration): () => void;
-  builtAs(classes: readonly string[]): Built;
+  // A plugin class with the validator of its state's schema, which allows any
+  // state where the class gives none.
+  plugin(id: PluginClassId): Checked<PluginClass> | undefined;
   option(id: OptionId): Checked<Option> | undefined;
   migration(registryId: RegistryId): Migration | undefined;
 }
 
-// Core's board class.
-// The store builds a board as it where no class in the board's class vector
-// is registered, so core's basic front-end draws every board at least.
-// It requires the board options that core's basic front-end reads, the
-// severities of the conditions it shows and the theme, as today's default
-// board options are these two, so that every board gets them as it opens.
-export const CORE_BOARD: BoardClass = {
-  class: "board",
-  options: ["show_conditions", "dark_mode"],
-  properties: {},
-};
-
-// The properties that every board holds, which no board class may add again.
-export const CORE_PROPERTIES: readonly string[] = [
-  "id",
-  "class",
-  "name",
-  "blocks",
-  "links",
-  "stacks",
-  "options",
-];
+// The board options that core's basic frontend requires, the severities of
+// the conditions it shows and the theme, which every board gets with their
+// defaults as it opens, where it lacks them, since core's basic frontend draws
+// every board.
+export const BASIC_OPTIONS: readonly OptionId[] = ["show_conditions", "dark_mode"];
 
 export function createRegistrations(): Registrations {
-  const classes = signal<ReadonlyMap<string, CheckedClass>>(new Map());
+  const classes = signal<ReadonlyMap<PluginClassId, Checked<PluginClass>>>(new Map());
   const options = signal<readonly Checked<Option>[]>([]);
   const migrations = signal<ReadonlyMap<RegistryId, Migration>>(new Map());
 
   const optionIndex = computed(
     () => new Map(options.value.map((option) => [option.def.id, option])),
   );
-  const registered = computed(() => [...classes.value.values()].map((cls) => cls.def));
+  const classDefs = computed(() =>
+    Object.fromEntries([...classes.value].map(([id, cls]) => [id, cls.def])),
+  );
   const optionDefs = computed(() =>
     Object.fromEntries(options.value.map((option) => [option.def.id, option.def])),
   );
@@ -199,94 +182,69 @@ export function createRegistrations(): Registrations {
     }
   }
 
-  // The class and its parents, core's `board` first,
-  // or undefined where a parent is no longer registered.
-  function chainOf(cls: CheckedClass): CheckedClass[] | undefined {
-    const chain = [cls];
-    let parent = cls.def.parent;
-    while (parent !== undefined) {
-      const next = classes.value.get(parent);
-      if (next === undefined || chain.includes(next)) return undefined;
-      chain.unshift(next);
-      parent = next.def.parent;
-    }
-    return chain;
-  }
-
-  function registerClass(def: BoardClass, root = false): () => void {
-    const name = def.class;
-    if (typeof name !== "string" || name === "") {
-      throw new Error(`The board class ${JSON.stringify(name)} has no name.`);
-    }
-    const what = `the board class "${name}"`;
-    if (classes.value.has(name)) {
-      throw new Error(`The board class "${name}" is registered already.`);
-    }
-    const parent = def.parent === undefined ? undefined : classes.value.get(def.parent);
-    if (!root && parent === undefined) {
+  function registerPlugin(def: PluginClass): () => void {
+    const { id } = def;
+    if (typeof id !== "string" || !isPluginClassId(id)) {
       throw new Error(
-        def.parent === undefined
-          ? `The board class "${name}" names no parent, which every board class but core's "board" does.`
-          : `The board class "${name}" extends "${def.parent}", which no package registered.`,
+        `The plugin class id ${JSON.stringify(id)} is not named as R names a plugin class, "{pkg}-{name}_plugin".`,
       );
     }
-    if (def.update !== undefined && typeof def.update !== "function") {
-      throw new Error(`The board class "${name}" has an update that is no function.`);
+    if (classes.value.has(id)) {
+      throw new Error(`The plugin class "${id}" is registered already.`);
     }
-    if (def.migrate !== undefined && typeof def.migrate !== "function") {
-      throw new Error(`The board class "${name}" has a migrate that is no function.`);
+    // A package that writes its JS without types may give members of the
+    // wrong kind.
+    const given = def as unknown as Readonly<Record<string, unknown>>;
+    for (const [member, article] of [["update", "an"], ["migrate", "a"], ["start", "a"]] as const) {
+      if (given[member] !== undefined && typeof given[member] !== "function") {
+        throw new Error(`The plugin class "${id}" has ${article} ${member} that is no function.`);
+      }
+    }
+    for (const member of ["ui", "frontend"]) {
+      if (given[member] !== undefined && (typeof given[member] !== "string" || given[member] === "")) {
+        throw new Error(`The plugin class "${id}" has a ${member} that is no module's id.`);
+      }
+    }
+    const storage = given.storage;
+    if (
+      storage !== undefined &&
+      (!isObject(storage) || typeof storage.save !== "function" || typeof storage.open !== "function")
+    ) {
+      throw new Error(`The plugin class "${id}" has a storage without save() and open() functions.`);
+    }
+    if (
+      given.options !== undefined &&
+      (!Array.isArray(given.options) || !given.options.every((option) => typeof option === "string"))
+    ) {
+      throw new Error(`The plugin class "${id}" requires board options that are no array of their ids.`);
     }
 
-    const inherited = new Map<string, string>();
-    for (const cls of (parent === undefined ? undefined : chainOf(parent)) ?? []) {
-      for (const property of Object.keys(cls.def.properties)) inherited.set(property, cls.def.class);
+    const what = `the state of the plugin class "${id}"`;
+    let validate: Validate = () => [];
+    const state = given.state;
+    if (state !== undefined) {
+      if (!isObject(state) || !isObject(state.schema) || !Object.hasOwn(state, "default")) {
+        throw new Error(`The plugin class "${id}" gives a state without a schema and a default.`);
+      }
+      validate = compile(what, state.schema as JsonSchema);
+      checkInitial(what, validate, state.default as Json, "default");
     }
 
-    const validate: Record<string, Validate> = {};
-    for (const [property, given] of Object.entries(def.properties)) {
-      if (CORE_PROPERTIES.includes(property)) {
-        throw new Error(`The board class "${name}" adds the property "${property}", which every board holds as core's.`);
-      }
-      const owner = inherited.get(property);
-      if (owner !== undefined) {
-        throw new Error(
-          `The board class "${name}" adds the property "${property}", which its parent "${owner}" adds already.`,
-        );
-      }
-      const of = `the property "${property}" of ${what}`;
-      if (!Object.hasOwn(given, "default")) {
-        throw new Error(`The property "${property}" of ${what} has no default.`);
-      }
-      validate[property] = compile(of, given.schema);
-      checkInitial(of, validate[property], given.default, "default");
-    }
-
-    const item: CheckedClass = { def, validate };
-    classes.value = new Map([...classes.value, [name, item]]);
+    const item: Checked<PluginClass> = { def, validate };
+    classes.value = new Map([...classes.value, [id, item]]);
     return () => {
-      if (classes.value.get(name) !== item) return;
+      if (classes.value.get(id) !== item) return;
       const rest = new Map(classes.value);
-      rest.delete(name);
+      rest.delete(id);
       classes.value = rest;
     };
   }
 
-  function builtAs(vector: readonly string[]): Built {
-    for (const name of vector) {
-      const cls = classes.value.get(name);
-      const chain = cls === undefined ? undefined : chainOf(cls);
-      if (chain !== undefined) return built(chain);
-    }
-    const core = classes.value.get(CORE_BOARD.class);
-    if (core === undefined) throw new Error('Core\'s board class "board" is not registered.');
-    return built([core]);
-  }
-
-  registerClass(CORE_BOARD, true);
-
   return {
-    register: (def) => registerClass(def),
-    registered: () => registered.value,
+    plugins: {
+      register: registerPlugin,
+      registered: () => classDefs.value,
+    },
     options: {
       register(def) {
         const what = `the board option "${def.id}"`;
@@ -330,38 +288,15 @@ export function createRegistrations(): Registrations {
         migrations.value = rest;
       };
     },
-    builtAs,
+    plugin: (id) => classes.value.get(id),
     option: (id) => optionIndex.value.get(id),
     migration: (registryId) => migrations.value.get(registryId),
   };
 }
 
-function built(chain: readonly CheckedClass[]): Built {
-  const properties = new Map<string, { owner: CheckedClass; validate: Validate }>();
-  for (const cls of chain) {
-    for (const [name, validate] of Object.entries(cls.validate)) {
-      properties.set(name, { owner: cls, validate });
-    }
-  }
-  const def = chain.at(-1)?.def ?? CORE_BOARD;
-  return { def, chain, properties };
-}
-
-// The board taken as a record, by which code that does not import the types of
-// its class's properties reads them.
-export function recordOf(board: Board): Readonly<Record<string, unknown>> {
-  return board as unknown as Readonly<Record<string, unknown>>;
-}
-
-// The properties of the board beside core's, by name.
-export function propertiesOf(board: Board): Readonly<Record<string, unknown>> {
-  return Object.fromEntries(
-    Object.entries(recordOf(board)).filter(([name]) => !CORE_PROPERTIES.includes(name)),
-  );
-}
-
-// The default of a property, as the class that adds it gives it.
-export function defaultOf(built: Built, name: string): Json | undefined {
-  const at = built.properties.get(name);
-  return at === undefined ? undefined : own(at.owner.def.properties, name)?.default;
+// Whether an id is named as R names a plugin class, `{pkg}-{name}_plugin`:
+// a package name, a dash, and a name that ends in `_plugin`.
+export function isPluginClassId(id: string): boolean {
+  const pkg = packageOf(id);
+  return pkg !== null && /^.+_plugin$/.test(id.slice(pkg.length + 1));
 }

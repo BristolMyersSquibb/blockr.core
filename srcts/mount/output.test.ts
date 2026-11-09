@@ -227,7 +227,7 @@ describe("asking", () => {
     const el = await ready(s);
 
     expect(s.imported).toEqual([TABLE.module]);
-    // Beside those that core's board class requires.
+    // Beside those that core's basic front-end requires.
     expect(s.store.board().options).toEqual({ show_conditions: ["warning", "error"], dark_mode: "light", n_rows: 50, zoom: 1 });
     expect(outputs(s.r)).toHaveLength(1);
     expect(lastOutput(s.r)).toMatchObject({

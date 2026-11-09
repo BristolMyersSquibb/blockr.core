@@ -122,6 +122,22 @@ test_that("a stack may have a color, which is a hex color", {
   }
 })
 
+test_that("a stack takes core's properties and nothing else", {
+
+  expect_error(new_stack("a", "Input", NULL, "extra"), "unused argument")
+  expect_error(new_stack("a", collapsed = TRUE), "unused argument")
+  expect_error(new_stack("a", class = "dock_stack"), "unused argument")
+
+  expect_error(
+    as_stack(list(blocks = "a", collapsed = TRUE)),
+    "unused argument"
+  )
+  expect_error(
+    stacks(list(blocks = "a", collapsed = TRUE)),
+    "unused argument"
+  )
+})
+
 test_that("a stack's color has the pattern of the schema of a JSON board", {
 
   stack <- json_board_schema()[["definitions"]][["Stack"]]
@@ -144,23 +160,4 @@ test_that("stacks have a compact str_value()", {
   expect_identical(out, " <stack> \"my stack\": a, b")
   expect_false(res$visible)
   expect_identical(res$value, stk)
-})
-
-test_that("str_value() is extensible via NextMethod()", {
-
-  registerS3method(
-    "str_value", "test_substack",
-    function(x, ...) paste0(NextMethod(), " [extra]"),
-    envir = asNamespace("blockr.core")
-  )
-
-  sub <- new_stack(c("a", "b"), name = "S")
-  class(sub) <- c("test_substack", class(sub))
-
-  expect_identical(str_value(sub), "<test_substack> \"S\": a, b [extra]")
-
-  expect_identical(
-    capture.output(str(sub)),
-    " <test_substack> \"S\": a, b [extra]"
-  )
 })

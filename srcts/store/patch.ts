@@ -1,6 +1,6 @@
-// Patches, the changes inside the properties that a board class adds,
+// Patches, the changes to the board's plugins and inside their state,
 // applied as JSON Patch applies its `add`, `remove` and `replace` (RFC 6902):
-// at a path from the board's top, without knowing the property's structure.
+// at a path from the board's top, without knowing the state's structure.
 // A patch copies only the objects and arrays along its path,
 // so that the new board shares the rest with the old one,
 // and returns the patch that takes it back, which undo applies.
@@ -16,7 +16,7 @@ import { isObject, jsonEqual, without } from "../util/index.ts";
 import type { Patch } from "./delta.ts";
 
 // The parts of a JSON Pointer (RFC 6901), reading "~1" as "/" and "~0" as "~",
-// as "/views/main" gives ["views", "main"].
+// as "/plugins/dock" gives ["plugins", "dock"].
 // They are undefined where the text is no pointer below the board's top: where
 // it is empty, does not start with "/", or holds a "~" that escapes nothing.
 export function pointer(path: string): string[] | undefined {
@@ -24,6 +24,13 @@ export function pointer(path: string): string[] | undefined {
   const parts = path.slice(1).split("/");
   if (parts.some((part) => /~(?![01])/.test(part))) return undefined;
   return parts.map((part) => part.replaceAll("~1", "/").replaceAll("~0", "~"));
+}
+
+// The plugin that a path leads into, "dag" for "/plugins/dag/state/positions/a"
+// and for "/plugins/dag", or undefined where it leads into no plugin.
+export function pluginOf(path: string): string | undefined {
+  const [top, plugin] = pointer(path) ?? [];
+  return top === "plugins" ? plugin : undefined;
 }
 
 // The JSON Pointer to the parts.

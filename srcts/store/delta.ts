@@ -1,7 +1,7 @@
 // Deltas, the one shape in which every change to the board travels,
 // whoever makes it: core's objects, the board options and the board's
 // name in the `add`, `mod` and `rm` shape of today's board updates in R,
-// and the properties that the board's class adds by patches at nested paths.
+// and the board's plugins by patches at nested paths.
 
 import type {
   Block,
@@ -14,9 +14,9 @@ import type {
 } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 
-// Who made a change: "user" unless its maker names another, such as an
-// extension like the assistant, or a peer once a sync add-on exists. Each
-// origin undoes its own steps.
+// Who made a change: "user" unless its maker names another, such as a
+// plugin like the assistant, or a peer once a package syncs boards between
+// people. Each origin undoes its own steps.
 export type Origin = string;
 
 // Within each collection, `rm` applies before `add`,
@@ -73,13 +73,14 @@ export interface BlockMod {
   readonly name?: string;
 }
 
-// A change inside a property that the board's class adds,
-// in the shape of a JSON Patch operation (RFC 6902): its path is a JSON
-// Pointer from the board's top, whose first part names the property,
-// as "/views/main/panels/1" changes the dock's views.
-// An `add` or a `replace` at the property itself, "/views",
-// sets the whole property, which a `remove` may not take away.
-// A patch names the edit id of the property that it was built on,
+// A change to the board's plugins, in the shape of a JSON Patch operation
+// (RFC 6902): its path is a JSON Pointer from the board's top, under
+// "/plugins", whose second part names the plugin.
+// A patch below the plugin's own path changes the plugin's name or its state,
+// as "/plugins/dag/state/positions/a" moves a block in the DAG, and none sets
+// or removes a whole plugin, since the app's opening board sets the plugins
+// that a board holds.
+// A patch names the edit id of the plugin that it was built on,
 // which a command leaves out and the command registry fills in.
 export interface Patch {
   readonly op: "add" | "remove" | "replace";
