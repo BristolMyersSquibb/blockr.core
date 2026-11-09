@@ -89,9 +89,6 @@ async function text(blob: Blob | null | undefined): Promise<string> {
   return new TextDecoder().decode(await blob.arrayBuffer());
 }
 
-// Lets the promises that are settled run what waits on them.
-const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
-
 const evaluate: EvaluateRequest = {
   id: "17",
   kind: "evaluate",
@@ -254,75 +251,6 @@ describe("the Shiny transport", () => {
     // Nothing is deleted that never came.
     expect(p.fetched.map((f) => f.init?.method ?? "GET")).toEqual(["GET"]);
     await expect(p.body(1)).rejects.toThrow("R sent no bytes of the body of its reply to 33.");
-  });
-
-  test("fetches a message that R serves from a URL, before those after it", async () => {
-    const url = "session/0a1b/dataobj/blockr-message-1?w=&nonce=e4f5";
-    let serve: (response: Response) => void = () => undefined;
-    const p = page((_url, init) =>
-      init?.method === "DELETE"
-        ? Promise.resolve(new Response("Deleted."))
-        : new Promise((resolve) => {
-            serve = resolve;
-          }),
-    );
-
-    p.deliver({ url });
-    p.deliver([{ id: "41", status: "ok", value: [2] }]);
-
-    // The later message waits for the one that R serves.
-    expect(p.received).toEqual([]);
-
-    serve(new Response(JSON.stringify([{ id: "40", status: "ok", value: [1] }])));
-    await flush();
-
-    expect(p.received.map(([item]) => item.id)).toEqual(["40", "41"]);
-    // Once the client has read the message, it deletes it, for R to drop it.
-    expect(p.fetched.map((f) => [f.url, f.init?.method ?? "GET"])).toEqual([
-      [url, "GET"],
-      [url, "DELETE"],
-    ]);
-
-    // With nothing to wait for, a message is handed on at once again.
-    p.deliver([{ id: "42", status: "ok", value: [3] }]);
-    expect(p.received.map(([item]) => item.id)).toEqual(["40", "41", "42"]);
-  });
-
-  test("drops a message that R no longer serves, and hands on those after it", async () => {
-    const p = page(() =>
-      Promise.resolve(new Response("The body was fetched already.", { status: 404 })),
-    );
-
-    p.deliver({ url: "session/x/dataobj/blockr-message-1" });
-    p.deliver([{ id: "43", status: "ok", value: [1] }]);
-    await flush();
-
-    expect(p.received.map(([item]) => item.id)).toEqual(["43"]);
-    // Nothing is deleted that never came.
-    expect(p.fetched.map((f) => f.init?.method ?? "GET")).toEqual(["GET"]);
-  });
-
-  test("drops what waited for a message to fetch while the session ended", async () => {
-    let serve: (response: Response) => void = () => undefined;
-    const p = page((_url, init) =>
-      init?.method === "DELETE"
-        ? Promise.resolve(new Response("Deleted."))
-        : new Promise((resolve) => {
-            serve = resolve;
-          }),
-    );
-
-    p.deliver({ url: "session/x/dataobj/blockr-message-1" });
-    p.deliver([{ id: "44", status: "ok", value: [1] }]);
-    p.disconnect();
-    p.deliver({ body_url: bodyUrl });
-
-    serve(new Response(JSON.stringify([{ id: "45", status: "ok", value: [2] }])));
-    await flush();
-
-    expect(p.ended).toHaveBeenCalledTimes(1);
-    expect(p.started).toHaveBeenCalledTimes(1);
-    expect(p.received).toEqual([]);
   });
 
   test("posts a request's body to the URL R gave the session before it sends the request", async () => {

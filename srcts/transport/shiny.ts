@@ -17,15 +17,9 @@
 // in a binary frame of its own, which holds the length of the JSON of a message
 // of the reply alone in four bytes, little-endian, that JSON and then the
 // body's bytes, or from the URL in the body's `url`, which the client fetches,
-// as R's blockr options `max_message_size` and `message_body_encoding` say,
+// as R's blockr options `max_message_body` and `message_body_encoding` say,
 // and which the client deletes once it has read the body. The transport hands
 // the client the reply without the fields that carry the body.
-//
-// R serves a message larger than `max_message_size` from a URL of the
-// session's, and sends `{ "url": ... }` in its place.
-// The transport fetches the message there and deletes it, as it does a body.
-// It hands on the message's replies before those of the messages after it, so
-// that the client hears R's replies in the order R sent them.
 
 import type {
   Body,
@@ -108,13 +102,7 @@ export function shinyTransport(options: ShinyTransportOptions = {}): Transport {
       });
     },
     listen(listener) {
-      // The messages that wait for a message that the transport fetches, and
-      // a count of the sessions ended, so that a message that waited while its
-      // session ended goes nowhere.
-      let queue: Promise<void> | null = null;
-      let ends = 0;
-
-      const hear = (message: unknown): void => {
+      shiny.addCustomMessageHandler(name, (message: unknown) => {
         if (message instanceof ArrayBuffer) {
           for (const [item, body] of framed(message)) {
             listener.received(item, body);
@@ -132,38 +120,9 @@ export function shinyTransport(options: ShinyTransportOptions = {}): Transport {
           start = message;
           listener.started();
         }
-      };
-
-      shiny.addCustomMessageHandler(name, (message: unknown) => {
-        if (queue === null && !isServed(message)) {
-          hear(message);
-          return;
-        }
-
-        const at = ends;
-        const arrived = isServed(message) ? fetchMessage(fetcher, message.url) : Promise.resolve(message);
-        // Marks a fetch that fails before its turn as handled.
-        arrived.catch(() => undefined);
-
-        const turn = (queue ?? Promise.resolve())
-          .then(() => arrived)
-          .then((heard) => {
-            if (at === ends || isSessionStart(heard)) hear(heard);
-          })
-          // A message that the transport could not fetch or hand on goes
-          // nowhere, and those after it still come. R serves a message until
-          // the client deletes it or a later hello drops it, and a connection
-          // that fails ends the session, which fails what waits on it.
-          .catch(() => undefined);
-
-        queue = turn;
-        void turn.then(() => {
-          if (queue === turn) queue = null;
-        });
       });
 
       onDisconnected(() => {
-        ends += 1;
         session += 1;
         start = null;
         listener.ended();
@@ -197,40 +156,6 @@ function isSessionStart(message: unknown): message is SessionStart {
     message !== null &&
     typeof (message as { body_url?: unknown }).body_url === "string"
   );
-}
-
-// R's message in place of one larger than its blockr option
-// `max_message_size`, which R serves from the URL in `url`.
-interface Served {
-  url: string;
-}
-
-function isServed(message: unknown): message is Served {
-  return (
-    typeof message === "object" &&
-    message !== null &&
-    typeof (message as { url?: unknown }).url === "string"
-  );
-}
-
-// The message that R serves from a URL, which the client deletes there once it
-// has read it, as it deletes a body.
-async function fetchMessage(fetcher: typeof fetch, url: string): Promise<unknown> {
-  const response = await fetcher(url);
-
-  if (!response.ok) {
-    throw new Error(
-      `R served no message at ${url}: ${String(response.status)} ${await response.text()}`,
-    );
-  }
-
-  const message: unknown = JSON.parse(await response.text());
-
-  fetcher(url, { method: "DELETE" })
-    .then((response) => response.text())
-    .catch(() => undefined);
-
-  return message;
 }
 
 // The items of a message that R sent as a binary frame, the reply that

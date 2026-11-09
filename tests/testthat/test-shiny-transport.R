@@ -289,125 +289,7 @@ test_that("a large body is served from a URL until the client deletes it", {
   expect_true(file.exists(file))
 })
 
-test_that("a large message is served from a URL until the client deletes it", {
-
-  withr::local_options(blockr.max_message_size = 100)
-
-  big <- list(list(id = "5", status = "ok", value = strrep("x", 200L)))
-
-  with_transport(
-    function(message, send) NULL,
-    {
-
-      send_message(big, session)
-
-      expect_identical(
-        utils::tail(transport_sent(session), 1L),
-        '{"url":"session/mock/dataobj/blockr-message-1?w=&nonce=1"}'
-      )
-
-      res <- transport_http(session, "blockr-message-1")
-
-      expect_identical(res[["status"]], 200L)
-      expect_identical(res[["content_type"]], "application/json")
-      expect_identical(
-        rawToChar(res[["content"]]),
-        unclass(encode_message(big))
-      )
-
-      transport_http(session, "blockr-message-1", "DELETE")
-
-      expect_identical(
-        transport_http(session, "blockr-message-1")[["status"]],
-        404L
-      )
-    }
-  )
-})
-
-test_that("each message that waits for the client has a URL of its own", {
-
-  withr::local_options(blockr.max_message_size = 100)
-
-  served <- new.env(parent = emptyenv())
-  big <- list(list(id = "6", status = "ok", value = strrep("x", 200L)))
-
-  with_transport(
-    function(message, send) NULL,
-    {
-
-      send_message(big, session, served = served)
-      send_message(big, session, served = served)
-
-      expect_identical(
-        utils::tail(transport_sent(session), 2L),
-        c(
-          '{"url":"session/mock/dataobj/blockr-message-1?w=&nonce=1"}',
-          '{"url":"session/mock/dataobj/blockr-message-2?w=&nonce=2"}'
-        )
-      )
-      expect_setequal(ls(served), c("blockr-message-1", "blockr-message-2"))
-
-      # R serves the next message under a name that the client deleted.
-      transport_http(session, "blockr-message-1", "DELETE")
-      send_message(big, session, served = served)
-
-      expect_match(
-        utils::tail(transport_sent(session), 1L),
-        "blockr-message-1?",
-        fixed = TRUE
-      )
-    }
-  )
-})
-
-test_that("a later hello drops the messages still to fetch", {
-
-  withr::local_options(blockr.max_message_size = 100)
-
-  handler <- function(message, send) {
-
-    req <- message[[1L]]
-
-    if (identical(req[["kind"]], "request")) {
-      send(
-        list(list(id = req[["id"]], status = "ok", value = strrep("x", 200L)))
-      )
-    }
-  }
-
-  hello <- function(id) {
-    paste0(
-      '[{"id": "', id, '", "kind": "hello", "protocol": "1.0",',
-      ' "capabilities": []}]'
-    )
-  }
-
-  with_transport(
-    handler,
-    {
-
-      session$setInputs(blockr = hello("1"))
-      session$setInputs(
-        blockr = '[{"id": "2", "kind": "request", "name": "x"}]'
-      )
-
-      expect_identical(
-        transport_http(session, "blockr-message-1")[["status"]],
-        200L
-      )
-
-      session$setInputs(blockr = hello("3"))
-
-      expect_identical(
-        transport_http(session, "blockr-message-1")[["status"]],
-        404L
-      )
-    }
-  )
-})
-
-test_that("the blockr option sets which bodies travel in their message", {
+test_that("the blockr options set which bodies travel in their message", {
 
   reply <- function(id, n) {
     list(
@@ -421,7 +303,7 @@ test_that("the blockr option sets which bodies travel in their message", {
 
     session <- with_transport(
       function(message, send) NULL,
-      send_message(list(reply("1", 3L), reply("2", 300L)), session)
+      send_message(list(reply("1", 3L), reply("2", 11L)), session)
     )
 
     sent <- decode_message(utils::tail(transport_sent(session), 1L))
@@ -429,52 +311,20 @@ test_that("the blockr option sets which bodies travel in their message", {
     lapply(sent, `[[`, "body")
   }
 
-  withr::with_options(list(blockr.max_message_size = Inf), {
+  withr::with_options(list(blockr.max_message_body = 0), {
+    expect_named(sent_bodies()[[1L]], c("type", "url"))
+  })
+
+  withr::with_options(list(blockr.max_message_body = Inf), {
     expect_named(sent_bodies()[[2L]], c("type", "data"))
   })
 
   # An environment variable gives the option as a string.
-  withr::with_envvar(c(BLOCKR_MAX_MESSAGE_SIZE = "250"), {
+  withr::with_envvar(c(BLOCKR_MAX_MESSAGE_BODY = "10"), {
     bodies <- sent_bodies()
     expect_named(bodies[[1L]], c("type", "data"))
     expect_named(bodies[[2L]], c("type", "url"))
   })
-})
-
-test_that("a body travels in its message where the message stays small", {
-
-  reply <- function(n) {
-    list(
-      id = "1",
-      status = "ok",
-      body = new_reply_body(as.raw(rep(1L, n)), "image/png")
-    )
-  }
-
-  sent <- function(n) {
-    with_transport(
-      function(message, send) NULL,
-      send_message(list(reply(n)), session)
-    )
-  }
-
-  withr::local_options(blockr.max_message_size = 150)
-
-  # The body's 100 bytes fit, but not its reply's message, with the body's
-  # base64 or in a binary frame.
-  session <- sent(100L)
-  body <- decode_message(utils::tail(transport_sent(session), 1L))[[1L]]$body
-  expect_named(body, c("type", "url"))
-
-  withr::local_options(blockr.message_body_encoding = "binary")
-
-  session <- sent(100L)
-  body <- decode_message(utils::tail(transport_sent(session), 1L))[[1L]]$body
-  expect_named(body, c("type", "url"))
-  expect_length(transport_frames(session), 0L)
-
-  session <- sent(30L)
-  expect_length(transport_frames(session), 1L)
 })
 
 test_that("a body travels in a binary frame where the blockr option says so", {
@@ -523,37 +373,37 @@ test_that("a body travels in a binary frame where the blockr option says so", {
   expect_identical(frames[[1L]][["bytes"]], png)
 })
 
-test_that("the largest message follows the encoding by default", {
+test_that("the largest body in a message follows the encoding by default", {
 
-  expect_identical(message_opts(), list(max = 2^20, encoding = "base64"))
+  expect_identical(message_body_opts(), list(max = 2^20, encoding = "base64"))
 
   withr::with_options(list(blockr.message_body_encoding = "binary"), {
     expect_identical(
-      message_opts(),
+      message_body_opts(),
       list(max = 4 * 2^20, encoding = "binary")
     )
   })
 
   # As set, whatever the encoding.
   withr::with_options(
-    list(blockr.message_body_encoding = "binary", blockr.max_message_size = 0),
-    expect_identical(message_opts(), list(max = 0, encoding = "binary"))
+    list(blockr.message_body_encoding = "binary", blockr.max_message_body = 0),
+    expect_identical(message_body_opts(), list(max = 0, encoding = "binary"))
   )
 })
 
 test_that("the transport refuses blockr options it cannot follow", {
 
-  withr::with_options(list(blockr.max_message_size = -1), {
+  withr::with_options(list(blockr.max_message_body = -1), {
     expect_error(
       with_transport(function(message, send) NULL),
-      class = "max_message_size_invalid"
+      class = "max_message_body_invalid"
     )
   })
 
-  withr::with_envvar(c(BLOCKR_MAX_MESSAGE_SIZE = "big"), {
+  withr::with_envvar(c(BLOCKR_MAX_MESSAGE_BODY = "big"), {
     expect_error(
       with_transport(function(message, send) NULL),
-      class = "max_message_size_invalid"
+      class = "max_message_body_invalid"
     )
   })
 
