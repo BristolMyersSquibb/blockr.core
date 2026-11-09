@@ -142,10 +142,6 @@ export interface StoreOptions {
   // store drops its subscribers and refuses every change from then on, so that
   // nothing changes or follows the board before.
   readonly signal?: AbortSignal;
-  // The package whose startup module registers now, which the store keeps
-  // with each board option registered, so that a second registration of the
-  // id names it. Core gives it, and the store keeps no package unless given.
-  readonly registering?: () => string | null;
 }
 
 // Why an ended store refuses a change.
@@ -170,7 +166,7 @@ interface Applied {
 }
 
 export function createStore(options: StoreOptions = {}): Store {
-  const registrations = createRegistrations(options.registering);
+  const registrations = createRegistrations();
 
   const board = signal<Board | undefined>(undefined);
   // The last reply to `hello`, whose block registry, versions and opening board

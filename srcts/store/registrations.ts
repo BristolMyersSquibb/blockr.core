@@ -3,12 +3,8 @@
 // block classes' states.
 // A plugin class is registered under its id, `{pkg}-{name}_plugin`, as R names
 // the class.
-// A board option's id names no package, so the registrations keep beside each
-// board option the package whose startup module registered it. Core tells
-// them that package.
 // A plugin class, a board option id or a block class's migration registered
-// twice fails. For a board option id, the error names the package that
-// registered it, where core knows it.
+// twice fails.
 
 import { computed, signal } from "@preact/signals-core";
 import type {
@@ -143,14 +139,6 @@ export interface Checked<T> {
   readonly validate: Validate;
 }
 
-// A board option's registration, with the package whose startup module
-// registered it: blockr.core for core's own board options, and null for one
-// that no startup module's initialize() registered, such as one that a test
-// registers.
-interface RegisteredOption extends Checked<Option> {
-  readonly package: string | null;
-}
-
 export interface Registrations {
   readonly plugins: Plugins;
   readonly options: Options;
@@ -168,13 +156,9 @@ export interface Registrations {
 // every board.
 export const BASIC_OPTIONS: readonly OptionId[] = ["show_conditions", "dark_mode"];
 
-// The registrations of one opening of a board. Each board option comes from
-// the package that `registering` gives at the moment the board option is
-// registered. Core gives the package of the startup module whose initialize()
-// it awaits, and blockr.core while it registers its own board options.
-export function createRegistrations(registering: () => string | null = () => null): Registrations {
+export function createRegistrations(): Registrations {
   const classes = signal<ReadonlyMap<PluginClassId, Checked<PluginClass>>>(new Map());
-  const options = signal<readonly RegisteredOption[]>([]);
+  const options = signal<readonly Checked<Option>[]>([]);
   const migrations = signal<ReadonlyMap<RegistryId, Migration>>(new Map());
 
   const optionIndex = computed(
@@ -266,10 +250,8 @@ export function createRegistrations(registering: () => string | null = () => nul
     options: {
       register(def) {
         const what = `the board option "${def.id}"`;
-        const earlier = optionIndex.value.get(def.id);
-        if (earlier !== undefined) {
-          const by = earlier.package === null ? "" : ` by ${earlier.package}`;
-          throw new Error(`The board option "${def.id}" is registered already${by}.`);
+        if (optionIndex.value.has(def.id)) {
+          throw new Error(`The board option "${def.id}" is registered already.`);
         }
         // A package that writes its JS without types may give no UI module,
         // or an onChange or a migrate that is no function.
@@ -288,7 +270,7 @@ export function createRegistrations(registering: () => string | null = () => nul
         if (typeof def.default !== "function") {
           checkInitial(what, validate, def.default, "default");
         }
-        const item: RegisteredOption = { def, validate, package: registering() };
+        const item = { def, validate };
         options.value = [...options.value, item];
         return () => {
           options.value = options.value.filter((x) => x !== item);

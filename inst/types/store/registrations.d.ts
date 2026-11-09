@@ -58,5 +58,5 @@ export interface Registrations {
     migration(registryId: RegistryId): Migration | undefined;
 }
 export declare const BASIC_OPTIONS: readonly OptionId[];
-export declare function createRegistrations(registering?: () => string | null): Registrations;
+export declare function createRegistrations(): Registrations;
 export declare function isPluginClassId(id: string): boolean;

@@ -8,7 +8,7 @@ import type { EvaluateRequest, HelloReply, Reply, Request, Transport, TransportL
 import { coreOptions } from "../options/index.ts";
 import type { Option } from "../store/index.ts";
 import { reports } from "../testing/reports.ts";
-import { hello, noUi, withPlugins } from "../testing/store.ts";
+import { hello, withPlugins } from "../testing/store.ts";
 import { startPage } from "../page/index.ts";
 import type { JsonBoard } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
@@ -183,18 +183,6 @@ function startup(name: string, events: string[], fn: () => unknown = () => undef
         const result = await fn();
         events.push(`${name} done`);
         return result;
-      },
-    },
-  };
-}
-
-// A startup module that registers a board option.
-function registering(id: string) {
-  return {
-    api: 1,
-    default: {
-      initialize({ core }: { core: CoreApi }) {
-        core.options.register({ id, label: id, category: "Test options", schema: {}, default: 1, ui: noUi });
       },
     },
   };
@@ -410,34 +398,6 @@ describe("starting the page", () => {
       "The module blockr.bad/startup.js of blockr.bad failed in initialize(): boom",
       "The module blockr.missing/startup.js of blockr.missing failed to load: Failed to fetch dynamically imported module: blockr.missing/startup.js?v=1",
     ]);
-  });
-
-  test("names the package that registered a board option where a startup module registers its id again", async () => {
-    const s = setup({
-      "blockr.io/startup.js?v=1": registering("data_dir"),
-      "blockr.other/startup.js?v=1": registering("data_dir"),
-      "blockr.rows/startup.js?v=1": registering("n_rows"),
-      [BASIC]: frontEnd().exports,
-    });
-    const reported = reports();
-    s.r.session(withStartup("blockr.io", "blockr.other", "blockr.rows"));
-    await tick();
-    s.r.options();
-    const core = await s.started.ready;
-    reported.restore();
-
-    expect(Object.keys(core.options.registered())).toEqual(["n_rows", "show_conditions", "dark_mode", "data_dir"]);
-    expect(reported.errors().map((error) => (error as Error).message)).toEqual([
-      'The module blockr.other/startup.js of blockr.other failed in initialize(): The board option "data_dir" is registered already by blockr.io.',
-      'The module blockr.rows/startup.js of blockr.rows failed in initialize(): The board option "n_rows" is registered already by blockr.core.',
-    ]);
-
-    // Registered once every startup module has initialized, so from no package.
-    const late = (): void => {
-      core.options.register({ id: "late", label: "Late", category: "Test options", schema: {}, default: 1, ui: noUi });
-    };
-    late();
-    expect(late).toThrow(new Error('The board option "late" is registered already.'));
   });
 
   test("refuses to start where R speaks another major of the protocol", async () => {

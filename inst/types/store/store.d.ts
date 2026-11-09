@@ -40,6 +40,5 @@ export interface StoreOptions {
     readonly hello?: HelloReply;
     readonly loaded?: (reply: HelloReply) => void | Promise<void>;
     readonly signal?: AbortSignal;
-    readonly registering?: () => string | null;
 }
 export declare function createStore(options?: StoreOptions): Store;

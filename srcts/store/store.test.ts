@@ -2446,23 +2446,6 @@ describe("registering", () => {
     }).toThrow('The block class "blockr.foo-bar_block" has a migration registered already.');
   });
 
-  test("a second registration of a board option id names the package that registered it, where the store was given one", () => {
-    let pkg: string | null = "blockr.core";
-    const store = createStore({ registering: () => pkg });
-    const option = (id: string): Option => ({ id, label: id, category: "Test options", schema: {}, default: 1, ui: noUi });
-    const rows = option("n_rows");
-    store.options.register(rows);
-    pkg = null;
-    store.options.register(option("zoom"));
-
-    pkg = "blockr.io";
-    expect(() => store.options.register(option("n_rows"))).toThrow(
-      new Error('The board option "n_rows" is registered already by blockr.core.'),
-    );
-    expect(() => store.options.register(option("zoom"))).toThrow(new Error('The board option "zoom" is registered already.'));
-    expect(store.options.registered().n_rows).toBe(rows);
-  });
-
   test("a plugin class is named as R names one, {pkg}-{name}_plugin", () => {
     const store = newStore();
 
