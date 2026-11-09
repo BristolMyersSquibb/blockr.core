@@ -555,11 +555,11 @@ function packageOf(id2) {
 function isPackageName(name3) {
   return typeof name3 === "string" && /^[A-Za-z][A-Za-z0-9.]*[A-Za-z0-9]$/.test(name3);
 }
-function numberOf(text) {
+function asNumber(text) {
   const number = text.trim() === "" ? NaN : Number(text);
   return Number.isFinite(number) ? number : NaN;
 }
-function logicalOf(text) {
+function asLogical(text) {
   const trimmed = text.trim();
   if (["TRUE", "true", "True", "T"].includes(trimmed)) return true;
   if (["FALSE", "false", "False", "F"].includes(trimmed)) return false;
@@ -2903,7 +2903,7 @@ function changedSince(before, now) {
 }
 function setting(value2, fallback, name3, counts = false) {
   if (value2 === void 0) return fallback;
-  const number = typeof value2 === "string" ? numberOf(value2) : value2;
+  const number = typeof value2 === "string" ? asNumber(value2) : value2;
   if (number === -1) return Infinity;
   if (typeof number === "number" && Number.isFinite(number) && number >= 0 && (!counts || Number.isInteger(number))) {
     return number;
@@ -2914,7 +2914,7 @@ function setting(value2, fallback, name3, counts = false) {
 }
 function flag(value2, fallback, name3) {
   if (value2 === void 0) return fallback;
-  const logical = typeof value2 === "string" ? logicalOf(value2) : value2;
+  const logical = typeof value2 === "string" ? asLogical(value2) : value2;
   if (typeof logical === "boolean") return logical;
   throw new TypeError(`The blockr option ${name3} is ${shown(value2)}, where it takes TRUE or FALSE.`);
 }
@@ -4417,7 +4417,7 @@ function nRows(core) {
     default: async () => {
       const value2 = await core.blockrOption("n_rows");
       if (value2 === void 0) return fallback;
-      return checked2("n_rows", schema, value2, typeof value2 === "string" ? numberOf(value2) : value2);
+      return checked2("n_rows", schema, value2, typeof value2 === "string" ? asNumber(value2) : value2);
     },
     ui: numberUi("Preview rows", schema.minimum)
   };
@@ -4451,7 +4451,7 @@ function darkMode(core) {
     default: async () => {
       const value2 = await core.blockrOption("dark_mode");
       if (value2 === void 0) return preferredTheme();
-      const logical = typeof value2 === "string" ? logicalOf(value2) : value2;
+      const logical = typeof value2 === "string" ? asLogical(value2) : value2;
       if (typeof logical === "boolean") return logical ? "dark" : "light";
       return checked2("dark_mode", schema, value2);
     },
@@ -8188,14 +8188,13 @@ function createCommands(store, options = {}) {
   };
   for (const command2 of coreCommands(store, {
     locked: options.lock?.board === true,
-    randId: shapeOf(options.randId)
+    randId: options.randId === void 0 ? "adjective_animal" : asRandId(options.randId)
   })) {
     registry.register(command2);
   }
   return registry;
 }
-function shapeOf(randId) {
-  if (randId === void 0) return "adjective_animal";
+function asRandId(randId) {
   if (isRandId(randId)) return randId;
   throw new RangeError(`The blockr option rand_id is ${JSON.stringify(randId)}, where it takes one of ${quoted(RAND_IDS)}.`);
 }
