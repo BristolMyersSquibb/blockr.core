@@ -283,41 +283,6 @@ test_that("sentence case", {
                class = "to_sentence_case_with_invalid")
 })
 
-test_that("blockr_flag() reads TRUE or FALSE, a string as as.logical()", {
-
-  withr::local_options(blockr.test_flag = NULL)
-  withr::local_envvar(BLOCKR_TEST_FLAG = "")
-
-  expect_true(blockr_flag("test_flag", TRUE))
-  expect_false(blockr_flag("test_flag", FALSE))
-
-  withr::local_envvar(BLOCKR_TEST_FLAG = "T")
-  expect_true(blockr_flag("test_flag", FALSE))
-
-  withr::local_envvar(BLOCKR_TEST_FLAG = "FALSE")
-  expect_false(blockr_flag("test_flag", TRUE))
-
-  for (value in c("yes", " TRUE", "1", "NA")) {
-    withr::local_envvar(BLOCKR_TEST_FLAG = value)
-    expect_error(
-      blockr_flag("test_flag", FALSE),
-      "The blockr option `test_flag` is TRUE or FALSE.",
-      class = "blockr_option_invalid",
-      fixed = TRUE
-    )
-  }
-
-  withr::local_envvar(BLOCKR_TEST_FLAG = "")
-
-  for (value in list(1, NA, c(TRUE, FALSE), "maybe")) {
-    withr::local_options(blockr.test_flag = value)
-    expect_error(
-      blockr_flag("test_flag", FALSE),
-      class = "blockr_option_invalid"
-    )
-  }
-})
-
 test_that("misc", {
 
   expect_identical(paste_enum(character()), character())

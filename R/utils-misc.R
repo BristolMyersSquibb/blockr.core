@@ -446,28 +446,6 @@ set_blockr_options <- function(...) {
   do.call(options, vals)
 }
 
-# A blockr option that is TRUE or FALSE, as `blockr_option()` reads it.
-# An environment variable gives a string, which reads as `as.logical()` reads
-# it, so that "TRUE", "true" and "T" are TRUE.
-# Any other value fails, naming the blockr option, rather than read as FALSE.
-blockr_flag <- function(name, default) {
-
-  res <- blockr_option(name, default)
-
-  if (is.character(res)) {
-    res <- as.logical(res)
-  }
-
-  if (!is_bool(res)) {
-    blockr_abort(
-      "The blockr option `{name}` is TRUE or FALSE.",
-      class = "blockr_option_invalid"
-    )
-  }
-
-  res
-}
-
 exprs_to_lang <- function(exprs) {
 
   if (rlang::is_syntactic_literal(exprs)) {

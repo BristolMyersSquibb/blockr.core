@@ -19,6 +19,25 @@ test_that("attach_default_packages exposes vanilla R defaults", {
   })
 })
 
+test_that("attach_default_packages reads a string as as.logical() does", {
+
+  withr::local_options(blockr.attach_default_packages = NULL)
+
+  withr::local_envvar(BLOCKR_ATTACH_DEFAULT_PACKAGES = "TRUE")
+  expect_equal(eval(quote(head(1:10, 3)), eval_env(list())), 1:3)
+
+  withr::local_envvar(BLOCKR_ATTACH_DEFAULT_PACKAGES = "false")
+  expect_identical(parent.env(eval_env(list())), baseenv())
+
+  withr::local_envvar(BLOCKR_ATTACH_DEFAULT_PACKAGES = "yes")
+  expect_error(
+    eval_env(list()),
+    "The blockr option `attach_default_packages` is TRUE or FALSE.",
+    class = "attach_default_packages_invalid",
+    fixed = TRUE
+  )
+})
+
 test_that("non-default base packages remain namespace-only", {
   withr::with_options(list(blockr.attach_default_packages = TRUE), {
     e <- eval_env(list())

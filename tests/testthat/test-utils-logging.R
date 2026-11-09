@@ -64,6 +64,31 @@ test_that("a log message is a string, written from an environment", {
                class = "write_log_message_invalid")
 })
 
+test_that("log_time and log_mem read a string as as.logical() does", {
+
+  withr::local_envvar(BLOCKR_LOG_LEVEL = "", BLOCKR_LOGGER = "")
+  withr::local_options(
+    blockr.log_level = "info",
+    blockr.log_time = NULL,
+    blockr.log_mem = NULL
+  )
+
+  withr::local_envvar(BLOCKR_LOG_TIME = "FALSE", BLOCKR_LOG_MEM = "T")
+
+  with_mocked_bindings(
+    expect_output(log_info("abc"), "^\\[INFO\\]\\[42B\\]"),
+    get_mem_use = function(prefix = "", suffix = "") {
+      paste0(prefix, "42B", suffix)
+    }
+  )
+
+  withr::local_envvar(BLOCKR_LOG_TIME = "yes")
+  expect_error(log_info("abc"), class = "log_time_invalid")
+
+  withr::local_envvar(BLOCKR_LOG_TIME = "", BLOCKR_LOG_MEM = "1")
+  expect_error(log_info("abc"), class = "log_mem_invalid")
+})
+
 test_that("memory marker is omitted when memuse is unavailable", {
 
   expect_identical(
