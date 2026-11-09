@@ -58,6 +58,10 @@ function playedR() {
       const asked = last("hello");
       heard().received({ ...reply, id: asked.id ?? "" }, null);
     },
+    // Starts a session, whose hello the test answers with answer().
+    start(): void {
+      heard().started();
+    },
     // Answers the latest hello with the reply given, as R answers the hello
     // with which core starts again in the session.
     answer(reply: HelloReply = hello): void {
@@ -689,5 +693,57 @@ describe("a later session", () => {
     s.r.session({ ...hello, packages: { "blockr.core": "0.2.1" } });
     await tick();
     expect(changes).toEqual([[{ package: "blockr.core", loaded: "0.2.0", now: "0.2.1" }]]);
+  });
+
+  test("where R speaks another major of the protocol stops the page, sending R nothing more and saying what to do", async () => {
+    let failed: Error | undefined;
+    const basic = frontEnd();
+    const s = setup({ [BASIC]: basic.exports }, { fail: (error) => (failed = error) });
+    s.r.session();
+    await tick();
+    s.r.options();
+    const core = await s.started.ready;
+    await s.r.evaluateAll();
+
+    // The scheduler sends an evaluation while the new session starts, which
+    // the client holds until R has answered the session's hello.
+    s.r.start();
+    const sent = s.r.sent.length;
+    core.scheduler.invalidate("a");
+    await tick(100);
+    s.r.answer({ ...hello, protocol: "2.0" });
+    await tick(100);
+
+    expect(s.r.sent.slice(sent)).toEqual([]);
+    expect(failed?.message).toBe(
+      "R speaks version 2.0 of the wire protocol, where this page speaks 1.0. Reload the page, which then loads the client that R serves.",
+    );
+    expect(basic.renders).toHaveLength(1);
+    expect(basic.renders[0]?.signal.aborted).toBe(true);
+    expect(basic.cleanups()).toBe(1);
+
+    // R hears nothing more, not even the hello of a later session.
+    core.scheduler.invalidate("a");
+    s.r.start();
+    await tick(100);
+    expect(s.r.sent.slice(sent)).toEqual([]);
+  });
+
+  test("where R speaks another major of the protocol as the first board opens says why once", async () => {
+    const failures: string[] = [];
+    const s = setup({ [BASIC]: frontEnd().exports }, { fail: (error) => failures.push(error.message) });
+    s.r.session();
+    await tick();
+    // The session ends before R has answered the blockr options that core
+    // asks for as the first board opens.
+    s.r.start();
+    s.r.answer({ ...hello, protocol: "2.0" });
+    const why =
+      "R speaks version 2.0 of the wire protocol, where this page speaks 1.0. Reload the page, which then loads the client that R serves.";
+    await expect(s.started.ready).rejects.toThrow(why);
+    await tick(100);
+
+    expect(failures).toEqual([why]);
+    expect(s.r.kinds()).toEqual(["hello", "blockr_options", "hello"]);
   });
 });

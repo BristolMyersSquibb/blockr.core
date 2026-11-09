@@ -42,11 +42,15 @@
 // The reply to a later session's hello, for the board that is open, has the
 // scheduler give every block a new revision, and makes core ask for the page to
 // be reloaded where it names a loaded package at another version.
+// Where R speaks another major of the protocol in a later reply to hello, as in
+// the first, the protocol's client stops and sends R nothing more, not even
+// what it held for the session. Core then ends what it runs for the board, as
+// stop() does, and says what to do.
 
 import { createCommands } from "../commands/index.ts";
 import { API, createLoader, ModuleError } from "../mount/index.ts";
 import type { Loader, LoaderOptions, Measure, Source } from "../mount/index.ts";
-import { createClient, PROTOCOL_VERSION } from "../protocol/index.ts";
+import { createClient, PROTOCOL_VERSION, sameMajor } from "../protocol/index.ts";
 import type { Capability, HelloReply, Reply, Transport } from "../protocol/index.ts";
 import { counter, createScheduler } from "../scheduler/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
@@ -96,8 +100,9 @@ export interface StartOptions {
   // Asks for the page to be reloaded, where a reply names a loaded package at
   // another version, rather than load a second copy of it.
   readonly reload?: (changed: readonly Changed[]) => void;
-  // Shows why core cannot start, as where R speaks another major of the
-  // protocol, or why no board is open once another failed to open.
+  // Shows why core cannot start, or why it stopped, as where R speaks another
+  // major of the protocol in the first session or a later one, or why no board
+  // is open once another failed to open.
   readonly fail?: (error: Error) => void;
 }
 
@@ -161,7 +166,7 @@ export function start(options: StartOptions): Started {
       heard(reply);
     },
   });
-  const blockrOptions = createBlockrOptions(client);
+  const blockrOptions = createBlockrOptions(client, page.signal);
   const loader = createLoader({ ...options.loader, modules: () => latest?.modules ?? {} });
 
   function heard(reply: Reply): void {
@@ -181,6 +186,14 @@ export function start(options: StartOptions): Started {
       return;
     }
     const hello = reply as HelloReply;
+    if (!sameMajor(hello.protocol, PROTOCOL_VERSION)) {
+      halt(
+        new Error(
+          `R speaks version ${hello.protocol} of the wire protocol, where this page speaks ${PROTOCOL_VERSION}. Reload the page, which then loads the client that R serves.`,
+        ),
+      );
+      return;
+    }
     latest = hello;
     if (first === undefined) {
       first = hello;
@@ -188,7 +201,8 @@ export function start(options: StartOptions): Started {
         ({ core }) => settle?.resolve(core),
         (failure: unknown) => {
           settle?.reject(failure);
-          fail(asError(failure));
+          // Core has said why already where it stopped.
+          if (!page.signal.aborted) fail(asError(failure));
         },
       );
       return;
@@ -203,6 +217,25 @@ export function start(options: StartOptions): Started {
     }
     // A new session holds no results.
     running?.scheduler.session();
+  }
+
+  // Ends what core started: it aborts what core runs for the board, so that
+  // core hears no later session, and rejects an opening that waits for R with
+  // why.
+  function end(why: Error): void {
+    page.abort();
+    const waiting = restarting;
+    restarting = undefined;
+    waiting?.reject(why);
+  }
+
+  // Stops core where R speaks another major of the protocol, to which the
+  // protocol's client sends nothing more: core ends what it started, as stop()
+  // does, and says what to do.
+  function halt(error: Error): void {
+    end(error);
+    settle?.reject(error);
+    fail(error);
   }
 
   // Starts core for one board, with what R's reply to hello holds, as the page
@@ -439,27 +472,17 @@ export function start(options: StartOptions): Started {
     ready,
     core: () => running?.core,
     stop() {
-      page.abort();
-      const waiting = restarting;
-      restarting = undefined;
-      waiting?.reject(new Error("Core has stopped."));
+      end(new Error("Core has stopped."));
     },
   };
 }
 
 // Why a reply to hello does not let core start: it is no reply that R sends
-// to hello, or R speaks another major of the protocol.
+// to hello.
 function helloError(reply: Reply): Error | undefined {
   if (reply.status !== "ok" || !("startup_modules" in reply)) {
     const said = "conditions" in reply ? reply.conditions.map((c) => c.message).join(" ") : "";
     return new Error(`R replied ${reply.status} to the client's hello. ${said}`.trim());
-  }
-  const theirs = reply.protocol.split(".")[0];
-  const ours = PROTOCOL_VERSION.split(".")[0];
-  if (theirs !== ours) {
-    return new Error(
-      `R speaks version ${reply.protocol} of the wire protocol, where this page speaks ${PROTOCOL_VERSION}. Reload the page, which then loads the client that R serves.`,
-    );
   }
   return undefined;
 }

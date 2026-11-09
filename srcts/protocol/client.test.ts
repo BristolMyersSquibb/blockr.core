@@ -7,6 +7,7 @@ import { describe, expect, test, vi } from "vitest";
 import type {
   ClientMessage,
   Fixture,
+  HelloReply,
   HelloRequest,
   Progress,
   Reply,
@@ -517,6 +518,36 @@ describe("another hello in the session", () => {
     expect(t.sent).toHaveLength(1);
 
     t.start();
+    expect(t.messages().map((message) => message.map((m) => m.kind))).toEqual([["hello"], ["hello"]]);
+  });
+});
+
+describe("a hello that R answers at another major of the protocol", () => {
+  test("in a later session stops the client for good, which sends R nothing of what it held and nothing after", async () => {
+    const t = setup();
+    ready(t);
+    t.end();
+    const held = t.client.request(evaluate);
+    t.client.forget(["z"]);
+
+    t.start();
+    t.receive({ ...(helloReply as HelloReply), id: idOf(t.sent, "hello"), protocol: "2.0" });
+
+    const why = "R speaks version 2.0 of the wire protocol, where the client speaks 1.0, so the client sends R nothing.";
+    await expect(held).rejects.toThrow(why);
+    await expect(held).rejects.not.toBeInstanceOf(SessionEndedError);
+    await settle();
+    expect(t.sessions.map((reply) => ("protocol" in reply ? reply.protocol : reply.status))).toEqual(["1.0", "2.0"]);
+    expect([...t.client.capabilities()]).toEqual([]);
+
+    // Neither a request, nor another hello in the session, nor the hello of a
+    // later session goes to R.
+    await expect(t.client.request(echo)).rejects.toThrow(why);
+    t.client.forget(["y"]);
+    t.client.hello();
+    t.end();
+    t.start();
+    await settle();
     expect(t.messages().map((message) => message.map((m) => m.kind))).toEqual([["hello"], ["hello"]]);
   });
 });

@@ -71,7 +71,9 @@ Both sides use only the capabilities that both named, so that a capability can a
 | `interrupt` | a worker runs its requests that can stop a running one, as mirai's `stop_mirai()` interrupts a running task, which the session's process cannot | the client cancel a request that R has started |
 | `progress` | it reports progress | R send progress notes ([Progress](#progress)) |
 
-R replies with the version it speaks whatever the client named, and the client, on a major other than its own, stops and says what to do, such as reload the page.
+R replies with the version it speaks whatever the client named.
+On a major other than its own, in the first session or a later one, the client stops and says what to do, such as reload the page.
+It then sends R nothing more: neither what it held for the session nor the `hello` of a later session.
 
 R draws each id that an app script leaves out with `rand_names()`, in the shape in which the client mints one, as `new_board()` and the constructors of blocks, links and stacks call it, and names a board without a name after its id ([Ids](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.1#ids)).
 So the board that an app script built reaches the client as a JSON board that holds every id, with its collections keyed by id, as a JSON board that the client saves does.
