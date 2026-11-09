@@ -347,7 +347,7 @@ R writes what it sends with yyjsonr as well, as `encode_message()` does, which m
 A string of class `json` goes in as it is, so that R passes on JSON it holds as text, such as the JSON board that `serve()` was given, without decoding it.
 
 Where R cannot send a reply, as when its JSON cannot be written, or when its message would be larger than the transport sends ([The Shiny transport](#the-shiny-transport)), R sends an `error` in its place, since the client waits for a reply to every request with an id.
-Its condition says why, and the reply to an `evaluate` carries the evaluation's fields, while R drops the evaluation's result, as an `error` leaves R none.
+Its condition says why, and the reply to an `evaluate` carries the evaluation's properties, while R drops the evaluation's result, as an `error` leaves R none.
 
 ## The Shiny transport
 
