@@ -5,8 +5,8 @@
 #' worked `example`, and an optional machine-readable `type`), collected with
 #' `new_arg_specs()`. A bare named character vector of descriptions, and the
 #' empty `character()`, are also accepted and normalized into this form, so
-#' existing specifications are unaffected. A single argument's fields are read
-#' back with `arg_spec_description()`, `arg_spec_example()` and
+#' existing specifications are unaffected. A single argument's properties are
+#' read back with `arg_spec_description()`, `arg_spec_example()` and
 #' `arg_spec_type()`. Blocks are the primary consumer -- a block class's state
 #' args are specified via the `arguments` parameter of [register_block()],
 #' which defaults to a specification of every state arg without a description,
@@ -18,8 +18,9 @@
 #' JSON Schema, built with the `arg_*()` constructors: `arg_string()`,
 #' `arg_number()`, `arg_integer()` and `arg_boolean()` for scalars, `arg_enum()`
 #' for a fixed set of string values, `arg_array()` for a homogeneous list and
-#' `arg_object()` for a closed record of named fields (`additionalProperties:
-#' false`). Each returns a plain nested list mirroring the schema it denotes,
+#' `arg_object()` for a closed record of named properties
+#' (`additionalProperties: false`).
+#' Each returns a plain nested list mirroring the schema it denotes,
 #' consumed directly -- blockr.ai binds it via `ellmer::type_from_schema()`, an
 #' MCP or raw tool schema reads the JSON as-is -- and worked examples registered
 #' alongside an argument are validated against it (see [register_block()]).
@@ -49,16 +50,16 @@
 #'   accepts any object
 #' @param values Allowed string values, for `arg_enum()`
 #' @param items Element descriptor, for `arg_array()`
-#' @param required Whether the field is required, when nested in an
+#' @param required Whether the property is required, when nested in an
 #'   `arg_object()`
 #' @param ... For `new_arg_specs()`, the per-argument `arg_spec` objects (or
-#'   bare description strings); for `arg_object()`, the named field descriptors;
-#'   ignored by the `arg_spec_*()` getters
+#'   bare description strings); for `arg_object()`, the named property
+#'   descriptors; ignored by the `arg_spec_*()` getters
 #'
 #' @return
 #' `new_arg_spec()` returns an `arg_spec` and `new_arg_specs()` an `arg_specs`
 #' collection. The `arg_*()` constructors each return a plain JSON-Schema node
-#' (a list). The `arg_spec_*()` getters return the corresponding field of a
+#' (a list). The `arg_spec_*()` getters return the corresponding property of a
 #' single argument (resolving a bare description string too). `is_arg_specs()`
 #' returns a boolean and `as_arg_specs()` coerces a named character vector or
 #' list to an `arg_specs`; a consuming package should test and coerce through
@@ -255,7 +256,8 @@ validate_block_spec <- function(args, examples, cls, check_names = TRUE) {
 
     if (length(unknown)) {
       blockr_abort(
-        "Example field(s) {unknown} are not state args ({state_args}).",
+        "Example {qty(unknown)}propert{?y/ies} {unknown} {?is/are} not among ",
+        "the state args ({state_args}).",
         class = "block_example_unknown"
       )
     }
@@ -405,7 +407,7 @@ arg_object <- function(..., description = NULL, required = TRUE) {
 
   if (length(fields) && (is.null(nms) || any(!nzchar(nms)))) {
     blockr_abort(
-      "Every `arg_object()` field must be named.",
+      "Every property of an `arg_object()` must be named.",
       class = "arg_object_unnamed"
     )
   }

@@ -1,5 +1,5 @@
-// Core's basic front-end on the CoreApi for tests: the board of the fixture
-// hello, drawn by the front-end as the page draws it, with R played from the
+// Core's basic frontend on the CoreApi for tests: the board of the fixture
+// hello, drawn by the frontend as the page draws it, with R played from the
 // protocol's fixtures, every block UI and renderer a stub that names what it
 // draws, and the user acting on the page.
 
@@ -48,7 +48,7 @@ interface Drawn {
 }
 
 // The board of the fixture hello, or of the reply given, drawn by the basic
-// front-end once R has evaluated what it demands.
+// frontend once R has evaluated what it demands.
 async function drawn(options: StubCoreOptions = {}): Promise<Drawn> {
   const el = document.createElement("div");
   document.body.append(el);
@@ -345,7 +345,7 @@ describe("the toolbar", () => {
     await click(button(el, "Options"));
     await settled();
     // The board holds n_rows, which the table renderer names, and
-    // show_conditions and dark_mode, which core's basic front-end requires.
+    // show_conditions and dark_mode, which core's basic frontend requires.
     expect(Object.keys(board().options).sort()).toEqual(["dark_mode", "n_rows", "show_conditions"]);
     expect(texts(dialog(el), "h3")).toEqual(["Table options", "Board options", "Theme options"]);
     expect(dialog(el).textContent).toContain("Preview rows");
@@ -523,7 +523,7 @@ describe("a locked board", () => {
 });
 
 describe("the cleanup that render() returns", () => {
-  test("ends what the front-end drew, demanded and bound", async () => {
+  test("ends what the frontend drew, demanded and bound", async () => {
     const stubbed = await stubCore({ modules: MODULES });
     const el = document.createElement("div");
     document.body.append(el);

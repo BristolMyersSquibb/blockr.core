@@ -32,8 +32,8 @@ function roundTrip(patch: Patch): Readonly<Record<string, unknown>> {
 describe("pointers", () => {
   test("read and write the parts of a path, escaping / and ~", () => {
     expect(pointer("/views/main/panels/0")).toEqual(["views", "main", "panels", "0"]);
-    expect(pointer("/extensions/blockr.dag-dag/a~1b~0c")).toEqual(["extensions", "blockr.dag-dag", "a/b~c"]);
-    expect(pathOf(["extensions", "a/b~c"])).toBe("/extensions/a~1b~0c");
+    expect(pointer("/plugins/blockr.dag-dag/a~1b~0c")).toEqual(["plugins", "blockr.dag-dag", "a/b~c"]);
+    expect(pathOf(["plugins", "a/b~c"])).toBe("/plugins/a~1b~0c");
     expect(pointer("/views/")).toEqual(["views", ""]);
   });
 

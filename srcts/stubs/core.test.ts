@@ -1,6 +1,6 @@
 // The CoreApi for tests: core's own store, command registry and scheduler on
 // the board of the fixture hello, with R played from the protocol's fixtures,
-// as a front-end, an extension or a startup module would use it.
+// as a frontend, a plugin or a startup module would use it.
 
 import { act } from "react";
 import { describe, expect, test } from "vitest";
@@ -44,7 +44,7 @@ describe("the CoreApi for tests", () => {
     expect(Object.keys(core.options.registered())).toEqual(["n_rows", "show_conditions", "dark_mode"]);
     expect(core.lock).toEqual({ board: false, load: false });
     // The second asks for the blockr option behind the default of dark_mode,
-    // which core's basic front-end requires and the board lacks.
+    // which core's basic frontend requires and the board lacks.
     expect(sent.map((request) => request.kind)).toEqual(["hello", "blockr_options", "blockr_options"]);
     expect(sent[2]).toMatchObject({ names: ["dark_mode"] });
     stop();
@@ -170,7 +170,7 @@ describe("the CoreApi for tests", () => {
     expect(changes).toEqual([2]);
   });
 
-  test("draws the board with the front-end given, in the element given, and hears what renderers emit", async () => {
+  test("draws the board with the frontend given, in the element given, and hears what renderers emit", async () => {
     const el = document.createElement("div");
     const table = renderer();
     const events: unknown[] = [];
@@ -183,7 +183,7 @@ describe("the CoreApi for tests", () => {
           default: {
             render({ el: at, core: given }: { el: HTMLElement; core: CoreApi }) {
               at.textContent = given.store.board().name;
-              given.scheduler.demand("front-end", ["b"]);
+              given.scheduler.demand("frontend", ["b"]);
               given.mountOutput(document.createElement("div"), "b");
             },
           },

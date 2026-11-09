@@ -1,5 +1,5 @@
-// The scheduler tracks what the client knows about evaluation. Front-ends,
-// extensions and packages ask it for evaluations, as Evaluation in the client
+// The scheduler tracks what the client knows about evaluation. Frontends,
+// plugins and packages ask it for evaluations, as Evaluation in the client
 // has it (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.10). It
 // does three things:
 // - It keeps a revision for each block. The revision goes up whenever the
@@ -10,7 +10,7 @@
 // - It keeps each block's status from R's replies.
 //
 // There is one scheduler per board. Core creates it beside the store and hands
-// it to front-ends and extensions through `CoreApi`, and ends it as another
+// it to frontends and plugins through `CoreApi`, and ends it as another
 // board opens, which core opens with a scheduler of its own.
 //
 // What the scheduler knows sits in signals. They change only in its passes and
@@ -89,7 +89,7 @@ export interface Scheduler {
   // Calls `fn` after statuses change, with the blocks whose status changed.
   subscribe(fn: (changed: readonly BlockId[]) => void): () => void;
 
-  // Core alone calls the methods below. Front-ends and extensions get only
+  // Core alone calls the methods below. Frontends and plugins get only
   // those above.
 
   // Sends an output or a request to R through the client, as the client's own
@@ -113,7 +113,7 @@ export interface Scheduler {
   // through this.
   inputs(id: BlockId): Inputs | undefined;
   // Lets the scheduler send evaluations. It holds them from its creation until
-  // then. Core calls it once the front-end's render() has returned.
+  // then. Core calls it once the frontend's render() has returned.
   start(): void;
   // Hears that R answered the hello of a new session. That session holds no
   // results, so every block gets a new revision. Every block then reads stale
@@ -503,7 +503,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
 
   // A pass works out what to send once the task in which something changed
   // has ended. By then every subscriber of the store has heard of the change.
-  // A front-end that changes its demand from its own subscription is then
+  // A frontend that changes its demand from its own subscription is then
   // heard first.
   function schedule(): void {
     passTimer ??= setTimeout(pass, 0);

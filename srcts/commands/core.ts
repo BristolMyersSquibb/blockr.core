@@ -428,7 +428,7 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
         color: {
           ...schemas.color,
           description:
-            "The new stack's colour, which front-ends draw it in, or null for none. The stack gets null where this is left out, and a front-end draws a stack without a colour in a default of its own.",
+            "The new stack's colour, which frontends draw it in, or null for none. The stack gets null where this is left out, and a frontend draws a stack without a colour in a default of its own.",
         },
       }),
       run(board, { id, name = "Stack", blocks = [], color = null }) {
@@ -461,7 +461,7 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
           color: {
             ...schemas.color,
             description:
-              "The stack's colour, which front-ends draw it in, or null to clear it. A front-end draws a stack without a colour in a default of its own. The stack keeps its colour where this is left out.",
+              "The stack's colour, which frontends draw it in, or null to clear it. A frontend draws a stack without a colour in a default of its own. The stack keeps its colour where this is left out.",
           },
         },
         ["id"],
@@ -539,7 +539,7 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
 }
 
 // The inputs of block `to` that no link feeds, by which the commands find the
-// input that a new link goes to, and a front-end the inputs that it offers.
+// input that a new link goes to, and a frontend the inputs that it offers.
 // It is undefined where the board lacks the block or the block registry its
 // class. A variadic block's is an empty input, which takes its link in link
 // order. The link `except`, which is about to change, feeds nothing.

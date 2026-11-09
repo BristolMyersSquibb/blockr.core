@@ -1,4 +1,4 @@
-// The page that core's basic front-end draws: the toolbar, the notices and
+// The page that core's basic frontend draws: the toolbar, the notices and
 // the board's blocks, each stack as a group of its blocks' cards. One dialog
 // at a time shows over the page.
 // The page follows the board through the store, so a removed block's card
@@ -127,7 +127,7 @@ function Notices(): ReactElement | null {
 }
 
 // The severities that the board option show_conditions names. Core's basic
-// front-end requires the board option, so every board holds a value of it.
+// frontend requires the board option, so every board holds a value of it.
 function asSeverities(value: Json | undefined): readonly Condition["severity"][] {
   if (!Array.isArray(value)) return [];
   return value.filter((severity): severity is Condition["severity"] => severity === "error" || severity === "warning" || severity === "message");

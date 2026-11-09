@@ -1,6 +1,6 @@
 // Starting core in the order of the startup modules, and starting it again for
 // each board that opens, with R played over a transport whose replies the test
-// sends, on the board of the fixture hello, which core's basic front-end,
+// sends, on the board of the fixture hello, which core's basic frontend,
 // blockr.core-basic, draws, as it draws every board.
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -20,7 +20,7 @@ const BASIC = "blockr.core/basic.js?v=0f3d8e21";
 // R, played over a transport: the test starts sessions and sends replies.
 // Once the test has answered the blockr options that the scheduler reads, R
 // answers each later request for blockr options itself, with no values, as
-// the one for the default of dark_mode, which core's basic front-end requires.
+// the one for the default of dark_mode, which core's basic frontend requires.
 function playedR() {
   const sent: Request[] = [];
   const replied = new Set<string>();
@@ -144,7 +144,7 @@ function setup(modules: Readonly<Record<string, unknown>>, given: Partial<StartO
   return { r, el, imported, started };
 }
 
-// A front-end that demands every block from within render(), records each
+// A frontend that demands every block from within render(), records each
 // core it renders with, and returns its cleanup once the test lets it.
 function frontEnd(wait?: Promise<void>) {
   const renders: { core: CoreApi; signal: AbortSignal; el: HTMLElement }[] = [];
@@ -155,7 +155,7 @@ function frontEnd(wait?: Promise<void>) {
       default: {
         async render({ el, core, signal }: { el: HTMLElement; core: CoreApi; signal: AbortSignal }) {
           renders.push({ core, signal, el });
-          core.scheduler.demand("front-end", (board) => Object.keys(board.blocks));
+          core.scheduler.demand("frontend", (board) => Object.keys(board.blocks));
           el.textContent = core.store.board().name;
           await wait;
           return () => {
@@ -368,13 +368,13 @@ describe("starting the page", () => {
       "blockr.dock starts, board open: false",
       "blockr.dock done",
     ]);
-    // The front-end's module is imported only once every startup module has
+    // The frontend's module is imported only once every startup module has
     // initialized.
     expect(s.imported).toEqual(["blockr.ui/startup.js?v=1", "blockr.dock/startup.js?v=1", BASIC]);
     expect(basic.renders).toHaveLength(1);
   });
 
-  test("sends R nothing to evaluate before the front-end's render() has resolved", async () => {
+  test("sends R nothing to evaluate before the frontend's render() has resolved", async () => {
     const drawn = gate();
     const basic = frontEnd(drawn.opened);
     const s = setup({ [BASIC]: basic.exports });
@@ -388,7 +388,7 @@ describe("starting the page", () => {
 
     drawn.open();
     await tick(100);
-    // What the front-end demanded within render() goes first.
+    // What the frontend demanded within render() goes first.
     expect(s.r.evaluations().length).toBeGreaterThan(0);
   });
 
@@ -607,11 +607,11 @@ describe("a board opened later", () => {
       default: {
         async render({ el, core, signal }: { el: HTMLElement; core: CoreApi; signal: AbortSignal }) {
           renders.push({ core, signal });
-          signal.addEventListener("abort", () => events.push("the front-end ends"));
-          core.scheduler.demand("front-end", (board) => Object.keys(board.blocks));
+          signal.addEventListener("abort", () => events.push("the frontend ends"));
+          core.scheduler.demand("frontend", (board) => Object.keys(board.blocks));
           el.textContent = core.store.board().name;
           await hold.wait;
-          return () => events.push("the front-end cleans up");
+          return () => events.push("the frontend cleans up");
         },
       },
     };
@@ -627,7 +627,7 @@ describe("a board opened later", () => {
     // One abort ended what core ran for the board, and core waits for R to
     // answer the hello with which it starts again.
     expect([...events].sort()).toEqual(
-      ["blockr.session starts, board open: false", "blockr.session ends", "the front-end ends", "the front-end cleans up"].sort(),
+      ["blockr.session starts, board open: false", "blockr.session ends", "the frontend ends", "the frontend cleans up"].sort(),
     );
     expect(s.r.sent.slice(sent).map((request) => request.kind)).toEqual(["hello"]);
     expect(s.started.core()).toBeUndefined();
@@ -662,7 +662,7 @@ describe("a board opened later", () => {
     expect(s.r.kinds()).not.toContain("forget");
   });
 
-  test("finds nothing of the board before: no demand, subscription or mount that its front-end or a startup module made", async () => {
+  test("finds nothing of the board before: no demand, subscription or mount that its frontend or a startup module made", async () => {
     const heard: string[] = [];
     const mounted: AbortSignal[] = [];
     let initialized = 0;
@@ -684,9 +684,9 @@ describe("a board opened later", () => {
       default: {
         render({ el, core }: { el: HTMLElement; core: CoreApi }) {
           const at = ++renders;
-          core.store.subscribe(() => heard.push(`front-end ${String(at)} hears the store`));
-          core.scheduler.subscribe(() => heard.push(`front-end ${String(at)} hears the scheduler`));
-          core.scheduler.demand("front-end", at === 1 ? ["b"] : ["a"]);
+          core.store.subscribe(() => heard.push(`frontend ${String(at)} hears the store`));
+          core.scheduler.subscribe(() => heard.push(`frontend ${String(at)} hears the scheduler`));
+          core.scheduler.demand("frontend", at === 1 ? ["b"] : ["a"]);
           const card = document.createElement("div");
           el.append(card);
           core.mountBlock(card, "b");
@@ -718,11 +718,11 @@ describe("a board opened later", () => {
     next?.scheduler.invalidate("a");
     await tick(100);
 
-    // What the first front-end and the first startup module held heard
+    // What the first frontend and the first startup module held heard
     // nothing, and demanded nothing of the board that opened.
     expect([...new Set(heard)].sort()).toEqual([
-      "front-end 2 hears the scheduler",
-      "front-end 2 hears the store",
+      "frontend 2 hears the scheduler",
+      "frontend 2 hears the store",
       "startup module 2 hears the scheduler",
       "startup module 2 hears the store",
     ]);

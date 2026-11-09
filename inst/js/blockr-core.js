@@ -4874,7 +4874,7 @@ function pageFrontEnds(el) {
       const { id: id2, source } = front;
       const pkg = packageOf(id2);
       if (source === void 0) {
-        prepared = { id: id2, module: id2, error: new Error(`R serves no module ${id2}, the front-end that draws the board.`) };
+        prepared = { id: id2, module: id2, error: new Error(`R serves no module ${id2}, the frontend that draws the board.`) };
       } else {
         try {
           const mod = moduleOf(await loader.load(source, pkg), source.module, pkg);
@@ -4892,7 +4892,7 @@ function pageFrontEnds(el) {
       if (prepared === void 0 || signal.aborted) return;
       el.replaceChildren();
       if (prepared.render === void 0) {
-        showError(el, `The front-end ${prepared.id} cannot draw the board: ${messageOf(prepared.error)}`);
+        showError(el, `The frontend ${prepared.id} cannot draw the board: ${messageOf(prepared.error)}`);
         report(prepared.error);
         return;
       }
@@ -7576,7 +7576,7 @@ var locked = {
 var color = {
   type: ["string", "null"],
   pattern: HEX_COLOR,
-  description: 'A hex colour, such as "#66c2a5", which front-ends draw a stack in, or null for none. A front-end draws a stack without a colour in a default of its own.'
+  description: 'A hex colour, such as "#66c2a5", which frontends draw a stack in, or null for none. A frontend draws a stack without a colour in a default of its own.'
 };
 var optionId = {
   type: "string",
@@ -7903,7 +7903,7 @@ function coreCommands(store, options = {}) {
         blocks: { ...blockIds, description: "The blocks of the new stack, in order." },
         color: {
           ...color,
-          description: "The new stack's colour, which front-ends draw it in, or null for none. The stack gets null where this is left out, and a front-end draws a stack without a colour in a default of its own."
+          description: "The new stack's colour, which frontends draw it in, or null for none. The stack gets null where this is left out, and a frontend draws a stack without a colour in a default of its own."
         }
       }),
       run(board2, { id: id2, name: name3 = "Stack", blocks: blocks2 = [], color: color2 = null }) {
@@ -7930,7 +7930,7 @@ function coreCommands(store, options = {}) {
           },
           color: {
             ...color,
-            description: "The stack's colour, which front-ends draw it in, or null to clear it. A front-end draws a stack without a colour in a default of its own. The stack keeps its colour where this is left out."
+            description: "The stack's colour, which frontends draw it in, or null to clear it. A frontend draws a stack without a colour in a default of its own. The stack keeps its colour where this is left out."
           }
         },
         ["id"]

@@ -121,7 +121,7 @@ function ready(t: ReturnType<typeof setup>, reply: Reply = helloReply): void {
   t.receive({ ...reply, id: idOf(t.sent, "hello") });
 }
 
-// A copy of an object without some of its fields.
+// A copy of an object without some of its properties.
 function without(value: object, ...keys: string[]): Record<string, unknown> {
   return Object.fromEntries(
     Object.entries(value).filter(([key]) => !keys.includes(key)),

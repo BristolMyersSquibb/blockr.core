@@ -7,7 +7,7 @@
 # The reply to a request, from the function of its kind.
 # An error that R raises itself, as for a block class that is not registered,
 # becomes an `error` that names no phase.
-# The reply to an `evaluate` then carries an evaluation's fields.
+# The reply to an `evaluate` then carries an evaluation's properties.
 answer_request <- function(ev, job) {
   tryCatch(
     switch(
@@ -392,7 +392,8 @@ missing_reply <- function(id, lacking) {
 }
 
 # An `error` with the conditions raised.
-# It carries an evaluation's fields where `fields` gives the block and revision.
+# It carries an evaluation's properties where `fields` gives the block and
+# revision.
 error_reply <- function(id, conditions, fields = NULL) {
 
   res <- c(

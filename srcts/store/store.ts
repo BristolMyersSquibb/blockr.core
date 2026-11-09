@@ -91,7 +91,7 @@ export interface Store {
   // JSON.stringify(), indented by two spaces and ending in a newline, as R
   // writes the fixtures of boards.
   // The store opens the text to the same board.
-  // It saves nothing itself: core's basic front-end downloads the text, and
+  // It saves nothing itself: core's basic frontend downloads the text, and
   // session management saves it where it decides.
   // It asks R for nothing, so a board saves while R is busy or gone.
   save(): string;

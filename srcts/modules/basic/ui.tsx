@@ -1,4 +1,4 @@
-// The pieces that the basic front-end draws with: its buttons, dialogs and
+// The pieces that the basic frontend draws with: its buttons, dialogs and
 // menus, an inline field that renames, and the element in which core mounts a
 // module.
 // They are styled with Tailwind CSS under core's prefix. Their colours, fonts

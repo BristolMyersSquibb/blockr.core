@@ -35,8 +35,8 @@ function read(name: string): OutputFixtures {
   return JSON.parse(text(name)) as OutputFixtures;
 }
 
-// A table fixture whose first output misspells a field, which the check must
-// fail.
+// A table fixture whose first output misspells a property, which the check
+// must fail.
 const table = read("table-output");
 const [first] = table.outputs;
 const broken = {
@@ -80,7 +80,7 @@ test.each(names)("%s meets the type of its output class", (name) => {
   expect(diagnostics.get(path(name))).toEqual([]);
 });
 
-test("the check fails a fixture with a field that its type lacks", () => {
+test("the check fails a fixture with a property that its type lacks", () => {
   const found = diagnostics.get(path("broken")) ?? [];
   expect(found.join("\n")).toMatch(/'"totl"' does not exist in type 'TableOutput'/);
 });

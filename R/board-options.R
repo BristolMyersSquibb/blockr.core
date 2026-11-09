@@ -14,7 +14,7 @@
 #' its definition in the client.
 #'
 #' Core ships three board options: `n_rows`, the rows of a table output's page,
-#' `show_conditions`, the severities of a block's conditions that a front-end
+#' `show_conditions`, the severities of a block's conditions that a frontend
 #' shows, and `dark_mode`, which switches between the light and the dark theme.
 #' Core's basic frontend requires `show_conditions` and `dark_mode`.
 #' So the client gives every board that lacks a value of either one its

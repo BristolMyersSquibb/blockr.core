@@ -1,4 +1,4 @@
-// The toolbar of core's basic front-end. It shows the board's name, which the
+// The toolbar of core's basic frontend. It shows the board's name, which the
 // user renames, and the controls for the board: adding a block, editing links
 // and stacks, setting the board options, undo and redo, saving the board as a
 // file and opening one.

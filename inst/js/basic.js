@@ -104,7 +104,7 @@ import { createContext, useContext } from "react";
 var FrontEndContext = createContext(null);
 function useFrontEnd() {
   const given = useContext(FrontEndContext);
-  if (given === null) throw new Error("A component of the basic front-end is drawn outside of it.");
+  if (given === null) throw new Error("A component of the basic frontend is drawn outside of it.");
   return given;
 }
 function runCommand(front, id2, args) {

@@ -1,5 +1,5 @@
-// A block's card and a stack's group, as core's basic front-end draws them
-// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#cores-basic-front-end).
+// A block's card and a stack's group, as core's basic frontend draws them
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#cores-basic-frontend).
 //
 // A card shows these, top to bottom:
 // - The block's name, its class and its status, and a menu to rename or
@@ -18,7 +18,7 @@
 // does so from the block's first reply on, since there is nothing to draw
 // before.
 // The card always shows the block's UI and its output, with no toggles to
-// hide them, which a front-end built on core's may add.
+// hide them, which a frontend built on core's may add.
 // Under the board lock, the card draws no control for what the lock fixes. It
 // has no menu, and it mounts the UI only of a block that the board lock leaves
 // open, as the store's locked() says.

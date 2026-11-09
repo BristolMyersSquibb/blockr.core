@@ -9,7 +9,7 @@
 #' behave like edges in a directed acyclic graph (DAG) in that cycles are
 #' detected and disallowed.
 #'
-#' @param ... For `links()`, the links to combine, or their fields, such as
+#' @param ... For `links()`, the links to combine, or their properties, such as
 #'   `from` and `to`, as vectors, and otherwise generic consistency
 #' @rdname new_link
 #' @export
@@ -69,8 +69,8 @@ list_to_list_of_links <- function(x) {
 
     if (!all(length(x[[1L]]) == lengths(x[-1L]))) {
       blockr_abort(
-        "Expecting the fields of links, such as `from` and `to`, to have the ",
-        "same length.",
+        "Expecting the properties of links, such as `from` and `to`, to have ",
+        "the same length.",
         class = "links_fields_invalid"
       )
     }
@@ -279,7 +279,7 @@ validate_links <- function(x) {
 
   if (!all(fields %in% fields(x))) {
     blockr_abort(
-      "Expecting the links to contain at least fields {fields}.",
+      "Expecting the links to contain at least the properties {fields}.",
       class = "links_fields_invalid"
     )
   }

@@ -2,7 +2,7 @@
 // from CoreApi, as Board options has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.1#board-options):
 // n_rows, the rows of a table output's page, show_conditions, the severities
-// that a front-end shows, and dark_mode, which switches the theme. Each keeps
+// that a frontend shows, and dark_mode, which switches the theme. Each keeps
 // the label and the category of today's R constructor, and takes its schema
 // from ./schemas.ts and its UI module from ./ui.tsx.
 //
@@ -57,7 +57,7 @@ export function nRows(core: BlockrOptions): Option {
 
 const SEVERITIES = ["message", "warning", "error"] as const;
 
-// The severities of a block's conditions that a front-end shows, while R
+// The severities of a block's conditions that a frontend shows, while R
 // reports every severity.
 export function showConditions(core: BlockrOptions): Option {
   const schema = optionSchemas.show_conditions;

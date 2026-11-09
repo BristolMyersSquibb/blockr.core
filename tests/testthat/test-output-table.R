@@ -39,7 +39,7 @@ test_that("a table output holds columns, a page of rows and a total", {
   expect_identical(sub$sql, "SELECT x FROM t")
 })
 
-test_that("a table output checks its fields", {
+test_that("a table output checks its properties", {
 
   cols <- data.frame(name = "x", class = "integer")
   rows <- data.frame(x = 1:2)

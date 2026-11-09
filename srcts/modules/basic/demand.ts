@@ -1,6 +1,6 @@
-// What the basic front-end demands, as Evaluation in the client has it
+// What the basic frontend demands, as Evaluation in the client has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.10#demand).
-// The front-end shows every block, so it demands every block, above the
+// The frontend shows every block, so it demands every block, above the
 // default evaluation priority. It demands the blocks whose cards are in view
 // higher still, so that those and everything upstream of them go first.
 // It makes both demands within render(), from the board, so that the
@@ -9,7 +9,7 @@
 import type { BlockId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 
-// The owner of the demands, the front-end's id.
+// The owner of the demands, the frontend's id.
 export const OWNER = "blockr.core-basic";
 // The evaluation priority of every block, and of the blocks in view.
 export const SHOWN = 1;

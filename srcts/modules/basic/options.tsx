@@ -3,7 +3,7 @@
 // names for it. The dialog groups them by the category that each definition
 // gives.
 // The board holds a board option once something sets one, as where core's
-// basic front-end requires it or a mounted module names it.
+// basic frontend requires it or a mounted module names it.
 
 import { useCallback } from "react";
 import type { ReactElement } from "react";
