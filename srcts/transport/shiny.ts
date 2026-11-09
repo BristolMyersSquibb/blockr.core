@@ -8,18 +8,25 @@
 //
 // R starts each session with a message of its own, an object rather than an
 // array, which gives the URL that the client posts request bodies to, in
-// `body_url`, and the largest body that Shiny takes there, in
-// `max_request_size`, so that the transport has to listen before Shiny
-// connects, as core does when the page starts. A session ends when Shiny's websocket closes, which Shiny's
+// `body_url`, the largest body that Shiny takes there, in `max_request_size`,
+// and the largest message that either side sends, in `max_message_size`, so
+// that the transport has to listen before Shiny connects, as core does when the
+// page starts. A session ends when Shiny's websocket closes, which Shiny's
 // shiny:disconnected event on the document says.
+//
+// R sends no message larger than its blockr option `max_message_size` says,
+// and the transport sends none either: it refuses a larger one, which fails the
+// requests in it with the reason.
 //
 // R carries a reply's body in its message, as base64 in the body's `data`, or
 // in a binary frame of its own, which holds the length of the JSON of a message
 // of the reply alone in four bytes, little-endian, that JSON and then the
 // body's bytes, or from the URL in the body's `url`, which the client fetches,
-// as R's blockr options `max_message_body` and `message_body_encoding` say,
-// and which the client deletes once it has read the body. The transport hands
-// the client the reply without the fields that carry the body.
+// as R's blockr options `max_message_body`, `max_message_size` and
+// `message_body_encoding` say, and which the client deletes once it has read
+// the body.
+// The transport hands the client the reply without the properties that carry
+// the body.
 
 import type {
   Body,
@@ -60,7 +67,7 @@ type JQueryLike = (element: Document) => {
 // An item of R's message, a reply that announces a body with a promise of it.
 type Received = [Reply | Progress, Promise<Blob> | null];
 
-// The fields that R adds to a reply's body to carry its bytes.
+// The properties that R adds to a reply's body to carry its bytes.
 interface Carried {
   data?: string;
   url?: string;
@@ -88,6 +95,10 @@ export function shinyTransport(options: ShinyTransportOptions = {}): Transport {
   return {
     async send(message: ClientMessage, bodies: ReadonlyMap<string, Blob>) {
       const at = session;
+      const text = JSON.stringify(message);
+
+      // Before any of its bodies is posted, which would be in vain.
+      refuseLarger(text, start?.max_message_size);
 
       for (const [id, body] of bodies) {
         await post(fetcher, start, id, body);
@@ -97,9 +108,7 @@ export function shinyTransport(options: ShinyTransportOptions = {}): Transport {
         throw new Error("The session ended before its message was sent.");
       }
 
-      shiny.setInputValue(name, JSON.stringify(message), {
-        priority: "event",
-      });
+      shiny.setInputValue(name, text, { priority: "event" });
     },
     listen(listener) {
       shiny.addCustomMessageHandler(name, (message: unknown) => {
@@ -144,10 +153,12 @@ function disconnected(
 }
 
 // R's message that starts a session, with the limit to a request's size where
-// Shiny's option shiny.maxRequestSize sets one.
+// Shiny's option shiny.maxRequestSize sets one, and to a message's where R's
+// blockr option max_message_size does.
 interface SessionStart {
   body_url: string;
   max_request_size?: number;
+  max_message_size?: number;
 }
 
 function isSessionStart(message: unknown): message is SessionStart {
@@ -179,7 +190,8 @@ function framed(frame: ArrayBuffer): Received[] {
   });
 }
 
-// A reply without the fields that carry its body, with a promise of the body.
+// A reply without the properties that carry its body, with a promise of the
+// body.
 function received(item: Reply | Progress, fetcher: typeof fetch): Received {
   // A body that R writes as null, from a NULL in R, is none.
   const announced: unknown = "status" in item && "body" in item ? item.body : null;
@@ -235,6 +247,25 @@ async function fetchBody(
     .catch(() => undefined);
 
   return blob([bytes], body);
+}
+
+// Refuses a message whose JSON takes more bytes of UTF-8 than R takes. A UTF-16
+// code unit of the text takes three such bytes at most, so that only a long
+// text is encoded to count them.
+function refuseLarger(text: string, max: number | undefined): void {
+  if (max === undefined || text.length * 3 <= max) return;
+
+  const size = new TextEncoder().encode(text).length;
+
+  if (size > max) {
+    throw new Error(
+      `The message of ${byteCount(size)} is larger than the ${byteCount(max)} that the blockr option \`max_message_size\` allows.`,
+    );
+  }
+}
+
+function byteCount(n: number): string {
+  return `${n.toLocaleString("en-US")} bytes`;
 }
 
 async function post(

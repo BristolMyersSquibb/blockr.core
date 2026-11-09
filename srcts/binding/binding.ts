@@ -8,7 +8,7 @@
 // whether core's React inputs, a module's own or blockr.ui's:
 // - A binding shows the value as the host holds it,
 //   and shows it again whenever it changes,
-//   since undo, the assistant and extensions change it too,
+//   since undo, the assistant and plugins change it too,
 //   but not while the user is typing in the control.
 // - A binding submits only when the user acts,
 //   never to fill in a value once data arrives.

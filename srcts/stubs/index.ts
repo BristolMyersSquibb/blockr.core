@@ -3,7 +3,7 @@
 // in a test runner with a state, requests answered from fixtures and a record
 // of what it submitted, needing neither R nor a browser
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#testing),
-// and a CoreApi for tests, on which a front-end, an extension or a startup
+// and a CoreApi for tests, on which a frontend, a plugin or a startup
 // module runs on a board with R played from the protocol's fixtures
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#testing).
 

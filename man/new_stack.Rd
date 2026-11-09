@@ -64,9 +64,9 @@ grouping has no functional implications, rather it is an organizational tool
 to help users manage more complex pipelines. Stack objects constitute a set
 of attributes, the most important of which is \code{blocks} (a character vector
 of block IDs).
-Each \code{stack} may have an arbitrary \code{name}, and a \code{color}, which front-ends
+Each \code{stack} may have an arbitrary \code{name}, and a \code{color}, which frontends
 draw it in.
-A front-end draws a stack without a color in a default of its own.
+A frontend draws a stack without a color in a default of its own.
 
 Stack container objects (\code{stacks} objects) can be created with \code{stacks()}
 or \code{as_stacks()} and inheritance can be tested via \code{is_stacks()}. Further

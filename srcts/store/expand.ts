@@ -48,7 +48,7 @@ export function expand(
         failures.push(...wrong);
         continue;
       }
-      const merged = merge(expanded, delta, patches as readonly Patch[]);
+      const merged = merge(expanded, delta, patches as readonly Patch[], board);
       if (merged !== expanded) adding.push(id);
       expanded = merged;
     }
@@ -133,7 +133,13 @@ function misplaced(cls: string, id: PluginId, patches: unknown): string[] {
 // path that one of the given delta's own patches changes.
 // An undo that puts back a plugin's old state then puts back that state, and
 // not one that an `update` makes up for a new object.
-function merge(delta: Delta, given: Delta, patches: readonly Patch[]): Delta {
+// An array's index, or its end as "-", names no element, so that the store
+// keeps what an `update` adds to an array that the delta adds to as well.
+// The board before the delta tells which parts of a path index an array.
+// Where that board lacks a member on the way, one of the delta's own patches
+// adds the member.
+// That patch lies above the update's patch, which is left out all the same.
+function merge(delta: Delta, given: Delta, patches: readonly Patch[], board: Board): Delta {
   const held = delta.patches ?? [];
   const fixed = (given.patches ?? []).map(({ path }) => pointer(path) ?? []);
 
@@ -141,7 +147,7 @@ function merge(delta: Delta, given: Delta, patches: readonly Patch[]): Delta {
   for (const patch of patches) {
     const parts = pointer(patch.path) ?? [];
     if ([...held, ...added].some((other) => same(other, patch))) continue;
-    if (fixed.some((path) => overlap(path, parts))) continue;
+    if (fixed.some((path) => overlap(path, parts, board))) continue;
     added.push(patch);
   }
 

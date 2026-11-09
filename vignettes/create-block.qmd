@@ -134,7 +134,7 @@ Its module ships the shape as a JSON Schema in a file beside it, such as `head-b
 R reads the schema when the package registers the class, and the schema's properties have to be the class's state args.
 When an app script builds a board, R writes the state of each block by the schema.
 So a vector of length one stays an array where the schema has one.
-R also sends the schema to the client, where the command that sets a block's state refuses an edit that the schema refuses.
+R also sends the schema to the client, which refuses an edit of a block's state that the schema refuses.
 
 The class's author writes `expr` against what R makes of that JSON.
 R decodes the state that the client sends into plain values:
@@ -177,6 +177,8 @@ A class gives the version of its state's shape in `version`, a whole number from
 A package raises it whenever it changes that shape, such as by renaming a state arg.
 A saved board records with each block the version of its state.
 As the client opens a board saved at an older version, it migrates the state in JS, with the migration that the package registers for the class in its startup module.
+The client refuses a board that holds a state that the class's schema refuses once migrated.
+So a package that changes the shape registers a migration as well, or the boards saved before no longer open.
 No migration runs in R, since the UI owns the shape.
 
 ## The block expression
@@ -330,7 +332,18 @@ block_eval.scatter_block <- function(x, expr, env, ...) {
 A __renderer__ is the module that draws an output in the browser.
 The package that defines an output class gives its renderer, and an app picks another, such as a richer table, through the blockr option `renderers`.
 So a block class never names how its output looks.
-A package that needs an output class of its own makes one with `new_block_output()` and gives its JSON Schema, requests and renderer through methods of `output_schema()`, `output_requests()` and `output_renderer()`.
+A package that needs an output class of its own makes one with `new_block_output()`.
+It gives the class's JSON Schema, requests, renderer and coercion through its methods of `output_schema()`, `output_requests()`, `output_renderer()` and `output_coercion()`.
+The method of `output_coercion()` returns the coercion that makes the class's outputs, as core's method for table outputs returns `as_table_output`.
+With it, the client knows a block's renderer before the block's first output:
+
+1. R finds the output class whose method of `output_coercion()` returns the coercion that the block class names in `output`.
+2. R names that output class's renderer in the block class's entry of the block registry.
+3. The client loads the renderer, which names the board options that the coercion reads, such as `n_rows`.
+4. The client asks R for the block's first output, with the values of those board options.
+
+Without the method, R names no renderer in the entry.
+The client then learns the renderer, and the board options that it names, only from the block's first output.
 
 ## Evaluation
 
@@ -349,7 +362,7 @@ It is `invalid` where `expr` used an unset arg, or where `expr` or a `block_eval
 It is `error` where a check of the inputs or anything else failed.
 R records each condition with the phase that raised it.
 
-A class has no say in when its blocks are evaluated: the client evaluates what its front-end shows and what packages ask for.
+A class has no say in when its blocks are evaluated: the client evaluates what its frontend shows and what packages ask for.
 A class whose block expression may run only when its UI asks, such as a write block in manual mode, has a `block_eval()` method.
 The method decides whether and how the block expression runs, never what it computes.
 This write block writes only where its state holds `auto_write` or its UI passes the parameter `save`:
@@ -464,7 +477,7 @@ The host gives the module everything it may use:
 A module meets the contract of a block's UI by these rules:
 
 1. A module submits only when the user acts, never to fill in a value once data arrives. So a state arg that the user has to pick stays unset, and the block reads `invalid` until then. The summarize and join blocks of blockr.dplyr, in their `new_block()` versions, break this rule: they fill in their first or shared columns once the data arrives ([`summarize-block.js#L601-L607`](https://github.com/BristolMyersSquibb/blockr.dplyr/blob/bdac6b38f7097425bfe96883032531cc919f6ee7/inst/js/summarize-block.js#L601-L607), [`join-block.js#L678-L680`](https://github.com/BristolMyersSquibb/blockr.dplyr/blob/bdac6b38f7097425bfe96883032531cc919f6ee7/inst/js/join-block.js#L678-L680)).
-2. A module takes changes of the state that it did not make, since undo, an assistant and extensions make them too. It updates its inputs in place, but leaves alone the one that the user is editing.
+2. A module takes changes of the state that it did not make, since undo, an assistant and plugins make them too. It updates its inputs in place, but leaves alone the one that the user is editing.
 3. An input that changes with every keystroke submits once the user pauses, presses Enter or leaves it. So a burst of typing is one edit and one undo step. A module submits an edit still pending as core unmounts it.
 4. A module builds each submit from `host.state()` as it submits, so that it keeps an edit made in the meantime, such as a condition that an assistant added to a filter.
 5. A module draws only inside its element and keeps nothing on the page, such as an element ID, since core can mount one block's UI in several places at once.

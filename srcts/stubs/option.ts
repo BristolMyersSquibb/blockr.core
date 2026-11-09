@@ -27,7 +27,7 @@ export interface StubOptionHost<V extends Json = Json> extends OptionHost<V> {
   // Each request that the module made, with its args.
   readonly requested: readonly { readonly name: string; readonly args: Readonly<Record<string, Json>> }[];
   // Sets the value from outside the module, as the assistant or another
-  // front-end's control does, and announces it.
+  // frontend's control does, and announces it.
   setValue(value: V): void;
 }
 

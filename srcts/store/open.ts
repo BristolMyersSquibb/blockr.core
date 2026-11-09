@@ -11,10 +11,13 @@
 //    of the shapes that it records: the states of the plugins it keeps, the
 //    states of the blocks and the values of the board options.
 // 3. It drops and names each block whose class the block registry lacks, and
-//    it drops the board option values that no package registers.
+//    each board option value that no package registers.
 // 4. It gives the board each other plugin of the app's opening board, with
 //    its class's default state.
-// 5. It gives the board the defaults of the board options that core's basic
+// 5. It refuses the board where it fails a check, naming every failure, as
+//    where a block's state, a plugin's state or a board option's value fails
+//    its schema.
+// 6. It gives the board the defaults of the board options that core's basic
 //    frontend requires, where the board lacks them.
 
 import type { HelloReply } from "../protocol/index.ts";
@@ -56,7 +59,8 @@ const PROPERTIES: readonly string[] = ["id", "name", ...COLLECTIONS];
 // board holds no plugin under its id and of its class, or since no package
 // registers its class, with the package that the id of its class gives, if
 // any.
-// It does not name what it drops of the board option values.
+// It names each board option that no package registers, by the board
+// option's id, and drops its value.
 export type Dropped =
   | { readonly package: string; readonly version: string }
   | {
@@ -68,7 +72,8 @@ export type Dropped =
       readonly plugin: PluginId;
       readonly class: string;
       readonly package: string | null;
-    };
+    }
+  | { readonly option: OptionId };
 
 const refused = "The store refused to open the board";
 
@@ -170,6 +175,9 @@ function unversioned(board: JsonBoard["board"]): Board {
 // converts a board back.
 // The board holds only the plugins that the store keeps, so that the version
 // of a plugin class whose plugins it drops refuses nothing.
+// Neither does the version of a block's class that the block registry lacks,
+// nor that of a board option that no package registers, since the store drops
+// the block and the value.
 function migrate(
   board: Board,
   json: JsonBoard["board"],
@@ -227,6 +235,8 @@ function migrate(
 
   const options = Object.fromEntries(
     Object.entries(board.options).map(([id, value]) => {
+      const def = registrations.option(id)?.def;
+      if (def === undefined) return [id, value];
       const from = own(json.options, id)?.version;
       const to = own(reply.option_versions, id) ?? 1;
       if (from === undefined || from === to) return [id, value];
@@ -236,8 +246,7 @@ function migrate(
         );
         return [id, value];
       }
-      const def = registrations.option(id)?.def;
-      if (def?.migrate === undefined) return [id, value];
+      if (def.migrate === undefined) return [id, value];
       changed.add("options");
       return [
         id,
@@ -305,7 +314,10 @@ export function openJsonBoard(
     return { block: id, registry_id: registryId, package: packageOf(registryId) };
   });
 
-  const kept = remove(prune(migrated, registrations), gone, registrations);
+  const unclaimed = Object.keys(migrated.options).filter((id) => registrations.option(id) === undefined);
+  const options: Dropped[] = unclaimed.map((id) => ({ option: id }));
+
+  const kept = remove({ ...migrated, options: without(migrated.options, unclaimed) }, gone, registrations);
   const board: Board = { ...kept, plugins: appPlugins(kept.plugins, opening, pluginClass) };
 
   const failures = check(board, reply.block_registry, registrations);
@@ -315,7 +327,7 @@ export function openJsonBoard(
     .filter(([pkg]) => own(reply.packages, pkg) === undefined)
     .map(([pkg, version]) => ({ package: pkg, version }));
 
-  return { board, dropped: [...packages, ...blocks, ...plugins] };
+  return { board, dropped: [...packages, ...blocks, ...plugins, ...options] };
 }
 
 // The id of a plugin's class, or undefined where what the board holds is no
@@ -337,19 +349,6 @@ function openingPlugins(opening: JsonBoard | undefined): Readonly<Record<PluginI
       (entry): entry is [string, Plugin] => isObject(entry[1]) && typeof entry[1].class === "string",
     ),
   );
-}
-
-// The board without every board option value that no package registered or
-// that its schema refuses, so that it reads as its default.
-function prune(board: Board, registrations: Registrations): Board {
-  const unfit = Object.entries(board.options)
-    .filter(([id, value]) => {
-      const def = registrations.option(id);
-      return def === undefined || def.validate(value).length > 0;
-    })
-    .map(([id]) => id);
-
-  return { ...board, options: without(board.options, unfit) };
 }
 
 // The board without the blocks, removed as a delta removes them, so that what

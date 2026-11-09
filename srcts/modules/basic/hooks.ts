@@ -1,4 +1,4 @@
-// The hooks through which the basic front-end follows core, as React's
+// The hooks through which the basic frontend follows core, as React's
 // useSyncExternalStore follows a store: the store's board and undo history,
 // a block's status, and the notices.
 

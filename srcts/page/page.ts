@@ -1,6 +1,6 @@
 // Starting core's client on the page that R serves: core starts over the Shiny
 // transport, registers its own board options with their UIs, and draws each
-// board that opens with its front-end in the page's element, as srcts/core
+// board that opens with its frontend in the page's element, as srcts/core
 // starts it.
 // While core starts, as the page starts and as another board opens, the
 // element says that the board is loading, as today's page waits for the board
@@ -18,7 +18,7 @@ import { loadingNote, pageFrontEnds, start } from "../core/index.ts";
 import type { Changed, Started } from "../core/index.ts";
 
 export interface PageOptions {
-  // The element that the front-ends draw in.
+  // The element that the frontends draw in.
   readonly el: HTMLElement;
   // The transport of the wire protocol, the Shiny transport unless given.
   readonly transport?: Transport;

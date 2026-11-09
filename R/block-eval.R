@@ -298,20 +298,19 @@ print.block_evaluation <- function(x, ...) {
   invisible(x)
 }
 
+# Runs a phase of an evaluation, keeping a record of each message, warning and
+# error that it raises, in order, in a queue, which takes each in constant time,
+# while growing a list with `c()` copies it for every one.
 run_phase <- function(phase, expr) {
 
-  log <- new.env(parent = emptyenv())
-  log[["conditions"]] <- list()
+  conditions <- fastmap::fastqueue()
 
   record <- function(cnd) {
-    log[["conditions"]] <- c(
-      log[["conditions"]],
-      list(condition_record(cnd, phase))
-    )
+    conditions$add(condition_record(cnd, phase))
   }
 
-  value <- try_catch_continue(
-    expr,
+  res <- try_catch_continue(
+    list(value = expr),
     message = function(m) {
       record(m)
       invokeRestart("muffleMessage")
@@ -322,16 +321,15 @@ run_phase <- function(phase, expr) {
     },
     error = function(e) {
       record(e)
-      log[["error"]] <- e
-      NULL
+      list(error = e)
     }
   )
 
   list(
     phase = phase,
-    value = value,
-    conditions = log[["conditions"]],
-    error = log[["error"]]
+    value = res[["value"]],
+    conditions = conditions$as_list(),
+    error = res[["error"]]
   )
 }
 
@@ -361,11 +359,15 @@ condition_record <- function(cnd, phase) {
     "message"
   }
 
+  message <- conditionMessage(cnd)
+
+  # A message that is not valid UTF-8 is matched byte by byte,
+  # as `sub()` refuses it otherwise, and its reply makes it valid.
   list(
     severity = severity,
     class = class(cnd),
     phase = phase,
-    message = sub("\n$", "", conditionMessage(cnd))
+    message = sub("\n$", "", message, useBytes = !all(validUTF8(message)))
   )
 }
 

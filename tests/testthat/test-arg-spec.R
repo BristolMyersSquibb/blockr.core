@@ -20,7 +20,7 @@ test_that("new_arg_spec and new_arg_specs constructors", {
   expect_error(new_arg_specs(n = 1L))
 })
 
-test_that("arg_spec field getters expose the spec without indexing", {
+test_that("arg_spec property getters expose the spec without indexing", {
 
   a <- new_arg_spec(description = "rows", example = 10L, type = NULL)
 
@@ -335,7 +335,7 @@ test_that("arg type descriptor constructors build JSON-Schema nodes", {
   expect_error(arg_object(arg_string()), class = "arg_object_unnamed")
 })
 
-test_that("arg_object builds an object type without fields", {
+test_that("arg_object builds an object type without properties", {
 
   obj <- arg_object()
 

@@ -1,16 +1,21 @@
 // The checks a board passes after every delta and as it opens,
 // each failure in a sentence: the invariants of core's objects,
 // as R's validate_links() and the board's checks did,
-// the schemas of the board options, and the plugins: their classes, the
-// schemas of their states, and at most one frontend and one storage plugin.
+// the schemas of the blocks' states and of the board options, and the
+// plugins: their classes, the schemas of their states, and at most one
+// frontend and one storage plugin.
 // Where a delta changed only some objects, their shapes and schemas
 // are checked alone, since nothing else can have broken them,
 // while the invariants run on the whole board every time.
+// A delta that skips core's commands is checked as one that runs through
+// them, so that no delta leaves a value that would keep the board from
+// opening again.
 
 import { graphOf } from "../graph/index.ts";
 import type { Board, RegistryId } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { isObject, own, quoted } from "../util/index.ts";
+import { compile, isObject, own, quoted } from "../util/index.ts";
+import type { Validate } from "../util/index.ts";
 import type { Changed } from "./commit.ts";
 import { isId } from "./ids.ts";
 import { inRole, ROLES } from "./plugins.ts";
@@ -24,6 +29,23 @@ import type { Registrations } from "./registrations.ts";
 export const HEX_COLOR = "^#[0-9a-fA-F]{6}$";
 
 const hexColor = new RegExp(HEX_COLOR);
+
+// The validator of each block class's state, made once for each entry of the
+// block registry.
+const validators = new WeakMap<RegistryEntry, Validate>();
+
+// Each way a block's state fails the schema of its class, in a clause.
+// The schema is the one in the class's entry of the block registry, as the
+// class's UI ships it.
+// It throws where the schema cannot be read.
+export function stateFailures(entry: RegistryEntry, state: unknown): readonly string[] {
+  let validate = validators.get(entry);
+  if (validate === undefined) {
+    validate = compile(`the state of the block class "${entry.id}"`, entry.schema);
+    validators.set(entry, validate);
+  }
+  return validate(state);
+}
 
 export function check(
   board: Board,
@@ -80,10 +102,15 @@ function checkBlocks(
       failures.push(`The block "${id}" ${fields.join(", ")}.`);
       continue;
     }
-    if (own(registry, block.registry_id) === undefined) {
+    const entry = own(registry, block.registry_id);
+    if (entry === undefined) {
       failures.push(
         `The block "${id}" is of the class "${block.registry_id}", which the block registry lacks.`,
       );
+      continue;
+    }
+    for (const failure of stateFailures(entry, block.state)) {
+      failures.push(`The state of the block "${id}" ${failure}`);
     }
   }
 }
@@ -245,8 +272,8 @@ const ROLE_NAMES: Readonly<Record<Role, string>> = {
 
 type Kind = "string" | "string or null" | "boolean or null" | "object" | "array" | "value";
 
-// What an object of core's lacks or holds beyond its fields, which a delta
-// built in plain JS or by a model may get wrong.
+// What an object of core's lacks or holds beyond its properties, which a
+// delta built in plain JS or by a model may get wrong.
 function shape(value: unknown, fields: Readonly<Record<string, Kind>>): string[] {
   if (!isObject(value)) return ["is no object"];
   const problems: string[] = [];

@@ -217,7 +217,7 @@ board_fixture_values <- function() {
         "the value of show_conditions is an array, by the schema that core",
         "ships beside its runtime, recorded with the version of its shape, as",
         "each board option's value is. The stack has a color, a hex color",
-        "that front-ends draw it in. The block b holds a locked of false,",
+        "that frontends draw it in. The block b holds a locked of false,",
         "which leaves it open under the board lock, while the blocks a and c",
         "hold null, which R writes for a lock of NA and which follows the",
         "board lock. The client opens the JSON board and saves it as it is."

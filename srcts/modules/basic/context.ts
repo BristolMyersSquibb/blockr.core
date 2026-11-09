@@ -1,4 +1,4 @@
-// What every component of the basic front-end reads: CoreApi, the notices,
+// What every component of the basic frontend reads: CoreApi, the notices,
 // what is in view, and how it runs an edit.
 
 import { createContext, useContext } from "react";
@@ -17,7 +17,7 @@ export const FrontEndContext = createContext<FrontEnd | null>(null);
 
 export function useFrontEnd(): FrontEnd {
   const given = useContext(FrontEndContext);
-  if (given === null) throw new Error("A component of the basic front-end is drawn outside of it.");
+  if (given === null) throw new Error("A component of the basic frontend is drawn outside of it.");
   return given;
 }
 

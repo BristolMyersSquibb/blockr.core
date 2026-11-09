@@ -45,8 +45,8 @@ function read(name: string): Fixture {
   return JSON.parse(text(name)) as Fixture;
 }
 
-// A fixture whose block names its class in a field that a block lacks, which
-// the check must fail.
+// A fixture whose block names its class in a property that a block lacks,
+// which the check must fail.
 const fixture = read("board");
 const broken = {
   ...fixture,
@@ -141,7 +141,7 @@ test.each(names)("%s meets the type of a JSON board", (name) => {
   expect(diagnostics.get(path(name))).toEqual([]);
 });
 
-test("the check fails a fixture with a field that its type lacks", () => {
+test("the check fails a fixture with a property that its type lacks", () => {
   const found = diagnostics.get(path("broken")) ?? [];
   expect(found.join("\n")).toMatch(/'"class"' does not exist in type 'JsonBlock'/);
 });

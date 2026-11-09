@@ -2,16 +2,16 @@
 
 Protocol version: `1.0`
 
-This document is the contract between blockr.core's client, which holds the board in the browser, and R, which evaluates what the client sends: every message the two exchange, its fields, and what R does with it. Both sides are built and tested against it. The client's TypeScript types of the messages are in [`srcts/protocol/messages.ts`](../../srcts/protocol/messages.ts), with those of what they carry in [`srcts/types/`](../../srcts/types/), and the files in [`fixtures/`](fixtures/) give each message as JSON, which the R and the JS test suites both check (see [Fixtures](#fixtures)). Each decision is argued on the design page [Wire protocol between the client and R](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.9), and the decoding on [Serialization](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.4#state-values-between-the-client-and-r). Where this document says more than the pages, it is what both sides implement.
+This document is the contract between blockr.core's client, which holds the board in the browser, and R, which evaluates what the client sends: every message the two exchange, its properties, and what R does with it. Both sides are built and tested against it. The client's TypeScript types of the messages are in [`srcts/protocol/messages.ts`](../../srcts/protocol/messages.ts), with those of what they carry in [`srcts/types/`](../../srcts/types/), and the files in [`fixtures/`](fixtures/) give each message as JSON, which the R and the JS test suites both check (see [Fixtures](#fixtures)). Each decision is argued on the design page [Wire protocol between the client and R](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.9), and the decoding on [Serialization](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.4#state-values-between-the-client-and-r). Where this document says more than the pages, it is what both sides implement.
 
 ## Versions
 
 The protocol has a version of its own, `MAJOR.MINOR`, apart from the JS API major that modules declare, the format and package versions that a JSON board records, and a block's revision, which names its result.
-R gives it as `protocol_version()` and the client as `PROTOCOL_VERSION`, and both suites check them against the fixtures of the handshake. The major changes only for what an existing peer would misread, such as a field renamed, restructured or given another type, or a message removed. An addition that a peer can do without changes no major: an optional field, or a capability, under which a peer uses a new kind of request or behavior only where both sides named it. Both sides ignore a field and a capability they do not know, as [shinyreact's protocol](https://github.com/posit-dev/shinyreact/blob/e8812353d5f076f6e98a27a7e210d0a3e177ea1d/protocol/README.md) does, so nothing reads the minor, which may move with a notable addition.
+R gives it as `protocol_version()` and the client as `PROTOCOL_VERSION`, and both suites check them against the fixtures of the handshake. The major changes only for what an existing peer would misread, such as a property renamed, restructured or given another type, or a message removed. An addition that a peer can do without changes no major: an optional property, or a capability, under which a peer uses a new kind of request or behavior only where both sides named it. Both sides ignore a property and a capability they do not know, as [shinyreact's protocol](https://github.com/posit-dev/shinyreact/blob/e8812353d5f076f6e98a27a7e210d0a3e177ea1d/protocol/README.md) does, so nothing reads the minor, which may move with a notable addition.
 
 ## Messages
 
-A message is a JSON array, of requests from the client or of replies and progress notes from R, so that several travel together. Every request names its `kind`, and every request but a `cancel` or a `forget`, which get no reply of their own, has an `id`, a string that the client chooses and that no other request it is waiting on has. R's reply echoes the id, so that replies may come in any order and in any message. R replies `error` to a request it cannot read, such as one that lacks a field its kind requires, where the request has an id, and ignores it where it has none.
+A message is a JSON array, of requests from the client or of replies and progress notes from R, so that several travel together. Every request names its `kind`, and every request but a `cancel` or a `forget`, which get no reply of their own, has an `id`, a string that the client chooses and that no other request it is waiting on has. R's reply echoes the id, so that replies may come in any order and in any message. R replies `error` to a request it cannot read, such as one that lacks a property its kind requires, where the request has an id, and ignores it where it has none.
 
 | Kind | Asks R to | R replies |
 |---|---|---|
@@ -27,11 +27,11 @@ The client sends nothing but its `hello` until R has answered it, as an MCP clie
 
 A reply's `status` belongs to its request alone, so that a request or an output that fails never marks its block `failed`, which only an evaluation's reply does:
 
-| Status | Means | Fields beside `id` and `status` |
+| Status | Means | Properties beside `id` and `status` |
 |---|---|---|
 | `ok` | the request succeeded | those of the request's kind |
-| `error` | R raised an error, or refused the request, as it refuses an evaluation that breaks a lock | `conditions` and `omitted` ([Conditions](#conditions)), and an evaluation's fields in the reply to an `evaluate` |
-| `invalid` | only to an `evaluate`: the block's state cannot run | an evaluation's fields |
+| `error` | R raised an error, or refused the request, as it refuses an evaluation that breaks a lock | `conditions` ([Conditions](#conditions)), and an evaluation's properties in the reply to an `evaluate` |
+| `invalid` | only to an `evaluate`: the block's state cannot run | an evaluation's properties |
 | `cancelled` | R dropped or stopped the request, after a `cancel` or a `forget` | none |
 | `missing` | the request names a result that R does not hold ([Missing results](#missing-results)) | `missing` |
 
@@ -39,14 +39,14 @@ A reply's `status` belongs to its request alone, so that a request or an output 
 
 A connection starts with a `hello`, after MCP's `initialize`: the client names the protocol version and the capabilities it speaks, and R answers with its own and with everything the client needs before it draws a board.
 
-| Field | Holds |
+| Property | Holds |
 |---|---|
 | `protocol` | the version the client speaks, as `"1.0"` |
 | `capabilities` | the capabilities it speaks, as `["cancel", "interrupt", "progress"]` |
 
 R replies `ok` with:
 
-| Field | Holds |
+| Property | Holds |
 |---|---|
 | `protocol` | the version R speaks |
 | `capabilities` | the capabilities R speaks |
@@ -103,9 +103,11 @@ So the client keeps each plugin of the JSON board that the opening board holds u
 It migrates what the JSON board holds in an older shape, by the versions of the shapes that it records: the state of each plugin that it keeps whose class's version in `versions` is below the one that R gives in `plugin_versions`, the state of each block whose `version` is below the one that its class's entry in the block registry gives, and the value of each board option whose `version` is below the one that R gives in `option_versions`, with the migrations that the startup modules registered.
 It names each package that the JSON board lists and R did not load, with the version that the JSON board records.
 It drops each block whose class the block registry lacks, with its links, its places in stacks and what the board's plugins keep about it, naming the package to install from its registry id.
-It drops each board option value that no package registered or that its schema refuses.
+It drops each board option value that no package registered, naming the board option by its id.
 It then gives the board each other plugin of the opening board whose class a startup module registered, under its id and name, with its class's default state.
 So a board that a startup module names, or that the user opens, holds the plugins of the board that the app script built, each with the state that the board gives it where it gives one, and the client replaces its board.
+The client refuses a board that holds a value that its schema refuses once migrated, and names every such value.
+The schema of a block's state is the one in its class's entry of the block registry, the schema of a plugin's state is its class's, and the schema of a board option's value is its definition's.
 A file of today's stack is converted to a JSON board before it is opened, outside core.
 
 Under the load lock, the client opens no board but the opening board ([Locked boards](#locked-boards)).
@@ -114,7 +116,7 @@ Under the load lock, the client opens no board but the opening board ([Locked bo
 
 The client reads a blockr option by asking R for it, since it can read neither an R option nor an environment variable of the server ([Blockr options](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.3#blockr-options)). A `blockr_options` request names them:
 
-| Field | Holds |
+| Property | Holds |
 |---|---|
 | `names` | the blockr options to read, as `["evaluation_queue", "gate_visibility"]` |
 
@@ -126,7 +128,7 @@ The client asks for a blockr option once per page, the first time its code reads
 
 An `evaluate` names the block and its revision and carries the recipe:
 
-| Field | Holds |
+| Property | Holds |
 |---|---|
 | `block` | the block's id |
 | `revision` | its revision ([Revisions](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.10#revisions)) |
@@ -138,18 +140,18 @@ The recipe's `inputs` name the upstream results that the block's data inputs bin
 
 R looks the class up by its registry id, runs the checks of a function the class gives as `inputs` with the linked results, calls its `expr` with the state, interpolates what it returns into the block expression, with the upstream ids in it, and evaluates that with `block_eval()`, with each upstream result bound to its id ([Evaluation](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.5#evaluation)). It keeps the result under the block's id, with its revision, its block expression and the block's registry id, which an output, an output class's request and a plugin's request that reads the block need, and keeps the block's previous result while the next computes. It replies with what the client shows about the block, which holds no code, since exporting a block's code is blockr.code's, through a request of its own ([Requests](#requests)):
 
-| Field | Holds |
+| Property | Holds |
 |---|---|
 | `block`, `revision` | as the request named them |
 | `summary` | the result's summary from `result_summary()`, such as `"<data.frame> [150 × 5]"`, or `null` where there is no result or its summary failed |
-| `conditions`, `omitted` | the conditions raised, and how many of each severity the reply leaves out ([Conditions](#conditions)) |
-| `stdout`, `stderr` | the standard output and error, each bounded |
+| `conditions` | every condition raised ([Conditions](#conditions)) |
+| `stdout`, `stderr` | the standard output and error |
 
 The status is `invalid` where the class's `expr` or its `block_eval()` method signals `blockr_invalid()`, with its message, or `expr` uses an arg that the state leaves unset, naming it, all before the block expression runs, so that R runs nothing. It is `error` where an error is raised before a result exists, as when the checks of the inputs fail or the block expression does, and `ok` otherwise, also where `result_summary()` fails, which leaves `summary` null and reports its error.
 
 ### Conditions
 
-| Field | Holds |
+| Property | Holds |
 |---|---|
 | `severity` | `"error"`, `"warning"` or `"message"` |
 | `class` | the condition's class vector in R, as `["simpleWarning", "warning", "condition"]` |
@@ -166,7 +168,7 @@ The status is `invalid` where the class's `expr` or its `block_eval()` method si
 | `request` | the request's function, in the reply to a `request` |
 | `status` | the client's scheduler, for a block that is `waiting`, which R never writes |
 
-A reply keeps the first few conditions of each severity and counts the rest in `omitted`, as `{ "warning": 0, "message": 0 }`, which has no count of errors, since an error ends what raised it. It carries no tracebacks, which R writes to its log only with debug logging on, and the conditions of an evaluation's reply replace those of the block's earlier reply, as the Language Server Protocol replaces diagnostics ([LSP](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_publishDiagnostics)). How many conditions R keeps, and how much of the standard output and error, is R's to choose, since the client shows what comes.
+A reply carries every condition raised, and no tracebacks, which R writes to its log only with debug logging on. The conditions of an evaluation's reply replace those of the block's earlier reply, as the Language Server Protocol replaces diagnostics ([LSP](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_publishDiagnostics)).
 
 ### Missing results
 
@@ -177,12 +179,12 @@ R replies `missing` to any request that names a block's revision it does not hol
 A `request` asks R for an answer that its caller needs, rather than for a block's result ([Requests](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.9#requests)).
 Every request names its type in `type`, one of core's five.
 No package adds a type of its own, and R replies `error` to a request of any other type.
-R reads the request into an object of class `{type}_request`, which holds the request's fields.
+R reads the request into an object of class `{type}_request`, which holds the request's properties.
 It answers the request through the generic `request_call()`, whose method for that class finds the function that answers the request and binds the function's arguments.
 Core keeps the generic to itself.
 Each of core's types names the request in `name`, such as `"n_max"`:
 
-| Type | A request of | How R finds the function | Fields beside `name`, `args` and `body` |
+| Type | A request of | How R finds the function | Properties beside `name`, `args` and `body` |
 |---|---|---|---|
 | `block_class` | a block class | among the requests of the class that `registry_id` names, with `block` naming the block that asks | `registry_id`, `block`, `reads` and `options` |
 | `output_class` | an output class | among those that the method of `output_requests()` for the class vector of the latest output that R made from the result that `output` names, as `{ "block": "c", "revision": 7 }`, gives, a subclass's before its class's | `output`, `options` and `params` |
@@ -194,9 +196,9 @@ A plugin's request belongs to a plugin of the board.
 The code that sends it names the plugin by its id, through `CoreApi.request()`.
 The request names the plugin's class in `plugin`, by the class's id, since R holds no board and finds the request by the class ([A plugin's requests](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#a-plugins-requests)).
 
-The fields of core's types:
+The properties of core's types:
 
-| Field | Holds |
+| Property | Holds |
 |---|---|
 | `args` | what the request's function takes by name: for a block class's request, the state args its function names, which the host fills in from the block's state where the module passes none, and the parameters the UI gives it |
 | `reads` | the results that the request reads: for a block class's request by the input each feeds, as a recipe's inputs are, and for a plugin's request each by block and revision |
@@ -243,14 +245,14 @@ No request times out, since no reply is lost on a live connection and giving up 
 
 An `output` asks for the output that the coercion its block's class names in `output` makes from the block's result at a revision, which R knows by the registry id it keeps with the result ([Outputs](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.5#outputs)):
 
-| Field | Holds |
+| Property | Holds |
 |---|---|
 | `block`, `revision` | the result the output is made from |
 | `options` | the values of the board options, by id, since R holds none |
 | `info` | what the client measured for the output's element: `width` and `height` in CSS pixels, `pixel_ratio`, the colours `bg`, `fg` and `accent`, and `font` |
 | `params` | the output's parameters, which its renderer keeps, such as a table's `{ "page": 2, "sort": { "column": "x" } }`, in the shape that the output class's contract gives |
 
-R replies `ok` with the output in `output`, a description in JSON whose `renderer` is the renderer that draws it, as the method of `output_renderer()` for the most specific class in the output's class vector that has one gives it, with its id and where R serves its module, `{ "id": "blockr.core-table_output", "module": "blockr.core/js/basic-table.js?v=b7e2a915" }`, which the client loads the first time an output names it and mounts to draw it ([Renderers](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#renderers)), and whose other fields its output class's contract gives, with at most one binary body, such as a plot's PNG beside its output. A coercion that fails makes R reply `error`, with the phase `output`, which leaves the block's status as it was.
+R replies `ok` with the output in `output`, a description in JSON whose `renderer` is the renderer that draws it, as the method of `output_renderer()` for the most specific class in the output's class vector that has one gives it, with its id and where R serves its module, `{ "id": "blockr.core-table_output", "module": "blockr.core/js/basic-table.js?v=b7e2a915" }`, which the client loads the first time an output names it and mounts to draw it ([Renderers](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#renderers)), and whose other properties its output class's contract gives, with at most one binary body, such as a plot's PNG beside its output. A coercion that fails makes R reply `error`, with the phase `output`, which leaves the block's status as it was.
 
 R also names a renderer before any output exists: in the `renderer` of each block class's entry in the block registry, the renderer of the output class whose coercion the class names, as the method of `output_coercion()` for that output class gives the coercion.
 The client loads that renderer, and adds the board options it names to the board, before it asks for a block's first output, so that the request carries every board option that the coercion reads, such as the `n_rows` by which a table output pages.
@@ -349,17 +351,25 @@ So an arg that is a vector arrives as an atomic vector, of length one too, and a
 R writes what it sends with yyjsonr as well, as `encode_message()` does, which marks its text as JSON, so that Shiny's `session$sendCustomMessage()` sends it as it is. R's lack of scalars stays in R ([Principles](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1#principles)), so R writes every vector of length one bare, and marks with `I()` a value that has to stay an array, by the schema that gives its shape. An object is a named list, an empty one a named empty list, and `NULL` is written as `null`, as are `NA`, `NaN` and infinite numbers, so that a blockr option at `Inf` reaches the client as `null`, while a named atomic vector is written as an array without its names. A request's answer is one exception, which `encode_answer()` writes with every vector as an array ([Requests](#requests)). The opening board in `board` is another. In it, `blockr_ser()` writes a named vector as an object, so that a block's state keeps its names.
 A string of class `json` goes in as it is, so that R passes on JSON it holds as text, such as the JSON board that `serve()` was given, without decoding it.
 
+Where R cannot send a reply, as when its JSON cannot be written, or when its message would be larger than the transport sends ([The Shiny transport](#the-shiny-transport)), R sends an `error` in its place, since the client waits for a reply to every request with an id.
+Its condition says why, and the reply to an `evaluate` carries the evaluation's properties, while R drops the evaluation's result, as an `error` leaves R none.
+
 ## The Shiny transport
 
 Shiny carries the messages, through a module on each side, [`R/shiny-transport.R`](../../R/shiny-transport.R) in R and [`srcts/transport/shiny.ts`](../../srcts/transport/shiny.ts) in the client, so that leaving Shiny later replaces these two and nothing else. In the client, core's store, scheduler and `CoreApi` send their requests through the client of the protocol, [`srcts/protocol/client.ts`](../../srcts/protocol/client.ts), which runs over the transport, gives each request its id, holds everything but a session's `hello` until R has answered it, matches R's replies and progress notes to the requests waiting on them, and ignores a reply to a request it is not waiting on.
 
 The client sends each message as its JSON text, with `Shiny.setInputValue("blockr", text, { priority: "event" })`, so that Shiny sends every message, one identical to the last included, and R decodes it as [Decoding](#decoding) has it and hands it to the session's evaluator from an observer that returns no promise, so that Shiny never holds the session's inputs while a request runs. R sends its messages with `session$sendCustomMessage("blockr", message)`, which writes to the websocket at once, so that progress reaches the client while a request runs, and the client hears them through `Shiny.addCustomMessageHandler("blockr", ...)`.
 
-R starts each session with a message of its own, an object rather than an array, as `{ "body_url": "session/2f7c/dataobj/blockr-bodies?w=&nonce=9e1d", "max_request_size": 5242880 }`, which gives the URL that the client posts request bodies to and the largest body that Shiny takes there, and the client then sends its `hello`. R calls `session$allowReconnect(TRUE)`, so that a page whose session the server ended starts a new one, and ignores the value that the input starts a session with, since Shiny gives a new session the last value of every input, and so the last message that the page sent to the session before. A session ends when Shiny's websocket closes, as Shiny's `shiny:disconnected` event says, and the client then fails every request that waits on it, which may or may not have run, while it holds what it is asked to send until R has answered the next session's `hello`.
+R starts each session with a message of its own, an object rather than an array, as `{ "body_url": "session/2f7c/dataobj/blockr-bodies?w=&nonce=9e1d", "max_request_size": 5242880, "max_message_size": 4194304 }`, which gives the URL that the client posts request bodies to, the largest body that Shiny takes there and the largest message that either side sends (below), and the client then sends its `hello`. R calls `session$allowReconnect(TRUE)`, so that a page whose session the server ended starts a new one, and ignores the value that the input starts a session with, since Shiny gives a new session the last value of every input, and so the last message that the page sent to the session before. A session ends when Shiny's websocket closes, as Shiny's `shiny:disconnected` event says, and the client then fails every request that waits on it, which may or may not have run, while it holds what it is asked to send until R has answered the next session's `hello`.
 
-R's evaluator puts a reply's body in the reply's `body`, as `new_reply_body()` makes it. A reply's body of up to as many bytes as the blockr option `max_message_body` says, by default 1 MiB, or 4 MiB where bodies travel in binary frames (below), travels in the message, so that it arrives with its reply, as a plot's PNG has to, while a larger one comes from a URL of the session's in its `url`, which R serves, from memory or from the body's file, until the client deletes it there once it has read the body, so that a request that the browser sends again after a broken connection is still answered, and so that the body holds up neither R nor the messages behind it on the websocket. A body travels in the message as the blockr option `message_body_encoding` says: as base64 in the body's `data` by default, or, with `"binary"`, in a binary frame of its own, which holds the length of the JSON of a message of the reply alone in four bytes, little-endian, that JSON and then the body's bytes. A frame costs R and the client less, but reaches the page only where Shiny's websocket is not wrapped in SockJS, as Shiny Server and Connect wrap it. The client takes the fields that carry a body out of it before it hands the reply on, with the bytes as a `Blob` of the body's type, or a `File` where the body names one. A request's body goes before the request, posted to the URL in `body_url` with the request's id in the query's `id`, and reaches R's evaluator in the request's `body`, which then holds the `name`, `size`, `type` and `datapath` of the file R wrote it to, as `shiny::fileInput()` gives a file, which stays until the session ends. Shiny refuses a body over its option `shiny.maxRequestSize`, 5 MB by default, as it refuses what `fileInput()` uploads, and the client refuses such a body itself before it posts it, which fails the request with the reason, since a refusal from Shiny can reach the page as a failed fetch. R replies `error` to a request that announces a body it never received.
+R's evaluator puts a reply's body in the reply's `body`, as `new_reply_body()` makes it. A reply's body of up to as many bytes as the blockr option `max_message_body` says, by default 1 MiB, or 4 MiB where bodies travel in binary frames (below), travels in the message, where the message then stays within `max_message_size` (below), so that it arrives with its reply, as a plot's PNG has to, while a larger one comes from a URL of the session's in its `url`, which R serves, from memory or from the body's file, until the client deletes it there once it has read the body, so that a request that the browser sends again after a broken connection is still answered, and so that the body holds up neither R nor the messages behind it on the websocket. A body travels in the message as the blockr option `message_body_encoding` says: as base64 in the body's `data` by default, or, with `"binary"`, in a binary frame of its own, which holds the length of the JSON of a message of the reply alone in four bytes, little-endian, that JSON and then the body's bytes. A frame costs R and the client less, but reaches the page only where Shiny's websocket is not wrapped in SockJS, as Shiny Server and Connect wrap it. The client takes the properties that carry a body out of it before it hands the reply on, with the bytes as a `Blob` of the body's type, or a `File` where the body names one. A request's body goes before the request, posted to the URL in `body_url` with the request's id in the query's `id`, and reaches R's evaluator in the request's `body`, which then holds the `name`, `size`, `type` and `datapath` of the file R wrote it to, as `shiny::fileInput()` gives a file, which stays until the session ends. Shiny refuses a body over its option `shiny.maxRequestSize`, 5 MB by default, as it refuses what `fileInput()` uploads, and the client refuses such a body itself before it posts it, which fails the request with the reason, since a refusal from Shiny can reach the page as a failed fetch. R replies `error` to a request that announces a body it never received.
 A later `hello` starts the session afresh, so the transport drops the bodies that it holds for the session as the `hello` arrives: those that requests posted, with their files, and those that wait for the client to fetch them, whose URLs then answer as for a body that the client has fetched.
 The client sends that `hello` once every message whose body it is sending has gone, and gives up every request that waits on R, which rejects as for a session that ended.
+
+No message on the websocket is larger than the blockr option `max_message_size` says, by default 4 MiB, or `Inf` for no limit.
+R sends nothing of a message that would be larger, and sends an `error` in place of the reply ([Encoding](#encoding)), whose condition, of class `protocol_message_too_large`, gives the message's size and the limit.
+The client refuses to send a larger message itself, which fails each request in it with the reason.
+A body never makes a message too large, since it comes from a URL where it would.
 
 ## Fixtures
 
@@ -397,4 +407,4 @@ Each file in [`fixtures/`](fixtures/) holds a message that the client sends, in 
 | [`cancel`](fixtures/cancel.json) | cancelling a request |
 | [`forget`](fixtures/forget.json) | forgetting blocks |
 
-R's test suite decodes each message that the client sends and checks that it holds plain values only, and writes each message that R sends from R values, which [`helper-protocol.R`](../../tests/testthat/helper-protocol.R) gives, and checks that it holds the same JSON as its fixture, arrays and objects alike ([`test-protocol.R`](../../tests/testthat/test-protocol.R)). The JS test suite type-checks every fixture as a value of the types of its messages, so that a fixture fails on a field that its type lacks as it does on one that its type requires and the fixture leaves out ([`fixtures.test.ts`](../../srcts/protocol/fixtures.test.ts)). Both check that the fixtures of the handshake speak their side's protocol version. A message whose shape changes changes its fixture, its R values and its types together, or a suite fails.
+R's test suite decodes each message that the client sends and checks that it holds plain values only, and writes each message that R sends from R values, which [`helper-protocol.R`](../../tests/testthat/helper-protocol.R) gives, and checks that it holds the same JSON as its fixture, arrays and objects alike ([`test-protocol.R`](../../tests/testthat/test-protocol.R)). The JS test suite type-checks every fixture as a value of the types of its messages, so that a fixture fails on a property that its type lacks as it does on one that its type requires and the fixture leaves out ([`fixtures.test.ts`](../../srcts/protocol/fixtures.test.ts)). Both check that the fixtures of the handshake speak their side's protocol version. A message whose shape changes changes its fixture, its R values and its types together, or a suite fails.

@@ -104,7 +104,7 @@ async function tick(ms = 0): Promise<void> {
 
 // The board options n_rows, show_conditions and dark_mode of core, with the UI
 // given for n_rows, and a board option theme whose default is a function,
-// which core's basic front-end does not require.
+// which core's basic frontend does not require.
 function options(nRows: OptionModule, calls: { count: number } = { count: 0 }, dark: OptionModule = nRows): Option[] {
   const [rows, conditions, darkMode] = coreOptions;
   if (rows === undefined || conditions === undefined || darkMode === undefined) {
@@ -211,7 +211,6 @@ describe("the host", () => {
       id: sent[1]?.id ?? "",
       status: "error",
       conditions: [{ severity: "error", class: ["simpleError", "error", "condition"], phase: "request", message: "gone" }],
-      omitted: { warning: 0, message: 0 },
     });
     await expect(first).resolves.toEqual(["x"]);
     await expect(second).rejects.toBeInstanceOf(RequestError);
@@ -242,7 +241,7 @@ describe("a mount", () => {
     s.mounts.mountOption(document.createElement("div"), "theme");
     await tick();
 
-    // Beside those that core's basic front-end requires.
+    // Beside those that core's basic frontend requires.
     expect(s.store.board().options).toEqual({ show_conditions: ["warning", "error"], dark_mode: "light", n_rows: 50 });
   });
 

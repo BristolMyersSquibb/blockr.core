@@ -12,7 +12,7 @@
 // the store keeps for undo, and the patch that takes the removal back adds the
 // member before that one.
 
-import { isObject, jsonEqual, without } from "../util/index.ts";
+import { isObject, jsonEqual, own, without } from "../util/index.ts";
 import type { Patch } from "./delta.ts";
 
 // The parts of a JSON Pointer (RFC 6901), reading "~1" as "/" and "~0" as "~",
@@ -38,11 +38,22 @@ export function pathOf(parts: readonly string[]): string {
   return parts.map((part) => `/${part.replaceAll("~", "~0").replaceAll("/", "~1")}`).join("");
 }
 
-// Whether one path lies at or under the other, so that a patch at one changes
-// what is at the other.
-export function overlap(a: readonly string[], b: readonly string[]): boolean {
-  const n = Math.min(a.length, b.length);
-  return a.slice(0, n).every((part, i) => part === b[i]);
+// Whether one path lies at or under the other in the board, so that a patch at
+// one changes what is at the other.
+// A part that indexes an array, as an index or as "-" for its end, names no
+// element, since a patch at an index changes whatever the array holds there by
+// then.
+// So two paths that both index one array never overlap, even at one index, and
+// two patches into the array both apply.
+// The board tells which parts index an array, since a member of an object may
+// have a name made of digits.
+export function overlap(a: readonly string[], b: readonly string[], board: unknown): boolean {
+  let at = board;
+  for (const [i, part] of a.slice(0, b.length).entries()) {
+    if (Array.isArray(at) || part !== b[i]) return false;
+    at = isObject(at) ? own(at, part) : undefined;
+  }
+  return true;
 }
 
 // What a shape check of a patch finds wrong with it, each in a clause,

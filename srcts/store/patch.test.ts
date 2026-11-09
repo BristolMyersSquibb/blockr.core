@@ -32,8 +32,8 @@ function roundTrip(patch: Patch): Readonly<Record<string, unknown>> {
 describe("pointers", () => {
   test("read and write the parts of a path, escaping / and ~", () => {
     expect(pointer("/views/main/panels/0")).toEqual(["views", "main", "panels", "0"]);
-    expect(pointer("/extensions/blockr.dag-dag/a~1b~0c")).toEqual(["extensions", "blockr.dag-dag", "a/b~c"]);
-    expect(pathOf(["extensions", "a/b~c"])).toBe("/extensions/a~1b~0c");
+    expect(pointer("/plugins/blockr.dag-dag/a~1b~0c")).toEqual(["plugins", "blockr.dag-dag", "a/b~c"]);
+    expect(pathOf(["plugins", "a/b~c"])).toBe("/plugins/a~1b~0c");
     expect(pointer("/views/")).toEqual(["views", ""]);
   });
 
@@ -44,9 +44,18 @@ describe("pointers", () => {
   });
 
   test("overlap where one path lies at or under the other", () => {
-    expect(overlap(["views"], ["views", "main"])).toBe(true);
-    expect(overlap(["views", "main"], ["views", "main"])).toBe(true);
-    expect(overlap(["views", "main"], ["views", "side"])).toBe(false);
+    expect(overlap(["views"], ["views", "main"], board)).toBe(true);
+    expect(overlap(["views", "main"], ["views", "main"], board)).toBe(true);
+    expect(overlap(["views", "main"], ["views", "side"], board)).toBe(false);
+    expect(overlap(["views", "main", "panels"], ["views", "main", "panels", "-"], board)).toBe(true);
+  });
+
+  test("do not overlap where both lead into one array, since an index or its end names no element", () => {
+    const panels = ["views", "main", "panels"];
+    expect(overlap([...panels, "-"], [...panels, "-"], board)).toBe(false);
+    expect(overlap([...panels, "1"], [...panels, "1"], board)).toBe(false);
+    // A member of an object whose name is made of digits is no index.
+    expect(overlap(["pages", "1"], ["pages", "1"], { pages: { 1: "First" } })).toBe(true);
   });
 });
 

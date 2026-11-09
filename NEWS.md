@@ -2,7 +2,7 @@
 
 * R no longer runs a board. The board and block servers are gone, with
   `board_server()`, `block_server()`, the plugins and the `callbacks` through
-  which a front-end hooked into the board server, and so are the generics that
+  which a frontend hooked into the board server, and so are the generics that
   draw UI, such as `board_ui()`, `block_ui()`, `block_output()`,
   `blockr_app_ui()` and `blockr_app_server()`, the tabular display, the Shiny
   UIs and servers of board options and the `thematic`, `page_size`,
@@ -89,7 +89,7 @@
   A module gets the ID `{pkg}-{name}`.
   The startup modules keep the order in which packages declare them, which
   puts each after those of the packages its NAMESPACE imports.
-  Core's basic front-end, `blockr.core-basic`, is such a module, and so is
+  Core's basic frontend, `blockr.core-basic`, is such a module, and so is
   each module that a plugin class names (#424, #504).
 * A renderer, which `new_renderer()` makes, is a module that draws the
   outputs of an output class or the value of a board option, under the ID
@@ -219,7 +219,7 @@
   Core ships the SDK to packages beside its types, as `@blockr/core/react`, the binding as `@blockr/core/binding`, and as `@blockr/core/build` the build preset with which core bundles its own modules.
   The package also ships the SDK, the binding and the controls as ES modules of their own, and the preset leaves a module's imports of them and of React imports.
   The page that R serves resolves those imports through an import map, to the files that the package ships, so that a module's bundle holds none of React or of core's code, and every module runs the one copy of each that the blockr.core it runs on ships (#495).
-  Core's UIs take their colors from variables of core's theme, named after the design tokens of blockr.ui, such as `--bc-color-border-default`, which follow the text around them unless a front-end sets them.
+  Core's UIs take their colors from variables of core's theme, named after the design tokens of blockr.ui, such as `--bc-color-border-default`, which follow the text around them unless a frontend sets them.
   The client defines core's board options `n_rows`, `show_conditions` and `dark_mode`, each with its UI, and each takes its default from the blockr option of its name, as before.
   The board option `dark_mode` switches the page's theme in the attribute `data-bs-theme` of its root element, which Bootstrap reads too, and `n_rows` takes one row at least.
   A board option's definition in the client holds its UI module and what a new value does on the page, and the host of a renderer gives it the board option values that its output was asked with (#439).
@@ -228,20 +228,20 @@
   Each module ships the JSON Schema of its block's state beside it, which the build writes from the module's type of the state.
   R writes the state of the blocks it builds by that schema, and writes a named vector that the schema has as an object, such as the file browser's volumes, as an object.
   Core offers its inputs to packages that write their modules without React, through `controls()`, which draws the same inputs with core's copy of React, as `@blockr/core/controls` in a build, or through the module `blockr.core-controls`, which `host.module()` reaches.
-  Core's UIs, its renderers included, take their face from the theme's sans, `--bc-font-sans`, as their code takes its mono, `--bc-font-mono`, which a front-end sets to restyle them.
+  Core's UIs, its renderers included, take their face from the theme's sans, `--bc-font-sans`, as their code takes its mono, `--bc-font-mono`, which a frontend sets to restyle them.
   The stub of a block's host answers an upload that a fixture records with the file as the action's argument `file` (#438).
-* A stack may have a color, which front-ends draw it in, as the stacks of blockr.dock had until now.
+* A stack may have a color, which frontends draw it in, as the stacks of blockr.dock had until now.
   The color is a hex color of six digits, such as `"#66c2a5"`.
   The constructor `new_stack()` takes it as `color`, and `stack_color()` reads it.
-  A stack without a color is drawn in a default of the front-end's.
+  A stack without a color is drawn in a default of the frontend's.
   The JSON board holds every stack's color, as `null` for a stack without one.
   Core's commands that add and change a stack take a color, or `null` for none, and the client's store refuses a stack whose color is no hex color (#487).
 * Core's client starts the page in the order of the startup modules, through `startPage()` in its runtime.
   Once R has answered its hello, core asks R in one request for the blockr options that its scheduler reads.
   It then initializes the startup module of each package that R has loaded, one at a time in R's order, and opens the board that R sent, or the one that a startup module names in its place.
-  It draws the board with core's basic front-end, and lets the scheduler send once the front-end's `render()` has returned.
+  It draws the board with core's basic frontend, and lets the scheduler send once the frontend's `render()` has returned.
   A board opened later is drawn in the same way, and a later session that names a loaded package at another version has the page ask the user to reload it.
-  Front-ends, extensions and startup modules work on the board through `CoreApi`.
+  Frontends, plugins and startup modules work on the board through `CoreApi`.
   Its `mountBlock()`, `mountOutput()` and `mountOption()` mount a block's UI, a block's output and a board option's UI, and its `blockrOption()` reads a blockr option once per page.
   Its `request()` sends a request of a plugin of the board, by the plugin's id, once the blocks that the request reads are evaluated, and keeps none of its answers.
   An output is measured, asked of R and drawn by the renderer that R names in it, and a renderer calls its output class's requests and its own through its host.
@@ -249,14 +249,14 @@
   The package `@blockr/core` names the React that core's runtime bundles, at that version, as its peer, so that npm installs that React with it and a package's tests run on it with no React of their own, while npm refuses a second copy at another version (#440, #504, #505).
 * Opening a board starts core's client again in place, with no reload, so that nothing of the board before outlives the opening.
   The store on the page checks the board first, with its `check()`, and a board that it refuses leaves the page as it was, with the reason.
-  One abort then ends everything that core ran for the board before: the front-end and what it mounted, the startup modules, the store with its undo history, the command registry, the board options, the scheduler with its demands, and what core kept of outputs and answers.
-  Core sends another hello, on which R drops every result, queued request and request body of the board before, and starts as the page does, with a new `CoreApi` for the startup modules and the front-end.
+  One abort then ends everything that core ran for the board before: the frontend and what it mounted, the startup modules, the store with its undo history, the command registry, the board options, the scheduler with its demands, and what core kept of outputs and answers.
+  Core sends another hello, on which R drops every result, queued request and request body of the board before, and starts as the page does, with a new `CoreApi` for the startup modules and the frontend.
   A store opens one board, and the scheduler of the next board gives each block a revision above any that the page has given (#497).
 * A later session whose R speaks another major of the wire protocol stops the page, as the first session's does.
   Core's client sends R nothing more, not even what it held for the session, and the page says to reload it.
   Where a later session names a package at another version than the page loaded, the page still asks the user to reload it.
   Until then, core keeps the modules of that package that it loaded, and loads no other module of it (#515).
-* Core's basic front-end, `blockr.core-basic`, draws every board.
+* Core's basic frontend, `blockr.core-basic`, draws every board.
   It is written in React on core's React SDK and styled with Tailwind CSS under core's prefix.
   Its toolbar adds a block from the block registry's entries, edits links and stacks, sets the board options that the board holds, renames the board, and saves the board as a file or opens one.
   It draws each stack as a group of its blocks' cards.
@@ -264,8 +264,8 @@
   A card's menu renames or removes its block, or adds a block before or after it.
   The output of a block that is not ready is grayed out, where the page cleared it until now.
   Undo and redo are bound to Mod+Z, and Mod+Shift+Z or Mod+Y, with Mod either Ctrl or Cmd.
-  The front-end tells the user which edit the store refused.
-  The front-end demands every block above the default evaluation priority, and the blocks in view higher still, where the page parked the blocks of collapsed stacks until now.
+  The frontend tells the user which edit the store refused.
+  The frontend demands every block above the default evaluation priority, and the blocks in view higher still, where the page parked the blocks of collapsed stacks until now.
   On a locked board, it draws no control for what the lock fixes.
   It requires the board options `show_conditions` and `dark_mode`, so that every board gets them as it opens.
   The page's color scheme follows the theme that `dark_mode` switches the page to, so that the browser draws the page's background, form controls and scroll bars in that theme too.
@@ -310,6 +310,11 @@
   Without the load lock, R holds a block to its first evaluation since the board opened.
   R runs every request as on any board, with the board option values that the request carries.
   The generic `is_board_locked()` goes, and a package reads the blockr option `locked` in its place (#434).
+* The client refuses to open a board that holds a value that its schema refuses once migrated: a block's state, a plugin's state or a board option's value.
+  It names every such value.
+  So an app script whose board gives `new_n_rows_option(0)` runs, since a board option's constructor checks nothing, but its page shows the errors in place of the board.
+  The client's store also refuses an edit that leaves a block's state failing the schema of its class, as it refuses one for a plugin's state or a board option's value, so that a board saved from the app opens again.
+  The client drops the value of a board option that no package of the app registers, and names the board option by its ID (#509).
 
 # blockr.core 0.1.4
 
