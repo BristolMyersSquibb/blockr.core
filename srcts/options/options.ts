@@ -13,10 +13,11 @@
 // are today's, but for n_rows, whose page holds 10 rows where today's holds
 // 50. Core calls the function only once a component requires the board
 // option, so that nothing is read before then.
-// Each default reads a string, as an environment variable gives, as R reads
-// it for the board option, and where R holds a value that the board option's
-// schema then refuses, the default fails, naming the value as R sent it, so
-// that no reader gets the fallback in place of the value that was set.
+// Each default reads a string, as an environment variable gives, as the
+// number or the logical that it holds, and where R holds a value that the
+// board option's schema then refuses, the default fails, naming the value as
+// R sent it, so that no reader gets the fallback in place of the value that
+// was set.
 
 import type { Option } from "../store/index.ts";
 import type { OptionId } from "../types/board.ts";
@@ -44,7 +45,7 @@ export function nRows(core: BlockrOptions): Option {
     label: "Preview rows",
     category: "Table options",
     schema,
-    // A string reads as R's as.numeric() reads it.
+    // A string reads as the number that it holds.
     default: async () => {
       const value = await core.blockrOption("n_rows");
       if (value === undefined) return fallback;
@@ -121,11 +122,8 @@ function preferredTheme(): "light" | "dark" {
 
 // The value of the blockr option, as the default reads what R sent, where the
 // board option's schema takes it. A value that the schema refuses fails the
-// default, naming what R sent. So does a number that JSON cannot hold, as
-// "Inf" reads, since R would get null in its place, while the schema's
-// validator takes Infinity for an integer.
+// default, naming what R sent.
 function checked(id: OptionId, schema: JsonSchema, sent: Json, value: Json = sent): Json {
-  const json = typeof value !== "number" || Number.isFinite(value);
-  if (json && compile(`the board option "${id}"`, schema)(value).length === 0) return value;
+  if (compile(`the board option "${id}"`, schema)(value).length === 0) return value;
   throw new TypeError(`The blockr option ${id} is ${JSON.stringify(sent)}, which the board option ${id} does not take.`);
 }

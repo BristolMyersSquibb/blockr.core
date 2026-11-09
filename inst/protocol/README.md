@@ -114,8 +114,7 @@ The client reads a blockr option by asking R for it, since it can read neither a
 | `names` | the blockr options to read, as `["evaluation_queue", "gate_visibility"]` |
 
 R replies `ok` with the value of each that it has one for, as `blockr_option()` reads it, in `values`, by name, and sends no value for the others, which nothing sets.
-R sends a value as it is set, so that one set through an environment variable arrives as a string.
-It writes `Inf`, `-Inf`, `NA` and `NaN` as the strings `"Inf"`, `"-Inf"`, `"NA"` and `"NaN"`, where the rest of a message holds `null` for each ([Encoding](#encoding)), so that the code that reads the blockr option can tell them apart.
+R sends a value as it is set, so that one set through an environment variable arrives as a string, and writes `Inf`, `NA` and `NaN` as `null` ([Encoding](#encoding)).
 R answers for any blockr option, since a client can read whatever the R process can ([State in JS](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1#proposal)).
 
 R replies `error` to the request where it cannot give one of the values.
@@ -124,7 +123,8 @@ R checks nothing else: it writes every other value as yyjsonr writes it, so that
 The client then fails every read in the request, with R's message.
 
 The client gives each value to the code that reads the blockr option as R sent it, and that code converts and checks it.
-It reads a string, as an environment variable gives, as R's `as.numeric()` or `as.logical()` reads it, and a value that it then does not take fails, such as `"a"` or `"-1"` for `evaluation_queue`.
+It reads a string, as an environment variable gives, as the number or the logical that it holds, and a value that it then does not take fails, such as `"a"` or `null` for `evaluation_queue`.
+Since JSON holds no infinite number, -1 stands for no limit where a blockr option of core has one, as `evaluation_queue` and `background_evaluation_delay` do.
 So the code takes a fallback of its own only where nothing sets the blockr option, and never in place of a value that was set ([Blockr options](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.13#blockr-options)).
 
 The client asks for a blockr option once per page, the first time its code reads it through `CoreApi.blockrOption()`, and keeps the value, since a blockr option is fixed for the app.
@@ -355,9 +355,8 @@ So an arg that is a vector arrives as an atomic vector, of length one too, and a
 
 ## Encoding
 
-R writes what it sends with yyjsonr as well, as `encode_message()` does, which marks its text as JSON, so that Shiny's `session$sendCustomMessage()` sends it as it is. R's lack of scalars stays in R ([Principles](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1#principles)), so R writes every vector of length one bare, and marks with `I()` a value that has to stay an array, by the schema that gives its shape. An object is a named list, an empty one a named empty list, and `NULL` is written as `null`, as are `NA`, `NaN` and infinite numbers, while a named atomic vector is written as an array without its names. A request's answer is one exception, which `encode_answer()` writes with every vector as an array ([Requests](#requests)). The opening board in `board` is another. In it, `blockr_ser()` writes a named vector as an object, so that a block's state keeps its names.
+R writes what it sends with yyjsonr as well, as `encode_message()` does, which marks its text as JSON, so that Shiny's `session$sendCustomMessage()` sends it as it is. R's lack of scalars stays in R ([Principles](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1#principles)), so R writes every vector of length one bare, and marks with `I()` a value that has to stay an array, by the schema that gives its shape. An object is a named list, an empty one a named empty list, and `NULL` is written as `null`, as are `NA`, `NaN` and infinite numbers, so that a blockr option at `Inf` reaches the client as `null`, while a named atomic vector is written as an array without its names. A request's answer is one exception, which `encode_answer()` writes with every vector as an array ([Requests](#requests)). The opening board in `board` is another. In it, `blockr_ser()` writes a named vector as an object, so that a block's state keeps its names.
 A string of class `json` goes in as it is, so that R passes on JSON it holds as text, such as the JSON board that `serve()` was given, without decoding it.
-The value of a blockr option holds `NA`, `NaN` and infinite numbers as strings instead ([Blockr options](#blockr-options)).
 
 ## The Shiny transport
 

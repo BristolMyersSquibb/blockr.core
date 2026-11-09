@@ -832,44 +832,6 @@ test_that("R writes a blockr option as yyjsonr does, or fails naming it", {
   )
 })
 
-test_that("R writes Inf, -Inf, NA and NaN of a blockr option as strings", {
-
-  withr::local_options(
-    blockr.queue = Inf,
-    blockr.delay = -Inf,
-    blockr.missing = NA,
-    blockr.nan = NaN
-  )
-
-  session <- local_evaluator()
-
-  session$receive(
-    list(
-      list(
-        id = "2",
-        kind = "blockr_options",
-        names = c("queue", "delay", "missing", "nan")
-      )
-    )
-  )
-  session$run()
-
-  expect_identical(
-    sent_json(session),
-    list(
-      list(
-        list(
-          id = "2",
-          status = "ok",
-          values = list(
-            queue = "Inf", delay = "-Inf", missing = "NA", nan = "NaN"
-          )
-        )
-      )
-    )
-  )
-})
-
 test_that("R replies error for a blockr option it cannot read", {
 
   withr::local_options(blockr.evaluation_queue = 3L)

@@ -55,9 +55,9 @@ describe("reading a blockr option", () => {
     const options = createBlockrOptions(r.client);
     const reads = Promise.all(["delay", "queue", "gate", "missing", "theme", "severities", "unset"].map((name) => options.read(name)));
     await flush();
-    r.answer(0, { delay: "30", queue: "Inf", gate: "FALSE", missing: null, theme: true, severities: ["error"] });
+    r.answer(0, { delay: "30", queue: "-1", gate: "FALSE", missing: null, theme: true, severities: ["error"] });
 
-    await expect(reads).resolves.toEqual(["30", "Inf", "FALSE", null, true, ["error"], undefined]);
+    await expect(reads).resolves.toEqual(["30", "-1", "FALSE", null, true, ["error"], undefined]);
   });
 
   test("asks the next session where the session ends before R replies", async () => {

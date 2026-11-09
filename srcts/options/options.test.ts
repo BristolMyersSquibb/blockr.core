@@ -90,7 +90,7 @@ describe("core's board options", () => {
     expect(await defaultOf(darkMode(blockr({ dark_mode: false }).core))).toBe("light");
   });
 
-  test("read the string that an environment variable sets as R's as.numeric() and as.logical() read it", async () => {
+  test("read the string that an environment variable sets as the number or the logical that it holds", async () => {
     const { core } = blockr({ n_rows: " 25 ", dark_mode: "TRUE" });
     expect(await defaultOf(nRows(core))).toBe(25);
     expect(await defaultOf(darkMode(core))).toBe("dark");
@@ -119,7 +119,7 @@ describe("core's board options", () => {
       'The blockr option dark_mode is "blue", which the board option dark_mode does not take.',
     );
 
-    const strings = blockr({ n_rows: "many", dark_mode: " TRUE" }).core;
+    const strings = blockr({ n_rows: "many", dark_mode: "yes" }).core;
     await expect(defaultOf(nRows(strings))).rejects.toThrow(
       'The blockr option n_rows is "many", which the board option n_rows does not take.',
     );
@@ -127,7 +127,7 @@ describe("core's board options", () => {
       'The blockr option n_rows is "Inf", which the board option n_rows does not take.',
     );
     await expect(defaultOf(darkMode(strings))).rejects.toThrow(
-      'The blockr option dark_mode is " TRUE", which the board option dark_mode does not take.',
+      'The blockr option dark_mode is "yes", which the board option dark_mode does not take.',
     );
     await expect(defaultOf(darkMode(blockr({ dark_mode: null }).core))).rejects.toThrow(
       "The blockr option dark_mode is null, which the board option dark_mode does not take.",

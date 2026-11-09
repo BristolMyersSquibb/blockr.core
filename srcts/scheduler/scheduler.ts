@@ -138,21 +138,22 @@ export interface SchedulerOptions {
   readonly client: Pick<Client, "request" | "forget" | "capabilities">;
   // The blockr options that the scheduler reads, as R sent them. Core asks R
   // for them as soon as R has answered its hello. One that an environment
-  // variable sets is a string, which the scheduler reads as R's as.numeric()
-  // or as.logical() reads it. A value that it does not take fails, so that the
-  // scheduler never starts with another in its place.
+  // variable sets is a string, which the scheduler reads as the number or the
+  // logical that it holds. A value that it does not take fails, so that the
+  // scheduler never starts with another in its place. Where a blockr option
+  // has no limit, -1 stands for it, since JSON holds no infinite number.
   //
   // The `evaluation_queue` blockr option says how many evaluations the
   // scheduler keeps waiting in R, behind the one R runs, a whole number of 0
   // or more. It is 2 unless given.
   // With 0, the scheduler sends the next evaluation only once the last reply is
-  // back. With Infinity, it sends every evaluation at once.
+  // back. With -1, it sends every evaluation at once.
   readonly evaluationQueue?: Json | undefined;
   // The `background_evaluation_delay` blockr option, a number of 0 or more,
-  // Infinity unless given.
+  // or -1, which it is unless given.
   // Once R has had nothing else to run for that many seconds, the scheduler
-  // evaluates the stale and unevaluated blocks that nothing demands. With
-  // Infinity, it evaluates nothing in the background.
+  // evaluates the stale and unevaluated blocks that nothing demands. With -1,
+  // it evaluates nothing in the background.
   readonly backgroundEvaluationDelay?: Json | undefined;
   // The `gate_visibility` blockr option, TRUE or FALSE, TRUE unless given. Set
   // to FALSE, it has the scheduler demand every block.
@@ -778,18 +779,19 @@ function changedSince(
 }
 
 // A blockr option's number, or its fallback where it is not given. A string,
-// as an environment variable gives, reads as R's as.numeric() reads it, so
-// that "3" is 3 and "Inf" is Infinity. A value that is then no number of 0 or
-// more fails, and so does one that is no whole number where the blockr option
-// counts, with Infinity as the one value beside them.
+// as an environment variable gives, reads as the number that it holds, so
+// that "3" is 3. The value -1 stands for no limit, which the scheduler holds
+// as Infinity. Any other value that is no number of 0 or more fails, and so
+// does one that is no whole number where the blockr option counts.
 function setting(value: Json | undefined, fallback: number, name: string, counts = false): number {
   if (value === undefined) return fallback;
   const number = typeof value === "string" ? numberOf(value) : value;
-  if (typeof number === "number" && number >= 0 && (!counts || Number.isInteger(number) || number === Infinity)) {
+  if (number === -1) return Infinity;
+  if (typeof number === "number" && Number.isFinite(number) && number >= 0 && (!counts || Number.isInteger(number))) {
     return number;
   }
   throw new RangeError(
-    `The blockr option ${name} is ${shown(value)}, where it takes ${counts ? "a whole number" : "a number"} of 0 or more.`,
+    `The blockr option ${name} is ${shown(value)}, where it takes ${counts ? "a whole number" : "a number"} of 0 or more, or -1.`,
   );
 }
 

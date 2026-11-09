@@ -51,16 +51,13 @@ encode_answer <- function(x) {
   json_str(x, auto_unbox = FALSE)
 }
 
-# It writes Inf, -Inf, NA and NaN as null, unless `num_specials` is
-# "string", which writes them as "Inf", "-Inf", "NA" and "NaN".
-json_str <- function(x, auto_unbox, pretty = FALSE, num_specials = "null") {
+json_str <- function(x, auto_unbox, pretty = FALSE) {
   structure(
     yyjsonr::write_json_str(
       x,
       opts = yyjsonr::opts_write_json(
         pretty = pretty,
         auto_unbox = auto_unbox,
-        num_specials = num_specials,
         json_verbatim = TRUE
       )
     ),

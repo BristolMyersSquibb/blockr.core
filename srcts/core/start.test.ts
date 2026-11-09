@@ -225,7 +225,7 @@ describe("starting the page", () => {
     const s = setup({ [BASIC]: basic.exports });
     s.r.session();
     await tick();
-    s.r.options({ evaluation_queue: "3", background_evaluation_delay: "Inf", gate_visibility: "TRUE", rand_id: "uuid" });
+    s.r.options({ evaluation_queue: "3", background_evaluation_delay: "-1", gate_visibility: "TRUE", rand_id: "uuid" });
 
     const core = await s.started.ready;
     expect(core.store.board().name).toBe("Iris review");
@@ -244,9 +244,9 @@ describe("starting the page", () => {
     );
     s.r.session();
     await tick();
-    s.r.options({ evaluation_queue: "-1" });
+    s.r.options({ evaluation_queue: "-2" });
 
-    await expect(s.started.ready).rejects.toThrow('The blockr option evaluation_queue is "-1", where it takes a whole number of 0 or more.');
+    await expect(s.started.ready).rejects.toThrow('The blockr option evaluation_queue is "-2", where it takes a whole number of 0 or more, or -1.');
     expect(failed).toHaveLength(1);
   });
 

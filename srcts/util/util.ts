@@ -147,18 +147,19 @@ export function isPackageName(name: unknown): name is string {
   return typeof name === "string" && /^[A-Za-z][A-Za-z0-9.]*[A-Za-z0-9]$/.test(name);
 }
 
-// A number as R's as.numeric() reads one from text, such as an environment
-// variable's value, or NaN.
+// The number that text holds, such as an environment variable's value, or NaN
+// where it holds no finite number, as "", "a" and "Inf" do, while Number()
+// reads "" as 0.
 export function numberOf(text: string): number {
-  const trimmed = text.trim();
-  if (/^[+-]?inf(inity)?$/i.test(trimmed)) return trimmed.startsWith("-") ? -Infinity : Infinity;
-  return trimmed === "" ? NaN : Number(trimmed);
+  const number = text.trim() === "" ? NaN : Number(text);
+  return Number.isFinite(number) ? number : NaN;
 }
 
 // A logical as R's as.logical() reads one from text, such as an environment
 // variable's value, or undefined.
 export function logicalOf(text: string): boolean | undefined {
-  if (["TRUE", "true", "True", "T"].includes(text)) return true;
-  if (["FALSE", "false", "False", "F"].includes(text)) return false;
+  const trimmed = text.trim();
+  if (["TRUE", "true", "True", "T"].includes(trimmed)) return true;
+  if (["FALSE", "false", "False", "F"].includes(trimmed)) return false;
   return undefined;
 }

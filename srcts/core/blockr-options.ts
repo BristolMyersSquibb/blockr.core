@@ -11,7 +11,7 @@
 //   blockr option. The code that reads it converts and checks the value, and
 //   takes a fallback of its own where nothing sets it. R sends a value as it is
 //   set, so that one an environment variable sets arrives as a string, and
-//   writes Inf, -Inf, NA and NaN as the strings "Inf", "-Inf", "NA" and "NaN".
+//   writes Inf, NA and NaN as null.
 // - A read fails with R's message where R replies error, as for a blockr option
 //   whose R option and environment variable disagree.
 

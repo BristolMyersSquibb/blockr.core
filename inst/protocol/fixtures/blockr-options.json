@@ -1,5 +1,5 @@
 {
-  "description": "Reading the blockr options that core asks R for as soon as R has answered its hello: the three that its scheduler reads, and rand_id, the shape of the ids that its commands mint. The app sets evaluation_queue as the R option blockr.evaluation_queue, which arrives as the number it holds, and the deployment sets BLOCKR_BACKGROUND_EVALUATION_DELAY, which arrives as the string an environment variable holds, for the scheduler to read as R's as.numeric() reads it. Nothing sets gate_visibility or rand_id, for which R sends no value, so that the scheduler and the command registry take their fallbacks.",
+  "description": "Reading the blockr options that core asks R for as soon as R has answered its hello: the three that its scheduler reads, and rand_id, the shape of the ids that its commands mint. The app sets evaluation_queue as the R option blockr.evaluation_queue, which arrives as the number it holds, and the deployment sets BLOCKR_BACKGROUND_EVALUATION_DELAY, which arrives as the string an environment variable holds, for the scheduler to read as the number that it holds. Nothing sets gate_visibility or rand_id, for which R sends no value, so that the scheduler and the command registry take their fallbacks.",
   "client": [
     {
       "id": "2",
