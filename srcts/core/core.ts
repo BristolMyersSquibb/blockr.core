@@ -38,9 +38,6 @@ export interface CoreParts {
   readonly renderers: () => Readonly<Record<string, Renderer>>;
   // Measures an output's element, through the DOM unless given.
   readonly measure?: Measure;
-  // The package whose startup module registered the board option, which the
-  // mounts name in their errors, or null where core knows none.
-  readonly optionPackage?: (id: OptionId) => string | null;
   // Ends what CoreApi runs as it aborts, as another board opens: every mount,
   // and what core keeps of outputs and answers, while the outputs' events
   // reach nobody more.
@@ -78,7 +75,6 @@ export function createCore(parts: CoreParts): CoreApi {
     renderers: parts.renderers,
     ...(parts.measure === undefined ? {} : { measure: parts.measure }),
     ...(parts.signal === undefined ? {} : { signal: parts.signal }),
-    ...(parts.optionPackage === undefined ? {} : { optionPackage: parts.optionPackage }),
     emit(event) {
       for (const fn of [...listeners]) {
         try {

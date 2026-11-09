@@ -49,15 +49,12 @@ export interface Checked<T> {
     readonly def: T;
     readonly validate: Validate;
 }
-export interface RegisteredOption extends Checked<Option> {
-    readonly package: string | null;
-}
 export interface Registrations {
     readonly plugins: Plugins;
     readonly options: Options;
     registerMigration(registryId: RegistryId, fn: Migration): () => void;
     plugin(id: PluginClassId): Checked<PluginClass> | undefined;
-    option(id: OptionId): RegisteredOption | undefined;
+    option(id: OptionId): Checked<Option> | undefined;
     migration(registryId: RegistryId): Migration | undefined;
 }
 export declare const BASIC_OPTIONS: readonly OptionId[];

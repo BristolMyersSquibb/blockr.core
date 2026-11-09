@@ -21,6 +21,5 @@ export interface MountsOptions {
     readonly emit?: (event: OutputEvent) => void;
     readonly measure?: Measure;
     readonly signal?: AbortSignal;
-    readonly optionPackage?: (id: OptionId) => string | null;
 }
 export declare function createMounts(options: MountsOptions): Mounts;

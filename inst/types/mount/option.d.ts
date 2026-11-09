@@ -14,6 +14,5 @@ export interface OptionDeps {
     readonly replaced: AbortSignal;
     readonly addOptions: (ids: readonly OptionId[], by: string) => Promise<void>;
     readonly defaultOf: (id: OptionId, def: Option) => Promise<Json>;
-    readonly optionPackage: (id: OptionId) => string | null;
 }
 export declare function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId): () => void;

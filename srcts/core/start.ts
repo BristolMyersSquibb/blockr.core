@@ -9,8 +9,8 @@
 //    at a time in R's order, awaiting each initialize(). It names one that
 //    fails and carries on. Core records the package of each board option:
 //    the package of the startup module whose initialize() it awaits as the
-//    board option is registered, or blockr.core for core's own. The errors of
-//    the board option name that package.
+//    board option is registered, or blockr.core for core's own. A second
+//    registration of the board option's id names that package.
 // 4. It opens the board that R sent, or in its place the one that a startup
 //    module resolves with, unless the load lock is on or two startup modules
 //    resolve with one, where it keeps R's and names the packages. A board that
@@ -53,7 +53,7 @@ import { createClient, PROTOCOL_VERSION } from "../protocol/index.ts";
 import type { Capability, HelloReply, Reply, Transport } from "../protocol/index.ts";
 import { counter, createScheduler } from "../scheduler/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
-import { createRegistrations, createStore, StoreError } from "../store/index.ts";
+import { createStore, StoreError } from "../store/index.ts";
 import type { Dropped, Option, Store } from "../store/index.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import { asError, isObject, messageOf, own, quoted, report } from "../util/index.ts";
@@ -251,12 +251,11 @@ export function start(options: StartOptions): Started {
 
     // The store keeps this package with each board option registered.
     const registering: Registering = { package: CORE };
-    const registrations = createRegistrations(() => registering.package);
     const store: Store = createStore({
       hello: reply,
       loaded: () => prepare(),
       signal,
-      registrations,
+      registering: () => registering.package,
     });
     const commands = createCommands(store, { signal, lock: reply.lock });
     for (const option of options.options({ blockrOption: (name, fallback) => blockrOptions.read(name, fallback) })) {
@@ -288,7 +287,6 @@ export function start(options: StartOptions): Started {
       renderers: () => latest?.renderers ?? {},
       signal,
       ...(options.measure === undefined ? {} : { measure: options.measure }),
-      optionPackage: (id) => registrations.option(id)?.package ?? null,
     });
     running = { store, scheduler, core, controller };
 

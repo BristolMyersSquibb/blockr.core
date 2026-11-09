@@ -9,7 +9,6 @@ import { coreOptions } from "../options/index.ts";
 import { reports } from "../testing/reports.ts";
 import { hello, noUi, withPlugins } from "../testing/store.ts";
 import type { CoreApi } from "../types/core-api.ts";
-import type { OptionModule } from "../types/hosts.ts";
 import type { JsonSchema } from "../types/json.ts";
 import { pageFrontEnds, start } from "./index.ts";
 import type { Changed, StartOptions } from "./index.ts";
@@ -183,24 +182,17 @@ function startup(name: string, events: string[], fn: () => unknown = () => undef
   };
 }
 
-// A startup module that registers a board option with the UI given.
-function registering(id: string, ui: OptionModule = noUi) {
+// A startup module that registers a board option.
+function registering(id: string) {
   return {
     api: 1,
     default: {
       initialize({ core }: { core: CoreApi }) {
-        core.options.register({ id, label: id, category: "Test options", schema: {}, default: 1, ui });
+        core.options.register({ id, label: id, category: "Test options", schema: {}, default: 1, ui: noUi });
       },
     },
   };
 }
-
-// The UI of a board option that fails in render().
-const failing: OptionModule = {
-  render() {
-    throw new Error("boom");
-  },
-};
 
 function withStartup(...packages: string[]): HelloReply {
   return {
@@ -390,7 +382,7 @@ describe("starting the page", () => {
     ]);
   });
 
-  test("names both packages where a startup module registers a board option that core or another package registered already", async () => {
+  test("names the package that registered a board option where a startup module registers its id again", async () => {
     const s = setup({
       "blockr.io/startup.js?v=1": registering("data_dir"),
       "blockr.other/startup.js?v=1": registering("data_dir"),
@@ -406,37 +398,16 @@ describe("starting the page", () => {
 
     expect(Object.keys(core.options.registered())).toEqual(["n_rows", "show_conditions", "dark_mode", "data_dir"]);
     expect(reported.errors().map((error) => (error as Error).message)).toEqual([
-      'The module blockr.other/startup.js of blockr.other failed in initialize(): The board option "data_dir" is registered already by blockr.io, so blockr.other cannot register it.',
-      'The module blockr.rows/startup.js of blockr.rows failed in initialize(): The board option "n_rows" is registered already by blockr.core, so blockr.rows cannot register it.',
+      'The module blockr.other/startup.js of blockr.other failed in initialize(): The board option "data_dir" is registered already by blockr.io.',
+      'The module blockr.rows/startup.js of blockr.rows failed in initialize(): The board option "n_rows" is registered already by blockr.core.',
     ]);
-  });
 
-  test("names the package whose startup module registered a board option where its UI fails in render(), blockr.core for core's own", async () => {
-    const s = setup(
-      { "blockr.zoom/startup.js?v=1": registering("zoom", failing), [BASIC]: frontEnd().exports },
-      { options: (core) => coreOptions(core).map((option) => (option.id === "n_rows" ? { ...option, ui: failing } : option)) },
-    );
-    s.r.session(withStartup("blockr.zoom"));
-    await tick();
-    s.r.options();
-    const core = await s.started.ready;
-    // Registered once every startup module has initialized, so from none.
-    core.options.register({ id: "late", label: "Late", category: "Test options", schema: {}, default: 1, ui: failing });
-    const reported = reports();
-    const [rows, zoom, late] = [0, 1, 2].map(() => document.createElement("div"));
-    if (rows === undefined || zoom === undefined || late === undefined) throw new Error("The test lacks an element.");
-    core.mountOption(rows, "n_rows");
-    core.mountOption(zoom, "zoom");
-    core.mountOption(late, "late");
-    await tick();
-    reported.restore();
-
-    expect([rows, zoom, late].map((el) => el.textContent)).toEqual([
-      'The module the UI of the board option "n_rows" of blockr.core failed in render(): boom',
-      'The module the UI of the board option "zoom" of blockr.zoom failed in render(): boom',
-      'The module the UI of the board option "late" from no package failed in render(): boom',
-    ]);
-    expect(reported.errors()).toHaveLength(3);
+    // Registered once every startup module has initialized, so from no package.
+    const late = (): void => {
+      core.options.register({ id: "late", label: "Late", category: "Test options", schema: {}, default: 1, ui: noUi });
+    };
+    late();
+    expect(late).toThrow(new Error('The board option "late" is registered already.'));
   });
 
   test("refuses to start where R speaks another major of the protocol", async () => {
