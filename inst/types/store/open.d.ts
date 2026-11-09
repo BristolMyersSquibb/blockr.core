@@ -1,6 +1,5 @@
 import type { HelloReply } from "../protocol/index.ts";
 import type { Board, JsonBoard, OptionId, PluginId } from "../types/board.ts";
-import type { Json } from "../types/json.ts";
 import type { Registrations } from "./registrations.ts";
 export declare const FORMAT = 1;
 export type Dropped = {
@@ -23,4 +22,3 @@ export declare function openJsonBoard(json: JsonBoard, reply: Pick<HelloReply, "
     board: Board;
     dropped: Dropped[];
 };
-export declare function required(board: Board, registrations: Registrations): Promise<Readonly<Record<OptionId, Json>>>;

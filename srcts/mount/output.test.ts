@@ -231,8 +231,7 @@ describe("asking", () => {
     const el = await ready(s);
 
     expect(s.imported).toEqual([TABLE.module]);
-    // Beside those that core's basic frontend requires.
-    expect(s.store.board().options).toEqual({ show_conditions: ["warning", "error"], dark_mode: "light", n_rows: 50, zoom: 1 });
+    expect(s.store.board().options).toEqual({ n_rows: 50, zoom: 1 });
     expect(outputs(s.r)).toHaveLength(1);
     expect(lastOutput(s.r)).toMatchObject({
       kind: "output",
@@ -535,7 +534,7 @@ describe("the renderer", () => {
     // board does not take, so that a coercion that wraps as_table_output() gets
     // n_rows.
     expect(lastOutput(s.r).options).toEqual({ n_rows: 50, show_conditions: ["error"], dark_mode: "light", zoom: 1 });
-    expect(s.store.board().options).toEqual({ show_conditions: ["error"], dark_mode: "light" });
+    expect(s.store.board().options).toEqual({ show_conditions: ["error"] });
 
     s.r.reply({ id: lastOutput(s.r).id, status: "ok", output: { renderer: TEXT, text: "a" } });
     await tick();

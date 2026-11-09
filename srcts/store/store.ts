@@ -13,7 +13,7 @@ import { signal } from "@preact/signals-core";
 import type { HelloReply } from "../protocol/index.ts";
 import type { BlockId, Board, JsonBoard, PluginId, RegistryId } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { own, packageOf, report } from "../util/index.ts";
+import { asError, own, packageOf, report } from "../util/index.ts";
 import { check } from "./check.ts";
 import { commit, target } from "./commit.ts";
 import type { Changed, Inverse, Target } from "./commit.ts";
@@ -24,7 +24,7 @@ import { expand } from "./expand.ts";
 import { fixes, lockFailures } from "./lock.ts";
 import { pluginOf } from "./patch.ts";
 import { fit, isEmpty } from "./undo.ts";
-import { checkJsonBoard, FORMAT, openJsonBoard, parse, required } from "./open.ts";
+import { checkJsonBoard, FORMAT, openJsonBoard, parse } from "./open.ts";
 import type { Dropped } from "./open.ts";
 import { createRegistrations } from "./registrations.ts";
 import type { Migration, Options, Plugins } from "./registrations.ts";
@@ -135,9 +135,6 @@ export interface StoreOptions {
   // it opens no reply's board, as core opens the board given as it starts
   // again.
   readonly hello?: HelloReply;
-  // What has to run before the store opens a board, given the reply to
-  // `hello`, such as importing the frontend that draws the board.
-  readonly loaded?: (reply: HelloReply) => void | Promise<void>;
   // Ends the store as it aborts, as another board opens in a new store: the
   // store drops its subscribers and refuses every change from then on, so that
   // nothing changes or follows the board before.
@@ -431,69 +428,59 @@ export function createStore(options: StoreOptions = {}): Store {
   }
 
   // The board that a JSON board opens to, as openJsonBoard() migrates it and
-  // gives it the plugins of the app's opening board, with the values of the
-  // board options that core's basic frontend requires, whose defaults may have
-  // to wait, as one read from a blockr option asks R for it.
-  async function build(json: JsonBoard, reply: HelloReply): Promise<{ board: Board; dropped: Dropped[] }> {
+  // gives it the plugins of the app's opening board.
+  function build(json: JsonBoard, reply: HelloReply): { board: Board; dropped: Dropped[] } {
     guard();
-    let opened: ReturnType<typeof openJsonBoard>;
     busy = true;
     try {
-      opened = openJsonBoard(json, reply, registrations);
+      return openJsonBoard(json, reply, registrations);
     } finally {
       busy = false;
     }
-    const values = await required(opened.board, registrations);
-    const next: Board =
-      Object.keys(values).length === 0
-        ? opened.board
-        : { ...opened.board, options: { ...opened.board.options, ...values } };
-    return { board: next, dropped: opened.dropped };
   }
 
   function stillOpen(): void {
     if (ended()) throw new StoreError(refusedOpen, [ENDED]);
   }
 
-  async function open(given: string | HelloReply): Promise<Dropped[]> {
-    stillOpen();
-    if (opening) {
-      throw new StoreError(refusedOpen, [
-        "The store holds a board or opens one already: a store opens one board, and core opens the next in a new store as it starts again.",
-      ]);
-    }
-    opening = true;
-    try {
-      const { json, reply } = jsonOf(given);
-      await options.loaded?.(reply);
+  function open(given: string | HelloReply): Promise<Dropped[]> {
+    return settled(() => {
       stillOpen();
-      const opened = await build(json, reply);
-      stillOpen();
-
-      guard();
-      busy = true;
-      try {
-        board.value = opened.board;
-        const step = ++lastStep;
-        for (const key of everyTarget(opened.board)) edits.set(key, step);
-        announce({ opened: opened.board, dropped: opened.dropped }, opened.board);
-        return opened.dropped;
-      } finally {
-        busy = false;
+      if (opening) {
+        throw new StoreError(refusedOpen, [
+          "The store holds a board or opens one already: a store opens one board, and core opens the next in a new store as it starts again.",
+        ]);
       }
-    } catch (error) {
-      // A board that the store refused leaves it free to open another.
-      opening = board.value !== undefined;
-      throw error;
-    }
+      opening = true;
+      try {
+        const { json, reply } = jsonOf(given);
+        const opened = build(json, reply);
+
+        guard();
+        busy = true;
+        try {
+          board.value = opened.board;
+          const step = ++lastStep;
+          for (const key of everyTarget(opened.board)) edits.set(key, step);
+          announce({ opened: opened.board, dropped: opened.dropped }, opened.board);
+          return opened.dropped;
+        } finally {
+          busy = false;
+        }
+      } catch (error) {
+        // A board that the store refused leaves it free to open another.
+        opening = board.value !== undefined;
+        throw error;
+      }
+    });
   }
 
-  async function checkText(text: string): Promise<Dropped[]> {
-    stillOpen();
-    const { json, reply } = jsonOf(text);
-    const opened = await build(json, reply);
-    stillOpen();
-    return opened.dropped;
+  function checkText(text: string): Promise<Dropped[]> {
+    return settled(() => {
+      stillOpen();
+      const { json, reply } = jsonOf(text);
+      return build(json, reply).dropped;
+    });
   }
 
   function jsonBoard(): JsonBoard {
@@ -593,4 +580,15 @@ export function createStore(options: StoreOptions = {}): Store {
     packages: () => packages.value,
     editId: (of) => edits.get(target(of)),
   };
+}
+
+// What `fn` returns, as a promise that rejects with what it throws, for a
+// method whose interface gives a promise, as open() does, which starts core
+// again through CoreApi.
+function settled<T>(fn: () => T): Promise<T> {
+  try {
+    return Promise.resolve(fn());
+  } catch (error) {
+    return Promise.reject(asError(error));
+  }
 }

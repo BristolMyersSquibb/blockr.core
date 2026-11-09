@@ -173,6 +173,56 @@ describe("the CoreApi for tests", () => {
     expect(changes).toEqual([1, 2]);
   });
 
+  test("runs the board's plugins, of the classes that a startup module of the test registers, and draws the board with its frontend, given by its module's id", async () => {
+    const el = document.createElement("div");
+    const events: string[] = [];
+    const started = ({ plugin }: { plugin: string }): undefined => {
+      events.push(`${plugin} starts`);
+    };
+    const s = await stubCore({
+      el,
+      hello: withPlugins({
+        grid: { class: "blockr.test-grid_plugin", name: "Grid", state: {} },
+        notes: { class: "blockr.test-notes_plugin", name: "Notes", state: {} },
+      }),
+      startup: {
+        "blockr.test": {
+          api: 1,
+          default: {
+            initialize({ core }: { core: CoreApi }) {
+              core.plugins.register({ id: "blockr.test-grid_plugin", frontend: "blockr.test-grid", start: started });
+              core.plugins.register({ id: "blockr.test-notes_plugin", ui: "blockr.test-notes", start: started });
+            },
+          },
+        },
+      },
+      modules: {
+        "blockr.test-grid": {
+          api: 1,
+          default: {
+            render({ el: at, core, plugin }: { el: HTMLElement; core: CoreApi; plugin: string }) {
+              events.push(`${plugin} draws`);
+              core.mountPlugin(at.appendChild(document.createElement("section")), "notes");
+            },
+          },
+        },
+        "blockr.test-notes": {
+          api: 1,
+          default: {
+            render({ el: at, plugin }: { el: HTMLElement; plugin: string }) {
+              at.textContent = `The panel of ${plugin}`;
+            },
+          },
+        },
+      },
+    });
+    await s.settled();
+
+    expect(events).toEqual(["grid draws", "grid starts", "notes starts"]);
+    expect(el.textContent).toBe("The panel of notes");
+    s.stop();
+  });
+
   test("draws the board with the frontend given, in the element given, and hears what renderers emit", async () => {
     const el = document.createElement("div");
     const table = renderer();

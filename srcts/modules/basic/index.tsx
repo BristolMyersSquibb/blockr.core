@@ -1,6 +1,6 @@
 // Core's basic frontend, blockr.core-basic, as Drawing the board has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#cores-basic-frontend).
-// It draws every board.
+// It draws every board that holds no frontend.
 // It does what today's frontend does wherever core's commands and store do
 // the work, so it only draws. It works on the board through CoreApi alone.
 // It is written in React, on the one copy of React that core puts on the

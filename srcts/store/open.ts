@@ -17,8 +17,9 @@
 // 5. It refuses the board where it fails a check, naming every failure, as
 //    where a block's state, a plugin's state or a board option's value fails
 //    its schema.
-// 6. It gives the board the defaults of the board options that core's basic
-//    frontend requires, where the board lacks them.
+// It gives no board option its default: core adds the board options that
+// something on the page requires as the board opens, the classes of its
+// plugins among them (../core/plugins.ts).
 
 import type { HelloReply } from "../protocol/index.ts";
 import type { Board, JsonBoard, OptionId, Plugin, PluginId } from "../types/board.ts";
@@ -37,7 +38,6 @@ import { commit } from "./commit.ts";
 import { StoreError } from "./error.ts";
 import { expand } from "./expand.ts";
 import { appPlugins, keptPlugins } from "./plugins.ts";
-import { BASIC_OPTIONS } from "./registrations.ts";
 import type { Registrations } from "./registrations.ts";
 
 // The highest format of a JSON board that this client reads and writes.
@@ -362,52 +362,4 @@ function remove(board: Board, gone: readonly string[], registrations: Registrati
   const committed = commit(board, delta);
   if ("failures" in committed) throw new StoreError(refused, committed.failures);
   return committed.board;
-}
-
-// The values of the board options that core's basic frontend requires and the
-// board lacks: each its definition's default, or what the function that is its
-// default resolves with.
-// A board option that no loaded package defines refuses the board, before the
-// store calls any default, and so does a default that fails or does not fit
-// its schema.
-// What core's basic frontend requires the board option for would fail later
-// otherwise, where its cause is harder to see.
-export async function required(
-  board: Board,
-  registrations: Registrations,
-): Promise<Readonly<Record<OptionId, Json>>> {
-  const lacking = BASIC_OPTIONS.filter((id) => !Object.hasOwn(board.options, id)).map((id) => ({
-    id,
-    option: registrations.option(id),
-  }));
-
-  const missing = lacking.filter(({ option }) => option === undefined);
-  if (missing.length > 0) {
-    throw new StoreError(
-      refused,
-      missing.map(
-        ({ id }) => `Core's basic frontend requires the board option "${id}", which no loaded package defines.`,
-      ),
-    );
-  }
-
-  const defined = lacking.flatMap(({ id, option }) => (option === undefined ? [] : [{ id, option }]));
-  const values = await Promise.all(
-    defined.map(async ({ id, option }): Promise<[OptionId, Json] | string> => {
-      const what = `The default of the board option "${id}", which core's basic frontend requires,`;
-      let value: Json;
-      try {
-        const given = option.def.default;
-        value = typeof given === "function" ? await given() : given;
-      } catch (error) {
-        return `${what} failed: ${messageOf(error)}`;
-      }
-      const failures = option.validate(value);
-      return failures.length > 0 ? `${what} ${failures.join(" ")}` : [id, value];
-    }),
-  );
-
-  const failures = values.filter((entry) => typeof entry === "string");
-  if (failures.length > 0) throw new StoreError(refused, failures);
-  return Object.fromEntries(values.filter((entry) => typeof entry !== "string"));
 }

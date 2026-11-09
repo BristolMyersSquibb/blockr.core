@@ -14,10 +14,18 @@
 //    resolve with one, where it keeps R's and names the packages. A board that
 //    a startup module names holds the plugins of the board that R sent, each
 //    with the state that the named board gives it.
-// 5. As the store opens the board, core imports the module of core's basic
-//    frontend, which draws every board. Once the board is open, it calls the
-//    frontend's render(), and starts the scheduler once render() has returned,
-//    so that the scheduler sends R nothing before.
+// 5. As the store opens the board, core adds to it the board options that the
+//    classes of its plugins require, and those of core's basic frontend where
+//    the board holds no frontend (./plugins.ts).
+// 6. Once the board is open, core imports the module of its frontend, the
+//    plugin whose class has `frontend`, or of core's basic frontend where the
+//    board holds none. Once the board options that the frontend requires are
+//    on the board, core calls the frontend's render(), and starts the
+//    scheduler once render() has returned, so that the scheduler sends R
+//    nothing before.
+// 7. Core then calls the start of each plugin whose class has one, so that
+//    what the frontend first shows comes before what the plugins ask for as
+//    they start.
 //
 // A board opened later, through the store's open() that CoreApi gives, starts
 // core again in place, as Opening a board has it
@@ -25,9 +33,10 @@
 // 1. The store on the page checks the board as it would open it. A board that
 //    it refuses leaves the page as it was, and open() rejects with the reason.
 // 2. One abort ends everything that core runs for the board on the page: the
-//    frontend and what it mounted, every startup module, the store with its
-//    undo history, the command registry, the board options, the scheduler with
-//    its demands, and what core keeps of outputs and answers.
+//    frontend and what it mounted, every plugin that runs, every startup
+//    module, the store with its undo history, the command registry and the
+//    plugin classes, the board options, the scheduler with its demands, which
+//    block has focus, and what core keeps of outputs and answers.
 // 3. Core sends another hello, which R takes as a fresh start of the session,
 //    so that R drops every result and request of the board before.
 // 4. Once R has answered it, core starts as the page does, from step 2 on,
@@ -65,6 +74,7 @@ import { counter, createScheduler } from "../scheduler/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import { createStore, StoreError } from "../store/index.ts";
 import type { Dropped, Option, Store } from "../store/index.ts";
+import type { PluginId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import { asError, isObject, messageOf, own, quoted, report } from "../util/index.ts";
 import { createBlockrOptions } from "./blockr-options.ts";
@@ -73,21 +83,28 @@ import { createCore } from "./core.ts";
 // The capabilities that core's client speaks.
 const CAPABILITIES: Capability[] = ["cancel", "interrupt", "progress"];
 
-// The id of core's basic frontend, which draws every board.
-export const BASIC = "blockr.core-basic";
-
 // What draws the frontends of the boards that open, which the page gives, and
 // a CoreApi for tests may leave out.
 export interface FrontEnds {
-  // Imports the module of the frontend, by its id, from where R serves it,
-  // which is undefined where R serves no such module, and ends the frontend
-  // on the page, if any. Core calls it as the store opens a board, once the
-  // startup modules have initialized.
-  prepare(front: { readonly id: string; readonly source: Source | undefined }, loader: Loader): Promise<void>;
-  // Calls the render() of the frontend that prepare() imported, with CoreApi,
-  // and resolves once render() has returned or resolved. The frontend ends as
-  // the signal aborts, as the next board opens.
-  render(core: CoreApi, signal: AbortSignal): Promise<void>;
+  // Imports the module of the frontend, by the module's id, from where R
+  // serves it, which is undefined where R serves no such module, and ends the
+  // frontend on the page, if any. Core calls it once the store has opened a
+  // board. The plugin is the board's plugin that the frontend is, and is
+  // undefined for core's basic frontend, which no board holds. Where the
+  // signal has aborted by the time the module has loaded, as another board
+  // opened meanwhile, it leaves the page to that board.
+  prepare(
+    front: { readonly id: string; readonly source: Source | undefined; readonly plugin: PluginId | undefined },
+    loader: Loader,
+    signal: AbortSignal,
+  ): Promise<void>;
+  // Calls the render() of the frontend that prepare() imported, with the
+  // element, CoreApi, the plugin's id and a signal, and resolves once render()
+  // has returned or resolved. Where board options that the frontend requires
+  // did not go onto the board, it shows why in the element instead, and calls
+  // no render(). The frontend ends as the signal aborts, as the next board
+  // opens.
+  render(core: CoreApi, signal: AbortSignal, failures: readonly string[]): Promise<void>;
 }
 
 // A package that a later reply names at another version than the page loaded.
@@ -279,8 +296,9 @@ export function start(options: StartOptions): Started {
   // starts and as each later board opens: the store, the command registry, the
   // scheduler and CoreApi, each of which the abort of the opening's controller
   // ends. It initializes the startup modules with that CoreApi and signal,
-  // opens the board in the store, draws it with its frontend and starts the
-  // scheduler, and resolves with CoreApi and what the store dropped.
+  // opens the board in the store, draws it with its frontend, starts the
+  // scheduler and then the board's plugins, and resolves with CoreApi and
+  // what the store dropped.
   async function boot(reply: HelloReply, later: Later | undefined): Promise<{ core: CoreApi; dropped: Dropped[] }> {
     // The opening ends as the next board opens, or as the page stops.
     const controller = new AbortController();
@@ -310,11 +328,7 @@ export function start(options: StartOptions): Started {
       blockrOptions.read("rand_id"),
     ]);
 
-    const store: Store = createStore({
-      hello: reply,
-      loaded: () => prepare(),
-      signal,
-    });
+    const store: Store = createStore({ hello: reply, signal });
     const commands = createCommands(store, { signal, lock: reply.lock, randId });
     for (const option of options.options({ blockrOption: (name) => blockrOptions.read(name) })) {
       store.options.register(option);
@@ -331,7 +345,7 @@ export function start(options: StartOptions): Started {
       signal,
       ...(bound === undefined ? {} : { bound }),
     });
-    const core = createCore({
+    const { api: core, plugins } = createCore({
       store: {
         ...store,
         open: (given) => reopen(given, controller),
@@ -377,11 +391,23 @@ export function start(options: StartOptions): Started {
       }
     }
 
+    // The frontend that draws the board, imported while the board options that
+    // it requires go onto the board.
+    const front = plugins.frontend();
+    const [failures] = await Promise.all([
+      front.added,
+      options.frontEnds?.prepare(
+        { id: front.module, source: own(latest?.modules ?? {}, front.module), plugin: front.plugin },
+        loader,
+        signal,
+      ),
+    ]);
     try {
-      await options.frontEnds?.render(core, signal);
+      await options.frontEnds?.render(core, signal, failures);
     } finally {
       scheduler.start();
     }
+    await plugins.start();
     if (failure !== undefined) throw failure;
     return { core, dropped };
   }
@@ -454,13 +480,6 @@ export function start(options: StartOptions): Started {
       return undefined;
     }
     return only.text;
-  }
-
-  // What the store runs once R has replied, before it migrates or drops
-  // anything, once the startup modules have initialized: the import of core's
-  // basic frontend, which draws every board.
-  async function prepare(): Promise<void> {
-    await options.frontEnds?.prepare({ id: BASIC, source: own(latest?.modules ?? {}, BASIC) }, loader);
   }
 
   // Openings run one at a time.

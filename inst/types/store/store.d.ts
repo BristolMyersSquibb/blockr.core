@@ -38,7 +38,6 @@ export interface Store {
 }
 export interface StoreOptions {
     readonly hello?: HelloReply;
-    readonly loaded?: (reply: HelloReply) => void | Promise<void>;
     readonly signal?: AbortSignal;
 }
 export declare function createStore(options?: StoreOptions): Store;

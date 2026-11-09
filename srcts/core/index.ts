@@ -1,6 +1,7 @@
 // CoreApi and the start of the page: what core gives frontends, plugins
-// and startup modules, and the order in which core starts and switches the page
-// to the frontend of each board that opens.
+// and startup modules, the order in which core starts the page and starts it
+// again for each board that opens, and how it runs the board's plugins, its
+// frontend among them.
 
 export { createBlockrOptions } from "./blockr-options.ts";
 export type { BlockrOptions } from "./blockr-options.ts";

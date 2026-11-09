@@ -1,5 +1,5 @@
 // The parts of core's basic frontend that need no page: where it draws each
-// block, what it demands, and the name of the board's file.
+// block, what it demands, and the severities that show_conditions names.
 
 import { describe, expect, test } from "vitest";
 import type { Stack } from "../../types/board.ts";
@@ -7,7 +7,6 @@ import type { CoreApi } from "../../types/core-api.ts";
 import { asSeverities } from "./board.tsx";
 import { demandShown, IN_VIEW, OWNER, SHOWN } from "./demand.ts";
 import type { View } from "./demand.ts";
-import { fileName } from "./file.ts";
 import { itemsOf } from "./layout.ts";
 
 describe("where each block goes", () => {
@@ -166,8 +165,3 @@ describe("the severities that show_conditions names", () => {
   });
 });
 
-describe("the board's file", () => {
-  test("is named by the board's id and the local time it was saved, as today's", () => {
-    expect(fileName({ id: "brisk_otter" }, new Date(2026, 10, 6, 14, 3, 9))).toBe("brisk_otter_2026-11-06_14-03-09.json");
-  });
-});

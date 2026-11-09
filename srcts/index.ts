@@ -2,8 +2,8 @@
 // ships inside blockr.core, in inst/types, where a package's build resolves
 // them as `@blockr/core`
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#packaging):
-// the hosts that core gives the modules it mounts, `CoreApi`, and the types of
-// the board, of its updates and of core's outputs.
+// the hosts that core gives the modules it mounts, `CoreApi`, the module of a
+// plugin, and the types of the board, of its updates and of core's outputs.
 // A plugin class defines itself as a `PluginClass`, and types the state of its
 // plugins itself, with `type` rather than `interface`, as
 // `type DockState = { views: ... }`, since only such a type is assignable to
@@ -55,7 +55,7 @@ export type {
   Rendered,
   State,
 } from "./types/hosts.ts";
-export type { BlockRegistry, CoreApi, OutputEvents, RequestOpts } from "./types/core-api.ts";
+export type { BlockRegistry, CoreApi, Note, OutputEvents, PluginModule, RequestOpts } from "./types/core-api.ts";
 export type {
   Change,
   Delta,

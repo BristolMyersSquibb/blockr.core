@@ -10,7 +10,7 @@ import { useRef, useState } from "react";
 import type { ReactElement } from "react";
 import type { Board } from "../../types/board.ts";
 import { runCommand, useFrontEnd } from "./context.ts";
-import { download, fileName } from "./file.ts";
+import { download, fileName } from "../../storage/index.ts";
 import { useHistory } from "./hooks.ts";
 import { classes, NameField } from "./ui.tsx";
 

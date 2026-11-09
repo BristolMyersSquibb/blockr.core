@@ -127,8 +127,9 @@ function Notices(): ReactElement | null {
 }
 
 // The severities that the board option show_conditions names. Core's basic
-// frontend requires the board option, so every board holds a value of it, and
-// a value that is no array of severities fails, rather than show none.
+// frontend requires the board option, so the board that it draws holds a value
+// of it, and a value that is no array of severities fails, rather than show
+// none.
 export function asSeverities(value: Json | undefined): readonly Condition["severity"][] {
   if (Array.isArray(value) && value.every(isSeverity)) return value;
   throw new TypeError(
