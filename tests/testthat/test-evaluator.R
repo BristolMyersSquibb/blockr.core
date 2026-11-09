@@ -888,6 +888,58 @@ test_that("R replies error where it cannot send a reply", {
   )
 })
 
+test_that("R replies error in place of a reply too large to send", {
+
+  session <- local_evaluator()
+  hold_result(session, "a", 1L)
+
+  withr::local_options(
+    blockr.logger = cnd_logger,
+    blockr.log_level = "warn",
+    width = 500L
+  )
+
+  session$send <- function(message) {
+    if (identical(message[[1L]][["status"]], "ok")) {
+      blockr_abort(
+        "R's message of 9 bytes is larger than the 8 bytes allowed.",
+        class = "protocol_message_too_large"
+      )
+    }
+    session$sent[[length(session$sent) + 1L]] <- message
+  }
+
+  session$receive(list(evaluate_request("21", "a", 2L, sample_recipe("a"))))
+
+  expect_warning(session$run(), "R failed to send its reply to 21")
+
+  reply <- last_reply(session)
+
+  expect_identical(reply$status, "error")
+  expect_identical(
+    reply[c("block", "revision")],
+    list(block = "a", revision = 2L)
+  )
+  expect_named(
+    reply,
+    c("id", "status", "block", "revision", "summary", "conditions", "stdout",
+      "stderr")
+  )
+  expect_identical(
+    reply$conditions[[1L]]$message,
+    "R's message of 9 bytes is larger than the 8 bytes allowed."
+  )
+  expect_false("a" %in% ls(session$evaluator$results))
+
+  # Logged as a warning, which a log level of error leaves out.
+  withr::local_options(blockr.log_level = "error")
+
+  session$receive(list(evaluate_request("22", "a", 3L, sample_recipe("a"))))
+
+  expect_no_warning(session$run())
+  expect_identical(last_reply(session)$status, "error")
+})
+
 test_that("the Shiny transport carries the evaluator's replies and bodies", {
 
   withr::local_options(blockr.log_level = "error")
@@ -942,6 +994,58 @@ test_that("the Shiny transport carries the evaluator's replies and bodies", {
   expect_identical(plot$output$renderer$id, "blockr.core-plot_output")
   expect_identical(plot$body$type, "image/png")
   expect_true(nzchar(plot$body$data))
+})
+
+test_that("the page hears why R sent no reply too large for a message", {
+
+  withr::local_options(
+    blockr.log_level = "error",
+    blockr.max_message_size = 40000
+  )
+
+  local_block_class(static_block, "blockr.core-static_block")
+
+  ev <- new_evaluator(board = list(blocks = list()))
+
+  loud <- list(
+    registry_id = "blockr.core-static_block",
+    state = list(expression = "{ cat(strrep('x', 50000)); 1 }"),
+    inputs = list()
+  )
+
+  session <- with_transport(
+    function(message, send) receive_requests(ev, message, send),
+    {
+      session$setInputs(blockr = unclass(encode_message(hello_message())))
+      run_later()
+
+      session$setInputs(
+        blockr = unclass(
+          encode_message(list(evaluate_request("2", "s", 1L, loud)))
+        )
+      )
+      run_later()
+    }
+  )
+
+  sent <- lapply(transport_sent(session), read_json_strictly)
+  reply <- sent[[length(sent)]][[1L]]
+
+  expect_identical(sent[[2L]][[1L]]$status, "ok")
+  expect_identical(reply[c("id", "status", "block")], list(
+    id = "2",
+    status = "error",
+    block = "s"
+  ))
+  expect_match(
+    reply$conditions[[1L]]$message,
+    paste(
+      "is larger than the 40,000 bytes that the blockr option",
+      "`max_message_size` allows."
+    ),
+    fixed = TRUE
+  )
+  expect_false("s" %in% ls(ev$results))
 })
 
 test_that("R calls a plugin's request with its args, reads and body", {

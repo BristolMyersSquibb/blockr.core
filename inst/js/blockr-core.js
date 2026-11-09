@@ -4436,15 +4436,15 @@ function shinyTransport(options = {}) {
   return {
     async send(message, bodies) {
       const at = session;
+      const text = JSON.stringify(message);
+      refuseLarger(text, start2?.max_message_size);
       for (const [id2, body] of bodies) {
         await post(fetcher, start2, id2, body);
       }
       if (at !== session) {
         throw new Error("The session ended before its message was sent.");
       }
-      shiny.setInputValue(name, JSON.stringify(message), {
-        priority: "event"
-      });
+      shiny.setInputValue(name, text, { priority: "event" });
     },
     listen(listener) {
       shiny.addCustomMessageHandler(name, (message) => {
@@ -4527,6 +4527,18 @@ async function fetchBody(fetcher, url, body) {
   const bytes = await response.blob();
   fetcher(url, { method: "DELETE" }).then((response2) => response2.text()).catch(() => void 0);
   return blob([bytes], body);
+}
+function refuseLarger(text, max) {
+  if (max === void 0 || text.length * 3 <= max) return;
+  const size = new TextEncoder().encode(text).length;
+  if (size > max) {
+    throw new Error(
+      `The message of ${byteCount(size)} is larger than the ${byteCount(max)} that the blockr option \`max_message_size\` allows.`
+    );
+  }
+}
+function byteCount(n2) {
+  return `${n2.toLocaleString("en-US")} bytes`;
 }
 async function post(fetcher, start2, id2, body) {
   if (start2 === null) {

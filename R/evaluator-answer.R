@@ -17,13 +17,7 @@ answer_request <- function(ev, job) {
       request = answer_object_request(ev, job),
       output = answer_output(ev, job)
     ),
-    error = function(e) {
-      error_reply(
-        job[["id"]],
-        list(r_condition(e)),
-        if (identical(job[["kind"]], "evaluate")) job[["req"]][["fields"]]
-      )
-    }
+    error = function(e) job_error_reply(job, e)
   )
 }
 
