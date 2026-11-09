@@ -4,6 +4,7 @@
 import { describe, expect, test } from "vitest";
 import type { Stack } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
+import { asSeverities } from "./board.tsx";
 import { demandShown, IN_VIEW, OWNER, SHOWN } from "./demand.ts";
 import type { View } from "./demand.ts";
 import { fileName } from "./file.ts";
@@ -150,6 +151,18 @@ describe("what the frontend demands", () => {
     shown.watch("b", laidOut(700));
     shown.measure();
     expect(demands[1]?.blocks).toEqual(["a"]);
+  });
+});
+
+describe("the severities that show_conditions names", () => {
+  test("are the board option's value, and a value that is no array of severities fails", () => {
+    expect(asSeverities(["warning", "error"])).toEqual(["warning", "error"]);
+    expect(asSeverities([])).toEqual([]);
+    for (const value of [undefined, null, "error", ["fatal"]]) {
+      expect(() => asSeverities(value)).toThrow(
+        `The board option show_conditions is ${JSON.stringify(value)}, where the board takes an array of "message", "warning" and "error".`,
+      );
+    }
   });
 });
 

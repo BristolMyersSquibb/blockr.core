@@ -107,3 +107,19 @@ test("gives a volume that is gone up for the first, and says why its listing fai
   expect(find(view.el, '[role="alert"]').textContent).toContain('records no answer of the request "list_dir"');
   expect(host.submitted).toEqual([]);
 });
+
+test("reads the volumes and R's listing as they are given, and fails on another shape", () => {
+  expect(browser.asVolumes(undefined)).toEqual({});
+  expect(browser.asVolumes({ here: "." })).toEqual({ here: "." });
+  expect(() => browser.asVolumes({ here: 1 })).toThrow(
+    'The state arg volumes is {"here":1}, where the file browser takes the path of each volume by its name.',
+  );
+  expect(() => browser.asVolumes(["."])).toThrow('The state arg volumes is ["."]');
+
+  expect(browser.asListing(undefined)).toEqual({ dirs: [], files: [] });
+  expect(browser.asListing({ dirs: ["data"], files: [] })).toEqual({ dirs: ["data"], files: [] });
+  expect(() => browser.asListing({ dirs: "data", files: [] })).toThrow(
+    'R answered list_dir with {"dirs":"data","files":[]}, where the file browser takes the dirs and the files that it lists.',
+  );
+  expect(() => browser.asListing(null)).toThrow("R answered list_dir with null");
+});
