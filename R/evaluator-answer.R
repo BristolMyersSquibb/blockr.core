@@ -29,7 +29,9 @@ answer_request <- function(ev, job) {
 
 # The value of each blockr option that R has one for,
 # as `blockr_option()` reads it, by name, written as JSON.
-# R leaves out the others, which nothing sets.
+# R sends no value for the others, which nothing sets.
+# The code on the client that reads a blockr option converts and checks its
+# value.
 # An error in reading a blockr option or in writing its value fails the
 # request, as `blockr_option()` fails where an R option and an environment
 # variable disagree.
@@ -49,11 +51,14 @@ answer_blockr_options <- function(job) {
 
 # A blockr option's value as JSON, which yyjsonr writes as it writes a
 # message, and which `encode_message()` puts in the reply as it is.
+# It writes Inf, -Inf, NA and NaN as the strings "Inf", "-Inf", "NA" and
+# "NaN", where a message holds null for each, so that the code that reads the
+# blockr option can tell them apart.
 # Where yyjsonr cannot write the value, as for a function, the error names
 # the blockr option.
 blockr_option_json <- function(name, value) {
   tryCatch(
-    json_str(value, auto_unbox = TRUE),
+    json_str(value, auto_unbox = TRUE, num_specials = "string"),
     error = function(e) {
       blockr_abort(
         "R cannot write blockr option {name} as JSON: {conditionMessage(e)}",
