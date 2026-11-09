@@ -5849,6 +5849,19 @@ var animals = [
 ];
 
 // srcts/store/ids.ts
+var RAND_IDS = [
+  "adjective_animal",
+  "adjective_adjective_animal",
+  "letters_6",
+  "letters_8",
+  "letters_12",
+  "bytes_4",
+  "bytes_8",
+  "uuid"
+];
+function isRandId(value2) {
+  return typeof value2 === "string" && RAND_IDS.includes(value2);
+}
 function isId(id2) {
   return typeof id2 === "string" && id2 !== "" && !/^\d+$/.test(id2);
 }
@@ -7541,8 +7554,11 @@ var newBlock = {
     description: "Values of the new block's state args, which the schema of its class types, in place of those its class starts a block with."
   }
 };
-function coreCommands(store) {
+function coreCommands(store, randId = "adjective_animal") {
   const validators = /* @__PURE__ */ new WeakMap();
+  function mint(taken) {
+    return mintId(taken, randId);
+  }
   function stateFailures(entry, state2) {
     let validate2 = validators.get(entry);
     if (validate2 === void 0) {
@@ -7565,7 +7581,7 @@ function coreCommands(store) {
     if (failures.length > 0) {
       throw refusal(command2, failures.map((failure) => `The state of the new block ${failure}`));
     }
-    const id2 = args.id ?? mintId((id3) => Object.hasOwn(board2.blocks, id3));
+    const id2 = args.id ?? mint((id3) => Object.hasOwn(board2.blocks, id3));
     return [
       id2,
       { registry_id: entry.id, state: state2, name: args.name ?? blockName(entry.id) },
@@ -7676,7 +7692,7 @@ function coreCommands(store) {
       run(board2, args) {
         const [id2, block, entry] = added(this.id, board2, args);
         const input2 = newInput(this.id, entry, args.input);
-        const link = mintId((id3) => Object.hasOwn(board2.links, id3));
+        const link = mint((id3) => Object.hasOwn(board2.links, id3));
         return {
           blocks: { add: { [id2]: block } },
           links: { add: { [link]: { from: args.from, to: id2, input: input2 } } }
@@ -7702,7 +7718,7 @@ function coreCommands(store) {
       run(board2, args) {
         const input2 = linkInput(this.id, board2, args.to, args.input);
         const [id2, block] = added(this.id, board2, args);
-        const link = mintId((id3) => Object.hasOwn(board2.links, id3));
+        const link = mint((id3) => Object.hasOwn(board2.links, id3));
         return {
           blocks: { add: { [id2]: block } },
           links: { add: { [link]: { from: id2, to: args.to, input: input2 } } }
@@ -7730,8 +7746,8 @@ function coreCommands(store) {
         if (split === void 0) return [];
         const [id2, block, entry] = added(this.id, board2, args);
         const input2 = newInput(this.id, entry, args.input);
-        const near = mintId((id3) => Object.hasOwn(board2.links, id3));
-        const far = mintId((id3) => Object.hasOwn(board2.links, id3) || id3 === near);
+        const near = mint((id3) => Object.hasOwn(board2.links, id3));
+        const far = mint((id3) => Object.hasOwn(board2.links, id3) || id3 === near);
         return {
           blocks: { add: { [id2]: block } },
           links: {
@@ -7768,7 +7784,7 @@ function coreCommands(store) {
       ),
       enabled: (board2, { from, to, input: input2 }) => Object.hasOwn(board2.blocks, from) && linkable(board2, to, input2),
       run(board2, { from, to, input: input2, id: id2 }) {
-        const link = id2 ?? mintId((id3) => Object.hasOwn(board2.links, id3));
+        const link = id2 ?? mint((id3) => Object.hasOwn(board2.links, id3));
         const resolved = linkInput(this.id, board2, to, input2);
         return { links: { add: { [link]: { from, to, input: resolved } } } };
       }
@@ -7825,7 +7841,7 @@ function coreCommands(store) {
         }
       }),
       run(board2, { id: id2, name: name2 = "Stack", blocks: blocks2 = [], color: color2 = null }) {
-        const stack = id2 ?? mintId((id3) => Object.hasOwn(board2.stacks, id3));
+        const stack = id2 ?? mint((id3) => Object.hasOwn(board2.stacks, id3));
         const left2 = leave(board2, stack, blocks2);
         return {
           stacks: {
@@ -8092,8 +8108,18 @@ function createCommands(store, options = {}) {
       return deltas(id2, given);
     }
   };
-  for (const command2 of coreCommands(store)) registry.register(command2);
+  for (const command2 of coreCommands(store, shapeOf(options.randId))) registry.register(command2);
   return registry;
+}
+function shapeOf(randId) {
+  if (randId === void 0) return "adjective_animal";
+  if (isRandId(randId)) return randId;
+  report(
+    new Error(
+      `The blockr option rand_id is ${JSON.stringify(randId)}, where it takes one of ${quoted(RAND_IDS)}, so core's commands mint ids as "adjective_animal".`
+    )
+  );
+  return "adjective_animal";
 }
 function isCommandId(id2) {
   const pkg = packageOf(id2);
@@ -8193,17 +8219,18 @@ function start(options) {
       },
       { once: true }
     );
-    const [evaluationQueue, backgroundEvaluationDelay, gateVisibility] = await Promise.all([
+    const [evaluationQueue, backgroundEvaluationDelay, gateVisibility, randId] = await Promise.all([
       blockrOptions.read("evaluation_queue", 2),
       blockrOptions.read("background_evaluation_delay", Infinity),
-      blockrOptions.read("gate_visibility", true)
+      blockrOptions.read("gate_visibility", true),
+      blockrOptions.read("rand_id", "adjective_animal")
     ]);
     const store = createStore({
       hello: reply,
       loaded: (_reply, classes) => prepare(store, classes),
       signal
     });
-    const commands = createCommands(store, { signal });
+    const commands = createCommands(store, { signal, randId });
     for (const option of options.options({ blockrOption: (name2, fallback) => blockrOptions.read(name2, fallback) })) {
       store.options.register(option);
     }
