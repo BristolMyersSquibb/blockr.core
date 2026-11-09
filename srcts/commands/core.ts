@@ -191,7 +191,7 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
       run: (_board, { id, name }) => ({ blocks: { mod: { [id]: { name } } } }),
     }),
     command<{ readonly id: BlockId; readonly locked: boolean | null }>({
-      id: "blockr.core-set_block_locked",
+      id: "blockr.core-set_block_lock",
       label: "Set block lock",
       description:
         "Sets a block's lock, which fixes its state where the board lock is on: true locks the block, false leaves it open to readers, and null has it follow the board lock.",

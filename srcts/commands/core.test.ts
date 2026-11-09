@@ -120,17 +120,17 @@ describe("blocks", () => {
     expect(store.board().blocks.b?.name).toBe("Top rows");
   });
 
-  test("set_block_locked sets a block's lock, null among its values, and makes no step for the lock it has", async () => {
+  test("set_block_lock sets a block's lock, null among its values, and makes no step for the lock it has", async () => {
     const { store, commands } = await setup();
 
-    await commands.run("blockr.core-set_block_locked", { id: "b", locked: null });
+    await commands.run("blockr.core-set_block_lock", { id: "b", locked: null });
     expect(store.canUndo()).toBe(false);
 
-    await commands.run("blockr.core-set_block_locked", { id: "b", locked: false });
+    await commands.run("blockr.core-set_block_lock", { id: "b", locked: false });
     expect(store.board().blocks.b?.locked).toBe(false);
-    await commands.run("blockr.core-set_block_locked", { id: "b", locked: true });
+    await commands.run("blockr.core-set_block_lock", { id: "b", locked: true });
     expect(store.board().blocks.b?.locked).toBe(true);
-    await commands.run("blockr.core-set_block_locked", { id: "b", locked: null });
+    await commands.run("blockr.core-set_block_lock", { id: "b", locked: null });
     expect(store.board().blocks.b?.locked).toBeNull();
 
     store.undo();
@@ -139,10 +139,10 @@ describe("blocks", () => {
     store.undo();
     expect(store.board().blocks.b?.locked).toBeNull();
 
-    await expect(commands.run("blockr.core-set_block_locked", { id: "b", locked: "yes" })).rejects.toThrow(
+    await expect(commands.run("blockr.core-set_block_lock", { id: "b", locked: "yes" })).rejects.toThrow(
       "The args fail their schema at /locked:",
     );
-    expect(commands.enabled("blockr.core-set_block_locked", { id: "z", locked: true })).toBe(false);
+    expect(commands.enabled("blockr.core-set_block_lock", { id: "z", locked: true })).toBe(false);
   });
 
   test("set_block sets and unsets state args, as one step", async () => {

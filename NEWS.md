@@ -299,7 +299,7 @@
   A block constructor takes it, as `NA` unless a script gives another, and `new_block_class()` refuses a state arg named `locked`, while a JSON board holds `NA` as `null`.
   R sends both locks with its reply to `hello`, in `lock`, as `{ "board": true, "load": true }`, where it sent the blocks that a locked board leaves open, and an evaluation carries the block's `locked`.
   The store's `locked()` says which blocks a lock fixes, and under the board lock the store refuses every delta but one that changes the state of a block that the board lock leaves open, a board option's value or what sits inside a plugin's state.
-  Core's command `blockr.core-set_block_locked` sets a block's lock.
+  Core's command `blockr.core-set_block_lock` sets a block's lock.
   Under the board lock, R refuses an evaluation that binds a block's data inputs to other blocks or gives a locked block another state, with an error that names the lock.
   With the load lock on too, R holds every block to the opening board, which it reads as the app starts, and evaluates a locked block with the block expression that it built then.
   A locked block whose block expression fails to build then stops the app, naming the block, unless the failure is a `blockr_invalid()`, which R replies with to every evaluation of the block.

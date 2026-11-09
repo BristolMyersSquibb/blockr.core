@@ -7678,7 +7678,7 @@ function coreCommands(store, options = {}) {
       run: (_board, { id: id2, name: name2 }) => ({ blocks: { mod: { [id2]: { name: name2 } } } })
     }),
     command({
-      id: "blockr.core-set_block_locked",
+      id: "blockr.core-set_block_lock",
       label: "Set block lock",
       description: "Sets a block's lock, which fixes its state where the board lock is on: true locks the block, false leaves it open to readers, and null has it follow the board lock.",
       args: object({ id: blockId, locked }, ["id", "locked"]),
