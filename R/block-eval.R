@@ -299,22 +299,18 @@ print.block_evaluation <- function(x, ...) {
 }
 
 # Runs a phase of an evaluation, keeping a record of each message, warning and
-# error that it raises, in order.
-# Each record goes at the next index of a list in this function's frame,
-# which R extends in place, while `c()` would copy the list for every one,
-# as would a list in an environment, which R takes to be shared.
+# error that it raises, in order, in a queue, which takes each in constant time,
+# while growing a list with `c()` copies it for every one.
 run_phase <- function(phase, expr) {
 
-  conditions <- list()
-  error <- NULL
+  conditions <- fastmap::fastqueue()
 
   record <- function(cnd) {
-    rec <- condition_record(cnd, phase)
-    conditions[[length(conditions) + 1L]] <<- rec # nolint: assignment_linter.
+    conditions$add(condition_record(cnd, phase))
   }
 
-  value <- try_catch_continue(
-    expr,
+  res <- try_catch_continue(
+    list(value = expr),
     message = function(m) {
       record(m)
       invokeRestart("muffleMessage")
@@ -325,12 +321,16 @@ run_phase <- function(phase, expr) {
     },
     error = function(e) {
       record(e)
-      error <<- e
-      NULL
+      list(error = e)
     }
   )
 
-  list(phase = phase, value = value, conditions = conditions, error = error)
+  list(
+    phase = phase,
+    value = res[["value"]],
+    conditions = conditions$as_list(),
+    error = res[["error"]]
+  )
 }
 
 phase_failed <- function(x) {
