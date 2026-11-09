@@ -1,12 +1,12 @@
 // A CoreApi for tests, whose store, command registry and scheduler are core's
 // own and whose replies from R come from the fixtures of the wire protocol,
-// those that both test suites round-trip, so that a front-end, an extension or
+// those that both test suites round-trip, so that a frontend, a plugin or
 // a startup module runs in a test runner on a board, needing neither R nor a
 // browser (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#testing).
 //
 // Core starts as it does on the page, with core's board options and their UIs:
 // it initializes the startup modules given, in their order, opens the board of
-// R's reply to hello, and draws it with the module given for its front-end
+// R's reply to hello, and draws it with the module given for its frontend
 // where the test gives an element to draw in. A board that the test opens
 // later through the store's open() starts core again, as on the page.
 // R, played from the fixtures, replies to the client's hello with the
@@ -86,7 +86,7 @@ export interface StubCoreOptions {
   // given, so that core takes the fallbacks.
   readonly blockrOptions?: Readonly<Record<string, Json>>;
   // What each module that core imports exports, by the URL that R serves it
-  // at or by the id of a module that packages offer each other, a front-end
+  // at or by the id of a module that packages offer each other, a frontend
   // among them, such as "blockr.core-basic", which draws a board of core's
   // class. A module that the test leaves out fails to load.
   readonly modules?: Readonly<Record<string, unknown>>;
@@ -102,8 +102,8 @@ export interface StubCoreOptions {
   // What R answers to a request of a block class, an output class, a
   // renderer, a board option or a plugin.
   readonly answer?: Answer;
-  // The element in which core draws the board with its front-end. Without
-  // one, core draws no front-end and lets the scheduler send once the board is
+  // The element in which core draws the board with its frontend. Without
+  // one, core draws no frontend and lets the scheduler send once the board is
   // open.
   readonly el?: HTMLElement;
   // Measures an output's element, as INFO for every element unless given.

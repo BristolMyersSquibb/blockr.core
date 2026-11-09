@@ -60,8 +60,8 @@ export interface RegistryEntry {
   readonly renderer?: OutputRenderer;
 }
 
-// An arg spec, as `new_arg_spec()` makes it, without the fields it leaves
-// unset.
+// An arg spec, as `new_arg_spec()` makes it, without the properties it
+// leaves unset.
 export interface ArgSpec {
   readonly description?: string;
   readonly example?: Json;

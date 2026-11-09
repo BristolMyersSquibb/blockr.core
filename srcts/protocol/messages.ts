@@ -343,7 +343,7 @@ export interface OutputInfo {
   font: string;
 }
 
-// An output, whose fields beside its renderer are those of its class's
+// An output, whose properties beside its renderer are those of its class's
 // contract, as srcts/types/outputs.ts gives core's.
 export interface OutputReply {
   id: string;

@@ -1,7 +1,7 @@
 # A page and a session that the Shiny transport connects, for its browser test
 # (test-shiny-transport-browser.R). The page holds core's client over the
 # transport, from the blockr.core installed, and R's handler answers the
-# requests of an extension that the test sends: an echo of its args, progress,
+# requests of a plugin that the test sends: an echo of its args, progress,
 # a body of a given size, the size of a body it receives, and the end of the
 # session.
 # The page resolves the imports of core's client, of React and of core's React
@@ -123,7 +123,8 @@ async function ask(name, args = {}, body = undefined) {
   try {
     const request = {
       kind: 'request',
-      extension: 'blockr.test-transport',
+      type: 'plugin',
+      plugin: 'blockr.test-transport_plugin',
       name,
       args,
       reads: [],

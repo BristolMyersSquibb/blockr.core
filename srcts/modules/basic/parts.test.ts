@@ -1,4 +1,4 @@
-// The parts of core's basic front-end that need no page: where it draws each
+// The parts of core's basic frontend that need no page: where it draws each
 // block, what it demands, and the name of the board's file.
 
 import { describe, expect, test } from "vitest";
@@ -89,7 +89,7 @@ function laidOut(top: number, height = 100): HTMLElement {
   return el;
 }
 
-describe("what the front-end demands", () => {
+describe("what the frontend demands", () => {
   test("is every block above the default evaluation priority, and the blocks in view higher still", () => {
     const { core, demands } = played();
     const { view } = page();
@@ -137,7 +137,7 @@ describe("what the front-end demands", () => {
     expect(p.disconnected()).toBe(true);
 
     // A card in view that goes after the release sets nothing, as the cards
-    // go once the front-end has ended.
+    // go once the frontend has ended.
     unwatchD();
     shown.measure();
     expect(demands[1]?.blocks).toEqual(["a", "b", "d"]);

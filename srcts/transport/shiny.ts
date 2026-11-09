@@ -19,7 +19,7 @@
 // body's bytes, or from the URL in the body's `url`, which the client fetches,
 // as R's blockr options `max_message_body` and `message_body_encoding` say,
 // and which the client deletes once it has read the body. The transport hands
-// the client the reply without the fields that carry the body.
+// the client the reply without the properties that carry the body.
 
 import type {
   Body,
@@ -60,7 +60,7 @@ type JQueryLike = (element: Document) => {
 // An item of R's message, a reply that announces a body with a promise of it.
 type Received = [Reply | Progress, Promise<Blob> | null];
 
-// The fields that R adds to a reply's body to carry its bytes.
+// The properties that R adds to a reply's body to carry its bytes.
 interface Carried {
   data?: string;
   url?: string;
@@ -179,7 +179,8 @@ function framed(frame: ArrayBuffer): Received[] {
   });
 }
 
-// A reply without the fields that carry its body, with a promise of the body.
+// A reply without the properties that carry its body, with a promise of the
+// body.
 function received(item: Reply | Progress, fetcher: typeof fetch): Received {
   // A body that R writes as null, from a NULL in R, is none.
   const announced: unknown = "status" in item && "body" in item ? item.body : null;

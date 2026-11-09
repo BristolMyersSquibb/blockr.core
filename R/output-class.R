@@ -165,8 +165,8 @@ reply_body_bytes <- function(x) {
   readBin(content, "raw", file.size(content))
 }
 
-# What a reply or request says of the body it carries, in its field `body`: the
-# MIME type and, for a download, the file name.
+# What a reply or request says of the body it carries, in its property
+# `body`: the MIME type and, for a download, the file name.
 body_announcement <- function(x) {
 
   res <- list(type = x[["type"]])
@@ -562,9 +562,9 @@ request_call_args <- function(fun, name, args, bound, reserved, class) {
   c(bound[intersect(names(bound), fmls)], args)
 }
 
-# The parts of an output that R sends. Its fields are shaped by the JSON Schema
-# that its classes give, through their methods of `output_schema()`. Its body,
-# if it holds one, travels beside them.
+# The parts of an output that R sends. Its properties are shaped by the JSON
+# Schema that its classes give, through their methods of `output_schema()`.
+# Its body, if it holds one, travels beside them.
 shape_output <- function(x) {
 
   if (!is_block_output(x)) {

@@ -1,5 +1,5 @@
 # Reading the requests that the evaluator queues.
-# R checks the fields of each kind as inst/protocol/README.md gives them.
+# R checks the properties of each kind as inst/protocol/README.md gives them.
 # So R replies `error` at once to a request that it cannot read,
 # rather than once the request's turn comes.
 # A map that a request leaves out, such as its `args`, reads as empty.
@@ -107,8 +107,8 @@ request_types <- function() {
   c("block_class", "output_class", "renderer", "option", "plugin")
 }
 
-# The fields that every request of core's types has: the name of the request,
-# its args and, where it carries one, its body.
+# The properties that every request of core's types has: the name of the
+# request, its args and, where it carries one, its body.
 read_call <- function(req) {
 
   if (!is_nonempty_string(req[["name"]])) {
@@ -222,7 +222,7 @@ read_map <- function(x, field) {
   res <- coal(x[[field]], list(), fail_all = FALSE)
 
   if (!is_json_object(res)) {
-    protocol_abort("The field `{field}` of a request holds an object.")
+    protocol_abort("The property `{field}` of a request holds an object.")
   }
 
   res

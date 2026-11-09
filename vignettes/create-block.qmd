@@ -358,7 +358,7 @@ It is `invalid` where `expr` used an unset arg, or where `expr` or a `block_eval
 It is `error` where a check of the inputs or anything else failed.
 R records each condition with the phase that raised it.
 
-A class has no say in when its blocks are evaluated: the client evaluates what its front-end shows and what packages ask for.
+A class has no say in when its blocks are evaluated: the client evaluates what its frontend shows and what packages ask for.
 A class whose block expression may run only when its UI asks, such as a write block in manual mode, has a `block_eval()` method.
 The method decides whether and how the block expression runs, never what it computes.
 This write block writes only where its state holds `auto_write` or its UI passes the parameter `save`:
@@ -473,7 +473,7 @@ The host gives the module everything it may use:
 A module meets the contract of a block's UI by these rules:
 
 1. A module submits only when the user acts, never to fill in a value once data arrives. So a state arg that the user has to pick stays unset, and the block reads `invalid` until then. The summarize and join blocks of blockr.dplyr, in their `new_block()` versions, break this rule: they fill in their first or shared columns once the data arrives ([`summarize-block.js#L601-L607`](https://github.com/BristolMyersSquibb/blockr.dplyr/blob/bdac6b38f7097425bfe96883032531cc919f6ee7/inst/js/summarize-block.js#L601-L607), [`join-block.js#L678-L680`](https://github.com/BristolMyersSquibb/blockr.dplyr/blob/bdac6b38f7097425bfe96883032531cc919f6ee7/inst/js/join-block.js#L678-L680)).
-2. A module takes changes of the state that it did not make, since undo, an assistant and extensions make them too. It updates its inputs in place, but leaves alone the one that the user is editing.
+2. A module takes changes of the state that it did not make, since undo, an assistant and plugins make them too. It updates its inputs in place, but leaves alone the one that the user is editing.
 3. An input that changes with every keystroke submits once the user pauses, presses Enter or leaves it. So a burst of typing is one edit and one undo step. A module submits an edit still pending as core unmounts it.
 4. A module builds each submit from `host.state()` as it submits, so that it keeps an edit made in the meantime, such as a condition that an assistant added to a filter.
 5. A module draws only inside its element and keeps nothing on the page, such as an element ID, since core can mount one block's UI in several places at once.

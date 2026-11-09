@@ -2,9 +2,9 @@
 
 // Checks every fixture of the wire protocol against core's types of the
 // messages, by type-checking the fixture as the value of a variable of its
-// type, so that the check is the compiler's own: a field that a type lacks, a
-// kind or status that it does not allow, and a field that it requires and the
-// fixture leaves out all fail.
+// type, so that the check is the compiler's own: a property that a type lacks,
+// a kind or status that it does not allow, and a property that it requires and
+// the fixture leaves out all fail.
 
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -76,15 +76,15 @@ const breaks: Record<string, [object, RegExp]> = {
     { ...cancel, client: [{ kind: "cancle", request: "17" }] },
     /'"cancle"' is not assignable/,
   ],
-  "a field that its type lacks": [
+  "a property that its type lacks": [
     { ...cancel, r: [[{ id: "17", status: "cancelled", reason: "gone" }]] },
     /'"reason"' does not exist in type 'CancelledReply'/,
   ],
-  "a field of another type": [
+  "a property of another type": [
     { ...cancel, client: [{ kind: "cancel", request: 17 }] },
     /'number' is not assignable to type 'string'/,
   ],
-  "no field that its type requires": [
+  "no property that its type requires": [
     { ...cancel, r: [[{ id: "17" }]] },
     /'status' is missing/,
   ],

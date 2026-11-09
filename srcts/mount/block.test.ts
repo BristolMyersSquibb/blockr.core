@@ -608,7 +608,7 @@ describe("the host", () => {
 });
 
 describe("a mount", () => {
-  test("ends as the front-end calls its cleanup, which aborts the signal, runs the module's cleanup and empties the element", async () => {
+  test("ends as the frontend calls its cleanup, which aborts the signal, runs the module's cleanup and empties the element", async () => {
     const ui = recorder();
     const { mounts } = await setup({ [HEAD]: ui.exports });
     const el = document.createElement("div");

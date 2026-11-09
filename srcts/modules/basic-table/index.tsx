@@ -7,7 +7,7 @@
 // its host, so that R makes the page asked for. It names n_rows, by which the
 // coercion pages, as the board option it requires. What it computes is in
 // ./table.ts, and this file only draws. The table takes its colours from the
-// element it draws in, so that it suits a light and a dark front-end alike.
+// element it draws in, so that it suits a light and a dark frontend alike.
 
 import { useEffect, useRef } from "react";
 import type { ReactElement } from "react";

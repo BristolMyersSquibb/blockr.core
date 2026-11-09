@@ -1,4 +1,4 @@
-// The hosts that core gives the modules it mounts inside a front-end's layout,
+// The hosts that core gives the modules it mounts inside a frontend's layout,
 // each narrowed to the one thing the module draws: a block's UI gets a
 // BlockHost, a board option's UI or renderer an OptionHost, and an output's
 // renderer an OutputHost. A module gets everything it shares with the page
@@ -148,7 +148,7 @@ export interface OutputHost {
     args?: Record<string, Json>,
     opts?: OutputRequestOpts,
   ): Promise<T | Blob>;
-  // Reports what the user did on the output, such as a selection, for an
-  // extension to act on.
+  // Reports what the user did on the output, such as a selection, for a
+  // plugin to act on.
   emit(name: string, payload: Json): void;
 }

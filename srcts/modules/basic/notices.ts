@@ -1,4 +1,4 @@
-// What the basic front-end tells the user above the board, until the user
+// What the basic frontend tells the user above the board, until the user
 // dismisses it: each edit that the store or the command registry refused.
 
 import { messageOf } from "../../util/index.ts";

@@ -1,9 +1,9 @@
-// What core gives a front-end, an extension and a startup module: `CoreApi`,
+// What core gives a frontend, a plugin and a startup module: `CoreApi`,
 // through which they work on the board, as Drawing the board has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#what-core-gives-plugins).
 // Core makes one for each board that opens, and ends it as the next board
-// opens, with the signal that the startup modules and the front-end get
-// beside it. The modules that core mounts inside a front-end's layout get a
+// opens, with the signal that the startup modules and the frontend get
+// beside it. The modules that core mounts inside a frontend's layout get a
 // host instead (./hosts.ts).
 
 import type { Commands } from "../commands/index.ts";
@@ -22,7 +22,7 @@ export interface CoreApi {
   readonly store: Store;
   // The command registry, for menus and shortcuts.
   readonly commands: Commands;
-  // The scheduler's methods for front-ends and extensions. Core alone calls
+  // The scheduler's methods for frontends and plugins. Core alone calls
   // the others.
   readonly scheduler: Pick<Scheduler, "demand" | "evaluate" | "invalidate" | "status" | "subscribe">;
   // The block registry's entries by registry id, for pickers, as R's reply to
@@ -38,7 +38,7 @@ export interface CoreApi {
   // The blocks that a locked board leaves open, from R's reply to `hello`.
   readonly lock: Lock | null;
   // What renderers report that the user did, such as a selection, for
-  // extensions to act on.
+  // plugins to act on.
   readonly outputEvents: OutputEvents;
   // A request of a plugin of the board, by the plugin's id, which the method
   // of R's plugin_requests() for the plugin's class answers. Its args go to

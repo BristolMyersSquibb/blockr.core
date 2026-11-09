@@ -1,4 +1,4 @@
-test_that("an output is a list of fields of a class ending in block_output", {
+test_that("an output is a named list of a class ending in block_output", {
 
   out <- new_block_output(list(text = "Hi", n = 2L),
                           c("sub_output", "x_output"))
@@ -195,7 +195,7 @@ test_that("an output is written by the schema of its most specific class", {
   expect_error(shape_output(list(x = 1)), class = "block_output_invalid")
 })
 
-test_that("an output's body travels beside its fields", {
+test_that("an output's body travels beside its properties", {
 
   body <- new_reply_body(as.raw(1:3), "image/png")
   out <- new_plot_output(body, 640, 400)

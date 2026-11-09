@@ -21,7 +21,7 @@ export interface Measure {
 // that core's theme takes as its accent, Tailwind's blue-600.
 const FALLBACK = { bg: "#ffffff", fg: "#000000", accent: "#155dfc" } as const;
 
-// The variable of core's theme that holds its accent, which a front-end or a
+// The variable of core's theme that holds its accent, which a frontend or a
 // UI kit may set to restyle core.
 const ACCENT = "--bc-color-bg-accent";
 

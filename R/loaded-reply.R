@@ -8,7 +8,7 @@
 # R loads no package for it: the app's script has loaded them, and loading
 # them filled the block registry, declared their modules and registered their
 # methods.
-# These are the fields `packages`, `block_registry`, `startup_modules`,
+# These are the properties `packages`, `block_registry`, `startup_modules`,
 # `modules`, `plugin_versions`, `option_versions` and `renderers` of
 # inst/protocol/README.md, as R values that `encode_message()` writes as the
 # reply's JSON.
@@ -173,8 +173,8 @@ arg_spec_reply <- function(x, what) {
 }
 
 # An arg spec's type, the JSON Schema it is, without the R attribute through
-# which `arg_object()` learns which of its fields are required, and with the
-# properties of an object without fields as an empty object.
+# which `arg_object()` learns which of its properties are required, and with
+# the `properties` of an object without any as an empty object.
 arg_type_reply <- function(x) {
 
   if (!is.list(x)) {

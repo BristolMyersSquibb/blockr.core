@@ -58,7 +58,7 @@ export interface StubBlockHost<S extends State = State> extends BlockHost<S> {
   // The parameters of each one-time evaluation that the module asked for.
   readonly evaluated: readonly Record<string, Json>[];
   // Sets the block's state from outside the module, as undo, the assistant or
-  // an extension does, and announces it.
+  // a plugin does, and announces it.
   setState(state: S): void;
   // Changes what the context holds, as a new status or a new revision of an
   // input does, and announces it.

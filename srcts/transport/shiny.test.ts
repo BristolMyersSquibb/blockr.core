@@ -130,7 +130,7 @@ describe("the Shiny transport", () => {
     expect(p.received).toEqual([]);
   });
 
-  test("hands on R's replies and notes in order, without the fields that carry a body", async () => {
+  test("hands on R's replies and notes in order, without the properties that carry a body", async () => {
     const p = page();
 
     p.deliver([

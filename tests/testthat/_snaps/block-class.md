@@ -1,4 +1,4 @@
-# a block class holds its fields
+# a block class holds its properties
 
     Code
       print(head_class)

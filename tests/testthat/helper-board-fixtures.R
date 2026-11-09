@@ -217,7 +217,7 @@ board_fixture_values <- function() {
         "the value of show_conditions is an array, by the schema that core",
         "ships beside its runtime, recorded with the version of its shape, as",
         "each board option's value is. The stack has a color, a hex color",
-        "that front-ends draw it in. The client opens the JSON board and",
+        "that frontends draw it in. The client opens the JSON board and",
         "saves it as it is."
       ),
       board = new_board(
