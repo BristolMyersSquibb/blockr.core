@@ -42,7 +42,7 @@ const entry = `${link} bc:justify-self-stretch`;
 
 function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   const shared = useValue(host, "volumes").value;
-  const volumes = volumesOf(shared);
+  const volumes = asVolumes(shared);
   const file = useValue(host, "file_path");
   const held = typeof file.value === "string" && file.value !== "" ? file.value : undefined;
 
@@ -64,7 +64,7 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
   // which the browser no longer shows.
   const [left, setLeft] = useState<Answered | null>(null);
   const loading = listed === left || (listed.answer === undefined && listed.error === null);
-  const listing = listed.error === null ? listingOf(listed.answer) : { dirs: [], files: [] };
+  const listing = listed.error === null ? asListing(listed.answer) : { dirs: [], files: [] };
   const error = (loading ? null : listed.error) ?? file.error;
 
   // Shows another place, which it asks R to list.
@@ -199,7 +199,7 @@ function locate(file: Json | undefined, roots: Readonly<Record<string, string>>)
 }
 
 // The volumes by name, as the state arg volumes holds them.
-function volumesOf(volumes: Json | undefined): Readonly<Record<string, string>> {
+function asVolumes(volumes: Json | undefined): Readonly<Record<string, string>> {
   if (!isObject(volumes)) return {};
   return Object.fromEntries(
     Object.entries(volumes).filter((pair): pair is [string, string] => typeof pair[1] === "string"),
@@ -212,6 +212,6 @@ function join(root: string, names: readonly string[]): string {
   return [root.replace(/\/+$/, ""), ...names].join("/");
 }
 
-function listingOf(answer: unknown): Listing {
+function asListing(answer: unknown): Listing {
   return isObject(answer) ? { dirs: strings(answer.dirs), files: strings(answer.files) } : { dirs: [], files: [] };
 }

@@ -42,7 +42,7 @@ function Page(): ReactElement {
   // The same array until show_conditions changes, so that a card draws again
   // only as its own block changes.
   const shown = board.options.show_conditions;
-  const severities = useMemo(() => severitiesOf(shown), [shown]);
+  const severities = useMemo(() => asSeverities(shown), [shown]);
   const [dialog, setDialog] = useState<Shown | null>(null);
   const add = useCallback((mode: AddMode) => {
     setDialog({ kind: "add", mode });
@@ -128,7 +128,7 @@ function Notices(): ReactElement | null {
 
 // The severities that the board option show_conditions names. Core's basic
 // front-end requires the board option, so every board holds a value of it.
-function severitiesOf(value: Json | undefined): readonly Condition["severity"][] {
+function asSeverities(value: Json | undefined): readonly Condition["severity"][] {
   if (!Array.isArray(value)) return [];
   return value.filter((severity): severity is Condition["severity"] => severity === "error" || severity === "warning" || severity === "message");
 }

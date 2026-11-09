@@ -34,7 +34,7 @@ export function isNumber(column: TableColumn): boolean {
 // a page holds is the last.
 export function pageOf(table: TableOutput, params: TableParams, nRows: Json | undefined): Page {
   const rows = table.rows.length;
-  const size = params.page_size ?? countOf(nRows) ?? Math.max(rows, 1);
+  const size = params.page_size ?? asCount(nRows) ?? Math.max(rows, 1);
   const page = params.page ?? 1;
   const last = table.total === null ? null : Math.max(1, Math.ceil(table.total / size));
   return {
@@ -111,6 +111,6 @@ function count(n: number): string {
 }
 
 // A whole number of at least 1, or undefined for anything else.
-function countOf(value: Json | undefined): number | undefined {
+function asCount(value: Json | undefined): number | undefined {
   return typeof value === "number" && Number.isInteger(value) && value >= 1 ? value : undefined;
 }

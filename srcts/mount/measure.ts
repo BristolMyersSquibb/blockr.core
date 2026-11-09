@@ -39,8 +39,8 @@ export function domMeasure(): Measure {
         height,
         pixel_ratio: window.devicePixelRatio > 0 ? window.devicePixelRatio : 1,
         bg: backgroundOf(el) ?? FALLBACK.bg,
-        fg: hexOf(style.color) ?? FALLBACK.fg,
-        accent: hexOf(style.getPropertyValue(ACCENT).trim()) ?? FALLBACK.accent,
+        fg: asHex(style.color) ?? FALLBACK.fg,
+        accent: asHex(style.getPropertyValue(ACCENT).trim()) ?? FALLBACK.accent,
         font: style.fontFamily,
       };
     },
@@ -118,7 +118,7 @@ function backgroundOf(el: HTMLElement): string | null {
     const value = getComputedStyle(at).backgroundColor;
     // A test runner gives an element without a background an empty one.
     if (value === "") continue;
-    const colour = rgbaOf(value);
+    const colour = asRgba(value);
     if (colour === null) return null;
     if (colour[3] >= 1) return hex(layers.reduceRight(over, colour));
     if (colour[3] > 0) layers.push(colour);
@@ -134,7 +134,7 @@ function behindPage(): Rgba {
   const probe = document.createElement("div");
   probe.style.cssText = "display: none; background-color: Canvas";
   document.documentElement.append(probe);
-  const colour = rgbaOf(getComputedStyle(probe).backgroundColor);
+  const colour = asRgba(getComputedStyle(probe).backgroundColor);
   probe.remove();
   return colour !== null && colour[3] >= 1 ? colour : WHITE;
 }
@@ -148,8 +148,8 @@ function over(behind: Rgba, [r, g, b, alpha]: Rgba): Rgba {
 
 // A CSS colour as R reads one, as #rrggbb, or null where it is none that core
 // can read. It drops the alpha of a translucent colour.
-export function hexOf(colour: string): string | null {
-  const rgba = rgbaOf(colour);
+export function asHex(colour: string): string | null {
+  const rgba = asRgba(colour);
   return rgba === null ? null : hex(rgba);
 }
 
@@ -160,7 +160,7 @@ const RGB = /^rgba?\(\s*(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?
 // A CSS colour as its channels, or null where it is none that core can read.
 // A colour in another notation, such as oklch(), which Tailwind's theme holds,
 // is converted by drawing it, where the page can draw.
-function rgbaOf(colour: string): Rgba | null {
+function asRgba(colour: string): Rgba | null {
   const text = colour.trim();
   if (text === "") return null;
   if (text === "transparent") return [0, 0, 0, 0];

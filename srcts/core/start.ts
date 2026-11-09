@@ -334,7 +334,7 @@ export function start(options: StartOptions): Started {
       if (signal.aborted) break;
       try {
         const source = entry.css === undefined ? { module: entry.module } : { module: entry.module, css: entry.css };
-        const mod = startupOf(await loader.load(source, entry.package), entry.module, entry.package);
+        const mod = asStartupModule(await loader.load(source, entry.package), entry.module, entry.package);
         let result: unknown;
         try {
           result = await mod.initialize({ core, signal });
@@ -498,7 +498,7 @@ interface StartupModule {
   initialize(args: { core: CoreApi; signal: AbortSignal }): unknown;
 }
 
-function startupOf(exports: unknown, module: string, pkg: string): StartupModule {
+function asStartupModule(exports: unknown, module: string, pkg: string): StartupModule {
   if (!isObject(exports) || typeof exports.api !== "number") {
     throw new ModuleError(module, pkg, "declares no major of core's JS API, as `export const api = 1`.");
   }
