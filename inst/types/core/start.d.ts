@@ -17,7 +17,7 @@ export interface Changed {
 }
 export interface StartOptions {
     readonly transport: Transport;
-    readonly loader?: Omit<LoaderOptions, "modules">;
+    readonly loader?: Omit<LoaderOptions, "modules" | "changed">;
     readonly options: (core: Pick<CoreApi, "blockrOption">) => readonly Option[];
     readonly frontEnds?: FrontEnds;
     readonly measure?: Measure;

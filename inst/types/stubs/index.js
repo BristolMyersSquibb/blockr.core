@@ -1927,9 +1927,13 @@ var SessionEndedError = class extends Error {
     this.name = "SessionEndedError";
   }
 };
+function sameMajor(a2, b2) {
+  return a2.split(".")[0] === b2.split(".")[0];
+}
 function createClient(transport, options) {
   let next = 0;
   let state2 = "none";
+  let stopped;
   let shared = /* @__PURE__ */ new Set();
   const waiting2 = /* @__PURE__ */ new Map();
   let held2 = [];
@@ -1995,7 +1999,9 @@ function createClient(transport, options) {
     }
   }
   function queue(entry) {
-    if (state2 === "ready") {
+    if (stopped !== void 0) {
+      entry.call?.settle({ error: stopped });
+    } else if (state2 === "ready") {
       dispatch([entry]);
     } else {
       held2.push(entry);
@@ -2009,6 +2015,17 @@ function createClient(transport, options) {
     waiting2.clear();
     for (const call of lost) {
       call.settle({ error: new SessionEndedError(call.id) });
+    }
+  }
+  function stop(theirs, ours) {
+    stopped = new Error(
+      `R speaks version ${theirs} of the wire protocol, where the client speaks ${ours}, so the client sends R nothing.`
+    );
+    end();
+    const lost = held2;
+    held2 = [];
+    for (const { call } of lost) {
+      call?.settle({ error: stopped });
     }
   }
   function sendHello() {
@@ -2027,12 +2044,16 @@ function createClient(transport, options) {
         }
         const { reply } = result;
         if (reply.status === "ok" && "capabilities" in reply) {
-          const theirs = new Set(reply.capabilities);
-          shared = new Set(named2.capabilities.filter((c2) => theirs.has(c2)));
-          state2 = "ready";
-          const outbound = held2;
-          held2 = [];
-          dispatch(outbound);
+          if (sameMajor(reply.protocol, named2.protocol)) {
+            const theirs = new Set(reply.capabilities);
+            shared = new Set(named2.capabilities.filter((c2) => theirs.has(c2)));
+            state2 = "ready";
+            const outbound = held2;
+            held2 = [];
+            dispatch(outbound);
+          } else {
+            stop(reply.protocol, named2.protocol);
+          }
         }
         guard(() => {
           options.session(reply);
@@ -2043,6 +2064,7 @@ function createClient(transport, options) {
   }
   transport.listen({
     started() {
+      if (stopped !== void 0) return;
       end();
       state2 = "started";
       sendHello();
@@ -2116,6 +2138,7 @@ function createClient(transport, options) {
     },
     capabilities: () => shared,
     hello() {
+      if (stopped !== void 0) return;
       const runs = state2 !== "none";
       const lost = held2;
       held2 = [];
@@ -3282,6 +3305,7 @@ function createLoader(options = {}) {
   const importer = options.importer ?? importModule;
   const stylesheet = options.stylesheet ?? linkStylesheet;
   const modules = options.modules ?? (() => ({}));
+  const changed = options.changed ?? (() => void 0);
   const imported = /* @__PURE__ */ new Map();
   const sheets = /* @__PURE__ */ new Map();
   function once2(cache, url, load2) {
@@ -3293,6 +3317,16 @@ function createLoader(options = {}) {
     return loading;
   }
   async function load(source, pkg) {
+    if (pkg !== null && !imported.has(source.module)) {
+      const versions = changed(pkg);
+      if (versions !== void 0) {
+        throw new ModuleError(
+          source.module,
+          pkg,
+          `is not loaded: R now runs ${pkg} ${versions.now}, where the page loaded ${versions.loaded}. Reload the page to load it.`
+        );
+      }
+    }
     const sheet = source.css === void 0 ? Promise.resolve() : once2(sheets, source.css, stylesheet).catch((error) => {
       report(new ModuleError(source.module, pkg, `has a stylesheet that failed to load: ${messageOf(error)}`, { cause: error }));
     });
@@ -4576,7 +4610,7 @@ async function mount(exports, host, el = document.createElement("div")) {
 }
 
 // srcts/core/blockr-options.ts
-function createBlockrOptions(client) {
+function createBlockrOptions(client, signal) {
   const found = /* @__PURE__ */ new Map();
   let batch;
   function ask(name2) {
@@ -4603,7 +4637,9 @@ function createBlockrOptions(client) {
     try {
       values2 = await valuesOf(client, asked);
     } catch (error) {
-      report(new Error(`R sent no values of the blockr options ${quoted(asked)}, so core takes their fallbacks: ${messageOf(error)}`, { cause: error }));
+      if (signal?.aborted !== true) {
+        report(new Error(`R sent no values of the blockr options ${quoted(asked)}, so core takes their fallbacks: ${messageOf(error)}`, { cause: error }));
+      }
       for (const [name2, settle2] of names) {
         found.delete(name2);
         settle2(null);
@@ -8193,6 +8229,8 @@ function start(options) {
   });
   let first;
   let latest;
+  const loaded = /* @__PURE__ */ new Map();
+  let changed = [];
   let running2;
   const holdsBoard = () => running2?.store.hasBoard() === true;
   let restarting;
@@ -8208,8 +8246,12 @@ function start(options) {
       heard(reply);
     }
   });
-  const blockrOptions = createBlockrOptions(client);
-  const loader = createLoader({ ...options.loader, modules: () => latest?.modules ?? {} });
+  const blockrOptions = createBlockrOptions(client, page.signal);
+  const loader = createLoader({
+    ...options.loader,
+    modules: () => latest?.modules ?? {},
+    changed: (pkg) => changed.find((c2) => c2.package === pkg)
+  });
   function heard(reply) {
     if (page.signal.aborted) return;
     const error = helloError(reply);
@@ -8227,27 +8269,56 @@ function start(options) {
       return;
     }
     const hello = reply;
-    latest = hello;
+    if (!sameMajor(hello.protocol, PROTOCOL_VERSION)) {
+      halt(
+        new Error(
+          `R speaks version ${hello.protocol} of the wire protocol, where this page speaks ${PROTOCOL_VERSION}. Reload the page, which then loads the client that R serves.`
+        )
+      );
+      return;
+    }
     if (first === void 0) {
       first = hello;
+      adopt(hello);
       boot(hello, void 0).then(
         ({ core }) => settle2?.resolve(core),
         (failure) => {
           settle2?.reject(failure);
-          fail(asError(failure));
+          if (!page.signal.aborted) fail(asError(failure));
         }
       );
       return;
     }
-    const changed = changedPackages(first, hello);
-    if (changed.length > 0) (options.reload ?? askReload)(changed);
+    changed = changedPackages(loaded, hello);
+    if (changed.length > 0) {
+      (options.reload ?? askReload)(changed);
+    } else {
+      adopt(hello);
+    }
     if (restarting !== void 0) {
       const waiting2 = restarting;
       restarting = void 0;
-      waiting2.resolve(hello);
+      waiting2.resolve(latest ?? first);
       return;
     }
     running2?.scheduler.session();
+  }
+  function adopt(reply) {
+    latest = reply;
+    for (const [pkg, version] of Object.entries(reply.packages)) {
+      loaded.set(pkg, version);
+    }
+  }
+  function end(why) {
+    page.abort();
+    const waiting2 = restarting;
+    restarting = void 0;
+    waiting2?.reject(why);
+  }
+  function halt(error) {
+    end(error);
+    settle2?.reject(error);
+    fail(error);
   }
   async function boot(reply, later) {
     const controller = new AbortController();
@@ -8442,10 +8513,7 @@ function start(options) {
     ready,
     core: () => running2?.core,
     stop() {
-      page.abort();
-      const waiting2 = restarting;
-      restarting = void 0;
-      waiting2?.reject(new Error("Core has stopped."));
+      end(new Error("Core has stopped."));
     }
   };
 }
@@ -8454,19 +8522,12 @@ function helloError(reply) {
     const said = "conditions" in reply ? reply.conditions.map((c2) => c2.message).join(" ") : "";
     return new Error(`R replied ${reply.status} to the client's hello. ${said}`.trim());
   }
-  const theirs = reply.protocol.split(".")[0];
-  const ours = PROTOCOL_VERSION.split(".")[0];
-  if (theirs !== ours) {
-    return new Error(
-      `R speaks version ${reply.protocol} of the wire protocol, where this page speaks ${PROTOCOL_VERSION}. Reload the page, which then loads the client that R serves.`
-    );
-  }
   return void 0;
 }
-function changedPackages(first, reply) {
+function changedPackages(loaded, reply) {
   return Object.entries(reply.packages).flatMap(([pkg, now]) => {
-    const loaded = own(first.packages, pkg);
-    return loaded === void 0 || loaded === now ? [] : [{ package: pkg, loaded, now }];
+    const before = loaded.get(pkg);
+    return before === void 0 || before === now ? [] : [{ package: pkg, loaded: before, now }];
   });
 }
 function askReload(changed) {

@@ -252,6 +252,10 @@
   One abort then ends everything that core ran for the board before: the frontend and what it mounted, the startup modules, the store with its undo history, the command registry, the board options, the scheduler with its demands, and what core kept of outputs and answers.
   Core sends another hello, on which R drops every result, queued request and request body of the board before, and starts as the page does, with a new `CoreApi` for the startup modules and the frontend.
   A store opens one board, and the scheduler of the next board gives each block a revision above any that the page has given (#497).
+* A later session whose R speaks another major of the wire protocol stops the page, as the first session's does.
+  Core's client sends R nothing more, not even what it held for the session, and the page says to reload it.
+  Where a later session names a package at another version than the page loaded, the page still asks the user to reload it.
+  Until then, core keeps the modules of that package that it loaded, and loads no other module of it (#515).
 * Core's basic frontend, `blockr.core-basic`, draws every board.
   It is written in React on core's React SDK and styled with Tailwind CSS under core's prefix.
   Its toolbar adds a block from the block registry's entries, edits links and stacks, sets the board options that the board holds, renames the board, and saves the board as a file or opens one.

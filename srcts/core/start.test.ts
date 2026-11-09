@@ -60,6 +60,10 @@ function playedR() {
       const asked = last("hello");
       heard().received({ ...reply, id: asked.id ?? "" }, null);
     },
+    // Starts a session, whose hello the test answers with answer().
+    start(): void {
+      heard().started();
+    },
     // Answers the latest hello with the reply given, as R answers the hello
     // with which core starts again in the session.
     answer(reply: HelloReply = hello): void {
@@ -743,5 +747,120 @@ describe("a later session", () => {
     s.r.session({ ...hello, packages: { "blockr.core": "0.2.1" } });
     await tick();
     expect(changes).toEqual([[{ package: "blockr.core", loaded: "0.2.0", now: "0.2.1" }]]);
+  });
+
+  test("where R speaks another major of the protocol stops the page, sending R nothing more and saying what to do", async () => {
+    let failed: Error | undefined;
+    const basic = frontEnd();
+    const s = setup({ [BASIC]: basic.exports }, { fail: (error) => (failed = error) });
+    s.r.session();
+    await tick();
+    s.r.options();
+    const core = await s.started.ready;
+    await s.r.evaluateAll();
+
+    // The scheduler sends an evaluation while the new session starts, which
+    // the client holds until R has answered the session's hello.
+    s.r.start();
+    const sent = s.r.sent.length;
+    core.scheduler.invalidate("a");
+    await tick(100);
+    s.r.answer({ ...hello, protocol: "2.0" });
+    await tick(100);
+
+    expect(s.r.sent.slice(sent)).toEqual([]);
+    expect(failed?.message).toBe(
+      "R speaks version 2.0 of the wire protocol, where this page speaks 1.0. Reload the page, which then loads the client that R serves.",
+    );
+    expect(basic.renders).toHaveLength(1);
+    expect(basic.renders[0]?.signal.aborted).toBe(true);
+    expect(basic.cleanups()).toBe(1);
+
+    // R hears nothing more, not even the hello of a later session.
+    core.scheduler.invalidate("a");
+    s.r.start();
+    await tick(100);
+    expect(s.r.sent.slice(sent)).toEqual([]);
+  });
+
+  test("where R speaks another major of the protocol as the first board opens says why once", async () => {
+    const failures: string[] = [];
+    const s = setup({ [BASIC]: frontEnd().exports }, { fail: (error) => failures.push(error.message) });
+    s.r.session();
+    await tick();
+    // The session ends before R has answered the blockr options that core
+    // asks for as the first board opens.
+    s.r.start();
+    s.r.answer({ ...hello, protocol: "2.0" });
+    const why =
+      "R speaks version 2.0 of the wire protocol, where this page speaks 1.0. Reload the page, which then loads the client that R serves.";
+    await expect(s.started.ready).rejects.toThrow(why);
+    await tick(100);
+
+    expect(failures).toEqual([why]);
+    expect(s.r.kinds()).toEqual(["hello", "blockr_options", "hello"]);
+  });
+
+  test("that names a package at another version loads no module of that package from its reply, nor one the page has not loaded", async () => {
+    const events: string[] = [];
+    const shared = { name: "shared at 1.0.0" };
+    const first: HelloReply = {
+      ...withStartup("blockr.test"),
+      modules: {
+        ...hello.modules,
+        "blockr.test-shared": { module: "blockr.test/shared.js?v=1" },
+        "blockr.test-other": { module: "blockr.test/other.js?v=1" },
+      },
+    };
+    const later: HelloReply = {
+      ...first,
+      packages: { ...first.packages, "blockr.test": "1.1.0" },
+      startup_modules: [{ package: "blockr.test", module: "blockr.test/startup.js?v=2" }],
+      modules: {
+        ...hello.modules,
+        "blockr.test-shared": { module: "blockr.test/shared.js?v=2" },
+        "blockr.test-other": { module: "blockr.test/other.js?v=2" },
+      },
+    };
+    const changes: (readonly Changed[])[] = [];
+    const s = setup(
+      {
+        "blockr.test/startup.js?v=1": startup("1.0.0", events),
+        "blockr.test/startup.js?v=2": startup("1.1.0", events),
+        "blockr.test/shared.js?v=1": shared,
+        "blockr.test/shared.js?v=2": { name: "shared at 1.1.0" },
+        "blockr.test/other.js?v=1": {},
+        "blockr.test/other.js?v=2": {},
+        [BASIC]: frontEnd().exports,
+      },
+      { reload: (changed) => changes.push(changed) },
+    );
+    s.r.session(first);
+    await tick();
+    s.r.options();
+    const core = await s.started.ready;
+    expect(await core.module("blockr.test-shared")).toBe(shared);
+
+    s.r.session(later);
+    await tick();
+    const changed = [{ package: "blockr.test", loaded: "1.0.0", now: "1.1.0" }];
+    expect(changes).toEqual([changed]);
+    expect(await core.module("blockr.test-shared")).toBe(shared);
+    await expect(core.module("blockr.test-other")).rejects.toThrow(
+      "The module blockr.test/other.js of blockr.test is not loaded: R now runs blockr.test 1.1.0, where the page loaded 1.0.0. Reload the page to load it.",
+    );
+
+    // A board that opens starts core again with the reply before, so that it
+    // initializes the startup module that the page loaded.
+    const opening = core.store.open(JSON.stringify({ ...hello.board, board: { ...hello.board.board, name: "Opened" } }));
+    await tick();
+    s.r.answer(later);
+    await opening;
+    const next = s.started.core();
+    expect(next?.store.board().name).toBe("Opened");
+    expect(await next?.module("blockr.test-shared")).toBe(shared);
+    expect(changes).toEqual([changed, changed]);
+    expect(events).toEqual(["1.0.0 starts, board open: false", "1.0.0 done", "1.0.0 starts, board open: false", "1.0.0 done"]);
+    expect(s.imported.filter((url) => url.endsWith("?v=2"))).toEqual([]);
   });
 });

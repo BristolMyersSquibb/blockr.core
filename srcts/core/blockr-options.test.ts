@@ -117,6 +117,20 @@ describe("reading a blockr option", () => {
     await expect(again).resolves.toBe(7);
   });
 
+  test("takes the fallback where R cannot answer once core has stopped, and reports nothing", async () => {
+    const r = asked();
+    const stopping = new AbortController();
+    const options = createBlockrOptions(r.client, stopping.signal);
+    const read = options.read("queue", 2);
+    await flush();
+    const reported = reports();
+    stopping.abort();
+    r.requests[0]?.settle({ error: new Error("The client sends R nothing.") });
+    await expect(read).resolves.toBe(2);
+    reported.restore();
+    expect(reported.errors()).toEqual([]);
+  });
+
   test("refuses a name that is no non-empty string", async () => {
     const options = createBlockrOptions(asked().client);
     await expect(options.read("", 1)).rejects.toThrow("A blockr option is read by its name");

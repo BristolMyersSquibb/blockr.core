@@ -12,6 +12,8 @@
 //   sets arrives as a string, which core converts to the fallback's type, a
 //   number or a logical. R writes Inf as null, which core reads as Infinity
 //   where the fallback is a number.
+// - Once core has stopped, as where R speaks another major of the protocol, a
+//   read that R did not answer takes its fallback, and core reports nothing.
 
 import { SessionEndedError } from "../protocol/index.ts";
 import type { Client } from "../protocol/index.ts";
@@ -27,7 +29,8 @@ export interface BlockrOptions {
 // What R sent for a blockr option, or null where it sent nothing.
 type Found = { readonly value: Json } | null;
 
-export function createBlockrOptions(client: Pick<Client, "request">): BlockrOptions {
+// The signal aborts as core stops.
+export function createBlockrOptions(client: Pick<Client, "request">, signal?: AbortSignal): BlockrOptions {
   const found = new Map<string, Promise<Found>>();
   // The names that code has read in this task, which go to R together once it
   // ends.
@@ -59,7 +62,9 @@ export function createBlockrOptions(client: Pick<Client, "request">): BlockrOpti
     try {
       values = await valuesOf(client, asked);
     } catch (error) {
-      report(new Error(`R sent no values of the blockr options ${quoted(asked)}, so core takes their fallbacks: ${messageOf(error)}`, { cause: error }));
+      if (signal?.aborted !== true) {
+        report(new Error(`R sent no values of the blockr options ${quoted(asked)}, so core takes their fallbacks: ${messageOf(error)}`, { cause: error }));
+      }
       // They are asked again the next time code reads them.
       for (const [name, settle] of names) {
         found.delete(name);
