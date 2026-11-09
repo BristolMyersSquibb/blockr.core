@@ -328,7 +328,18 @@ block_eval.scatter_block <- function(x, expr, env, ...) {
 A __renderer__ is the module that draws an output in the browser.
 The package that defines an output class gives its renderer, and an app picks another, such as a richer table, through the blockr option `renderers`.
 So a block class never names how its output looks.
-A package that needs an output class of its own makes one with `new_block_output()` and gives its JSON Schema, requests and renderer through methods of `output_schema()`, `output_requests()` and `output_renderer()`.
+A package that needs an output class of its own makes one with `new_block_output()`.
+It gives the class's JSON Schema, requests, renderer and coercion through its methods of `output_schema()`, `output_requests()`, `output_renderer()` and `output_coercion()`.
+The method of `output_coercion()` returns the coercion that makes the class's outputs, as core's method for table outputs returns `as_table_output`.
+With it, the client knows a block's renderer before the block's first output:
+
+1. R finds the output class whose method of `output_coercion()` returns the coercion that the block class names in `output`.
+2. R names that output class's renderer in the block class's entry of the block registry.
+3. The client loads the renderer, which names the board options that the coercion reads, such as `n_rows`.
+4. The client asks R for the block's first output, with the values of those board options.
+
+Without the method, R names no renderer in the entry.
+The client then learns the renderer, and the board options that it names, only from the block's first output.
 
 ## Evaluation
 

@@ -47,8 +47,8 @@ from a raw vector or from a file's path. It takes the body's MIME type and,
 for a download, a file name.
 
 The package that defines an output class gives R what it needs of the
-class, its JSON Schema, its requests and its renderer, through its methods of
-three generics (see \code{\link[=output_schema]{output_schema()}}).
+class, its JSON Schema, its requests, its renderer and its coercion, through
+its methods of four generics (see \code{\link[=output_schema]{output_schema()}}).
 }
 \examples{
 out <- new_block_output(list(text = "Hello"), "greeting_output")

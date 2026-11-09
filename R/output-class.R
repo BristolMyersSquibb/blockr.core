@@ -22,8 +22,8 @@
 #' for a download, a file name.
 #'
 #' The package that defines an output class gives R what it needs of the
-#' class, its JSON Schema, its requests and its renderer, through its methods of
-#' three generics (see [output_schema()]).
+#' class, its JSON Schema, its requests, its renderer and its coercion, through
+#' its methods of four generics (see [output_schema()]).
 #'
 #' @param x For `new_block_output()`, the output's fields, as a named list, and
 #'   for `new_reply_body()`, a raw vector or the path of a file
