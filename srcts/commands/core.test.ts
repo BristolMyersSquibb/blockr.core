@@ -56,6 +56,7 @@ describe("blocks", () => {
       registry_id: head,
       state: { n: 6, direction: "head" },
       name: "Head",
+      locked: null,
     });
   });
 
@@ -73,6 +74,7 @@ describe("blocks", () => {
       registry_id: head,
       state: { n: 3, direction: "head" },
       name: "Top rows",
+      locked: null,
     });
   });
 
@@ -116,6 +118,31 @@ describe("blocks", () => {
 
     await commands.run("blockr.core-rename_block", { id: "b", name: "Top rows" });
     expect(store.board().blocks.b?.name).toBe("Top rows");
+  });
+
+  test("set_block_locked sets a block's lock, null among its values, and makes no step for the lock it has", async () => {
+    const { store, commands } = await setup();
+
+    await commands.run("blockr.core-set_block_locked", { id: "b", locked: null });
+    expect(store.canUndo()).toBe(false);
+
+    await commands.run("blockr.core-set_block_locked", { id: "b", locked: false });
+    expect(store.board().blocks.b?.locked).toBe(false);
+    await commands.run("blockr.core-set_block_locked", { id: "b", locked: true });
+    expect(store.board().blocks.b?.locked).toBe(true);
+    await commands.run("blockr.core-set_block_locked", { id: "b", locked: null });
+    expect(store.board().blocks.b?.locked).toBeNull();
+
+    store.undo();
+    expect(store.board().blocks.b?.locked).toBe(true);
+    store.undo();
+    store.undo();
+    expect(store.board().blocks.b?.locked).toBeNull();
+
+    await expect(commands.run("blockr.core-set_block_locked", { id: "b", locked: "yes" })).rejects.toThrow(
+      "The args fail their schema at /locked:",
+    );
+    expect(commands.enabled("blockr.core-set_block_locked", { id: "z", locked: true })).toBe(false);
   });
 
   test("set_block sets and unsets state args, as one step", async () => {
@@ -516,7 +543,7 @@ function plugin(def: PluginClass, name: string, state: Json = {}): Plugin {
 // of that store.
 async function pluginStore(
   plugins: Readonly<Record<string, Plugin>>,
-  lock: HelloReply["lock"] = null,
+  lock: HelloReply["lock"] = { board: false, load: false },
 ): Promise<{ store: Store; commands: Commands }> {
   const store = await openedStore((store) => store.plugins.register(dag), { ...withPlugins(plugins), lock });
   return { store, commands: createCommands(store, { lock }) };
@@ -554,9 +581,13 @@ describe("plugins", () => {
     expect(commands.enabled("blockr.core-set_plugin_state", { plugin: "nowhere", patches: [] })).toBe(false);
   });
 
-  test("on a locked board, set_plugin_state is not enabled", async () => {
-    const { commands } = await pluginStore({ dag: plugin(dag, "DAG", { positions: {} }) }, { open: [] });
-    expect(commands.enabled("blockr.core-set_plugin_state", { plugin: "dag", patches: [] })).toBe(false);
+  test("under the board lock, set_plugin_state is not enabled, and under the load lock alone it is", async () => {
+    const state = { dag: plugin(dag, "DAG", { positions: {} }) };
+    const args = { plugin: "dag", patches: [] };
+    const locked = await pluginStore(state, { board: true, load: false });
+    expect(locked.commands.enabled("blockr.core-set_plugin_state", args)).toBe(false);
+    const loading = await pluginStore(state, { board: false, load: true });
+    expect(loading.commands.enabled("blockr.core-set_plugin_state", args)).toBe(true);
   });
 });
 

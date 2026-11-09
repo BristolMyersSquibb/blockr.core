@@ -76,6 +76,7 @@ describe("registering", () => {
       "blockr.core-add_block",
       "blockr.core-remove_block",
       "blockr.core-rename_block",
+      "blockr.core-set_block_locked",
       "blockr.core-set_block",
       "blockr.core-append_block",
       "blockr.core-prepend_block",

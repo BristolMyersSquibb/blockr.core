@@ -21,6 +21,7 @@ import { isDeltas } from "./delta.ts";
 import type { Delta, Origin } from "./delta.ts";
 import { StoreError } from "./error.ts";
 import { expand } from "./expand.ts";
+import { fixes, lockFailures } from "./lock.ts";
 import { pluginOf } from "./patch.ts";
 import { fit, isEmpty } from "./undo.ts";
 import { checkJsonBoard, FORMAT, openJsonBoard, parse, required } from "./open.ts";
@@ -38,6 +39,11 @@ export interface Store {
   board(): Board;
   // Whether the store holds a board. It holds one once it has opened one.
   hasBoard(): boolean;
+  // Whether a lock fixes the block's state: the board lock is on and the
+  // block's `locked` is not false, so that a block whose `locked` is null
+  // follows the board lock. A frontend reads it, rather than the block's
+  // `locked`, to know which blocks a reader may still change.
+  locked(block: BlockId): boolean;
   // Calls `fn` after every commit, once for each delta as expanded, and after
   // every opening of a board, with the board as it then is.
   subscribe(fn: (change: Change, board: Board) => void): () => void;
@@ -49,11 +55,16 @@ export interface Store {
   // they change.
   // A step that sets or removes only board option values is no undo step:
   // it leaves the origin's undo and redo lists as they are.
+  // Under the board lock, it refuses every delta but one that changes the
+  // state of a block that the board lock leaves open, a board option's value
+  // or what sits inside a plugin's state, which the plugin locks itself
+  // (./lock.ts).
   apply(delta: Delta | readonly Delta[], origin?: Origin): void;
   // Opens the opening board that R sent with its reply to `hello`, or a JSON
   // board given as its text, with the block registry of the last such reply,
   // and resolves with what it dropped.
-  // A locked board opens no JSON board.
+  // Under the load lock, it opens no JSON board's text, so that the app shows
+  // its opening board alone.
   // A store opens one board, and refuses another once it holds one. Through
   // `CoreApi`, open() starts core again in place with the board given, in a
   // new store, once the store on the page has checked the board
@@ -153,8 +164,9 @@ export function createStore(options: StoreOptions = {}): Store {
 
   const board = signal<Board | undefined>(undefined);
   // The last reply to `hello`, whose block registry, versions and opening board
-  // the store opens its board with, and whose lock keeps it from opening a JSON
-  // board and from changing which plugins the board holds.
+  // the store opens its board with, and whose locks say what the store
+  // refuses: its load lock every JSON board's text, and its board lock every
+  // delta but those it leaves open.
   let hello: HelloReply | undefined = options.hello;
   const registry = signal<Readonly<Record<RegistryId, RegistryEntry>>>(options.hello?.block_registry ?? {});
   const packages = signal<Readonly<Record<string, string>>>(options.hello?.packages ?? {});
@@ -252,6 +264,10 @@ export function createStore(options: StoreOptions = {}): Store {
 
       const committed = commit(current, expanded, how.places?.[i]);
       if ("failures" in committed) throw fail(committed.failures);
+      if (hello?.lock.board === true) {
+        const locked = lockFailures(current, committed.inverse.delta);
+        if (locked.length > 0) throw fail(locked);
+      }
       const undoable = !isEmpty(committed.inverse.delta);
       if (!undoable && committed.changed.options.size === 0) continue;
 
@@ -388,8 +404,8 @@ export function createStore(options: StoreOptions = {}): Store {
 
   // The JSON board given, with the reply to `hello` that the store opens it
   // with: a reply's opening board with that reply, which the store keeps as
-  // its last, or a JSON board's text with the last reply, which a locked board
-  // opens none of.
+  // its last, or a JSON board's text with the last reply, which the store
+  // opens none of under the load lock.
   function jsonOf(given: string | HelloReply): { json: JsonBoard; reply: HelloReply } {
     if (typeof given !== "string") {
       hello = given;
@@ -400,8 +416,10 @@ export function createStore(options: StoreOptions = {}): Store {
     if (hello === undefined) {
       throw new StoreError(refusedOpen, ["The store opens a JSON board only once R has answered `hello`."]);
     }
-    if (hello.lock !== null) {
-      throw new StoreError(refusedOpen, ["The board is locked, so it opens no other board."]);
+    if (hello.lock.load) {
+      throw new StoreError(refusedOpen, [
+        "The load lock fixes the app to its opening board, so the store opens no other board.",
+      ]);
     }
     return { json: checkJsonBoard(parse(given)), reply: hello };
   }
@@ -499,6 +517,7 @@ export function createStore(options: StoreOptions = {}): Store {
           version: own(registry.value, block.registry_id)?.version ?? 1,
           state: block.state,
           name: block.name,
+          locked: block.locked,
         },
       ]),
     );
@@ -536,6 +555,7 @@ export function createStore(options: StoreOptions = {}): Store {
       return board.value;
     },
     hasBoard: () => board.value !== undefined,
+    locked: (block) => fixes(board.value, block, hello?.lock.board === true),
     subscribe(fn) {
       // An ended store announces nothing more.
       if (ended()) return () => undefined;

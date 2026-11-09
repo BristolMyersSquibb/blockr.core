@@ -110,15 +110,19 @@ read_of <- function(block, revision, input = NULL) {
   )
 }
 
-evaluate_request <- function(id, block, revision, recipe, params = NULL) {
+# An evaluation, which carries the block's lock where `locked` is `TRUE` or
+# `FALSE`, and none otherwise, which R reads as null, as a decoded `null` reads.
+evaluate_request <- function(id, block, revision, recipe, params = NULL,
+                             locked = NULL) {
   c(
     list(
       id = id,
       kind = "evaluate",
       block = block,
-      revision = revision,
-      recipe = recipe
+      revision = revision
     ),
+    if (not_null(locked)) list(locked = locked),
+    list(recipe = recipe),
     if (not_null(params)) list(params = params)
   )
 }
@@ -458,4 +462,59 @@ local_request_types <- function(frame = parent.frame()) {
 # The class of the first condition that a reply carries.
 condition_class <- function(reply) {
   unclass(reply[["conditions"]][[1L]][["class"]])[1L]
+}
+
+# The recipe of the dataset block a of the board of the fixture hello-locked,
+# with the data set given.
+locked_recipe_a <- function(dataset = "iris") {
+  list(
+    registry_id = "blockr.core-dataset_block",
+    state = list(dataset = dataset, package = "datasets"),
+    inputs = list()
+  )
+}
+
+# The recipe of the head block b of that board, which the board lock leaves
+# open, with the rows given and the inputs given.
+locked_recipe_b <- function(n = 6L, inputs = list(read_of("a", 1L, "data"))) {
+  list(
+    registry_id = "blockr.core-head_block",
+    state = list(n = n, direction = "head"),
+    inputs = inputs
+  )
+}
+
+# A session of an app with both locks on, whose opening board is given, such
+# as that of the fixture hello-locked: the dataset block a, whose lock follows
+# the board lock, and the head block b, which reads a and whose lock of `FALSE`
+# leaves it open.
+local_locked_evaluator <- function(board, ..., frame = parent.frame()) {
+
+  withr::local_options(
+    blockr.locked = TRUE,
+    blockr.lock_load = TRUE,
+    .local_envir = frame
+  )
+
+  local_evaluator(board, ..., frame = frame)
+}
+
+# A session of an app with the board lock on and the load lock off, on the
+# sample board of the protocol's fixtures, whose blocks' locks are all null.
+local_board_locked_evaluator <- function(frame = parent.frame()) {
+
+  withr::local_options(
+    blockr.locked = TRUE,
+    blockr.lock_load = NULL,
+    .local_envir = frame
+  )
+
+  local_evaluator(frame = frame)
+}
+
+# The reply to an evaluation, which R runs in the session given.
+evaluated <- function(session, ...) {
+  session$receive(list(evaluate_request(...)))
+  session$run()
+  last_reply(session)
 }

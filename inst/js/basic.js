@@ -403,8 +403,8 @@ var BlockCard = (0, import_react4.memo)(function BlockCard2({
   }, [inView2, id2]);
   const mountUi = (0, import_react4.useCallback)((el) => core.mountBlock(el, id2), [core, id2]);
   const mountOutput = (0, import_react4.useCallback)((el) => core.mountOutput(el, id2), [core, id2]);
-  const { lock } = core;
-  const inputs = lock === null || lock.open.includes(id2);
+  const locked2 = core.lock.board;
+  const inputs = !core.store.locked(id2);
   const entry = own(core.blockRegistry(), block.registry_id);
   const ready = status?.status === "ready";
   const replied = status !== void 0 && status.evaluated !== null;
@@ -431,7 +431,7 @@ var BlockCard = (0, import_react4.memo)(function BlockCard2({
           ) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h3", { className: classes.heading, children: block.name }),
           /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "bc:text-xs bc:text-text-muted", children: entry?.name ?? block.registry_id }),
           /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(StatusBadge, { status }),
-          lock === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "bc:ml-auto bc:flex bc:items-center bc:gap-1", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+          locked2 ? null : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "bc:ml-auto bc:flex bc:items-center bc:gap-1", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
             Menu,
             {
               label: `Actions of ${block.name}`,
@@ -463,7 +463,7 @@ var BlockCard = (0, import_react4.memo)(function BlockCard2({
                 }
               ]
             }
-          ) }) : null
+          ) })
         ] }),
         inputs ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Mounted, { mount: mountUi, label: "Inputs", className: "bc:min-w-0" }) : null,
         /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
@@ -1062,7 +1062,8 @@ function Toolbar({ board, show }) {
   const { canUndo, canRedo } = useHistory(core);
   const [renaming, setRenaming] = (0, import_react9.useState)(false);
   const picker = (0, import_react9.useRef)(null);
-  const locked = core.lock !== null;
+  const locked2 = core.lock.board;
+  const opens = !locked2 && !core.lock.load;
   function step(back) {
     try {
       if (back) core.store.undo();
@@ -1102,7 +1103,7 @@ function Toolbar({ board, show }) {
         }
       }
     ) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("h1", { className: "bc:m-0 bc:font-sans bc:text-lg bc:font-semibold", children: board.name }),
-    locked || renaming ? null : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+    locked2 || renaming ? null : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
       "button",
       {
         type: "button",
@@ -1115,7 +1116,7 @@ function Toolbar({ board, show }) {
       }
     ),
     /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { role: "toolbar", "aria-label": "Board", className: "bc:ml-auto bc:flex bc:flex-wrap bc:items-center bc:gap-2", children: [
-      locked ? null : /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_jsx_runtime7.Fragment, { children: [
+      locked2 ? null : /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_jsx_runtime7.Fragment, { children: [
         /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
           "button",
           {
@@ -1188,7 +1189,7 @@ function Toolbar({ board, show }) {
         }
       ),
       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("button", { type: "button", className: classes.button, onClick: save, children: "Save" }),
-      locked ? null : /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_jsx_runtime7.Fragment, { children: [
+      opens ? /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_jsx_runtime7.Fragment, { children: [
         /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
           "button",
           {
@@ -1213,7 +1214,7 @@ function Toolbar({ board, show }) {
             }
           }
         )
-      ] })
+      ] }) : null
     ] })
   ] });
 }

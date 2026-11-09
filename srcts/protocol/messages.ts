@@ -94,7 +94,8 @@ export interface HelloReply {
   option_versions: Record<OptionId, number>;
   // The renderers that the app names for board options, by the renderer's id.
   renderers: Record<string, Renderer>;
-  lock: Lock | null;
+  // The locks that the app sets.
+  lock: Lock;
   // The opening board, as a JSON board: the one an app script built, which R
   // wrote with every id, or the one that `serve()` was given, which R passes on
   // as it is.
@@ -113,9 +114,14 @@ export interface Renderer {
   option: OptionId;
 }
 
-// The blocks that a locked board leaves open.
+// The locks that the app sets, each true where the app sets it: the board lock,
+// the blockr option `locked`, which fixes what a board holds but its blocks'
+// state, its board options and its plugins' state, and the load lock, the
+// blockr option `lock_load`, which fixes the app to its opening board. Each
+// block's `locked` says whether the board lock leaves the block open.
 export interface Lock {
-  open: BlockId[];
+  board: boolean;
+  load: boolean;
 }
 
 // Reading blockr options, which the client asks R for by name, since it can
@@ -144,6 +150,9 @@ export interface EvaluateRequest {
   kind: "evaluate";
   block: BlockId;
   revision: number;
+  // The block's `locked`, which R reads only under the board lock. It travels
+  // outside the recipe, so that a change of it bumps no revision.
+  locked: boolean | null;
   recipe: Recipe;
   // The parameters of a one-time evaluation, which R passes to `block_eval()`.
   params?: Record<string, Json>;
@@ -187,8 +196,8 @@ export interface Condition {
   severity: "error" | "warning" | "message";
   // The class vector it has in R, as ["simpleWarning", "warning", "condition"].
   class: string[];
-  // What raised it. A condition that R raises itself, such as for a request
-  // that the lock refuses, has none.
+  // What raised it. A condition that R raises itself, such as for an
+  // evaluation that a lock refuses, has none.
   phase?: Phase;
   message: string;
 }
@@ -216,7 +225,8 @@ export interface Omitted {
 // a type with a method of its own.
 
 // A block class's request, which R resolves by registry id. Its `block` names
-// the block that asks, which R reads only on a locked board.
+// the block that asks. It carries no `locked`, since R runs every request as on
+// any board, whatever the locks.
 export interface BlockClassRequest {
   id: string;
   kind: "request";

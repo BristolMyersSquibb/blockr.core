@@ -30,7 +30,7 @@ A reply's `status` belongs to its request alone, so that a request or an output 
 | Status | Means | Fields beside `id` and `status` |
 |---|---|---|
 | `ok` | the request succeeded | those of the request's kind |
-| `error` | R raised an error, or refused the request, as on a locked board | `conditions` and `omitted` ([Conditions](#conditions)), and an evaluation's fields in the reply to an `evaluate` |
+| `error` | R raised an error, or refused the request, as it refuses an evaluation that breaks a lock | `conditions` and `omitted` ([Conditions](#conditions)), and an evaluation's fields in the reply to an `evaluate` |
 | `invalid` | only to an `evaluate`: the block's state cannot run | an evaluation's fields |
 | `cancelled` | R dropped or stopped the request, after a `cancel` or a `forget` | none |
 | `missing` | the request names a result that R does not hold ([Missing results](#missing-results)) | `missing` |
@@ -57,7 +57,7 @@ R replies `ok` with:
 | `plugin_versions` | the version of the state of each plugin class that a loaded package gives one through its method of `plugin_version()`, by the class's id, as `{ "blockr.dock-dock_plugin": 2 }`, where a plugin class that it lacks is at version 1 ([A plugin](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#a-plugin)) |
 | `option_versions` | the version of the shape of each board option's value that a loaded package gives one through its method of `board_option_version()`, by the board option's id, as `{ "grid_gap": 2 }`, where a board option that it lacks is at version 1 ([Migrations](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.4#migrations)) |
 | `renderers` | the renderers that the app names for board options in the blockr option `renderers`, by the renderer's id, each with the board option it draws in `option`, while the renderer of an output comes in the output ([Renderers](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#renderers)) |
-| `lock` | the blocks that a locked board leaves open, as `{ "open": ["f"] }`, or `null` where the app locks nothing ([Locked boards](#locked-boards)) |
+| `lock` | the locks that the app sets, as `{ "board": true, "load": true }`, with `false` for a lock that the app does not set ([Locked boards](#locked-boards)) |
 | `board` | the opening board, as a JSON board, `JsonBoard` in [`srcts/types/board.ts`](../../srcts/types/board.ts) ([Files](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.4#files)): the board that the app script built, which R writes with `blockr_ser()`, or the JSON board that `serve()` was given, which R passes on as it is (below) |
 | `bound` | only for a block that `serve()` serves alone, the inputs that R binds itself to the data it was given, as `["data"]`, which the client counts as linked and names in a recipe by the input alone ([Data passed to `serve()`](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.3#data-passed-to-serve)) |
 
@@ -75,7 +75,7 @@ R replies with the version it speaks whatever the client named, and the client, 
 
 R draws each id that an app script leaves out with `rand_names()`, in the shape in which the client mints one, as `new_board()` and the constructors of blocks, links and stacks call it, and names a board without a name after its id ([Ids](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.1#ids)).
 So the board that an app script built reaches the client as a JSON board that holds every id, with its collections keyed by id, as a JSON board that the client saves does.
-R passes the JSON board that `serve()` was given on as it is, having read nothing of it but its format.
+R passes the JSON board that `serve()` was given on as it is, having read nothing of it but its format, unless the load lock and the board lock are both on, where it reads its blocks and links too ([Locked boards](#locked-boards)).
 The client opens either as it opens any JSON board ([Opening a board](#opening-a-board)).
 
 A client that holds a board already, as when the server ended its session while the page lived on, keeps it and its undo history.
@@ -103,7 +103,7 @@ It then gives the board each other plugin of the opening board whose class a sta
 So a board that a startup module names, or that the user opens, holds the plugins of the board that the app script built, each with the state that the board gives it where it gives one, and the client replaces its board.
 A file of today's stack is converted to a JSON board before it is opened, outside core.
 
-A locked board opens no other board ([Locked boards](#locked-boards)).
+Under the load lock, the client opens no board but the opening board ([Locked boards](#locked-boards)).
 
 ## Blockr options
 
@@ -125,6 +125,7 @@ An `evaluate` names the block and its revision and carries the recipe:
 |---|---|
 | `block` | the block's id |
 | `revision` | its revision ([Revisions](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.10#revisions)) |
+| `locked` | the block's lock, `true`, `false` or `null`, which R reads only under the board lock, and which travels outside the recipe, so that a change of it bumps no revision ([Locked boards](#locked-boards)) |
 | `recipe` | the block's `registry_id` and `state`, and its `inputs` (below) |
 | `params` | optional, the parameters of a one-time evaluation, such as the write block's `{ "save": true }`, which R passes to `block_eval()` |
 
@@ -147,7 +148,7 @@ The status is `invalid` where the class's `expr` or its `block_eval()` method si
 |---|---|
 | `severity` | `"error"`, `"warning"` or `"message"` |
 | `class` | the condition's class vector in R, as `["simpleWarning", "warning", "condition"]` |
-| `phase` | what raised it (below), or nothing where R raised it itself, as for a request that the lock refuses |
+| `phase` | what raised it (below), or nothing where R raised it itself, as for an evaluation that a lock refuses |
 | `message` | its message |
 
 | Phase | Names |
@@ -176,7 +177,7 @@ Core's types each name the request in `name`, such as `"n_max"`:
 
 | Type | A request of | How R finds the function | Fields beside `name`, `args` and `body` |
 |---|---|---|---|
-| `block_class` | a block class | among the requests of the class that `registry_id` names, with `block` naming the block that asks, which R reads only on a locked board | `registry_id`, `block`, `reads` and `options` |
+| `block_class` | a block class | among the requests of the class that `registry_id` names, with `block` naming the block that asks | `registry_id`, `block`, `reads` and `options` |
 | `output_class` | an output class | among those that the method of `output_requests()` for the class vector of the latest output that R made from the result that `output` names, as `{ "block": "c", "revision": 7 }`, gives, a subclass's before its class's | `output`, `options` and `params` |
 | `renderer` | a renderer of an output class | among the requests of the renderer that draws that output, which has to be the one that `renderer` names, as `"blockr.ui-table_preview"`, never among those of the output class | `renderer`, `output`, `options` and `params` |
 | `option` | a board option | among the requests that `board_option_requests()` returns for the board option that `option` names, by its class `{id}_option`, for which the package that ships the board option has a method | `option` |
@@ -212,23 +213,23 @@ R replies `ok` with the answer in `value`, which no schema describes, so that R 
 
 Where R resolves a request of an output class to one that the class makes volatile, it marks its reply with `"volatile": true`, and the client keeps no answer so marked. The client cannot tell such a request before it asks: an output carries its renderer rather than its class vector, and a subclass may replace a volatile request of its class with one that is not. A renderer's own request is never volatile, and a block class's request needs no mark, since the block registry says which of them are volatile.
 
-What R runs for the client comes in these flavors, which differ in who defines and calls them, whether the client keeps what they answer, whether they may write, and what a locked board allows ([Locked boards](#locked-boards)):
+What R runs for the client comes in these flavors, which differ in who defines and calls them, whether the client keeps what they answer, and whether they may write:
 
-| Flavor | Defined by | Called by | Kept by the client | May write | On a locked board |
-|---|---|---|---|---|---|
-| Evaluation | The block's class, through its `expr` and `block_eval()` | The scheduler, for demand and one-time evaluations | Its reply sets the block's status, and R keeps the result | No | From the block expression R built at startup, for a locked block |
-| Evaluation with parameters | A `block_eval()` method of the block's class, such as the write block's | A one-time evaluation with parameters, such as a save button's | No, it runs once per call | Yes | With its parameters only for a block left open |
-| Output | The coercion of the output class that the block's class names | Core, for whatever draws the output | The last output, by revision, board options, `info` and parameters | No | With the opening board option values |
-| Output class's request | The output class, through the method of `output_requests()` that the package that defines it gives | A renderer of the class, through its output host | Its answer, by block, revision, name, args, board options and parameters, unless R marks its reply volatile | No | With the opening board option values |
-| Renderer's request | A renderer of the output class, as the package that offers it makes it | That renderer, through its output host | Its answer, by renderer, block, revision, name, args, board options and parameters | No | With the opening board option values |
-| Block class's request | The class's `requests` | The block's UI, through its host | Its answer, by registry id, name, args, board options and the revisions read | No | With a locked block's opening state and the opening board option values |
-| Volatile request | A request that the class makes with `new_block_request(volatile = TRUE)` | The block's UI, through its host | No | No | As a block class's request |
-| Action | A request that the class makes with `new_block_request(action = TRUE)`, such as an upload | The block's UI, through its host | No, it runs once per call | Yes | Only for a block left open |
-| Board option's request | The package that ships the board option, through its method of `board_option_requests()` | The board option's UI or renderer, through its `OptionHost` | No | Yes | Only where the package says that it may run there |
-| Request of a type that a package adds | The package, through its method of `request_call()` | The package's code in the client, through `CoreApi` | No | Yes | Only where the package says that it may run there |
+| Flavor | Defined by | Called by | Kept by the client | May write |
+|---|---|---|---|---|
+| Evaluation | The block's class, through its `expr` and `block_eval()` | The scheduler, for demand and one-time evaluations | Its reply sets the block's status, and R keeps the result | No |
+| Evaluation with parameters | A `block_eval()` method of the block's class, such as the write block's | A one-time evaluation with parameters, such as a save button's | No, it runs once per call | Yes |
+| Output | The coercion of the output class that the block's class names | Core, for whatever draws the output | The last output, by revision, board options, `info` and parameters | No |
+| Output class's request | The output class, through the method of `output_requests()` that the package that defines it gives | A renderer of the class, through its output host | Its answer, by block, revision, name, args, board options and parameters, unless R marks its reply volatile | No |
+| Renderer's request | A renderer of the output class, as the package that offers it makes it | That renderer, through its output host | Its answer, by renderer, block, revision, name, args, board options and parameters | No |
+| Block class's request | The class's `requests` | The block's UI, through its host | Its answer, by registry id, name, args, board options and the revisions read | No |
+| Volatile request | A request that the class makes with `new_block_request(volatile = TRUE)` | The block's UI, through its host | No | No |
+| Action | A request that the class makes with `new_block_request(action = TRUE)`, such as an upload | The block's UI, through its host | No, it runs once per call | Yes |
+| Board option's request | The package that ships the board option, through its method of `board_option_requests()` | The board option's UI or renderer, through its `OptionHost` | No | Yes |
+| Request of a type that a package adds | The package, through its method of `request_call()` | The package's code in the client, through `CoreApi` | No | Yes |
 
 The block registry marks a block class's requests that are volatile or actions, with `volatile` or `action`.
-The package of a board option, or of a type that it adds, says which of its requests may run on a locked board.
+Under the board lock, R holds an evaluation, with parameters or without, to the block's data inputs and a locked block to its state, and draws every output and runs every request as on any board, with the board option values that the request carries ([Locked boards](#locked-boards)).
 A request that reads blocks, a block class's or one of a type that a package adds, has the client evaluate them first, even off screen, and goes to R at the revisions they then have, only where each reads `ready`, so that R never runs a request on a result it does not hold ([Demand](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.10#demand)).
 No request times out, since no reply is lost on a live connection and giving up on a request frees nothing in R, which runs it when its turn comes, while any request may send progress, which shows that a long one is still running.
 
@@ -276,20 +277,40 @@ R then drops every result and every queued request, replying `cancelled` to each
 
 ## Locked boards
 
-An app locks a board when it starts, through the blockr option `locked`, which an app sets as `blockr.locked` and a deployment as `BLOCKR_LOCKED`, and the lock stays as the app set it, so that nothing a client sends can loosen it ([Locked boards](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.9#locked-boards)).
-A locked board loads no other board and keeps everything core keeps in it, its name and its blocks, links, stacks and board options, as the app built them, and every block keeps its opening state but those that the lock leaves open.
-R sends the lock with its reply to `hello`, as the blocks it leaves open, `{ "open": ["b"] }`, or `null` where the app locks nothing.
-The client keeps to it: its store opens no other board and refuses every delta that the lock does not leave open, and a front-end draws no control for one.
+An app sets three locks, each on its own ([Locked boards and the properties of blocks](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.11#three-locks)):
 
-That stops only a client that plays by the rules, so R holds the lock in what it runs, comparing nothing a client sends. When the app starts, it builds from the opening board every block's class and the ids its inputs bind to, and for a locked block the block expression it evaluates, so that a locked block's state and the bindings of its inputs are fixed together. A locked block whose opening state cannot run keeps the `blockr_invalid()` that building it signalled, and R replies `invalid` with it to every evaluation of the block. In a locked session:
+- The load lock, the blockr option `lock_load`, which an app sets as `blockr.lock_load` and a deployment as `BLOCKR_LOCK_LOAD`, fixes the app to its opening board.
+- The board lock, the blockr option `locked`, which an app sets as `blockr.locked` and a deployment as `BLOCKR_LOCKED`, fixes what every board that the app shows holds: its blocks and links, its name, every block's name and `locked`, its stacks and the names of its plugins.
+- A block's `locked` fixes the block's state under the board lock: `true` locks the block, `false` leaves it open, and `null`, which a block holds unless a script or a command sets another, follows the board lock.
 
-- It evaluates a locked block with the block expression it built at startup, and a block left open with a block expression it builds from the request's state and the class and bindings it built at startup, reading from the request only the block's id, refusing one that the opening board lacks, the revisions of the inputs, and the state and parameters of a block left open.
-- It answers a block class's request for a locked block, as its `block` names it, with the block's opening state, whatever `args` holds, binding the inputs as it built them at startup, and takes only the parameters from the request.
-- It takes the board option values from the opening board for every request that carries them, a block class's request, an output, an output class's request and a renderer's, whatever the request holds.
-- It runs a block class's action only for a block left open.
-- It runs a board option's request, or one of a type that a package adds, only where the package says that it may run on a locked board.
+Each lock is off unless the app or the deployment sets it.
+R sends the locks with its reply to `hello`, as `{ "board": true, "load": true }`, with `false` for a lock that the app does not set, and an evaluation carries the block's `locked`, which R reads only under the board lock.
 
-Anything else R refuses with an `error` whose condition names the lock and has no phase, while it makes outputs, and answers the requests of their output classes and renderers, as before, with the opening board option values.
+The client keeps to the locks.
+Under the load lock, its store opens no JSON board's text, so that the app shows its opening board alone.
+Under the board lock, its store refuses every change but one to the state of a block that the board lock leaves open, one to a board option's value and one inside a plugin's state, which each plugin locks itself, and a frontend draws no control for what the locks fix.
+Board options stay open on a locked board, since none reaches what R evaluates.
+
+That stops only a client that plays by the rules, so R refuses what it can tell breaks the board lock or a block's lock, with an `error` whose condition names the lock and has no phase, as the fixture [`evaluate-locked`](fixtures/evaluate-locked.json) shows.
+Under the board lock, R refuses an evaluation, with parameters or without, that binds a block's data inputs to other blocks or gives a locked block another state.
+What R holds a block to depends on the load lock:
+
+- Where the load lock is on too, R holds every block to the opening board, which it reads once, as the app starts.
+  It reads every block's class, the ids its inputs bind to and its `locked`, and for a locked block its state and the block expression it builds from that state, or what building it signalled, such as a `blockr_invalid()`.
+  It then evaluates only that board's blocks, refusing one that the board lacks, with their opening links and the classes it read, whatever registry id a recipe names.
+  It evaluates a locked block with the block expression it built as the app started, so that one whose opening state cannot run gets `invalid` to every evaluation, and a block left open with a block expression it builds from the request's state.
+  It takes the parameters of every evaluation from the request.
+- Without the load lock, R cannot tell which board the client shows, since no message opens a board.
+  Once R has evaluated a block since the session started, it holds the block to the data inputs of that evaluation, and to the state of its first evaluation as a locked block where the request's `locked` says that the block is locked.
+  A later `hello` starts that afresh.
+  That holds against a defect in the client, but not against a client that sends another `locked`, so the board lock and the block locks are a guarantee only with the load lock.
+
+Where both locks are on, R reads the blocks, the links and their `locked` of the JSON board that `serve()` was given, which it passes on as it is otherwise.
+No migration runs in R, so it refuses such a board as the app starts where a block's class is one that the block registry lacks or its state's `version` is not the one that its class gives, naming each such block.
+The deployer opens and saves the board once in an app of the same packages, which migrates it in the client.
+
+R draws every output and runs every request as on any board, an action among them, with the board option values that the request carries, since the locks fix the board and its blocks' state, which no request changes.
+A request that should not run on a locked board, such as one that evaluates what the client sends, is its package's to refuse, by reading the blockr option `locked`.
 
 ## Decoding
 
@@ -340,7 +361,7 @@ Each file in [`fixtures/`](fixtures/) holds a message that the client sends, in 
 | Fixture | Shows |
 |---|---|
 | [`hello`](fixtures/hello.json) | the handshake of a core app, whose script left out some ids, which R drew |
-| [`hello-locked`](fixtures/hello-locked.json) | the handshake of a locked app |
+| [`hello-locked`](fixtures/hello-locked.json) | the handshake of an app with both locks on, whose opening board leaves one block open |
 | [`hello-block`](fixtures/hello-block.json) | the handshake of an app that serves a block alone, with `bound` |
 | [`hello-file`](fixtures/hello-file.json) | the handshake of an app that serves a JSON board |
 | [`hello-declared`](fixtures/hello-declared.json) | the handshake of an app whose script loaded a package that declares modules, with what R builds from what is registered and declared, and the URLs it serves each file at |
@@ -352,6 +373,7 @@ Each file in [`fixtures/`](fixtures/) holds a message that the client sends, in 
 | [`evaluate-invalid`](fixtures/evaluate-invalid.json) | an evaluation of a state that cannot run |
 | [`evaluate-params`](fixtures/evaluate-params.json) | a one-time evaluation with parameters |
 | [`evaluate-missing`](fixtures/evaluate-missing.json) | an evaluation that names a result R does not hold |
+| [`evaluate-locked`](fixtures/evaluate-locked.json) | an evaluation that gives a locked block another state, which R refuses under both locks |
 | [`several-requests`](fixtures/several-requests.json) | several requests in one message |
 | [`request`](fixtures/request.json) | a block class's request |
 | [`request-error`](fixtures/request-error.json) | a block class's request that fails |

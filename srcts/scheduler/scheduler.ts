@@ -375,7 +375,8 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   function send(item: Plan["send"][number]): void {
     const recipe = recipeOf(item.block);
     const at = revisions.value.get(item.block);
-    if (recipe === undefined || at === undefined) return;
+    const block = board.value === undefined ? undefined : own(board.value.blocks, item.block);
+    if (recipe === undefined || at === undefined || block === undefined) return;
 
     // The one-time evaluation with parameters that the block is evaluated for,
     // if any.
@@ -408,6 +409,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
           kind: "evaluate",
           block: item.block,
           revision: at,
+          locked: block.locked,
           recipe,
           ...(oneTime === undefined ? {} : { params: oneTime.params }),
         },

@@ -14,7 +14,7 @@ export interface CoreApi {
     readonly plugins: {
         register(def: PluginClass): () => void;
     };
-    readonly lock: Lock | null;
+    readonly lock: Lock;
     readonly outputEvents: OutputEvents;
     request<T = Json>(type: string, fields?: Record<string, Json>, opts?: RequestOpts): Promise<T | Blob>;
     module<T = unknown>(id: string): Promise<T>;
