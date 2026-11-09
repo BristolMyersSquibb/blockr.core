@@ -9,6 +9,10 @@ export interface Loader {
 }
 export interface LoaderOptions {
     readonly modules?: () => Readonly<Record<string, Source>>;
+    readonly changed?: (pkg: string) => {
+        readonly loaded: string;
+        readonly now: string;
+    } | undefined;
     readonly importer?: (url: string) => Promise<unknown>;
     readonly stylesheet?: (url: string) => Promise<void>;
 }

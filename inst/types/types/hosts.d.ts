@@ -13,7 +13,6 @@ export interface BlockModule<S extends State = State> {
     }): Rendered;
 }
 export interface OptionModule<V extends Json = Json> {
-    readonly options?: readonly OptionId[];
     render(args: {
         el: HTMLElement;
         host: OptionHost<V>;

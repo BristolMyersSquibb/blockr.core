@@ -5,6 +5,13 @@
 // requests waiting on them, and ignores a reply to a request it is not waiting
 // on. It runs over a transport, which carries the messages: the Shiny
 // transport on the page (srcts/transport/shiny.ts).
+// Where R answers a hello at another major of the protocol, in the first
+// session or a later one, the client stops for good:
+// 1. It sends R nothing of what it held for the session, and rejects each
+//    request it held with why it stopped.
+// 2. It hands R's reply to its session(), so that core says what to do.
+// 3. It sends R nothing from then on, not even the hello of a later session,
+//    and rejects each request that it is asked to send.
 
 import type { BlockId } from "../types/board.ts";
 import { asError, report } from "../util/index.ts";
@@ -44,9 +51,10 @@ export interface Client {
   // binary body that the reply announces, a File where the reply names one, or
   // null. The client sends each session's hello itself, and a request's cancel
   // when its signal aborts. Rejects with a SessionEndedError where the session
-  // that the request went to ended before R replied, and with the transport's
+  // that the request went to ended before R replied, with the transport's
   // error where the transport could not send it, such as where R refused its
-  // body.
+  // body, and with why the client stopped where R speaks another major of the
+  // protocol, as for a request that the client held.
   request(
     request: DistributiveOmit<
       Exclude<Request, HelloRequest | CancelRequest | ForgetRequest>,
@@ -69,7 +77,7 @@ export interface Client {
   // 3. It holds what it is asked to send until R has answered the hello, and
   //    hands the reply to its session(), as for a session that starts.
   // Where no session runs, the client sends the next session's hello as that
-  // session starts, as always.
+  // session starts, as always. Once the client has stopped, it sends none.
   hello(): void;
 }
 
@@ -78,7 +86,9 @@ export interface ClientOptions {
   // capabilities that the client speaks.
   hello(): Omit<HelloRequest, "id" | "kind">;
   // Hears R's reply to each session's hello, the first session's included,
-  // once the client has sent what it held for the session.
+  // once the client has sent what it held for the session. Where R speaks
+  // another major of the protocol, it hears the reply once the client has
+  // stopped instead.
   session(reply: Reply): void;
 }
 
@@ -112,6 +122,12 @@ export class SessionEndedError extends Error {
   }
 }
 
+// Whether two versions of the protocol have the same major, so that each side
+// reads the other's messages.
+export function sameMajor(a: string, b: string): boolean {
+  return a.split(".")[0] === b.split(".")[0];
+}
+
 // A request that a caller waits on.
 interface Call {
   id: string;
@@ -137,6 +153,9 @@ export function createClient(
   // "none" while no session runs, "started" once R started one, and "ready"
   // once R answered its hello.
   let state: "none" | "started" | "ready" = "none";
+  // Why the client sends R nothing, once R has answered a hello at another
+  // major of the protocol.
+  let stopped: Error | undefined;
   // The capabilities that both sides named in the session's hello.
   let shared = new Set<Capability>();
 
@@ -224,7 +243,9 @@ export function createClient(
   }
 
   function queue(entry: Outbound): void {
-    if (state === "ready") {
+    if (stopped !== undefined) {
+      entry.call?.settle({ error: stopped });
+    } else if (state === "ready") {
       dispatch([entry]);
     } else {
       held.push(entry);
@@ -241,6 +262,21 @@ export function createClient(
 
     for (const call of lost) {
       call.settle({ error: new SessionEndedError(call.id) });
+    }
+  }
+
+  // Stops the client for good, where R speaks another major of the protocol
+  // than the client: it ends the session for the client, and rejects what it
+  // held for the session, none of which it sent.
+  function stop(theirs: string, ours: string): void {
+    stopped = new Error(
+      `R speaks version ${theirs} of the wire protocol, where the client speaks ${ours}, so the client sends R nothing.`,
+    );
+    end();
+    const lost = held;
+    held = [];
+    for (const { call } of lost) {
+      call?.settle({ error: stopped });
     }
   }
 
@@ -265,13 +301,17 @@ export function createClient(
         const { reply } = result;
 
         if (reply.status === "ok" && "capabilities" in reply) {
-          const theirs = new Set(reply.capabilities);
-          shared = new Set(named.capabilities.filter((c) => theirs.has(c)));
-          state = "ready";
+          if (sameMajor(reply.protocol, named.protocol)) {
+            const theirs = new Set(reply.capabilities);
+            shared = new Set(named.capabilities.filter((c) => theirs.has(c)));
+            state = "ready";
 
-          const outbound = held;
-          held = [];
-          dispatch(outbound);
+            const outbound = held;
+            held = [];
+            dispatch(outbound);
+          } else {
+            stop(reply.protocol, named.protocol);
+          }
         }
 
         guard(() => {
@@ -285,6 +325,7 @@ export function createClient(
 
   transport.listen({
     started() {
+      if (stopped !== undefined) return;
       end();
       state = "started";
       sendHello();
@@ -370,6 +411,7 @@ export function createClient(
     },
     capabilities: () => shared,
     hello() {
+      if (stopped !== undefined) return;
       const runs = state !== "none";
       const lost = held;
       held = [];

@@ -2,7 +2,7 @@
 // inst/protocol/README.md gives them, and the client of the protocol. Core's
 // store, scheduler and `CoreApi` send their requests through the client.
 
-export { createClient, SessionEndedError } from "./client.ts";
+export { createClient, sameMajor, SessionEndedError } from "./client.ts";
 export type {
   Client,
   ClientOptions,

@@ -252,6 +252,10 @@
   One abort then ends everything that core ran for the board before: the frontend and what it mounted, the startup modules, the store with its undo history, the command registry, the board options, the scheduler with its demands, and what core kept of outputs and answers.
   Core sends another hello, on which R drops every result, queued request and request body of the board before, and starts as the page does, with a new `CoreApi` for the startup modules and the frontend.
   A store opens one board, and the scheduler of the next board gives each block a revision above any that the page has given (#497).
+* A later session whose R speaks another major of the wire protocol stops the page, as the first session's does.
+  Core's client sends R nothing more, not even what it held for the session, and the page says to reload it.
+  Where a later session names a package at another version than the page loaded, the page still asks the user to reload it.
+  Until then, core keeps the modules of that package that it loaded, and loads no other module of it (#515).
 * Core's basic frontend, `blockr.core-basic`, draws every board.
   It is written in React on core's React SDK and styled with Tailwind CSS under core's prefix.
   Its toolbar adds a block from the block registry's entries, edits links and stacks, sets the board options that the board holds, renames the board, and saves the board as a file or opens one.
@@ -311,6 +315,16 @@
   So an app script whose board gives `new_n_rows_option(0)` runs, since a board option's constructor checks nothing, but its page shows the errors in place of the board.
   The client's store also refuses an edit that leaves a block's state failing the schema of its class, as it refuses one for a plugin's state or a board option's value, so that a board saved from the app opens again.
   The client drops the value of a board option that no package of the app registers, and names the board option by its ID (#509).
+* Core's client calls a board option's `onChange` as each board opens, with the board's value, and again as a delta sets the value, whether or not anything on the page requires the board option.
+  Where the board lacks that value, as a board opens or once a delta removed it, core adds the board option to the board with its default first.
+  While a block's UI module, a renderer or a board option's UI is mounted, core adds each board option that it names again with its default where a delta removes the value.
+  A board option's UI reads its own value alone, so core adds no other board option for it, and its module no longer names board options.
+  Where the board lacks its value, core adds it with its default before the UI draws.
+  Until now, the UI showed the default without the board holding it.
+  An output whose block class's entry names no renderer is asked with the value of every board option that a loaded package defines: the board's, or else the default, which the client sends without adding it to the board.
+  Where a board option that a block's UI module, a renderer or a board option's UI names does not go onto the board, as where its default fails, core shows why in the element in place of what would draw there, and reports it, naming the board option and what requires it.
+  A renderer that has drawn keeps its output and gets the error through its host's `error()`, and core asks R for no output until the board holds a value.
+  Plugins read a board option's value from the board through `core.options.value()` (#508).
 
 # blockr.core 0.1.4
 

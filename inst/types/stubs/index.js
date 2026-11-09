@@ -1927,9 +1927,13 @@ var SessionEndedError = class extends Error {
     this.name = "SessionEndedError";
   }
 };
+function sameMajor(a2, b2) {
+  return a2.split(".")[0] === b2.split(".")[0];
+}
 function createClient(transport, options) {
   let next = 0;
   let state2 = "none";
+  let stopped;
   let shared = /* @__PURE__ */ new Set();
   const waiting2 = /* @__PURE__ */ new Map();
   let held2 = [];
@@ -1995,7 +1999,9 @@ function createClient(transport, options) {
     }
   }
   function queue(entry) {
-    if (state2 === "ready") {
+    if (stopped !== void 0) {
+      entry.call?.settle({ error: stopped });
+    } else if (state2 === "ready") {
       dispatch([entry]);
     } else {
       held2.push(entry);
@@ -2009,6 +2015,17 @@ function createClient(transport, options) {
     waiting2.clear();
     for (const call of lost) {
       call.settle({ error: new SessionEndedError(call.id) });
+    }
+  }
+  function stop(theirs, ours) {
+    stopped = new Error(
+      `R speaks version ${theirs} of the wire protocol, where the client speaks ${ours}, so the client sends R nothing.`
+    );
+    end();
+    const lost = held2;
+    held2 = [];
+    for (const { call } of lost) {
+      call?.settle({ error: stopped });
     }
   }
   function sendHello() {
@@ -2027,12 +2044,16 @@ function createClient(transport, options) {
         }
         const { reply } = result;
         if (reply.status === "ok" && "capabilities" in reply) {
-          const theirs = new Set(reply.capabilities);
-          shared = new Set(named2.capabilities.filter((c2) => theirs.has(c2)));
-          state2 = "ready";
-          const outbound = held2;
-          held2 = [];
-          dispatch(outbound);
+          if (sameMajor(reply.protocol, named2.protocol)) {
+            const theirs = new Set(reply.capabilities);
+            shared = new Set(named2.capabilities.filter((c2) => theirs.has(c2)));
+            state2 = "ready";
+            const outbound = held2;
+            held2 = [];
+            dispatch(outbound);
+          } else {
+            stop(reply.protocol, named2.protocol);
+          }
         }
         guard(() => {
           options.session(reply);
@@ -2043,6 +2064,7 @@ function createClient(transport, options) {
   }
   transport.listen({
     started() {
+      if (stopped !== void 0) return;
       end();
       state2 = "started";
       sendHello();
@@ -2116,6 +2138,7 @@ function createClient(transport, options) {
     },
     capabilities: () => shared,
     hello() {
+      if (stopped !== void 0) return;
       const runs = state2 !== "none";
       const lost = held2;
       held2 = [];
@@ -3282,6 +3305,7 @@ function createLoader(options = {}) {
   const importer = options.importer ?? importModule;
   const stylesheet = options.stylesheet ?? linkStylesheet;
   const modules = options.modules ?? (() => ({}));
+  const changed = options.changed ?? (() => void 0);
   const imported = /* @__PURE__ */ new Map();
   const sheets = /* @__PURE__ */ new Map();
   function once2(cache, url, load2) {
@@ -3293,6 +3317,16 @@ function createLoader(options = {}) {
     return loading;
   }
   async function load(source, pkg) {
+    if (pkg !== null && !imported.has(source.module)) {
+      const versions = changed(pkg);
+      if (versions !== void 0) {
+        throw new ModuleError(
+          source.module,
+          pkg,
+          `is not loaded: R now runs ${pkg} ${versions.now}, where the page loaded ${versions.loaded}. Reload the page to load it.`
+        );
+      }
+    }
     const sheet = source.css === void 0 ? Promise.resolve() : once2(sheets, source.css, stylesheet).catch((error) => {
       report(new ModuleError(source.module, pkg, `has a stylesheet that failed to load: ${messageOf(error)}`, { cause: error }));
     });
@@ -3639,16 +3673,15 @@ function mountOption(deps, el, option) {
   const ended = () => controller.signal.aborted;
   const listeners = /* @__PURE__ */ new Set();
   let value2;
-  let fallback;
   let seen = store.board().options;
   let cleanup;
+  let stopKeeping;
   function bound() {
     return !ended() && !deps.replaced.aborted;
   }
   const unboundError = () => new Error(`Another board opened, so the host of the board option "${option}" no longer changes it.`);
   function current2() {
-    const held2 = own(store.board().options, option);
-    return held2 === void 0 ? fallback : held2;
+    return own(store.board().options, option);
   }
   const host = {
     option,
@@ -3683,7 +3716,7 @@ function mountOption(deps, el, option) {
     if (board.options === seen) return;
     seen = board.options;
     const next = current2();
-    if (next === value2) return;
+    if (next === void 0 || next === value2) return;
     value2 = next;
     announceTo(listeners);
   });
@@ -3693,6 +3726,7 @@ function mountOption(deps, el, option) {
     controller.abort();
     offEnd();
     offStore();
+    stopKeeping?.();
     listeners.clear();
     if (cleanup !== void 0) attempt(cleanup);
     el.replaceChildren();
@@ -3708,16 +3742,25 @@ function mountOption(deps, el, option) {
         const source = renderer.css === void 0 ? { module: renderer.module } : { module: renderer.module, css: renderer.css };
         mod = moduleOf(await loader.load(source, pkg), renderer.module, pkg);
       }
-      if (ended()) return;
-      await deps.addOptions(mod.options ?? [], `the UI of the board option "${option}"`);
-      if (ended()) return;
-      fallback = Object.hasOwn(store.board().options, option) ? void 0 : await deps.defaultOf(option, def);
     } catch (error) {
       fail(error);
       return;
     }
     if (ended()) return;
+    const kept = deps.keepOptions([option], `the UI of the board option "${option}"`, (failures2) => {
+      if (ended()) return;
+      end();
+      showError(el, failures2.join("\n"));
+    });
+    stopKeeping = kept.stop;
+    const failures = await kept.added;
+    if (ended()) return;
     value2 = current2();
+    if (value2 === void 0 && failures.length > 0) {
+      kept.stop();
+      showError(el, failures.join("\n"));
+      return;
+    }
     try {
       const rendered = await mod.render({ el, host, signal: controller.signal });
       if (typeof rendered !== "function") return;
@@ -3803,7 +3846,10 @@ function mountOutput(deps, el, block) {
   const ended = () => controller.signal.aborted;
   let renderer = entry.renderer;
   let ready;
+  let keeping;
   const preparing = /* @__PURE__ */ new Map();
+  let unwritten;
+  let fetching = false;
   let info = measure.info(el);
   let held2;
   let asking;
@@ -3826,7 +3872,8 @@ function mountOutput(deps, el, block) {
         const source = given.css === void 0 ? { module: given.module } : { module: given.module, css: given.css };
         const mod = moduleOf(await loader.load(source, pkg), given.module, pkg);
         const named3 = mod.options ?? [];
-        await deps.addOptions(named3, `the renderer "${given.id}"`);
+        const failures = await deps.addOptions(named3, `the renderer "${given.id}"`);
+        if (failures.length > 0) throw new Error(failures.join("\n"));
         return { renderer: given, mod, named: named3 };
       })();
       preparing.set(given.id, loading);
@@ -3835,11 +3882,16 @@ function mountOutput(deps, el, block) {
   }
   function expect(given) {
     renderer = given;
+    unwritten = void 0;
     if (ready?.renderer.id === given.id) return;
     prepare(given).then(
       (prepared) => {
         if (ended() || renderer?.id !== prepared.renderer.id) return;
         ready = prepared;
+        keeping?.stop();
+        keeping = deps.keepOptions(prepared.named, `the renderer "${prepared.renderer.id}"`, (failures) => {
+          fail(new Error(failures.join("\n")));
+        });
         sync();
       },
       (failure) => {
@@ -3853,7 +3905,7 @@ function mountOutput(deps, el, block) {
   }
   function values2(ids2) {
     const options2 = store.board().options;
-    if (ids2 === null) return options2;
+    if (ids2 === null) return { ...unwritten, ...options2 };
     return Object.fromEntries(
       ids2.flatMap((id2) => {
         const value2 = own(options2, id2);
@@ -3865,9 +3917,25 @@ function mountOutput(deps, el, block) {
     if (info === null) return void 0;
     const ids2 = named2();
     if (ids2 === void 0) return void 0;
+    if (ids2?.some((id2) => !Object.hasOwn(store.board().options, id2)) === true) return void 0;
     const status = scheduler.status(block);
     if (status?.status !== "ready") return void 0;
+    if (ids2 === null && unwritten === void 0) {
+      fetchDefaults();
+      return void 0;
+    }
     return { asked: { revision: status.revision, options: values2(ids2), info, params: shelf.params }, ids: ids2 };
+  }
+  function fetchDefaults() {
+    if (fetching) return;
+    fetching = true;
+    const lacking = Object.keys(store.options.registered()).filter((id2) => !Object.hasOwn(store.board().options, id2));
+    void deps.defaultsOf(lacking, `the first output of block "${block}"`).then((found2) => {
+      fetching = false;
+      if (ended() || renderer !== void 0) return;
+      unwritten = found2;
+      sync();
+    });
   }
   function fits2(asked, want, ids2) {
     if (asked.revision !== want.revision || !jsonEqual(asked.info, want.info)) return false;
@@ -4243,6 +4311,7 @@ function mountOutput(deps, el, block) {
     offEnd();
     offStore();
     offScheduler();
+    keeping?.stop();
     shelf.mounts.delete(sync);
     stopWatching();
     if (settling !== void 0) clearTimeout(settling);
@@ -4282,44 +4351,100 @@ function createMounts(options) {
   const measure = options.measure ?? domMeasure();
   const emit = options.emit ?? (() => void 0);
   const renderers = options.renderers ?? (() => ({}));
-  const defaults = /* @__PURE__ */ new Map();
   store.subscribe((change) => {
     if ("opened" in change) return;
     for (const id2 of change.delta.blocks?.rm ?? []) shelves.drop(id2);
   });
-  function defaultOf(id2, def) {
-    let value2 = defaults.get(id2);
-    if (value2 === void 0) {
-      const given = def.default;
-      value2 = typeof given === "function" ? Promise.resolve().then(given) : Promise.resolve(given);
-      defaults.set(id2, value2);
+  const resolving = /* @__PURE__ */ new Map();
+  const reported = /* @__PURE__ */ new Set();
+  function failure(message) {
+    if (!replaced.aborted && !reported.has(message)) {
+      reported.add(message);
+      report(new Error(message));
     }
-    return value2;
+    return [message];
+  }
+  function defaultOf(id2, def) {
+    const pending = resolving.get(id2);
+    if (pending !== void 0) return pending;
+    const given = def.default;
+    const started = typeof given === "function" ? Promise.resolve().then(given) : Promise.resolve(given);
+    resolving.set(id2, started);
+    const settled = () => {
+      if (resolving.get(id2) === started) resolving.delete(id2);
+    };
+    started.then(settled, settled);
+    return started;
   }
   async function addOptions(ids2, by) {
-    await Promise.all(
-      ids2.map(async (id2) => {
-        if (Object.hasOwn(store.board().options, id2)) return;
+    const failures = await Promise.all(
+      [...new Set(ids2)].map(async (id2) => {
+        if (Object.hasOwn(store.board().options, id2)) return [];
         const def = own(store.options.registered(), id2);
         if (def === void 0) {
-          report(new Error(`The board option "${id2}", which ${by} requires, is defined by no package loaded.`));
-          return;
+          return failure(`The board option "${id2}", which ${by} requires, is defined by no package loaded.`);
         }
         let value2;
         try {
           value2 = await defaultOf(id2, def);
         } catch (error) {
-          report(new Error(`The default of the board option "${id2}" failed: ${messageOf(error)}`, { cause: error }));
-          return;
+          return failure(`The default of the board option "${id2}", which ${by} requires, failed: ${messageOf(error)}`);
         }
-        if (replaced.aborted || Object.hasOwn(store.board().options, id2)) return;
+        if (replaced.aborted || Object.hasOwn(store.board().options, id2)) return [];
         try {
           await commands.run("blockr.core-set_option", { id: id2, value: value2 }, CORE);
         } catch (error) {
-          report(error);
+          return failure(
+            `The default of the board option "${id2}", which ${by} requires, did not go onto the board: ${messageOf(error)}`
+          );
         }
+        return [];
       })
     );
+    return failures.flat();
+  }
+  function keepOptions(ids2, by, failed3 = () => void 0) {
+    if (ids2.length === 0) return { added: Promise.resolve([]), stop: () => void 0 };
+    let stopped = false;
+    const off = store.subscribe((change, board) => {
+      if ("opened" in change) return;
+      const removed = (change.delta.options?.unset ?? []).filter(
+        (id2) => ids2.includes(id2) && !Object.hasOwn(board.options, id2)
+      );
+      if (removed.length === 0) return;
+      void addOptions(removed, by).then((failures) => {
+        if (!stopped && failures.length > 0) failed3(failures);
+      });
+    });
+    return {
+      added: addOptions(ids2, by),
+      stop: () => {
+        stopped = true;
+        off();
+      }
+    };
+  }
+  async function defaultsOf(ids2, by) {
+    const found = await Promise.all(
+      ids2.map(async (id2) => {
+        const def = own(store.options.registered(), id2);
+        if (def === void 0 || Object.hasOwn(store.board().options, id2)) return [];
+        let value2;
+        try {
+          value2 = await defaultOf(id2, def);
+        } catch (error) {
+          failure(`The default of the board option "${id2}", which ${by} requires, failed: ${messageOf(error)}`);
+          return [];
+        }
+        const unfit = compile(`the board option "${id2}"`, def.schema)(value2);
+        if (unfit.length > 0) {
+          failure(`The default of the board option "${id2}", which ${by} requires, ${unfit.join(" ")}`);
+          return [];
+        }
+        return [[id2, value2]];
+      })
+    );
+    return Object.fromEntries(found.flat());
   }
   function mountBlock(el, block) {
     if (replaced.aborted) throw new Error(REPLACED);
@@ -4336,10 +4461,12 @@ function createMounts(options) {
     const { signal } = controller;
     const ended = () => signal.aborted;
     let cleanup;
+    let stopKeeping;
     const end = () => {
       if (ended()) return;
       offEnd();
       host.drop();
+      stopKeeping?.();
       controller.abort();
       if (cleanup !== void 0) attempt(cleanup);
       el.replaceChildren();
@@ -4374,8 +4501,19 @@ function createMounts(options) {
         return;
       }
       const named2 = mod.options ?? [];
-      await addOptions(named2, `the UI module of block class "${entry.id}"`);
+      const kept = keepOptions(named2, `the UI module of block class "${entry.id}"`, (failures2) => {
+        if (ended()) return;
+        end();
+        showError(el, failures2.join("\n"));
+      });
+      stopKeeping = kept.stop;
+      const failures = await kept.added;
       if (ended()) return;
+      if (failures.length > 0) {
+        kept.stop();
+        showError(el, failures.join("\n"));
+        return;
+      }
       host.name(named2);
       try {
         const rendered = await mod.render({ el, host, signal });
@@ -4396,15 +4534,11 @@ function createMounts(options) {
   return {
     mountBlock,
     mountOutput: (el, block) => mountOutput(
-      { store, scheduler, loader, answers, shelves, measure, replaced, addOptions, emit },
+      { store, scheduler, loader, answers, shelves, measure, replaced, addOptions, keepOptions, defaultsOf, emit },
       el,
       block
     ),
-    mountOption: (el, option) => mountOption(
-      { store, commands, scheduler, loader, renderers, replaced, addOptions, defaultOf },
-      el,
-      option
-    ),
+    mountOption: (el, option) => mountOption({ store, commands, scheduler, loader, renderers, replaced, keepOptions }, el, option),
     addOptions
   };
 }
@@ -4578,7 +4712,7 @@ async function mount(exports, host, el = document.createElement("div")) {
 }
 
 // srcts/core/blockr-options.ts
-function createBlockrOptions(client) {
+function createBlockrOptions(client, signal) {
   const found = /* @__PURE__ */ new Map();
   let batch;
   function ask(name2) {
@@ -4605,7 +4739,9 @@ function createBlockrOptions(client) {
     try {
       values2 = await valuesOf(client, asked);
     } catch (error) {
-      report(new Error(`R sent no values of the blockr options ${quoted(asked)}, so core takes their fallbacks: ${messageOf(error)}`, { cause: error }));
+      if (signal?.aborted !== true) {
+        report(new Error(`R sent no values of the blockr options ${quoted(asked)}, so core takes their fallbacks: ${messageOf(error)}`, { cause: error }));
+      }
       for (const [name2, settle2] of names) {
         found.delete(name2);
         settle2(null);
@@ -4800,7 +4936,11 @@ function createCore(parts) {
       subscribe: (fn) => scheduler.subscribe(fn)
     },
     blockRegistry: () => store.blockRegistry(),
-    options: store.options,
+    options: {
+      register: (def) => store.options.register(def),
+      registered: () => store.options.registered(),
+      value: (id2) => store.hasBoard() ? own(store.board().options, id2) : void 0
+    },
     plugins: {
       register: (def) => store.plugins.register(def)
     },
@@ -4815,11 +4955,17 @@ function createCore(parts) {
   };
   let heard = {};
   store.subscribe((change, board) => {
-    const before = "opened" in change ? {} : heard;
-    if (board.options === heard && !("opened" in change)) return;
-    heard = board.options;
-    for (const [id2, value2] of Object.entries(board.options)) {
-      if (!jsonEqual(own(before, id2), value2)) changed(id2, value2);
+    const opened = "opened" in change;
+    if (board.options !== heard || opened) {
+      const before = opened ? {} : heard;
+      heard = board.options;
+      for (const [id2, value2] of Object.entries(board.options)) {
+        if (!jsonEqual(own(before, id2), value2)) changed(id2, value2);
+      }
+    }
+    if (opened || (change.delta.options?.unset?.length ?? 0) > 0) {
+      const lacking = Object.values(store.options.registered()).filter((def) => def.onChange !== void 0 && !Object.hasOwn(board.options, def.id)).map((def) => def.id);
+      if (lacking.length > 0) void mounts.addOptions(lacking, "its onChange");
     }
   });
   function changed(id2, value2) {
@@ -8198,6 +8344,8 @@ function start(options) {
   });
   let first;
   let latest;
+  const loaded = /* @__PURE__ */ new Map();
+  let changed = [];
   let running2;
   const holdsBoard = () => running2?.store.hasBoard() === true;
   let restarting;
@@ -8213,8 +8361,12 @@ function start(options) {
       heard(reply);
     }
   });
-  const blockrOptions = createBlockrOptions(client);
-  const loader = createLoader({ ...options.loader, modules: () => latest?.modules ?? {} });
+  const blockrOptions = createBlockrOptions(client, page.signal);
+  const loader = createLoader({
+    ...options.loader,
+    modules: () => latest?.modules ?? {},
+    changed: (pkg) => changed.find((c2) => c2.package === pkg)
+  });
   function heard(reply) {
     if (page.signal.aborted) return;
     const error = helloError(reply);
@@ -8232,27 +8384,56 @@ function start(options) {
       return;
     }
     const hello = reply;
-    latest = hello;
+    if (!sameMajor(hello.protocol, PROTOCOL_VERSION)) {
+      halt(
+        new Error(
+          `R speaks version ${hello.protocol} of the wire protocol, where this page speaks ${PROTOCOL_VERSION}. Reload the page, which then loads the client that R serves.`
+        )
+      );
+      return;
+    }
     if (first === void 0) {
       first = hello;
+      adopt(hello);
       boot(hello, void 0).then(
         ({ core }) => settle2?.resolve(core),
         (failure) => {
           settle2?.reject(failure);
-          fail(asError(failure));
+          if (!page.signal.aborted) fail(asError(failure));
         }
       );
       return;
     }
-    const changed = changedPackages(first, hello);
-    if (changed.length > 0) (options.reload ?? askReload)(changed);
+    changed = changedPackages(loaded, hello);
+    if (changed.length > 0) {
+      (options.reload ?? askReload)(changed);
+    } else {
+      adopt(hello);
+    }
     if (restarting !== void 0) {
       const waiting2 = restarting;
       restarting = void 0;
-      waiting2.resolve(hello);
+      waiting2.resolve(latest ?? first);
       return;
     }
     running2?.scheduler.session();
+  }
+  function adopt(reply) {
+    latest = reply;
+    for (const [pkg, version] of Object.entries(reply.packages)) {
+      loaded.set(pkg, version);
+    }
+  }
+  function end(why) {
+    page.abort();
+    const waiting2 = restarting;
+    restarting = void 0;
+    waiting2?.reject(why);
+  }
+  function halt(error) {
+    end(error);
+    settle2?.reject(error);
+    fail(error);
   }
   async function boot(reply, later) {
     const controller = new AbortController();
@@ -8453,10 +8634,7 @@ function start(options) {
     ready,
     core: () => running2?.core,
     stop() {
-      page.abort();
-      const waiting2 = restarting;
-      restarting = void 0;
-      waiting2?.reject(new Error("Core has stopped."));
+      end(new Error("Core has stopped."));
     }
   };
 }
@@ -8465,19 +8643,12 @@ function helloError(reply) {
     const said = "conditions" in reply ? reply.conditions.map((c2) => c2.message).join(" ") : "";
     return new Error(`R replied ${reply.status} to the client's hello. ${said}`.trim());
   }
-  const theirs = reply.protocol.split(".")[0];
-  const ours = PROTOCOL_VERSION.split(".")[0];
-  if (theirs !== ours) {
-    return new Error(
-      `R speaks version ${reply.protocol} of the wire protocol, where this page speaks ${PROTOCOL_VERSION}. Reload the page, which then loads the client that R serves.`
-    );
-  }
   return void 0;
 }
-function changedPackages(first, reply) {
+function changedPackages(loaded, reply) {
   return Object.entries(reply.packages).flatMap(([pkg, now]) => {
-    const loaded = own(first.packages, pkg);
-    return loaded === void 0 || loaded === now ? [] : [{ package: pkg, loaded, now }];
+    const before = loaded.get(pkg);
+    return before === void 0 || before === now ? [] : [{ package: pkg, loaded: before, now }];
   });
 }
 function askReload(changed) {
