@@ -620,13 +620,17 @@ describe("demand and scheduling", () => {
     expect(r.pending().map((request) => request.block)).toEqual(["a"]);
   });
 
-  test("refuse a blockr option that is no number of 0 or more", async () => {
+  test("refuse a blockr option that is no number of 0 or more, and an evaluation_queue that is no whole number", async () => {
     await expect(setup({ evaluationQueue: -1 })).rejects.toThrow(
-      "The blockr option evaluation_queue is -1, where it takes a number of 0 or more.",
+      "The blockr option evaluation_queue is -1, where it takes a whole number of 0 or more.",
+    );
+    await expect(setup({ evaluationQueue: 1.5 })).rejects.toThrow(
+      "The blockr option evaluation_queue is 1.5, where it takes a whole number of 0 or more.",
     );
     await expect(setup({ backgroundEvaluationDelay: Number.NaN })).rejects.toThrow(
       "The blockr option background_evaluation_delay is NaN, where it takes a number of 0 or more.",
     );
+    await expect(setup({ evaluationQueue: Infinity, backgroundEvaluationDelay: 0.5 })).resolves.toBeDefined();
   });
 
   test("refuse an evaluation priority that is no number", async () => {

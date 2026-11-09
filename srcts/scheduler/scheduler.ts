@@ -141,7 +141,8 @@ export interface SchedulerOptions {
   // as R has answered its hello.
   //
   // The `evaluation_queue` blockr option says how many evaluations the
-  // scheduler keeps waiting in R, behind the one R runs. It is 2 unless given.
+  // scheduler keeps waiting in R, behind the one R runs, a whole number of 0
+  // or more. It is 2 unless given.
   // With 0, the scheduler sends the next evaluation only once the last reply is
   // back. With Infinity, it sends every evaluation at once.
   readonly evaluationQueue?: number;
@@ -182,7 +183,7 @@ const NO_BOARD: Pick<Board, "blocks" | "links"> = { blocks: {}, links: {} };
 
 export function createScheduler(options: SchedulerOptions): Scheduler {
   const { store, client } = options;
-  const queue = setting(options.evaluationQueue, 2, "evaluation_queue");
+  const queue = setting(options.evaluationQueue, 2, "evaluation_queue", true);
   const delay = setting(options.backgroundEvaluationDelay, Infinity, "background_evaluation_delay");
 
   // What the scheduler knows:
@@ -771,12 +772,16 @@ function changedSince(
 }
 
 // A blockr option's value, or its default where it is not given. A value that
-// is no number of 0 or more fails, so that the scheduler starts with no value
-// in place of the one that was set.
-function setting(value: number | undefined, fallback: number, name: string): number {
+// is no number of 0 or more fails, and so does one that is no whole number
+// where the blockr option counts, with Infinity as the one value beside them,
+// so that the scheduler starts with no value in place of the one that was set.
+function setting(value: number | undefined, fallback: number, name: string, counts = false): number {
   if (value === undefined) return fallback;
-  if (typeof value === "number" && value >= 0) return value;
-  throw new RangeError(`The blockr option ${name} is ${String(value)}, where it takes a number of 0 or more.`);
+  const whole = !counts || Number.isInteger(value) || value === Infinity;
+  if (typeof value === "number" && value >= 0 && whole) return value;
+  throw new RangeError(
+    `The blockr option ${name} is ${String(value)}, where it takes ${counts ? "a whole number" : "a number"} of 0 or more.`,
+  );
 }
 
 function checked(priority: number | undefined): number {
