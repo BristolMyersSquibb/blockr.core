@@ -138,10 +138,6 @@ function useStatus(core, block) {
   );
   return useSyncExternalStore(subscribe, () => core.scheduler.status(block));
 }
-function useOptionsInUse(core) {
-  const subscribe = useCallback((notify) => core.options.subscribe(notify), [core]);
-  return useSyncExternalStore(subscribe, () => core.options.inUse());
-}
 function useNotices(notices) {
   return useSyncExternalStore(notices.subscribe, notices.list);
 }
@@ -653,16 +649,16 @@ import { useCallback as useCallback3 } from "react";
 import { jsx as jsx4, jsxs as jsxs4 } from "react/jsx-runtime";
 function OptionsDialog({ onClose }) {
   const { core } = useFrontEnd();
-  const inUse = useOptionsInUse(core);
+  const board = useBoard(core);
   const registered = core.options.registered();
   const categories = /* @__PURE__ */ new Map();
-  for (const id2 of inUse) {
+  for (const id2 of Object.keys(board.options)) {
     const def = Object.hasOwn(registered, id2) ? registered[id2] : void 0;
     if (def === void 0) continue;
     categories.set(def.category, [...categories.get(def.category) ?? [], id2]);
   }
   return /* @__PURE__ */ jsxs4(Dialog, { title: "Board options", onClose, children: [
-    categories.size === 0 ? /* @__PURE__ */ jsx4("p", { className: styles.hint, children: "No board option is in use." }) : null,
+    categories.size === 0 ? /* @__PURE__ */ jsx4("p", { className: styles.hint, children: "The board holds no board options." }) : null,
     [...categories].map(([category, ids]) => /* @__PURE__ */ jsxs4("section", { "aria-label": category, className: "bc:grid bc:gap-2", children: [
       /* @__PURE__ */ jsx4("h3", { className: "bc:m-0 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-text-muted", children: category }),
       ids.map((id2) => /* @__PURE__ */ jsx4(OptionUi, { id: id2 }, id2))

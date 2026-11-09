@@ -87,13 +87,10 @@ export interface Plugins {
   registered(): Readonly<Record<PluginClassId, PluginClass>>;
 }
 
-// A board option, whose value the board holds under its id once a script, a
-// file or a command sets one, while the package that ships it defines the
-// rest. Until then, whatever requires the board option reads its `default`, a
-// value or a function that core calls the first time something requires the
-// board option after a board opens, or as the board opens where the board
-// option has an onChange. Core keeps the default beside the board, never in
-// it, until the next board opens.
+// A board option, whose value the board holds under its id, while the package
+// that ships it defines the rest. Where something needs the board option and
+// the board lacks its value, core adds it to the board with its `default`: a
+// value, or what the function that is its default resolves with.
 export interface Option {
   readonly id: OptionId;
   readonly label: string;
@@ -104,8 +101,9 @@ export interface Option {
   // renderer for the board option.
   readonly ui: OptionModule;
   // What a new value does on the page, such as switching the theme. Core
-  // calls it as each board opens, with the board's value or else the default,
-  // and again as a delta sets or removes the value.
+  // calls it as each board opens, with the board's value, and again as a delta
+  // sets the value. Where the board lacks the value, core adds the board
+  // option with its default first.
   onChange?(value: Json, core: CoreApi): void;
   // Converts the value, as a JSON board holds it, from the version of its
   // shape that the board records to the one that the package's method of R's

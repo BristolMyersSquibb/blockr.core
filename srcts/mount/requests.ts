@@ -5,8 +5,7 @@
 // 2. Once each reads ready, the host sends the request through the scheduler,
 //    at the revisions the inputs then have. With it go the state args its
 //    function names, from `args` or else from the block's state, the
-//    parameters `args` gives, and the values of the board options it names,
-//    the board's or else their defaults (./defaults.ts).
+//    parameters `args` gives, and the values of the board options it names.
 // 3. Where R replies `missing`, since a revision moved on before R ran the
 //    request, the host has the inputs evaluated again and asks again.
 // Once another board opens or the block leaves the board, the request stops,
@@ -22,7 +21,6 @@ import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import { isObject, own, quoted } from "../util/index.ts";
 import type { Answers, ClassRequest } from "./answers.ts";
-import type { Defaults } from "./defaults.ts";
 
 // How many times a request asks R before it gives up on results that R keeps
 // lacking, which only a fault in R causes once the scheduler has had the
@@ -64,7 +62,6 @@ export interface RequestDeps {
   readonly store: Pick<Store, "board">;
   readonly scheduler: Pick<Scheduler, "evaluate" | "inputs">;
   readonly answers: Answers;
-  readonly defaults: Pick<Defaults, "resolve" | "values">;
   // Whether the host is still bound to its board and its block, and why not
   // where it is not.
   readonly bound: () => boolean;
@@ -94,12 +91,9 @@ export async function blockRequest(
   for (let attempt = 1; ; attempt++) {
     const reads = await readsOf(deps, block, entry, name, spec.inputs, opts.signal);
     if (!deps.bound()) throw deps.unboundError();
-    // The module's mount resolved them, unless a delta removed a value since.
-    await deps.defaults.resolve(spec.options, `the request "${name}" of block class "${entry.id}"`);
-    if (!deps.bound()) throw deps.unboundError();
 
     // The state and the board options, as the board holds them once the
-    // inputs are evaluated, or else their defaults.
+    // inputs are evaluated.
     const board = deps.store.board();
     const state = own(board.blocks, block)?.state;
     if (state === undefined) throw new Error(`Block "${block}" left the board, so its request "${name}" did not go to R.`);
@@ -112,7 +106,11 @@ export async function blockRequest(
     for (const [arg, value] of Object.entries(given)) {
       if (value !== undefined) args[arg] = value;
     }
-    const options = deps.defaults.values(spec.options, board.options);
+    const options: Record<string, Json> = {};
+    for (const id of spec.options) {
+      const value = own(board.options, id);
+      if (value !== undefined) options[id] = value;
+    }
 
     const request: ClassRequest = {
       kind: "request",

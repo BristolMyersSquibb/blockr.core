@@ -25,14 +25,11 @@ export type State = Readonly<Record<string, Json>>;
 // host, and a signal that it aborts when it unmounts the module. The render()
 // function may be async and may return its cleanup, which core runs when it
 // aborts the signal. The default of a block class's UI module or of an
-// output's renderer may name the board options the module requires. Core
-// resolves the default of each that the board holds no value for, and keeps it
-// beside the board for the opening, before it calls render(), and for a
-// renderer before it first asks R for an output that the renderer draws. The
-// module then gets the board's value, or else that default. A block class's
-// UI module names among them every board option that a request of its class
-// reads, as the class's registry entry names them, and core refuses a module
-// that leaves one out.
+// output's renderer may name the board options the module requires. Core adds
+// each to the board, with its definition's default where the board lacks it,
+// before it calls render(). A block class's UI module names among them every
+// board option that a request of its class reads, as the class's registry
+// entry names them, and core refuses a module that leaves one out.
 export interface BlockModule<S extends State = State> {
   readonly options?: readonly OptionId[];
   render(args: { el: HTMLElement; host: BlockHost<S>; signal: AbortSignal }): Rendered;
@@ -87,8 +84,7 @@ export interface BlockContext {
   // Its linked inputs, in the order of its class's inputs, whose revisions
   // say when the data changed.
   readonly inputs: readonly { readonly input: string; readonly revision: number }[];
-  // The values of the board options that its module names, the board's or
-  // else their defaults.
+  // The values of the board options that its module names.
   readonly options: Readonly<Record<OptionId, Json>>;
 }
 
@@ -107,9 +103,9 @@ export interface OutputRequestOpts extends HostRequestOpts {
 
 export interface OptionHost<V extends Json = Json> {
   readonly option: OptionId;
-  // The board option's value in the board, or else its default, which core
-  // resolves before it calls render() and keeps beside the board. The host
-  // announces each change of it through "value".
+  // The board option's value in the board, which core adds to the board with
+  // the board option's default before it calls render(), where the board
+  // lacks it. The host announces each change of it through "value".
   value(): V;
   on(event: "value", fn: () => void): () => void;
   // Runs core's command that sets a board option.

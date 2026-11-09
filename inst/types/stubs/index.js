@@ -3343,223 +3343,6 @@ function linkStylesheet(url) {
   });
 }
 
-// srcts/mount/shared.ts
-function moduleOf(exports, module, pkg) {
-  if (!isObject(exports) || typeof exports.api !== "number") {
-    throw new ModuleError(module, pkg, "declares no major of core's JS API, as `export const api = 1`.");
-  }
-  if (exports.api !== API) {
-    throw new ModuleError(
-      module,
-      pkg,
-      `was built against major ${String(exports.api)} of core's JS API, where core's is ${String(API)}.`
-    );
-  }
-  const mod = exports.default;
-  if (!isObject(mod) || typeof mod.render !== "function") {
-    throw new ModuleError(module, pkg, "has no default export with a render() function.");
-  }
-  const named2 = mod.options;
-  if (named2 !== void 0 && !(Array.isArray(named2) && named2.every((id2) => typeof id2 === "string"))) {
-    throw new ModuleError(module, pkg, "names its board options in something other than an array of their ids.");
-  }
-  return mod;
-}
-function showError(el, message) {
-  const box = document.createElement("div");
-  box.setAttribute("role", "alert");
-  box.className = "bc:rounded bc:border bc:border-border-danger bc:p-2 bc:font-sans bc:text-sm bc:text-text-danger bc:whitespace-pre-wrap";
-  box.textContent = message;
-  el.replaceChildren(box);
-}
-function attempt(fn) {
-  try {
-    fn();
-  } catch (error) {
-    report(error);
-  }
-}
-function onAbort(signal, fn) {
-  signal.addEventListener("abort", fn, { once: true });
-  return () => {
-    signal.removeEventListener("abort", fn);
-  };
-}
-var REPLACED = "Another board opened, so core mounts nothing more of the board before.";
-function announceTo(listeners) {
-  for (const fn of [...listeners]) attempt(fn);
-}
-
-// srcts/mount/defaults.ts
-function createDefaults(options) {
-  const { store } = options;
-  const ended = () => options.signal?.aborted === true;
-  const resolutions = /* @__PURE__ */ new Map();
-  const required2 = /* @__PURE__ */ new Map();
-  const listeners = /* @__PURE__ */ new Set();
-  const reported = /* @__PURE__ */ new Set();
-  let requirements = 0;
-  let memo;
-  function held2() {
-    return store.hasBoard() ? store.board().options : {};
-  }
-  let queued = false;
-  function announce2() {
-    if (queued || ended()) return;
-    queued = true;
-    void Promise.resolve().then(() => {
-      queued = false;
-      if (!ended()) announceTo(listeners);
-    });
-  }
-  function value2(id2, given = held2()) {
-    return Object.hasOwn(given, id2) ? given[id2] : resolutions.get(id2)?.value;
-  }
-  function values2(ids2, given = held2(), before = {}) {
-    return Object.fromEntries(
-      ids2.flatMap((id2) => {
-        const found = value2(id2, given) ?? (settledIn(id2, given) ? void 0 : own(before, id2));
-        return found === void 0 ? [] : [[id2, found]];
-      })
-    );
-  }
-  function settledIn(id2, board) {
-    return Object.hasOwn(board, id2) || !Object.hasOwn(store.options.registered(), id2) || resolutions.get(id2)?.settled === true;
-  }
-  function settled(ids2) {
-    const board = held2();
-    return ids2.every((id2) => settledIn(id2, board));
-  }
-  function resolution(id2) {
-    const started = resolutions.get(id2);
-    if (started !== void 0) return started;
-    const def = own(store.options.registered(), id2);
-    if (def === void 0) return void 0;
-    const item = { done: Promise.resolve(), settled: false, value: void 0, why: void 0 };
-    resolutions.set(id2, item);
-    item.done = settle2(item, id2, def);
-    return item;
-  }
-  async function settle2(item, id2, def) {
-    await Promise.resolve();
-    try {
-      const given = def.default;
-      const found = typeof given === "function" ? await given() : given;
-      const failures = compile(`the board option "${id2}"`, def.schema)(found);
-      if (failures.length === 0) item.value = frozenCopy(found);
-      else item.why = failures.join(" ");
-    } catch (error) {
-      item.why = `failed: ${messageOf(error)}`;
-    }
-    item.settled = true;
-    announce2();
-  }
-  function once2(message) {
-    if (ended() || reported.has(message)) return;
-    reported.add(message);
-    report(new Error(message));
-  }
-  async function resolve(ids2, by) {
-    const failures = await Promise.all(
-      [...new Set(ids2)].map(async (id2) => {
-        if (Object.hasOwn(held2(), id2)) return [];
-        const item = resolution(id2);
-        if (item === void 0) {
-          const message2 = `The board option "${id2}", which ${by} requires, is defined by no package loaded.`;
-          once2(message2);
-          return [message2];
-        }
-        await item.done;
-        if (item.why === void 0 || Object.hasOwn(held2(), id2)) return [];
-        const message = `The default of the board option "${id2}", which ${by} requires, ${item.why}`;
-        once2(message);
-        return [message];
-      })
-    );
-    return failures.flat();
-  }
-  function require2(ids2, by) {
-    const named2 = [...new Set(ids2)];
-    let changed = false;
-    for (const id2 of named2) {
-      const of = required2.get(id2) ?? /* @__PURE__ */ new Map();
-      if (of.size === 0) changed = true;
-      of.set(by, (of.get(by) ?? 0) + 1);
-      required2.set(id2, of);
-    }
-    if (changed) {
-      requirements++;
-      announce2();
-    }
-    let released = false;
-    return () => {
-      if (released) return;
-      released = true;
-      let gone = false;
-      for (const id2 of named2) {
-        const of = required2.get(id2);
-        const count = of?.get(by);
-        if (of === void 0 || count === void 0) continue;
-        if (count > 1) {
-          of.set(by, count - 1);
-          continue;
-        }
-        of.delete(by);
-        if (of.size === 0) {
-          required2.delete(id2);
-          gone = true;
-        }
-      }
-      if (gone) {
-        requirements++;
-        announce2();
-      }
-    };
-  }
-  function inUse() {
-    const board = held2();
-    const registered = store.options.registered();
-    if (memo?.held === board && memo.registered === registered && memo.requirements === requirements) {
-      return memo.list;
-    }
-    const list = Object.freeze(Object.keys(registered).filter((id2) => Object.hasOwn(board, id2) || required2.has(id2)));
-    memo = { held: board, registered, requirements, list };
-    return list;
-  }
-  const offStore = store.subscribe((change, board) => {
-    if ("opened" in change) return;
-    for (const id2 of change.delta.options?.unset ?? []) {
-      const by = required2.get(id2)?.keys().next().value;
-      if (by === void 0 || Object.hasOwn(board.options, id2)) continue;
-      void resolve([id2], by);
-    }
-  });
-  if (options.signal !== void 0) {
-    onAbort(options.signal, () => {
-      offStore();
-      listeners.clear();
-    });
-  }
-  return {
-    value: value2,
-    values: values2,
-    settled,
-    resolve,
-    require: require2,
-    inUse,
-    subscribe(fn) {
-      if (ended()) return () => void 0;
-      const wrapped = () => {
-        fn();
-      };
-      listeners.add(wrapped);
-      return () => {
-        listeners.delete(wrapped);
-      };
-    }
-  };
-}
-
 // srcts/mount/measure.ts
 var FALLBACK = { bg: "#ffffff", fg: "#000000", accent: "#155dfc" };
 var ACCENT = "--bc-color-bg-accent";
@@ -3719,8 +3502,6 @@ async function blockRequest(deps, block, entry, name2, given, opts) {
   for (let attempt3 = 1; ; attempt3++) {
     const reads = await readsOf2(deps, block, entry, name2, spec.inputs, opts.signal);
     if (!deps.bound()) throw deps.unboundError();
-    await deps.defaults.resolve(spec.options, `the request "${name2}" of block class "${entry.id}"`);
-    if (!deps.bound()) throw deps.unboundError();
     const board = deps.store.board();
     const state2 = own(board.blocks, block)?.state;
     if (state2 === void 0) throw new Error(`Block "${block}" left the board, so its request "${name2}" did not go to R.`);
@@ -3732,7 +3513,11 @@ async function blockRequest(deps, block, entry, name2, given, opts) {
     for (const [arg, value2] of Object.entries(given)) {
       if (value2 !== void 0) args[arg] = value2;
     }
-    const options = deps.defaults.values(spec.options, board.options);
+    const options = {};
+    for (const id2 of spec.options) {
+      const value2 = own(board.options, id2);
+      if (value2 !== void 0) options[id2] = value2;
+    }
     const request = {
       kind: "request",
       type: "block_class",
@@ -3801,6 +3586,53 @@ async function readsOf2(deps, block, entry, name2, names, signal) {
   );
 }
 
+// srcts/mount/shared.ts
+function moduleOf(exports, module, pkg) {
+  if (!isObject(exports) || typeof exports.api !== "number") {
+    throw new ModuleError(module, pkg, "declares no major of core's JS API, as `export const api = 1`.");
+  }
+  if (exports.api !== API) {
+    throw new ModuleError(
+      module,
+      pkg,
+      `was built against major ${String(exports.api)} of core's JS API, where core's is ${String(API)}.`
+    );
+  }
+  const mod = exports.default;
+  if (!isObject(mod) || typeof mod.render !== "function") {
+    throw new ModuleError(module, pkg, "has no default export with a render() function.");
+  }
+  const named2 = mod.options;
+  if (named2 !== void 0 && !(Array.isArray(named2) && named2.every((id2) => typeof id2 === "string"))) {
+    throw new ModuleError(module, pkg, "names its board options in something other than an array of their ids.");
+  }
+  return mod;
+}
+function showError(el, message) {
+  const box = document.createElement("div");
+  box.setAttribute("role", "alert");
+  box.className = "bc:rounded bc:border bc:border-border-danger bc:p-2 bc:font-sans bc:text-sm bc:text-text-danger bc:whitespace-pre-wrap";
+  box.textContent = message;
+  el.replaceChildren(box);
+}
+function attempt(fn) {
+  try {
+    fn();
+  } catch (error) {
+    report(error);
+  }
+}
+function onAbort(signal, fn) {
+  signal.addEventListener("abort", fn, { once: true });
+  return () => {
+    signal.removeEventListener("abort", fn);
+  };
+}
+var REPLACED = "Another board opened, so core mounts nothing more of the board before.";
+function announceTo(listeners) {
+  for (const fn of [...listeners]) attempt(fn);
+}
+
 // srcts/mount/option.ts
 function mountOption(deps, el, option) {
   const { store, loader } = deps;
@@ -3816,17 +3648,13 @@ function mountOption(deps, el, option) {
   let value2;
   let seen = store.board().options;
   let cleanup;
-  const by = `the UI of the board option "${option}"`;
+  let stopKeeping;
   function bound() {
     return !ended() && !deps.replaced.aborted;
   }
   const unboundError = () => new Error(`Another board opened, so the host of the board option "${option}" no longer changes it.`);
-  function follow2() {
-    const next = deps.defaults.value(option);
-    if (next === void 0 && !deps.defaults.settled([option])) return;
-    if (next === value2) return;
-    value2 = next;
-    announceTo(listeners);
+  function current2() {
+    return own(store.board().options, option);
   }
   const host = {
     option,
@@ -3860,17 +3688,18 @@ function mountOption(deps, el, option) {
   const offStore = store.subscribe((_change, board) => {
     if (board.options === seen) return;
     seen = board.options;
-    if (!Object.hasOwn(board.options, option)) void deps.defaults.resolve([option], by);
-    follow2();
+    const next = current2();
+    if (next === void 0 || next === value2) return;
+    value2 = next;
+    announceTo(listeners);
   });
-  const offDefaults = deps.defaults.subscribe(follow2);
   const offEnd = onAbort(deps.replaced, end);
   function end() {
     if (ended()) return;
     controller.abort();
     offEnd();
     offStore();
-    offDefaults();
+    stopKeeping?.();
     listeners.clear();
     if (cleanup !== void 0) attempt(cleanup);
     el.replaceChildren();
@@ -3891,9 +3720,11 @@ function mountOption(deps, el, option) {
       return;
     }
     if (ended()) return;
-    const failures = await deps.defaults.resolve([option], by);
+    const kept = deps.keepOptions([option], `the UI of the board option "${option}"`);
+    stopKeeping = kept.stop;
+    const failures = await kept.added;
     if (ended()) return;
-    value2 = deps.defaults.value(option);
+    value2 = current2();
     if (value2 === void 0 && failures.length > 0) {
       showError(el, failures.join("\n"));
       return;
@@ -3966,7 +3797,7 @@ function createShelves() {
   };
 }
 function mountOutput(deps, el, block) {
-  const { store, scheduler, loader, measure, defaults } = deps;
+  const { store, scheduler, loader, measure } = deps;
   if (deps.replaced.aborted) throw new Error(REPLACED);
   const found = own(store.board().blocks, block);
   if (found === void 0) {
@@ -3981,8 +3812,10 @@ function mountOutput(deps, el, block) {
   const ended = () => controller.signal.aborted;
   let renderer = entry.renderer;
   let ready;
-  let release;
+  let keeping;
   const preparing = /* @__PURE__ */ new Map();
+  let unwritten;
+  let fetching = false;
   let info = measure.info(el);
   let held2;
   let asking;
@@ -3997,9 +3830,6 @@ function mountOutput(deps, el, block) {
   const unboundError = () => new Error(
     deps.replaced.aborted ? `Another board opened, so the host of the output of block "${block}" no longer asks R.` : `Block "${block}" left the board, so the host of its output no longer asks R.`
   );
-  function requiredBy() {
-    return renderer === void 0 ? `the first output of block "${block}"` : `the renderer "${renderer.id}"`;
-  }
   function prepare(given) {
     let loading = preparing.get(given.id);
     if (loading === void 0) {
@@ -4008,7 +3838,7 @@ function mountOutput(deps, el, block) {
         const source = given.css === void 0 ? { module: given.module } : { module: given.module, css: given.css };
         const mod = moduleOf(await loader.load(source, pkg), given.module, pkg);
         const named3 = mod.options ?? [];
-        await defaults.resolve(named3, `the renderer "${given.id}"`);
+        await deps.addOptions(named3, `the renderer "${given.id}"`);
         return { renderer: given, mod, named: named3 };
       })();
       preparing.set(given.id, loading);
@@ -4017,13 +3847,14 @@ function mountOutput(deps, el, block) {
   }
   function expect(given) {
     renderer = given;
+    unwritten = void 0;
     if (ready?.renderer.id === given.id) return;
     prepare(given).then(
       (prepared) => {
         if (ended() || renderer?.id !== prepared.renderer.id) return;
         ready = prepared;
-        release?.();
-        release = defaults.require(prepared.named, `the renderer "${prepared.renderer.id}"`);
+        keeping?.stop();
+        keeping = deps.keepOptions(prepared.named, `the renderer "${prepared.renderer.id}"`);
         sync();
       },
       (failure) => {
@@ -4035,18 +3866,38 @@ function mountOutput(deps, el, block) {
     if (renderer === void 0) return null;
     return ready?.renderer.id === renderer.id ? ready.named : void 0;
   }
+  function values2(ids2) {
+    const options2 = store.board().options;
+    if (ids2 === null) return { ...unwritten, ...options2 };
+    return Object.fromEntries(
+      ids2.flatMap((id2) => {
+        const value2 = own(options2, id2);
+        return value2 === void 0 ? [] : [[id2, value2]];
+      })
+    );
+  }
   function wanted() {
     if (info === null) return void 0;
     const ids2 = named2();
     if (ids2 === void 0) return void 0;
     const status = scheduler.status(block);
     if (status?.status !== "ready") return void 0;
-    const sent2 = ids2 ?? Object.keys(store.options.registered());
-    if (!defaults.settled(sent2)) {
-      void defaults.resolve(sent2, requiredBy());
+    if (ids2 === null && unwritten === void 0) {
+      fetchDefaults();
       return void 0;
     }
-    return { asked: { revision: status.revision, options: defaults.values(sent2), info, params: shelf.params }, ids: ids2 };
+    return { asked: { revision: status.revision, options: values2(ids2), info, params: shelf.params }, ids: ids2 };
+  }
+  function fetchDefaults() {
+    if (fetching) return;
+    fetching = true;
+    const lacking = Object.keys(store.options.registered()).filter((id2) => !Object.hasOwn(store.board().options, id2));
+    void deps.defaultsOf(lacking, `the first output of block "${block}"`).then((found2) => {
+      fetching = false;
+      if (ended() || renderer !== void 0) return;
+      unwritten = found2;
+      sync();
+    });
   }
   function fits2(asked, want, ids2) {
     if (asked.revision !== want.revision || !jsonEqual(asked.info, want.info)) return false;
@@ -4234,9 +4085,10 @@ function mountOutput(deps, el, block) {
     announceTo(waiting2);
   }
   function optionsFor(prepared, asked) {
+    const now = store.board().options;
     return Object.fromEntries(
       prepared.named.flatMap((id2) => {
-        const value2 = asked !== void 0 && Object.hasOwn(asked.options, id2) ? asked.options[id2] : defaults.value(id2);
+        const value2 = asked !== void 0 && Object.hasOwn(asked.options, id2) ? asked.options[id2] : own(now, id2);
         return value2 === void 0 ? [] : [[id2, value2]];
       })
     );
@@ -4399,7 +4251,6 @@ function mountOutput(deps, el, block) {
   const offScheduler = scheduler.subscribe((changed) => {
     if (changed.includes(block)) sync();
   });
-  const offDefaults = defaults.subscribe(sync);
   shelf.mounts.add(sync);
   let settling;
   const stopWatching = measure.watch(el, () => {
@@ -4422,8 +4273,7 @@ function mountOutput(deps, el, block) {
     offEnd();
     offStore();
     offScheduler();
-    offDefaults();
-    release?.();
+    keeping?.stop();
     shelf.mounts.delete(sync);
     stopWatching();
     if (settling !== void 0) clearTimeout(settling);
@@ -4453,6 +4303,7 @@ function sorted2(x2) {
 }
 
 // srcts/mount/block.ts
+var CORE = "blockr.core";
 var NO_STATUS = Object.freeze(unevaluated(0, false));
 function createMounts(options) {
   const { store, commands, scheduler, loader } = options;
@@ -4462,11 +4313,91 @@ function createMounts(options) {
   const measure = options.measure ?? domMeasure();
   const emit = options.emit ?? (() => void 0);
   const renderers = options.renderers ?? (() => ({}));
-  const defaults = createDefaults({ store, signal: replaced });
   store.subscribe((change) => {
     if ("opened" in change) return;
     for (const id2 of change.delta.blocks?.rm ?? []) shelves.drop(id2);
   });
+  const resolving = /* @__PURE__ */ new Map();
+  const reported = /* @__PURE__ */ new Set();
+  function failure(message) {
+    if (!replaced.aborted && !reported.has(message)) {
+      reported.add(message);
+      report(new Error(message));
+    }
+    return [message];
+  }
+  function defaultOf(id2, def) {
+    const pending = resolving.get(id2);
+    if (pending !== void 0) return pending;
+    const given = def.default;
+    const started = typeof given === "function" ? Promise.resolve().then(given) : Promise.resolve(given);
+    resolving.set(id2, started);
+    const settled = () => {
+      if (resolving.get(id2) === started) resolving.delete(id2);
+    };
+    started.then(settled, settled);
+    return started;
+  }
+  async function addOptions(ids2, by) {
+    const failures = await Promise.all(
+      [...new Set(ids2)].map(async (id2) => {
+        if (Object.hasOwn(store.board().options, id2)) return [];
+        const def = own(store.options.registered(), id2);
+        if (def === void 0) {
+          return failure(`The board option "${id2}", which ${by} requires, is defined by no package loaded.`);
+        }
+        let value2;
+        try {
+          value2 = await defaultOf(id2, def);
+        } catch (error) {
+          return failure(`The default of the board option "${id2}", which ${by} requires, failed: ${messageOf(error)}`);
+        }
+        if (replaced.aborted || Object.hasOwn(store.board().options, id2)) return [];
+        try {
+          await commands.run("blockr.core-set_option", { id: id2, value: value2 }, CORE);
+        } catch (error) {
+          return failure(
+            `The default of the board option "${id2}", which ${by} requires, did not go onto the board: ${messageOf(error)}`
+          );
+        }
+        return [];
+      })
+    );
+    return failures.flat();
+  }
+  function keepOptions(ids2, by) {
+    if (ids2.length === 0) return { added: Promise.resolve([]), stop: () => void 0 };
+    const stop = store.subscribe((change, board) => {
+      if ("opened" in change) return;
+      const removed = (change.delta.options?.unset ?? []).filter(
+        (id2) => ids2.includes(id2) && !Object.hasOwn(board.options, id2)
+      );
+      if (removed.length > 0) void addOptions(removed, by);
+    });
+    return { added: addOptions(ids2, by), stop };
+  }
+  async function defaultsOf(ids2, by) {
+    const found = await Promise.all(
+      ids2.map(async (id2) => {
+        const def = own(store.options.registered(), id2);
+        if (def === void 0 || Object.hasOwn(store.board().options, id2)) return [];
+        let value2;
+        try {
+          value2 = await defaultOf(id2, def);
+        } catch (error) {
+          failure(`The default of the board option "${id2}", which ${by} requires, failed: ${messageOf(error)}`);
+          return [];
+        }
+        const unfit = compile(`the board option "${id2}"`, def.schema)(value2);
+        if (unfit.length > 0) {
+          failure(`The default of the board option "${id2}", which ${by} requires, ${unfit.join(" ")}`);
+          return [];
+        }
+        return [[id2, value2]];
+      })
+    );
+    return Object.fromEntries(found.flat());
+  }
   function mountBlock(el, block) {
     if (replaced.aborted) throw new Error(REPLACED);
     const found = own(store.board().blocks, block);
@@ -4482,12 +4413,12 @@ function createMounts(options) {
     const { signal } = controller;
     const ended = () => signal.aborted;
     let cleanup;
-    let release;
+    let stopKeeping;
     const end = () => {
       if (ended()) return;
       offEnd();
       host.drop();
-      release?.();
+      stopKeeping?.();
       controller.abort();
       if (cleanup !== void 0) attempt(cleanup);
       el.replaceChildren();
@@ -4498,7 +4429,6 @@ function createMounts(options) {
       scheduler,
       loader,
       answers,
-      defaults,
       block,
       entry,
       replaced,
@@ -4523,9 +4453,9 @@ function createMounts(options) {
         return;
       }
       const named2 = mod.options ?? [];
-      const by = `the UI module of block class "${entry.id}"`;
-      release = defaults.require(named2, by);
-      await defaults.resolve(named2, by);
+      const kept = keepOptions(named2, `the UI module of block class "${entry.id}"`);
+      stopKeeping = kept.stop;
+      await kept.added;
       if (ended()) return;
       host.name(named2);
       try {
@@ -4547,12 +4477,12 @@ function createMounts(options) {
   return {
     mountBlock,
     mountOutput: (el, block) => mountOutput(
-      { store, scheduler, loader, answers, shelves, measure, replaced, defaults, emit },
+      { store, scheduler, loader, answers, shelves, measure, replaced, addOptions, keepOptions, defaultsOf, emit },
       el,
       block
     ),
-    mountOption: (el, option) => mountOption({ store, commands, scheduler, loader, renderers, replaced, defaults }, el, option),
-    defaults
+    mountOption: (el, option) => mountOption({ store, commands, scheduler, loader, renderers, replaced, keepOptions }, el, option),
+    addOptions
   };
 }
 function checkOptions(mod, entry, pkg) {
@@ -4567,18 +4497,18 @@ function checkOptions(mod, entry, pkg) {
   throw new ModuleError(entry.module, pkg, [what, ...gaps].join("\n"));
 }
 function blockHost(deps) {
-  const { store, commands, scheduler, defaults, block, entry } = deps;
+  const { store, commands, scheduler, block, entry } = deps;
   let seen = store.board();
   let named2 = [];
   let state2 = blockOf(seen)?.state ?? {};
-  let context = contextOf2(blockOf(seen), {});
+  let context = contextOf2(blockOf(seen));
   let following = true;
   let gone = false;
   const listeners = { state: /* @__PURE__ */ new Set(), context: /* @__PURE__ */ new Set() };
   function blockOf(board) {
     return own(board.blocks, block);
   }
-  function contextOf2(now, before) {
+  function contextOf2(now) {
     const recipe = scheduler.inputs(block)?.recipe ?? [];
     return Object.freeze({
       name: now?.name ?? "",
@@ -4588,8 +4518,14 @@ function blockHost(deps) {
           (input2) => input2.block === void 0 ? [] : [Object.freeze({ input: input2.input, revision: scheduler.status(input2.block)?.revision ?? 0 })]
         )
       ),
-      // The board's values, or else the defaults that core resolved.
-      options: Object.freeze(defaults.values(named2, seen.options, before))
+      options: Object.freeze(
+        Object.fromEntries(
+          named2.flatMap((id2) => {
+            const value2 = own(seen.options, id2);
+            return value2 === void 0 ? [] : [[id2, value2]];
+          })
+        )
+      )
     });
   }
   function bound() {
@@ -4612,7 +4548,7 @@ function blockHost(deps) {
     }
     const stateChanged = now.state !== state2;
     if (stateChanged) state2 = now.state;
-    const next = contextOf2(now, context.options);
+    const next = contextOf2(now);
     const contextChanged = !sameContext(context, next);
     if (contextChanged) context = next;
     if (stateChanged) announce2("state");
@@ -4631,14 +4567,10 @@ function blockHost(deps) {
   const offScheduler = scheduler.subscribe(() => {
     if (following && store.board() === seen) refresh();
   });
-  const offDefaults = defaults.subscribe(() => {
-    if (following && store.board() === seen) refresh();
-  });
   function stop() {
     following = false;
     offStore();
     offScheduler();
-    offDefaults();
   }
   const unboundError = () => new Error(
     deps.replaced.aborted ? `Another board opened, so the host of block "${block}" no longer changes it.` : `Block "${block}" left the board, so its host no longer changes it.`
@@ -4688,7 +4620,7 @@ function blockHost(deps) {
     },
     name(options) {
       named2 = options;
-      context = contextOf2(blockOf(seen), context.options);
+      context = contextOf2(blockOf(seen));
     },
     drop: stop
   };
@@ -4932,7 +4864,6 @@ function createCore(parts) {
       }
     }
   });
-  const { defaults } = mounts;
   const api = {
     store,
     commands,
@@ -4949,18 +4880,7 @@ function createCore(parts) {
     options: {
       register: (def) => store.options.register(def),
       registered: () => store.options.registered(),
-      value: (id2) => defaults.value(id2),
-      inUse: () => defaults.inUse(),
-      subscribe(fn) {
-        const offStore = store.subscribe((change) => {
-          if ("opened" in change || change.delta.options !== void 0) fn();
-        });
-        const offDefaults = defaults.subscribe(fn);
-        return () => {
-          offStore();
-          offDefaults();
-        };
-      }
+      value: (id2) => store.hasBoard() ? own(store.board().options, id2) : void 0
     },
     plugins: {
       register: (def) => store.plugins.register(def)
@@ -4974,30 +4894,26 @@ function createCore(parts) {
     mountOutput: (el, block) => mounts.mountOutput(el, block),
     mountOption: (el, option) => mounts.mountOption(el, option)
   };
-  const heard = /* @__PURE__ */ new Map();
+  let heard = {};
   store.subscribe((change, board) => {
-    const ids2 = "opened" in change ? Object.keys(store.options.registered()) : [...Object.keys(change.delta.options?.set ?? {}), ...change.delta.options?.unset ?? []];
-    for (const id2 of ids2) follow2(id2, board);
+    const opened = "opened" in change;
+    if (board.options !== heard || opened) {
+      const before = opened ? {} : heard;
+      heard = board.options;
+      for (const [id2, value2] of Object.entries(board.options)) {
+        if (!jsonEqual(own(before, id2), value2)) changed(id2, value2);
+      }
+    }
+    if (opened || (change.delta.options?.unset?.length ?? 0) > 0) {
+      const lacking = Object.values(store.options.registered()).filter((def) => def.onChange !== void 0 && !Object.hasOwn(board.options, def.id)).map((def) => def.id);
+      if (lacking.length > 0) void mounts.addOptions(lacking, "its onChange");
+    }
   });
-  function follow2(id2, board) {
+  function changed(id2, value2) {
     const def = own(store.options.registered(), id2);
     if (def?.onChange === void 0) return;
-    const held2 = own(board.options, id2);
-    if (held2 !== void 0) {
-      call(def, held2);
-      return;
-    }
-    void defaults.resolve([id2], "its onChange").then(() => {
-      if (parts.signal?.aborted === true || !store.hasBoard() || Object.hasOwn(store.board().options, id2)) return;
-      const value2 = defaults.value(id2);
-      if (value2 !== void 0) call(def, value2);
-    });
-  }
-  function call(def, value2) {
-    if (heard.has(def.id) && jsonEqual(heard.get(def.id), value2)) return;
-    heard.set(def.id, value2);
     try {
-      def.onChange?.(value2, api);
+      def.onChange(value2, api);
     } catch (error) {
       report(error);
     }

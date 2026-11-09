@@ -99,14 +99,14 @@
   `blockr.core-plot_output`, and R sends it in each output, with where it
   serves the renderer's module.
   R also names it in the entry of each block class whose coercion the output
-  class gives, so that the client loads the renderer, and resolves the board
-  options that it names, before it asks for a block's first output.
-  Another package offers a renderer through a
+  class gives, so that the client loads the renderer, and adds the board
+  options that it names to the board, before it asks for a block's first
+  output. Another package offers a renderer through a
   function that makes it, and an app draws with it by naming it in the blockr
   option `renderers`, for an output class or a board option, which a method
   takes with `chosen_renderer()`, so loading a package changes nothing. Such a
   renderer may bring requests of its own, which `run_output_class_request()`
-  runs when given the renderer (#425, #440, #465, #508).
+  runs when given the renderer (#425, #440, #465).
 * R builds what it tells the client about the packages it has loaded, in its
   reply to `hello`, without building a block. That is
   each block class's entry in the block registry, with the metadata that
@@ -254,7 +254,7 @@
   A store opens one board, and the scheduler of the next board gives each block a revision above any that the page has given (#497).
 * Core's basic front-end, `blockr.core-basic`, draws every board.
   It is written in React on core's React SDK and styled with Tailwind CSS under core's prefix.
-  Its toolbar adds a block from the block registry's entries, edits links and stacks, sets the board options that something on the page requires or that the board holds a value for, renames the board, and saves the board as a file or opens one.
+  Its toolbar adds a block from the block registry's entries, edits links and stacks, sets the board options that the board holds, renames the board, and saves the board as a file or opens one.
   It draws each stack as a group of its blocks' cards.
   A card shows its block's name, class and status, the block's UI and output with the summary of the block's result below it, and the conditions of the severities that the board option `show_conditions` names.
   A card's menu renames or removes its block, or adds a block before or after it.
@@ -265,7 +265,7 @@
   On a locked board, it draws no control for what the lock fixes.
   It requires the board options `show_conditions` and `dark_mode`, so that every board gets them as it opens.
   The page's color scheme follows the theme that `dark_mode` switches the page to, so that the browser draws the page's background, form controls and scroll bars in that theme too.
-  Where no blockr option sets `n_rows`, a table output's page holds 10 rows, where it held 50 (#441, #508).
+  Where no blockr option sets `n_rows`, a table output's page holds 10 rows, where it held 50 (#441).
 * A board has no class of its own, and plugins take the place of board classes as core's way to extend a board as a whole, beside block classes.
   A package's constructor `new_{name}_plugin()` makes a plugin with `new_plugin()`, of class `c("{name}_plugin", ..., "plugin")`, from its args, which are the plugin's state, and its `plugin_name`, which is the plugin's name.
   The plugin's class has the ID `{pkg}-{name}_plugin`, so `new_plugin()` refuses a constructor that lives outside a package.
@@ -306,16 +306,15 @@
   Without the load lock, R holds a block to its first evaluation since the board opened.
   R runs every request as on any board, with the board option values that the request carries.
   The generic `is_board_locked()` goes, and a package reads the blockr option `locked` in its place (#434).
-* Core's client keeps the default of a board option beside the board, where a block class's UI module or a renderer names the board option and the board holds no value for it.
-  Until now it wrote the default into the board, so that a saved board held the rows per page of the deployment that it ran under.
-  The client resolves such a default once per opening of a board and checks it against the board option's schema.
-  It reports a board option whose default fails or does not fit, naming the board option and what requires it.
-  Every reader gets the board's value or else that default: a block's UI module in its context, a renderer through its host's `options()`, a board option's UI through `OptionHost.value()`, R in the requests that carry the board option, and a plugin through `core.options.value()`.
-  A delta that removes a value gives every reader the default again.
-  Beside `value()`, the `options` of `CoreApi` gain `inUse()`, which lists the board options that something on the page requires or that the board holds a value for, and `subscribe()`, which announces a change to what either gives.
-  An output whose block class's entry names no renderer is asked with the value of every board option that a loaded package defines, the board's or else its default.
-  A board option's UI reads its own value alone, so core resolves no other board option for it, and its module no longer names board options.
-  Core calls a board option's `onChange` as each board opens, with the board's value or else its default, whether or not anything on the page requires the board option, and again as a delta sets or removes the value (#508).
+* Core's client calls a board option's `onChange` as each board opens, with the board's value, and again as a delta sets the value, whether or not anything on the page requires the board option.
+  Where the board lacks that value, as a board opens or once a delta removed it, core adds the board option to the board with its default first.
+  While a block's UI module, a renderer or a board option's UI is mounted, core adds each board option that it names again with its default where a delta removes the value.
+  A board option's UI reads its own value alone, so core adds no other board option for it, and its module no longer names board options.
+  Where the board lacks its value, core adds it with its default before the UI draws.
+  Until now, the UI showed the default without the board holding it.
+  An output whose block class's entry names no renderer is asked with the value of every board option that a loaded package defines: the board's, or else the default, which the client sends without adding it to the board.
+  Core reports a board option whose default fails or does not go onto the board, naming the board option and what requires it.
+  Plugins read a board option's value from the board through `core.options.value()` (#508).
 
 # blockr.core 0.1.4
 

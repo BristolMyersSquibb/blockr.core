@@ -165,8 +165,9 @@ describe("the CoreApi for tests", () => {
     });
 
     expect(seen).toBe(core);
-    // As the board opened, with the default, since the board holds no value.
+    // As the board opened, with the default, which core added to the board.
     expect(changes).toEqual([1]);
+    expect(core.store.board().options.zoom).toBe(1);
     core.store.apply({ options: { set: { zoom: 2 } } });
     core.store.apply({ options: { set: { n_rows: 10 } } });
     expect(changes).toEqual([1, 2]);

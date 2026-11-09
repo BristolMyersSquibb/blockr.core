@@ -12,8 +12,6 @@ export interface CoreApi {
     blockRegistry(): BlockRegistry;
     readonly options: Options & {
         value(option: OptionId): Json | undefined;
-        inUse(): readonly OptionId[];
-        subscribe(fn: () => void): () => void;
     };
     readonly plugins: {
         register(def: PluginClass): () => void;

@@ -28,23 +28,10 @@ export interface CoreApi {
   // The block registry's entries by registry id, for pickers, as R's reply to
   // `hello` gives them for the board.
   blockRegistry(): BlockRegistry;
-  // The board options that packages define, by id, and what the page reads
-  // of them.
+  // The board options that packages define, by id, and the value of each, as
+  // the board holds it, which is undefined where the board holds none.
   readonly options: Options & {
-    // The value that readers get of the board option: the board's, or else
-    // the default that core resolved for the opening and keeps beside the
-    // board. Core resolves the default of each board option that something on
-    // the page requires before that reads it. It is undefined where the board
-    // holds no value and core has resolved no default.
     value(option: OptionId): Json | undefined;
-    // The board options that something on the page requires or that the board
-    // holds a value for, which a front-end shows, each through mountOption().
-    // It returns the same array until subscribe() announces a change.
-    inUse(): readonly OptionId[];
-    // Calls `fn` after what value() or inUse() gives may have changed: as a
-    // board opens, as a delta sets or removes a value, as a default settles,
-    // and as what something on the page requires changes.
-    subscribe(fn: () => void): () => void;
   };
   // The plugin classes that packages define, each of which a package's
   // startup module registers under the class's id.

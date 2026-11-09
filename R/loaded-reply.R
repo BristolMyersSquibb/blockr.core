@@ -109,11 +109,11 @@ registry_entry_reply <- function(x, renderer = NULL) {
 }
 
 # The renderer of a block class's outputs, which R names in the class's entry
-# of the block registry, so that the client loads it, and resolves the board
-# options that it names, before it asks for a block's first output: the
-# renderer of the output class whose method of `output_coercion()` gives the
-# coercion that the block class names, or `as_text_output()` where it names
-# none, from the `coercions` that `output_coercions()` gives. It is
+# of the block registry, so that the client loads it, and adds the board
+# options that it names to the board, before it asks for a block's first
+# output: the renderer of the output class whose method of `output_coercion()`
+# gives the coercion that the block class names, or `as_text_output()` where it
+# names none, from the `coercions` that `output_coercions()` gives. It is
 # `NULL` where no output class gives that coercion, or where R knows no
 # renderer for the class, so that the client learns the renderer from the first
 # output, and R reports its error there.

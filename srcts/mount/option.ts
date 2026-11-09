@@ -4,17 +4,17 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract):
 // 1. Core loads the renderer's module, where the app names one, or else takes
 //    the UI module of the board option's definition.
-// 2. It resolves the board option's value, the board's or else its default for
-//    this opening, which core keeps beside the board (./defaults.ts), and
-//    calls the module's render() with the element, the host and a signal,
-//    which it aborts once the mount ends. Where the board holds no value and
-//    the default fails or does not fit, it shows why in the element instead.
-// The module reads its own board option's value alone, so core resolves no
-// other board option for it.
-// The host gives the value as the board holds it, or else the default, and
-// announces each change of it. A submit runs core's command that sets a board
-// option, and a request goes to the board option's requests in R, whose
-// answers core never keeps. Once another board opens, core ends the mount.
+// 2. It adds the board option to the board, with its definition's default
+//    where the board lacks it, and adds it again where a delta removes it
+//    while the UI is mounted. The UI reads its own board option's value alone,
+//    so core adds no other board option for it.
+// 3. It calls the module's render() with the element, the host and a signal,
+//    which it aborts once the mount ends. Where the default did not go onto
+//    the board, as where it failed, core shows why in the element instead.
+// The host gives the value as the board holds it, and announces each change of
+// it. A submit runs core's command that sets a board option, and a request goes
+// to the board option's requests in R, whose answers core never keeps. Once
+// another board opens, core ends the mount.
 
 import type { Commands } from "../commands/index.ts";
 import type { Renderer } from "../protocol/index.ts";
@@ -24,7 +24,6 @@ import type { OptionId } from "../types/board.ts";
 import type { HostRequestOpts, OptionHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import { isObject, messageOf, own, packageOf, report } from "../util/index.ts";
-import type { Defaults } from "./defaults.ts";
 import { ModuleError } from "./load.ts";
 import type { Loader } from "./load.ts";
 import { RequestError } from "./requests.ts";
@@ -40,8 +39,12 @@ export interface OptionDeps {
   readonly renderers: () => Readonly<Record<string, Renderer>>;
   // Aborts as another board opens, which ends the mount.
   readonly replaced: AbortSignal;
-  // The board option's default, the same for every mount on the board.
-  readonly defaults: Pick<Defaults, "resolve" | "settled" | "subscribe" | "value">;
+  // Keeps the board options on the board until stop() runs, and resolves
+  // `added` with why any did not go onto the board (./block.ts).
+  readonly keepOptions: (
+    ids: readonly OptionId[],
+    by: string,
+  ) => { readonly added: Promise<readonly string[]>; readonly stop: () => void };
 }
 
 interface OptionArgs {
@@ -67,7 +70,8 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
   let value: Json | undefined;
   let seen = store.board().options;
   let cleanup: (() => void) | undefined;
-  const by = `the UI of the board option "${option}"`;
+  // Stops keeping the board option on the board, once the module has loaded.
+  let stopKeeping: (() => void) | undefined;
 
   function bound(): boolean {
     return !ended() && !deps.replaced.aborted;
@@ -76,15 +80,9 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
   const unboundError = (): Error =>
     new Error(`Another board opened, so the host of the board option "${option}" no longer changes it.`);
 
-  // Takes the value as the board holds it, or else the default, and announces
-  // it where it changed. While core resolves the default, as after a delta
-  // removed the value, the host keeps the value it gave.
-  function follow(): void {
-    const next = deps.defaults.value(option);
-    if (next === undefined && !deps.defaults.settled([option])) return;
-    if (next === value) return;
-    value = next;
-    announceTo(listeners);
+  // The value as the board holds it.
+  function current(): Json | undefined {
+    return own(store.board().options, option);
   }
 
   const host: OptionHost = {
@@ -125,12 +123,13 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
   const offStore = store.subscribe((_change, board) => {
     if (board.options === seen) return;
     seen = board.options;
-    // A delta that removes the value gives the default again, which core
-    // resolves then where it has not yet.
-    if (!Object.hasOwn(board.options, option)) void deps.defaults.resolve([option], by);
-    follow();
+    const next = current();
+    // While the board lacks the value, as after a delta removed it and before
+    // core adds the default again, the host keeps the value it gave.
+    if (next === undefined || next === value) return;
+    value = next;
+    announceTo(listeners);
   });
-  const offDefaults = deps.defaults.subscribe(follow);
 
   const offEnd = onAbort(deps.replaced, end);
 
@@ -139,7 +138,7 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
     controller.abort();
     offEnd();
     offStore();
-    offDefaults();
+    stopKeeping?.();
     listeners.clear();
     if (cleanup !== undefined) attempt(cleanup);
     el.replaceChildren();
@@ -161,10 +160,12 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
       return;
     }
     if (ended()) return;
-    const failures = await deps.defaults.resolve([option], by);
+    const kept = deps.keepOptions([option], `the UI of the board option "${option}"`);
+    stopKeeping = kept.stop;
+    const failures = await kept.added;
     if (ended()) return;
-    value = deps.defaults.value(option);
-    // Core has reported why the board option has no value.
+    value = current();
+    // Core has reported why the board holds no value.
     if (value === undefined && failures.length > 0) {
       showError(el, failures.join("\n"));
       return;

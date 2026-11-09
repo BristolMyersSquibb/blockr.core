@@ -714,7 +714,7 @@ describe("board options", () => {
     return next;
   }
 
-  test("have their onChange called as each board opens, with the board's value or else the default, and as a delta sets or removes the value", async () => {
+  test("have their onChange called as each board opens, with the board's value, which core adds with the default where the board lacks it", async () => {
     const heard: Json[] = [];
     let calls = 0;
     const zoom: Option = {
@@ -732,26 +732,28 @@ describe("board options", () => {
       },
     };
     const s = await started(zoom);
-    // Though nothing on the page requires zoom, and the board holds no value.
+    // Though nothing on the page requires zoom.
     expect(heard).toEqual([1]);
-    expect(Object.hasOwn(s.core.store.board().options, "zoom")).toBe(false);
+    expect(s.core.store.board().options.zoom).toBe(1);
 
+    // A delta that removes the value has core add the default again, which it
+    // resolves again, since it keeps none.
     s.core.store.apply({ options: { set: { zoom: 2 } } });
     s.core.store.apply({ options: { unset: ["zoom"] } });
     await tick();
     expect(heard).toEqual([1, 2, 1]);
-    expect(calls).toBe(1);
+    expect(s.core.store.board().options.zoom).toBe(1);
+    expect(calls).toBe(2);
 
-    // Each board that opens later has it called again, with the board's value
-    // or else a default resolved for that opening.
+    // Each board that opens later has it called again.
     const next = await reopen(s, s.core, { zoom: 3 });
     expect(heard).toEqual([1, 2, 1, 3]);
     await reopen(s, next, {});
     expect(heard).toEqual([1, 2, 1, 3, 1]);
-    expect(calls).toBe(2);
+    expect(calls).toBe(3);
   });
 
-  test("give the board's value or else the default through value(), and list in inUse() those that the board holds or something requires", async () => {
+  test("give their values as the board holds them through value()", async () => {
     const zoom: Option = {
       id: "zoom",
       label: "Zoom",
@@ -761,27 +763,13 @@ describe("board options", () => {
       ui: { render: () => undefined },
     };
     const s = await started(zoom);
-    const { options } = s.core;
-    // The board of the fixture hello holds n_rows and show_conditions, and
-    // dark_mode, which core's basic front-end requires, while nothing on the
-    // page requires zoom, whose default core has not resolved.
-    expect(options.value("n_rows")).toBe(50);
-    expect(options.value("zoom")).toBeUndefined();
-    expect(options.inUse()).toEqual(["n_rows", "show_conditions", "dark_mode"]);
-    expect(options.inUse()).toBe(options.inUse());
+    // The board of the fixture hello holds n_rows, while nothing on the page
+    // requires zoom, so the board holds no value of it.
+    expect(s.core.options.value("n_rows")).toBe(50);
+    expect(s.core.options.value("zoom")).toBeUndefined();
 
-    let announced = 0;
-    const off = options.subscribe(() => {
-      announced++;
-    });
     s.core.store.apply({ options: { set: { zoom: 3 } } });
-    expect(announced).toBe(1);
-    expect(options.value("zoom")).toBe(3);
-    expect(options.inUse()).toEqual(["n_rows", "show_conditions", "dark_mode", "zoom"]);
-    off();
-    s.core.store.apply({ options: { unset: ["zoom"] } });
-    expect(announced).toBe(1);
-    expect(options.inUse()).toEqual(["n_rows", "show_conditions", "dark_mode"]);
+    expect(s.core.options.value("zoom")).toBe(3);
   });
 });
 

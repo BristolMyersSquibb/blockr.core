@@ -4,7 +4,6 @@ import type { OutputInfo, OutputReply, Reply } from "../protocol/index.ts";
 import type { BlockId, OptionId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { Answers } from "./answers.ts";
-import type { Defaults } from "./defaults.ts";
 import type { Loader } from "./load.ts";
 import type { Measure } from "./measure.ts";
 export interface OutputEvent {
@@ -50,7 +49,11 @@ export interface OutputDeps {
     readonly shelves: Shelves;
     readonly measure: Measure;
     readonly replaced: AbortSignal;
-    readonly defaults: Defaults;
+    readonly addOptions: (ids: readonly OptionId[], by: string) => Promise<readonly string[]>;
+    readonly keepOptions: (ids: readonly OptionId[], by: string) => {
+        readonly stop: () => void;
+    };
+    readonly defaultsOf: (ids: readonly OptionId[], by: string) => Promise<Readonly<Record<OptionId, Json>>>;
     readonly emit: (event: OutputEvent) => void;
 }
 export declare function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): () => void;

@@ -221,15 +221,14 @@ afterEach(() => {
 });
 
 describe("asking", () => {
-  test("loads the renderer that the entry names and resolves the defaults of its board options before it asks R", async () => {
+  test("loads the renderer that the entry names and adds its board options before it asks R", async () => {
     const table = renderer(["n_rows", "zoom"]);
     const s = await setup({ [TABLE.module]: table.exports });
     const el = await ready(s);
 
     expect(s.imported).toEqual([TABLE.module]);
-    // The board takes no default: it holds only those that core's basic
-    // front-end requires.
-    expect(s.store.board().options).toEqual({ show_conditions: ["warning", "error"], dark_mode: "light" });
+    // Beside those that core's basic front-end requires.
+    expect(s.store.board().options).toEqual({ show_conditions: ["warning", "error"], dark_mode: "light", n_rows: 50, zoom: 1 });
     expect(outputs(s.r)).toHaveLength(1);
     expect(lastOutput(s.r)).toMatchObject({
       kind: "output",
@@ -429,7 +428,7 @@ describe("what core keeps", () => {
 });
 
 describe("board options", () => {
-  test("give an output the default again once a delta removes a value that its renderer names", async () => {
+  test("that the renderer names come onto the board again once a delta removes them, while it draws", async () => {
     const table = renderer();
     const s = await setup({ [TABLE.module]: table.exports });
     s.store.apply({ options: { set: { n_rows: 25 } } });
@@ -438,30 +437,10 @@ describe("board options", () => {
     replyTable(s.r, lastOutput(s.r));
     await tick();
 
-    // Core resolves the default then, since the board held a value before.
     s.store.apply({ options: { unset: ["n_rows"] } });
     await tick();
-    expect(outputs(s.r)).toHaveLength(2);
+    expect(s.store.board().options.n_rows).toBe(50);
     expect(lastOutput(s.r).options).toEqual({ n_rows: 50 });
-    expect(Object.hasOwn(s.store.board().options, "n_rows")).toBe(false);
-  });
-
-  test("that a renderer names are in use while it draws a mounted output", async () => {
-    const table = renderer(["n_rows", "zoom"]);
-    const s = await setup({ [TABLE.module]: table.exports });
-    const { defaults } = s.mounts;
-    expect(defaults.inUse()).toEqual(["show_conditions", "dark_mode"]);
-
-    s.scheduler.demand("test", ["b"]);
-    await evaluateAll(s.r);
-    const unmount = s.mounts.mountOutput(document.createElement("div"), "b");
-    await tick();
-    // In the order in which the packages registered them.
-    expect(defaults.inUse()).toEqual(["n_rows", "show_conditions", "dark_mode", "zoom"]);
-    expect(defaults.inUse()).toBe(defaults.inUse());
-
-    unmount();
-    expect(defaults.inUse()).toEqual(["show_conditions", "dark_mode"]);
   });
 });
 
@@ -476,12 +455,9 @@ describe("the renderer", () => {
 
     expect(table.mounts).toHaveLength(0);
     expect(preview.mounts).toHaveLength(1);
-    expect(Object.hasOwn(s.store.board().options, "zoom")).toBe(false);
-    // The output was asked without zoom, so core asks again with its default.
+    expect(s.store.board().options).toMatchObject({ zoom: 1 });
+    // The output was asked without zoom, so core asks again with it.
     expect(lastOutput(s.r).options).toEqual({ zoom: 1 });
-    replyTable(s.r, lastOutput(s.r), 150, PREVIEW);
-    await tick();
-    expect(preview.host().options()).toEqual({ zoom: 1 });
   });
 
   test("is learned from the first output where the entry names none, which goes with every board option that a loaded package defines", async () => {
@@ -498,10 +474,11 @@ describe("the renderer", () => {
     };
     const s = await setup({ [TEXT.module]: text.exports }, { reply: plain });
     await ready(s);
-    // The board's values, or else the defaults, which the board does not
-    // take, so that a coercion that wraps as_table_output() gets n_rows.
+    // The board's values, and the defaults of those that it lacks, which the
+    // board does not take, so that a coercion that wraps as_table_output() gets
+    // n_rows.
     expect(lastOutput(s.r).options).toEqual({ n_rows: 50, show_conditions: ["error"], dark_mode: "light", zoom: 1 });
-    expect(Object.keys(s.store.board().options)).toEqual(["show_conditions", "dark_mode"]);
+    expect(s.store.board().options).toEqual({ show_conditions: ["error"], dark_mode: "light" });
 
     s.r.reply({ id: lastOutput(s.r).id, status: "ok", output: { renderer: TEXT, text: "a" } });
     await tick();

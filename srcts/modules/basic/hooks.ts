@@ -1,10 +1,10 @@
 // The hooks through which the basic front-end follows core, as React's
 // useSyncExternalStore follows a store: the store's board and undo history,
-// a block's status, the board options in use, and the notices.
+// a block's status, and the notices.
 
 import { useCallback, useSyncExternalStore } from "react";
 import type { BlockStatus } from "../../scheduler/index.ts";
-import type { BlockId, Board, OptionId } from "../../types/board.ts";
+import type { BlockId, Board } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import type { Notice, Notices } from "./notices.ts";
 
@@ -34,14 +34,6 @@ export function useStatus(core: Pick<CoreApi, "scheduler">, block: BlockId): Blo
     [core, block],
   );
   return useSyncExternalStore(subscribe, () => core.scheduler.status(block));
-}
-
-// The board options that something on the page requires or that the board
-// holds a value for, which core keeps the same array until it announces that
-// they changed.
-export function useOptionsInUse(core: Pick<CoreApi, "options">): readonly OptionId[] {
-  const subscribe = useCallback((notify: () => void) => core.options.subscribe(notify), [core]);
-  return useSyncExternalStore(subscribe, () => core.options.inUse());
 }
 
 export function useNotices(notices: Notices): readonly Notice[] {
