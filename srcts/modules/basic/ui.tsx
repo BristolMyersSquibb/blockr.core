@@ -22,9 +22,7 @@ export const classes = {
   page: "bc:text-gray-900 bc:dark:text-gray-100",
   // What sits over the board, as a dialog or a menu does.
   surface: "bc:bg-white bc:text-gray-900 bc:dark:bg-gray-900 bc:dark:text-gray-100",
-  // Opaque, since core measures the background behind an output for the plots
-  // that R draws, and reads a translucent one as opaque.
-  card: "bc:bg-gray-50 bc:dark:bg-gray-800",
+  card: "bc:bg-bg-subtle",
   heading: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold",
   list: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0",
 } as const;
