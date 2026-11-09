@@ -284,16 +284,19 @@ print.block_evaluation <- function(x, ...) {
   invisible(x)
 }
 
+# Runs a phase of an evaluation, keeping a record of each message, warning and
+# error that it raises, in order.
+# Each record goes at the next index of a list in this function's frame,
+# which R extends in place, while `c()` would copy the list for every one,
+# as would a list in an environment, which R takes to be shared.
 run_phase <- function(phase, expr) {
 
-  log <- new.env(parent = emptyenv())
-  log[["conditions"]] <- list()
+  conditions <- list()
+  error <- NULL
 
   record <- function(cnd) {
-    log[["conditions"]] <- c(
-      log[["conditions"]],
-      list(condition_record(cnd, phase))
-    )
+    rec <- condition_record(cnd, phase)
+    conditions[[length(conditions) + 1L]] <<- rec # nolint: assignment_linter.
   }
 
   value <- try_catch_continue(
@@ -308,17 +311,12 @@ run_phase <- function(phase, expr) {
     },
     error = function(e) {
       record(e)
-      log[["error"]] <- e
+      error <<- e
       NULL
     }
   )
 
-  list(
-    phase = phase,
-    value = value,
-    conditions = log[["conditions"]],
-    error = log[["error"]]
-  )
+  list(phase = phase, value = value, conditions = conditions, error = error)
 }
 
 phase_failed <- function(x) {

@@ -248,17 +248,6 @@ read_id_words <- function(kind) {
   )
 }
 
-inherits <- function(x, ..., agg = NULL) {
-
-  res <- lgl_ply(c(...), function(y) base::inherits(x, y))
-
-  if (is.null(agg)) {
-    return(res)
-  }
-
-  agg(res)
-}
-
 #' Miscellaneous utilities
 #'
 #' Several internal utility functions are exported for convenience in case
