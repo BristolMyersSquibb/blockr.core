@@ -45,6 +45,9 @@ as_stacks(x, ...)
 or \code{NULL} for none}
 
 \item{x}{Stack object}
+
+\item{...}{For \code{stacks()}, the stacks to combine, and otherwise generic
+consistency}
 }
 \value{
 Construction and coercion via \code{new_stack()}/\code{as_stack()} and

@@ -30,6 +30,9 @@ validate_links(x)
 \item{input}{Block argument}
 
 \item{x}{Links object}
+
+\item{...}{For \code{links()}, the links to combine, or their fields, such as
+\code{from} and \code{to}, as vectors, and otherwise generic consistency}
 }
 \value{
 Both \code{new_link()}/\code{as_link()}, and \code{links()}/\code{as_links()} return
