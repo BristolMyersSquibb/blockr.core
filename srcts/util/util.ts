@@ -146,3 +146,19 @@ export function packageOf(id: string): string | null {
 export function isPackageName(name: unknown): name is string {
   return typeof name === "string" && /^[A-Za-z][A-Za-z0-9.]*[A-Za-z0-9]$/.test(name);
 }
+
+// A number as R's as.numeric() reads one from text, such as an environment
+// variable's value, or NaN.
+export function numberOf(text: string): number {
+  const trimmed = text.trim();
+  if (/^[+-]?inf(inity)?$/i.test(trimmed)) return trimmed.startsWith("-") ? -Infinity : Infinity;
+  return trimmed === "" ? NaN : Number(trimmed);
+}
+
+// A logical as R's as.logical() reads one from text, such as an environment
+// variable's value, or undefined.
+export function logicalOf(text: string): boolean | undefined {
+  if (["TRUE", "true", "True", "T"].includes(text)) return true;
+  if (["FALSE", "false", "False", "F"].includes(text)) return false;
+  return undefined;
+}

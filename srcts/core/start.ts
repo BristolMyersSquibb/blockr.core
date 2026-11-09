@@ -98,7 +98,8 @@ export interface StartOptions {
   // another version, rather than load a second copy of it.
   readonly reload?: (changed: readonly Changed[]) => void;
   // Shows why core cannot start, as where R speaks another major of the
-  // protocol or cannot give a blockr option that core reads as it starts, or
+  // protocol, or cannot give a blockr option that core reads as it starts, or
+  // gives one that the scheduler or the command registry does not take, or
   // why no board is open once another failed to open.
   readonly fail?: (error: Error) => void;
 }
@@ -233,11 +234,13 @@ export function start(options: StartOptions): Started {
     // The blockr options that the scheduler reads, and rand_id, the shape of
     // the ids that core's commands mint, asked at once, in one request, before
     // the scheduler starts and the commands run, and kept for the page.
+    // Each goes as R sent it to the scheduler or the command registry, which
+    // converts and checks it, and takes its fallback where nothing sets it.
     const [evaluationQueue, backgroundEvaluationDelay, gateVisibility, randId] = await Promise.all([
-      blockrOptions.read("evaluation_queue", 2),
-      blockrOptions.read("background_evaluation_delay", Infinity),
-      blockrOptions.read("gate_visibility", true),
-      blockrOptions.read("rand_id", "adjective_animal"),
+      blockrOptions.read("evaluation_queue"),
+      blockrOptions.read("background_evaluation_delay"),
+      blockrOptions.read("gate_visibility"),
+      blockrOptions.read("rand_id"),
     ]);
 
     const store: Store = createStore({
@@ -246,7 +249,7 @@ export function start(options: StartOptions): Started {
       signal,
     });
     const commands = createCommands(store, { signal, lock: reply.lock, randId });
-    for (const option of options.options({ blockrOption: (name, fallback) => blockrOptions.read(name, fallback) })) {
+    for (const option of options.options({ blockrOption: (name) => blockrOptions.read(name) })) {
       store.options.register(option);
     }
     // R binds inputs itself for the board that it sent alone.

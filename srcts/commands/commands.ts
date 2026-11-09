@@ -95,11 +95,11 @@ export interface CommandsOptions {
   // plugin's state is not enabled, since there only a plugin class's own
   // commands know what the plugin locks.
   readonly lock?: Lock | null;
-  // The `rand_id` blockr option, the shape of the ids that core's commands
-  // mint, which core asks R for as soon as R has answered its hello. It is
-  // "adjective_animal" unless given, and the command registry refuses a value
-  // that names no shape.
-  readonly randId?: string;
+  // The `rand_id` blockr option as R sent it, the shape of the ids that core's
+  // commands mint, which core asks R for as soon as R has answered its hello.
+  // It is "adjective_animal" unless given, and the command registry refuses a
+  // value that names no shape.
+  readonly randId?: Json | undefined;
 }
 
 export function createCommands(store: Store, options: CommandsOptions = {}): Commands {
@@ -284,8 +284,9 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
 
 // The shape of the ids that core's commands mint, which the blockr option
 // rand_id names, "adjective_animal" where it is not given. A value that names
-// no shape fails, as it does in R's rand_names().
-function shapeOf(randId: string | undefined): RandId {
+// no shape fails, as it does in R's rand_names(), a value that is no string
+// among them.
+function shapeOf(randId: Json | undefined): RandId {
   if (randId === undefined) return "adjective_animal";
   if (isRandId(randId)) return randId;
   throw new RangeError(`The blockr option rand_id is ${JSON.stringify(randId)}, where it takes one of ${quoted(RAND_IDS)}.`);

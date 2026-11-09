@@ -515,6 +515,19 @@ describe("demand and scheduling", () => {
     expect(all.r.pending().map((request) => request.block)).toEqual(["a", "b", "d", "f", "c", "e"]);
   });
 
+  test("read the blockr options from the strings that environment variables set, as R's as.numeric() and as.logical() read them", async () => {
+    const one = await setup({ evaluationQueue: " 0 ", gateVisibility: "TRUE" });
+    one.scheduler.demand("test", ["e"]);
+    one.scheduler.start();
+    await tick();
+    expect(one.r.pending().map((request) => request.block)).toEqual(["a"]);
+
+    const all = await setup({ evaluationQueue: "Inf", backgroundEvaluationDelay: "30", gateVisibility: "FALSE" });
+    all.scheduler.start();
+    await tick();
+    expect(all.r.pending().map((request) => request.block)).toEqual(["a", "b", "d", "f", "c", "e"]);
+  });
+
   test("send the highest evaluation priority first, each block at the highest of anything that needs it", async () => {
     const { r, scheduler } = await setup({ evaluationQueue: 0 });
     scheduler.demand("blockr.io", ["d"]);
@@ -630,7 +643,23 @@ describe("demand and scheduling", () => {
     await expect(setup({ backgroundEvaluationDelay: Number.NaN })).rejects.toThrow(
       "The blockr option background_evaluation_delay is NaN, where it takes a number of 0 or more.",
     );
+    for (const value of ["a", "-1", "-Inf", "NA", "NaN", "", true, null, [3]]) {
+      await expect(setup({ evaluationQueue: value })).rejects.toThrow(
+        `The blockr option evaluation_queue is ${JSON.stringify(value)}, where it takes a whole number of 0 or more.`,
+      );
+    }
+    await expect(setup({ backgroundEvaluationDelay: "-Inf" })).rejects.toThrow(
+      'The blockr option background_evaluation_delay is "-Inf", where it takes a number of 0 or more.',
+    );
     await expect(setup({ evaluationQueue: Infinity, backgroundEvaluationDelay: 0.5 })).resolves.toBeDefined();
+  });
+
+  test("refuse a gate_visibility that is neither TRUE nor FALSE", async () => {
+    for (const value of ["maybe", " TRUE", "NA", 1, null]) {
+      await expect(setup({ gateVisibility: value })).rejects.toThrow(
+        `The blockr option gate_visibility is ${JSON.stringify(value)}, where it takes TRUE or FALSE.`,
+      );
+    }
   });
 
   test("refuse an evaluation priority that is no number", async () => {

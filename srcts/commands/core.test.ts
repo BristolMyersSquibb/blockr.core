@@ -583,6 +583,8 @@ describe("ids", () => {
     expect(() => createCommands(store, { randId: "counter" })).toThrow(
       'The blockr option rand_id is "counter", where it takes one of "adjective_animal", "adjective_adjective_animal", "letters_6", "letters_8", "letters_12", "bytes_4", "bytes_8" and "uuid".',
     );
+    expect(() => createCommands(store, { randId: 3 })).toThrow("The blockr option rand_id is 3, where it takes one of");
+    expect(() => createCommands(store, { randId: null })).toThrow("The blockr option rand_id is null, where it takes one of");
   });
 });
 

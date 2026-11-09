@@ -220,6 +220,36 @@ describe("starting the page", () => {
     expect(s.el.textContent).toBe("Iris review");
   });
 
+  test("starts with the blockr options that environment variables set, which R sends as strings", async () => {
+    const basic = frontEnd();
+    const s = setup({ [BASIC]: basic.exports });
+    s.r.session();
+    await tick();
+    s.r.options({ evaluation_queue: "3", background_evaluation_delay: "Inf", gate_visibility: "TRUE", rand_id: "uuid" });
+
+    const core = await s.started.ready;
+    expect(core.store.board().name).toBe("Iris review");
+  });
+
+  test("does not start where the scheduler refuses a blockr option, naming what R sent", async () => {
+    const basic = frontEnd();
+    const failed: string[] = [];
+    const s = setup(
+      { [BASIC]: basic.exports },
+      {
+        fail(error) {
+          failed.push(error.message);
+        },
+      },
+    );
+    s.r.session();
+    await tick();
+    s.r.options({ evaluation_queue: "-1" });
+
+    await expect(s.started.ready).rejects.toThrow('The blockr option evaluation_queue is "-1", where it takes a whole number of 0 or more.');
+    expect(failed).toHaveLength(1);
+  });
+
   test("does not start, with R's message, where R cannot give a blockr option that core reads as it starts", async () => {
     const basic = frontEnd();
     const failed: string[] = [];
