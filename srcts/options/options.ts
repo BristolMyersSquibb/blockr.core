@@ -12,14 +12,14 @@
 // the default. The fallbacks are today's, but for n_rows, whose page holds 10
 // rows where today's holds 50. Core calls the function only once a component requires
 // the board option, so that nothing is read before then. Where R holds a value
-// that the board option's schema refuses, the default reports it and takes
-// the fallback.
+// that the board option's schema refuses, the default fails, naming the value,
+// so that no reader gets the fallback in place of the value that was set.
 
 import type { Option } from "../store/index.ts";
 import type { OptionId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
-import { compile, report } from "../util/index.ts";
+import { compile } from "../util/index.ts";
 import { optionSchemas } from "./schemas.ts";
 import { checklistUi, numberUi, selectUi } from "./ui.tsx";
 
@@ -42,7 +42,7 @@ export function nRows(core: BlockrOptions): Option {
     category: "Table options",
     schema,
     default: async () =>
-      checked("n_rows", schema, await core.blockrOption<Json>("n_rows", fallback), fallback),
+      checked("n_rows", schema, await core.blockrOption<Json>("n_rows", fallback)),
     ui: numberUi("Preview rows", schema.minimum),
   };
 }
@@ -63,7 +63,7 @@ export function showConditions(core: BlockrOptions): Option {
     // environment variable gives it.
     default: async () => {
       const value = await core.blockrOption<Json>("show_conditions", fallback);
-      return checked("show_conditions", schema, typeof value === "string" ? [value] : value, fallback);
+      return checked("show_conditions", schema, typeof value === "string" ? [value] : value);
     },
     ui: checklistUi("Message types to display", SEVERITIES),
   };
@@ -85,7 +85,7 @@ export function darkMode(core: BlockrOptions): Option {
       const preferred = preferredTheme();
       if (value === null) return preferred;
       if (typeof value === "boolean") return value ? "dark" : "light";
-      return checked("dark_mode", schema, value, preferred);
+      return checked("dark_mode", schema, value);
     },
     ui: selectUi("Light/dark mode", "Choose a mode", [
       { value: "light", label: "Light" },
@@ -110,15 +110,10 @@ function preferredTheme(): "light" | "dark" {
   return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-// The value of the blockr option where the board option's schema takes it, or
-// else the fallback, once the value it refuses is reported.
-function checked(id: OptionId, schema: JsonSchema, value: Json, fallback: Json): Json {
+// The value of the blockr option where the board option's schema takes it. A
+// value that the schema refuses fails the default.
+function checked(id: OptionId, schema: JsonSchema, value: Json): Json {
   const failures = compile(`the board option "${id}"`, schema)(value);
   if (failures.length === 0) return value;
-  report(
-    new Error(
-      `The blockr option ${id} is ${JSON.stringify(value)}, which the board option ${id} does not take, so its default is ${JSON.stringify(fallback)}.`,
-    ),
-  );
-  return fallback;
+  throw new TypeError(`The blockr option ${id} is ${JSON.stringify(value)}, which the board option ${id} does not take.`);
 }

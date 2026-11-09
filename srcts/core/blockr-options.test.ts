@@ -4,7 +4,6 @@
 import { describe, expect, test } from "vitest";
 import { SessionEndedError } from "../protocol/index.ts";
 import type { Client, Reply } from "../protocol/index.ts";
-import { reports } from "../testing/reports.ts";
 import type { Json } from "../types/json.ts";
 import { createBlockrOptions } from "./index.ts";
 
@@ -70,21 +69,20 @@ describe("reading a blockr option", () => {
     await expect(reads).resolves.toEqual([30, 4, false, true, Infinity, true, "error", "/data"]);
   });
 
-  test("takes the fallback where R sends no value, and reports one it cannot convert", async () => {
+  test("takes the fallback where R sends no value, and fails a read whose value does not convert", async () => {
     const r = asked();
     const options = createBlockrOptions(r.client);
-    const reads = Promise.all([options.read("queue", 2), options.read("gate", true), options.read("width", 80)]);
+    const queue = options.read("queue", 2);
+    const gate = options.read("gate", true);
+    const width = options.read("width", 80);
+    const name = options.read("name", "board");
     await flush();
-    const reported = reports();
-    r.answer(0, { gate: "maybe", width: "" });
-    const values = await reads;
-    reported.restore();
+    r.answer(0, { gate: "maybe", width: "", name: 3 });
 
-    expect(values).toEqual([2, true, 80]);
-    expect(reported.errors().map(String)).toEqual([
-      'Error: The blockr option gate is "maybe", which is no boolean, so core takes its fallback true.',
-      'Error: The blockr option width is "", which is no number, so core takes its fallback 80.',
-    ]);
+    await expect(queue).resolves.toBe(2);
+    await expect(gate).rejects.toThrow('The blockr option gate is "maybe", which is no boolean.');
+    await expect(width).rejects.toThrow('The blockr option width is "", which is no number.');
+    await expect(name).rejects.toThrow("The blockr option name is 3, which is no string.");
   });
 
   test("asks the next session where the session ends before R replies", async () => {
@@ -99,16 +97,40 @@ describe("reading a blockr option", () => {
     await expect(read).resolves.toBe(5);
   });
 
-  test("takes the fallback where R cannot answer, and asks again the next time it is read", async () => {
+  test("fails every read of a request that R replies error to, with R's message", async () => {
+    const r = asked();
+    const options = createBlockrOptions(r.client);
+    const reads = [options.read("queue", 2), options.read("gate", true)];
+    await flush();
+    r.requests[0]?.settle({
+      reply: {
+        id: "0",
+        status: "error",
+        conditions: [
+          {
+            severity: "error",
+            class: ["conflicing_blockr_option", "blockr_error", "rlang_error", "error", "condition"],
+            message: "Conflicting options set for queue: check environment variable BLOCKR_QUEUE and option blockr.queue.",
+          },
+        ],
+        omitted: { warning: 0, message: 0 },
+      },
+    });
+
+    for (const read of reads) {
+      await expect(read).rejects.toThrow(
+        'R sent no values of the blockr options "queue" and "gate": R replied error. Conflicting options set for queue: check environment variable BLOCKR_QUEUE and option blockr.queue.',
+      );
+    }
+  });
+
+  test("fails the reads where R cannot answer, and asks again the next time they are read", async () => {
     const r = asked();
     const options = createBlockrOptions(r.client);
     const read = options.read("queue", 2);
     await flush();
-    const reported = reports();
     r.requests[0]?.settle({ error: new Error("The transport is closed.") });
-    await expect(read).resolves.toBe(2);
-    reported.restore();
-    expect(reported.errors()).toHaveLength(1);
+    await expect(read).rejects.toThrow('R sent no values of the blockr options "queue": The transport is closed.');
 
     const again = options.read("queue", 2);
     await flush();

@@ -770,17 +770,13 @@ function changedSince(
   return changed;
 }
 
-// A blockr option's value, or its default where the value is no number of 0 or
-// more. The scheduler reports such a value.
+// A blockr option's value, or its default where it is not given. A value that
+// is no number of 0 or more fails, so that the scheduler starts with no value
+// in place of the one that was set.
 function setting(value: number | undefined, fallback: number, name: string): number {
   if (value === undefined) return fallback;
   if (typeof value === "number" && value >= 0) return value;
-  report(
-    new Error(
-      `The blockr option ${name} is ${String(value)}, where it takes a number of 0 or more, so the scheduler takes ${String(fallback)}.`,
-    ),
-  );
-  return fallback;
+  throw new RangeError(`The blockr option ${name} is ${String(value)}, where it takes a number of 0 or more.`);
 }
 
 function checked(priority: number | undefined): number {

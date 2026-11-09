@@ -98,7 +98,8 @@ export interface StartOptions {
   // another version, rather than load a second copy of it.
   readonly reload?: (changed: readonly Changed[]) => void;
   // Shows why core cannot start, as where R speaks another major of the
-  // protocol, or why no board is open once another failed to open.
+  // protocol or cannot give a blockr option that core reads as it starts, or
+  // why no board is open once another failed to open.
   readonly fail?: (error: Error) => void;
 }
 

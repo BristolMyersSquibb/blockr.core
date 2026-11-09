@@ -620,14 +620,17 @@ describe("demand and scheduling", () => {
     expect(r.pending().map((request) => request.block)).toEqual(["a"]);
   });
 
-  test("refuse an evaluation priority that is no number, and take the default of a blockr option that holds none", async () => {
-    const reported = reports();
-    const { scheduler } = await setup({ evaluationQueue: -1, backgroundEvaluationDelay: Number.NaN });
-    reported.restore();
-    expect(reported.errors().map(String)).toEqual([
-      "Error: The blockr option evaluation_queue is -1, where it takes a number of 0 or more, so the scheduler takes 2.",
-      "Error: The blockr option background_evaluation_delay is NaN, where it takes a number of 0 or more, so the scheduler takes Infinity.",
-    ]);
+  test("refuse a blockr option that is no number of 0 or more", async () => {
+    await expect(setup({ evaluationQueue: -1 })).rejects.toThrow(
+      "The blockr option evaluation_queue is -1, where it takes a number of 0 or more.",
+    );
+    await expect(setup({ backgroundEvaluationDelay: Number.NaN })).rejects.toThrow(
+      "The blockr option background_evaluation_delay is NaN, where it takes a number of 0 or more.",
+    );
+  });
+
+  test("refuse an evaluation priority that is no number", async () => {
+    const { scheduler } = await setup();
 
     expect(() => scheduler.demand("test", ["a"], { priority: Number.NaN })).toThrow(
       "An evaluation priority is a number, not NaN.",

@@ -30,58 +30,26 @@ answer_request <- function(ev, job) {
 # The value of each blockr option that R has one for,
 # as `blockr_option()` reads it, by name.
 # R leaves out the others.
-# It answers each name on its own,
-# so that it leaves out a blockr option it cannot send,
-# while the request's other names get their values.
 # It answers for any name, since a client can read whatever the R process can.
 answer_blockr_options <- function(job) {
 
   names <- job[["req"]][["names"]]
-  values <- lapply(set_names(nm = names), sendable_blockr_option)
+  values <- lapply(set_names(nm = names), blockr_option, NULL)
+  values <- values[!lgl_ply(values, is.null)]
 
-  list(
-    id = job[["id"]],
-    status = "ok",
-    values = as_json_object(values[!lgl_ply(values, is.null)])
-  )
-}
+  for (name in names(values)) {
 
-# The value of a blockr option as R sends it, or `NULL` where R sends none.
-# R writes the value as JSON on its own, as it writes a message,
-# and `encode_message()` puts that JSON in the reply as it is.
-# R sends none for a blockr option that is not set.
-# It also sends none for one that `blockr_option()` refuses,
-# as where its R option and its environment variable disagree,
-# and for one whose value it cannot write as JSON, such as a function.
-# For those two, R warns in its log, naming the blockr option.
-# R checks nothing else, since the code that reads a blockr option checks it.
-sendable_blockr_option <- function(name) {
+    kind <- unplain_kind(values[[name]])
 
-  res <- tryCatch(
-    blockr_option(name, NULL),
-    error = function(e) {
-      log_warn(
-        "R leaves blockr option {name} out of its reply, since it cannot read ",
-        "it: {conditionMessage(e)}"
+    if (not_null(kind)) {
+      blockr_abort(
+        "Blockr option {name} holds {kind}, which R cannot send.",
+        class = "blockr_option_unsendable"
       )
-      NULL
     }
-  )
-
-  if (is.null(res)) {
-    return(NULL)
   }
 
-  tryCatch(
-    json_str(res, auto_unbox = TRUE),
-    error = function(e) {
-      log_warn(
-        "R leaves blockr option {name} out of its reply, since it cannot ",
-        "write it as JSON: {conditionMessage(e)}"
-      )
-      NULL
-    }
-  )
+  list(id = job[["id"]], status = "ok", values = as_json_object(values))
 }
 
 # Evaluates a block from its recipe, as `evaluate_block()` does,

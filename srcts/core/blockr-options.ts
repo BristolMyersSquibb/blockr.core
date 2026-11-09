@@ -7,38 +7,50 @@
 //   task, go in one request.
 // - Core keeps each value for the page, since a blockr option is fixed for the
 //   app.
-// - Code reads a blockr option with a fallback, which it takes where R has no
-//   value. R sends a value as it is set, so that one an environment variable
-//   sets arrives as a string, which core converts to the fallback's type, a
-//   number or a logical. R writes Inf as null, which core reads as Infinity
-//   where the fallback is a number.
+// - Code reads a blockr option with a fallback, which it takes only where R
+//   has no value, since nothing sets the blockr option. R sends a value as it
+//   is set, so that one an environment variable sets arrives as a string,
+//   which core converts to the fallback's type, a number or a logical. R
+//   writes Inf as null, which core reads as Infinity where the fallback is a
+//   number.
+// - A read never takes the fallback in place of a value that R cannot give or
+//   that does not convert. It fails with R's message where R replies error, as
+//   for a blockr option whose R option and environment variable disagree, and
+//   where the value does not convert to the fallback's type.
 
 import { SessionEndedError } from "../protocol/index.ts";
 import type { Client } from "../protocol/index.ts";
 import type { Json } from "../types/json.ts";
-import { messageOf, quoted, report } from "../util/index.ts";
+import { messageOf, quoted } from "../util/index.ts";
 
 export interface BlockrOptions {
   // The blockr option's value, asked of R once per page, or the fallback where
-  // R has none.
+  // nothing sets it. It rejects where R cannot give the value, and where the
+  // value does not convert to the fallback's type.
   read<T extends Json>(name: string, fallback: T): Promise<T>;
 }
 
 // What R sent for a blockr option, or null where it sent nothing.
 type Found = { readonly value: Json } | null;
 
+// How a read in a batch is settled, once R has replied.
+interface Settle {
+  readonly resolve: (found: Found) => void;
+  readonly reject: (error: Error) => void;
+}
+
 export function createBlockrOptions(client: Pick<Client, "request">): BlockrOptions {
   const found = new Map<string, Promise<Found>>();
   // The names that code has read in this task, which go to R together once it
   // ends.
-  let batch: Map<string, (value: Found) => void> | undefined;
+  let batch: Map<string, Settle> | undefined;
 
   function ask(name: string): Promise<Found> {
     let asked = found.get(name);
     if (asked === undefined) {
-      asked = new Promise<Found>((resolve) => {
+      asked = new Promise<Found>((resolve, reject) => {
         if (batch === undefined) {
-          const sending = new Map<string, (value: Found) => void>();
+          const sending = new Map<string, Settle>();
           batch = sending;
           // A promise rather than a microtask, which core reports errors from.
           void Promise.resolve().then(() => {
@@ -46,29 +58,30 @@ export function createBlockrOptions(client: Pick<Client, "request">): BlockrOpti
             void send(sending);
           });
         }
-        batch.set(name, resolve);
+        batch.set(name, { resolve, reject });
       });
       found.set(name, asked);
     }
     return asked;
   }
 
-  async function send(names: ReadonlyMap<string, (value: Found) => void>): Promise<void> {
+  async function send(names: ReadonlyMap<string, Settle>): Promise<void> {
     const asked = [...names.keys()];
     let values: Readonly<Record<string, Json>>;
     try {
       values = await valuesOf(client, asked);
     } catch (error) {
-      report(new Error(`R sent no values of the blockr options ${quoted(asked)}, so core takes their fallbacks: ${messageOf(error)}`, { cause: error }));
-      // They are asked again the next time code reads them.
+      const failure = new Error(`R sent no values of the blockr options ${quoted(asked)}: ${messageOf(error)}`, { cause: error });
+      // Each read fails, and the names are asked again the next time code
+      // reads them.
       for (const [name, settle] of names) {
         found.delete(name);
-        settle(null);
+        settle.reject(failure);
       }
       return;
     }
     for (const [name, settle] of names) {
-      settle(Object.hasOwn(values, name) ? { value: values[name] ?? null } : null);
+      settle.resolve(Object.hasOwn(values, name) ? { value: values[name] ?? null } : null);
     }
   }
 
@@ -95,7 +108,8 @@ async function valuesOf(client: Pick<Client, "request">, names: string[]): Promi
       throw error;
     }
     if (reply.status !== "ok" || !("values" in reply)) {
-      throw new Error(`R replied ${reply.status}.`);
+      const said = "conditions" in reply ? reply.conditions.map((c) => c.message).join(" ") : "";
+      throw new Error(`R replied ${reply.status}. ${said}`.trim());
     }
     return reply.values;
   }
@@ -103,7 +117,7 @@ async function valuesOf(client: Pick<Client, "request">, names: string[]): Promi
 
 // The value as code reads it: the fallback where R sent none, a string or null
 // converted where the fallback is a number or a logical, and otherwise the
-// value as R sent it.
+// value as R sent it. A value that does not convert fails the read.
 function converted<T extends Json>(name: string, found: Found, fallback: T): T {
   if (found === null) return fallback;
   const { value } = found;
@@ -119,12 +133,7 @@ function converted<T extends Json>(name: string, found: Found, fallback: T): T {
   } else {
     return value as T;
   }
-  report(
-    new Error(
-      `The blockr option ${name} is ${JSON.stringify(value)}, which is no ${typeof fallback}, so core takes its fallback ${JSON.stringify(fallback)}.`,
-    ),
-  );
-  return fallback;
+  throw new TypeError(`The blockr option ${name} is ${JSON.stringify(value)}, which is no ${typeof fallback}.`);
 }
 
 // A number as R's as.numeric() reads one from text, or NaN.

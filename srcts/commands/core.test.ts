@@ -9,7 +9,6 @@ import { describe, expect, test } from "vitest";
 import type { HelloReply } from "../protocol/index.ts";
 import { isId, StoreError } from "../store/index.ts";
 import type { PluginClass, Store } from "../store/index.ts";
-import { reports } from "../testing/reports.ts";
 import { hello, openedStore, withPlugins } from "../testing/store.ts";
 import type { Board, Plugin } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
@@ -579,20 +578,11 @@ describe("ids", () => {
     for (const id of minted) expect(id).toMatch(/^[a-z]{8}$/);
   });
 
-  test("a rand_id that names no shape is reported, and core's commands mint ids as adjective_animal", async () => {
+  test("the command registry refuses a rand_id that names no shape", async () => {
     const store = await openedStore();
-    const reported = reports();
-    const commands = createCommands(store, { randId: "counter" });
-    reported.restore();
-    expect(reported.errors().map(String)).toEqual([
-      'Error: The blockr option rand_id is "counter", where it takes one of "adjective_animal", "adjective_adjective_animal", "letters_6", "letters_8", "letters_12", "bytes_4", "bytes_8" and "uuid", so core\'s commands mint ids as "adjective_animal".',
-    ]);
-    const board = store.board();
-
-    await commands.run("blockr.core-add_block", { registry_id: head });
-
-    const [id = ""] = added(board.blocks, store.board().blocks);
-    expect(id).toMatch(/^[a-z]+_[a-z]+$/);
+    expect(() => createCommands(store, { randId: "counter" })).toThrow(
+      'The blockr option rand_id is "counter", where it takes one of "adjective_animal", "adjective_adjective_animal", "letters_6", "letters_8", "letters_12", "bytes_4", "bytes_8" and "uuid".',
+    );
   });
 });
 

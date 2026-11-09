@@ -45,8 +45,10 @@ export interface CoreApi {
   request<T = Json>(type: string, fields?: Record<string, Json>, opts?: RequestOpts): Promise<T | Blob>;
   // A module another package offers, by id.
   module<T = unknown>(id: string): Promise<T>;
-  // A blockr option, asked of R once per page, or the fallback where R has
-  // none.
+  // A blockr option, asked of R once per page, or the fallback where nothing
+  // sets it. It rejects where R cannot give the value, as for a blockr option
+  // whose R option and environment variable disagree, and where the value does
+  // not convert to the fallback's type.
   blockrOption<T extends Json>(name: string, fallback: T): Promise<T>;
   // The block's UI module, its output, and a board option's UI or the
   // renderer R picked for it, each mounted in the element until the cleanup

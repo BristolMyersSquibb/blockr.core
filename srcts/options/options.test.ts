@@ -9,7 +9,6 @@ import { PAUSE } from "../binding/index.ts";
 import { stubOptionHost } from "../stubs/index.ts";
 import { find, pick, texts, toggle, type } from "../testing/inputs.ts";
 import { mountReact, step } from "../testing/react.ts";
-import { reports } from "../testing/reports.ts";
 import type { Json } from "../types/json.ts";
 import { coreOptions, darkMode, nRows, optionSchemas, setTheme, showConditions } from "./index.ts";
 import type { BlockrOptions } from "./index.ts";
@@ -102,27 +101,19 @@ describe("core's board options", () => {
     expect(await defaultOf(darkMode(blockr().core))).toBe("light");
   });
 
-  test("report a blockr option that the schema refuses and take the fallback instead", async () => {
+  test("fail where a blockr option holds a value that the schema refuses", async () => {
     prefers("dark");
     const { core } = blockr({ n_rows: 0, show_conditions: ["fatal"], dark_mode: "blue" });
-    const reported = reports();
-    let defaults: Json[];
-    try {
-      defaults = [
-        await defaultOf(nRows(core)),
-        await defaultOf(showConditions(core)),
-        await defaultOf(darkMode(core)),
-      ];
-    } finally {
-      reported.restore();
-    }
 
-    expect(defaults).toEqual([10, ["warning", "error"], "dark"]);
-    expect(reported.errors().map((error) => (error as Error).message)).toEqual([
-      "The blockr option n_rows is 0, which the board option n_rows does not take, so its default is 10.",
-      'The blockr option show_conditions is ["fatal"], which the board option show_conditions does not take, so its default is ["warning","error"].',
-      'The blockr option dark_mode is "blue", which the board option dark_mode does not take, so its default is "dark".',
-    ]);
+    await expect(defaultOf(nRows(core))).rejects.toThrow(
+      "The blockr option n_rows is 0, which the board option n_rows does not take.",
+    );
+    await expect(defaultOf(showConditions(core))).rejects.toThrow(
+      'The blockr option show_conditions is ["fatal"], which the board option show_conditions does not take.',
+    );
+    await expect(defaultOf(darkMode(core))).rejects.toThrow(
+      'The blockr option dark_mode is "blue", which the board option dark_mode does not take.',
+    );
   });
 });
 

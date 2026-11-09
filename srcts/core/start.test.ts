@@ -220,6 +220,59 @@ describe("starting the page", () => {
     expect(s.el.textContent).toBe("Iris review");
   });
 
+  test("does not start, with R's message, where R cannot give a blockr option that core reads as it starts", async () => {
+    const basic = frontEnd();
+    const failed: string[] = [];
+    const s = setup(
+      { [BASIC]: basic.exports },
+      {
+        fail(error) {
+          failed.push(error.message);
+        },
+      },
+    );
+    s.r.session();
+    await tick();
+
+    s.r.reply({
+      id: s.r.sent[1]?.id ?? "",
+      status: "error",
+      conditions: [
+        {
+          severity: "error",
+          class: ["conflicing_blockr_option", "blockr_error", "rlang_error", "error", "condition"],
+          message: "Conflicting options set for evaluation_queue: check environment variable BLOCKR_EVALUATION_QUEUE and option blockr.evaluation_queue.",
+        },
+      ],
+      omitted: { warning: 0, message: 0 },
+    });
+
+    await expect(s.started.ready).rejects.toThrow("Conflicting options set for evaluation_queue");
+    expect(failed).toEqual([
+      'R sent no values of the blockr options "evaluation_queue", "background_evaluation_delay", "gate_visibility" and "rand_id": R replied error. Conflicting options set for evaluation_queue: check environment variable BLOCKR_EVALUATION_QUEUE and option blockr.evaluation_queue.',
+    ]);
+    expect(s.r.kinds()).toEqual(["hello", "blockr_options"]);
+  });
+
+  test("does not start where the blockr option rand_id names no shape", async () => {
+    const basic = frontEnd();
+    const failed: string[] = [];
+    const s = setup(
+      { [BASIC]: basic.exports },
+      {
+        fail(error) {
+          failed.push(error.message);
+        },
+      },
+    );
+    s.r.session();
+    await tick();
+    s.r.options({ rand_id: "counter" });
+
+    await expect(s.started.ready).rejects.toThrow('The blockr option rand_id is "counter"');
+    expect(failed).toHaveLength(1);
+  });
+
   test("has core's commands mint ids in the shape that the blockr option rand_id names", async () => {
     const basic = frontEnd();
     const s = setup({ [BASIC]: basic.exports });

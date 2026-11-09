@@ -286,11 +286,12 @@
   A script that passes another argument to either constructor fails at that call, as a block constructor fails for a misspelled state arg.
   Until now, `blockr_ser()` dropped what `...` added without a word, since a JSON board has no place for it.
   A stack given as a list fails as well for an entry other than `blocks`, `name` and `color`, which `as_stack()` dropped until now (#511).
-* R answers a `blockr_options` request name by name.
-  It leaves out a blockr option that `blockr_option()` refuses, as where its R option and its environment variable disagree, and one whose value it cannot write as JSON, such as a function.
-  R warns in its log of each blockr option that it leaves out, naming it, and the client takes the fallback of that blockr option alone.
-  Core's client asks R for `rand_id` with the blockr options that its scheduler reads, as soon as R has answered its hello.
-  Core's commands mint ids in the shape that `rand_id` names, as `rand_names()` draws them in R (#510).
+* Core's client fails to read a blockr option where it cannot get the value that was set, rather than take the fallback of the code that reads it.
+  A read fails where R replies `error` to the request, with R's message, as for a blockr option whose R option and environment variable disagree, and where the value does not convert to the type of the fallback.
+  So do an `evaluation_queue` or a `background_evaluation_delay` below 0, a `rand_id` that names no shape, and a value of `n_rows`, `show_conditions` or `dark_mode` that the board option's schema refuses.
+  Where core reads the blockr option as it starts, core does not start, and the page shows why.
+  The fallback holds only where nothing sets the blockr option (#510).
+* Core's client asks R for `rand_id` with the blockr options that its scheduler reads, as soon as R has answered its hello, and core's commands mint ids in the shape that `rand_id` names, as `rand_names()` draws them in R (#510).
 
 # blockr.core 0.1.4
 
