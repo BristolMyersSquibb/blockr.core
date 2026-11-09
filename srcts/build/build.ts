@@ -6,10 +6,14 @@
 //   srcts/runtime/share-react.ts puts on the page, minified, since it changes
 //   only with React's version. Core's own code follows unminified, its imports
 //   of React mapped to that copy as a module's are.
+//   It holds core's React SDK, its binding and its controls, which
+//   srcts/runtime/share-core.ts puts on the page beside React.
 // - A module, srcts/modules/<name>/index.ts or index.tsx, is bundled into
 //   <name>.js on its own, by the build preset of ./preset.ts, which maps each
 //   import of React to the copy that core's runtime puts on the page, so that
 //   its bundle holds no React.
+//   Its imports of the SDK, the binding and the controls go to the copies on
+//   the page too, so that it holds none of them, as a package's module does.
 // - An index.css beside either is its stylesheet, built with Tailwind CSS into
 //   blockr-core.css or <name>.css.
 // - Each output type in srcts/types/outputs.ts gets its JSON Schema in
@@ -28,13 +32,14 @@
 //   build resolves as `@blockr/core`, and so do core's React SDK, srcts/react,
 //   its binding, srcts/binding, and the build preset, srcts/build, each as the
 //   export of its name, such as `@blockr/core/react`: their declarations, the
-//   SDK, the binding and the preset bundled for a package's build, with React
-//   left for the preset to map, the stubs bundled for
+//   SDK and the binding bundled for a package's tests, which its build maps to
+//   the copies on the page, the preset bundled for a package's build, with
+//   React left an import, the stubs bundled for
 //   a test runner, and the package.json that names them and the React that
 //   the runtime bundles as its peer.
 //   The controls, srcts/controls/index.ts, go there as the SDK does,
 //   as `@blockr/core/controls`, for a package that writes its modules without
-//   React and bundles them.
+//   React.
 //
 // - The words that ids are made of, in srcts/store/words.ts, go into inst/ids,
 //   one word a line, for R's rand_names() to draw from as the client's
@@ -115,9 +120,33 @@ async function reactCopy(root: string, dir: string) {
   });
 }
 
+// Maps the imports in core's modules of core's React SDK, its binding and its
+// controls, from their sources in srcts, to their names in `@blockr/core`.
+// The preset then maps those names to the copies that core's runtime puts on
+// the page, so that core's modules hold none of them, as a package's modules
+// do not.
+function sharedSources(src: string): esbuild.Plugin {
+  const names = new Map([
+    [join(src, "react", "index.ts"), "@blockr/core/react"],
+    [join(src, "binding", "index.ts"), "@blockr/core/binding"],
+    [join(src, "controls", "index.ts"), "@blockr/core/controls"],
+  ]);
+  return {
+    name: "blockr.core-shared-sources",
+    setup(build) {
+      build.onResolve({ filter: /^\.\.?\// }, async (args) => {
+        const name = names.get(resolve(args.resolveDir, args.path));
+        if (name === undefined) return undefined;
+        return await build.resolve(name, { kind: args.kind, resolveDir: args.resolveDir });
+      });
+    },
+  };
+}
+
 export async function build(root: string): Promise<string[]> {
   const out = join(root, "inst", "js");
-  const { runtime, modules } = await entries(join(root, "srcts"));
+  const src = join(root, "srcts");
+  const { runtime, modules } = await entries(src);
 
   await rm(out, { recursive: true, force: true });
   await mkdir(out, { recursive: true });
@@ -131,6 +160,7 @@ export async function build(root: string): Promise<string[]> {
   } satisfies esbuild.BuildOptions;
   // The runtime maps its imports of React to the copy that its bundle starts
   // with, as a module does, and is written behind that copy below.
+  // It bundles the SDK, the binding and the controls, which it shares.
   const core = await esbuild.build({
     ...options,
     write: false,
@@ -143,6 +173,7 @@ export async function build(root: string): Promise<string[]> {
       : [
           await esbuild.build({
             ...options,
+            plugins: [sharedSources(src), ...preset.plugins],
             entryPoints: modules.map((entry) => ({ in: entryFile(entry.dir), out: entry.name })),
           }),
         ];
@@ -375,7 +406,8 @@ function versionOf(name: string): string {
 // So npm installs that React with `@blockr/core` where a package has none, and
 // refuses a package that asks for another, so that a package's tests run on
 // one copy of the app's React, the stubs drawing core's UIs with it, while a
-// package's build maps every import of React to the copy on the page.
+// package's build maps every import of React, and of the SDK, the binding and
+// the controls, to the copies on the page.
 export const TYPES_PACKAGE = {
   name: "@blockr/core",
   private: true,
@@ -451,10 +483,8 @@ export async function types(root: string): Promise<string[]> {
       platform: "neutral",
       target: "es2022",
       jsx: "automatic",
-      // React stays an import, which the build preset maps to core's copy as
-      // a package's build bundles the React SDK into its module, and which a
-      // package's tests resolve to the React that npm installs with
-      // `@blockr/core`.
+      // React stays an import, which a package's tests resolve to the React
+      // that npm installs with `@blockr/core`.
       external: ["react", "react/*", "react-dom", "react-dom/*"],
       logLevel: "warning",
       metafile: true,

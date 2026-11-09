@@ -532,6 +532,8 @@ An arg without a default is optional in the type, as the merge block's `by?: rea
 A package keeps such sources outside `inst/`, such as in `srcts/`, and builds them into `inst/js/`.
 It builds with esbuild and core's build preset, `@blockr/core/build`.
 The preset maps every import of React to the copy that core puts on the page, so that the module's bundle holds no React.
+It maps the imports of core's React SDK, its binding and its controls to the copies that core puts beside React, so that the module's bundle holds none of core's code either.
+The module then runs the SDK of the blockr.core it runs on, and its inputs take the classes of that blockr.core's stylesheet.
 A script `build.ts` builds the module, and Node runs it as it is from version 22.18:
 
 ```ts

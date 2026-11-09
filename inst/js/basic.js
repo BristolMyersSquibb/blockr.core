@@ -28,38 +28,38 @@ var __toESM = (mod, isNodeMode, target2) => (target2 = mod != null ? __create(__
   mod
 ));
 
-// shared-react:react-dom
+// blockr.core-shared:react-dom
 var require_react_dom = __commonJS({
-  "shared-react:react-dom"(exports, module) {
-    var shared = globalThis["blockr.core-react"];
-    if (shared === void 0) throw new Error("React is not on the page: core's runtime puts it there before any module loads.");
+  "blockr.core-shared:react-dom"(exports, module) {
+    var shared = globalThis["blockr.core-shared"];
+    if (shared === void 0) throw new Error("Core's runtime is not on the page: it puts React and core's SDK there before any module loads.");
     module.exports = shared["react-dom"];
   }
 });
 
-// shared-react:react-dom/client
+// blockr.core-shared:react-dom/client
 var require_client = __commonJS({
-  "shared-react:react-dom/client"(exports, module) {
-    var shared = globalThis["blockr.core-react"];
-    if (shared === void 0) throw new Error("React is not on the page: core's runtime puts it there before any module loads.");
+  "blockr.core-shared:react-dom/client"(exports, module) {
+    var shared = globalThis["blockr.core-shared"];
+    if (shared === void 0) throw new Error("Core's runtime is not on the page: it puts React and core's SDK there before any module loads.");
     module.exports = shared["react-dom/client"];
   }
 });
 
-// shared-react:react
+// blockr.core-shared:react
 var require_react = __commonJS({
-  "shared-react:react"(exports, module) {
-    var shared = globalThis["blockr.core-react"];
-    if (shared === void 0) throw new Error("React is not on the page: core's runtime puts it there before any module loads.");
+  "blockr.core-shared:react"(exports, module) {
+    var shared = globalThis["blockr.core-shared"];
+    if (shared === void 0) throw new Error("Core's runtime is not on the page: it puts React and core's SDK there before any module loads.");
     module.exports = shared["react"];
   }
 });
 
-// shared-react:react/jsx-runtime
+// blockr.core-shared:react/jsx-runtime
 var require_jsx_runtime = __commonJS({
-  "shared-react:react/jsx-runtime"(exports, module) {
-    var shared = globalThis["blockr.core-react"];
-    if (shared === void 0) throw new Error("React is not on the page: core's runtime puts it there before any module loads.");
+  "blockr.core-shared:react/jsx-runtime"(exports, module) {
+    var shared = globalThis["blockr.core-shared"];
+    if (shared === void 0) throw new Error("Core's runtime is not on the page: it puts React and core's SDK there before any module loads.");
     module.exports = shared["react/jsx-runtime"];
   }
 });

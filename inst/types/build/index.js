@@ -1,21 +1,28 @@
-// srcts/react-global/index.ts
-var REACT_GLOBAL = "blockr.core-react";
+// srcts/shared-global/index.ts
+var SHARED_GLOBAL = "blockr.core-shared";
 var REACT_ENTRIES = ["react", "react/jsx-runtime", "react-dom", "react-dom/client"];
+var SHARED_ENTRIES = [
+  ...REACT_ENTRIES,
+  "@blockr/core/react",
+  "@blockr/core/binding",
+  "@blockr/core/controls"
+];
 
 // srcts/build/preset.ts
-var sharedReact = {
-  name: "shared-react",
+var NAMESPACE = "blockr.core-shared";
+var shared = {
+  name: NAMESPACE,
   setup(build) {
-    build.onResolve({ filter: /^react(-dom)?(\/|$)/ }, (args) => {
-      if (!REACT_ENTRIES.includes(args.path)) {
-        return { errors: [{ text: `A module imports ${args.path}, which core does not share. It shares ${REACT_ENTRIES.join(", ")}.` }] };
+    build.onResolve({ filter: /^(react(-dom)?(\/.*)?|@blockr\/core\/(react|binding|controls))$/ }, (args) => {
+      if (!SHARED_ENTRIES.includes(args.path)) {
+        return { errors: [{ text: `A module imports ${args.path}, which core does not share. It shares ${SHARED_ENTRIES.join(", ")}.` }] };
       }
-      return { path: args.path, namespace: "shared-react" };
+      return { path: args.path, namespace: NAMESPACE };
     });
-    build.onLoad({ filter: /.*/, namespace: "shared-react" }, (args) => ({
+    build.onLoad({ filter: /.*/, namespace: NAMESPACE }, (args) => ({
       contents: [
-        `const shared = globalThis[${JSON.stringify(REACT_GLOBAL)}];`,
-        `if (shared === undefined) throw new Error("React is not on the page: core's runtime puts it there before any module loads.");`,
+        `const shared = globalThis[${JSON.stringify(SHARED_GLOBAL)}];`,
+        `if (shared === undefined) throw new Error("Core's runtime is not on the page: it puts React and core's SDK there before any module loads.");`,
         `module.exports = shared[${JSON.stringify(args.path)}];`
       ].join("\n"),
       loader: "js"
@@ -31,9 +38,9 @@ var preset = {
   // React and the libraries built on it read this to leave out what they
   // check only while an app is developed.
   define: { "process.env.NODE_ENV": JSON.stringify("production") },
-  plugins: [sharedReact]
+  plugins: [shared]
 };
 export {
   preset,
-  sharedReact
+  shared
 };

@@ -75,6 +75,36 @@ test("starts the runtime's bundle with the copy of React that it shares, minifie
   expect(js.indexOf("globalThis.shared")).toBeLessThan(js.indexOf("var runtime"));
 });
 
+test("maps a module's imports of core's SDK, binding and controls to the copies on the page, which the runtime holds", async () => {
+  const imports = (up: string) =>
+    [
+      `import { sdk } from "${up}/react/index.ts";`,
+      `import { binding } from "${up}/binding/index.ts";`,
+      `import { controls } from "${up}/controls/index.ts";`,
+      "export const all = [sdk, binding, controls];",
+      "",
+    ].join("\n");
+  await write({
+    "srcts/react/index.ts": "export const sdk = 'the sdk';\n",
+    "srcts/binding/index.ts": "export const binding = 'the binding';\n",
+    "srcts/controls/index.ts": "export const controls = 'the controls';\n",
+    "srcts/runtime/index.ts": imports(".."),
+    "srcts/modules/head-block/index.ts": imports("../.."),
+  });
+
+  await build(root);
+
+  const runtime = await readFile(join(root, "inst/js/blockr-core.js"), "utf8");
+  const module = await readFile(join(root, "inst/js/head-block.js"), "utf8");
+  for (const code of ["the sdk", "the binding", "the controls"]) {
+    expect(runtime).toContain(code);
+    expect(module).not.toContain(code);
+  }
+  for (const name of ["@blockr/core/react", "@blockr/core/binding", "@blockr/core/controls"]) {
+    expect(module).toContain(`shared["${name}"]`);
+  }
+});
+
 test("keeps core's utilities under its prefix and outside layers, without Preflight", async () => {
   await write({
     "test.css": `@import "${core}";\n@source inline("bc:flex bc:bg-blue-500 flex");\n`,
