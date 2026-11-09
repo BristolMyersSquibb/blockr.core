@@ -298,6 +298,7 @@
   Core's command `blockr.core-set_block_locked` sets a block's lock.
   Under the board lock, R refuses an evaluation that binds a block's data inputs to other blocks or gives a locked block another state, with an error that names the lock.
   With the load lock on too, R holds every block to the opening board, which it reads as the app starts, and evaluates a locked block with the block expression that it built then.
+  A locked block whose block expression fails to build then stops the app, naming the block, unless the failure is a `blockr_invalid()`, which R replies with to every evaluation of the block.
   Without the load lock, R holds a block to its first evaluation since the board opened.
   R runs every request as on any board, with the board option values that the request carries.
   The generic `is_board_locked()` goes, and a package reads the blockr option `locked` in its place (#434).

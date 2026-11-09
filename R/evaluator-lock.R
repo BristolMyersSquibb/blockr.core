@@ -24,8 +24,12 @@
 # class, the upstream ids that its data inputs bind, by input, as
 # `interpolate()` takes them, and its lock.
 # For a locked block, it holds the block's state too, and what
-# `build_block_expr()` built from it: the block expression, or what building it
-# signalled, such as the `blockr_invalid()` of a state that cannot run.
+# `build_block_expr()` built from it: the block expression, or the
+# `blockr_invalid()` of a state that cannot run, which R replies with to every
+# evaluation of the block.
+# Any other error from building a locked block's expression stops the app as
+# it starts, since its board is broken: R names every such block, for the
+# operator to fix the board.
 # The names of `data` are the inputs that R binds itself for a block that
 # `serve()` serves alone.
 lock_board <- function(board, data = list()) {
@@ -40,7 +44,7 @@ lock_board <- function(board, data = list()) {
   blocks <- read[["blocks"]]
   check_lockable_blocks(blocks)
 
-  lapply(
+  lock <- lapply(
     set_names(nm = names(blocks)),
     function(id) {
 
@@ -67,6 +71,50 @@ lock_board <- function(board, data = list()) {
       )
     }
   )
+
+  check_locked_expressions(lock)
+
+  lock
+}
+
+# Refuses a board whose locked blocks include one whose block expression fails
+# to build from its opening state, with an error other than the
+# `blockr_invalid()` of a state that cannot run, naming each such block with
+# its error.
+check_locked_expressions <- function(lock) {
+
+  failures <- character()
+
+  for (id in names(lock)) {
+
+    built <- lock[[id]][["built"]]
+
+    if (is.null(built) || !phase_failed(built) ||
+          !identical(phase_status(built), "error")) {
+      next
+    }
+
+    failures <- c(
+      failures,
+      paste0(
+        "block \"", id, "\" (",
+        gsub("\\s+", " ", conditionMessage(built[["error"]])),
+        ")"
+      )
+    )
+  }
+
+  if (length(failures)) {
+    failures <- paste_enum(failures, quotes = "")
+    blockr_abort(
+      "With the load lock and the board lock on, R builds the block ",
+      "expression of every locked block from its opening state as the app ",
+      "starts, which fails for {failures}.",
+      class = "locked_block_failed"
+    )
+  }
+
+  invisible()
 }
 
 # Refuses blocks that R cannot read as today's packages write them:

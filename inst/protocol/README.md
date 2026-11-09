@@ -296,7 +296,8 @@ Under the board lock, R refuses an evaluation, with parameters or without, that 
 What R holds a block to depends on the load lock:
 
 - Where the load lock is on too, R holds every block to the opening board, which it reads once, as the app starts.
-  It reads every block's class, the ids its inputs bind to and its `locked`, and for a locked block its state and the block expression it builds from that state, or what building it signalled, such as a `blockr_invalid()`.
+  It reads every block's class, the ids its inputs bind to and its `locked`, and for a locked block its state and the block expression it builds from that state, or the `blockr_invalid()` that building it signalled.
+  Any other error from building a locked block's expression stops the app as it starts, naming each such block, since the board is broken and the operator fixes it.
   It then evaluates only that board's blocks, refusing one that the board lacks, with their opening links and the classes it read, whatever registry id a recipe names.
   It evaluates a locked block with the block expression it built as the app started, so that one whose opening state cannot run gets `invalid` to every evaluation, and a block left open with a block expression it builds from the request's state.
   It takes the parameters of every evaluation from the request.

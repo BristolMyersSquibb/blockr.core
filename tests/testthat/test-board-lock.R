@@ -223,6 +223,64 @@ test_that("with both locks, R keeps what building a locked block signalled", {
   }
 })
 
+test_that("with both locks, a broken locked block stops the app", {
+
+  withr::local_options(blockr.locked = TRUE, blockr.lock_load = TRUE)
+
+  # A board that a client saved where a reader typed filters that do not
+  # parse, into the blocks d and e, which hold the lock given.
+  board <- function(locked) {
+    proto_json_board(
+      obj(
+        id = "broken",
+        name = "Broken",
+        blocks = obj(
+          a = proto_block(
+            "blockr.core-dataset_block",
+            obj(dataset = "iris", package = "datasets"),
+            "Iris"
+          ),
+          d = proto_block(
+            "blockr.core-subset_block",
+            obj(subset = "Sepal.Length >", select = ""),
+            "Filter",
+            locked = locked
+          ),
+          e = proto_block(
+            "blockr.core-subset_block",
+            obj(subset = "Sepal.Width >", select = ""),
+            "Other filter",
+            locked = locked
+          )
+        ),
+        links = obj(
+          ad = proto_link("a", "d", "data"),
+          ae = proto_link("a", "e", "data")
+        ),
+        stacks = obj(),
+        options = obj(),
+        plugins = obj()
+      )
+    )
+  }
+
+  for (locked in list(NA, TRUE)) {
+    expect_error(
+      lock_board(board(locked)),
+      paste0(
+        "which fails for block \"d\" \\(.*unexpected end of input.*\\) ",
+        "and block \"e\" \\(.*\\)\\."
+      ),
+      class = "locked_block_failed"
+    )
+  }
+
+  # Blocks left open evaluate as on any board, where a reader can fix them.
+  lock <- lock_board(board(FALSE))
+  expect_null(lock$d$built)
+  expect_null(lock$e$built)
+})
+
 test_that("with both locks, R takes the parameters from the request", {
 
   local_write_block()

@@ -43,6 +43,9 @@ which it reads as the app starts.
 It evaluates only that board's blocks, with their opening links,
 and every locked block with the block expression that it built from the
 block's opening state.
+A locked block whose block expression fails to build from that state stops
+the app as it starts, naming the block, unless the failure is a
+\code{\link[=blockr_invalid]{blockr_invalid()}}, which R replies with to every evaluation of the block.
 Since no migration runs in R, it refuses a JSON board that \code{serve()} is
 given with a block whose class the block registry lacks, or whose state is
 at another version than its class gives, naming each.
