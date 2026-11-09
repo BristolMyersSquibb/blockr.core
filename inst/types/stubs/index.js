@@ -3788,8 +3788,10 @@ function mountOption(deps, el, option) {
       if (ended()) attempt(rendered);
       else cleanup = rendered;
     } catch (error) {
-      const module = renderer?.module ?? `the UI of the board option "${option}"`;
-      fail(new ModuleError(module, id2 === void 0 ? null : packageOf(id2), `failed in render(): ${messageOf(error)}`, { cause: error }));
+      const why = `failed in render(): ${messageOf(error)}`;
+      fail(
+        renderer === void 0 || id2 === void 0 ? new Error(`The UI of the board option "${option}" ${why}`, { cause: error }) : new ModuleError(renderer.module, packageOf(id2), why, { cause: error })
+      );
     }
   })();
   function fail(error) {

@@ -17,6 +17,9 @@
 // it. A submit runs core's command that sets a board option, and a request goes
 // to the board option's requests in R, whose answers core never keeps. Once
 // another board opens, core ends the mount.
+// Where the renderer fails in render(), the error names the renderer's module
+// and its package. Where the UI of the board option's definition fails, the
+// error names the board option, since only one package can register its id.
 
 import type { Commands } from "../commands/index.ts";
 import type { Renderer } from "../protocol/index.ts";
@@ -186,8 +189,12 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
       if (ended()) attempt(rendered);
       else cleanup = rendered;
     } catch (error) {
-      const module = renderer?.module ?? `the UI of the board option "${option}"`;
-      fail(new ModuleError(module, id === undefined ? null : packageOf(id), `failed in render(): ${messageOf(error)}`, { cause: error }));
+      const why = `failed in render(): ${messageOf(error)}`;
+      fail(
+        renderer === undefined || id === undefined
+          ? new Error(`The UI of the board option "${option}" ${why}`, { cause: error })
+          : new ModuleError(renderer.module, packageOf(id), why, { cause: error }),
+      );
     }
   })();
 

@@ -319,6 +319,24 @@ describe("a mount", () => {
     expect(reported.errors().filter((error) => error instanceof ModuleError)).toHaveLength(1);
   });
 
+  test("names the board option where the UI of its definition fails in render()", async () => {
+    const failing: OptionModule = {
+      render() {
+        throw new Error("boom");
+      },
+    };
+    const reported = reports();
+    const s = await setup(options(failing));
+    const el = document.createElement("div");
+    s.mounts.mountOption(el, "n_rows");
+    await tick();
+    reported.restore();
+
+    const message = 'The UI of the board option "n_rows" failed in render(): boom';
+    expect(el.textContent).toBe(message);
+    expect(reported.errors().map((error) => (error as Error).message)).toEqual([message]);
+  });
+
   test("ends once another board opens, after which submit() rejects and core mounts nothing more", async () => {
     const rows = ui();
     const s = await setup(options(rows.mod));
