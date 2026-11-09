@@ -125,7 +125,7 @@ outputs (see \code{\link[=new_renderer]{new_renderer()}}).
 The method of \code{output_coercion()} returns the class's coercion, the generic
 that makes the class's outputs from a result, as core's method for table
 outputs returns \code{\link[=as_table_output]{as_table_output()}}.
-A block class names that coercion in its \code{output} field (see
+A block class names that coercion in its \code{output} property (see
 \code{\link[=new_block_class]{new_block_class()}}), so the method tells R which output class a block
 class's outputs are of before R makes one.
 R then names the renderer of that class in the block class's entry of the

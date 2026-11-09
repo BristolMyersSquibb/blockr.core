@@ -184,9 +184,9 @@ protocol_r_values <- function() {
         )
       )
     ),
-    # The fields of the reply that say what R has loaded are what R builds from
-    # what is registered and declared (see `declared_fields()` below), rather
-    # than R values written here.
+    # The properties of the reply that say what R has loaded are what R builds
+    # from what is registered and declared (see `declared_fields()` below),
+    # rather than R values written here.
     `hello-declared` = list(
       list(
         c(
@@ -1074,9 +1074,9 @@ proto_table_output <- function(data, ...) {
   )[["output"]]
 }
 
-# An output as R sends it in a reply: its fields, written by the schema of its
-# class, after the renderer that draws it, at the URL that the fixtures give
-# its module, and the body beside it announced.
+# An output as R sends it in a reply: its properties, written by the schema of
+# its class, after the renderer that draws it, at the URL that the fixtures
+# give its module, and the body beside it announced.
 proto_output <- function(x) {
 
   parts <- shape_output(x)

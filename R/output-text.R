@@ -5,11 +5,11 @@
 #' one. The coercion `as_text_output()` makes one from a result, by the
 #' result's class. Its default method prints any result. R shows the results of
 #' a block class through `as_text_output()` where the class names no coercion
-#' in its `output` field (see [new_block_class()]).
+#' in its `output` property (see [new_block_class()]).
 #'
 #' @param text The text to show, as a string
-#' @param ... For `new_text_output()`, further fields, which a subclass adds,
-#'   and otherwise passed on to methods
+#' @param ... For `new_text_output()`, further properties, which a subclass
+#'   adds, and otherwise passed on to methods
 #' @param class The classes of a subclass, which come before `text_output`
 #' @inheritParams new_table_output
 #'

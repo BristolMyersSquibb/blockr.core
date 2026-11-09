@@ -121,7 +121,7 @@ test_that("declaring a module is checked", {
   )
 })
 
-test_that("core declares its basic front-end as a module it offers", {
+test_that("core declares its basic frontend as a module it offers", {
 
   entry <- get_module("blockr.core-basic")
 

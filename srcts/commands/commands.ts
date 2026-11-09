@@ -31,7 +31,7 @@ export interface Command<A extends Json = Json, P = A> {
   // The JSON Schema of its args, for forms and the assistant's tools, against
   // which the command registry checks the args it is given.
   readonly args?: JsonSchema;
-  // Such as "Mod+Backspace", which a front-end binds.
+  // Such as "Mod+Backspace", which a frontend binds.
   readonly shortcut?: string;
   // Whether it applies to the board with these args, which menus show by
   // greying out what does not.

@@ -156,7 +156,7 @@ test("names the colors of core's UIs as variables of its theme, which follow the
 
   const css = await stylesheet(join(root, "test.css"));
 
-  // A utility reads the variable, so that a front-end restyles core by setting it.
+  // A utility reads the variable, so that a frontend restyles core by setting it.
   expect(css).toMatch(/^\.bc\\:border-border-default(, [^{]+)? \{\n {2}border-color: var\(--bc-color-border-default\);/m);
   expect(css).toContain("--bc-color-border-default: color-mix(in oklab, currentColor 25%, transparent);");
   // A colour with an accent of its own takes the theme's, which the stylesheet
@@ -165,7 +165,7 @@ test("names the colors of core's UIs as variables of its theme, which follow the
   expect(css).toMatch(/--bc-color-red-600: oklch\(/);
 });
 
-test("takes the face of core's UIs from the theme's sans, which a front-end sets", async () => {
+test("takes the face of core's UIs from the theme's sans, which a frontend sets", async () => {
   await write({ "test.css": `@import "${core}";\n@source inline("bc:font-sans");\n` });
 
   const css = await stylesheet(join(root, "test.css"));

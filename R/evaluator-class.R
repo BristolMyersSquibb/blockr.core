@@ -490,7 +490,7 @@ deliver_reply <- function(ev, job, reply) {
 }
 
 # The `error` that R replies to a request with an error that R raised itself,
-# which names no phase, with an evaluation's fields in the reply to an
+# which names no phase, with an evaluation's properties in the reply to an
 # `evaluate`.
 job_error_reply <- function(job, e) {
   error_reply(

@@ -1,7 +1,7 @@
 // Type-checks JSON fixtures against core's types, by declaring each as the
 // value of a variable of its type, so that the check is the compiler's own: a
-// field that a type lacks, a value that it does not allow, and a field that it
-// requires and the fixture leaves out all fail.
+// property that a type lacks, a value that it does not allow, and a property
+// that it requires and the fixture leaves out all fail.
 
 import { join } from "node:path";
 import ts from "typescript";

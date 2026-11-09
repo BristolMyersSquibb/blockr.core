@@ -35,8 +35,8 @@
 #'
 #' @param body The plot's PNG, as a reply body made by [new_reply_body()]
 #' @param width,height The size the plot was drawn at, in CSS pixels
-#' @param ... For `new_plot_output()`, further fields, which a subclass adds,
-#'   and otherwise passed on to methods
+#' @param ... For `new_plot_output()`, further properties, which a subclass
+#'   adds, and otherwise passed on to methods
 #' @param class The classes of a subclass, which come before `plot_output`
 #' @param info What the client measured for the output's element: its `width`
 #'   and `height` in CSS pixels, its `pixel_ratio`, its colors `bg`, `fg` and

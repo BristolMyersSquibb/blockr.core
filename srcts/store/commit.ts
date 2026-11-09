@@ -462,7 +462,7 @@ function modifyBlock(
   };
 }
 
-// A link's or a stack's change, which sets the fields it names.
+// A link's or a stack's change, which sets the properties it names.
 function modifyFields<T extends object>(
   old: T,
   mod: Partial<T>,

@@ -3,7 +3,7 @@ json <- function(x) {
   as.character(encode_message(x))
 }
 
-test_that("R tells the client what it loaded in the fields of the protocol", {
+test_that("R tells the client what it loaded in the properties of its reply", {
 
   reply <- declared_fields()
 
@@ -146,7 +146,7 @@ test_that("an arg spec's type is the JSON Schema that it denotes", {
     )
   )
 
-  # An object without fields keeps its properties an object.
+  # An object without properties keeps its `properties` an object.
   expect_identical(
     json(arg_type_reply(list(type = "object", properties = list()))),
     "{\"type\":\"object\",\"properties\":{}}"
@@ -282,7 +282,7 @@ test_that("the renderer the app names for an output class is in the entry", {
 
   preview <- new_renderer("preview", test_module("js/preview.js", "blockr.ui"))
 
-  # R finds no file for the renderer's module, nor for core's front-end
+  # R finds no file for the renderer's module, nor for core's frontend
   withr::local_options(
     blockr.renderers = list(table_output = preview),
     blockr.log_level = "error"
