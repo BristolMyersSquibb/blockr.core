@@ -1227,8 +1227,13 @@ function Notices() {
   )) });
 }
 function asSeverities(value2) {
-  if (!Array.isArray(value2)) return [];
-  return value2.filter((severity) => severity === "error" || severity === "warning" || severity === "message");
+  if (Array.isArray(value2) && value2.every(isSeverity)) return value2;
+  throw new TypeError(
+    `The board option show_conditions is ${JSON.stringify(value2)}, where the board takes an array of "message", "warning" and "error".`
+  );
+}
+function isSeverity(value2) {
+  return value2 === "error" || value2 === "warning" || value2 === "message";
 }
 
 // srcts/modules/basic/demand.ts

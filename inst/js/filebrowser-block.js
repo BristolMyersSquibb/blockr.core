@@ -1,6 +1,5 @@
 // srcts/modules/filebrowser-block/index.tsx
 import { Fragment, useState } from "react";
-import { strings } from "@blockr/core/binding";
 import { Field, reactModule, Stack, useRequest, useValue } from "@blockr/core/react";
 
 // srcts/styles/styles.ts
@@ -151,18 +150,28 @@ function locate(file, roots) {
   return { volume: Object.keys(roots)[0], dirs: [] };
 }
 function asVolumes(volumes) {
-  if (!isObject(volumes)) return {};
-  return Object.fromEntries(
-    Object.entries(volumes).filter((pair) => typeof pair[1] === "string")
-  );
+  if (volumes === void 0) return {};
+  if (isObject(volumes) && Object.values(volumes).every((root) => typeof root === "string")) {
+    return volumes;
+  }
+  throw new TypeError(`The state arg volumes is ${JSON.stringify(volumes)}, where the file browser takes the path of each volume by its name.`);
 }
 function join(root, names) {
   return [root.replace(/\/+$/, ""), ...names].join("/");
 }
 function asListing(answer) {
-  return isObject(answer) ? { dirs: strings(answer.dirs), files: strings(answer.files) } : { dirs: [], files: [] };
+  if (answer === void 0) return { dirs: [], files: [] };
+  if (isObject(answer) && isStrings(answer.dirs) && isStrings(answer.files)) {
+    return { dirs: answer.dirs, files: answer.files };
+  }
+  throw new TypeError(`R answered list_dir with ${JSON.stringify(answer)}, where the file browser takes the dirs and the files that it lists.`);
+}
+function isStrings(value) {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 export {
   api,
+  asListing,
+  asVolumes,
   filebrowser_block_default as default
 };
