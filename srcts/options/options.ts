@@ -11,8 +11,9 @@
 // CoreApi.blockrOption(), so that a deployment still sets the default, and
 // takes a fallback only where nothing sets the blockr option. The fallbacks
 // are today's, but for n_rows, whose page holds 10 rows where today's holds
-// 50. Core calls the function only once a component requires the board
-// option, so that nothing is read before then.
+// 50. Core calls the function only where something needs the board option and
+// the board lacks its value, as a mounted renderer or an onChange() does, so
+// that nothing is read before then.
 // Each default reads a string, as an environment variable gives, as the
 // number or the logical that it holds, and where R holds a value that the
 // board option's schema then refuses, the default fails, naming the value as

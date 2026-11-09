@@ -153,7 +153,7 @@ describe("the host", () => {
     expect(rows.mounts[0]?.seen).toEqual([50, 25, 50]);
   });
 
-  test("gives the default for this opening where the board lacks the value, which core resolves once per opening", async () => {
+  test("adds the board option to the board with its default where the board lacks it, and again once a delta removes it", async () => {
     const calls = { count: 0 };
     const dark = ui();
     const s = await setup(options(ui().mod, calls, dark.mod));
@@ -161,25 +161,54 @@ describe("the host", () => {
     s.mounts.mountOption(document.createElement("div"), "theme");
     await tick();
 
+    // The mounts that add it at once share one call of the default.
     expect(dark.mounts.map(({ host }) => host.value())).toEqual(["light", "light"]);
+    expect(s.store.board().options).toMatchObject({ theme: "light" });
     expect(calls.count).toBe(1);
-    // The board takes the value only once something sets it.
-    expect(Object.hasOwn(s.store.board().options, "theme")).toBe(false);
 
     await dark.host().submit("dark");
     expect(s.store.board().options).toMatchObject({ theme: "dark" });
-    expect(dark.mounts.map(({ seen }) => seen)).toEqual([
-      ["light", "dark"],
-      ["light", "dark"],
-    ]);
     // The submit is no undo step, since undo leaves board option values as
-    // they are.
+    // they are, and neither is what core adds.
     expect(s.store.canUndo()).toBe(false);
-    // Removing the value gives the default again, which core does not resolve
-    // again.
+    expect(s.store.canUndo("blockr.core")).toBe(false);
+
+    // Core keeps no default, so it calls the default again, and the host
+    // keeps the value it gave meanwhile.
     s.store.apply({ options: { unset: ["theme"] } });
-    expect(dark.host().value()).toBe("light");
-    expect(calls.count).toBe(1);
+    await tick();
+    expect(s.store.board().options).toMatchObject({ theme: "light" });
+    expect(dark.mounts.map(({ seen }) => seen)).toEqual([
+      ["light", "dark", "light"],
+      ["light", "dark", "light"],
+    ]);
+    expect(calls.count).toBe(2);
+  });
+
+  test("shows why in its element, and renders nothing, where the board lacks the value and the default fails", async () => {
+    const reported = reports();
+    const broken = ui();
+    const s = await setup([
+      ...options(ui().mod),
+      {
+        id: "broken",
+        label: "Broken",
+        category: "Test options",
+        schema: { type: "number" },
+        default: () => Promise.reject(new Error("No value today.")),
+        ui: broken.mod,
+      },
+    ]);
+    const el = document.createElement("div");
+    s.mounts.mountOption(el, "broken");
+    await tick();
+    reported.restore();
+
+    const why = 'The default of the board option "broken", which the UI of the board option "broken" requires, failed: No value today.';
+    expect(el.textContent).toBe(why);
+    expect(reported.errors().map(String)).toEqual([`Error: ${why}`]);
+    expect(broken.mounts).toHaveLength(0);
+    expect(Object.hasOwn(s.store.board().options, "broken")).toBe(false);
   });
 
   test("rejects a submit with what refused it", async () => {
@@ -233,7 +262,8 @@ describe("a mount", () => {
     expect(dark.host().value()).toBe("light");
   });
 
-  test("adds the board options that its module names to the board", async () => {
+  test("adds no other board option for its module, which reads its own value alone", async () => {
+    // A module in plain JS may still name board options, which core ignores.
     const dark = ui(["n_rows"]);
     const s = await setup(options(ui().mod, { count: 0 }, dark.mod), {
       reply: { ...hello, board: { ...hello.board, board: { ...hello.board.board, options: {} } } },
@@ -241,8 +271,37 @@ describe("a mount", () => {
     s.mounts.mountOption(document.createElement("div"), "theme");
     await tick();
 
-    // Beside those that core's basic frontend requires.
-    expect(s.store.board().options).toEqual({ show_conditions: ["warning", "error"], dark_mode: "light", n_rows: 50 });
+    // Beside those that core's basic frontend requires, the board holds the
+    // value of theme alone.
+    expect(s.store.board().options).toEqual({ show_conditions: ["warning", "error"], dark_mode: "light", theme: "light" });
+  });
+
+  test("ends its UI and shows why once a delta removes the value and the default does not go onto the board again", async () => {
+    const reported = reports();
+    const shown = ui();
+    let calls = 0;
+    const once: Option = {
+      id: "once",
+      label: "Once",
+      category: "Test options",
+      schema: { type: "number" },
+      default: () => (++calls === 1 ? Promise.resolve(1) : Promise.reject(new Error("No value any more."))),
+      ui: shown.mod,
+    };
+    const s = await setup([...options(ui().mod), once]);
+    const el = document.createElement("div");
+    s.mounts.mountOption(el, "once");
+    await tick();
+    expect(shown.host().value()).toBe(1);
+
+    s.store.apply({ options: { unset: ["once"] } });
+    await tick();
+    reported.restore();
+
+    const why = 'The default of the board option "once", which the UI of the board option "once" requires, failed: No value any more.';
+    expect(el.textContent).toBe(why);
+    expect(shown.cleanups()).toBe(1);
+    expect(reported.errors().map(String)).toEqual([`Error: ${why}`]);
   });
 
   test("shows an error where the renderer cannot be used", async () => {

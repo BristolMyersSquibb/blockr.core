@@ -28,8 +28,11 @@ export interface CoreApi {
   // The block registry's entries by registry id, for pickers, as R's reply to
   // `hello` gives them for the board.
   blockRegistry(): BlockRegistry;
-  // The board options that packages define, by id.
-  readonly options: Options;
+  // The board options that packages define, by id, and the value of each, as
+  // the board holds it, which is undefined where the board holds none.
+  readonly options: Options & {
+    value(option: OptionId): Json | undefined;
+  };
   // The plugin classes that packages define, each of which a package's
   // startup module registers under the class's id.
   readonly plugins: {

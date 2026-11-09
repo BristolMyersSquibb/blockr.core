@@ -10,7 +10,7 @@ export interface Mounts {
     mountBlock(el: HTMLElement, block: BlockId): () => void;
     mountOutput(el: HTMLElement, block: BlockId): () => void;
     mountOption(el: HTMLElement, option: OptionId): () => void;
-    addOptions(ids: readonly OptionId[], by: string): Promise<void>;
+    addOptions(ids: readonly OptionId[], by: string): Promise<readonly string[]>;
 }
 export interface MountsOptions {
     readonly store: Store;

@@ -8,7 +8,11 @@
 //
 // Beside what it hands out, it calls the onChange() of each board option whose
 // value changes, as the board opens or a delta sets it, so that a new value of
-// dark_mode switches the page's theme.
+// dark_mode switches the page's theme. Where the board lacks the value of a
+// board option that has an onChange(), as the board opens or once a delta
+// removed it, core adds the board option to the board with its default, which
+// calls onChange() in turn, so that what it does on the page follows the board
+// that is open.
 
 import type { Commands } from "../commands/index.ts";
 import { createMounts } from "../mount/index.ts";
@@ -99,7 +103,11 @@ export function createCore(parts: CoreParts): CoreApi {
       subscribe: (fn) => scheduler.subscribe(fn),
     },
     blockRegistry: () => store.blockRegistry(),
-    options: store.options,
+    options: {
+      register: (def) => store.options.register(def),
+      registered: () => store.options.registered(),
+      value: (id) => (store.hasBoard() ? own(store.board().options, id) : undefined),
+    },
     plugins: {
       register: (def) => store.plugins.register(def),
     },
@@ -117,11 +125,19 @@ export function createCore(parts: CoreParts): CoreApi {
   // The values of the board options as each onChange() last heard them.
   let heard: Board["options"] = {};
   store.subscribe((change, board) => {
-    const before = "opened" in change ? {} : heard;
-    if (board.options === heard && !("opened" in change)) return;
-    heard = board.options;
-    for (const [id, value] of Object.entries(board.options)) {
-      if (!jsonEqual(own(before, id), value)) changed(id, value);
+    const opened = "opened" in change;
+    if (board.options !== heard || opened) {
+      const before = opened ? {} : heard;
+      heard = board.options;
+      for (const [id, value] of Object.entries(board.options)) {
+        if (!jsonEqual(own(before, id), value)) changed(id, value);
+      }
+    }
+    if (opened || (change.delta.options?.unset?.length ?? 0) > 0) {
+      const lacking = Object.values(store.options.registered())
+        .filter((def) => def.onChange !== undefined && !Object.hasOwn(board.options, def.id))
+        .map((def) => def.id);
+      if (lacking.length > 0) void mounts.addOptions(lacking, "its onChange");
     }
   });
 

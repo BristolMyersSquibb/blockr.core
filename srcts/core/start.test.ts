@@ -6,12 +6,13 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { EvaluateRequest, HelloReply, Reply, Request, Transport, TransportListener } from "../protocol/index.ts";
 import { coreOptions } from "../options/index.ts";
+import type { Option } from "../store/index.ts";
 import { reports } from "../testing/reports.ts";
 import { hello, withPlugins } from "../testing/store.ts";
 import { startPage } from "../page/index.ts";
 import type { JsonBoard } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
-import type { JsonSchema } from "../types/json.ts";
+import type { Json, JsonSchema } from "../types/json.ts";
 import { pageFrontEnds, start } from "./index.ts";
 import type { Changed, StartOptions } from "./index.ts";
 
@@ -59,6 +60,10 @@ function playedR() {
       heard().started();
       const asked = last("hello");
       heard().received({ ...reply, id: asked.id ?? "" }, null);
+    },
+    // Starts a session, whose hello the test answers with answer().
+    start(): void {
+      heard().started();
     },
     // Answers the latest hello with the reply given, as R answers the hello
     // with which core starts again in the session.
@@ -825,6 +830,107 @@ describe("a board opened later", () => {
   });
 });
 
+describe("board options", () => {
+  const STARTUP = "blockr.test/startup.js?v=1";
+
+  // A startup module that registers the board option given, as the package
+  // that ships it does.
+  function registering(option: Option) {
+    return {
+      api: 1,
+      default: {
+        initialize({ core }: { core: CoreApi }) {
+          core.options.register(option);
+        },
+      },
+    };
+  }
+
+  // Starts the page on the board of the fixture hello, with a package that
+  // registers the board option given.
+  async function started(option: Option) {
+    const s = setup({ [STARTUP]: registering(option), [BASIC]: frontEnd().exports });
+    s.r.session(withStartup("blockr.test"));
+    await tick();
+    s.r.options();
+    const core = await s.started.ready;
+    await tick();
+    return { ...s, core };
+  }
+
+  // Opens a board that holds the values given, and answers the hello with
+  // which core starts again.
+  async function reopen(s: Setup, core: CoreApi, values: Readonly<Record<string, Json>>): Promise<CoreApi> {
+    const options = Object.fromEntries(Object.entries(values).map(([id, value]) => [id, { value, version: 1 }]));
+    const opening = core.store.open(JSON.stringify({ ...hello.board, board: { ...hello.board.board, options } }));
+    await tick();
+    s.r.answer(withStartup("blockr.test"));
+    await opening;
+    await tick();
+    const next = s.started.core();
+    if (next === undefined) throw new Error("No board is open.");
+    return next;
+  }
+
+  test("have their onChange called as each board opens, with the board's value, which core adds with the default where the board lacks it", async () => {
+    const heard: Json[] = [];
+    let calls = 0;
+    const zoom: Option = {
+      id: "zoom",
+      label: "Zoom",
+      category: "View options",
+      schema: { type: "number" },
+      default: () => {
+        calls++;
+        return Promise.resolve(1);
+      },
+      ui: { render: () => undefined },
+      onChange(value) {
+        heard.push(value);
+      },
+    };
+    const s = await started(zoom);
+    // Though nothing on the page requires zoom.
+    expect(heard).toEqual([1]);
+    expect(s.core.store.board().options.zoom).toBe(1);
+
+    // A delta that removes the value has core add the default again, which it
+    // resolves again, since it keeps none.
+    s.core.store.apply({ options: { set: { zoom: 2 } } });
+    s.core.store.apply({ options: { unset: ["zoom"] } });
+    await tick();
+    expect(heard).toEqual([1, 2, 1]);
+    expect(s.core.store.board().options.zoom).toBe(1);
+    expect(calls).toBe(2);
+
+    // Each board that opens later has it called again.
+    const next = await reopen(s, s.core, { zoom: 3 });
+    expect(heard).toEqual([1, 2, 1, 3]);
+    await reopen(s, next, {});
+    expect(heard).toEqual([1, 2, 1, 3, 1]);
+    expect(calls).toBe(3);
+  });
+
+  test("give their values as the board holds them through value()", async () => {
+    const zoom: Option = {
+      id: "zoom",
+      label: "Zoom",
+      category: "View options",
+      schema: { type: "number" },
+      default: 1,
+      ui: { render: () => undefined },
+    };
+    const s = await started(zoom);
+    // The board of the fixture hello holds n_rows, while nothing on the page
+    // requires zoom, so the board holds no value of it.
+    expect(s.core.options.value("n_rows")).toBe(50);
+    expect(s.core.options.value("zoom")).toBeUndefined();
+
+    s.core.store.apply({ options: { set: { zoom: 3 } } });
+    expect(s.core.options.value("zoom")).toBe(3);
+  });
+});
+
 describe("a later session", () => {
   test("gives every block a new revision, and asks for a reload where R runs a package at another version", async () => {
     const changes: (readonly Changed[])[] = [];
@@ -843,5 +949,120 @@ describe("a later session", () => {
     s.r.session({ ...hello, packages: { "blockr.core": "0.2.1" } });
     await tick();
     expect(changes).toEqual([[{ package: "blockr.core", loaded: "0.2.0", now: "0.2.1" }]]);
+  });
+
+  test("where R speaks another major of the protocol stops the page, sending R nothing more and saying what to do", async () => {
+    let failed: Error | undefined;
+    const basic = frontEnd();
+    const s = setup({ [BASIC]: basic.exports }, { fail: (error) => (failed = error) });
+    s.r.session();
+    await tick();
+    s.r.options();
+    const core = await s.started.ready;
+    await s.r.evaluateAll();
+
+    // The scheduler sends an evaluation while the new session starts, which
+    // the client holds until R has answered the session's hello.
+    s.r.start();
+    const sent = s.r.sent.length;
+    core.scheduler.invalidate("a");
+    await tick(100);
+    s.r.answer({ ...hello, protocol: "2.0" });
+    await tick(100);
+
+    expect(s.r.sent.slice(sent)).toEqual([]);
+    expect(failed?.message).toBe(
+      "R speaks version 2.0 of the wire protocol, where this page speaks 1.0. Reload the page, which then loads the client that R serves.",
+    );
+    expect(basic.renders).toHaveLength(1);
+    expect(basic.renders[0]?.signal.aborted).toBe(true);
+    expect(basic.cleanups()).toBe(1);
+
+    // R hears nothing more, not even the hello of a later session.
+    core.scheduler.invalidate("a");
+    s.r.start();
+    await tick(100);
+    expect(s.r.sent.slice(sent)).toEqual([]);
+  });
+
+  test("where R speaks another major of the protocol as the first board opens says why once", async () => {
+    const failures: string[] = [];
+    const s = setup({ [BASIC]: frontEnd().exports }, { fail: (error) => failures.push(error.message) });
+    s.r.session();
+    await tick();
+    // The session ends before R has answered the blockr options that core
+    // asks for as the first board opens.
+    s.r.start();
+    s.r.answer({ ...hello, protocol: "2.0" });
+    const why =
+      "R speaks version 2.0 of the wire protocol, where this page speaks 1.0. Reload the page, which then loads the client that R serves.";
+    await expect(s.started.ready).rejects.toThrow(why);
+    await tick(100);
+
+    expect(failures).toEqual([why]);
+    expect(s.r.kinds()).toEqual(["hello", "blockr_options", "hello"]);
+  });
+
+  test("that names a package at another version loads no module of that package from its reply, nor one the page has not loaded", async () => {
+    const events: string[] = [];
+    const shared = { name: "shared at 1.0.0" };
+    const first: HelloReply = {
+      ...withStartup("blockr.test"),
+      modules: {
+        ...hello.modules,
+        "blockr.test-shared": { module: "blockr.test/shared.js?v=1" },
+        "blockr.test-other": { module: "blockr.test/other.js?v=1" },
+      },
+    };
+    const later: HelloReply = {
+      ...first,
+      packages: { ...first.packages, "blockr.test": "1.1.0" },
+      startup_modules: [{ package: "blockr.test", module: "blockr.test/startup.js?v=2" }],
+      modules: {
+        ...hello.modules,
+        "blockr.test-shared": { module: "blockr.test/shared.js?v=2" },
+        "blockr.test-other": { module: "blockr.test/other.js?v=2" },
+      },
+    };
+    const changes: (readonly Changed[])[] = [];
+    const s = setup(
+      {
+        "blockr.test/startup.js?v=1": startup("1.0.0", events),
+        "blockr.test/startup.js?v=2": startup("1.1.0", events),
+        "blockr.test/shared.js?v=1": shared,
+        "blockr.test/shared.js?v=2": { name: "shared at 1.1.0" },
+        "blockr.test/other.js?v=1": {},
+        "blockr.test/other.js?v=2": {},
+        [BASIC]: frontEnd().exports,
+      },
+      { reload: (changed) => changes.push(changed) },
+    );
+    s.r.session(first);
+    await tick();
+    s.r.options();
+    const core = await s.started.ready;
+    expect(await core.module("blockr.test-shared")).toBe(shared);
+
+    s.r.session(later);
+    await tick();
+    const changed = [{ package: "blockr.test", loaded: "1.0.0", now: "1.1.0" }];
+    expect(changes).toEqual([changed]);
+    expect(await core.module("blockr.test-shared")).toBe(shared);
+    await expect(core.module("blockr.test-other")).rejects.toThrow(
+      "The module blockr.test/other.js of blockr.test is not loaded: R now runs blockr.test 1.1.0, where the page loaded 1.0.0. Reload the page to load it.",
+    );
+
+    // A board that opens starts core again with the reply before, so that it
+    // initializes the startup module that the page loaded.
+    const opening = core.store.open(JSON.stringify({ ...hello.board, board: { ...hello.board.board, name: "Opened" } }));
+    await tick();
+    s.r.answer(later);
+    await opening;
+    const next = s.started.core();
+    expect(next?.store.board().name).toBe("Opened");
+    expect(await next?.module("blockr.test-shared")).toBe(shared);
+    expect(changes).toEqual([changed, changed]);
+    expect(events).toEqual(["1.0.0 starts, board open: false", "1.0.0 done", "1.0.0 starts, board open: false", "1.0.0 done"]);
+    expect(s.imported.filter((url) => url.endsWith("?v=2"))).toEqual([]);
   });
 });

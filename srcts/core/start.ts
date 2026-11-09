@@ -40,14 +40,26 @@
 // locks, and the revisions given, so that the next scheduler gives a block id a
 // revision above any it had.
 //
-// The reply to a later session's hello, for the board that is open, has the
-// scheduler give every block a new revision, and makes core ask for the page to
-// be reloaded where it names a loaded package at another version.
+// Core takes a later reply to hello, as of a later session or of the hello with
+// which core starts again, in one of three ways:
+// 1. Where R speaks another major of the protocol in it, the protocol's client
+//    stops and sends R nothing more, not even what it held for the session.
+//    Core then ends what it runs for the board, as stop() does, and says what
+//    to do, as for the first reply.
+// 2. Where it names a package at another version than the page loaded, core
+//    asks for the page to be reloaded, and goes on with the reply it used
+//    before: for the modules and renderers it loads, and for the board that
+//    opens next. So it loads no module of that package from the new reply. The
+//    loader imports no module of that package that it has not imported
+//    already, rather than load a second copy of the package.
+// 3. Otherwise core goes on with the new reply.
+// The reply to a later session's hello also has the scheduler give every block
+// a new revision, since the new session holds no results.
 
 import { createCommands } from "../commands/index.ts";
 import { API, createLoader, ModuleError } from "../mount/index.ts";
 import type { Loader, LoaderOptions, Measure, Source } from "../mount/index.ts";
-import { createClient, PROTOCOL_VERSION } from "../protocol/index.ts";
+import { createClient, PROTOCOL_VERSION, sameMajor } from "../protocol/index.ts";
 import type { Capability, HelloReply, Reply, Transport } from "../protocol/index.ts";
 import { counter, createScheduler } from "../scheduler/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
@@ -89,7 +101,7 @@ export interface StartOptions {
   readonly transport: Transport;
   // How the loader imports modules and puts stylesheets on the page, as on the
   // page unless given.
-  readonly loader?: Omit<LoaderOptions, "modules">;
+  readonly loader?: Omit<LoaderOptions, "modules" | "changed">;
   // The board options that core registers before any startup module runs.
   readonly options: (core: Pick<CoreApi, "blockrOption">) => readonly Option[];
   readonly frontEnds?: FrontEnds;
@@ -97,10 +109,11 @@ export interface StartOptions {
   // Asks for the page to be reloaded, where a reply names a loaded package at
   // another version, rather than load a second copy of it.
   readonly reload?: (changed: readonly Changed[]) => void;
-  // Shows why core cannot start, as where R speaks another major of the
-  // protocol, or cannot give a blockr option that core reads as it starts, or
-  // gives one that the scheduler or the command registry does not take, or
-  // why no board is open once another failed to open.
+  // Shows why core cannot start, or why it stopped, as where R speaks another
+  // major of the protocol in the first session or a later one, or cannot give
+  // a blockr option that core reads as it starts, or gives one that the
+  // scheduler or the command registry does not take, or why no board is open
+  // once another failed to open.
   readonly fail?: (error: Error) => void;
 }
 
@@ -137,11 +150,19 @@ export function start(options: StartOptions): Started {
     report(error);
   });
 
-  // The first reply to hello, whose package versions are those the page
-  // loaded and whose locks hold for the page, and the latest, whose modules
-  // and renderers core uses.
+  // The first reply to hello, whose locks hold for the page. And the latest
+  // reply that names no package at another version than the page loaded,
+  // whose modules and renderers core uses, and with which a board that opens
+  // later starts core again.
   let first: HelloReply | undefined;
   let latest: HelloReply | undefined;
+  // The version of each package that the page loaded, from the replies that
+  // core adopted.
+  const loaded = new Map<string, string>();
+  // The packages that the last reply named at other versions than the page
+  // loaded. The loader imports no module of them that it has not imported
+  // already.
+  let changed: readonly Changed[] = [];
   // What core runs for the board that is open.
   let running: Running | undefined;
   const holdsBoard = (): boolean => running?.store.hasBoard() === true;
@@ -165,7 +186,11 @@ export function start(options: StartOptions): Started {
     },
   });
   const blockrOptions = createBlockrOptions(client);
-  const loader = createLoader({ ...options.loader, modules: () => latest?.modules ?? {} });
+  const loader = createLoader({
+    ...options.loader,
+    modules: () => latest?.modules ?? {},
+    changed: (pkg) => changed.find((c) => c.package === pkg),
+  });
 
   function heard(reply: Reply): void {
     if (page.signal.aborted) return;
@@ -184,28 +209,70 @@ export function start(options: StartOptions): Started {
       return;
     }
     const hello = reply as HelloReply;
-    latest = hello;
+    if (!sameMajor(hello.protocol, PROTOCOL_VERSION)) {
+      halt(
+        new Error(
+          `R speaks version ${hello.protocol} of the wire protocol, where this page speaks ${PROTOCOL_VERSION}. Reload the page, which then loads the client that R serves.`,
+        ),
+      );
+      return;
+    }
     if (first === undefined) {
       first = hello;
+      adopt(hello);
       boot(hello, undefined).then(
         ({ core }) => settle?.resolve(core),
         (failure: unknown) => {
           settle?.reject(failure);
-          fail(asError(failure));
+          // Core has said why already where it stopped.
+          if (!page.signal.aborted) fail(asError(failure));
         },
       );
       return;
     }
-    const changed = changedPackages(first, hello);
-    if (changed.length > 0) (options.reload ?? askReload)(changed);
+    changed = changedPackages(loaded, hello);
+    if (changed.length > 0) {
+      (options.reload ?? askReload)(changed);
+    } else {
+      adopt(hello);
+    }
     if (restarting !== undefined) {
       const waiting = restarting;
       restarting = undefined;
-      waiting.resolve(hello);
+      waiting.resolve(latest ?? first);
       return;
     }
     // A new session holds no results.
     running?.scheduler.session();
+  }
+
+  // Makes the reply the one whose modules and renderers core uses, and with
+  // which the board that opens next starts, and keeps the versions of the
+  // packages that it names as those the page loaded.
+  function adopt(reply: HelloReply): void {
+    latest = reply;
+    for (const [pkg, version] of Object.entries(reply.packages)) {
+      loaded.set(pkg, version);
+    }
+  }
+
+  // Ends what core started: it aborts what core runs for the board, so that
+  // core hears no later session, and rejects an opening that waits for R with
+  // why.
+  function end(why: Error): void {
+    page.abort();
+    const waiting = restarting;
+    restarting = undefined;
+    waiting?.reject(why);
+  }
+
+  // Stops core where R speaks another major of the protocol, to which the
+  // protocol's client sends nothing more: core ends what it started, as stop()
+  // does, and says what to do.
+  function halt(error: Error): void {
+    end(error);
+    settle?.reject(error);
+    fail(error);
   }
 
   // Starts core for one board, with what R's reply to hello holds, as the page
@@ -450,36 +517,26 @@ export function start(options: StartOptions): Started {
     ready,
     core: () => running?.core,
     stop() {
-      page.abort();
-      const waiting = restarting;
-      restarting = undefined;
-      waiting?.reject(new Error("Core has stopped."));
+      end(new Error("Core has stopped."));
     },
   };
 }
 
 // Why a reply to hello does not let core start: it is no reply that R sends
-// to hello, or R speaks another major of the protocol.
+// to hello.
 function helloError(reply: Reply): Error | undefined {
   if (reply.status !== "ok" || !("startup_modules" in reply)) {
     const said = "conditions" in reply ? reply.conditions.map((c) => c.message).join(" ") : "";
     return new Error(`R replied ${reply.status} to the client's hello. ${said}`.trim());
   }
-  const theirs = reply.protocol.split(".")[0];
-  const ours = PROTOCOL_VERSION.split(".")[0];
-  if (theirs !== ours) {
-    return new Error(
-      `R speaks version ${reply.protocol} of the wire protocol, where this page speaks ${PROTOCOL_VERSION}. Reload the page, which then loads the client that R serves.`,
-    );
-  }
   return undefined;
 }
 
-// The packages that a reply names at another version than the first reply.
-function changedPackages(first: HelloReply, reply: HelloReply): Changed[] {
+// The packages that a reply names at another version than the page loaded.
+function changedPackages(loaded: ReadonlyMap<string, string>, reply: HelloReply): Changed[] {
   return Object.entries(reply.packages).flatMap(([pkg, now]) => {
-    const loaded = own(first.packages, pkg);
-    return loaded === undefined || loaded === now ? [] : [{ package: pkg, loaded, now }];
+    const before = loaded.get(pkg);
+    return before === undefined || before === now ? [] : [{ package: pkg, loaded: before, now }];
   });
 }
 

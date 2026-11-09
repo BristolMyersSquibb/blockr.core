@@ -4,6 +4,7 @@
 import { describe, expect, test } from "vitest";
 import { SessionEndedError } from "../protocol/index.ts";
 import type { Client, Reply } from "../protocol/index.ts";
+import { reports } from "../testing/reports.ts";
 import type { Json } from "../types/json.ts";
 import { createBlockrOptions } from "./index.ts";
 
@@ -111,6 +112,18 @@ describe("reading a blockr option", () => {
     expect(r.requests).toHaveLength(2);
     r.answer(1, { queue: 7 });
     await expect(again).resolves.toBe(7);
+  });
+
+  test("fails a read that R cannot answer once core has stopped, and reports nothing itself", async () => {
+    const r = asked();
+    const options = createBlockrOptions(r.client);
+    const read = options.read("queue");
+    await flush();
+    const reported = reports();
+    r.requests[0]?.settle({ error: new Error("The client sends R nothing.") });
+    await expect(read).rejects.toThrow('R sent no values of the blockr options "queue": The client sends R nothing.');
+    reported.restore();
+    expect(reported.errors()).toEqual([]);
   });
 
   test("refuses a name that is no non-empty string", async () => {

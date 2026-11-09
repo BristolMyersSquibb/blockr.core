@@ -4,20 +4,24 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract):
 // 1. Core loads the renderer's module, where the app names one, or else takes
 //    the UI module of the board option's definition.
-// 2. It adds the board options that the module names to the board, each with
-//    its definition's default where the board lacks it.
-// 3. It resolves the board option's value, the board's or else its default for
-//    this opening, and calls the module's render() with the element, the host
-//    and a signal, which it aborts once the mount ends.
-// The host gives the value as the board holds it, or else the default, and
-// announces each change of it. A submit runs core's command that sets a board
-// option, and a request goes to the board option's requests in R, whose
-// answers core never keeps. Once another board opens, core ends the mount.
+// 2. It adds the board option to the board, with its definition's default
+//    where the board lacks it, and adds it again where a delta removes it
+//    while the UI is mounted. The UI reads its own board option's value alone,
+//    so core adds no other board option for it.
+// 3. It calls the module's render() with the element, the host and a signal,
+//    which it aborts once the mount ends. Where the default did not go onto
+//    the board, as where it failed, core shows why in the element instead,
+//    and so it does in place of the UI where the default does not go onto the
+//    board again once a delta removed the value.
+// The host gives the value as the board holds it, and announces each change of
+// it. A submit runs core's command that sets a board option, and a request goes
+// to the board option's requests in R, whose answers core never keeps. Once
+// another board opens, core ends the mount.
 
 import type { Commands } from "../commands/index.ts";
 import type { Renderer } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
-import type { Option, Store } from "../store/index.ts";
+import type { Store } from "../store/index.ts";
 import type { OptionId } from "../types/board.ts";
 import type { HostRequestOpts, OptionHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
@@ -37,9 +41,14 @@ export interface OptionDeps {
   readonly renderers: () => Readonly<Record<string, Renderer>>;
   // Aborts as another board opens, which ends the mount.
   readonly replaced: AbortSignal;
-  readonly addOptions: (ids: readonly OptionId[], by: string) => Promise<void>;
-  // The board option's default, the same for every mount on the board.
-  readonly defaultOf: (id: OptionId, def: Option) => Promise<Json>;
+  // Keeps the board options on the board until stop() runs, resolves `added`
+  // with why any did not go onto the board, and calls `failed` where one that
+  // a delta removed does not go onto the board again (./block.ts).
+  readonly keepOptions: (
+    ids: readonly OptionId[],
+    by: string,
+    failed: (failures: readonly string[]) => void,
+  ) => { readonly added: Promise<readonly string[]>; readonly stop: () => void };
 }
 
 interface OptionArgs {
@@ -63,9 +72,10 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
   const ended = (): boolean => controller.signal.aborted;
   const listeners = new Set<() => void>();
   let value: Json | undefined;
-  let fallback: Json | undefined;
   let seen = store.board().options;
   let cleanup: (() => void) | undefined;
+  // Stops keeping the board option on the board, once the module has loaded.
+  let stopKeeping: (() => void) | undefined;
 
   function bound(): boolean {
     return !ended() && !deps.replaced.aborted;
@@ -74,10 +84,9 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
   const unboundError = (): Error =>
     new Error(`Another board opened, so the host of the board option "${option}" no longer changes it.`);
 
-  // The value as the board holds it, or else the default.
+  // The value as the board holds it.
   function current(): Json | undefined {
-    const held = own(store.board().options, option);
-    return held === undefined ? fallback : held;
+    return own(store.board().options, option);
   }
 
   const host: OptionHost = {
@@ -119,7 +128,9 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
     if (board.options === seen) return;
     seen = board.options;
     const next = current();
-    if (next === value) return;
+    // While the board lacks the value, as after a delta removed it and before
+    // core adds the default again, the host keeps the value it gave.
+    if (next === undefined || next === value) return;
     value = next;
     announceTo(listeners);
   });
@@ -131,6 +142,7 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
     controller.abort();
     offEnd();
     offStore();
+    stopKeeping?.();
     listeners.clear();
     if (cleanup !== undefined) attempt(cleanup);
     el.replaceChildren();
@@ -147,16 +159,26 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
         const source = renderer.css === undefined ? { module: renderer.module } : { module: renderer.module, css: renderer.css };
         mod = moduleOf<OptionArgs>(await loader.load(source, pkg), renderer.module, pkg);
       }
-      if (ended()) return;
-      await deps.addOptions(mod.options ?? [], `the UI of the board option "${option}"`);
-      if (ended()) return;
-      fallback = Object.hasOwn(store.board().options, option) ? undefined : await deps.defaultOf(option, def);
     } catch (error) {
       fail(error);
       return;
     }
     if (ended()) return;
+    // Core has reported why the board holds no value.
+    const kept = deps.keepOptions([option], `the UI of the board option "${option}"`, (failures) => {
+      if (ended()) return;
+      end();
+      showError(el, failures.join("\n"));
+    });
+    stopKeeping = kept.stop;
+    const failures = await kept.added;
+    if (ended()) return;
     value = current();
+    if (value === undefined && failures.length > 0) {
+      kept.stop();
+      showError(el, failures.join("\n"));
+      return;
+    }
 
     try {
       const rendered = await mod.render({ el, host, signal: controller.signal });

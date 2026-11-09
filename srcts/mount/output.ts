@@ -6,11 +6,19 @@
 //    names, and adds the board options that the renderer names to the board,
 //    each with its definition's default where the board lacks it. So the board
 //    holds what the output's coercion reads before core asks for an output.
+//    While the renderer draws the output, core adds again each of them that a
+//    delta removes. Where one does not go onto the board, as where its default
+//    fails, core asks R for nothing, and shows why as it shows an ask that
+//    failed: in the element where no output came before, and otherwise through
+//    the host's `error()`, until the board holds a value.
 // 2. Once the block reads ready and the element measures more than 0 by 0, core
 //    asks R for the output, through the scheduler, with the block's revision,
 //    the values of the board options that the renderer names, the info it
 //    measured and the block's parameters, unless it keeps an output asked with
-//    the same ones.
+//    the same ones. Where neither the entry nor an output names a renderer,
+//    core asks with the value of every board option that a loaded package
+//    defines: the board's, or else the board option's default, which it sends
+//    without adding it to the board.
 // 3. It mounts the renderer that the output names once it has the output, and
 //    hands it each output that comes after. An output that names another
 //    renderer than the one drawing, as one of a subclass may, is drawn by that
@@ -126,7 +134,7 @@ export function createShelves(): Shelves {
 }
 
 export interface OutputDeps {
-  readonly store: Pick<Store, "board" | "blockRegistry" | "subscribe">;
+  readonly store: Pick<Store, "board" | "blockRegistry" | "options" | "subscribe">;
   readonly scheduler: Pick<Scheduler, "request" | "status" | "subscribe">;
   readonly loader: Loader;
   readonly answers: Answers;
@@ -134,7 +142,18 @@ export interface OutputDeps {
   readonly measure: Measure;
   // Aborts as another board opens, which ends the mount.
   readonly replaced: AbortSignal;
-  readonly addOptions: (ids: readonly OptionId[], by: string) => Promise<void>;
+  readonly addOptions: (ids: readonly OptionId[], by: string) => Promise<readonly string[]>;
+  // Keeps the board options on the board until stop() runs, and calls `failed`
+  // where one that a delta removed does not go onto the board again
+  // (./block.ts).
+  readonly keepOptions: (
+    ids: readonly OptionId[],
+    by: string,
+    failed: (failures: readonly string[]) => void,
+  ) => { readonly stop: () => void };
+  // The defaults of the board options that the board lacks, which core sends
+  // without adding them to the board (./block.ts).
+  readonly defaultsOf: (ids: readonly OptionId[], by: string) => Promise<Readonly<Record<OptionId, Json>>>;
   readonly emit: (event: OutputEvent) => void;
 }
 
@@ -188,11 +207,18 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
   // The renderer that draws the block's output: the one that the block
   // class's entry names until an output names one, and the one that the last
   // output named after. The mount asks with the board options it names once it
-  // is loaded. Where neither names one, the mount asks with every board option
-  // the board holds, and learns the renderer from the first output.
+  // is loaded, and keeps them on the board meanwhile. Where neither names one,
+  // the mount asks with every board option that a loaded package defines, and
+  // learns the renderer from the first output.
   let renderer: OutputRenderer | undefined = entry.renderer;
   let ready: Prepared | undefined;
+  let keeping: { readonly stop: () => void } | undefined;
   const preparing = new Map<string, Promise<Prepared>>();
+  // The defaults that the mount sends where it knows no renderer, of the board
+  // options that the board lacks, once core has them, which the board does not
+  // take.
+  let unwritten: Readonly<Record<OptionId, Json>> | undefined;
+  let fetching = false;
 
   let info = measure.info(el);
   let held: Made | undefined;
@@ -227,7 +253,9 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         const source = given.css === undefined ? { module: given.module } : { module: given.module, css: given.css };
         const mod = moduleOf<OutputArgs>(await loader.load(source, pkg), given.module, pkg);
         const named = mod.options ?? [];
-        await deps.addOptions(named, `the renderer "${given.id}"`);
+        // Core has reported why one did not go onto the board.
+        const failures = await deps.addOptions(named, `the renderer "${given.id}"`);
+        if (failures.length > 0) throw new Error(failures.join("\n"));
         return { renderer: given, mod, named };
       })();
       preparing.set(given.id, loading);
@@ -238,11 +266,16 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
   // Loads the renderer that the mount asks for, then asks.
   function expect(given: OutputRenderer): void {
     renderer = given;
+    unwritten = undefined;
     if (ready?.renderer.id === given.id) return;
     prepare(given).then(
       (prepared) => {
         if (ended() || renderer?.id !== prepared.renderer.id) return;
         ready = prepared;
+        keeping?.stop();
+        keeping = deps.keepOptions(prepared.named, `the renderer "${prepared.renderer.id}"`, (failures) => {
+          fail(new Error(failures.join("\n")));
+        });
         sync();
       },
       (failure: unknown) => {
@@ -260,12 +293,13 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
   }
 
   // The values that the board holds now of the board options named, or of
-  // every one. Within a change to the board, the scheduler may announce a new
-  // status before the store has told the mount of the change, so the mount
-  // reads the board from the store rather than from what it last heard.
+  // every one, with the defaults of those that it lacks. Within a change to
+  // the board, the scheduler may announce a new status before the store has
+  // told the mount of the change, so the mount reads the board from the store
+  // rather than from what it last heard.
   function values(ids: readonly OptionId[] | null): Readonly<Record<OptionId, Json>> {
     const options = store.board().options;
-    if (ids === null) return options;
+    if (ids === null) return { ...unwritten, ...options };
     return Object.fromEntries(
       ids.flatMap((id) => {
         const value = own(options, id);
@@ -275,15 +309,36 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
   }
 
   // What the mount would ask R for now, or undefined where it asks for
-  // nothing: while the element measures nothing, the renderer loads or the
-  // block reads anything but ready.
+  // nothing: while the element measures nothing, the renderer loads, the
+  // board lacks a board option that the renderer names, as after a delta
+  // removed it, the block reads anything but ready, or, where the mount knows
+  // no renderer, core resolves the defaults that it sends.
   function wanted(): { asked: Asked; ids: readonly OptionId[] | null } | undefined {
     if (info === null) return undefined;
     const ids = named();
     if (ids === undefined) return undefined;
+    if (ids?.some((id) => !Object.hasOwn(store.board().options, id)) === true) return undefined;
     const status = scheduler.status(block);
     if (status?.status !== "ready") return undefined;
+    if (ids === null && unwritten === undefined) {
+      fetchDefaults();
+      return undefined;
+    }
     return { asked: { revision: status.revision, options: values(ids), info, params: shelf.params }, ids };
+  }
+
+  // Resolves the defaults of the board options that the board lacks, which
+  // the mount sends where it knows no renderer, then asks.
+  function fetchDefaults(): void {
+    if (fetching) return;
+    fetching = true;
+    const lacking = Object.keys(store.options.registered()).filter((id) => !Object.hasOwn(store.board().options, id));
+    void deps.defaultsOf(lacking, `the first output of block "${block}"`).then((found) => {
+      fetching = false;
+      if (ended() || renderer !== undefined) return;
+      unwritten = found;
+      sync();
+    });
   }
 
   // Whether an output asked with `asked` is the one that `want` asks for.
@@ -719,6 +774,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     offEnd();
     offStore();
     offScheduler();
+    keeping?.stop();
     shelf.mounts.delete(sync);
     stopWatching();
     if (settling !== undefined) clearTimeout(settling);

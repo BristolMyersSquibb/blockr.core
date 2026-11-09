@@ -32,5 +32,6 @@ export interface TransportListener {
 export declare class SessionEndedError extends Error {
     constructor(id: string);
 }
+export declare function sameMajor(a: string, b: string): boolean;
 export declare function createClient(transport: Transport, options: ClientOptions): Client;
 export {};
