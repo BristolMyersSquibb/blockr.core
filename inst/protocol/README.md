@@ -116,7 +116,8 @@ The client reads a blockr option by asking R for it, since it can read neither a
 R replies `ok` with the value of each that it has one for, as `blockr_option()` reads it, in `values`, by name, and leaves out the others, for which the client takes the fallback its code gives. R sends a value as it is set, so that one set through an environment variable arrives as a string, which the client converts to its fallback's type, and writes `Inf` as `null` ([Encoding](#encoding)), which the client reads as `Infinity` where its fallback is a number. R answers for any blockr option, since a client can read whatever the R process can ([State in JS](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1#proposal)).
 
 R replies `error` to the request where it cannot give one of the values.
-It cannot give a value where `blockr_option()` refuses the blockr option, as where its R option and its environment variable disagree, nor where the value holds what R cannot send, such as a function.
+It cannot give a value where `blockr_option()` refuses the blockr option, as where its R option and its environment variable disagree, nor where yyjsonr cannot write the value, as for a function, and the error then names the blockr option.
+R checks nothing else: it writes every other value as yyjsonr writes it, so that a date arrives as a string, and the code that reads the blockr option checks it.
 The client then fails every read in the request, with R's message.
 A read also fails where the value does not convert to its fallback's type, such as `"a"` for `evaluation_queue`.
 So the client takes a fallback only where nothing sets the blockr option, and never in place of a value that was set ([Blockr options](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.13#blockr-options)).

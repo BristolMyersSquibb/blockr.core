@@ -781,24 +781,55 @@ test_that("R reads blockr options, as the fixture blockr-options has it", {
 
   expect_fixture_replies(session, "blockr-options")
 
-  withr::local_options(blockr.renderers = function() NULL)
-
-  session$receive(
-    list(list(id = "3", kind = "blockr_options", names = "renderers"))
-  )
-  session$run()
-
-  reply <- last_reply(session)
-
-  expect_identical(reply$status, "error")
-  expect_identical(condition_class(reply), "blockr_option_unsendable")
-
   session$receive(list(list(id = "4", kind = "blockr_options", names = list())))
   session$run()
 
   expect_identical(
     last_reply(session),
     list(id = "4", status = "ok", values = set_names(list(), character()))
+  )
+})
+
+test_that("R writes a blockr option as yyjsonr does, or fails naming it", {
+
+  withr::local_options(
+    blockr.release = as.Date("2026-11-09"),
+    blockr.renderers = list(table_output = function() NULL)
+  )
+
+  session <- local_evaluator()
+
+  session$receive(
+    list(list(id = "2", kind = "blockr_options", names = "release"))
+  )
+  session$run()
+
+  expect_identical(
+    sent_json(session),
+    list(
+      list(list(id = "2", status = "ok", values = list(release = "2026-11-09")))
+    )
+  )
+
+  session$receive(
+    list(
+      list(
+        id = "3",
+        kind = "blockr_options",
+        names = c("release", "renderers")
+      )
+    )
+  )
+  session$run()
+
+  reply <- last_reply(session)
+
+  expect_identical(reply$status, "error")
+  expect_identical(condition_class(reply), "blockr_option_unwritable")
+  expect_match(
+    reply$conditions[[1L]]$message,
+    "R cannot write blockr option renderers as JSON:",
+    fixed = TRUE
   )
 })
 

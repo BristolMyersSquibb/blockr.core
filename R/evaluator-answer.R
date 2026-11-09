@@ -28,8 +28,11 @@ answer_request <- function(ev, job) {
 }
 
 # The value of each blockr option that R has one for,
-# as `blockr_option()` reads it, by name.
-# R leaves out the others.
+# as `blockr_option()` reads it, by name, written as JSON.
+# R leaves out the others, which nothing sets.
+# An error in reading a blockr option or in writing its value fails the
+# request, as `blockr_option()` fails where an R option and an environment
+# variable disagree.
 # It answers for any name, since a client can read whatever the R process can.
 answer_blockr_options <- function(job) {
 
@@ -37,19 +40,27 @@ answer_blockr_options <- function(job) {
   values <- lapply(set_names(nm = names), blockr_option, NULL)
   values <- values[!lgl_ply(values, is.null)]
 
-  for (name in names(values)) {
+  list(
+    id = job[["id"]],
+    status = "ok",
+    values = as_json_object(Map(blockr_option_json, names(values), values))
+  )
+}
 
-    kind <- unplain_kind(values[[name]])
-
-    if (not_null(kind)) {
+# A blockr option's value as JSON, which yyjsonr writes as it writes a
+# message, and which `encode_message()` puts in the reply as it is.
+# Where yyjsonr cannot write the value, as for a function, the error names
+# the blockr option.
+blockr_option_json <- function(name, value) {
+  tryCatch(
+    json_str(value, auto_unbox = TRUE),
+    error = function(e) {
       blockr_abort(
-        "Blockr option {name} holds {kind}, which R cannot send.",
-        class = "blockr_option_unsendable"
+        "R cannot write blockr option {name} as JSON: {conditionMessage(e)}",
+        class = "blockr_option_unwritable"
       )
     }
-  }
-
-  list(id = job[["id"]], status = "ok", values = as_json_object(values))
+  )
 }
 
 # Evaluates a block from its recipe, as `evaluate_block()` does,
