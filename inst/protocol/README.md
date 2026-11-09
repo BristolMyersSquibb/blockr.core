@@ -98,9 +98,11 @@ So the client keeps each plugin of the JSON board that the opening board holds u
 It migrates what the JSON board holds in an older shape, by the versions of the shapes that it records: the state of each plugin that it keeps whose class's version in `versions` is below the one that R gives in `plugin_versions`, the state of each block whose `version` is below the one that its class's entry in the block registry gives, and the value of each board option whose `version` is below the one that R gives in `option_versions`, with the migrations that the startup modules registered.
 It names each package that the JSON board lists and R did not load, with the version that the JSON board records.
 It drops each block whose class the block registry lacks, with its links, its places in stacks and what the board's plugins keep about it, naming the package to install from its registry id.
-It drops each board option value that no package registered or that its schema refuses.
+It drops each board option value that no package registered, naming the board option by its id.
 It then gives the board each other plugin of the opening board whose class a startup module registered, under its id and name, with its class's default state.
 So a board that a startup module names, or that the user opens, holds the plugins of the board that the app script built, each with the state that the board gives it where it gives one, and the client replaces its board.
+The client refuses a board that holds a value that its schema refuses once migrated, and names every such value.
+The schema of a block's state is the one in its class's entry of the block registry, the schema of a plugin's state is its class's, and the schema of a board option's value is its definition's.
 A file of today's stack is converted to a JSON board before it is opened, outside core.
 
 Under the load lock, the client opens no board but the opening board ([Locked boards](#locked-boards)).

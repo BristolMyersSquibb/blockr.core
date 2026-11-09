@@ -306,6 +306,11 @@
   Without the load lock, R holds a block to its first evaluation since the board opened.
   R runs every request as on any board, with the board option values that the request carries.
   The generic `is_board_locked()` goes, and a package reads the blockr option `locked` in its place (#434).
+* The client refuses to open a board that holds a value that its schema refuses once migrated: a block's state, a plugin's state or a board option's value.
+  It names every such value.
+  So an app script whose board gives `new_n_rows_option(0)` runs, since a board option's constructor checks nothing, but its page shows the errors in place of the board.
+  The client's store also refuses an edit that leaves a block's state failing the schema of its class, as it refuses one for a plugin's state or a board option's value, so that a board saved from the app opens again.
+  The client drops the value of a board option that no package of the app registers, and names the board option by its ID (#509).
 * Core's client calls a board option's `onChange` as each board opens, with the board's value, and again as a delta sets the value, whether or not anything on the page requires the board option.
   Where the board lacks that value, as a board opens or once a delta removed it, core adds the board option to the board with its default first.
   While a block's UI module, a renderer or a board option's UI is mounted, core adds each board option that it names again with its default where a delta removes the value.
