@@ -77,6 +77,16 @@ test_that("core offers its inputs to other packages' modules without React", {
 
   expect_identical(entry[["package"]], "blockr.core")
   expect_true(nzchar(module_file(entry[["module"]])))
+
+  # The page's import map names the same file `@blockr/core/controls`, so that
+  # a module that imports the controls and one that reaches them through its
+  # host get one copy.
+  map <- yyjsonr::read_json_str(as.character(import_map()$children[[1L]]))
+
+  expect_identical(
+    map$imports[["@blockr/core/controls"]],
+    paste0("./", served_url(entry[["module"]]))
+  )
 })
 
 test_that("declaring a module is checked", {

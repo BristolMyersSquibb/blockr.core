@@ -4,6 +4,8 @@
 # requests of an extension that the test sends: an echo of its args, progress,
 # a body of a given size, the size of a body it receives, and the end of the
 # session.
+# The page resolves the imports of core's client, of React and of core's React
+# SDK among them, through the import map that R writes into its head.
 
 options(shiny.maxRequestSize = 1.5 * 2^20)
 
@@ -78,6 +80,9 @@ handler <- function(session) {
 
 page <- "
 import { createClient, shinyTransport } from './blockr-js/blockr-core.js';
+import { TextInput } from '@blockr/core/react';
+import { createRoot } from 'react-dom/client';
+import { jsx } from 'react/jsx-runtime';
 
 const sessions = [];
 let started = () => undefined;
@@ -136,6 +141,23 @@ async function ask(name, args = {}, body = undefined) {
 window.app = {
   sessions,
   ask,
+  // Draws the SDK's TextInput with react-dom/client and gives the value it
+  // shows, which its hook gives only where both read the same React.
+  sdkInput: async () => {
+    const el = document.createElement('div');
+    document.body.append(el);
+    const bound = {
+      value: 'hello', error: null, get: () => 'hello',
+      commit: async () => true, type() {}, flush() {},
+    };
+    const root = createRoot(el);
+    root.render(jsx(TextInput, { bound, label: 'Name' }));
+    await new Promise((done) => setTimeout(done, 100));
+    const value = el.querySelector('input')?.value ?? null;
+    root.unmount();
+    el.remove();
+    return value;
+  },
   frames: () => frames,
   // Resolves once n sessions have started.
   sessionsStarted: (n) =>
@@ -158,7 +180,10 @@ window.app = {
 "
 
 shiny::shinyApp(
-  ui = shiny::tags$script(type = "module", shiny::HTML(page)),
+  ui = shiny::tagList(
+    shiny::tags$head(blockr.core:::import_map()),
+    shiny::tags$script(type = "module", shiny::HTML(page))
+  ),
   server = function(input, output, session) {
     blockr.core:::shiny_transport(handler(session), session)
     # Locally, only a forced reconnect starts a new session.

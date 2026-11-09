@@ -85,6 +85,8 @@ the state of a plugin that a JSON board holds at an older version.
 R calls the method on an object of class \code{c("{name}_plugin", "plugin")},
 which it makes from the class's id, and sends the version of each class that
 a method gives one in its reply to \code{hello}.
+A plugin class that needs R gives its requests through its method of
+\code{\link[=plugin_requests]{plugin_requests()}}, which R calls on such an object too.
 }
 \examples{
 \dontrun{

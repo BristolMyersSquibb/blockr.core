@@ -1,1 +1,1 @@
-export { preset, sharedReact } from "./preset.ts";
+export { preset } from "./preset.ts";

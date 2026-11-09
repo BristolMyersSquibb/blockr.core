@@ -3,8 +3,10 @@
   register_module("basic", js_module("js/basic.js"))
 
   # Core's inputs for modules written without React,
-  # which other packages' modules reach as blockr.core-controls.
-  register_module("controls", js_module("js/controls.js"))
+  # which other packages' modules reach as blockr.core-controls,
+  # in the file that the page's import map names `@blockr/core/controls`,
+  # so that both reach one copy.
+  register_module("controls", js_module("js/blockr-core-controls.js"))
 
   register_core_blocks()
 
