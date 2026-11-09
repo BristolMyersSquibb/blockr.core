@@ -3112,12 +3112,7 @@ function changedSince(before, now) {
 function setting(value2, fallback, name2) {
   if (value2 === void 0) return fallback;
   if (typeof value2 === "number" && value2 >= 0) return value2;
-  report(
-    new Error(
-      `The blockr option ${name2} is ${String(value2)}, where it takes a number of 0 or more, so the scheduler takes ${String(fallback)}.`
-    )
-  );
-  return fallback;
+  throw new RangeError(`The blockr option ${name2} is ${String(value2)}, where it takes a number of 0 or more.`);
 }
 function checked(priority) {
   const at = priority ?? 0;
@@ -4562,7 +4557,7 @@ function createBlockrOptions(client) {
   function ask(name2) {
     let asked = found.get(name2);
     if (asked === void 0) {
-      asked = new Promise((resolve) => {
+      asked = new Promise((resolve, reject) => {
         if (batch === void 0) {
           const sending = /* @__PURE__ */ new Map();
           batch = sending;
@@ -4571,7 +4566,7 @@ function createBlockrOptions(client) {
             void send(sending);
           });
         }
-        batch.set(name2, resolve);
+        batch.set(name2, { resolve, reject });
       });
       found.set(name2, asked);
     }
@@ -4583,15 +4578,15 @@ function createBlockrOptions(client) {
     try {
       values2 = await valuesOf(client, asked);
     } catch (error) {
-      report(new Error(`R sent no values of the blockr options ${quoted(asked)}, so core takes their fallbacks: ${messageOf(error)}`, { cause: error }));
+      const failure = new Error(`R sent no values of the blockr options ${quoted(asked)}: ${messageOf(error)}`, { cause: error });
       for (const [name2, settle2] of names) {
         found.delete(name2);
-        settle2(null);
+        settle2.reject(failure);
       }
       return;
     }
     for (const [name2, settle2] of names) {
-      settle2(Object.hasOwn(values2, name2) ? { value: values2[name2] ?? null } : null);
+      settle2.resolve(Object.hasOwn(values2, name2) ? { value: values2[name2] ?? null } : null);
     }
   }
   return {
@@ -4613,7 +4608,8 @@ async function valuesOf(client, names) {
       throw error;
     }
     if (reply.status !== "ok" || !("values" in reply)) {
-      throw new Error(`R replied ${reply.status}.`);
+      const said = "conditions" in reply ? reply.conditions.map((c2) => c2.message).join(" ") : "";
+      throw new Error(`R replied ${reply.status}. ${said}`.trim());
     }
     return reply.values;
   }
@@ -4633,12 +4629,7 @@ function converted(name2, found, fallback) {
   } else {
     return value2;
   }
-  report(
-    new Error(
-      `The blockr option ${name2} is ${JSON.stringify(value2)}, which is no ${typeof fallback}, so core takes its fallback ${JSON.stringify(fallback)}.`
-    )
-  );
-  return fallback;
+  throw new TypeError(`The blockr option ${name2} is ${JSON.stringify(value2)}, which is no ${typeof fallback}.`);
 }
 function numberOf(text) {
   const trimmed = text.trim();
@@ -8115,12 +8106,7 @@ function createCommands(store, options = {}) {
 function shapeOf(randId) {
   if (randId === void 0) return "adjective_animal";
   if (isRandId(randId)) return randId;
-  report(
-    new Error(
-      `The blockr option rand_id is ${JSON.stringify(randId)}, where it takes one of ${quoted(RAND_IDS)}, so core's commands mint ids as "adjective_animal".`
-    )
-  );
-  return "adjective_animal";
+  throw new RangeError(`The blockr option rand_id is ${JSON.stringify(randId)}, where it takes one of ${quoted(RAND_IDS)}.`);
 }
 function isCommandId(id2) {
   const pkg = packageOf(id2);
@@ -8812,7 +8798,7 @@ function nRows(core) {
     label: "Preview rows",
     category: "Table options",
     schema,
-    default: async () => checked2("n_rows", schema, await core.blockrOption("n_rows", fallback), fallback),
+    default: async () => checked2("n_rows", schema, await core.blockrOption("n_rows", fallback)),
     ui: numberUi("Preview rows", schema.minimum)
   };
 }
@@ -8829,7 +8815,7 @@ function showConditions(core) {
     // environment variable gives it.
     default: async () => {
       const value2 = await core.blockrOption("show_conditions", fallback);
-      return checked2("show_conditions", schema, typeof value2 === "string" ? [value2] : value2, fallback);
+      return checked2("show_conditions", schema, typeof value2 === "string" ? [value2] : value2);
     },
     ui: checklistUi("Message types to display", SEVERITIES)
   };
@@ -8846,7 +8832,7 @@ function darkMode(core) {
       const preferred = preferredTheme();
       if (value2 === null) return preferred;
       if (typeof value2 === "boolean") return value2 ? "dark" : "light";
-      return checked2("dark_mode", schema, value2, preferred);
+      return checked2("dark_mode", schema, value2);
     },
     ui: selectUi("Light/dark mode", "Choose a mode", [
       { value: "light", label: "Light" },
@@ -8863,15 +8849,10 @@ function setTheme(theme) {
 function preferredTheme() {
   return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
-function checked2(id2, schema, value2, fallback) {
+function checked2(id2, schema, value2) {
   const failures = compile(`the board option "${id2}"`, schema)(value2);
   if (failures.length === 0) return value2;
-  report(
-    new Error(
-      `The blockr option ${id2} is ${JSON.stringify(value2)}, which the board option ${id2} does not take, so its default is ${JSON.stringify(fallback)}.`
-    )
-  );
-  return fallback;
+  throw new TypeError(`The blockr option ${id2} is ${JSON.stringify(value2)}, which the board option ${id2} does not take.`);
 }
 
 // inst/protocol/fixtures/hello.json
