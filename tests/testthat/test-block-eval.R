@@ -192,6 +192,21 @@ test_that("a phase keeps every condition that it raises, in order", {
   )
 })
 
+test_that("a condition whose message is not valid UTF-8 is kept", {
+
+  res <- run_phase("expr", {
+    warning("bad \xff\n")
+    1
+  })
+
+  expect_identical(res[["value"]], 1)
+  expect_identical(chr_xtr(res[["conditions"]], "severity"), "warning")
+  expect_identical(
+    condition_reply(res[["conditions"]][[1L]])[["message"]],
+    "bad ?"
+  )
+})
+
 test_that("a block_eval() method decides whether the expression runs", {
 
   saver <- new_block_class(

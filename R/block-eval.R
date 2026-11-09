@@ -345,11 +345,15 @@ condition_record <- function(cnd, phase) {
     "message"
   }
 
+  message <- conditionMessage(cnd)
+
+  # A message that is not valid UTF-8 is matched byte by byte,
+  # as `sub()` refuses it otherwise, and its reply makes it valid.
   list(
     severity = severity,
     class = class(cnd),
     phase = phase,
-    message = sub("\n$", "", conditionMessage(cnd))
+    message = sub("\n$", "", message, useBytes = !all(validUTF8(message)))
   )
 }
 
