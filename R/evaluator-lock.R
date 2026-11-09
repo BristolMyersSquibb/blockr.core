@@ -277,7 +277,13 @@ refuse_state <- function(block, locked) {
 # Whether two bindings of a block's inputs, as `bind_inputs()` gives them, bind
 # the same upstream blocks: each named input the same block, whatever their
 # order, and a variadic block's inputs the same blocks in the same order.
+# A client that plays by the rules sends the bindings that R holds, which
+# `identical()` tells at once.
 same_bindings <- function(x, y) {
+
+  if (identical(x, y)) {
+    return(TRUE)
+  }
 
   named <- function(z) {
     keep <- sort(setdiff(as.character(names(z)), "..."))
@@ -291,7 +297,13 @@ same_bindings <- function(x, y) {
 # an object's members in any order, and a whole number the same whether R
 # decoded it as an integer or a double, since JSON tells neither from the
 # other, and the client writes `10.0` as `10`.
+# A value that `identical()` takes for the same, as a state that a client
+# sends back as R wrote it, needs no walk through its parts.
 same_json <- function(x, y) {
+
+  if (identical(x, y)) {
+    return(TRUE)
+  }
 
   if (is.null(x) || is.null(y)) {
     return(is.null(x) && is.null(y))
