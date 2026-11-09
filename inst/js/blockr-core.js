@@ -2569,7 +2569,7 @@ function bump(graph, revisions, roots, next) {
 var NO_BOARD = { blocks: {}, links: {} };
 function createScheduler(options) {
   const { store, client } = options;
-  const queue = setting(options.evaluationQueue, 2, "evaluation_queue");
+  const queue = setting(options.evaluationQueue, 2, "evaluation_queue", true);
   const delay = setting(options.backgroundEvaluationDelay, Infinity, "background_evaluation_delay");
   const board = y(void 0);
   const registry = y({});
@@ -3003,10 +3003,13 @@ function changedSince(before, now) {
   }
   return changed;
 }
-function setting(value2, fallback, name3) {
+function setting(value2, fallback, name3, counts = false) {
   if (value2 === void 0) return fallback;
-  if (typeof value2 === "number" && value2 >= 0) return value2;
-  throw new RangeError(`The blockr option ${name3} is ${String(value2)}, where it takes a number of 0 or more.`);
+  const whole = !counts || Number.isInteger(value2) || value2 === Infinity;
+  if (typeof value2 === "number" && value2 >= 0 && whole) return value2;
+  throw new RangeError(
+    `The blockr option ${name3} is ${String(value2)}, where it takes ${counts ? "a whole number" : "a number"} of 0 or more.`
+  );
 }
 function checked(priority) {
   const at = priority ?? 0;
