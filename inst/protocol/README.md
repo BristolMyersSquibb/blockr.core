@@ -112,6 +112,12 @@ The client reads a blockr option by asking R for it, since it can read neither a
 
 R replies `ok` with the value of each that it has one for, as `blockr_option()` reads it, in `values`, by name, and leaves out the others, for which the client takes the fallback its code gives. R sends a value as it is set, so that one set through an environment variable arrives as a string, which the client converts to its fallback's type, and writes `Inf` as `null` ([Encoding](#encoding)), which the client reads as `Infinity` where its fallback is a number. R answers for any blockr option, since a client can read whatever the R process can ([State in JS](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1#proposal)).
 
+R answers each name on its own.
+It leaves out a blockr option that it cannot read, as where its R option and its environment variable disagree, which `blockr_option()` refuses.
+It also leaves out one whose value it cannot write as JSON, such as `renderers`, which holds renderer objects.
+R warns of each such blockr option in its log, naming it.
+The client takes the fallback of each blockr option that R leaves out, while the request's other names get their values ([Blockr options](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.13#blockr-options)).
+
 The client asks for a blockr option once per page, the first time its code reads it through `CoreApi.blockrOption()`, and keeps the value, since a blockr option is fixed for the app. Core asks for those its scheduler reads, `evaluation_queue`, `background_evaluation_delay` and `gate_visibility`, as soon as R has answered its `hello`, so that they are there before the scheduler starts ([Scheduling](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.10#scheduling)).
 
 ## Evaluating a block

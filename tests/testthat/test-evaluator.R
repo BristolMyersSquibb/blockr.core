@@ -779,24 +779,79 @@ test_that("R reads blockr options, as the fixture blockr-options has it", {
 
   expect_fixture_replies(session, "blockr-options")
 
-  withr::local_options(blockr.renderers = function() NULL)
-
-  session$receive(
-    list(list(id = "3", kind = "blockr_options", names = "renderers"))
-  )
-  session$run()
-
-  reply <- last_reply(session)
-
-  expect_identical(reply$status, "error")
-  expect_identical(condition_class(reply), "blockr_option_unsendable")
-
   session$receive(list(list(id = "4", kind = "blockr_options", names = list())))
   session$run()
 
   expect_identical(
     last_reply(session),
     list(id = "4", status = "ok", values = set_names(list(), character()))
+  )
+})
+
+test_that("R leaves out a blockr option it cannot read or send, and warns", {
+
+  local_table_preview()
+
+  withr::local_options(
+    blockr.evaluation_queue = 3L,
+    blockr.gate_visibility = FALSE,
+    blockr.volumes = list(home = function() "~")
+  )
+
+  withr::local_envvar(BLOCKR_EVALUATION_QUEUE = "4")
+
+  session <- local_evaluator()
+
+  withr::local_options(
+    blockr.logger = cnd_logger,
+    blockr.log_level = "warn",
+    width = 500L
+  )
+
+  session$receive(
+    list(
+      list(
+        id = "2",
+        kind = "blockr_options",
+        names = c("evaluation_queue", "renderers", "volumes", "gate_visibility")
+      )
+    )
+  )
+
+  warnings <- testthat::capture_warnings(session$run())
+
+  expect_length(warnings, 3L)
+
+  expect_match(
+    warnings[1L],
+    paste(
+      "R leaves blockr option evaluation_queue out of its reply, since it",
+      "cannot read it: Conflicting options set for evaluation_queue"
+    ),
+    fixed = TRUE
+  )
+
+  expect_match(
+    warnings[2L],
+    paste(
+      "R leaves blockr option renderers out of its reply, since it holds a",
+      "value of class renderer, which R cannot write as JSON."
+    ),
+    fixed = TRUE
+  )
+
+  expect_match(
+    warnings[3L],
+    paste(
+      "R leaves blockr option volumes out of its reply, since it holds a",
+      "function, which R cannot write as JSON."
+    ),
+    fixed = TRUE
+  )
+
+  expect_identical(
+    last_reply(session),
+    list(id = "2", status = "ok", values = list(gate_visibility = FALSE))
   )
 })
 

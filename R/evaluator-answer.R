@@ -30,26 +30,53 @@ answer_request <- function(ev, job) {
 # The value of each blockr option that R has one for,
 # as `blockr_option()` reads it, by name.
 # R leaves out the others.
+# It answers each name on its own,
+# so that it leaves out a blockr option it cannot send,
+# while the request's other names get their values.
 # It answers for any name, since a client can read whatever the R process can.
 answer_blockr_options <- function(job) {
 
   names <- job[["req"]][["names"]]
-  values <- lapply(set_names(nm = names), blockr_option, NULL)
-  values <- values[!lgl_ply(values, is.null)]
+  values <- lapply(set_names(nm = names), sendable_blockr_option)
 
-  for (name in names(values)) {
+  list(
+    id = job[["id"]],
+    status = "ok",
+    values = as_json_object(values[!lgl_ply(values, is.null)])
+  )
+}
 
-    kind <- unplain_kind(values[[name]])
+# The value of a blockr option as R sends it, or `NULL` where R sends none.
+# R sends none for a blockr option that is not set.
+# It also sends none for one that `blockr_option()` refuses,
+# as where its R option and its environment variable disagree,
+# and for one whose value R cannot write as JSON,
+# as `renderers`, which holds renderer objects.
+# For those two, R warns in its log, naming the blockr option.
+sendable_blockr_option <- function(name) {
 
-    if (not_null(kind)) {
-      blockr_abort(
-        "Blockr option {name} holds {kind}, which R cannot send.",
-        class = "blockr_option_unsendable"
+  res <- tryCatch(
+    blockr_option(name, NULL),
+    error = function(e) {
+      log_warn(
+        "R leaves blockr option {name} out of its reply, since it cannot read ",
+        "it: {conditionMessage(e)}"
       )
+      NULL
     }
+  )
+
+  kind <- nested_unplain_kind(res)
+
+  if (not_null(kind)) {
+    log_warn(
+      "R leaves blockr option {name} out of its reply, since it holds {kind}, ",
+      "which R cannot write as JSON."
+    )
+    return(NULL)
   }
 
-  list(id = job[["id"]], status = "ok", values = as_json_object(values))
+  res
 }
 
 # Evaluates a block from its recipe, as `evaluate_block()` does,
