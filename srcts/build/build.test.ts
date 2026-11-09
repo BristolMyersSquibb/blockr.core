@@ -265,21 +265,19 @@ test("writes the schemas of core's board options next to its runtime", async () 
     ].join("\n"),
   });
 
-  expect(await schemas(root)).toEqual(["inst/js/blockr-core.schema.json"]);
+  // Each in a file of its own, named by the board option's class in R
+  expect(await schemas(root)).toEqual([
+    "inst/js/n_rows_option.schema.json",
+    "inst/js/show_conditions_option.schema.json",
+  ]);
 
-  const file = join(root, "inst", "js", "blockr-core.schema.json");
+  const read = async (name: string) =>
+    JSON.parse(await readFile(join(root, "inst", "js", name), "utf8")) as unknown;
 
-  expect(JSON.parse(await readFile(file, "utf8"))).toEqual({
-    type: "object",
-    properties: {
-      options: {
-        type: "object",
-        properties: {
-          n_rows: { type: "integer", minimum: 0 },
-          show_conditions: { type: "array", items: { enum: ["error"] } },
-        },
-      },
-    },
+  expect(await read("n_rows_option.schema.json")).toEqual({ type: "integer", minimum: 0 });
+  expect(await read("show_conditions_option.schema.json")).toEqual({
+    type: "array",
+    items: { enum: ["error"] },
   });
 });
 

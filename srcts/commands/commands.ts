@@ -1,16 +1,17 @@
-// The command registry: the edits that menus, shortcuts, extensions and the
+// The command registry: the edits that menus, shortcuts, plugins and the
 // assistant's tools run alike, each a command that a package registers, core's
 // own among them. A command reads the board and returns deltas, and the command
 // registry applies them through the store as one step of the origin it is
 // given, so that every edit, whoever makes it, passes the store's checks.
 // The step is one undo step, unless it sets or removes only board option
 // values (../store/store.ts).
-// Core creates a command registry for each store and hands it to front-ends
-// and extensions through `CoreApi`. It ends with the store, as another board
-// opens.
+// Core creates a command registry for each store and hands it to plugins,
+// a frontend among them, through `CoreApi`. It ends with the store, as another
+// board opens.
 
 import { computed, signal } from "@preact/signals-core";
-import { isDeltas, pointer } from "../store/index.ts";
+import type { Lock } from "../protocol/index.ts";
+import { isDeltas, pluginOf } from "../store/index.ts";
 import type { BlockMod, Delta, Origin, Patch, Store } from "../store/index.ts";
 import type { Board } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
@@ -90,6 +91,10 @@ export interface CommandsOptions {
   // store: from then on the registry runs and plans no command, and drops a
   // command still in its prepare() rather than run it.
   readonly signal?: AbortSignal;
+  // The lock that R's reply to `hello` gives, under which core's command for a
+  // plugin's state is not enabled, since there only a plugin class's own
+  // commands know what the plugin locks.
+  readonly lock?: Lock | null;
 }
 
 export function createCommands(store: Store, options: CommandsOptions = {}): Commands {
@@ -205,7 +210,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
     return build(command, now, input);
   }
 
-  // The delta with the edit id of each block and each property it changes,
+  // The delta with the edit id of each block and each plugin it changes,
   // where it names none, from the board that the command read.
   function withEdits(delta: Delta): Delta {
     const blocks = delta.blocks?.mod;
@@ -234,8 +239,8 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
         ? {}
         : {
             patches: patches.map((patch): Patch => {
-              const property = pointer(patch.path)?.[0];
-              return property === undefined ? patch : edit(patch, store.editId({ property }));
+              const plugin = pluginOf(patch.path);
+              return plugin === undefined ? patch : edit(patch, store.editId({ plugin }));
             }),
           }),
     };
@@ -262,7 +267,9 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
     },
   };
 
-  for (const command of coreCommands(store)) registry.register(command);
+  for (const command of coreCommands(store, { locked: (options.lock ?? null) !== null })) {
+    registry.register(command);
+  }
 
   return registry;
 }

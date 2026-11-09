@@ -39,19 +39,16 @@ test_that("a board is written as a JSON board", {
   expect_named(res, c("format", "packages", "board"))
   expect_identical(res$format, 1)
 
-  # The block class is from no package, so the board's content is core's alone
-  expect_identical(
-    res$packages,
-    list(blockr.core = as.character(pkg_version("blockr.core")))
-  )
+  # The block class is from no package and the board holds no plugin, so the
+  # JSON board records no package
+  expect_identical(res$packages, set_names(list(), character()))
 
   expect_identical(
     res$board,
     read_json_strictly(
       '{
         "id": "sales_review",
-        "class": ["board"],
-        "versions": { "board": 1 },
+        "versions": {},
         "name": "Q3 numbers",
         "blocks": {
           "a": {
@@ -74,7 +71,8 @@ test_that("a board is written as a JSON board", {
         "options": {
           "n_rows": { "value": 25, "version": 1 },
           "dark_mode": { "value": "dark", "version": 1 }
-        }
+        },
+        "plugins": {}
       }'
     )
   )
@@ -84,8 +82,8 @@ test_that("a board is written as a JSON board", {
   res <- blockr_ser(board)$board
 
   expect_s3_class(res$stacks$s1$blocks, "AsIs")
-  expect_s3_class(res$class, "AsIs")
   expect_named(res$options, c("n_rows", "dark_mode"))
+  expect_identical(res$plugins, set_names(list(), character()))
 })
 
 test_that("a JSON board holds every ID, and an empty board empty objects", {
@@ -126,24 +124,21 @@ test_that("a JSON board holds every ID, and an empty board empty objects", {
   expect_identical(
     read_json_strictly(encode_message(blockr_ser(new_board(id = "empty")))),
     read_json_strictly(
-      paste0(
-        '{
-          "format": 1,
-          "packages": { "blockr.core": "',
-        as.character(pkg_version("blockr.core")),
-        '" },
-          "board": {
-            "id": "empty",
-            "class": ["board"],
-            "versions": { "board": 1 },
-            "name": "Empty",
-            "blocks": {},
-            "links": {},
-            "stacks": {},
-            "options": {}
-          }
-        }'
-      )
+      '{
+        "format": 1,
+        "packages": {},
+        "board": {
+          "id": "empty",
+          "versions": {},
+          "name": "Empty",
+          "blocks": {},
+          "links": {},
+          "stacks": {},
+          "options": {},
+          "plugins": {}
+        }
+      }'
+
     )
   )
 })
@@ -287,15 +282,12 @@ test_that("a board that the format cannot hold fails as it is written", {
     class = "board_value_invalid"
   )
 
-  expect_error(
-    blockr_ser(new_board(views = list(fun = identity))),
-    "The board's property views holds a function",
-    class = "board_value_invalid"
-  )
+  notes <- plugin_ctor(function(fun = NULL) NULL, "notes_plugin")
 
   expect_error(
-    blockr_ser(new_board(list(), list(), list(), list(), "unnamed")),
-    class = "board_properties_invalid"
+    blockr_ser(new_board(plugins = notes(identity))),
+    "The state of plugin \"Notes\" holds a function",
+    class = "board_value_invalid"
   )
 })
 
@@ -319,19 +311,20 @@ test_that("the board holds the board options the script gives, by schema", {
     )
   )
 
-  # The schema next to core's runtime, which is the first that R applies after
-  # the JSON board's
-  options <- startup_schemas()[[1L]]$properties$options$properties
+  # Core puts the schema of each of its board options next to its runtime
+  for (id in c("n_rows", "show_conditions", "dark_mode")) {
+    expect_type(board_option_schema(id), "list")
+  }
 
-  expect_setequal(names(options), c("n_rows", "show_conditions", "dark_mode"))
-  expect_identical(options$show_conditions$type, "array")
+  expect_identical(board_option_schema("show_conditions")$type, "array")
 })
 
-test_that("a board's class and its properties are written by the schemas", {
+test_that("a plugin's state is written by the schema of its class", {
 
   local_declared(declared_startup_modules)
 
   dir <- withr::local_tempdir()
+  dir.create(file.path(dir, "js"))
 
   writeLines(
     '{
@@ -353,149 +346,211 @@ test_that("a board's class and its properties are written by the schemas", {
             "starred": { "type": "array", "items": { "type": "string" } }
           }
         },
-        "pinned": { "type": "string" },
-        "options": {
-          "type": "object",
-          "properties": {
-            "tags": { "type": "array", "items": { "type": "string" } }
-          }
-        }
+        "pinned": { "type": "string" }
       }
     }',
-    file.path(dir, "startup.schema.json")
+    file.path(dir, "js", "notes_plugin.schema.json")
   )
 
+  writeLines(
+    '{ "type": "array", "items": { "type": "string" } }',
+    file.path(dir, "js", "tags_option.schema.json")
+  )
+
+  # The files of blockr.test, and none of core's
   local_mocked_bindings(
-    module_file = function(module, suffix) {
-      if (identical(module$package, "blockr.test")) {
-        return(file.path(dir, "startup.schema.json"))
-      }
-      ""
+    package_file = function(path, package) {
+      path <- file.path(dir, path)
+      if (identical(package, "blockr.test") && file.exists(path)) path else ""
     }
   )
 
   register_startup_module(test_module("js/startup.js"))
   local_board_option_version("tags", 2L)
+  local_versions(blockr.test = "0.1.0")
+
+  notes <- plugin_ctor(
+    function(notes = list(), flags = list(), pinned = "", counts = list()) NULL,
+    "notes_plugin"
+  )
+  grid <- plugin_ctor(function(cols = "a") NULL, "grid_plugin")
 
   board <- new_board(
     options = new_board_option("tags", "draft"),
-    notes = list(n1 = list(text = "To check", blocks = "a"), n2 = list()),
-    flags = list(starred = "a", note = "x"),
-    pinned = "n1",
-    counts = list(),
-    id = "grid",
-    class = "grid_board"
+    plugins = list(
+      todo = notes(
+        notes = list(n1 = list(text = "To check", blocks = "a"), n2 = list()),
+        flags = list(starred = "a", note = "x"),
+        pinned = "n1"
+      ),
+      done = notes(plugin_name = "Done"),
+      grid()
+    ),
+    id = "grid"
   )
 
-  # The properties come after core's, in their order, what the schema leaves
-  # out keeps the shape that R's writer gives it, and a board option's value
-  # is shaped by the schema before it is recorded with its version
+  # Each plugin of the class is written by the schema of the class's state,
+  # whatever its id, what the schema leaves out keeps the shape that R's writer
+  # gives it, and the state of a class that no package gives a schema is bare,
+  # while a board option's value is shaped by its schema before it is recorded
+  # with its version
   expect_identical(
     read_json_strictly(encode_message(blockr_ser(board)))$board,
     read_json_strictly(
       '{
         "id": "grid",
-        "class": ["grid_board", "board"],
-        "versions": { "board": 1 },
+        "versions": {
+          "blockr.test-notes_plugin": 1,
+          "blockr.test-grid_plugin": 1
+        },
         "name": "Grid",
         "blocks": {},
         "links": {},
         "stacks": {},
         "options": { "tags": { "value": ["draft"], "version": 2 } },
-        "notes": {
-          "n1": { "text": "To check", "blocks": ["a"] },
-          "n2": {}
-        },
-        "flags": { "starred": ["a"], "note": "x" },
-        "pinned": "n1",
-        "counts": []
+        "plugins": {
+          "todo": {
+            "class": "blockr.test-notes_plugin",
+            "name": "Notes",
+            "state": {
+              "notes": {
+                "n1": { "text": "To check", "blocks": ["a"] },
+                "n2": {}
+              },
+              "flags": { "starred": ["a"], "note": "x" },
+              "pinned": "n1",
+              "counts": []
+            }
+          },
+          "done": {
+            "class": "blockr.test-notes_plugin",
+            "name": "Done",
+            "state": { "notes": {}, "flags": {}, "pinned": "", "counts": [] }
+          },
+          "grid": {
+            "class": "blockr.test-grid_plugin",
+            "name": "Grid",
+            "state": { "cols": "a" }
+          }
+        }
       }'
     )
   )
 
-  # An empty collection is an object, and a property the board lacks stays out,
-  # while a class that no package defines is written all the same
-  board <- new_board(notes = list(), class = c("my_board", "grid_board"))
-  res <- read_json_strictly(encode_message(blockr_ser(board)))$board
+  # A plugin without state holds an empty object
+  empty <- plugin_ctor(function() NULL, "empty_plugin")
+  res <- blockr_ser(new_board(plugins = empty()))
+  res <- read_json_strictly(encode_message(res))
 
   expect_identical(
-    res[c("class", "notes")],
-    read_json_strictly(
-      '{ "class": ["my_board", "grid_board", "board"], "notes": {} }'
-    )
+    res$board$plugins$empty$state,
+    set_names(list(), character())
   )
-  expect_false("pinned" %in% names(res))
 })
 
-test_that("R applies the schema of every package that has one", {
+test_that("R finds a class's schema next to its package's startup module", {
 
   local_declared(declared_startup_modules)
 
-  dir <- withr::local_tempdir()
+  dirs <- list(
+    blockr.one = withr::local_tempdir(),
+    blockr.two = withr::local_tempdir()
+  )
+
+  for (dir in dirs) {
+    dir.create(file.path(dir, "js"))
+  }
 
   writeLines(
     '{ "properties": { "views": { "type": "array" } } }',
-    file.path(dir, "views.schema.json")
+    file.path(dirs$blockr.one, "js", "views_plugin.schema.json")
   )
 
   writeLines(
-    '{
-      "properties": {
-        "options": { "properties": { "tags": { "type": "array" } } }
-      }
-    }',
-    file.path(dir, "tags.schema.json")
-  )
-
-  files <- list(
-    blockr.one = "views.schema.json",
-    blockr.two = "tags.schema.json"
+    '{ "type": "array" }',
+    file.path(dirs$blockr.two, "js", "tags_option.schema.json")
   )
 
   local_mocked_bindings(
-    module_file = function(module, suffix) {
-      file <- files[[coal(module$package, "")]]
-      if (is.null(file)) "" else file.path(dir, file)
+    package_file = function(path, package) {
+      dir <- dirs[[coal(package, "")]]
+      path <- if (is.null(dir)) "" else file.path(dir, path)
+      if (nzchar(path) && file.exists(path)) path else ""
     }
   )
 
   register_startup_module(test_module("js/startup.js", "blockr.one"))
   register_startup_module(test_module("js/startup.js", "blockr.two"))
 
+  local_versions(blockr.one = "0.1.0", blockr.three = "0.1.0")
+
+  views <- plugin_ctor(
+    function(views = "main") NULL,
+    "views_plugin",
+    "blockr.one"
+  )
+
+  # A class of the same name from a package that ships no schema
+  other <- plugin_ctor(
+    function(views = "main") NULL,
+    "views_plugin",
+    "blockr.three"
+  )
+
   board <- new_board(
     options = new_board_option("tags", "draft"),
-    views = "main"
+    plugins = list(views(), other = other())
   )
 
   res <- read_json_strictly(encode_message(blockr_ser(board)))$board
 
-  expect_identical(res["views"], read_json_strictly('{ "views": ["main"] }'))
+  expect_identical(
+    res$plugins$views$state,
+    read_json_strictly('{ "views": ["main"] }')
+  )
+  expect_identical(
+    res$plugins$other$state,
+    read_json_strictly('{ "views": "main" }')
+  )
+
+  # A board option's ID names no package, so its schema is the one next to
+  # any startup module
   expect_identical(
     res$options,
     read_json_strictly('{ "tags": { "value": ["draft"], "version": 1 } }')
   )
 })
 
-test_that("a JSON board records the package of each class and block class", {
+test_that("a JSON board records the package and version of each plugin class", {
 
   local_versions(blockr.one = "1.2.0", blockr.two = "0.3.0")
-  local_board_front_end("one_board", "blockr.one-grid", "blockr.one", 3L)
+  local_plugin_version("dag_plugin", 3L, "blockr.one")
 
   core <- as.character(pkg_version("blockr.core"))
 
-  # The package whose namespace holds a class's method of board_front_end(),
-  # while a class without one of its own, as my_board, comes from no package
+  dag <- plugin_ctor(function() NULL, "dag_plugin", "blockr.one")
+  md <- plugin_ctor(function() NULL, "md_plugin", "blockr.two")
+
   board <- new_board(
     c(a = new_dataset_block()),
-    class = c("my_board", "one_board")
+    plugins = list(dag(), notes = md(), report = md())
   )
 
   res <- blockr_ser(board)
 
-  expect_identical(res$packages, list(blockr.core = core, blockr.one = "1.2.0"))
+  # The package that the id of each plugin's class names, beside that of each
+  # block's class
+  expect_identical(
+    res$packages,
+    list(blockr.core = core, blockr.one = "1.2.0", blockr.two = "0.3.0")
+  )
 
-  # Beside the version of each class that names a front-end, by class
-  expect_identical(res$board$versions, list(one_board = 3L, board = 1L))
+  # The version of each plugin class, by the class's id, which is 1 for a
+  # class without a method of plugin_version()
+  expect_identical(
+    res$board$versions,
+    list(`blockr.one-dag_plugin` = 3L, `blockr.two-md_plugin` = 1L)
+  )
 
   # The package of a block's class is the one its registry entry names
   local_mocked_bindings(
@@ -509,29 +564,12 @@ test_that("a JSON board records the package of each class and block class", {
     b = list(registry_id = "note_block")
   )
 
+  plugins <- list(dag = list(class = "blockr.one-dag_plugin"))
+
   expect_identical(
-    board_packages(list(class = "board", blocks = blocks)),
-    list(blockr.core = core, blockr.two = "0.3.0")
+    board_packages(list(blocks = blocks, plugins = plugins)),
+    list(blockr.one = "1.2.0", blockr.two = "0.3.0")
   )
-})
-
-test_that("the schema next to a startup module is a JSON object", {
-
-  dir <- withr::local_tempdir()
-  file <- file.path(dir, "startup.schema.json")
-
-  for (json in c('["views"]', '"views"', "3")) {
-    writeLines(json, file)
-    expect_error(
-      read_startup_schema(file, "blockr.test"),
-      "The schema that package blockr.test puts next to its startup module",
-      class = "startup_schema_invalid"
-    )
-  }
-
-  writeLines("{}", file)
-
-  expect_length(read_startup_schema(file, "blockr.test"), 0L)
 })
 
 test_that("a board's parts are written by their methods", {
@@ -561,4 +599,15 @@ test_that("a board's parts are written by their methods", {
 
   expect_identical(blockr_ser(new_show_conditions_option("error")), "error")
   expect_identical(blockr_ser(list(a = 1L)), list(a = 1L))
+
+  notes <- plugin_ctor(function(text = "") NULL, "notes_plugin")
+
+  expect_identical(
+    blockr_ser(notes("To do", plugin_name = "Todo")),
+    list(
+      class = "blockr.test-notes_plugin",
+      name = "Todo",
+      state = list(text = "To do")
+    )
+  )
 })

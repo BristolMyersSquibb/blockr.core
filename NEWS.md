@@ -89,11 +89,8 @@
   A module gets the ID `{pkg}-{name}`.
   The startup modules keep the order in which packages declare them, which
   puts each after those of the packages its NAMESPACE imports.
-  A front-end is such a module, which a board class names through its method
-  of the generic `board_front_end()`, as core's class `board` names core's
-  basic front-end, `blockr.core-basic`.
-  The package whose namespace holds the method is the one that defines the
-  class, so that R knows a board class's package (#424, #465).
+  Core's basic front-end, `blockr.core-basic`, is such a module, and so is
+  each module that a plugin class names (#424, #504).
 * A renderer, which `new_renderer()` makes, is a module that draws the
   outputs of an output class or the value of a board option, under the ID
   `{pkg}-{name}`. The method of `output_renderer()` for an output class gives
@@ -116,39 +113,37 @@
   registration gives, `link` as `url`, its inputs, the schema of its state,
   the state a new block starts with, its arg specs and its requests.
   Beside the entries come the versions of the packages, the startup modules
-  in R's order, the modules that packages offer each other, front-ends among
-  them, the board classes that packages name front-ends for, each with its
-  package and its front-end, the versions that packages give board options,
-  and the renderers that the app names for board options.
+  in R's order, the modules that packages offer each other, the versions that
+  packages give their plugin classes and board options, and the renderers
+  that the app names for board options.
   R serves each module and stylesheet at a URL that
   holds a hash of the file's content, so that no browser runs a changed file
   from its cache. It serves a package's files under the package's name, and the
   module of a block class from outside a package at a URL of its own, read
   from the path given, and nothing beside them. Registration refuses a class
   whose starting state is not a plain value, and an arg spec whose example is
-  not one either (#426, #465).
+  not one either (#426, #465, #504).
 * R writes the board that an app script builds with `blockr_ser()` as a JSON
   board, the format in which the client saves a board.
-  A JSON board holds the board, with its ID and name, its class vector, its
-  blocks, links and stacks by ID and the values of the board options the
-  script gives, beside the version of the format and the versions of the
-  packages that the board's content comes from: those of the board's classes,
-  by their methods of `board_front_end()`, and those of the blocks' classes.
-  The board records the version of each of its classes, which a method of the
-  generic `board_version()` gives, each block the version of its class's
-  state, which `new_block_class()` takes as `version`, and each board option's
-  value the version of its shape, which a method of the generic
-  `board_option_version()` gives, so that the client migrates what a JSON
-  board holds by the versions of its shapes rather than of packages.
-  Beside them it writes the properties that the board's class adds, which are
-  the components that the board holds besides core's, such as those that a
-  board class's constructor passes to `new_board()`.
+  A JSON board holds the board, with its ID and name, its blocks, links,
+  stacks and plugins by ID and the values of the board options the script
+  gives, beside the version of the format and the versions of the packages
+  that the board's content comes from: those of the plugins' classes, which
+  the ID of each class names, and those of the blocks' classes.
+  The board records the version of each plugin class whose plugins it holds,
+  which a method of the generic `plugin_version()` gives, each block the
+  version of its class's state, which `new_block_class()` takes as `version`,
+  and each board option's value the version of its shape, which a method of
+  the generic `board_option_version()` gives, so that the client migrates
+  what a JSON board holds by the versions of its shapes rather than of
+  packages.
   It writes each value by a JSON Schema, so that no shape depends on R's JSON
   writer: core's objects by the schema of a JSON board that the build
   generates from its TypeScript types into `inst/board`, a block's state by
-  the schema its class's UI ships, and a property of the board's class or a
-  board option's value by the schema its package ships beside its startup
-  module, as core ships those of its board options beside its runtime.
+  the schema its class's UI ships, and a plugin's state or a board option's
+  value by the schema its package ships beside its startup module, in a file
+  named by the class of the plugin or of the board option, as core ships
+  those of its board options beside its runtime.
   Writing a board registers the block classes
   that its blocks refer to, from the blocks themselves, and fails on a value
   that JSON cannot hold, such as a function, so that such a board fails as
@@ -162,7 +157,8 @@
   no board options by default, and `as_table_output()` pages a data frame by
   the `n_rows` that the client sends. Nothing in R reads a board back, since
   the client opens every board itself, so `blockr_deser()` goes, and a file
-  of today's stack is converted by a script of its own (#428, #429, #465).
+  of today's stack is converted by a script of its own (#428, #429, #465,
+  #504).
 * Core's twelve built-in blocks are block classes. Core exports each class
   beside its constructor, such as `head_block` beside `new_head_block()`, and
   registers ten of them when it loads, under IDs such as
@@ -239,20 +235,20 @@
 * Core's client starts the page in the order of the startup modules, through `startPage()` in its runtime.
   Once R has answered its hello, core asks R in one request for the blockr options that its scheduler reads.
   It then initializes the startup module of each package that R has loaded, one at a time in R's order, and opens the board that R sent, or the one that a startup module names in its place.
-  It draws the board with the front-end of the class that the board is built as, and lets the scheduler send once the front-end's `render()` has returned.
-  A board opened later switches the page to the front-end of its class in the same way, and a later session that names a loaded package at another version has the page ask the user to reload it.
+  It draws the board with core's basic front-end, and lets the scheduler send once the front-end's `render()` has returned.
+  A board opened later is drawn in the same way, and a later session that names a loaded package at another version has the page ask the user to reload it.
   Front-ends, extensions and startup modules work on the board through `CoreApi`.
   Its `mountBlock()`, `mountOutput()` and `mountOption()` mount a block's UI, a block's output and a board option's UI, and its `blockrOption()` reads a blockr option once per page.
   Its `request()` sends a request of a type that a package adds, once the blocks that the request reads are evaluated.
   An output is measured, asked of R and drawn by the renderer that R names in it, and a renderer calls its output class's requests and its own through its host.
   Core ships a `CoreApi` for tests beside the stubs of its hosts, `stubCore()` in `@blockr/core/stubs`, which answers for R from the fixtures of the wire protocol and registers core's board options with their UIs, as the page does.
-  The package `@blockr/core` names the React that core's runtime bundles, at that version, as its peer, so that npm installs that React with it and a package's tests run on it with no React of their own, while npm refuses a second copy at another version (#440).
+  The package `@blockr/core` names the React that core's runtime bundles, at that version, as its peer, so that npm installs that React with it and a package's tests run on it with no React of their own, while npm refuses a second copy at another version (#440, #504).
 * Opening a board starts core's client again in place, with no reload, so that nothing of the board before outlives the opening.
   The store on the page checks the board first, with its `check()`, and a board that it refuses leaves the page as it was, with the reason.
   One abort then ends everything that core ran for the board before: the front-end and what it mounted, the startup modules, the store with its undo history, the command registry, the board options, the scheduler with its demands, and what core kept of outputs and answers.
   Core sends another hello, on which R drops every result, queued request and request body of the board before, and starts as the page does, with a new `CoreApi` for the startup modules and the front-end.
   A store opens one board, and the scheduler of the next board gives each block a revision above any that the page has given (#497).
-* Core's basic front-end, `blockr.core-basic`, draws every board whose class no other front-end draws.
+* Core's basic front-end, `blockr.core-basic`, draws every board.
   It is written in React on core's React SDK and styled with Tailwind CSS under core's prefix.
   Its toolbar adds a block from the block registry's entries, edits links and stacks, sets the board options that the board holds, renames the board, and saves the board as a file or opens one.
   It draws each stack as a group of its blocks' cards.
@@ -263,13 +259,29 @@
   The front-end tells the user which edit the store refused.
   The front-end demands every block above the default evaluation priority, and the blocks in view higher still, where the page parked the blocks of collapsed stacks until now.
   On a locked board, it draws no control for what the lock fixes.
-  Core's board class `board` requires the board options `show_conditions` and `dark_mode`, so that every board gets them as it opens.
+  It requires the board options `show_conditions` and `dark_mode`, so that every board gets them as it opens.
   The page's color scheme follows the theme that `dark_mode` switches the page to, so that the browser draws the page's background, form controls and scroll bars in that theme too.
   Where no blockr option sets `n_rows`, a table output's page holds 10 rows, where it held 50 (#441).
+* A board has no class of its own, and plugins take the place of board classes as core's way to extend a board as a whole, beside block classes.
+  A package's constructor `new_{name}_plugin()` makes a plugin with `new_plugin()`, of class `c("{name}_plugin", ..., "plugin")`, from its args, which are the plugin's state, and its `plugin_name`, which is the plugin's name.
+  The plugin's class has the ID `{pkg}-{name}_plugin`, so `new_plugin()` refuses a constructor that lives outside a package.
+  Core defines the plugin classes `frontend_plugin` and `storage_plugin` beside `plugin`.
+  The board constructor `new_board()` takes a board's plugins in `plugins`, each under its name in the list or the name of its class without `_plugin`, and refuses a second frontend or a second storage plugin, while it loses `class` and `...`, so that every board is of class `board`.
+  The generics `board_front_end()` and `board_version()` go.
+  The generic `plugin_version()` gives the version of a plugin class's state, which R sends in its reply to `hello` in `plugin_versions`, in place of `board_classes`.
+  Beside its startup module, a package ships the schema of the state of each of its plugin classes and of the value of each of its board options in a file of its own, named by the class in R, as `dag_plugin.schema.json` for the class `blockr.dag-dag_plugin` and `grid_gap_option.schema.json` for the board option `grid_gap`, where it shipped one schema laid out like the board before.
+  In the client, a startup module registers each plugin class through `core.plugins.register()`, which the store reads for the schema and the default of the state, its `update` and its `migrate`.
+  The store keeps each plugin under its ID in the board's `plugins`, with its class's ID, its name and its state, and a change inside a plugin's state is a patch under `/plugins/{id}/state`.
+  It keeps an edit ID for each plugin, checks a plugin's state against the schema of its class after every change, calls each class's `update` once for each of its plugins, and holds a board to one frontend and one storage plugin at most.
+  The plugins of the board that the app script builds are the plugins of every board that the app opens: opening a board keeps each of its plugins that the opening board holds under the same ID and of the same class, migrating its state by its class's `migrate`, drops and names the others, and gives the board each other plugin of the opening board with its class's default state.
+  So no patch adds, removes or replaces a plugin, and core's command `blockr.core-set_plugin_state` changes a plugin's state (#504).
 * Core refuses a block class's UI module whose `options` leaves out a board option that a request of the class reads.
   It shows an error in the block's element in place of the module's UI, as it does for a module that declares another major of core's JS API.
   The error names the module and its package, each board option that the module leaves out, and the requests that read it.
   The rest of the page, the block's evaluation included, carries on (#502).
+* The `bbquote()` function throws an error for a call to `.()` or `..()` that holds anything but a single name, such as `.(n + 1L)` or data.table's `.(total = sum(value))`, `.(n = .N)` or `.(x, y)`.
+  Until now, base `bquote()` evaluated the first argument of such a call, so that `.(total = sum(value))` failed with `could not find function "sum"` and `.(n = .N)` silently became `.(.N)`.
+  A class that builds data.table code returns a call or a string instead (#496).
 * The constructors `new_link()` and `new_stack()` lose `...` and `class`, so that a link and a stack hold core's properties and nothing else.
   A script that passes another argument to either constructor fails at that call, as a block constructor fails for a misspelled state arg.
   Until now, `blockr_ser()` dropped what `...` added without a word, since a JSON board has no place for it.

@@ -9,6 +9,7 @@
 \alias{board_stack_ids}
 \alias{board_options}
 \alias{board_option_ids}
+\alias{board_plugins}
 \alias{available_stack_blocks}
 \alias{board_id}
 \alias{board_name}
@@ -30,6 +31,8 @@ board_options(x)
 
 board_option_ids(x)
 
+board_plugins(x)
+
 available_stack_blocks(
   x,
   stacks = board_stacks(x),
@@ -49,6 +52,7 @@ board_name(x)
 Functions for retrieving components (\code{board_blocks()},
 \code{board_links()}, \code{board_stacks()} and \code{board_options()}) return objects of
 the corresponding classes \code{blocks}, \code{links}, \code{stacks} and \code{board_options},
+and \code{board_plugins()} a list of plugins by ID,
 while ID getters (\code{board_block_ids()}, \code{board_link_ids()},
 \code{board_stack_ids()} and \code{board_option_ids()}) return character vectors, as
 does \code{available_stack_blocks()}, and \code{board_id()} and \code{board_name()} return
@@ -89,6 +93,12 @@ IDs are of interest, this is available as \code{board_option_ids()}, which calls
 \code{\link[=board_option_id]{board_option_id()}} on each board option.
 }
 
+\section{Plugins}{
+
+A board's plugins can be retrieved using \code{board_plugins()}, a list of
+plugins by ID (see \code{\link[=new_plugin]{new_plugin()}}).
+}
+
 \section{ID and name}{
 
 The board's ID, which identifies it, is available as \code{board_id()}, and its
@@ -114,6 +124,8 @@ board_stacks(brd)
 board_stack_ids(brd)
 
 board_options(brd)
+
+board_plugins(brd)
 
 board_id(brd)
 board_name(brd)

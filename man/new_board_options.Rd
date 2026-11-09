@@ -100,7 +100,7 @@ its definition in the client.
 Core ships three board options: \code{n_rows}, the rows of a table output's page,
 \code{show_conditions}, the severities of a block's conditions that a front-end
 shows, and \code{dark_mode}, which switches between the light and the dark theme.
-Core's board class \code{board} requires \code{show_conditions} and \code{dark_mode}.
+Core's basic frontend requires \code{show_conditions} and \code{dark_mode}.
 So the client gives every board that lacks a value of either one its
 default as the board opens.
 Their schemas ship beside core's runtime, and R writes the value that a

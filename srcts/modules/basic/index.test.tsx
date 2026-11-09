@@ -347,7 +347,7 @@ describe("the toolbar", () => {
     await click(button(el, "Options"));
     await settled();
     // The board holds n_rows, which the table renderer names, and
-    // show_conditions and dark_mode, which core's board class requires.
+    // show_conditions and dark_mode, which core's basic front-end requires.
     expect(Object.keys(board().options).sort()).toEqual(["dark_mode", "n_rows", "show_conditions"]);
     expect(texts(dialog(el), "h3")).toEqual(["Table options", "Board options", "Theme options"]);
     expect(dialog(el).textContent).toContain("Preview rows");

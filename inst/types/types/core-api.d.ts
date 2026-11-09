@@ -1,7 +1,7 @@
 import type { Commands } from "../commands/index.ts";
 import type { Lock } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
-import type { Options, Store } from "../store/index.ts";
+import type { Options, PluginClass, Store } from "../store/index.ts";
 import type { BlockId, OptionId, RegistryId } from "./board.ts";
 import type { Json } from "./json.ts";
 import type { RegistryEntry } from "./registry.ts";
@@ -11,6 +11,9 @@ export interface CoreApi {
     readonly scheduler: Pick<Scheduler, "demand" | "evaluate" | "invalidate" | "status" | "subscribe">;
     blockRegistry(): BlockRegistry;
     readonly options: Options;
+    readonly plugins: {
+        register(def: PluginClass): () => void;
+    };
     readonly lock: Lock | null;
     readonly outputEvents: OutputEvents;
     request<T = Json>(type: string, fields?: Record<string, Json>, opts?: RequestOpts): Promise<T | Blob>;

@@ -35,12 +35,6 @@
         "id": {
           "type": "string"
         },
-        "class": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
         "name": {
           "type": "string"
         },
@@ -55,15 +49,21 @@
           "additionalProperties": {
             "$ref": "#/definitions/Stack"
           }
+        },
+        "plugins": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Plugin"
+          }
         }
       },
       "required": [
         "blocks",
-        "class",
         "id",
         "links",
         "name",
         "options",
+        "plugins",
         "stacks",
         "versions"
       ]
@@ -194,6 +194,28 @@
         "blocks",
         "color"
       ]
+    },
+    "Plugin": {
+      "type": "object",
+      "properties": {
+        "class": {
+          "$ref": "#/definitions/PluginClassId"
+        },
+        "name": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/definitions/Json"
+        }
+      },
+      "required": [
+        "class",
+        "name",
+        "state"
+      ]
+    },
+    "PluginClassId": {
+      "type": "string"
     }
   }
 }

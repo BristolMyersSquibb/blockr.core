@@ -1,6 +1,6 @@
 // The board the client holds: plain data, which serializes as it is and names
-// its own class by the R board's class vector and each block's class by id,
-// so that no other object in it carries an R class.
+// each block's class by registry id and each plugin's class by the class's id,
+// so that no object in it carries an R class.
 // Its types are read-only, so that nothing changes a board in place:
 // the store makes a new board for every change, sharing what did not change,
 // as copy-on-modify did in R.
@@ -11,32 +11,29 @@ export type BlockId = string;
 export type LinkId = string;
 export type StackId = string;
 export type OptionId = string;
+export type PluginId = string;
+
+// A plugin class's id, `{pkg}-{name}_plugin`, such as "blockr.dag-dag_plugin",
+// which names the package that registers the class from its startup module.
+export type PluginClassId = string;
 
 // A block class's id in the block registry, `{pkg}-{name}`, such as
 // "blockr.core-head_block".
 export type RegistryId = string;
 
-// Besides core's properties, below, a board holds those that its board class
-// adds, such as a dock board's views, which core carries without reading them.
-// A board class types its properties by extending this interface,
-// as `interface DockBoard extends Board { views: ... }`.
-// The board declares no index signature, so neither its members nor those types
-// need be assignable to Json.
-// Code that does not import a class's types reads a property as unknown,
-// from the board taken as a record.
+// A board has no class of its own. What a package adds to a board, such as the
+// dock's views, is the state of one of its plugins, under the plugin's id in
+// `plugins`, which core carries without reading it.
 export interface Board {
   readonly id: string;
-  // The class vector of the R board it comes from, most specific first,
-  // as ["dock_board", "board"], which the client keeps and saves unchanged.
-  // The client builds the board as the first class in it that a loaded
-  // package defines.
-  readonly class: readonly string[];
   readonly name: string;
   readonly blocks: Readonly<Record<BlockId, Block>>;
   readonly links: Readonly<Record<LinkId, Link>>;
   readonly stacks: Readonly<Record<StackId, Stack>>;
   // Each board option's value by the board option's id, as { n_rows: 50 }.
   readonly options: Readonly<Record<OptionId, Json>>;
+  // Each plugin by its id, as { dag: { class: "blockr.dag-dag_plugin", ... } }.
+  readonly plugins: Readonly<Record<PluginId, Plugin>>;
 }
 
 export interface Block {
@@ -44,6 +41,15 @@ export interface Block {
   // Its values for the formals of its class's `expr`, as { n: 6 }.
   readonly state: Readonly<Record<string, Json>>;
   readonly name: string;
+}
+
+// A plugin, which names its class by the class's id and keeps its state in the
+// shape that its class's schema gives, such as the DAG's positions.
+export interface Plugin {
+  readonly class: PluginClassId;
+  // What the user calls it, which titles its panel, as "Notes".
+  readonly name: string;
+  readonly state: Json;
 }
 
 export interface Link {
@@ -70,7 +76,7 @@ export interface Stack {
 
 // A JSON board, the one format of a board outside the store: the board, the
 // version of the format, and the version of every package that the board's
-// block classes and board classes come from, which names what to install.
+// block classes and plugin classes come from, which names what to install.
 // The client saves a board as one, and R writes the opening board that an app
 // script built as one, with every id.
 // The board records the version of each shape that a definition outside core
@@ -79,10 +85,9 @@ export interface JsonBoard {
   readonly format: number;
   readonly packages: Readonly<Record<string, string>>;
   readonly board: Omit<Board, "blocks" | "options"> & {
-    // The version of each class in the board's class vector that R names one
-    // for, by class, as R's `board_version()` gives it: the version of the
-    // properties that the class adds.
-    readonly versions: Readonly<Record<string, number>>;
+    // The version of the state of each plugin class whose plugins the board
+    // holds, by the class's id, as R's `plugin_version()` gives it.
+    readonly versions: Readonly<Record<PluginClassId, number>>;
     readonly blocks: Readonly<Record<BlockId, JsonBlock>>;
     readonly options: Readonly<Record<OptionId, JsonOption>>;
   };
