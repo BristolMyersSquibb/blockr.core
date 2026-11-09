@@ -3310,6 +3310,7 @@ function createLoader(options = {}) {
   const importer = options.importer ?? importModule;
   const stylesheet = options.stylesheet ?? linkStylesheet;
   const modules = options.modules ?? (() => ({}));
+  const changed = options.changed ?? (() => void 0);
   const imported = /* @__PURE__ */ new Map();
   const sheets = /* @__PURE__ */ new Map();
   function once2(cache, url, load2) {
@@ -3321,6 +3322,16 @@ function createLoader(options = {}) {
     return loading;
   }
   async function load(source, pkg) {
+    if (pkg !== null && !imported.has(source.module)) {
+      const versions = changed(pkg);
+      if (versions !== void 0) {
+        throw new ModuleError(
+          source.module,
+          pkg,
+          `is not loaded: R now runs ${pkg} ${versions.now}, where the page loaded ${versions.loaded}. Reload the page to load it.`
+        );
+      }
+    }
     const sheet = source.css === void 0 ? Promise.resolve() : once2(sheets, source.css, stylesheet).catch((error) => {
       report(new ModuleError(source.module, pkg, `has a stylesheet that failed to load: ${messageOf(error)}`, { cause: error }));
     });
@@ -8170,6 +8181,8 @@ function start(options) {
   });
   let first;
   let latest;
+  const loaded = /* @__PURE__ */ new Map();
+  let changed = [];
   let running2;
   const holdsBoard = () => running2?.store.hasBoard() === true;
   let restarting;
@@ -8186,7 +8199,11 @@ function start(options) {
     }
   });
   const blockrOptions = createBlockrOptions(client, page.signal);
-  const loader = createLoader({ ...options.loader, modules: () => latest?.modules ?? {} });
+  const loader = createLoader({
+    ...options.loader,
+    modules: () => latest?.modules ?? {},
+    changed: (pkg) => changed.find((c2) => c2.package === pkg)
+  });
   function heard(reply) {
     if (page.signal.aborted) return;
     const error = helloError(reply);
@@ -8212,9 +8229,9 @@ function start(options) {
       );
       return;
     }
-    latest = hello;
     if (first === void 0) {
       first = hello;
+      adopt(hello);
       boot(hello, void 0).then(
         ({ core }) => settle2?.resolve(core),
         (failure) => {
@@ -8224,15 +8241,25 @@ function start(options) {
       );
       return;
     }
-    const changed = changedPackages(first, hello);
-    if (changed.length > 0) (options.reload ?? askReload)(changed);
+    changed = changedPackages(loaded, hello);
+    if (changed.length > 0) {
+      (options.reload ?? askReload)(changed);
+    } else {
+      adopt(hello);
+    }
     if (restarting !== void 0) {
       const waiting2 = restarting;
       restarting = void 0;
-      waiting2.resolve(hello);
+      waiting2.resolve(latest ?? first);
       return;
     }
     running2?.scheduler.session();
+  }
+  function adopt(reply) {
+    latest = reply;
+    for (const [pkg, version] of Object.entries(reply.packages)) {
+      loaded.set(pkg, version);
+    }
   }
   function end(why) {
     page.abort();
@@ -8445,10 +8472,10 @@ function helloError(reply) {
   }
   return void 0;
 }
-function changedPackages(first, reply) {
+function changedPackages(loaded, reply) {
   return Object.entries(reply.packages).flatMap(([pkg, now]) => {
-    const loaded = own(first.packages, pkg);
-    return loaded === void 0 || loaded === now ? [] : [{ package: pkg, loaded, now }];
+    const before = loaded.get(pkg);
+    return before === void 0 || before === now ? [] : [{ package: pkg, loaded: before, now }];
   });
 }
 function askReload(changed) {

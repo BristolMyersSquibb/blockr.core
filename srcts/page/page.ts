@@ -24,7 +24,7 @@ export interface PageOptions {
   readonly transport?: Transport;
   // How modules are imported and stylesheets put on the page, as on the page
   // unless given.
-  readonly loader?: Omit<LoaderOptions, "modules">;
+  readonly loader?: Omit<LoaderOptions, "modules" | "changed">;
   // Measures an output's element, through the DOM unless given.
   readonly measure?: Measure;
 }

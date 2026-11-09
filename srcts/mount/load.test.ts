@@ -68,3 +68,32 @@ test("imports a URL once, and gives every later load of it what the first got, a
   }
   expect(urls).toEqual(["pkg/ok.js", "pkg/gone.js"]);
 });
+
+test("imports no module of a package that R runs at another version than the page loaded, but those it imported already", async () => {
+  const urls: string[] = [];
+  const versions = new Map<string, { loaded: string; now: string }>();
+  const loader = createLoader({
+    importer: (url) => {
+      urls.push(url);
+      return Promise.resolve({ url });
+    },
+    changed: (pkg) => versions.get(pkg),
+  });
+  const filter = { module: "blockr.test/filter.js?v=1", css: "blockr.test/filter.css?v=1" };
+  const loaded = await loader.load(filter, "blockr.test");
+
+  versions.set("blockr.test", { loaded: "1.0.0", now: "1.1.0" });
+  expect(await loader.load(filter, "blockr.test")).toBe(loaded);
+  for (const source of [{ module: "blockr.test/filter.js?v=2", css: "blockr.test/filter.css?v=2" }, { module: "blockr.test/arrange.js?v=1" }]) {
+    const refused = loader.load(source, "blockr.test");
+    await expect(refused).rejects.toBeInstanceOf(ModuleError);
+    await expect(refused).rejects.toThrow(
+      `The module ${source.module.replace(/\?.*$/, "")} of blockr.test is not loaded: R now runs blockr.test 1.1.0, where the page loaded 1.0.0. Reload the page to load it.`,
+    );
+  }
+  await loader.load(head, "blockr.core");
+
+  expect(urls).toEqual(["blockr.test/filter.js?v=1", "blockr.core/head-block.js?v=1"]);
+  const links = [...document.head.querySelectorAll("link[rel=stylesheet]")];
+  expect(links.map((link) => link.getAttribute("href"))).toEqual(["blockr.test/filter.css?v=1", "blockr.core/head-block.css?v=2"]);
+});

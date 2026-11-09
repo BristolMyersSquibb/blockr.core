@@ -82,7 +82,9 @@ The client opens either as it opens any JSON board ([Opening a board](#opening-a
 
 A client that holds a board already, as when the server ended its session while the page lived on, keeps it and its undo history.
 R sends the opening board all the same, which that client does not open.
-A package that R has loaded at another version than before makes the client ask for the page to be reloaded.
+A package that R has loaded at another version than the page loaded makes the client ask for the page to be reloaded, rather than load a second copy of the package.
+Until the page is reloaded, the client keeps using the reply to `hello` that it used before.
+It loads no module of that package that it has not loaded already, since R now serves the files of the new version.
 
 A new session holds no results. So after its `hello`, the client gives every block a new revision, and every block reads `stale` until the new session has evaluated it again ([Scheduling](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.10#scheduling)). The new session answers none of the requests that the session before it held either. The client sends again every output and every request of a block class or an output class that still waits for its reply. Where such a request names a block's old revision, R replies `missing`, and the request goes back to the code that sent it. That code asks again once the blocks are evaluated at their new revisions. The client rejects an evaluation with parameters, an action, and a board option's request or a plugin's that still waits, since they may have run and may write.
 
@@ -93,6 +95,7 @@ R holds no board, and loads no package for one, since installing and loading the
 So no message opens a board: the client opens a JSON board with what R's reply to `hello` holds, its block registry and the versions of the packages R loaded.
 A board that the client opens in place of another starts core again, with a `hello` that starts the session afresh, so that R drops every result and queued request of the board before ([Forgetting blocks](#forgetting-blocks), [Opening a board](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#opening-a-board)).
 The client opens that board with R's reply to that `hello`.
+Where that reply names a package at another version than the page loaded, the client opens the board with the reply that it used before ([The handshake](#the-handshake)).
 
 The client has initialized the startup modules of the packages that R loaded, which register their plugin classes, before it opens the opening board ([Plugins](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.2#plugins)).
 The plugins of the opening board in the reply to `hello`, the board that the app script built, are the plugins of every board that the client opens ([Which plugins a board has](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#which-plugins-a-board-has)).
