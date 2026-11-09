@@ -360,6 +360,41 @@ test_that("R captures what an evaluation writes, bounded", {
   expect_identical(bounded_text("\xff", 10L), "?")
 })
 
+test_that("R bounds the summary that an evaluation's reply carries", {
+
+  session <- local_evaluator()
+
+  local_block_class(static_block, "blockr.core-static_block")
+
+  recipe <- list(
+    registry_id = "blockr.core-static_block",
+    state = list(expression = "structure(1, class = 'summarised')"),
+    inputs = list()
+  )
+
+  reply_summary <- function(text) {
+
+    testthat::local_mocked_s3_method(
+      "result_summary",
+      "summarised",
+      function(result) text
+    )
+
+    session$receive(list(evaluate_request("2", "s", 1L, recipe)))
+    session$run()
+
+    last_reply(session)$summary
+  }
+
+  expect_identical(
+    reply_summary(strrep("x", max_summary_chars() + 10L)),
+    paste0(strrep("x", max_summary_chars()), "\n[ omitted 10 characters ]")
+  )
+
+  expect_identical(reply_summary("\xff"), "?")
+  expect_null(reply_summary(NA_character_))
+})
+
 test_that("R makes a block's output, as the fixtures of outputs have it", {
 
   local_fixture_renderer_urls()

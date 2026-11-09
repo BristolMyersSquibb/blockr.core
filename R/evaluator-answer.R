@@ -111,7 +111,7 @@ answer_evaluate <- function(ev, job) {
   c(
     list(id = job[["id"]], status = res[["status"]]),
     req[["fields"]],
-    list(summary = res[["summary"]]),
+    list(summary = bounded_summary(res[["summary"]])),
     bounded_conditions(res[["conditions"]]),
     list(
       stdout = bounded_text(ran[["stdout"]], max_output_chars()),
@@ -395,6 +395,19 @@ r_condition <- function(cnd) {
   res
 }
 
+# The result's summary, cut to `max` characters, as the standard output is.
+# It stays NULL where there is none.
+# A summary of NA becomes NULL too.
+# Otherwise `bounded_text()` would turn it into the text "NA".
+bounded_summary <- function(summary, max = max_summary_chars()) {
+
+  if (is.null(summary) || is.na(summary)) {
+    return(NULL)
+  }
+
+  bounded_text(summary, max)
+}
+
 # The first few conditions of each severity, as a reply carries them.
 # The others are counted by severity in `omitted`, which counts no errors,
 # since an error ends what raised it.
@@ -429,9 +442,11 @@ condition_reply <- function(x) {
 
 # How much of an evaluation R sends, which is R's to choose:
 # the number of conditions of each severity,
-# and the number of characters of the standard output,
-# of the standard error and of a condition's message.
+# and the number of characters of the result's summary,
+# of the standard output, of the standard error and of a condition's message.
 max_conditions <- function() 5L
+
+max_summary_chars <- function() 1024L
 
 max_output_chars <- function() 65536L
 
