@@ -502,7 +502,7 @@ describe("opening a board", () => {
     expect(viewsOf(store.board())).toEqual({ main: { panels: ["a"] } });
   });
 
-  test("opens a board of a dock app in a core app without its plugins, naming the packages, and dropping what no package registered", async () => {
+  test("opens a board of a dock app in a core app without its plugins, naming the packages, and dropping and naming what no package registered", async () => {
     const store = unopened();
     const dropped = await store.open(
       JSON.stringify({
@@ -520,6 +520,7 @@ describe("opening a board", () => {
       { package: "blockr.dock", version: "0.2.1" },
       { plugin: "dock", class: "blockr.dock-dock_plugin", package: "blockr.dock" },
       { plugin: "dag", class: "blockr.dag-dag_plugin", package: "blockr.dag" },
+      { option: "view_tabs" },
     ]);
 
     const board = store.board();
@@ -850,14 +851,59 @@ describe("opening a board", () => {
     expect(board.stacks).toEqual({ s1: { name: "Input", blocks: ["a", "b"], color: null } });
   });
 
-  test("drops a board option value that its schema refuses, so that it reads as its default", async () => {
+  test("refuses a board that holds a value its schema refuses, a block's state, a plugin's state or a board option's value, naming every such value", async () => {
+    const store = unopened(
+      (store) => store.plugins.register(dock),
+      withPlugins({ dock: plugin(dock, "Dock", { views: {} }) }),
+    );
+    const seen = changes(store);
+
+    await expect(
+      store.open(
+        file({
+          blocks: {
+            a: { registry_id: "blockr.core-dataset_block", state: { dataset: "mtcars" }, name: "Cars", locked: null },
+            b: head(-1),
+          },
+          options: { n_rows: "fifty", show_conditions: ["warning", "error"] },
+          plugins: { dock: plugin(dock, "Dock", { views: [] }) },
+        }),
+      ),
+    ).rejects.toThrow(
+      [
+        "The store refused to open the board",
+        'The state of the block "a" fails its schema: Instance does not have required property "package".',
+        'The state of the block "b" fails its schema at /n: -1 is less than 0.',
+        'The value of the board option "n_rows" fails its schema: Instance type "string" is invalid. Expected "integer".',
+        'The state of the plugin "dock" fails its schema at /views: Instance type "array" is invalid. Expected "object".',
+      ].join("\n- "),
+    );
+    expect(store.hasBoard()).toBe(false);
+    expect(seen).toEqual([]);
+  });
+
+  test("refuses an opening board that holds a value its schema refuses, as an app script gives one", async () => {
+    const store = newStore();
+    const options = { ...hello.board.board.options, n_rows: { value: 0, version: 1 } };
+    const given: HelloReply = { ...hello, board: { ...hello.board, board: { ...hello.board.board, options } } };
+
+    await expect(store.open(given)).rejects.toThrow(
+      'The value of the board option "n_rows" fails its schema: 0 is less than 1.',
+    );
+    expect(store.hasBoard()).toBe(false);
+  });
+
+  test("drops the value of each board option that no package registers, naming the board option, and saves the board without it", async () => {
     const store = unopened();
     const dropped = await store.open(
-      file({ options: { n_rows: "fifty", show_conditions: ["warning", "error"] } }),
+      file({ options: { grid_gap: 4, n_rows: 20, view_tabs: true } }, undefined, { grid_gap: 3 }),
     );
 
-    expect(dropped).toEqual([]);
-    expect(store.board().options).toEqual({ show_conditions: ["warning", "error"], dark_mode: "light" });
+    // The version that the board records of a value that the store drops
+    // refuses nothing.
+    expect(dropped).toEqual([{ option: "grid_gap" }, { option: "view_tabs" }]);
+    expect(store.board().options).toEqual({ n_rows: 20, show_conditions: ["warning", "error"], dark_mode: "light" });
+    expect(Object.keys(store.jsonBoard().board.options)).toEqual(["n_rows", "show_conditions", "dark_mode"]);
   });
 
   test("checks a JSON board's text as it would open it, holding nothing and running nothing that has to run before an opening", async () => {
@@ -899,6 +945,23 @@ describe("opening a board", () => {
     await expect(
       store.check(file({ plugins: { dock: plugin(dock, "Dock", { views: [] }) } })),
     ).rejects.toThrow('The state of the plugin "dock" fails its schema');
+    await expect(
+      store.check(
+        file({
+          blocks: {
+            b: { registry_id: "blockr.core-head_block", state: { n: -1, direction: "head" }, name: "Head", locked: null },
+          },
+          links: {},
+          stacks: {},
+          options: { n_rows: 0 },
+        }),
+      ),
+    ).rejects.toThrow(
+      [
+        'The state of the block "b" fails its schema at /n: -1 is less than 0.',
+        'The value of the board option "n_rows" fails its schema: 0 is less than 1.',
+      ].join("\n- "),
+    );
     expect(store.board()).toBe(board);
 
     // The head block's class at version 2 of its state, which migrates the
@@ -1192,6 +1255,12 @@ describe("migrations", () => {
     );
   });
 
+  test("refuses a board whose block's state fails the schema of its class once migrated, or that no migration converts", async () => {
+    const failure = 'The state of the block "b" fails its schema at /n: Instance type "string" is invalid. Expected "integer".';
+    await expect(store().open(old)).rejects.toThrow(failure);
+    await expect(store((state) => ({ ...state, direction: "tail" })).open(old)).rejects.toThrow(failure);
+  });
+
   test("refuses a JSON board without the versions it records", async () => {
     const opening = store();
     const json = JSON.parse(old) as { board: Record<string, unknown> };
@@ -1255,14 +1324,21 @@ describe("migrating board option values", () => {
     });
   });
 
-  test("keeps a value without a migration, and drops one that then fails its schema", async () => {
+  test("keeps a value without a migration, and refuses a board whose value then fails its schema, as one that a migration returns", async () => {
     const opening = store({ ...seed, migrate: undefined });
     await opening.open(file({ options: { seed: 7 } }, undefined, { seed: 1 }));
     expect(opening.board().options).toEqual({ seed: 7, show_conditions: ["warning", "error"], dark_mode: "light" });
 
     const unfit = store({ ...seed, migrate: undefined });
-    await unfit.open(file({ options: { seed: "seven" } }, undefined, { seed: 1 }));
-    expect(unfit.board().options).toEqual({ show_conditions: ["warning", "error"], dark_mode: "light" });
+    await expect(unfit.open(file({ options: { seed: "seven" } }, undefined, { seed: 1 }))).rejects.toThrow(
+      'The value of the board option "seed" fails its schema: Instance type "string" is invalid. Expected "integer".',
+    );
+    expect(unfit.hasBoard()).toBe(false);
+
+    const halved = store({ ...seed, migrate: (value) => Number(value) / 2 });
+    await expect(halved.open(file({ options: { seed: "7" } }, undefined, { seed: 1 }))).rejects.toThrow(
+      'The value of the board option "seed" fails its schema: Instance type "number" is invalid. Expected "integer".',
+    );
   });
 
   test("refuses a board that holds a value above today's version, or that a migration fails on", async () => {
@@ -1473,6 +1549,9 @@ describe("applying a delta", () => {
     ["a stack holding a block the board lacks", { stacks: { add: { s2: { name: "More", blocks: ["z"], color: null } } } }, /stack "s2" holds block "z", which the board lacks/],
     ["a block in two stacks", { stacks: { add: { s2: { name: "More", blocks: ["a"], color: null } } } }, /block "a" sits in the stacks "s1" and "s2", where it sits in one/],
     ["a board option value its schema refuses", { options: { set: { n_rows: -1 } } }, /value of the board option "n_rows" fails its schema: -1 is less than 1\./],
+    ["a block's state that its class's schema refuses", { blocks: { mod: { b: { state: { n: -1 } } } } }, /state of the block "b" fails its schema at \/n: -1 is less than 0\./],
+    ["unsetting a state arg that its class's schema requires", { blocks: { mod: { b: { unset: ["direction"] } } } }, /state of the block "b" fails its schema: Instance does not have required property "direction"\./],
+    ["a block whose state its class's schema refuses", { blocks: { add: { g: { ...head(), state: { n: 1, size: 2 } } } } }, /state of the block "g" fails its schema/],
     ["a value of a board option no package registered", { options: { set: { nope: 1 } } }, /board option "nope", which no package registered/],
     ["a block of a class the block registry lacks", { blocks: { add: { g: { ...head(), registry_id: "blockr.foo-bar" } } } }, /class "blockr.foo-bar", which the block registry lacks/],
     ["an id made of digits alone", { blocks: { add: { 7: head() } } }, /block id "7" is empty or made of digits alone/],
@@ -1960,13 +2039,15 @@ describe("undo", () => {
 
   test("removes again what a step set where there was none", async () => {
     const store = await opened();
+    // The scatter block's class requires neither of its state args.
+    store.apply({ blocks: { mod: { f: { unset: ["y"] } } } });
     const before = store.board();
 
-    store.apply({ blocks: { mod: { d: { state: { extra: 1 } }, a: { name: "Renamed" } } } });
+    store.apply({ blocks: { mod: { f: { state: { y: "Petal.Width" } }, a: { name: "Renamed" } } } });
     store.undo();
 
     expect(store.board()).toEqual(before);
-    expect(Object.hasOwn(store.board().blocks.d?.state ?? {}, "extra")).toBe(false);
+    expect(Object.hasOwn(store.board().blocks.f?.state ?? {}, "y")).toBe(false);
   });
 
   test("leaves the board option values that its step set or removed, and so does redo, while both take back and apply again the rest of the step", async () => {

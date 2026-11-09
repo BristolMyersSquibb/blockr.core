@@ -14,6 +14,8 @@ export type Dropped = {
     readonly plugin: PluginId;
     readonly class: string;
     readonly package: string | null;
+} | {
+    readonly option: OptionId;
 };
 export declare function parse(text: string): unknown;
 export declare function checkJsonBoard(json: unknown): JsonBoard;
