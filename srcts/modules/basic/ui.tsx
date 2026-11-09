@@ -23,7 +23,9 @@ export const classes = {
   // What sits over the board, as a dialog or a menu does.
   surface: "bc:bg-white bc:text-gray-900 bc:dark:bg-gray-900 bc:dark:text-gray-100",
   // Opaque, since core measures the background behind an output for the plots
-  // that R draws, and reads a translucent one as opaque.
+  // that R draws. The page draws no background behind a card, so core would
+  // blend a translucent card over white. Under a dark theme, the browser draws
+  // the page dark instead.
   card: "bc:bg-gray-50 bc:dark:bg-gray-800",
   heading: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold",
   list: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0",

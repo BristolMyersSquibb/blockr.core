@@ -100,50 +100,87 @@ function watchRatio(fn: () => void): () => void {
   };
 }
 
-// The colour behind the element: its own background or that of the nearest
-// element around it whose background is not transparent.
+// A colour as its red, green and blue, from 0 to 255, and its alpha, from 0
+// to 1.
+type Rgba = readonly [number, number, number, number];
+
+// What core takes to lie behind an element where no element around it has an
+// opaque background: white, as in FALLBACK.
+const WHITE: Rgba = [255, 255, 255, 1];
+
+// The colour behind the element as the page shows it. It blends the element's
+// own background over those of the elements around it, down to the nearest
+// opaque one, or down to white where none is opaque. It is null where a
+// background is a colour that core cannot read.
 function backgroundOf(el: HTMLElement): string | null {
+  const layers: Rgba[] = [];
   for (let at: Element | null = el; at !== null; at = at.parentElement) {
-    const colour = getComputedStyle(at).backgroundColor;
-    if (!transparent(colour)) return hexOf(colour);
+    const value = getComputedStyle(at).backgroundColor;
+    // A test runner gives an element without a background an empty one.
+    if (value === "") continue;
+    const colour = rgbaOf(value);
+    if (colour === null) return null;
+    if (colour[3] > 0) layers.push(colour);
+    if (colour[3] >= 1) break;
   }
-  return null;
+  return hex(layers.reduceRight(over, WHITE));
 }
 
-function transparent(colour: string): boolean {
-  return colour === "" || colour === "transparent" || /^rgba\(.*,\s*0\)$/.test(colour);
+// The colour that a layer shows over an opaque colour behind it, blended in
+// sRGB, as the browser blends them.
+function over(behind: Rgba, [r, g, b, alpha]: Rgba): Rgba {
+  const mix = (front: number, back: number): number => front * alpha + back * (1 - alpha);
+  return [mix(r, behind[0]), mix(g, behind[1]), mix(b, behind[2]), 1];
 }
 
 // A CSS colour as R reads one, as #rrggbb, or null where it is none that core
-// can read. A colour in another notation, such as oklch(), which Tailwind's
-// theme holds, is converted by drawing it, where the page can draw.
+// can read. It drops the alpha of a translucent colour.
 export function hexOf(colour: string): string | null {
-  const text = colour.trim();
-  if (/^#[0-9a-f]{6}$/i.test(text)) return text.toLowerCase();
-  if (/^#[0-9a-f]{3}$/i.test(text)) {
-    const [r, g, b] = [text.charAt(1), text.charAt(2), text.charAt(3)];
-    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
-  }
-  const rgb = /^rgba?\(\s*(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)/.exec(text);
-  if (rgb !== null) return hex(rgb.slice(1, 4).map(Number));
-  return text === "" ? null : drawn(text);
+  const rgba = rgbaOf(colour);
+  return rgba === null ? null : hex(rgba);
 }
 
-function hex(channels: readonly number[]): string {
-  return `#${channels.map((c) => Math.round(Math.min(255, Math.max(0, c))).toString(16).padStart(2, "0")).join("")}`;
+// The notation rgb() and rgba(), with commas or spaces between the channels,
+// and an alpha, if any, after a comma or a slash, as a number or a percentage.
+const RGB = /^rgba?\(\s*(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)(?:\s*[,/]\s*(\d+(?:\.\d+)?)(%?))?\s*\)$/;
+
+// A CSS colour as its channels, or null where it is none that core can read.
+// A colour in another notation, such as oklch(), which Tailwind's theme holds,
+// is converted by drawing it, where the page can draw.
+function rgbaOf(colour: string): Rgba | null {
+  const text = colour.trim();
+  if (text === "") return null;
+  if (text === "transparent") return [0, 0, 0, 0];
+  // The notation #rgb stands for #rrggbb.
+  const long = /^#[0-9a-f]{3}$/i.test(text) ? text.replace(/[0-9a-f]/gi, "$&$&") : text;
+  if (/^#[0-9a-f]{6}$/i.test(long)) {
+    const [r = 0, g = 0, b = 0] = [1, 3, 5].map((at) => parseInt(long.slice(at, at + 2), 16));
+    return [r, g, b, 1];
+  }
+  const rgb = RGB.exec(text);
+  if (rgb !== null) {
+    const [, r = "0", g = "0", b = "0", alpha = "1", percent] = rgb;
+    return [Number(r), Number(g), Number(b), Math.min(1, Number(alpha) / (percent === "%" ? 100 : 1))];
+  }
+  return drawn(text);
+}
+
+// The red, green and blue of a colour as #rrggbb.
+function hex([r, g, b]: Rgba): string {
+  return `#${[r, g, b].map((c) => Math.round(Math.min(255, Math.max(0, c))).toString(16).padStart(2, "0")).join("")}`;
 }
 
 // The colour as the browser draws it into a canvas, in sRGB, or null where the
 // page cannot draw, as in a test runner.
-function drawn(colour: string): string | null {
+function drawn(colour: string): Rgba | null {
   try {
     const context = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
     if (context === null) return null;
     context.fillStyle = "#000000";
     context.fillStyle = colour;
     context.fillRect(0, 0, 1, 1);
-    const [r = 0, g = 0, b = 0] = context.getImageData(0, 0, 1, 1).data;
-    return hex([r, g, b]);
+    const [r = 0, g = 0, b = 0, alpha = 0] = context.getImageData(0, 0, 1, 1).data;
+    return [r, g, b, alpha / 255];
   } catch {
     return null;
   }
