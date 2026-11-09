@@ -83,7 +83,7 @@ export interface StubCoreOptions {
   // R's reply to hello, that of the fixture hello unless given.
   readonly hello?: HelloReply;
   // The values that R holds of blockr options, by name. R holds none unless
-  // given, so that core takes the fallbacks.
+  // given, so that the code that reads them takes its fallbacks.
   readonly blockrOptions?: Readonly<Record<string, Json>>;
   // What each module that core imports exports, by the URL that R serves it
   // at or by the id of a module that packages offer each other, a frontend

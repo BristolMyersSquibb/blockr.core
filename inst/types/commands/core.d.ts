@@ -1,10 +1,11 @@
-import type { Store } from "../store/index.ts";
+import type { RandId, Store } from "../store/index.ts";
 import type { BlockId, Board, LinkId, RegistryId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import type { Command } from "./commands.ts";
 export interface CoreCommandsOptions {
     readonly locked?: boolean;
+    readonly randId?: RandId;
 }
 export declare function coreCommands(store: Store, options?: CoreCommandsOptions): Command<Json, unknown>[];
 export declare function freeInputs(board: Pick<Board, "blocks" | "links">, registry: Readonly<Record<RegistryId, RegistryEntry>>, to: BlockId, except?: LinkId): readonly string[] | undefined;

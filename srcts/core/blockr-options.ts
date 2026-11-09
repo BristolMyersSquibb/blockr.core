@@ -7,41 +7,43 @@
 //   task, go in one request.
 // - Core keeps each value for the page, since a blockr option is fixed for the
 //   app.
-// - Code reads a blockr option with a fallback, which it takes where R has no
-//   value. R sends a value as it is set, so that one an environment variable
-//   sets arrives as a string, which core converts to the fallback's type, a
-//   number or a logical. R writes Inf as null, which core reads as Infinity
-//   where the fallback is a number.
-// - Once core has stopped, as where R speaks another major of the protocol, a
-//   read that R did not answer takes its fallback, and core reports nothing.
+// - A read gives the value as R sent it, or undefined where nothing sets the
+//   blockr option. The code that reads it converts and checks the value, and
+//   takes a fallback of its own where nothing sets it. R sends a value as it is
+//   set, so that one an environment variable sets arrives as a string, and
+//   writes Inf, NA and NaN as null.
+// - A read fails with R's message where R replies error, as for a blockr option
+//   whose R option and environment variable disagree.
 
 import { SessionEndedError } from "../protocol/index.ts";
 import type { Client } from "../protocol/index.ts";
 import type { Json } from "../types/json.ts";
-import { messageOf, quoted, report } from "../util/index.ts";
+import { messageOf, quoted } from "../util/index.ts";
 
 export interface BlockrOptions {
-  // The blockr option's value, asked of R once per page, or the fallback where
-  // R has none.
-  read<T extends Json>(name: string, fallback: T): Promise<T>;
+  // The blockr option's value as R sent it, asked of R once per page, or
+  // undefined where nothing sets it. It rejects where R cannot give the value.
+  read(name: string): Promise<Json | undefined>;
 }
 
-// What R sent for a blockr option, or null where it sent nothing.
-type Found = { readonly value: Json } | null;
+// How a read in a batch is settled, once R has replied.
+interface Settle {
+  readonly resolve: (value: Json | undefined) => void;
+  readonly reject: (error: Error) => void;
+}
 
-// The signal aborts as core stops.
-export function createBlockrOptions(client: Pick<Client, "request">, signal?: AbortSignal): BlockrOptions {
-  const found = new Map<string, Promise<Found>>();
+export function createBlockrOptions(client: Pick<Client, "request">): BlockrOptions {
+  const found = new Map<string, Promise<Json | undefined>>();
   // The names that code has read in this task, which go to R together once it
   // ends.
-  let batch: Map<string, (value: Found) => void> | undefined;
+  let batch: Map<string, Settle> | undefined;
 
-  function ask(name: string): Promise<Found> {
+  function ask(name: string): Promise<Json | undefined> {
     let asked = found.get(name);
     if (asked === undefined) {
-      asked = new Promise<Found>((resolve) => {
+      asked = new Promise<Json | undefined>((resolve, reject) => {
         if (batch === undefined) {
-          const sending = new Map<string, (value: Found) => void>();
+          const sending = new Map<string, Settle>();
           batch = sending;
           // A promise rather than a microtask, which core reports errors from.
           void Promise.resolve().then(() => {
@@ -49,40 +51,39 @@ export function createBlockrOptions(client: Pick<Client, "request">, signal?: Ab
             void send(sending);
           });
         }
-        batch.set(name, resolve);
+        batch.set(name, { resolve, reject });
       });
       found.set(name, asked);
     }
     return asked;
   }
 
-  async function send(names: ReadonlyMap<string, (value: Found) => void>): Promise<void> {
+  async function send(names: ReadonlyMap<string, Settle>): Promise<void> {
     const asked = [...names.keys()];
     let values: Readonly<Record<string, Json>>;
     try {
       values = await valuesOf(client, asked);
     } catch (error) {
-      if (signal?.aborted !== true) {
-        report(new Error(`R sent no values of the blockr options ${quoted(asked)}, so core takes their fallbacks: ${messageOf(error)}`, { cause: error }));
-      }
-      // They are asked again the next time code reads them.
+      const failure = new Error(`R sent no values of the blockr options ${quoted(asked)}: ${messageOf(error)}`, { cause: error });
+      // Each read fails, and the names are asked again the next time code
+      // reads them.
       for (const [name, settle] of names) {
         found.delete(name);
-        settle(null);
+        settle.reject(failure);
       }
       return;
     }
     for (const [name, settle] of names) {
-      settle(Object.hasOwn(values, name) ? { value: values[name] ?? null } : null);
+      settle.resolve(Object.hasOwn(values, name) ? (values[name] ?? null) : undefined);
     }
   }
 
   return {
-    async read<T extends Json>(name: string, fallback: T): Promise<T> {
+    async read(name: string): Promise<Json | undefined> {
       if (typeof name !== "string" || name === "") {
         throw new TypeError("A blockr option is read by its name, a non-empty string.");
       }
-      return converted(name, await ask(name), fallback);
+      return ask(name);
     },
   };
 }
@@ -100,49 +101,9 @@ async function valuesOf(client: Pick<Client, "request">, names: string[]): Promi
       throw error;
     }
     if (reply.status !== "ok" || !("values" in reply)) {
-      throw new Error(`R replied ${reply.status}.`);
+      const said = "conditions" in reply ? reply.conditions.map((c) => c.message).join(" ") : "";
+      throw new Error(`R replied ${reply.status}. ${said}`.trim());
     }
     return reply.values;
   }
-}
-
-// The value as code reads it: the fallback where R sent none, a string or null
-// converted where the fallback is a number or a logical, and otherwise the
-// value as R sent it.
-function converted<T extends Json>(name: string, found: Found, fallback: T): T {
-  if (found === null) return fallback;
-  const { value } = found;
-  if (typeof fallback === "number") {
-    if (value === null) return Infinity as T;
-    const number = typeof value === "string" ? numberOf(value) : value;
-    if (typeof number === "number" && !Number.isNaN(number)) return number as T;
-  } else if (typeof fallback === "boolean") {
-    const logical = typeof value === "string" ? logicalOf(value) : value;
-    if (typeof logical === "boolean") return logical as T;
-  } else if (typeof fallback === "string") {
-    if (typeof value === "string") return value as T;
-  } else {
-    return value as T;
-  }
-  report(
-    new Error(
-      `The blockr option ${name} is ${JSON.stringify(value)}, which is no ${typeof fallback}, so core takes its fallback ${JSON.stringify(fallback)}.`,
-    ),
-  );
-  return fallback;
-}
-
-// A number as R's as.numeric() reads one from text, or NaN.
-function numberOf(text: string): number {
-  const trimmed = text.trim();
-  if (/^[+-]?inf(inity)?$/i.test(trimmed)) return trimmed.startsWith("-") ? -Infinity : Infinity;
-  return trimmed === "" ? NaN : Number(trimmed);
-}
-
-// A logical as R's as.logical() reads one from text, or undefined.
-function logicalOf(text: string): boolean | undefined {
-  const trimmed = text.trim();
-  if (["TRUE", "true", "True", "T"].includes(trimmed)) return true;
-  if (["FALSE", "false", "False", "F"].includes(trimmed)) return false;
-  return undefined;
 }

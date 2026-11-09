@@ -3,8 +3,9 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#starting-the-page):
 // 1. The protocol's client sends each session's hello as R starts the session.
 // 2. Once R has answered the first, core asks R for the blockr options that its
-//    scheduler reads, and creates for the board that it opens the store, the
-//    command registry with core's board options, the scheduler and CoreApi.
+//    scheduler reads and for rand_id, the shape of the ids that its commands
+//    mint, and creates for the board that it opens the store, the command
+//    registry with core's board options, the scheduler and CoreApi.
 // 3. It initializes the startup module of every package that R has loaded, one
 //    at a time in R's order, awaiting each initialize(). It names one that
 //    fails and carries on.
@@ -109,8 +110,10 @@ export interface StartOptions {
   // another version, rather than load a second copy of it.
   readonly reload?: (changed: readonly Changed[]) => void;
   // Shows why core cannot start, or why it stopped, as where R speaks another
-  // major of the protocol in the first session or a later one, or why no board
-  // is open once another failed to open.
+  // major of the protocol in the first session or a later one, or cannot give
+  // a blockr option that core reads as it starts, or gives one that the
+  // scheduler or the command registry does not take, or why no board is open
+  // once another failed to open.
   readonly fail?: (error: Error) => void;
 }
 
@@ -182,7 +185,7 @@ export function start(options: StartOptions): Started {
       heard(reply);
     },
   });
-  const blockrOptions = createBlockrOptions(client, page.signal);
+  const blockrOptions = createBlockrOptions(client);
   const loader = createLoader({
     ...options.loader,
     modules: () => latest?.modules ?? {},
@@ -295,12 +298,16 @@ export function start(options: StartOptions): Started {
       { once: true },
     );
 
-    // The blockr options that the scheduler reads, asked at once, in one
-    // request, before the scheduler starts, and kept for the page.
-    const [evaluationQueue, backgroundEvaluationDelay, gateVisibility] = await Promise.all([
-      blockrOptions.read("evaluation_queue", 2),
-      blockrOptions.read("background_evaluation_delay", Infinity),
-      blockrOptions.read("gate_visibility", true),
+    // The blockr options that the scheduler reads, and rand_id, the shape of
+    // the ids that core's commands mint, asked at once, in one request, before
+    // the scheduler starts and the commands run, and kept for the page.
+    // Each goes as R sent it to the scheduler or the command registry, which
+    // converts and checks it, and takes its fallback where nothing sets it.
+    const [evaluationQueue, backgroundEvaluationDelay, gateVisibility, randId] = await Promise.all([
+      blockrOptions.read("evaluation_queue"),
+      blockrOptions.read("background_evaluation_delay"),
+      blockrOptions.read("gate_visibility"),
+      blockrOptions.read("rand_id"),
     ]);
 
     const store: Store = createStore({
@@ -308,8 +315,8 @@ export function start(options: StartOptions): Started {
       loaded: () => prepare(),
       signal,
     });
-    const commands = createCommands(store, { signal, lock: reply.lock });
-    for (const option of options.options({ blockrOption: (name, fallback) => blockrOptions.read(name, fallback) })) {
+    const commands = createCommands(store, { signal, lock: reply.lock, randId });
+    for (const option of options.options({ blockrOption: (name) => blockrOptions.read(name) })) {
       store.options.register(option);
     }
     // R binds inputs itself for the board that it sent alone.
@@ -394,7 +401,7 @@ export function start(options: StartOptions): Started {
       if (signal.aborted) break;
       try {
         const source = entry.css === undefined ? { module: entry.module } : { module: entry.module, css: entry.css };
-        const mod = startupOf(await loader.load(source, entry.package), entry.module, entry.package);
+        const mod = asStartupModule(await loader.load(source, entry.package), entry.module, entry.package);
         let result: unknown;
         try {
           result = await mod.initialize({ core, signal });
@@ -548,7 +555,7 @@ interface StartupModule {
   initialize(args: { core: CoreApi; signal: AbortSignal }): unknown;
 }
 
-function startupOf(exports: unknown, module: string, pkg: string): StartupModule {
+function asStartupModule(exports: unknown, module: string, pkg: string): StartupModule {
   if (!isObject(exports) || typeof exports.api !== "number") {
     throw new ModuleError(module, pkg, "declares no major of core's JS API, as `export const api = 1`.");
   }

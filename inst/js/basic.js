@@ -1152,7 +1152,7 @@ function Page() {
   const board = useBoard(core);
   const items = useMemo2(() => itemsOf(board), [board]);
   const shown = board.options.show_conditions;
-  const severities = useMemo2(() => severitiesOf(shown), [shown]);
+  const severities = useMemo2(() => asSeverities(shown), [shown]);
   const [dialog, setDialog] = useState7(null);
   const add = useCallback4((mode) => {
     setDialog({ kind: "add", mode });
@@ -1226,9 +1226,14 @@ function Notices() {
     notice.id
   )) });
 }
-function severitiesOf(value2) {
-  if (!Array.isArray(value2)) return [];
-  return value2.filter((severity) => severity === "error" || severity === "warning" || severity === "message");
+function asSeverities(value2) {
+  if (Array.isArray(value2) && value2.every(isSeverity)) return value2;
+  throw new TypeError(
+    `The board option show_conditions is ${JSON.stringify(value2)}, where the board takes an array of "message", "warning" and "error".`
+  );
+}
+function isSeverity(value2) {
+  return value2 === "error" || value2 === "warning" || value2 === "message";
 }
 
 // srcts/modules/basic/demand.ts

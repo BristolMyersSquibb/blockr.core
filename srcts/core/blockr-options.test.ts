@@ -1,5 +1,5 @@
 // Reading blockr options: once per page, the names read at once in one
-// request, with the value converted to the fallback's type.
+// request, with the value as R sent it.
 
 import { describe, expect, test } from "vitest";
 import { SessionEndedError } from "../protocol/index.ts";
@@ -40,57 +40,31 @@ describe("reading a blockr option", () => {
   test("asks R for the names read at once in one request, and for each name once per page", async () => {
     const r = asked();
     const options = createBlockrOptions(r.client);
-    const reads = [options.read("evaluation_queue", 2), options.read("gate_visibility", true), options.read("evaluation_queue", 2)];
+    const reads = [options.read("evaluation_queue"), options.read("gate_visibility"), options.read("evaluation_queue")];
     await flush();
     expect(r.requests.map(({ names }) => names)).toEqual([["evaluation_queue", "gate_visibility"]]);
 
     r.answer(0, { evaluation_queue: 3 });
-    await expect(Promise.all(reads)).resolves.toEqual([3, true, 3]);
+    await expect(Promise.all(reads)).resolves.toEqual([3, undefined, 3]);
 
-    await expect(options.read("evaluation_queue", 2)).resolves.toBe(3);
+    await expect(options.read("evaluation_queue")).resolves.toBe(3);
     expect(r.requests).toHaveLength(1);
   });
 
-  test("converts a string, as an environment variable gives it, to the fallback's type, and null to Infinity for a number", async () => {
+  test("gives the value as R sent it, a string that an environment variable sets among them, and undefined where nothing sets it", async () => {
     const r = asked();
     const options = createBlockrOptions(r.client);
-    const reads = Promise.all([
-      options.read<Json>("delay", Infinity),
-      options.read<Json>("queue", 2),
-      options.read<Json>("gate", true),
-      options.read<Json>("off", true),
-      options.read<Json>("never", 1),
-      options.read<Json>("theme", null),
-      options.read<Json>("severities", ["warning"]),
-      options.read<Json>("path", "."),
-    ]);
+    const reads = Promise.all(["delay", "queue", "gate", "missing", "theme", "severities", "unset"].map((name) => options.read(name)));
     await flush();
-    r.answer(0, { delay: "30", queue: " 4 ", gate: "FALSE", off: "T", never: null, theme: true, severities: "error", path: "/data" });
+    r.answer(0, { delay: "30", queue: "-1", gate: "FALSE", missing: null, theme: true, severities: ["error"] });
 
-    await expect(reads).resolves.toEqual([30, 4, false, true, Infinity, true, "error", "/data"]);
-  });
-
-  test("takes the fallback where R sends no value, and reports one it cannot convert", async () => {
-    const r = asked();
-    const options = createBlockrOptions(r.client);
-    const reads = Promise.all([options.read("queue", 2), options.read("gate", true), options.read("width", 80)]);
-    await flush();
-    const reported = reports();
-    r.answer(0, { gate: "maybe", width: "" });
-    const values = await reads;
-    reported.restore();
-
-    expect(values).toEqual([2, true, 80]);
-    expect(reported.errors().map(String)).toEqual([
-      'Error: The blockr option gate is "maybe", which is no boolean, so core takes its fallback true.',
-      'Error: The blockr option width is "", which is no number, so core takes its fallback 80.',
-    ]);
+    await expect(reads).resolves.toEqual(["30", "-1", "FALSE", null, true, ["error"], undefined]);
   });
 
   test("asks the next session where the session ends before R replies", async () => {
     const r = asked();
     const options = createBlockrOptions(r.client);
-    const read = options.read("queue", 2);
+    const read = options.read("queue");
     await flush();
     r.requests[0]?.settle({ error: new SessionEndedError("2") });
     await flush();
@@ -99,40 +73,61 @@ describe("reading a blockr option", () => {
     await expect(read).resolves.toBe(5);
   });
 
-  test("takes the fallback where R cannot answer, and asks again the next time it is read", async () => {
+  test("fails every read of a request that R replies error to, with R's message", async () => {
     const r = asked();
     const options = createBlockrOptions(r.client);
-    const read = options.read("queue", 2);
+    const reads = [options.read("queue"), options.read("gate")];
     await flush();
-    const reported = reports();
-    r.requests[0]?.settle({ error: new Error("The transport is closed.") });
-    await expect(read).resolves.toBe(2);
-    reported.restore();
-    expect(reported.errors()).toHaveLength(1);
+    r.requests[0]?.settle({
+      reply: {
+        id: "0",
+        status: "error",
+        conditions: [
+          {
+            severity: "error",
+            class: ["conflicing_blockr_option", "blockr_error", "rlang_error", "error", "condition"],
+            message: "Conflicting options set for queue: check environment variable BLOCKR_QUEUE and option blockr.queue.",
+          },
+        ],
+      },
+    });
 
-    const again = options.read("queue", 2);
+    for (const read of reads) {
+      await expect(read).rejects.toThrow(
+        'R sent no values of the blockr options "queue" and "gate": R replied error. Conflicting options set for queue: check environment variable BLOCKR_QUEUE and option blockr.queue.',
+      );
+    }
+  });
+
+  test("fails the reads where R cannot answer, and asks again the next time they are read", async () => {
+    const r = asked();
+    const options = createBlockrOptions(r.client);
+    const read = options.read("queue");
+    await flush();
+    r.requests[0]?.settle({ error: new Error("The transport is closed.") });
+    await expect(read).rejects.toThrow('R sent no values of the blockr options "queue": The transport is closed.');
+
+    const again = options.read("queue");
     await flush();
     expect(r.requests).toHaveLength(2);
     r.answer(1, { queue: 7 });
     await expect(again).resolves.toBe(7);
   });
 
-  test("takes the fallback where R cannot answer once core has stopped, and reports nothing", async () => {
+  test("fails a read that R cannot answer once core has stopped, and reports nothing itself", async () => {
     const r = asked();
-    const stopping = new AbortController();
-    const options = createBlockrOptions(r.client, stopping.signal);
-    const read = options.read("queue", 2);
+    const options = createBlockrOptions(r.client);
+    const read = options.read("queue");
     await flush();
     const reported = reports();
-    stopping.abort();
     r.requests[0]?.settle({ error: new Error("The client sends R nothing.") });
-    await expect(read).resolves.toBe(2);
+    await expect(read).rejects.toThrow('R sent no values of the blockr options "queue": The client sends R nothing.');
     reported.restore();
     expect(reported.errors()).toEqual([]);
   });
 
   test("refuses a name that is no non-empty string", async () => {
     const options = createBlockrOptions(asked().client);
-    await expect(options.read("", 1)).rejects.toThrow("A blockr option is read by its name");
+    await expect(options.read("")).rejects.toThrow("A blockr option is read by its name");
   });
 });

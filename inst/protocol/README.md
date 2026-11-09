@@ -120,9 +120,23 @@ The client reads a blockr option by asking R for it, since it can read neither a
 |---|---|
 | `names` | the blockr options to read, as `["evaluation_queue", "gate_visibility"]` |
 
-R replies `ok` with the value of each that it has one for, as `blockr_option()` reads it, in `values`, by name, and leaves out the others, for which the client takes the fallback its code gives. R sends a value as it is set, so that one set through an environment variable arrives as a string, which the client converts to its fallback's type, and writes `Inf` as `null` ([Encoding](#encoding)), which the client reads as `Infinity` where its fallback is a number. R answers for any blockr option, since a client can read whatever the R process can ([State in JS](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1#proposal)).
+R replies `ok` with the value of each that it has one for, as `blockr_option()` reads it, in `values`, by name, and sends no value for the others, which nothing sets.
+R sends a value as it is set, so that one set through an environment variable arrives as a string, and writes `Inf`, `NA` and `NaN` as `null` ([Encoding](#encoding)).
+R answers for any blockr option, since a client can read whatever the R process can ([State in JS](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1#proposal)).
 
-The client asks for a blockr option once per page, the first time its code reads it through `CoreApi.blockrOption()`, and keeps the value, since a blockr option is fixed for the app. Core asks for those its scheduler reads, `evaluation_queue`, `background_evaluation_delay` and `gate_visibility`, as soon as R has answered its `hello`, so that they are there before the scheduler starts ([Scheduling](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.10#scheduling)).
+R replies `error` to the request where it cannot give one of the values.
+It cannot give a value where `blockr_option()` refuses the blockr option, as where its R option and its environment variable disagree, nor where yyjsonr cannot write the value, as for a function, and the error then names the blockr option.
+R checks nothing else: it writes every other value as yyjsonr writes it, so that a date arrives as a string.
+The client then fails every read in the request, with R's message.
+
+The client gives each value to the code that reads the blockr option as R sent it, and that code converts and checks it.
+It reads a string, as an environment variable gives, as the number or the logical that it holds, and a value that it then does not take fails, such as `"a"` or `null` for `evaluation_queue`.
+Since JSON holds no infinite number, -1 stands for no limit where a blockr option of core has one, as `evaluation_queue` and `background_evaluation_delay` do.
+So the code takes a fallback of its own only where nothing sets the blockr option, and never in place of a value that was set ([Blockr options](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.13#blockr-options)).
+
+The client asks for a blockr option once per page, the first time its code reads it through `CoreApi.blockrOption()`, and keeps the value, since a blockr option is fixed for the app.
+Core asks for those its scheduler reads, `evaluation_queue`, `background_evaluation_delay` and `gate_visibility`, as soon as R has answered its `hello`, so that they are there before the scheduler starts ([Scheduling](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.10#scheduling)).
+It asks for `rand_id`, the shape of the ids that core's commands mint, in the same request ([Ids](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.1#ids)).
 
 ## Evaluating a block
 
@@ -383,7 +397,7 @@ Each file in [`fixtures/`](fixtures/) holds a message that the client sends, in 
 | [`hello-block`](fixtures/hello-block.json) | the handshake of an app that serves a block alone, with `bound` |
 | [`hello-file`](fixtures/hello-file.json) | the handshake of an app that serves a JSON board |
 | [`hello-declared`](fixtures/hello-declared.json) | the handshake of an app whose script loaded a package that declares modules, with what R builds from what is registered and declared, and the URLs it serves each file at |
-| [`blockr-options`](fixtures/blockr-options.json) | reading blockr options, one set as an R option, one through an environment variable and one not set |
+| [`blockr-options`](fixtures/blockr-options.json) | reading blockr options, one set as an R option, one through an environment variable and two not set |
 | [`evaluate`](fixtures/evaluate.json) | an evaluation of a block with two inputs |
 | [`evaluate-warning`](fixtures/evaluate-warning.json) | an evaluation that raises a warning |
 | [`evaluate-variadic`](fixtures/evaluate-variadic.json) | an evaluation of a variadic block |

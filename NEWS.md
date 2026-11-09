@@ -294,6 +294,18 @@
   A script that passes another argument to either constructor fails at that call, as a block constructor fails for a misspelled state arg.
   Until now, `blockr_ser()` dropped what `...` added without a word, since a JSON board has no place for it.
   A stack given as a list fails as well for an entry other than `blocks`, `name` and `color`, which `as_stack()` dropped until now (#511).
+* Core's client fails to read a blockr option where it cannot get the value that was set, rather than take the fallback of the code that reads it.
+  A read fails where R replies `error` to the request, with R's message, as for a blockr option whose R option and environment variable disagree.
+  R writes every value that the client asks for as yyjsonr writes it, whatever its class, and replies `error`, naming the blockr option, where yyjsonr cannot write the value, as for a function.
+  The client's `CoreApi.blockrOption()` takes no fallback: it gives the value as R sent it, or `undefined` where nothing sets the blockr option, and the code that reads the blockr option converts and checks the value, and takes a fallback of its own only where nothing sets it.
+  Core's code reads a string, as an environment variable gives, as the number or the logical that it holds, and fails on an `evaluation_queue` that is then no whole number of 0 or more nor -1, a `background_evaluation_delay` that is no number of 0 or more nor -1, a `gate_visibility` that is neither `TRUE` nor `FALSE`, a `rand_id` that names no shape, and a value of `n_rows`, `show_conditions` or `dark_mode` that the board option's schema refuses.
+  Where core reads the blockr option as it starts, core does not start, and the page shows why (#510).
+* The blockr options `evaluation_queue` and `background_evaluation_delay` take -1 in place of `Inf`, for no limit and for no evaluation in the background, since JSON holds no infinite number and R writes `Inf` as `null`, which they refuse (#510).
+* The blockr options `attach_default_packages`, `log_time` and `log_mem` read a string, as an environment variable gives, as `as.logical()` reads it.
+  Until now, `isTRUE()` read the string as `FALSE`, so that `BLOCKR_LOG_MEM=TRUE`, for one, did nothing.
+  A value that `as.logical()` reads as neither `TRUE` nor `FALSE` fails, naming the blockr option (#510).
+* Core's client asks R for `rand_id` with the blockr options that its scheduler reads, as soon as R has answered its hello, and core's commands mint ids in the shape that `rand_id` names, as `rand_names()` draws them in R (#510).
+* Core's basic frontend, its table renderer and the file browser block fail on a value that they cannot read, rather than show a default in its place: an `n_rows` that is no whole number of at least 1, a `show_conditions` that is no array of severities, volumes that are no object of paths, and an answer of `list_dir` that lists no `dirs` and `files` (#510).
 * An app sets three locks, each on its own, where it set one until now (see `?"locked-board"`).
   The load lock, the blockr option `lock_load`, fixes the app to its opening board.
   The client's store then opens no JSON board's text, and core keeps the board that R sent where a startup module names another.

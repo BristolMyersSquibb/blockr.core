@@ -758,30 +758,20 @@ test_that("R reads blockr options, as the fixture blockr-options has it", {
   withr::local_options(
     blockr.evaluation_queue = 3L,
     blockr.background_evaluation_delay = NULL,
-    blockr.gate_visibility = NULL
+    blockr.gate_visibility = NULL,
+    blockr.rand_id = NULL
   )
 
   withr::local_envvar(
     BLOCKR_BACKGROUND_EVALUATION_DELAY = "30",
     BLOCKR_GATE_VISIBILITY = NA,
-    BLOCKR_EVALUATION_QUEUE = NA
+    BLOCKR_EVALUATION_QUEUE = NA,
+    BLOCKR_RAND_ID = NA
   )
 
   session <- local_evaluator()
 
   expect_fixture_replies(session, "blockr-options")
-
-  withr::local_options(blockr.renderers = function() NULL)
-
-  session$receive(
-    list(list(id = "3", kind = "blockr_options", names = "renderers"))
-  )
-  session$run()
-
-  reply <- last_reply(session)
-
-  expect_identical(reply$status, "error")
-  expect_identical(condition_class(reply), "blockr_option_unsendable")
 
   session$receive(list(list(id = "4", kind = "blockr_options", names = list())))
   session$run()
@@ -789,6 +779,78 @@ test_that("R reads blockr options, as the fixture blockr-options has it", {
   expect_identical(
     last_reply(session),
     list(id = "4", status = "ok", values = set_names(list(), character()))
+  )
+})
+
+test_that("R writes a blockr option as yyjsonr does, or fails naming it", {
+
+  withr::local_options(
+    blockr.release = as.Date("2026-11-09"),
+    blockr.renderers = list(table_output = function() NULL)
+  )
+
+  session <- local_evaluator()
+
+  session$receive(
+    list(list(id = "2", kind = "blockr_options", names = "release"))
+  )
+  session$run()
+
+  expect_identical(
+    sent_json(session),
+    list(
+      list(list(id = "2", status = "ok", values = list(release = "2026-11-09")))
+    )
+  )
+
+  session$receive(
+    list(
+      list(
+        id = "3",
+        kind = "blockr_options",
+        names = c("release", "renderers")
+      )
+    )
+  )
+  session$run()
+
+  reply <- last_reply(session)
+
+  expect_identical(reply$status, "error")
+  expect_identical(condition_class(reply), "blockr_option_unwritable")
+  expect_match(
+    reply$conditions[[1L]]$message,
+    "R cannot write blockr option renderers as JSON:",
+    fixed = TRUE
+  )
+})
+
+test_that("R replies error for a blockr option it cannot read", {
+
+  withr::local_options(blockr.evaluation_queue = 3L)
+  withr::local_envvar(BLOCKR_EVALUATION_QUEUE = "3")
+
+  session <- local_evaluator()
+
+  session$receive(
+    list(
+      list(
+        id = "2",
+        kind = "blockr_options",
+        names = c("evaluation_queue", "gate_visibility")
+      )
+    )
+  )
+  session$run()
+
+  reply <- last_reply(session)
+
+  expect_identical(reply$status, "error")
+  expect_identical(condition_class(reply), "conflicing_blockr_option")
+  expect_match(
+    reply$conditions[[1L]]$message,
+    "Conflicting options set for evaluation_queue",
+    fixed = TRUE
   )
 })
 

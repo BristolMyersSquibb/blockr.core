@@ -576,6 +576,34 @@ describe("plugins", () => {
   });
 });
 
+describe("ids", () => {
+  test("core's commands mint the ids of blocks, links and stacks in the shape that rand_id names", async () => {
+    const store = await openedStore();
+    const commands = createCommands(store, { randId: "letters_8" });
+    const board = store.board();
+
+    await commands.run("blockr.core-append_block", { from: "d", registry_id: head });
+    await commands.run("blockr.core-add_stack");
+
+    const minted = [
+      ...added(board.blocks, store.board().blocks),
+      ...added(board.links, store.board().links),
+      ...added(board.stacks, store.board().stacks),
+    ];
+    expect(minted).toHaveLength(3);
+    for (const id of minted) expect(id).toMatch(/^[a-z]{8}$/);
+  });
+
+  test("the command registry refuses a rand_id that names no shape", async () => {
+    const store = await openedStore();
+    expect(() => createCommands(store, { randId: "counter" })).toThrow(
+      'The blockr option rand_id is "counter", where it takes one of "adjective_animal", "adjective_adjective_animal", "letters_6", "letters_8", "letters_12", "bytes_4", "bytes_8" and "uuid".',
+    );
+    expect(() => createCommands(store, { randId: 3 })).toThrow("The blockr option rand_id is 3, where it takes one of");
+    expect(() => createCommands(store, { randId: null })).toThrow("The blockr option rand_id is null, where it takes one of");
+  });
+});
+
 describe("the schemas", () => {
   test("a block's id is neither empty nor made of digits alone", async () => {
     const { commands } = await setup();

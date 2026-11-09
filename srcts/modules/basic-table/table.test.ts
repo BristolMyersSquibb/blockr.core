@@ -22,6 +22,15 @@ describe("where a page sits", () => {
     expect(pageOf(table(1, 7), { page: 3 }, 3)).toEqual({ page: 3, first: 7, rows: 1, last: 3, more: false });
   });
 
+  test("holds every row where nothing gives n_rows, and fails on an n_rows that is no count", () => {
+    expect(pageOf(table(7, 7), {}, undefined)).toMatchObject({ rows: 7, last: 1, more: false });
+    for (const nRows of [0, 2.5, "3", null, [3]]) {
+      expect(() => pageOf(table(3, 7), {}, nRows)).toThrow(
+        `The board option n_rows is ${JSON.stringify(nRows)}, where a table pages by a whole number of at least 1.`,
+      );
+    }
+  });
+
   test("takes a page with fewer rows than a page holds for the last where the total is unknown", () => {
     expect(pageOf(table(3, null), {}, 3)).toMatchObject({ last: null, more: true });
     expect(pageOf(table(2, null), { page: 2 }, 3)).toMatchObject({ first: 4, last: null, more: false });

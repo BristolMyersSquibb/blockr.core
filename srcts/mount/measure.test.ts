@@ -3,7 +3,7 @@
 // translucent background over those behind it.
 
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { domMeasure, hexOf } from "./measure.ts";
+import { domMeasure, asHex } from "./measure.ts";
 
 // An element that lays out at 100 by 50 inside elements with the backgrounds
 // given, from the outermost in, the last of which is its own.
@@ -82,13 +82,13 @@ describe("the colour behind an output", () => {
   });
 });
 
-describe("hexOf()", () => {
+describe("asHex()", () => {
   test("reads #rgb, #rrggbb, rgb() and rgba() without drawing them, and drops their alpha", () => {
     const colours = ["#AbC", "#aabbcc", "rgb(170, 187, 204)", "rgba(170, 187, 204, 0.5)", "rgb(170 187 204 / 50%)"];
-    expect(colours.map(hexOf)).toEqual(colours.map(() => "#aabbcc"));
+    expect(colours.map(asHex)).toEqual(colours.map(() => "#aabbcc"));
   });
 
   test("is null for an empty colour, and for one in another notation where the page cannot draw", () => {
-    expect(["", "oklch(0.5 0.1 200)"].map(hexOf)).toEqual([null, null]);
+    expect(["", "oklch(0.5 0.1 200)"].map(asHex)).toEqual([null, null]);
   });
 });
