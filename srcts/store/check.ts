@@ -1,14 +1,15 @@
 // The checks a board passes after every delta and as it opens,
 // each failure in a sentence: the invariants of core's objects,
 // as R's validate_links() and the board's checks did,
-// the schemas of the board options, and the plugins: their classes, the
-// schemas of their states, and at most one frontend and one storage plugin.
+// the schemas of the blocks' states and of the board options, and the
+// plugins: their classes, the schemas of their states, and at most one
+// frontend and one storage plugin.
 // Where a delta changed only some objects, their shapes and schemas
 // are checked alone, since nothing else can have broken them,
 // while the invariants run on the whole board every time.
-// As the board opens, the store checks the state of each block against the
-// schema of its class, while core's commands check the state that they set
-// (srcts/commands/core.ts).
+// A delta that skips core's commands is checked as one that runs through
+// them, so that no delta leaves a value that would keep the board from
+// opening again.
 
 import { graphOf } from "../graph/index.ts";
 import type { Board, RegistryId } from "../types/board.ts";
@@ -103,7 +104,6 @@ function checkBlocks(
       );
       continue;
     }
-    if (changed !== undefined) continue;
     for (const failure of stateFailures(entry, block.state)) {
       failures.push(`The state of the block "${id}" ${failure}`);
     }

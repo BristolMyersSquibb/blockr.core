@@ -132,7 +132,7 @@ Its module ships the shape as a JSON Schema in a file beside it, such as `head-b
 R reads the schema when the package registers the class, and the schema's properties have to be the class's state args.
 When an app script builds a board, R writes the state of each block by the schema.
 So a vector of length one stays an array where the schema has one.
-R also sends the schema to the client, where the command that sets a block's state refuses an edit that the schema refuses.
+R also sends the schema to the client, which refuses an edit of a block's state that the schema refuses.
 
 The class's author writes `expr` against what R makes of that JSON.
 R decodes the state that the client sends into plain values:

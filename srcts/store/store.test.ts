@@ -1515,6 +1515,9 @@ describe("applying a delta", () => {
     ["a stack holding a block the board lacks", { stacks: { add: { s2: { name: "More", blocks: ["z"], color: null } } } }, /stack "s2" holds block "z", which the board lacks/],
     ["a block in two stacks", { stacks: { add: { s2: { name: "More", blocks: ["a"], color: null } } } }, /block "a" sits in the stacks "s1" and "s2", where it sits in one/],
     ["a board option value its schema refuses", { options: { set: { n_rows: -1 } } }, /value of the board option "n_rows" fails its schema: -1 is less than 1\./],
+    ["a block's state that its class's schema refuses", { blocks: { mod: { b: { state: { n: -1 } } } } }, /state of the block "b" fails its schema at \/n: -1 is less than 0\./],
+    ["unsetting a state arg that its class's schema requires", { blocks: { mod: { b: { unset: ["direction"] } } } }, /state of the block "b" fails its schema: Instance does not have required property "direction"\./],
+    ["a block whose state its class's schema refuses", { blocks: { add: { g: { ...head(), state: { n: 1, size: 2 } } } } }, /state of the block "g" fails its schema/],
     ["a value of a board option no package registered", { options: { set: { nope: 1 } } }, /board option "nope", which no package registered/],
     ["a block of a class the block registry lacks", { blocks: { add: { g: { ...head(), registry_id: "blockr.foo-bar" } } } }, /class "blockr.foo-bar", which the block registry lacks/],
     ["an id made of digits alone", { blocks: { add: { 7: head() } } }, /block id "7" is empty or made of digits alone/],
@@ -1892,13 +1895,15 @@ describe("undo", () => {
 
   test("removes again what a step set where there was none", async () => {
     const store = await opened();
+    // The scatter block's class requires neither of its state args.
+    store.apply({ blocks: { mod: { f: { unset: ["y"] } } } });
     const before = store.board();
 
-    store.apply({ blocks: { mod: { d: { state: { extra: 1 } }, a: { name: "Renamed" } } } });
+    store.apply({ blocks: { mod: { f: { state: { y: "Petal.Width" } }, a: { name: "Renamed" } } } });
     store.undo();
 
     expect(store.board()).toEqual(before);
-    expect(Object.hasOwn(store.board().blocks.d?.state ?? {}, "extra")).toBe(false);
+    expect(Object.hasOwn(store.board().blocks.f?.state ?? {}, "y")).toBe(false);
   });
 
   test("leaves the board option values that its step set or removed, and so does redo, while both take back and apply again the rest of the step", async () => {

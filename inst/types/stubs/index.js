@@ -5978,7 +5978,6 @@ function checkBlocks(board, registry, registrations, changed, failures) {
       );
       continue;
     }
-    if (changed !== void 0) continue;
     for (const failure of stateFailures(entry, block.state)) {
       failures.push(`The state of the block "${id2}" ${failure}`);
     }
@@ -7588,11 +7587,7 @@ function coreCommands(store, options = {}) {
         const block = own(board2.blocks, id2);
         if (block === void 0) return [];
         const entry = classOf2(this.id, block.registry_id);
-        const before = new Set(stateFailures(entry, block.state));
-        const failures = stateFailures(entry, {
-          ...without(block.state, unset ?? []),
-          ...state2
-        }).filter((failure) => !before.has(failure));
+        const failures = stateFailures(entry, { ...without(block.state, unset ?? []), ...state2 });
         if (failures.length > 0) {
           throw refusal(this.id, failures.map((failure) => `The state of block "${id2}" ${failure}`));
         }

@@ -8,9 +8,9 @@
 // registers commands of its own for what its plugins keep.
 //
 // Each reads the board and returns its deltas, leaving the checks of the board
-// to the store, but for a block's state, which the store checks only as it
-// opens a board, and which these commands check against the schema of the
-// block's class. An edit that changes nothing is the store's to drop, which
+// to the store. A command that sets a block's state checks it against the
+// schema of the block's class before the store does, so that the error names
+// the command. An edit that changes nothing is the store's to drop, which
 // makes no step of it.
 
 import { mintId, pathOf, sentenceCase, stateFailures } from "../store/index.ts";
@@ -193,16 +193,8 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
       run(board, { id, state, unset }) {
         const block = own(board.blocks, id);
         if (block === undefined) return [];
-        // A change may leave the state failing the schema where it failed
-        // already, as a delta applied without a command may leave it, so that
-        // such a state can be repaired one arg at a time, but it may not make
-        // it fail anew.
         const entry = classOf(this.id, block.registry_id);
-        const before = new Set(stateFailures(entry, block.state));
-        const failures = stateFailures(entry, {
-          ...without(block.state, unset ?? []),
-          ...state,
-        }).filter((failure) => !before.has(failure));
+        const failures = stateFailures(entry, { ...without(block.state, unset ?? []), ...state });
         if (failures.length > 0) {
           throw refusal(this.id, failures.map((failure) => `The state of block "${id}" ${failure}`));
         }
