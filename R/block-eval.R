@@ -371,7 +371,7 @@ block_eval.block <- function(x, expr, env, ...) {
 #' @rdname evaluate_block
 #' @export
 eval_env <- function(data) {
-  if (isTRUE(blockr_option("attach_default_packages", FALSE))) {
+  if (blockr_flag("attach_default_packages", FALSE)) {
     parent <- default_eval_parent()
   } else {
     parent <- baseenv()

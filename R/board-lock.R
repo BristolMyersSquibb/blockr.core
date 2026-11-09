@@ -37,5 +37,5 @@ is_board_locked <- function(board, ...) {
 #' @rdname locked-board
 #' @export
 is_board_locked.board <- function(board, ...) {
-  isTRUE(blockr_option("locked", FALSE))
+  blockr_flag("locked", FALSE)
 }

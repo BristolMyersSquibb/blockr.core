@@ -49,8 +49,8 @@ write_log <- function(..., level = "info", envir = parent.frame(),
 
   pfx <- paste0(
     "[", toupper(level), "]",
-    if (isTRUE(blockr_option("log_time", TRUE))) get_timmestamp("[", "]"),
-    if (isTRUE(blockr_option("log_mem", FALSE))) get_mem_use("[", "]"),
+    if (blockr_flag("log_time", TRUE)) get_timmestamp("[", "]"),
+    if (blockr_flag("log_mem", FALSE)) get_mem_use("[", "]"),
     if (not_null(pkg)) paste0("[", pkg, "]"),
     " "
   )

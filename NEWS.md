@@ -291,11 +291,14 @@
   Until now, `blockr_ser()` dropped what `...` added without a word, since a JSON board has no place for it.
   A stack given as a list fails as well for an entry other than `blocks`, `name` and `color`, which `as_stack()` dropped until now (#511).
 * Core's client fails to read a blockr option where it cannot get the value that was set, rather than take the fallback of the code that reads it.
-  A read fails where R replies `error` to the request, with R's message, as for a blockr option whose R option and environment variable disagree, and where the value does not convert to the type of the fallback.
-  So do an `evaluation_queue` that is no whole number of 0 or more, a `background_evaluation_delay` below 0, a `rand_id` that names no shape, and a value of `n_rows`, `show_conditions` or `dark_mode` that the board option's schema refuses.
-  R writes every value that the client asks for as yyjsonr writes it, whatever its class, and replies `error`, naming the blockr option, where yyjsonr cannot write it, as for a function.
-  Where core reads the blockr option as it starts, core does not start, and the page shows why.
-  The fallback holds only where nothing sets the blockr option (#510).
+  A read fails where R replies `error` to the request, with R's message, as for a blockr option whose R option and environment variable disagree.
+  R writes every value that the client asks for as yyjsonr writes it, whatever its class, but `Inf`, `-Inf`, `NA` and `NaN` as the strings `"Inf"`, `"-Inf"`, `"NA"` and `"NaN"`, which a message otherwise holds as `null` alike, and replies `error`, naming the blockr option, where yyjsonr cannot write the value, as for a function.
+  The client's `CoreApi.blockrOption()` takes no fallback: it gives the value as R sent it, or `undefined` where nothing sets the blockr option, and the code that reads the blockr option converts and checks the value, and takes a fallback of its own only where nothing sets it.
+  Core's code reads a string, as an environment variable gives, as R's `as.numeric()` or `as.logical()` reads it, and fails on an `evaluation_queue` that is then no whole number of 0 or more, a `background_evaluation_delay` below 0, a `gate_visibility` that is neither `TRUE` nor `FALSE`, a `rand_id` that names no shape, and a value of `n_rows`, `show_conditions` or `dark_mode` that the board option's schema refuses.
+  Where core reads the blockr option as it starts, core does not start, and the page shows why (#510).
+* The blockr options `locked`, `attach_default_packages`, `log_time` and `log_mem` read a string, as an environment variable gives, as `as.logical()` reads it, so that `BLOCKR_LOCKED=TRUE` locks the board.
+  Until now, `isTRUE()` read the string as `FALSE`, so that the board stayed unlocked without a word.
+  A value that is neither `TRUE` nor `FALSE` fails, naming the blockr option (#510).
 * Core's client asks R for `rand_id` with the blockr options that its scheduler reads, as soon as R has answered its hello, and core's commands mint ids in the shape that `rand_id` names, as `rand_names()` draws them in R (#510).
 
 # blockr.core 0.1.4
