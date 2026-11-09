@@ -10,7 +10,7 @@ import { fileName } from "./file.ts";
 import { itemsOf } from "./layout.ts";
 
 describe("where each block goes", () => {
-  const block = { registry_id: "blockr.core-head_block", state: {}, name: "Head" };
+  const block = { registry_id: "blockr.core-head_block", state: {}, name: "Head", locked: null };
   const stack = (blocks: string[]): Stack => ({ name: "Stack", blocks, color: null });
 
   test("is the board's order, each stack at the place of its first block, with its blocks in its own order", () => {

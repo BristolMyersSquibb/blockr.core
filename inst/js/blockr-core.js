@@ -2583,7 +2583,8 @@ function createScheduler(options) {
   function send(item) {
     const recipe = recipeOf(item.block);
     const at = revisions.value.get(item.block);
-    if (recipe === void 0 || at === void 0) return;
+    const block = board.value === void 0 ? void 0 : own(board.value.blocks, item.block);
+    if (recipe === void 0 || at === void 0 || block === void 0) return;
     let oneTime;
     if (item.oneTime !== void 0) {
       const found = oneTimes.value.get(item.oneTime);
@@ -2610,6 +2611,7 @@ function createScheduler(options) {
         kind: "evaluate",
         block: item.block,
         revision: at,
+        locked: block.locked,
         recipe,
         ...oneTime === void 0 ? {} : { params: oneTime.params }
       },
@@ -3186,29 +3188,54 @@ function watchRatio(fn) {
     query?.removeEventListener("change", changed);
   };
 }
+var WHITE = [255, 255, 255, 1];
 function backgroundOf(el) {
+  const layers = [];
   for (let at = el; at !== null; at = at.parentElement) {
-    const colour = getComputedStyle(at).backgroundColor;
-    if (!transparent(colour)) return hexOf(colour);
+    const value2 = getComputedStyle(at).backgroundColor;
+    if (value2 === "") continue;
+    const colour = rgbaOf(value2);
+    if (colour === null) return null;
+    if (colour[3] >= 1) return hex(layers.reduceRight(over, colour));
+    if (colour[3] > 0) layers.push(colour);
   }
-  return null;
+  return hex(layers.reduceRight(over, behindPage()));
 }
-function transparent(colour) {
-  return colour === "" || colour === "transparent" || /^rgba\(.*,\s*0\)$/.test(colour);
+function behindPage() {
+  const probe = document.createElement("div");
+  probe.style.cssText = "display: none; background-color: Canvas";
+  document.documentElement.append(probe);
+  const colour = rgbaOf(getComputedStyle(probe).backgroundColor);
+  probe.remove();
+  return colour !== null && colour[3] >= 1 ? colour : WHITE;
+}
+function over(behind, [r2, g2, b2, alpha]) {
+  const mix = (front, back) => front * alpha + back * (1 - alpha);
+  return [mix(r2, behind[0]), mix(g2, behind[1]), mix(b2, behind[2]), 1];
 }
 function hexOf(colour) {
-  const text = colour.trim();
-  if (/^#[0-9a-f]{6}$/i.test(text)) return text.toLowerCase();
-  if (/^#[0-9a-f]{3}$/i.test(text)) {
-    const [r2, g2, b2] = [text.charAt(1), text.charAt(2), text.charAt(3)];
-    return `#${r2}${r2}${g2}${g2}${b2}${b2}`.toLowerCase();
-  }
-  const rgb = /^rgba?\(\s*(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)/.exec(text);
-  if (rgb !== null) return hex(rgb.slice(1, 4).map(Number));
-  return text === "" ? null : drawn(text);
+  const rgba = rgbaOf(colour);
+  return rgba === null ? null : hex(rgba);
 }
-function hex(channels) {
-  return `#${channels.map((c2) => Math.round(Math.min(255, Math.max(0, c2))).toString(16).padStart(2, "0")).join("")}`;
+var RGB = /^rgba?\(\s*(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)(?:\s*[,/]\s*(\d+(?:\.\d+)?)(%?))?\s*\)$/;
+function rgbaOf(colour) {
+  const text = colour.trim();
+  if (text === "") return null;
+  if (text === "transparent") return [0, 0, 0, 0];
+  const long = /^#[0-9a-f]{3}$/i.test(text) ? text.replace(/[0-9a-f]/gi, "$&$&") : text;
+  if (/^#[0-9a-f]{6}$/i.test(long)) {
+    const [r2 = 0, g2 = 0, b2 = 0] = [1, 3, 5].map((at) => parseInt(long.slice(at, at + 2), 16));
+    return [r2, g2, b2, 1];
+  }
+  const rgb = RGB.exec(text);
+  if (rgb !== null) {
+    const [, r2 = "0", g2 = "0", b2 = "0", alpha = "1", percent] = rgb;
+    return [Number(r2), Number(g2), Number(b2), Math.min(1, Number(alpha) / (percent === "%" ? 100 : 1))];
+  }
+  return drawn(text);
+}
+function hex([r2, g2, b2]) {
+  return `#${[r2, g2, b2].map((c2) => Math.round(Math.min(255, Math.max(0, c2))).toString(16).padStart(2, "0")).join("")}`;
 }
 function drawn(colour) {
   try {
@@ -3217,8 +3244,8 @@ function drawn(colour) {
     context.fillStyle = "#000000";
     context.fillStyle = colour;
     context.fillRect(0, 0, 1, 1);
-    const [r2 = 0, g2 = 0, b2 = 0] = context.getImageData(0, 0, 1, 1).data;
-    return hex([r2, g2, b2]);
+    const [r2 = 0, g2 = 0, b2 = 0, alpha = 0] = context.getImageData(0, 0, 1, 1).data;
+    return [r2, g2, b2, alpha / 255];
   } catch {
     return null;
   }
@@ -5980,7 +6007,12 @@ function checkBlocks(board, registry, registrations, changed, failures) {
   ids("block", board.blocks, failures);
   for (const [id2, block] of Object.entries(board.blocks)) {
     if (changed !== void 0 && !changed.blocks.has(id2)) continue;
-    const fields = shape(block, { registry_id: "string", state: "object", name: "string" });
+    const fields = shape(block, {
+      registry_id: "string",
+      state: "object",
+      name: "string",
+      locked: "boolean or null"
+    });
     if (fields.length > 0) {
       failures.push(`The block "${id2}" ${fields.join(", ")}.`);
       continue;
@@ -6135,6 +6167,8 @@ function fits(x2, kind) {
       return isObject(x2);
     case "string or null":
       return x2 === null || typeof x2 === "string";
+    case "boolean or null":
+      return x2 === null || typeof x2 === "boolean";
     case "string":
       return typeof x2 === "string";
   }
@@ -6523,12 +6557,19 @@ function modifyBlock(old, mod, id2, failures) {
     failures
   );
   const name3 = mod.name === old.name ? void 0 : mod.name;
+  const locked2 = mod.locked === void 0 || mod.locked === old.locked ? void 0 : mod.locked;
   return {
-    value: { ...old, state: state2.next, name: name3 ?? old.name },
+    value: {
+      ...old,
+      state: state2.next,
+      name: name3 ?? old.name,
+      locked: locked2 === void 0 ? old.locked : locked2
+    },
     inverse: {
       ...Object.keys(state2.restore).length === 0 ? {} : { state: state2.restore },
       ...state2.remove.length === 0 ? {} : { unset: state2.remove },
-      ...name3 === void 0 ? {} : { name: old.name }
+      ...name3 === void 0 ? {} : { name: old.name },
+      ...locked2 === void 0 ? {} : { locked: old.locked }
     }
   };
 }
@@ -6655,6 +6696,55 @@ function merge(delta, given, patches2) {
 }
 function same(a2, b2) {
   return a2.op === b2.op && a2.path === b2.path && jsonEqual(a2.value, b2.value);
+}
+
+// srcts/store/lock.ts
+function fixes(board, block, boardLock) {
+  if (!boardLock) return false;
+  const held = board === void 0 ? void 0 : own(board.blocks, block);
+  return held?.locked !== false;
+}
+function lockFailures(before, inverse) {
+  const failures = [];
+  const refuse = (verb, one2, several, ids2) => {
+    if (ids2.length === 0) return;
+    failures.push(`The board lock refuses to ${verb} ${ids2.length === 1 ? one2 : several} ${quoted(ids2)}.`);
+  };
+  const blocks = inverse.blocks;
+  const mods = Object.entries(blocks?.mod ?? {});
+  refuse("add", "block", "blocks", blocks?.rm ?? []);
+  refuse("remove", "block", "blocks", Object.keys(blocks?.add ?? {}));
+  refuse("rename", "block", "blocks", mods.filter(([, mod]) => mod.name !== void 0).map(([id2]) => id2));
+  refuse(
+    "change",
+    "the lock of block",
+    "the locks of the blocks",
+    mods.filter(([, mod]) => mod.locked !== void 0).map(([id2]) => id2)
+  );
+  for (const [id2, mod] of mods) {
+    if (mod.state === void 0 && mod.unset === void 0) continue;
+    const locked2 = own(before.blocks, id2)?.locked;
+    if (locked2 === true) {
+      failures.push(`The lock of block "${id2}" fixes its state under the board lock.`);
+    } else if (locked2 === null) {
+      failures.push(`The board lock fixes the state of block "${id2}", whose lock follows the board lock.`);
+    }
+  }
+  for (const [part, one2, several] of [
+    [inverse.links, "link", "links"],
+    [inverse.stacks, "stack", "stacks"]
+  ]) {
+    refuse("add", one2, several, part?.rm ?? []);
+    refuse("change", one2, several, Object.keys(part?.mod ?? {}));
+    refuse("remove", one2, several, Object.keys(part?.add ?? {}));
+  }
+  if (inverse.name !== void 0) failures.push("The board lock refuses to rename the board.");
+  const renamed = (inverse.patches ?? []).flatMap((patch2) => {
+    const [, plugin, part] = pointer(patch2.path) ?? [];
+    return plugin === void 0 || part === "state" ? [] : [plugin];
+  });
+  refuse("rename", "plugin", "plugins", [...new Set(renamed)]);
+  return failures;
 }
 
 // srcts/store/undo.ts
@@ -7149,6 +7239,10 @@ function createStore(options = {}) {
       if ("failures" in expanded) throw fail(expanded.failures);
       const committed = commit(current3, expanded, how.places?.[i2]);
       if ("failures" in committed) throw fail(committed.failures);
+      if (hello?.lock.board === true) {
+        const locked2 = lockFailures(current3, committed.inverse.delta);
+        if (locked2.length > 0) throw fail(locked2);
+      }
       const undoable = !isEmpty(committed.inverse.delta);
       if (!undoable && committed.changed.options.size === 0) continue;
       const failures = check(
@@ -7264,8 +7358,10 @@ function createStore(options = {}) {
     if (hello === void 0) {
       throw new StoreError(refusedOpen, ["The store opens a JSON board only once R has answered `hello`."]);
     }
-    if (hello.lock !== null) {
-      throw new StoreError(refusedOpen, ["The board is locked, so it opens no other board."]);
+    if (hello.lock.load) {
+      throw new StoreError(refusedOpen, [
+        "The load lock fixes the app to its opening board, so the store opens no other board."
+      ]);
     }
     return { json: checkJsonBoard(parse(given)), reply: hello };
   }
@@ -7348,7 +7444,8 @@ function createStore(options = {}) {
           registry_id: block.registry_id,
           version: own(registry.value, block.registry_id)?.version ?? 1,
           state: block.state,
-          name: block.name
+          name: block.name,
+          locked: block.locked
         }
       ])
     );
@@ -7384,6 +7481,7 @@ function createStore(options = {}) {
       return board.value;
     },
     hasBoard: () => board.value !== void 0,
+    locked: (block) => fixes(board.value, block, hello?.lock.board === true),
     subscribe(fn) {
       if (ended()) return () => void 0;
       const wrapped = (change, next) => {
@@ -7459,6 +7557,10 @@ var blockIds = {
   uniqueItems: true,
   description: "Ids of blocks, in order."
 };
+var locked = {
+  type: ["boolean", "null"],
+  description: "A block's lock, which fixes its state where the board lock is on: true locks the block, false leaves it open, and null follows the board lock."
+};
 var color = {
   type: ["string", "null"],
   pattern: HEX_COLOR,
@@ -7529,7 +7631,7 @@ function coreCommands(store, options = {}) {
     const id2 = args.id ?? mintId((id3) => Object.hasOwn(board2.blocks, id3));
     return [
       id2,
-      { registry_id: entry.id, state: state2, name: args.name ?? blockName(entry.id) },
+      { registry_id: entry.id, state: state2, name: args.name ?? blockName(entry.id), locked: null },
       entry
     ];
   }
@@ -7583,6 +7685,14 @@ function coreCommands(store, options = {}) {
       args: object({ id: blockId, name: name2 }, ["id", "name"]),
       enabled: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
       run: (_board, { id: id2, name: name3 }) => ({ blocks: { mod: { [id2]: { name: name3 } } } })
+    }),
+    command({
+      id: "blockr.core-set_block_lock",
+      label: "Set block lock",
+      description: "Sets a block's lock, which fixes its state where the board lock is on: true locks the block, false leaves it open to readers, and null has it follow the board lock.",
+      args: object({ id: blockId, locked }, ["id", "locked"]),
+      enabled: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
+      run: (_board, { id: id2, locked: locked2 }) => ({ blocks: { mod: { [id2]: { locked: locked2 } } } })
     }),
     command({
       id: "blockr.core-set_block",
@@ -8067,7 +8177,7 @@ function createCommands(store, options = {}) {
       return deltas(id2, given);
     }
   };
-  for (const command2 of coreCommands(store, { locked: (options.lock ?? null) !== null })) {
+  for (const command2 of coreCommands(store, { locked: options.lock?.board === true })) {
     registry.register(command2);
   }
   return registry;
@@ -8287,8 +8397,12 @@ function start(options) {
       report(new Error(`The startup modules of ${packages} each named a board to open, so core opens the board that R sent.`));
       return void 0;
     }
-    if (reply.lock !== null) {
-      report(new Error(`The board is locked, so core opens the board that R sent rather than the one that ${only.package} named.`));
+    if (reply.lock.load) {
+      report(
+        new Error(
+          `The load lock is on, so core opens the board that R sent rather than the one that ${only.package} named.`
+        )
+      );
       return void 0;
     }
     try {
