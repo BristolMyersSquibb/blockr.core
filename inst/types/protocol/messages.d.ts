@@ -8,7 +8,7 @@ export type Capability = "cancel" | "interrupt" | "progress";
 export type ReplyStatus = "ok" | "error" | "cancelled" | "invalid" | "missing";
 export type ClientMessage = Request[];
 export type RMessage = (Reply | Progress)[];
-export type Request = HelloRequest | BlockrOptionsRequest | EvaluateRequest | BlockClassRequest | BoardOptionRequest | AddedRequest | OutputClassRequest | RendererRequest | OutputRequest | CancelRequest | ForgetRequest;
+export type Request = HelloRequest | BlockrOptionsRequest | EvaluateRequest | BlockClassRequest | BoardOptionRequest | PluginRequest | OutputClassRequest | RendererRequest | OutputRequest | CancelRequest | ForgetRequest;
 export type Reply = HelloReply | BlockrOptionsReply | EvaluateReply | RequestReply | OutputReply | ErrorReply | CancelledReply | MissingReply;
 export interface Progress {
     id: string;
@@ -139,17 +139,19 @@ export interface BoardOptionRequest {
     output?: never;
     renderer?: never;
 }
-export interface AddedRequest {
+export interface PluginRequest {
     id: string;
     kind: "request";
-    type: string;
-    reads?: BlockRevision[];
+    type: "plugin";
+    plugin: PluginClassId;
+    name: string;
+    args: Record<string, Json>;
+    reads: BlockRevision[];
     body?: Body;
     registry_id?: never;
     option?: never;
     output?: never;
     renderer?: never;
-    [field: string]: Json | BlockRevision[] | Body | undefined;
 }
 export interface OutputClassRequest {
     id: string;

@@ -199,22 +199,26 @@
   `ctor_fun()` (#469).
 * The package ships the TypeScript types that the UI modules of block classes are written against, in `system.file("types", package = "blockr.core")`.
   A package's build resolves that directory as `@blockr/core`, and its module tests take stubs of the hosts from it, as `@blockr/core/stubs`.
+  The function `install_js_types()` installs a copy of those types into a package's `node_modules`, with the types of the package's other dependencies that ship them, and a package calls it in the `pre` scripts that npm runs before each script that reads them (#495).
   The fixture file that `expect_block_fixture()` writes lists each state as a block given those args holds it, its defaults filled in and written by the schema of the class's UI module.
   The stub of a block's host then refuses a submit of a state that the file does not list (#437).
 * R answers the client through an evaluator, one per session, which takes the messages of the wire protocol that the Shiny transport carries.
   It keeps the latest result of each block by block id and revision, with the block expression and the registry id, and drops it when the client forgets the block.
   It evaluates a block from its recipe, makes the block's output with the coercion that its class names, answers requests and reads blockr options.
   It runs one request at a time, in the order they arrive, and handles a `cancel` or a `forget` between two requests (#430).
-* Every request names its type, and R answers it through the generic `request_call()`, by the class `{type}_request`.
-  Core's types are the requests of block classes, output classes, renderers and board options.
-  A package adds a type of its own with a method of `request_call()`, and gives the requests of a board option it ships with a method of `board_option_requests()` for the board option's class.
-  A request's function reports how far it has come with `report_progress()`, which R sends to the client as progress notes (#430).
+* Every request names its type, one of core's: the requests of block classes, output classes, renderers, board options and plugins.
+  No package adds a type of its own, and R replies `error` to a request of any other type.
+  The package that ships a board option gives the board option's requests with a method of `board_option_requests()` for the board option's class, and the package of a plugin class gives the class's requests with a method of `plugin_requests()` for the class.
+  R calls a plugin's request with its args by name, the blocks that it reads in `reads`, each with its result and its block expression, and the request's body in `file`.
+  A request's function reports how far it has come with `report_progress()`, which R sends to the client as progress notes (#430, #505).
 * Core's client draws table, text and plot outputs with renderers of its own, written in React: a table that pages and sorts through its output's parameters, printed text that scrolls at R's width, and a plot's PNG at the size it was drawn at.
-  Core's runtime puts the one copy of React on the page, minified at the start of its bundle and ahead of core's own code, and core's build maps each of its modules' imports of React to that copy.
+  The package ships the one copy of React on the page, as an ES module for each of React's entry points that core's modules import, such as `react` and `react-dom/client`, all of which read one minified bundle of React.
   Core's React SDK holds what the renderers and core's UIs draw with.
   Its hook `useOutput()` follows an output host, while `useValue()` binds a block's state arg or a board option's value and `useRequest()` follows a request, both through a binding that needs no framework.
   Its inputs each show and edit one value that `useValue()` binds, and `reactModule()` and `outputRenderer()` make a module and a renderer from a React component.
-  Core ships the SDK to packages beside its types, as `@blockr/core/react`, the binding as `@blockr/core/binding`, and as `@blockr/core/build` the build preset with which core bundles its own modules, which maps a module's imports of React to core's copy.
+  Core ships the SDK to packages beside its types, as `@blockr/core/react`, the binding as `@blockr/core/binding`, and as `@blockr/core/build` the build preset with which core bundles its own modules.
+  The package also ships the SDK, the binding and the controls as ES modules of their own, and the preset leaves a module's imports of them and of React imports.
+  The page that R serves resolves those imports through an import map, to the files that the package ships, so that a module's bundle holds none of React or of core's code, and every module runs the one copy of each that the blockr.core it runs on ships (#495).
   Core's UIs take their colors from variables of core's theme, named after the design tokens of blockr.ui, such as `--bc-color-border-default`, which follow the text around them unless a front-end sets them.
   The client defines core's board options `n_rows`, `show_conditions` and `dark_mode`, each with its UI, and each takes its default from the blockr option of its name, as before.
   The board option `dark_mode` switches the page's theme in the attribute `data-bs-theme` of its root element, which Bootstrap reads too, and `n_rows` takes one row at least.
@@ -239,10 +243,10 @@
   A board opened later is drawn in the same way, and a later session that names a loaded package at another version has the page ask the user to reload it.
   Front-ends, extensions and startup modules work on the board through `CoreApi`.
   Its `mountBlock()`, `mountOutput()` and `mountOption()` mount a block's UI, a block's output and a board option's UI, and its `blockrOption()` reads a blockr option once per page.
-  Its `request()` sends a request of a type that a package adds, once the blocks that the request reads are evaluated.
+  Its `request()` sends a request of a plugin of the board, by the plugin's id, once the blocks that the request reads are evaluated, and keeps none of its answers.
   An output is measured, asked of R and drawn by the renderer that R names in it, and a renderer calls its output class's requests and its own through its host.
   Core ships a `CoreApi` for tests beside the stubs of its hosts, `stubCore()` in `@blockr/core/stubs`, which answers for R from the fixtures of the wire protocol and registers core's board options with their UIs, as the page does.
-  The package `@blockr/core` names the React that core's runtime bundles, at that version, as its peer, so that npm installs that React with it and a package's tests run on it with no React of their own, while npm refuses a second copy at another version (#440, #504).
+  The package `@blockr/core` names the React that core's runtime bundles, at that version, as its peer, so that npm installs that React with it and a package's tests run on it with no React of their own, while npm refuses a second copy at another version (#440, #504, #505).
 * Opening a board starts core's client again in place, with no reload, so that nothing of the board before outlives the opening.
   The store on the page checks the board first, with its `check()`, and a board that it refuses leaves the page as it was, with the reason.
   One abort then ends everything that core ran for the board before: the front-end and what it mounted, the startup modules, the store with its undo history, the command registry, the board options, the scheduler with its demands, and what core kept of outputs and answers.

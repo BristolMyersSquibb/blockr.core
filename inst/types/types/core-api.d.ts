@@ -2,7 +2,7 @@ import type { Commands } from "../commands/index.ts";
 import type { Lock } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Options, PluginClass, Store } from "../store/index.ts";
-import type { BlockId, OptionId, RegistryId } from "./board.ts";
+import type { BlockId, OptionId, PluginId, RegistryId } from "./board.ts";
 import type { Json } from "./json.ts";
 import type { RegistryEntry } from "./registry.ts";
 export interface CoreApi {
@@ -16,7 +16,7 @@ export interface CoreApi {
     };
     readonly lock: Lock;
     readonly outputEvents: OutputEvents;
-    request<T = Json>(type: string, fields?: Record<string, Json>, opts?: RequestOpts): Promise<T | Blob>;
+    request<T = Json>(plugin: PluginId, name: string, args?: Readonly<Record<string, Json>>, opts?: RequestOpts): Promise<T | Blob>;
     module<T = unknown>(id: string): Promise<T>;
     blockrOption<T extends Json>(name: string, fallback: T): Promise<T>;
     mountBlock(el: HTMLElement, block: BlockId): () => void;
@@ -27,6 +27,7 @@ export type BlockRegistry = Readonly<Record<RegistryId, RegistryEntry>>;
 export interface RequestOpts {
     reads?: BlockId[];
     signal?: AbortSignal;
+    file?: File;
     progress?(note: {
         value?: number;
         message?: string;

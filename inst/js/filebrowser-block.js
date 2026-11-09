@@ -1,242 +1,7 @@
-var __create = Object.create;
-var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __getOwnPropNames = Object.getOwnPropertyNames;
-var __getProtoOf = Object.getPrototypeOf;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __commonJS = (cb, mod) => function __require() {
-  try {
-    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
-  } catch (e) {
-    throw mod = 0, e;
-  }
-};
-var __copyProps = (to, from, except, desc) => {
-  if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
-  }
-  return to;
-};
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
-  // If the importer is in node compatibility mode or this is not an ESM
-  // file that has been converted to a CommonJS file using a Babel-
-  // compatible transform (i.e. "__esModule" has not been set), then set
-  // "default" to the CommonJS "module.exports" for node compatibility.
-  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
-  mod
-));
-
-// shared-react:react
-var require_react = __commonJS({
-  "shared-react:react"(exports, module) {
-    var shared = globalThis["blockr.core-react"];
-    if (shared === void 0) throw new Error("React is not on the page: core's runtime puts it there before any module loads.");
-    module.exports = shared["react"];
-  }
-});
-
-// shared-react:react/jsx-runtime
-var require_jsx_runtime = __commonJS({
-  "shared-react:react/jsx-runtime"(exports, module) {
-    var shared = globalThis["blockr.core-react"];
-    if (shared === void 0) throw new Error("React is not on the page: core's runtime puts it there before any module loads.");
-    module.exports = shared["react/jsx-runtime"];
-  }
-});
-
-// shared-react:react-dom
-var require_react_dom = __commonJS({
-  "shared-react:react-dom"(exports, module) {
-    var shared = globalThis["blockr.core-react"];
-    if (shared === void 0) throw new Error("React is not on the page: core's runtime puts it there before any module loads.");
-    module.exports = shared["react-dom"];
-  }
-});
-
-// shared-react:react-dom/client
-var require_client = __commonJS({
-  "shared-react:react-dom/client"(exports, module) {
-    var shared = globalThis["blockr.core-react"];
-    if (shared === void 0) throw new Error("React is not on the page: core's runtime puts it there before any module loads.");
-    module.exports = shared["react-dom/client"];
-  }
-});
-
 // srcts/modules/filebrowser-block/index.tsx
-var import_react4 = __toESM(require_react(), 1);
-
-// srcts/util/util.ts
-function own(record, key) {
-  return Object.hasOwn(record, key) ? record[key] : void 0;
-}
-function messageOf(error) {
-  return error instanceof Error ? error.message : String(error);
-}
-function isObject(x) {
-  return typeof x === "object" && x !== null && !Array.isArray(x);
-}
-function jsonEqual(a, b) {
-  if (a === b) return true;
-  if (Array.isArray(a)) {
-    return Array.isArray(b) && a.length === b.length && a.every((x, i) => jsonEqual(x, b[i]));
-  }
-  if (isObject(a) && isObject(b)) {
-    const keys = Object.keys(a);
-    return keys.length === Object.keys(b).length && keys.every((key) => Object.hasOwn(b, key) && jsonEqual(a[key], b[key]));
-  }
-  return false;
-}
-
-// srcts/binding/binding.ts
-var PAUSE = 500;
-function bind(host, key, show, options = {}) {
-  const source = sourceOf(host);
-  source.check(key);
-  let shown;
-  let typed;
-  let timer;
-  let released = false;
-  const display = (again = false) => {
-    if (released || timer !== void 0) return;
-    const value = source.get(key);
-    if (!again && shown !== void 0 && jsonEqual(shown.value, value)) return;
-    shown = { value };
-    show(value);
-  };
-  const submit = async (value) => {
-    if (jsonEqual(source.get(key), value)) return true;
-    try {
-      await source.submit(key, value);
-    } catch (error) {
-      options.settled?.(error);
-      return false;
-    }
-    options.settled?.(null);
-    return true;
-  };
-  const send = () => {
-    const value = typed;
-    typed = void 0;
-    if (value !== void 0) void submit(value);
-  };
-  const flush = () => {
-    if (timer === void 0) return;
-    clearTimeout(timer);
-    timer = void 0;
-    send();
-  };
-  const off = source.onValues(() => {
-    display();
-  });
-  display(true);
-  return {
-    get: () => source.get(key),
-    async commit(value) {
-      const took = await submit(value);
-      if (!took) display(true);
-      return took;
-    },
-    type(value) {
-      if (released) return;
-      typed = value;
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        timer = void 0;
-        send();
-      }, PAUSE);
-    },
-    flush,
-    release() {
-      if (released) return;
-      released = true;
-      off();
-      flush();
-    }
-  };
-}
-function follow(host, name, options) {
-  const source = sourceOf(host);
-  let asked;
-  let latest;
-  let released = false;
-  const ask = () => {
-    latest?.abort();
-    const controller = new AbortController();
-    latest = controller;
-    source.request(name, options.args?.() ?? {}, { signal: controller.signal }).then(
-      (answer) => {
-        if (latest === controller && !controller.signal.aborted) options.answer(answer);
-      },
-      (error) => {
-        if (latest === controller && !controller.signal.aborted) options.failed?.(error);
-      }
-    );
-  };
-  const check = () => {
-    if (released) return;
-    const reads = JSON.stringify([source.inputs(), options.args?.() ?? {}, options.reads?.() ?? null]);
-    if (reads === asked) return;
-    asked = reads;
-    ask();
-  };
-  const offValues = source.onValues(check);
-  const offContext = source.onContext(check);
-  check();
-  return {
-    refresh() {
-      asked = void 0;
-      check();
-    },
-    release() {
-      if (released) return;
-      released = true;
-      offValues();
-      offContext();
-      latest?.abort();
-    }
-  };
-}
-function sourceOf(host) {
-  if ("option" in host) {
-    const check = (key) => {
-      if (key !== host.option) {
-        throw new Error(`The host of the board option "${host.option}" holds no value "${key}".`);
-      }
-    };
-    return {
-      check,
-      get(key) {
-        check(key);
-        return host.value();
-      },
-      submit(key, value) {
-        check(key);
-        return host.submit(value);
-      },
-      onValues: (fn) => host.on("value", fn),
-      onContext: () => () => void 0,
-      inputs: () => null,
-      request: (name, args, opts) => host.request(name, args, opts)
-    };
-  }
-  return {
-    check: () => void 0,
-    get: (key) => own(host.state(), key),
-    submit: (key, value) => host.submit({ [key]: value }),
-    onValues: (fn) => host.on("state", fn),
-    onContext: (fn) => host.on("context", fn),
-    inputs: () => host.context().inputs.map((input) => ({ input: input.input, revision: input.revision })),
-    request: (name, args, opts) => host.request(name, args, opts)
-  };
-}
-function strings(value) {
-  return Array.isArray(value) ? value.filter((x) => typeof x === "string") : [];
-}
-
-// srcts/inputs/inputs.tsx
-var import_react = __toESM(require_react(), 1);
+import { Fragment, useState } from "react";
+import { strings } from "@blockr/core/binding";
+import { Field, reactModule, Stack, useRequest, useValue } from "@blockr/core/react";
 
 // srcts/styles/styles.ts
 var styles = {
@@ -253,100 +18,27 @@ var styles = {
   alert: "bc:m-0 bc:text-sm bc:text-text-danger bc:whitespace-pre-wrap"
 };
 
-// srcts/inputs/inputs.tsx
-var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
-function Stack({ children }) {
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: styles.stack, children });
+// srcts/util/util.ts
+function own(record, key) {
+  return Object.hasOwn(record, key) ? record[key] : void 0;
 }
-function Field({ label, children }) {
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: styles.field, children: [
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: styles.label, children: label }),
-    children
-  ] });
+function isObject(x) {
+  return typeof x === "object" && x !== null && !Array.isArray(x);
 }
-
-// srcts/react/hooks.ts
-var import_react2 = __toESM(require_react(), 1);
-function useValue(host, key) {
-  const name = key ?? ("option" in host ? host.option : "");
-  const [value, setValue] = (0, import_react2.useState)(() => held(host, name));
-  const [error, setError] = (0, import_react2.useState)(null);
-  const binding = (0, import_react2.useRef)(null);
-  (0, import_react2.useLayoutEffect)(() => {
-    const bound = bind(host, name, setValue, {
-      settled: (refused) => {
-        setError(refused === null ? null : messageOf(refused));
-      }
-    });
-    binding.current = bound;
-    return () => {
-      binding.current = null;
-      bound.release();
-    };
-  }, [host, name]);
-  return (0, import_react2.useMemo)(
-    () => ({
-      value,
-      error,
-      get: () => binding.current?.get() ?? held(host, name),
-      commit: (next) => binding.current?.commit(next) ?? Promise.resolve(false),
-      type: (next) => {
-        binding.current?.type(next);
-      },
-      flush: () => {
-        binding.current?.flush();
-      }
-    }),
-    [value, error, host, name]
-  );
-}
-function useRequest(host, name, options = {}) {
-  const [answered, setAnswered] = (0, import_react2.useState)({ answer: void 0, error: null });
-  const reads = JSON.stringify([options.args ?? {}, options.reads ?? null]);
-  (0, import_react2.useEffect)(() => {
-    const [args, extra] = JSON.parse(reads);
-    const followed = follow(host, name, {
-      args: () => args,
-      reads: () => extra,
-      answer: (answer) => {
-        setAnswered({ answer, error: null });
-      },
-      failed: (failure) => {
-        setAnswered((last) => ({ answer: last.answer, error: messageOf(failure) }));
-      }
-    });
-    return () => {
-      followed.release();
-    };
-  }, [host, name, reads]);
-  return answered;
-}
-function held(host, key) {
-  return "option" in host ? host.value() : own(host.state(), key);
-}
-
-// srcts/react/module.tsx
-var import_react3 = __toESM(require_react(), 1);
-var import_react_dom = __toESM(require_react_dom(), 1);
-var import_client = __toESM(require_client(), 1);
-var import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
-function reactModule(Draw, options = {}) {
-  return {
-    ...options.options === void 0 ? {} : { options: options.options },
-    render({ el, host, signal }) {
-      const root = (0, import_client.createRoot)(el);
-      (0, import_react_dom.flushSync)(() => {
-        root.render(/* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Draw, { host, signal }));
-      });
-      return () => {
-        root.unmount();
-      };
-    }
-  };
+function jsonEqual(a, b) {
+  if (a === b) return true;
+  if (Array.isArray(a)) {
+    return Array.isArray(b) && a.length === b.length && a.every((x, i) => jsonEqual(x, b[i]));
+  }
+  if (isObject(a) && isObject(b)) {
+    const keys = Object.keys(a);
+    return keys.length === Object.keys(b).length && keys.every((key) => Object.hasOwn(b, key) && jsonEqual(a[key], b[key]));
+  }
+  return false;
 }
 
 // srcts/modules/filebrowser-block/index.tsx
-var import_jsx_runtime3 = __toESM(require_jsx_runtime(), 1);
+import { Fragment as Fragment2, jsx, jsxs } from "react/jsx-runtime";
 var api = 1;
 var link = "bc:cursor-pointer bc:rounded bc:border-0 bc:bg-transparent bc:px-2 bc:py-0.5 bc:text-left bc:text-sm bc:text-inherit bc:[font-family:inherit] bc:hover:bg-bg-subtle bc:aria-current:font-semibold";
 var entry = `${link} bc:justify-self-stretch`;
@@ -354,8 +46,8 @@ function FileBrowserBlock({ host }) {
   const shared = useValue(host, "volumes").value;
   const volumes = volumesOf(shared);
   const file = useValue(host, "file_path");
-  const held2 = typeof file.value === "string" && file.value !== "" ? file.value : void 0;
-  const [place, setPlace] = (0, import_react4.useState)(() => locate(file.value, volumes));
+  const held = typeof file.value === "string" && file.value !== "" ? file.value : void 0;
+  const [place, setPlace] = useState(() => locate(file.value, volumes));
   const volume = place.volume !== void 0 && own(volumes, place.volume) !== void 0 ? place.volume : Object.keys(volumes)[0];
   const dirs = volume === place.volume ? place.dirs : [];
   const root = volume === void 0 ? void 0 : own(volumes, volume);
@@ -363,7 +55,7 @@ function FileBrowserBlock({ host }) {
     args: { ...volume === void 0 ? {} : { volume }, path: dirs.join("/") },
     reads: shared ?? null
   });
-  const [left, setLeft] = (0, import_react4.useState)(null);
+  const [left, setLeft] = useState(null);
   const loading = listed === left || listed.answer === void 0 && listed.error === null;
   const listing2 = listed.error === null ? listingOf(listed.answer) : { dirs: [], files: [] };
   const error = (loading ? null : listed.error) ?? file.error;
@@ -373,8 +65,8 @@ function FileBrowserBlock({ host }) {
     setPlace(next);
   };
   const names = Object.keys(volumes);
-  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Stack, { children: [
-    names.length > 1 && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Field, { label: "Volume", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+  return /* @__PURE__ */ jsxs(Stack, { children: [
+    names.length > 1 && /* @__PURE__ */ jsx(Field, { label: "Volume", children: /* @__PURE__ */ jsx(
       "select",
       {
         className: styles.box,
@@ -382,12 +74,12 @@ function FileBrowserBlock({ host }) {
         onChange: (event) => {
           go({ volume: event.target.value, dirs: [] });
         },
-        children: names.map((name) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("option", { value: name, children: name }, name))
+        children: names.map((name) => /* @__PURE__ */ jsx("option", { value: name, children: name }, name))
       }
     ) }),
-    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("nav", { "aria-label": "Directory", className: "bc:flex bc:flex-wrap bc:items-center bc:gap-1 bc:text-sm", children: [volume ?? "", ...dirs].map((name, i) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_react4.Fragment, { children: [
-      i > 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "bc:text-text-muted", "aria-hidden": "true", children: "/" }),
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+    /* @__PURE__ */ jsx("nav", { "aria-label": "Directory", className: "bc:flex bc:flex-wrap bc:items-center bc:gap-1 bc:text-sm", children: [volume ?? "", ...dirs].map((name, i) => /* @__PURE__ */ jsxs(Fragment, { children: [
+      i > 0 && /* @__PURE__ */ jsx("span", { className: "bc:text-text-muted", "aria-hidden": "true", children: "/" }),
+      /* @__PURE__ */ jsx(
         "button",
         {
           type: "button",
@@ -400,8 +92,8 @@ function FileBrowserBlock({ host }) {
         }
       )
     ] }, i)) }),
-    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("ul", { className: "bc:m-0 bc:grid bc:max-h-64 bc:list-none bc:gap-0.5 bc:overflow-y-auto bc:p-0", children: loading ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Note, { text: "Loading\u2026" }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-      dirs.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+    /* @__PURE__ */ jsx("ul", { className: "bc:m-0 bc:grid bc:max-h-64 bc:list-none bc:gap-0.5 bc:overflow-y-auto bc:p-0", children: loading ? /* @__PURE__ */ jsx(Note, { text: "Loading\u2026" }) : /* @__PURE__ */ jsxs(Fragment2, { children: [
+      dirs.length > 0 && /* @__PURE__ */ jsx(
         Entry,
         {
           text: "..",
@@ -410,7 +102,7 @@ function FileBrowserBlock({ host }) {
           }
         }
       ),
-      listing2.dirs.map((dir) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+      listing2.dirs.map((dir) => /* @__PURE__ */ jsx(
         Entry,
         {
           text: `${dir}/`,
@@ -422,11 +114,11 @@ function FileBrowserBlock({ host }) {
       )),
       listing2.files.map((name) => {
         const at = root === void 0 ? void 0 : join(root, [...dirs, name]);
-        return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+        return /* @__PURE__ */ jsx(
           Entry,
           {
             text: name,
-            current: at !== void 0 && at === held2,
+            current: at !== void 0 && at === held,
             onClick: () => {
               if (at !== void 0) void file.commit(at);
             }
@@ -434,17 +126,17 @@ function FileBrowserBlock({ host }) {
           `file ${name}`
         );
       }),
-      listing2.dirs.length + listing2.files.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Note, { text: "This directory is empty." })
+      listing2.dirs.length + listing2.files.length === 0 && /* @__PURE__ */ jsx(Note, { text: "This directory is empty." })
     ] }) }),
-    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: styles.hint, children: held2 === void 0 ? "No file chosen yet." : `Chosen: ${held2}` }),
-    error !== null && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { role: "alert", className: styles.alert, children: error })
+    /* @__PURE__ */ jsx("p", { className: styles.hint, children: held === void 0 ? "No file chosen yet." : `Chosen: ${held}` }),
+    error !== null && /* @__PURE__ */ jsx("p", { role: "alert", className: styles.alert, children: error })
   ] });
 }
 function Entry({ text, current = false, onClick }) {
-  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("li", { className: "bc:grid", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", className: entry, "aria-current": current ? "true" : void 0, onClick, children: text }) });
+  return /* @__PURE__ */ jsx("li", { className: "bc:grid", children: /* @__PURE__ */ jsx("button", { type: "button", className: entry, "aria-current": current ? "true" : void 0, onClick, children: text }) });
 }
 function Note({ text }) {
-  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("li", { className: "bc:grid", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: styles.hint, children: text }) });
+  return /* @__PURE__ */ jsx("li", { className: "bc:grid", children: /* @__PURE__ */ jsx("p", { className: styles.hint, children: text }) });
 }
 var filebrowser_block_default = reactModule(FileBrowserBlock);
 function locate(file, roots) {

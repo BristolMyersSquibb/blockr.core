@@ -533,7 +533,9 @@ An arg without a default is optional in the type, as the merge block's `by?: rea
 
 A package keeps such sources outside `inst/`, such as in `srcts/`, and builds them into `inst/js/`.
 It builds with esbuild and core's build preset, `@blockr/core/build`.
-The preset maps every import of React to the copy that core puts on the page, so that the module's bundle holds no React.
+The preset leaves the module's imports of React, and of core's React SDK, its binding and its controls, as imports.
+The page that R serves resolves them through an import map, to the one copy of each that blockr.core ships, so the module's bundle holds none of them.
+The module then runs the SDK of the blockr.core it runs on, and its inputs take the classes of that blockr.core's stylesheet.
 A script `build.ts` builds the module, and Node runs it as it is from version 22.18:
 
 ```ts
@@ -547,20 +549,36 @@ await esbuild.build({
 });
 ```
 
-The package installs its tools from npm, and core's types from the installed blockr.core, under the name `@blockr/core`:
+The package installs its tools from npm:
 
 ```sh
 npm install --save-dev esbuild @types/react typescript vitest happy-dom
-npm install --no-save --install-links \
-  "$(Rscript -e 'cat(system.file("types", package = "blockr.core"))')"
 ```
+
+It installs core's types from the installed blockr.core, under the name `@blockr/core`, with `install_js_types()`, before each script that reads them.
+Since npm runs a script named `pretest` before the script `test`, and likewise for any other name, the package's `package.json` calls the function in such a script before each of the others:
+
+```json
+"scripts": {
+  "pretypecheck": "Rscript -e 'blockr.core::install_js_types()'",
+  "typecheck": "tsc --noEmit",
+  "pretest": "Rscript -e 'blockr.core::install_js_types()'",
+  "test": "vitest run",
+  "prebuild": "Rscript -e 'blockr.core::install_js_types()'",
+  "build": "node build.ts"
+}
+```
+
+A script that lints with the types, as the type-checked rules of `typescript-eslint` do, gets a `prelint` of the same kind.
+The function also installs the types of the package's other dependencies that ship them.
 
 The types name the React that core puts on the page as their peer, at its version, so npm installs that React with them, and the package installs none of its own.
 Its tests then run on the React that its modules run on in the app.
 Where the package asks for another version of React, npm refuses it rather than install a second copy, on which React's hooks would fail.
-The flag `--install-links` installs a copy of the types, from which TypeScript finds React's types.
+The function installs a copy of the types, from which TypeScript finds React's types.
 A link to the R library would leave them unresolved.
-Since npm removes a package installed with `--no-save` at its next install, the package installs the types again after each `npm install` or `npm ci`.
+A copy does not follow an update of blockr.core, and npm removes it at its next install.
+So the package installs it before each script, rather than once.
 
 The schema can be written by hand, or generated from the type, such as with `ts-json-schema-generator`:
 

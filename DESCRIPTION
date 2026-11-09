@@ -111,6 +111,7 @@ Collate:
     'evaluator-read.R'
     'file-browser.R'
     'file-upload.R'
+    'js-types.R'
     'link-class.R'
     'links-class.R'
     'loaded-reply.R'

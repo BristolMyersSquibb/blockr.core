@@ -474,7 +474,7 @@ test_that("R answers a board option's request by the board option's class", {
   expect_fixture_replies(session, "request-option")
 })
 
-test_that("R answers a request of a type that a package adds", {
+test_that("R answers a plugin's request by the ID of the plugin's class", {
 
   local_request_types()
 
@@ -483,7 +483,7 @@ test_that("R answers a request of a type that a package adds", {
   hold_result(session, "a", 2L)
   hold_result(session, "b", 3L, list(read_of("a", 2L, "data")))
 
-  expect_fixture_replies(session, "request-added")
+  expect_fixture_replies(session, "request-plugin")
 })
 
 test_that("a request's function sends progress notes while it runs", {
@@ -950,43 +950,95 @@ test_that("the Shiny transport carries the evaluator's replies and bodies", {
   expect_true(nzchar(plot$body$data))
 })
 
-test_that("R answers a type that a package adds with the fields it gives", {
+test_that("R calls a plugin's request with its args, reads and body", {
 
   got <- NULL
 
   testthat::local_mocked_s3_method(
-    "request_call",
-    "notes_request",
-    function(x, reads, ...) {
-      got <<- list(x = x, reads = reads)
-      list(fun = function(text) toupper(text), args = list(text = x$text))
+    "plugin_requests",
+    "notes_plugin",
+    function(x, ...) {
+      list(
+        save = function(text, reads, file) {
+          got <<- list(x = x, reads = reads, file = file)
+          toupper(text)
+        },
+        count = function(...) length(list(...))
+      )
     }
   )
 
   session <- local_evaluator()
 
   hold_result(session, "a", 2L)
+  make_output(session, "a", 2L, list(n_rows = 50L))
 
-  session$receive(
+  dir <- withr::local_tempdir()
+
+  save <- received_body(
     list(
-      list(
-        id = "2",
-        kind = "request",
-        type = "notes",
-        text = "hello",
-        reads = list(read_of("a", 2L))
-      )
-    )
+      id = "2",
+      kind = "request",
+      type = "plugin",
+      plugin = "blockr.notes-notes_plugin",
+      name = "save",
+      args = list(text = "hello"),
+      reads = list(read_of("a", 2L)),
+      body = list(type = "text/plain", name = "notes.txt")
+    ),
+    charToRaw("Notes"),
+    file.path(dir, "body")
   )
 
+  session$receive(list(save))
   session$run()
 
   expect_identical(unclass(last_reply(session)$value), "[\"HELLO\"]")
-  expect_s3_class(got$x, c("notes_request", "request"), exact = TRUE)
-  expect_identical(got$x$text, "hello")
-  expect_identical(names(got$reads), "a")
+  expect_s3_class(got$x, c("notes_plugin", "plugin"), exact = TRUE)
+  expect_named(got$reads, "a")
+  expect_named(got$reads$a, c("result", "expr"))
   expect_identical(got$reads$a$expr, quote(datasets::iris))
   expect_identical(nrow(got$reads$a$result), 150L)
+  expect_identical(got$file$name, "notes.txt")
+  expect_identical(readLines(got$file$datapath, warn = FALSE), "Notes")
+
+  session$sent <- list()
+
+  # A function that takes `...` gets the args alone, since R binds what it
+  # passes itself only to the arguments that the function names, and the
+  # client passes none of those.
+  session$receive(
+    list(
+      list(
+        id = "3",
+        kind = "request",
+        type = "plugin",
+        plugin = "blockr.notes-notes_plugin",
+        name = "count",
+        args = list(a = 1L, b = 2L),
+        reads = list(read_of("a", 2L))
+      ),
+      list(
+        id = "4",
+        kind = "request",
+        type = "plugin",
+        plugin = "blockr.notes-notes_plugin",
+        name = "save",
+        args = list(text = "hello", reads = list())
+      )
+    )
+  )
+  session$run()
+
+  replies <- lapply(session$sent, `[[`, 1L)
+
+  expect_identical(chr_xtr(replies, "id"), c("3", "4"))
+  expect_identical(unclass(replies[[1L]]$value), "[2]")
+  expect_identical(replies[[2L]]$status, "error")
+  expect_identical(
+    condition_class(replies[[2L]]),
+    "plugin_request_args_invalid"
+  )
 })
 
 test_that("R checks what a request of any type reads, and forgets it", {
@@ -1001,7 +1053,8 @@ test_that("R checks what a request of any type reads, and forgets it", {
     list(
       id = id,
       kind = "request",
-      type = "code",
+      type = "plugin",
+      plugin = "blockr.code-code_plugin",
       name = "script",
       reads = list(read_of("a", revision))
     )
@@ -1028,17 +1081,25 @@ test_that("R checks what a request of any type reads, and forgets it", {
   )
 })
 
-test_that("R replies error to a type that no method answers", {
+test_that("R replies error to a type that is not core's", {
 
   session <- local_evaluator()
 
+  plugin <- function(id, class) {
+    list(id = id, kind = "request", type = "plugin", plugin = class,
+         name = "x", args = obj())
+  }
+
   session$receive(
     list(
-      list(id = "2", kind = "request", type = "nothing", name = "x"),
+      plugin("2", "blockr.notes-notes_plugin"),
       list(id = "3", kind = "request", type = "option", option = "data_dir",
            name = "list_dir", args = obj()),
-      list(id = "4", kind = "request", type = "no such type", name = "x"),
-      list(id = "5", kind = "request", name = "x", registry_id = "a")
+      list(id = "4", kind = "request", type = "code", name = "x"),
+      list(id = "5", kind = "request", name = "x", registry_id = "a"),
+      plugin("6", "notes_plugin"),
+      plugin("7", "blockr.notes-frontend_plugin"),
+      plugin("8", "blockr.notes-notes")
     )
   )
 
@@ -1046,13 +1107,14 @@ test_that("R replies error to a type that no method answers", {
 
   replies <- lapply(session$sent, `[[`, 1L)
 
-  expect_identical(chr_xtr(replies, "id"), c("4", "5", "2", "3"))
+  # R refuses at once what it cannot read, and in turn what no package gives.
+  expect_identical(chr_xtr(replies, "id"), c("4", "5", "6", "7", "8", "2", "3"))
   expect_identical(
     chr_ply(replies, condition_class),
-    c("protocol_request_invalid", "protocol_request_invalid",
-      "request_type_unknown", "option_request_unknown")
+    c(rep("protocol_request_invalid", 5L), "plugin_request_unknown",
+      "option_request_unknown")
   )
-  expect_null(replies[[3L]]$conditions[[1L]]$phase)
+  expect_null(replies[[6L]]$conditions[[1L]]$phase)
 })
 
 test_that("an evaluator is an object of the class session_evaluator", {

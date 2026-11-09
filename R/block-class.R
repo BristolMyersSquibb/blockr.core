@@ -46,9 +46,8 @@
 #' The types that a module is written against ship in the installed package,
 #' in the directory `system.file("types", package = "blockr.core")`.
 #' A package's build resolves that directory as `@blockr/core`,
-#' such as after `npm install --no-save --install-links` of it.
-#' The flag installs a copy, from which TypeScript finds the package's own
-#' React.
+#' once [install_js_types()] has installed a copy of it,
+#' from which TypeScript finds the React that npm installs beside it.
 #' Stubs of the hosts ship there too, as `@blockr/core/stubs`,
 #' with which a module's tests mount it
 #' on the fixture file that [expect_block_fixture()] writes.

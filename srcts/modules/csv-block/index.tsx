@@ -2,8 +2,7 @@
 // the quoting characters, which utils::read.table() takes.
 
 import type { ReactElement } from "react";
-import { Stack, TextInput } from "../../inputs/index.ts";
-import { reactModule, useValue } from "../../react/index.ts";
+import { reactModule, Stack, TextInput, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
 import type { State } from "./state.ts";

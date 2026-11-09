@@ -1,5 +1,4 @@
 import type { Plugin } from "esbuild";
-export declare const sharedReact: Plugin;
 export declare const preset: {
     bundle: true;
     format: "esm";

@@ -1047,7 +1047,7 @@ describe("requests", () => {
     expect(statusOf(scheduler, "b").revision).toBe(edited);
   });
 
-  test("go again to the next session for an output, an output class's and a block class's request, and reject for an action, a board option's and one of a type that a package adds", async () => {
+  test("go again to the next session for an output, an output class's and a block class's request, and reject for an action, a board option's and a plugin's request", async () => {
     const { r, scheduler } = await setup();
     scheduler.demand("test", ["b"]);
     scheduler.start();
@@ -1086,7 +1086,7 @@ describe("requests", () => {
         reads: [],
       }),
       scheduler.request({ kind: "request", type: "option", option: "data_dir", name: "list_dir", args: {} }),
-      scheduler.request({ kind: "request", type: "code", name: "script", args: {}, reads: [] }),
+      scheduler.request({ kind: "request", type: "plugin", plugin: "blockr.code-code_plugin", name: "script", args: {}, reads: [] }),
     ];
     // The ids of the outputs and requests sent, in order.
     const asked = () =>

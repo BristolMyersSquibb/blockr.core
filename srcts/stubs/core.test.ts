@@ -6,6 +6,7 @@ import { act } from "react";
 import { describe, expect, test } from "vitest";
 import type { Option } from "../store/index.ts";
 import { find } from "../testing/inputs.ts";
+import { withPlugins } from "../testing/store.ts";
 // React's act() environment, for the UIs of core's board options.
 import "../testing/react.ts";
 import type { CoreApi } from "../types/core-api.ts";
@@ -94,14 +95,29 @@ describe("the CoreApi for tests", () => {
     expect(table.hosts[0]?.output()).toMatchObject({ renderer: { id: "blockr.core-table_output" }, total: 7 });
   });
 
-  test("answers requests with what the test gives, and reads the blockr options that R holds", async () => {
+  test("answers a plugin's requests with what the test gives, and reads the blockr options that R holds", async () => {
+    // The board holds the plugin of blockr.code, whose startup module
+    // registers its class.
     const { core } = await stubCore({
+      hello: withPlugins({ code: { class: "blockr.code-code_plugin", name: "Code", state: {} } }),
+      startup: {
+        "blockr.code": {
+          api: 1,
+          default: {
+            initialize({ core: given }: { core: CoreApi }) {
+              given.plugins.register({ id: "blockr.code-code_plugin" });
+            },
+          },
+        },
+      },
       blockrOptions: { n_rows: 25 },
-      answer: (request) => (request.kind === "request" && request.type === "code" ? ["a <- 1"] : undefined),
+      answer: (request) =>
+        request.kind === "request" && request.type === "plugin" && request.name === "script" ? ["a <- 1"] : undefined,
     });
 
-    await expect(core.request("code", { name: "script" }, { reads: ["a"] })).resolves.toEqual(["a <- 1"]);
-    await expect(core.request("other")).rejects.toThrow("R replied error");
+    await expect(core.request("code", "script", {}, { reads: ["a"] })).resolves.toEqual(["a <- 1"]);
+    await expect(core.request("code", "other")).rejects.toThrow("R replied error");
+    await expect(core.request("dag", "script")).rejects.toThrow('The board holds no plugin "dag"');
     await expect(core.blockrOption("n_rows", 50)).resolves.toBe(25);
     await expect(core.blockrOption("gate_visibility", true)).resolves.toBe(true);
   });

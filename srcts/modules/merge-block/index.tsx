@@ -5,8 +5,7 @@
 
 import type { ReactElement } from "react";
 import { strings } from "../../binding/index.ts";
-import { Checkbox, Checklist, Stack } from "../../inputs/index.ts";
-import { reactModule, useRequest, useValue } from "../../react/index.ts";
+import { Checkbox, Checklist, reactModule, Stack, useRequest, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
 import type { State } from "./state.ts";
