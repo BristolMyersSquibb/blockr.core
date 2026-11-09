@@ -42,7 +42,7 @@ export interface HelloReply {
     plugin_versions: Record<PluginClassId, number>;
     option_versions: Record<OptionId, number>;
     renderers: Record<string, Renderer>;
-    lock: Lock | null;
+    lock: Lock;
     board: JsonBoard;
     bound?: string[];
 }
@@ -52,7 +52,8 @@ export interface Renderer {
     option: OptionId;
 }
 export interface Lock {
-    open: BlockId[];
+    board: boolean;
+    load: boolean;
 }
 export interface BlockrOptionsRequest {
     id: string;
@@ -69,6 +70,7 @@ export interface EvaluateRequest {
     kind: "evaluate";
     block: BlockId;
     revision: number;
+    locked: boolean | null;
     recipe: Recipe;
     params?: Record<string, Json>;
 }

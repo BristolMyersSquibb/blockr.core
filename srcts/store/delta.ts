@@ -71,6 +71,8 @@ export interface BlockMod {
   // null would reach `expr` as NULL.
   readonly unset?: readonly string[];
   readonly name?: string;
+  // The block's lock: true, false or null, which follows the board lock.
+  readonly locked?: boolean | null;
 }
 
 // A change to the board's plugins, in the shape of a JSON Patch operation

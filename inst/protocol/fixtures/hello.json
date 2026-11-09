@@ -324,7 +324,7 @@
         "plugin_versions": {},
         "option_versions": {},
         "renderers": {},
-        "lock": null,
+        "lock": { "board": false, "load": false },
         "board": {
           "format": 1,
           "packages": { "blockr.core": "0.2.0" },
@@ -337,19 +337,22 @@
                 "registry_id": "blockr.core-dataset_block",
                 "version": 1,
                 "state": { "dataset": "iris", "package": "datasets" },
-                "name": "Iris"
+                "name": "Iris",
+                "locked": null
               },
               "b": {
                 "registry_id": "blockr.core-head_block",
                 "version": 1,
                 "state": { "n": 6, "direction": "head" },
-                "name": "Head"
+                "name": "Head",
+                "locked": null
               },
               "c": {
                 "registry_id": "blockr.core-merge_block",
                 "version": 1,
                 "state": { "by": ["Species"], "all_x": false, "all_y": false },
-                "name": "Merge"
+                "name": "Merge",
+                "locked": null
               },
               "d": {
                 "registry_id": "blockr.core-subset_block",
@@ -358,19 +361,22 @@
                   "subset": "log(Sepal.Width - 3) > 0",
                   "select": ""
                 },
-                "name": "Wide sepals"
+                "name": "Wide sepals",
+                "locked": null
               },
               "e": {
                 "registry_id": "blockr.core-rbind_block",
                 "version": 1,
                 "state": {},
-                "name": "Bind"
+                "name": "Bind",
+                "locked": null
               },
               "f": {
                 "registry_id": "blockr.core-scatter_block",
                 "version": 1,
                 "state": { "x": "Sepal.Length", "y": "Sepal.Width" },
-                "name": "Scatter"
+                "name": "Scatter",
+                "locked": null
               }
             },
             "links": {

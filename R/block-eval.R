@@ -78,7 +78,11 @@ evaluate_block <- function(x, state = list(), inputs = list(),
 # Evaluates a block of the class `cls`, as `evaluate_block()` does,
 # with the parameters of a one-time evaluation given as a list,
 # so that a parameter reaches `block_eval()` whatever its name.
-eval_block_class <- function(cls, state, inputs, results, params) {
+# Where `built` gives the block expression that `build_block_expr()` built
+# before, as for a locked block where both locks are on, R runs that,
+# and calls no `expr`.
+eval_block_class <- function(cls, state, inputs, results, params,
+                             built = NULL) {
 
   data <- input_results(class_inputs(cls), inputs, results)
 
@@ -91,10 +95,9 @@ eval_block_class <- function(cls, state, inputs, results, params) {
     return(new_block_evaluation("error", conditions = checks[["conditions"]]))
   }
 
-  built <- run_phase(
-    "expr",
-    interpolate(do.call(cls[["expr"]], state, quote = TRUE), inputs)
-  )
+  if (is.null(built)) {
+    built <- build_block_expr(cls, state, inputs)
+  }
 
   conditions <- c(checks[["conditions"]], built[["conditions"]])
 
@@ -138,6 +141,17 @@ eval_block_class <- function(cls, state, inputs, results, params) {
     result = ran[["value"]],
     summary = summary[["value"]],
     conditions = c(conditions, summary[["conditions"]])
+  )
+}
+
+# Builds the block expression of a block of the class `cls` from its state and
+# the upstream ids of its inputs, as the phase `expr` that `run_phase()`
+# records: the expression as its value, with the conditions raised, and the
+# error where building it failed, which `phase_status()` reads.
+build_block_expr <- function(cls, state, inputs) {
+  run_phase(
+    "expr",
+    interpolate(do.call(cls[["expr"]], state, quote = TRUE), inputs)
   )
 }
 
