@@ -50,7 +50,11 @@ registry_metadata(blocks = list_blocks(), fields = "all")
 
 create_block(id, ...)
 
-register_package_blocks(which = "all", package = pkg_name(), overwrite = TRUE)
+register_package_blocks(
+  which = "all",
+  package = pkg_name(parent.frame()),
+  overwrite = TRUE
+)
 ```
 
 ## Arguments
@@ -117,7 +121,10 @@ register_package_blocks(which = "all", package = pkg_name(), overwrite = TRUE)
 
 - package:
 
-  Package where constructor is defined (or `NULL`)
+  Package where constructor is defined (or `NULL`). For
+  `register_package_blocks()`, the package whose registry is read. It
+  defaults to the package that calls `register_package_blocks()`, as
+  from its `.onLoad()`
 
 - overwrite:
 
