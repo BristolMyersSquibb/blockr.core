@@ -100,7 +100,7 @@ export interface StubCoreOptions {
   // block's class names unless given.
   readonly output?: (request: OutputRequest) => { output: BlockOutput & Record<string, Json>; body?: Blob } | undefined;
   // What R answers to a request of a block class, an output class, a
-  // renderer, a board option or a type that a package adds.
+  // renderer, a board option or a plugin.
   readonly answer?: Answer;
   // The element in which core draws the board with its front-end. Without
   // one, core draws no front-end and lets the scheduler send once the board is

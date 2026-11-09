@@ -2,11 +2,10 @@
 #'
 #' A request asks R for an answer that the client needs,
 #' rather than for a block's result.
-#' Every request names its type in `type`,
+#' Every request names its type in `type`, one of core's five,
 #' and R reads it into an object of class `{type}_request`,
 #' which holds the request's fields.
-#' R answers it through the generic `request_call()`,
-#' whose method for that class finds the function that answers the request,
+#' By the request's type, R then finds the function that answers the request,
 #' and binds the function's arguments.
 #' Core's types are these:
 #'
@@ -26,48 +25,46 @@
 #'   R finds it among the requests that `board_option_requests()` returns for
 #'   the board option that `option` names, by the board option's class,
 #'   `{id}_option`.
+#' * The type `plugin`, a plugin's request,
+#'   which a plugin sends through `CoreApi.request()` in the client.
+#'   R finds it among the requests that `plugin_requests()` returns for the
+#'   plugin class whose ID `plugin` names, as `blockr.md-md_plugin`.
+#'   R calls the method on an object of class `c("{name}_plugin", "plugin")`,
+#'   which it makes from the ID, as `c("md_plugin", "plugin")`.
 #'
-#' A package adds a type with a method of `request_call()` for its class,
-#' such as the dock might for the requests of its extensions.
-#' The client then sends requests of that type,
-#' with the fields that the package gives them.
-#' R checks the results that every request names in `reads`, whatever its
-#' type, and replies `missing` where it lacks one.
-#' So a method gets only results that R holds.
-#' The method returns the function that answers the request,
-#' with the arguments to call it with.
-#' R calls the function, and replies with its answer,
+#' No package adds a type of its own,
+#' and R replies `error` to a request of a type that is not core's.
+#' R checks the results that a request reads,
+#' and replies `missing` where it lacks one.
+#' R calls the request's function, and replies with its answer,
 #' or with an `error` that names the phase `request` where the function fails.
-#' A function reports how far it has come with [report_progress()].
-#' R replies `error` to a request of a type that no method answers.
+#' A function may answer with a file that [new_reply_body()] makes,
+#' and reports how far it has come with [report_progress()].
 #'
 #' The package that ships a board option gives the board option's requests with
 #' a method of `board_option_requests()` for the board option's class.
-#' R calls a board option's request with the arguments that the client passes,
-#' by name, and with the request's body in its argument `file`,
+#' The package of a plugin class gives the class's requests with a method of
+#' `plugin_requests()` for the class.
+#' Each method returns the requests as a list of functions by name.
+#' R calls a board option's request, or a plugin's, with the arguments that the
+#' client passes, by name, and with the request's body in its argument `file`,
 #' where the function takes one.
 #' That is a list of the path of the temporary file that R wrote the bytes to,
 #' in `datapath`, and the file's `name`, `type` and `size`.
+#' R passes a plugin's request the blocks that it reads as well,
+#' in its argument `reads`, where the function takes one.
+#' That is a list by block ID, each a list of the block's `result` and the block
+#' expression `expr` that R built for it.
+#' A board option's request and a plugin's may write,
+#' so the client keeps none of their answers.
+#' R runs a plugin's request on a locked board as on any other.
 #'
-#' @param x For `request_call()`, the request, as R reads it from the client's
-#'   message, and for `board_option_requests()`, a board option
-#' @param reads The results that the request reads, by block ID, each a list
-#'   of the block's `result`, its block expression `expr` and, where R made an
-#'   output from the result, the class vector of the latest output in `output`
+#' @param x A board option, for `board_option_requests()`, and for
+#'   `plugin_requests()`, a plugin, which R makes from the ID of the plugin's
+#'   class as an object of class `c("{name}_plugin", "plugin")`
 #' @param ... Generic consistency
 #'
 #' @examples
-#' # A package that adds the type "code", for the script of the blocks that a
-#' # request reads, puts `S3method(request_call, code_request)` in its
-#' # NAMESPACE.
-#' request_call.code_request <- function(x, reads, ...) {
-#'   script <- function(reads) {
-#'     code <- vapply(reads, function(r) deparse1(r$expr), character(1L))
-#'     paste(names(reads), "<-", code)
-#'   }
-#'   list(fun = script, args = list(reads = reads))
-#' }
-#'
 #' # A package that ships the board option data_dir gives its requests.
 #' board_option_requests.data_dir_option <- function(x, ...) {
 #'   list(list_dir = function(path = ".") list.files(path))
@@ -75,31 +72,40 @@
 #'
 #' names(board_option_requests(new_board_option("data_dir")))
 #'
-#' @return The generic `request_call()` returns a list of the function that
-#' answers the request, in `fun`, the arguments to call it with, by name, in
-#' `args`, and optionally `volatile`, which marks the reply volatile where it is
-#' `TRUE`. The generic `board_option_requests()` returns the board option's
-#' requests, a list of functions by name.
+#' # blockr.code, whose plugin class is blockr.code-code_plugin, gives the
+#' # request script, for the code of the blocks that the request reads.
+#' plugin_requests.code_plugin <- function(x, ...) {
+#'   list(
+#'     script = function(reads) {
+#'       code <- vapply(reads, function(r) deparse1(r$expr), character(1L))
+#'       paste(names(reads), "<-", code)
+#'     }
+#'   )
+#' }
 #'
-#' @export
+#' plugin <- structure(list(), class = c("code_plugin", "plugin"))
+#' names(plugin_requests(plugin))
+#'
+#' @return The generics `board_option_requests()` and `plugin_requests()`
+#' return the requests of a board option and of a plugin class, each a list of
+#' functions by name.
+#'
+#' @name request-types
+NULL
+
+# The function that answers a request, which R reads into an object of class
+# `{type}_request`, and the arguments to call it with: a list of the function,
+# in `fun`, its arguments by name, in `args`, and optionally `volatile`, which
+# marks the reply volatile where it is `TRUE`.
+# The results that the request reads come in `reads`, by block ID, each a list
+# of the block's `result`, its block expression `expr` and, where R made an
+# output from the result, the class vector of the latest output in `output`.
+# Core keeps the generic to itself, since no package adds a type.
+# R reads no request of another type, so the generic needs no default method.
 request_call <- function(x, reads, ...) {
   UseMethod("request_call")
 }
 
-#' @rdname request_call
-#' @export
-request_call.default <- function(x, reads, ...) {
-
-  type <- sub("_request$", "", class(x)[1L])
-
-  blockr_abort(
-    "R answers no request of type ", type, ", since no package has a method ",
-    "of `request_call()` for ", class(x)[1L], ".",
-    class = "request_type_unknown"
-  )
-}
-
-#' @rdname request_call
 #' @export
 request_call.block_class_request <- function(x, reads, ...) {
 
@@ -121,19 +127,16 @@ request_call.block_class_request <- function(x, reads, ...) {
   )
 }
 
-#' @rdname request_call
 #' @export
 request_call.output_class_request <- function(x, reads, ...) {
   output_read_call(x, reads, NULL)
 }
 
-#' @rdname request_call
 #' @export
 request_call.renderer_request <- function(x, reads, ...) {
   output_read_call(x, reads, x[["renderer"]])
 }
 
-#' @rdname request_call
 #' @export
 request_call.option_request <- function(x, reads, ...) {
 
@@ -161,15 +164,61 @@ request_call.option_request <- function(x, reads, ...) {
   )
 }
 
-#' @rdname request_call
+# A plugin's request, which R finds by the ID of the plugin's class among the
+# requests of the class.
+# Its function gets the blocks that the request reads in `reads`, each with its
+# result and its block expression alone, and the request's body in `file`.
+#' @export
+request_call.plugin_request <- function(x, reads, ...) {
+
+  plugin <- x[["plugin"]]
+  name <- x[["name"]]
+  fun <- plugin_class_requests(plugin)[[name]]
+
+  if (!is.function(fun)) {
+    blockr_abort(
+      "Plugin class {plugin} has no request {name}.",
+      class = "plugin_request_unknown"
+    )
+  }
+
+  list(
+    fun = fun,
+    args = request_call_args(
+      fun,
+      name,
+      x[["args"]],
+      c(
+        list(reads = lapply(reads, `[`, c("result", "expr"))),
+        Filter(not_null, list(file = x[["body"]]))
+      ),
+      c("reads", "file"),
+      "plugin_request_args_invalid"
+    )
+  )
+}
+
+#' @rdname request-types
 #' @export
 board_option_requests <- function(x, ...) {
   UseMethod("board_option_requests")
 }
 
-#' @rdname request_call
+#' @rdname request-types
 #' @export
 board_option_requests.board_option <- function(x, ...) {
+  list()
+}
+
+#' @rdname request-types
+#' @export
+plugin_requests <- function(x, ...) {
+  UseMethod("plugin_requests")
+}
+
+#' @rdname request-types
+#' @export
+plugin_requests.plugin <- function(x, ...) {
   list()
 }
 

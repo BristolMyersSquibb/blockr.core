@@ -112,6 +112,36 @@ test_that("a plugin class's method gives its version, or it is at version 1", {
   )
 })
 
+test_that("a plugin class's method gives its requests, or it has none", {
+
+  expect_identical(plugin_class_requests("blockr.test-notes_plugin"), list())
+
+  testthat::local_mocked_s3_method(
+    "plugin_requests",
+    "notes_plugin",
+    function(x, ...) list(save = function(text) toupper(text))
+  )
+
+  reqs <- plugin_class_requests("blockr.test-notes_plugin")
+
+  expect_named(reqs, "save")
+  expect_identical(reqs$save("a"), "A")
+
+  for (bad in list(list(function() 1), list(save = 1), "save")) {
+
+    testthat::local_mocked_s3_method(
+      "plugin_requests",
+      "bad_plugin",
+      function(x, ...) bad
+    )
+
+    expect_error(
+      plugin_class_requests("blockr.test-bad_plugin"),
+      class = "plugin_requests_invalid"
+    )
+  }
+})
+
 test_that("a plugin prints its class, its name and its state", {
 
   notes <- plugin_ctor(

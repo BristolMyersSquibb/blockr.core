@@ -87,12 +87,10 @@ export interface BlockContext {
   readonly options: Readonly<Record<OptionId, Json>>;
 }
 
-// The options of a host's request. The host fills in the blocks it reads,
-// from the block's inputs or the output it holds.
-export interface HostRequestOpts extends Omit<RequestOpts, "reads"> {
-  // A file it sends, such as an upload or the bitmap of a chart.
-  file?: File;
-}
+// The options of a host's request, such as the file of an upload or the bitmap
+// of a chart. The host fills in the blocks it reads, from the block's inputs or
+// the output it holds.
+export type HostRequestOpts = Omit<RequestOpts, "reads">;
 
 // The options of an output's request: as a host's, and the scope of the
 // request, "class" for one of the output class, as unless given, or

@@ -49,9 +49,7 @@ export interface BlockContext {
     }[];
     readonly options: Readonly<Record<OptionId, Json>>;
 }
-export interface HostRequestOpts extends Omit<RequestOpts, "reads"> {
-    file?: File;
-}
+export type HostRequestOpts = Omit<RequestOpts, "reads">;
 export interface OutputRequestOpts extends HostRequestOpts {
     scope?: "class" | "renderer";
 }

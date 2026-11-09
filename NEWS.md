@@ -205,10 +205,11 @@
   It keeps the latest result of each block by block id and revision, with the block expression and the registry id, and drops it when the client forgets the block.
   It evaluates a block from its recipe, makes the block's output with the coercion that its class names, answers requests and reads blockr options.
   It runs one request at a time, in the order they arrive, and handles a `cancel` or a `forget` between two requests (#430).
-* Every request names its type, and R answers it through the generic `request_call()`, by the class `{type}_request`.
-  Core's types are the requests of block classes, output classes, renderers and board options.
-  A package adds a type of its own with a method of `request_call()`, and gives the requests of a board option it ships with a method of `board_option_requests()` for the board option's class.
-  A request's function reports how far it has come with `report_progress()`, which R sends to the client as progress notes (#430).
+* Every request names its type, one of core's: the requests of block classes, output classes, renderers, board options and plugins.
+  No package adds a type of its own, and R replies `error` to a request of any other type.
+  The package that ships a board option gives the board option's requests with a method of `board_option_requests()` for the board option's class, and the package of a plugin class gives the class's requests with a method of `plugin_requests()` for the class.
+  R calls a plugin's request with its args by name, the blocks that it reads in `reads`, each with its result and its block expression, and the request's body in `file`.
+  A request's function reports how far it has come with `report_progress()`, which R sends to the client as progress notes (#430, #505).
 * Core's client draws table, text and plot outputs with renderers of its own, written in React: a table that pages and sorts through its output's parameters, printed text that scrolls at R's width, and a plot's PNG at the size it was drawn at.
   Core's runtime puts the one copy of React on the page, minified at the start of its bundle and ahead of core's own code, and core's build maps each of its modules' imports of React to that copy.
   Core's React SDK holds what the renderers and core's UIs draw with.
@@ -239,10 +240,10 @@
   A board opened later is drawn in the same way, and a later session that names a loaded package at another version has the page ask the user to reload it.
   Front-ends, extensions and startup modules work on the board through `CoreApi`.
   Its `mountBlock()`, `mountOutput()` and `mountOption()` mount a block's UI, a block's output and a board option's UI, and its `blockrOption()` reads a blockr option once per page.
-  Its `request()` sends a request of a type that a package adds, once the blocks that the request reads are evaluated.
+  Its `request()` sends a request of a plugin of the board, by the plugin's id, once the blocks that the request reads are evaluated, and keeps none of its answers.
   An output is measured, asked of R and drawn by the renderer that R names in it, and a renderer calls its output class's requests and its own through its host.
   Core ships a `CoreApi` for tests beside the stubs of its hosts, `stubCore()` in `@blockr/core/stubs`, which answers for R from the fixtures of the wire protocol and registers core's board options with their UIs, as the page does.
-  The package `@blockr/core` names the React that core's runtime bundles, at that version, as its peer, so that npm installs that React with it and a package's tests run on it with no React of their own, while npm refuses a second copy at another version (#440, #504).
+  The package `@blockr/core` names the React that core's runtime bundles, at that version, as its peer, so that npm installs that React with it and a package's tests run on it with no React of their own, while npm refuses a second copy at another version (#440, #504, #505).
 * Opening a board starts core's client again in place, with no reload, so that nothing of the board before outlives the opening.
   The store on the page checks the board first, with its `check()`, and a board that it refuses leaves the page as it was, with the reason.
   One abort then ends everything that core ran for the board before: the front-end and what it mounted, the startup modules, the store with its undo history, the command registry, the board options, the scheduler with its demands, and what core kept of outputs and answers.

@@ -1,8 +1,6 @@
 import type { BlockId } from "../types/board.ts";
 import type { Capability, CancelRequest, ClientMessage, ForgetRequest, HelloRequest, Progress, Reply, Request } from "./messages.ts";
-type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? {
-    [P in keyof T as P extends K ? never : P]: T[P];
-} : never;
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 export type ProgressNote = Progress["progress"];
 export interface RequestOptions {
     body?: Blob;
