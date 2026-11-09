@@ -3380,8 +3380,8 @@ function domMeasure() {
         height,
         pixel_ratio: window.devicePixelRatio > 0 ? window.devicePixelRatio : 1,
         bg: backgroundOf(el) ?? FALLBACK.bg,
-        fg: hexOf(style.color) ?? FALLBACK.fg,
-        accent: hexOf(style.getPropertyValue(ACCENT).trim()) ?? FALLBACK.accent,
+        fg: asHex(style.color) ?? FALLBACK.fg,
+        accent: asHex(style.getPropertyValue(ACCENT).trim()) ?? FALLBACK.accent,
         font: style.fontFamily
       };
     },
@@ -3436,7 +3436,7 @@ function backgroundOf(el) {
   for (let at = el; at !== null; at = at.parentElement) {
     const value2 = getComputedStyle(at).backgroundColor;
     if (value2 === "") continue;
-    const colour = rgbaOf(value2);
+    const colour = asRgba(value2);
     if (colour === null) return null;
     if (colour[3] >= 1) return hex(layers.reduceRight(over, colour));
     if (colour[3] > 0) layers.push(colour);
@@ -3447,7 +3447,7 @@ function behindPage() {
   const probe = document.createElement("div");
   probe.style.cssText = "display: none; background-color: Canvas";
   document.documentElement.append(probe);
-  const colour = rgbaOf(getComputedStyle(probe).backgroundColor);
+  const colour = asRgba(getComputedStyle(probe).backgroundColor);
   probe.remove();
   return colour !== null && colour[3] >= 1 ? colour : WHITE;
 }
@@ -3455,12 +3455,12 @@ function over(behind, [r2, g2, b2, alpha]) {
   const mix = (front, back) => front * alpha + back * (1 - alpha);
   return [mix(r2, behind[0]), mix(g2, behind[1]), mix(b2, behind[2]), 1];
 }
-function hexOf(colour) {
-  const rgba = rgbaOf(colour);
+function asHex(colour) {
+  const rgba = asRgba(colour);
   return rgba === null ? null : hex(rgba);
 }
 var RGB = /^rgba?\(\s*(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)(?:\s*[,/]\s*(\d+(?:\.\d+)?)(%?))?\s*\)$/;
-function rgbaOf(colour) {
+function asRgba(colour) {
   const text = colour.trim();
   if (text === "") return null;
   if (text === "transparent") return [0, 0, 0, 0];
@@ -8366,7 +8366,7 @@ function start(options) {
       if (signal.aborted) break;
       try {
         const source = entry.css === void 0 ? { module: entry.module } : { module: entry.module, css: entry.css };
-        const mod = startupOf(await loader.load(source, entry.package), entry.module, entry.package);
+        const mod = asStartupModule(await loader.load(source, entry.package), entry.module, entry.package);
         let result;
         try {
           result = await mod.initialize({ core, signal });
@@ -8496,7 +8496,7 @@ function askReload(changed) {
     )
   );
 }
-function startupOf(exports, module, pkg) {
+function asStartupModule(exports, module, pkg) {
   if (!isObject(exports) || typeof exports.api !== "number") {
     throw new ModuleError(module, pkg, "declares no major of core's JS API, as `export const api = 1`.");
   }

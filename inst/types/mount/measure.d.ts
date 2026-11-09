@@ -4,4 +4,4 @@ export interface Measure {
     watch(el: HTMLElement, fn: () => void): () => void;
 }
 export declare function domMeasure(): Measure;
-export declare function hexOf(colour: string): string | null;
+export declare function asHex(colour: string): string | null;

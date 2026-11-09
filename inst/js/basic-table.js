@@ -9,7 +9,7 @@ function isNumber(column) {
 }
 function pageOf(table, params, nRows) {
   const rows = table.rows.length;
-  const size = params.page_size ?? countOf(nRows) ?? Math.max(rows, 1);
+  const size = params.page_size ?? asCount(nRows) ?? Math.max(rows, 1);
   const page = params.page ?? 1;
   const last = table.total === null ? null : Math.max(1, Math.ceil(table.total / size));
   return {
@@ -61,7 +61,7 @@ function sortOf(column, desc) {
 function count(n) {
   return n.toLocaleString("en-US");
 }
-function countOf(value) {
+function asCount(value) {
   return typeof value === "number" && Number.isInteger(value) && value >= 1 ? value : void 0;
 }
 

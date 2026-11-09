@@ -44,7 +44,7 @@ var link = "bc:cursor-pointer bc:rounded bc:border-0 bc:bg-transparent bc:px-2 b
 var entry = `${link} bc:justify-self-stretch`;
 function FileBrowserBlock({ host }) {
   const shared = useValue(host, "volumes").value;
-  const volumes = volumesOf(shared);
+  const volumes = asVolumes(shared);
   const file = useValue(host, "file_path");
   const held = typeof file.value === "string" && file.value !== "" ? file.value : void 0;
   const [place, setPlace] = useState(() => locate(file.value, volumes));
@@ -57,7 +57,7 @@ function FileBrowserBlock({ host }) {
   });
   const [left, setLeft] = useState(null);
   const loading = listed === left || listed.answer === void 0 && listed.error === null;
-  const listing2 = listed.error === null ? listingOf(listed.answer) : { dirs: [], files: [] };
+  const listing2 = listed.error === null ? asListing(listed.answer) : { dirs: [], files: [] };
   const error = (loading ? null : listed.error) ?? file.error;
   const go = (next) => {
     if (next.volume === volume && jsonEqual(next.dirs, dirs)) return;
@@ -150,7 +150,7 @@ function locate(file, roots) {
   }
   return { volume: Object.keys(roots)[0], dirs: [] };
 }
-function volumesOf(volumes) {
+function asVolumes(volumes) {
   if (!isObject(volumes)) return {};
   return Object.fromEntries(
     Object.entries(volumes).filter((pair) => typeof pair[1] === "string")
@@ -159,7 +159,7 @@ function volumesOf(volumes) {
 function join(root, names) {
   return [root.replace(/\/+$/, ""), ...names].join("/");
 }
-function listingOf(answer) {
+function asListing(answer) {
   return isObject(answer) ? { dirs: strings(answer.dirs), files: strings(answer.files) } : { dirs: [], files: [] };
 }
 export {

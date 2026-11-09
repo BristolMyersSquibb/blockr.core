@@ -1161,7 +1161,7 @@ function Page() {
   const board = useBoard(core);
   const items = useMemo2(() => itemsOf(board), [board]);
   const shown = board.options.show_conditions;
-  const severities = useMemo2(() => severitiesOf(shown), [shown]);
+  const severities = useMemo2(() => asSeverities(shown), [shown]);
   const [dialog, setDialog] = useState7(null);
   const add = useCallback4((mode) => {
     setDialog({ kind: "add", mode });
@@ -1235,7 +1235,7 @@ function Notices() {
     notice.id
   )) });
 }
-function severitiesOf(value2) {
+function asSeverities(value2) {
   if (!Array.isArray(value2)) return [];
   return value2.filter((severity) => severity === "error" || severity === "warning" || severity === "message");
 }
