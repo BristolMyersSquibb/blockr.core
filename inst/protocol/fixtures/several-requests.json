@@ -6,6 +6,7 @@
       "kind": "evaluate",
       "block": "a",
       "revision": 2,
+      "locked": null,
       "recipe": {
         "registry_id": "blockr.core-dataset_block",
         "state": { "dataset": "iris", "package": "datasets" },
@@ -17,6 +18,7 @@
       "kind": "evaluate",
       "block": "b",
       "revision": 3,
+      "locked": null,
       "recipe": {
         "registry_id": "blockr.core-head_block",
         "state": { "n": 6, "direction": "head" },

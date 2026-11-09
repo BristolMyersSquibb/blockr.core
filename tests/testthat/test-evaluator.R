@@ -39,8 +39,7 @@ test_that("R sends the JSON board that serve() was given as it is", {
   expect_identical(reply$board, file)
   expect_false("file" %in% names(reply))
   expect_null(reply$bound)
-  expect_null(reply$lock)
-  expect_true("lock" %in% names(reply))
+  expect_identical(reply$lock, list(board = FALSE, load = FALSE))
 })
 
 test_that("R names the inputs it binds itself for a block served alone", {

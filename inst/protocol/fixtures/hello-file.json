@@ -117,7 +117,7 @@
         "plugin_versions": {},
         "option_versions": {},
         "renderers": {},
-        "lock": null,
+        "lock": { "board": false, "load": false },
         "board": {
           "format": 1,
           "packages": { "blockr.core": "0.2.0" },
@@ -130,13 +130,15 @@
                 "registry_id": "blockr.core-dataset_block",
                 "version": 1,
                 "state": { "dataset": "mtcars", "package": "datasets" },
-                "name": "Cars"
+                "name": "Cars",
+                "locked": null
               },
               "b": {
                 "registry_id": "blockr.core-subset_block",
                 "version": 1,
                 "state": { "subset": "cyl == 6", "select": "mpg" },
-                "name": "Six cylinders"
+                "name": "Six cylinders",
+                "locked": null
               }
             },
             "links": { "ab": { "from": "a", "to": "b", "input": "data" } },

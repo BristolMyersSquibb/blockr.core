@@ -6,6 +6,7 @@
       "kind": "evaluate",
       "block": "w",
       "revision": 12,
+      "locked": null,
       "recipe": {
         "registry_id": "blockr.io-write_block",
         "state": {

@@ -94,6 +94,7 @@ const evaluate: EvaluateRequest = {
   kind: "evaluate",
   block: "a",
   revision: 2,
+  locked: null,
   recipe: { registry_id: "blockr.core-dataset_block", state: {}, inputs: [] },
 };
 

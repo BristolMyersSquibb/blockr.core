@@ -20,6 +20,15 @@
 # `data` holds the data that `serve()` was given, by input.
 # R binds each entry itself to the block's input of that name.
 #
+# The reply to `hello` carries the locks that the app sets, which R reads as
+# the evaluator starts, and R holds every evaluation to them
+# (see `lock_evaluation()`).
+# Where the load lock and the board lock are both on, `lock` is what
+# `lock_board()` read from the opening board, once, as the app started,
+# and `serve()` hands the same to the evaluator of every session.
+# Without the load lock, R keeps by block id what it holds each block to,
+# which a later `hello` drops.
+#
 # The results live in an environment keyed by block id.
 # For each block that R evaluated, it holds the revision,
 # value, block expression and registry id of the latest evaluation.
@@ -46,7 +55,8 @@
 # running a queued request, stopping one that has started,
 # and dropping results.
 # The rest is the protocol, which every evaluator shares.
-new_evaluator <- function(board, data = list()) {
+new_evaluator <- function(board, data = list(),
+                          lock = lock_board(board, data)) {
 
   if (missing(board) || is.null(board)) {
     blockr_abort(
@@ -63,7 +73,21 @@ new_evaluator <- function(board, data = list()) {
     )
   }
 
+  locks <- app_locks()
+
+  if (locks[["board"]] && locks[["load"]] && is.null(lock)) {
+    blockr_abort(
+      "With the load lock and the board lock on, an evaluator holds every ",
+      "block to what `lock_board()` reads of the opening board.",
+      class = "evaluator_lock_missing"
+    )
+  }
+
   ev <- new.env(parent = emptyenv())
+
+  ev$locks <- locks
+  ev$lock <- if (locks[["board"]] && locks[["load"]]) lock
+  ev$holds <- new.env(parent = emptyenv())
 
   ev$opening <- c(
     list(board = board),
@@ -237,7 +261,8 @@ receive_request <- function(ev, req, send) {
 
 # A `hello` starts the session.
 # A later one starts the session afresh:
-# R forgets every block and drops every request still queued.
+# R forgets every block and drops every request still queued,
+# with what it held each block to without the load lock.
 # R loads no package for a `hello`, since the app's script has loaded them.
 start_session <- function(ev, req, send) {
 
@@ -254,6 +279,7 @@ start_session <- function(ev, req, send) {
   if (ev$started) {
     drop_results(ev)
     drop_requests(ev, seq_along(ev$queue), send)
+    rm(list = ls(ev$holds, all.names = TRUE), envir = ev$holds)
   }
 
   ev$started <- TRUE
@@ -269,7 +295,7 @@ start_session <- function(ev, req, send) {
           capabilities = I(evaluator_capabilities(ev))
         ),
         loaded_reply(),
-        list(lock = NULL),
+        list(lock = ev$locks),
         ev$opening
       )
     )

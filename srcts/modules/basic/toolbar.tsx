@@ -2,8 +2,9 @@
 // user renames, and the controls for the board: adding a block, editing links
 // and stacks, setting the board options, undo and redo, saving the board as a
 // file and opening one.
-// On a locked board, it draws no control for what the lock fixes. Only undo,
-// redo and saving stay, since a locked board opens no other board.
+// Under the board lock, it draws no control for what the lock fixes, and
+// only undo, redo and saving stay. Under the load lock, it draws no control
+// for opening a board, since the store opens no other board there.
 
 import { useRef, useState } from "react";
 import type { ReactElement } from "react";
@@ -22,7 +23,8 @@ export function Toolbar({ board, show }: { board: Board; show: (dialog: ToolbarD
   const { canUndo, canRedo } = useHistory(core);
   const [renaming, setRenaming] = useState(false);
   const picker = useRef<HTMLInputElement>(null);
-  const locked = core.lock !== null;
+  const locked = core.lock.board;
+  const opens = !locked && !core.lock.load;
 
   function step(back: boolean): void {
     try {
@@ -146,7 +148,7 @@ export function Toolbar({ board, show }: { board: Board; show: (dialog: ToolbarD
         <button type="button" className={classes.button} onClick={save}>
           Save
         </button>
-        {locked ? null : (
+        {opens ? (
           <>
             <button
               type="button"
@@ -168,7 +170,7 @@ export function Toolbar({ board, show }: { board: Board; show: (dialog: ToolbarD
               }}
             />
           </>
-        )}
+        ) : null}
       </div>
     </header>
   );
