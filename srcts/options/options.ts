@@ -8,19 +8,23 @@
 //
 // Each default is a function that reads the blockr option of the board
 // option's name, which today's R constructor reads, through
-// CoreApi.blockrOption(), with a fallback, so that a deployment still sets
-// the default. The fallbacks are today's, but for n_rows, whose page holds 10
-// rows where today's holds 50. Core calls the function only where something
-// needs the board option and the board lacks its value, as a mounted renderer
-// or an onChange() does, so that nothing is read before then. Where R holds a
-// value that the board option's schema refuses, the default reports it and
-// takes the fallback.
+// CoreApi.blockrOption(), so that a deployment still sets the default, and
+// takes a fallback only where nothing sets the blockr option. The fallbacks
+// are today's, but for n_rows, whose page holds 10 rows where today's holds
+// 50. Core calls the function only where something needs the board option and
+// the board lacks its value, as a mounted renderer or an onChange() does, so
+// that nothing is read before then.
+// Each default reads a string, as an environment variable gives, as the
+// number or the logical that it holds, and where R holds a value that the
+// board option's schema then refuses, the default fails, naming the value as
+// R sent it, so that no reader gets the fallback in place of the value that
+// was set.
 
 import type { Option } from "../store/index.ts";
 import type { OptionId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
-import { compile, report } from "../util/index.ts";
+import { asLogical, asNumber, compile } from "../util/index.ts";
 import { optionSchemas } from "./schemas.ts";
 import { checklistUi, numberUi, selectUi } from "./ui.tsx";
 
@@ -42,8 +46,12 @@ export function nRows(core: BlockrOptions): Option {
     label: "Preview rows",
     category: "Table options",
     schema,
-    default: async () =>
-      checked("n_rows", schema, await core.blockrOption<Json>("n_rows", fallback), fallback),
+    // A string reads as the number that it holds.
+    default: async () => {
+      const value = await core.blockrOption("n_rows");
+      if (value === undefined) return fallback;
+      return checked("n_rows", schema, value, typeof value === "string" ? asNumber(value) : value);
+    },
     ui: numberUi("Preview rows", schema.minimum),
   };
 }
@@ -63,8 +71,9 @@ export function showConditions(core: BlockrOptions): Option {
     // R writes a blockr option of one severity as a string, as an
     // environment variable gives it.
     default: async () => {
-      const value = await core.blockrOption<Json>("show_conditions", fallback);
-      return checked("show_conditions", schema, typeof value === "string" ? [value] : value, fallback);
+      const value = await core.blockrOption("show_conditions");
+      if (value === undefined) return fallback;
+      return checked("show_conditions", schema, value, typeof value === "string" ? [value] : value);
     },
     ui: checklistUi("Message types to display", SEVERITIES),
   };
@@ -73,7 +82,8 @@ export function showConditions(core: BlockrOptions): Option {
 // Whether the board shows in its light or its dark theme. Today's fallback is
 // NULL, under which the page follows the theme that the user's system
 // prefers, so the default is that theme where no blockr option sets one. As
-// today, TRUE stands for dark and FALSE for light.
+// today, TRUE stands for dark and FALSE for light, and so does a string that
+// R's as.logical() reads as one, as an environment variable gives it.
 export function darkMode(core: BlockrOptions): Option {
   const schema = optionSchemas.dark_mode;
   return {
@@ -82,11 +92,11 @@ export function darkMode(core: BlockrOptions): Option {
     category: "Theme options",
     schema,
     default: async () => {
-      const value = await core.blockrOption<Json>("dark_mode", null);
-      const preferred = preferredTheme();
-      if (value === null) return preferred;
-      if (typeof value === "boolean") return value ? "dark" : "light";
-      return checked("dark_mode", schema, value, preferred);
+      const value = await core.blockrOption("dark_mode");
+      if (value === undefined) return preferredTheme();
+      const logical = typeof value === "string" ? asLogical(value) : value;
+      if (typeof logical === "boolean") return logical ? "dark" : "light";
+      return checked("dark_mode", schema, value);
     },
     ui: selectUi("Light/dark mode", "Choose a mode", [
       { value: "light", label: "Light" },
@@ -111,15 +121,10 @@ function preferredTheme(): "light" | "dark" {
   return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-// The value of the blockr option where the board option's schema takes it, or
-// else the fallback, once the value it refuses is reported.
-function checked(id: OptionId, schema: JsonSchema, value: Json, fallback: Json): Json {
-  const failures = compile(`the board option "${id}"`, schema)(value);
-  if (failures.length === 0) return value;
-  report(
-    new Error(
-      `The blockr option ${id} is ${JSON.stringify(value)}, which the board option ${id} does not take, so its default is ${JSON.stringify(fallback)}.`,
-    ),
-  );
-  return fallback;
+// The value of the blockr option, as the default reads what R sent, where the
+// board option's schema takes it. A value that the schema refuses fails the
+// default, naming what R sent.
+function checked(id: OptionId, schema: JsonSchema, sent: Json, value: Json = sent): Json {
+  if (compile(`the board option "${id}"`, schema)(value).length === 0) return value;
+  throw new TypeError(`The blockr option ${id} is ${JSON.stringify(sent)}, which the board option ${id} does not take.`);
 }

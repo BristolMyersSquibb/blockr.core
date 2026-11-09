@@ -47,10 +47,28 @@ write_log <- function(..., level = "info", envir = parent.frame(),
 
   logger <- get_logger()
 
+  log_time <- as.logical(blockr_option("log_time", TRUE))
+
+  if (!is_bool(log_time)) {
+    blockr_abort(
+      "The blockr option `log_time` is TRUE or FALSE.",
+      class = "log_time_invalid"
+    )
+  }
+
+  log_mem <- as.logical(blockr_option("log_mem", FALSE))
+
+  if (!is_bool(log_mem)) {
+    blockr_abort(
+      "The blockr option `log_mem` is TRUE or FALSE.",
+      class = "log_mem_invalid"
+    )
+  }
+
   pfx <- paste0(
     "[", toupper(level), "]",
-    if (isTRUE(blockr_option("log_time", TRUE))) get_timmestamp("[", "]"),
-    if (isTRUE(blockr_option("log_mem", FALSE))) get_mem_use("[", "]"),
+    if (log_time) get_timmestamp("[", "]"),
+    if (log_mem) get_mem_use("[", "]"),
     if (not_null(pkg)) paste0("[", pkg, "]"),
     " "
   )

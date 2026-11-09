@@ -1,6 +1,5 @@
 // srcts/modules/filebrowser-block/index.tsx
 import { Fragment, useState } from "react";
-import { strings } from "@blockr/core/binding";
 import { Field, reactModule, Stack, useRequest, useValue } from "@blockr/core/react";
 
 // srcts/styles/styles.ts
@@ -44,7 +43,7 @@ var link = "bc:cursor-pointer bc:rounded bc:border-0 bc:bg-transparent bc:px-2 b
 var entry = `${link} bc:justify-self-stretch`;
 function FileBrowserBlock({ host }) {
   const shared = useValue(host, "volumes").value;
-  const volumes = volumesOf(shared);
+  const volumes = asVolumes(shared);
   const file = useValue(host, "file_path");
   const held = typeof file.value === "string" && file.value !== "" ? file.value : void 0;
   const [place, setPlace] = useState(() => locate(file.value, volumes));
@@ -57,7 +56,7 @@ function FileBrowserBlock({ host }) {
   });
   const [left, setLeft] = useState(null);
   const loading = listed === left || listed.answer === void 0 && listed.error === null;
-  const listing2 = listed.error === null ? listingOf(listed.answer) : { dirs: [], files: [] };
+  const listing2 = listed.error === null ? asListing(listed.answer) : { dirs: [], files: [] };
   const error = (loading ? null : listed.error) ?? file.error;
   const go = (next) => {
     if (next.volume === volume && jsonEqual(next.dirs, dirs)) return;
@@ -150,19 +149,29 @@ function locate(file, roots) {
   }
   return { volume: Object.keys(roots)[0], dirs: [] };
 }
-function volumesOf(volumes) {
-  if (!isObject(volumes)) return {};
-  return Object.fromEntries(
-    Object.entries(volumes).filter((pair) => typeof pair[1] === "string")
-  );
+function asVolumes(volumes) {
+  if (volumes === void 0) return {};
+  if (isObject(volumes) && Object.values(volumes).every((root) => typeof root === "string")) {
+    return volumes;
+  }
+  throw new TypeError(`The state arg volumes is ${JSON.stringify(volumes)}, where the file browser takes the path of each volume by its name.`);
 }
 function join(root, names) {
   return [root.replace(/\/+$/, ""), ...names].join("/");
 }
-function listingOf(answer) {
-  return isObject(answer) ? { dirs: strings(answer.dirs), files: strings(answer.files) } : { dirs: [], files: [] };
+function asListing(answer) {
+  if (answer === void 0) return { dirs: [], files: [] };
+  if (isObject(answer) && isStrings(answer.dirs) && isStrings(answer.files)) {
+    return { dirs: answer.dirs, files: answer.files };
+  }
+  throw new TypeError(`R answered list_dir with ${JSON.stringify(answer)}, where the file browser takes the dirs and the files that it lists.`);
+}
+function isStrings(value) {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 export {
   api,
+  asListing,
+  asVolumes,
   filebrowser_block_default as default
 };

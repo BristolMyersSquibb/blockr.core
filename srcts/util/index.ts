@@ -3,6 +3,8 @@
 
 export {
   asError,
+  asLogical,
+  asNumber,
   frozenCopy,
   getAt,
   isObject,
