@@ -7,7 +7,10 @@
 //    each with its definition's default where the board lacks it. So the board
 //    holds what the output's coercion reads before core asks for an output.
 //    While the renderer draws the output, core adds again each of them that a
-//    delta removes.
+//    delta removes. Where one does not go onto the board, as where its default
+//    fails, core asks R for nothing, and shows why as it shows an ask that
+//    failed: in the element where no output came before, and otherwise through
+//    the host's `error()`, until the board holds a value.
 // 2. Once the block reads ready and the element measures more than 0 by 0, core
 //    asks R for the output, through the scheduler, with the block's revision,
 //    the values of the board options that the renderer names, the info it
@@ -140,8 +143,14 @@ export interface OutputDeps {
   // Aborts as another board opens, which ends the mount.
   readonly replaced: AbortSignal;
   readonly addOptions: (ids: readonly OptionId[], by: string) => Promise<readonly string[]>;
-  // Keeps the board options on the board until stop() runs (./block.ts).
-  readonly keepOptions: (ids: readonly OptionId[], by: string) => { readonly stop: () => void };
+  // Keeps the board options on the board until stop() runs, and calls `failed`
+  // where one that a delta removed does not go onto the board again
+  // (./block.ts).
+  readonly keepOptions: (
+    ids: readonly OptionId[],
+    by: string,
+    failed: (failures: readonly string[]) => void,
+  ) => { readonly stop: () => void };
   // The defaults of the board options that the board lacks, which core sends
   // without adding them to the board (./block.ts).
   readonly defaultsOf: (ids: readonly OptionId[], by: string) => Promise<Readonly<Record<OptionId, Json>>>;
@@ -244,7 +253,9 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         const source = given.css === undefined ? { module: given.module } : { module: given.module, css: given.css };
         const mod = moduleOf<OutputArgs>(await loader.load(source, pkg), given.module, pkg);
         const named = mod.options ?? [];
-        await deps.addOptions(named, `the renderer "${given.id}"`);
+        // Core has reported why one did not go onto the board.
+        const failures = await deps.addOptions(named, `the renderer "${given.id}"`);
+        if (failures.length > 0) throw new Error(failures.join("\n"));
         return { renderer: given, mod, named };
       })();
       preparing.set(given.id, loading);
@@ -262,7 +273,9 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         if (ended() || renderer?.id !== prepared.renderer.id) return;
         ready = prepared;
         keeping?.stop();
-        keeping = deps.keepOptions(prepared.named, `the renderer "${prepared.renderer.id}"`);
+        keeping = deps.keepOptions(prepared.named, `the renderer "${prepared.renderer.id}"`, (failures) => {
+          fail(new Error(failures.join("\n")));
+        });
         sync();
       },
       (failure: unknown) => {
@@ -297,12 +310,14 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
 
   // What the mount would ask R for now, or undefined where it asks for
   // nothing: while the element measures nothing, the renderer loads, the
-  // block reads anything but ready, or, where the mount knows no renderer,
-  // core resolves the defaults that it sends.
+  // board lacks a board option that the renderer names, as after a delta
+  // removed it, the block reads anything but ready, or, where the mount knows
+  // no renderer, core resolves the defaults that it sends.
   function wanted(): { asked: Asked; ids: readonly OptionId[] | null } | undefined {
     if (info === null) return undefined;
     const ids = named();
     if (ids === undefined) return undefined;
+    if (ids?.some((id) => !Object.hasOwn(store.board().options, id)) === true) return undefined;
     const status = scheduler.status(block);
     if (status?.status !== "ready") return undefined;
     if (ids === null && unwritten === undefined) {

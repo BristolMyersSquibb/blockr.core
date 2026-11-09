@@ -397,40 +397,72 @@ describe("board options", () => {
     expect(Object.hasOwn(store.board().options, "zoom")).toBe(false);
   });
 
-  test("whose default fails or does not go onto the board are reported, naming what requires them, each once", async () => {
+  test("whose default fails or does not go onto the board show why in the block's element, in place of the module", async () => {
     const reported = reports();
     const ui = recorder(["broken", "unfit", "zoom"]);
     const broken: Option = { ...zoom, id: "broken", default: () => Promise.reject(new Error("No zoom today.")) };
     const unfit: Option = { ...zoom, id: "unfit", default: () => Promise.resolve("big") };
-    const { store, mounts } = await setup({ [HEAD]: ui.exports }, { options: [zoom, broken, unfit] });
-    mounts.mountBlock(document.createElement("div"), "b");
-    mounts.mountBlock(document.createElement("div"), "b");
-    await tick();
+    const { store, mounts, scheduler, r } = await setup({ [HEAD]: ui.exports }, { options: [zoom, broken, unfit] });
+    const els = [document.createElement("div"), document.createElement("div")];
+    for (const el of els) mounts.mountBlock(el, "b");
+    scheduler.demand("test", ["b"]);
+    await evaluateAll(r);
     reported.restore();
 
     const what = 'which the UI module of block class "blockr.core-head_block" requires';
-    expect(reported.errors().map(String)).toEqual([
-      `Error: The default of the board option "broken", ${what}, failed: No zoom today.`,
-      expect.stringMatching(new RegExp(`^Error: The default of the board option "unfit", ${what}, did not go onto the board: `)),
-    ]);
-    // The module renders without them.
-    expect(ui.mounts.map(({ context }) => context.options)).toEqual([{ zoom: 1 }, { zoom: 1 }]);
+    const failed = `The default of the board option "broken", ${what}, failed: No zoom today.`;
+    const refused = `The default of the board option "unfit", ${what}, did not go onto the board: `;
+    for (const el of els) {
+      expect(el.querySelector("[role=alert]")?.textContent).toContain(failed);
+      expect(el.querySelector("[role=alert]")?.textContent).toContain(refused);
+    }
+    // Each is reported once, however many mounts require it.
+    expect(reported.errors().map(String)).toEqual([`Error: ${failed}`, expect.stringMatching(new RegExp(`^Error: ${refused}`))]);
+    expect(ui.mounts).toHaveLength(0);
     expect(store.board().options).toMatchObject({ zoom: 1 });
     expect(Object.keys(store.board().options)).not.toContain("unfit");
+    // The block still evaluates.
+    expect(scheduler.status("b")?.status).toBe("ready");
   });
 
-  test("that no package defines are reported, and the module still renders", async () => {
+  test("that no package defines show why in the block's element, in place of the module", async () => {
     const reported = reports();
     const ui = recorder(["nowhere"]);
     const { mounts } = await setup({ [HEAD]: ui.exports });
-    mounts.mountBlock(document.createElement("div"), "b");
+    const el = document.createElement("div");
+    mounts.mountBlock(el, "b");
     await tick();
     reported.restore();
 
-    expect(reported.errors().map(String)).toContain(
-      'Error: The board option "nowhere", which the UI module of block class "blockr.core-head_block" requires, is defined by no package loaded.',
-    );
+    const why = 'The board option "nowhere", which the UI module of block class "blockr.core-head_block" requires, is defined by no package loaded.';
+    expect(el.querySelector("[role=alert]")?.textContent).toBe(why);
+    expect(reported.errors().map(String)).toEqual([`Error: ${why}`]);
+    expect(ui.mounts).toHaveLength(0);
+  });
+
+  test("end a module that has drawn once one that it names does not go onto the board again", async () => {
+    const reported = reports();
+    const ui = recorder(["zoom"]);
+    let calls = 0;
+    const once: Option = {
+      ...zoom,
+      default: () => (++calls === 1 ? Promise.resolve(1) : Promise.reject(new Error("No zoom any more."))),
+    };
+    const { store, mounts } = await setup({ [HEAD]: ui.exports }, { options: [once] });
+    const el = document.createElement("div");
+    mounts.mountBlock(el, "b");
+    await tick();
     expect(ui.mounts).toHaveLength(1);
+
+    store.apply({ options: { unset: ["zoom"] } });
+    await tick();
+    reported.restore();
+
+    const why = 'The default of the board option "zoom", which the UI module of block class "blockr.core-head_block" requires, failed: No zoom any more.';
+    expect(el.querySelector("[role=alert]")?.textContent).toBe(why);
+    expect(ui.cleanups()).toBe(1);
+    expect(ui.mounts[0]?.signal.aborted).toBe(true);
+    expect(reported.errors().map(String)).toEqual([`Error: ${why}`]);
   });
 
   test("that a request of the class reads refuse a module that leaves one out, with an error in its element, while the page carries on", async () => {

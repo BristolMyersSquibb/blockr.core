@@ -11,7 +11,7 @@ export interface OptionDeps {
     readonly loader: Loader;
     readonly renderers: () => Readonly<Record<string, Renderer>>;
     readonly replaced: AbortSignal;
-    readonly keepOptions: (ids: readonly OptionId[], by: string) => {
+    readonly keepOptions: (ids: readonly OptionId[], by: string, failed: (failures: readonly string[]) => void) => {
         readonly added: Promise<readonly string[]>;
         readonly stop: () => void;
     };

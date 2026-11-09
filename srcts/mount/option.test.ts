@@ -277,6 +277,34 @@ describe("a mount", () => {
     expect(s.store.board().options).toEqual({ show_conditions: ["warning", "error"], dark_mode: "light", theme: "light" });
   });
 
+  test("ends its UI and shows why once a delta removes the value and the default does not go onto the board again", async () => {
+    const reported = reports();
+    const shown = ui();
+    let calls = 0;
+    const once: Option = {
+      id: "once",
+      label: "Once",
+      category: "Test options",
+      schema: { type: "number" },
+      default: () => (++calls === 1 ? Promise.resolve(1) : Promise.reject(new Error("No value any more."))),
+      ui: shown.mod,
+    };
+    const s = await setup([...options(ui().mod), once]);
+    const el = document.createElement("div");
+    s.mounts.mountOption(el, "once");
+    await tick();
+    expect(shown.host().value()).toBe(1);
+
+    s.store.apply({ options: { unset: ["once"] } });
+    await tick();
+    reported.restore();
+
+    const why = 'The default of the board option "once", which the UI of the board option "once" requires, failed: No value any more.';
+    expect(el.textContent).toBe(why);
+    expect(shown.cleanups()).toBe(1);
+    expect(reported.errors().map(String)).toEqual([`Error: ${why}`]);
+  });
+
   test("shows an error where the renderer cannot be used", async () => {
     const reported = reports();
     const s = await setup(options(ui().mod), {

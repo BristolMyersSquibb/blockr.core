@@ -3720,12 +3720,17 @@ function mountOption(deps, el, option) {
       return;
     }
     if (ended()) return;
-    const kept = deps.keepOptions([option], `the UI of the board option "${option}"`);
+    const kept = deps.keepOptions([option], `the UI of the board option "${option}"`, (failures2) => {
+      if (ended()) return;
+      end();
+      showError(el, failures2.join("\n"));
+    });
     stopKeeping = kept.stop;
     const failures = await kept.added;
     if (ended()) return;
     value2 = current2();
     if (value2 === void 0 && failures.length > 0) {
+      kept.stop();
       showError(el, failures.join("\n"));
       return;
     }
@@ -3838,7 +3843,8 @@ function mountOutput(deps, el, block) {
         const source = given.css === void 0 ? { module: given.module } : { module: given.module, css: given.css };
         const mod = moduleOf(await loader.load(source, pkg), given.module, pkg);
         const named3 = mod.options ?? [];
-        await deps.addOptions(named3, `the renderer "${given.id}"`);
+        const failures = await deps.addOptions(named3, `the renderer "${given.id}"`);
+        if (failures.length > 0) throw new Error(failures.join("\n"));
         return { renderer: given, mod, named: named3 };
       })();
       preparing.set(given.id, loading);
@@ -3854,7 +3860,9 @@ function mountOutput(deps, el, block) {
         if (ended() || renderer?.id !== prepared.renderer.id) return;
         ready = prepared;
         keeping?.stop();
-        keeping = deps.keepOptions(prepared.named, `the renderer "${prepared.renderer.id}"`);
+        keeping = deps.keepOptions(prepared.named, `the renderer "${prepared.renderer.id}"`, (failures) => {
+          fail(new Error(failures.join("\n")));
+        });
         sync();
       },
       (failure) => {
@@ -3880,6 +3888,7 @@ function mountOutput(deps, el, block) {
     if (info === null) return void 0;
     const ids2 = named2();
     if (ids2 === void 0) return void 0;
+    if (ids2?.some((id2) => !Object.hasOwn(store.board().options, id2)) === true) return void 0;
     const status = scheduler.status(block);
     if (status?.status !== "ready") return void 0;
     if (ids2 === null && unwritten === void 0) {
@@ -4365,16 +4374,26 @@ function createMounts(options) {
     );
     return failures.flat();
   }
-  function keepOptions(ids2, by) {
+  function keepOptions(ids2, by, failed3 = () => void 0) {
     if (ids2.length === 0) return { added: Promise.resolve([]), stop: () => void 0 };
-    const stop = store.subscribe((change, board) => {
+    let stopped = false;
+    const off = store.subscribe((change, board) => {
       if ("opened" in change) return;
       const removed = (change.delta.options?.unset ?? []).filter(
         (id2) => ids2.includes(id2) && !Object.hasOwn(board.options, id2)
       );
-      if (removed.length > 0) void addOptions(removed, by);
+      if (removed.length === 0) return;
+      void addOptions(removed, by).then((failures) => {
+        if (!stopped && failures.length > 0) failed3(failures);
+      });
     });
-    return { added: addOptions(ids2, by), stop };
+    return {
+      added: addOptions(ids2, by),
+      stop: () => {
+        stopped = true;
+        off();
+      }
+    };
   }
   async function defaultsOf(ids2, by) {
     const found = await Promise.all(
@@ -4453,10 +4472,19 @@ function createMounts(options) {
         return;
       }
       const named2 = mod.options ?? [];
-      const kept = keepOptions(named2, `the UI module of block class "${entry.id}"`);
+      const kept = keepOptions(named2, `the UI module of block class "${entry.id}"`, (failures2) => {
+        if (ended()) return;
+        end();
+        showError(el, failures2.join("\n"));
+      });
       stopKeeping = kept.stop;
-      await kept.added;
+      const failures = await kept.added;
       if (ended()) return;
+      if (failures.length > 0) {
+        kept.stop();
+        showError(el, failures.join("\n"));
+        return;
+      }
       host.name(named2);
       try {
         const rendered = await mod.render({ el, host, signal });

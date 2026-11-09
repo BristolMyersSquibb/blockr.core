@@ -10,7 +10,9 @@
 //    so core adds no other board option for it.
 // 3. It calls the module's render() with the element, the host and a signal,
 //    which it aborts once the mount ends. Where the default did not go onto
-//    the board, as where it failed, core shows why in the element instead.
+//    the board, as where it failed, core shows why in the element instead,
+//    and so it does in place of the UI where the default does not go onto the
+//    board again once a delta removed the value.
 // The host gives the value as the board holds it, and announces each change of
 // it. A submit runs core's command that sets a board option, and a request goes
 // to the board option's requests in R, whose answers core never keeps. Once
@@ -39,11 +41,13 @@ export interface OptionDeps {
   readonly renderers: () => Readonly<Record<string, Renderer>>;
   // Aborts as another board opens, which ends the mount.
   readonly replaced: AbortSignal;
-  // Keeps the board options on the board until stop() runs, and resolves
-  // `added` with why any did not go onto the board (./block.ts).
+  // Keeps the board options on the board until stop() runs, resolves `added`
+  // with why any did not go onto the board, and calls `failed` where one that
+  // a delta removed does not go onto the board again (./block.ts).
   readonly keepOptions: (
     ids: readonly OptionId[],
     by: string,
+    failed: (failures: readonly string[]) => void,
   ) => { readonly added: Promise<readonly string[]>; readonly stop: () => void };
 }
 
@@ -160,13 +164,18 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
       return;
     }
     if (ended()) return;
-    const kept = deps.keepOptions([option], `the UI of the board option "${option}"`);
+    // Core has reported why the board holds no value.
+    const kept = deps.keepOptions([option], `the UI of the board option "${option}"`, (failures) => {
+      if (ended()) return;
+      end();
+      showError(el, failures.join("\n"));
+    });
     stopKeeping = kept.stop;
     const failures = await kept.added;
     if (ended()) return;
     value = current();
-    // Core has reported why the board holds no value.
     if (value === undefined && failures.length > 0) {
+      kept.stop();
       showError(el, failures.join("\n"));
       return;
     }

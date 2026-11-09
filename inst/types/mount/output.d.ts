@@ -50,7 +50,7 @@ export interface OutputDeps {
     readonly measure: Measure;
     readonly replaced: AbortSignal;
     readonly addOptions: (ids: readonly OptionId[], by: string) => Promise<readonly string[]>;
-    readonly keepOptions: (ids: readonly OptionId[], by: string) => {
+    readonly keepOptions: (ids: readonly OptionId[], by: string, failed: (failures: readonly string[]) => void) => {
         readonly stop: () => void;
     };
     readonly defaultsOf: (ids: readonly OptionId[], by: string) => Promise<Readonly<Record<OptionId, Json>>>;

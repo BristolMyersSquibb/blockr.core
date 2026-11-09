@@ -15,7 +15,10 @@
 // Where the module fails to load, declares another major, leaves out such a
 // board option or throws in render(), core shows an error in the element that
 // names the module and its package, while the page and the block's evaluation
-// carry on.
+// carry on. So it does where a board option that the module names does not go
+// onto the board, as where its default fails: the module goes without none of
+// them, and core ends a module that it has drawn once one does not go onto the
+// board again.
 //
 // A host keeps nothing of its own: the state is the store's, the status the
 // scheduler's and the answers core's, so one block mounts in several places
@@ -177,20 +180,32 @@ export function createMounts(options: MountsOptions): Mounts {
 
   // Keeps the board options on the board while the caller needs them: it adds
   // those that the board lacks now, and adds again each that a delta removes,
-  // until stop() runs.
+  // until stop() runs. It calls `failed` with why one that a delta removed did
+  // not go onto the board again, as core reports it.
   function keepOptions(
     ids: readonly OptionId[],
     by: string,
+    failed: (failures: readonly string[]) => void = () => undefined,
   ): { readonly added: Promise<readonly string[]>; readonly stop: () => void } {
     if (ids.length === 0) return { added: Promise.resolve([]), stop: () => undefined };
-    const stop = store.subscribe((change, board) => {
+    let stopped = false;
+    const off = store.subscribe((change, board) => {
       if ("opened" in change) return;
       const removed = (change.delta.options?.unset ?? []).filter(
         (id) => ids.includes(id) && !Object.hasOwn(board.options, id),
       );
-      if (removed.length > 0) void addOptions(removed, by);
+      if (removed.length === 0) return;
+      void addOptions(removed, by).then((failures) => {
+        if (!stopped && failures.length > 0) failed(failures);
+      });
     });
-    return { added: addOptions(ids, by), stop };
+    return {
+      added: addOptions(ids, by),
+      stop: () => {
+        stopped = true;
+        off();
+      },
+    };
   }
 
   // The defaults of the board options given that the board lacks, by id, which
@@ -286,11 +301,23 @@ export function createMounts(options: MountsOptions): Mounts {
         return;
       }
 
+      // Where a board option that the module names does not go onto the
+      // board, its element shows why in place of the module, which core has
+      // reported. A module that has drawn ends then.
       const named = mod.options ?? [];
-      const kept = keepOptions(named, `the UI module of block class "${entry.id}"`);
+      const kept = keepOptions(named, `the UI module of block class "${entry.id}"`, (failures) => {
+        if (ended()) return;
+        end();
+        showError(el, failures.join("\n"));
+      });
       stopKeeping = kept.stop;
-      await kept.added;
+      const failures = await kept.added;
       if (ended()) return;
+      if (failures.length > 0) {
+        kept.stop();
+        showError(el, failures.join("\n"));
+        return;
+      }
       host.name(named);
 
       try {

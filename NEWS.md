@@ -318,7 +318,8 @@
   Where the board lacks its value, core adds it with its default before the UI draws.
   Until now, the UI showed the default without the board holding it.
   An output whose block class's entry names no renderer is asked with the value of every board option that a loaded package defines: the board's, or else the default, which the client sends without adding it to the board.
-  Core reports a board option whose default fails or does not go onto the board, naming the board option and what requires it.
+  Where a board option that a block's UI module, a renderer or a board option's UI names does not go onto the board, as where its default fails, core shows why in the element in place of what would draw there, and reports it, naming the board option and what requires it.
+  A renderer that has drawn keeps its output and gets the error through its host's `error()`, and core asks R for no output until the board holds a value.
   Plugins read a board option's value from the board through `core.options.value()` (#508).
 
 # blockr.core 0.1.4
