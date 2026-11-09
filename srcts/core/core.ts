@@ -148,7 +148,7 @@ export function createCore(parts: CoreParts): Core {
     request: <T = Json>(plugin: PluginId, name: string, args: Readonly<Record<string, Json>> = {}, opts = {}) =>
       pluginRequest({ store, scheduler }, plugin, name, args, opts) as Promise<T | Blob>,
     module: <T = unknown>(id: string) => loader.module(id) as Promise<T>,
-    blockrOption: (name, fallback) => blockrOptions.read(name, fallback),
+    blockrOption: (name) => blockrOptions.read(name),
     mountBlock: (el, block) => mounts.mountBlock(el, block),
     mountOutput: (el, block) => mounts.mountOutput(el, block),
     mountOption: (el, option) => mounts.mountOption(el, option),

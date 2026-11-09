@@ -36,7 +36,7 @@ import type { Delta, Store } from "../store/index.ts";
 import type { BlockId, Board, RegistryId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { asError, messageOf, own, report } from "../util/index.ts";
+import { asError, asLogical, asNumber, messageOf, own, report } from "../util/index.ts";
 import * as evaluations from "./evaluations.ts";
 import type { OneTime, Settled } from "./evaluations.ts";
 import { needsOf } from "./needs.ts";
@@ -136,22 +136,28 @@ export interface SchedulerOptions {
   readonly store: Pick<Store, "board" | "hasBoard" | "subscribe" | "blockRegistry">;
   // The client of the wire protocol, which the store sends through too.
   readonly client: Pick<Client, "request" | "forget" | "capabilities">;
-  // The blockr options that the scheduler reads. Core asks R for them as soon
-  // as R has answered its hello.
+  // The blockr options that the scheduler reads, as R sent them. Core asks R
+  // for them as soon as R has answered its hello. One that an environment
+  // variable sets is a string, which the scheduler reads as the number or the
+  // logical that it holds. A value that it does not take fails, so that the
+  // scheduler never starts with another in its place. Where a blockr option
+  // has no limit, -1 stands for it, since JSON holds no infinite number.
   //
   // The `evaluation_queue` blockr option says how many evaluations the
-  // scheduler keeps waiting in R, behind the one R runs. It is 2 unless given.
+  // scheduler keeps waiting in R, behind the one R runs, a whole number of 0
+  // or more. It is 2 unless given.
   // With 0, the scheduler sends the next evaluation only once the last reply is
-  // back. With Infinity, it sends every evaluation at once.
-  readonly evaluationQueue?: number;
-  // The `background_evaluation_delay` blockr option, Infinity unless given.
+  // back. With -1, it sends every evaluation at once.
+  readonly evaluationQueue?: Json | undefined;
+  // The `background_evaluation_delay` blockr option, a number of 0 or more,
+  // or -1, which it is unless given.
   // Once R has had nothing else to run for that many seconds, the scheduler
-  // evaluates the stale and unevaluated blocks that nothing demands. With
-  // Infinity, it evaluates nothing in the background.
-  readonly backgroundEvaluationDelay?: number;
-  // The `gate_visibility` blockr option, true unless given. Set to false, it
-  // has the scheduler demand every block.
-  readonly gateVisibility?: boolean;
+  // evaluates the stale and unevaluated blocks that nothing demands. With -1,
+  // it evaluates nothing in the background.
+  readonly backgroundEvaluationDelay?: Json | undefined;
+  // The `gate_visibility` blockr option, TRUE or FALSE, TRUE unless given. Set
+  // to FALSE, it has the scheduler demand every block.
+  readonly gateVisibility?: Json | undefined;
   // The inputs that R binds itself, for a block that `serve()` serves alone,
   // from R's reply to hello. They count as linked on the board R sent.
   readonly bound?: readonly string[];
@@ -181,8 +187,9 @@ const NO_BOARD: Pick<Board, "blocks" | "links"> = { blocks: {}, links: {} };
 
 export function createScheduler(options: SchedulerOptions): Scheduler {
   const { store, client } = options;
-  const queue = setting(options.evaluationQueue, 2, "evaluation_queue");
+  const queue = setting(options.evaluationQueue, 2, "evaluation_queue", true);
   const delay = setting(options.backgroundEvaluationDelay, Infinity, "background_evaluation_delay");
+  const gated = flag(options.gateVisibility, true, "gate_visibility");
 
   // What the scheduler knows:
   // - The board as it last saw it, the block registry the board opened with,
@@ -590,7 +597,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
 
   // Start
 
-  if (options.gateVisibility === false) {
+  if (!gated) {
     demanding(++ids, "blockr.core", (all) => Object.keys(all.blocks), 0);
   }
 
@@ -771,17 +778,38 @@ function changedSince(
   return changed;
 }
 
-// A blockr option's value, or its default where the value is no number of 0 or
-// more. The scheduler reports such a value.
-function setting(value: number | undefined, fallback: number, name: string): number {
+// A blockr option's number, or its fallback where it is not given. A string,
+// as an environment variable gives, reads as the number that it holds, so
+// that "3" is 3. The value -1 stands for no limit, which the scheduler holds
+// as Infinity. Any other value that is no number of 0 or more fails, and so
+// does one that is no whole number where the blockr option counts.
+function setting(value: Json | undefined, fallback: number, name: string, counts = false): number {
   if (value === undefined) return fallback;
-  if (typeof value === "number" && value >= 0) return value;
-  report(
-    new Error(
-      `The blockr option ${name} is ${String(value)}, where it takes a number of 0 or more, so the scheduler takes ${String(fallback)}.`,
-    ),
+  const number = typeof value === "string" ? asNumber(value) : value;
+  if (number === -1) return Infinity;
+  if (typeof number === "number" && Number.isFinite(number) && number >= 0 && (!counts || Number.isInteger(number))) {
+    return number;
+  }
+  throw new RangeError(
+    `The blockr option ${name} is ${shown(value)}, where it takes ${counts ? "a whole number" : "a number"} of 0 or more, or -1.`,
   );
-  return fallback;
+}
+
+// A blockr option that is TRUE or FALSE, or its fallback where it is not
+// given. A string, as an environment variable gives, reads as R's
+// as.logical() reads it, so that "FALSE" is false, and any other value fails.
+function flag(value: Json | undefined, fallback: boolean, name: string): boolean {
+  if (value === undefined) return fallback;
+  const logical = typeof value === "string" ? asLogical(value) : value;
+  if (typeof logical === "boolean") return logical;
+  throw new TypeError(`The blockr option ${name} is ${shown(value)}, where it takes TRUE or FALSE.`);
+}
+
+// A blockr option's value as a message shows it: a number as JavaScript writes
+// it, so that NaN shows, and any other value as JSON, so that a string shows
+// in quotes.
+function shown(value: Json): string {
+  return typeof value === "number" ? String(value) : JSON.stringify(value);
 }
 
 function checked(priority: number | undefined): number {

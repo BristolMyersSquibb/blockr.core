@@ -387,11 +387,22 @@ block_eval.block <- function(x, expr, env, ...) {
 #' @rdname evaluate_block
 #' @export
 eval_env <- function(data) {
-  if (isTRUE(blockr_option("attach_default_packages", FALSE))) {
+
+  defaults <- as.logical(blockr_option("attach_default_packages", FALSE))
+
+  if (!is_bool(defaults)) {
+    blockr_abort(
+      "The blockr option `attach_default_packages` is TRUE or FALSE.",
+      class = "attach_default_packages_invalid"
+    )
+  }
+
+  if (defaults) {
     parent <- default_eval_parent()
   } else {
     parent <- baseenv()
   }
+
   list2env(data, parent = parent)
 }
 

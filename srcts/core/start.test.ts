@@ -234,19 +234,119 @@ afterEach(() => {
 });
 
 describe("starting the page", () => {
-  test("asks for the blockr options the scheduler reads in one request, as soon as R answers hello", async () => {
+  test("asks for the blockr options the scheduler reads and rand_id in one request, as soon as R answers hello", async () => {
     const basic = frontEnd();
     const s = setup({ [BASIC]: basic.exports });
     s.r.session();
     await tick();
 
     expect(s.r.kinds()).toEqual(["hello", "blockr_options"]);
-    expect(s.r.sent[1]).toMatchObject({ names: ["evaluation_queue", "background_evaluation_delay", "gate_visibility"] });
+    expect(s.r.sent[1]).toMatchObject({
+      names: ["evaluation_queue", "background_evaluation_delay", "gate_visibility", "rand_id"],
+    });
 
     s.r.options({ evaluation_queue: 0 });
     const core = await s.started.ready;
     expect(core.store.board().name).toBe("Iris review");
     expect(s.el.textContent).toBe("Iris review");
+  });
+
+  test("starts with the blockr options that environment variables set, which R sends as strings", async () => {
+    const basic = frontEnd();
+    const s = setup({ [BASIC]: basic.exports });
+    s.r.session();
+    await tick();
+    s.r.options({ evaluation_queue: "3", background_evaluation_delay: "-1", gate_visibility: "TRUE", rand_id: "uuid" });
+
+    const core = await s.started.ready;
+    expect(core.store.board().name).toBe("Iris review");
+  });
+
+  test("does not start where the scheduler refuses a blockr option, naming what R sent", async () => {
+    const basic = frontEnd();
+    const failed: string[] = [];
+    const s = setup(
+      { [BASIC]: basic.exports },
+      {
+        fail(error) {
+          failed.push(error.message);
+        },
+      },
+    );
+    s.r.session();
+    await tick();
+    s.r.options({ evaluation_queue: "-2" });
+
+    await expect(s.started.ready).rejects.toThrow('The blockr option evaluation_queue is "-2", where it takes a whole number of 0 or more, or -1.');
+    expect(failed).toHaveLength(1);
+  });
+
+  test("does not start, with R's message, where R cannot give a blockr option that core reads as it starts", async () => {
+    const basic = frontEnd();
+    const failed: string[] = [];
+    const s = setup(
+      { [BASIC]: basic.exports },
+      {
+        fail(error) {
+          failed.push(error.message);
+        },
+      },
+    );
+    s.r.session();
+    await tick();
+
+    s.r.reply({
+      id: s.r.sent[1]?.id ?? "",
+      status: "error",
+      conditions: [
+        {
+          severity: "error",
+          class: ["conflicing_blockr_option", "blockr_error", "rlang_error", "error", "condition"],
+          message: "Conflicting options set for evaluation_queue: check environment variable BLOCKR_EVALUATION_QUEUE and option blockr.evaluation_queue.",
+        },
+      ],
+    });
+
+    await expect(s.started.ready).rejects.toThrow("Conflicting options set for evaluation_queue");
+    expect(failed).toEqual([
+      'R sent no values of the blockr options "evaluation_queue", "background_evaluation_delay", "gate_visibility" and "rand_id": R replied error. Conflicting options set for evaluation_queue: check environment variable BLOCKR_EVALUATION_QUEUE and option blockr.evaluation_queue.',
+    ]);
+    expect(s.r.kinds()).toEqual(["hello", "blockr_options"]);
+  });
+
+  test("does not start where the blockr option rand_id names no shape", async () => {
+    const basic = frontEnd();
+    const failed: string[] = [];
+    const s = setup(
+      { [BASIC]: basic.exports },
+      {
+        fail(error) {
+          failed.push(error.message);
+        },
+      },
+    );
+    s.r.session();
+    await tick();
+    s.r.options({ rand_id: "counter" });
+
+    await expect(s.started.ready).rejects.toThrow('The blockr option rand_id is "counter"');
+    expect(failed).toHaveLength(1);
+  });
+
+  test("has core's commands mint ids in the shape that the blockr option rand_id names", async () => {
+    const basic = frontEnd();
+    const s = setup({ [BASIC]: basic.exports });
+    s.r.session();
+    await tick();
+    s.r.options({ rand_id: "uuid" });
+    const core = await s.started.ready;
+    const before = Object.keys(core.store.board().blocks);
+
+    await core.commands.run("blockr.core-add_block", { registry_id: "blockr.core-head_block" });
+
+    const minted = Object.keys(core.store.board().blocks).filter((id) => !before.includes(id));
+    expect(minted).toHaveLength(1);
+    expect(minted[0]).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   });
 
   test("initializes the startup modules one at a time in R's order before it opens the board and draws it", async () => {

@@ -524,7 +524,20 @@ describe("demand and scheduling", () => {
     await tick();
     expect(three.r.pending().map((request) => request.block)).toEqual(["b", "d", "f"]);
 
-    const all = await setup({ evaluationQueue: Infinity, gateVisibility: false });
+    const all = await setup({ evaluationQueue: -1, gateVisibility: false });
+    all.scheduler.start();
+    await tick();
+    expect(all.r.pending().map((request) => request.block)).toEqual(["a", "b", "d", "f", "c", "e"]);
+  });
+
+  test("read the blockr options from the strings that environment variables set, with -1 for no limit", async () => {
+    const one = await setup({ evaluationQueue: " 0 ", gateVisibility: "TRUE" });
+    one.scheduler.demand("test", ["e"]);
+    one.scheduler.start();
+    await tick();
+    expect(one.r.pending().map((request) => request.block)).toEqual(["a"]);
+
+    const all = await setup({ evaluationQueue: "-1", backgroundEvaluationDelay: "30", gateVisibility: " FALSE" });
     all.scheduler.start();
     await tick();
     expect(all.r.pending().map((request) => request.block)).toEqual(["a", "b", "d", "f", "c", "e"]);
@@ -635,14 +648,40 @@ describe("demand and scheduling", () => {
     expect(r.pending().map((request) => request.block)).toEqual(["a"]);
   });
 
-  test("refuse an evaluation priority that is no number, and take the default of a blockr option that holds none", async () => {
-    const reported = reports();
-    const { scheduler } = await setup({ evaluationQueue: -1, backgroundEvaluationDelay: Number.NaN });
-    reported.restore();
-    expect(reported.errors().map(String)).toEqual([
-      "Error: The blockr option evaluation_queue is -1, where it takes a number of 0 or more, so the scheduler takes 2.",
-      "Error: The blockr option background_evaluation_delay is NaN, where it takes a number of 0 or more, so the scheduler takes Infinity.",
-    ]);
+  test("refuse a blockr option that is no number of 0 or more nor -1, and an evaluation_queue that is no whole number", async () => {
+    await expect(setup({ evaluationQueue: -2 })).rejects.toThrow(
+      "The blockr option evaluation_queue is -2, where it takes a whole number of 0 or more, or -1.",
+    );
+    await expect(setup({ evaluationQueue: 1.5 })).rejects.toThrow(
+      "The blockr option evaluation_queue is 1.5, where it takes a whole number of 0 or more, or -1.",
+    );
+    await expect(setup({ evaluationQueue: Infinity })).rejects.toThrow(
+      "The blockr option evaluation_queue is Infinity, where it takes a whole number of 0 or more, or -1.",
+    );
+    await expect(setup({ backgroundEvaluationDelay: Number.NaN })).rejects.toThrow(
+      "The blockr option background_evaluation_delay is NaN, where it takes a number of 0 or more, or -1.",
+    );
+    for (const value of ["a", "-2", "Inf", "-Inf", "NA", "NaN", "", true, null, [3]]) {
+      await expect(setup({ evaluationQueue: value })).rejects.toThrow(
+        `The blockr option evaluation_queue is ${JSON.stringify(value)}, where it takes a whole number of 0 or more, or -1.`,
+      );
+    }
+    await expect(setup({ backgroundEvaluationDelay: "Inf" })).rejects.toThrow(
+      'The blockr option background_evaluation_delay is "Inf", where it takes a number of 0 or more, or -1.',
+    );
+    await expect(setup({ evaluationQueue: -1, backgroundEvaluationDelay: 0.5 })).resolves.toBeDefined();
+  });
+
+  test("refuse a gate_visibility that is neither TRUE nor FALSE", async () => {
+    for (const value of ["maybe", "yes", "NA", 1, null]) {
+      await expect(setup({ gateVisibility: value })).rejects.toThrow(
+        `The blockr option gate_visibility is ${JSON.stringify(value)}, where it takes TRUE or FALSE.`,
+      );
+    }
+  });
+
+  test("refuse an evaluation priority that is no number", async () => {
+    const { scheduler } = await setup();
 
     expect(() => scheduler.demand("test", ["a"], { priority: Number.NaN })).toThrow(
       "An evaluation priority is a number, not NaN.",
@@ -900,6 +939,15 @@ describe("evaluation in the background", () => {
     r.evaluated(pendingOf(r, "d"));
     await tick();
     expect(r.pending().map((request) => request.block)).toEqual(["f"]);
+  });
+
+  test("evaluates nothing in the background with the delay at -1", async () => {
+    const { r, scheduler } = await setup({ backgroundEvaluationDelay: -1 });
+    scheduler.demand("test", ["b"]);
+    scheduler.start();
+    await evaluateAll(r);
+    await tick(3_600_000);
+    expect(r.evaluations().map((request) => request.block)).toEqual(["a", "b"]);
   });
 
   test("stops once anything else arrives, and waits the delay again", async () => {

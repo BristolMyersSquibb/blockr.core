@@ -30,11 +30,11 @@ export function isNumber(column: TableColumn): boolean {
 
 // Where the page that the output holds sits. A page holds the rows that the
 // parameters give, or else as many as the board option n_rows gives, by which
-// the coercion pages. Where the total is unknown, a page with fewer rows than
-// a page holds is the last.
+// the coercion pages, or else every row, where nothing gives n_rows. Where the
+// total is unknown, a page with fewer rows than a page holds is the last.
 export function pageOf(table: TableOutput, params: TableParams, nRows: Json | undefined): Page {
   const rows = table.rows.length;
-  const size = params.page_size ?? countOf(nRows) ?? Math.max(rows, 1);
+  const size = params.page_size ?? (nRows === undefined ? Math.max(rows, 1) : asCount(nRows));
   const page = params.page ?? 1;
   const last = table.total === null ? null : Math.max(1, Math.ceil(table.total / size));
   return {
@@ -110,7 +110,9 @@ function count(n: number): string {
   return n.toLocaleString("en-US");
 }
 
-// A whole number of at least 1, or undefined for anything else.
-function countOf(value: Json | undefined): number | undefined {
-  return typeof value === "number" && Number.isInteger(value) && value >= 1 ? value : undefined;
+// The board option n_rows as the rows that a page holds, a whole number of at
+// least 1. Any other value fails, rather than page by another.
+function asCount(value: Json): number {
+  if (typeof value === "number" && Number.isInteger(value) && value >= 1) return value;
+  throw new TypeError(`The board option n_rows is ${JSON.stringify(value)}, where a table pages by a whole number of at least 1.`);
 }

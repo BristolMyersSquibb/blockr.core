@@ -118,8 +118,8 @@ describe("the CoreApi for tests", () => {
     await expect(core.request("code", "script", {}, { reads: ["a"] })).resolves.toEqual(["a <- 1"]);
     await expect(core.request("code", "other")).rejects.toThrow("R replied error");
     await expect(core.request("dag", "script")).rejects.toThrow('The board holds no plugin "dag"');
-    await expect(core.blockrOption("n_rows", 50)).resolves.toBe(25);
-    await expect(core.blockrOption("gate_visibility", true)).resolves.toBe(true);
+    await expect(core.blockrOption("n_rows")).resolves.toBe(25);
+    await expect(core.blockrOption("gate_visibility")).resolves.toBeUndefined();
   });
 
   test("draws core's board options with their UIs, as the page does", async () => {

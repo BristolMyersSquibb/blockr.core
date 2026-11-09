@@ -11,11 +11,11 @@
 
 import { computed, signal } from "@preact/signals-core";
 import type { Lock } from "../protocol/index.ts";
-import { isDeltas, pluginOf } from "../store/index.ts";
-import type { BlockMod, Delta, Origin, Patch, Store } from "../store/index.ts";
+import { isDeltas, isRandId, pluginOf, RAND_IDS } from "../store/index.ts";
+import type { BlockMod, Delta, Origin, Patch, RandId, Store } from "../store/index.ts";
 import type { Board } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
-import { compile, messageOf, packageOf } from "../util/index.ts";
+import { compile, messageOf, packageOf, quoted } from "../util/index.ts";
 import type { Validate } from "../util/index.ts";
 import { coreCommands } from "./core.ts";
 
@@ -95,6 +95,11 @@ export interface CommandsOptions {
   // command for a plugin's state is not enabled, since there only a plugin
   // class's own commands know what the plugin locks.
   readonly lock?: Lock;
+  // The `rand_id` blockr option as R sent it, the shape of the ids that core's
+  // commands mint, which core asks R for as soon as R has answered its hello.
+  // It is "adjective_animal" unless given, and the command registry refuses a
+  // value that names no shape.
+  readonly randId?: Json | undefined;
 }
 
 export function createCommands(store: Store, options: CommandsOptions = {}): Commands {
@@ -267,11 +272,22 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
     },
   };
 
-  for (const command of coreCommands(store, { locked: options.lock?.board === true })) {
+  for (const command of coreCommands(store, {
+    locked: options.lock?.board === true,
+    randId: options.randId === undefined ? "adjective_animal" : asRandId(options.randId),
+  })) {
     registry.register(command);
   }
 
   return registry;
+}
+
+// The blockr option rand_id as the shape of the ids that core's commands
+// mint. A value that names no shape fails, as it does in R's rand_names(), a
+// value that is no string among them.
+function asRandId(randId: Json): RandId {
+  if (isRandId(randId)) return randId;
+  throw new RangeError(`The blockr option rand_id is ${JSON.stringify(randId)}, where it takes one of ${quoted(RAND_IDS)}.`);
 }
 
 // Whether an id is named as a registry id is: a package name, a dash, and a

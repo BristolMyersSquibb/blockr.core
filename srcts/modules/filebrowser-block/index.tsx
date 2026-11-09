@@ -9,7 +9,6 @@
 
 import { Fragment, useState } from "react";
 import type { ReactElement } from "react";
-import { strings } from "../../binding/index.ts";
 import { Field, reactModule, Stack, useRequest, useValue } from "../../react/index.ts";
 import type { Answered, ModuleProps } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
@@ -42,7 +41,7 @@ const entry = `${link} bc:justify-self-stretch`;
 
 function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   const shared = useValue(host, "volumes").value;
-  const volumes = volumesOf(shared);
+  const volumes = asVolumes(shared);
   const file = useValue(host, "file_path");
   const held = typeof file.value === "string" && file.value !== "" ? file.value : undefined;
 
@@ -64,7 +63,7 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
   // which the browser no longer shows.
   const [left, setLeft] = useState<Answered | null>(null);
   const loading = listed === left || (listed.answer === undefined && listed.error === null);
-  const listing = listed.error === null ? listingOf(listed.answer) : { dirs: [], files: [] };
+  const listing = listed.error === null ? asListing(listed.answer) : { dirs: [], files: [] };
   const error = (loading ? null : listed.error) ?? file.error;
 
   // Shows another place, which it asks R to list.
@@ -198,12 +197,15 @@ function locate(file: Json | undefined, roots: Readonly<Record<string, string>>)
   return { volume: Object.keys(roots)[0], dirs: [] };
 }
 
-// The volumes by name, as the state arg volumes holds them.
-function volumesOf(volumes: Json | undefined): Readonly<Record<string, string>> {
-  if (!isObject(volumes)) return {};
-  return Object.fromEntries(
-    Object.entries(volumes).filter((pair): pair is [string, string] => typeof pair[1] === "string"),
-  );
+// The volumes by name, as the state arg volumes holds them, or none where
+// nothing gives them. A value that is no object of paths fails, rather than
+// lose the volumes that it holds.
+export function asVolumes(volumes: Json | undefined): Readonly<Record<string, string>> {
+  if (volumes === undefined) return {};
+  if (isObject(volumes) && Object.values(volumes).every((root) => typeof root === "string")) {
+    return volumes as Readonly<Record<string, string>>;
+  }
+  throw new TypeError(`The state arg volumes is ${JSON.stringify(volumes)}, where the file browser takes the path of each volume by its name.`);
 }
 
 // The path of an entry below a volume's root,
@@ -212,6 +214,17 @@ function join(root: string, names: readonly string[]): string {
   return [root.replace(/\/+$/, ""), ...names].join("/");
 }
 
-function listingOf(answer: unknown): Listing {
-  return isObject(answer) ? { dirs: strings(answer.dirs), files: strings(answer.files) } : { dirs: [], files: [] };
+// What R answered to list_dir, as the directories and the files it lists, or
+// none before R answers. An answer of another shape fails, rather than list
+// nothing.
+export function asListing(answer: unknown): Listing {
+  if (answer === undefined) return { dirs: [], files: [] };
+  if (isObject(answer) && isStrings(answer.dirs) && isStrings(answer.files)) {
+    return { dirs: answer.dirs, files: answer.files };
+  }
+  throw new TypeError(`R answered list_dir with ${JSON.stringify(answer)}, where the file browser takes the dirs and the files that it lists.`);
+}
+
+function isStrings(value: unknown): value is readonly string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
