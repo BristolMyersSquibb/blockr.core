@@ -10,7 +10,7 @@ import type { Commands } from "../commands/index.ts";
 import type { Lock } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Options, PluginClass, Store } from "../store/index.ts";
-import type { BlockId, OptionId, RegistryId } from "./board.ts";
+import type { BlockId, OptionId, PluginId, RegistryId } from "./board.ts";
 import type { Json } from "./json.ts";
 import type { RegistryEntry } from "./registry.ts";
 
@@ -40,9 +40,11 @@ export interface CoreApi {
   // What renderers report that the user did, such as a selection, for
   // extensions to act on.
   readonly outputEvents: OutputEvents;
-  // A request of a type that a package adds, with the fields that the package
-  // gives it, which the package's method of request_call() answers in R.
-  request<T = Json>(type: string, fields?: Record<string, Json>, opts?: RequestOpts): Promise<T | Blob>;
+  // A request of a plugin of the board, by the plugin's id, which the method
+  // of R's plugin_requests() for the plugin's class answers. Its args go to
+  // the request's function by name. Core has the blocks that it reads
+  // evaluated first, and keeps none of its answers, since it may write.
+  request<T = Json>(plugin: PluginId, name: string, args?: Readonly<Record<string, Json>>, opts?: RequestOpts): Promise<T | Blob>;
   // A module another package offers, by id.
   module<T = unknown>(id: string): Promise<T>;
   // A blockr option, asked of R once per page, or the fallback where nothing
@@ -65,6 +67,9 @@ export interface RequestOpts {
   reads?: BlockId[];
   // Gives it up, as a cancel does on the wire.
   signal?: AbortSignal;
+  // A file it sends, which R hands the request's function in its argument
+  // `file`.
+  file?: File;
   // Hears each progress note that R sends for it.
   progress?(note: { value?: number; message?: string }): void;
 }

@@ -35,6 +35,8 @@
 #' R calls the method on an object of class `c("{name}_plugin", "plugin")`,
 #' which it makes from the class's id, and sends the version of each class that
 #' a method gives one in its reply to `hello`.
+#' A plugin class that needs R gives its requests through its method of
+#' [plugin_requests()], which R calls on such an object too.
 #'
 #' @param state The plugin's state, the args of its constructor, as a list by
 #'   name
@@ -222,9 +224,7 @@ id_class <- function(ids) {
 # that it knows by its ID alone.
 plugin_class_version <- function(id) {
 
-  version <- plugin_version(
-    structure(list(), class = c(id_class(id), "plugin"))
-  )
+  version <- plugin_version(plugin_of_class(id))
 
   if (!is_count(version, allow_zero = FALSE)) {
     blockr_abort(
@@ -235,6 +235,34 @@ plugin_class_version <- function(id) {
   }
 
   version
+}
+
+# The requests of the plugin class with the ID `id`, `{pkg}-{name}_plugin`, a
+# list of functions by name: what the method of `plugin_requests()` for
+# `{name}_plugin` returns, called on an object of class
+# `c("{name}_plugin", "plugin")`.
+plugin_class_requests <- function(id) {
+
+  reqs <- plugin_requests(plugin_of_class(id))
+
+  if (!is.list(reqs) || is.object(reqs) || !all(lgl_ply(reqs, is.function)) ||
+        !has_unique_names(reqs)) {
+    blockr_abort(
+      "The method of `plugin_requests()` for plugin class {id} returns no ",
+      "list of functions by name.",
+      class = "plugin_requests_invalid"
+    )
+  }
+
+  reqs
+}
+
+# The object on which R calls the methods of a plugin class that it knows by
+# its ID alone, `{pkg}-{name}_plugin`: one of class
+# `c("{name}_plugin", "plugin")`, as `c("dag_plugin", "plugin")` for
+# `blockr.dag-dag_plugin`.
+plugin_of_class <- function(id) {
+  structure(list(), class = c(id_class(id), "plugin"))
 }
 
 # The version of each plugin class that a method of `plugin_version()` gives

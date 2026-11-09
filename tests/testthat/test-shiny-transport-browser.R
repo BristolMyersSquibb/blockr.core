@@ -3,8 +3,9 @@
 # which runs in another R process with the blockr.core installed, page and R
 # alike.
 
-# Whether the blockr.core installed, which the app runs, has the transport,
-# since a test run from the source would otherwise test an older install.
+# Whether the blockr.core installed, which the app runs, has the transport and
+# the import map of its page, since a test run from the source would otherwise
+# test an older install.
 installed_with_transport <- function() {
 
   path <- find.package("blockr.core", lib.loc = .libPaths(), quiet = TRUE)
@@ -15,7 +16,9 @@ installed_with_transport <- function() {
 
   js <- file.path(path[[1L]], "js", "blockr-core.js")
 
-  file.exists(js) && any(grepl("shinyTransport", readLines(js, warn = FALSE)))
+  file.exists(js) &&
+    file.exists(file.path(path[[1L]], "js", "import-map.json")) &&
+    any(grepl("shinyTransport", readLines(js, warn = FALSE)))
 }
 
 # Starts the test app in another R process, on a port of its own, with the
@@ -251,4 +254,28 @@ test_that("the transport carries a body in a binary frame where it is set to", {
   res <- page_eval(page, "app.ask('progress')")
 
   expect_identical(res$notes, list(list(value = 0.5, message = "halfway")))
+})
+
+test_that("the page's import map gives core's client and its SDK one React", {
+
+  skip_on_cran()
+  skip_if_not_installed("chromote")
+  skip_if_not_installed("callr")
+  skip_if_not(
+    installed_with_transport(),
+    "The blockr.core installed has no Shiny transport to test."
+  )
+
+  app <- start_transport_app()
+  withr::defer(app$kill())
+
+  page <- try(chromote::ChromoteSession$new(), silent = TRUE)
+  skip_if(inherits(page, "try-error"), "Chrome does not start.")
+  withr::defer(page$close())
+
+  # The page has loaded core's client, which imports React and the SDK through
+  # the import map, once it defines `app`.
+  navigate(page, app$url)
+
+  expect_identical(page_eval(page, "app.sdkInput()"), "hello")
 })

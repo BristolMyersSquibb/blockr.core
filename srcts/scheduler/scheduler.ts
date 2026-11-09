@@ -96,13 +96,12 @@ export interface Scheduler {
   // request() does. This way the scheduler sees everything R is asked to run.
   // When the session ends before R replies, it sends an output, an output
   // class's request and a block class's request to the next session again. It
-  // rejects an action, a board option's request and one of a type that a
-  // package adds with the SessionEndedError, since they may have run. Once the
-  // scheduler has ended, it rejects every request. A reply of `missing` goes
-  // back to the caller. The caller asks again once the blocks are evaluated at
-  // their current revisions. Only a fault in R makes R lack a result that reads
-  // ready at the block's current revision. The scheduler then invalidates that
-  // block first.
+  // rejects an action, a board option's request and a plugin's with the
+  // SessionEndedError, since they may have run. Once the scheduler has ended,
+  // it rejects every request. A reply of `missing` goes back to the caller.
+  // The caller asks again once the blocks are evaluated at their current
+  // revisions. Only a fault in R makes R lack a result that reads ready at the
+  // block's current revision. The scheduler then invalidates that block first.
   request(
     request: Extract<Parameters<Client["request"]>[0], { kind: "request" | "output" }>,
     options?: RequestOptions,

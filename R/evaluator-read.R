@@ -65,18 +65,16 @@ read_output <- function(req) {
   )
 }
 
-# A request names its type, and R reads it into an object of class
+# A request names one of core's types, and R reads it into an object of class
 # `{type}_request`, which `request_call()` answers.
-# R reads the fields of core's types.
-# Of a type that a package adds, R reads only `reads`, the results that the
-# request reads, and leaves the other fields as the client sent them.
+# No package adds a type, so R refuses one that is not core's.
 read_request <- function(req) {
 
   type <- req[["type"]]
 
-  if (!is_string(type) || !grepl("^[A-Za-z][A-Za-z0-9_.]*$", type)) {
+  if (!is_string(type) || !type %in% request_types()) {
     protocol_abort(
-      "A request names its type in `type`, as a name such as `block_class`."
+      "A request names one of core's types in `type`: {request_types()}."
     )
   }
 
@@ -93,13 +91,20 @@ read_request <- function(req) {
     output_class = read_output_request(req, NULL),
     renderer = read_output_request(req, read_id(req, "renderer")),
     option = c(list(option = read_id(req, "option")), read_call(req)),
-    c(
-      req[setdiff(names(req), "reads")],
-      list(reads = read_reads(req[["reads"]], input = FALSE))
+    plugin = c(
+      list(
+        plugin = read_plugin_class(req),
+        reads = read_reads(req[["reads"]], input = FALSE)
+      ),
+      read_call(req)
     )
   )
 
   structure(read, class = c(paste0(type, "_request"), "request"))
+}
+
+request_types <- function() {
+  c("block_class", "output_class", "renderer", "option", "plugin")
 }
 
 # The fields that every request of core's types has: the name of the request,
@@ -111,6 +116,25 @@ read_call <- function(req) {
   }
 
   list(name = req[["name"]], args = read_map(req, "args"), body = req[["body"]])
+}
+
+# The ID of the class of the plugin whose request it is, as
+# `blockr.md-md_plugin`: a package's name, a dash, and the name of a class of
+# the package's own, which ends in `_plugin`.
+read_plugin_class <- function(req) {
+
+  id <- req[["plugin"]]
+
+  if (!is_string(id) ||
+        !grepl("^[A-Za-z][A-Za-z0-9.]*[A-Za-z0-9]-.+_plugin$", id) ||
+        id_class(id) %in% core_plugin_classes()) {
+    protocol_abort(
+      "A request of type plugin names the ID of the plugin's class in ",
+      "`plugin`, as `blockr.md-md_plugin`."
+    )
+  }
+
+  id
 }
 
 read_id <- function(req, field) {
@@ -205,8 +229,7 @@ read_map <- function(x, field) {
 }
 
 # The blocks that a request evaluates or reads, by which a `forget` drops it.
-# Of a request that `request_call()` answers, these are the blocks of `reads`,
-# since the other fields of a type that a package adds are the package's.
+# Of a request that `request_call()` answers, these are the blocks of `reads`.
 request_blocks <- function(read) {
 
   if (inherits(read, "request")) {

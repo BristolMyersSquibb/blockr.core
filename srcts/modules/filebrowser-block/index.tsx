@@ -10,8 +10,7 @@
 import { Fragment, useState } from "react";
 import type { ReactElement } from "react";
 import { strings } from "../../binding/index.ts";
-import { Field, Stack } from "../../inputs/index.ts";
-import { reactModule, useRequest, useValue } from "../../react/index.ts";
+import { Field, reactModule, Stack, useRequest, useValue } from "../../react/index.ts";
 import type { Answered, ModuleProps } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";

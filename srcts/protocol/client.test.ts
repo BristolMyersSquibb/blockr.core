@@ -152,7 +152,8 @@ const evaluate: Parameters<Client["request"]>[0] = {
 
 const echo: Parameters<Client["request"]>[0] = {
   kind: "request",
-  type: "echo",
+  type: "plugin",
+  plugin: "blockr.test-echo_plugin",
   name: "echo",
   args: {},
   reads: [],

@@ -19,12 +19,9 @@ import type {
   Request,
 } from "./messages.ts";
 
-// Omits the keys `K` from each type of a union. It keeps the named keys of a
-// type with an index signature, as a request of a type that a package adds
-// has, where `Omit` would fold them into the index signature.
-type DistributiveOmit<T, K extends PropertyKey> = T extends unknown
-  ? { [P in keyof T as P extends K ? never : P]: T[P] }
-  : never;
+// Omits the keys `K` from each type of a union, where `Omit` would keep only
+// the keys that the types of the union share.
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 
 export type ProgressNote = Progress["progress"];
 
