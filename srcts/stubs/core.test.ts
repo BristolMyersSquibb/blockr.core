@@ -42,7 +42,7 @@ describe("the CoreApi for tests", () => {
     expect(Object.keys(core.scheduler).sort()).toEqual(["demand", "evaluate", "invalidate", "status", "subscribe"]);
     expect(core.blockRegistry()).toBe(HELLO.block_registry);
     expect(Object.keys(core.options.registered())).toEqual(["n_rows", "show_conditions", "dark_mode"]);
-    expect(core.lock).toBeNull();
+    expect(core.lock).toEqual({ board: false, load: false });
     // The second asks for the blockr option behind the default of dark_mode,
     // which core's basic front-end requires and the board lacks.
     expect(sent.map((request) => request.kind)).toEqual(["hello", "blockr_options", "blockr_options"]);

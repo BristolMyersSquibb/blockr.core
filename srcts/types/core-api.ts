@@ -51,8 +51,10 @@ export interface CoreApi {
   readonly plugins: {
     register(def: PluginClass): () => void;
   };
-  // The blocks that a locked board leaves open, from R's reply to `hello`.
-  readonly lock: Lock | null;
+  // The locks that the app sets, from R's reply to `hello`: whether the board
+  // lock and the load lock are on. The store's locked() says which blocks the
+  // board lock leaves open.
+  readonly lock: Lock;
   // What renderers report that the user did, such as a selection, for
   // extensions to act on.
   readonly outputEvents: OutputEvents;

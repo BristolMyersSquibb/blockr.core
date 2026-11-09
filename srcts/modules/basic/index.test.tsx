@@ -7,6 +7,7 @@ import { act } from "react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { HELLO, stubCore } from "../../stubs/index.ts";
 import type { StubCoreOptions } from "../../stubs/index.ts";
+import type { HelloReply } from "../../protocol/index.ts";
 import { choose, find, pick, press, texts, type } from "../../testing/inputs.ts";
 import { step } from "../../testing/react.ts";
 import type { Board } from "../../types/board.ts";
@@ -483,9 +484,23 @@ describe("undo and redo", () => {
   });
 });
 
+// R's reply to hello with the locks given, whose opening board gives the head
+// block b a lock of false, so that the board lock leaves b open, while every
+// other block's lock is null, which follows the board lock.
+function lockedHello(lock: HelloReply["lock"]): HelloReply {
+  const { blocks } = HELLO.board.board;
+  const b = blocks.b;
+  if (b === undefined) throw new Error("The fixture's board has no block b.");
+  return {
+    ...HELLO,
+    lock,
+    board: { ...HELLO.board, board: { ...HELLO.board.board, blocks: { ...blocks, b: { ...b, locked: false } } } },
+  };
+}
+
 describe("a locked board", () => {
-  test("draws no control for what the lock fixes, and the UI only of the blocks it leaves open", async () => {
-    const { el } = await drawn({ hello: { ...HELLO, lock: { open: ["b"] } } });
+  test("draws no control for what the board lock fixes, and the UI only of the blocks it leaves open", async () => {
+    const { el } = await drawn({ hello: lockedHello({ board: true, load: true }) });
 
     expect(buttons(find(el, '[role="toolbar"]'))).toEqual(["Undo", "Redo", "Save"]);
     expect(el.querySelector('button[aria-label="Rename board"]')).toBeNull();
@@ -496,6 +511,24 @@ describe("a locked board", () => {
     expect(card(el, "Head").textContent).toContain("UI of b");
     expect(card(el, "Iris").textContent).not.toContain("UI of a");
     expect(card(el, "Iris").textContent).toContain("Output of a");
+  });
+
+  test("under the load lock alone, draws every control but the one for opening a board", async () => {
+    const { el } = await drawn({ hello: lockedHello({ board: false, load: true }) });
+
+    expect(buttons(find(el, '[role="toolbar"]'))).toEqual([
+      "Add block",
+      "Links",
+      "Stacks",
+      "Options",
+      "Undo",
+      "Redo",
+      "Save",
+    ]);
+    expect(el.querySelector('input[type="file"]')).toBeNull();
+    expect(el.querySelector('button[aria-label="Rename board"]')).not.toBeNull();
+    expect(card(el, "Iris").querySelector("button")).not.toBeNull();
+    expect(card(el, "Iris").textContent).toContain("UI of a");
   });
 });
 

@@ -145,8 +145,9 @@ Stubs of the hosts ship there too, as \verb{@blockr/core/stubs},
 with which a module's tests mount it
 on the fixture file that \code{\link[=expect_block_fixture]{expect_block_fixture()}} writes.
 
-A class is checked once, when it is defined: no state arg is \code{...} or
-\code{block_name}, no input or state arg shares the name of another, the
+A class is checked once, when it is defined: no state arg is \code{...},
+\code{block_name} or \code{locked}, no input or state arg shares the name of another,
+the
 arguments of each request name inputs or state args, but for
 parameters, which have a default, for the \code{file} of an action and for those
 that take board options, which are neither, and \code{expr}, called without
@@ -154,12 +155,15 @@ args, cannot run yet or returns a call, a string, a function whose formals
 are the inputs or an object of a class that inherits from \code{blockr_expr},
 holding no function.
 
-The constructor has the formals of \code{expr} and a \code{block_name}, and no
-\code{...}, so a misspelled state arg fails as an unused argument. It
+The constructor has the formals of \code{expr}, a \code{block_name} and a \code{locked},
+and no \code{...}, so a misspelled state arg fails as an unused argument. It
 calls \code{expr} with its args and returns a block, a list of the state that
 the checks in \code{expr} left in the frame it ran in, which leaves out an arg
 that is still unset. A block holds its name, which defaults to one made
-from its class's name by \code{default_block_name()}, and refers to its
+from its class's name by \code{default_block_name()}, and its lock, \code{locked},
+which fixes the block's state where the board lock is on: \code{TRUE} locks the
+block, \code{FALSE} leaves it open, and \code{NA}, the default, follows the board
+lock, which then locks it (see \link{locked-board}). A block refers to its
 class, which every block of the class shares.
 }
 \section{Block vectors}{

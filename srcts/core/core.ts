@@ -35,8 +35,8 @@ export interface CoreParts {
   readonly scheduler: Scheduler;
   readonly loader: Loader;
   readonly blockrOptions: BlockrOptions;
-  // The blocks that a locked board leaves open, from R's reply to `hello`.
-  readonly lock: Lock | null;
+  // The locks that the app sets, from R's reply to `hello`.
+  readonly lock: Lock;
   // The renderers that the app names for board options, from R's latest reply
   // to `hello`.
   readonly renderers: () => Readonly<Record<string, Renderer>>;

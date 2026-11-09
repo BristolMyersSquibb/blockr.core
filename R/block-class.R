@@ -54,8 +54,9 @@
 #' with which a module's tests mount it
 #' on the fixture file that [expect_block_fixture()] writes.
 #'
-#' A class is checked once, when it is defined: no state arg is `...` or
-#' `block_name`, no input or state arg shares the name of another, the
+#' A class is checked once, when it is defined: no state arg is `...`,
+#' `block_name` or `locked`, no input or state arg shares the name of another,
+#' the
 #' arguments of each request name inputs or state args, but for
 #' parameters, which have a default, for the `file` of an action and for those
 #' that take board options, which are neither, and `expr`, called without
@@ -63,12 +64,15 @@
 #' are the inputs or an object of a class that inherits from `blockr_expr`,
 #' holding no function.
 #'
-#' The constructor has the formals of `expr` and a `block_name`, and no
-#' `...`, so a misspelled state arg fails as an unused argument. It
+#' The constructor has the formals of `expr`, a `block_name` and a `locked`,
+#' and no `...`, so a misspelled state arg fails as an unused argument. It
 #' calls `expr` with its args and returns a block, a list of the state that
 #' the checks in `expr` left in the frame it ran in, which leaves out an arg
 #' that is still unset. A block holds its name, which defaults to one made
-#' from its class's name by `default_block_name()`, and refers to its
+#' from its class's name by `default_block_name()`, and its lock, `locked`,
+#' which fixes the block's state where the board lock is on: `TRUE` locks the
+#' block, `FALSE` leaves it open, and `NA`, the default, follows the board
+#' lock, which then locks it (see [locked-board]). A block refers to its
 #' class, which every block of the class shares.
 #'
 #' @section Block vectors:
@@ -189,7 +193,7 @@ block_constructor <- function(cls) {
 
   formals(ctor) <- c(
     formals(cls[["expr"]]),
-    alist(block_name = NULL)
+    alist(block_name = NULL, locked = NA)
   )
 
   structure(
@@ -297,7 +301,7 @@ validate_block_class <- function(x) {
   inputs <- class_inputs(x)
   args <- class_state_args(x)
 
-  reserved <- intersect(args, c("...", "block_name"))
+  reserved <- intersect(args, c("...", "block_name", "locked"))
 
   if (length(reserved)) {
     blockr_abort(
@@ -542,12 +546,33 @@ new_class_block <- function(cls, env) {
     )
   }
 
+  locked <- env[["locked"]]
+
+  if (!is_block_lock(locked)) {
+    blockr_abort(
+      "A block's `locked` is TRUE, FALSE or NA.",
+      class = "block_locked_invalid"
+    )
+  }
+
   structure(
     expr_state(cls, mget(given, envir = env)),
     block_name = block_name,
+    block_locked = locked,
     block_class = cls,
     class = cls[["class"]]
   )
+}
+
+# Whether a value is a block's lock: `TRUE`, `FALSE` or `NA`.
+is_block_lock <- function(x) {
+  is.logical(x) && is_scalar(x) && is.null(attributes(x))
+}
+
+# A block's lock, which fixes its state where the board lock is on: `TRUE`,
+# `FALSE`, or `NA`, which follows the board lock.
+block_locked <- function(x) {
+  attr(x, "block_locked", exact = TRUE)
 }
 
 arg_is_missing <- function(arg, env) {
@@ -641,6 +666,13 @@ validate_block <- function(x) {
     blockr_abort(
       "Expecting a string-valued block name.",
       class = "block_name_invalid"
+    )
+  }
+
+  if (!is_block_lock(block_locked(x))) {
+    blockr_abort(
+      "A block's `locked` is TRUE, FALSE or NA.",
+      class = "block_locked_invalid"
     )
   }
 

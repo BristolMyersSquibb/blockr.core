@@ -11,7 +11,7 @@ export interface CoreParts {
     readonly scheduler: Scheduler;
     readonly loader: Loader;
     readonly blockrOptions: BlockrOptions;
-    readonly lock: Lock | null;
+    readonly lock: Lock;
     readonly renderers: () => Readonly<Record<string, Renderer>>;
     readonly measure?: Measure;
     readonly signal?: AbortSignal;

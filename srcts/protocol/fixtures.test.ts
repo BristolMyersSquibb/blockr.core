@@ -34,6 +34,7 @@ const types: Record<string, string> = {
   "evaluate-invalid": "Fixture<[EvaluateRequest], [[EvaluateReply]]>",
   "evaluate-params": "Fixture<[EvaluateRequest], [[EvaluateReply]]>",
   "evaluate-missing": "Fixture<[EvaluateRequest], [[MissingReply]]>",
+  "evaluate-locked": "Fixture<[EvaluateRequest], [[EvaluateReply]]>",
   "several-requests": `Fixture<
     [EvaluateRequest, EvaluateRequest, OutputRequest],
     [[EvaluateReply], [EvaluateReply], [OutputReply]]
