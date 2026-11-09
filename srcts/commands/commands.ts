@@ -10,11 +10,11 @@
 // opens.
 
 import { computed, signal } from "@preact/signals-core";
-import { isDeltas, pointer } from "../store/index.ts";
-import type { BlockMod, Delta, Origin, Patch, Store } from "../store/index.ts";
+import { isDeltas, isRandId, pointer, RAND_IDS } from "../store/index.ts";
+import type { BlockMod, Delta, Origin, Patch, RandId, Store } from "../store/index.ts";
 import type { Board } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
-import { compile, messageOf, packageOf } from "../util/index.ts";
+import { compile, messageOf, packageOf, quoted, report } from "../util/index.ts";
 import type { Validate } from "../util/index.ts";
 import { coreCommands } from "./core.ts";
 
@@ -90,6 +90,11 @@ export interface CommandsOptions {
   // store: from then on the registry runs and plans no command, and drops a
   // command still in its prepare() rather than run it.
   readonly signal?: AbortSignal;
+  // The `rand_id` blockr option, the shape of the ids that core's commands
+  // mint, which core asks R for as soon as R has answered its hello. It is
+  // "adjective_animal" unless given. A value that names no shape is reported,
+  // and core's commands then mint ids as "adjective_animal".
+  readonly randId?: string;
 }
 
 export function createCommands(store: Store, options: CommandsOptions = {}): Commands {
@@ -262,9 +267,23 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
     },
   };
 
-  for (const command of coreCommands(store)) registry.register(command);
+  for (const command of coreCommands(store, shapeOf(options.randId))) registry.register(command);
 
   return registry;
+}
+
+// The shape of the ids that core's commands mint, which the blockr option
+// rand_id names: "adjective_animal" where it is not given, or where it names
+// no shape, which is reported.
+function shapeOf(randId: string | undefined): RandId {
+  if (randId === undefined) return "adjective_animal";
+  if (isRandId(randId)) return randId;
+  report(
+    new Error(
+      `The blockr option rand_id is ${JSON.stringify(randId)}, where it takes one of ${quoted(RAND_IDS)}, so core's commands mint ids as "adjective_animal".`,
+    ),
+  );
+  return "adjective_animal";
 }
 
 // Whether an id is named as a registry id is: a package name, a dash, and a

@@ -118,7 +118,9 @@ It also leaves out one whose value it cannot write as JSON, such as `renderers`,
 R warns of each such blockr option in its log, naming it.
 The client takes the fallback of each blockr option that R leaves out, while the request's other names get their values ([Blockr options](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.13#blockr-options)).
 
-The client asks for a blockr option once per page, the first time its code reads it through `CoreApi.blockrOption()`, and keeps the value, since a blockr option is fixed for the app. Core asks for those its scheduler reads, `evaluation_queue`, `background_evaluation_delay` and `gate_visibility`, as soon as R has answered its `hello`, so that they are there before the scheduler starts ([Scheduling](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.10#scheduling)).
+The client asks for a blockr option once per page, the first time its code reads it through `CoreApi.blockrOption()`, and keeps the value, since a blockr option is fixed for the app.
+Core asks for those its scheduler reads, `evaluation_queue`, `background_evaluation_delay` and `gate_visibility`, as soon as R has answered its `hello`, so that they are there before the scheduler starts ([Scheduling](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.10#scheduling)).
+It asks for `rand_id`, the shape of the ids that core's commands mint, in the same request ([Ids](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.1#ids)).
 
 ## Evaluating a block
 
@@ -347,7 +349,7 @@ Each file in [`fixtures/`](fixtures/) holds a message that the client sends, in 
 | [`hello-block`](fixtures/hello-block.json) | the handshake of an app that serves a block alone, with `bound` |
 | [`hello-file`](fixtures/hello-file.json) | the handshake of an app that serves a JSON board |
 | [`hello-declared`](fixtures/hello-declared.json) | the handshake of an app whose script loaded a package that declares modules, with what R builds from what is registered and declared, and the URLs it serves each file at |
-| [`blockr-options`](fixtures/blockr-options.json) | reading blockr options, one set as an R option, one through an environment variable and one not set |
+| [`blockr-options`](fixtures/blockr-options.json) | reading blockr options, one set as an R option, one through an environment variable, one not set and one that R cannot read |
 | [`evaluate`](fixtures/evaluate.json) | an evaluation of a block with two inputs |
 | [`evaluate-warning`](fixtures/evaluate-warning.json) | an evaluation that raises a warning |
 | [`evaluate-variadic`](fixtures/evaluate-variadic.json) | an evaluation of a variadic block |

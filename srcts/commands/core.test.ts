@@ -8,6 +8,7 @@
 import { describe, expect, test } from "vitest";
 import { isId, StoreError } from "../store/index.ts";
 import type { Store } from "../store/index.ts";
+import { reports } from "../testing/reports.ts";
 import { hello, openedStore } from "../testing/store.ts";
 import type { Board } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
@@ -480,6 +481,41 @@ describe("the board", () => {
     const refused = commands.run("blockr.core-set_option", { id: "n_rows", value: -1 });
     await expect(refused).rejects.toThrow(StoreError);
     await expect(refused).rejects.toThrow('The value of the board option "n_rows" fails its schema');
+  });
+});
+
+describe("ids", () => {
+  test("core's commands mint the ids of blocks, links and stacks in the shape that rand_id names", async () => {
+    const store = await openedStore();
+    const commands = createCommands(store, { randId: "letters_8" });
+    const board = store.board();
+
+    await commands.run("blockr.core-append_block", { from: "d", registry_id: head });
+    await commands.run("blockr.core-add_stack");
+
+    const minted = [
+      ...added(board.blocks, store.board().blocks),
+      ...added(board.links, store.board().links),
+      ...added(board.stacks, store.board().stacks),
+    ];
+    expect(minted).toHaveLength(3);
+    for (const id of minted) expect(id).toMatch(/^[a-z]{8}$/);
+  });
+
+  test("a rand_id that names no shape is reported, and core's commands mint ids as adjective_animal", async () => {
+    const store = await openedStore();
+    const reported = reports();
+    const commands = createCommands(store, { randId: "counter" });
+    reported.restore();
+    expect(reported.errors().map(String)).toEqual([
+      'Error: The blockr option rand_id is "counter", where it takes one of "adjective_animal", "adjective_adjective_animal", "letters_6", "letters_8", "letters_12", "bytes_4", "bytes_8" and "uuid", so core\'s commands mint ids as "adjective_animal".',
+    ]);
+    const board = store.board();
+
+    await commands.run("blockr.core-add_block", { registry_id: head });
+
+    const [id = ""] = added(board.blocks, store.board().blocks);
+    expect(id).toMatch(/^[a-z]+_[a-z]+$/);
   });
 });
 

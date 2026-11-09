@@ -766,13 +766,15 @@ test_that("R reads blockr options, as the fixture blockr-options has it", {
   withr::local_options(
     blockr.evaluation_queue = 3L,
     blockr.background_evaluation_delay = NULL,
-    blockr.gate_visibility = NULL
+    blockr.gate_visibility = NULL,
+    blockr.rand_id = "uuid"
   )
 
   withr::local_envvar(
     BLOCKR_BACKGROUND_EVALUATION_DELAY = "30",
     BLOCKR_GATE_VISIBILITY = NA,
-    BLOCKR_EVALUATION_QUEUE = NA
+    BLOCKR_EVALUATION_QUEUE = NA,
+    BLOCKR_RAND_ID = "letters_8"
   )
 
   session <- local_evaluator()

@@ -3,8 +3,9 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#starting-the-page):
 // 1. The protocol's client sends each session's hello as R starts the session.
 // 2. Once R has answered the first, core asks R for the blockr options that its
-//    scheduler reads, and creates for the board that it opens the store, the
-//    command registry with core's board options, the scheduler and CoreApi.
+//    scheduler reads and for rand_id, the shape of the ids that its commands
+//    mint, and creates for the board that it opens the store, the command
+//    registry with core's board options, the scheduler and CoreApi.
 // 3. It initializes the startup module of every package that R has loaded, one
 //    at a time in R's order, awaiting each initialize(). It names one that
 //    fails and carries on.
@@ -227,12 +228,14 @@ export function start(options: StartOptions): Started {
       { once: true },
     );
 
-    // The blockr options that the scheduler reads, asked at once, in one
-    // request, before the scheduler starts, and kept for the page.
-    const [evaluationQueue, backgroundEvaluationDelay, gateVisibility] = await Promise.all([
+    // The blockr options that the scheduler reads, and rand_id, the shape of
+    // the ids that core's commands mint, asked at once, in one request, before
+    // the scheduler starts and the commands run, and kept for the page.
+    const [evaluationQueue, backgroundEvaluationDelay, gateVisibility, randId] = await Promise.all([
       blockrOptions.read("evaluation_queue", 2),
       blockrOptions.read("background_evaluation_delay", Infinity),
       blockrOptions.read("gate_visibility", true),
+      blockrOptions.read("rand_id", "adjective_animal"),
     ]);
 
     const store: Store = createStore({
@@ -240,7 +243,7 @@ export function start(options: StartOptions): Started {
       loaded: (_reply, classes) => prepare(store, classes),
       signal,
     });
-    const commands = createCommands(store, { signal });
+    const commands = createCommands(store, { signal, randId });
     for (const option of options.options({ blockrOption: (name, fallback) => blockrOptions.read(name, fallback) })) {
       store.options.register(option);
     }

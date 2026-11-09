@@ -10,9 +10,11 @@
 // to the store, but for a block's state, which the store does not check, and
 // which these commands check against the schema of the block's class. An edit
 // that changes nothing is the store's to drop, which makes no step of it.
+// The ids that they mint for what they add take the shape that the blockr
+// option rand_id names, as R's rand_names() draws them.
 
 import { mintId, sentenceCase } from "../store/index.ts";
-import type { Store } from "../store/index.ts";
+import type { RandId, Store } from "../store/index.ts";
 import type {
   Block,
   BlockId,
@@ -58,8 +60,13 @@ const newBlock = {
   },
 };
 
-export function coreCommands(store: Store): Command<Json, unknown>[] {
+export function coreCommands(store: Store, randId: RandId = "adjective_animal"): Command<Json, unknown>[] {
   const validators = new WeakMap<RegistryEntry, Validate>();
+
+  // A new id that `taken` does not hold, in the shape that rand_id names.
+  function mint(taken: (id: string) => boolean): string {
+    return mintId(taken, randId);
+  }
 
   // Each way a block's state fails the schema of its class, in a clause.
   function stateFailures(entry: RegistryEntry, state: State): readonly string[] {
@@ -92,7 +99,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
     if (failures.length > 0) {
       throw refusal(command, failures.map((failure) => `The state of the new block ${failure}`));
     }
-    const id = args.id ?? mintId((id) => Object.hasOwn(board.blocks, id));
+    const id = args.id ?? mint((id) => Object.hasOwn(board.blocks, id));
     return [
       id,
       { registry_id: entry.id, state, name: args.name ?? blockName(entry.id) },
@@ -230,7 +237,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       run(board, args) {
         const [id, block, entry] = added(this.id, board, args);
         const input = newInput(this.id, entry, args.input);
-        const link = mintId((id) => Object.hasOwn(board.links, id));
+        const link = mint((id) => Object.hasOwn(board.links, id));
         return {
           blocks: { add: { [id]: block } },
           links: { add: { [link]: { from: args.from, to: id, input } } },
@@ -258,7 +265,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       run(board, args) {
         const input = linkInput(this.id, board, args.to, args.input);
         const [id, block] = added(this.id, board, args);
-        const link = mintId((id) => Object.hasOwn(board.links, id));
+        const link = mint((id) => Object.hasOwn(board.links, id));
         return {
           blocks: { add: { [id]: block } },
           links: { add: { [link]: { from: id, to: args.to, input } } },
@@ -288,8 +295,8 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         if (split === undefined) return [];
         const [id, block, entry] = added(this.id, board, args);
         const input = newInput(this.id, entry, args.input);
-        const near = mintId((id) => Object.hasOwn(board.links, id));
-        const far = mintId((id) => Object.hasOwn(board.links, id) || id === near);
+        const near = mint((id) => Object.hasOwn(board.links, id));
+        const far = mint((id) => Object.hasOwn(board.links, id) || id === near);
 
         // The link into the input that the split link fed takes its place
         // among the links, since a variadic block takes its links in order.
@@ -338,7 +345,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       enabled: (board, { from, to, input }) =>
         Object.hasOwn(board.blocks, from) && linkable(board, to, input),
       run(board, { from, to, input, id }) {
-        const link = id ?? mintId((id) => Object.hasOwn(board.links, id));
+        const link = id ?? mint((id) => Object.hasOwn(board.links, id));
         const resolved = linkInput(this.id, board, to, input);
         return { links: { add: { [link]: { from, to, input: resolved } } } };
       },
@@ -413,7 +420,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         },
       }),
       run(board, { id, name = "Stack", blocks = [], color = null }) {
-        const stack = id ?? mintId((id) => Object.hasOwn(board.stacks, id));
+        const stack = id ?? mint((id) => Object.hasOwn(board.stacks, id));
         const left = leave(board, stack, blocks);
         return {
           stacks: {
