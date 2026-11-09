@@ -37,9 +37,9 @@ method shows the board name in its header.
 
 This is the blockr extension point for token-dense renderings such as a
 board summary. A home package surfaces a subclass's state by defining a
-\code{str_value()} method, typically extending the parent's via \code{\link[=NextMethod]{NextMethod()}}
-(the way \code{format.dock_stack()} appends a stack color). \code{\link[=print]{print()}} and
-\code{\link[=format]{format()}} are unaffected and remain the full, multi-line tier.
+\code{str_value()} method, typically extending the parent's via \code{\link[=NextMethod]{NextMethod()}}.
+Both \code{\link[=print]{print()}} and \code{\link[=format]{format()}} are unaffected
+and remain the full, multi-line tier.
 }
 \examples{
 str_value(new_dataset_block())
