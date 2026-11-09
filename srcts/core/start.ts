@@ -7,7 +7,10 @@
 //    command registry with core's board options, the scheduler and CoreApi.
 // 3. It initializes the startup module of every package that R has loaded, one
 //    at a time in R's order, awaiting each initialize(). It names one that
-//    fails and carries on.
+//    fails and carries on. Core records the package of each board option:
+//    the package of the startup module whose initialize() it awaits as the
+//    board option is registered, or blockr.core for core's own. The errors of
+//    the board option name that package.
 // 4. It opens the board that R sent, or in its place the one that a startup
 //    module resolves with, unless the board is locked or two startup modules
 //    resolve with one, where it keeps R's and names the packages. A board that
@@ -50,7 +53,7 @@ import { createClient, PROTOCOL_VERSION } from "../protocol/index.ts";
 import type { Capability, HelloReply, Reply, Transport } from "../protocol/index.ts";
 import { counter, createScheduler } from "../scheduler/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
-import { createStore, StoreError } from "../store/index.ts";
+import { createRegistrations, createStore, StoreError } from "../store/index.ts";
 import type { Dropped, Option, Store } from "../store/index.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import { asError, isObject, messageOf, own, quoted, report } from "../util/index.ts";
@@ -62,6 +65,9 @@ const CAPABILITIES: Capability[] = ["cancel", "interrupt", "progress"];
 
 // The id of core's basic front-end, which draws every board.
 export const BASIC = "blockr.core-basic";
+
+// The package of core's own board options.
+const CORE = "blockr.core";
 
 // What draws the front-ends of the boards that open, which the page gives, and
 // a CoreApi for tests may leave out.
@@ -126,6 +132,13 @@ interface Running {
 interface Later {
   readonly text: string;
   readonly before: string;
+}
+
+// The package whose startup module registers now, for one opening: blockr.core
+// while core registers its own board options, the package of the startup
+// module whose initialize() core awaits, and null otherwise.
+interface Registering {
+  package: string | null;
 }
 
 export function start(options: StartOptions): Started {
@@ -236,15 +249,20 @@ export function start(options: StartOptions): Started {
       blockrOptions.read("gate_visibility", true),
     ]);
 
+    // The store keeps this package with each board option registered.
+    const registering: Registering = { package: CORE };
+    const registrations = createRegistrations(() => registering.package);
     const store: Store = createStore({
       hello: reply,
       loaded: () => prepare(),
       signal,
+      registrations,
     });
     const commands = createCommands(store, { signal, lock: reply.lock });
     for (const option of options.options({ blockrOption: (name, fallback) => blockrOptions.read(name, fallback) })) {
       store.options.register(option);
     }
+    registering.package = null;
     // R binds inputs itself for the board that it sent alone.
     const bound = later === undefined ? reply.bound : undefined;
     const scheduler = createScheduler({
@@ -270,10 +288,11 @@ export function start(options: StartOptions): Started {
       renderers: () => latest?.renderers ?? {},
       signal,
       ...(options.measure === undefined ? {} : { measure: options.measure }),
+      optionPackage: (id) => registrations.option(id)?.package ?? null,
     });
     running = { store, scheduler, core, controller };
 
-    const named = await initialize(reply, core, signal, later === undefined);
+    const named = await initialize(reply, core, signal, later === undefined, registering);
 
     let dropped: Dropped[] = [];
     let failure: Error | undefined;
@@ -315,12 +334,14 @@ export function start(options: StartOptions): Started {
   // Initializes the startup module of each package that the reply names, one
   // at a time in R's order, with CoreApi and the signal of the board that
   // opens, and resolves with the boards that they name, where they may name
-  // one, as the page starts.
+  // one, as the page starts. While it awaits a module's initialize(), it has
+  // `registering` name the module's package.
   async function initialize(
     reply: HelloReply,
     core: CoreApi,
     signal: AbortSignal,
     naming: boolean,
+    registering: Registering,
   ): Promise<{ package: string; text: string }[]> {
     const named: { package: string; text: string }[] = [];
     for (const entry of reply.startup_modules) {
@@ -329,10 +350,13 @@ export function start(options: StartOptions): Started {
         const source = entry.css === undefined ? { module: entry.module } : { module: entry.module, css: entry.css };
         const mod = startupOf(await loader.load(source, entry.package), entry.module, entry.package);
         let result: unknown;
+        registering.package = entry.package;
         try {
           result = await mod.initialize({ core, signal });
         } catch (error) {
           throw new ModuleError(entry.module, entry.package, `failed in initialize(): ${messageOf(error)}`, { cause: error });
+        } finally {
+          registering.package = null;
         }
         if (typeof result === "string") {
           if (naming) {

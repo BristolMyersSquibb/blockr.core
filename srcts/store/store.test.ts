@@ -8,7 +8,7 @@ import { coreOptions, hello, noUi, reply, withPlugins } from "../testing/store.t
 import type { Block, Board, Plugin } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import { ROUNDS } from "./expand.ts";
-import { createStore, StoreError } from "./index.ts";
+import { createRegistrations, createStore, StoreError } from "./index.ts";
 import type {
   Change,
   Delta,
@@ -2174,6 +2174,31 @@ describe("registering", () => {
       store.registerMigration("blockr.foo-bar_block", (state) => state);
       store.registerMigration("blockr.foo-bar_block", (state) => state);
     }).toThrow('The block class "blockr.foo-bar_block" has a migration registered already.');
+  });
+
+  test("keeps the package that registers a board option, and a second registration of its id names both packages where it knows them", () => {
+    let pkg: string | null = "blockr.core";
+    const registrations = createRegistrations(() => pkg);
+    const store = createStore({ registrations });
+    const option = (id: string): Option => ({ id, label: id, category: "Test options", schema: {}, default: 1, ui: noUi });
+    const rows = option("n_rows");
+    store.options.register(rows);
+    pkg = null;
+    store.options.register(option("zoom"));
+
+    pkg = "blockr.io";
+    expect(() => store.options.register(option("n_rows"))).toThrow(
+      'The board option "n_rows" is registered already by blockr.core, so blockr.io cannot register it.',
+    );
+    expect(() => store.options.register(option("zoom"))).toThrow(
+      'The board option "zoom" is registered already, so blockr.io cannot register it.',
+    );
+    pkg = null;
+    expect(() => store.options.register(option("n_rows"))).toThrow('The board option "n_rows" is registered already by blockr.core.');
+
+    expect(store.options.registered().n_rows).toBe(rows);
+    expect(registrations.option("n_rows")?.package).toBe("blockr.core");
+    expect(registrations.option("zoom")?.package).toBeNull();
   });
 
   test("a plugin class is named as R names one, {pkg}-{name}_plugin", () => {

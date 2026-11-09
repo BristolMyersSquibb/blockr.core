@@ -64,7 +64,17 @@ interface Setup {
 
 async function setup(
   options: readonly Option[],
-  { modules = {}, renderers = {}, reply = hello }: { modules?: Readonly<Record<string, unknown>>; renderers?: Readonly<Record<string, Renderer>>; reply?: HelloReply } = {},
+  {
+    modules = {},
+    renderers = {},
+    reply = hello,
+    optionPackage,
+  }: {
+    modules?: Readonly<Record<string, unknown>>;
+    renderers?: Readonly<Record<string, Renderer>>;
+    reply?: HelloReply;
+    optionPackage?: (id: string) => string | null;
+  } = {},
 ): Promise<Setup> {
   const r = playR();
   r.connect();
@@ -86,7 +96,15 @@ async function setup(
     },
     stylesheet: () => Promise.resolve(),
   });
-  const mounts = createMounts({ store, commands, scheduler, loader, renderers: () => renderers, signal });
+  const mounts = createMounts({
+    store,
+    commands,
+    scheduler,
+    loader,
+    renderers: () => renderers,
+    signal,
+    ...(optionPackage === undefined ? {} : { optionPackage }),
+  });
   return {
     r,
     store,
@@ -259,6 +277,26 @@ describe("a mount", () => {
 
     expect(el.textContent).toContain("The module blockr.test/js/dark.js of blockr.test was built against major 2");
     expect(reported.errors().filter((error) => error instanceof ModuleError)).toHaveLength(1);
+  });
+
+  test("names the package that registered the board option where its UI fails in render(), and no package where core knows none", async () => {
+    const failing: OptionModule = {
+      render() {
+        throw new Error("boom");
+      },
+    };
+    const reported = reports();
+    const s = await setup(options(failing), { optionPackage: (id) => (id === "n_rows" ? "blockr.core" : null) });
+    const rows = document.createElement("div");
+    const theme = document.createElement("div");
+    s.mounts.mountOption(rows, "n_rows");
+    s.mounts.mountOption(theme, "theme");
+    await tick();
+    reported.restore();
+
+    expect(rows.textContent).toBe('The module the UI of the board option "n_rows" of blockr.core failed in render(): boom');
+    expect(theme.textContent).toBe('The module the UI of the board option "theme" from no package failed in render(): boom');
+    expect(reported.errors().map((error) => (error instanceof ModuleError ? error.package : error))).toEqual(["blockr.core", null]);
   });
 
   test("ends once another board opens, after which submit() rejects and core mounts nothing more", async () => {

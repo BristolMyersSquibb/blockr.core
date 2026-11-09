@@ -84,6 +84,10 @@ export interface MountsOptions {
   readonly measure?: Measure;
   // Ends every mount as it aborts, as another board opens.
   readonly signal?: AbortSignal;
+  // The package whose startup module registered the board option, which a
+  // mount of the board option's UI names where the UI fails, or null where
+  // core knows none, as for every board option unless given.
+  readonly optionPackage?: (id: OptionId) => string | null;
 }
 
 // The origin of what core changes on the board itself, such as the board
@@ -102,6 +106,7 @@ export function createMounts(options: MountsOptions): Mounts {
   const measure = options.measure ?? domMeasure();
   const emit = options.emit ?? ((): void => undefined);
   const renderers = options.renderers ?? ((): Readonly<Record<string, Renderer>> => ({}));
+  const optionPackage = options.optionPackage ?? ((): string | null => null);
 
   // What core keeps of the board, which goes with the mounts as another board
   // opens: the answers of requests, the defaults of board options, and of each
@@ -247,7 +252,7 @@ export function createMounts(options: MountsOptions): Mounts {
       ),
     mountOption: (el, option) =>
       mountOption(
-        { store, commands, scheduler, loader, renderers, replaced, addOptions, defaultOf },
+        { store, commands, scheduler, loader, renderers, replaced, addOptions, defaultOf, optionPackage },
         el,
         option,
       ),

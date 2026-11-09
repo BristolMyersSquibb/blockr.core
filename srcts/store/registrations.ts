@@ -3,8 +3,12 @@
 // block classes' states.
 // A plugin class is registered under its id, `{pkg}-{name}_plugin`, as R names
 // the class.
+// A board option's id names no package, so the registrations keep beside each
+// board option the package whose startup module registered it. Core tells
+// them that package.
 // A plugin class, a board option id or a block class's migration registered
-// twice fails.
+// twice fails. For a board option id, the error names both packages where
+// core knows them.
 
 import { computed, signal } from "@preact/signals-core";
 import type {
@@ -137,6 +141,14 @@ export interface Checked<T> {
   readonly validate: Validate;
 }
 
+// A board option's registration, with the package whose startup module
+// registered it: blockr.core for core's own board options, and null for one
+// that no startup module's initialize() registered, such as one that a test
+// registers.
+export interface RegisteredOption extends Checked<Option> {
+  readonly package: string | null;
+}
+
 export interface Registrations {
   readonly plugins: Plugins;
   readonly options: Options;
@@ -144,7 +156,7 @@ export interface Registrations {
   // A plugin class with the validator of its state's schema, which allows any
   // state where the class gives none.
   plugin(id: PluginClassId): Checked<PluginClass> | undefined;
-  option(id: OptionId): Checked<Option> | undefined;
+  option(id: OptionId): RegisteredOption | undefined;
   migration(registryId: RegistryId): Migration | undefined;
 }
 
@@ -154,9 +166,13 @@ export interface Registrations {
 // every board.
 export const BASIC_OPTIONS: readonly OptionId[] = ["show_conditions", "dark_mode"];
 
-export function createRegistrations(): Registrations {
+// The registrations of one opening of a board. Each board option comes from
+// the package that `registering` gives at the moment the board option is
+// registered. Core gives the package of the startup module whose initialize()
+// it awaits, and blockr.core while it registers its own board options.
+export function createRegistrations(registering: () => string | null = () => null): Registrations {
   const classes = signal<ReadonlyMap<PluginClassId, Checked<PluginClass>>>(new Map());
-  const options = signal<readonly Checked<Option>[]>([]);
+  const options = signal<readonly RegisteredOption[]>([]);
   const migrations = signal<ReadonlyMap<RegistryId, Migration>>(new Map());
 
   const optionIndex = computed(
@@ -248,8 +264,10 @@ export function createRegistrations(): Registrations {
     options: {
       register(def) {
         const what = `the board option "${def.id}"`;
-        if (optionIndex.value.has(def.id)) {
-          throw new Error(`The board option "${def.id}" is registered already.`);
+        const pkg = registering();
+        const earlier = optionIndex.value.get(def.id);
+        if (earlier !== undefined) {
+          throw new Error(registeredAgain(def.id, earlier.package, pkg));
         }
         // A package that writes its JS without types may give no UI module,
         // or an onChange or a migrate that is no function.
@@ -268,7 +286,7 @@ export function createRegistrations(): Registrations {
         if (typeof def.default !== "function") {
           checkInitial(what, validate, def.default, "default");
         }
-        const item = { def, validate };
+        const item: RegisteredOption = { def, validate, package: pkg };
         options.value = [...options.value, item];
         return () => {
           options.value = options.value.filter((x) => x !== item);
@@ -292,6 +310,16 @@ export function createRegistrations(): Registrations {
     option: (id) => optionIndex.value.get(id),
     migration: (registryId) => migrations.value.get(registryId),
   };
+}
+
+// Why a board option id fails to register again, naming the package that
+// registered it and the package that registers it again, each where core
+// knows it, as in "The board option "n_rows" is registered already by
+// blockr.core, so blockr.io cannot register it."
+function registeredAgain(id: OptionId, earlier: string | null, now: string | null): string {
+  const by = earlier === null ? "" : ` by ${earlier}`;
+  const so = now === null ? "" : `, so ${now} cannot register it`;
+  return `The board option "${id}" is registered already${by}${so}.`;
 }
 
 // Whether an id is named as R names a plugin class, `{pkg}-{name}_plugin`:

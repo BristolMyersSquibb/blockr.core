@@ -26,7 +26,7 @@ import { fit, isEmpty } from "./undo.ts";
 import { checkJsonBoard, FORMAT, openJsonBoard, parse, required } from "./open.ts";
 import type { Dropped } from "./open.ts";
 import { createRegistrations } from "./registrations.ts";
-import type { Migration, Options, Plugins } from "./registrations.ts";
+import type { Migration, Options, Plugins, Registrations } from "./registrations.ts";
 
 export type Change =
   | { readonly delta: Delta; readonly origin: Origin }
@@ -125,6 +125,10 @@ export interface StoreOptions {
   // store drops its subscribers and refuses every change from then on, so that
   // nothing changes or follows the board before.
   readonly signal?: AbortSignal;
+  // What packages register with the store, which core creates for the opening
+  // so that it reads the package of each board option there. The store
+  // creates its own unless given.
+  readonly registrations?: Registrations;
 }
 
 // Why an ended store refuses a change.
@@ -149,7 +153,7 @@ interface Applied {
 }
 
 export function createStore(options: StoreOptions = {}): Store {
-  const registrations = createRegistrations();
+  const registrations = options.registrations ?? createRegistrations();
 
   const board = signal<Board | undefined>(undefined);
   // The last reply to `hello`, whose block registry, versions and opening board

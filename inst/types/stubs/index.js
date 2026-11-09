@@ -3730,7 +3730,8 @@ function mountOption(deps, el, option) {
       else cleanup = rendered;
     } catch (error) {
       const module = renderer?.module ?? `the UI of the board option "${option}"`;
-      fail(new ModuleError(module, id2 === void 0 ? null : packageOf(id2), `failed in render(): ${messageOf(error)}`, { cause: error }));
+      const pkg = id2 === void 0 ? deps.optionPackage(option) : packageOf(id2);
+      fail(new ModuleError(module, pkg, `failed in render(): ${messageOf(error)}`, { cause: error }));
     }
   })();
   function fail(error) {
@@ -4285,6 +4286,7 @@ function createMounts(options) {
   const measure = options.measure ?? domMeasure();
   const emit = options.emit ?? (() => void 0);
   const renderers = options.renderers ?? (() => ({}));
+  const optionPackage = options.optionPackage ?? (() => null);
   const defaults = /* @__PURE__ */ new Map();
   store.subscribe((change) => {
     if ("opened" in change) return;
@@ -4404,7 +4406,7 @@ function createMounts(options) {
       block
     ),
     mountOption: (el, option) => mountOption(
-      { store, commands, scheduler, loader, renderers, replaced, addOptions, defaultOf },
+      { store, commands, scheduler, loader, renderers, replaced, addOptions, defaultOf, optionPackage },
       el,
       option
     ),
@@ -4780,6 +4782,7 @@ function createCore(parts) {
     renderers: parts.renderers,
     ...parts.measure === void 0 ? {} : { measure: parts.measure },
     ...parts.signal === void 0 ? {} : { signal: parts.signal },
+    ...parts.optionPackage === void 0 ? {} : { optionPackage: parts.optionPackage },
     emit(event) {
       for (const fn of [...listeners]) {
         try {
@@ -6724,7 +6727,7 @@ function isEmpty(delta) {
 
 // srcts/store/registrations.ts
 var BASIC_OPTIONS = ["show_conditions", "dark_mode"];
-function createRegistrations() {
+function createRegistrations(registering = () => null) {
   const classes = a(/* @__PURE__ */ new Map());
   const options = a([]);
   const migrations = a(/* @__PURE__ */ new Map());
@@ -6799,8 +6802,10 @@ function createRegistrations() {
     options: {
       register(def) {
         const what = `the board option "${def.id}"`;
-        if (optionIndex.value.has(def.id)) {
-          throw new Error(`The board option "${def.id}" is registered already.`);
+        const pkg = registering();
+        const earlier = optionIndex.value.get(def.id);
+        if (earlier !== void 0) {
+          throw new Error(registeredAgain(def.id, earlier.package, pkg));
         }
         const ui = def.ui;
         if (!isObject(ui) || typeof ui.render !== "function") {
@@ -6817,7 +6822,7 @@ function createRegistrations() {
         if (typeof def.default !== "function") {
           checkInitial(what, validate2, def.default, "default");
         }
-        const item = { def, validate: validate2 };
+        const item = { def, validate: validate2, package: pkg };
         options.value = [...options.value, item];
         return () => {
           options.value = options.value.filter((x2) => x2 !== item);
@@ -6841,6 +6846,11 @@ function createRegistrations() {
     option: (id2) => optionIndex.value.get(id2),
     migration: (registryId2) => migrations.value.get(registryId2)
   };
+}
+function registeredAgain(id2, earlier, now) {
+  const by = earlier === null ? "" : ` by ${earlier}`;
+  const so = now === null ? "" : `, so ${now} cannot register it`;
+  return `The board option "${id2}" is registered already${by}${so}.`;
 }
 function isPluginClassId(id2) {
   const pkg = packageOf(id2);
@@ -7091,7 +7101,7 @@ async function required(board, registrations) {
 // srcts/store/store.ts
 var ENDED = "Another board opened in a new store, so this store changes its board no more.";
 function createStore(options = {}) {
-  const registrations = createRegistrations();
+  const registrations = options.registrations ?? createRegistrations();
   const board = a(void 0);
   let hello = options.hello;
   const registry = a(options.hello?.block_registry ?? {});
@@ -8138,6 +8148,7 @@ function attempt2(command2, fn) {
 // srcts/core/start.ts
 var CAPABILITIES = ["cancel", "interrupt", "progress"];
 var BASIC = "blockr.core-basic";
+var CORE2 = "blockr.core";
 function start(options) {
   const page = new AbortController();
   const fail = options.fail ?? ((error) => {
@@ -8221,15 +8232,19 @@ function start(options) {
       blockrOptions.read("background_evaluation_delay", Infinity),
       blockrOptions.read("gate_visibility", true)
     ]);
+    const registering = { package: CORE2 };
+    const registrations = createRegistrations(() => registering.package);
     const store = createStore({
       hello: reply,
       loaded: () => prepare(),
-      signal
+      signal,
+      registrations
     });
     const commands = createCommands(store, { signal, lock: reply.lock });
     for (const option of options.options({ blockrOption: (name2, fallback) => blockrOptions.read(name2, fallback) })) {
       store.options.register(option);
     }
+    registering.package = null;
     const bound = later === void 0 ? reply.bound : void 0;
     const scheduler = createScheduler({
       store,
@@ -8253,10 +8268,11 @@ function start(options) {
       lock: (first ?? reply).lock,
       renderers: () => latest?.renderers ?? {},
       signal,
-      ...options.measure === void 0 ? {} : { measure: options.measure }
+      ...options.measure === void 0 ? {} : { measure: options.measure },
+      optionPackage: (id2) => registrations.option(id2)?.package ?? null
     });
     running2 = { store, scheduler, core, controller };
-    const named2 = await initialize(reply, core, signal, later === void 0);
+    const named2 = await initialize(reply, core, signal, later === void 0, registering);
     let dropped = [];
     let failure;
     if (later === void 0) {
@@ -8292,7 +8308,7 @@ function start(options) {
     if (failure !== void 0) throw failure;
     return { core, dropped };
   }
-  async function initialize(reply, core, signal, naming) {
+  async function initialize(reply, core, signal, naming, registering) {
     const named2 = [];
     for (const entry of reply.startup_modules) {
       if (signal.aborted) break;
@@ -8300,10 +8316,13 @@ function start(options) {
         const source = entry.css === void 0 ? { module: entry.module } : { module: entry.module, css: entry.css };
         const mod = startupOf(await loader.load(source, entry.package), entry.module, entry.package);
         let result;
+        registering.package = entry.package;
         try {
           result = await mod.initialize({ core, signal });
         } catch (error) {
           throw new ModuleError(entry.module, entry.package, `failed in initialize(): ${messageOf(error)}`, { cause: error });
+        } finally {
+          registering.package = null;
         }
         if (typeof result === "string") {
           if (naming) {

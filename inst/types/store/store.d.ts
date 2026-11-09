@@ -3,7 +3,7 @@ import type { BlockId, Board, JsonBoard, PluginId, RegistryId } from "../types/b
 import type { RegistryEntry } from "../types/registry.ts";
 import type { Delta, Origin } from "./delta.ts";
 import type { Dropped } from "./open.ts";
-import type { Migration, Options, Plugins } from "./registrations.ts";
+import type { Migration, Options, Plugins, Registrations } from "./registrations.ts";
 export type Change = {
     readonly delta: Delta;
     readonly origin: Origin;
@@ -39,5 +39,6 @@ export interface StoreOptions {
     readonly hello?: HelloReply;
     readonly loaded?: (reply: HelloReply) => void | Promise<void>;
     readonly signal?: AbortSignal;
+    readonly registrations?: Registrations;
 }
 export declare function createStore(options?: StoreOptions): Store;

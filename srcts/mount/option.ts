@@ -13,6 +13,8 @@
 // announces each change of it. A submit runs core's command that sets a board
 // option, and a request goes to the board option's requests in R, whose
 // answers core never keeps. Once another board opens, core ends the mount.
+// Where render() fails, the error names the renderer's package, or else the
+// package whose startup module registered the board option.
 
 import type { Commands } from "../commands/index.ts";
 import type { Renderer } from "../protocol/index.ts";
@@ -40,6 +42,9 @@ export interface OptionDeps {
   readonly addOptions: (ids: readonly OptionId[], by: string) => Promise<void>;
   // The board option's default, the same for every mount on the board.
   readonly defaultOf: (id: OptionId, def: Option) => Promise<Json>;
+  // The package whose startup module registered the board option, which an
+  // error of its UI module names, or null where core knows none.
+  readonly optionPackage: (id: OptionId) => string | null;
 }
 
 interface OptionArgs {
@@ -165,7 +170,8 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
       else cleanup = rendered;
     } catch (error) {
       const module = renderer?.module ?? `the UI of the board option "${option}"`;
-      fail(new ModuleError(module, id === undefined ? null : packageOf(id), `failed in render(): ${messageOf(error)}`, { cause: error }));
+      const pkg = id === undefined ? deps.optionPackage(option) : packageOf(id);
+      fail(new ModuleError(module, pkg, `failed in render(): ${messageOf(error)}`, { cause: error }));
     }
   })();
 
