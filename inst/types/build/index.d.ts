@@ -1,1 +1,1 @@
-export { preset, shared } from "./preset.ts";
+export { preset } from "./preset.ts";

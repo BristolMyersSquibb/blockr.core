@@ -1,63 +1,6 @@
-var __create = Object.create;
-var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __getOwnPropNames = Object.getOwnPropertyNames;
-var __getProtoOf = Object.getPrototypeOf;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __commonJS = (cb, mod) => function __require() {
-  try {
-    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
-  } catch (e) {
-    throw mod = 0, e;
-  }
-};
-var __copyProps = (to, from, except, desc) => {
-  if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
-  }
-  return to;
-};
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
-  // If the importer is in node compatibility mode or this is not an ESM
-  // file that has been converted to a CommonJS file using a Babel-
-  // compatible transform (i.e. "__esModule" has not been set), then set
-  // "default" to the CommonJS "module.exports" for node compatibility.
-  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
-  mod
-));
-
-// blockr.core-shared:react
-var require_react = __commonJS({
-  "blockr.core-shared:react"(exports, module) {
-    var shared = globalThis["blockr.core-shared"];
-    if (shared === void 0) throw new Error("Core's runtime is not on the page: it puts React and core's SDK there before any module loads.");
-    module.exports = shared["react"];
-  }
-});
-
-// blockr.core-shared:@blockr/core/react
-var require_react2 = __commonJS({
-  "blockr.core-shared:@blockr/core/react"(exports, module) {
-    var shared = globalThis["blockr.core-shared"];
-    if (shared === void 0) throw new Error("Core's runtime is not on the page: it puts React and core's SDK there before any module loads.");
-    module.exports = shared["@blockr/core/react"];
-  }
-});
-
-// blockr.core-shared:react/jsx-runtime
-var require_jsx_runtime = __commonJS({
-  "blockr.core-shared:react/jsx-runtime"(exports, module) {
-    var shared = globalThis["blockr.core-shared"];
-    if (shared === void 0) throw new Error("Core's runtime is not on the page: it puts React and core's SDK there before any module loads.");
-    module.exports = shared["react/jsx-runtime"];
-  }
-});
-
 // srcts/modules/basic-table/index.tsx
-var import_react = __toESM(require_react(), 1);
-var import_react2 = __toESM(require_react2(), 1);
+import { useEffect, useRef } from "react";
+import { outputRenderer } from "@blockr/core/react";
 
 // srcts/modules/basic-table/table.ts
 var NUMBERS = /* @__PURE__ */ new Set(["numeric", "integer"]);
@@ -123,17 +66,17 @@ function countOf(value) {
 }
 
 // srcts/modules/basic-table/index.tsx
-var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
+import { jsx, jsxs } from "react/jsx-runtime";
 var api = 1;
-var basic_table_default = (0, import_react2.outputRenderer)(Table, { options: ["n_rows"] });
+var basic_table_default = outputRenderer(Table, { options: ["n_rows"] });
 function Table({ output, params, options, error, host }) {
   const page = pageOf(output, params, options.n_rows);
   const sorted = sortedColumn(output, params.sort);
   const ask = (to, sort) => {
     host.setParams(paramsFor(to, sort, params));
   };
-  const tried = (0, import_react.useRef)(0);
-  (0, import_react.useEffect)(() => {
+  const tried = useRef(0);
+  useEffect(() => {
     if (error === null) {
       tried.current = 0;
       return;
@@ -143,9 +86,9 @@ function Table({ output, params, options, error, host }) {
     tried.current = again.tried;
     host.setParams(paramsFor(1, again.sort, params));
   }, [host, error, params]);
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bc:flex bc:min-h-0 bc:flex-col bc:gap-2", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bc:min-h-0 bc:overflow-auto", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("table", { className: "bc:w-full bc:border-collapse bc:text-left bc:text-sm", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("tr", { children: output.columns.map((column, j) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+  return /* @__PURE__ */ jsxs("div", { className: "bc:flex bc:min-h-0 bc:flex-col bc:gap-2", children: [
+    /* @__PURE__ */ jsx("div", { className: "bc:min-h-0 bc:overflow-auto", children: /* @__PURE__ */ jsxs("table", { className: "bc:w-full bc:border-collapse bc:text-left bc:text-sm", children: [
+      /* @__PURE__ */ jsx("thead", { children: /* @__PURE__ */ jsx("tr", { children: output.columns.map((column, j) => /* @__PURE__ */ jsx(
         Header,
         {
           column,
@@ -156,9 +99,9 @@ function Table({ output, params, options, error, host }) {
         },
         j
       )) }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("tbody", { children: output.rows.map((row, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("tr", { children: output.columns.map((column, j) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Cell, { column, value: row[j] ?? null }, j)) }, i)) })
+      /* @__PURE__ */ jsx("tbody", { children: output.rows.map((row, i) => /* @__PURE__ */ jsx("tr", { children: output.columns.map((column, j) => /* @__PURE__ */ jsx(Cell, { column, value: row[j] ?? null }, j)) }, i)) })
     ] }) }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+    /* @__PURE__ */ jsx(
       Pager,
       {
         table: output,
@@ -174,7 +117,7 @@ function Header(props) {
   const { column, sort, onSort } = props;
   const number = isNumber(column);
   const order = sort === void 0 ? "none" : sort.desc === true ? "descending" : "ascending";
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("th", { scope: "col", "aria-sort": order, className: "bc:border-b bc:border-border-default bc:px-2 bc:py-1 bc:align-bottom", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+  return /* @__PURE__ */ jsx("th", { scope: "col", "aria-sort": order, className: "bc:border-b bc:border-border-default bc:px-2 bc:py-1 bc:align-bottom", children: /* @__PURE__ */ jsxs(
     "button",
     {
       type: "button",
@@ -183,24 +126,24 @@ function Header(props) {
         onSort(nextSort(sort, column.name));
       },
       children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: `bc:flex bc:flex-col ${number ? "bc:items-end" : ""}`, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc:font-medium", children: column.name }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc:text-xs bc:font-normal bc:text-text-muted", children: column.class })
+        /* @__PURE__ */ jsxs("span", { className: `bc:flex bc:flex-col ${number ? "bc:items-end" : ""}`, children: [
+          /* @__PURE__ */ jsx("span", { className: "bc:font-medium", children: column.name }),
+          /* @__PURE__ */ jsx("span", { className: "bc:text-xs bc:font-normal bc:text-text-muted", children: column.class })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { "aria-hidden": "true", children: order === "none" ? "" : order === "descending" ? "\u2193" : "\u2191" })
+        /* @__PURE__ */ jsx("span", { "aria-hidden": "true", children: order === "none" ? "" : order === "descending" ? "\u2193" : "\u2191" })
       ]
     }
   ) });
 }
 function Cell({ column, value }) {
   const text = cellText(value);
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("td", { className: `bc:border-b bc:border-border-default/40 bc:px-2 bc:py-1 bc:whitespace-nowrap ${isNumber(column) ? "bc:text-right bc:tabular-nums" : ""}`, children: text ?? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc:italic bc:text-text-muted", children: "NA" }) });
+  return /* @__PURE__ */ jsx("td", { className: `bc:border-b bc:border-border-default/40 bc:px-2 bc:py-1 bc:whitespace-nowrap ${isNumber(column) ? "bc:text-right bc:tabular-nums" : ""}`, children: text ?? /* @__PURE__ */ jsx("span", { className: "bc:italic bc:text-text-muted", children: "NA" }) });
 }
 function Pager({ table, page, onPage }) {
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2 bc:text-xs bc:text-text-muted", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: rowsText(table, page) }),
-    (page.page > 1 || page.more) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bc:flex bc:items-center bc:gap-2", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+  return /* @__PURE__ */ jsxs("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2 bc:text-xs bc:text-text-muted", children: [
+    /* @__PURE__ */ jsx("span", { children: rowsText(table, page) }),
+    (page.page > 1 || page.more) && /* @__PURE__ */ jsxs("div", { className: "bc:flex bc:items-center bc:gap-2", children: [
+      /* @__PURE__ */ jsx(
         PageButton,
         {
           text: "Previous",
@@ -210,8 +153,8 @@ function Pager({ table, page, onPage }) {
           }
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: pageText(page) }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+      /* @__PURE__ */ jsx("span", { children: pageText(page) }),
+      /* @__PURE__ */ jsx(
         PageButton,
         {
           text: "Next",
@@ -225,7 +168,7 @@ function Pager({ table, page, onPage }) {
   ] });
 }
 function PageButton({ text, disabled, onClick }) {
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+  return /* @__PURE__ */ jsx(
     "button",
     {
       type: "button",

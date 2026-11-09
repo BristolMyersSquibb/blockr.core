@@ -1,73 +1,7 @@
-var __create = Object.create;
-var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __getOwnPropNames = Object.getOwnPropertyNames;
-var __getProtoOf = Object.getPrototypeOf;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __commonJS = (cb, mod) => function __require() {
-  try {
-    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
-  } catch (e) {
-    throw mod = 0, e;
-  }
-};
-var __copyProps = (to, from, except, desc) => {
-  if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
-  }
-  return to;
-};
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
-  // If the importer is in node compatibility mode or this is not an ESM
-  // file that has been converted to a CommonJS file using a Babel-
-  // compatible transform (i.e. "__esModule" has not been set), then set
-  // "default" to the CommonJS "module.exports" for node compatibility.
-  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
-  mod
-));
-
-// blockr.core-shared:react
-var require_react = __commonJS({
-  "blockr.core-shared:react"(exports, module) {
-    var shared = globalThis["blockr.core-shared"];
-    if (shared === void 0) throw new Error("Core's runtime is not on the page: it puts React and core's SDK there before any module loads.");
-    module.exports = shared["react"];
-  }
-});
-
-// blockr.core-shared:@blockr/core/binding
-var require_binding = __commonJS({
-  "blockr.core-shared:@blockr/core/binding"(exports, module) {
-    var shared = globalThis["blockr.core-shared"];
-    if (shared === void 0) throw new Error("Core's runtime is not on the page: it puts React and core's SDK there before any module loads.");
-    module.exports = shared["@blockr/core/binding"];
-  }
-});
-
-// blockr.core-shared:@blockr/core/react
-var require_react2 = __commonJS({
-  "blockr.core-shared:@blockr/core/react"(exports, module) {
-    var shared = globalThis["blockr.core-shared"];
-    if (shared === void 0) throw new Error("Core's runtime is not on the page: it puts React and core's SDK there before any module loads.");
-    module.exports = shared["@blockr/core/react"];
-  }
-});
-
-// blockr.core-shared:react/jsx-runtime
-var require_jsx_runtime = __commonJS({
-  "blockr.core-shared:react/jsx-runtime"(exports, module) {
-    var shared = globalThis["blockr.core-shared"];
-    if (shared === void 0) throw new Error("Core's runtime is not on the page: it puts React and core's SDK there before any module loads.");
-    module.exports = shared["react/jsx-runtime"];
-  }
-});
-
 // srcts/modules/filebrowser-block/index.tsx
-var import_react = __toESM(require_react(), 1);
-var import_binding = __toESM(require_binding(), 1);
-var import_react2 = __toESM(require_react2(), 1);
+import { Fragment, useState } from "react";
+import { strings } from "@blockr/core/binding";
+import { Field, reactModule, Stack, useRequest, useValue } from "@blockr/core/react";
 
 // srcts/styles/styles.ts
 var styles = {
@@ -104,24 +38,24 @@ function jsonEqual(a, b) {
 }
 
 // srcts/modules/filebrowser-block/index.tsx
-var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
+import { Fragment as Fragment2, jsx, jsxs } from "react/jsx-runtime";
 var api = 1;
 var link = "bc:cursor-pointer bc:rounded bc:border-0 bc:bg-transparent bc:px-2 bc:py-0.5 bc:text-left bc:text-sm bc:text-inherit bc:[font-family:inherit] bc:hover:bg-bg-subtle bc:aria-current:font-semibold";
 var entry = `${link} bc:justify-self-stretch`;
 function FileBrowserBlock({ host }) {
-  const shared = (0, import_react2.useValue)(host, "volumes").value;
+  const shared = useValue(host, "volumes").value;
   const volumes = volumesOf(shared);
-  const file = (0, import_react2.useValue)(host, "file_path");
+  const file = useValue(host, "file_path");
   const held = typeof file.value === "string" && file.value !== "" ? file.value : void 0;
-  const [place, setPlace] = (0, import_react.useState)(() => locate(file.value, volumes));
+  const [place, setPlace] = useState(() => locate(file.value, volumes));
   const volume = place.volume !== void 0 && own(volumes, place.volume) !== void 0 ? place.volume : Object.keys(volumes)[0];
   const dirs = volume === place.volume ? place.dirs : [];
   const root = volume === void 0 ? void 0 : own(volumes, volume);
-  const listed = (0, import_react2.useRequest)(host, "list_dir", {
+  const listed = useRequest(host, "list_dir", {
     args: { ...volume === void 0 ? {} : { volume }, path: dirs.join("/") },
     reads: shared ?? null
   });
-  const [left, setLeft] = (0, import_react.useState)(null);
+  const [left, setLeft] = useState(null);
   const loading = listed === left || listed.answer === void 0 && listed.error === null;
   const listing2 = listed.error === null ? listingOf(listed.answer) : { dirs: [], files: [] };
   const error = (loading ? null : listed.error) ?? file.error;
@@ -131,8 +65,8 @@ function FileBrowserBlock({ host }) {
     setPlace(next);
   };
   const names = Object.keys(volumes);
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_react2.Stack, { children: [
-    names.length > 1 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_react2.Field, { label: "Volume", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+  return /* @__PURE__ */ jsxs(Stack, { children: [
+    names.length > 1 && /* @__PURE__ */ jsx(Field, { label: "Volume", children: /* @__PURE__ */ jsx(
       "select",
       {
         className: styles.box,
@@ -140,12 +74,12 @@ function FileBrowserBlock({ host }) {
         onChange: (event) => {
           go({ volume: event.target.value, dirs: [] });
         },
-        children: names.map((name) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: name, children: name }, name))
+        children: names.map((name) => /* @__PURE__ */ jsx("option", { value: name, children: name }, name))
       }
     ) }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("nav", { "aria-label": "Directory", className: "bc:flex bc:flex-wrap bc:items-center bc:gap-1 bc:text-sm", children: [volume ?? "", ...dirs].map((name, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_react.Fragment, { children: [
-      i > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc:text-text-muted", "aria-hidden": "true", children: "/" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+    /* @__PURE__ */ jsx("nav", { "aria-label": "Directory", className: "bc:flex bc:flex-wrap bc:items-center bc:gap-1 bc:text-sm", children: [volume ?? "", ...dirs].map((name, i) => /* @__PURE__ */ jsxs(Fragment, { children: [
+      i > 0 && /* @__PURE__ */ jsx("span", { className: "bc:text-text-muted", "aria-hidden": "true", children: "/" }),
+      /* @__PURE__ */ jsx(
         "button",
         {
           type: "button",
@@ -158,8 +92,8 @@ function FileBrowserBlock({ host }) {
         }
       )
     ] }, i)) }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", { className: "bc:m-0 bc:grid bc:max-h-64 bc:list-none bc:gap-0.5 bc:overflow-y-auto bc:p-0", children: loading ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Note, { text: "Loading\u2026" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-      dirs.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+    /* @__PURE__ */ jsx("ul", { className: "bc:m-0 bc:grid bc:max-h-64 bc:list-none bc:gap-0.5 bc:overflow-y-auto bc:p-0", children: loading ? /* @__PURE__ */ jsx(Note, { text: "Loading\u2026" }) : /* @__PURE__ */ jsxs(Fragment2, { children: [
+      dirs.length > 0 && /* @__PURE__ */ jsx(
         Entry,
         {
           text: "..",
@@ -168,7 +102,7 @@ function FileBrowserBlock({ host }) {
           }
         }
       ),
-      listing2.dirs.map((dir) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+      listing2.dirs.map((dir) => /* @__PURE__ */ jsx(
         Entry,
         {
           text: `${dir}/`,
@@ -180,7 +114,7 @@ function FileBrowserBlock({ host }) {
       )),
       listing2.files.map((name) => {
         const at = root === void 0 ? void 0 : join(root, [...dirs, name]);
-        return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        return /* @__PURE__ */ jsx(
           Entry,
           {
             text: name,
@@ -192,19 +126,19 @@ function FileBrowserBlock({ host }) {
           `file ${name}`
         );
       }),
-      listing2.dirs.length + listing2.files.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Note, { text: "This directory is empty." })
+      listing2.dirs.length + listing2.files.length === 0 && /* @__PURE__ */ jsx(Note, { text: "This directory is empty." })
     ] }) }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: styles.hint, children: held === void 0 ? "No file chosen yet." : `Chosen: ${held}` }),
-    error !== null && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { role: "alert", className: styles.alert, children: error })
+    /* @__PURE__ */ jsx("p", { className: styles.hint, children: held === void 0 ? "No file chosen yet." : `Chosen: ${held}` }),
+    error !== null && /* @__PURE__ */ jsx("p", { role: "alert", className: styles.alert, children: error })
   ] });
 }
 function Entry({ text, current = false, onClick }) {
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { className: "bc:grid", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { type: "button", className: entry, "aria-current": current ? "true" : void 0, onClick, children: text }) });
+  return /* @__PURE__ */ jsx("li", { className: "bc:grid", children: /* @__PURE__ */ jsx("button", { type: "button", className: entry, "aria-current": current ? "true" : void 0, onClick, children: text }) });
 }
 function Note({ text }) {
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { className: "bc:grid", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: styles.hint, children: text }) });
+  return /* @__PURE__ */ jsx("li", { className: "bc:grid", children: /* @__PURE__ */ jsx("p", { className: styles.hint, children: text }) });
 }
-var filebrowser_block_default = (0, import_react2.reactModule)(FileBrowserBlock);
+var filebrowser_block_default = reactModule(FileBrowserBlock);
 function locate(file, roots) {
   if (typeof file === "string") {
     for (const [name, root] of Object.entries(roots)) {
@@ -226,7 +160,7 @@ function join(root, names) {
   return [root.replace(/\/+$/, ""), ...names].join("/");
 }
 function listingOf(answer) {
-  return isObject(answer) ? { dirs: (0, import_binding.strings)(answer.dirs), files: (0, import_binding.strings)(answer.files) } : { dirs: [], files: [] };
+  return isObject(answer) ? { dirs: strings(answer.dirs), files: strings(answer.files) } : { dirs: [], files: [] };
 }
 export {
   api,

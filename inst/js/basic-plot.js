@@ -1,75 +1,18 @@
-var __create = Object.create;
-var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __getOwnPropNames = Object.getOwnPropertyNames;
-var __getProtoOf = Object.getPrototypeOf;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __commonJS = (cb, mod) => function __require() {
-  try {
-    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
-  } catch (e) {
-    throw mod = 0, e;
-  }
-};
-var __copyProps = (to, from, except, desc) => {
-  if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
-  }
-  return to;
-};
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
-  // If the importer is in node compatibility mode or this is not an ESM
-  // file that has been converted to a CommonJS file using a Babel-
-  // compatible transform (i.e. "__esModule" has not been set), then set
-  // "default" to the CommonJS "module.exports" for node compatibility.
-  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
-  mod
-));
-
-// blockr.core-shared:react
-var require_react = __commonJS({
-  "blockr.core-shared:react"(exports, module) {
-    var shared = globalThis["blockr.core-shared"];
-    if (shared === void 0) throw new Error("Core's runtime is not on the page: it puts React and core's SDK there before any module loads.");
-    module.exports = shared["react"];
-  }
-});
-
-// blockr.core-shared:@blockr/core/react
-var require_react2 = __commonJS({
-  "blockr.core-shared:@blockr/core/react"(exports, module) {
-    var shared = globalThis["blockr.core-shared"];
-    if (shared === void 0) throw new Error("Core's runtime is not on the page: it puts React and core's SDK there before any module loads.");
-    module.exports = shared["@blockr/core/react"];
-  }
-});
-
-// blockr.core-shared:react/jsx-runtime
-var require_jsx_runtime = __commonJS({
-  "blockr.core-shared:react/jsx-runtime"(exports, module) {
-    var shared = globalThis["blockr.core-shared"];
-    if (shared === void 0) throw new Error("Core's runtime is not on the page: it puts React and core's SDK there before any module loads.");
-    module.exports = shared["react/jsx-runtime"];
-  }
-});
-
 // srcts/modules/basic-plot/index.tsx
-var import_react = __toESM(require_react(), 1);
-var import_react2 = __toESM(require_react2(), 1);
-var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
+import { useEffect, useMemo } from "react";
+import { outputRenderer } from "@blockr/core/react";
+import { jsx } from "react/jsx-runtime";
 var api = 1;
-var basic_plot_default = (0, import_react2.outputRenderer)(Plot);
+var basic_plot_default = outputRenderer(Plot);
 function Plot({ output, body }) {
-  const url = (0, import_react.useMemo)(() => body === null ? null : URL.createObjectURL(body), [body]);
-  (0, import_react.useEffect)(
+  const url = useMemo(() => body === null ? null : URL.createObjectURL(body), [body]);
+  useEffect(
     () => () => {
       if (url !== null) URL.revokeObjectURL(url);
     },
     [url]
   );
-  return url === null ? null : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { src: url, alt: "Plot", width: output.width, height: output.height, className: "bc:block bc:max-w-none" });
+  return url === null ? null : /* @__PURE__ */ jsx("img", { src: url, alt: "Plot", width: output.width, height: output.height, className: "bc:block bc:max-w-none" });
 }
 export {
   api,

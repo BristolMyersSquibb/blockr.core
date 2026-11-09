@@ -215,12 +215,13 @@
   A package adds a type of its own with a method of `request_call()`, and gives the requests of a board option it ships with a method of `board_option_requests()` for the board option's class.
   A request's function reports how far it has come with `report_progress()`, which R sends to the client as progress notes (#430).
 * Core's client draws table, text and plot outputs with renderers of its own, written in React: a table that pages and sorts through its output's parameters, printed text that scrolls at R's width, and a plot's PNG at the size it was drawn at.
-  Core's runtime puts the one copy of React on the page, minified at the start of its bundle and ahead of core's own code, and core's build maps each of its modules' imports of React to that copy.
+  The package ships the one copy of React on the page, as an ES module for each of React's entry points that core's modules import, such as `react` and `react-dom/client`, all of which read one minified bundle of React.
   Core's React SDK holds what the renderers and core's UIs draw with.
   Its hook `useOutput()` follows an output host, while `useValue()` binds a block's state arg or a board option's value and `useRequest()` follows a request, both through a binding that needs no framework.
   Its inputs each show and edit one value that `useValue()` binds, and `reactModule()` and `outputRenderer()` make a module and a renderer from a React component.
-  Core ships the SDK to packages beside its types, as `@blockr/core/react`, the binding as `@blockr/core/binding`, and as `@blockr/core/build` the build preset with which core bundles its own modules, which maps a module's imports of React to core's copy.
-  The preset maps a module's imports of the SDK, the binding and the controls to the copies that core's runtime puts on the page beside React, under the global `blockr.core-shared`, so that a module's bundle holds none of core's code and runs the SDK of the core it runs on (#495).
+  Core ships the SDK to packages beside its types, as `@blockr/core/react`, the binding as `@blockr/core/binding`, and as `@blockr/core/build` the build preset with which core bundles its own modules.
+  The package also ships the SDK, the binding and the controls as ES modules of their own, and the preset leaves a module's imports of them and of React imports.
+  The page that R serves resolves those imports through an import map, to the files that the package ships, so that a module's bundle holds none of React or of core's code, and every module runs the one copy of each that the blockr.core it runs on ships (#495).
   Core's UIs take their colors from variables of core's theme, named after the design tokens of blockr.ui, such as `--bc-color-border-default`, which follow the text around them unless a front-end sets them.
   The client defines core's board options `n_rows`, `show_conditions` and `dark_mode`, each with its UI, and each takes its default from the blockr option of its name, as before.
   The board option `dark_mode` switches the page's theme in the attribute `data-bs-theme` of its root element, which Bootstrap reads too, and `n_rows` takes one row at least.
