@@ -134,7 +134,7 @@ Its module ships the shape as a JSON Schema in a file beside it, such as `head-b
 R reads the schema when the package registers the class, and the schema's properties have to be the class's state args.
 When an app script builds a board, R writes the state of each block by the schema.
 So a vector of length one stays an array where the schema has one.
-R also sends the schema to the client, where the command that sets a block's state refuses an edit that the schema refuses.
+R also sends the schema to the client, which refuses an edit of a block's state that the schema refuses.
 
 The class's author writes `expr` against what R makes of that JSON.
 R decodes the state that the client sends into plain values:
@@ -177,6 +177,8 @@ A class gives the version of its state's shape in `version`, a whole number from
 A package raises it whenever it changes that shape, such as by renaming a state arg.
 A saved board records with each block the version of its state.
 As the client opens a board saved at an older version, it migrates the state in JS, with the migration that the package registers for the class in its startup module.
+The client refuses a board that holds a state that the class's schema refuses once migrated.
+So a package that changes the shape registers a migration as well, or the boards saved before no longer open.
 No migration runs in R, since the UI owns the shape.
 
 ## The block expression
