@@ -1,5 +1,11 @@
 # blockr.core 0.1.4
 
+* A package whose `.onLoad()` calls `register_package_blocks()` without `package`
+  now registers its own blocks.
+  Until now, the default of `package` resolved to blockr.core,
+  so such a call registered core's blocks again and none of the package's own.
+  Outside a package, such as at the console, `register_package_blocks()`
+  now needs `package` (#493).
 * The dark mode, preview search and thematic board options draw Shiny's
   checkbox and set it with `updateCheckboxInput()`, where they drew bslib's
   switch and dark mode toggle, which a value set on the server reached only
