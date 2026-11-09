@@ -918,7 +918,7 @@ describe("a request", () => {
 
     const listing = host.request("listing");
     await tick();
-    r.reply({ id: lastRequest(r).id, status: "error", conditions: [failure], omitted: { warning: 0, message: 0 } });
+    r.reply({ id: lastRequest(r).id, status: "error", conditions: [failure] });
 
     await expect(listing).rejects.toBeInstanceOf(RequestError);
     await expect(listing).rejects.toMatchObject({

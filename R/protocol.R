@@ -35,7 +35,8 @@ json_read_opts <- function(...) {
 }
 
 # Encodes a message that R sends, an unnamed list of replies and progress notes,
-# with every vector of length one written bare, so that a value of length one
+# or one of them alone, as the Shiny transport writes each, with every vector of
+# length one written bare, so that a value of length one
 # that has to stay an array is marked with `I()`, an object is a named list, and
 # an empty one a named empty list. A string of class `json`, such as one that
 # `encode_answer()` returns, goes in as it is. The result is such a string too,

@@ -33,7 +33,6 @@ function outcome(status: Outcome["status"], id: BlockId): Outcome {
     revision: at(id),
     summary: null,
     conditions: [],
-    omitted: { warning: 0, message: 0 },
     stdout: "",
     stderr: "",
   };

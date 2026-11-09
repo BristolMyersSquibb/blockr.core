@@ -150,7 +150,7 @@ test("keeps no answer that R refused", async () => {
   const answers = createAnswers(scheduler);
 
   const refused = answers.ask({ request: ask("b", {}, 1), share: "keep" });
-  scheduler.waiting.shift()?.resolve({ id: "1", status: "error", conditions: [], omitted: { warning: 0, message: 0 } });
+  scheduler.waiting.shift()?.resolve({ id: "1", status: "error", conditions: [] });
   await expect(refused).resolves.toMatchObject({ reply: { status: "error" } });
   expect(answers.size()).toBe(0);
 });
