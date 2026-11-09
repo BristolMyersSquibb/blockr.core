@@ -5,9 +5,9 @@
 #' to help users manage more complex pipelines. Stack objects constitute a set
 #' of attributes, the most important of which is `blocks` (a character vector
 #' of block IDs).
-#' Each `stack` may have an arbitrary `name`, and a `color`, which front-ends
+#' Each `stack` may have an arbitrary `name`, and a `color`, which frontends
 #' draw it in.
-#' A front-end draws a stack without a color in a default of its own.
+#' A frontend draws a stack without a color in a default of its own.
 #'
 #' Individual stacks can be created using `new_stack()` or `as_stack()` and
 #' inheritance can be tested with `is_stack()`.

@@ -1496,6 +1496,53 @@ describe("applying a delta", () => {
     expect(notesOf(store.board(), "notes")).toEqual({ g: "Pasted", h: "New" });
   });
 
+  // The dock's class, with an update that puts a panel for each block that a
+  // delta adds into the main view, at the place given.
+  // It skips a block whose panel the delta's own patches add already.
+  function placing(at: string): (store: Store) => void {
+    return (store) => {
+      store.plugins.register({
+        ...dock,
+        update(delta, _board, id) {
+          const placed = new Set((delta.patches ?? []).map(({ value }) => value));
+          return Object.keys(delta.blocks?.add ?? {})
+            .filter((block) => !placed.has(block))
+            .map((block) => ({ op: "add", path: `/plugins/${id}/state/views/main/panels/${at}`, value: block }));
+        },
+      });
+    };
+  }
+
+  // The reply to `hello` of an app whose opening board holds the dock alone,
+  // with a view of the panels of a and b.
+  const dockOnly = withPlugins({ dock: plugin(dock, "Dock", { views: { main: { panels: ["a", "b"] } } }) });
+
+  test.each([
+    ["at its end", "-", ["a", "b", "g", "h"]],
+    ["at an index", "0", ["h", "g", "a", "b"]],
+  ])("keeps what an update adds to an array %s, which names no element, where the delta's own patches add there too", async (_, at, expected) => {
+    const store = await opened(placing(at), dockOnly);
+
+    store.apply({
+      blocks: { add: { g: head(3), h: head(4) } },
+      patches: [{ op: "add", path: `/plugins/dock/state/views/main/panels/${at}`, value: "g" }],
+    });
+    expect(viewsOf(store.board())).toEqual({ main: { panels: expected } });
+
+    store.undo();
+    expect(viewsOf(store.board())).toEqual({ main: { panels: ["a", "b"] } });
+  });
+
+  test("leaves out what an update adds to an array that the delta's own patches set as a whole", async () => {
+    const store = await opened(placing("-"), dockOnly);
+
+    store.apply({
+      blocks: { add: { g: head(3), h: head(4) } },
+      patches: [{ op: "replace", path: "/plugins/dock/state/views/main/panels", value: ["g"] }],
+    });
+    expect(viewsOf(store.board())).toEqual({ main: { panels: ["g"] } });
+  });
+
   test("rejects a delta that keeps expanding, naming the plugins whose updates kept adding", async () => {
     const counting: PluginClass = {
       id: "test.pkg-count_plugin",

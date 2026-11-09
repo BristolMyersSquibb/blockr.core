@@ -1,9 +1,9 @@
-// CoreApi, what core gives a front-end, an extension and a startup module, as
-// Front-ends and extension points has it
-// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#what-core-gives-a-front-end).
+// CoreApi, what core gives a frontend, a plugin and a startup module, as
+// Drawing the board has it
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#what-core-gives-plugins).
 // Core makes one for each board that opens, on the store, the command registry
 // and the scheduler that it creates for that board, and hands it to each
-// startup module's initialize() and to the front-end's render() (./start.ts).
+// startup module's initialize() and to the frontend's render() (./start.ts).
 // It ends with them, as the next board opens.
 //
 // Beside what it hands out, it calls the onChange() of each board option whose
@@ -28,7 +28,7 @@ import type { BlockrOptions } from "./blockr-options.ts";
 import { pluginRequest } from "./requests.ts";
 
 export interface CoreParts {
-  // The store as front-ends and extensions see it, whose open() starts core
+  // The store as frontends and plugins see it, whose open() starts core
   // again for the board it opens (./start.ts).
   readonly store: Store;
   readonly commands: Commands;

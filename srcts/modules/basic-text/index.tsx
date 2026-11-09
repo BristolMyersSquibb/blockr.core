@@ -4,7 +4,7 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#renderers).
 // It shows a result as print() shows it, at R's own width, in a box that
 // scrolls rather than wraps its lines, and that is no taller than the element
-// it draws in, where a front-end gives that element a height. It takes its
+// it draws in, where a frontend gives that element a height. It takes its
 // colours from that element.
 
 import { outputRenderer } from "../../react/index.ts";

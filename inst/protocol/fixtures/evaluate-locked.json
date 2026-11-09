@@ -29,7 +29,6 @@
             "message": "The board lock fixes the state of block \"a\", whose lock follows the board lock, and the evaluation gives it another state."
           }
         ],
-        "omitted": { "warning": 0, "message": 0 },
         "stdout": "",
         "stderr": ""
       }

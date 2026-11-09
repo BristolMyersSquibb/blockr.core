@@ -1938,7 +1938,6 @@ function quietly(sent2) {
 var PROTOCOL_VERSION = "1.0";
 
 // srcts/scheduler/status.ts
-var NONE = Object.freeze({ warning: 0, message: 0 });
 var NO_CONDITIONS = Object.freeze([]);
 function outcomeOf(reply, revision) {
   if (reply.status === "cancelled" || reply.status === "missing") return void 0;
@@ -1948,7 +1947,6 @@ function outcomeOf(reply, revision) {
     revision,
     summary: evaluated.summary ?? null,
     conditions: evaluated.conditions ?? NO_CONDITIONS,
-    omitted: evaluated.omitted ?? NONE,
     stdout: evaluated.stdout ?? "",
     stderr: evaluated.stderr ?? ""
   };
@@ -1965,7 +1963,6 @@ function unsent(revision, message) {
         message: `The evaluation could not be sent to R: ${message}`
       }
     ],
-    omitted: NONE,
     stdout: "",
     stderr: ""
   };
@@ -1977,7 +1974,6 @@ function unevaluated(revision, running2) {
     evaluated: null,
     running: running2,
     conditions: NO_CONDITIONS,
-    omitted: NONE,
     stdout: "",
     stderr: "",
     summary: null
@@ -1990,7 +1986,6 @@ function replied(outcome, revision, running2) {
     evaluated: outcome.revision,
     running: running2,
     conditions: outcome.conditions,
-    omitted: outcome.omitted,
     stdout: outcome.stdout,
     stderr: outcome.stderr,
     summary: outcome.summary
@@ -2003,7 +1998,6 @@ function waiting(why, revision, evaluated, running2) {
     evaluated,
     running: running2,
     conditions: [why],
-    omitted: NONE,
     stdout: "",
     stderr: "",
     summary: null
@@ -2028,7 +2022,7 @@ function waitingFor(what) {
   };
 }
 function sameStatus(a2, b2) {
-  return a2.status === b2.status && a2.revision === b2.revision && a2.evaluated === b2.evaluated && a2.running === b2.running && a2.omitted === b2.omitted && a2.stdout === b2.stdout && a2.stderr === b2.stderr && a2.summary === b2.summary && a2.conditions.length === b2.conditions.length && a2.conditions.every(
+  return a2.status === b2.status && a2.revision === b2.revision && a2.evaluated === b2.evaluated && a2.running === b2.running && a2.stdout === b2.stdout && a2.stderr === b2.stderr && a2.summary === b2.summary && a2.conditions.length === b2.conditions.length && a2.conditions.every(
     (condition, i2) => condition === b2.conditions[i2] || condition.phase === "status" && condition.message === b2.conditions[i2]?.message
   );
 }
@@ -4569,15 +4563,15 @@ function shinyTransport(options = {}) {
   return {
     async send(message, bodies) {
       const at = session;
+      const text = JSON.stringify(message);
+      refuseLarger(text, start2?.max_message_size);
       for (const [id2, body] of bodies) {
         await post(fetcher, start2, id2, body);
       }
       if (at !== session) {
         throw new Error("The session ended before its message was sent.");
       }
-      shiny.setInputValue(name, JSON.stringify(message), {
-        priority: "event"
-      });
+      shiny.setInputValue(name, text, { priority: "event" });
     },
     listen(listener) {
       shiny.addCustomMessageHandler(name, (message) => {
@@ -4660,6 +4654,18 @@ async function fetchBody(fetcher, url, body) {
   const bytes = await response.blob();
   fetcher(url, { method: "DELETE" }).then((response2) => response2.text()).catch(() => void 0);
   return blob([bytes], body);
+}
+function refuseLarger(text, max) {
+  if (max === void 0 || text.length * 3 <= max) return;
+  const size = new TextEncoder().encode(text).length;
+  if (size > max) {
+    throw new Error(
+      `The message of ${byteCount(size)} is larger than the ${byteCount(max)} that the blockr option \`max_message_size\` allows.`
+    );
+  }
+}
+function byteCount(n2) {
+  return `${n2.toLocaleString("en-US")} bytes`;
 }
 async function post(fetcher, start2, id2, body) {
   if (start2 === null) {
@@ -4989,7 +4995,7 @@ function pageFrontEnds(el) {
       const { id: id2, source } = front;
       const pkg = packageOf(id2);
       if (source === void 0) {
-        prepared = { id: id2, module: id2, error: new Error(`R serves no module ${id2}, the front-end that draws the board.`) };
+        prepared = { id: id2, module: id2, error: new Error(`R serves no module ${id2}, the frontend that draws the board.`) };
       } else {
         try {
           const mod = moduleOf(await loader.load(source, pkg), source.module, pkg);
@@ -5007,7 +5013,7 @@ function pageFrontEnds(el) {
       if (prepared === void 0 || signal.aborted) return;
       el.replaceChildren();
       if (prepared.render === void 0) {
-        showError(el, `The front-end ${prepared.id} cannot draw the board: ${messageOf(prepared.error)}`);
+        showError(el, `The frontend ${prepared.id} cannot draw the board: ${messageOf(prepared.error)}`);
         report(prepared.error);
         return;
       }
@@ -6298,9 +6304,13 @@ function pluginOf(path) {
 function pathOf(parts) {
   return parts.map((part) => `/${part.replaceAll("~", "~0").replaceAll("/", "~1")}`).join("");
 }
-function overlap(a2, b2) {
-  const n2 = Math.min(a2.length, b2.length);
-  return a2.slice(0, n2).every((part, i2) => part === b2[i2]);
+function overlap(a2, b2, board) {
+  let at = board;
+  for (const [i2, part] of a2.slice(0, b2.length).entries()) {
+    if (Array.isArray(at) || part !== b2[i2]) return false;
+    at = isObject(at) ? own(at, part) : void 0;
+  }
+  return true;
 }
 function malformed(patch2) {
   if (!isObject(patch2)) return ["is no object"];
@@ -6734,7 +6744,7 @@ function expand(delta, board, registrations) {
         failures.push(...wrong);
         continue;
       }
-      const merged = merge(expanded, delta, patches2);
+      const merged = merge(expanded, delta, patches2, board);
       if (merged !== expanded) adding.push(id2);
       expanded = merged;
     }
@@ -6791,14 +6801,14 @@ function misplaced(cls, id2, patches2) {
   }
   return failures;
 }
-function merge(delta, given, patches2) {
+function merge(delta, given, patches2, board) {
   const held = delta.patches ?? [];
   const fixed2 = (given.patches ?? []).map(({ path }) => pointer(path) ?? []);
   const added = [];
   for (const patch2 of patches2) {
     const parts = pointer(patch2.path) ?? [];
     if ([...held, ...added].some((other) => same(other, patch2))) continue;
-    if (fixed2.some((path) => overlap(path, parts))) continue;
+    if (fixed2.some((path) => overlap(path, parts, board))) continue;
     added.push(patch2);
   }
   if (added.length === 0) return delta;
@@ -7674,7 +7684,7 @@ var locked = {
 var color = {
   type: ["string", "null"],
   pattern: HEX_COLOR,
-  description: 'A hex colour, such as "#66c2a5", which front-ends draw a stack in, or null for none. A front-end draws a stack without a colour in a default of its own.'
+  description: 'A hex colour, such as "#66c2a5", which frontends draw a stack in, or null for none. A frontend draws a stack without a colour in a default of its own.'
 };
 var optionId = {
   type: "string",
@@ -7998,7 +8008,7 @@ function coreCommands(store, options = {}) {
         blocks: { ...blockIds, description: "The blocks of the new stack, in order." },
         color: {
           ...color,
-          description: "The new stack's colour, which front-ends draw it in, or null for none. The stack gets null where this is left out, and a front-end draws a stack without a colour in a default of its own."
+          description: "The new stack's colour, which frontends draw it in, or null for none. The stack gets null where this is left out, and a frontend draws a stack without a colour in a default of its own."
         }
       }),
       run(board2, { id: id2, name: name3 = "Stack", blocks: blocks2 = [], color: color2 = null }) {
@@ -8025,7 +8035,7 @@ function coreCommands(store, options = {}) {
           },
           color: {
             ...color,
-            description: "The stack's colour, which front-ends draw it in, or null to clear it. A front-end draws a stack without a colour in a default of its own. The stack keeps its colour where this is left out."
+            description: "The stack's colour, which frontends draw it in, or null to clear it. A frontend draws a stack without a colour in a default of its own. The stack keeps its colour where this is left out."
           }
         },
         ["id"]

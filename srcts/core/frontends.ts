@@ -1,14 +1,14 @@
-// Drawing front-ends in the page's element, as core draws each board that it
-// opens with core's basic front-end
+// Drawing frontends in the page's element, as core draws each board that it
+// opens with core's basic frontend
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#opening-a-board):
-// - As the store opens a board, core imports the module of its front-end.
-// - Once the board is open, core calls the front-end's render() with the
+// - As the store opens a board, core imports the module of its frontend.
+// - Once the board is open, core calls the frontend's render() with the
 //   element, CoreApi and a signal, which aborts as the next board opens, since
 //   core starts again for that board.
 // - As the signal aborts, core runs the cleanup that render() returned, and the
-//   element says that the board is loading until the next front-end draws.
-// A front-end releases what it holds as its signal aborts, as a module does as
-// core unmounts it. Core ends what the front-end mounted with the same abort,
+//   element says that the board is loading until the next frontend draws.
+// A frontend releases what it holds as its signal aborts, as a module does as
+// core unmounts it. Core ends what the frontend mounted with the same abort,
 // and drops the rest of what it ran for the board.
 
 import { attempt, ModuleError, moduleOf, showError } from "../mount/index.ts";
@@ -39,7 +39,7 @@ export function loadingNote(): HTMLElement {
   return box;
 }
 
-// The front-ends of the page, drawn in the element.
+// The frontends of the page, drawn in the element.
 export function pageFrontEnds(el: HTMLElement): FrontEnds {
   let drawn: Drawn | undefined;
   let next: { id: string; module: string; render?: (args: FrontEndArgs) => Rendered; error?: unknown } | undefined;
@@ -60,7 +60,7 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
       const { id, source } = front;
       const pkg = packageOf(id);
       if (source === undefined) {
-        prepared = { id, module: id, error: new Error(`R serves no module ${id}, the front-end that draws the board.`) };
+        prepared = { id, module: id, error: new Error(`R serves no module ${id}, the frontend that draws the board.`) };
       } else {
         try {
           const mod = moduleOf<FrontEndArgs>(await loader.load(source, pkg), source.module, pkg);
@@ -78,7 +78,7 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
       if (prepared === undefined || signal.aborted) return;
       el.replaceChildren();
       if (prepared.render === undefined) {
-        showError(el, `The front-end ${prepared.id} cannot draw the board: ${messageOf(prepared.error)}`);
+        showError(el, `The frontend ${prepared.id} cannot draw the board: ${messageOf(prepared.error)}`);
         report(prepared.error);
         return;
       }

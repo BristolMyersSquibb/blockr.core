@@ -272,8 +272,8 @@ const ROLE_NAMES: Readonly<Record<Role, string>> = {
 
 type Kind = "string" | "string or null" | "boolean or null" | "object" | "array" | "value";
 
-// What an object of core's lacks or holds beyond its fields, which a delta
-// built in plain JS or by a model may get wrong.
+// What an object of core's lacks or holds beyond its properties, which a
+// delta built in plain JS or by a model may get wrong.
 function shape(value: unknown, fields: Readonly<Record<string, Kind>>): string[] {
   if (!isObject(value)) return ["is no object"];
   const problems: string[] = [];

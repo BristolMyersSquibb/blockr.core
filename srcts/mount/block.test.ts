@@ -683,7 +683,7 @@ describe("the host", () => {
 });
 
 describe("a mount", () => {
-  test("ends as the front-end calls its cleanup, which aborts the signal, runs the module's cleanup and empties the element", async () => {
+  test("ends as the frontend calls its cleanup, which aborts the signal, runs the module's cleanup and empties the element", async () => {
     const ui = recorder();
     const { mounts } = await setup({ [HEAD]: ui.exports });
     const el = document.createElement("div");
@@ -993,7 +993,7 @@ describe("a request", () => {
 
     const listing = host.request("listing");
     await tick();
-    r.reply({ id: lastRequest(r).id, status: "error", conditions: [failure], omitted: { warning: 0, message: 0 } });
+    r.reply({ id: lastRequest(r).id, status: "error", conditions: [failure] });
 
     await expect(listing).rejects.toBeInstanceOf(RequestError);
     await expect(listing).rejects.toMatchObject({

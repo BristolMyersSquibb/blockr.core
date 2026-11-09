@@ -104,7 +104,7 @@ import { createContext, useContext } from "react";
 var FrontEndContext = createContext(null);
 function useFrontEnd() {
   const given = useContext(FrontEndContext);
-  if (given === null) throw new Error("A component of the basic front-end is drawn outside of it.");
+  if (given === null) throw new Error("A component of the basic frontend is drawn outside of it.");
   return given;
 }
 function runCommand(front, id2, args) {
@@ -478,24 +478,15 @@ var SEVERITY_TONES = {
 function Conditions({ status, severities }) {
   if (status === void 0) return null;
   const shown = status.conditions.filter((condition) => severities.includes(condition.severity));
-  const omitted = ["warning", "message"].filter((severity) => severities.includes(severity) && status.omitted[severity] > 0);
-  if (shown.length === 0 && omitted.length === 0) return null;
-  return /* @__PURE__ */ jsxs2("ul", { "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-1 bc:p-0 bc:text-sm", children: [
-    shown.map((condition, i) => /* @__PURE__ */ jsxs2("li", { "data-severity": condition.severity, className: `bc:whitespace-pre-wrap ${SEVERITY_TONES[condition.severity]}`, children: [
-      /* @__PURE__ */ jsxs2("span", { className: "bc:font-medium", children: [
-        condition.severity,
-        ":"
-      ] }),
-      " ",
-      condition.message
-    ] }, i)),
-    omitted.map((severity) => /* @__PURE__ */ jsxs2("li", { className: "bc:text-text-muted", children: [
-      String(status.omitted[severity]),
-      " more ",
-      severity === "warning" ? "warnings" : "messages",
-      " not kept"
-    ] }, `omitted-${severity}`))
-  ] });
+  if (shown.length === 0) return null;
+  return /* @__PURE__ */ jsx2("ul", { "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-1 bc:p-0 bc:text-sm", children: shown.map((condition, i) => /* @__PURE__ */ jsxs2("li", { "data-severity": condition.severity, className: `bc:whitespace-pre-wrap ${SEVERITY_TONES[condition.severity]}`, children: [
+    /* @__PURE__ */ jsxs2("span", { className: "bc:font-medium", children: [
+      condition.severity,
+      ":"
+    ] }),
+    " ",
+    condition.message
+  ] }, i)) });
 }
 
 // srcts/modules/basic/layout.ts

@@ -15,8 +15,8 @@ as_text_output(result, options = list(), info = list(), params = list(), ...)
 \arguments{
 \item{text}{The text to show, as a string}
 
-\item{...}{For \code{new_text_output()}, further fields, which a subclass adds,
-and otherwise passed on to methods}
+\item{...}{For \code{new_text_output()}, further properties, which a subclass
+adds, and otherwise passed on to methods}
 
 \item{class}{The classes of a subclass, which come before \code{text_output}}
 
@@ -38,7 +38,7 @@ lines that its renderer scrolls. The constructor \code{new_text_output()} makes
 one. The coercion \code{as_text_output()} makes one from a result, by the
 result's class. Its default method prints any result. R shows the results of
 a block class through \code{as_text_output()} where the class names no coercion
-in its \code{output} field (see \code{\link[=new_block_class]{new_block_class()}}).
+in its \code{output} property (see \code{\link[=new_block_class]{new_block_class()}}).
 }
 \examples{
 new_text_output("Hello")

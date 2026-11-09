@@ -26,7 +26,6 @@ function outcome(status: Outcome["status"], revision: number, conditions: Condit
     revision,
     summary: status === "ok" ? "<data.frame> [150 × 5]" : null,
     conditions,
-    omitted: { warning: 0, message: 0 },
     stdout: "",
     stderr: "",
   };

@@ -70,14 +70,14 @@ block_arg_type(x, ...)
 examples are validated against it}
 
 \item{...}{For \code{new_arg_specs()}, the per-argument \code{arg_spec} objects (or
-bare description strings); for \code{arg_object()}, the named field descriptors;
-ignored by the \verb{arg_spec_*()} getters}
+bare description strings); for \code{arg_object()}, the named property
+descriptors; ignored by the \verb{arg_spec_*()} getters}
 
 \item{x}{An \code{arg_spec} / \code{arg_specs} object, or a bare (optionally named)
 character vector or list of descriptions to coerce; \code{is_arg_specs()}
 accepts any object}
 
-\item{required}{Whether the field is required, when nested in an
+\item{required}{Whether the property is required, when nested in an
 \code{arg_object()}}
 
 \item{values}{Allowed string values, for \code{arg_enum()}}
@@ -87,7 +87,7 @@ accepts any object}
 \value{
 \code{new_arg_spec()} returns an \code{arg_spec} and \code{new_arg_specs()} an \code{arg_specs}
 collection. The \verb{arg_*()} constructors each return a plain JSON-Schema node
-(a list). The \verb{arg_spec_*()} getters return the corresponding field of a
+(a list). The \verb{arg_spec_*()} getters return the corresponding property of a
 single argument (resolving a bare description string too). \code{is_arg_specs()}
 returns a boolean and \code{as_arg_specs()} coerces a named character vector or
 list to an \code{arg_specs}; a consuming package should test and coerce through
@@ -99,8 +99,8 @@ specification: each argument via \code{new_arg_spec()} (a \code{description}, a 
 worked \code{example}, and an optional machine-readable \code{type}), collected with
 \code{new_arg_specs()}. A bare named character vector of descriptions, and the
 empty \code{character()}, are also accepted and normalized into this form, so
-existing specifications are unaffected. A single argument's fields are read
-back with \code{arg_spec_description()}, \code{arg_spec_example()} and
+existing specifications are unaffected. A single argument's properties are
+read back with \code{arg_spec_description()}, \code{arg_spec_example()} and
 \code{arg_spec_type()}. Blocks are the primary consumer -- a block class's state
 args are specified via the \code{arguments} parameter of \code{\link[=register_block]{register_block()}},
 which defaults to a specification of every state arg without a description,
@@ -113,7 +113,9 @@ An argument's \code{type} is described with a small, dependency-free subset of
 JSON Schema, built with the \verb{arg_*()} constructors: \code{arg_string()},
 \code{arg_number()}, \code{arg_integer()} and \code{arg_boolean()} for scalars, \code{arg_enum()}
 for a fixed set of string values, \code{arg_array()} for a homogeneous list and
-\code{arg_object()} for a closed record of named fields (\code{additionalProperties: false}). Each returns a plain nested list mirroring the schema it denotes,
+\code{arg_object()} for a closed record of named properties
+(\code{additionalProperties: false}).
+Each returns a plain nested list mirroring the schema it denotes,
 consumed directly -- blockr.ai binds it via \code{ellmer::type_from_schema()}, an
 MCP or raw tool schema reads the JSON as-is -- and worked examples registered
 alongside an argument are validated against it (see \code{\link[=register_block]{register_block()}}).

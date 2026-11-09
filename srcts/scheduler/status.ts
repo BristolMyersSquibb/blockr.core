@@ -6,7 +6,6 @@ import type { Graph } from "../graph/index.ts";
 import type {
   Condition,
   EvaluateReply,
-  Omitted,
   Reply,
 } from "../protocol/index.ts";
 import type { BlockId } from "../types/board.ts";
@@ -39,8 +38,7 @@ export interface BlockStatus {
   // block is waiting, it holds the one condition the scheduler writes, of the
   // phase `status`.
   readonly conditions: readonly Condition[];
-  readonly omitted: Omitted;
-  // Its standard output and error, as R bounded them.
+  // Its standard output and error.
   readonly stdout: string;
   readonly stderr: string;
   // The result's summary from that reply, as "<data.frame> [150 × 7]".
@@ -55,12 +53,10 @@ export interface Outcome {
   readonly revision: number;
   readonly summary: string | null;
   readonly conditions: readonly Condition[];
-  readonly omitted: Omitted;
   readonly stdout: string;
   readonly stderr: string;
 }
 
-const NONE: Omitted = Object.freeze({ warning: 0, message: 0 });
 const NO_CONDITIONS: readonly Condition[] = Object.freeze([]);
 
 // The outcome of an evaluation of a revision, from R's reply to it. A reply of
@@ -73,7 +69,6 @@ export function outcomeOf(reply: Reply, revision: number): Outcome | undefined {
     revision,
     summary: evaluated.summary ?? null,
     conditions: evaluated.conditions ?? NO_CONDITIONS,
-    omitted: evaluated.omitted ?? NONE,
     stdout: evaluated.stdout ?? "",
     stderr: evaluated.stderr ?? "",
   };
@@ -93,7 +88,6 @@ export function unsent(revision: number, message: string): Outcome {
         message: `The evaluation could not be sent to R: ${message}`,
       },
     ],
-    omitted: NONE,
     stdout: "",
     stderr: "",
   };
@@ -107,7 +101,6 @@ export function unevaluated(revision: number, running: boolean): BlockStatus {
     evaluated: null,
     running,
     conditions: NO_CONDITIONS,
-    omitted: NONE,
     stdout: "",
     stderr: "",
     summary: null,
@@ -135,7 +128,6 @@ export function replied(
     evaluated: outcome.revision,
     running,
     conditions: outcome.conditions,
-    omitted: outcome.omitted,
     stdout: outcome.stdout,
     stderr: outcome.stderr,
     summary: outcome.summary,
@@ -156,7 +148,6 @@ export function waiting(
     evaluated,
     running,
     conditions: [why],
-    omitted: NONE,
     stdout: "",
     stderr: "",
     summary: null,
@@ -195,7 +186,6 @@ export function sameStatus(a: BlockStatus, b: BlockStatus): boolean {
     a.revision === b.revision &&
     a.evaluated === b.evaluated &&
     a.running === b.running &&
-    a.omitted === b.omitted &&
     a.stdout === b.stdout &&
     a.stderr === b.stderr &&
     a.summary === b.summary &&

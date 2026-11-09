@@ -1,7 +1,7 @@
 // Saving the board as a file that the browser downloads, and reading a file
 // that the user picks, as today's `preserve_board` plugin does.
 // The store writes the text of the board's file and opens such a text, so the
-// front-end only moves the text between the page and the user's disk.
+// frontend only moves the text between the page and the user's disk.
 
 import type { Board } from "../../types/board.ts";
 

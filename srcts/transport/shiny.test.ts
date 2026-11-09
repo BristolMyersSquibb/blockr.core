@@ -131,7 +131,7 @@ describe("the Shiny transport", () => {
     expect(p.received).toEqual([]);
   });
 
-  test("hands on R's replies and notes in order, without the fields that carry a body", async () => {
+  test("hands on R's replies and notes in order, without the properties that carry a body", async () => {
     const p = page();
 
     p.deliver([
@@ -296,6 +296,44 @@ describe("the Shiny transport", () => {
 
     await p.transport.send([{ ...evaluate, id: "42" }], new Map([["42", new Blob(["xy"])]]));
     expect(p.fetched).toHaveLength(1);
+  });
+
+  test("refuses a message larger than R takes, posting nothing", async () => {
+    const message = [{ ...evaluate, id: "44" }];
+    const size = new TextEncoder().encode(JSON.stringify(message)).length;
+    const p = page();
+    p.deliver({ body_url: bodyUrl, max_message_size: size - 1 });
+
+    await expect(
+      p.transport.send(message, new Map([["44", new Blob(["x"])]])),
+    ).rejects.toThrow(
+      `The message of ${size.toLocaleString("en-US")} bytes is larger than the ${(size - 1).toLocaleString("en-US")} bytes that the blockr option \`max_message_size\` allows.`,
+    );
+    expect(p.fetched).toEqual([]);
+    expect(p.inputs).toEqual([]);
+
+    p.deliver({ body_url: bodyUrl, max_message_size: size });
+    await p.transport.send(message, new Map());
+    expect(p.inputs).toHaveLength(1);
+  });
+
+  test("counts a message's bytes of UTF-8, not its characters", async () => {
+    const message = [{ ...evaluate, id: "é".repeat(100) }];
+    const json = JSON.stringify(message);
+    const p = page();
+    // More than the characters, fewer than the bytes, as each takes two.
+    p.deliver({ body_url: bodyUrl, max_message_size: json.length + 50 });
+
+    await expect(p.transport.send(message, new Map())).rejects.toThrow("is larger than");
+    expect(p.inputs).toEqual([]);
+  });
+
+  test("sends a message of any size where R names no limit", async () => {
+    const p = page();
+    p.deliver({ body_url: bodyUrl });
+
+    await p.transport.send([{ ...evaluate, id: "x".repeat(2 ** 20) }], new Map());
+    expect(p.inputs).toHaveLength(1);
   });
 
   test("sends nothing whose session ended while its body went", async () => {

@@ -8,18 +8,18 @@
  * repeating them.
  *
  * - Utilities take core's prefix, as in `bc:flex`, and so does the theme, whose
- *   variables, such as `--bc-color-blue-500`, a front-end or a UI kit may set to
+ *   variables, such as `--bc-color-blue-500`, a frontend or a UI kit may set to
  *   restyle core.
  * - The colors of core's UIs are variables of the theme by what each is for,
  *   named after blockr.ui's design tokens, as `--bc-color-border-default`
  *   after `--blockr-color-border-default`. Their defaults follow the text
  *   around the element that core draws in, or take the theme's red and blue,
- *   so that core suits a light and a dark front-end alike, and a front-end or
+ *   so that core suits a light and a dark frontend alike, and a frontend or
  *   a UI kit sets them to restyle core.
  * - The face of core's UIs is the theme's sans, `--bc-font-sans`, as that of
  *   their code is its mono, `--bc-font-mono`, rather than the face of the
  *   element they sit in, since core counts on no stylesheet of the page to
- *   set one. A front-end or a UI kit sets them to restyle core.
+ *   set one. A frontend or a UI kit sets them to restyle core.
  * - Preflight, Tailwind's reset of the whole page, is left out, so that nothing
  *   core loads styles another package's elements.
  * - Utilities sit outside any cascade layer, since a page's other CSS, such as

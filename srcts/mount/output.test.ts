@@ -231,7 +231,7 @@ describe("asking", () => {
     const el = await ready(s);
 
     expect(s.imported).toEqual([TABLE.module]);
-    // Beside those that core's basic front-end requires.
+    // Beside those that core's basic frontend requires.
     expect(s.store.board().options).toEqual({ show_conditions: ["warning", "error"], dark_mode: "light", n_rows: 50, zoom: 1 });
     expect(outputs(s.r)).toHaveLength(1);
     expect(lastOutput(s.r)).toMatchObject({
@@ -351,7 +351,7 @@ describe("asking", () => {
     const el = await ready(s);
     const failure = { severity: "error" as const, class: ["simpleError", "error", "condition"], phase: "output" as const, message: "no page 9" };
 
-    s.r.reply({ id: lastOutput(s.r).id, status: "error", conditions: [failure], omitted: { warning: 0, message: 0 } });
+    s.r.reply({ id: lastOutput(s.r).id, status: "error", conditions: [failure] });
     await tick();
     expect(el.querySelector("[role=alert]")?.textContent).toBe("no page 9");
 
@@ -364,7 +364,7 @@ describe("asking", () => {
 
     table.host().setParams({ page: 9 });
     await tick();
-    s.r.reply({ id: lastOutput(s.r).id, status: "error", conditions: [failure], omitted: { warning: 0, message: 0 } });
+    s.r.reply({ id: lastOutput(s.r).id, status: "error", conditions: [failure] });
     await tick();
     expect(table.host().error()).toEqual(failure);
     expect(table.host().output()).toMatchObject({ total: 150 });
@@ -680,7 +680,7 @@ describe("a request", () => {
     const failure = { severity: "error" as const, class: ["simpleError", "error", "condition"], phase: "request" as const, message: "no xlsx" };
     const download = table.host().request("download", { format: "xlsx" });
     await tick();
-    s.r.reply({ id: requests(s.r)[0]?.id ?? "", status: "error", conditions: [failure], omitted: { warning: 0, message: 0 } });
+    s.r.reply({ id: requests(s.r)[0]?.id ?? "", status: "error", conditions: [failure] });
     await expect(download).rejects.toMatchObject({ status: "error", conditions: [failure] });
   });
 });

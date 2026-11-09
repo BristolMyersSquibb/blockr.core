@@ -1,5 +1,5 @@
-// Core's basic front-end on the CoreApi for tests: the board of the fixture
-// hello, drawn by the front-end as the page draws it, with R played from the
+// Core's basic frontend on the CoreApi for tests: the board of the fixture
+// hello, drawn by the frontend as the page draws it, with R played from the
 // protocol's fixtures, every block UI and renderer a stub that names what it
 // draws, and the user acting on the page.
 
@@ -48,7 +48,7 @@ interface Drawn {
 }
 
 // The board of the fixture hello, or of the reply given, drawn by the basic
-// front-end once R has evaluated what it demands.
+// frontend once R has evaluated what it demands.
 async function drawn(options: StubCoreOptions = {}): Promise<Drawn> {
   const el = document.createElement("div");
   document.body.append(el);
@@ -144,7 +144,6 @@ describe("a card", () => {
                 { severity: "warning", class: ["simpleWarning", "warning", "condition"], phase: "expr", message: "Few rows" },
                 { severity: "message", class: ["simpleMessage", "message", "condition"], phase: "expr", message: "Took the head" },
               ],
-              omitted: { warning: 2, message: 0 },
             }
           : undefined,
     });
@@ -155,13 +154,11 @@ describe("a card", () => {
     expect(find(head, '[aria-label="Output"]').lastElementChild?.textContent).toBe("<data.frame> [6 × 5]");
     // The board holds show_conditions at warnings and errors.
     expect(texts(head, "[data-severity]")).toEqual(["warning: Few rows"]);
-    expect(head.textContent).toContain("2 more warnings not kept");
 
     await step(() => {
       core.store.apply({ options: { set: { show_conditions: ["message"] } } });
     });
     expect(texts(card(el, "Head"), "[data-severity]")).toEqual(["message: Took the head"]);
-    expect(card(el, "Head").textContent).not.toContain("more warnings");
   });
 
   test("greys its output out while its block is not ready", async () => {
@@ -348,7 +345,7 @@ describe("the toolbar", () => {
     await click(button(el, "Options"));
     await settled();
     // The board holds n_rows, which the table renderer names, and
-    // show_conditions and dark_mode, which core's basic front-end requires.
+    // show_conditions and dark_mode, which core's basic frontend requires.
     expect(Object.keys(board().options).sort()).toEqual(["dark_mode", "n_rows", "show_conditions"]);
     expect(texts(dialog(el), "h3")).toEqual(["Table options", "Board options", "Theme options"]);
     expect(dialog(el).textContent).toContain("Preview rows");
@@ -526,7 +523,7 @@ describe("a locked board", () => {
 });
 
 describe("the cleanup that render() returns", () => {
-  test("ends what the front-end drew, demanded and bound", async () => {
+  test("ends what the frontend drew, demanded and bound", async () => {
     const stubbed = await stubCore({ modules: MODULES });
     const el = document.createElement("div");
     document.body.append(el);
