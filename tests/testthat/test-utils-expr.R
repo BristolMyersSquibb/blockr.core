@@ -157,51 +157,42 @@ test_that("bbquote preserves missing arguments", {
   )
 })
 
-test_that("bbquote leaves a .() or ..() that holds more than a name", {
+test_that("bbquote throws an error for a .() or ..() that holds more", {
 
-  expect_identical(
+  expect_error(
     bbquote(.(data)[, .(total = sum(value)), by = .(by)], list(by = "id")),
-    new_bquoted_expr(quote(.(data)[, .(total = sum(value)), by = "id"]))
+    class = "bbquote_invalid"
   )
 
-  expect_identical(
+  expect_error(
     bbquote(.(x)[.(y), .(x, y), on = "id"], list()),
-    new_bquoted_expr(quote(.(x)[.(y), .(x, y), on = "id"]))
+    class = "bbquote_invalid"
   )
 
-  expect_identical(
-    bbquote(dt[, .(n = .N), by = .(n)], list(n = "grp")),
-    new_bquoted_expr(quote(dt[, .(n = .N), by = "grp"]))
+  expect_error(bbquote(dt[, .(n = .N)], list()), class = "bbquote_invalid")
+  expect_error(bbquote(dt[, .(n = n)], list(n = 1L)), class = "bbquote_invalid")
+  expect_error(bbquote(dt[, .()], list()), class = "bbquote_invalid")
+
+  expect_error(
+    bbquote(utils::head(.(data), n = .(n + 1L)), list(n = 1L)),
+    class = "bbquote_invalid"
   )
 
-  expect_identical(
-    bbquote(dt[, .(n = n)], list(n = 1L)),
-    new_bquoted_expr(quote(dt[, .(n = n)]))
+  expect_error(
+    bbquote(function(x = .(a, b)) x, list()),
+    class = "bbquote_invalid"
   )
 
-  expect_identical(
-    bbquote(dt[, .()], list()),
-    new_bquoted_expr(quote(dt[, .()]))
+  expect_error(
+    bbquote(f(..(bc), ..(c(a, b))), list(bc = 1:2), splice = TRUE),
+    class = "bbquote_invalid"
   )
 
-  expect_identical(
-    bbquote(dt[, .(total = sum(.(col)))], list(col = quote(value))),
-    new_bquoted_expr(quote(dt[, .(total = sum(value))]))
-  )
+  expect_error(bbquote(f(..(n = bc)), list()), class = "bbquote_invalid")
 
   expect_identical(
-    bbquote(function(x = .(a, b)) .(n = x), list()),
-    new_bquoted_expr(quote(function(x = .(a, b)) .(n = x)))
-  )
-
-  expect_identical(
-    bbquote(f(..(bc), ..(x, y), ..(c(a, b))), list(bc = 1:2), splice = TRUE),
-    new_bquoted_expr(quote(f(1L, 2L, ..(x, y), ..(c(a, b)))))
-  )
-
-  expect_identical(
-    bbquote(f(..(n = bc)), list(bc = 1:2), splice = TRUE),
-    new_bquoted_expr(quote(f(..(n = bc))))
+    bbquote(f(.(j)), list(j = quote(.(n = .N)))),
+    new_bquoted_expr(quote(f(.(n = .N))))
   )
 })
 
