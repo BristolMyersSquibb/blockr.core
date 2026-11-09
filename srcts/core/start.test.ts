@@ -8,6 +8,8 @@ import type { EvaluateRequest, HelloReply, Reply, Request, Transport, TransportL
 import { coreOptions } from "../options/index.ts";
 import { reports } from "../testing/reports.ts";
 import { hello, withPlugins } from "../testing/store.ts";
+import { startPage } from "../page/index.ts";
+import type { JsonBoard } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { JsonSchema } from "../types/json.ts";
 import { pageFrontEnds, start } from "./index.ts";
@@ -181,6 +183,30 @@ function startup(name: string, events: string[], fn: () => unknown = () => undef
     },
   };
 }
+
+// The board of the fixture hello with values of the wrong shape, as an app
+// script may give them: a head block that shows -1 rows, and the board option
+// n_rows at 0.
+function unfit(): JsonBoard {
+  const { board } = hello.board;
+  const b = board.blocks.b;
+  if (b === undefined) throw new Error("The fixture's board has no block b.");
+  return {
+    ...hello.board,
+    board: {
+      ...board,
+      blocks: { ...board.blocks, b: { ...b, state: { ...b.state, n: -1 } } },
+      options: { ...board.options, n_rows: { value: 0, version: 1 } },
+    },
+  };
+}
+
+// Why the store refuses the board of unfit().
+const unfitness = [
+  "The store refused to open the board",
+  'The state of the block "b" fails its schema at /n: -1 is less than 0.',
+  'The value of the board option "n_rows" fails its schema: 0 is less than 1.',
+].join("\n- ");
 
 function withStartup(...packages: string[]): HelloReply {
   return {
@@ -479,6 +505,34 @@ describe("starting the page", () => {
     expect(failed?.message).toContain("Reload the page");
     expect(s.r.kinds()).toEqual(["hello"]);
   });
+
+  test("leaves the page with the errors alone where the store refuses the opening board, for the deployment to fix", async () => {
+    const r = playedR();
+    const el = document.createElement("div");
+    const basic = frontEnd();
+    const reported = reports();
+    const started = startPage({
+      el,
+      transport: r.transport,
+      loader: {
+        importer: (url) =>
+          url === BASIC ? Promise.resolve(basic.exports) : Promise.reject(new TypeError(`No module at ${url}.`)),
+        stylesheet: () => Promise.resolve(),
+      },
+      measure: { info: () => null, watch: () => () => undefined },
+    });
+    r.session({ ...hello, board: unfit() });
+    await tick();
+    r.options();
+    await expect(started.ready).rejects.toThrow(unfitness);
+    reported.restore();
+
+    expect(el.children).toHaveLength(1);
+    expect(el.firstElementChild?.getAttribute("role")).toBe("alert");
+    expect(el.textContent).toBe(unfitness);
+    expect(basic.renders).toHaveLength(0);
+    expect(r.evaluations()).toEqual([]);
+  });
 });
 
 describe("a board opened later", () => {
@@ -523,6 +577,7 @@ describe("a board opened later", () => {
       board: { ...hello.board.board, plugins: { strict: { class: "test.pkg-strict_plugin", name: "Strict", state: {} } } },
     });
     await expect(s.core.store.open(strict)).rejects.toThrow('The state of the plugin "strict"');
+    await expect(s.core.store.open(JSON.stringify(unfit()))).rejects.toThrow(unfitness);
 
     expect(s.r.sent.slice(sent)).toEqual([]);
     expect(basic.renders).toHaveLength(1);

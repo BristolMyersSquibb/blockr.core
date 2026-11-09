@@ -164,21 +164,6 @@ describe("blocks", () => {
     );
   });
 
-  test("set_block refuses only what a change makes fail, so that a failing state can be repaired one arg at a time", async () => {
-    const { store, commands } = await setup();
-    // A state that fails the schema of its class in two args, as a file that
-    // no migration converted may hold.
-    store.apply({ blocks: { mod: { b: { state: { n: -1, direction: "sideways" } } } } });
-
-    await expect(commands.run("blockr.core-set_block", { id: "b", state: { n: -2 } })).rejects.toThrow(
-      'The state of block "b" fails its schema at /n: -2 is less than 0.',
-    );
-
-    await commands.run("blockr.core-set_block", { id: "b", state: { n: 5 } });
-    await commands.run("blockr.core-set_block", { id: "b", state: { direction: "head" } });
-    expect(store.board().blocks.b?.state).toEqual({ n: 5, direction: "head" });
-  });
-
   test("set_block makes no step where nothing changes", async () => {
     const { store, commands } = await setup();
     await commands.run("blockr.core-set_block", { id: "b", state: { n: 6 }, unset: ["x"] });

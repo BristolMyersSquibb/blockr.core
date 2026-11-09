@@ -5976,6 +5976,15 @@ function appPlugins(board, opening2, classOf2) {
 // srcts/store/check.ts
 var HEX_COLOR = "^#[0-9a-fA-F]{6}$";
 var hexColor = new RegExp(HEX_COLOR);
+var validators = /* @__PURE__ */ new WeakMap();
+function stateFailures(entry, state2) {
+  let validate2 = validators.get(entry);
+  if (validate2 === void 0) {
+    validate2 = compile(`the state of the block class "${entry.id}"`, entry.schema);
+    validators.set(entry, validate2);
+  }
+  return validate2(state2);
+}
 function check(board, registry, registrations, changed) {
   const failures = [];
   if (!isId(board.id)) {
@@ -6010,10 +6019,15 @@ function checkBlocks(board, registry, registrations, changed, failures) {
       failures.push(`The block "${id2}" ${fields.join(", ")}.`);
       continue;
     }
-    if (own(registry, block.registry_id) === void 0) {
+    const entry = own(registry, block.registry_id);
+    if (entry === void 0) {
       failures.push(
         `The block "${id2}" is of the class "${block.registry_id}", which the block registry lacks.`
       );
+      continue;
+    }
+    for (const failure of stateFailures(entry, block.state)) {
+      failures.push(`The state of the block "${id2}" ${failure}`);
     }
   }
 }
@@ -6176,9 +6190,13 @@ function pluginOf(path) {
 function pathOf(parts) {
   return parts.map((part) => `/${part.replaceAll("~", "~0").replaceAll("/", "~1")}`).join("");
 }
-function overlap(a2, b2) {
-  const n2 = Math.min(a2.length, b2.length);
-  return a2.slice(0, n2).every((part, i2) => part === b2[i2]);
+function overlap(a2, b2, board) {
+  let at = board;
+  for (const [i2, part] of a2.slice(0, b2.length).entries()) {
+    if (Array.isArray(at) || part !== b2[i2]) return false;
+    at = isObject(at) ? own(at, part) : void 0;
+  }
+  return true;
 }
 function malformed(patch2) {
   if (!isObject(patch2)) return ["is no object"];
@@ -6612,7 +6630,7 @@ function expand(delta, board, registrations) {
         failures.push(...wrong);
         continue;
       }
-      const merged = merge(expanded, delta, patches2);
+      const merged = merge(expanded, delta, patches2, board);
       if (merged !== expanded) adding.push(id2);
       expanded = merged;
     }
@@ -6669,14 +6687,14 @@ function misplaced(cls, id2, patches2) {
   }
   return failures;
 }
-function merge(delta, given, patches2) {
+function merge(delta, given, patches2, board) {
   const held = delta.patches ?? [];
   const fixed2 = (given.patches ?? []).map(({ path }) => pointer(path) ?? []);
   const added = [];
   for (const patch2 of patches2) {
     const parts = pointer(patch2.path) ?? [];
     if ([...held, ...added].some((other) => same(other, patch2))) continue;
-    if (fixed2.some((path) => overlap(path, parts))) continue;
+    if (fixed2.some((path) => overlap(path, parts, board))) continue;
     added.push(patch2);
   }
   if (added.length === 0) return delta;
@@ -7049,6 +7067,8 @@ function migrate(board, json, reply, registrations) {
   );
   const options = Object.fromEntries(
     Object.entries(board.options).map(([id2, value2]) => {
+      const def = registrations.option(id2)?.def;
+      if (def === void 0) return [id2, value2];
       const from = own(json.options, id2)?.version;
       const to = own(reply.option_versions, id2) ?? 1;
       if (from === void 0 || from === to) return [id2, value2];
@@ -7058,8 +7078,7 @@ function migrate(board, json, reply, registrations) {
         );
         return [id2, value2];
       }
-      const def = registrations.option(id2)?.def;
-      if (def?.migrate === void 0) return [id2, value2];
+      if (def.migrate === void 0) return [id2, value2];
       changed.add("options");
       return [
         id2,
@@ -7101,12 +7120,14 @@ function openJsonBoard(json, reply, registrations) {
     const registryId2 = migrated2.blocks[id2]?.registry_id ?? "";
     return { block: id2, registry_id: registryId2, package: packageOf(registryId2) };
   });
-  const kept = remove(prune2(migrated2, registrations), gone, registrations);
+  const unclaimed = Object.keys(migrated2.options).filter((id2) => registrations.option(id2) === void 0);
+  const options = unclaimed.map((id2) => ({ option: id2 }));
+  const kept = remove({ ...migrated2, options: without(migrated2.options, unclaimed) }, gone, registrations);
   const board = { ...kept, plugins: appPlugins(kept.plugins, opening2, pluginClass) };
   const failures = check(board, reply.block_registry, registrations);
   if (failures.length > 0) throw new StoreError(refused, failures);
   const packages = Object.entries(json.packages).filter(([pkg]) => own(reply.packages, pkg) === void 0).map(([pkg, version]) => ({ package: pkg, version }));
-  return { board, dropped: [...packages, ...blocks, ...plugins] };
+  return { board, dropped: [...packages, ...blocks, ...plugins, ...options] };
 }
 function classOf(plugin) {
   return isObject(plugin) && typeof plugin.class === "string" ? plugin.class : void 0;
@@ -7119,13 +7140,6 @@ function openingPlugins(opening2) {
       (entry) => isObject(entry[1]) && typeof entry[1].class === "string"
     )
   );
-}
-function prune2(board, registrations) {
-  const unfit = Object.entries(board.options).filter(([id2, value2]) => {
-    const def = registrations.option(id2);
-    return def === void 0 || def.validate(value2).length > 0;
-  }).map(([id2]) => id2);
-  return { ...board, options: without(board.options, unfit) };
 }
 function remove(board, gone, registrations) {
   if (gone.length === 0) return board;
@@ -7588,37 +7602,6 @@ var statePatches = {
   },
   description: "Changes of a plugin's state, as JSON Patch operations, which apply in their order and which the schema of the plugin's class types."
 };
-var described = /* @__PURE__ */ new WeakMap();
-function stateSchema(entry) {
-  const known = described.get(entry);
-  if (known !== void 0) return known;
-  const { properties } = entry.schema;
-  let schema = entry.schema;
-  if (isRecord(properties)) {
-    schema = {
-      ...schema,
-      properties: Object.fromEntries(
-        Object.entries(properties).map(([arg, property]) => {
-          const spec = own(entry.arguments, arg);
-          if (spec === void 0 || !isRecord(property)) return [arg, property];
-          return [
-            arg,
-            {
-              ...spec.description === void 0 ? {} : { description: spec.description },
-              ...spec.example === void 0 ? {} : { examples: [spec.example] },
-              ...property
-            }
-          ];
-        })
-      )
-    };
-  }
-  described.set(entry, schema);
-  return schema;
-}
-function isRecord(x2) {
-  return isObject(x2);
-}
 
 // srcts/commands/core.ts
 var newBlock = {
@@ -7637,17 +7620,8 @@ var newBlock = {
   }
 };
 function coreCommands(store, options = {}) {
-  const validators = /* @__PURE__ */ new WeakMap();
   function mint(taken) {
     return mintId(taken, options.randId);
-  }
-  function stateFailures(entry, state2) {
-    let validate2 = validators.get(entry);
-    if (validate2 === void 0) {
-      validate2 = compile(`the state of the block class "${entry.id}"`, stateSchema(entry));
-      validators.set(entry, validate2);
-    }
-    return validate2(state2);
   }
   function classOf2(command2, registryId2) {
     const entry = own(store.blockRegistry(), registryId2);
@@ -7746,11 +7720,7 @@ function coreCommands(store, options = {}) {
         const block = own(board2.blocks, id2);
         if (block === void 0) return [];
         const entry = classOf2(this.id, block.registry_id);
-        const before = new Set(stateFailures(entry, block.state));
-        const failures = stateFailures(entry, {
-          ...without(block.state, unset ?? []),
-          ...state2
-        }).filter((failure) => !before.has(failure));
+        const failures = stateFailures(entry, { ...without(block.state, unset ?? []), ...state2 });
         if (failures.length > 0) {
           throw refusal(this.id, failures.map((failure) => `The state of block "${id2}" ${failure}`));
         }
