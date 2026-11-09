@@ -175,6 +175,8 @@ A class gives the version of its state's shape in `version`, a whole number from
 A package raises it whenever it changes that shape, such as by renaming a state arg.
 A saved board records with each block the version of its state.
 As the client opens a board saved at an older version, it migrates the state in JS, with the migration that the package registers for the class in its startup module.
+The client refuses a board that holds a state that the class's schema refuses once migrated.
+So a package that changes the shape registers a migration as well, or the boards saved before no longer open.
 No migration runs in R, since the UI owns the shape.
 
 ## The block expression

@@ -8,11 +8,12 @@
 // registers commands of its own for what its plugins keep.
 //
 // Each reads the board and returns its deltas, leaving the checks of the board
-// to the store, but for a block's state, which the store does not check, and
-// which these commands check against the schema of the block's class. An edit
-// that changes nothing is the store's to drop, which makes no step of it.
+// to the store, but for a block's state, which the store checks only as it
+// opens a board, and which these commands check against the schema of the
+// block's class. An edit that changes nothing is the store's to drop, which
+// makes no step of it.
 
-import { mintId, pathOf, sentenceCase } from "../store/index.ts";
+import { mintId, pathOf, sentenceCase, stateFailures } from "../store/index.ts";
 import type { Patch, Store } from "../store/index.ts";
 import type {
   Block,
@@ -26,8 +27,7 @@ import type {
 } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { compile, own, packageOf, quoted, without } from "../util/index.ts";
-import type { Validate } from "../util/index.ts";
+import { own, packageOf, quoted, without } from "../util/index.ts";
 import { refusal } from "./commands.ts";
 import type { Command } from "./commands.ts";
 import * as schemas from "./schemas.ts";
@@ -76,18 +76,6 @@ export interface CoreCommandsOptions {
 }
 
 export function coreCommands(store: Store, options: CoreCommandsOptions = {}): Command<Json, unknown>[] {
-  const validators = new WeakMap<RegistryEntry, Validate>();
-
-  // Each way a block's state fails the schema of its class, in a clause.
-  function stateFailures(entry: RegistryEntry, state: State): readonly string[] {
-    let validate = validators.get(entry);
-    if (validate === undefined) {
-      validate = compile(`the state of the block class "${entry.id}"`, schemas.stateSchema(entry));
-      validators.set(entry, validate);
-    }
-    return validate(state);
-  }
-
   function classOf(command: string, registryId: RegistryId): RegistryEntry {
     const entry = own(store.blockRegistry(), registryId);
     if (entry === undefined) {
@@ -206,8 +194,9 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
         const block = own(board.blocks, id);
         if (block === undefined) return [];
         // A change may leave the state failing the schema where it failed
-        // already, so that a state that an older file left failing can be
-        // repaired one arg at a time, but it may not make it fail anew.
+        // already, as a delta applied without a command may leave it, so that
+        // such a state can be repaired one arg at a time, but it may not make
+        // it fail anew.
         const entry = classOf(this.id, block.registry_id);
         const before = new Set(stateFailures(entry, block.state));
         const failures = stateFailures(entry, {

@@ -6,11 +6,15 @@
 // Where a delta changed only some objects, their shapes and schemas
 // are checked alone, since nothing else can have broken them,
 // while the invariants run on the whole board every time.
+// As the board opens, the store checks the state of each block against the
+// schema of its class, while core's commands check the state that they set
+// (srcts/commands/core.ts).
 
 import { graphOf } from "../graph/index.ts";
 import type { Board, RegistryId } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { isObject, own, quoted } from "../util/index.ts";
+import { compile, isObject, own, quoted } from "../util/index.ts";
+import type { Validate } from "../util/index.ts";
 import type { Changed } from "./commit.ts";
 import { isId } from "./ids.ts";
 import { inRole, ROLES } from "./plugins.ts";
@@ -24,6 +28,23 @@ import type { Registrations } from "./registrations.ts";
 export const HEX_COLOR = "^#[0-9a-fA-F]{6}$";
 
 const hexColor = new RegExp(HEX_COLOR);
+
+// The validator of each block class's state, made once for each entry of the
+// block registry.
+const validators = new WeakMap<RegistryEntry, Validate>();
+
+// Each way a block's state fails the schema of its class, in a clause.
+// The schema is the one in the class's entry of the block registry, as the
+// class's UI ships it.
+// It throws where the schema cannot be read.
+export function stateFailures(entry: RegistryEntry, state: unknown): readonly string[] {
+  let validate = validators.get(entry);
+  if (validate === undefined) {
+    validate = compile(`the state of the block class "${entry.id}"`, entry.schema);
+    validators.set(entry, validate);
+  }
+  return validate(state);
+}
 
 export function check(
   board: Board,
@@ -75,10 +96,16 @@ function checkBlocks(
       failures.push(`The block "${id}" ${fields.join(", ")}.`);
       continue;
     }
-    if (own(registry, block.registry_id) === undefined) {
+    const entry = own(registry, block.registry_id);
+    if (entry === undefined) {
       failures.push(
         `The block "${id}" is of the class "${block.registry_id}", which the block registry lacks.`,
       );
+      continue;
+    }
+    if (changed !== undefined) continue;
+    for (const failure of stateFailures(entry, block.state)) {
+      failures.push(`The state of the block "${id}" ${failure}`);
     }
   }
 }

@@ -290,6 +290,10 @@
   A script that passes another argument to either constructor fails at that call, as a block constructor fails for a misspelled state arg.
   Until now, `blockr_ser()` dropped what `...` added without a word, since a JSON board has no place for it.
   A stack given as a list fails as well for an entry other than `blocks`, `name` and `color`, which `as_stack()` dropped until now (#511).
+* The client refuses to open a board that holds a value that its schema refuses once migrated: a block's state, a plugin's state or a board option's value.
+  It names every such value.
+  So an app script whose board gives `new_n_rows_option(0)` runs, since a board option's constructor checks nothing, but its page shows the errors in place of the board.
+  The client drops the value of a board option that no package of the app registers, and names the board option by its ID (#509).
 
 # blockr.core 0.1.4
 
