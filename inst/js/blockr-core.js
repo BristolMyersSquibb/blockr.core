@@ -556,13 +556,13 @@ function isPackageName(name3) {
   return typeof name3 === "string" && /^[A-Za-z][A-Za-z0-9.]*[A-Za-z0-9]$/.test(name3);
 }
 function numberOf(text) {
-  const trimmed = text.trim();
-  if (/^[+-]?inf(inity)?$/i.test(trimmed)) return trimmed.startsWith("-") ? -Infinity : Infinity;
-  return trimmed === "" ? NaN : Number(trimmed);
+  const number = text.trim() === "" ? NaN : Number(text);
+  return Number.isFinite(number) ? number : NaN;
 }
 function logicalOf(text) {
-  if (["TRUE", "true", "True", "T"].includes(text)) return true;
-  if (["FALSE", "false", "False", "F"].includes(text)) return false;
+  const trimmed = text.trim();
+  if (["TRUE", "true", "True", "T"].includes(trimmed)) return true;
+  if (["FALSE", "false", "False", "F"].includes(trimmed)) return false;
   return void 0;
 }
 
@@ -2904,11 +2904,12 @@ function changedSince(before, now) {
 function setting(value2, fallback, name3, counts = false) {
   if (value2 === void 0) return fallback;
   const number = typeof value2 === "string" ? numberOf(value2) : value2;
-  if (typeof number === "number" && number >= 0 && (!counts || Number.isInteger(number) || number === Infinity)) {
+  if (number === -1) return Infinity;
+  if (typeof number === "number" && Number.isFinite(number) && number >= 0 && (!counts || Number.isInteger(number))) {
     return number;
   }
   throw new RangeError(
-    `The blockr option ${name3} is ${shown(value2)}, where it takes ${counts ? "a whole number" : "a number"} of 0 or more.`
+    `The blockr option ${name3} is ${shown(value2)}, where it takes ${counts ? "a whole number" : "a number"} of 0 or more, or -1.`
   );
 }
 function flag(value2, fallback, name3) {
@@ -4412,7 +4413,7 @@ function nRows(core) {
     label: "Preview rows",
     category: "Table options",
     schema,
-    // A string reads as R's as.numeric() reads it.
+    // A string reads as the number that it holds.
     default: async () => {
       const value2 = await core.blockrOption("n_rows");
       if (value2 === void 0) return fallback;
@@ -4470,8 +4471,7 @@ function preferredTheme() {
   return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 function checked2(id2, schema, sent2, value2 = sent2) {
-  const json = typeof value2 !== "number" || Number.isFinite(value2);
-  if (json && compile(`the board option "${id2}"`, schema)(value2).length === 0) return value2;
+  if (compile(`the board option "${id2}"`, schema)(value2).length === 0) return value2;
   throw new TypeError(`The blockr option ${id2} is ${JSON.stringify(sent2)}, which the board option ${id2} does not take.`);
 }
 
