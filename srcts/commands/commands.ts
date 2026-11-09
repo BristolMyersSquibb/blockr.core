@@ -91,10 +91,10 @@ export interface CommandsOptions {
   // store: from then on the registry runs and plans no command, and drops a
   // command still in its prepare() rather than run it.
   readonly signal?: AbortSignal;
-  // The lock that R's reply to `hello` gives, under which core's command for a
-  // plugin's state is not enabled, since there only a plugin class's own
-  // commands know what the plugin locks.
-  readonly lock?: Lock | null;
+  // The locks that R's reply to `hello` gives. Under the board lock, core's
+  // command for a plugin's state is not enabled, since there only a plugin
+  // class's own commands know what the plugin locks.
+  readonly lock?: Lock;
 }
 
 export function createCommands(store: Store, options: CommandsOptions = {}): Commands {
@@ -267,7 +267,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
     },
   };
 
-  for (const command of coreCommands(store, { locked: (options.lock ?? null) !== null })) {
+  for (const command of coreCommands(store, { locked: options.lock?.board === true })) {
     registry.register(command);
   }
 

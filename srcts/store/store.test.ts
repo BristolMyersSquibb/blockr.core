@@ -227,6 +227,7 @@ function head(n = 6, name = "Head"): Block {
     registry_id: "blockr.core-head_block",
     state: { n, direction: "head" },
     name,
+    locked: null,
   };
 }
 
@@ -249,6 +250,7 @@ function file(
         registry_id: "blockr.core-dataset_block",
         state: { dataset: "mtcars", package: "datasets" },
         name: "Cars",
+        locked: null,
       },
       b: head(),
     } as Readonly<Record<string, Block & { version?: number }>>,
@@ -285,6 +287,7 @@ describe("opening a board", () => {
       registry_id: "blockr.core-dataset_block",
       state: { dataset: "iris", package: "datasets" },
       name: "Iris",
+      locked: null,
     });
 
     expect(Object.keys(board.links)).toEqual(["ab", "ac", "bc", "ad", "be", "de", "keen_finch"]);
@@ -329,8 +332,9 @@ describe("opening a board", () => {
               registry_id: "blockr.core-dataset_block",
               state: { dataset: "mtcars", package: "datasets" },
               name: "Cars",
+              locked: null,
             },
-            x: { registry_id: "blockr.dplyr-filter_block", state: {}, name: "Filter" },
+            x: { registry_id: "blockr.dplyr-filter_block", state: {}, name: "Filter", locked: null },
             b: head(),
           },
           links: {
@@ -408,12 +412,29 @@ describe("opening a board", () => {
     expect(store.board().stacks).toStrictEqual(stacks);
   });
 
-  test("refuses a JSON board on a locked board, and before R has answered hello", async () => {
+  test("refuses a block whose lock is neither a boolean nor null", async () => {
+    const json = JSON.parse(file({})) as { board: { blocks: Record<string, Record<string, unknown>> } };
+    delete json.board.blocks.a?.locked;
+    if (json.board.blocks.b !== undefined) json.board.blocks.b.locked = "yes";
+
+    const refused = unopened().open(JSON.stringify(json));
+    await expect(refused).rejects.toThrow('The block "a" has no boolean or null as its locked.');
+    await expect(unopened().open(JSON.stringify(json))).rejects.toThrow(
+      'The block "b" has no boolean or null as its locked.',
+    );
+  });
+
+  test("refuses a JSON board's text under the load lock, and before R has answered hello", async () => {
     const store = unopened(undefined, reply("hello-locked") as HelloReply);
 
-    await expect(store.open(file({}))).rejects.toThrow(/The board is locked, so it opens no other board/);
-    await expect(store.check(file({}))).rejects.toThrow(/The board is locked, so it opens no other board/);
+    const refused = /The load lock fixes the app to its opening board, so the store opens no other board/;
+    await expect(store.open(file({}))).rejects.toThrow(refused);
+    await expect(store.check(file({}))).rejects.toThrow(refused);
     expect(store.hasBoard()).toBe(false);
+
+    // It opens the opening board in R's reply to hello all the same.
+    await store.open(reply("hello-locked") as HelloReply);
+    expect(store.board().id).toBe("steady_lynx");
 
     await expect(newStore().open(file({}))).rejects.toThrow(
       /The store opens a JSON board only once R has answered `hello`/,
@@ -747,8 +768,8 @@ describe("opening a board", () => {
   });
 
   test("ends at the same board whichever way the board comes in, and saves the JSON board R sent as it is, with the board options core's basic frontend requires", async () => {
-    // Unlocked, so that the store opens a JSON board on it.
-    const replied: HelloReply = { ...(reply("hello-locked") as HelloReply), lock: null };
+    // Without the load lock, so that the store opens a JSON board's text on it.
+    const replied: HelloReply = { ...(reply("hello-locked") as HelloReply), lock: { board: false, load: false } };
 
     // As R sent it.
     const viaR = newStore();
@@ -806,8 +827,9 @@ describe("opening a board", () => {
             registry_id: "blockr.core-dataset_block",
             state: { dataset: "mtcars", package: "datasets" },
             name: "Cars",
+            locked: null,
           },
-          x: { registry_id: "blockr.dplyr-filter_block", state: {}, name: "Filter" },
+          x: { registry_id: "blockr.dplyr-filter_block", state: {}, name: "Filter", locked: null },
           b: head(),
         },
         links: {
@@ -852,7 +874,7 @@ describe("opening a board", () => {
       file(
         {
           plugins: { dock: plugin(dock, "Dock", { views: { main: { panels: ["a", "x"] } } }) },
-          blocks: { a: head(), x: { registry_id: "blockr.dplyr-filter_block", state: {}, name: "Filter" } },
+          blocks: { a: head(), x: { registry_id: "blockr.dplyr-filter_block", state: {}, name: "Filter", locked: null } },
           links: {},
           stacks: {},
         },
@@ -955,6 +977,15 @@ describe("a store that ends", () => {
 });
 
 describe("saving a board", () => {
+  test("writes each block's lock beside its name, null among its values", async () => {
+    const store = await opened();
+    store.apply({ blocks: { mod: { b: { locked: false } } } });
+
+    const { blocks } = store.jsonBoard().board;
+    expect(Object.keys(blocks.a ?? {})).toEqual(["registry_id", "version", "state", "name", "locked"]);
+    expect([blocks.a?.locked, blocks.b?.locked]).toEqual([null, false]);
+  });
+
   test("writes the board it holds as the text of its JSON board, which another store opens to the same board", async () => {
     const store = await docked();
     store.apply([
@@ -1050,6 +1081,7 @@ describe("migrations", () => {
         registry_id: "blockr.core-dataset_block",
         state: { dataset: "mtcars", package: "datasets" },
         name: "Cars",
+        locked: null,
       },
       b: { ...head(), state: { n: "6", direction: "head" } },
     },
@@ -1539,17 +1571,22 @@ describe("applying a delta", () => {
   });
 
 
-  test("under the board lock takes a patch inside a plugin's state, which the plugin locks itself", async () => {
-    const locked: HelloReply = { ...docking, lock: { open: [] } };
+  test("under the board lock takes a patch inside a plugin's state, which the plugin locks itself, but renames no plugin", async () => {
+    const locked: HelloReply = { ...docking, lock: { board: true, load: false } };
     const store = await opened(dockClasses, locked);
 
     store.apply({ patches: [{ op: "replace", path: "/plugins/dag/state/positions/a", value: { x: 9, y: 9 } }] });
     expect(positionsOf(store.board()).a).toEqual({ x: 9, y: 9 });
+    store.apply({ patches: [{ op: "replace", path: "/plugins/dag/state", value: { positions: {} } }] });
+    expect(positionsOf(store.board())).toEqual({});
+    store.undo();
+    expect(positionsOf(store.board()).a).toEqual({ x: 9, y: 9 });
 
-    // What a block's removal makes a plugin's update return lies inside the
-    // plugin's state too.
-    store.apply({ blocks: { rm: ["b"] } });
-    expect(viewsOf(store.board())).toEqual({ main: { panels: ["a"] } });
+    const board = store.board();
+    expect(() => {
+      store.apply({ patches: [{ op: "replace", path: "/plugins/dag/name", value: "Graph" }] });
+    }).toThrow('The board lock refuses to rename plugin "dag".');
+    expect(store.board()).toBe(board);
   });
 
   test("applies several deltas in order as one step, or none of them", async () => {
@@ -1714,6 +1751,111 @@ describe("applying a delta", () => {
     store.undo();
 
     expect(store.board().blocks.b?.state).toEqual({ n: 10, direction: "head" });
+  });
+});
+
+describe("the locks", () => {
+  // R's reply to hello with the locks given, whose opening board, the sample
+  // board, gives the head block b a lock of false, which the board lock leaves
+  // open, and the merge block c a lock of true, while every other block's lock
+  // is null, which follows the board lock.
+  function locking(lock: HelloReply["lock"]): HelloReply {
+    const { blocks } = hello.board.board;
+    const lockOf = (id: string, locked: boolean | null): Block & { version: number } => {
+      const block = blocks[id];
+      if (block === undefined) throw new Error(`The fixture's board has no block ${id}.`);
+      return { ...block, locked };
+    };
+    return {
+      ...hello,
+      lock,
+      board: {
+        ...hello.board,
+        board: { ...hello.board.board, blocks: { ...blocks, b: lockOf("b", false), c: lockOf("c", true) } },
+      },
+    };
+  }
+
+  test("says which blocks a lock fixes, by the board lock and each block's lock", async () => {
+    const loading = await opened(undefined, locking({ board: false, load: true }));
+    expect(["a", "b", "c"].map((id) => loading.locked(id))).toEqual([false, false, false]);
+
+    const store = await opened(undefined, locking({ board: true, load: false }));
+    expect(store.board().blocks.a?.locked).toBeNull();
+    // A block that the board lacks reads as fixed, since no delta adds one.
+    expect(["a", "b", "c", "z"].map((id) => store.locked(id))).toEqual([true, false, true, true]);
+  });
+
+  test.each<[string, Delta, string]>([
+    ["adding a block", { blocks: { add: { g: head(3) } } }, 'The board lock refuses to add block "g".'],
+    ["removing a block", { blocks: { rm: ["f"] } }, 'The board lock refuses to remove block "f".'],
+    ["renaming a block", { blocks: { mod: { b: { name: "Top" } } } }, 'The board lock refuses to rename block "b".'],
+    [
+      "changing a block's lock",
+      { blocks: { mod: { b: { locked: true } } } },
+      'The board lock refuses to change the lock of block "b".',
+    ],
+    [
+      "changing the state of a block whose lock is true",
+      { blocks: { mod: { c: { state: { all_x: true } } } } },
+      'The lock of block "c" fixes its state under the board lock.',
+    ],
+    [
+      "unsetting a state arg of a block whose lock follows the board lock",
+      { blocks: { mod: { a: { unset: ["package"] } } } },
+      'The board lock fixes the state of block "a", whose lock follows the board lock.',
+    ],
+    ["adding a link", { links: { add: { fe: { from: "f", to: "e", input: "" } } } }, 'The board lock refuses to add link "fe".'],
+    ["changing a link", { links: { mod: { ad: { from: "b" } } } }, 'The board lock refuses to change link "ad".'],
+    ["removing a link", { links: { rm: ["ab"] } }, 'The board lock refuses to remove link "ab".'],
+    [
+      "adding a stack",
+      { stacks: { add: { s2: { name: "More", blocks: ["c"], color: null } } } },
+      'The board lock refuses to add stack "s2".',
+    ],
+    ["changing a stack", { stacks: { mod: { s1: { color: "#66c2a5" } } } }, 'The board lock refuses to change stack "s1".'],
+    ["removing a stack", { stacks: { rm: ["s1"] } }, 'The board lock refuses to remove stack "s1".'],
+    ["renaming the board", { name: "Sepals" }, "The board lock refuses to rename the board."],
+  ])("under the board lock, refuses %s, naming the lock, and changes nothing", async (_, delta, message) => {
+    const store = await opened(undefined, locking({ board: true, load: false }));
+    const board = store.board();
+
+    expect(() => {
+      store.apply(delta);
+    }).toThrow(message);
+    expect(store.board()).toBe(board);
+    expect(store.canUndo()).toBe(false);
+  });
+
+  test("under the board lock, applies a change to the state of a block that it leaves open and to a board option's value", async () => {
+    const store = await opened(undefined, locking({ board: true, load: true }));
+
+    store.apply({ blocks: { mod: { b: { state: { n: 3 } } } } });
+    expect(store.board().blocks.b?.state).toEqual({ n: 3, direction: "head" });
+    store.undo();
+    expect(store.board().blocks.b?.state).toEqual({ n: 6, direction: "head" });
+    store.redo();
+    expect(store.board().blocks.b?.state).toEqual({ n: 3, direction: "head" });
+
+    store.apply({ options: { set: { n_rows: 25 } } });
+    expect(store.board().options.n_rows).toBe(25);
+
+    // Setting what a locked block holds already changes nothing, so the lock
+    // refuses nothing.
+    const board = store.board();
+    store.apply({ blocks: { mod: { c: { state: { all_x: false } } } } });
+    expect(store.board()).toBe(board);
+  });
+
+  test("applies under the load lock alone what the board lock refuses, and opens a JSON board's text under the board lock alone", async () => {
+    const loading = await opened(undefined, locking({ board: false, load: true }));
+    loading.apply([{ blocks: { mod: { c: { state: { all_x: true }, locked: false } } } }, { name: "Sepals" }]);
+    expect(loading.board().blocks.c?.locked).toBe(false);
+
+    const store = unopened(undefined, locking({ board: true, load: false }));
+    await store.open(file({}));
+    expect(store.board().id).toBe("amber_tapir");
+    expect(store.locked("a")).toBe(true);
   });
 });
 

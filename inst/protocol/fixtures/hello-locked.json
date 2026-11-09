@@ -1,5 +1,5 @@
 {
-  "description": "A new session of a locked app, whose script sets blockr.locked to TRUE and leaves b open. The client holds its board already, where a reader may have changed b, and keeps it. R replies with the opening board and with the lock, which leaves b open.",
+  "description": "A new session of an app whose script sets the blockr options locked and lock_load to TRUE, which turn the board lock and the load lock on, and gives b a locked of FALSE, which leaves b open under the board lock. The block a holds a locked of null, so it follows the board lock, which locks it. The client holds its board already, where a reader may have changed b, and keeps it. R replies with the opening board and with both locks on.",
   "client": [
     {
       "id": "1",
@@ -116,7 +116,7 @@
         "plugin_versions": {},
         "option_versions": {},
         "renderers": {},
-        "lock": { "open": ["b"] },
+        "lock": { "board": true, "load": true },
         "board": {
           "format": 1,
           "packages": { "blockr.core": "0.2.0" },
@@ -129,13 +129,15 @@
                 "registry_id": "blockr.core-dataset_block",
                 "version": 1,
                 "state": { "dataset": "iris", "package": "datasets" },
-                "name": "Iris"
+                "name": "Iris",
+                "locked": null
               },
               "b": {
                 "registry_id": "blockr.core-head_block",
                 "version": 1,
                 "state": { "n": 6, "direction": "head" },
-                "name": "Head"
+                "name": "Head",
+                "locked": false
               }
             },
             "links": { "ab": { "from": "a", "to": "b", "input": "data" } },

@@ -90,11 +90,18 @@
         "name": {
           "type": "string"
         },
+        "locked": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "version": {
           "type": "number"
         }
       },
       "required": [
+        "locked",
         "name",
         "registry_id",
         "state",

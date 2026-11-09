@@ -47,12 +47,27 @@ read_evaluate <- function(req) {
 
   list(
     fields = fields,
+    locked = read_evaluate_lock(req[["locked"]]),
     recipe = list(
       registry_id = recipe[["registry_id"]],
       state = read_map(recipe, "state"),
       inputs = read_reads(recipe[["inputs"]], input = TRUE)
     ),
     params = read_map(req, "params")
+  )
+}
+
+# The block's lock that an evaluation carries, as `read_block_lock()` reads
+# it, with `NA` for `null`, which follows the board lock.
+# An evaluation that carries none counts as one of `null`.
+read_evaluate_lock <- function(x) {
+  tryCatch(
+    read_block_lock(x, "An evaluate"),
+    block_locked_invalid = function(e) {
+      protocol_abort(
+        "An evaluate carries the block's `locked`, as true, false or null."
+      )
+    }
   )
 }
 

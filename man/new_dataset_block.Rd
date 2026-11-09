@@ -7,7 +7,12 @@
 \usage{
 dataset_block
 
-new_dataset_block(dataset, package = "datasets", block_name = NULL)
+new_dataset_block(
+  dataset,
+  package = "datasets",
+  block_name = NULL,
+  locked = NA
+)
 }
 \arguments{
 \item{dataset}{Selected dataset}
@@ -16,6 +21,11 @@ new_dataset_block(dataset, package = "datasets", block_name = NULL)
 
 \item{block_name}{Name of the block, which defaults to one made from the
 name of its class, such as "Head"}
+
+\item{locked}{The block's lock, which fixes its state where the board lock
+is on: \code{TRUE} locks the block, \code{FALSE} leaves it open to readers, and
+\code{NA}, the default, follows the board lock, which then locks it (see
+\link{locked-board})}
 }
 \value{
 The block class \code{dataset_block} is an object of class \code{block_class},

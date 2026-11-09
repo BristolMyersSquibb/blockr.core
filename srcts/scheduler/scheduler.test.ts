@@ -161,7 +161,7 @@ describe("revisions", () => {
     for (const id of ["b", "c", "e"]) expect(after[id]).toBeGreaterThan(top);
   });
 
-  test("stay through a rename, a stack, a board option, the board's name, a plugin's state and a state set to what it holds", async () => {
+  test("stay through a rename, a lock, a stack, a board option, the board's name, a plugin's state and a state set to what it holds", async () => {
     const { store, scheduler } = await setup(
       {},
       {
@@ -182,6 +182,7 @@ describe("revisions", () => {
         },
       },
     });
+    store.apply({ blocks: { mod: { c: { locked: true } } } });
     store.apply({ stacks: { mod: { s1: { name: "Inputs" } } } });
     store.apply({ options: { set: { n_rows: 20 } } });
     store.apply({ name: "Renamed" });
@@ -475,6 +476,7 @@ describe("demand and scheduling", () => {
       kind: "evaluate",
       block: "c",
       revision: statusOf(scheduler, "c").revision,
+      locked: null,
       recipe: {
         registry_id: "blockr.core-merge_block",
         state: { by: ["Species"], all_x: false, all_y: false },
@@ -489,6 +491,20 @@ describe("demand and scheduling", () => {
     await evaluateAll(r);
     expect(r.evaluations()).toHaveLength(3);
     expect(statusOf(scheduler, "d").status).toBe("unevaluated");
+  });
+
+  test("send each block's lock beside its recipe, as the block holds it", async () => {
+    const { r, store, scheduler } = await setup();
+    store.apply({ blocks: { mod: { a: { locked: false }, b: { locked: true } } } });
+    scheduler.demand("test", ["b"]);
+    scheduler.start();
+    await tick();
+
+    expect(pendingOf(r, "a").locked).toBe(false);
+    r.evaluated(pendingOf(r, "a"));
+    await tick();
+    expect(pendingOf(r, "b").locked).toBe(true);
+    expect(Object.keys(pendingOf(r, "b").recipe)).toEqual(["registry_id", "state", "inputs"]);
   });
 
   test("keep at most evaluation_queue evaluations waiting in R behind the one it runs", async () => {
