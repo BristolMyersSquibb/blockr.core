@@ -149,6 +149,54 @@ test_that("an inputs check returns NULL, and any other value fails it", {
   expect_identical(res$status, "ok")
 })
 
+test_that("a summary that is no string fails, and the block stays ok", {
+
+  odd <- new_block_class(
+    "odd_block",
+    expr = function() quote(structure(1, class = "odd_result")),
+    ui = js_module("odd.js")
+  )
+
+  methods <- list(
+    function(result) c("a", "b"),
+    function(result) 1,
+    function(result) NULL,
+    function(result) stop("No summary.")
+  )
+
+  for (method in methods) {
+
+    local_mocked_s3_method("result_summary", "odd_result", method)
+
+    res <- evaluate_block(odd)
+
+    expect_identical(res$status, "ok")
+    expect_identical(res$result, structure(1, class = "odd_result"))
+    expect_null(res$summary)
+    expect_length(res$conditions, 1L)
+    expect_identical(res$conditions[[1L]]$severity, "error")
+    expect_identical(res$conditions[[1L]]$phase, "result_summary")
+  }
+
+  local_mocked_s3_method(
+    "result_summary",
+    "odd_result",
+    function(result) c("a", "b")
+  )
+
+  res <- evaluate_block(odd)
+
+  expect_contains(res$conditions[[1L]]$class, "result_summary_invalid")
+  expect_identical(
+    res$conditions[[1L]]$message,
+    paste(
+      "The `result_summary()` method for a result of class odd_result is",
+      "expected to return a string, but it returned an object of class",
+      "character and length 2."
+    )
+  )
+})
+
 test_that("warnings and messages are recorded with their phase", {
 
   noisy <- new_block_class(

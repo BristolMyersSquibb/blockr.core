@@ -67,7 +67,9 @@ becomes \code{null}, and so do an infinite number and \code{NaN}, which JSON can
 hold. A cell that is not a single value shows its summary instead, as
 \code{\link[=result_summary]{result_summary()}} gives it, such as \verb{<lm>} or \verb{<data.frame> [3 × 2]}. So
 the table stays flat, whatever a list-column or a matrix or data frame
-column holds. Values of other classes go to the writer as they are, which
+column holds.
+A \code{result_summary()} method that returns no string makes the coercion fail.
+Values of other classes go to the writer as they are, which
 writes a time in UTC and fails on a complex number. Each column keeps its
 name and its first class. Row names are dropped, as tibble drops them. A
 table that needs more takes a renderer of its own.

@@ -87,6 +87,10 @@ header and in the cells of a table. Core's method names the result's class
 in full, or its type for an object without a class, with \verb{<function>} for
 any function and \verb{<tibble>} for a tibble. It adds the result's dimensions,
 or the length of a vector.
+A method returns a string, and any other value fails the summary,
+as an error does.
+The block's status then stays \code{ok}, since the block ran, but its evaluation
+holds no summary.
 }
 \examples{
 head_block <- new_block_class(
