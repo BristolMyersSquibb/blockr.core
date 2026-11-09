@@ -179,10 +179,10 @@ check_inputs <- function(cls, data) {
 }
 
 # The summary of a result from `result_summary()`.
+# Core calls `result_summary()` only through this check.
 # A method is expected to return a string.
 # Where it returns anything else, the check signals an error,
-# so that the phase result_summary records the failure,
-# as it records an error that the method signals.
+# just as a method that fails does.
 check_summary <- function(result) {
 
   res <- result_summary(result)

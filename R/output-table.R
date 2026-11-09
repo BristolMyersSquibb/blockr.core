@@ -27,7 +27,9 @@
 #' hold. A cell that is not a single value shows its summary instead, as
 #' [result_summary()] gives it, such as `<lm>` or `<data.frame> [3 × 2]`. So
 #' the table stays flat, whatever a list-column or a matrix or data frame
-#' column holds. Values of other classes go to the writer as they are, which
+#' column holds.
+#' A `result_summary()` method that returns no string makes the coercion fail.
+#' Values of other classes go to the writer as they are, which
 #' writes a time in UTC and fails on a complex number. Each column keeps its
 #' name and its first class. Row names are dropped, as tibble drops them. A
 #' table that needs more takes a renderer of its own.
@@ -214,7 +216,7 @@ table_cells <- function(x) {
 
   if (is.data.frame(x) || is.array(x)) {
     return(
-      chr_ply(seq_len(vec_size(x)), function(i) result_summary(vec_slice(x, i)))
+      chr_ply(seq_len(vec_size(x)), function(i) check_summary(vec_slice(x, i)))
     )
   }
 
@@ -234,7 +236,7 @@ table_cell <- function(x) {
     return(x)
   }
 
-  result_summary(x)
+  check_summary(x)
 }
 
 #' @export

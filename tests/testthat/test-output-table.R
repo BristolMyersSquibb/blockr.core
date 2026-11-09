@@ -252,6 +252,29 @@ test_that("a table output's cells hold values that JSON can carry", {
   expect_identical(names(json$columns[[1L]]), c("name", "class"))
 })
 
+test_that("a cell whose summary is no string fails the coercion", {
+
+  local_mocked_s3_method(
+    "result_summary",
+    "odd_result",
+    function(result) c("a", "b")
+  )
+
+  lst <- data.frame(id = 1:2)
+  lst$cell <- list(structure(1, class = "odd_result"), 2)
+
+  mat <- data.frame(id = 1:2)
+  mat$cell <- structure(matrix(1:4, 2L),
+                        class = c("odd_result", "matrix", "array"))
+
+  for (df in list(lst, mat)) {
+    expect_error(
+      as_table_output(df, options = n_rows),
+      class = "result_summary_invalid"
+    )
+  }
+})
+
 test_that("a table's cells are turned into JSON values only once", {
 
   df <- data.frame(
