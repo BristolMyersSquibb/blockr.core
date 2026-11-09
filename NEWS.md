@@ -279,6 +279,9 @@
   It shows an error in the block's element in place of the module's UI, as it does for a module that declares another major of core's JS API.
   The error names the module and its package, each board option that the module leaves out, and the requests that read it.
   The rest of the page, the block's evaluation included, carries on (#502).
+* The `bbquote()` function throws an error for a call to `.()` or `..()` that holds anything but a single name, such as `.(n + 1L)` or data.table's `.(total = sum(value))`, `.(n = .N)` or `.(x, y)`.
+  Until now, base `bquote()` evaluated the first argument of such a call, so that `.(total = sum(value))` failed with `could not find function "sum"` and `.(n = .N)` silently became `.(.N)`.
+  A class that builds data.table code returns a call or a string instead (#496).
 
 # blockr.core 0.1.4
 

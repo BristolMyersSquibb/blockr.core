@@ -176,6 +176,29 @@ test_that("placeholders are filled in wherever they are", {
   )
 })
 
+test_that("a .() with an argument name is no placeholder", {
+
+  expect_identical(
+    interpolate(
+      bbquote(.(data)[, .(j)], list(j = quote(.(n = data)))),
+      list(data = "a")
+    ),
+    quote(a[, .(n = data)])
+  )
+})
+
+test_that("data.table's .() stays as it is in a call", {
+
+  total <- function(by = "id") {
+    substitute(data[, .(total = sum(value)), by = by_col], list(by_col = by))
+  }
+
+  expect_identical(
+    interpolate(total(), list(data = "a")),
+    quote((function(data) data[, .(total = sum(value)), by = "id"])(data = a))
+  )
+})
+
 test_that("bquoted_exprs print as the call they hold", {
   expect_snapshot(print(bbquote(utils::head(.(data), n = 10L))))
 })
