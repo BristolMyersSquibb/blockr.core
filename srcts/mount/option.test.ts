@@ -211,7 +211,6 @@ describe("the host", () => {
       id: sent[1]?.id ?? "",
       status: "error",
       conditions: [{ severity: "error", class: ["simpleError", "error", "condition"], phase: "request", message: "gone" }],
-      omitted: { warning: 0, message: 0 },
     });
     await expect(first).resolves.toEqual(["x"]);
     await expect(second).rejects.toBeInstanceOf(RequestError);

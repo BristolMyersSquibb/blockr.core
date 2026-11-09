@@ -238,7 +238,6 @@ function fixtureR(hello: HelloReply, options: StubCoreOptions) {
           status: "ok",
           summary: null,
           conditions: [],
-          omitted: { warning: 0, message: 0 },
           stdout: "",
           stderr: "",
           ...given,
@@ -298,6 +297,5 @@ function failed(id: string, phase: "output" | "request", message: string): Reply
     id,
     status: "error",
     conditions: [{ severity: "error", class: ["blockr_error", "error", "condition"], phase, message }],
-    omitted: { warning: 0, message: 0 },
   };
 }

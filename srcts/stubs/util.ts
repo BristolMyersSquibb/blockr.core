@@ -11,7 +11,6 @@ export const READY: BlockStatus = Object.freeze({
   evaluated: 1,
   running: false,
   conditions: Object.freeze([]),
-  omitted: Object.freeze({ warning: 0, message: 0 }),
   stdout: "",
   stderr: "",
   summary: null,

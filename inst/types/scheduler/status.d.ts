@@ -1,5 +1,5 @@
 import type { Graph } from "../graph/index.ts";
-import type { Condition, Omitted, Reply } from "../protocol/index.ts";
+import type { Condition, Reply } from "../protocol/index.ts";
 import type { BlockId } from "../types/board.ts";
 import type { Inputs } from "./recipes.ts";
 export type Status = "unevaluated" | "stale" | "waiting" | "invalid" | "ready" | "failed";
@@ -9,7 +9,6 @@ export interface BlockStatus {
     readonly evaluated: number | null;
     readonly running: boolean;
     readonly conditions: readonly Condition[];
-    readonly omitted: Omitted;
     readonly stdout: string;
     readonly stderr: string;
     readonly summary: string | null;
@@ -19,7 +18,6 @@ export interface Outcome {
     readonly revision: number;
     readonly summary: string | null;
     readonly conditions: readonly Condition[];
-    readonly omitted: Omitted;
     readonly stdout: string;
     readonly stderr: string;
 }

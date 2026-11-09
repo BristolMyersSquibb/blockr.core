@@ -31,8 +31,7 @@
             "phase": "output",
             "message": "no applicable method for 'as_table_output' applied to an object of class \"list\""
           }
-        ],
-        "omitted": { "warning": 0, "message": 0 }
+        ]
       }
     ]
   ]

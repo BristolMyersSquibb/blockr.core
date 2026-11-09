@@ -10,14 +10,16 @@ test_that("the transport starts a session that the page may start anew", {
     decode_message(transport_sent(session)),
     list(
       body_url = "session/mock/dataobj/blockr-bodies?w=&nonce=0",
-      max_request_size = 5 * 1024^2
+      max_request_size = 5 * 1024^2,
+      max_message_size = 4 * 2^20
     )
   )
   expect_s3_class(session$sent[[1L]][["message"]], "json")
   expect_identical(session$sent[[1L]][["type"]], "blockr")
 
-  # Shiny takes a body of any size where its limit is 0.
-  withr::local_options(shiny.maxRequestSize = 0)
+  # Shiny takes a body of any size where its limit is 0, and R sends a message
+  # of any size where its own is `Inf`.
+  withr::local_options(shiny.maxRequestSize = 0, blockr.max_message_size = Inf)
 
   session <- with_transport(function(message, send) NULL)
 
@@ -375,19 +377,29 @@ test_that("a body travels in a binary frame where the blockr option says so", {
 
 test_that("the largest body in a message follows the encoding by default", {
 
-  expect_identical(message_body_opts(), list(max = 2^20, encoding = "base64"))
+  expect_identical(
+    message_opts(),
+    list(encoding = "base64", max_body = 2^20, max_size = 4 * 2^20)
+  )
 
   withr::with_options(list(blockr.message_body_encoding = "binary"), {
     expect_identical(
-      message_body_opts(),
-      list(max = 4 * 2^20, encoding = "binary")
+      message_opts(),
+      list(encoding = "binary", max_body = 4 * 2^20, max_size = 4 * 2^20)
     )
   })
 
   # As set, whatever the encoding.
   withr::with_options(
-    list(blockr.message_body_encoding = "binary", blockr.max_message_body = 0),
-    expect_identical(message_body_opts(), list(max = 0, encoding = "binary"))
+    list(
+      blockr.message_body_encoding = "binary",
+      blockr.max_message_body = 0,
+      blockr.max_message_size = 100
+    ),
+    expect_identical(
+      message_opts(),
+      list(encoding = "binary", max_body = 0, max_size = 100)
+    )
   )
 })
 
@@ -413,6 +425,128 @@ test_that("the transport refuses blockr options it cannot follow", {
       class = "message_body_encoding_invalid"
     )
   })
+
+  # A message of no bytes at all would hold no reply.
+  withr::with_options(list(blockr.max_message_size = 0), {
+    expect_error(
+      with_transport(function(message, send) NULL),
+      class = "max_message_size_invalid"
+    )
+  })
+
+  withr::with_envvar(c(BLOCKR_MAX_MESSAGE_SIZE = "big"), {
+    expect_error(
+      with_transport(function(message, send) NULL),
+      class = "max_message_size_invalid"
+    )
+  })
+})
+
+test_that("R sends nothing of a message larger than the blockr option says", {
+
+  withr::local_options(blockr.max_message_size = 100)
+
+  text <- function(n) list(id = "1", status = "ok", value = strrep("x", n))
+
+  with_transport(
+    function(message, send) NULL,
+    {
+      before <- length(session$sent)
+
+      # The note goes with the reply, and the two are too large together.
+      expect_error(
+        send_message(
+          list(list(id = "1", progress = list(value = 0.5)), text(60L)),
+          session
+        ),
+        "R's message of 133 bytes is larger than the 100 bytes that the blockr",
+        class = "protocol_message_too_large"
+      )
+      expect_length(session$sent, before)
+
+      # A message of as many bytes as the limit goes.
+      send_message(list(text(63L)), session)
+
+      expect_identical(
+        nchar(utils::tail(transport_sent(session), 1L), type = "bytes"),
+        100L
+      )
+    }
+  )
+})
+
+test_that("a body travels in its message where the message stays small", {
+
+  withr::local_options(blockr.max_message_size = 150)
+
+  reply <- function(id, n) {
+    list(
+      id = id,
+      status = "ok",
+      body = new_reply_body(as.raw(rep(1L, n)), "image/png")
+    )
+  }
+
+  sent_body <- function(n) {
+
+    session <- with_transport(
+      function(message, send) NULL,
+      send_message(list(reply("1", n)), session)
+    )
+
+    decode_message(utils::tail(transport_sent(session), 1L))[[1L]][["body"]]
+  }
+
+  # Its base64 would make the message larger than the limit.
+  expect_named(sent_body(100L), c("type", "url"))
+  expect_named(sent_body(30L), c("type", "data"))
+
+  withr::local_options(blockr.message_body_encoding = "binary")
+
+  session <- with_transport(
+    function(message, send) NULL,
+    send_message(list(reply("1", 120L), reply("2", 30L)), session)
+  )
+
+  # The frame would hold the length of its JSON, that JSON and the body.
+  expect_named(
+    decode_message(utils::tail(transport_sent(session), 1L))[[1L]][["body"]],
+    c("type", "url")
+  )
+  expect_length(transport_frames(session), 1L)
+})
+
+test_that("R serves none of the bodies of a message that it refuses", {
+
+  withr::local_options(
+    blockr.max_message_size = 200,
+    blockr.max_message_body = 0
+  )
+
+  with_transport(
+    function(message, send) NULL,
+    {
+      expect_error(
+        send_message(
+          list(
+            list(
+              id = "3",
+              status = "ok",
+              value = strrep("x", 300L),
+              body = new_reply_body(as.raw(1:3), "image/png")
+            )
+          ),
+          session
+        ),
+        class = "protocol_message_too_large"
+      )
+
+      expect_identical(
+        session$data_objs[["blockr-body-3"]][["filter"]],
+        body_gone
+      )
+    }
+  )
 })
 
 test_that("a reply goes as it is where its body is no reply body", {
@@ -528,7 +662,7 @@ test_that("R replies error to a request whose body never came", {
 
   expect_identical(reply[["id"]], "27")
   expect_identical(reply[["status"]], "error")
-  expect_identical(reply[["omitted"]], list(warning = 0L, message = 0L))
+  expect_named(reply, c("id", "status", "conditions"))
 
   cnd <- reply[["conditions"]][[1L]]
 
