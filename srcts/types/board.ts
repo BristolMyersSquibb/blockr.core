@@ -41,6 +41,11 @@ export interface Block {
   // Its values for the formals of its class's `expr`, as { n: 6 }.
   readonly state: Readonly<Record<string, Json>>;
   readonly name: string;
+  // Its lock, which fixes its state where the board lock is on: true locks the
+  // block, false leaves it open, and null follows the board lock, so that the
+  // board lock locks the block. The store's locked() says which blocks a lock
+  // fixes, so that no frontend reads null as open.
+  readonly locked: boolean | null;
 }
 
 // A plugin, which names its class by the class's id and keeps its state in the

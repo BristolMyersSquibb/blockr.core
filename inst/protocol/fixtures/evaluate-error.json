@@ -6,6 +6,7 @@
       "kind": "evaluate",
       "block": "d",
       "revision": 8,
+      "locked": null,
       "recipe": {
         "registry_id": "blockr.core-subset_block",
         "state": { "subset": "Sepal.Widht > 4", "select": "" },

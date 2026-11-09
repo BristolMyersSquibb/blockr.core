@@ -2,47 +2,77 @@
 % Please edit documentation in R/board-lock.R
 \name{locked-board}
 \alias{locked-board}
-\alias{is_board_locked}
-\alias{is_board_locked.board}
 \title{Locked boards}
-\usage{
-is_board_locked(board, ...)
-
-\method{is_board_locked}{board}(board, ...)
-}
-\arguments{
-\item{board}{A \code{board} object to dispatch on.}
-
-\item{...}{Generic consistency.}
-}
-\value{
-A logical flag.
-}
 \description{
-A board can be deployed read-only by setting the \code{blockr.locked}
-option (see \code{\link[=blockr_option]{blockr_option()}}). Locking has to be enforced
-server-side, not by UI hiding: a forged \code{Shiny.setInputValue}
-bypasses any \code{display: none}, so the refusal has to happen on the
-server.
+An app sets three locks, each on its own.
 }
 \details{
-The generic \code{is_board_locked()} reports whether a board is locked.
-Its method for \code{board}, the class of every board, reads the
-\code{blockr.locked} option, and \code{blockr.dock}'s \code{is_dock_locked()} delegates
-here.
+\itemize{
+\item The load lock, the blockr option \code{lock_load}, fixes the app to its opening
+board, the one that the app script built or that \code{serve()} was given.
+The client's store then opens no other board,
+and a frontend draws no control for opening one.
+\item The board lock, the blockr option \code{locked}, fixes what every board that
+the app shows holds: its blocks and links, its name, every block's name
+and lock, its stacks and the names of its plugins.
+A reader may still change a board option, such as dark mode,
+the state of a block that the board lock leaves open,
+and what sits inside a plugin's state, which each plugin locks itself.
+\item A block's lock, its \code{locked}, fixes the block's state where the board lock
+is on.
+A lock of \code{TRUE} locks the block, \code{FALSE} leaves it open to readers,
+and \code{NA} follows the board lock, which then locks it.
+A block holds \code{NA} unless a script gives it another lock,
+and a JSON board holds \code{NA} as \code{null}.
+}
+
+An app sets a blockr option as an R option, such as \code{blockr.locked},
+and a deployment as an environment variable, such as \code{BLOCKR_LOCKED}
+(see \code{\link[=blockr_option]{blockr_option()}}).
+Each lock is off unless one of them sets it.
+So an author leaves a block open to readers by giving it
+\code{locked = FALSE} in an app without the board lock,
+saves the board and serves it with the board lock on.
+
+The client's store refuses what the locks fix.
+Under the board lock, R refuses an evaluation that binds a block's data
+inputs to other blocks or gives a locked block another state,
+with an error that names the lock.
+Where the load lock is on too, R holds every block to the opening board,
+which it reads as the app starts.
+It evaluates only that board's blocks, with their opening links,
+and every locked block with the block expression that it built from the
+block's opening state.
+A locked block whose block expression fails to build from that state stops
+the app as it starts, naming the block, unless the failure is a
+\code{\link[=blockr_invalid]{blockr_invalid()}}, which R replies with to every evaluation of the block.
+Since no migration runs in R, it refuses a JSON board that \code{serve()} is
+given with a block whose class the block registry lacks, or whose state is
+at another version than its class gives, naming each.
+Opening and saving the board once in an app of the same packages migrates
+it in the client.
+Without the load lock, R holds a block to its first evaluation since the
+board opened.
+That guards against a defect in the client,
+but not against a client that sends another lock.
+
+R runs every request as on any board, an action among them,
+with the board option values that the request carries,
+since the locks fix the board and its blocks' state, which no request
+changes.
+A request that should not run on a locked board, such as one that evaluates
+code that the client sends, is its package's to refuse,
+by reading the blockr option \code{locked}.
 }
 \section{Scope}{
- Locking guards against forged \emph{client input} -- a
-browser that sets Shiny inputs but cannot run server-side R. It is
-\strong{not} a defense against code executing in the session: blockr
-evaluates arbitrary R, which can flip the option, rebind this generic
-or mutate board state directly, and no in-process flag can prevent
-that. A hard boundary has to live where the user's code does not run
-(a sandboxed evaluator, or an ephemeral read-only deployment). Treat
-locking as a guard for non-malicious users.
+ A lock is no sandbox.
+A block left open may parse what a reader types into code,
+and blockr evaluates arbitrary R.
+So a hard boundary has to live where the user's code does not run,
+such as a sandboxed R process.
 }
 
 \examples{
-is_board_locked(new_board())
+new_head_block(n = 10L, locked = FALSE)
 
 }

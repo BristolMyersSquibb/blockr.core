@@ -19,8 +19,9 @@
 // before.
 // The card always shows the block's UI and its output, with no toggles to
 // hide them, which a frontend built on core's may add.
-// On a locked board, the card draws no control for what the lock fixes. It
-// has no menu, and it shows the UI only of a block that the lock leaves open.
+// Under the board lock, the card draws no control for what the lock fixes. It
+// has no menu, and it mounts the UI only of a block that the board lock leaves
+// open, as the store's locked() says.
 
 import { memo, useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
@@ -67,8 +68,8 @@ export const BlockCard = memo(function BlockCard({
   const mountUi = useCallback((el: HTMLElement) => core.mountBlock(el, id), [core, id]);
   const mountOutput = useCallback((el: HTMLElement) => core.mountOutput(el, id), [core, id]);
 
-  const { lock } = core;
-  const inputs = lock === null || lock.open.includes(id);
+  const locked = core.lock.board;
+  const inputs = !core.store.locked(id);
   const entry = own(core.blockRegistry(), block.registry_id);
   const ready = status?.status === "ready";
   const replied = status !== undefined && status.evaluated !== null;
@@ -96,7 +97,7 @@ export const BlockCard = memo(function BlockCard({
         )}
         <span className="bc:text-xs bc:text-text-muted">{entry?.name ?? block.registry_id}</span>
         <StatusBadge status={status} />
-        {lock === null ? (
+        {locked ? null : (
           <div className="bc:ml-auto bc:flex bc:items-center bc:gap-1">
             <Menu
               label={`Actions of ${block.name}`}
@@ -129,7 +130,7 @@ export const BlockCard = memo(function BlockCard({
               ]}
             />
           </div>
-        ) : null}
+        )}
       </header>
       {inputs ? <Mounted mount={mountUi} label="Inputs" className="bc:min-w-0" /> : null}
       <div

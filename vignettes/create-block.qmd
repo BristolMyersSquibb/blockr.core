@@ -80,8 +80,10 @@ The constructor that app scripts call is a function that `block_constructor()` m
 new_head_block <- block_constructor(head_block)
 ```
 
-The constructor has the formals of `expr` and a `block_name`.
-It calls `expr` with its args, so that the checks in `expr`, such as `match.arg()`, run as the constructor runs.
+The constructor has the formals of `expr`, a `block_name` and a `locked`.
+The argument `locked` is the block's lock, which fixes the block's state where the app turns the board lock on: `TRUE` locks the block, `FALSE` leaves it open to readers, and `NA`, the default, follows the board lock (see `?"locked-board"`).
+So a class has no state arg of either name, and `new_block_class()` refuses one.
+The constructor calls `expr` with its args, so that the checks in `expr`, such as `match.arg()`, run as the constructor runs.
 The block keeps the state that the checks left in the frame where `expr` ran:
 
 ```{r}

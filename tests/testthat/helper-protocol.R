@@ -132,7 +132,7 @@ protocol_r_values <- function() {
             "dataset_block", "head_block", "merge_block", "subset_block",
             "rbind_block", "scatter_block", "upload_block"
           ),
-          lock = NULL,
+          lock = proto_lock(),
           board = proto_board()
         )
       )
@@ -141,7 +141,7 @@ protocol_r_values <- function() {
       list(
         proto_hello_reply(
           block_registry = proto_registry("dataset_block", "head_block"),
-          lock = obj(open = I("b")),
+          lock = proto_lock(board = TRUE, load = TRUE),
           board = proto_locked_board()
         )
       )
@@ -151,7 +151,7 @@ protocol_r_values <- function() {
         proto_hello_reply(
           block_registry = proto_registry("head_block"),
           renderers = obj(),
-          lock = NULL,
+          lock = proto_lock(),
           board = proto_json_board(
             obj(
               id = "quick_wren",
@@ -177,7 +177,7 @@ protocol_r_values <- function() {
       list(
         proto_hello_reply(
           block_registry = proto_registry("dataset_block", "subset_block"),
-          lock = NULL,
+          lock = proto_lock(),
           # R passes the file's text on as it is, as a string of class json,
           # which encode_message() writes here from R values.
           board = encode_message(proto_served_file())
@@ -197,7 +197,7 @@ protocol_r_values <- function() {
             capabilities = I(c("cancel", "progress"))
           ),
           declared_fields(),
-          obj(lock = NULL, board = proto_declared_board())
+          obj(lock = proto_lock(), board = proto_declared_board())
         )
       )
     ),
@@ -282,6 +282,26 @@ protocol_r_values <- function() {
         proto_evaluated(
           "30", "w", 12L,
           summary = "<data.frame> [300 × 9]"
+        )
+      )
+    ),
+    `evaluate-locked` = list(
+      list(
+        proto_evaluated(
+          "40", "a", 3L,
+          status = "error",
+          conditions = list(
+            proto_condition(
+              "error",
+              c("lock_refused", "blockr_error", "rlang_error", "error",
+                "condition"),
+              paste(
+                "The board lock fixes the state of block \"a\", whose lock",
+                "follows the board lock, and the evaluation gives it another",
+                "state."
+              )
+            )
+          )
         )
       )
     ),
@@ -827,9 +847,20 @@ proto_registry <- function(...) {
 }
 
 # The objects of a board, which its collections hold by id, a block with the
-# version of its class's state.
-proto_block <- function(registry_id, state, name) {
-  obj(registry_id = registry_id, version = 1L, state = state, name = name)
+# version of its class's state and its lock, which is null where it is `NA`.
+proto_block <- function(registry_id, state, name, locked = NA) {
+  obj(
+    registry_id = registry_id,
+    version = 1L,
+    state = state,
+    name = name,
+    locked = locked
+  )
+}
+
+# The locks that the reply to `hello` carries.
+proto_lock <- function(board = FALSE, load = FALSE) {
+  obj(board = board, load = load)
 }
 
 # The opening board of the app of the fixture hello-declared: the empty board
@@ -941,7 +972,8 @@ proto_board <- function() {
   )
 }
 
-# The opening board of the locked app of the fixture hello-locked.
+# The opening board of the locked app of the fixture hello-locked,
+# which leaves b open.
 proto_locked_board <- function() {
   proto_json_board(
     obj(
@@ -956,7 +988,8 @@ proto_locked_board <- function() {
         b = proto_block(
           "blockr.core-head_block",
           obj(n = 6L, direction = "head"),
-          "Head"
+          "Head",
+          locked = FALSE
         )
       ),
       links = obj(ab = proto_link("a", "b", "data")),

@@ -1,0 +1,38 @@
+{
+  "description": "An evaluation of the dataset block a in the app of the fixture hello-locked, from a client that does not play by the rules and gives a another state. Both locks are on, so R holds every block to the opening board, and a follows the board lock, which locks it. R refuses the evaluation with an error that names the lock and has no phase, and evaluates nothing.",
+  "client": [
+    {
+      "id": "40",
+      "kind": "evaluate",
+      "block": "a",
+      "revision": 3,
+      "locked": null,
+      "recipe": {
+        "registry_id": "blockr.core-dataset_block",
+        "state": { "dataset": "mtcars", "package": "datasets" },
+        "inputs": []
+      }
+    }
+  ],
+  "r": [
+    [
+      {
+        "id": "40",
+        "status": "error",
+        "block": "a",
+        "revision": 3,
+        "summary": null,
+        "conditions": [
+          {
+            "severity": "error",
+            "class": ["lock_refused", "blockr_error", "rlang_error", "error", "condition"],
+            "message": "The board lock fixes the state of block \"a\", whose lock follows the board lock, and the evaluation gives it another state."
+          }
+        ],
+        "omitted": { "warning": 0, "message": 0 },
+        "stdout": "",
+        "stderr": ""
+      }
+    ]
+  ]
+}

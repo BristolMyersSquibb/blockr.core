@@ -70,7 +70,12 @@ function checkBlocks(
 
   for (const [id, block] of Object.entries(board.blocks)) {
     if (changed !== undefined && !changed.blocks.has(id)) continue;
-    const fields = shape(block, { registry_id: "string", state: "object", name: "string" });
+    const fields = shape(block, {
+      registry_id: "string",
+      state: "object",
+      name: "string",
+      locked: "boolean or null",
+    });
     if (fields.length > 0) {
       failures.push(`The block "${id}" ${fields.join(", ")}.`);
       continue;
@@ -238,7 +243,7 @@ const ROLE_NAMES: Readonly<Record<Role, string>> = {
   storage: "storage plugins",
 };
 
-type Kind = "string" | "string or null" | "object" | "array" | "value";
+type Kind = "string" | "string or null" | "boolean or null" | "object" | "array" | "value";
 
 // What an object of core's lacks or holds beyond its properties, which a
 // delta built in plain JS or by a model may get wrong.
@@ -264,6 +269,8 @@ function fits(x: unknown, kind: Kind): boolean {
       return isObject(x);
     case "string or null":
       return x === null || typeof x === "string";
+    case "boolean or null":
+      return x === null || typeof x === "boolean";
     case "string":
       return typeof x === "string";
   }

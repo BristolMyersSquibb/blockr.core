@@ -93,6 +93,19 @@ test_that("new_block_class() checks a class once", {
     class = "block_class_args_invalid"
   )
 
+  # A constructor takes `block_name` and `locked` beside the state args.
+  for (arg in c("block_name", "locked")) {
+    expect_error(
+      new_block_class(
+        "x_block", "data",
+        as.function(c(set_names(list(1), arg), quote(bbquote(.(data))))),
+        ui
+      ),
+      paste("cannot have state arg", arg),
+      class = "block_class_args_invalid"
+    )
+  }
+
   expect_error(
     new_block_class(
       "x_block", "data", function(options = 1) "data", ui,
@@ -224,8 +237,20 @@ test_that("the constructor keeps the state the checks in expr leave", {
 
   expect_identical(
     names(formals(new_class_head_block)),
-    c("n", "direction", "block_name")
+    c("n", "direction", "block_name", "locked")
   )
+
+  # A block's lock is NA unless a script gives it.
+  expect_identical(block_locked(new_class_head_block()), NA)
+  expect_false(block_locked(new_class_head_block(locked = FALSE)))
+  expect_true(block_locked(new_class_head_block(n = 3L, locked = TRUE)))
+
+  for (locked in list("yes", c(TRUE, FALSE), NULL, NA_character_)) {
+    expect_error(
+      new_class_head_block(locked = locked),
+      class = "block_locked_invalid"
+    )
+  }
 
   expect_identical(constructor_class(new_class_head_block), head_class)
   expect_error(constructor_class(function() NULL),

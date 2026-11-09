@@ -37,8 +37,9 @@
 #' A stack is written with its name, its blocks and its color, which is `null`
 #' for a stack without one.
 #'
-#' A block is written by the registry ID of its class, with its state and its
-#' name.
+#' A block is written by the registry ID of its class, with its state, its
+#' name and its lock, `locked`, which a block whose lock is `NA` holds as
+#' `null`.
 #' Where the block registry holds no entry for its class, writing the block
 #' registers the class, as a class from outside a package, under its name.
 #' So a class defined in an app script is registered before any session
@@ -142,7 +143,8 @@ blockr_ser.block <- function(x, ...) {
       block_state(x),
       paste0("The state of block \"", block_name(x), "\"")
     ),
-    name = block_name(x)
+    name = block_name(x),
+    locked = block_locked(x)
   )
 }
 

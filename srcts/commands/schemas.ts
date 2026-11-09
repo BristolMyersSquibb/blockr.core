@@ -68,6 +68,12 @@ export const blockIds: JsonSchema = {
   description: "Ids of blocks, in order.",
 };
 
+export const locked: JsonSchema = {
+  type: ["boolean", "null"],
+  description:
+    "A block's lock, which fixes its state where the board lock is on: true locks the block, false leaves it open, and null follows the board lock.",
+};
+
 export const color: JsonSchema = {
   type: ["string", "null"],
   pattern: HEX_COLOR,

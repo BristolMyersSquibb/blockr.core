@@ -443,13 +443,21 @@ function modifyBlock(
     failures,
   );
   const name = mod.name === old.name ? undefined : mod.name;
+  // A lock of null is a value, which follows the board lock.
+  const locked = mod.locked === undefined || mod.locked === old.locked ? undefined : mod.locked;
 
   return {
-    value: { ...old, state: state.next, name: name ?? old.name },
+    value: {
+      ...old,
+      state: state.next,
+      name: name ?? old.name,
+      locked: locked === undefined ? old.locked : locked,
+    },
     inverse: {
       ...(Object.keys(state.restore).length === 0 ? {} : { state: state.restore }),
       ...(state.remove.length === 0 ? {} : { unset: state.remove }),
       ...(name === undefined ? {} : { name: old.name }),
+      ...(locked === undefined ? {} : { locked: old.locked }),
     },
   };
 }

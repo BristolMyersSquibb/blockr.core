@@ -6,6 +6,7 @@
       "kind": "evaluate",
       "block": "c",
       "revision": 9,
+      "locked": null,
       "recipe": {
         "registry_id": "blockr.core-merge_block",
         "state": { "all_x": false, "all_y": false },
