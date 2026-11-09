@@ -104,14 +104,14 @@ function watchRatio(fn: () => void): () => void {
 // to 1.
 type Rgba = readonly [number, number, number, number];
 
-// What core takes to lie behind an element where no element around it has an
-// opaque background: white, as in FALLBACK.
+// The colour behind the page where core cannot read it, as in a test runner:
+// white, as in FALLBACK.
 const WHITE: Rgba = [255, 255, 255, 1];
 
 // The colour behind the element as the page shows it. It blends the element's
 // own background over those of the elements around it, down to the nearest
-// opaque one, or down to white where none is opaque. It is null where a
-// background is a colour that core cannot read.
+// opaque one. Where none is opaque, it blends them over the colour behind the
+// page. It is null where a background is a colour that core cannot read.
 function backgroundOf(el: HTMLElement): string | null {
   const layers: Rgba[] = [];
   for (let at: Element | null = el; at !== null; at = at.parentElement) {
@@ -120,10 +120,23 @@ function backgroundOf(el: HTMLElement): string | null {
     if (value === "") continue;
     const colour = rgbaOf(value);
     if (colour === null) return null;
+    if (colour[3] >= 1) return hex(layers.reduceRight(over, colour));
     if (colour[3] > 0) layers.push(colour);
-    if (colour[3] >= 1) break;
   }
-  return hex(layers.reduceRight(over, WHITE));
+  return hex(layers.reduceRight(over, behindPage()));
+}
+
+// The colour that the browser draws behind the page, and so behind every
+// element. It is the system colour Canvas in the colour scheme of the page's
+// root, so a dark theme makes it dark. Core reads it from an element that it
+// adds to the root for the moment.
+function behindPage(): Rgba {
+  const probe = document.createElement("div");
+  probe.style.cssText = "display: none; background-color: Canvas";
+  document.documentElement.append(probe);
+  const colour = rgbaOf(getComputedStyle(probe).backgroundColor);
+  probe.remove();
+  return colour !== null && colour[3] >= 1 ? colour : WHITE;
 }
 
 // The colour that a layer shows over an opaque colour behind it, blended in

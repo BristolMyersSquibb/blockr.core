@@ -3309,10 +3309,18 @@ function backgroundOf(el) {
     if (value2 === "") continue;
     const colour = rgbaOf(value2);
     if (colour === null) return null;
+    if (colour[3] >= 1) return hex(layers.reduceRight(over, colour));
     if (colour[3] > 0) layers.push(colour);
-    if (colour[3] >= 1) break;
   }
-  return hex(layers.reduceRight(over, WHITE));
+  return hex(layers.reduceRight(over, behindPage()));
+}
+function behindPage() {
+  const probe = document.createElement("div");
+  probe.style.cssText = "display: none; background-color: Canvas";
+  document.documentElement.append(probe);
+  const colour = rgbaOf(getComputedStyle(probe).backgroundColor);
+  probe.remove();
+  return colour !== null && colour[3] >= 1 ? colour : WHITE;
 }
 function over(behind, [r2, g2, b2, alpha]) {
   const mix = (front, back) => front * alpha + back * (1 - alpha);

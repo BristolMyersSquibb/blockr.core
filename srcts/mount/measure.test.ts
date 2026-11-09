@@ -23,6 +23,18 @@ function bg(el: HTMLElement): string | undefined {
   return domMeasure().info(el)?.bg;
 }
 
+// Has the browser draw the colour given behind the page, as Chromium resolves
+// the system colour Canvas under a dark theme, which happy-dom drops. Core
+// reads that colour from an element that it adds to the page's root.
+function behindPage(colour: string): void {
+  const computed = getComputedStyle;
+  vi.stubGlobal("getComputedStyle", (at: Element) =>
+    at.parentElement === document.documentElement && at !== document.head && at !== document.body
+      ? ({ backgroundColor: colour } as CSSStyleDeclaration)
+      : computed(at),
+  );
+}
+
 afterEach(() => {
   document.body.replaceChildren();
   vi.restoreAllMocks();
@@ -38,12 +50,19 @@ describe("the colour behind an output", () => {
     expect(bg(inside("rgb(0, 0, 255)", "rgba(255, 0, 0, 0.2)"))).toBe("#3300cc");
   });
 
-  test("blends each translucent background over those behind it, down to white where none is opaque", () => {
-    expect(bg(inside("rgba(0, 0, 0, 0.5)", "rgb(255 0 0 / 50%)"))).toBe("#bf4040");
+  test("blends each translucent background over those behind it", () => {
+    expect(bg(inside("rgb(255, 255, 255)", "rgba(0, 0, 0, 0.5)", "rgb(255 0 0 / 50%)"))).toBe("#bf4040");
   });
 
-  test("is white where no element has a background", () => {
-    expect(bg(inside(""))).toBe("#ffffff");
+  test("blends over the colour behind the page where no background is opaque, as a dark theme makes it", () => {
+    behindPage("rgb(18, 18, 18)");
+
+    expect(bg(inside("rgba(255, 255, 255, 0.2)"))).toBe("#414141");
+    expect([...document.documentElement.children]).toEqual([document.head, document.body]);
+  });
+
+  test("takes white for the colour behind the page where it cannot read it", () => {
+    expect(bg(inside("rgba(0, 0, 0, 0.5)"))).toBe("#808080");
   });
 
   test("keeps the alpha of a background that it reads by drawing it", () => {
@@ -55,11 +74,11 @@ describe("the colour behind an output", () => {
     const card = el.parentElement;
     const computed = getComputedStyle;
     vi.stubGlobal("getComputedStyle", (at: Element) => (at === card ? ({ backgroundColor: subtle } as CSSStyleDeclaration) : computed(at)));
-    const canvas = { fillStyle: "", fillRect: () => undefined, getImageData: () => ({ data: Uint8ClampedArray.of(20, 20, 39, 13) }) };
-    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(canvas as unknown as CanvasRenderingContext2D);
+    const context = { fillStyle: "", fillRect: () => undefined, getImageData: () => ({ data: Uint8ClampedArray.of(20, 20, 39, 13) }) };
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(context as unknown as CanvasRenderingContext2D);
 
     expect(bg(el)).toBe("#f3f3f4");
-    expect(canvas.fillStyle).toBe(subtle);
+    expect(context.fillStyle).toBe(subtle);
   });
 });
 
