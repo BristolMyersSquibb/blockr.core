@@ -1,7 +1,7 @@
 #' Outputs
 #'
 #' A block's result can be any R object. An output is what R shows of it: the
-#' coercion that a block class names in its `output` field makes an output
+#' coercion that a block class names in its `output` property makes an output
 #' from the result (see [new_block_class()]). R sends the output to the client
 #' as JSON, and a renderer draws it there. So nothing in the protocol assumes a
 #' table.
@@ -9,12 +9,13 @@
 #' An output is an S3 object of an output class, whose class vector ends in
 #' `block_output`. The package that defines an output class gives it two
 #' functions. A constructor makes an output of the class and checks its
-#' fields. A coercion is a generic that makes an output from a result, by the
+#' properties.
+#' A coercion is a generic that makes an output from a result, by the
 #' result's class. Core defines three output classes, for tables, text and
 #' plots (see [new_table_output()], [new_text_output()] and
 #' [new_plot_output()]). Their constructors build on `new_block_output()`.
 #' Another package extends an output class with a subclass. Its outputs hold
-#' every field of the class and add fields of their own.
+#' every property of the class and add properties of their own.
 #'
 #' An output may hold one binary body, such as a plot's PNG. R sends the body
 #' beside the JSON, not in it. The function `new_reply_body()` makes a body
@@ -22,11 +23,11 @@
 #' for a download, a file name.
 #'
 #' The package that defines an output class gives R what it needs of the
-#' class, its JSON Schema, its requests and its renderer, through its methods of
-#' three generics (see [output_schema()]).
+#' class, its JSON Schema, its requests, its renderer and its coercion, through
+#' its methods of four generics (see [output_schema()]).
 #'
-#' @param x For `new_block_output()`, the output's fields, as a named list, and
-#'   for `new_reply_body()`, a raw vector or the path of a file
+#' @param x For `new_block_output()`, the output's properties, as a named list,
+#'   and for `new_reply_body()`, a raw vector or the path of a file
 #' @param class The output's class vector, without `block_output`
 #' @param type The body's MIME type
 #' @param name The file name that a download gets
@@ -45,15 +46,16 @@ new_block_output <- function(x, class) {
 
   if (!is.list(x) || is.object(x) || !has_unique_names(x)) {
     blockr_abort(
-      "The fields of an output are expected to be a list with unique names.",
+      "The properties of an output are expected to be a list with unique ",
+      "names.",
       class = "block_output_invalid"
     )
   }
 
   if ("renderer" %in% names(x)) {
     blockr_abort(
-      "An output cannot hold a field `renderer`, which R adds when it sends ",
-      "the output.",
+      "An output cannot hold a property `renderer`, which R adds when it ",
+      "sends the output.",
       class = "block_output_invalid"
     )
   }
@@ -101,7 +103,7 @@ format.block_output <- function(x, ...) {
   c(
     paste0("<", class(x)[1L], ">"),
     if (any(!body)) {
-      paste0("Fields: ", paste_enum(names(fields)[!body], quotes = "\""))
+      paste0("Properties: ", paste_enum(names(fields)[!body], quotes = "\""))
     },
     if (any(body)) {
       sub("^<reply_body> ", "Body: ", format(fields[body][[1L]]))
@@ -163,8 +165,8 @@ reply_body_bytes <- function(x) {
   readBin(content, "raw", file.size(content))
 }
 
-# What a reply or request says of the body it carries, in its field `body`: the
-# MIME type and, for a download, the file name.
+# What a reply or request says of the body it carries, in its property
+# `body`: the MIME type and, for a download, the file name.
 body_announcement <- function(x) {
 
   res <- list(type = x[["type"]])
@@ -253,7 +255,7 @@ print.reply_body <- function(x, ...) {
 #' The method of `output_coercion()` returns the class's coercion, the generic
 #' that makes the class's outputs from a result, as core's method for table
 #' outputs returns [as_table_output()].
-#' A block class names that coercion in its `output` field (see
+#' A block class names that coercion in its `output` property (see
 #' [new_block_class()]), so the method tells R which output class a block
 #' class's outputs are of before R makes one.
 #' R then names the renderer of that class in the block class's entry of the
@@ -560,9 +562,9 @@ request_call_args <- function(fun, name, args, bound, reserved, class) {
   c(bound[intersect(names(bound), fmls)], args)
 }
 
-# The parts of an output that R sends. Its fields are shaped by the JSON Schema
-# that its classes give, through their methods of `output_schema()`. Its body,
-# if it holds one, travels beside them.
+# The parts of an output that R sends. Its properties are shaped by the JSON
+# Schema that its classes give, through their methods of `output_schema()`.
+# Its body, if it holds one, travels beside them.
 shape_output <- function(x) {
 
   if (!is_block_output(x)) {

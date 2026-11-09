@@ -1,6 +1,6 @@
 // Starting core in the order of the startup modules, and starting it again for
 // each board that opens, with R played over a transport whose replies the test
-// sends, on the board of the fixture hello, which core's basic front-end,
+// sends, on the board of the fixture hello, which core's basic frontend,
 // blockr.core-basic, draws, as it draws every board.
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -8,6 +8,8 @@ import type { EvaluateRequest, HelloReply, Reply, Request, Transport, TransportL
 import { coreOptions } from "../options/index.ts";
 import { reports } from "../testing/reports.ts";
 import { hello, noUi, withPlugins } from "../testing/store.ts";
+import { startPage } from "../page/index.ts";
+import type { JsonBoard } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { JsonSchema } from "../types/json.ts";
 import { pageFrontEnds, start } from "./index.ts";
@@ -18,7 +20,7 @@ const BASIC = "blockr.core/basic.js?v=0f3d8e21";
 // R, played over a transport: the test starts sessions and sends replies.
 // Once the test has answered the blockr options that the scheduler reads, R
 // answers each later request for blockr options itself, with no values, as
-// the one for the default of dark_mode, which core's basic front-end requires.
+// the one for the default of dark_mode, which core's basic frontend requires.
 function playedR() {
   const sent: Request[] = [];
   const replied = new Set<string>();
@@ -91,7 +93,6 @@ function playedR() {
               revision: request.revision,
               summary: null,
               conditions: [],
-              omitted: { warning: 0, message: 0 },
               stdout: "",
               stderr: "",
             },
@@ -143,7 +144,7 @@ function setup(modules: Readonly<Record<string, unknown>>, given: Partial<StartO
   return { r, el, imported, started };
 }
 
-// A front-end that demands every block from within render(), records each
+// A frontend that demands every block from within render(), records each
 // core it renders with, and returns its cleanup once the test lets it.
 function frontEnd(wait?: Promise<void>) {
   const renders: { core: CoreApi; signal: AbortSignal; el: HTMLElement }[] = [];
@@ -154,7 +155,7 @@ function frontEnd(wait?: Promise<void>) {
       default: {
         async render({ el, core, signal }: { el: HTMLElement; core: CoreApi; signal: AbortSignal }) {
           renders.push({ core, signal, el });
-          core.scheduler.demand("front-end", (board) => Object.keys(board.blocks));
+          core.scheduler.demand("frontend", (board) => Object.keys(board.blocks));
           el.textContent = core.store.board().name;
           await wait;
           return () => {
@@ -193,6 +194,30 @@ function registering(id: string) {
     },
   };
 }
+
+// The board of the fixture hello with values of the wrong shape, as an app
+// script may give them: a head block that shows -1 rows, and the board option
+// n_rows at 0.
+function unfit(): JsonBoard {
+  const { board } = hello.board;
+  const b = board.blocks.b;
+  if (b === undefined) throw new Error("The fixture's board has no block b.");
+  return {
+    ...hello.board,
+    board: {
+      ...board,
+      blocks: { ...board.blocks, b: { ...b, state: { ...b.state, n: -1 } } },
+      options: { ...board.options, n_rows: { value: 0, version: 1 } },
+    },
+  };
+}
+
+// Why the store refuses the board of unfit().
+const unfitness = [
+  "The store refused to open the board",
+  'The state of the block "b" fails its schema at /n: -1 is less than 0.',
+  'The value of the board option "n_rows" fails its schema: 0 is less than 1.',
+].join("\n- ");
 
 function withStartup(...packages: string[]): HelloReply {
   return {
@@ -255,13 +280,13 @@ describe("starting the page", () => {
       "blockr.dock starts, board open: false",
       "blockr.dock done",
     ]);
-    // The front-end's module is imported only once every startup module has
+    // The frontend's module is imported only once every startup module has
     // initialized.
     expect(s.imported).toEqual(["blockr.ui/startup.js?v=1", "blockr.dock/startup.js?v=1", BASIC]);
     expect(basic.renders).toHaveLength(1);
   });
 
-  test("sends R nothing to evaluate before the front-end's render() has resolved", async () => {
+  test("sends R nothing to evaluate before the frontend's render() has resolved", async () => {
     const drawn = gate();
     const basic = frontEnd(drawn.opened);
     const s = setup({ [BASIC]: basic.exports });
@@ -275,7 +300,7 @@ describe("starting the page", () => {
 
     drawn.open();
     await tick(100);
-    // What the front-end demanded within render() goes first.
+    // What the frontend demanded within render() goes first.
     expect(s.r.evaluations().length).toBeGreaterThan(0);
   });
 
@@ -418,6 +443,34 @@ describe("starting the page", () => {
     expect(failed?.message).toContain("Reload the page");
     expect(s.r.kinds()).toEqual(["hello"]);
   });
+
+  test("leaves the page with the errors alone where the store refuses the opening board, for the deployment to fix", async () => {
+    const r = playedR();
+    const el = document.createElement("div");
+    const basic = frontEnd();
+    const reported = reports();
+    const started = startPage({
+      el,
+      transport: r.transport,
+      loader: {
+        importer: (url) =>
+          url === BASIC ? Promise.resolve(basic.exports) : Promise.reject(new TypeError(`No module at ${url}.`)),
+        stylesheet: () => Promise.resolve(),
+      },
+      measure: { info: () => null, watch: () => () => undefined },
+    });
+    r.session({ ...hello, board: unfit() });
+    await tick();
+    r.options();
+    await expect(started.ready).rejects.toThrow(unfitness);
+    reported.restore();
+
+    expect(el.children).toHaveLength(1);
+    expect(el.firstElementChild?.getAttribute("role")).toBe("alert");
+    expect(el.textContent).toBe(unfitness);
+    expect(basic.renders).toHaveLength(0);
+    expect(r.evaluations()).toEqual([]);
+  });
 });
 
 describe("a board opened later", () => {
@@ -462,6 +515,7 @@ describe("a board opened later", () => {
       board: { ...hello.board.board, plugins: { strict: { class: "test.pkg-strict_plugin", name: "Strict", state: {} } } },
     });
     await expect(s.core.store.open(strict)).rejects.toThrow('The state of the plugin "strict"');
+    await expect(s.core.store.open(JSON.stringify(unfit()))).rejects.toThrow(unfitness);
 
     expect(s.r.sent.slice(sent)).toEqual([]);
     expect(basic.renders).toHaveLength(1);
@@ -493,11 +547,11 @@ describe("a board opened later", () => {
       default: {
         async render({ el, core, signal }: { el: HTMLElement; core: CoreApi; signal: AbortSignal }) {
           renders.push({ core, signal });
-          signal.addEventListener("abort", () => events.push("the front-end ends"));
-          core.scheduler.demand("front-end", (board) => Object.keys(board.blocks));
+          signal.addEventListener("abort", () => events.push("the frontend ends"));
+          core.scheduler.demand("frontend", (board) => Object.keys(board.blocks));
           el.textContent = core.store.board().name;
           await hold.wait;
-          return () => events.push("the front-end cleans up");
+          return () => events.push("the frontend cleans up");
         },
       },
     };
@@ -513,7 +567,7 @@ describe("a board opened later", () => {
     // One abort ended what core ran for the board, and core waits for R to
     // answer the hello with which it starts again.
     expect([...events].sort()).toEqual(
-      ["blockr.session starts, board open: false", "blockr.session ends", "the front-end ends", "the front-end cleans up"].sort(),
+      ["blockr.session starts, board open: false", "blockr.session ends", "the frontend ends", "the frontend cleans up"].sort(),
     );
     expect(s.r.sent.slice(sent).map((request) => request.kind)).toEqual(["hello"]);
     expect(s.started.core()).toBeUndefined();
@@ -548,7 +602,7 @@ describe("a board opened later", () => {
     expect(s.r.kinds()).not.toContain("forget");
   });
 
-  test("finds nothing of the board before: no demand, subscription or mount that its front-end or a startup module made", async () => {
+  test("finds nothing of the board before: no demand, subscription or mount that its frontend or a startup module made", async () => {
     const heard: string[] = [];
     const mounted: AbortSignal[] = [];
     let initialized = 0;
@@ -570,9 +624,9 @@ describe("a board opened later", () => {
       default: {
         render({ el, core }: { el: HTMLElement; core: CoreApi }) {
           const at = ++renders;
-          core.store.subscribe(() => heard.push(`front-end ${String(at)} hears the store`));
-          core.scheduler.subscribe(() => heard.push(`front-end ${String(at)} hears the scheduler`));
-          core.scheduler.demand("front-end", at === 1 ? ["b"] : ["a"]);
+          core.store.subscribe(() => heard.push(`frontend ${String(at)} hears the store`));
+          core.scheduler.subscribe(() => heard.push(`frontend ${String(at)} hears the scheduler`));
+          core.scheduler.demand("frontend", at === 1 ? ["b"] : ["a"]);
           const card = document.createElement("div");
           el.append(card);
           core.mountBlock(card, "b");
@@ -604,11 +658,11 @@ describe("a board opened later", () => {
     next?.scheduler.invalidate("a");
     await tick(100);
 
-    // What the first front-end and the first startup module held heard
+    // What the first frontend and the first startup module held heard
     // nothing, and demanded nothing of the board that opened.
     expect([...new Set(heard)].sort()).toEqual([
-      "front-end 2 hears the scheduler",
-      "front-end 2 hears the store",
+      "frontend 2 hears the scheduler",
+      "frontend 2 hears the store",
       "startup module 2 hears the scheduler",
       "startup module 2 hears the store",
     ]);

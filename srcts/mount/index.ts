@@ -1,5 +1,5 @@
 // Loading the modules of packages once per page, and mounting them in a
-// front-end's layout, each with a host narrowed to what it draws: a block's UI
+// frontend's layout, each with a host narrowed to what it draws: a block's UI
 // module, a block's output and a board option's UI.
 
 export { createMounts } from "./block.ts";

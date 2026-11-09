@@ -439,12 +439,12 @@ run_next <- function(ev) {
     run_request(ev, job),
     onFulfilled = function(reply) {
       on.exit(finish())
-      deliver_reply(job, reply)
+      deliver_reply(ev, job, reply)
     },
     onRejected = function(e) {
       on.exit(finish())
       log_error("R failed to answer request {job$id}: {conditionMessage(e)}")
-      deliver_reply(job, error_reply(job[["id"]], list(r_condition(e))))
+      deliver_reply(ev, job, job_error_reply(job, e))
     }
   )
 
@@ -452,22 +452,50 @@ run_next <- function(ev) {
 }
 
 # Sends a reply in a message of its own.
-# Where R cannot send it, as when its JSON cannot be written,
-# R sends an `error` in its place,
-# since the client waits for a reply to every request with an id.
-deliver_reply <- function(job, reply) {
+# Where R cannot send it, as when its JSON cannot be written, or when the
+# message would be larger than the transport sends, R sends an `error` in its
+# place, since the client waits for a reply to every request with an id.
+# The `error` names the reason, so that the client shows it, and R drops the
+# result of an evaluation that it refused to send, as an `error` leaves R none.
+deliver_reply <- function(ev, job, reply) {
   tryCatch(
     job[["send"]](list(reply)),
     error = function(e) {
 
-      log_error("R failed to send its reply to {job$id}: {conditionMessage(e)}")
+      note <- if (inherits(e, "protocol_message_too_large")) {
+        log_warn
+      } else {
+        log_error
+      }
+
+      note("R failed to send its reply to {job$id}: {conditionMessage(e)}")
+
+      block <- if (identical(job[["kind"]], "evaluate")) {
+        job[["req"]][["fields"]][["block"]]
+      }
+
+      # Only that block's, since `drop_results()` drops all of them for none.
+      if (is_string(block)) {
+        drop_results(ev, block)
+      }
 
       tryCatch(
-        job[["send"]](list(error_reply(job[["id"]], list(r_condition(e))))),
+        job[["send"]](list(job_error_reply(job, e))),
         error = function(e) {
           log_error("R failed to reply to {job$id}: {conditionMessage(e)}")
         }
       )
     }
+  )
+}
+
+# The `error` that R replies to a request with an error that R raised itself,
+# which names no phase, with an evaluation's properties in the reply to an
+# `evaluate`.
+job_error_reply <- function(job, e) {
+  error_reply(
+    job[["id"]],
+    list(r_condition(e)),
+    if (identical(job[["kind"]], "evaluate")) job[["req"]][["fields"]]
   )
 }

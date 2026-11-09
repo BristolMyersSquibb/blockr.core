@@ -298,8 +298,8 @@ export function schemaFile(type: string): string {
 // inst/outputs, and removes the schema of a type that is gone, then the schema
 // of a JSON board, those beside core's runtime and those of the block states
 // beside the modules.
-// A schema leaves out no field that a later version may add,
-// since both sides of the wire protocol skip fields they do not know,
+// A schema leaves out no property that a later version may add,
+// since both sides of the wire protocol skip properties they do not know,
 // but for a block's state, which holds its class's state args alone.
 export async function schemas(root: string): Promise<string[]> {
   return [

@@ -97,7 +97,6 @@ export interface EvaluateReply {
     revision: number;
     summary: string | null;
     conditions: Condition[];
-    omitted: Omitted;
     stdout: string;
     stderr: string;
 }
@@ -108,10 +107,6 @@ export interface Condition {
     message: string;
 }
 export type Phase = "expr" | "inputs" | "block_eval" | "result_summary" | "output" | "request" | "status";
-export interface Omitted {
-    warning: number;
-    message: number;
-}
 export interface BlockClassRequest {
     id: string;
     kind: "request";
@@ -226,7 +221,6 @@ export interface ErrorReply {
     id: string;
     status: "error";
     conditions: Condition[];
-    omitted: Omitted;
 }
 export interface CancelledReply {
     id: string;

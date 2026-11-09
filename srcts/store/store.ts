@@ -91,13 +91,19 @@ export interface Store {
   // JSON.stringify(), indented by two spaces and ending in a newline, as R
   // writes the fixtures of boards.
   // The store opens the text to the same board.
-  // It saves nothing itself: core's basic front-end downloads the text, and
+  // It saves nothing itself: core's basic frontend downloads the text, and
   // session management saves it where it decides.
   // It asks R for nothing, so a board saves while R is busy or gone.
   save(): string;
 
-  // Reverts or applies again that origin's last step, or throws a StoreError
-  // where another origin has since changed what the step changed.
+  // Undo takes back that origin's last step, and redo applies again the last
+  // step that undo took back.
+  // Each is a new edit on the board as it is: it applies over what another
+  // origin has changed since, the last writer winning, and does nothing where
+  // what the step changed is gone
+  // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.2#undo).
+  // Each throws a StoreError, having changed nothing, where the board it would
+  // make fails a check, such as a fixed input that takes two links.
   // Neither changes a board option's value, since a board option never changes
   // what the board computes.
   undo(origin?: Origin): void;

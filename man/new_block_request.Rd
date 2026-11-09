@@ -35,7 +35,7 @@ the answer of the request for \code{run_block_request()}.
 A request is a function that a block class's UI calls through its host for
 whatever it needs from R, such as the maximum of a numeric input, which
 never enters the block's state. A class names its requests in its
-\code{requests} field (see \code{\link[=new_block_class]{new_block_class()}}), each a function or an object
+\code{requests} property (see \code{\link[=new_block_class]{new_block_class()}}), each a function or an object
 made by \code{new_block_request()}, which says what else R and the client need
 to know about it, and \code{run_block_request()} runs one with its arguments
 bound by name: an input to the result of the upstream block that feeds it,

@@ -84,14 +84,14 @@ validate_link <- function(x) {
 
   if (!all(fields %in% names(x))) {
     blockr_abort(
-      "Expecting a link to contain attributes {fields}.",
+      "Expecting a link to contain the properties {fields}.",
       class = "link_components_missing"
     )
   }
 
   if (!all(lgl_ply(x[fields], is_string))) {
     blockr_abort(
-      "Expecting link attributes {fields} to be strings.",
+      "Expecting the properties {fields} of a link to be strings.",
       class = "link_components_invalid"
     )
   }

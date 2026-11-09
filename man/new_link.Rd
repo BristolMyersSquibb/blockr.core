@@ -31,7 +31,7 @@ validate_links(x)
 
 \item{x}{Links object}
 
-\item{...}{For \code{links()}, the links to combine, or their fields, such as
+\item{...}{For \code{links()}, the links to combine, or their properties, such as
 \code{from} and \code{to}, as vectors, and otherwise generic consistency}
 }
 \value{

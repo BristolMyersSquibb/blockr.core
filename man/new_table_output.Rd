@@ -21,8 +21,8 @@ each of \code{columns}}
 
 \item{total}{The table's total row count, or \code{NA} where it is unknown}
 
-\item{...}{For \code{new_table_output()}, further fields, which a subclass adds,
-and otherwise passed on to methods}
+\item{...}{For \code{new_table_output()}, further properties, which a subclass
+adds, and otherwise passed on to methods}
 
 \item{class}{The classes of a subclass, which come before \code{table_output}}
 

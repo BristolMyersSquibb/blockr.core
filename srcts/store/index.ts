@@ -14,7 +14,7 @@ export type {
   Plugins,
   Storage,
 } from "./registrations.ts";
-export { HEX_COLOR } from "./check.ts";
+export { HEX_COLOR, stateFailures } from "./check.ts";
 export { FORMAT } from "./open.ts";
 export type { Dropped } from "./open.ts";
 export { isId, isRandId, mintId, RAND_IDS, sentenceCase } from "./ids.ts";

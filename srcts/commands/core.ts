@@ -10,11 +10,12 @@
 // registers commands of its own for what its plugins keep.
 //
 // Each reads the board and returns its deltas, leaving the checks of the board
-// to the store, but for a block's state, which the store does not check, and
-// which these commands check against the schema of the block's class. An edit
-// that changes nothing is the store's to drop, which makes no step of it.
+// to the store. A command that sets a block's state checks it against the
+// schema of the block's class before the store does, so that the error names
+// the command. An edit that changes nothing is the store's to drop, which
+// makes no step of it.
 
-import { mintId, pathOf, sentenceCase } from "../store/index.ts";
+import { mintId, pathOf, sentenceCase, stateFailures } from "../store/index.ts";
 import type { Patch, Store } from "../store/index.ts";
 import type {
   Block,
@@ -28,8 +29,7 @@ import type {
 } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { compile, own, packageOf, quoted, without } from "../util/index.ts";
-import type { Validate } from "../util/index.ts";
+import { own, packageOf, quoted, without } from "../util/index.ts";
 import { refusal } from "./commands.ts";
 import type { Command } from "./commands.ts";
 import * as schemas from "./schemas.ts";
@@ -78,18 +78,6 @@ export interface CoreCommandsOptions {
 }
 
 export function coreCommands(store: Store, options: CoreCommandsOptions = {}): Command<Json, unknown>[] {
-  const validators = new WeakMap<RegistryEntry, Validate>();
-
-  // Each way a block's state fails the schema of its class, in a clause.
-  function stateFailures(entry: RegistryEntry, state: State): readonly string[] {
-    let validate = validators.get(entry);
-    if (validate === undefined) {
-      validate = compile(`the state of the block class "${entry.id}"`, schemas.stateSchema(entry));
-      validators.set(entry, validate);
-    }
-    return validate(state);
-  }
-
   function classOf(command: string, registryId: RegistryId): RegistryEntry {
     const entry = own(store.blockRegistry(), registryId);
     if (entry === undefined) {
@@ -216,15 +204,8 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
       run(board, { id, state, unset }) {
         const block = own(board.blocks, id);
         if (block === undefined) return [];
-        // A change may leave the state failing the schema where it failed
-        // already, so that a state that an older file left failing can be
-        // repaired one arg at a time, but it may not make it fail anew.
         const entry = classOf(this.id, block.registry_id);
-        const before = new Set(stateFailures(entry, block.state));
-        const failures = stateFailures(entry, {
-          ...without(block.state, unset ?? []),
-          ...state,
-        }).filter((failure) => !before.has(failure));
+        const failures = stateFailures(entry, { ...without(block.state, unset ?? []), ...state });
         if (failures.length > 0) {
           throw refusal(this.id, failures.map((failure) => `The state of block "${id}" ${failure}`));
         }
@@ -437,7 +418,7 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
         color: {
           ...schemas.color,
           description:
-            "The new stack's colour, which front-ends draw it in, or null for none. The stack gets null where this is left out, and a front-end draws a stack without a colour in a default of its own.",
+            "The new stack's colour, which frontends draw it in, or null for none. The stack gets null where this is left out, and a frontend draws a stack without a colour in a default of its own.",
         },
       }),
       run(board, { id, name = "Stack", blocks = [], color = null }) {
@@ -470,7 +451,7 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
           color: {
             ...schemas.color,
             description:
-              "The stack's colour, which front-ends draw it in, or null to clear it. A front-end draws a stack without a colour in a default of its own. The stack keeps its colour where this is left out.",
+              "The stack's colour, which frontends draw it in, or null to clear it. A frontend draws a stack without a colour in a default of its own. The stack keeps its colour where this is left out.",
           },
         },
         ["id"],
@@ -548,7 +529,7 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
 }
 
 // The inputs of block `to` that no link feeds, by which the commands find the
-// input that a new link goes to, and a front-end the inputs that it offers.
+// input that a new link goes to, and a frontend the inputs that it offers.
 // It is undefined where the board lacks the block or the block registry its
 // class. A variadic block's is an empty input, which takes its link in link
 // order. The link `except`, which is about to change, feeds nothing.

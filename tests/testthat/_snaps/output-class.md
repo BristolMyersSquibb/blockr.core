@@ -1,15 +1,15 @@
-# outputs print their class, fields and body
+# outputs print their class, properties and body
 
     Code
       new_block_output(list(text = "Hi", n = 2L), "x_output")
     Output
       <x_output>
-      Fields: "text" and "n"
+      Properties: "text" and "n"
     Code
       new_block_output(list(img = body, width = 1L), "x_output")
     Output
       <x_output>
-      Fields: "width"
+      Properties: "width"
       Body: image/png, 2 kB
     Code
       body

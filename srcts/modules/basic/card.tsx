@@ -1,5 +1,5 @@
-// A block's card and a stack's group, as core's basic front-end draws them
-// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#cores-basic-front-end).
+// A block's card and a stack's group, as core's basic frontend draws them
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#cores-basic-frontend).
 //
 // A card shows these, top to bottom:
 // - The block's name, its class and its status, and a menu to rename or
@@ -18,7 +18,7 @@
 // does so from the block's first reply on, since there is nothing to draw
 // before.
 // The card always shows the block's UI and its output, with no toggles to
-// hide them, which a front-end built on core's may add.
+// hide them, which a frontend built on core's may add.
 // Under the board lock, the card draws no control for what the lock fixes. It
 // has no menu, and it mounts the UI only of a block that the board lock leaves
 // open, as the store's locked() says.
@@ -211,23 +211,16 @@ const SEVERITY_TONES: Readonly<Record<Severity, string>> = {
   message: "bc:text-text-muted",
 };
 
-// The conditions of the block's latest evaluation of the severities given,
-// and how many more of them R counted rather than kept.
+// The conditions of the block's latest evaluation of the severities given.
 function Conditions({ status, severities }: { status: BlockStatus | undefined; severities: readonly Severity[] }): ReactElement | null {
   if (status === undefined) return null;
   const shown = status.conditions.filter((condition) => severities.includes(condition.severity));
-  const omitted = (["warning", "message"] as const).filter((severity) => severities.includes(severity) && status.omitted[severity] > 0);
-  if (shown.length === 0 && omitted.length === 0) return null;
+  if (shown.length === 0) return null;
   return (
     <ul aria-label="Conditions" className="bc:m-0 bc:grid bc:list-none bc:gap-1 bc:p-0 bc:text-sm">
       {shown.map((condition, i) => (
         <li key={i} data-severity={condition.severity} className={`bc:whitespace-pre-wrap ${SEVERITY_TONES[condition.severity]}`}>
           <span className="bc:font-medium">{condition.severity}:</span> {condition.message}
-        </li>
-      ))}
-      {omitted.map((severity) => (
-        <li key={`omitted-${severity}`} className="bc:text-text-muted">
-          {String(status.omitted[severity])} more {severity === "warning" ? "warnings" : "messages"} not kept
         </li>
       ))}
     </ul>

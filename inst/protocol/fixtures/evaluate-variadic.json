@@ -26,7 +26,6 @@
         "revision": 7,
         "summary": "<data.frame> [9 × 5]",
         "conditions": [],
-        "omitted": { "warning": 0, "message": 0 },
         "stdout": "",
         "stderr": ""
       }

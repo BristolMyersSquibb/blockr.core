@@ -52,7 +52,6 @@
         "revision": 2,
         "summary": "<data.frame> [150 × 5]",
         "conditions": [],
-        "omitted": { "warning": 0, "message": 0 },
         "stdout": "",
         "stderr": ""
       }
@@ -65,7 +64,6 @@
         "revision": 3,
         "summary": "<data.frame> [6 × 5]",
         "conditions": [],
-        "omitted": { "warning": 0, "message": 0 },
         "stdout": "",
         "stderr": ""
       }

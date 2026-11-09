@@ -1,4 +1,4 @@
-test_that("a block class holds its fields", {
+test_that("a block class holds its properties", {
 
   expect_true(is_block_class(head_class))
   expect_false(is_block_class(new_class_head_block()))

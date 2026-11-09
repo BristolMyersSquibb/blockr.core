@@ -7,7 +7,7 @@
 # The reply to a request, from the function of its kind.
 # An error that R raises itself, as for a block class that is not registered,
 # becomes an `error` that names no phase.
-# The reply to an `evaluate` then carries an evaluation's fields.
+# The reply to an `evaluate` then carries an evaluation's properties.
 answer_request <- function(ev, job) {
   tryCatch(
     switch(
@@ -17,13 +17,7 @@ answer_request <- function(ev, job) {
       request = answer_object_request(ev, job),
       output = answer_output(ev, job)
     ),
-    error = function(e) {
-      error_reply(
-        job[["id"]],
-        list(r_condition(e)),
-        if (identical(job[["kind"]], "evaluate")) job[["req"]][["fields"]]
-      )
-    }
+    error = function(e) job_error_reply(job, e)
   )
 }
 
@@ -124,11 +118,11 @@ answer_evaluate <- function(ev, job) {
   c(
     list(id = job[["id"]], status = res[["status"]]),
     req[["fields"]],
-    list(summary = res[["summary"]]),
-    bounded_conditions(res[["conditions"]]),
     list(
-      stdout = bounded_text(ran[["stdout"]], max_output_chars()),
-      stderr = bounded_text(ran[["stderr"]], max_output_chars())
+      summary = res[["summary"]],
+      conditions = lapply(res[["conditions"]], condition_reply),
+      stdout = utf8_text(ran[["stdout"]]),
+      stderr = utf8_text(ran[["stderr"]])
     )
   )
 }
@@ -384,14 +378,15 @@ missing_reply <- function(id, lacking) {
   list(id = id, status = "missing", missing = lacking)
 }
 
-# An `error` with the conditions raised, bounded as an evaluation's are.
-# It carries an evaluation's fields where `fields` gives the block and revision.
+# An `error` with the conditions raised.
+# It carries an evaluation's properties where `fields` gives the block and
+# revision.
 error_reply <- function(id, conditions, fields = NULL) {
 
   res <- c(
     list(id = id, status = "error"),
     if (not_null(fields)) c(fields, list(summary = NULL)),
-    bounded_conditions(conditions)
+    list(conditions = lapply(conditions, condition_reply))
   )
 
   if (not_null(fields)) {
@@ -408,51 +403,18 @@ r_condition <- function(cnd) {
   res
 }
 
-# The first few conditions of each severity, as a reply carries them.
-# The others are counted by severity in `omitted`, which counts no errors,
-# since an error ends what raised it.
-bounded_conditions <- function(conditions, max = max_conditions()) {
-
-  severity <- chr_xtr(conditions, "severity")
-  keep <- logical(length(severity))
-
-  for (sev in unique(severity)) {
-    hit <- which(severity == sev)
-    keep[hit[seq_len(min(length(hit), max))]] <- TRUE
-  }
-
-  list(
-    conditions = lapply(conditions[keep], condition_reply),
-    omitted = list(
-      warning = sum(!keep & severity == "warning"),
-      message = sum(!keep & severity == "message")
-    )
-  )
-}
-
 # A condition as a reply carries it,
-# with its class vector as an array and its message bounded.
+# with its class vector as an array and its message as valid UTF-8.
 condition_reply <- function(x) {
   c(
     list(severity = x[["severity"]], class = I(x[["class"]])),
     if (not_null(x[["phase"]])) list(phase = x[["phase"]]),
-    list(message = bounded_text(x[["message"]], max_message_chars()))
+    list(message = utf8_text(x[["message"]]))
   )
 }
 
-# How much of an evaluation R sends, which is R's to choose:
-# the number of conditions of each severity,
-# and the number of characters of the standard output,
-# of the standard error and of a condition's message.
-max_conditions <- function() 5L
-
-max_output_chars <- function() 65536L
-
-max_message_chars <- function() 8192L
-
-# The text cut to `max` characters, with the characters it leaves out counted.
-# The text is made valid UTF-8, which JSON needs.
-bounded_text <- function(x, max) {
+# The text as one string, its lines joined, made valid UTF-8, which JSON needs.
+utf8_text <- function(x) {
 
   x <- enc2utf8(paste(x, collapse = "\n"))
 
@@ -460,16 +422,7 @@ bounded_text <- function(x, max) {
     x <- iconv(x, "UTF-8", "UTF-8", sub = "?")
   }
 
-  n <- nchar(x, type = "chars")
-
-  if (n <= max) {
-    return(x)
-  }
-
-  paste0(
-    substr(x, 1L, max),
-    "\n[ omitted ", format(n - max, big.mark = ","), " characters ]"
-  )
+  x
 }
 
 # Runs `expr` with its standard output and error captured as text,
