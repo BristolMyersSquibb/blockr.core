@@ -36,7 +36,9 @@ import type { Delta, Patch } from "./delta.ts";
 export interface PluginClass {
   // As "blockr.dag-dag_plugin".
   readonly id: PluginClassId;
-  // The board options its plugins require.
+  // The board options its plugins require, which core adds to the board, each
+  // with its default where the board lacks it, as a board opens with one of
+  // its plugins, before it starts the plugin or mounts its UI.
   readonly options?: readonly OptionId[];
   // What each of its plugins keeps in the board: the schema of the state, with
   // descriptions and examples for a model, against which the store checks the
@@ -62,14 +64,18 @@ export interface PluginClass {
   // The store calls it as it opens a board whose recorded version of the class
   // is below R's, with that version, for each plugin of the class.
   migrate?(state: Json, version: number): Json;
-  // The module that every frontend places, once for each plugin of the class.
+  // The module that every frontend places, once for each plugin of the class,
+  // through CoreApi's mountPlugin(), by the module's id, as "blockr.dag-dag".
   readonly ui?: string;
-  // A frontend's: the module that draws the page.
+  // A frontend's: the module that draws the page, by its id, as
+  // "blockr.dock-dock", which core calls with the page's element.
   readonly frontend?: string;
   // A storage plugin's: what every frontend's save and open controls call.
   readonly storage?: Storage;
-  // What runs while the open board holds the plugin, until the signal aborts.
-  // It may return a cleanup, which core runs as the signal aborts.
+  // What runs while the open board holds the plugin, until the signal aborts,
+  // which it does as the next board opens. Core calls it for each plugin of
+  // the class once the frontend has drawn the board. It may return a cleanup,
+  // which core runs as the signal aborts.
   start?(args: { readonly core: CoreApi; readonly plugin: PluginId; readonly signal: AbortSignal }): (() => void) | undefined;
 }
 
@@ -149,12 +155,6 @@ export interface Registrations {
   option(id: OptionId): Checked<Option> | undefined;
   migration(registryId: RegistryId): Migration | undefined;
 }
-
-// The board options that core's basic frontend requires, the severities of
-// the conditions it shows and the theme, which every board gets with their
-// defaults as it opens, where it lacks them, since core's basic frontend draws
-// every board.
-export const BASIC_OPTIONS: readonly OptionId[] = ["show_conditions", "dark_mode"];
 
 export function createRegistrations(): Registrations {
   const classes = signal<ReadonlyMap<PluginClassId, Checked<PluginClass>>>(new Map());

@@ -127,7 +127,8 @@ function Notices(): ReactElement | null {
 }
 
 // The severities that the board option show_conditions names. Core's basic
-// frontend requires the board option, so every board holds a value of it.
+// frontend requires the board option, so the board that it draws holds a value
+// of it.
 function severitiesOf(value: Json | undefined): readonly Condition["severity"][] {
   if (!Array.isArray(value)) return [];
   return value.filter((severity): severity is Condition["severity"] => severity === "error" || severity === "warning" || severity === "message");

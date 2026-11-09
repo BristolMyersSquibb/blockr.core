@@ -3,6 +3,7 @@ export type { Change, Store, StoreOptions } from "./store.ts";
 export { isDeltas } from "./delta.ts";
 export type { BlockMod, Delta, Origin, Patch, Values } from "./delta.ts";
 export { pathOf, pluginOf, pointer } from "./patch.ts";
+export { inRole } from "./plugins.ts";
 export type { Migration, Option, Options, PluginClass, Plugins, Storage, } from "./registrations.ts";
 export { HEX_COLOR, stateFailures } from "./check.ts";
 export { FORMAT } from "./open.ts";

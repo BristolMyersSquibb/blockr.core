@@ -301,15 +301,14 @@ describe("opening a board", () => {
     expect(store.canUndo()).toBe(false);
   });
 
-  test("writes in no default of a board option that core's basic frontend does not require", async () => {
+  test("writes in no default of a board option, which core adds for what requires the board option", async () => {
     const store = newStore();
     await store.open(reply("hello-block") as HelloReply);
     const board = store.board();
 
     expect(board.name).toBe("Quick wren");
     expect(Object.keys(board.blocks)).toEqual(["tidy_crab"]);
-    // It writes in those that core's basic frontend requires.
-    expect(board.options).toEqual({ n_rows: 50, show_conditions: ["warning", "error"], dark_mode: "light" });
+    expect(board.options).toEqual({ n_rows: 50 });
   });
 
   test("opens the JSON board that serve() was given, which R passed on as it is", async () => {
@@ -441,31 +440,6 @@ describe("opening a board", () => {
     );
   });
 
-  test("runs what has to run before it opens a board, given the reply to hello", async () => {
-    const order: string[] = [];
-    // A store that opens R's board, or a JSON board's text with R's reply.
-    const make = (given?: HelloReply): Store => {
-      const store = createStore({
-        ...(given === undefined ? {} : { hello: given }),
-        loaded(reply) {
-          order.push("loaded");
-          expect(reply).toBe(docking);
-          dockClasses(store);
-        },
-      });
-      store.subscribe(() => order.push("opened"));
-      for (const option of coreOptions) store.options.register(option);
-      return store;
-    };
-
-    await make().open(docking);
-    const store = make(docking);
-    await store.open(file({ plugins: { dock: plugin(dock, "Dock", { views: {} }) } }));
-
-    expect(order).toEqual(["loaded", "opened", "loaded", "opened"]);
-    expect(viewsOf(store.board())).toEqual({});
-  });
-
   test("drops and names each plugin that the app does not run, with the package of its class", async () => {
     const store = unopened(
       dockClasses,
@@ -526,7 +500,7 @@ describe("opening a board", () => {
     const board = store.board();
     expect(Object.keys(board)).toEqual(["id", "name", "blocks", "links", "stacks", "options", "plugins"]);
     expect(board.plugins).toEqual({});
-    expect(board.options).toEqual({ n_rows: 20, show_conditions: ["warning", "error"], dark_mode: "light" });
+    expect(board.options).toEqual({ n_rows: 20 });
   });
 
   test("drops what core's board does not hold, without naming it", async () => {
@@ -691,7 +665,7 @@ describe("opening a board", () => {
     });
   });
 
-  test("gives the board options that core's basic frontend requires their defaults where it lacks them, as no step", async () => {
+  test("gives no board option its default, those that a plugin's class requires included", async () => {
     const read = vi.fn(() => Promise.resolve(25));
     const store = unopened((store) => {
       store.options.register({
@@ -707,39 +681,12 @@ describe("opening a board", () => {
 
     await store.open(file({ options: { n_rows: 20 }, plugins: { dock: plugin(dock, "Dock", { views: {} }) } }));
 
-    // The board options that a plugin's class requires are core's to resolve
-    // as it starts the plugin, rather than the store's.
-    expect(store.board().options).toEqual({ n_rows: 20, show_conditions: ["warning", "error"], dark_mode: "light" });
+    // The board options that a plugin's class requires, and those of core's
+    // basic frontend, are core's to add as the board opens, rather than the
+    // store's.
+    expect(store.board().options).toEqual({ n_rows: 20 });
     expect(read).not.toHaveBeenCalled();
     expect(store.canUndo()).toBe(false);
-  });
-
-  test("refuses a board where core's basic frontend requires a board option that no package defines, before it calls a default", async () => {
-    const read = vi.fn(() => Promise.resolve(["error"]));
-    const store = createStore({ hello });
-    store.options.register({ ...coreOptions[1], default: read } as Option);
-
-    await expect(store.open(file({ options: {} }))).rejects.toThrow(
-      'The store refused to open the board\n- Core\'s basic frontend requires the board option "dark_mode", which no loaded package defines.',
-    );
-    expect(read).not.toHaveBeenCalled();
-    expect(store.hasBoard()).toBe(false);
-  });
-
-  test("refuses a board where the default of a board option that core's basic frontend requires fails or does not fit its schema", async () => {
-    const store = createStore({ hello });
-    const [, conditions, theme] = coreOptions;
-    store.options.register({ ...conditions, default: () => Promise.reject(new Error("R has no conditions.")) } as Option);
-    store.options.register({ ...theme, default: () => Promise.resolve("dim") } as Option);
-
-    const refused = store.open(file({ options: {} }));
-    await expect(refused).rejects.toThrow(
-      'The default of the board option "show_conditions", which core\'s basic frontend requires, failed: R has no conditions.',
-    );
-    await expect(refused).rejects.toThrow(
-      'The default of the board option "dark_mode", which core\'s basic frontend requires, fails its schema',
-    );
-    expect(store.hasBoard()).toBe(false);
   });
 
   test("opens one board, and refuses another once it holds one or while it opens one", async () => {
@@ -768,7 +715,7 @@ describe("opening a board", () => {
     expect(store.board().name).toBe("Cars");
   });
 
-  test("ends at the same board whichever way the board comes in, and saves the JSON board R sent as it is, with the board options core's basic frontend requires", async () => {
+  test("ends at the same board whichever way the board comes in, and saves the JSON board R sent as it is", async () => {
     // Without the load lock, so that the store opens a JSON board's text on it.
     const replied: HelloReply = { ...(reply("hello-locked") as HelloReply), lock: { board: false, load: false } };
 
@@ -776,13 +723,7 @@ describe("opening a board", () => {
     const viaR = newStore();
     await viaR.open(replied);
     const board = viaR.board();
-    // With dark_mode at its default, which core's basic frontend requires and
-    // the board lacks.
-    const { options } = replied.board.board;
-    expect(viaR.jsonBoard()).toEqual({
-      ...replied.board,
-      board: { ...replied.board.board, options: { ...options, dark_mode: { value: "light", version: 1 } } },
-    });
+    expect(viaR.jsonBoard()).toEqual(replied.board);
 
     // As the client saves it, which the user opens.
     const viaClient = unopened(undefined, replied);
@@ -902,17 +843,15 @@ describe("opening a board", () => {
     // The version that the board records of a value that the store drops
     // refuses nothing.
     expect(dropped).toEqual([{ option: "grid_gap" }, { option: "view_tabs" }]);
-    expect(store.board().options).toEqual({ n_rows: 20, show_conditions: ["warning", "error"], dark_mode: "light" });
-    expect(Object.keys(store.jsonBoard().board.options)).toEqual(["n_rows", "show_conditions", "dark_mode"]);
+    expect(store.board().options).toEqual({ n_rows: 20 });
+    expect(Object.keys(store.jsonBoard().board.options)).toEqual(["n_rows"]);
   });
 
-  test("checks a JSON board's text as it would open it, holding nothing and running nothing that has to run before an opening", async () => {
-    const loaded = vi.fn();
-    const store = createStore({ loaded });
+  test("checks a JSON board's text as it would open it, holding nothing", async () => {
+    const store = createStore();
     for (const option of coreOptions) store.options.register(option);
     dockClasses(store);
     await store.open(docking);
-    loaded.mockClear();
     const board = store.board();
     const seen = changes(store);
 
@@ -934,7 +873,6 @@ describe("opening a board", () => {
     ]);
     expect(store.board()).toBe(board);
     expect(seen).toEqual([]);
-    expect(loaded).not.toHaveBeenCalled();
   });
 
   test("checks a JSON board's text with what is registered, rejecting with what would refuse it", async () => {
@@ -1022,20 +960,6 @@ describe("a store that ends", () => {
     expect(store.board().name).toBe("Renamed");
     expect(seen).toEqual([]);
     expect(late).toEqual([]);
-  });
-
-  test("refuses the board that it opens as its signal aborts", async () => {
-    const controller = new AbortController();
-    const store = createStore({
-      signal: controller.signal,
-      loaded: () => {
-        controller.abort();
-      },
-    });
-    for (const option of coreOptions) store.options.register(option);
-
-    await expect(store.open(hello)).rejects.toThrow(ended);
-    expect(store.hasBoard()).toBe(false);
   });
 });
 
@@ -1313,21 +1237,19 @@ describe("migrating board option values", () => {
 
     expect(migrate).toHaveBeenCalledOnce();
     expect(migrate.mock.calls[0]).toEqual(["42", 1]);
-    expect(opening.board().options).toEqual({ seed: 42, n_rows: 50, show_conditions: ["warning", "error"], dark_mode: "light" });
+    expect(opening.board().options).toEqual({ seed: 42, n_rows: 50 });
 
     const saved = opening.jsonBoard();
     expect(saved.board.options).toEqual({
       seed: { value: 42, version: 2 },
       n_rows: { value: 50, version: 1 },
-      show_conditions: { value: ["warning", "error"], version: 1 },
-      dark_mode: { value: "light", version: 1 },
     });
   });
 
   test("keeps a value without a migration, and refuses a board whose value then fails its schema, as one that a migration returns", async () => {
     const opening = store({ ...seed, migrate: undefined });
     await opening.open(file({ options: { seed: 7 } }, undefined, { seed: 1 }));
-    expect(opening.board().options).toEqual({ seed: 7, show_conditions: ["warning", "error"], dark_mode: "light" });
+    expect(opening.board().options).toEqual({ seed: 7 });
 
     const unfit = store({ ...seed, migrate: undefined });
     await expect(unfit.open(file({ options: { seed: "seven" } }, undefined, { seed: 1 }))).rejects.toThrow(
@@ -2115,7 +2037,7 @@ describe("undo", () => {
       { blocks: { mod: { b: { state: { n: 7 } } } }, options: { unset: ["show_conditions"] }, name: "Renamed" },
     ]);
     const { options } = store.board();
-    expect(options).toEqual({ n_rows: 20, seed: 42, dark_mode: "light" });
+    expect(options).toEqual({ n_rows: 20, seed: 42 });
 
     store.undo();
     expect([store.board().blocks.b?.state.n, store.board().name]).toEqual([6, "Iris review"]);
@@ -2150,7 +2072,7 @@ describe("undo", () => {
     store.undo();
     expect(store.board().name).toBe("Iris review");
     expect(store.canUndo()).toBe(false);
-    expect(store.board().options).toEqual({ n_rows: 20, dark_mode: "light" });
+    expect(store.board().options).toEqual({ n_rows: 20 });
   });
 
   test("sets back a stack's colour, null for none, by steps that survive JSON", async () => {

@@ -6,9 +6,13 @@
 //
 // Core starts as it does on the page, with core's board options and their UIs:
 // it initializes the startup modules given, in their order, opens the board of
-// R's reply to hello, and draws it with the module given for its frontend
-// where the test gives an element to draw in. A board that the test opens
-// later through the store's open() starts core again, as on the page.
+// R's reply to hello, draws it with the module given for its frontend where
+// the test gives an element to draw in, and runs its plugins, their start,
+// update and migrate included, with the plugin classes that the startup
+// modules register. The frontend is the board's plugin whose class has
+// `frontend`, or core's basic frontend where the board holds none. A board
+// that the test opens later through the store's open() starts core again, as
+// on the page.
 // R, played from the fixtures, replies to the client's hello with the
 // reply of the fixture hello unless given, and drops what it holds at a later
 // hello, as R does. It evaluates every block as ok, makes a block's output
@@ -36,7 +40,7 @@ import type { BlockId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { BlockOutput, OutputFixtures } from "../types/outputs.ts";
-import { isObject, messageOf, own } from "../util/index.ts";
+import { isObject, messageOf, own, packageOf } from "../util/index.ts";
 // The stubs ship the fixtures that R and both test suites read from inst/.
 // eslint-disable-next-line no-restricted-imports
 import helloFixture from "../../inst/protocol/fixtures/hello.json" with { type: "json" };
@@ -86,9 +90,11 @@ export interface StubCoreOptions {
   // given, so that core takes the fallbacks.
   readonly blockrOptions?: Readonly<Record<string, Json>>;
   // What each module that core imports exports, by the URL that R serves it
-  // at or by the id of a module that packages offer each other, a frontend
-  // among them, such as "blockr.core-basic", which draws a board of core's
-  // class. A module that the test leaves out fails to load.
+  // at or by the id of a module that packages offer each other, such as the
+  // `ui` or the `frontend` of a plugin class, or "blockr.core-basic", core's
+  // basic frontend, which draws a board that holds no frontend. R serves a
+  // module that the test gives by an id that R's reply does not name as well.
+  // A module that the test leaves out fails to load.
   readonly modules?: Readonly<Record<string, unknown>>;
   // What the startup module of each package exports, by package, in the order
   // in which core initializes them, after those that the reply names.
@@ -127,6 +133,9 @@ export interface StubCore {
 export async function stubCore(options: StubCoreOptions = {}): Promise<StubCore> {
   const startup = options.startup ?? {};
   const base = options.hello ?? HELLO;
+  // The modules that the test gives by an id that R's reply does not name,
+  // which R then serves at a URL of their own.
+  const offered = Object.keys(options.modules ?? {}).filter((id) => isModuleId(id) && !Object.hasOwn(base.modules, id));
   const hello: HelloReply = {
     ...base,
     packages: { ...base.packages, ...Object.fromEntries(Object.keys(startup).map((pkg) => [pkg, "1.0.0"])) },
@@ -134,6 +143,7 @@ export async function stubCore(options: StubCoreOptions = {}): Promise<StubCore>
       ...base.startup_modules,
       ...Object.keys(startup).map((pkg) => ({ package: pkg, module: startupUrl(pkg) })),
     ],
+    modules: { ...base.modules, ...Object.fromEntries(offered.map((id) => [id, { module: moduleUrl(id) }])) },
   };
   const modules: Readonly<Record<string, unknown>> = {
     ...options.modules,
@@ -178,6 +188,18 @@ export async function stubCore(options: StubCoreOptions = {}): Promise<StubCore>
 
 function startupUrl(pkg: string): string {
   return `${pkg}/startup.js`;
+}
+
+// Where R serves a module that the test gives by its id, `{pkg}-{name}`, as
+// "blockr.test/blockr.test-notes.js" for "blockr.test-notes".
+function moduleUrl(id: string): string {
+  return `${packageOf(id) ?? "app"}/${id}.js`;
+}
+
+// Whether a key of the modules that the test gives is a module's id,
+// `{pkg}-{name}`, rather than a URL that R serves a module at.
+function isModuleId(key: string): boolean {
+  return packageOf(key) !== null && !key.includes("/");
 }
 
 // R, played from the fixtures over a transport of its own: it starts a session

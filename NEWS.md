@@ -239,7 +239,7 @@
 * Core's client starts the page in the order of the startup modules, through `startPage()` in its runtime.
   Once R has answered its hello, core asks R in one request for the blockr options that its scheduler reads.
   It then initializes the startup module of each package that R has loaded, one at a time in R's order, and opens the board that R sent, or the one that a startup module names in its place.
-  It draws the board with core's basic frontend, and lets the scheduler send once the frontend's `render()` has returned.
+  It draws the board with its frontend, or with core's basic frontend where the board holds none, and lets the scheduler send once the frontend's `render()` has returned.
   A board opened later is drawn in the same way, and a later session that names a loaded package at another version has the page ask the user to reload it.
   Frontends, plugins and startup modules work on the board through `CoreApi`.
   Its `mountBlock()`, `mountOutput()` and `mountOption()` mount a block's UI, a block's output and a board option's UI, and its `blockrOption()` reads a blockr option once per page.
@@ -249,14 +249,14 @@
   The package `@blockr/core` names the React that core's runtime bundles, at that version, as its peer, so that npm installs that React with it and a package's tests run on it with no React of their own, while npm refuses a second copy at another version (#440, #504, #505).
 * Opening a board starts core's client again in place, with no reload, so that nothing of the board before outlives the opening.
   The store on the page checks the board first, with its `check()`, and a board that it refuses leaves the page as it was, with the reason.
-  One abort then ends everything that core ran for the board before: the frontend and what it mounted, the startup modules, the store with its undo history, the command registry, the board options, the scheduler with its demands, and what core kept of outputs and answers.
+  One abort then ends everything that core ran for the board before: the frontend and what it mounted, the plugins, the startup modules, the store with its undo history, the command registry, the board options, the scheduler with its demands, which block has focus, and what core kept of outputs and answers.
   Core sends another hello, on which R drops every result, queued request and request body of the board before, and starts as the page does, with a new `CoreApi` for the startup modules and the frontend.
   A store opens one board, and the scheduler of the next board gives each block a revision above any that the page has given (#497).
 * A later session whose R speaks another major of the wire protocol stops the page, as the first session's does.
   Core's client sends R nothing more, not even what it held for the session, and the page says to reload it.
   Where a later session names a package at another version than the page loaded, the page still asks the user to reload it.
   Until then, core keeps the modules of that package that it loaded, and loads no other module of it (#515).
-* Core's basic frontend, `blockr.core-basic`, draws every board.
+* Core's basic frontend, `blockr.core-basic`, draws every board that holds no frontend.
   It is written in React on core's React SDK and styled with Tailwind CSS under core's prefix.
   Its toolbar adds a block from the block registry's entries, edits links and stacks, sets the board options that the board holds, renames the board, and saves the board as a file or opens one.
   It draws each stack as a group of its blocks' cards.
@@ -267,7 +267,7 @@
   The frontend tells the user which edit the store refused.
   The frontend demands every block above the default evaluation priority, and the blocks in view higher still, where the page parked the blocks of collapsed stacks until now.
   On a locked board, it draws no control for what the lock fixes.
-  It requires the board options `show_conditions` and `dark_mode`, so that every board gets them as it opens.
+  It requires the board options `show_conditions` and `dark_mode`, so that a board that it draws gets them as it opens.
   The page's color scheme follows the theme that `dark_mode` switches the page to, so that the browser draws the page's background, form controls and scroll bars in that theme too.
   Where no blockr option sets `n_rows`, a table output's page holds 10 rows, where it held 50 (#441).
 * A board has no class of its own, and plugins take the place of board classes as core's way to extend a board as a whole, beside block classes.
@@ -283,6 +283,14 @@
   It keeps an edit ID for each plugin, checks a plugin's state against the schema of its class after every change, calls each class's `update` once for each of its plugins, and holds a board to one frontend and one storage plugin at most.
   The plugins of the board that the app script builds are the plugins of every board that the app opens: opening a board keeps each of its plugins that the opening board holds under the same ID and of the same class, migrating its state by its class's `migrate`, drops and names the others, and gives the board each other plugin of the opening board with its class's default state.
   So no patch adds, removes or replaces a plugin, and core's command `blockr.core-set_plugin_state` changes a plugin's state (#504).
+* The frontend is a plugin: a board that holds a plugin whose class has `frontend` is drawn by that module, and core's basic frontend draws a board that holds none.
+  Core calls a frontend's `render()` with the page's element, `CoreApi`, the plugin's id and a signal, as it calls the `render()` of a plugin's UI module, which a frontend places with the `mountPlugin()` of `CoreApi`.
+  Once the frontend's `render()` has returned, core calls the `start` of each plugin's class, in the order of the board's plugins, and as the next board opens it aborts the plugin's signal and runs the cleanup that `start` returned.
+  As a board opens, core adds to it the board options that the classes of its plugins name in `options`, and those of core's basic frontend where it draws the board, each with its default where the board lacks it, so that the store no longer writes `show_conditions` and `dark_mode` into every board.
+  Where such a board option does not go onto the board, nothing that requires it draws or runs: the element of the frontend or of the plugin's UI shows why, and core calls no `start` of the plugin and reports why.
+  The `plugins` of `CoreApi` gain `running()`, the open board's plugins, `classOf()`, the class of one of them, and `storage()`, the storage of the board's storage plugin, or that of core's own, which saves a board as a download and opens an upload, where the board holds none.
+  Beside them, `CoreApi` gains `notifications`, which hands each note that a plugin sends to the frontend, and `focus`, the block that has focus, which goes back to none where that block leaves the board.
+  The `CoreApi` for tests runs the board's plugins as the page does, and serves a module that a test gives by its id, such as a plugin's UI (#506).
 * Core refuses a block class's UI module whose `options` leaves out a board option that a request of the class reads.
   It shows an error in the block's element in place of the module's UI, as it does for a module that declares another major of core's JS API.
   The error names the module and its package, each board option that the module leaves out, and the requests that read it.

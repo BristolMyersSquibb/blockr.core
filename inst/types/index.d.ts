@@ -3,7 +3,7 @@ export type { Block, BlockId, Board, JsonBlock, JsonOption, JsonBoard, Link, Lin
 export type { ArgSpec, RegistryEntry } from "./types/registry.ts";
 export type { BlockOutput, OutputFixture, OutputFixtures, OutputRenderer, PlotOutput, TableColumn, TableOutput, TableParams, TextOutput, } from "./types/outputs.ts";
 export type { BlockContext, BlockHost, BlockModule, HostRequestOpts, OptionHost, OptionModule, OutputHost, OutputModule, OutputRequestOpts, Rendered, State, } from "./types/hosts.ts";
-export type { BlockRegistry, CoreApi, OutputEvents, RequestOpts } from "./types/core-api.ts";
+export type { BlockRegistry, CoreApi, Note, OutputEvents, PluginModule, RequestOpts } from "./types/core-api.ts";
 export type { Change, Delta, Dropped, Migration, Option, Options, Origin, Patch, PluginClass, Plugins, Storage, Store, StoreError, } from "./store/index.ts";
 export type { Command, CommandError, Commands } from "./commands/index.ts";
 export type { BlockStatus, Demand, Scheduler, Status } from "./scheduler/index.ts";

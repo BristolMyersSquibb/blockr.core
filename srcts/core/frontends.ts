@@ -1,10 +1,15 @@
 // Drawing frontends in the page's element, as core draws each board that it
-// opens with core's basic frontend
+// opens with its frontend
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#opening-a-board):
-// - As the store opens a board, core imports the module of its frontend.
-// - Once the board is open, core calls the frontend's render() with the
-//   element, CoreApi and a signal, which aborts as the next board opens, since
-//   core starts again for that board.
+// - Once the store has opened a board, core imports the module of its
+//   frontend: the `frontend` of the class of the board's plugin that is one,
+//   or core's basic frontend where the board holds none.
+// - Once the board options that the frontend requires are on the board, core
+//   calls the frontend's render() with the element, CoreApi, the plugin's id
+//   and a signal, which aborts as the next board opens, since core starts
+//   again for that board. Core's basic frontend, which no board holds, gets no
+//   plugin's id. Where a board option that the frontend requires did not go
+//   onto the board, the element shows why in place of the frontend.
 // - As the signal aborts, core runs the cleanup that render() returned, and the
 //   element says that the board is loading until the next frontend draws.
 // A frontend releases what it holds as its signal aborts, as a module does as
@@ -12,16 +17,11 @@
 // and drops the rest of what it ran for the board.
 
 import { attempt, ModuleError, moduleOf, showError } from "../mount/index.ts";
-import type { CoreApi } from "../types/core-api.ts";
+import type { PluginId } from "../types/board.ts";
 import type { Rendered } from "../types/hosts.ts";
 import { messageOf, packageOf, report } from "../util/index.ts";
+import type { FrontendArgs } from "./plugins.ts";
 import type { FrontEnds } from "./start.ts";
-
-interface FrontEndArgs {
-  el: HTMLElement;
-  core: CoreApi;
-  signal: AbortSignal;
-}
 
 interface Drawn {
   readonly controller: AbortController;
@@ -42,7 +42,15 @@ export function loadingNote(): HTMLElement {
 // The frontends of the page, drawn in the element.
 export function pageFrontEnds(el: HTMLElement): FrontEnds {
   let drawn: Drawn | undefined;
-  let next: { id: string; module: string; render?: (args: FrontEndArgs) => Rendered; error?: unknown } | undefined;
+  let next:
+    | {
+        id: string;
+        module: string;
+        plugin: PluginId | undefined;
+        render?: (args: FrontendArgs) => Rendered;
+        error?: unknown;
+      }
+    | undefined;
 
   function end(): void {
     const current = drawn;
@@ -55,28 +63,34 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
   }
 
   return {
-    async prepare(front, loader) {
+    async prepare(front, loader, signal) {
       let prepared: NonNullable<typeof next>;
-      const { id, source } = front;
+      const { id, source, plugin } = front;
       const pkg = packageOf(id);
       if (source === undefined) {
-        prepared = { id, module: id, error: new Error(`R serves no module ${id}, the frontend that draws the board.`) };
+        prepared = { id, module: id, plugin, error: new Error(`R serves no module ${id}, the frontend that draws the board.`) };
       } else {
         try {
-          const mod = moduleOf<FrontEndArgs>(await loader.load(source, pkg), source.module, pkg);
-          prepared = { id, module: source.module, render: mod.render.bind(mod) };
+          const mod = moduleOf<FrontendArgs>(await loader.load(source, pkg), source.module, pkg);
+          prepared = { id, module: source.module, plugin, render: mod.render.bind(mod) };
         } catch (error) {
-          prepared = { id, module: source.module, error };
+          prepared = { id, module: source.module, plugin, error };
         }
       }
+      if (signal.aborted) return;
       end();
       next = prepared;
     },
-    async render(core, signal) {
+    async render(core, signal, failures) {
+      if (signal.aborted) return;
       const prepared = next;
       next = undefined;
-      if (prepared === undefined || signal.aborted) return;
+      if (prepared === undefined) return;
       el.replaceChildren();
+      if (failures.length > 0) {
+        showError(el, failures.join("\n"));
+        return;
+      }
       if (prepared.render === undefined) {
         showError(el, `The frontend ${prepared.id} cannot draw the board: ${messageOf(prepared.error)}`);
         report(prepared.error);
@@ -96,7 +110,13 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
       };
       drawn = current;
       try {
-        const rendered = await prepared.render({ el, core, signal: controller.signal });
+        const { plugin } = prepared;
+        const rendered = await prepared.render({
+          el,
+          core,
+          signal: controller.signal,
+          ...(plugin === undefined ? {} : { plugin }),
+        });
         if (typeof rendered !== "function") return;
         if (controller.signal.aborted) attempt(rendered);
         else current.cleanup = rendered;

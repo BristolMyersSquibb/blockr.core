@@ -271,9 +271,8 @@ describe("a mount", () => {
     s.mounts.mountOption(document.createElement("div"), "theme");
     await tick();
 
-    // Beside those that core's basic frontend requires, the board holds the
-    // value of theme alone.
-    expect(s.store.board().options).toEqual({ show_conditions: ["warning", "error"], dark_mode: "light", theme: "light" });
+    // The board holds the value of theme alone.
+    expect(s.store.board().options).toEqual({ theme: "light" });
   });
 
   test("ends its UI and shows why once a delta removes the value and the default does not go onto the board again", async () => {

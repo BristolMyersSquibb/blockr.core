@@ -149,9 +149,6 @@ test("the check fails a fixture with a property that its type lacks", () => {
 // R loaded the packages at the versions that the JSON board records, and gives
 // the plugin classes the versions it records, so that the store runs no
 // migration.
-// The store gives the board options that core's basic frontend requires their
-// defaults where the board lacks them, so the text holds those too, after the
-// values that R wrote.
 test.each(names)("the store opens %s, saves it as R wrote it, and opens the text to the same board", async (name) => {
   const json = jsonOf(read(name));
   const replied: HelloReply = {
@@ -177,15 +174,8 @@ test.each(names)("the store opens %s, saves it as R wrote it, and opens the text
 
   // The text holds each value as R wrote it, an array as an array and an
   // object as an object, with the properties in R's order.
-  const required = { show_conditions: ["warning", "error"], dark_mode: "light" };
-  const added = Object.fromEntries(
-    Object.entries(required)
-      .filter(([id]) => !Object.hasOwn(json.board.options, id))
-      .map(([id, value]) => [id, { value, version: 1 }]),
-  );
-  const saved = { ...json, board: { ...json.board, options: { ...json.board.options, ...added } } };
   const text = store.save();
-  expect(text).toBe(`${JSON.stringify(saved, null, 2)}\n`);
+  expect(text).toBe(`${JSON.stringify(json, null, 2)}\n`);
 
   // A collection keeps the order of its entries, as JSON.parse() keeps the
   // order of keys that do not look like integers.

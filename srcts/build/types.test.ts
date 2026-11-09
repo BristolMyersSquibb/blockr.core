@@ -207,6 +207,56 @@ const merge: BlockModule<MergeState> = {
 export default merge;
 `;
 
+// A plugin's UI module, which draws one plugin of its class, and the class,
+// whose storage a frontend's save and open controls call, as a package writes
+// them.
+const notesModule = `import type { PluginClass, PluginModule } from "@blockr/core";
+
+export const api = 1;
+
+const notes: PluginModule = {
+  render({ el, core, plugin, signal }) {
+    const draw = (): void => {
+      el.textContent = core.store.board().plugins[plugin]?.name ?? "";
+    };
+    draw();
+    const others = Object.keys(core.plugins.running()).filter(
+      (id) => id !== plugin && core.plugins.classOf(id).ui !== undefined,
+    );
+    const ends = others.map((id) => core.mountPlugin(el.appendChild(document.createElement("section")), id));
+    const offFocus = core.focus.subscribe((block) => {
+      el.dataset.focus = block ?? "";
+    });
+    signal.addEventListener("abort", () => {
+      core.notifications.notify({ message: "Notes closed.", severity: "message" });
+    });
+    const off = core.store.subscribe(draw);
+    return () => {
+      off();
+      offFocus();
+      for (const end of ends) end();
+    };
+  },
+};
+
+export default notes;
+
+export const notesPlugin: PluginClass = {
+  id: "blockr.notes-notes_plugin",
+  ui: "blockr.notes-notes",
+  storage: {
+    save: () => Promise.resolve(),
+    open: () => Promise.resolve(null),
+  },
+  start: ({ core, signal }) => {
+    const off = core.notifications.subscribe((note) => {
+      core.focus.set(note.severity === "error" ? null : core.focus.get());
+    });
+    signal.addEventListener("abort", off);
+  },
+};
+`;
+
 const headTest = `import { mount, stubBlockHost } from "@blockr/core/stubs";
 import type { BlockFixture, StubBlockHost } from "@blockr/core/stubs";
 import * as head from "./head-block.ts";
@@ -228,9 +278,12 @@ test.each(["bundler", "nodenext"] as const)(
       "src/head-block.ts": headModule,
       "src/head-block.test.ts": headTest,
       "src/merge-block.ts": mergeModule,
+      "src/notes-plugin.ts": notesModule,
     });
 
-    const sources = ["head-block.ts", "head-block.test.ts", "merge-block.ts"].map((file) => join(root, "src", file));
+    const sources = ["head-block.ts", "head-block.test.ts", "merge-block.ts", "notes-plugin.ts"].map((file) =>
+      join(root, "src", file),
+    );
     const program = ts.createProgram(sources, {
       target: ts.ScriptTarget.ES2022,
       lib: ["lib.es2022.d.ts", "lib.dom.d.ts"],

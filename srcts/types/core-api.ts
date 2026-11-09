@@ -2,15 +2,17 @@
 // through which they work on the board, as Drawing the board has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#what-core-gives-plugins).
 // Core makes one for each board that opens, and ends it as the next board
-// opens, with the signal that the startup modules and the frontend get
-// beside it. The modules that core mounts inside a frontend's layout get a
-// host instead (./hosts.ts).
+// opens, with the signal that the startup modules, the module of every plugin
+// and every plugin class's start get beside it. The modules that core mounts
+// inside a frontend's layout get a host instead (./hosts.ts), but for the
+// module of a plugin, which gets CoreApi.
 
 import type { Commands } from "../commands/index.ts";
 import type { Lock } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
-import type { Options, PluginClass, Store } from "../store/index.ts";
-import type { BlockId, OptionId, PluginId, RegistryId } from "./board.ts";
+import type { Options, PluginClass, Storage, Store } from "../store/index.ts";
+import type { BlockId, OptionId, Plugin, PluginId, RegistryId } from "./board.ts";
+import type { Rendered } from "./hosts.ts";
 import type { Json } from "./json.ts";
 import type { RegistryEntry } from "./registry.ts";
 
@@ -33,10 +35,24 @@ export interface CoreApi {
   readonly options: Options & {
     value(option: OptionId): Json | undefined;
   };
-  // The plugin classes that packages define, each of which a package's
-  // startup module registers under the class's id.
+  // The plugin classes that packages define, and the plugins of the open
+  // board, which run while it is open
+  // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#running-a-plugin).
   readonly plugins: {
+    // Registers a plugin class under the class's id, as a package's startup
+    // module does, and returns what unregisters it.
     register(def: PluginClass): () => void;
+    // The plugins of the open board whose classes are registered, by id. It
+    // returns the same object until the board's plugins change, and an empty
+    // one while no board is open.
+    running(): Readonly<Record<PluginId, Plugin>>;
+    // The definition of the class of a plugin that runs. It throws for a
+    // plugin that the open board does not run.
+    classOf(plugin: PluginId): PluginClass;
+    // What a frontend's save and open controls call: the storage of the open
+    // board's storage plugin, or core's own, which saves a board as a download
+    // and opens an upload, where the board holds no storage plugin.
+    storage(): Storage;
   };
   // The locks that the app sets, from R's reply to `hello`: whether the board
   // lock and the load lock are on. The store's locked() says which blocks the
@@ -45,6 +61,27 @@ export interface CoreApi {
   // What renderers report that the user did, such as a selection, for
   // plugins to act on.
   readonly outputEvents: OutputEvents;
+  // The notes that plugins send, which the frontend hears and draws.
+  readonly notifications: {
+    // Hands the note to each subscriber. Core keeps no note, so a note sent
+    // before anything subscribes reaches nobody.
+    notify(note: Note): void;
+    subscribe(fn: (note: Note) => void): () => void;
+  };
+  // Which block has focus, which the frontend sets as the user moves into a
+  // block, and which a plugin such as the assistant reads to tell which block
+  // the user is looking at. Core holds it for the page, outside the board, so
+  // that nothing saves or undoes it, and no block has focus as a board opens.
+  readonly focus: {
+    // The block that has focus, or null for none.
+    get(): BlockId | null;
+    // Gives the block focus, or with null takes focus from every block. It
+    // throws for a block that the board does not hold.
+    set(block: BlockId | null): void;
+    // Calls `fn` with the block that has focus whenever that changes, as where
+    // the block with focus leaves the board, which leaves no block with focus.
+    subscribe(fn: (block: BlockId | null) => void): () => void;
+  };
   // A request of a plugin of the board, by the plugin's id, which the method
   // of R's plugin_requests() for the plugin's class answers. Its args go to
   // the request's function by name. Core has the blocks that it reads
@@ -61,6 +98,30 @@ export interface CoreApi {
   mountBlock(el: HTMLElement, block: BlockId): () => void;
   mountOutput(el: HTMLElement, block: BlockId): () => void;
   mountOption(el: HTMLElement, option: OptionId): () => void;
+  // The `ui` module of the class of a plugin that runs, mounted in the element
+  // that a frontend places the plugin in, once for each plugin, until the
+  // cleanup that the call returns runs. It throws for a plugin that the open
+  // board does not run, or whose class has no `ui`.
+  mountPlugin(el: HTMLElement, plugin: PluginId): () => void;
+}
+
+// A note that a plugin sends, which the frontend draws.
+export interface Note {
+  readonly message: string;
+  readonly severity: "message" | "warning" | "error";
+}
+
+// What a plugin's module exports as its default, beside the JS API major it
+// was built against, as `export const api = 1`: the `ui` of a plugin class,
+// which a frontend places with mountPlugin(), or its `frontend`, which draws
+// the page. Core calls render() with the element to draw in, CoreApi, the id
+// of the plugin it draws and a signal, which it aborts when it unmounts the
+// module, as the contract of a block's UI has it with a host in place of
+// CoreApi (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#plugin-classes).
+// So one module draws each plugin of its class, each from its own state. The
+// render() function may be async and may return its cleanup.
+export interface PluginModule {
+  render(args: { el: HTMLElement; core: CoreApi; plugin: PluginId; signal: AbortSignal }): Rendered;
 }
 
 export type BlockRegistry = Readonly<Record<RegistryId, RegistryEntry>>;

@@ -75,6 +75,16 @@ export interface Mounts {
   // is a function, and core keeps nothing of a default once the board holds
   // it. The origin of what it adds is "blockr.core".
   addOptions(ids: readonly OptionId[], by: string): Promise<readonly string[]>;
+  // Keeps the board options on the board while the caller needs them: it adds
+  // those that the board lacks now, as addOptions() does, resolving `added`
+  // with why any did not go onto the board, and adds again each that a delta
+  // removes, until stop() runs. It calls `failed` with why one that a delta
+  // removed did not go onto the board again, as core reports it.
+  keepOptions(
+    ids: readonly OptionId[],
+    by: string,
+    failed?: (failures: readonly string[]) => void,
+  ): { readonly added: Promise<readonly string[]>; readonly stop: () => void };
 }
 
 export interface MountsOptions {
@@ -350,6 +360,7 @@ export function createMounts(options: MountsOptions): Mounts {
     mountOption: (el, option) =>
       mountOption({ store, commands, scheduler, loader, renderers, replaced, keepOptions }, el, option),
     addOptions,
+    keepOptions,
   };
 }
 

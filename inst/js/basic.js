@@ -956,7 +956,7 @@ function ColorField({
 // srcts/modules/basic/toolbar.tsx
 import { useRef as useRef4, useState as useState6 } from "react";
 
-// srcts/modules/basic/file.ts
+// srcts/storage/storage.ts
 function fileName(board, now = /* @__PURE__ */ new Date()) {
   const two = (n) => String(n).padStart(2, "0");
   const date = `${String(now.getFullYear())}-${two(now.getMonth() + 1)}-${two(now.getDate())}`;

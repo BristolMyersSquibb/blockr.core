@@ -3,7 +3,8 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#what-core-gives-plugins).
 // Core makes one for each board that opens, on the store, the command registry
 // and the scheduler that it creates for that board, and hands it to each
-// startup module's initialize() and to the frontend's render() (./start.ts).
+// startup module's initialize(), to the render() of the frontend and of every
+// plugin's UI, and to every plugin class's start (./start.ts, ./plugins.ts).
 // It ends with them, as the next board opens.
 //
 // Beside what it hands out, it calls the onChange() of each board option whose
@@ -13,18 +14,26 @@
 // removed it, core adds the board option to the board with its default, which
 // calls onChange() in turn, so that what it does on the page follows the board
 // that is open.
+//
+// It also holds what the frontend offers other plugins, as Plugins has it
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#what-a-frontend-offers-other-plugins):
+// the notes that plugins send, which the frontend draws, and which block has
+// focus, which the frontend sets. Both are the page's, outside the board, and
+// end with the board.
 
 import type { Commands } from "../commands/index.ts";
-import { createMounts } from "../mount/index.ts";
+import { announceTo, createMounts } from "../mount/index.ts";
 import type { Loader, Measure, OutputEvent } from "../mount/index.ts";
 import type { Lock, Renderer } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
-import type { Board, OptionId, PluginId } from "../types/board.ts";
-import type { CoreApi, OutputEvents } from "../types/core-api.ts";
+import type { BlockId, Board, OptionId, PluginId } from "../types/board.ts";
+import type { CoreApi, Note, OutputEvents } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
-import { jsonEqual, own, report } from "../util/index.ts";
+import { isObject, jsonEqual, own, report } from "../util/index.ts";
 import type { BlockrOptions } from "./blockr-options.ts";
+import { runPlugins } from "./plugins.ts";
+import type { RunningPlugins } from "./plugins.ts";
 import { pluginRequest } from "./requests.ts";
 
 export interface CoreParts {
@@ -48,7 +57,14 @@ export interface CoreParts {
   readonly signal?: AbortSignal;
 }
 
-export function createCore(parts: CoreParts): CoreApi {
+// What core makes for one board: CoreApi, and what draws and starts the
+// board's plugins as the board opens, which core calls (./start.ts).
+export interface Core {
+  readonly api: CoreApi;
+  readonly plugins: Pick<RunningPlugins, "frontend" | "start">;
+}
+
+export function createCore(parts: CoreParts): Core {
   const { store, commands, scheduler, loader, blockrOptions } = parts;
 
   const listeners = new Set<(event: OutputEvent) => void>();
@@ -90,6 +106,17 @@ export function createCore(parts: CoreParts): CoreApi {
     },
   });
 
+  // It subscribes to the store before core's own subscription below, so that
+  // the board options of the plugins' classes go onto the board in their
+  // order as it opens, before the board options that have an onChange().
+  const plugins = runPlugins({
+    store,
+    loader,
+    keepOptions: (ids, by, failed) => mounts.keepOptions(ids, by, failed),
+    core: () => api,
+    ...(parts.signal === undefined ? {} : { signal: parts.signal }),
+  });
+
   const api: CoreApi = {
     store,
     commands,
@@ -110,9 +137,14 @@ export function createCore(parts: CoreParts): CoreApi {
     },
     plugins: {
       register: (def) => store.plugins.register(def),
+      running: () => plugins.running(),
+      classOf: (plugin) => plugins.classOf(plugin),
+      storage: () => plugins.storage(),
     },
     lock: parts.lock,
     outputEvents,
+    notifications: createNotifications(parts.signal),
+    focus: createFocus(store, parts.signal),
     request: <T = Json>(plugin: PluginId, name: string, args: Readonly<Record<string, Json>> = {}, opts = {}) =>
       pluginRequest({ store, scheduler }, plugin, name, args, opts) as Promise<T | Blob>,
     module: <T = unknown>(id: string) => loader.module(id) as Promise<T>,
@@ -120,6 +152,7 @@ export function createCore(parts: CoreParts): CoreApi {
     mountBlock: (el, block) => mounts.mountBlock(el, block),
     mountOutput: (el, block) => mounts.mountOutput(el, block),
     mountOption: (el, option) => mounts.mountOption(el, option),
+    mountPlugin: (el, plugin) => plugins.mountPlugin(el, plugin),
   };
 
   // The values of the board options as each onChange() last heard them.
@@ -151,5 +184,84 @@ export function createCore(parts: CoreParts): CoreApi {
     }
   }
 
-  return api;
+  return { api, plugins };
+}
+
+const SEVERITIES: readonly unknown[] = ["message", "warning", "error"];
+
+// The notes that plugins send, which reach each subscriber, as the frontend
+// that draws them, until the board ends.
+function createNotifications(signal: AbortSignal | undefined): CoreApi["notifications"] {
+  const listeners = new Set<(note: Note) => void>();
+  signal?.addEventListener(
+    "abort",
+    () => {
+      listeners.clear();
+    },
+    { once: true },
+  );
+  return {
+    notify(note) {
+      // A plugin in plain JS may send something else, which the types refuse.
+      const given: unknown = note;
+      if (!isObject(given) || typeof given.message !== "string" || !SEVERITIES.includes(given.severity)) {
+        throw new TypeError('A note holds a message, as a string, and a severity, "message", "warning" or "error".');
+      }
+      const sent: Note = Object.freeze({ message: given.message, severity: given.severity as Note["severity"] });
+      announceTo(listeners, sent);
+    },
+    subscribe(fn) {
+      const wrapped = (note: Note): void => {
+        fn(note);
+      };
+      listeners.add(wrapped);
+      return () => {
+        listeners.delete(wrapped);
+      };
+    },
+  };
+}
+
+// Which block has focus, which starts with none as the board opens and goes
+// back to none where the block leaves the board, until the board ends.
+function createFocus(store: Store, signal: AbortSignal | undefined): CoreApi["focus"] {
+  let focused: BlockId | null = null;
+  const listeners = new Set<(block: BlockId | null) => void>();
+
+  const offStore = store.subscribe((_change, board) => {
+    if (focused === null || Object.hasOwn(board.blocks, focused)) return;
+    focused = null;
+    announceTo(listeners, focused);
+  });
+  signal?.addEventListener(
+    "abort",
+    () => {
+      offStore();
+      listeners.clear();
+    },
+    { once: true },
+  );
+
+  return {
+    get: () => focused,
+    set(block) {
+      // A plugin in plain JS may give something else, which the types refuse.
+      const given: unknown = block;
+      if (given !== null && (typeof given !== "string" || !store.hasBoard() || !Object.hasOwn(store.board().blocks, given))) {
+        throw new Error(`The board holds no block ${JSON.stringify(given)} to give focus to.`);
+      }
+      if (given === focused) return;
+      focused = given;
+      announceTo(listeners, focused);
+    },
+    subscribe(fn) {
+      const wrapped = (block: BlockId | null): void => {
+        fn(block);
+      };
+      listeners.add(wrapped);
+      return () => {
+        listeners.delete(wrapped);
+      };
+    },
+  };
 }

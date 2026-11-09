@@ -6,7 +6,6 @@ import type { Stack } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import { demandShown, IN_VIEW, OWNER, SHOWN } from "./demand.ts";
 import type { View } from "./demand.ts";
-import { fileName } from "./file.ts";
 import { itemsOf } from "./layout.ts";
 
 describe("where each block goes", () => {
@@ -150,11 +149,5 @@ describe("what the frontend demands", () => {
     shown.watch("b", laidOut(700));
     shown.measure();
     expect(demands[1]?.blocks).toEqual(["a"]);
-  });
-});
-
-describe("the board's file", () => {
-  test("is named by the board's id and the local time it was saved, as today's", () => {
-    expect(fileName({ id: "brisk_otter" }, new Date(2026, 10, 6, 14, 3, 9))).toBe("brisk_otter_2026-11-06_14-03-09.json");
   });
 });

@@ -1,14 +1,15 @@
 import type { Loader, LoaderOptions, Measure, Source } from "../mount/index.ts";
 import type { Transport } from "../protocol/index.ts";
 import type { Option } from "../store/index.ts";
+import type { PluginId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
-export declare const BASIC = "blockr.core-basic";
 export interface FrontEnds {
     prepare(front: {
         readonly id: string;
         readonly source: Source | undefined;
-    }, loader: Loader): Promise<void>;
-    render(core: CoreApi, signal: AbortSignal): Promise<void>;
+        readonly plugin: PluginId | undefined;
+    }, loader: Loader, signal: AbortSignal): Promise<void>;
+    render(core: CoreApi, signal: AbortSignal, failures: readonly string[]): Promise<void>;
 }
 export interface Changed {
     readonly package: string;

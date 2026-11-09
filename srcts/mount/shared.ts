@@ -66,8 +66,12 @@ export function onAbort(signal: AbortSignal, fn: () => void): () => void {
 // Why core mounts nothing on a board that another has replaced.
 export const REPLACED = "Another board opened, so core mounts nothing more of the board before.";
 
-// Calls each listener, reporting what one throws, so that the others still
-// hear of it.
-export function announceTo(listeners: Iterable<() => void>): void {
-  for (const fn of [...listeners]) attempt(fn);
+// Calls each listener with the args given, reporting what one throws, so that
+// the others still hear of it.
+export function announceTo<A extends unknown[]>(listeners: Iterable<(...args: A) => void>, ...args: A): void {
+  for (const fn of [...listeners]) {
+    attempt(() => {
+      fn(...args);
+    });
+  }
 }

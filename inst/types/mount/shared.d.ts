@@ -8,4 +8,4 @@ export declare function showError(el: HTMLElement, message: string): void;
 export declare function attempt(fn: () => void): void;
 export declare function onAbort(signal: AbortSignal, fn: () => void): () => void;
 export declare const REPLACED = "Another board opened, so core mounts nothing more of the board before.";
-export declare function announceTo(listeners: Iterable<() => void>): void;
+export declare function announceTo<A extends unknown[]>(listeners: Iterable<(...args: A) => void>, ...args: A): void;
