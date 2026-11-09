@@ -24,8 +24,7 @@
             "phase": "request",
             "message": "there is no package called ‘nopkg’"
           }
-        ],
-        "omitted": { "warning": 0, "message": 0 }
+        ]
       }
     ]
   ]

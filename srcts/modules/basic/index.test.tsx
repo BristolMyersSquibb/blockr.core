@@ -143,7 +143,6 @@ describe("a card", () => {
                 { severity: "warning", class: ["simpleWarning", "warning", "condition"], phase: "expr", message: "Few rows" },
                 { severity: "message", class: ["simpleMessage", "message", "condition"], phase: "expr", message: "Took the head" },
               ],
-              omitted: { warning: 2, message: 0 },
             }
           : undefined,
     });
@@ -154,13 +153,11 @@ describe("a card", () => {
     expect(find(head, '[aria-label="Output"]').lastElementChild?.textContent).toBe("<data.frame> [6 × 5]");
     // The board holds show_conditions at warnings and errors.
     expect(texts(head, "[data-severity]")).toEqual(["warning: Few rows"]);
-    expect(head.textContent).toContain("2 more warnings not kept");
 
     await step(() => {
       core.store.apply({ options: { set: { show_conditions: ["message"] } } });
     });
     expect(texts(card(el, "Head"), "[data-severity]")).toEqual(["message: Took the head"]);
-    expect(card(el, "Head").textContent).not.toContain("more warnings");
   });
 
   test("greys its output out while its block is not ready", async () => {

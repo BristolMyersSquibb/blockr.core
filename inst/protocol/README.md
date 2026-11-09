@@ -30,7 +30,7 @@ A reply's `status` belongs to its request alone, so that a request or an output 
 | Status | Means | Fields beside `id` and `status` |
 |---|---|---|
 | `ok` | the request succeeded | those of the request's kind |
-| `error` | R raised an error, or refused the request, as on a locked board | `conditions` and `omitted` ([Conditions](#conditions)), and an evaluation's fields in the reply to an `evaluate` |
+| `error` | R raised an error, or refused the request, as on a locked board | `conditions` ([Conditions](#conditions)), and an evaluation's fields in the reply to an `evaluate` |
 | `invalid` | only to an `evaluate`: the block's state cannot run | an evaluation's fields |
 | `cancelled` | R dropped or stopped the request, after a `cancel` or a `forget` | none |
 | `missing` | the request names a result that R does not hold ([Missing results](#missing-results)) | `missing` |
@@ -135,9 +135,9 @@ R looks the class up by its registry id, runs the checks of a function the class
 | Field | Holds |
 |---|---|
 | `block`, `revision` | as the request named them |
-| `summary` | the result's summary from `result_summary()`, bounded, such as `"<data.frame> [150 × 5]"`, or `null` where there is no result or its summary failed |
-| `conditions`, `omitted` | the conditions raised, and how many of each severity the reply leaves out ([Conditions](#conditions)) |
-| `stdout`, `stderr` | the standard output and error, each bounded |
+| `summary` | the result's summary from `result_summary()`, such as `"<data.frame> [150 × 5]"`, or `null` where there is no result or its summary failed |
+| `conditions` | every condition raised ([Conditions](#conditions)) |
+| `stdout`, `stderr` | the standard output and error |
 
 The status is `invalid` where the class's `expr` or its `block_eval()` method signals `blockr_invalid()`, with its message, or `expr` uses an arg that the state leaves unset, naming it, all before the block expression runs, so that R runs nothing. It is `error` where an error is raised before a result exists, as when the checks of the inputs fail or the block expression does, and `ok` otherwise, also where `result_summary()` fails, which leaves `summary` null and reports its error.
 
@@ -160,7 +160,7 @@ The status is `invalid` where the class's `expr` or its `block_eval()` method si
 | `request` | the request's function, in the reply to a `request` |
 | `status` | the client's scheduler, for a block that is `waiting`, which R never writes |
 
-A reply keeps the first few conditions of each severity and counts the rest in `omitted`, as `{ "warning": 0, "message": 0 }`, which has no count of errors, since an error ends what raised it. It carries no tracebacks, which R writes to its log only with debug logging on, and the conditions of an evaluation's reply replace those of the block's earlier reply, as the Language Server Protocol replaces diagnostics ([LSP](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_publishDiagnostics)). How many conditions R keeps, and how much of the summary and of the standard output and error, is R's to choose, since the client shows what comes.
+A reply carries every condition raised, and no tracebacks, which R writes to its log only with debug logging on. The conditions of an evaluation's reply replace those of the block's earlier reply, as the Language Server Protocol replaces diagnostics ([LSP](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_publishDiagnostics)).
 
 ### Missing results
 

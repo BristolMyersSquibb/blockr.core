@@ -29,7 +29,6 @@
             "message": "NaNs produced"
           }
         ],
-        "omitted": { "warning": 0, "message": 0 },
         "stdout": "",
         "stderr": ""
       }

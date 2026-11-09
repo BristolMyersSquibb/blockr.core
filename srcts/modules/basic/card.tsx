@@ -210,23 +210,16 @@ const SEVERITY_TONES: Readonly<Record<Severity, string>> = {
   message: "bc:text-text-muted",
 };
 
-// The conditions of the block's latest evaluation of the severities given,
-// and how many more of them R counted rather than kept.
+// The conditions of the block's latest evaluation of the severities given.
 function Conditions({ status, severities }: { status: BlockStatus | undefined; severities: readonly Severity[] }): ReactElement | null {
   if (status === undefined) return null;
   const shown = status.conditions.filter((condition) => severities.includes(condition.severity));
-  const omitted = (["warning", "message"] as const).filter((severity) => severities.includes(severity) && status.omitted[severity] > 0);
-  if (shown.length === 0 && omitted.length === 0) return null;
+  if (shown.length === 0) return null;
   return (
     <ul aria-label="Conditions" className="bc:m-0 bc:grid bc:list-none bc:gap-1 bc:p-0 bc:text-sm">
       {shown.map((condition, i) => (
         <li key={i} data-severity={condition.severity} className={`bc:whitespace-pre-wrap ${SEVERITY_TONES[condition.severity]}`}>
           <span className="bc:font-medium">{condition.severity}:</span> {condition.message}
-        </li>
-      ))}
-      {omitted.map((severity) => (
-        <li key={`omitted-${severity}`} className="bc:text-text-muted">
-          {String(status.omitted[severity])} more {severity === "warning" ? "warnings" : "messages"} not kept
         </li>
       ))}
     </ul>

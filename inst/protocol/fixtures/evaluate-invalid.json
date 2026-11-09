@@ -32,7 +32,6 @@
             "message": "argument \"by\" is missing, with no default"
           }
         ],
-        "omitted": { "warning": 0, "message": 0 },
         "stdout": "",
         "stderr": ""
       }

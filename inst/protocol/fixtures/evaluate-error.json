@@ -29,7 +29,6 @@
             "message": "object 'Sepal.Widht' not found"
           }
         ],
-        "omitted": { "warning": 0, "message": 0 },
         "stdout": "",
         "stderr": ""
       }

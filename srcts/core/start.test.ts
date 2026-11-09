@@ -91,7 +91,6 @@ function playedR() {
               revision: request.revision,
               summary: null,
               conditions: [],
-              omitted: { warning: 0, message: 0 },
               stdout: "",
               stderr: "",
             },

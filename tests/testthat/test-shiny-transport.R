@@ -528,7 +528,7 @@ test_that("R replies error to a request whose body never came", {
 
   expect_identical(reply[["id"]], "27")
   expect_identical(reply[["status"]], "error")
-  expect_identical(reply[["omitted"]], list(warning = 0L, message = 0L))
+  expect_named(reply, c("id", "status", "conditions"))
 
   cnd <- reply[["conditions"]][[1L]]
 

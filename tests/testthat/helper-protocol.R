@@ -1000,10 +1000,6 @@ proto_served_file <- function() {
   )
 }
 
-proto_none <- function() {
-  obj(warning = 0L, message = 0L)
-}
-
 proto_evaluated <- function(id, block, revision, status = "ok",
                             summary = NULL, conditions = list()) {
   obj(
@@ -1013,7 +1009,6 @@ proto_evaluated <- function(id, block, revision, status = "ok",
     revision = revision,
     summary = summary,
     conditions = conditions,
-    omitted = proto_none(),
     stdout = "",
     stderr = ""
   )
@@ -1023,8 +1018,7 @@ proto_error <- function(id, condition) {
   obj(
     id = id,
     status = "error",
-    conditions = list(condition),
-    omitted = proto_none()
+    conditions = list(condition)
   )
 }
 

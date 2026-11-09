@@ -203,7 +203,6 @@ describe("the handshake", () => {
       id: idOf(t.sent, "hello"),
       status: "error",
       conditions: [],
-      omitted: { warning: 0, message: 0 },
     });
     await settle();
 
@@ -242,7 +241,6 @@ const okReply = {
   revision: 2,
   summary: "<data.frame> [150 × 5]",
   conditions: [],
-  omitted: { warning: 0, message: 0 },
   stdout: "",
   stderr: "",
 } satisfies Reply;

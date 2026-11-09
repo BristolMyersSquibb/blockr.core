@@ -178,7 +178,6 @@ export interface EvaluateReply {
   // result or its summary failed.
   summary: string | null;
   conditions: Condition[];
-  omitted: Omitted;
   stdout: string;
   stderr: string;
 }
@@ -203,12 +202,6 @@ export type Phase =
   | "output"
   | "request"
   | "status";
-
-// The conditions that a reply counted rather than kept, by severity.
-export interface Omitted {
-  warning: number;
-  message: number;
-}
 
 // Requests, each of a type, which R reads into an object of class
 // `{type}_request` and answers through its method of request_call(). Core's
@@ -361,7 +354,6 @@ export interface ErrorReply {
   id: string;
   status: "error";
   conditions: Condition[];
-  omitted: Omitted;
 }
 
 export interface CancelledReply {

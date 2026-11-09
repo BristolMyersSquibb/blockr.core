@@ -2053,7 +2053,6 @@ function quietly(sent2) {
 var PROTOCOL_VERSION = "1.0";
 
 // srcts/scheduler/status.ts
-var NONE = Object.freeze({ warning: 0, message: 0 });
 var NO_CONDITIONS = Object.freeze([]);
 function outcomeOf(reply, revision) {
   if (reply.status === "cancelled" || reply.status === "missing") return void 0;
@@ -2063,7 +2062,6 @@ function outcomeOf(reply, revision) {
     revision,
     summary: evaluated.summary ?? null,
     conditions: evaluated.conditions ?? NO_CONDITIONS,
-    omitted: evaluated.omitted ?? NONE,
     stdout: evaluated.stdout ?? "",
     stderr: evaluated.stderr ?? ""
   };
@@ -2080,7 +2078,6 @@ function unsent(revision, message) {
         message: `The evaluation could not be sent to R: ${message}`
       }
     ],
-    omitted: NONE,
     stdout: "",
     stderr: ""
   };
@@ -2092,7 +2089,6 @@ function unevaluated(revision, running2) {
     evaluated: null,
     running: running2,
     conditions: NO_CONDITIONS,
-    omitted: NONE,
     stdout: "",
     stderr: "",
     summary: null
@@ -2105,7 +2101,6 @@ function replied(outcome, revision, running2) {
     evaluated: outcome.revision,
     running: running2,
     conditions: outcome.conditions,
-    omitted: outcome.omitted,
     stdout: outcome.stdout,
     stderr: outcome.stderr,
     summary: outcome.summary
@@ -2118,7 +2113,6 @@ function waiting(why, revision, evaluated, running2) {
     evaluated,
     running: running2,
     conditions: [why],
-    omitted: NONE,
     stdout: "",
     stderr: "",
     summary: null
@@ -2143,7 +2137,7 @@ function waitingFor(what) {
   };
 }
 function sameStatus(a2, b2) {
-  return a2.status === b2.status && a2.revision === b2.revision && a2.evaluated === b2.evaluated && a2.running === b2.running && a2.omitted === b2.omitted && a2.stdout === b2.stdout && a2.stderr === b2.stderr && a2.summary === b2.summary && a2.conditions.length === b2.conditions.length && a2.conditions.every(
+  return a2.status === b2.status && a2.revision === b2.revision && a2.evaluated === b2.evaluated && a2.running === b2.running && a2.stdout === b2.stdout && a2.stderr === b2.stderr && a2.summary === b2.summary && a2.conditions.length === b2.conditions.length && a2.conditions.every(
     (condition, i2) => condition === b2.conditions[i2] || condition.phase === "status" && condition.message === b2.conditions[i2]?.message
   );
 }

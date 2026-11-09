@@ -75,7 +75,7 @@ describe("a request of a type that a package adds", () => {
 
   test("rejects with the reply's status and conditions", async () => {
     const condition = { severity: "error" as const, class: ["simpleError", "error", "condition"], phase: "request" as const, message: "no" };
-    const s = scheduler([{ id: "1", status: "error", conditions: [condition], omitted: { warning: 0, message: 0 } }]);
+    const s = scheduler([{ id: "1", status: "error", conditions: [condition] }]);
     await expect(addedRequest({ scheduler: s.fake }, "code", {}, {})).rejects.toMatchObject({ status: "error", conditions: [condition] });
   });
 

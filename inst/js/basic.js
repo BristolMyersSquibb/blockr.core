@@ -546,24 +546,15 @@ var SEVERITY_TONES = {
 function Conditions({ status, severities }) {
   if (status === void 0) return null;
   const shown = status.conditions.filter((condition) => severities.includes(condition.severity));
-  const omitted = ["warning", "message"].filter((severity) => severities.includes(severity) && status.omitted[severity] > 0);
-  if (shown.length === 0 && omitted.length === 0) return null;
-  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("ul", { "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-1 bc:p-0 bc:text-sm", children: [
-    shown.map((condition, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("li", { "data-severity": condition.severity, className: `bc:whitespace-pre-wrap ${SEVERITY_TONES[condition.severity]}`, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { className: "bc:font-medium", children: [
-        condition.severity,
-        ":"
-      ] }),
-      " ",
-      condition.message
-    ] }, i)),
-    omitted.map((severity) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("li", { className: "bc:text-text-muted", children: [
-      String(status.omitted[severity]),
-      " more ",
-      severity === "warning" ? "warnings" : "messages",
-      " not kept"
-    ] }, `omitted-${severity}`))
-  ] });
+  if (shown.length === 0) return null;
+  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("ul", { "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-1 bc:p-0 bc:text-sm", children: shown.map((condition, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("li", { "data-severity": condition.severity, className: `bc:whitespace-pre-wrap ${SEVERITY_TONES[condition.severity]}`, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { className: "bc:font-medium", children: [
+      condition.severity,
+      ":"
+    ] }),
+    " ",
+    condition.message
+  ] }, i)) });
 }
 
 // srcts/modules/basic/layout.ts
