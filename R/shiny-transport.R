@@ -26,9 +26,11 @@
 # until the session ends or a later `hello` starts it afresh (below). A reply's
 # body is given in its `body` too, as a reply body that `new_reply_body()`
 # makes, such as `shape_output()` gives for an output, which `send()` carries
-# beside the reply as the blockr options `max_message_body` and
+# beside the reply as the blockr options `max_message_size` and
 # `message_body_encoding` say, which the transport reads as it sets a session
 # up (see `carry_body()`).
+# A message larger than `max_message_size` travels from a URL (see
+# `send_items()`).
 #
 # A `hello` starts the session, and a later one starts it afresh, as core's
 # client sends one as it starts again for another board. So the transport drops
@@ -52,7 +54,7 @@ shiny_transport <- function(handler, session = get_session()) {
     )
   }
 
-  opts <- message_body_opts()
+  opts <- message_opts()
 
   dir <- tempfile("blockr-bodies-")
   dir.create(dir)
@@ -154,9 +156,9 @@ is_hello <- function(req) {
 
 # Drops the bodies that the transport holds for the session, as a `hello`
 # starts it afresh: those that requests posted, by request id in `bodies`, with
-# their files in `dir`, and those that wait for the client to fetch them, by
-# the names in `served`, whose URLs then answer as for a body that the client
-# fetched already.
+# their files in `dir`, and the bodies and messages that wait for the client to
+# fetch them, by the names in `served`, whose URLs then answer as for one that
+# the client fetched already.
 drop_bodies <- function(dir, bodies, served, session) {
 
   rm(list = ls(bodies, all.names = TRUE), envir = bodies)
@@ -280,9 +282,10 @@ write_input <- function(input, path) {
 
 # Sends a message of R's in the order of its items, with a reply whose body
 # travels in a binary frame in a frame of its own, and the items between such
-# replies together. The names of the bodies that R serves from a URL go into
+# replies together, as `send_items()` sends them.
+# The names of the bodies and messages that R serves from a URL go into
 # `served`, where given, until the client deletes them.
-send_message <- function(message, session, opts = message_body_opts(),
+send_message <- function(message, session, opts = message_opts(),
                          served = NULL) {
 
   if (!is.list(message) || not_null(names(message))) {
@@ -303,24 +306,63 @@ send_message <- function(message, session, opts = message_body_opts(),
       next
     }
 
-    send_items(run, session)
+    send_items(run, session, opts, served)
     run <- list()
 
     send_frame(part[["item"]], part[["frame"]], session)
   }
 
-  send_items(run, session)
+  send_items(run, session, opts, served)
 
   invisible()
 }
 
-send_items <- function(items, session) {
+# Sends items as one message.
+# Where that message is larger than `max_message_size` bytes, R serves it from
+# a URL of the session's and sends `{ "url": ... }` in its place, so that no
+# message on the websocket holds up those behind it.
+# The client fetches the message there and deletes it, as it does a body.
+send_items <- function(items, session, opts = message_opts(), served = NULL) {
 
-  if (length(items)) {
-    session$sendCustomMessage("blockr", encode_message(items))
+  if (!length(items)) {
+    return(invisible())
   }
 
+  json <- encode_message(items)
+
+  if (json_bytes(json) > opts[["max"]]) {
+    json <- encode_message(list(url = serve_message(json, session, served)))
+  }
+
+  session$sendCustomMessage("blockr", json)
+
   invisible()
+}
+
+# Serves a message of R's as `serve_body()` serves a body,
+# under the first name `blockr-message-{n}` that R serves nothing under,
+# so that two messages that wait for the client never share a URL.
+serve_message <- function(json, session, served = NULL) {
+
+  taken <- if (not_null(served)) ls(served, all.names = TRUE)
+  n <- 1L
+
+  while (paste0("blockr-message-", n) %in% taken) {
+    n <- n + 1L
+  }
+
+  serve_body(
+    charToRaw(enc2utf8(unclass(json))),
+    "application/json",
+    paste0("blockr-message-", n),
+    session,
+    served
+  )
+}
+
+# The size in bytes of a message as R writes it.
+json_bytes <- function(json) {
+  nchar(unclass(json), type = "bytes")
 }
 
 # Sends a reply with its body as a binary frame, which holds the length of the
@@ -337,14 +379,16 @@ send_frame <- function(item, bytes, session) {
 }
 
 # Carries a reply's body beside it, giving the reply and, for a body that
-# travels in a binary frame, its bytes: a body of up to `max_message_body`
-# bytes in the message, as base64 in the body's `data` or in a binary frame as
-# `message_body_encoding` says, and a larger one from a URL of the session's in
-# its `url`, which the client fetches. A small body, such as a plot's PNG, thus
-# arrives with its reply, while one that R serves arrives only once R has
-# finished what it runs next, and a large body holds up neither R nor the
-# messages behind it on the websocket. A reply whose `body` is no reply body
-# goes as it is.
+# travels in a binary frame, its bytes.
+# A body travels in its reply's message, as base64 in the body's `data` or in
+# a binary frame as `message_body_encoding` says, where that message stays
+# within `max_message_size` bytes.
+# Otherwise it travels from a URL of the session's in its `url`, which the
+# client fetches.
+# A small body, such as a plot's PNG, thus arrives with its reply, while one
+# that R serves arrives only once R has finished what it runs next, and a
+# large body holds up neither R nor the messages behind it on the websocket.
+# A reply whose `body` is no reply body goes as it is.
 carry_body <- function(item, session, opts, served = NULL) {
 
   body <- if (is.list(item)) item[["body"]]
@@ -358,40 +402,50 @@ carry_body <- function(item, session, opts, served = NULL) {
 
   item[["body"]] <- body_announcement(body)
 
-  if (size > opts[["max"]]) {
-    item[["body"]][["url"]] <- serve_body(
-      x,
-      body[["type"]],
-      item[["id"]],
-      session,
-      served
-    )
-    return(list(item = item))
+  if (size <= opts[["max"]]) {
+
+    bytes <- reply_body_bytes(body)
+
+    if (identical(opts[["encoding"]], "binary")) {
+      # The frame holds the length of its JSON in four bytes, and that JSON.
+      if (4L + json_bytes(encode_message(list(item))) + size <= opts[["max"]]) {
+        return(list(item = item, frame = bytes))
+      }
+    } else {
+      inline <- item
+      inline[["body"]][["data"]] <- base64enc::base64encode(bytes)
+      if (json_bytes(encode_message(list(inline))) <= opts[["max"]]) {
+        return(list(item = inline))
+      }
+    }
   }
 
-  bytes <- reply_body_bytes(body)
-
-  if (identical(opts[["encoding"]], "binary")) {
-    return(list(item = item, frame = bytes))
-  }
-
-  item[["body"]][["data"]] <- base64enc::base64encode(bytes)
+  item[["body"]][["url"]] <- serve_body(
+    x,
+    body[["type"]],
+    paste0("blockr-body-", item[["id"]]),
+    session,
+    served
+  )
 
   list(item = item)
 }
 
-# How bodies travel, from the blockr options `message_body_encoding`, how a
-# body travels in its reply's message, `"base64"` by default or `"binary"`, a
-# binary frame, which costs R and the client less, but reaches the page only
-# where Shiny's websocket is not wrapped in SockJS, as Shiny Server and Connect
-# wrap it, and `max_message_body`, the largest body in bytes that travels in
-# its message, with 0 for every body from a URL and `Inf` for every body in its
-# message. Its default follows the encoding: 1 MiB for base64, from which a URL
+# How messages travel, from two blockr options.
+# The option `message_body_encoding` says how a body travels in its reply's
+# message: `"base64"` by default, or `"binary"`, a binary frame, which costs R
+# and the client less, but reaches the page only where Shiny's websocket is not
+# wrapped in SockJS, as Shiny Server and Connect wrap it.
+# The option `max_message_size` is the largest message in bytes that R sends
+# on the websocket, a binary frame included, with 0 for every body and message
+# from a URL and `Inf` for none.
+# Its default follows the encoding: 1 MiB for base64, from which a URL
 # delivers a body sooner while R has nothing else to run and base64 starts to
 # hold up the messages behind it, and 4 MiB for binary frames, which keep up
-# with a URL to about 5 MB. Below its default, a body in the message also
-# arrives while R runs what comes next, which a body from a URL waits for.
-message_body_opts <- function() {
+# with a URL to about 5 MB.
+# Below its default, a body in the message also arrives while R runs what
+# comes next, which a body from a URL waits for.
+message_opts <- function() {
 
   encoding <- blockr_option("message_body_encoding", "base64")
 
@@ -403,7 +457,7 @@ message_body_opts <- function() {
   }
 
   max <- blockr_option(
-    "max_message_body",
+    "max_message_size",
     if (identical(encoding, "binary")) 4 * 2^20 else 2^20
   )
 
@@ -414,28 +468,27 @@ message_body_opts <- function() {
 
   if (!is.numeric(max) || !is_scalar(max) || is.na(max) || max < 0) {
     blockr_abort(
-      "The blockr option `max_message_body` is a number of bytes, 0 or more.",
-      class = "max_message_body_invalid"
+      "The blockr option `max_message_size` is a number of bytes, 0 or more.",
+      class = "max_message_size_invalid"
     )
   }
 
   list(max = max, encoding = encoding)
 }
 
-# Serves a reply's body, from memory or from its file, at a URL of the
-# session's, named by the reply's id, to every GET until the client deletes
-# it, which the client does once it has read the body, since only it knows
-# when it has all of it. A GET that the browser or a proxy sends again, after a
-# connection broke before the body arrived, is thus still answered. What takes
-# the body's place, `body_gone()`, is defined here rather than where the body
-# is served, so that it holds on to nothing, where a function made in the
-# serving one would hold its frame and so the body. A body that the client
-# never deletes stays until the session ends, or until a `hello` starts it
-# afresh, which drops the bodies whose names are in `served`, and the file of a
-# body given as one stays.
-serve_body <- function(x, type, id, session, served = NULL) {
-
-  name <- paste0("blockr-body-", id)
+# Serves a reply's body, or a message of R's (see `serve_message()`), from
+# memory or from its file, at a URL of the session's under `name`.
+# R serves it to every GET until the client deletes it, which the client does
+# once it has read it, since only it knows when it has all of it.
+# A GET that the browser or a proxy sends again, after a connection broke
+# before the body arrived, is thus still answered.
+# What takes the body's place, `body_gone()`, is defined here rather than
+# where the body is served, so that it holds on to nothing, where a function
+# made in the serving one would hold its frame and so the body.
+# A body that the client never deletes stays until the session ends, or until
+# a `hello` starts it afresh, which drops the bodies whose names are in
+# `served`, and the file of a body given as one stays.
+serve_body <- function(x, type, name, session, served = NULL) {
 
   if (not_null(served)) {
     assign(name, TRUE, envir = served)

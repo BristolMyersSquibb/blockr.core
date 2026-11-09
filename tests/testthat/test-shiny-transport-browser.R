@@ -169,6 +169,27 @@ test_that("the transport carries messages and bodies between a page and R", {
     )
   }
 
+  # A reply larger than 1 MiB travels from a URL as a whole, and the page still
+  # hears it before the reply to the request that it sent next.
+  res <- page_eval(
+    page,
+    "(async () => {
+      const order = [];
+      const heard = (name) => (res) => {
+        order.push(name);
+        return res;
+      };
+      const [text] = await Promise.all([
+        app.ask('text', { size: 1100000 }).then(heard('text')),
+        app.ask('echo', { after: true }).then(heard('echo')),
+      ]);
+      return { order, size: text.reply.value[0].length };
+    })()"
+  )
+
+  expect_identical(res$order, list("text", "echo"))
+  expect_identical(res$size, 1100000L)
+
   expect_identical(page_eval(page, "app.frames()"), 0L)
 
   res <- page_eval(page, "app.upload(1000, 'sales.csv')")

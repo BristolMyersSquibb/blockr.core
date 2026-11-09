@@ -4870,7 +4870,9 @@ function shinyTransport(options = {}) {
       });
     },
     listen(listener) {
-      shiny.addCustomMessageHandler(name, (message) => {
+      let queue = null;
+      let ends = 0;
+      const hear = (message) => {
         if (message instanceof ArrayBuffer) {
           for (const [item, body] of framed(message)) {
             listener.received(item, body);
@@ -4886,8 +4888,25 @@ function shinyTransport(options = {}) {
           start2 = message;
           listener.started();
         }
+      };
+      shiny.addCustomMessageHandler(name, (message) => {
+        if (queue === null && !isServed(message)) {
+          hear(message);
+          return;
+        }
+        const at = ends;
+        const arrived = isServed(message) ? fetchMessage(fetcher, message.url) : Promise.resolve(message);
+        arrived.catch(() => void 0);
+        const turn = (queue ?? Promise.resolve()).then(() => arrived).then((heard) => {
+          if (at === ends || isSessionStart(heard)) hear(heard);
+        }).catch(() => void 0);
+        queue = turn;
+        void turn.then(() => {
+          if (queue === turn) queue = null;
+        });
       });
       onDisconnected(() => {
+        ends += 1;
         session += 1;
         start2 = null;
         listener.ended();
@@ -4905,6 +4924,20 @@ function disconnected(jquery) {
 }
 function isSessionStart(message) {
   return typeof message === "object" && message !== null && typeof message.body_url === "string";
+}
+function isServed(message) {
+  return typeof message === "object" && message !== null && typeof message.url === "string";
+}
+async function fetchMessage(fetcher, url) {
+  const response = await fetcher(url);
+  if (!response.ok) {
+    throw new Error(
+      `R served no message at ${url}: ${String(response.status)} ${await response.text()}`
+    );
+  }
+  const message = JSON.parse(await response.text());
+  fetcher(url, { method: "DELETE" }).then((response2) => response2.text()).catch(() => void 0);
+  return message;
 }
 function framed(frame) {
   const length = new DataView(frame).getUint32(0, true);

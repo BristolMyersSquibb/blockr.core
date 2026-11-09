@@ -2,8 +2,8 @@
 # (test-shiny-transport-browser.R). The page holds core's client over the
 # transport, from the blockr.core installed, and R's handler answers the
 # requests of an extension that the test sends: an echo of its args, progress,
-# a body of a given size, the size of a body it receives, and the end of the
-# session.
+# a body of a given size, a text of a given length, the size of a body it
+# receives, and the end of the session.
 
 options(shiny.maxRequestSize = 1.5 * 2^20)
 
@@ -37,6 +37,7 @@ handler <- function(session) {
         request = switch(
           req[["name"]],
           echo = answer(id, req[["args"]]),
+          text = answer(id, strrep("x", req[["args"]][["size"]])),
           progress = {
             note <- list(value = 0.5, message = "halfway")
             send(list(list(id = id, progress = note)))
