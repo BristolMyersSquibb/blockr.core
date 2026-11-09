@@ -11,9 +11,11 @@
 //    fails and carries on.
 // 4. It opens the board that R sent, or in its place the one that a startup
 //    module resolves with, unless the board is locked or two startup modules
-//    resolve with one, where it keeps R's and names the packages.
-// 5. As the store opens the board, core imports the module of the front-end of
-//    the class that the board is built as. Once the board is open, it calls the
+//    resolve with one, where it keeps R's and names the packages. A board that
+//    a startup module names holds the plugins of the board that R sent, each
+//    with the state that the named board gives it.
+// 5. As the store opens the board, core imports the module of core's basic
+//    front-end, which draws every board. Once the board is open, it calls the
 //    front-end's render(), and starts the scheduler once render() has returned,
 //    so that the scheduler sends R nothing before.
 //
@@ -59,18 +61,17 @@ import { createCore } from "./core.ts";
 // The capabilities that core's client speaks.
 const CAPABILITIES: Capability[] = ["cancel", "interrupt", "progress"];
 
+// The id of core's basic front-end, which draws every board.
+export const BASIC = "blockr.core-basic";
+
 // What draws the front-ends of the boards that open, which the page gives, and
 // a CoreApi for tests may leave out.
 export interface FrontEnds {
   // Imports the module of the front-end, by its id, from where R serves it,
   // which is undefined where R serves no such module, and ends the front-end
   // on the page, if any. Core calls it as the store opens a board, once the
-  // startup modules have initialized, with why no front-end draws the board
-  // where R names none for its class.
-  prepare(
-    front: { readonly id: string; readonly source: Source | undefined } | { readonly error: Error },
-    loader: Loader,
-  ): Promise<void>;
+  // startup modules have initialized.
+  prepare(front: { readonly id: string; readonly source: Source | undefined }, loader: Loader): Promise<void>;
   // Calls the render() of the front-end that prepare() imported, with CoreApi,
   // and resolves once render() has returned or resolved. The front-end ends as
   // the signal aborts, as the next board opens.
@@ -240,10 +241,10 @@ export function start(options: StartOptions): Started {
 
     const store: Store = createStore({
       hello: reply,
-      loaded: (_reply, classes) => prepare(store, classes),
+      loaded: () => prepare(),
       signal,
     });
-    const commands = createCommands(store, { signal, randId });
+    const commands = createCommands(store, { signal, lock: reply.lock, randId });
     for (const option of options.options({ blockrOption: (name, fallback) => blockrOptions.read(name, fallback) })) {
       store.options.register(option);
     }
@@ -356,9 +357,10 @@ export function start(options: StartOptions): Started {
     return named;
   }
 
-  // The reply with the board that a startup module named in place of the
-  // board that R sent, or undefined where core opens R's.
-  function chosen(reply: HelloReply, named: readonly { package: string; text: string }[]): HelloReply | undefined {
+  // The text of the board that a startup module named in place of the board
+  // that R sent, or undefined where core opens R's. The store opens it with
+  // the reply, so that it holds the plugins of the board that R sent.
+  function chosen(reply: HelloReply, named: readonly { package: string; text: string }[]): string | undefined {
     const [only, ...more] = named;
     if (only === undefined) return undefined;
     const packages = quoted(named.map((entry) => entry.package));
@@ -370,29 +372,20 @@ export function start(options: StartOptions): Started {
       report(new Error(`The board is locked, so core opens the board that R sent rather than the one that ${only.package} named.`));
       return undefined;
     }
-    let board: unknown;
     try {
-      board = JSON.parse(only.text);
+      JSON.parse(only.text);
     } catch (error) {
       report(new Error(`The startup module of ${only.package} named a board that holds no JSON, so core opens the board that R sent: ${messageOf(error)}`));
       return undefined;
     }
-    return { ...reply, board: board as HelloReply["board"] };
+    return only.text;
   }
 
   // What the store runs once R has replied, before it migrates or drops
-  // anything: the import of the front-end of the class that the store builds
-  // the board as, which the startup modules have defined by then.
-  async function prepare(store: Store, classes: readonly string[]): Promise<void> {
-    if (options.frontEnds === undefined) return;
-    let id: string;
-    try {
-      id = store.frontEnd(classes);
-    } catch (error) {
-      await options.frontEnds.prepare({ error: asError(error) }, loader);
-      return;
-    }
-    await options.frontEnds.prepare({ id, source: own(latest?.modules ?? {}, id) }, loader);
+  // anything, once the startup modules have initialized: the import of core's
+  // basic front-end, which draws every board.
+  async function prepare(): Promise<void> {
+    await options.frontEnds?.prepare({ id: BASIC, source: own(latest?.modules ?? {}, BASIC) }, loader);
   }
 
   // Openings run one at a time.

@@ -1,17 +1,10 @@
 {
-  "description": "A board of core's class board, which an app script builds, with every id given, so that none is drawn at random. Its block classes are defined outside a package, so their registry ids are their names, and the board's content is core's alone. The UI of the join block ships the schema of its state. R writes that block's by, a vector of length one, as an array, and its all_x as a value, while it writes the state of the letters blocks bare. The stack of one block keeps its blocks an array, by the schema of a JSON board, and the value of show_conditions is an array, by the schema that core ships beside its runtime, recorded with the version of its shape, as each board option's value is. The stack has a color, a hex color that front-ends draw it in. The client opens the JSON board and saves it as it is.",
+  "description": "A board that an app script builds, with every id given, so that none is drawn at random. Its block classes are defined outside a package, so their registry ids are their names, and it holds no plugin, so the JSON board records no package. The UI of the join block ships the schema of its state. R writes that block's by, a vector of length one, as an array, and its all_x as a value, while it writes the state of the letters blocks bare. The stack of one block keeps its blocks an array, by the schema of a JSON board, and the value of show_conditions is an array, by the schema that core ships beside its runtime, recorded with the version of its shape, as each board option's value is. The stack has a color, a hex color that front-ends draw it in. The client opens the JSON board and saves it as it is.",
   "format": 1,
-  "packages": {
-    "blockr.core": "0.2.0"
-  },
+  "packages": {},
   "board": {
     "id": "curious_otter",
-    "class": [
-      "board"
-    ],
-    "versions": {
-      "board": 1
-    },
+    "versions": {},
     "name": "Sales review",
     "blocks": {
       "a": {
@@ -74,6 +67,7 @@
         ],
         "version": 1
       }
-    }
+    },
+    "plugins": {}
   }
 }

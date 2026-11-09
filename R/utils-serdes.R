@@ -16,34 +16,23 @@
 #' A JSON board holds the board under `board`, with two things beside it:
 #' `format`, the version of the format, and `packages`, the version of each
 #' package that the board's content comes from, by package.
-#' Those are the packages of the board's classes, each the package whose
-#' namespace holds the class's method of [board_front_end()], blockr.core's for
-#' `board` among them, and the packages of the blocks' classes.
-#' The board holds its `id` and `name`, and its blocks, links and stacks, each
-#' by ID, in their order.
-#' In `versions`, it holds the version of each class in its class vector that a
-#' loaded package names a front-end for, by class (see [board_version()]), and
-#' each block holds the version of its class's state in `version` (see
-#' [new_block_class()]), so that the client migrates by the versions of the
-#' shapes that a JSON board holds.
+#' Those are the packages of the plugins' classes, each the package that the
+#' ID of the class names, and the packages of the blocks' classes.
+#' The board holds its `id` and `name`, and its blocks, links, stacks and
+#' plugins, each by ID, in their order.
+#' In `versions`, it holds the version of each plugin class whose plugins it
+#' holds, by the class's ID (see [plugin_version()]), and each block holds the
+#' version of its class's state in `version` (see [new_block_class()]), so that
+#' the client migrates by the versions of the shapes that a JSON board holds.
 #' It holds each board option that the script gives a value, by ID, as its
 #' `value` with the `version` of the value's shape (see
 #' [board_option_version()]), and no other.
 #'
-#' Its `class` is the board's class vector, most specific class first, as
-#' `c("dock_board", "board")`.
-#' The client keeps it and saves it unchanged.
-#' The properties that the board's class adds sit beside core's, each under its
-#' name.
-#' They are the components that the board holds besides its blocks, links,
-#' stacks and board options, such as those that a board class's constructor
-#' passes to [new_board()].
-#' Each is written by `blockr_ser()`, so that a package writes the objects of
-#' its own classes there through a method.
-#' R checks no property and picks no front-end, since board classes are defined
-#' in the client.
-#' The client drops each property that the class it builds the board as does
-#' not add.
+#' A plugin is written by the ID of its class, with its name and its state
+#' (see [new_plugin()]).
+#' R checks no plugin's state, since the plugin's class is defined in the
+#' client, which checks the state against the class's schema as it opens the
+#' board.
 #'
 #' A stack is written with its name, its blocks and its color, which is `null`
 #' for a stack without one.
@@ -60,10 +49,12 @@
 #' and an empty collection an object.
 #' A block's state is written by the schema that its class's UI ships (see
 #' [register_block()]), and bare where it ships none.
-#' The parts of the board that a package defines, such as the properties of its
-#' board classes or the values of its board options, are written by the schema
-#' that the package puts next to its startup module, as core puts the schema of
-#' its board options next to its runtime (see [register_startup_module()]).
+#' The state of each plugin and the value of each board option are written by
+#' the schema that a package puts next to its startup module in a file of its
+#' own, named by the class in R of the plugin or of the board option, as
+#' `dag_plugin.schema.json` or `n_rows_option.schema.json`, and core next to
+#' its runtime for its own board options (see [register_startup_module()]).
+#' Each is written bare where no package gives one.
 #'
 #' A board that the format cannot hold fails as it is written, and so as the
 #' script runs. Every value has to be `NULL`, a vector of logicals, numbers or
@@ -110,18 +101,17 @@ blockr_ser <- function(x, ...) {
 #' @export
 blockr_ser.board <- function(x, ...) {
 
-  board <- c(
-    list(
-      id = board_id(x),
-      class = class(x),
-      versions = board_versions(class(x)),
-      name = board_name(x),
-      blocks = blockr_ser(board_blocks(x)),
-      links = blockr_ser(board_links(x)),
-      stacks = blockr_ser(board_stacks(x)),
-      options = blockr_ser(board_options(x))
-    ),
-    board_properties(x)
+  plugins <- board_plugins(x)
+
+  board <- list(
+    id = board_id(x),
+    versions = plugin_versions_of(plugins),
+    name = board_name(x),
+    blocks = blockr_ser(board_blocks(x)),
+    links = blockr_ser(board_links(x)),
+    stacks = blockr_ser(board_stacks(x)),
+    options = blockr_ser(board_options(x)),
+    plugins = ser_collection(plugins)
   )
 
   shape_json_board(
@@ -205,6 +195,21 @@ blockr_ser.board_option <- function(x, ...) {
 
 #' @rdname blockr_ser
 #' @export
+blockr_ser.plugin <- function(x, ...) {
+  list(
+    class = plugin_class_id(x),
+    name = plugin_name(x),
+    state = as_json_object(
+      plain_value(
+        plugin_state(x),
+        paste0("The state of plugin \"", plugin_name(x), "\"")
+      )
+    )
+  )
+}
+
+#' @rdname blockr_ser
+#' @export
 blockr_ser.default <- function(x, ...) {
   x
 }
@@ -214,53 +219,31 @@ ser_collection <- function(x) {
   as_json_object(lapply(x, blockr_ser))
 }
 
-board_components <- function() {
-  c("blocks", "links", "stacks", "options")
-}
-
 # The packages that a board's content comes from, with their versions, as a
-# JSON board records them: the package of each class in the board's class
-# vector that names a front-end, blockr.core's for `board` among them, and the
-# package of each block's class.
+# JSON board records them: the package of each plugin's class, which the ID of
+# the class names, and the package of each block's class.
 board_packages <- function(board) {
 
-  classes <- lapply(board[["class"]], class_package)
+  plugins <- lapply(
+    board[["plugins"]],
+    function(plg) id_package(plg[["class"]])
+  )
 
   blocks <- lapply(
     board[["blocks"]],
     function(blk) get_registry_entry(blk[["registry_id"]])[["package"]]
   )
 
-  package_versions(unlst(c(classes, blocks)))
+  package_versions(unlst(c(plugins, blocks)))
 }
 
-# The properties that the board's class adds: the components that a board holds
-# besides core's, by name, each written by `blockr_ser()`.
-board_properties <- function(x) {
+# The version of each class of the plugins, by the class's ID, in the order in
+# which the plugins first name it, as a JSON board records them.
+plugin_versions_of <- function(plugins) {
 
-  keys <- setdiff(names(x), board_components())
+  ids <- unique(chr_ply(plugins, plugin_class_id))
 
-  if (!all(nzchar(keys))) {
-    blockr_abort(
-      "The components that a board holds besides its blocks, links, stacks ",
-      "and board options are the properties of its class, by name, so each ",
-      "needs a name.",
-      class = "board_properties_invalid"
-    )
-  }
-
-  set_names(
-    lapply(
-      keys,
-      function(key) {
-        plain_value(
-          blockr_ser(x[[key]]),
-          paste0("The board's property ", key)
-        )
-      }
-    ),
-    keys
-  )
+  as_json_object(set_names(lapply(ids, plugin_class_version), ids))
 }
 
 # The block registry's entry for a block class, which registers the class
@@ -363,17 +346,19 @@ nested_unplain_kind <- function(x) {
   NULL
 }
 
-# Shapes a JSON board by the schemas that give its values' shapes: the parts
-# of the board that packages define, such as the properties of their board
-# classes and the values of their board options, by the schemas next to their
-# startup modules, which are laid out like the board, core's objects by the
-# schema of a JSON board, once each board option's value is recorded with its
-# version, and each block's state by the schema that its class's UI ships.
+# Shapes a JSON board by the schemas that give its values' shapes: the state of
+# each plugin and the value of each board option by the schemas next to the
+# startup modules of packages, each in a file named by the class in R of the
+# plugin or of the board option, core's objects by the schema of a JSON board,
+# once each board option's value is recorded with its version, and each block's
+# state by the schema that its class's UI ships.
 shape_json_board <- function(x) {
 
-  for (schema in startup_schemas()) {
-    x[["board"]] <- shape_by_schema(x[["board"]], schema)
-  }
+  x[["board"]][["options"]] <- shape_option_values(x[["board"]][["options"]])
+
+  x[["board"]][["plugins"]] <- as_json_object(
+    lapply(x[["board"]][["plugins"]], shape_plugin_state)
+  )
 
   x[["board"]][["options"]] <- versioned_options(x[["board"]][["options"]])
 
@@ -409,5 +394,34 @@ json_board_schema <- function() {
 shape_block_state <- function(x) {
   entry <- get_registry_entry(x[["registry_id"]])
   x["state"] <- list(shape_by_schema(x[["state"]], entry[["schema"]]))
+  x
+}
+
+# The values of board options by ID, each shaped by the schema of its board
+# option's value, if any.
+shape_option_values <- function(x) {
+
+  for (id in names(x)) {
+
+    schema <- board_option_schema(id)
+
+    if (not_null(schema)) {
+      x[id] <- list(shape_by_schema(x[[id]], schema))
+    }
+  }
+
+  x
+}
+
+# A plugin as a JSON board holds it, with its state shaped by the schema of its
+# class's state, if any.
+shape_plugin_state <- function(x) {
+
+  schema <- plugin_class_schema(x[["class"]])
+
+  if (not_null(schema)) {
+    x["state"] <- list(shape_by_schema(x[["state"]], schema))
+  }
+
   x
 }

@@ -6,11 +6,13 @@
 // from a to f, and the stack s1 of a and b.
 
 import { describe, expect, test } from "vitest";
+import type { HelloReply } from "../protocol/index.ts";
 import { isId, StoreError } from "../store/index.ts";
-import type { Store } from "../store/index.ts";
+import type { PluginClass, Store } from "../store/index.ts";
 import { reports } from "../testing/reports.ts";
-import { hello, openedStore } from "../testing/store.ts";
-import type { Board } from "../types/board.ts";
+import { hello, openedStore, withPlugins } from "../testing/store.ts";
+import type { Board, Plugin } from "../types/board.ts";
+import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import { blockName, CommandError, createCommands, freeInputs, schemas, stateSchema } from "./index.ts";
 import type { Commands } from "./index.ts";
@@ -481,6 +483,81 @@ describe("the board", () => {
     const refused = commands.run("blockr.core-set_option", { id: "n_rows", value: -1 });
     await expect(refused).rejects.toThrow(StoreError);
     await expect(refused).rejects.toThrow('The value of the board option "n_rows" fails its schema');
+  });
+});
+
+// The DAG's plugin class, which keeps a position for each block.
+const dag: PluginClass = {
+  id: "blockr.dag-dag_plugin",
+  state: {
+    schema: {
+      type: "object",
+      properties: {
+        positions: {
+          type: "object",
+          additionalProperties: {
+            type: "object",
+            properties: { x: { type: "number" }, y: { type: "number" } },
+            required: ["x", "y"],
+          },
+        },
+      },
+      required: ["positions"],
+    },
+    default: { positions: {} },
+  },
+};
+
+function plugin(def: PluginClass, name: string, state: Json = {}): Plugin {
+  return { class: def.id, name, state };
+}
+
+// A store with the DAG's class, which has opened the board of R's reply to
+// hello with the plugins given in its opening board, and the command registry
+// of that store.
+async function pluginStore(
+  plugins: Readonly<Record<string, Plugin>>,
+  lock: HelloReply["lock"] = null,
+): Promise<{ store: Store; commands: Commands }> {
+  const store = await openedStore((store) => store.plugins.register(dag), { ...withPlugins(plugins), lock });
+  return { store, commands: createCommands(store, { lock }) };
+}
+
+describe("plugins", () => {
+  test("set_plugin_state patches within a plugin's state, which the class's schema checks", async () => {
+    const { store, commands } = await pluginStore({ dag: plugin(dag, "DAG", { positions: {} }) });
+
+    await commands.run(
+      "blockr.core-set_plugin_state",
+      { plugin: "dag", patches: [{ op: "add", path: "/positions/a", value: { x: 40, y: 80 } }] },
+      "assistant",
+    );
+    expect(store.board().plugins.dag?.state).toEqual({ positions: { a: { x: 40, y: 80 } } });
+    expect(store.canUndo("assistant")).toBe(true);
+
+    expect(await commands.plan("blockr.core-set_plugin_state", { plugin: "dag", patches: [{ op: "replace", path: "", value: { positions: {} } }] })).toEqual([
+      {
+        patches: [
+          { op: "replace", path: "/plugins/dag/state", value: { positions: {} }, edit: store.editId({ plugin: "dag" }) },
+        ],
+      },
+    ]);
+
+    await expect(
+      commands.run("blockr.core-set_plugin_state", {
+        plugin: "dag",
+        patches: [{ op: "add", path: "/positions/b", value: { x: "left", y: 0 } }],
+      }),
+    ).rejects.toThrow(StoreError);
+    await expect(
+      commands.run("blockr.core-set_plugin_state", { plugin: "dag", patches: [{ op: "move", path: "/positions" }] }),
+    ).rejects.toThrow(/The args/);
+    expect(commands.enabled("blockr.core-set_plugin_state", { plugin: "nowhere", patches: [] })).toBe(false);
+  });
+
+  test("on a locked board, set_plugin_state is not enabled", async () => {
+    const { commands } = await pluginStore({ dag: plugin(dag, "DAG", { positions: {} }) }, { open: [] });
+    expect(commands.enabled("blockr.core-set_plugin_state", { plugin: "dag", patches: [] })).toBe(false);
   });
 });
 

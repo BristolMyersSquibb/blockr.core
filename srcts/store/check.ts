@@ -1,7 +1,8 @@
 // The checks a board passes after every delta and as it opens,
 // each failure in a sentence: the invariants of core's objects,
 // as R's validate_links() and the board's checks did,
-// and the schemas of the board options and properties of the board's class.
+// the schemas of the board options, and the plugins: their classes, the
+// schemas of their states, and at most one frontend and one storage plugin.
 // Where a delta changed only some objects, their shapes and schemas
 // are checked alone, since nothing else can have broken them,
 // while the invariants run on the whole board every time.
@@ -12,8 +13,9 @@ import type { RegistryEntry } from "../types/registry.ts";
 import { isObject, own, quoted } from "../util/index.ts";
 import type { Changed } from "./commit.ts";
 import { isId } from "./ids.ts";
-import { recordOf } from "./registrations.ts";
-import type { Built, Registrations } from "./registrations.ts";
+import { inRole, ROLES } from "./plugins.ts";
+import type { Role } from "./plugins.ts";
+import type { Registrations } from "./registrations.ts";
 
 // A stack's colour: a hex colour of six digits, such as "#66c2a5",
 // the one form that a colour input takes.
@@ -27,7 +29,6 @@ export function check(
   board: Board,
   registry: Readonly<Record<RegistryId, RegistryEntry>>,
   registrations: Registrations,
-  built: Built,
   changed?: Changed,
 ): string[] {
   const failures: string[] = [];
@@ -38,23 +39,14 @@ export function check(
   if (typeof board.name !== "string") {
     failures.push("The board's name is no string.");
   }
-  if (!isClass(board.class)) {
-    failures.push("The board's class is no array of class names, as R's class vector of a board is.");
-  }
 
   checkBlocks(board, registry, registrations, changed, failures);
   checkLinks(board, registry, changed, failures);
   checkStacks(board, changed, failures);
   checkValues(board, registrations, changed, failures);
-  checkProperties(board, built, changed, failures);
+  checkPlugins(board, registrations, changed, failures);
 
   return failures;
-}
-
-// Whether a board's class is a class vector: an array of names,
-// which are not empty.
-export function isClass(x: unknown): x is readonly string[] {
-  return Array.isArray(x) && x.length > 0 && x.every((cls) => typeof cls === "string" && cls !== "");
 }
 
 function ids(
@@ -202,27 +194,51 @@ function checkValues(
   }
 }
 
-// Each property of the board's class against its schema, as a whole:
-// those that a patch changed, or every one as the board opens.
-function checkProperties(
+// Each plugin that a patch added or changed, or every one as the board opens:
+// its shape, its class, which a package has to register, and its state against
+// the schema of its class's state, as a whole.
+// The board holds at most one frontend and one storage plugin, since no opening
+// makes a board that holds two.
+function checkPlugins(
   board: Board,
-  built: Built,
+  registrations: Registrations,
   changed: Changed | undefined,
   failures: string[],
 ): void {
-  const record = recordOf(board);
-  for (const [name, { validate }] of built.properties) {
-    if (changed !== undefined && !changed.properties.has(name)) continue;
-    const value = own(record, name);
-    if (value === undefined) {
-      failures.push(`The board holds no value of the property "${name}" of its class.`);
+  ids("plugin", board.plugins, failures);
+
+  for (const [id, plugin] of Object.entries(board.plugins)) {
+    if (changed !== undefined && !changed.plugins.has(id)) continue;
+    const fields = shape(plugin, { class: "string", name: "string", state: "value" });
+    if (fields.length > 0) {
+      failures.push(`The plugin "${id}" ${fields.join(", ")}.`);
       continue;
     }
-    for (const failure of validate(value)) failures.push(`The property "${name}" ${failure}`);
+    const cls = registrations.plugin(plugin.class);
+    if (cls === undefined) {
+      failures.push(`The plugin "${id}" is of the class "${plugin.class}", which no package registered.`);
+      continue;
+    }
+    for (const failure of cls.validate(plugin.state)) {
+      failures.push(`The state of the plugin "${id}" ${failure}`);
+    }
+  }
+
+  const classOf = (id: string) => registrations.plugin(id)?.def;
+  for (const role of ROLES) {
+    const held = inRole(board.plugins, classOf, role);
+    if (held.length > 1) {
+      failures.push(`The board holds the ${ROLE_NAMES[role]} ${quoted(held)}, where it holds one at most.`);
+    }
   }
 }
 
-type Kind = "string" | "string or null" | "object" | "array";
+const ROLE_NAMES: Readonly<Record<Role, string>> = {
+  frontend: "frontends",
+  storage: "storage plugins",
+};
+
+type Kind = "string" | "string or null" | "object" | "array" | "value";
 
 // What an object of core's lacks or holds beyond its fields, which a delta
 // built in plain JS or by a model may get wrong.
@@ -240,6 +256,8 @@ function shape(value: unknown, fields: Readonly<Record<string, Kind>>): string[]
 
 function fits(x: unknown, kind: Kind): boolean {
   switch (kind) {
+    case "value":
+      return x !== undefined;
     case "array":
       return Array.isArray(x);
     case "object":

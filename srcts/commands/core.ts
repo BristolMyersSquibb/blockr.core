@@ -1,10 +1,11 @@
-// Core's commands, which cover what core's plugins and the dock's actions did:
-// adding, removing and renaming a block, setting and unsetting its state args,
-// appending, prepending and inserting one on a link, adding, changing and
-// removing links, adding, changing, renaming and removing stacks, renaming the
-// board and setting a board option.
-// The properties that a board class adds are its package's to change, through
-// commands that the package registers.
+// Core's commands, which cover what core's plugins of today and the dock's
+// actions did: adding, removing and renaming a block, setting and unsetting its
+// state args, appending, prepending and inserting one on a link, adding,
+// changing and removing links, adding, changing, renaming and removing stacks,
+// renaming the board and setting a board option, and setting a plugin's
+// state, while the app's opening board sets which plugins a board holds.
+// Besides core's command for any plugin's state, a plugin class's package
+// registers commands of its own for what its plugins keep.
 //
 // Each reads the board and returns its deltas, leaving the checks of the board
 // to the store, but for a block's state, which the store does not check, and
@@ -13,13 +14,14 @@
 // The ids that they mint for what they add take the shape that the blockr
 // option rand_id names, as R's rand_names() draws them.
 
-import { mintId, sentenceCase } from "../store/index.ts";
-import type { RandId, Store } from "../store/index.ts";
+import { mintId, pathOf, sentenceCase } from "../store/index.ts";
+import type { Patch, RandId, Store } from "../store/index.ts";
 import type {
   Block,
   BlockId,
   Board,
   LinkId,
+  PluginId,
   RegistryId,
   Stack,
   StackId,
@@ -33,6 +35,15 @@ import type { Command } from "./commands.ts";
 import * as schemas from "./schemas.ts";
 
 type State = Readonly<Record<string, Json>>;
+
+// A change of a plugin's state, at a path within the state, as core's command
+// for a plugin's state takes it, declared with `type`, as args are Json.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions -- an interface would not be assignable to Json
+type StatePatch = {
+  readonly op: Patch["op"];
+  readonly path: string;
+  readonly value?: Json;
+};
 
 // A block that a command adds, of a class from the block registry, with the
 // state its class starts a block with, changed by the state args given.
@@ -60,12 +71,21 @@ const newBlock = {
   },
 };
 
-export function coreCommands(store: Store, randId: RandId = "adjective_animal"): Command<Json, unknown>[] {
+export interface CoreCommandsOptions {
+  // Whether R's reply to `hello` locks the board, which leaves core's command
+  // for a plugin's state not enabled.
+  readonly locked?: boolean;
+  // The shape of the ids that core's commands mint, which the blockr option
+  // rand_id names, "adjective_animal" unless given.
+  readonly randId?: RandId;
+}
+
+export function coreCommands(store: Store, options: CoreCommandsOptions = {}): Command<Json, unknown>[] {
   const validators = new WeakMap<RegistryEntry, Validate>();
 
   // A new id that `taken` does not hold, in the shape that rand_id names.
   function mint(taken: (id: string) => boolean): string {
-    return mintId(taken, randId);
+    return mintId(taken, options.randId);
   }
 
   // Each way a block's state fails the schema of its class, in a clause.
@@ -503,7 +523,27 @@ export function coreCommands(store: Store, randId: RandId = "adjective_animal"):
     }),
   ];
 
-  return [...blocks, ...links, ...stacks, ...board];
+  const plugins = [
+    command<{ readonly plugin: PluginId; readonly patches: readonly StatePatch[] }>({
+      id: "blockr.core-set_plugin_state",
+      label: "Set plugin state",
+      description:
+        "Changes a plugin's state by patches at paths within that state, as JSON Patch has them, which the schema of the plugin's class types. It is not enabled on a locked board, where only the commands of a plugin's class know what the plugin locks.",
+      args: object(
+        {
+          plugin: { ...schemas.pluginId, description: "The plugin whose state the patches change." },
+          patches: schemas.statePatches,
+        },
+        ["plugin", "patches"],
+      ),
+      enabled: (board, { plugin }) => options.locked !== true && Object.hasOwn(board.plugins, plugin),
+      run: (_board, { plugin, patches }) => ({
+        patches: patches.map((patch) => ({ ...patch, path: `${pathOf(["plugins", plugin, "state"])}${patch.path}` })),
+      }),
+    }),
+  ];
+
+  return [...blocks, ...links, ...stacks, ...board, ...plugins];
 }
 
 // The inputs of block `to` that no link feeds, by which the commands find the

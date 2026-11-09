@@ -1,5 +1,5 @@
 // Drawing front-ends in the page's element, as core draws each board that it
-// opens with the front-end of the class that the board is built as
+// opens with core's basic front-end
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#opening-a-board):
 // - As the store opens a board, core imports the module of its front-end.
 // - Once the board is open, core calls the front-end's render() with the
@@ -57,15 +57,10 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
   return {
     async prepare(front, loader) {
       let prepared: NonNullable<typeof next>;
-      if ("error" in front) {
-        end();
-        next = { id: "", module: "", error: front.error };
-        return;
-      }
       const { id, source } = front;
       const pkg = packageOf(id);
       if (source === undefined) {
-        prepared = { id, module: id, error: new Error(`R serves no module ${id}, which R names as the front-end of the board's class.`) };
+        prepared = { id, module: id, error: new Error(`R serves no module ${id}, the front-end that draws the board.`) };
       } else {
         try {
           const mod = moduleOf<FrontEndArgs>(await loader.load(source, pkg), source.module, pkg);
@@ -83,12 +78,7 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
       if (prepared === undefined || signal.aborted) return;
       el.replaceChildren();
       if (prepared.render === undefined) {
-        showError(
-          el,
-          prepared.id === ""
-            ? `No front-end draws the board: ${messageOf(prepared.error)}`
-            : `The front-end ${prepared.id} cannot draw the board: ${messageOf(prepared.error)}`,
-        );
+        showError(el, `The front-end ${prepared.id} cannot draw the board: ${messageOf(prepared.error)}`);
         report(prepared.error);
         return;
       }

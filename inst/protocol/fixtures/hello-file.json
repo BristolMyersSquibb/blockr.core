@@ -114,13 +114,7 @@
             "css": "blockr.core/basic.css?v=6a9b2c4e"
           }
         },
-        "board_classes": {
-          "board": {
-            "package": "blockr.core",
-            "front_end": "blockr.core-basic",
-            "version": 1
-          }
-        },
+        "plugin_versions": {},
         "option_versions": {},
         "renderers": {},
         "lock": null,
@@ -129,8 +123,7 @@
           "packages": { "blockr.core": "0.2.0" },
           "board": {
             "id": "amber_tapir",
-            "class": ["board"],
-            "versions": { "board": 1 },
+            "versions": {},
             "name": "Cars",
             "blocks": {
               "a": {
@@ -154,7 +147,8 @@
                 "value": ["warning", "error"],
                 "version": 1
               }
-            }
+            },
+            "plugins": {}
           }
         }
       }

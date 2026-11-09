@@ -47,6 +47,7 @@ esbuild
 expr
 extensibility
 fileInput
+frontend
 getter
 getters
 ggplot

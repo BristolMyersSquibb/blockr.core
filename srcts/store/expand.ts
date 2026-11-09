@@ -2,53 +2,54 @@
 // so that it reaches everything in the board that refers to what it changes:
 // core's part as R's augment_board_update() did,
 // removing a removed block's links and its places in stacks,
-// and the properties of the board's class through the `update` of the class and
-// of each of its parents.
+// and the state of each plugin through the `update` of its class, which the
+// store calls once for each plugin of the class.
 // Every `update` runs again on what the rounds before added,
 // until none adds anything, as ProseMirror calls `appendTransaction` again for
 // what another plugin appended.
 
-import type { Board, Stack, StackId } from "../types/board.ts";
+import type { Board, PluginId, Stack, StackId } from "../types/board.ts";
 import { jsonEqual, messageOf, own, quoted } from "../util/index.ts";
 import type { Delta, Patch } from "./delta.ts";
 import { malformed, overlap, pointer } from "./patch.ts";
-import type { Built } from "./registrations.ts";
+import type { Registrations } from "./registrations.ts";
 
 // How many rounds a delta may expand in before the store rejects it,
-// naming the board classes that kept adding.
+// naming the plugins whose updates kept adding.
 export const ROUNDS = 10;
 
 export function expand(
   delta: Delta,
   board: Board,
-  built: Built,
+  registrations: Pick<Registrations, "plugin">,
 ): Delta | { readonly failures: readonly string[] } {
   let expanded = delta;
 
   for (let round = 0; round < ROUNDS; round++) {
-    const adding: string[] = [];
+    const adding: PluginId[] = [];
     const failures: string[] = [];
 
     const core = expandCore(expanded, board);
     const grew = core !== expanded;
     expanded = core;
 
-    for (const { def } of built.chain) {
-      if (def.update === undefined) continue;
+    for (const [id, plugin] of Object.entries(board.plugins)) {
+      const def = registrations.plugin(plugin.class)?.def;
+      if (def?.update === undefined) continue;
       let patches: unknown;
       try {
-        patches = def.update(expanded, board);
+        patches = def.update(expanded, board, id);
       } catch (error) {
-        failures.push(`The board class "${def.class}" failed to update the delta: ${messageOf(error)}`);
+        failures.push(`The plugin class "${def.id}" failed to update the delta for the plugin "${id}": ${messageOf(error)}`);
         continue;
       }
-      const wrong = misplaced(def.class, Object.keys(def.properties), patches);
+      const wrong = misplaced(def.id, id, patches);
       if (wrong.length > 0) {
         failures.push(...wrong);
         continue;
       }
       const merged = merge(expanded, delta, patches as readonly Patch[]);
-      if (merged !== expanded) adding.push(def.class);
+      if (merged !== expanded) adding.push(id);
       expanded = merged;
     }
 
@@ -57,7 +58,7 @@ export function expand(
     if (round === ROUNDS - 1) {
       return {
         failures: [
-          `The delta kept expanding after ${String(ROUNDS)} rounds, through the board class${adding.length > 1 ? "es" : ""} ${quoted(adding)}.`,
+          `The delta kept expanding after ${String(ROUNDS)} rounds, through the update of the plugin${adding.length > 1 ? "s" : ""} ${quoted(adding)}.`,
         ],
       };
     }
@@ -102,25 +103,22 @@ function expandCore(delta: Delta, board: Board): Delta {
   };
 }
 
-// What is wrong with what a board class's `update` returned: no array of
-// patches, or a patch outside the properties that the class adds itself.
-function misplaced(cls: string, adds: readonly string[], patches: unknown): string[] {
-  if (!Array.isArray(patches)) {
-    return [`The board class "${cls}" updated the delta with no array of patches.`];
-  }
+// What is wrong with what the `update` of a plugin's class returned for the
+// plugin `id`: no array of patches, or a patch outside that plugin's state.
+function misplaced(cls: string, id: PluginId, patches: unknown): string[] {
+  const of = `The plugin class "${cls}" updated the delta for the plugin "${id}"`;
+  if (!Array.isArray(patches)) return [`${of} with no array of patches.`];
   const failures: string[] = [];
   for (const patch of patches as unknown[]) {
     const problems = malformed(patch);
     if (problems.length > 0) {
-      failures.push(`A patch that the board class "${cls}" updated the delta with ${problems.join(", ")}.`);
+      failures.push(`${of} with a patch that ${problems.join(", ")}.`);
       continue;
     }
     const { path } = patch as Patch;
-    const property = pointer(path)?.[0] ?? "";
-    if (!adds.includes(property)) {
-      failures.push(
-        `The board class "${cls}" updated the delta with a patch at "${path}", outside the properties it adds.`,
-      );
+    const [top, plugin, part] = pointer(path) ?? [];
+    if (top !== "plugins" || plugin !== id || part !== "state") {
+      failures.push(`${of} with a patch at "${path}", outside that plugin's state.`);
     }
   }
   return failures;
@@ -133,7 +131,7 @@ function misplaced(cls: string, adds: readonly string[], patches: unknown): stri
 // says itself.
 // So a patch of an `update` is left out where its path is at, under or above a
 // path that one of the given delta's own patches changes.
-// An undo that puts back a property's old value then puts back that value, and
+// An undo that puts back a plugin's old state then puts back that state, and
 // not one that an `update` makes up for a new object.
 function merge(delta: Delta, given: Delta, patches: readonly Patch[]): Delta {
   const held = delta.patches ?? [];

@@ -12,4 +12,6 @@ export declare const blockIds: JsonSchema;
 export declare const color: JsonSchema;
 export declare const optionId: JsonSchema;
 export declare const value: JsonSchema;
+export declare const pluginId: JsonSchema;
+export declare const statePatches: JsonSchema;
 export declare function stateSchema(entry: RegistryEntry): JsonSchema;

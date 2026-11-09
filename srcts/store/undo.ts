@@ -7,8 +7,6 @@ import type { Board } from "../types/board.ts";
 import { isObject } from "../util/index.ts";
 import type { Delta, Patch } from "./delta.ts";
 import { applyPatch, pointer } from "./patch.ts";
-import { recordOf } from "./registrations.ts";
-import type { Built } from "./registrations.ts";
 
 // The part of a delta that still applies to the board: without the removal
 // or change of what is gone, the addition of what is there already,
@@ -16,7 +14,7 @@ import type { Built } from "./registrations.ts";
 // and the patches that no longer find their path,
 // as one that changes what another origin removed.
 // A patch at an array's index changes whatever the array holds there now.
-export function fit(delta: Delta, board: Board, built: Built): Delta {
+export function fit(delta: Delta, board: Board): Delta {
   const blocks = collection(board.blocks, delta.blocks);
   const kept = new Set([
     ...Object.keys(board.blocks).filter((id) => !(blocks.rm ?? []).includes(id)),
@@ -49,18 +47,17 @@ export function fit(delta: Delta, board: Board, built: Built): Delta {
     },
     ...(delta.options === undefined ? {} : { options: delta.options }),
     ...(delta.name === undefined ? {} : { name: delta.name }),
-    patches: patches(delta.patches ?? [], board, built),
+    patches: patches(delta.patches ?? [], board),
   });
 }
 
-// The patches that apply, one after another, to the properties of the
-// board's class.
-function patches(given: readonly Patch[], board: Board, built: Built): Patch[] {
-  let at = recordOf(board);
+// The patches that apply, one after another, to the board's plugins.
+function patches(given: readonly Patch[], board: Board): Patch[] {
+  let at = board as unknown as Readonly<Record<string, unknown>>;
   const fitted: Patch[] = [];
   for (const patch of given) {
     const parts = pointer(patch.path) ?? [];
-    if (!built.properties.has(parts[0] ?? "")) continue;
+    if (parts[0] !== "plugins") continue;
     const applied = applyPatch(at, patch, parts);
     if ("failure" in applied) continue;
     at = applied.next;
