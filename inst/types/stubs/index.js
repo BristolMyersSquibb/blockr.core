@@ -6174,9 +6174,13 @@ function pluginOf(path) {
 function pathOf(parts) {
   return parts.map((part) => `/${part.replaceAll("~", "~0").replaceAll("/", "~1")}`).join("");
 }
-function overlap(a2, b2) {
-  const n2 = Math.min(a2.length, b2.length);
-  return a2.slice(0, n2).every((part, i2) => part === b2[i2]);
+function overlap(a2, b2, board) {
+  let at = board;
+  for (const [i2, part] of a2.slice(0, b2.length).entries()) {
+    if (Array.isArray(at) || part !== b2[i2]) return false;
+    at = isObject(at) ? own(at, part) : void 0;
+  }
+  return true;
 }
 function malformed(patch2) {
   if (!isObject(patch2)) return ["is no object"];
@@ -6610,7 +6614,7 @@ function expand(delta, board, registrations) {
         failures.push(...wrong);
         continue;
       }
-      const merged = merge(expanded, delta, patches2);
+      const merged = merge(expanded, delta, patches2, board);
       if (merged !== expanded) adding.push(id2);
       expanded = merged;
     }
@@ -6667,14 +6671,14 @@ function misplaced(cls, id2, patches2) {
   }
   return failures;
 }
-function merge(delta, given, patches2) {
+function merge(delta, given, patches2, board) {
   const held2 = delta.patches ?? [];
   const fixed2 = (given.patches ?? []).map(({ path }) => pointer(path) ?? []);
   const added = [];
   for (const patch2 of patches2) {
     const parts = pointer(patch2.path) ?? [];
     if ([...held2, ...added].some((other) => same(other, patch2))) continue;
-    if (fixed2.some((path) => overlap(path, parts))) continue;
+    if (fixed2.some((path) => overlap(path, parts, board))) continue;
     added.push(patch2);
   }
   if (added.length === 0) return delta;

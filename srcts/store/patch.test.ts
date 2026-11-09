@@ -44,9 +44,18 @@ describe("pointers", () => {
   });
 
   test("overlap where one path lies at or under the other", () => {
-    expect(overlap(["views"], ["views", "main"])).toBe(true);
-    expect(overlap(["views", "main"], ["views", "main"])).toBe(true);
-    expect(overlap(["views", "main"], ["views", "side"])).toBe(false);
+    expect(overlap(["views"], ["views", "main"], board)).toBe(true);
+    expect(overlap(["views", "main"], ["views", "main"], board)).toBe(true);
+    expect(overlap(["views", "main"], ["views", "side"], board)).toBe(false);
+    expect(overlap(["views", "main", "panels"], ["views", "main", "panels", "-"], board)).toBe(true);
+  });
+
+  test("do not overlap where both lead into one array, since an index or its end names no element", () => {
+    const panels = ["views", "main", "panels"];
+    expect(overlap([...panels, "-"], [...panels, "-"], board)).toBe(false);
+    expect(overlap([...panels, "1"], [...panels, "1"], board)).toBe(false);
+    // A member of an object whose name is made of digits is no index.
+    expect(overlap(["pages", "1"], ["pages", "1"], { pages: { 1: "First" } })).toBe(true);
   });
 });
 
