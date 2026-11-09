@@ -256,3 +256,41 @@ test_that("a running app serves a module that R names to the client", {
   expect_error(suppressWarnings(get(beside)))
   expect_error(suppressWarnings(get("blockr-modules/secrets.R")))
 })
+
+test_that("the import map names the URL at which R serves each import", {
+
+  shipped <- yyjsonr::read_json_file(
+    system.file("js", "import-map.json", package = "blockr.core")
+  )
+
+  tag <- import_map()
+
+  expect_identical(tag$attribs$type, "importmap")
+
+  map <- yyjsonr::read_json_str(as.character(tag$children[[1L]]))
+
+  expect_named(map, "imports")
+  expect_named(
+    map$imports,
+    c(
+      "react", "react/jsx-runtime", "react-dom", "react-dom/client",
+      "@blockr/core/react", "@blockr/core/binding", "@blockr/core/controls"
+    )
+  )
+
+  for (name in names(shipped$imports)) {
+    file <- shipped$imports[[name]]
+    expect_identical(
+      map$imports[[name]],
+      paste0(
+        "./",
+        served_url(js_module(file.path("js", file), package = "blockr.core"))
+      )
+    )
+    expect_true(file.exists(served_copy("blockr.core", "js", file)))
+  }
+
+  # The bundle of React that the entry points of React import, by its name.
+  expect_length(shipped$files, 1L)
+  expect_true(file.exists(served_copy("blockr.core", "js", shipped$files)))
+})

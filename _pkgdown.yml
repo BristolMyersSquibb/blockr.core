@@ -64,6 +64,7 @@ reference:
     - new_plugin
     - new_renderer
     - register_startup_module
+    - install_js_types
     - request-types
     - report_progress
 - title: Block classes

@@ -8,7 +8,7 @@
 // bundles as its peer.
 // The controls go there as the SDK does.
 
-import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { copyFile, cp, mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
@@ -40,6 +40,17 @@ async function write(files: Record<string, string>): Promise<void> {
     await mkdir(dirname(file), { recursive: true });
     await writeFile(file, content);
   }
+}
+
+// Installs core's types as a package installs them, with
+// `npm install --no-save --install-links`: as a copy, outside core's repo.
+// TypeScript resolves a file's imports from the file's real path, so the
+// types find the React they import in the package's node_modules.
+// Through a link to `inst/types`, the types would find React in the
+// node_modules of core's repo, which a package does not have.
+// The test would then pass where a package's type check fails.
+async function installTypes(): Promise<void> {
+  await cp(join(repo, "inst", "types"), join(root, "node_modules", "@blockr", "core"), { recursive: true });
 }
 
 async function files(dir: string): Promise<string[]> {
@@ -211,8 +222,7 @@ export const submitted: number = host.submitted.length;
 test.each(["bundler", "nodenext"] as const)(
   "a package's modules and their test type-check against what core ships, as %s resolution finds it",
   async (resolution) => {
-    await mkdir(join(root, "node_modules", "@blockr"), { recursive: true });
-    await symlink(join(repo, "inst", "types"), join(root, "node_modules", "@blockr", "core"), "dir");
+    await installTypes();
     await write({
       "package.json": JSON.stringify({ name: "blockr.test", private: true, type: "module" }),
       "src/head-block.ts": headModule,
@@ -333,8 +343,7 @@ await esbuild.build({ ...preset, entryPoints: ["src/text-renderer.tsx", "src/hea
 test.each(["bundler", "nodenext"] as const)(
   "a package's modules on the React SDK and the binding, and its build on the build preset, type-check against what core ships, as %s resolution finds them",
   async (resolution) => {
-    await mkdir(join(root, "node_modules", "@blockr"), { recursive: true });
-    await symlink(join(repo, "inst", "types"), join(root, "node_modules", "@blockr", "core"), "dir");
+    await installTypes();
     // The React that npm installs with `@blockr/core`, and what a package
     // installs to type its modules in React and build them.
     for (const name of ["react", "@types/react", "esbuild"]) {

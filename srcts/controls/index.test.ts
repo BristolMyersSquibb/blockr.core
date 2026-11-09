@@ -1,12 +1,12 @@
 // The controls as the module that core offers other packages' modules,
 // blockr.core-controls, which a module that builds nothing reaches through
-// host.module().
+// host.module(), and which the page's import map names `@blockr/core/controls`.
 
 import { afterEach, expect, test } from "vitest";
-import { stubBlockHost } from "../../stubs/index.ts";
-import { find, type } from "../../testing/inputs.ts";
-import { mountOnPage, unmount } from "../../testing/modules.ts";
-import type { BlockModule } from "../../types/hosts.ts";
+import { stubBlockHost } from "../stubs/index.ts";
+import { find, type } from "../testing/inputs.ts";
+import { mountOnPage, unmount } from "../testing/modules.ts";
+import type { BlockModule } from "../types/hosts.ts";
 import * as offered from "./index.ts";
 
 afterEach(() => {
