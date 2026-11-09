@@ -162,9 +162,7 @@ var classes = {
   page: "bc:text-gray-900 bc:dark:text-gray-100",
   // What sits over the board, as a dialog or a menu does.
   surface: "bc:bg-white bc:text-gray-900 bc:dark:bg-gray-900 bc:dark:text-gray-100",
-  // Opaque, since core measures the background behind an output for the plots
-  // that R draws, and reads a translucent one as opaque.
-  card: "bc:bg-gray-50 bc:dark:bg-gray-800",
+  card: "bc:bg-bg-subtle",
   heading: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold",
   list: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0"
 };
@@ -337,8 +335,8 @@ var BlockCard = memo(function BlockCard2({
   }, [inView2, id2]);
   const mountUi = useCallback2((el) => core.mountBlock(el, id2), [core, id2]);
   const mountOutput = useCallback2((el) => core.mountOutput(el, id2), [core, id2]);
-  const { lock } = core;
-  const inputs = lock === null || lock.open.includes(id2);
+  const locked2 = core.lock.board;
+  const inputs = !core.store.locked(id2);
   const entry = own(core.blockRegistry(), block.registry_id);
   const ready = status?.status === "ready";
   const replied = status !== void 0 && status.evaluated !== null;
@@ -365,7 +363,7 @@ var BlockCard = memo(function BlockCard2({
           ) : /* @__PURE__ */ jsx2("h3", { className: classes.heading, children: block.name }),
           /* @__PURE__ */ jsx2("span", { className: "bc:text-xs bc:text-text-muted", children: entry?.name ?? block.registry_id }),
           /* @__PURE__ */ jsx2(StatusBadge, { status }),
-          lock === null ? /* @__PURE__ */ jsx2("div", { className: "bc:ml-auto bc:flex bc:items-center bc:gap-1", children: /* @__PURE__ */ jsx2(
+          locked2 ? null : /* @__PURE__ */ jsx2("div", { className: "bc:ml-auto bc:flex bc:items-center bc:gap-1", children: /* @__PURE__ */ jsx2(
             Menu,
             {
               label: `Actions of ${block.name}`,
@@ -397,7 +395,7 @@ var BlockCard = memo(function BlockCard2({
                 }
               ]
             }
-          ) }) : null
+          ) })
         ] }),
         inputs ? /* @__PURE__ */ jsx2(Mounted, { mount: mountUi, label: "Inputs", className: "bc:min-w-0" }) : null,
         /* @__PURE__ */ jsxs2(
@@ -996,7 +994,8 @@ function Toolbar({ board, show }) {
   const { canUndo, canRedo } = useHistory(core);
   const [renaming, setRenaming] = useState6(false);
   const picker = useRef4(null);
-  const locked = core.lock !== null;
+  const locked2 = core.lock.board;
+  const opens = !locked2 && !core.lock.load;
   function step(back) {
     try {
       if (back) core.store.undo();
@@ -1036,7 +1035,7 @@ function Toolbar({ board, show }) {
         }
       }
     ) : /* @__PURE__ */ jsx7("h1", { className: "bc:m-0 bc:font-sans bc:text-lg bc:font-semibold", children: board.name }),
-    locked || renaming ? null : /* @__PURE__ */ jsx7(
+    locked2 || renaming ? null : /* @__PURE__ */ jsx7(
       "button",
       {
         type: "button",
@@ -1049,7 +1048,7 @@ function Toolbar({ board, show }) {
       }
     ),
     /* @__PURE__ */ jsxs7("div", { role: "toolbar", "aria-label": "Board", className: "bc:ml-auto bc:flex bc:flex-wrap bc:items-center bc:gap-2", children: [
-      locked ? null : /* @__PURE__ */ jsxs7(Fragment, { children: [
+      locked2 ? null : /* @__PURE__ */ jsxs7(Fragment, { children: [
         /* @__PURE__ */ jsx7(
           "button",
           {
@@ -1122,7 +1121,7 @@ function Toolbar({ board, show }) {
         }
       ),
       /* @__PURE__ */ jsx7("button", { type: "button", className: classes.button, onClick: save, children: "Save" }),
-      locked ? null : /* @__PURE__ */ jsxs7(Fragment, { children: [
+      opens ? /* @__PURE__ */ jsxs7(Fragment, { children: [
         /* @__PURE__ */ jsx7(
           "button",
           {
@@ -1147,7 +1146,7 @@ function Toolbar({ board, show }) {
             }
           }
         )
-      ] })
+      ] }) : null
     ] })
   ] });
 }

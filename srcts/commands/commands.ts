@@ -91,10 +91,10 @@ export interface CommandsOptions {
   // store: from then on the registry runs and plans no command, and drops a
   // command still in its prepare() rather than run it.
   readonly signal?: AbortSignal;
-  // The lock that R's reply to `hello` gives, under which core's command for a
-  // plugin's state is not enabled, since there only a plugin class's own
-  // commands know what the plugin locks.
-  readonly lock?: Lock | null;
+  // The locks that R's reply to `hello` gives. Under the board lock, core's
+  // command for a plugin's state is not enabled, since there only a plugin
+  // class's own commands know what the plugin locks.
+  readonly lock?: Lock;
   // The `rand_id` blockr option as R sent it, the shape of the ids that core's
   // commands mint, which core asks R for as soon as R has answered its hello.
   // It is "adjective_animal" unless given, and the command registry refuses a
@@ -273,7 +273,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   };
 
   for (const command of coreCommands(store, {
-    locked: (options.lock ?? null) !== null,
+    locked: options.lock?.board === true,
     randId: shapeOf(options.randId),
   })) {
     registry.register(command);

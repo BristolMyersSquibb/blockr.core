@@ -296,10 +296,26 @@
   The client's `CoreApi.blockrOption()` takes no fallback: it gives the value as R sent it, or `undefined` where nothing sets the blockr option, and the code that reads the blockr option converts and checks the value, and takes a fallback of its own only where nothing sets it.
   Core's code reads a string, as an environment variable gives, as R's `as.numeric()` or `as.logical()` reads it, and fails on an `evaluation_queue` that is then no whole number of 0 or more, a `background_evaluation_delay` below 0, a `gate_visibility` that is neither `TRUE` nor `FALSE`, a `rand_id` that names no shape, and a value of `n_rows`, `show_conditions` or `dark_mode` that the board option's schema refuses.
   Where core reads the blockr option as it starts, core does not start, and the page shows why (#510).
-* The blockr options `locked`, `attach_default_packages`, `log_time` and `log_mem` read a string, as an environment variable gives, as `as.logical()` reads it, so that `BLOCKR_LOCKED=TRUE` locks the board.
-  Until now, `isTRUE()` read the string as `FALSE`, so that the board stayed unlocked without a word.
-  A value that is neither `TRUE` nor `FALSE` fails, naming the blockr option (#510).
+* The blockr options `attach_default_packages`, `log_time` and `log_mem` read a string, as an environment variable gives, as `as.logical()` reads it.
+  Until now, `isTRUE()` read the string as `FALSE`, so that `BLOCKR_LOG_MEM=TRUE`, for one, did nothing.
+  A value that `as.logical()` reads as neither `TRUE` nor `FALSE` fails, naming the blockr option (#510).
 * Core's client asks R for `rand_id` with the blockr options that its scheduler reads, as soon as R has answered its hello, and core's commands mint ids in the shape that `rand_id` names, as `rand_names()` draws them in R (#510).
+* An app sets three locks, each on its own, where it set one until now (see `?"locked-board"`).
+  The load lock, the blockr option `lock_load`, fixes the app to its opening board.
+  The client's store then opens no JSON board's text, and core keeps the board that R sent where a startup module names another.
+  The board lock, the blockr option `locked`, as before, fixes what a board holds but its blocks' state, its board options and what sits inside its plugins' state.
+  A block's lock, its `locked`, fixes the block's state under the board lock: `TRUE` locks the block, `FALSE` leaves it open, and `NA` follows the board lock.
+  Every block holds `locked` beside `name`.
+  A block constructor takes it, as `NA` unless a script gives another, and `new_block_class()` refuses a state arg named `locked`, while a JSON board holds `NA` as `null`.
+  R sends both locks with its reply to `hello`, in `lock`, as `{ "board": true, "load": true }`, where it sent the blocks that a locked board leaves open, and an evaluation carries the block's `locked`.
+  The store's `locked()` says which blocks a lock fixes, and under the board lock the store refuses every delta but one that changes the state of a block that the board lock leaves open, a board option's value or what sits inside a plugin's state.
+  Core's command `blockr.core-set_block_lock` sets a block's lock.
+  Under the board lock, R refuses an evaluation that binds a block's data inputs to other blocks or gives a locked block another state, with an error that names the lock.
+  With the load lock on too, R holds every block to the opening board, which it reads as the app starts, and evaluates a locked block with the block expression that it built then.
+  A locked block whose block expression fails to build then stops the app, naming the block, unless the failure is a `blockr_invalid()`, which R replies with to every evaluation of the block.
+  Without the load lock, R holds a block to its first evaluation since the board opened.
+  R runs every request as on any board, with the board option values that the request carries.
+  The generic `is_board_locked()` goes, and a package reads the blockr option `locked` in its place (#434).
 
 # blockr.core 0.1.4
 

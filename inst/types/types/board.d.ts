@@ -19,6 +19,7 @@ export interface Block {
     readonly registry_id: RegistryId;
     readonly state: Readonly<Record<string, Json>>;
     readonly name: string;
+    readonly locked: boolean | null;
 }
 export interface Plugin {
     readonly class: PluginClassId;

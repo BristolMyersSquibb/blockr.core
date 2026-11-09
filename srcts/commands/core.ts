@@ -1,9 +1,11 @@
 // Core's commands, which cover what core's plugins of today and the dock's
 // actions did: adding, removing and renaming a block, setting and unsetting its
-// state args, appending, prepending and inserting one on a link, adding,
-// changing and removing links, adding, changing, renaming and removing stacks,
-// renaming the board and setting a board option, and setting a plugin's
-// state, while the app's opening board sets which plugins a board holds.
+// state args, setting its lock, appending, prepending and inserting one on a
+// link, adding, changing and removing links, adding, changing, renaming and
+// removing stacks, renaming the board and setting a board option, and setting
+// a plugin's state, while the app's opening board sets which plugins a board
+// holds. A block that a command adds starts with a lock of null, which follows
+// the board lock.
 // Besides core's command for any plugin's state, a plugin class's package
 // registers commands of its own for what its plugins keep.
 //
@@ -72,8 +74,8 @@ const newBlock = {
 };
 
 export interface CoreCommandsOptions {
-  // Whether R's reply to `hello` locks the board, which leaves core's command
-  // for a plugin's state not enabled.
+  // Whether R's reply to `hello` sets the board lock, which leaves core's
+  // command for a plugin's state not enabled.
   readonly locked?: boolean;
   // The shape of the ids that core's commands mint, which the blockr option
   // rand_id names, "adjective_animal" unless given.
@@ -122,7 +124,7 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
     const id = args.id ?? mint((id) => Object.hasOwn(board.blocks, id));
     return [
       id,
-      { registry_id: entry.id, state, name: args.name ?? blockName(entry.id) },
+      { registry_id: entry.id, state, name: args.name ?? blockName(entry.id), locked: null },
       entry,
     ];
   }
@@ -197,6 +199,15 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
       args: object({ id: schemas.blockId, name: schemas.name }, ["id", "name"]),
       enabled: (board, { id }) => Object.hasOwn(board.blocks, id),
       run: (_board, { id, name }) => ({ blocks: { mod: { [id]: { name } } } }),
+    }),
+    command<{ readonly id: BlockId; readonly locked: boolean | null }>({
+      id: "blockr.core-set_block_lock",
+      label: "Set block lock",
+      description:
+        "Sets a block's lock, which fixes its state where the board lock is on: true locks the block, false leaves it open to readers, and null has it follow the board lock.",
+      args: object({ id: schemas.blockId, locked: schemas.locked }, ["id", "locked"]),
+      enabled: (board, { id }) => Object.hasOwn(board.blocks, id),
+      run: (_board, { id, locked }) => ({ blocks: { mod: { [id]: { locked } } } }),
     }),
     command<{ readonly id: BlockId; readonly state?: State; readonly unset?: readonly string[] }>({
       id: "blockr.core-set_block",

@@ -55,9 +55,7 @@
     --bc-color-green-600: oklch(62.7% .194 149.214);
     --bc-color-blue-500: oklch(62.3% .214 259.815);
     --bc-color-blue-600: oklch(54.6% .245 262.881);
-    --bc-color-gray-50: oklch(98.5% .002 247.839);
     --bc-color-gray-100: oklch(96.7% .003 264.542);
-    --bc-color-gray-800: oklch(27.8% .033 256.848);
     --bc-color-gray-900: oklch(21% .034 264.665);
     --bc-color-black: #000;
     --bc-color-white: #fff;
@@ -441,10 +439,6 @@
   background-color: currentColor;
 }
 
-.bc\:bg-gray-50 {
-  background-color: var(--bc-color-gray-50);
-}
-
 .bc\:bg-transparent {
   background-color: #0000;
 }
@@ -729,10 +723,6 @@
 
 .bc\:aria-invalid\:border-border-danger[aria-invalid="true"] {
   border-color: var(--bc-color-border-danger);
-}
-
-.bc\:dark\:bg-gray-800:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
-  background-color: var(--bc-color-gray-800);
 }
 
 .bc\:dark\:bg-gray-900:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {

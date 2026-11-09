@@ -70,6 +70,11 @@ blockr_option_json <- function(name, value) {
 
 # Evaluates a block from its recipe, as `evaluate_block()` does,
 # with each upstream result at the revision that the recipe names.
+# Under the board lock, R first refuses what breaks a lock,
+# and where the load lock is on too, it evaluates the block with the class it
+# read from the opening board, and a locked block with its opening state and
+# the block expression that it built from that state (see
+# `lock_evaluation()`).
 # R keeps the result under the block's id.
 # An evaluation that leaves no result, as one that fails,
 # leaves R no result of the block.
@@ -77,6 +82,7 @@ answer_evaluate <- function(ev, job) {
 
   req <- job[["req"]]
   recipe <- req[["recipe"]]
+  locked <- lock_evaluation(ev, req)
 
   lacking <- lacking_results(ev, recipe[["inputs"]])
 
@@ -84,7 +90,11 @@ answer_evaluate <- function(ev, job) {
     return(missing_reply(job[["id"]], lacking))
   }
 
-  entry <- get_registry_entry(recipe[["registry_id"]])
+  entry <- coal(
+    locked[["entry"]],
+    get_registry_entry(recipe[["registry_id"]]),
+    fail_all = FALSE
+  )
   cls <- entry[["block_class"]]
 
   bound <- bind_inputs(
@@ -93,13 +103,16 @@ answer_evaluate <- function(ev, job) {
     class_inputs(cls)
   )
 
+  hold_evaluation(ev, req, bound[["inputs"]])
+
   ran <- capture_streams(
     eval_block_class(
       cls,
-      recipe[["state"]],
+      coal(locked[["state"]], recipe[["state"]], fail_all = FALSE),
       bound[["inputs"]],
       bound[["results"]],
-      req[["params"]]
+      req[["params"]],
+      locked[["built"]]
     )
   )
 

@@ -430,7 +430,7 @@ describe("starting the page", () => {
   });
 
   test.each([
-    ["the board is locked", { lock: { open: ["b"] } }, ["blockr.session"], "The board is locked, so core opens the board that R sent rather than the one that blockr.session named."],
+    ["the load lock is on", { lock: { board: false, load: true } }, ["blockr.session"], "The load lock is on, so core opens the board that R sent rather than the one that blockr.session named."],
     ["two startup modules name one", {}, ["blockr.session", "blockr.other"], 'The startup modules of "blockr.session" and "blockr.other" each named a board to open, so core opens the board that R sent.'],
   ])("keeps the board R sent where %s, and names the packages", async (_, changes, packages, message) => {
     const named = JSON.stringify({ ...hello.board, board: { ...hello.board.board, name: "Named" } });
