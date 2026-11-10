@@ -6,7 +6,9 @@
 //    default where the board lacks it. Until the next board opens, it adds
 //    again each that a delta removes, so that the board holds the value of
 //    every board option that a plugin requires, as it holds those of a
-//    mounted module (../mount/block.ts).
+//    mounted module (../mount/block.ts). For a block that serve() serves
+//    alone, which core's basic frontend does not draw, core adds none of them
+//    for the basic frontend.
 // 2. Core draws the board with its frontend, the plugin whose class has
 //    `frontend`, or core's basic frontend where the board holds none, once the
 //    board options that the frontend's class names are on the board
@@ -85,6 +87,9 @@ export interface RunningDeps {
   readonly core: () => CoreApi;
   // Aborts as the next board opens, which ends what core runs for the plugins.
   readonly signal?: AbortSignal;
+  // Whether the board is a block that serve() serves alone, which no frontend
+  // draws.
+  readonly alone?: boolean;
 }
 
 const NONE: Readonly<Record<PluginId, Plugin>> = Object.freeze({});
@@ -118,7 +123,7 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
       const def = classOfId(plugin.class);
       if (def?.options !== undefined) added.set(id, keep(def.options, `the plugin class "${def.id}"`));
     }
-    if (inRole(plugins, classOfId, "frontend").length === 0) {
+    if (deps.alone !== true && inRole(plugins, classOfId, "frontend").length === 0) {
       basic = keep(BASIC_FRONTEND.options, "core's basic frontend");
     }
   }

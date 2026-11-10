@@ -7494,7 +7494,7 @@ function runPlugins(deps) {
       const def = classOfId(plugin.class);
       if (def?.options !== void 0) added.set(id2, keep(def.options, `the plugin class "${def.id}"`));
     }
-    if (inRole(plugins, classOfId, "frontend").length === 0) {
+    if (deps.alone !== true && inRole(plugins, classOfId, "frontend").length === 0) {
       basic = keep(BASIC_FRONTEND.options, "core's basic frontend");
     }
   }
@@ -7764,7 +7764,8 @@ function createCore(parts) {
     loader,
     keepOptions: (ids2, by, failed2) => mounts.keepOptions(ids2, by, failed2),
     core: () => api,
-    ...parts.signal === void 0 ? {} : { signal: parts.signal }
+    ...parts.signal === void 0 ? {} : { signal: parts.signal },
+    ...parts.alone === true ? { alone: true } : {}
   });
   const api = {
     store,
@@ -8687,6 +8688,7 @@ function attempt2(command2, fn) {
 var CAPABILITIES = ["cancel", "interrupt", "progress"];
 function start(options) {
   const page = new AbortController();
+  const alone = options.alone === true;
   const fail = options.fail ?? ((error) => {
     report(error);
   });
@@ -8832,6 +8834,7 @@ function start(options) {
       lock: (first ?? reply).lock,
       renderers: () => latest?.renderers ?? {},
       signal,
+      alone,
       ...options.measure === void 0 ? {} : { measure: options.measure }
     });
     running2 = { store, scheduler, core, controller };
@@ -8839,7 +8842,7 @@ function start(options) {
     let dropped = [];
     let failure;
     if (later === void 0) {
-      const instead = chosen(reply, named2);
+      const instead = alone ? void 0 : chosen(reply, named2);
       if (instead === void 0) {
         dropped = await store.open(reply);
       } else {
@@ -8863,21 +8866,29 @@ function start(options) {
         }
       }
     }
-    const front = plugins.frontend();
-    const [failures] = await Promise.all([
-      front.added,
-      options.frontEnds?.prepare(
-        { id: front.module, source: own(latest?.modules ?? {}, front.module), plugin: front.plugin },
-        loader,
-        signal
-      )
-    ]);
-    try {
-      await options.frontEnds?.render(core, signal, failures);
-    } finally {
-      scheduler.start();
+    if (alone) {
+      try {
+        options.frontEnds?.card?.(core, signal);
+      } finally {
+        scheduler.start();
+      }
+    } else {
+      const front = plugins.frontend();
+      const [failures] = await Promise.all([
+        front.added,
+        options.frontEnds?.prepare(
+          { id: front.module, source: own(latest?.modules ?? {}, front.module), plugin: front.plugin },
+          loader,
+          signal
+        )
+      ]);
+      try {
+        await options.frontEnds?.render(core, signal, failures);
+      } finally {
+        scheduler.start();
+      }
+      if (dropped.length > 0) core.notifications.notify(droppedNote(dropped));
     }
-    if (dropped.length > 0) core.notifications.notify(droppedNote(dropped));
     await plugins.start();
     if (failure !== void 0) throw failure;
     return { core, dropped };
@@ -9032,6 +9043,246 @@ function asStartupModule(exports, module, pkg) {
   return mod;
 }
 
+// srcts/page/card.tsx
+import { useCallback, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
+import { Fragment, jsx as jsx2, jsxs } from "react/jsx-runtime";
+var OWNER = "blockr.core";
+function drawCard(el, core, signal) {
+  if (signal.aborted) return;
+  const ids2 = Object.keys(core.store.board().blocks);
+  const [id2] = ids2;
+  if (id2 === void 0 || ids2.length > 1) {
+    showError(el, `A block that serve() serves alone comes as a board of one block, and this board holds ${String(ids2.length)}.`);
+    return;
+  }
+  const demand = core.scheduler.demand(OWNER, [id2]);
+  el.replaceChildren();
+  const root = createRoot(el);
+  flushSync(() => {
+    root.render(/* @__PURE__ */ jsx2(AloneCard, { core, id: id2 }));
+  });
+  signal.addEventListener(
+    "abort",
+    () => {
+      demand.release();
+      root.unmount();
+      el.replaceChildren(loadingNote());
+    },
+    { once: true }
+  );
+}
+function AloneCard({ core, id: id2 }) {
+  const name3 = useBlockName(core, id2);
+  const status = useStatus(core, id2);
+  const shown2 = useShown(status);
+  const [open, setOpen] = useState(OPEN_AT_START);
+  const panel = useId();
+  const mountUi = useCallback((el) => core.mountBlock(el, id2), [core, id2]);
+  const mountOutput2 = useCallback((el) => core.mountOutput(el, id2), [core, id2]);
+  const inputs = !core.store.locked(id2);
+  const replied2 = status !== void 0 && status.evaluated !== null;
+  const current2 = status?.status === "ready" && !status.running;
+  const settled2 = status !== void 0 && status === shown2 && !status.running;
+  const listed = shown2 === void 0 ? [] : listedOf(shown2).filter((condition) => open.has(condition.severity));
+  return /* @__PURE__ */ jsxs(
+    "article",
+    {
+      "aria-label": name3,
+      className: "bc:mx-auto bc:my-4 bc:grid bc:max-w-5xl bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-subtle bc:p-3 bc:font-sans bc:text-gray-900 bc:dark:text-gray-100",
+      children: [
+        /* @__PURE__ */ jsx2("header", { children: /* @__PURE__ */ jsx2("h1", { className: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold", children: name3 }) }),
+        inputs ? /* @__PURE__ */ jsx2(Mounted, { mount: mountUi, label: "Inputs", className: "bc:min-w-0" }) : null,
+        /* @__PURE__ */ jsxs(
+          "div",
+          {
+            className: `bc:min-w-0 ${replied2 ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`,
+            children: [
+              /* @__PURE__ */ jsx2(
+                Mounted,
+                {
+                  mount: mountOutput2,
+                  label: "Output",
+                  data: { "data-current": String(current2) },
+                  className: `bc:min-w-0 bc:transition-opacity ${current2 ? "" : "bc:opacity-50 bc:grayscale"} ${replied2 ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"}`
+                }
+              ),
+              /* @__PURE__ */ jsx2(
+                "footer",
+                {
+                  "aria-busy": status?.running === true,
+                  "data-status": shown2?.status,
+                  className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:transition-opacity ${settled2 ? "" : "bc:opacity-50"}`,
+                  children: shown2 === void 0 ? null : /* @__PURE__ */ jsx2(
+                    StatusLine,
+                    {
+                      status: shown2,
+                      panel,
+                      open,
+                      toggle: (severity) => {
+                        const next = new Set(open);
+                        if (!next.delete(severity)) next.add(severity);
+                        setOpen(next);
+                      }
+                    }
+                  )
+                }
+              )
+            ]
+          }
+        ),
+        listed.length > 0 ? /* @__PURE__ */ jsx2("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map((condition, i2) => /* @__PURE__ */ jsx2(Banner, { condition }, i2)) }) : null
+      ]
+    }
+  );
+}
+var MARKS = {
+  error: {
+    label: "Error",
+    noun: "error",
+    text: "bc:text-text-danger",
+    tint: "bc:bg-red-500/10",
+    border: "bc:border-border-danger"
+  },
+  warning: {
+    label: "Warning",
+    noun: "warning",
+    text: "bc:text-text-warning",
+    tint: "bc:bg-amber-500/10",
+    border: "bc:border-amber-500"
+  },
+  message: {
+    label: "Message",
+    noun: "message",
+    text: "bc:text-blue-600 bc:dark:text-blue-400",
+    tint: "bc:bg-blue-500/10",
+    border: "bc:border-border-accent"
+  }
+};
+function StatusLine({
+  status,
+  panel,
+  open,
+  toggle
+}) {
+  if (status.status === "waiting") {
+    return /* @__PURE__ */ jsx2("span", { className: "bc:text-text-muted", children: status.conditions[0]?.message });
+  }
+  const pills = ["error", "warning", "message"].flatMap((severity) => {
+    const n2 = status.conditions.filter((condition) => condition.severity === severity).length;
+    if (n2 === 0) return [];
+    const mark = MARKS[severity];
+    return [
+      /* @__PURE__ */ jsxs(
+        "button",
+        {
+          type: "button",
+          "aria-expanded": open.has(severity),
+          "aria-controls": panel,
+          onClick: () => {
+            toggle(severity);
+          },
+          className: `bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`,
+          children: [
+            /* @__PURE__ */ jsx2(SeverityIcon, { severity }),
+            severity === "error" ? mark.noun : `${String(n2)} ${mark.noun}${n2 === 1 ? "" : "s"}`
+          ]
+        },
+        severity
+      )
+    ];
+  });
+  return /* @__PURE__ */ jsxs("span", { className: "bc:inline-flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2", children: [
+    status.status === "ready" && status.summary !== null ? /* @__PURE__ */ jsx2("span", { className: "bc:text-text-muted", children: status.summary }) : null,
+    pills
+  ] });
+}
+function Banner({ condition }) {
+  const mark = MARKS[condition.severity];
+  return /* @__PURE__ */ jsxs(
+    "li",
+    {
+      "data-severity": condition.severity,
+      className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`,
+      children: [
+        /* @__PURE__ */ jsx2("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx2(SeverityIcon, { severity: condition.severity }) }),
+        /* @__PURE__ */ jsxs("span", { className: "bc:grid bc:min-w-0 bc:gap-0.5", children: [
+          /* @__PURE__ */ jsx2("span", { className: `bc:font-sans bc:text-xs bc:font-semibold ${mark.text}`, children: mark.label }),
+          /* @__PURE__ */ jsx2("span", { className: "bc:font-mono bc:text-xs bc:whitespace-pre-wrap", children: condition.message })
+        ] })
+      ]
+    }
+  );
+}
+function SeverityIcon({ severity }) {
+  return /* @__PURE__ */ jsx2(
+    "svg",
+    {
+      "aria-hidden": "true",
+      viewBox: "0 0 16 16",
+      className: "bc:size-3 bc:shrink-0",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: 1.6,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      children: severity === "warning" ? /* @__PURE__ */ jsxs(Fragment, { children: [
+        /* @__PURE__ */ jsx2("path", { d: "M8 1.8 14.6 13.6H1.4Z" }),
+        /* @__PURE__ */ jsx2("path", { d: "M8 6.2v3.2M8 11.6v.1" })
+      ] }) : /* @__PURE__ */ jsxs(Fragment, { children: [
+        /* @__PURE__ */ jsx2("circle", { cx: "8", cy: "8", r: "6.4" }),
+        /* @__PURE__ */ jsx2("path", { d: severity === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1" })
+      ] })
+    }
+  );
+}
+function useShown(status) {
+  const [kept, setKept] = useState(void 0);
+  const now = status !== void 0 && status.status !== "stale" && status.status !== "unevaluated" ? status : void 0;
+  if (now !== void 0 && now !== kept) setKept(now);
+  return now ?? kept;
+}
+var OPEN_AT_START = /* @__PURE__ */ new Set(["error"]);
+function listedOf(status) {
+  return status.status === "waiting" ? [] : status.conditions;
+}
+function useBlockName(core, id2) {
+  const subscribe = useCallback(
+    (notify) => core.store.subscribe(() => {
+      notify();
+    }),
+    [core]
+  );
+  return useSyncExternalStore(subscribe, () => own(core.store.board().blocks, id2)?.name ?? id2);
+}
+function useStatus(core, id2) {
+  const subscribe = useCallback(
+    (notify) => core.scheduler.subscribe((changed) => {
+      if (changed.includes(id2)) notify();
+    }),
+    [core, id2]
+  );
+  return useSyncExternalStore(subscribe, () => core.scheduler.status(id2));
+}
+function Mounted({
+  mount,
+  label,
+  className,
+  data
+}) {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (el === null) return;
+    const cleanup = mount(el);
+    return () => {
+      queueMicrotask(cleanup);
+    };
+  }, [mount]);
+  return /* @__PURE__ */ jsx2("div", { ref, role: "region", "aria-label": label, className, ...data });
+}
+
 // srcts/page/page.ts
 function startPage(options) {
   const { el } = options;
@@ -9041,7 +9292,13 @@ function startPage(options) {
     ...options.loader === void 0 ? {} : { loader: options.loader },
     ...options.measure === void 0 ? {} : { measure: options.measure },
     options: coreOptions,
-    frontEnds: pageFrontEnds(el),
+    frontEnds: {
+      ...pageFrontEnds(el),
+      card(core, signal) {
+        drawCard(el, core, signal);
+      }
+    },
+    ...options.alone === true ? { alone: true } : {},
     reload(changed) {
       reloadBanner(changed);
     },

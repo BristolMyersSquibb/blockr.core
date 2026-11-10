@@ -22,10 +22,24 @@
 //    board holds none. Once the board options that the frontend requires are
 //    on the board, core calls the frontend's render(), and starts the
 //    scheduler once render() has returned, so that the scheduler sends R
-//    nothing before.
+//    nothing before. It then sends, through `notifications`, the note that
+//    names what the store dropped, which the frontend shows.
 // 7. Core then calls the start of each plugin whose class has one, so that
 //    what the frontend first shows comes before what the plugins ask for as
 //    they start.
+//
+// A block that serve() serves alone comes as a board of one block, which no
+// frontend draws, as Data passed to serve() has it
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.3#data-passed-to-serve).
+// Core then starts in the same order, with three differences:
+// - In step 4, it opens the board that R sent, whatever board a startup
+//   module resolves with.
+// - In step 5, it adds no board options for core's basic frontend. The board
+//   still takes dark_mode, as every board does, since its onChange() switches
+//   the page's theme (./core.ts).
+// - In step 6, it imports no frontend, but draws the block in its card, which
+//   demands the block, and starts the scheduler once the card has mounted the
+//   block.
 //
 // A board opened later, through the store's open() that CoreApi gives, starts
 // core again in place, as Opening a board has it
@@ -105,6 +119,10 @@ export interface FrontEnds {
   // no render(). The frontend ends as the signal aborts, as the next board
   // opens.
   render(core: CoreApi, signal: AbortSignal, failures: readonly string[]): Promise<void>;
+  // Draws the board's one block in its card, for a block that serve() serves
+  // alone, and returns once the card has mounted the block. The card ends as
+  // the signal aborts, as the next board opens.
+  card?(core: CoreApi, signal: AbortSignal): void;
 }
 
 // A package that a later reply names at another version than the page loaded.
@@ -122,6 +140,9 @@ export interface StartOptions {
   // The board options that core registers before any startup module runs.
   readonly options: (core: Pick<CoreApi, "blockrOption">) => readonly Option[];
   readonly frontEnds?: FrontEnds;
+  // Whether the board is a block that serve() serves alone, which no frontend
+  // draws, but the card that `frontEnds` gives.
+  readonly alone?: boolean;
   readonly measure?: Measure;
   // Asks for the page to be reloaded, where a reply names a loaded package at
   // another version, rather than load a second copy of it.
@@ -163,6 +184,7 @@ interface Later {
 
 export function start(options: StartOptions): Started {
   const page = new AbortController();
+  const alone = options.alone === true;
   const fail = options.fail ?? ((error: Error) => {
     report(error);
   });
@@ -357,6 +379,7 @@ export function start(options: StartOptions): Started {
       lock: (first ?? reply).lock,
       renderers: () => latest?.renderers ?? {},
       signal,
+      alone,
       ...(options.measure === undefined ? {} : { measure: options.measure }),
     });
     running = { store, scheduler, core, controller };
@@ -366,7 +389,7 @@ export function start(options: StartOptions): Started {
     let dropped: Dropped[] = [];
     let failure: Error | undefined;
     if (later === undefined) {
-      const instead = chosen(reply, named);
+      const instead = alone ? undefined : chosen(reply, named);
       if (instead === undefined) {
         dropped = await store.open(reply);
       } else {
@@ -391,24 +414,33 @@ export function start(options: StartOptions): Started {
       }
     }
 
-    // The frontend that draws the board, imported while the board options that
-    // it requires go onto the board.
-    const front = plugins.frontend();
-    const [failures] = await Promise.all([
-      front.added,
-      options.frontEnds?.prepare(
-        { id: front.module, source: own(latest?.modules ?? {}, front.module), plugin: front.plugin },
-        loader,
-        signal,
-      ),
-    ]);
-    try {
-      await options.frontEnds?.render(core, signal, failures);
-    } finally {
-      scheduler.start();
+    if (alone) {
+      try {
+        options.frontEnds?.card?.(core, signal);
+      } finally {
+        scheduler.start();
+      }
+    } else {
+      // The frontend that draws the board, imported while the board options
+      // that it requires go onto the board.
+      const front = plugins.frontend();
+      const [failures] = await Promise.all([
+        front.added,
+        options.frontEnds?.prepare(
+          { id: front.module, source: own(latest?.modules ?? {}, front.module), plugin: front.plugin },
+          loader,
+          signal,
+        ),
+      ]);
+      try {
+        await options.frontEnds?.render(core, signal, failures);
+      } finally {
+        scheduler.start();
+      }
+      // The frontend subscribes to the notes as it draws, so this one reaches
+      // it.
+      if (dropped.length > 0) core.notifications.notify(droppedNote(dropped));
     }
-    // The frontend subscribes to the notes as it draws, so this one reaches it.
-    if (dropped.length > 0) core.notifications.notify(droppedNote(dropped));
     await plugins.start();
     if (failure !== undefined) throw failure;
     return { core, dropped };

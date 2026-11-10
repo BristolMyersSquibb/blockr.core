@@ -5,14 +5,17 @@
 # in their order, each a list of replies and progress notes.
 # The session starts with the client's hello, unless `hello` is `FALSE`,
 # and logs only errors, since core's modules have no files yet.
-local_evaluator <- function(board = list(blocks = list()), ..., hello = TRUE,
+# Its lock is what `lock_board()` reads of the board unless given, as `serve()`
+# reads it.
+local_evaluator <- function(board = list(blocks = list()), data = list(),
+                            lock = lock_board(board, data), hello = TRUE,
                             frame = parent.frame()) {
 
   withr::local_options(blockr.log_level = "error", .local_envir = frame)
 
   session <- new.env()
   session$sent <- list()
-  session$evaluator <- new_evaluator(board = board, ...)
+  session$evaluator <- new_evaluator(board = board, data = data, lock = lock)
 
   session$send <- function(message) {
     session$sent[[length(session$sent) + 1L]] <- message
