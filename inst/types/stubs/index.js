@@ -2793,9 +2793,9 @@ function createScheduler(options) {
     update(left(oneTimes.value, gone));
     client.forget(revised.gone);
   });
-  const lacking = E((missing) => {
+  const lacking = E((missing2) => {
     const lost = /* @__PURE__ */ new Set();
-    for (const { block, revision: at } of missing) {
+    for (const { block, revision: at } of missing2) {
       if (revisions.value.get(block) === at && statuses.value.get(block)?.status === "ready") {
         lost.add(block);
       }
@@ -9141,7 +9141,7 @@ var styles = {
   label: "bc:text-sm bc:font-medium",
   box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
   check: "bc:flex bc:items-center bc:gap-2 bc:font-sans bc:text-sm bc:text-text-default",
-  checkbox: "bc:accent-bg-accent",
+  checkbox: "bc:accent-bg-accent bc:aria-invalid:accent-border-danger",
   fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans bc:text-text-default",
   legend: "bc:text-sm bc:font-medium bc:mb-1 bc:p-0",
   list: "bc:grid bc:max-h-48 bc:gap-1 bc:overflow-y-auto",
@@ -9206,13 +9206,17 @@ function Select({
   choices
 }) {
   const current2 = typeof bound.value === "string" ? bound.value : void 0;
-  const shown2 = current2 === void 0 || choices.some((choice) => choice.value === current2) ? choices : [...choices, { value: current2, label: current2 }];
+  const known = choices ?? [];
+  const lacked = current2 !== void 0 && !known.some((choice) => choice.value === current2);
+  const invalid = lacked && choices !== void 0;
+  const shown2 = lacked ? [...known, { value: current2, label: invalid ? missing(current2) : current2 }] : known;
   return /* @__PURE__ */ jsxs(Fragment, { children: [
     /* @__PURE__ */ jsx(Field, { label, children: /* @__PURE__ */ jsxs(
       "select",
       {
         className: styles.box,
         value: current2 ?? "",
+        "aria-invalid": invalid,
         onChange: (event) => {
           void bound.commit(event.target.value);
         },
@@ -9245,25 +9249,32 @@ function Checklist({
   return /* @__PURE__ */ jsxs("fieldset", { className: styles.fieldset, children: [
     /* @__PURE__ */ jsx("legend", { className: styles.legend, children: legend }),
     /* @__PURE__ */ jsxs("div", { className: styles.list, children: [
-      shown2.map((value2) => /* @__PURE__ */ jsxs("label", { className: styles.check, children: [
-        /* @__PURE__ */ jsx(
-          "input",
-          {
-            type: "checkbox",
-            className: styles.checkbox,
-            value: value2,
-            checked: held2.includes(value2),
-            onChange: (event) => {
-              toggle(value2, event.target.checked);
+      shown2.map((value2) => {
+        const invalid = choices !== void 0 && !known.includes(value2);
+        return /* @__PURE__ */ jsxs("label", { className: styles.check, children: [
+          /* @__PURE__ */ jsx(
+            "input",
+            {
+              type: "checkbox",
+              className: styles.checkbox,
+              value: value2,
+              checked: held2.includes(value2),
+              "aria-invalid": invalid,
+              onChange: (event) => {
+                toggle(value2, event.target.checked);
+              }
             }
-          }
-        ),
-        value2
-      ] }, value2)),
+          ),
+          invalid ? missing(value2) : value2
+        ] }, value2);
+      }),
       choices !== void 0 && empty2 !== void 0 && shown2.length === 0 && /* @__PURE__ */ jsx("p", { className: styles.hint, children: empty2 })
     ] }),
     /* @__PURE__ */ jsx(Refusal, { error: bound.error })
   ] });
+}
+function missing(value2) {
+  return `${value2} (not available)`;
 }
 function Refusal({ error }) {
   return error === null ? null : /* @__PURE__ */ jsx("p", { role: "alert", className: styles.alert, children: error });

@@ -98,12 +98,18 @@ test("submits whether to keep the unmatched rows of an input", async () => {
   expect(host.submitted).toEqual([left]);
 });
 
-test("shows a column it joins by that the inputs do not share, so that the user can clear it", async () => {
-  const { checked, view } = await mounted({ by: ["rate"], all_x: false, all_y: false });
+test("shows a column it joins by that the inputs do not share, as missing once R says which they share", async () => {
+  const unanswered = await mounted({ by: ["rate"], all_x: false, all_y: false }, []);
   await settle();
+  expect(texts(unanswered.view.el, "fieldset label")).toEqual(["rate"]);
+  expect(unanswered.checkbox("rate").getAttribute("aria-invalid")).toBe("false");
 
-  expect(texts(view.el, "fieldset label")).toEqual(["Time", "demand", "rate"]);
+  const { checkbox, checked, view } = await mounted({ by: ["rate"], all_x: false, all_y: false });
+  await settle();
+  expect(texts(view.el, "fieldset label")).toEqual(["Time", "demand", "rate (not available)"]);
   expect(checked()).toEqual(["rate"]);
+  expect(checkbox("rate (not available)").getAttribute("aria-invalid")).toBe("true");
+  expect(checkbox("Time").getAttribute("aria-invalid")).toBe("false");
 });
 
 test("says that the inputs share no column once R says so, and not before", async () => {

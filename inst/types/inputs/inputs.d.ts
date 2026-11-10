@@ -24,7 +24,7 @@ export declare function Select({ bound, label, placeholder, choices, }: {
     bound: Bound;
     label: string;
     placeholder: string;
-    choices: readonly Choice[];
+    choices?: readonly Choice[];
 }): ReactElement;
 export declare function Checkbox({ bound, label }: {
     bound: Bound;

@@ -17,7 +17,18 @@ scatter_block <- new_block_class(
     if (!isTRUE(nzchar(x)) || !isTRUE(nzchar(y))) {
       blockr_invalid("Choose a column for each axis.")
     }
-    bbquote(plot(.(data)[[.(x)]], .(data)[[.(y)]], xlab = .(x), ylab = .(y)))
+    # Each column is taken with `[`, which fails on one the data lacks, where
+    # `[[` gives `NULL`, from which `plot()` draws the other column against
+    # the row index.
+    # A tibble drops to the column only with `drop = TRUE`.
+    bbquote(
+      plot(
+        .(data)[, .(x), drop = TRUE],
+        .(data)[, .(y), drop = TRUE],
+        xlab = .(x),
+        ylab = .(y)
+      )
+    )
   },
   ui = js_module("js/scatter-block.js"),
   requests = list(columns = function(data) colnames(data)),

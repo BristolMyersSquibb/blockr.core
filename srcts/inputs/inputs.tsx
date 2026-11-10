@@ -122,9 +122,12 @@ export function NumberInput({
   );
 }
 
-// A select of one string, which shows `placeholder` while the value is unset,
-// and shows a value that the choices lack, such as one an app script gave
-// before the choices arrive.
+// A select of one string, which shows `placeholder` while the value is unset.
+// It takes its choices as `undefined` until they are known, such as until a
+// request answers, and shows a value meanwhile as it is.
+// Once they are known, it shows a value that they lack, such as a column that
+// the data no longer has, as missing, and marks itself invalid.
+// So its choices must list every value it takes, not a part of them.
 export function Select({
   bound,
   label,
@@ -134,19 +137,20 @@ export function Select({
   bound: Bound;
   label: string;
   placeholder: string;
-  choices: readonly Choice[];
+  choices?: readonly Choice[];
 }): ReactElement {
   const current = typeof bound.value === "string" ? bound.value : undefined;
-  const shown =
-    current === undefined || choices.some((choice) => choice.value === current)
-      ? choices
-      : [...choices, { value: current, label: current }];
+  const known = choices ?? [];
+  const lacked = current !== undefined && !known.some((choice) => choice.value === current);
+  const invalid = lacked && choices !== undefined;
+  const shown = lacked ? [...known, { value: current, label: invalid ? missing(current) : current }] : known;
   return (
     <>
       <Field label={label}>
         <select
           className={styles.box}
           value={current ?? ""}
+          aria-invalid={invalid}
           onChange={(event) => {
             void bound.commit(event.target.value);
           }}
@@ -188,9 +192,12 @@ export function Checkbox({ bound, label }: { bound: Bound; label: string }): Rea
 }
 
 // A checkbox for each string that an array may hold,
-// which says `empty` once its choices are known and there are none,
-// and shows a string the value holds and the choices lack,
-// such as a column only one input has, so that the user can clear it.
+// which says `empty` once its choices are known and there are none.
+// It takes its choices as `undefined` until they are known.
+// It shows a string the value holds and the choices lack,
+// such as a column only one input has, so that the user can clear it,
+// and marks it as missing once the choices are known.
+// So its choices must list every string it takes, not a part of them.
 // It submits the checked strings in the order the user checked them,
 // after those the value holds, or where `ordered`, in the order of the
 // choices, as for severities.
@@ -229,25 +236,34 @@ export function Checklist({
     <fieldset className={styles.fieldset}>
       <legend className={styles.legend}>{legend}</legend>
       <div className={styles.list}>
-        {shown.map((value) => (
-          <label key={value} className={styles.check}>
-            <input
-              type="checkbox"
-              className={styles.checkbox}
-              value={value}
-              checked={held.includes(value)}
-              onChange={(event) => {
-                toggle(value, event.target.checked);
-              }}
-            />
-            {value}
-          </label>
-        ))}
+        {shown.map((value) => {
+          const invalid = choices !== undefined && !known.includes(value);
+          return (
+            <label key={value} className={styles.check}>
+              <input
+                type="checkbox"
+                className={styles.checkbox}
+                value={value}
+                checked={held.includes(value)}
+                aria-invalid={invalid}
+                onChange={(event) => {
+                  toggle(value, event.target.checked);
+                }}
+              />
+              {invalid ? missing(value) : value}
+            </label>
+          );
+        })}
         {choices !== undefined && empty !== undefined && shown.length === 0 && <p className={styles.hint}>{empty}</p>}
       </div>
       <Refusal error={bound.error} />
     </fieldset>
   );
+}
+
+// How a select or a checklist shows a value that its choices lack.
+function missing(value: string): string {
+  return `${value} (not available)`;
 }
 
 // Says why the host refused what an input submitted.

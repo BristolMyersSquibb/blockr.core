@@ -24,8 +24,8 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-async function mounted(state: State) {
-  const host = stubBlockHost<State>(fixture, { state });
+async function mounted(state: State, requests = fixture.requests) {
+  const host = stubBlockHost<State>({ ...fixture, requests }, { state });
   const view = await mountOnPage(dataset, host);
   return { host, view, select: find(view.el, "select", HTMLSelectElement) };
 }
@@ -39,11 +39,21 @@ test("shows the state, with a choice of each data frame the package ships", asyn
   expect(host.submitted).toEqual([]);
 });
 
-test("shows a dataset that the choices lack, such as one an app script gave", async () => {
+test("shows a dataset that the choices lack as it is until they arrive, then as missing", async () => {
+  const unanswered = await mounted({ dataset: "Nile", package: "datasets" }, []);
+  await settle();
+  expect([texts(unanswered.select, "option"), unanswered.select.getAttribute("aria-invalid")]).toEqual([
+    ["Nile"],
+    "false",
+  ]);
+
   const { host, select } = await mounted({ dataset: "Nile", package: "datasets" });
   await settle();
-
-  expect([select.value, texts(select, "option")]).toEqual(["Nile", ["BOD", "iris", "mtcars", "Nile"]]);
+  expect([select.value, texts(select, "option"), select.getAttribute("aria-invalid")]).toEqual([
+    "Nile",
+    ["BOD", "iris", "mtcars", "Nile (not available)"],
+    "true",
+  ]);
   expect(host.submitted).toEqual([]);
 });
 

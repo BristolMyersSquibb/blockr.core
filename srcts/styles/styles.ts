@@ -19,7 +19,7 @@ export const styles = {
   label: "bc:text-sm bc:font-medium",
   box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
   check: "bc:flex bc:items-center bc:gap-2 bc:font-sans bc:text-sm bc:text-text-default",
-  checkbox: "bc:accent-bg-accent",
+  checkbox: "bc:accent-bg-accent bc:aria-invalid:accent-border-danger",
   fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans bc:text-text-default",
   legend: "bc:text-sm bc:font-medium bc:mb-1 bc:p-0",
   list: "bc:grid bc:max-h-48 bc:gap-1 bc:overflow-y-auto",

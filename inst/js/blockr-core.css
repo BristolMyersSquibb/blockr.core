@@ -816,6 +816,10 @@
   border-color: var(--bc-color-border-danger);
 }
 
+.bc\:aria-invalid\:accent-border-danger[aria-invalid="true"] {
+  accent-color: var(--bc-color-border-danger);
+}
+
 .bc\:dark\:bg-gray-900:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
   background-color: var(--bc-color-gray-900);
 }

@@ -286,7 +286,7 @@ export interface Choice {
 }
 
 // A choice for each value, which reads as the value.
-export function choicesOf(values: readonly string[]): readonly Choice[] {
+export function asChoices(values: readonly string[]): readonly Choice[] {
   return values.map((value) => ({ value, label: value }));
 }
 

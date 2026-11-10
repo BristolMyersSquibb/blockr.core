@@ -167,7 +167,7 @@ function sourceOf(host) {
     request: (name, args, opts) => host.request(name, args, opts)
   };
 }
-function choicesOf(values) {
+function asChoices(values) {
   return values.map((value) => ({ value, label: value }));
 }
 function strings(value) {
@@ -184,7 +184,7 @@ var styles = {
   label: "bc:text-sm bc:font-medium",
   box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
   check: "bc:flex bc:items-center bc:gap-2 bc:font-sans bc:text-sm bc:text-text-default",
-  checkbox: "bc:accent-bg-accent",
+  checkbox: "bc:accent-bg-accent bc:aria-invalid:accent-border-danger",
   fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans bc:text-text-default",
   legend: "bc:text-sm bc:font-medium bc:mb-1 bc:p-0",
   list: "bc:grid bc:max-h-48 bc:gap-1 bc:overflow-y-auto",
@@ -280,13 +280,17 @@ function Select({
   choices
 }) {
   const current = typeof bound.value === "string" ? bound.value : void 0;
-  const shown = current === void 0 || choices.some((choice) => choice.value === current) ? choices : [...choices, { value: current, label: current }];
+  const known = choices ?? [];
+  const lacked = current !== void 0 && !known.some((choice) => choice.value === current);
+  const invalid = lacked && choices !== void 0;
+  const shown = lacked ? [...known, { value: current, label: invalid ? missing(current) : current }] : known;
   return /* @__PURE__ */ jsxs(Fragment, { children: [
     /* @__PURE__ */ jsx(Field, { label, children: /* @__PURE__ */ jsxs(
       "select",
       {
         className: styles.box,
         value: current ?? "",
+        "aria-invalid": invalid,
         onChange: (event) => {
           void bound.commit(event.target.value);
         },
@@ -338,25 +342,32 @@ function Checklist({
   return /* @__PURE__ */ jsxs("fieldset", { className: styles.fieldset, children: [
     /* @__PURE__ */ jsx("legend", { className: styles.legend, children: legend }),
     /* @__PURE__ */ jsxs("div", { className: styles.list, children: [
-      shown.map((value) => /* @__PURE__ */ jsxs("label", { className: styles.check, children: [
-        /* @__PURE__ */ jsx(
-          "input",
-          {
-            type: "checkbox",
-            className: styles.checkbox,
-            value,
-            checked: held.includes(value),
-            onChange: (event) => {
-              toggle(value, event.target.checked);
+      shown.map((value) => {
+        const invalid = choices !== void 0 && !known.includes(value);
+        return /* @__PURE__ */ jsxs("label", { className: styles.check, children: [
+          /* @__PURE__ */ jsx(
+            "input",
+            {
+              type: "checkbox",
+              className: styles.checkbox,
+              value,
+              checked: held.includes(value),
+              "aria-invalid": invalid,
+              onChange: (event) => {
+                toggle(value, event.target.checked);
+              }
             }
-          }
-        ),
-        value
-      ] }, value)),
+          ),
+          invalid ? missing(value) : value
+        ] }, value);
+      }),
       choices !== void 0 && empty !== void 0 && shown.length === 0 && /* @__PURE__ */ jsx("p", { className: styles.hint, children: empty })
     ] }),
     /* @__PURE__ */ jsx(Refusal, { error: bound.error })
   ] });
+}
+function missing(value) {
+  return `${value} (not available)`;
 }
 function Refusal({ error }) {
   return error === null ? null : /* @__PURE__ */ jsx("p", { role: "alert", className: styles.alert, children: error });
@@ -471,7 +482,7 @@ function controls(host, signal) {
     };
   }
   function select(key, options) {
-    let choices = options.choices ?? [];
+    let choices = options.choices;
     input(key, (bound) => /* @__PURE__ */ jsx2(Select, { bound, label: options.label, placeholder: options.placeholder, choices }));
     return {
       setChoices(next) {
@@ -521,7 +532,7 @@ function Slot({ node }) {
 }
 export {
   PAUSE,
-  choicesOf,
+  asChoices,
   controls,
   strings,
   styles
