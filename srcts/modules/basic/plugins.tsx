@@ -23,7 +23,7 @@ export function placed(core: Pick<CoreApi, "plugins">): readonly (readonly [Plug
 }
 
 // The section of each plugin that the frontend shows, beside the board where
-// the page is wide enough, staying in view as the board scrolls, and below it
+// the page is wide enough, staying in view as the board scrolls, and above it
 // otherwise. It draws nothing where the frontend shows no plugin.
 export function Plugins(): ReactElement | null {
   const { core } = useFrontEnd();

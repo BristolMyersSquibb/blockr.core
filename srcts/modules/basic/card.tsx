@@ -167,24 +167,28 @@ export const BlockCard = memo(function BlockCard({
 });
 
 // A stack's group, drawn in the stack's colour, or in the colour of a border
-// where the stack has none.
+// where the stack has none. The user collapses and expands it by its name, as
+// a plugin's section, and it starts open. A collapsed group hides the cards of
+// its blocks and leaves them mounted.
 export function StackGroup({ stack, children }: { stack: Stack; children: ReactNode }): ReactElement {
   const color = stack.color ?? undefined;
   return (
     <section
       aria-label={stack.name}
-      className="bc:grid bc:gap-3 bc:rounded-xl bc:border-2 bc:border-border-default bc:p-3"
+      className="bc:rounded-xl bc:border-2 bc:border-border-default bc:p-3"
       style={color === undefined ? undefined : { borderColor: color }}
     >
-      <header className="bc:flex bc:items-center bc:gap-2">
-        <span
-          aria-hidden="true"
-          className="bc:size-3 bc:rounded-full bc:bg-current bc:text-text-muted"
-          style={color === undefined ? undefined : { backgroundColor: color }}
-        />
-        <h2 className={classes.heading}>{stack.name}</h2>
-      </header>
-      {children}
+      <details open>
+        <summary className="bc:cursor-pointer">
+          <span
+            aria-hidden="true"
+            className="bc:mx-2 bc:inline-block bc:size-3 bc:rounded-full bc:bg-current bc:align-middle bc:text-text-muted"
+            style={color === undefined ? undefined : { backgroundColor: color }}
+          />
+          <h2 className={`${classes.heading} bc:inline bc:align-middle`}>{stack.name}</h2>
+        </summary>
+        <div className="bc:mt-3 bc:grid bc:gap-3">{children}</div>
+      </details>
     </section>
   );
 }

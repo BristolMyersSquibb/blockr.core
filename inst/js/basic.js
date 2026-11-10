@@ -429,26 +429,26 @@ var BlockCard = memo(function BlockCard2({
 });
 function StackGroup({ stack, children }) {
   const color2 = stack.color ?? void 0;
-  return /* @__PURE__ */ jsxs2(
+  return /* @__PURE__ */ jsx2(
     "section",
     {
       "aria-label": stack.name,
-      className: "bc:grid bc:gap-3 bc:rounded-xl bc:border-2 bc:border-border-default bc:p-3",
+      className: "bc:rounded-xl bc:border-2 bc:border-border-default bc:p-3",
       style: color2 === void 0 ? void 0 : { borderColor: color2 },
-      children: [
-        /* @__PURE__ */ jsxs2("header", { className: "bc:flex bc:items-center bc:gap-2", children: [
+      children: /* @__PURE__ */ jsxs2("details", { open: true, children: [
+        /* @__PURE__ */ jsxs2("summary", { className: "bc:cursor-pointer", children: [
           /* @__PURE__ */ jsx2(
             "span",
             {
               "aria-hidden": "true",
-              className: "bc:size-3 bc:rounded-full bc:bg-current bc:text-text-muted",
+              className: "bc:mx-2 bc:inline-block bc:size-3 bc:rounded-full bc:bg-current bc:align-middle bc:text-text-muted",
               style: color2 === void 0 ? void 0 : { backgroundColor: color2 }
             }
           ),
-          /* @__PURE__ */ jsx2("h2", { className: classes.heading, children: stack.name })
+          /* @__PURE__ */ jsx2("h2", { className: `${classes.heading} bc:inline bc:align-middle`, children: stack.name })
         ] }),
-        children
-      ]
+        /* @__PURE__ */ jsx2("div", { className: "bc:mt-3 bc:grid bc:gap-3", children })
+      ] })
     }
   );
 }
@@ -1188,7 +1188,8 @@ function Page() {
       }
     ),
     /* @__PURE__ */ jsx9(Notices, {}),
-    /* @__PURE__ */ jsxs9("div", { className: "bc:flex bc:flex-col bc:gap-4 bc:md:flex-row bc:md:items-start", children: [
+    /* @__PURE__ */ jsxs9("div", { className: "bc:flex bc:flex-col bc:gap-4 bc:md:flex-row-reverse bc:md:items-start", children: [
+      /* @__PURE__ */ jsx9(Plugins, {}),
       /* @__PURE__ */ jsxs9("div", { className: "bc:grid bc:min-w-0 bc:flex-1 bc:gap-4", children: [
         items.length === 0 ? /* @__PURE__ */ jsx9("p", { className: styles.hint, children: "The board holds no blocks yet." }) : null,
         items.map((item) => {
@@ -1197,8 +1198,7 @@ function Page() {
           if (stack === void 0) return null;
           return /* @__PURE__ */ jsx9(StackGroup, { stack, children: item.blocks.length === 0 ? /* @__PURE__ */ jsx9("p", { className: styles.hint, children: "The stack holds no blocks." }) : item.blocks.map(card) }, `stack-${item.stack}`);
         })
-      ] }),
-      /* @__PURE__ */ jsx9(Plugins, {})
+      ] })
     ] }),
     dialog?.kind === "add" ? /* @__PURE__ */ jsx9(AddBlockDialog, { mode: dialog.mode, onClose: close }) : null,
     dialog?.kind === "links" ? /* @__PURE__ */ jsx9(LinksDialog, { onClose: close }) : null,

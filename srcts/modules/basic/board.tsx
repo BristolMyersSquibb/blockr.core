@@ -1,6 +1,7 @@
 // The page that core's basic frontend draws: the toolbar, the notices, the
-// board's blocks, each stack as a group of its blocks' cards, and the plugins
-// that it shows. One dialog at a time shows over the page.
+// board's blocks, each stack as a group of its blocks' cards, which the user
+// collapses, and the plugins that it shows. One dialog at a time shows over
+// the page.
 // The page follows the board through the store, so a removed block's card
 // goes because the board changed.
 
@@ -77,7 +78,11 @@ function Page(): ReactElement {
         }}
       />
       <Notices />
-      <div className="bc:flex bc:flex-col bc:gap-4 bc:md:flex-row bc:md:items-start">
+      {/* The plugins come before the board, so that a narrow page shows them
+          above the board and the keyboard reaches them first. A wide page
+          shows them beside the board. */}
+      <div className="bc:flex bc:flex-col bc:gap-4 bc:md:flex-row-reverse bc:md:items-start">
+        <Plugins />
         <div className="bc:grid bc:min-w-0 bc:flex-1 bc:gap-4">
           {items.length === 0 ? <p className={styles.hint}>The board holds no blocks yet.</p> : null}
           {items.map((item) => {
@@ -91,7 +96,6 @@ function Page(): ReactElement {
             );
           })}
         </div>
-        <Plugins />
       </div>
       {dialog?.kind === "add" ? <AddBlockDialog mode={dialog.mode} onClose={close} /> : null}
       {dialog?.kind === "links" ? <LinksDialog onClose={close} /> : null}

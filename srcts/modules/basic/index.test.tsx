@@ -152,6 +152,25 @@ describe("the page", () => {
     expect(texts(el, "article h3")).toEqual(["Iris", "Head", "Merge", "Wide sepals", "Bind", "Scatter"]);
   });
 
+  test("collapses a stack as the user clicks its name, which hides the cards of its blocks and leaves them mounted", async () => {
+    const { el, core, settled } = await drawn();
+    const stack = find(el, 'section[aria-label="Input"]');
+    const group = find(stack, "details", HTMLDetailsElement);
+    expect(group.open).toBe(true);
+
+    await click(find(stack, "summary"));
+    await act(() => core.commands.run("blockr.core-rename_board", { name: "Sepals" }));
+    await settled();
+    expect(core.store.board().name).toBe("Sepals");
+    // It stays collapsed as the board changes, and its blocks' UIs stay.
+    expect(group.open).toBe(false);
+    expect(texts(stack, "article h3")).toEqual(["Iris", "Head"]);
+    expect(card(el, "Head").textContent).toContain("UI of b");
+
+    await click(find(stack, "summary"));
+    expect(group.open).toBe(true);
+  });
+
   test("demands every block, so that R evaluates each, and mounts each block's UI and output", async () => {
     const { el, core } = await drawn();
 
@@ -519,6 +538,8 @@ describe("a plugin", () => {
     expect(ui.renders[0]?.el.textContent).toBe("To do");
     expect(page.el.querySelectorAll("article")).toHaveLength(6);
     expect(buttons(toolbar(page.el)).at(-1)).toBe("Open");
+    // They come before the board, which a narrow page shows below them.
+    expect(page.el.querySelector("aside, article")?.tagName).toBe("ASIDE");
 
     // A collapsed section stays collapsed as the board changes, and its
     // plugin's UI stays mounted.
