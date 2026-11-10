@@ -60,7 +60,7 @@ export async function pluginRequest(
   const what = `The request "${name}" of the plugin "${plugin}"`;
 
   for (let attempt = 1; ; attempt++) {
-    const revisions = await readsOf(deps, what, reads, opts.signal);
+    const revisions = await evaluateReads(deps, what, reads, opts.signal);
     const { reply, body } = await deps.scheduler.request(
       { kind: "request", type: "plugin", plugin: held.class, name, args: { ...args }, reads: revisions },
       {
@@ -91,7 +91,7 @@ export async function pluginRequest(
 // The blocks that the request reads, at the revisions they have once they are
 // evaluated, or a RequestError where one could not be evaluated, with the
 // status of each that reads anything but ready.
-async function readsOf(
+async function evaluateReads(
   deps: PluginRequestDeps,
   what: string,
   blocks: readonly BlockId[],

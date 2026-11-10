@@ -6,7 +6,7 @@
 import type { Board } from "../types/board.ts";
 import { isObject } from "../util/index.ts";
 import type { Delta, Patch } from "./delta.ts";
-import { applyPatch, pointer } from "./patch.ts";
+import { applyPatch, segmentsFromPath } from "./patch.ts";
 
 // The part of a delta that still applies to the board: without the removal
 // or change of what is gone, the addition of what is there already,
@@ -56,9 +56,9 @@ function patches(given: readonly Patch[], board: Board): Patch[] {
   let at = board as unknown as Readonly<Record<string, unknown>>;
   const fitted: Patch[] = [];
   for (const patch of given) {
-    const parts = pointer(patch.path) ?? [];
-    if (parts[0] !== "plugins") continue;
-    const applied = applyPatch(at, patch, parts);
+    const segments = segmentsFromPath(patch.path) ?? [];
+    if (segments[0] !== "plugins") continue;
+    const applied = applyPatch(at, patch, segments);
     if ("failure" in applied) continue;
     at = applied.next;
     fitted.push(patch);

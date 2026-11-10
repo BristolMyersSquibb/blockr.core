@@ -15,43 +15,43 @@
 import { isObject, jsonEqual, own, without } from "../util/index.ts";
 import type { Patch } from "./delta.ts";
 
-// The parts of a JSON Pointer (RFC 6901), reading "~1" as "/" and "~0" as "~",
-// as "/plugins/dock" gives ["plugins", "dock"].
+// The segments of a JSON Pointer, its reference tokens in RFC 6901, reading
+// "~1" as "/" and "~0" as "~", as "/plugins/dock" gives ["plugins", "dock"].
 // They are undefined where the text is no pointer below the board's top: where
 // it is empty, does not start with "/", or holds a "~" that escapes nothing.
-export function pointer(path: string): string[] | undefined {
+export function segmentsFromPath(path: string): string[] | undefined {
   if (!path.startsWith("/")) return undefined;
-  const parts = path.slice(1).split("/");
-  if (parts.some((part) => /~(?![01])/.test(part))) return undefined;
-  return parts.map((part) => part.replaceAll("~1", "/").replaceAll("~0", "~"));
+  const segments = path.slice(1).split("/");
+  if (segments.some((segment) => /~(?![01])/.test(segment))) return undefined;
+  return segments.map((segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~"));
 }
 
 // The plugin that a path leads into, "dag" for "/plugins/dag/state/positions/a"
 // and for "/plugins/dag", or undefined where it leads into no plugin.
-export function pluginOf(path: string): string | undefined {
-  const [top, plugin] = pointer(path) ?? [];
+export function pluginIdFromPath(path: string): string | undefined {
+  const [top, plugin] = segmentsFromPath(path) ?? [];
   return top === "plugins" ? plugin : undefined;
 }
 
-// The JSON Pointer to the parts.
-export function pathOf(parts: readonly string[]): string {
-  return parts.map((part) => `/${part.replaceAll("~", "~0").replaceAll("/", "~1")}`).join("");
+// The JSON Pointer to the segments.
+export function pathFromSegments(segments: readonly string[]): string {
+  return segments.map((segment) => `/${segment.replaceAll("~", "~0").replaceAll("/", "~1")}`).join("");
 }
 
 // Whether one path lies at or under the other in the board, so that a patch at
 // one changes what is at the other.
-// A part that indexes an array, as an index or as "-" for its end, names no
+// A segment that indexes an array, as an index or as "-" for its end, names no
 // element, since a patch at an index changes whatever the array holds there by
 // then.
 // So two paths that both index one array never overlap, even at one index, and
 // two patches into the array both apply.
-// The board tells which parts index an array, since a member of an object may
-// have a name made of digits.
+// The board tells which segments index an array, since a member of an object
+// may have a name made of digits.
 export function overlap(a: readonly string[], b: readonly string[], board: unknown): boolean {
   let at = board;
-  for (const [i, part] of a.slice(0, b.length).entries()) {
-    if (Array.isArray(at) || part !== b[i]) return false;
-    at = isObject(at) ? own(at, part) : undefined;
+  for (const [i, segment] of a.slice(0, b.length).entries()) {
+    if (Array.isArray(at) || segment !== b[i]) return false;
+    at = isObject(at) ? own(at, segment) : undefined;
   }
   return true;
 }
@@ -65,7 +65,7 @@ export function malformed(patch: unknown): string[] {
   if (op !== "add" && op !== "remove" && op !== "replace") {
     problems.push(`has the op ${JSON.stringify(op)}, where it takes "add", "remove" or "replace"`);
   }
-  if (typeof path !== "string" || pointer(path) === undefined) {
+  if (typeof path !== "string" || segmentsFromPath(path) === undefined) {
     problems.push(`has the path ${JSON.stringify(path)}, which is no JSON Pointer below the board's top`);
   }
   if ((op === "add" || op === "replace") && patch.value === undefined) {
@@ -93,7 +93,7 @@ export type Applied =
     }
   | { readonly failure: string };
 
-// The board after the patch, whose path `parts` gives, with the patch that
+// The board after the patch, whose path `segments` gives, with the patch that
 // takes it back.
 // An `add` of a member that an object lacks puts the member before the one
 // that `place` names, where the object holds that one, and last otherwise.
@@ -102,10 +102,10 @@ export type Applied =
 export function applyPatch(
   board: Readonly<Record<string, unknown>>,
   patch: Patch,
-  parts: readonly string[],
+  segments: readonly string[],
   place?: string | null,
 ): Applied {
-  const result = step(board, parts, patch, [], place);
+  const result = step(board, segments, patch, [], place);
   if (typeof result === "string") return { failure: result };
   return { ...result, next: result.next as Readonly<Record<string, unknown>> };
 }
@@ -119,22 +119,22 @@ interface Step {
 // The patch applied below `at`, which `done` leads to from the board's top.
 function step(
   at: unknown,
-  parts: readonly string[],
+  segments: readonly string[],
   patch: Patch,
   done: readonly string[],
   place: string | null | undefined,
 ): Step | string {
-  const [part = "", ...rest] = parts;
+  const [segment = "", ...rest] = segments;
 
   if (Array.isArray(at)) {
     const items: readonly unknown[] = at;
     const last = rest.length === 0;
-    const index = last && part === "-" && patch.op === "add" ? items.length : arrayIndex(part);
+    const index = last && segment === "-" && patch.op === "add" ? items.length : arrayIndex(segment);
     const bound = last && patch.op === "add" ? items.length : items.length - 1;
     if (index === undefined || index > bound) {
-      return `finds no element "${part}" in the array at "${pathOf(done)}"`;
+      return `finds no element "${segment}" in the array at "${pathFromSegments(done)}"`;
     }
-    const here = pathOf([...done, String(index)]);
+    const here = pathFromSegments([...done, String(index)]);
 
     if (!last) {
       const inner = step(items[index], rest, patch, [...done, String(index)], place);
@@ -165,40 +165,40 @@ function step(
   }
 
   if (!isObject(at)) {
-    return `finds neither an object nor an array at "${pathOf(done)}"`;
+    return `finds neither an object nor an array at "${pathFromSegments(done)}"`;
   }
 
-  const has = Object.hasOwn(at, part);
-  const old = has ? at[part] : undefined;
-  const here = pathOf([...done, part]);
+  const has = Object.hasOwn(at, segment);
+  const old = has ? at[segment] : undefined;
+  const here = pathFromSegments([...done, segment]);
 
   if (rest.length > 0) {
-    if (!has) return `finds no "${part}" in "${pathOf(done)}"`;
-    const inner = step(old, rest, patch, [...done, part], place);
+    if (!has) return `finds no "${segment}" in "${pathFromSegments(done)}"`;
+    const inner = step(old, rest, patch, [...done, segment], place);
     if (typeof inner === "string") return inner;
     if (inner.next === old) return { ...inner, next: at };
-    return { ...inner, next: { ...at, [part]: inner.next } };
+    return { ...inner, next: { ...at, [segment]: inner.next } };
   }
 
   switch (patch.op) {
     case "add":
     case "replace":
-      if (!has && patch.op === "replace") return `finds no "${part}" in "${pathOf(done)}" to replace`;
+      if (!has && patch.op === "replace") return `finds no "${segment}" in "${pathFromSegments(done)}" to replace`;
       if (!has) {
-        return { next: inserted(at, part, patch.value, place), inverse: { op: "remove", path: here } };
+        return { next: inserted(at, segment, patch.value, place), inverse: { op: "remove", path: here } };
       }
       if (jsonEqual(old, patch.value)) return { next: at, inverse: undefined };
       return {
-        next: { ...at, [part]: patch.value },
+        next: { ...at, [segment]: patch.value },
         inverse: { op: "replace", path: here, value: old as Patch["value"] },
       };
     case "remove": {
-      if (!has) return `finds no "${part}" in "${pathOf(done)}" to remove`;
+      if (!has) return `finds no "${segment}" in "${pathFromSegments(done)}" to remove`;
       const members = Object.keys(at);
       return {
-        next: without(at, [part]),
+        next: without(at, [segment]),
         inverse: { op: "add", path: here, value: old as Patch["value"] },
-        place: members[members.indexOf(part) + 1] ?? null,
+        place: members[members.indexOf(segment) + 1] ?? null,
       };
     }
   }
@@ -233,6 +233,6 @@ function spliced(
 }
 
 // An array's index, as JSON Pointer writes one: digits without a leading zero.
-function arrayIndex(part: string): number | undefined {
-  return /^(0|[1-9]\d*)$/.test(part) ? Number(part) : undefined;
+function arrayIndex(segment: string): number | undefined {
+  return /^(0|[1-9]\d*)$/.test(segment) ? Number(segment) : undefined;
 }

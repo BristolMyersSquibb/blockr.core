@@ -11,7 +11,7 @@
 // This also holds for a URL that the page loaded the package from, since R
 // now serves the file of the new version there.
 
-import { messageOf, own, packageOf, report } from "../util/index.ts";
+import { errorMessage, own, packageFromId, report } from "../util/index.ts";
 
 // The major of core's JS API. A module that core mounts declares the major it
 // was built against, as `export const api = 1`, and core refuses one that
@@ -100,14 +100,14 @@ export function createLoader(options: LoaderOptions = {}): Loader {
       source.css === undefined
         ? Promise.resolve()
         : once(sheets, source.css, stylesheet).catch((error: unknown) => {
-            report(new ModuleError(source.module, pkg, `has a stylesheet that failed to load: ${messageOf(error)}`, { cause: error }));
+            report(new ModuleError(source.module, pkg, `has a stylesheet that failed to load: ${errorMessage(error)}`, { cause: error }));
           });
     const exports = once(imported, source.module, importer);
     await sheet;
     try {
       return await exports;
     } catch (error) {
-      throw new ModuleError(source.module, pkg, `failed to load: ${messageOf(error)}`, { cause: error });
+      throw new ModuleError(source.module, pkg, `failed to load: ${errorMessage(error)}`, { cause: error });
     }
   }
 
@@ -118,7 +118,7 @@ export function createLoader(options: LoaderOptions = {}): Loader {
       if (source === undefined) {
         return Promise.reject(new Error(`No package offers a module "${id}".`));
       }
-      return load(source, packageOf(id));
+      return load(source, packageFromId(id));
     },
   };
 }

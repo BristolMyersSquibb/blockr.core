@@ -40,7 +40,7 @@ import type { BlockId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { BlockOutput, OutputFixtures } from "../types/outputs.ts";
-import { isObject, messageOf, own, packageOf } from "../util/index.ts";
+import { errorMessage, isObject, own, packageFromId } from "../util/index.ts";
 // The stubs ship the fixtures that R and both test suites read from inst/.
 // eslint-disable-next-line no-restricted-imports
 import helloFixture from "../../inst/protocol/fixtures/hello.json" with { type: "json" };
@@ -193,13 +193,13 @@ function startupUrl(pkg: string): string {
 // Where R serves a module that the test gives by its id, `{pkg}-{name}`, as
 // "blockr.test/blockr.test-notes.js" for "blockr.test-notes".
 function moduleUrl(id: string): string {
-  return `${packageOf(id) ?? "app"}/${id}.js`;
+  return `${packageFromId(id) ?? "app"}/${id}.js`;
 }
 
 // Whether a key of the modules that the test gives is a module's id,
 // `{pkg}-{name}`, rather than a URL that R serves a module at.
 function isModuleId(key: string): boolean {
-  return packageOf(key) !== null && !key.includes("/");
+  return packageFromId(key) !== null && !key.includes("/");
 }
 
 // R, played from the fixtures over a transport of its own: it starts a session
@@ -285,7 +285,7 @@ function fixtureR(hello: HelloReply, options: StubCoreOptions) {
         try {
           answer = await options.answer?.(request, body);
         } catch (error) {
-          return [failed(id, "request", messageOf(error))];
+          return [failed(id, "request", errorMessage(error))];
         }
         if (answer === undefined) return [failed(id, "request", `The test gives no answer to the request ${JSON.stringify(request)}.`)];
         if (answer instanceof Blob) {

@@ -16,7 +16,7 @@ export function coreStorage(doc: Document = document): Storage {
   return {
     save(board) {
       try {
-        download(board, fileName({ id: idOf(board) }), doc);
+        download(board, fileName({ id: boardIdFromText(board) }), doc);
         return Promise.resolve();
       } catch (error) {
         return Promise.reject(asError(error));
@@ -85,7 +85,7 @@ export function pickFile(doc: Document = document): Promise<string | null> {
 
 // The id of the board that a JSON board's text holds, or "board" where the
 // text holds none, so that a text that the store did not write still saves.
-function idOf(text: string): string {
+function boardIdFromText(text: string): string {
   let json: unknown;
   try {
     json = JSON.parse(text);

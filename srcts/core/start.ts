@@ -90,7 +90,7 @@ import { createStore, StoreError } from "../store/index.ts";
 import type { Dropped, Option, Store } from "../store/index.ts";
 import type { PluginId } from "../types/board.ts";
 import type { CoreApi, Note } from "../types/core-api.ts";
-import { asError, isObject, messageOf, own, quoted, report } from "../util/index.ts";
+import { asError, errorMessage, isObject, own, quoted, report } from "../util/index.ts";
 import { createBlockrOptions } from "./blockr-options.ts";
 import { createCore } from "./core.ts";
 
@@ -466,7 +466,7 @@ export function start(options: StartOptions): Started {
         try {
           result = await mod.initialize({ core, signal });
         } catch (error) {
-          throw new ModuleError(entry.module, entry.package, `failed in initialize(): ${messageOf(error)}`, { cause: error });
+          throw new ModuleError(entry.module, entry.package, `failed in initialize(): ${errorMessage(error)}`, { cause: error });
         }
         if (typeof result === "string") {
           if (naming) {
@@ -510,7 +510,7 @@ export function start(options: StartOptions): Started {
     try {
       JSON.parse(only.text);
     } catch (error) {
-      report(new Error(`The startup module of ${only.package} named a board that holds no JSON, so core opens the board that R sent: ${messageOf(error)}`));
+      report(new Error(`The startup module of ${only.package} named a board that holds no JSON, so core opens the board that R sent: ${errorMessage(error)}`));
       return undefined;
     }
     return only.text;

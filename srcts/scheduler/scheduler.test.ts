@@ -18,7 +18,7 @@ import type { Store } from "../store/index.ts";
 import { playR } from "../testing/r.ts";
 import { reports } from "../testing/reports.ts";
 import type { PlayedR } from "../testing/r.ts";
-import { coreOptions, hello, reply as replyOf, withPlugins } from "../testing/store.ts";
+import { coreOptions, reply as fixtureReply, hello, withPlugins } from "../testing/store.ts";
 import type { BlockId } from "../types/board.ts";
 import { createScheduler } from "./index.ts";
 import type { BlockStatus, Scheduler, SchedulerOptions } from "./index.ts";
@@ -30,7 +30,7 @@ import { counter } from "./revisions.ts";
 // - The variadic rbind e binds b and d, in that order.
 //
 // And a block served alone, whose input R binds itself.
-const helloBlock = replyOf("hello-block") as HelloReply;
+const helloBlock = fixtureReply("hello-block") as HelloReply;
 
 const info = {
   width: 640,
@@ -70,13 +70,13 @@ async function tick(ms = 0): Promise<void> {
   await vi.advanceTimersByTimeAsync(ms);
 }
 
-function statusOf(scheduler: Scheduler, id: BlockId): BlockStatus {
+function blockStatus(scheduler: Scheduler, id: BlockId): BlockStatus {
   const status = scheduler.status(id);
   if (status === undefined) throw new Error(`Block "${id}" has no status.`);
   return status;
 }
 
-function revisionsOf(scheduler: Scheduler): Record<BlockId, number> {
+function blockRevisions(scheduler: Scheduler): Record<BlockId, number> {
   return Object.fromEntries(
     ["a", "b", "c", "d", "e", "f"].flatMap((id) => {
       const status = scheduler.status(id);
@@ -90,7 +90,7 @@ function output(scheduler: Scheduler, block: BlockId): Omit<OutputRequest, "id">
   return {
     kind: "output",
     block,
-    revision: statusOf(scheduler, block).revision,
+    revision: blockStatus(scheduler, block).revision,
     options: { n_rows: 50 },
     info,
     params: {},
@@ -98,7 +98,7 @@ function output(scheduler: Scheduler, block: BlockId): Omit<OutputRequest, "id">
 }
 
 // The latest evaluation of a block that R has not replied to.
-function pendingOf(r: PlayedR, id: BlockId): EvaluateRequest {
+function pendingRequest(r: PlayedR, id: BlockId): EvaluateRequest {
   const request = r.pending().filter((item) => item.block === id).at(-1);
   if (request === undefined) throw new Error(`No evaluation of block "${id}" waits on R.`);
   return request;
@@ -132,14 +132,14 @@ afterEach(() => {
 describe("revisions", () => {
   test("come from one counter, upstream first, and every block of a board that opens reads unevaluated", async () => {
     const { scheduler } = await setup();
-    const revisions = revisionsOf(scheduler);
+    const revisions = blockRevisions(scheduler);
 
     expect(new Set(Object.values(revisions)).size).toBe(6);
     expect(revisions.a).toBeLessThan(revisions.b ?? 0);
     expect(revisions.b).toBeLessThan(revisions.c ?? 0);
     expect(revisions.d).toBeLessThan(revisions.e ?? 0);
     for (const id of Object.keys(revisions)) {
-      expect(statusOf(scheduler, id)).toMatchObject({
+      expect(blockStatus(scheduler, id)).toMatchObject({
         status: "unevaluated",
         evaluated: null,
         running: false,
@@ -151,11 +151,11 @@ describe("revisions", () => {
 
   test("go up for a block whose state changes and for everything downstream of it", async () => {
     const { store, scheduler } = await setup();
-    const before = revisionsOf(scheduler);
+    const before = blockRevisions(scheduler);
     const top = Math.max(...Object.values(before));
 
     store.apply({ blocks: { mod: { b: { state: { n: 10 } } } } });
-    const after = revisionsOf(scheduler);
+    const after = blockRevisions(scheduler);
 
     for (const id of ["a", "d", "f"]) expect(after[id]).toBe(before[id]);
     for (const id of ["b", "c", "e"]) expect(after[id]).toBeGreaterThan(top);
@@ -173,7 +173,7 @@ describe("revisions", () => {
           }),
       },
     );
-    const before = revisionsOf(scheduler);
+    const before = blockRevisions(scheduler);
 
     store.apply({
       blocks: {
@@ -188,20 +188,20 @@ describe("revisions", () => {
     store.apply({ name: "Renamed" });
     store.apply({ patches: [{ op: "replace", path: "/plugins/zoom/state/zoom", value: 2 }] });
 
-    expect(revisionsOf(scheduler)).toEqual(before);
+    expect(blockRevisions(scheduler)).toEqual(before);
   });
 
   test("go up for the target of a link that changes, as for the order of a variadic block's links", async () => {
     const { r, store, scheduler } = await setup();
-    let before = revisionsOf(scheduler);
+    let before = blockRevisions(scheduler);
 
     store.apply({ links: { rm: ["be"] } });
-    expect(revisionsOf(scheduler).e).toBeGreaterThan(before.e ?? 0);
-    expect(revisionsOf(scheduler).b).toBe(before.b);
+    expect(blockRevisions(scheduler).e).toBeGreaterThan(before.e ?? 0);
+    expect(blockRevisions(scheduler).b).toBe(before.b);
 
-    before = revisionsOf(scheduler);
+    before = blockRevisions(scheduler);
     store.apply({ links: { add: { be: { from: "b", to: "e", input: "" } } } });
-    expect(revisionsOf(scheduler).e).toBeGreaterThan(before.e ?? 0);
+    expect(blockRevisions(scheduler).e).toBeGreaterThan(before.e ?? 0);
 
     scheduler.demand("test", ["e"]);
     scheduler.start();
@@ -215,16 +215,16 @@ describe("revisions", () => {
     scheduler.demand("test", ["e"]);
     scheduler.start();
     await evaluateAll(r);
-    const before = revisionsOf(scheduler);
+    const before = blockRevisions(scheduler);
     const sent = r.evaluations().length;
 
     scheduler.invalidate("d");
     scheduler.invalidate("z");
-    const after = revisionsOf(scheduler);
+    const after = blockRevisions(scheduler);
 
     for (const id of ["a", "b", "c", "f"]) expect(after[id]).toBe(before[id]);
-    expect(statusOf(scheduler, "d").status).toBe("stale");
-    expect(statusOf(scheduler, "e").status).toBe("stale");
+    expect(blockStatus(scheduler, "d").status).toBe("stale");
+    expect(blockStatus(scheduler, "e").status).toBe("stale");
     await tick();
     expect(r.evaluations().slice(sent).map((request) => request.block)).toEqual(["d", "e"]);
   });
@@ -234,18 +234,18 @@ describe("revisions", () => {
     scheduler.demand("test", ["f"]);
     scheduler.start();
     await evaluateAll(r);
-    expect(statusOf(scheduler, "f").status).toBe("ready");
-    const top = Math.max(...Object.values(revisionsOf(scheduler)));
+    expect(blockStatus(scheduler, "f").status).toBe("ready");
+    const top = Math.max(...Object.values(blockRevisions(scheduler)));
 
     store.apply({ blocks: { rm: ["f"] } });
     expect(scheduler.status("f")).toBeUndefined();
     expect(r.forgets()).toEqual([["f"]]);
 
     store.undo();
-    expect(statusOf(scheduler, "f")).toMatchObject({ status: "unevaluated", evaluated: null });
-    expect(statusOf(scheduler, "f").revision).toBeGreaterThan(top);
+    expect(blockStatus(scheduler, "f")).toMatchObject({ status: "unevaluated", evaluated: null });
+    expect(blockStatus(scheduler, "f").revision).toBeGreaterThan(top);
     await tick();
-    expect(pendingOf(r, "f").revision).toBe(statusOf(scheduler, "f").revision);
+    expect(pendingRequest(r, "f").revision).toBe(blockStatus(scheduler, "f").revision);
   });
 
   test("of the scheduler of a board that opens later go above any the page has given, from the page's count, with nothing for R to forget", async () => {
@@ -255,7 +255,7 @@ describe("revisions", () => {
     scheduler.demand("test", ["b"]);
     scheduler.start();
     await evaluateAll(r);
-    const top = Math.max(...Object.values(revisionsOf(scheduler)));
+    const top = Math.max(...Object.values(blockRevisions(scheduler)));
 
     controller.abort();
     const next = createStore({ hello });
@@ -264,9 +264,9 @@ describe("revisions", () => {
     const after = createScheduler({ store: next, client: r.client, nextRevision: page });
 
     expect(r.forgets()).toEqual([]);
-    for (const [id, revision] of Object.entries(revisionsOf(after))) {
+    for (const [id, revision] of Object.entries(blockRevisions(after))) {
       expect(revision).toBeGreaterThan(top);
-      expect(statusOf(after, id).status).toBe("unevaluated");
+      expect(blockStatus(after, id).status).toBe("unevaluated");
     }
   });
 
@@ -276,13 +276,13 @@ describe("revisions", () => {
     const store = createStore();
     for (const option of coreOptions) store.options.register(option);
     const scheduler = createScheduler({ store, client: r.client });
-    expect(revisionsOf(scheduler)).toEqual({});
+    expect(blockRevisions(scheduler)).toEqual({});
 
     await store.open(hello);
 
-    expect(Object.keys(revisionsOf(scheduler))).toEqual(["a", "b", "c", "d", "e", "f"]);
+    expect(Object.keys(blockRevisions(scheduler))).toEqual(["a", "b", "c", "d", "e", "f"]);
     for (const id of ["a", "b", "c", "d", "e", "f"]) {
-      expect(statusOf(scheduler, id).status).toBe("unevaluated");
+      expect(blockStatus(scheduler, id).status).toBe("unevaluated");
     }
   });
 });
@@ -294,30 +294,30 @@ describe("statuses", () => {
     scheduler.start();
     await tick();
 
-    r.evaluated(pendingOf(r, "a"));
-    r.evaluated(pendingOf(r, "b"), "error", { conditions: [failure], stderr: "Error!" });
-    r.evaluated(pendingOf(r, "d"), "invalid", {
+    r.evaluated(pendingRequest(r, "a"));
+    r.evaluated(pendingRequest(r, "b"), "error", { conditions: [failure], stderr: "Error!" });
+    r.evaluated(pendingRequest(r, "d"), "invalid", {
       conditions: [{ ...failure, phase: "expr", message: "The subset is not set." }],
     });
     await tick();
 
-    expect(statusOf(scheduler, "a")).toMatchObject({
+    expect(blockStatus(scheduler, "a")).toMatchObject({
       status: "ready",
-      evaluated: statusOf(scheduler, "a").revision,
+      evaluated: blockStatus(scheduler, "a").revision,
       running: false,
       summary: "<data.frame> [150 × 5]",
     });
-    expect(statusOf(scheduler, "b")).toMatchObject({
+    expect(blockStatus(scheduler, "b")).toMatchObject({
       status: "failed",
       conditions: [failure],
       stderr: "Error!",
       summary: null,
     });
-    expect(statusOf(scheduler, "d").status).toBe("invalid");
-    expect(statusOf(scheduler, "c").conditions[0]?.message).toBe(
+    expect(blockStatus(scheduler, "d").status).toBe("invalid");
+    expect(blockStatus(scheduler, "c").conditions[0]?.message).toBe(
       'This block is waiting for block "b".',
     );
-    expect(statusOf(scheduler, "e").conditions[0]?.message).toBe(
+    expect(blockStatus(scheduler, "e").conditions[0]?.message).toBe(
       'This block is waiting for blocks "b" and "d".',
     );
   });
@@ -327,19 +327,19 @@ describe("statuses", () => {
     scheduler.demand("test", ["b"]);
     scheduler.start();
     await tick();
-    r.evaluated(pendingOf(r, "a"));
-    r.evaluated(pendingOf(r, "b"), "error", { conditions: [failure] });
+    r.evaluated(pendingRequest(r, "a"));
+    r.evaluated(pendingRequest(r, "b"), "error", { conditions: [failure] });
     await tick();
-    const failed = statusOf(scheduler, "b");
+    const failed = blockStatus(scheduler, "b");
 
     store.apply({ blocks: { mod: { b: { state: { n: 7 } } } } });
 
-    expect(statusOf(scheduler, "b")).toMatchObject({
+    expect(blockStatus(scheduler, "b")).toMatchObject({
       status: "stale",
       evaluated: failed.revision,
       conditions: [failure],
     });
-    expect(statusOf(scheduler, "b").revision).toBeGreaterThan(failed.revision);
+    expect(blockStatus(scheduler, "b").revision).toBeGreaterThan(failed.revision);
   });
 
   test("read waiting for an unlinked input, a variadic block without a link and a block upstream that cannot run, with one condition of the phase status", async () => {
@@ -347,9 +347,9 @@ describe("statuses", () => {
 
     store.apply({ links: { rm: ["ab", "be", "de"] } });
 
-    expect(statusOf(scheduler, "b")).toEqual({
+    expect(blockStatus(scheduler, "b")).toEqual({
       status: "waiting",
-      revision: statusOf(scheduler, "b").revision,
+      revision: blockStatus(scheduler, "b").revision,
       evaluated: null,
       running: false,
       conditions: [
@@ -364,28 +364,28 @@ describe("statuses", () => {
       stderr: "",
       summary: null,
     });
-    expect(statusOf(scheduler, "e").conditions[0]?.message).toBe(
+    expect(blockStatus(scheduler, "e").conditions[0]?.message).toBe(
       "This block is waiting for a block to be linked to it.",
     );
-    expect(statusOf(scheduler, "c").conditions[0]?.message).toBe(
+    expect(blockStatus(scheduler, "c").conditions[0]?.message).toBe(
       'This block is waiting for block "b".',
     );
-    expect(statusOf(scheduler, "d").status).toBe("unevaluated");
+    expect(blockStatus(scheduler, "d").status).toBe("unevaluated");
   });
 
   test("count an input that R binds itself as linked, naming it in the recipe alone", async () => {
     const { r, store, scheduler } = await setup({ bound: ["data"] }, { reply: helloBlock });
     const [id = ""] = Object.keys(store.board().blocks);
-    expect(statusOf(scheduler, id).status).toBe("unevaluated");
+    expect(blockStatus(scheduler, id).status).toBe("unevaluated");
 
     scheduler.demand("blockr.core", [id]);
     scheduler.start();
     await tick();
-    expect(pendingOf(r, id).recipe.inputs).toEqual([{ input: "data" }]);
+    expect(pendingRequest(r, id).recipe.inputs).toEqual([{ input: "data" }]);
 
     const unbound = await setup({}, { reply: helloBlock });
     const [other = ""] = Object.keys(unbound.store.board().blocks);
-    expect(statusOf(unbound.scheduler, other).status).toBe("waiting");
+    expect(blockStatus(unbound.scheduler, other).status).toBe("waiting");
   });
 
   test("drop a reply for a superseded revision, cancelling its evaluation, and a reply for a block that reads waiting by then", async () => {
@@ -393,26 +393,26 @@ describe("statuses", () => {
     scheduler.demand("test", ["c"]);
     scheduler.start();
     await tick();
-    const oldB = pendingOf(r, "b");
-    const oldC = pendingOf(r, "c");
+    const oldB = pendingRequest(r, "b");
+    const oldC = pendingRequest(r, "c");
 
     store.apply({ blocks: { mod: { b: { state: { n: 8 } } } } });
     await tick();
     expect(r.cancels()).toEqual([oldB.id, oldC.id]);
 
-    r.evaluated(pendingOf(r, "a"));
+    r.evaluated(pendingRequest(r, "a"));
     r.evaluated(oldB);
     r.evaluated(oldC);
     await tick();
-    expect(statusOf(scheduler, "b").status).toBe("unevaluated");
+    expect(blockStatus(scheduler, "b").status).toBe("unevaluated");
 
-    r.evaluated(pendingOf(r, "b"), "error", { conditions: [failure] });
+    r.evaluated(pendingRequest(r, "b"), "error", { conditions: [failure] });
     await tick();
-    expect(statusOf(scheduler, "c").status).toBe("waiting");
+    expect(blockStatus(scheduler, "c").status).toBe("waiting");
     const newC = r.pending().find((request) => request.block === "c");
     if (newC !== undefined) r.evaluated(newC);
     await tick();
-    expect(statusOf(scheduler, "c").status).toBe("waiting");
+    expect(blockStatus(scheduler, "c").status).toBe("waiting");
   });
 
   test("count a cancelled or a missing reply as none, and invalidate a block whose current result R says it lacks", async () => {
@@ -420,31 +420,31 @@ describe("statuses", () => {
     scheduler.demand("test", ["b"]);
     scheduler.start();
     await tick();
-    const a = pendingOf(r, "a");
+    const a = pendingRequest(r, "a");
     r.reply({ id: a.id, status: "cancelled" });
     await tick();
-    expect(statusOf(scheduler, "a").status).toBe("unevaluated");
+    expect(blockStatus(scheduler, "a").status).toBe("unevaluated");
 
-    r.evaluated(pendingOf(r, "a"));
+    r.evaluated(pendingRequest(r, "a"));
     await tick();
-    const ready = statusOf(scheduler, "a");
-    const b = pendingOf(r, "b");
+    const ready = blockStatus(scheduler, "a");
+    const b = pendingRequest(r, "b");
     r.reply({ id: b.id, status: "missing", missing: [{ block: "a", revision: ready.revision }] });
     await tick();
-    expect(statusOf(scheduler, "a")).toMatchObject({ status: "stale", evaluated: ready.revision });
-    expect(statusOf(scheduler, "a").revision).toBeGreaterThan(ready.revision);
-    expect(pendingOf(r, "a").revision).toBe(statusOf(scheduler, "a").revision);
+    expect(blockStatus(scheduler, "a")).toMatchObject({ status: "stale", evaluated: ready.revision });
+    expect(blockStatus(scheduler, "a").revision).toBeGreaterThan(ready.revision);
+    expect(pendingRequest(r, "a").revision).toBe(blockStatus(scheduler, "a").revision);
 
     await evaluateAll(r);
-    expect(statusOf(scheduler, "b").status).toBe("ready");
+    expect(blockStatus(scheduler, "b").status).toBe("ready");
   });
 
   test("keep handing out one object until it changes, while subscribe() names the blocks whose status changed", async () => {
     const { store, scheduler } = await setup();
     const seen: (readonly BlockId[])[] = [];
     const unsubscribe = scheduler.subscribe((changed) => seen.push(changed));
-    const a = statusOf(scheduler, "a");
-    const b = statusOf(scheduler, "b");
+    const a = blockStatus(scheduler, "a");
+    const b = blockStatus(scheduler, "b");
 
     store.apply({ name: "Renamed" });
     expect(seen).toEqual([]);
@@ -471,25 +471,25 @@ describe("demand and scheduling", () => {
     scheduler.start();
     await tick();
     expect(r.evaluations().map((request) => request.block)).toEqual(["a", "b", "c"]);
-    expect(pendingOf(r, "c")).toMatchObject({
+    expect(pendingRequest(r, "c")).toMatchObject({
       kind: "evaluate",
       block: "c",
-      revision: statusOf(scheduler, "c").revision,
+      revision: blockStatus(scheduler, "c").revision,
       locked: null,
       recipe: {
         registry_id: "blockr.core-merge_block",
         state: { by: ["Species"], all_x: false, all_y: false },
         inputs: [
-          { input: "x", block: "a", revision: statusOf(scheduler, "a").revision },
-          { input: "y", block: "b", revision: statusOf(scheduler, "b").revision },
+          { input: "x", block: "a", revision: blockStatus(scheduler, "a").revision },
+          { input: "y", block: "b", revision: blockStatus(scheduler, "b").revision },
         ],
       },
     });
-    expect(statusOf(scheduler, "c").running).toBe(true);
+    expect(blockStatus(scheduler, "c").running).toBe(true);
 
     await evaluateAll(r);
     expect(r.evaluations()).toHaveLength(3);
-    expect(statusOf(scheduler, "d").status).toBe("unevaluated");
+    expect(blockStatus(scheduler, "d").status).toBe("unevaluated");
   });
 
   test("send each block's lock beside its recipe, as the block holds it", async () => {
@@ -499,11 +499,11 @@ describe("demand and scheduling", () => {
     scheduler.start();
     await tick();
 
-    expect(pendingOf(r, "a").locked).toBe(false);
-    r.evaluated(pendingOf(r, "a"));
+    expect(pendingRequest(r, "a").locked).toBe(false);
+    r.evaluated(pendingRequest(r, "a"));
     await tick();
-    expect(pendingOf(r, "b").locked).toBe(true);
-    expect(Object.keys(pendingOf(r, "b").recipe)).toEqual(["registry_id", "state", "inputs"]);
+    expect(pendingRequest(r, "b").locked).toBe(true);
+    expect(Object.keys(pendingRequest(r, "b").recipe)).toEqual(["registry_id", "state", "inputs"]);
   });
 
   test("keep at most evaluation_queue evaluations waiting in R behind the one it runs", async () => {
@@ -512,7 +512,7 @@ describe("demand and scheduling", () => {
     one.scheduler.start();
     await tick();
     expect(one.r.pending().map((request) => request.block)).toEqual(["a"]);
-    one.r.evaluated(pendingOf(one.r, "a"));
+    one.r.evaluated(pendingRequest(one.r, "a"));
     await tick();
     expect(one.r.pending().map((request) => request.block)).toEqual(["b"]);
 
@@ -520,7 +520,7 @@ describe("demand and scheduling", () => {
     three.scheduler.start();
     await tick();
     expect(three.r.pending().map((request) => request.block)).toEqual(["a", "b", "d"]);
-    three.r.evaluated(pendingOf(three.r, "a"));
+    three.r.evaluated(pendingRequest(three.r, "a"));
     await tick();
     expect(three.r.pending().map((request) => request.block)).toEqual(["b", "d", "f"]);
 
@@ -630,7 +630,7 @@ describe("demand and scheduling", () => {
     // set during a tick 1 ms later.
     await tick(1);
 
-    expect(statusOf(scheduler, "a")).toMatchObject({
+    expect(blockStatus(scheduler, "a")).toMatchObject({
       status: "failed",
       conditions: [
         {
@@ -640,7 +640,7 @@ describe("demand and scheduling", () => {
         },
       ],
     });
-    expect(statusOf(scheduler, "b").status).toBe("waiting");
+    expect(blockStatus(scheduler, "b").status).toBe("waiting");
 
     r.refuse.clear();
     store.apply({ blocks: { mod: { a: { state: { dataset: "mtcars" } } } } });
@@ -719,7 +719,7 @@ describe("one-time evaluations", () => {
 
     store.apply({ blocks: { mod: { b: { state: { n: 3 } } } } });
     await tick(1);
-    expect(statusOf(scheduler, "c").status).toBe("stale");
+    expect(blockStatus(scheduler, "c").status).toBe("stale");
     expect(r.pending()).toEqual([]);
   });
 
@@ -729,18 +729,18 @@ describe("one-time evaluations", () => {
     let resolved: Record<BlockId, BlockStatus> | undefined;
     void scheduler.evaluate(["b"]).then((statuses) => (resolved = statuses));
     await tick();
-    const first = pendingOf(r, "b");
+    const first = pendingRequest(r, "b");
 
     store.apply({ blocks: { mod: { b: { state: { n: 4 } } } } });
     await tick();
-    r.evaluated(pendingOf(r, "a"));
+    r.evaluated(pendingRequest(r, "a"));
     r.evaluated(first);
     await tick();
     expect(resolved).toBeUndefined();
 
-    r.evaluated(pendingOf(r, "b"));
+    r.evaluated(pendingRequest(r, "b"));
     await tick();
-    expect(resolved?.b?.revision).toBe(statusOf(scheduler, "b").revision);
+    expect(resolved?.b?.revision).toBe(blockStatus(scheduler, "b").revision);
     expect(resolved?.b?.revision).toBeGreaterThan(first.revision);
   });
 
@@ -794,7 +794,7 @@ describe("the end", () => {
 
     expect(r.evaluations()).toHaveLength(sent);
     expect(heard).toEqual([]);
-    expect(statusOf(scheduler, "a").status).toBe("unevaluated");
+    expect(blockStatus(scheduler, "a").status).toBe("unevaluated");
     await expect(
       scheduler.request({ kind: "request", type: "option", option: "data_dir", name: "list_dir", args: {} }),
     ).rejects.toThrow("Another board opened.");
@@ -825,17 +825,17 @@ describe("one-time evaluations with parameters", () => {
     scheduler.demand("test", ["b"]);
     scheduler.start();
     await evaluateAll(r);
-    const ready = statusOf(scheduler, "b");
+    const ready = blockStatus(scheduler, "b");
 
     const saving = scheduler.evaluate(["b"], { save: true });
     await tick();
-    const request = pendingOf(r, "b");
+    const request = pendingRequest(r, "b");
     expect(request).toMatchObject({ block: "b", revision: ready.revision, params: { save: true } });
 
     r.evaluated(request, "ok", { stdout: "Wrote iris.csv" });
     const statuses = await saving;
     expect(statuses.b).toMatchObject({ status: "ready", revision: ready.revision, stdout: "Wrote iris.csv" });
-    expect(statusOf(scheduler, "b").stdout).toBe("Wrote iris.csv");
+    expect(blockStatus(scheduler, "b").stdout).toBe("Wrote iris.csv");
   });
 
   test("send no other evaluation of that revision, never cancel it and keep what it reads evaluated until R replies", async () => {
@@ -848,7 +848,7 @@ describe("one-time evaluations with parameters", () => {
       ["a", undefined],
       ["b", { save: true }],
     ]);
-    const save = pendingOf(r, "b");
+    const save = pendingRequest(r, "b");
 
     store.apply({ blocks: { mod: { b: { state: { n: 2 } } } } });
     await tick();
@@ -859,11 +859,11 @@ describe("one-time evaluations with parameters", () => {
       ["b", undefined],
     ]);
 
-    r.evaluated(pendingOf(r, "a"));
+    r.evaluated(pendingRequest(r, "a"));
     r.evaluated(save);
     const statuses = await saving;
     expect(statuses.b).toMatchObject({ status: "ready", revision: save.revision });
-    expect(statusOf(scheduler, "b").status).toBe("unevaluated");
+    expect(blockStatus(scheduler, "b").status).toBe("unevaluated");
   });
 
   test("wait while what it reads recomputes, following an edit made meanwhile, and reject where its block leaves the board before it is sent or a new session starts before R replies", async () => {
@@ -871,18 +871,18 @@ describe("one-time evaluations with parameters", () => {
     scheduler.start();
     const saving = scheduler.evaluate(["b"], { save: true });
     await tick();
-    const old = pendingOf(r, "a");
+    const old = pendingRequest(r, "a");
 
     store.apply({ blocks: { mod: { a: { state: { dataset: "mtcars" } } } } });
     await tick();
     r.reply({ id: old.id, status: "cancelled" });
     await tick();
-    r.evaluated(pendingOf(r, "a"));
+    r.evaluated(pendingRequest(r, "a"));
     await tick();
-    const save = pendingOf(r, "b");
-    expect(save).toMatchObject({ revision: statusOf(scheduler, "b").revision, params: { save: true } });
+    const save = pendingRequest(r, "b");
+    expect(save).toMatchObject({ revision: blockStatus(scheduler, "b").revision, params: { save: true } });
     expect(save.recipe.inputs).toEqual([
-      { input: "data", block: "a", revision: statusOf(scheduler, "a").revision },
+      { input: "data", block: "a", revision: blockStatus(scheduler, "a").revision },
     ]);
     r.evaluated(save);
     await expect(saving).resolves.toMatchObject({ b: { status: "ready", revision: save.revision } });
@@ -893,7 +893,7 @@ describe("one-time evaluations with parameters", () => {
 
     const ending = scheduler.evaluate(["d"], { save: true });
     await tick();
-    expect(pendingOf(r, "d").params).toEqual({ save: true });
+    expect(pendingRequest(r, "d").params).toEqual({ save: true });
     r.end();
     await expect(ending).rejects.toBeInstanceOf(SessionEndedError);
   });
@@ -905,7 +905,7 @@ describe("one-time evaluations with parameters", () => {
       'Block "b" is waiting for block "a". Its evaluation with parameters is not sent.',
     );
     await tick();
-    r.evaluated(pendingOf(r, "a"), "error", { conditions: [failure] });
+    r.evaluated(pendingRequest(r, "a"), "error", { conditions: [failure] });
     await tick();
     await failing;
 
@@ -936,7 +936,7 @@ describe("evaluation in the background", () => {
 
     await tick(1);
     expect(r.pending().map((request) => request.block)).toEqual(["d"]);
-    r.evaluated(pendingOf(r, "d"));
+    r.evaluated(pendingRequest(r, "d"));
     await tick();
     expect(r.pending().map((request) => request.block)).toEqual(["f"]);
   });
@@ -958,10 +958,10 @@ describe("evaluation in the background", () => {
 
     scheduler.demand("test", ["d"]);
     await tick();
-    r.evaluated(pendingOf(r, "a"));
+    r.evaluated(pendingRequest(r, "a"));
     await tick();
     expect(r.pending().map((request) => request.block)).toEqual(["d"]);
-    r.evaluated(pendingOf(r, "d"));
+    r.evaluated(pendingRequest(r, "d"));
     await tick(999);
     expect(r.pending()).toEqual([]);
     await tick(1);
@@ -975,7 +975,7 @@ describe("evaluation in the background", () => {
     );
     scheduler.start();
     await tick(1000);
-    const a = pendingOf(r, "a");
+    const a = pendingRequest(r, "a");
 
     const listing = scheduler.request({ kind: "request", type: "option", option: "data_dir", name: "list_dir", args: {} });
     await tick(4999);
@@ -1009,27 +1009,27 @@ describe("a new session", () => {
     scheduler.demand("test", ["b"]);
     scheduler.start();
     await evaluateAll(r);
-    const before = revisionsOf(scheduler);
+    const before = blockRevisions(scheduler);
     const top = Math.max(...Object.values(before));
-    const ready = statusOf(scheduler, "b");
+    const ready = blockStatus(scheduler, "b");
 
     r.end();
     r.connect();
     scheduler.session();
 
     for (const id of Object.keys(before)) {
-      expect(statusOf(scheduler, id).revision).toBeGreaterThan(top);
+      expect(blockStatus(scheduler, id).revision).toBeGreaterThan(top);
     }
-    expect(statusOf(scheduler, "b")).toMatchObject({
+    expect(blockStatus(scheduler, "b")).toMatchObject({
       status: "stale",
       evaluated: ready.revision,
       summary: ready.summary,
     });
-    expect(statusOf(scheduler, "d").status).toBe("unevaluated");
+    expect(blockStatus(scheduler, "d").status).toBe("unevaluated");
     await tick();
     expect(r.pending().map((request) => [request.block, request.revision])).toEqual([
-      ["a", statusOf(scheduler, "a").revision],
-      ["b", statusOf(scheduler, "b").revision],
+      ["a", blockStatus(scheduler, "a").revision],
+      ["b", blockStatus(scheduler, "b").revision],
     ]);
   });
 
@@ -1059,7 +1059,7 @@ describe("requests", () => {
 
     const asking = scheduler.request(output(scheduler, "b"));
     const [sent] = r.asked("output");
-    expect(sent).toMatchObject({ kind: "output", block: "b", revision: statusOf(scheduler, "b").revision });
+    expect(sent).toMatchObject({ kind: "output", block: "b", revision: blockStatus(scheduler, "b").revision });
     r.reply({
       id: sent?.id ?? "",
       status: "ok",
@@ -1073,25 +1073,25 @@ describe("requests", () => {
     scheduler.demand("test", ["b"]);
     scheduler.start();
     await evaluateAll(r);
-    const b = statusOf(scheduler, "b");
+    const b = blockStatus(scheduler, "b");
 
     const asking = scheduler.request(output(scheduler, "b"));
     const [first] = r.asked("output");
     r.reply({ id: first?.id ?? "", status: "missing", missing: [{ block: "b", revision: b.revision }] });
     await expect(asking).resolves.toMatchObject({ reply: { status: "missing" } });
-    expect(statusOf(scheduler, "b")).toMatchObject({ status: "stale", evaluated: b.revision });
+    expect(blockStatus(scheduler, "b")).toMatchObject({ status: "stale", evaluated: b.revision });
     await tick();
-    expect(pendingOf(r, "b").revision).toBe(statusOf(scheduler, "b").revision);
+    expect(pendingRequest(r, "b").revision).toBe(blockStatus(scheduler, "b").revision);
 
     await evaluateAll(r);
-    const current = statusOf(scheduler, "b");
+    const current = blockStatus(scheduler, "b");
     const late = scheduler.request(output(scheduler, "b"));
     store.apply({ blocks: { mod: { b: { state: { n: 1 } } } } });
-    const edited = statusOf(scheduler, "b").revision;
+    const edited = blockStatus(scheduler, "b").revision;
     const [, second] = r.asked("output");
     r.reply({ id: second?.id ?? "", status: "missing", missing: [{ block: "b", revision: current.revision }] });
     await expect(late).resolves.toMatchObject({ reply: { status: "missing" } });
-    expect(statusOf(scheduler, "b").revision).toBe(edited);
+    expect(blockStatus(scheduler, "b").revision).toBe(edited);
   });
 
   test("go again to the next session for an output, an output class's and a block class's request, and reject for an action, a board option's and a plugin's request", async () => {
@@ -1099,7 +1099,7 @@ describe("requests", () => {
     scheduler.demand("test", ["b"]);
     scheduler.start();
     await evaluateAll(r);
-    const at = statusOf(scheduler, "b").revision;
+    const at = blockStatus(scheduler, "b").revision;
 
     const again = [
       scheduler.request(output(scheduler, "b")),
@@ -1119,7 +1119,7 @@ describe("requests", () => {
         block: "b",
         name: "n_max",
         args: {},
-        reads: [{ input: "data", block: "a", revision: statusOf(scheduler, "a").revision }],
+        reads: [{ input: "data", block: "a", revision: blockStatus(scheduler, "a").revision }],
       }),
     ];
     const rejected = [

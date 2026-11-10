@@ -6,4 +6,4 @@ export { domMeasure } from "./measure.ts";
 export type { Measure } from "./measure.ts";
 export type { OutputEvent } from "./output.ts";
 export { RequestError } from "./requests.ts";
-export { announceTo, attempt, moduleOf, onAbort, REPLACED, showError } from "./shared.ts";
+export { announceTo, attempt, mountableModule, onAbort, REPLACED, showError } from "./shared.ts";

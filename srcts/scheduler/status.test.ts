@@ -3,14 +3,14 @@
 // Every block's status, from its revision, its latest reply and its inputs.
 
 import { describe, expect, test } from "vitest";
-import { graphOf } from "../graph/index.ts";
+import { createGraph } from "../graph/index.ts";
 import type { Condition } from "../protocol/index.ts";
-import { boardOf, sample } from "../testing/board.ts";
+import { createBoard, sample } from "../testing/board.ts";
 import { hello } from "../testing/store.ts";
 import type { Board, BlockId } from "../types/board.ts";
-import { inputsOf } from "./recipes.ts";
+import { inputsByBlock } from "./recipes.ts";
 import { counter, opening } from "./revisions.ts";
-import { statusesOf, waitingError } from "./status.ts";
+import { blockStatuses, waitingError } from "./status.ts";
 import type { BlockStatus, Outcome } from "./status.ts";
 
 const failure: Condition = {
@@ -39,19 +39,19 @@ function statuses(
   {
     running = [],
     before = new Map(),
-    revisions = opening(graphOf(board), counter()),
+    revisions = opening(createGraph(board), counter()),
   }: {
     running?: BlockId[];
     before?: ReadonlyMap<BlockId, BlockStatus>;
     revisions?: ReadonlyMap<BlockId, number>;
   } = {},
 ) {
-  const graph = graphOf(board);
-  return statusesOf({
+  const graph = createGraph(board);
+  return blockStatuses({
     graph,
     revisions,
     outcomes: new Map(outcomes(revisions)),
-    inputs: inputsOf(board, graph, hello.block_registry, new Set()),
+    inputs: inputsByBlock(board, graph, hello.block_registry, new Set()),
     running: new Set(running),
     before,
   });
@@ -88,7 +88,7 @@ describe("statuses", () => {
   });
 
   test("read waiting for an unlinked input, with one condition of the phase status", () => {
-    const loose = boardOf({ a: "dataset_block", c: "merge_block" }, { ac: ["a", "c", "x"] });
+    const loose = createBoard({ a: "dataset_block", c: "merge_block" }, { ac: ["a", "c", "x"] });
     expect(statuses(loose).statuses.get("c")?.conditions).toEqual([
       {
         severity: "message",
@@ -114,7 +114,7 @@ describe("statuses", () => {
     const { f, ...blocks } = sample.blocks;
     const { af, ...links } = sample.links;
     expect([f, af]).not.toContain(undefined);
-    const revisions = opening(graphOf(sample), counter());
+    const revisions = opening(createGraph(sample), counter());
     revisions.delete("f");
     const smaller = statuses({ ...sample, blocks, links }, undefined, {
       before: first.statuses,
@@ -126,7 +126,7 @@ describe("statuses", () => {
 
 describe("the error of an evaluation with parameters of a waiting block", () => {
   test("names the block and what it waits for", () => {
-    const loose = boardOf({ c: "merge_block" });
+    const loose = createBoard({ c: "merge_block" });
     const status = statuses(loose).statuses.get("c");
     if (status === undefined) throw new Error("Block c has no status.");
     expect(waitingError("c", status).message).toBe(

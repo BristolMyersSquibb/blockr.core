@@ -16,10 +16,10 @@
 // core unmounts it. Core ends what the frontend mounted with the same abort,
 // and drops the rest of what it ran for the board.
 
-import { attempt, ModuleError, moduleOf, showError } from "../mount/index.ts";
+import { attempt, ModuleError, mountableModule, showError } from "../mount/index.ts";
 import type { PluginId } from "../types/board.ts";
 import type { Rendered } from "../types/hosts.ts";
-import { messageOf, packageOf, report } from "../util/index.ts";
+import { errorMessage, packageFromId, report } from "../util/index.ts";
 import type { FrontendArgs } from "./plugins.ts";
 import type { FrontEnds } from "./start.ts";
 
@@ -66,12 +66,12 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
     async prepare(front, loader, signal) {
       let prepared: NonNullable<typeof next>;
       const { id, source, plugin } = front;
-      const pkg = packageOf(id);
+      const pkg = packageFromId(id);
       if (source === undefined) {
         prepared = { id, module: id, plugin, error: new Error(`R serves no module ${id}, the frontend that draws the board.`) };
       } else {
         try {
-          const mod = moduleOf<FrontendArgs>(await loader.load(source, pkg), source.module, pkg);
+          const mod = mountableModule<FrontendArgs>(await loader.load(source, pkg), source.module, pkg);
           prepared = { id, module: source.module, plugin, render: mod.render.bind(mod) };
         } catch (error) {
           prepared = { id, module: source.module, plugin, error };
@@ -92,7 +92,7 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
         return;
       }
       if (prepared.render === undefined) {
-        showError(el, `The frontend ${prepared.id} cannot draw the board: ${messageOf(prepared.error)}`);
+        showError(el, `The frontend ${prepared.id} cannot draw the board: ${errorMessage(prepared.error)}`);
         report(prepared.error);
         return;
       }
@@ -122,7 +122,7 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
         else current.cleanup = rendered;
       } catch (error) {
         if (controller.signal.aborted) return;
-        const why = new ModuleError(prepared.module, packageOf(prepared.id), `failed in render(): ${messageOf(error)}`, {
+        const why = new ModuleError(prepared.module, packageFromId(prepared.id), `failed in render(): ${errorMessage(error)}`, {
           cause: error,
         });
         showError(el, why.message);

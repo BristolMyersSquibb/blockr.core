@@ -51,7 +51,7 @@ export function AddBlockDialog({ mode, onClose }: { mode: AddMode; onClose: () =
   // same for every class. After a block, the user picks among the inputs of
   // the class picked, once it is picked.
   const before = mode.kind === "before" ? several(freeInputs(board, registry, mode.to) ?? []) : [];
-  const after = picked === undefined ? [] : inputsOf(picked);
+  const after = picked === undefined ? [] : dataInputChoices(picked);
 
   function add(entry: RegistryEntry, into: string | undefined): void {
     onClose();
@@ -62,7 +62,7 @@ export function AddBlockDialog({ mode, onClose }: { mode: AddMode; onClose: () =
   }
 
   function pick(entry: RegistryEntry): void {
-    if (mode.kind === "after" && inputsOf(entry).length > 0) {
+    if (mode.kind === "after" && dataInputChoices(entry).length > 0) {
       setPicked(entry);
       setInput(undefined);
     } else {
@@ -177,7 +177,7 @@ function InputSelect({
 // The inputs of a class among which the user picks the one that the link of
 // a new block of the class goes into. There are none to pick among for a
 // variadic class or a class with one input.
-function inputsOf(entry: RegistryEntry): readonly string[] {
+function dataInputChoices(entry: RegistryEntry): readonly string[] {
   return entry.inputs.includes("...") ? [] : several(entry.inputs);
 }
 

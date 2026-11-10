@@ -3,19 +3,19 @@
 // What a block's links make of the inputs its class declares.
 
 import { describe, expect, test } from "vitest";
-import { graphOf } from "../graph/index.ts";
-import { boardOf, sample } from "../testing/board.ts";
+import { createGraph } from "../graph/index.ts";
+import { createBoard, sample } from "../testing/board.ts";
 import { hello } from "../testing/store.ts";
 import type { Board } from "../types/board.ts";
-import { inputsOf } from "./recipes.ts";
+import { inputsByBlock } from "./recipes.ts";
 
 function inputs(board: Board, bound: string[] = []) {
-  return inputsOf(board, graphOf(board), hello.block_registry, new Set(bound));
+  return inputsByBlock(board, createGraph(board), hello.block_registry, new Set(bound));
 }
 
 describe("a block's inputs", () => {
   test("take each fixed input from the link that feeds it, in the order of the class's inputs", () => {
-    const merge = boardOf(
+    const merge = createBoard(
       { a: "dataset_block", b: "dataset_block", c: "merge_block" },
       { bc: ["b", "c", "y"], ac: ["a", "c", "x"] },
     );
@@ -34,7 +34,7 @@ describe("a block's inputs", () => {
       { input: "", block: "b" },
       { input: "", block: "d" },
     ]);
-    const swapped = boardOf(
+    const swapped = createBoard(
       { b: "dataset_block", d: "dataset_block", e: "rbind_block" },
       { de: ["d", "e", ""], be: ["b", "e", ""] },
     );
@@ -42,7 +42,7 @@ describe("a block's inputs", () => {
   });
 
   test("name the inputs that no link feeds and R does not bind, and a variadic block without a link", () => {
-    const loose = boardOf(
+    const loose = createBoard(
       { a: "dataset_block", c: "merge_block", e: "rbind_block" },
       { ac: ["a", "c", "x"] },
     );
@@ -51,7 +51,7 @@ describe("a block's inputs", () => {
   });
 
   test("count an input that R binds itself, which a link still takes the place of", () => {
-    const alone = boardOf({ b: "head_block" });
+    const alone = createBoard({ b: "head_block" });
     expect(inputs(alone, ["data"]).get("b")).toEqual({
       recipe: [{ input: "data" }],
       unlinked: [],

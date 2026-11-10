@@ -14,7 +14,7 @@ export function bindShortcuts(
   refused: (error: unknown) => void,
 ): () => void {
   function onKey(event: KeyboardEvent): void {
-    const step = stepOf(event);
+    const step = undoOrRedo(event);
     if (step === undefined || event.defaultPrevented || editable(event.target)) return;
     event.preventDefault();
     try {
@@ -30,7 +30,7 @@ export function bindShortcuts(
   };
 }
 
-function stepOf(event: KeyboardEvent): "undo" | "redo" | undefined {
+function undoOrRedo(event: KeyboardEvent): "undo" | "redo" | undefined {
   if (!(event.ctrlKey || event.metaKey) || event.altKey) return undefined;
   const key = event.key.toLowerCase();
   if (key === "z") return event.shiftKey ? "redo" : "undo";

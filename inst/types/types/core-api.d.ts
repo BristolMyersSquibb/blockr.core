@@ -17,7 +17,7 @@ export interface CoreApi {
     readonly plugins: {
         register(def: PluginClass): () => void;
         running(): Readonly<Record<PluginId, Plugin>>;
-        classOf(plugin: PluginId): PluginClass;
+        pluginClass(plugin: PluginId): PluginClass;
         storage(): Storage;
     };
     readonly lock: Lock;

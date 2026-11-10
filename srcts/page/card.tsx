@@ -95,7 +95,7 @@ function AloneCard({ core, id }: { core: CardCore; id: BlockId }): ReactElement 
   const replied = status !== undefined && status.evaluated !== null;
   const current = status?.status === "ready" && !status.running;
   const settled = status !== undefined && status === shown && !status.running;
-  const listed = shown === undefined ? [] : listedOf(shown).filter((condition) => open.has(condition.severity));
+  const listed = shown === undefined ? [] : statusConditions(shown).filter((condition) => open.has(condition.severity));
 
   return (
     <article
@@ -291,7 +291,7 @@ const OPEN_AT_START: ReadonlySet<Severity> = new Set<Severity>(["error"]);
 
 // The conditions that the footer opens to, in the order R raised them: those
 // of R's reply, which a waiting block has none of.
-function listedOf(status: BlockStatus): readonly Condition[] {
+function statusConditions(status: BlockStatus): readonly Condition[] {
   return status.status === "waiting" ? [] : status.conditions;
 }
 
