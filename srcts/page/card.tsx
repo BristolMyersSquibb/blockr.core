@@ -18,17 +18,21 @@
 // banners alone, and never as toasts.
 // The card draws in the page's theme, which the board option dark_mode
 // switches, as on every page that core starts.
-// Core asks R for an output only once the output's element measures more than
-// 0 by 0, and R draws a plot at that size. So the card gives the output a
-// height of its own from the block's first reply on, which the user may drag
-// to another. The footer is the last line of the output's box, so that the
-// handle sits at the end of the footer, clear of the output's own controls.
+// Core asks R for an output only once the block reads ready and the output's
+// element measures more than 0 by 0, and R draws a plot at that size.
+// So the card gives the output a height of its own from the first time the
+// block reads ready on, which the user may drag to another.
+// Before then there is nothing to draw, and the card of a block that fails or
+// reads invalid at once shows the footer and the banners alone, as that of a
+// waiting block does.
+// The footer is the last line of the output's box, so that the handle sits at
+// the end of the footer, clear of the output's own controls.
 
 import { useCallback, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { Banners, Footer, Mounted, useFooter, useStatus } from "../card/index.ts";
+import { Banners, Footer, Mounted, useFooter, useSized, useStatus } from "../card/index.ts";
 import { loadingNote } from "../core/index.ts";
 import { showError } from "../mount/index.ts";
 import type { BlockId } from "../types/board.ts";
@@ -77,12 +81,12 @@ function AloneCard({ core, id }: { core: CardCore; id: BlockId }): ReactElement 
   const name = useBlockName(core, id);
   const status = useStatus(core, id);
   const footer = useFooter(status);
+  const sized = useSized(status);
 
   const mountUi = useCallback((el: HTMLElement) => core.mountBlock(el, id), [core, id]);
   const mountOutput = useCallback((el: HTMLElement) => core.mountOutput(el, id), [core, id]);
 
   const inputs = !core.store.locked(id);
-  const replied = status !== undefined && status.evaluated !== null;
   const current = status?.status === "ready" && !status.running;
 
   return (
@@ -95,14 +99,14 @@ function AloneCard({ core, id }: { core: CardCore; id: BlockId }): ReactElement 
       </header>
       {inputs ? <Mounted mount={mountUi} label="Inputs" className="bc:min-w-0" /> : null}
       <div
-        className={`bc:min-w-0 ${replied ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`}
+        className={`bc:min-w-0 ${sized ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`}
       >
         <Mounted
           mount={mountOutput}
           label="Output"
           data={{ "data-current": String(current) }}
           className={`bc:min-w-0 bc:transition-opacity ${current ? "" : "bc:opacity-50 bc:grayscale"} ${
-            replied ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"
+            sized ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"
           }`}
         />
         <Footer {...footer} />

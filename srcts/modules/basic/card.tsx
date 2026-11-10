@@ -16,12 +16,15 @@
 // the card greys the output out while the block is not ready.
 // It greys out the output alone, and not the footer, so that the pills keep
 // the colours of their severities.
-// Core asks R for an output only once the output's element measures more than
-// 0 by 0, and R draws a plot at that size. So the card gives the output a
-// height of its own, which the user may drag to another. The handle sits at
-// the end of the footer, clear of the output's own controls. The card
-// does so from the block's first reply on, since there is nothing to draw
-// before.
+// Core asks R for an output only once the block reads ready and the output's
+// element measures more than 0 by 0, and R draws a plot at that size.
+// So the card gives the output a height of its own from the first time the
+// block reads ready on, which the user may drag to another.
+// Before then there is nothing to draw, and the card of a block that fails or
+// reads invalid at once shows the footer and the banners alone, as that of a
+// waiting block does.
+// The handle sits at the end of the footer, clear of the output's own
+// controls.
 // The card always shows the block's UI and its output, with no toggles to
 // hide them, which a frontend built on core's may add.
 // The card gives its block focus as the user moves into it, by a click or by
@@ -33,7 +36,7 @@
 
 import { memo, useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
-import { Banners, Footer, Mounted, useFooter, useStatus } from "../../card/index.ts";
+import { Banners, Footer, Mounted, useFooter, useSized, useStatus } from "../../card/index.ts";
 import type { Condition } from "../../protocol/index.ts";
 import type { BlockStatus, Status } from "../../scheduler/index.ts";
 import type { Block, BlockId, Stack } from "../../types/board.ts";
@@ -66,6 +69,7 @@ export const BlockCard = memo(function BlockCard({
   const { core, inView } = front;
   const status = useStatus(core, id);
   const footer = useFooter(status, severities);
+  const sized = useSized(status);
   const [renaming, setRenaming] = useState(false);
   const ref = useRef<HTMLElement>(null);
 
@@ -84,7 +88,6 @@ export const BlockCard = memo(function BlockCard({
   const inputs = !core.store.locked(id);
   const entry = own(core.blockRegistry(), block.registry_id);
   const ready = status?.status === "ready";
-  const replied = status !== undefined && status.evaluated !== null;
 
   return (
     <article
@@ -148,14 +151,14 @@ export const BlockCard = memo(function BlockCard({
       </header>
       {inputs ? <Mounted mount={mountUi} label="Inputs" className="bc:min-w-0" /> : null}
       <div
-        className={`bc:min-w-0 ${replied ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`}
+        className={`bc:min-w-0 ${sized ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`}
       >
         <Mounted
           mount={mountOutput}
           label="Output"
           data={{ "data-ready": String(ready) }}
           className={`bc:min-w-0 bc:transition-opacity ${ready ? "" : "bc:opacity-50 bc:grayscale"} ${
-            replied ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"
+            sized ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"
           }`}
         />
         <Footer {...footer} />

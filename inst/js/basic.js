@@ -3,7 +3,7 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 
 // srcts/modules/basic/board.tsx
-import { useCallback as useCallback7, useMemo as useMemo2, useState as useState8 } from "react";
+import { useCallback as useCallback7, useMemo as useMemo2, useState as useState9 } from "react";
 
 // srcts/util/util.ts
 function own(record, key) {
@@ -97,7 +97,7 @@ var styles = {
 };
 
 // srcts/modules/basic/card.tsx
-import { memo, useCallback as useCallback3, useLayoutEffect as useLayoutEffect3, useRef as useRef3, useState as useState3 } from "react";
+import { memo, useCallback as useCallback3, useLayoutEffect as useLayoutEffect3, useRef as useRef3, useState as useState4 } from "react";
 
 // srcts/card/footer.tsx
 import { useCallback, useId, useState } from "react";
@@ -267,7 +267,7 @@ function Mounted({
 }
 
 // srcts/card/status.ts
-import { useCallback as useCallback2, useSyncExternalStore } from "react";
+import { useCallback as useCallback2, useState as useState2, useSyncExternalStore } from "react";
 function useStatus(core, block) {
   const subscribe = useCallback2(
     (notify) => core.scheduler.subscribe((changed) => {
@@ -276,6 +276,12 @@ function useStatus(core, block) {
     [core, block]
   );
   return useSyncExternalStore(subscribe, () => core.scheduler.status(block));
+}
+function useSized(status) {
+  const ready = status?.status === "ready";
+  const [sized, setSized] = useState2(ready);
+  if (ready && !sized) setSized(true);
+  return sized || ready;
 }
 
 // srcts/modules/basic/context.ts
@@ -297,7 +303,7 @@ function runCommand(front, id2, args) {
 }
 
 // srcts/modules/basic/ui.tsx
-import { useEffect, useLayoutEffect as useLayoutEffect2, useRef as useRef2, useState as useState2 } from "react";
+import { useEffect, useLayoutEffect as useLayoutEffect2, useRef as useRef2, useState as useState3 } from "react";
 import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
 var classes = {
   button: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50",
@@ -345,7 +351,7 @@ function Dialog({
   );
 }
 function Menu({ label, items }) {
-  const [open, setOpen] = useState2(false);
+  const [open, setOpen] = useState3(false);
   const ref = useRef2(null);
   useEffect(() => {
     if (!open) return;
@@ -408,7 +414,7 @@ function NameField({
   onSubmit,
   onDone
 }) {
-  const [text, setText] = useState2(name2);
+  const [text, setText] = useState3(name2);
   const ref = useRef2(null);
   const done = useRef2(false);
   useLayoutEffect2(() => {
@@ -458,7 +464,8 @@ var BlockCard = memo(function BlockCard2({
   const { core, inView: inView2 } = front;
   const status = useStatus(core, id2);
   const footer = useFooter(status, severities);
-  const [renaming, setRenaming] = useState3(false);
+  const sized = useSized(status);
+  const [renaming, setRenaming] = useState4(false);
   const ref = useRef3(null);
   useLayoutEffect3(() => {
     const el = ref.current;
@@ -473,7 +480,6 @@ var BlockCard = memo(function BlockCard2({
   const inputs = !core.store.locked(id2);
   const entry = own(core.blockRegistry(), block.registry_id);
   const ready = status?.status === "ready";
-  const replied = status !== void 0 && status.evaluated !== null;
   return /* @__PURE__ */ jsxs3(
     "article",
     {
@@ -537,7 +543,7 @@ var BlockCard = memo(function BlockCard2({
         /* @__PURE__ */ jsxs3(
           "div",
           {
-            className: `bc:min-w-0 ${replied ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`,
+            className: `bc:min-w-0 ${sized ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`,
             children: [
               /* @__PURE__ */ jsx4(
                 Mounted,
@@ -545,7 +551,7 @@ var BlockCard = memo(function BlockCard2({
                   mount: mountOutput,
                   label: "Output",
                   data: { "data-ready": String(ready) },
-                  className: `bc:min-w-0 bc:transition-opacity ${ready ? "" : "bc:opacity-50 bc:grayscale"} ${replied ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"}`
+                  className: `bc:min-w-0 bc:transition-opacity ${ready ? "" : "bc:opacity-50 bc:grayscale"} ${sized ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"}`
                 }
               ),
               /* @__PURE__ */ jsx4(Footer, { ...footer })
@@ -647,16 +653,16 @@ function blocksOf(board, stack) {
 }
 
 // srcts/modules/basic/links.tsx
-import { useState as useState4 } from "react";
+import { useState as useState5 } from "react";
 import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
 function LinksDialog({ onClose }) {
   const front = useFrontEnd();
   const { core } = front;
   const board = useBoard(core);
   const ids = Object.keys(board.blocks);
-  const [from, setFrom] = useState4(ids[0] ?? "");
-  const [to, setTo] = useState4(ids[1] ?? ids[0] ?? "");
-  const [input2, setInput] = useState4(void 0);
+  const [from, setFrom] = useState5(ids[0] ?? "");
+  const [to, setTo] = useState5(ids[1] ?? ids[0] ?? "");
+  const [input2, setInput] = useState5(void 0);
   const free = freeInputs(board, core.blockRegistry(), to) ?? [];
   const variadic = free.length === 1 && free[0] === "";
   const chosen = variadic ? void 0 : input2 !== void 0 && free.includes(input2) ? input2 : free[0];
@@ -794,16 +800,16 @@ function OptionUi({ id: id2 }) {
 }
 
 // srcts/modules/basic/picker.tsx
-import { useMemo, useState as useState5 } from "react";
+import { useMemo, useState as useState6 } from "react";
 import { jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
 function AddBlockDialog({ mode, onClose }) {
   const front = useFrontEnd();
   const { core } = front;
   const board = useBoard(core);
   const registry = core.blockRegistry();
-  const [search, setSearch] = useState5("");
-  const [picked, setPicked] = useState5(void 0);
-  const [input2, setInput] = useState5(void 0);
+  const [search, setSearch] = useState6("");
+  const [picked, setPicked] = useState6(void 0);
+  const [input2, setInput] = useState6(void 0);
   const entries = useMemo(
     () => Object.values(registry).filter((entry) => mode.kind !== "after" || entry.inputs.length > 0).filter((entry) => matches(entry, search)),
     [registry, mode.kind, search]
@@ -968,7 +974,7 @@ function PluginSection({ id: id2, plugin }) {
 }
 
 // srcts/modules/basic/stacks.tsx
-import { useEffect as useEffect2, useRef as useRef4, useState as useState6 } from "react";
+import { useEffect as useEffect2, useRef as useRef4, useState as useState7 } from "react";
 import { jsx as jsx9, jsxs as jsxs8 } from "react/jsx-runtime";
 var NO_COLOR = "#808080";
 function StacksDialog({ onClose }) {
@@ -993,7 +999,7 @@ function StacksDialog({ onClose }) {
 }
 function StackItem({ id: id2, stack, board }) {
   const front = useFrontEnd();
-  const [renaming, setRenaming] = useState6(false);
+  const [renaming, setRenaming] = useState7(false);
   return /* @__PURE__ */ jsxs8("li", { "aria-label": stack.name, className: "bc:grid bc:gap-2 bc:rounded-md bc:border bc:border-border-default bc:p-2", children: [
     /* @__PURE__ */ jsxs8("div", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-2", children: [
       renaming ? /* @__PURE__ */ jsx9(
@@ -1113,13 +1119,13 @@ function ColorField({
 }
 
 // srcts/modules/basic/toolbar.tsx
-import { useState as useState7 } from "react";
+import { useState as useState8 } from "react";
 import { Fragment as Fragment2, jsx as jsx10, jsxs as jsxs9 } from "react/jsx-runtime";
 function Toolbar({ board, show }) {
   const front = useFrontEnd();
   const { core, notices } = front;
   const { canUndo, canRedo } = useHistory(core);
-  const [renaming, setRenaming] = useState7(false);
+  const [renaming, setRenaming] = useState8(false);
   const locked2 = core.lock.board;
   const opens = !core.lock.load;
   function step(back) {
@@ -1281,7 +1287,7 @@ function Page() {
   const items = useMemo2(() => itemsOf(board), [board]);
   const shown = board.options.show_conditions;
   const severities = useMemo2(() => asSeverities(shown), [shown]);
-  const [dialog, setDialog] = useState8(null);
+  const [dialog, setDialog] = useState9(null);
   const add = useCallback7((mode) => {
     setDialog({ kind: "add", mode });
   }, []);

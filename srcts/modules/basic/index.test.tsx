@@ -241,12 +241,21 @@ describe("a card", () => {
   });
 
   test("greys its output out while its block is not ready, but not its footer, which shows a failed block's error and why a block waits", async () => {
-    const { el, core } = await drawn({
+    let fails = false;
+    const { el, core, settled } = await drawn({
       evaluate: (request) =>
-        request.block === "b"
+        request.block === "b" && fails
           ? { status: "error", conditions: [{ severity: "error", class: ["simpleError", "error", "condition"], phase: "expr", message: "No rows" }] }
           : undefined,
     });
+    expect(badge(card(el, "Head"))).toBe("ready");
+
+    // The user changes the block's state, and R fails to evaluate it.
+    fails = true;
+    await step(() => {
+      core.store.apply({ blocks: { mod: { b: { state: { n: 0, direction: "head" } } } } });
+    });
+    await settled();
 
     expect(find(card(el, "Iris"), '[aria-label="Output"]').dataset.ready).toBe("true");
     const head = card(el, "Head");
@@ -254,6 +263,9 @@ describe("a card", () => {
     expect(find(head, '[aria-label="Output"]').dataset.ready).toBe("false");
     expect(find(head, '[aria-label="Output"]').className).toContain("bc:opacity-50");
     expect(find(head, '[aria-label="Output"]').className).toContain("bc:grayscale");
+    // Core keeps drawing the last output, which keeps its height.
+    expect(find(head, '[aria-label="Output"]').className).toContain("bc:flex-1");
+    expect(find(head, '[aria-label="Output"]').textContent).toBe("Output of b");
     // The pill of the errors keeps the colour of its severity, and its banner
     // is open from the start.
     expect(find(head, "footer").closest('[class*="bc:grayscale"]')).toBeNull();
@@ -275,6 +287,38 @@ describe("a card", () => {
     });
     expect(line(card(el, "Head"))).toEqual([]);
     expect(banners(card(el, "Head"))).toEqual([]);
+  });
+
+  test("leaves no room for an output until its block first reads ready, so that a block that fails at once shows its footer alone, as one that waits does", async () => {
+    let fails = true;
+    const { el, core, settled } = await drawn({
+      evaluate: (request) =>
+        request.block === "b" && fails
+          ? { status: "error", conditions: [{ severity: "error", class: ["simpleError", "error", "condition"], phase: "expr", message: "No rows" }] }
+          : undefined,
+    });
+
+    const output = (name: string): HTMLElement => find(card(el, name), '[aria-label="Output"]');
+    expect(badge(card(el, "Head"))).toBe("failed");
+    expect(output("Head").className).toContain("bc:h-0");
+    expect(output("Head").parentElement?.className).not.toContain("bc:h-96");
+    expect(line(card(el, "Head"))).toEqual(["error"]);
+    expect(banners(card(el, "Head"))).toEqual([["error", "No rows"]]);
+    expect(badge(card(el, "Merge"))).toBe("waiting");
+    expect(output("Merge").className).toContain("bc:h-0");
+
+    // The user changes the block's state, and R evaluates it.
+    fails = false;
+    await step(() => {
+      core.store.apply({ blocks: { mod: { b: { state: { n: 3, direction: "head" } } } } });
+    });
+    await settled();
+
+    expect(badge(card(el, "Head"))).toBe("ready");
+    expect(output("Head").className).toContain("bc:flex-1");
+    expect(output("Head").parentElement?.className).toContain("bc:h-96");
+    expect(badge(card(el, "Merge"))).toBe("ready");
+    expect(output("Merge").className).toContain("bc:flex-1");
   });
 
   test("renames and removes its block from its menu, through core's commands", async () => {

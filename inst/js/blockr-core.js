@@ -9216,7 +9216,7 @@ function Mounted({
 }
 
 // srcts/card/status.ts
-import { useCallback as useCallback2, useSyncExternalStore } from "react";
+import { useCallback as useCallback2, useState as useState2, useSyncExternalStore } from "react";
 function useStatus(core, block) {
   const subscribe = useCallback2(
     (notify) => core.scheduler.subscribe((changed) => {
@@ -9225,6 +9225,12 @@ function useStatus(core, block) {
     [core, block]
   );
   return useSyncExternalStore(subscribe, () => core.scheduler.status(block));
+}
+function useSized(status) {
+  const ready = status?.status === "ready";
+  const [sized, setSized] = useState2(ready);
+  if (ready && !sized) setSized(true);
+  return sized || ready;
 }
 
 // srcts/page/card.tsx
@@ -9258,10 +9264,10 @@ function AloneCard({ core, id: id2 }) {
   const name3 = useBlockName(core, id2);
   const status = useStatus(core, id2);
   const footer = useFooter(status);
+  const sized = useSized(status);
   const mountUi = useCallback3((el) => core.mountBlock(el, id2), [core, id2]);
   const mountOutput2 = useCallback3((el) => core.mountOutput(el, id2), [core, id2]);
   const inputs = !core.store.locked(id2);
-  const replied2 = status !== void 0 && status.evaluated !== null;
   const current2 = status?.status === "ready" && !status.running;
   return /* @__PURE__ */ jsxs2(
     "article",
@@ -9274,7 +9280,7 @@ function AloneCard({ core, id: id2 }) {
         /* @__PURE__ */ jsxs2(
           "div",
           {
-            className: `bc:min-w-0 ${replied2 ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`,
+            className: `bc:min-w-0 ${sized ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`,
             children: [
               /* @__PURE__ */ jsx4(
                 Mounted,
@@ -9282,7 +9288,7 @@ function AloneCard({ core, id: id2 }) {
                   mount: mountOutput2,
                   label: "Output",
                   data: { "data-current": String(current2) },
-                  className: `bc:min-w-0 bc:transition-opacity ${current2 ? "" : "bc:opacity-50 bc:grayscale"} ${replied2 ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"}`
+                  className: `bc:min-w-0 bc:transition-opacity ${current2 ? "" : "bc:opacity-50 bc:grayscale"} ${sized ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"}`
                 }
               ),
               /* @__PURE__ */ jsx4(Footer, { ...footer })

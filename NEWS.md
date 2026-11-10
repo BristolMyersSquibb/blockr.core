@@ -361,7 +361,8 @@
   The pill of the errors reads `error`, and those of the warnings and the messages count them.
   Each pill opens and closes the banners of its conditions below the output, each condition in full, in the color of its severity and in the order R raised them.
   The pill of the errors is open from the start, so that a failed block shows its error at once.
-  A card grays out its output alone while its block is not ready, so that the pills keep the colors of their severities (#547).
+  A card grays out its output alone while its block is not ready, so that the pills keep the colors of their severities.
+  Neither kind of card leaves room for the output until the block is first ready, so that a block that fails at once shows its footer and its banners alone, as a waiting block does, rather than at the foot of an empty box (#547).
 
 # blockr.core 0.1.4
 
