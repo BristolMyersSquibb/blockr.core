@@ -1000,31 +1000,6 @@ describe("the frontend and the plugins", () => {
     expect(basic.seen).toEqual([[undefined, ["warning", "error"], "light"]]);
   });
 
-  test("hands core's basic frontend what the store dropped as each board opens, which another frontend hears from the store", async () => {
-    // A frontend that keeps what its render() gets of what the store dropped.
-    const keeping = () => {
-      const given: unknown[] = [];
-      return { given, exports: { api: 1, default: { render: (args: { dropped?: unknown }) => void given.push(args.dropped) } } };
-    };
-    const lacking = (json: JsonBoard, pkg: string): JsonBoard => ({ ...json, packages: { ...json.packages, [pkg]: "0.3.0" } });
-
-    const basic = keeping();
-    const s = await started({ [BASIC]: basic.exports }, { ...hello, board: lacking(hello.board, "blockr.dplyr") });
-    expect(basic.given).toEqual([[{ package: "blockr.dplyr", version: "0.3.0" }]]);
-
-    const opening = s.core.store.open(JSON.stringify(lacking(hello.board, "blockr.io")));
-    await tick();
-    s.r.answer();
-    await expect(opening).resolves.toEqual([{ package: "blockr.io", version: "0.3.0" }]);
-    expect(basic.given).toEqual([[{ package: "blockr.dplyr", version: "0.3.0" }], [{ package: "blockr.io", version: "0.3.0" }]]);
-
-    const front = keeping();
-    const frontend: PluginClass = { id: "blockr.test-grid_plugin", frontend: "blockr.test-front" };
-    const reply = replied({ grid });
-    await started({ [STARTUP]: registering([frontend]), [FRONT]: front.exports }, { ...reply, board: lacking(reply.board, "blockr.dplyr") });
-    expect(front.given).toEqual([undefined]);
-  });
-
   test("shows why in the page's element in place of the frontend where a board option that it requires does not go onto the board", async () => {
     const front = frontEnd();
     const frontend: PluginClass = { id: "blockr.test-grid_plugin", frontend: "blockr.test-front", options: ["zoom", "nowhere"] };

@@ -1,6 +1,6 @@
 import type { Loader, LoaderOptions, Measure, Source } from "../mount/index.ts";
 import type { Transport } from "../protocol/index.ts";
-import type { Dropped, Option } from "../store/index.ts";
+import type { Option } from "../store/index.ts";
 import type { PluginId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 export interface FrontEnds {
@@ -9,7 +9,7 @@ export interface FrontEnds {
         readonly source: Source | undefined;
         readonly plugin: PluginId | undefined;
     }, loader: Loader, signal: AbortSignal): Promise<void>;
-    render(core: CoreApi, signal: AbortSignal, failures: readonly string[], dropped: readonly Dropped[]): Promise<void>;
+    render(core: CoreApi, signal: AbortSignal, failures: readonly string[]): Promise<void>;
 }
 export interface Changed {
     readonly package: string;

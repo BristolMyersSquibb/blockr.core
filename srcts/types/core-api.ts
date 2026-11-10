@@ -61,7 +61,8 @@ export interface CoreApi {
   // What renderers report that the user did, such as a selection, for
   // plugins to act on.
   readonly outputEvents: OutputEvents;
-  // The notes that plugins send, which the frontend hears and draws.
+  // The notes that plugins send, and the one in which core names what the
+  // store dropped as a board opened, which the frontend hears and draws.
   readonly notifications: {
     // Hands the note to each subscriber. Core keeps no note, so a note sent
     // before anything subscribes reaches nobody.

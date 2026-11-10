@@ -1,5 +1,5 @@
 import type { Loader, Mounts } from "../mount/index.ts";
-import type { Dropped, PluginClass, Storage, Store } from "../store/index.ts";
+import type { PluginClass, Storage, Store } from "../store/index.ts";
 import type { Plugin, PluginId } from "../types/board.ts";
 import type { CoreApi, PluginModule } from "../types/core-api.ts";
 export declare const BASIC_FRONTEND: {
@@ -9,7 +9,6 @@ export declare const BASIC_FRONTEND: {
 type PluginArgs = Parameters<PluginModule["render"]>[0];
 export type FrontendArgs = Omit<PluginArgs, "plugin"> & {
     plugin?: PluginId;
-    dropped?: readonly Dropped[];
 };
 export interface Frontend {
     readonly module: string;

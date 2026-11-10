@@ -599,27 +599,22 @@ describe("what the user learns", () => {
       [
         "warning",
         [
-          "The board opened without what the app cannot rebuild:",
-          "- the package blockr.dplyr 0.3.0, which the board was saved with and the app does not load",
-          '- the block "x" (blockr.dplyr-filter_block, from blockr.dplyr)',
-          '- the plugin "gone" (blockr.gone-gone_plugin, from blockr.gone)',
-          '- the value of the board option "zoom"',
+          "The board opened without:",
+          "- package blockr.dplyr 0.3.0",
+          '- block "x" (blockr.dplyr-filter_block)',
+          '- plugin "gone" (blockr.gone-gone_plugin)',
+          '- board option "zoom"',
         ].join("\n"),
       ],
     ]);
     expect(find(page.el, '[data-severity="warning"]').getAttribute("role")).toBe("alert");
 
-    // A board that opens later is drawn by a frontend that starts again, which
-    // tells only what that board dropped.
+    // A board that opens later starts core and the frontend again, which shows
+    // only the note of what that board dropped.
     picking(new File([savedAs(page.core, (json) => ({ ...json, packages: { ...json.packages, "blockr.io": "0.1.0" } }))], "board.json"));
     await click(button(page.el, "Open"));
     await page.settled();
-    expect(notices(page.el)).toEqual([
-      [
-        "warning",
-        "The board opened without what the app cannot rebuild:\n- the package blockr.io 0.1.0, which the board was saved with and the app does not load",
-      ],
-    ]);
+    expect(notices(page.el)).toEqual([["warning", "The board opened without:\n- package blockr.io 0.1.0"]]);
 
     vi.restoreAllMocks();
     picking(new File([savedAs(page.core, renamed("Clean"))], "board.json"));

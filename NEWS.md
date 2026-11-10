@@ -294,8 +294,7 @@
 * Core's basic frontend saves and opens a board through `core.plugins.storage()`: the board's storage plugin, or core's own, which saves the board as a download and opens an upload, where the board holds none.
   Its toolbar has a button for each plugin whose class has a `ui`, which opens the plugin's UI in a drawer beside the board, one drawer at a time.
   A card gives its block focus as the user clicks into it or moves the keyboard's focus into it.
-  Beside the edits that the store refused, the frontend shows the notes that plugins send, in the color of their severity, and what the store dropped as the board opened.
-  It names each package that the board was saved with and the app does not load, with its version, each block and each plugin with its class and the package of that class, and each board option whose value it dropped.
+  Beside the edits that the store refused, the frontend shows the notes that plugins send, in the color of their severity, and the note that core sends as a board opens, which names what the store dropped.
   On a locked board, the toolbar keeps the board options, and keeps opening another board unless the load lock is on (#507).
 * Core refuses a block class's UI module whose `options` leaves out a board option that a request of the class reads.
   It shows an error in the block's element in place of the module's UI, as it does for a module that declares another major of core's JS API.

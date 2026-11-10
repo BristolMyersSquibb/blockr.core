@@ -11,8 +11,8 @@
 // Its render() takes four steps:
 // 1. It demands every block, and the blocks in view higher still, from the
 //    board, so that the scheduler evaluates first what the page first shows.
-// 2. It tells the user what the store dropped as the board opened, which core
-//    hands it, and from then on each note that a plugin sends.
+// 2. It shows each note that a plugin sends, and the one in which core names
+//    what the store dropped as the board opened.
 // 3. It draws the board that the store holds, and then demands the blocks in
 //    view as the page lays out their cards.
 // 4. It binds undo and redo to their shortcuts.
@@ -20,33 +20,20 @@
 
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import type { Dropped } from "../../store/index.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import { BasicBoard } from "./board.tsx";
 import type { FrontEnd } from "./context.ts";
 import { demandShown } from "./demand.ts";
-import { droppedNote } from "./dropped.ts";
 import { createNotices } from "./notices.ts";
 import { bindShortcuts } from "./shortcuts.ts";
 
 export const api = 1;
 
 export default {
-  render({
-    el,
-    core,
-    dropped = [],
-  }: {
-    el: HTMLElement;
-    core: CoreApi;
-    signal: AbortSignal;
-    dropped?: readonly Dropped[];
-  }): () => void {
+  render({ el, core }: { el: HTMLElement; core: CoreApi; signal: AbortSignal }): () => void {
     const doc = el.ownerDocument;
     const shown = demandShown(core, doc.defaultView ?? window);
     const notices = createNotices();
-    const told = droppedNote(dropped);
-    if (told !== undefined) notices.add(told);
     const unnotify = core.notifications.subscribe((note) => {
       notices.add(note);
     });

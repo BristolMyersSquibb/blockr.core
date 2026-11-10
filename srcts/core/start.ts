@@ -75,7 +75,7 @@ import type { Scheduler } from "../scheduler/index.ts";
 import { createStore, StoreError } from "../store/index.ts";
 import type { Dropped, Option, Store } from "../store/index.ts";
 import type { PluginId } from "../types/board.ts";
-import type { CoreApi } from "../types/core-api.ts";
+import type { CoreApi, Note } from "../types/core-api.ts";
 import { asError, isObject, messageOf, own, quoted, report } from "../util/index.ts";
 import { createBlockrOptions } from "./blockr-options.ts";
 import { createCore } from "./core.ts";
@@ -100,12 +100,11 @@ export interface FrontEnds {
   ): Promise<void>;
   // Calls the render() of the frontend that prepare() imported, with the
   // element, CoreApi, the plugin's id and a signal, and resolves once render()
-  // has returned or resolved. Core's basic frontend gets what the store
-  // dropped as the board opened in place of a plugin's id. Where board options
-  // that the frontend requires did not go onto the board, it shows why in the
-  // element instead, and calls no render(). The frontend ends as the signal
-  // aborts, as the next board opens.
-  render(core: CoreApi, signal: AbortSignal, failures: readonly string[], dropped: readonly Dropped[]): Promise<void>;
+  // has returned or resolved. Where board options that the frontend requires
+  // did not go onto the board, it shows why in the element instead, and calls
+  // no render(). The frontend ends as the signal aborts, as the next board
+  // opens.
+  render(core: CoreApi, signal: AbortSignal, failures: readonly string[]): Promise<void>;
 }
 
 // A package that a later reply names at another version than the page loaded.
@@ -298,8 +297,8 @@ export function start(options: StartOptions): Started {
   // scheduler and CoreApi, each of which the abort of the opening's controller
   // ends. It initializes the startup modules with that CoreApi and signal,
   // opens the board in the store, draws it with its frontend, starts the
-  // scheduler and then the board's plugins, and resolves with CoreApi and
-  // what the store dropped.
+  // scheduler, sends the note that names what the store dropped, then starts
+  // the board's plugins, and resolves with CoreApi and what the store dropped.
   async function boot(reply: HelloReply, later: Later | undefined): Promise<{ core: CoreApi; dropped: Dropped[] }> {
     // The opening ends as the next board opens, or as the page stops.
     const controller = new AbortController();
@@ -404,10 +403,12 @@ export function start(options: StartOptions): Started {
       ),
     ]);
     try {
-      await options.frontEnds?.render(core, signal, failures, dropped);
+      await options.frontEnds?.render(core, signal, failures);
     } finally {
       scheduler.start();
     }
+    // The frontend subscribes to the notes as it draws, so this one reaches it.
+    if (dropped.length > 0) core.notifications.notify(droppedNote(dropped));
     await plugins.start();
     if (failure !== undefined) throw failure;
     return { core, dropped };
@@ -568,6 +569,19 @@ function askReload(changed: readonly Changed[]): void {
       `R now runs ${changed.map((c) => `${c.package} ${c.now}`).join(", ")}, where the page loaded ${changed.map((c) => `${c.package} ${c.loaded}`).join(", ")}. Reload the page.`,
     ),
   );
+}
+
+// The note that names what the store dropped as a board opened, one line for
+// each, as Board objects has it
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.1#objects-that-cannot-be-rebuilt).
+function droppedNote(dropped: readonly Dropped[]): Note {
+  const lines = dropped.map((item) => {
+    if ("option" in item) return `- board option "${item.option}"`;
+    if ("block" in item) return `- block "${item.block}" (${item.registry_id})`;
+    if ("plugin" in item) return `- plugin "${item.plugin}" (${item.class})`;
+    return `- package ${item.package} ${item.version}`;
+  });
+  return { message: ["The board opened without:", ...lines].join("\n"), severity: "warning" };
 }
 
 // What a startup module exports as its default.

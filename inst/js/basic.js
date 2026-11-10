@@ -1338,25 +1338,6 @@ function inView(el, view) {
   return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < view.innerHeight && rect.left < view.innerWidth;
 }
 
-// srcts/modules/basic/dropped.ts
-function droppedNote(dropped) {
-  if (dropped.length === 0) return void 0;
-  const lines = dropped.map((item) => `- ${named(item)}`);
-  return {
-    message: ["The board opened without what the app cannot rebuild:", ...lines].join("\n"),
-    severity: "warning"
-  };
-}
-function named(item) {
-  if ("option" in item) return `the value of the board option "${item.option}"`;
-  if ("block" in item) return `the block "${item.block}" (${ofClass(item.registry_id, item.package)})`;
-  if ("plugin" in item) return `the plugin "${item.plugin}" (${ofClass(item.class, item.package)})`;
-  return `the package ${item.package} ${item.version}, which the board was saved with and the app does not load`;
-}
-function ofClass(id2, pkg) {
-  return pkg === null ? id2 : `${id2}, from ${pkg}`;
-}
-
 // srcts/modules/basic/notices.ts
 function createNotices() {
   let notices = [];
@@ -1424,16 +1405,10 @@ function editable(target2) {
 import { jsx as jsx10 } from "react/jsx-runtime";
 var api = 1;
 var basic_default = {
-  render({
-    el,
-    core,
-    dropped = []
-  }) {
+  render({ el, core }) {
     const doc = el.ownerDocument;
     const shown = demandShown(core, doc.defaultView ?? window);
     const notices = createNotices();
-    const told = droppedNote(dropped);
-    if (told !== void 0) notices.add(told);
     const unnotify = core.notifications.subscribe((note) => {
       notices.add(note);
     });
