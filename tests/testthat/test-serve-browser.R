@@ -69,7 +69,10 @@ test_that("serve() serves a board, a JSON board's path and a block alone", {
     quote(serve(new_head_block(n = 2L), data = list(data = datasets::BOD)))
   )
 
-  page_showing(page, url, c("Head", "<data.frame> [2 × 2]"))
+  # The footer shows the summary as R replies to the evaluation, and the output
+  # follows once R has answered the output's own request, so the page shows the
+  # table's column demand only then.
+  page_showing(page, url, c("Head", "<data.frame> [2 × 2]", "demand"))
 
   expect_identical(
     page_eval(page, "document.querySelector('h1').textContent"),
