@@ -356,6 +356,12 @@
   Once its choices are known, a `Select` shows a value that they lack as missing, as `wt (not available)`, and marks itself invalid, and a `Checklist` marks such a string the same way while the user can still clear it.
   Neither submits anything, so the state stays as the user left it.
   The scatter block fails where its data lacks one of its columns, rather than draw `x` against the row index where only `y` is missing (#542).
+* The cards of core's basic frontend show their block's status as the card of a block that `serve()` serves alone does, in place of the summary below the output and the list of conditions.
+  A footer, one centered line under the output, shows a ready block's summary, or why a waiting block waits, and a pill for each severity of the conditions of R's reply that the board option `show_conditions` names.
+  The pill of the errors reads `error`, and those of the warnings and the messages count them.
+  Each pill opens and closes the banners of its conditions below the output, each condition in full, in the color of its severity and in the order R raised them.
+  The pill of the errors is open from the start, so that a failed block shows its error at once.
+  A card grays out its output alone while its block is not ready, so that the pills keep the colors of their severities (#547).
 
 # blockr.core 0.1.4
 
