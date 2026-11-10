@@ -149,7 +149,7 @@ installed_with_serve <- function() {
 # Whether the blockr.core installed, which the app runs, gives end-to-end tests
 # what they read (test-end-to-end.R).
 installed_with_blockr_test <- function() {
-  installed_has("blockrTest", "js", "blockr-core.js")
+  installed_has("blockrTest", "js", "blockr-test.js")
 }
 
 # Starts the app that `call` returns, a call to serve(), in another R process

@@ -1,16 +1,13 @@
 // The object through which end-to-end tests read the board and each block's
 // status, on the CoreApi for tests, with R played from the protocol's
-// fixtures, and the page, which puts it on `window` in Shiny's test mode.
+// fixtures, and on the page that core starts, as the script that R writes for
+// the page in Shiny's test mode reads it.
 
-import { afterEach, describe, expect, test } from "vitest";
-import type { Transport } from "../protocol/index.ts";
-import { HELLO, READY, stubCore } from "../stubs/index.ts";
-import { blockrTest } from "./blockr-test.ts";
-import { startPage } from "./page.ts";
-
-afterEach(() => {
-  delete window.blockrTest;
-});
+import { describe, expect, test } from "vitest";
+import { startPage } from "../../page/index.ts";
+import type { Transport } from "../../protocol/index.ts";
+import { HELLO, READY, stubCore } from "../../stubs/index.ts";
+import { blockrTest } from "./index.ts";
 
 describe("blockrTest", () => {
   test("gives copies of the open board and of the status of each of its blocks", async () => {
@@ -68,17 +65,15 @@ describe("the page", () => {
   // than the note that the board is loading.
   const silent: Transport = { send: () => Promise.resolve(), listen: () => undefined };
 
-  test("puts blockrTest on window in test mode only", () => {
-    const plain = startPage({ el: document.createElement("div"), transport: silent });
-    expect(window.blockrTest).toBeUndefined();
+  test("gives blockrTest the core that it starts, as the script in test mode does", () => {
+    const started = startPage({ el: document.createElement("div"), transport: silent });
 
-    const testing = startPage({ el: document.createElement("div"), transport: silent, test: true });
-    expect(window.blockrTest?.board()).toBeNull();
-    expect(window.blockrTest?.statuses()).toEqual({});
+    // As page_script() in R/utils-serve.R writes it.
+    const read = blockrTest(() => started.core());
+    expect(read.board()).toBeNull();
+    expect(read.statuses()).toEqual({});
 
-    for (const started of [plain, testing]) {
-      started.ready.catch(() => undefined);
-      started.stop();
-    }
+    started.ready.catch(() => undefined);
+    started.stop();
   });
 });

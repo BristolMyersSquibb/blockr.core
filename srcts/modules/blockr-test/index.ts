@@ -1,15 +1,20 @@
 // What the page gives end-to-end tests in Shiny's test mode, as shinytest2
 // starts an app (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#testing).
-// The client holds the board and each block's status, so the page puts
-// `blockrTest` on `window`, for AppDriver$get_js() to read, as in
-// `app$get_js("blockrTest.statuses()")`.
-// R exports each block's latest result beside it, through exportTestValues().
-// It reads the board that is open, which core makes anew as another board
-// opens, and gives copies, so that nothing changes the board through it.
+// The client holds the board and each block's status.
+// So in test mode, the script that R writes for the page imports
+// `blockrTest()` from this module, beside startPage() from core's runtime, and
+// puts what it returns on `window` as `blockrTest`, for AppDriver$get_js() to
+// read, as in `app$get_js("blockrTest.statuses()")`.
+// A page outside test mode loads none of this module.
+// R exports each block's latest result itself, through exportTestValues().
+// The object reads the board that is open, which core makes anew as another
+// board opens, and gives copies, so that nothing changes the board through it.
+// The module imports nothing but types, so its bundle holds nothing of core's
+// runtime.
 
-import type { BlockStatus } from "../scheduler/index.ts";
-import type { BlockId, Board } from "../types/board.ts";
-import type { CoreApi } from "../types/core-api.ts";
+import type { BlockStatus } from "../../scheduler/index.ts";
+import type { BlockId, Board } from "../../types/board.ts";
+import type { CoreApi } from "../../types/core-api.ts";
 
 export interface BlockrTest {
   // A copy of the board that the store holds now, or null while core starts.
@@ -18,12 +23,6 @@ export interface BlockrTest {
   // board that the store holds, as the scheduler gives them.
   // It holds none while core starts.
   statuses(): Record<BlockId, BlockStatus>;
-}
-
-declare global {
-  interface Window {
-    blockrTest?: BlockrTest;
-  }
 }
 
 // What the object reads of the CoreApi of the board that is open.

@@ -287,26 +287,36 @@ test_that("the page names the import map first and starts the client", {
   expect_match(page$html, "\"blockr-page\"), alone: true });", fixed = TRUE)
 })
 
-test_that("in Shiny's test mode, the page has the client put out blockrTest", {
+test_that("in Shiny's test mode, the page puts out blockrTest", {
 
-  expect_no_match(
-    htmltools::renderTags(serve_page())$html,
-    "test: true",
-    fixed = TRUE
-  )
+  # Outside test mode, the page loads nothing for end-to-end tests.
+  page <- htmltools::renderTags(serve_page())$html
+
+  expect_no_match(page, "blockrTest", fixed = TRUE)
 
   old <- shiny::getShinyOption("testmode")
   shiny::shinyOptions(testmode = TRUE)
   withr::defer(shiny::shinyOptions(testmode = old))
 
+  page <- htmltools::renderTags(serve_page())$html
+
   expect_match(
-    htmltools::renderTags(serve_page())$html,
-    "\"blockr-page\"), test: true });",
+    page,
+    "import { blockrTest } from \"./blockr.core/js/blockr-test.js?v=",
+    fixed = TRUE
+  )
+  expect_match(
+    page,
+    paste0(
+      "const started = startPage({ el: ",
+      "document.getElementById(\"blockr-page\") });\n",
+      "window.blockrTest = blockrTest(() => started.core());\n"
+    ),
     fixed = TRUE
   )
   expect_match(
     htmltools::renderTags(serve_page(alone = TRUE))$html,
-    "\"blockr-page\"), alone: true, test: true });",
+    "\"blockr-page\"), alone: true });\nwindow.blockrTest = ",
     fixed = TRUE
   )
 })

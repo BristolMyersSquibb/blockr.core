@@ -174,12 +174,22 @@ latest_results <- function(ev, alone = FALSE) {
 # in, and the module script that starts the client with `startPage()`.
 # R makes the page for each request, so that its URLs name the files that R
 # serves now.
-# In Shiny's test mode, as shinytest2 starts an app, the client puts
-# `blockrTest` on the page's `window`, for end-to-end tests to read.
+# In Shiny's test mode, as shinytest2 starts an app, the module script also
+# imports `blockrTest()` from core's module for end-to-end tests, and puts what
+# it returns on `window`, for the tests to read.
+# A page outside test mode loads none of that module.
 serve_page <- function(alone = FALSE,
                        test = isTRUE(shiny::getShinyOption("testmode"))) {
 
   runtime <- served_module(core_runtime())
+
+  script <- page_script(
+    runtime[["module"]],
+    alone,
+    if (test) {
+      served_url(js_module("js/blockr-test.js", package = "blockr.core"))
+    }
+  )
 
   shiny::tagList(
     import_map_dependency(),
@@ -187,10 +197,7 @@ serve_page <- function(alone = FALSE,
       shiny::tags$link(rel = "stylesheet", href = runtime[["css"]])
     ),
     shiny::tags$div(id = "blockr-page"),
-    shiny::tags$script(
-      type = "module",
-      shiny::HTML(page_script(runtime[["module"]], alone, test))
-    )
+    shiny::tags$script(type = "module", shiny::HTML(script))
   )
 }
 
@@ -207,14 +214,28 @@ import_map_dependency <- function() {
 # The module script that imports `startPage()` from core's runtime, at the URL
 # given, and starts the client in the page's element.
 # The client draws a block that `serve()` serves alone where `alone` is `TRUE`.
-# It puts `blockrTest` on `window` where `test` is `TRUE`.
-page_script <- function(runtime, alone = FALSE, test = FALSE) {
-  paste0(
-    "import { startPage } from \"./", runtime, "\";\n",
+# Where `test` gives the URL of core's module for end-to-end tests, the script
+# also imports `blockrTest()` from it, and puts what that returns on `window`
+# as `blockrTest`.
+page_script <- function(runtime, alone = FALSE, test = NULL) {
+
+  start <- paste0(
     "startPage({ el: document.getElementById(\"blockr-page\")",
     if (alone) ", alone: true" else "",
-    if (test) ", test: true" else "",
-    " });\n"
+    " })"
+  )
+
+  paste0(
+    "import { startPage } from \"./", runtime, "\";\n",
+    if (is.null(test)) {
+      paste0(start, ";\n")
+    } else {
+      paste0(
+        "import { blockrTest } from \"./", test, "\";\n",
+        "const started = ", start, ";\n",
+        "window.blockrTest = blockrTest(() => started.core());\n"
+      )
+    }
   )
 }
 
