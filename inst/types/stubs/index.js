@@ -9171,15 +9171,17 @@ function NumberInput({
   bound,
   label,
   min,
-  max
+  max,
+  outdated = false
 }) {
   const [text, typed] = useTyped(bound);
   const shown2 = text ?? (typeof bound.value === "number" ? String(bound.value) : "");
+  const largest = outdated ? void 0 : max;
   const read = (input2) => {
     const value2 = input2.trim() === "" ? Number.NaN : Number(input2);
     if (!Number.isInteger(value2)) return void 0;
     if (min !== void 0 && value2 < min) return void 0;
-    if (max !== void 0 && value2 > max) return void 0;
+    if (largest !== void 0 && value2 > largest) return void 0;
     return value2;
   };
   return /* @__PURE__ */ jsxs(Fragment, { children: [
@@ -9189,7 +9191,7 @@ function NumberInput({
         type: "number",
         step: 1,
         min,
-        max,
+        max: largest,
         required: true,
         className: styles.box,
         value: shown2,

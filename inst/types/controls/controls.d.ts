@@ -3,6 +3,7 @@ import type { BlockHost, OptionHost, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 export interface NumberInput {
     setMax(max: number | undefined): void;
+    setOutdated(outdated: boolean): void;
 }
 export interface Select {
     setChoices(choices: readonly Choice[]): void;

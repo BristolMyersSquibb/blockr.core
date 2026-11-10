@@ -217,8 +217,8 @@ describe("the inputs of a block's UI", () => {
 });
 
 // The UIs of core's board options, each bound to the board option's value.
-function Rows({ host }: { host: OptionHost<number> }): ReactElement {
-  return <NumberInput bound={useValue(host)} label="Preview rows" min={1} />;
+function Rows({ host, max, outdated }: { host: OptionHost<number>; max?: number; outdated?: boolean }): ReactElement {
+  return <NumberInput bound={useValue(host)} label="Preview rows" min={1} max={max} outdated={outdated} />;
 }
 
 function Conditions({ host, outdated }: { host: OptionHost<string[]>; outdated?: boolean }): ReactElement {
@@ -279,6 +279,29 @@ describe("the inputs of a board option's UI", () => {
 
     expect(host.submitted).toEqual([50]);
     expect(input.value).toBe("10");
+  });
+
+  test("submit a number above an outdated most, and mark none until it is current, but hold to the least", async () => {
+    const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
+    const { el, redraw } = draw(<Rows host={host} max={30} outdated />);
+    const input = find(el, "input", HTMLInputElement);
+    const shown = () => [input.value, input.max, input.getAttribute("aria-invalid")];
+
+    act(() => {
+      type(input, "0");
+    });
+    await wait(PAUSE);
+    expect(shown()).toEqual(["0", "", "true"]);
+    act(() => {
+      type(input, "50");
+    });
+    await wait(PAUSE);
+    expect(shown()).toEqual(["50", "", "false"]);
+    expect(host.submitted).toEqual([50]);
+
+    redraw(<Rows host={host} max={30} />);
+    expect(shown()).toEqual(["50", "30", "true"]);
+    expect(host.submitted).toEqual([50]);
   });
 
   test("submit the checked severities in the order of the choices", async () => {

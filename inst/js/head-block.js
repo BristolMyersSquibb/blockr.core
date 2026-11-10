@@ -8,10 +8,10 @@ var ends = [
 ];
 function HeadBlock({ host }) {
   const rows = useRequest(host, "n_max");
+  const max = Array.isArray(rows.answer) && typeof rows.answer[0] === "number" ? rows.answer[0] : void 0;
   const outdated = rows.loading || rows.error !== null;
-  const max = !outdated && Array.isArray(rows.answer) && typeof rows.answer[0] === "number" ? rows.answer[0] : void 0;
   return /* @__PURE__ */ jsxs(Stack, { children: [
-    /* @__PURE__ */ jsx(NumberInput, { bound: useValue(host, "n"), label: "Number of rows", min: 0, max }),
+    /* @__PURE__ */ jsx(NumberInput, { bound: useValue(host, "n"), label: "Number of rows", min: 0, max, outdated }),
     /* @__PURE__ */ jsx(Select, { bound: useValue(host, "direction"), label: "Direction", placeholder: "Choose an end", choices: ends })
   ] });
 }

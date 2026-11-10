@@ -14,11 +14,12 @@ export declare function TextInput({ bound, label, placeholder, lines, }: {
     placeholder?: string;
     lines?: number;
 }): ReactElement;
-export declare function NumberInput({ bound, label, min, max, }: {
+export declare function NumberInput({ bound, label, min, max, outdated, }: {
     bound: Bound;
     label: string;
     min?: number;
     max?: number;
+    outdated?: boolean;
 }): ReactElement;
 export declare function Select({ bound, label, placeholder, choices, outdated, }: {
     bound: Bound;

@@ -236,15 +236,17 @@ function NumberInput({
   bound,
   label,
   min,
-  max
+  max,
+  outdated = false
 }) {
   const [text, typed] = useTyped(bound);
   const shown = text ?? (typeof bound.value === "number" ? String(bound.value) : "");
+  const largest = outdated ? void 0 : max;
   const read = (input) => {
     const value = input.trim() === "" ? Number.NaN : Number(input);
     if (!Number.isInteger(value)) return void 0;
     if (min !== void 0 && value < min) return void 0;
-    if (max !== void 0 && value > max) return void 0;
+    if (largest !== void 0 && value > largest) return void 0;
     return value;
   };
   return /* @__PURE__ */ jsxs(Fragment, { children: [
@@ -254,7 +256,7 @@ function NumberInput({
         type: "number",
         step: 1,
         min,
-        max,
+        max: largest,
         required: true,
         className: styles.box,
         value: shown,
@@ -476,10 +478,15 @@ function controls(host, signal) {
   }
   function number(key, options) {
     let max;
-    input(key, (bound) => /* @__PURE__ */ jsx2(NumberInput, { bound, label: options.label, min: options.min, max }));
+    let outdated = false;
+    input(key, (bound) => /* @__PURE__ */ jsx2(NumberInput, { bound, label: options.label, min: options.min, max, outdated }));
     return {
       setMax(next) {
         max = next;
+        redraw();
+      },
+      setOutdated(next) {
+        outdated = next;
         redraw();
       }
     };

@@ -119,10 +119,15 @@ function controls(host, signal) {
   }
   function number(key, options) {
     let max;
-    input(key, (bound) => /* @__PURE__ */ jsx(inputs.NumberInput, { bound, label: options.label, min: options.min, max }));
+    let outdated = false;
+    input(key, (bound) => /* @__PURE__ */ jsx(inputs.NumberInput, { bound, label: options.label, min: options.min, max, outdated }));
     return {
       setMax(next) {
         max = next;
+        redraw();
+      },
+      setOutdated(next) {
+        outdated = next;
         redraw();
       }
     };

@@ -73,24 +73,31 @@ export function TextInput({
 
 // A number input for an integer, no smaller than `min` and no larger than
 // `max`, which submits only a number in that range and marks one outside it.
+// While it is `outdated`, as while the request that gives `max` asks again,
+// its `max` may be for older data.
+// It then submits a number above it and marks none,
+// but still holds to `min`.
 export function NumberInput({
   bound,
   label,
   min,
   max,
+  outdated = false,
 }: {
   bound: Bound;
   label: string;
   min?: number;
   max?: number;
+  outdated?: boolean;
 }): ReactElement {
   const [text, typed] = useTyped(bound);
   const shown = text ?? (typeof bound.value === "number" ? String(bound.value) : "");
+  const largest = outdated ? undefined : max;
   const read = (input: string): number | undefined => {
     const value = input.trim() === "" ? Number.NaN : Number(input);
     if (!Number.isInteger(value)) return undefined;
     if (min !== undefined && value < min) return undefined;
-    if (max !== undefined && value > max) return undefined;
+    if (largest !== undefined && value > largest) return undefined;
     return value;
   };
   return (
@@ -100,7 +107,7 @@ export function NumberInput({
           type="number"
           step={1}
           min={min}
-          max={max}
+          max={largest}
           required
           className={styles.box}
           value={shown}

@@ -3,7 +3,7 @@
 // which the request n_max gives, and a select of the end it keeps them from.
 // While the request asks again, as after the input changed,
 // and after an ask failed, that number is the one of older data,
-// so the number input sets no largest value meanwhile.
+// so the number input marks no number above it.
 
 import type { ReactElement } from "react";
 import { NumberInput, reactModule, Select, Stack, useRequest, useValue } from "../../react/index.ts";
@@ -20,11 +20,11 @@ const ends = [
 
 function HeadBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   const rows = useRequest(host, "n_max");
+  const max = Array.isArray(rows.answer) && typeof rows.answer[0] === "number" ? rows.answer[0] : undefined;
   const outdated = rows.loading || rows.error !== null;
-  const max = !outdated && Array.isArray(rows.answer) && typeof rows.answer[0] === "number" ? rows.answer[0] : undefined;
   return (
     <Stack>
-      <NumberInput bound={useValue(host, "n")} label="Number of rows" min={0} max={max} />
+      <NumberInput bound={useValue(host, "n")} label="Number of rows" min={0} max={max} outdated={outdated} />
       <Select bound={useValue(host, "direction")} label="Direction" placeholder="Choose an end" choices={ends} />
     </Stack>
   );

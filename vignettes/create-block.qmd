@@ -509,11 +509,11 @@ const ends = [
 
 function HeadBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   const rows = useRequest(host, "n_max");
+  const max = Array.isArray(rows.answer) && typeof rows.answer[0] === "number" ? rows.answer[0] : undefined;
   const outdated = rows.loading || rows.error !== null;
-  const max = !outdated && Array.isArray(rows.answer) && typeof rows.answer[0] === "number" ? rows.answer[0] : undefined;
   return (
     <Stack>
-      <NumberInput bound={useValue(host, "n")} label="Number of rows" min={0} max={max} />
+      <NumberInput bound={useValue(host, "n")} label="Number of rows" min={0} max={max} outdated={outdated} />
       <Select bound={useValue(host, "direction")} label="Direction" placeholder="Choose an end" choices={ends} />
     </Stack>
   );
@@ -534,7 +534,7 @@ A `Select` or a `Checklist` whose choices a request gives takes them as `undefin
 Once they are known, the input shows a value that they lack, such as a column that the data no longer has, as missing, and submits nothing, so that the state stays as the user left it.
 The last answer is for older data while the request asks again, as after the block's inputs changed, and after an ask failed.
 The module then sets `outdated` on the input, which keeps the choices on screen but marks no value that they lack.
-For the same reason, the head block above sets no `max` until the rows of its current input arrive.
+A `NumberInput` whose `max` a request gives takes `outdated` too, as in the head block above, and then marks no number above it.
 
 The state's type sits in `state.ts`, from which the package's build writes the JSON Schema:
 
@@ -646,10 +646,11 @@ export default {
     ui.select("direction", { label: "Direction", placeholder: "Choose an end", choices: ends });
     ui.follow("n_max", {
       loading() {
-        n.setMax(undefined);
+        n.setOutdated(true);
       },
       answer(rows) {
         n.setMax(Array.isArray(rows) && typeof rows[0] === "number" ? rows[0] : undefined);
+        n.setOutdated(false);
       },
     });
     el.replaceChildren(ui.el);
@@ -660,8 +661,7 @@ export default {
 
 A select or a checklist of the controls has no choices until the module gives them, in its options or through `setChoices()` once a request answers.
 The option `loading` of `follow()` runs each time the request is asked, and the option `answer` once it answers.
-In `loading`, a module calls `setOutdated(true)` on each select or checklist whose choices the request gives, and in `answer`, `setOutdated(false)`.
-The head block above drops its `max` in `loading` instead.
+In `loading`, a module calls `setOutdated(true)` on each input whose choices or `max` the request gives, as the head block above does, and in `answer`, `setOutdated(false)`.
 
 A widget of a package's own binds to a state arg through `bind()` of `@blockr/core/binding`, which keeps the contract's rules without React.
 A package that builds nothing writes the schema of the state by hand.

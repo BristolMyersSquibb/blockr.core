@@ -223,6 +223,25 @@ describe("the controls of a board option's UI", () => {
     }).toThrow('The host of the board option "n_rows" holds no value "dark_mode".');
   });
 
+  test("submit a number above the most while setOutdated() says that it may be for older data, and mark none", async () => {
+    const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
+    const ui = controls(host, abort.signal);
+    const rows = ui.number("n_rows", { label: "Preview rows", min: 1 });
+    rows.setMax(30);
+    rows.setOutdated(true);
+    document.body.append(ui.el);
+    const input = find(ui.el, "input", HTMLInputElement);
+    const shown = () => [input.value, input.max, input.getAttribute("aria-invalid")];
+
+    type(input, "50");
+    await vi.advanceTimersByTimeAsync(PAUSE);
+    expect(shown()).toEqual(["50", "", "false"]);
+    expect(host.submitted).toEqual([50]);
+
+    rows.setOutdated(false);
+    expect(shown()).toEqual(["50", "30", "true"]);
+  });
+
   test("submit the checked strings in the order of the choices where ordered", () => {
     const host = stubOptionHost<string[]>({ option: "show_conditions", value: ["error"] });
     const ui = controls(host, abort.signal);
