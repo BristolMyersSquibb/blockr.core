@@ -28,14 +28,14 @@
 
 import { memo, useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
+import { Mounted, useStatus } from "../../card/index.ts";
 import type { Condition } from "../../protocol/index.ts";
 import type { BlockStatus, Status } from "../../scheduler/index.ts";
 import type { Block, BlockId, Stack } from "../../types/board.ts";
 import { own } from "../../util/index.ts";
 import { runCommand, useFrontEnd } from "./context.ts";
-import { useStatus } from "./hooks.ts";
 import type { AddMode } from "./picker.tsx";
-import { classes, Menu, Mounted, NameField } from "./ui.tsx";
+import { classes, Menu, NameField } from "./ui.tsx";
 
 type Severity = Condition["severity"];
 
