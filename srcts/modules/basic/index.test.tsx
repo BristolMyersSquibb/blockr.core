@@ -466,8 +466,8 @@ describe("the toolbar", () => {
       },
     };
     const page = await drawn(withClasses([session], { session: plugin(session, "Session") }));
-    // The plugin's class has no ui, so the toolbar has no button for it.
-    expect(buttons(toolbar(page.el))).not.toContain("Session");
+    // The plugin's class has no ui, so the page shows no section for it.
+    expect(page.el.querySelector("aside")).toBeNull();
 
     await click(button(page.el, "Save"));
     expect(saves).toEqual([page.core.store.save()]);
@@ -499,48 +499,46 @@ describe("a plugin", () => {
   // screen.
   const bridge: PluginClass = { id: "blockr.test-bridge_plugin", start: () => undefined };
 
-  test("whose class has a ui shows in a drawer of its own, which a button of the toolbar opens, one at a time", async () => {
+  test("whose class has a ui shows beside the board in a section of its own, which the user collapses without core unmounting its UI", async () => {
     const ui = pluginUi();
     const page = await drawn({
       ...withClasses([notes, bridge], { todo: plugin(notes, "To do"), bridge: plugin(bridge, "Bridge"), later: plugin(notes, "Later") }),
       modules: { "blockr.test-notes": ui.exports },
     });
-    const opener = (name: string): HTMLButtonElement => button(toolbar(page.el), name);
-    expect(buttons(toolbar(page.el)).slice(-3)).toEqual(["Open", "To do", "Later"]);
-    expect(page.el.querySelector("aside")).toBeNull();
+    const sections = (): HTMLDetailsElement[] => [...find(page.el, 'aside[aria-label="Plugins"]').querySelectorAll("details")];
+    const shown = () => sections().map((section) => [section.querySelector("summary")?.textContent, section.open]);
 
-    await click(opener("To do"));
-    await page.settled();
-    const drawer = find(page.el, 'aside[aria-label="To do"]');
-    // Core mounts the UI of the plugin's class in the drawer.
-    expect(ui.renders.map((render) => render.plugin)).toEqual(["todo"]);
-    expect(drawer.contains(ui.renders[0]?.el ?? null)).toBe(true);
-    expect(ui.renders[0]?.el.textContent).toBe("To do");
-    expect(opener("To do").getAttribute("aria-expanded")).toBe("true");
-    expect(opener("To do").getAttribute("aria-controls")).toBe(drawer.id);
-    // The board stays beside the drawer.
-    expect(page.el.querySelectorAll("article")).toHaveLength(6);
-
-    await click(opener("Later"));
-    await page.settled();
-    expect(page.el.querySelectorAll("aside")).toHaveLength(1);
+    // Each section starts open, in the order of the board's plugins, and core
+    // mounts the UI of the plugin's class in it. The board stays beside them.
+    expect(shown()).toEqual([
+      ["To do", true],
+      ["Later", true],
+    ]);
     expect(ui.renders.map((render) => render.plugin)).toEqual(["todo", "later"]);
-    expect(find(page.el, 'aside[aria-label="Later"]').contains(ui.renders[1]?.el ?? null)).toBe(true);
-    expect(ui.renders[0]?.signal.aborted).toBe(true);
-    expect(ui.cleanups()).toBe(1);
-    expect(opener("To do").getAttribute("aria-expanded")).toBe("false");
+    expect(sections()[0]?.contains(ui.renders[0]?.el ?? null)).toBe(true);
+    expect(ui.renders[0]?.el.textContent).toBe("To do");
+    expect(page.el.querySelectorAll("article")).toHaveLength(6);
+    expect(buttons(toolbar(page.el)).at(-1)).toBe("Open");
 
-    await click(button(find(page.el, "aside"), "Close"));
+    // A collapsed section stays collapsed as the board changes, and its
+    // plugin's UI stays mounted.
+    await click(find(page.el, "summary"));
+    await act(() => page.core.commands.run("blockr.core-rename_board", { name: "Sepals" }));
     await page.settled();
-    expect(page.el.querySelector("aside")).toBeNull();
-    expect(ui.cleanups()).toBe(2);
+    expect(page.board().name).toBe("Sepals");
+    expect(shown()).toEqual([
+      ["To do", false],
+      ["Later", true],
+    ]);
+    expect(ui.renders).toHaveLength(2);
+    expect(ui.cleanups()).toBe(0);
 
-    // The button of the plugin whose drawer is open closes it.
-    await click(opener("To do"));
-    await click(opener("To do"));
-    await page.settled();
-    expect(page.el.querySelector("aside")).toBeNull();
-    expect(ui.cleanups()).toBe(3);
+    await click(find(page.el, "summary"));
+    expect(shown()).toEqual([
+      ["To do", true],
+      ["Later", true],
+    ]);
+    expect(ui.renders).toHaveLength(2);
   });
 });
 
@@ -731,7 +729,8 @@ describe("a locked board", () => {
 
     // The board options, the history, saving and the plugins stay, since no
     // lock fixes them, and the load lock takes opening another board.
-    expect(buttons(toolbar(el))).toEqual(["Options", "Undo", "Redo", "Save", "To do"]);
+    expect(buttons(toolbar(el))).toEqual(["Options", "Undo", "Redo", "Save"]);
+    expect(find(el, 'aside[aria-label="Plugins"] summary').textContent).toBe("To do");
     expect(el.querySelector('button[aria-label="Rename board"]')).toBeNull();
     // No card has a menu.
     expect(el.querySelectorAll("article button")).toHaveLength(0);

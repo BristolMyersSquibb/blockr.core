@@ -292,7 +292,7 @@
   Beside them, `CoreApi` gains `notifications`, which hands each note that a plugin sends to the frontend, and `focus`, the block that has focus, which goes back to none where that block leaves the board.
   The `CoreApi` for tests runs the board's plugins as the page does, and serves a module that a test gives by its id, such as a plugin's UI (#506).
 * Core's basic frontend saves and opens a board through `core.plugins.storage()`: the board's storage plugin, or core's own, which saves the board as a download and opens an upload, where the board holds none.
-  Its toolbar has a button for each plugin whose class has a `ui`, which opens the plugin's UI in a drawer beside the board, one drawer at a time.
+  It shows the UI of each plugin whose class has a `ui` in a section of its own, which the user collapses or expands, beside the board on a wide page and below it on a narrow one.
   A card gives its block focus as the user clicks into it or moves the keyboard's focus into it.
   Beside the edits that the store refused, the frontend shows the notes that plugins send, in the color of their severity, and the note that core sends as a board opens, which names what the store dropped.
   On a locked board, the toolbar keeps the board options, and keeps opening another board unless the load lock is on (#507).

@@ -3,7 +3,7 @@
 // It draws every board that holds no frontend.
 // It does what today's frontend does wherever core's commands and store do
 // the work, so it only draws. It works on the board through CoreApi alone,
-// and places each plugin whose class has a `ui` in a drawer, reading no
+// and shows each plugin whose class has a `ui` beside the board, reading no
 // member of a plugin class beyond core's.
 // It is written in React, on the one copy of React that core puts on the
 // page.

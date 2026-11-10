@@ -1,21 +1,19 @@
 // The toolbar of core's basic frontend. It shows the board's name, which the
 // user renames, and the controls for the board: adding a block, editing links
-// and stacks, setting the board options, undo and redo, saving the board and
-// opening another, and a button for each plugin that the frontend places,
-// which opens the plugin's drawer.
+// and stacks, setting the board options, undo and redo, and saving the board
+// and opening another.
 // It saves and opens through the storage that core.plugins.storage() gives:
 // that of the board's storage plugin, or core's own, which saves a download
 // and opens an upload, where the board holds none.
 // Under the board lock, it draws no control for what the lock fixes, so that
-// the board options, undo, redo, saving, opening and the plugins stay. Under
+// the board options, undo, redo, saving and opening stay. Under
 // the load lock, it draws no control for opening a board, since the store
 // opens no other board there.
 
 import { useState } from "react";
 import type { ReactElement } from "react";
-import type { Board, PluginId } from "../../types/board.ts";
+import type { Board } from "../../types/board.ts";
 import { runCommand, useFrontEnd } from "./context.ts";
-import { placed } from "./drawer.tsx";
 import { useHistory } from "./hooks.ts";
 import { classes, NameField } from "./ui.tsx";
 
@@ -25,13 +23,9 @@ export type ToolbarDialog = "add" | "links" | "stacks" | "options";
 export interface ToolbarProps {
   readonly board: Board;
   readonly show: (dialog: ToolbarDialog) => void;
-  // The plugin whose drawer is open, if any, and the DOM id of the drawer.
-  readonly drawer: { readonly plugin: PluginId | null; readonly domId: string };
-  // Opens the plugin's drawer, or closes it where it is open.
-  readonly toggle: (plugin: PluginId) => void;
 }
 
-export function Toolbar({ board, show, drawer, toggle }: ToolbarProps): ReactElement {
+export function Toolbar({ board, show }: ToolbarProps): ReactElement {
   const front = useFrontEnd();
   const { core, notices } = front;
   const { canUndo, canRedo } = useHistory(core);
@@ -57,9 +51,9 @@ export function Toolbar({ board, show, drawer, toggle }: ToolbarProps): ReactEle
   }
 
   // Asks the storage for a board as the user clicks, since a browser shows
-  // its file picker only then, and opens what the user picks. The board that
-  // opens is drawn by a frontend that starts again, which core tells what the
-  // store dropped, so what open() resolves with goes unread here.
+  // its file picker only then, and opens what the user picks. A frontend that
+  // starts again draws the board that opens, and core sends it the note of
+  // what the store dropped, so what open() resolves with goes unread here.
   async function open(): Promise<void> {
     try {
       const text = await core.plugins.storage().open();
@@ -180,23 +174,6 @@ export function Toolbar({ board, show, drawer, toggle }: ToolbarProps): ReactEle
             Open
           </button>
         ) : null}
-        {placed(core).map(([id, plugin]) => {
-          const shown = drawer.plugin === id;
-          return (
-            <button
-              key={id}
-              type="button"
-              className={`${classes.button} bc:aria-expanded:border-border-accent bc:aria-expanded:bg-bg-subtle`}
-              aria-expanded={shown}
-              aria-controls={shown ? drawer.domId : undefined}
-              onClick={() => {
-                toggle(id);
-              }}
-            >
-              {plugin.name}
-            </button>
-          );
-        })}
       </div>
     </header>
   );
