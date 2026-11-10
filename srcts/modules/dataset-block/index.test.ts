@@ -7,6 +7,7 @@ import { stubBlockHost } from "../../stubs/index.ts";
 import { find, pick, texts } from "../../testing/inputs.ts";
 import { blockFixture, mountOnPage, settle } from "../../testing/modules.ts";
 import { step } from "../../testing/react.ts";
+import { holdRequests } from "../../testing/requests.ts";
 import * as dataset from "./index.tsx";
 import type { State } from "./state.ts";
 
@@ -92,4 +93,26 @@ test("asks again where the package changes, and keeps its choices where that fai
 
   expect(host.requested).toHaveLength(2);
   expect(texts(select, "option")).toEqual(["BOD", "iris", "mtcars"]);
+});
+
+test("marks no dataset while it asks for the datasets of another package, nor once that ask failed", async () => {
+  const host = stubBlockHost<State>(fixture, { state: iris });
+  const release = holdRequests(host);
+  const view = await mountOnPage(dataset, host);
+  const select = find(view.el, "select", HTMLSelectElement);
+  const shown = () => [select.value, texts(select, "option"), select.getAttribute("aria-invalid")];
+  release();
+  await settle();
+  expect(shown()).toEqual(["iris", ["BOD", "iris", "mtcars"], "false"]);
+
+  await step(() => {
+    host.setState({ dataset: "Boston", package: "MASS" });
+  });
+  expect(shown()).toEqual(["Boston", ["BOD", "iris", "mtcars", "Boston"], "false"]);
+
+  // The fixture records no datasets of MASS.
+  release();
+  await settle();
+  expect(shown()).toEqual(["Boston", ["BOD", "iris", "mtcars", "Boston"], "false"]);
+  expect(host.submitted).toEqual([]);
 });

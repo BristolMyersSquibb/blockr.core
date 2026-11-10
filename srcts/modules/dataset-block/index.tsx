@@ -1,5 +1,8 @@
 // The UI of the dataset block: a select of the data frames that the block's
 // package ships, which the request datasets gives.
+// While the request asks again, as after the package changed,
+// and after an ask failed, the data frames may be those of another package,
+// so the select marks no dataset.
 
 import type { ReactElement } from "react";
 import { asChoices, strings } from "../../binding/index.ts";
@@ -14,14 +17,15 @@ function DatasetBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   // The request reads the state arg package, which the host sends from the
   // block's state, so it is asked again where package changes.
   const pkg = useValue(host, "package").value;
-  const datasets = useRequest(host, "datasets", { reads: pkg ?? null }).answer;
+  const datasets = useRequest(host, "datasets", { reads: pkg ?? null });
   return (
     <Stack>
       <Select
         bound={useValue(host, "dataset")}
         label="Dataset"
         placeholder="Choose a dataset"
-        choices={datasets === undefined ? undefined : asChoices(strings(datasets))}
+        choices={datasets.answer === undefined ? undefined : asChoices(strings(datasets.answer))}
+        outdated={datasets.loading || datasets.error !== null}
       />
     </Stack>
   );

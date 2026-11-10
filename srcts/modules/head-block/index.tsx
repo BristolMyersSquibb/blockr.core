@@ -1,6 +1,9 @@
 // The UI of the head block: a number input for the number of rows it keeps,
 // whose largest value is the number of rows of its input,
 // which the request n_max gives, and a select of the end it keeps them from.
+// While the request asks again, as after the input changed,
+// and after an ask failed, that number is the one of older data,
+// so the number input sets no largest value meanwhile.
 
 import type { ReactElement } from "react";
 import { NumberInput, reactModule, Select, Stack, useRequest, useValue } from "../../react/index.ts";
@@ -16,8 +19,9 @@ const ends = [
 ];
 
 function HeadBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
-  const rows = useRequest(host, "n_max").answer;
-  const max = Array.isArray(rows) && typeof rows[0] === "number" ? rows[0] : undefined;
+  const rows = useRequest(host, "n_max");
+  const outdated = rows.loading || rows.error !== null;
+  const max = !outdated && Array.isArray(rows.answer) && typeof rows.answer[0] === "number" ? rows.answer[0] : undefined;
   return (
     <Stack>
       <NumberInput bound={useValue(host, "n")} label="Number of rows" min={0} max={max} />

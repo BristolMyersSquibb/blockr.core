@@ -8,6 +8,7 @@ import { READY, stubBlockHost } from "../../stubs/index.ts";
 import { find, pick, press, type } from "../../testing/inputs.ts";
 import { blockFixture, mountOnPage, settle, unmount, wait } from "../../testing/modules.ts";
 import { step } from "../../testing/react.ts";
+import { holdRequests } from "../../testing/requests.ts";
 import * as head from "./index.tsx";
 import type { State } from "./state.ts";
 
@@ -170,6 +171,29 @@ test("asks for the rows of its input again once the input's revision changes", a
   });
   await settle();
   expect(host.requested).toHaveLength(2);
+});
+
+test("takes no most while it asks for the rows of its input again, so that it marks no number meanwhile", async () => {
+  const host = stubBlockHost<State>(fixture, { state: { n: 200, direction: "head" } });
+  const release = holdRequests(host);
+  const view = await mountOnPage(head, host);
+  const n = find(view.el, 'input[type="number"]', HTMLInputElement);
+  const shown = () => [n.max, n.getAttribute("aria-invalid")];
+  expect(shown()).toEqual(["", "false"]);
+
+  release();
+  await settle();
+  expect(shown()).toEqual(["150", "true"]);
+
+  await step(() => {
+    host.setContext({ inputs: [{ input: "data", revision: 2 }] });
+  });
+  expect(shown()).toEqual(["", "false"]);
+
+  release();
+  await settle();
+  expect(shown()).toEqual(["150", "true"]);
+  expect(host.submitted).toEqual([]);
 });
 
 test("takes no most where its input has no rows to give", async () => {
