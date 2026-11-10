@@ -3,6 +3,7 @@
 // and file picker played by the test.
 
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { picking } from "../testing/inputs.ts";
 import { coreStorage, fileName } from "./index.ts";
 
 afterEach(() => {
@@ -30,20 +31,6 @@ function downloads() {
   return started;
 }
 
-// A file picker in which the user picks the file given, or none.
-function picking(file: File | undefined): void {
-  vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(function (this: HTMLInputElement) {
-    expect(this.isConnected).toBe(true);
-    expect(this.accept).toBe(".json,application/json");
-    if (file === undefined) {
-      this.dispatchEvent(new Event("cancel"));
-      return;
-    }
-    Object.defineProperty(this, "files", { value: [file] });
-    this.dispatchEvent(new Event("change"));
-  });
-}
-
 describe("the board's file", () => {
   test("is named by the board's id and the local time it was saved, as today's", () => {
     expect(fileName({ id: "brisk_otter" }, new Date(2026, 10, 6, 14, 3, 9))).toBe("brisk_otter_2026-11-06_14-03-09.json");
@@ -68,13 +55,16 @@ describe("core's own storage plugin", () => {
 
   test("opens the text of the file that the user picks, or null where the user picks none, and leaves no picker on the page", async () => {
     const storage = coreStorage();
+    const picker = { accept: ".json,application/json", connected: true };
 
-    picking(new File([text("amber_tapir")], "amber_tapir.json", { type: "application/json" }));
+    const picked = picking(new File([text("amber_tapir")], "amber_tapir.json", { type: "application/json" }));
     await expect(storage.open()).resolves.toBe(text("amber_tapir"));
+    expect(picked).toEqual([picker]);
 
     vi.restoreAllMocks();
-    picking(undefined);
+    const cancelled = picking(undefined);
     await expect(storage.open()).resolves.toBeNull();
+    expect(cancelled).toEqual([picker]);
     expect(document.querySelectorAll('input[type="file"]')).toHaveLength(0);
   });
 });

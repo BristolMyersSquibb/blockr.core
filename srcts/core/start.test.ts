@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { EvaluateRequest, HelloReply, Reply, Request, Transport, TransportListener } from "../protocol/index.ts";
 import { coreOptions } from "../options/index.ts";
 import type { Option, PluginClass } from "../store/index.ts";
+import { registering } from "../testing/plugins.ts";
 import { reports } from "../testing/reports.ts";
 import { hello, reply, withPlugins } from "../testing/store.ts";
 import { startPage } from "../page/index.ts";
@@ -834,23 +835,10 @@ describe("a board opened later", () => {
 describe("board options", () => {
   const STARTUP = "blockr.test/startup.js?v=1";
 
-  // A startup module that registers the board option given, as the package
-  // that ships it does.
-  function registering(option: Option) {
-    return {
-      api: 1,
-      default: {
-        initialize({ core }: { core: CoreApi }) {
-          core.options.register(option);
-        },
-      },
-    };
-  }
-
   // Starts the page on the board of the fixture hello, with a package that
   // registers the board option given.
   async function started(option: Option) {
-    const s = setup({ [STARTUP]: registering(option), [BASIC]: frontEnd().exports });
+    const s = setup({ [STARTUP]: registering([], [option]), [BASIC]: frontEnd().exports });
     s.r.session(withStartup("blockr.test"));
     await tick();
     s.r.options();
@@ -935,20 +923,6 @@ describe("board options", () => {
 describe("the frontend and the plugins", () => {
   const STARTUP = "blockr.test/startup.js?v=1";
   const FRONT = "blockr.test/front.js?v=1";
-
-  // A startup module that registers the plugin classes and the board options
-  // given, as the package that ships them does.
-  function registering(classes: readonly PluginClass[], options: readonly Option[] = []) {
-    return {
-      api: 1,
-      default: {
-        initialize({ core }: { core: CoreApi }) {
-          for (const option of options) core.options.register(option);
-          for (const def of classes) core.plugins.register(def);
-        },
-      },
-    };
-  }
 
   // R's reply to hello with the startup module of blockr.test, which offers
   // the module of a frontend too, and an opening board that holds the plugins

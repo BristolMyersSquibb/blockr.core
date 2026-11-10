@@ -19,6 +19,9 @@
 // before.
 // The card always shows the block's UI and its output, with no toggles to
 // hide them, which a frontend built on core's may add.
+// The card gives its block focus as the user moves into it, by a click or by
+// moving the keyboard's focus into it, so that a plugin such as the assistant
+// knows which block the user is looking at. Hovering over the card does not.
 // Under the board lock, the card draws no control for what the lock fixes. It
 // has no menu, and it mounts the UI only of a block that the board lock leaves
 // open, as the store's locked() says.
@@ -67,6 +70,9 @@ export const BlockCard = memo(function BlockCard({
 
   const mountUi = useCallback((el: HTMLElement) => core.mountBlock(el, id), [core, id]);
   const mountOutput = useCallback((el: HTMLElement) => core.mountOutput(el, id), [core, id]);
+  const focus = useCallback(() => {
+    if (core.focus.get() !== id) core.focus.set(id);
+  }, [core, id]);
 
   const locked = core.lock.board;
   const inputs = !core.store.locked(id);
@@ -79,6 +85,8 @@ export const BlockCard = memo(function BlockCard({
       ref={ref}
       aria-label={block.name}
       className={`${classes.card} bc:grid bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border-default bc:p-3`}
+      onPointerDown={focus}
+      onFocus={focus}
     >
       <header className="bc:flex bc:flex-wrap bc:items-center bc:gap-2">
         {renaming ? (
@@ -159,24 +167,21 @@ export const BlockCard = memo(function BlockCard({
 });
 
 // A stack's group, drawn in the stack's colour, or in the colour of a border
-// where the stack has none.
+// where the stack has none. The user collapses and expands it by its name, as
+// a plugin's section, and it starts open. A collapsed group hides the cards of
+// its blocks and leaves them mounted.
 export function StackGroup({ stack, children }: { stack: Stack; children: ReactNode }): ReactElement {
   const color = stack.color ?? undefined;
   return (
     <section
       aria-label={stack.name}
-      className="bc:grid bc:gap-3 bc:rounded-xl bc:border-2 bc:border-border-default bc:p-3"
+      className="bc:rounded-xl bc:border-2 bc:border-border-default bc:p-3"
       style={color === undefined ? undefined : { borderColor: color }}
     >
-      <header className="bc:flex bc:items-center bc:gap-2">
-        <span
-          aria-hidden="true"
-          className="bc:size-3 bc:rounded-full bc:bg-current bc:text-text-muted"
-          style={color === undefined ? undefined : { backgroundColor: color }}
-        />
-        <h2 className={classes.heading}>{stack.name}</h2>
-      </header>
-      {children}
+      <details open>
+        <summary className={`${classes.heading} bc:cursor-pointer`}>{stack.name}</summary>
+        <div className="bc:mt-3 bc:grid bc:gap-3">{children}</div>
+      </details>
     </section>
   );
 }

@@ -8860,6 +8860,7 @@ function start(options) {
       } finally {
         scheduler.start();
       }
+      if (dropped.length > 0) core.notifications.notify(droppedNote(dropped));
     }
     await plugins.start();
     if (failure !== void 0) throw failure;
@@ -8987,6 +8988,15 @@ function askReload(changed) {
       `R now runs ${changed.map((c2) => `${c2.package} ${c2.now}`).join(", ")}, where the page loaded ${changed.map((c2) => `${c2.package} ${c2.loaded}`).join(", ")}. Reload the page.`
     )
   );
+}
+function droppedNote(dropped) {
+  const lines = dropped.map((item) => {
+    if ("option" in item) return `- board option "${item.option}"`;
+    if ("block" in item) return `- block "${item.block}" (${item.registry_id})`;
+    if ("plugin" in item) return `- plugin "${item.plugin}" (${item.class})`;
+    return `- package ${item.package} ${item.version}`;
+  });
+  return { message: ["The board opened without:", ...lines].join("\n"), severity: "warning" };
 }
 function asStartupModule(exports, module, pkg) {
   if (!isObject(exports) || typeof exports.api !== "number") {

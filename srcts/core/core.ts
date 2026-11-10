@@ -193,8 +193,8 @@ export function createCore(parts: CoreParts): Core {
 
 const SEVERITIES: readonly unknown[] = ["message", "warning", "error"];
 
-// The notes that plugins send, which reach each subscriber, as the frontend
-// that draws them, until the board ends.
+// The notes that plugins and core send, which reach each subscriber, as the
+// frontend that draws them, until the board ends.
 function createNotifications(signal: AbortSignal | undefined): CoreApi["notifications"] {
   const listeners = new Set<(note: Note) => void>();
   signal?.addEventListener(

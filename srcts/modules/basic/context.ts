@@ -28,7 +28,7 @@ export function runCommand(front: Pick<FrontEnd, "core" | "notices">, id: string
   return front.core.commands.run(id, args).then(
     () => true,
     (error: unknown) => {
-      front.notices.refused(error);
+      front.notices.failed(error);
       return false;
     },
   );

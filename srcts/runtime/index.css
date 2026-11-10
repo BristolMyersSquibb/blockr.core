@@ -60,6 +60,7 @@
   --color-text-on-accent: var(--bc-color-white);
   --color-border-default: color-mix(in oklab, currentColor 25%, transparent);
   --color-border-danger: var(--bc-color-red-500);
+  --color-border-warning: var(--bc-color-amber-500);
   --color-border-accent: var(--bc-color-blue-500);
   --color-bg-accent: var(--bc-color-blue-600);
   --color-bg-subtle: color-mix(in oklab, currentColor 5%, transparent);

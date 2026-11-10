@@ -7,47 +7,11 @@ import { describe, expect, test } from "vitest";
 import type { Option, PluginClass } from "../store/index.ts";
 import { HELLO, stubCore } from "../stubs/index.ts";
 import type { StubCoreOptions } from "../stubs/index.ts";
+import { pluginUi, registering } from "../testing/plugins.ts";
 import { reports } from "../testing/reports.ts";
 import { withPlugins } from "../testing/store.ts";
 import type { Plugin, PluginId } from "../types/board.ts";
 import type { CoreApi, Note } from "../types/core-api.ts";
-
-// A startup module that registers the plugin classes and the board options
-// given, as the package that ships them does.
-function registering(classes: readonly PluginClass[], options: readonly Option[] = []) {
-  return {
-    api: 1,
-    default: {
-      initialize({ core }: { core: CoreApi }) {
-        for (const option of options) core.options.register(option);
-        for (const def of classes) core.plugins.register(def);
-      },
-    },
-  };
-}
-
-// The UI module of a plugin class, which writes the name of the plugin it
-// draws and keeps what each render() gets.
-function pluginUi() {
-  const renders: { el: HTMLElement; core: CoreApi; plugin: PluginId; signal: AbortSignal }[] = [];
-  let cleanups = 0;
-  return {
-    renders,
-    cleanups: () => cleanups,
-    exports: {
-      api: 1,
-      default: {
-        render(args: { el: HTMLElement; core: CoreApi; plugin: PluginId; signal: AbortSignal }) {
-          renders.push(args);
-          args.el.textContent = args.core.store.board().plugins[args.plugin]?.name ?? "";
-          return () => {
-            cleanups++;
-          };
-        },
-      },
-    },
-  };
-}
 
 const notes: PluginClass = { id: "blockr.test-notes_plugin", ui: "blockr.test-notes" };
 const saving: PluginClass = {

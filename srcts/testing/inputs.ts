@@ -3,6 +3,9 @@
 // the value set through the element's own setter,
 // which React does not track as a value it set itself,
 // and then the event that the browser fires.
+// The browser's file picker is played the same way.
+
+import { vi } from "vitest";
 
 // The element that the selector finds in `el`, which the test expects there,
 // of the class given, or an HTMLElement.
@@ -50,6 +53,19 @@ export function toggle(checkbox: HTMLInputElement): void {
 export function choose(input: HTMLInputElement, file: File): void {
   Object.defineProperty(input, "files", { value: [file], configurable: true });
   input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+// The browser's file picker, which shows as a file input is clicked, and in
+// which the user picks the file given, or none. It returns what each input
+// clicked takes and whether it was on the page then.
+export function picking(file: File | undefined): { accept: string; connected: boolean }[] {
+  const clicked: { accept: string; connected: boolean }[] = [];
+  vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(function (this: HTMLInputElement) {
+    clicked.push({ accept: this.accept, connected: this.isConnected });
+    if (file === undefined) this.dispatchEvent(new Event("cancel"));
+    else choose(this, file);
+  });
+  return clicked;
 }
 
 // Sets the value through the setter of the element's class rather than of the

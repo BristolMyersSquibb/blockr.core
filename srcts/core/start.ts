@@ -22,7 +22,8 @@
 //    board holds none. Once the board options that the frontend requires are
 //    on the board, core calls the frontend's render(), and starts the
 //    scheduler once render() has returned, so that the scheduler sends R
-//    nothing before.
+//    nothing before. It then sends, through `notifications`, the note that
+//    names what the store dropped, which the frontend shows.
 // 7. Core then calls the start of each plugin whose class has one, so that
 //    what the frontend first shows comes before what the plugins ask for as
 //    they start.
@@ -88,7 +89,7 @@ import type { Scheduler } from "../scheduler/index.ts";
 import { createStore, StoreError } from "../store/index.ts";
 import type { Dropped, Option, Store } from "../store/index.ts";
 import type { PluginId } from "../types/board.ts";
-import type { CoreApi } from "../types/core-api.ts";
+import type { CoreApi, Note } from "../types/core-api.ts";
 import { asError, isObject, messageOf, own, quoted, report } from "../util/index.ts";
 import { createBlockrOptions } from "./blockr-options.ts";
 import { createCore } from "./core.ts";
@@ -318,8 +319,8 @@ export function start(options: StartOptions): Started {
   // scheduler and CoreApi, each of which the abort of the opening's controller
   // ends. It initializes the startup modules with that CoreApi and signal,
   // opens the board in the store, draws it with its frontend, starts the
-  // scheduler and then the board's plugins, and resolves with CoreApi and
-  // what the store dropped.
+  // scheduler, sends the note that names what the store dropped, then starts
+  // the board's plugins, and resolves with CoreApi and what the store dropped.
   async function boot(reply: HelloReply, later: Later | undefined): Promise<{ core: CoreApi; dropped: Dropped[] }> {
     // The opening ends as the next board opens, or as the page stops.
     const controller = new AbortController();
@@ -436,6 +437,9 @@ export function start(options: StartOptions): Started {
       } finally {
         scheduler.start();
       }
+      // The frontend subscribes to the notes as it draws, so this one reaches
+      // it.
+      if (dropped.length > 0) core.notifications.notify(droppedNote(dropped));
     }
     await plugins.start();
     if (failure !== undefined) throw failure;
@@ -597,6 +601,19 @@ function askReload(changed: readonly Changed[]): void {
       `R now runs ${changed.map((c) => `${c.package} ${c.now}`).join(", ")}, where the page loaded ${changed.map((c) => `${c.package} ${c.loaded}`).join(", ")}. Reload the page.`,
     ),
   );
+}
+
+// The note that names what the store dropped as a board opened, one line for
+// each, as Board objects has it
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.1#objects-that-cannot-be-rebuilt).
+function droppedNote(dropped: readonly Dropped[]): Note {
+  const lines = dropped.map((item) => {
+    if ("option" in item) return `- board option "${item.option}"`;
+    if ("block" in item) return `- block "${item.block}" (${item.registry_id})`;
+    if ("plugin" in item) return `- plugin "${item.plugin}" (${item.class})`;
+    return `- package ${item.package} ${item.version}`;
+  });
+  return { message: ["The board opened without:", ...lines].join("\n"), severity: "warning" };
 }
 
 // What a startup module exports as its default.
