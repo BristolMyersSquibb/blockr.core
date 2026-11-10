@@ -179,14 +179,7 @@ export function StackGroup({ stack, children }: { stack: Stack; children: ReactN
       style={color === undefined ? undefined : { borderColor: color }}
     >
       <details open>
-        <summary className="bc:cursor-pointer">
-          <span
-            aria-hidden="true"
-            className="bc:mx-2 bc:inline-block bc:size-3 bc:rounded-full bc:bg-current bc:align-middle bc:text-text-muted"
-            style={color === undefined ? undefined : { backgroundColor: color }}
-          />
-          <h2 className={`${classes.heading} bc:inline bc:align-middle`}>{stack.name}</h2>
-        </summary>
+        <summary className={`${classes.heading} bc:cursor-pointer`}>{stack.name}</summary>
         <div className="bc:mt-3 bc:grid bc:gap-3">{children}</div>
       </details>
     </section>

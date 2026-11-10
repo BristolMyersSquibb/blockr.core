@@ -157,10 +157,6 @@
   margin: 0;
 }
 
-.bc\:mx-2 {
-  margin-inline: calc(var(--bc-spacing) * 2);
-}
-
 .bc\:mt-1 {
   margin-top: var(--bc-spacing);
 }
@@ -193,14 +189,6 @@
   display: grid;
 }
 
-.bc\:inline {
-  display: inline;
-}
-
-.bc\:inline-block {
-  display: inline-block;
-}
-
 .bc\:inline-flex {
   display: inline-flex;
 }
@@ -208,11 +196,6 @@
 .bc\:size-2 {
   width: calc(var(--bc-spacing) * 2);
   height: calc(var(--bc-spacing) * 2);
-}
-
-.bc\:size-3 {
-  width: calc(var(--bc-spacing) * 3);
-  height: calc(var(--bc-spacing) * 3);
 }
 
 .bc\:h-0 {
@@ -540,10 +523,6 @@
 
 .bc\:align-bottom {
   vertical-align: bottom;
-}
-
-.bc\:align-middle {
-  vertical-align: middle;
 }
 
 .bc\:\[font-family\:inherit\] {

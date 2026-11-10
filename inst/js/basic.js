@@ -436,17 +436,7 @@ function StackGroup({ stack, children }) {
       className: "bc:rounded-xl bc:border-2 bc:border-border-default bc:p-3",
       style: color2 === void 0 ? void 0 : { borderColor: color2 },
       children: /* @__PURE__ */ jsxs2("details", { open: true, children: [
-        /* @__PURE__ */ jsxs2("summary", { className: "bc:cursor-pointer", children: [
-          /* @__PURE__ */ jsx2(
-            "span",
-            {
-              "aria-hidden": "true",
-              className: "bc:mx-2 bc:inline-block bc:size-3 bc:rounded-full bc:bg-current bc:align-middle bc:text-text-muted",
-              style: color2 === void 0 ? void 0 : { backgroundColor: color2 }
-            }
-          ),
-          /* @__PURE__ */ jsx2("h2", { className: `${classes.heading} bc:inline bc:align-middle`, children: stack.name })
-        ] }),
+        /* @__PURE__ */ jsx2("summary", { className: `${classes.heading} bc:cursor-pointer`, children: stack.name }),
         /* @__PURE__ */ jsx2("div", { className: "bc:mt-3 bc:grid bc:gap-3", children })
       ] })
     }
