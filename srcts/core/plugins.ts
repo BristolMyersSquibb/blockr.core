@@ -30,7 +30,7 @@
 import { attempt, ModuleError, moduleOf, onAbort, REPLACED, showError } from "../mount/index.ts";
 import type { Loader, Mounts } from "../mount/index.ts";
 import { inRole } from "../store/index.ts";
-import type { PluginClass, Storage, Store } from "../store/index.ts";
+import type { Dropped, PluginClass, Storage, Store } from "../store/index.ts";
 import { coreStorage } from "../storage/index.ts";
 import type { OptionId, Plugin, PluginClassId, PluginId } from "../types/board.ts";
 import type { CoreApi, PluginModule } from "../types/core-api.ts";
@@ -48,8 +48,13 @@ export const BASIC_FRONTEND = {
 type PluginArgs = Parameters<PluginModule["render"]>[0];
 
 // What a frontend's render() gets: what a plugin's module gets, but for core's
-// basic frontend, which no board holds, and so gets no plugin's id.
-export type FrontendArgs = Omit<PluginArgs, "plugin"> & { plugin?: PluginId };
+// basic frontend, which no board holds, and so gets no plugin's id. It gets
+// what the store dropped as the board opened in its place. Another
+// frontend's package hears that from the store, to which its startup module
+// subscribes before the board opens, while blockr.core has no startup module
+// and core imports its basic frontend once the board is open
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#starting-the-page).
+export type FrontendArgs = Omit<PluginArgs, "plugin"> & { plugin?: PluginId; dropped?: readonly Dropped[] };
 
 // The frontend that draws the open board.
 export interface Frontend {

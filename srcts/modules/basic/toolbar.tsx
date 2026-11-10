@@ -1,56 +1,71 @@
 // The toolbar of core's basic frontend. It shows the board's name, which the
 // user renames, and the controls for the board: adding a block, editing links
-// and stacks, setting the board options, undo and redo, saving the board as a
-// file and opening one.
-// Under the board lock, it draws no control for what the lock fixes, and
-// only undo, redo and saving stay. Under the load lock, it draws no control
-// for opening a board, since the store opens no other board there.
+// and stacks, setting the board options, undo and redo, saving the board and
+// opening another, and a button for each plugin that the frontend places,
+// which opens the plugin's drawer.
+// It saves and opens through the storage that core.plugins.storage() gives:
+// that of the board's storage plugin, or core's own, which saves a download
+// and opens an upload, where the board holds none.
+// Under the board lock, it draws no control for what the lock fixes, so that
+// the board options, undo, redo, saving, opening and the plugins stay. Under
+// the load lock, it draws no control for opening a board, since the store
+// opens no other board there.
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import type { ReactElement } from "react";
-import type { Board } from "../../types/board.ts";
+import type { Board, PluginId } from "../../types/board.ts";
 import { runCommand, useFrontEnd } from "./context.ts";
-import { download, fileName } from "../../storage/index.ts";
+import { placed } from "./drawer.tsx";
 import { useHistory } from "./hooks.ts";
 import { classes, NameField } from "./ui.tsx";
 
 // A dialog that the toolbar opens.
 export type ToolbarDialog = "add" | "links" | "stacks" | "options";
 
-export function Toolbar({ board, show }: { board: Board; show: (dialog: ToolbarDialog) => void }): ReactElement {
+export interface ToolbarProps {
+  readonly board: Board;
+  readonly show: (dialog: ToolbarDialog) => void;
+  // The plugin whose drawer is open, if any, and the DOM id of the drawer.
+  readonly drawer: { readonly plugin: PluginId | null; readonly domId: string };
+  // Opens the plugin's drawer, or closes it where it is open.
+  readonly toggle: (plugin: PluginId) => void;
+}
+
+export function Toolbar({ board, show, drawer, toggle }: ToolbarProps): ReactElement {
   const front = useFrontEnd();
   const { core, notices } = front;
   const { canUndo, canRedo } = useHistory(core);
   const [renaming, setRenaming] = useState(false);
-  const picker = useRef<HTMLInputElement>(null);
   const locked = core.lock.board;
-  const opens = !locked && !core.lock.load;
+  const opens = !core.lock.load;
 
   function step(back: boolean): void {
     try {
       if (back) core.store.undo();
       else core.store.redo();
     } catch (error) {
-      notices.refused(error);
+      notices.failed(error);
     }
   }
 
-  function save(): void {
+  async function save(): Promise<void> {
     try {
-      download(core.store.save(), fileName(board));
+      await core.plugins.storage().save(core.store.save());
     } catch (error) {
-      notices.refused(error);
+      notices.failed(error);
     }
   }
 
-  async function open(input: HTMLInputElement): Promise<void> {
-    const file = input.files?.[0];
-    input.value = "";
-    if (file === undefined) return;
+  // Asks the storage for a board as the user clicks, since a browser shows
+  // its file picker only then, and opens what the user picks. The board that
+  // opens is drawn by a frontend that starts again, which core tells what the
+  // store dropped, so what open() resolves with goes unread here.
+  async function open(): Promise<void> {
     try {
-      await core.store.open(await file.text());
+      const text = await core.plugins.storage().open();
+      if (text !== null) await core.store.open(text);
     } catch (error) {
-      notices.refused(error);
+      notices.failed(error);
     }
   }
 
@@ -112,17 +127,17 @@ export function Toolbar({ board, show }: { board: Board; show: (dialog: ToolbarD
             >
               Stacks
             </button>
-            <button
-              type="button"
-              className={classes.button}
-              onClick={() => {
-                show("options");
-              }}
-            >
-              Options
-            </button>
           </>
         )}
+        <button
+          type="button"
+          className={classes.button}
+          onClick={() => {
+            show("options");
+          }}
+        >
+          Options
+        </button>
         <button
           type="button"
           className={classes.button}
@@ -145,32 +160,43 @@ export function Toolbar({ board, show }: { board: Board; show: (dialog: ToolbarD
         >
           Redo
         </button>
-        <button type="button" className={classes.button} onClick={save}>
+        <button
+          type="button"
+          className={classes.button}
+          onClick={() => {
+            void save();
+          }}
+        >
           Save
         </button>
         {opens ? (
-          <>
+          <button
+            type="button"
+            className={classes.button}
+            onClick={() => {
+              void open();
+            }}
+          >
+            Open
+          </button>
+        ) : null}
+        {placed(core).map(([id, plugin]) => {
+          const shown = drawer.plugin === id;
+          return (
             <button
+              key={id}
               type="button"
-              className={classes.button}
+              className={`${classes.button} bc:aria-expanded:border-border-accent bc:aria-expanded:bg-bg-subtle`}
+              aria-expanded={shown}
+              aria-controls={shown ? drawer.domId : undefined}
               onClick={() => {
-                picker.current?.click();
+                toggle(id);
               }}
             >
-              Open
+              {plugin.name}
             </button>
-            <input
-              ref={picker}
-              type="file"
-              accept=".json,application/json"
-              aria-label="Board file to open"
-              hidden
-              onChange={(event) => {
-                void open(event.currentTarget);
-              }}
-            />
-          </>
-        ) : null}
+          );
+        })}
       </div>
     </header>
   );

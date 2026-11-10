@@ -100,11 +100,12 @@ export interface FrontEnds {
   ): Promise<void>;
   // Calls the render() of the frontend that prepare() imported, with the
   // element, CoreApi, the plugin's id and a signal, and resolves once render()
-  // has returned or resolved. Where board options that the frontend requires
-  // did not go onto the board, it shows why in the element instead, and calls
-  // no render(). The frontend ends as the signal aborts, as the next board
-  // opens.
-  render(core: CoreApi, signal: AbortSignal, failures: readonly string[]): Promise<void>;
+  // has returned or resolved. Core's basic frontend gets what the store
+  // dropped as the board opened in place of a plugin's id. Where board options
+  // that the frontend requires did not go onto the board, it shows why in the
+  // element instead, and calls no render(). The frontend ends as the signal
+  // aborts, as the next board opens.
+  render(core: CoreApi, signal: AbortSignal, failures: readonly string[], dropped: readonly Dropped[]): Promise<void>;
 }
 
 // A package that a later reply names at another version than the page loaded.
@@ -403,7 +404,7 @@ export function start(options: StartOptions): Started {
       ),
     ]);
     try {
-      await options.frontEnds?.render(core, signal, failures);
+      await options.frontEnds?.render(core, signal, failures, dropped);
     } finally {
       scheduler.start();
     }

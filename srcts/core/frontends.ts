@@ -8,8 +8,9 @@
 //   calls the frontend's render() with the element, CoreApi, the plugin's id
 //   and a signal, which aborts as the next board opens, since core starts
 //   again for that board. Core's basic frontend, which no board holds, gets no
-//   plugin's id. Where a board option that the frontend requires did not go
-//   onto the board, the element shows why in place of the frontend.
+//   plugin's id, and gets what the store dropped as the board opened instead.
+//   Where a board option that the frontend requires did not go onto the
+//   board, the element shows why in place of the frontend.
 // - As the signal aborts, core runs the cleanup that render() returned, and the
 //   element says that the board is loading until the next frontend draws.
 // A frontend releases what it holds as its signal aborts, as a module does as
@@ -81,7 +82,7 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
       end();
       next = prepared;
     },
-    async render(core, signal, failures) {
+    async render(core, signal, failures, dropped) {
       if (signal.aborted) return;
       const prepared = next;
       next = undefined;
@@ -115,7 +116,7 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
           el,
           core,
           signal: controller.signal,
-          ...(plugin === undefined ? {} : { plugin }),
+          ...(plugin === undefined ? { dropped } : { plugin }),
         });
         if (typeof rendered !== "function") return;
         if (controller.signal.aborted) attempt(rendered);

@@ -7936,7 +7936,7 @@ function pageFrontEnds(el) {
       end();
       next = prepared;
     },
-    async render(core, signal, failures) {
+    async render(core, signal, failures, dropped) {
       if (signal.aborted) return;
       const prepared = next;
       next = void 0;
@@ -7970,7 +7970,7 @@ function pageFrontEnds(el) {
           el,
           core,
           signal: controller.signal,
-          ...plugin === void 0 ? {} : { plugin }
+          ...plugin === void 0 ? { dropped } : { plugin }
         });
         if (typeof rendered !== "function") return;
         if (controller.signal.aborted) attempt(rendered);
@@ -8873,7 +8873,7 @@ function start(options) {
       )
     ]);
     try {
-      await options.frontEnds?.render(core, signal, failures);
+      await options.frontEnds?.render(core, signal, failures, dropped);
     } finally {
       scheduler.start();
     }

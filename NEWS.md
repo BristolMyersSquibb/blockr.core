@@ -258,7 +258,7 @@
   Until then, core keeps the modules of that package that it loaded, and loads no other module of it (#515).
 * Core's basic frontend, `blockr.core-basic`, draws every board that holds no frontend.
   It is written in React on core's React SDK and styled with Tailwind CSS under core's prefix.
-  Its toolbar adds a block from the block registry's entries, edits links and stacks, sets the board options that the board holds, renames the board, and saves the board as a file or opens one.
+  Its toolbar adds a block from the block registry's entries, edits links and stacks, sets the board options that the board holds, renames the board, and saves the board or opens another.
   It draws each stack as a group of its blocks' cards.
   A card shows its block's name, class and status, the block's UI and output with the summary of the block's result below it, and the conditions of the severities that the board option `show_conditions` names.
   A card's menu renames or removes its block, or adds a block before or after it.
@@ -291,6 +291,12 @@
   The `plugins` of `CoreApi` gain `running()`, the open board's plugins, `classOf()`, the class of one of them, and `storage()`, the storage of the board's storage plugin, or that of core's own, which saves a board as a download and opens an upload, where the board holds none.
   Beside them, `CoreApi` gains `notifications`, which hands each note that a plugin sends to the frontend, and `focus`, the block that has focus, which goes back to none where that block leaves the board.
   The `CoreApi` for tests runs the board's plugins as the page does, and serves a module that a test gives by its id, such as a plugin's UI (#506).
+* Core's basic frontend saves and opens a board through `core.plugins.storage()`: the board's storage plugin, or core's own, which saves the board as a download and opens an upload, where the board holds none.
+  Its toolbar has a button for each plugin whose class has a `ui`, which opens the plugin's UI in a drawer beside the board, one drawer at a time.
+  A card gives its block focus as the user clicks into it or moves the keyboard's focus into it.
+  Beside the edits that the store refused, the frontend shows the notes that plugins send, in the color of their severity, and what the store dropped as the board opened.
+  It names each package that the board was saved with and the app does not load, with its version, each block and each plugin with its class and the package of that class, and each board option whose value it dropped.
+  On a locked board, the toolbar keeps the board options, and keeps opening another board unless the load lock is on (#507).
 * Core refuses a block class's UI module whose `options` leaves out a board option that a request of the class reads.
   It shows an error in the block's element in place of the module's UI, as it does for a module that declares another major of core's JS API.
   The error names the module and its package, each board option that the module leaves out, and the requests that read it.

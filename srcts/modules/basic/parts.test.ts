@@ -1,5 +1,6 @@
 // The parts of core's basic frontend that need no page: where it draws each
-// block, what it demands, and the severities that show_conditions names.
+// block, what it demands, the severities that show_conditions names, and what
+// it tells the user of what the store dropped.
 
 import { describe, expect, test } from "vitest";
 import type { Stack } from "../../types/board.ts";
@@ -7,6 +8,7 @@ import type { CoreApi } from "../../types/core-api.ts";
 import { asSeverities } from "./board.tsx";
 import { demandShown, IN_VIEW, OWNER, SHOWN } from "./demand.ts";
 import type { View } from "./demand.ts";
+import { droppedNote } from "./dropped.ts";
 import { itemsOf } from "./layout.ts";
 
 describe("where each block goes", () => {
@@ -165,3 +167,17 @@ describe("the severities that show_conditions names", () => {
   });
 });
 
+describe("what the frontend tells of what the store dropped", () => {
+  test("is nothing where it dropped nothing, and names a class alone where no package defines it", () => {
+    expect(droppedNote([])).toBeUndefined();
+    expect(
+      droppedNote([
+        { block: "x", registry_id: "filter_block", package: null },
+        { plugin: "p", class: "notes_plugin", package: null },
+      ]),
+    ).toEqual({
+      message: 'The board opened without what the app cannot rebuild:\n- the block "x" (filter_block)\n- the plugin "p" (notes_plugin)',
+      severity: "warning",
+    });
+  });
+});

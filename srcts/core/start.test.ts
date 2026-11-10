@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { EvaluateRequest, HelloReply, Reply, Request, Transport, TransportListener } from "../protocol/index.ts";
 import { coreOptions } from "../options/index.ts";
 import type { Option, PluginClass } from "../store/index.ts";
+import { registering } from "../testing/plugins.ts";
 import { reports } from "../testing/reports.ts";
 import { hello, withPlugins } from "../testing/store.ts";
 import { startPage } from "../page/index.ts";
@@ -834,23 +835,10 @@ describe("a board opened later", () => {
 describe("board options", () => {
   const STARTUP = "blockr.test/startup.js?v=1";
 
-  // A startup module that registers the board option given, as the package
-  // that ships it does.
-  function registering(option: Option) {
-    return {
-      api: 1,
-      default: {
-        initialize({ core }: { core: CoreApi }) {
-          core.options.register(option);
-        },
-      },
-    };
-  }
-
   // Starts the page on the board of the fixture hello, with a package that
   // registers the board option given.
   async function started(option: Option) {
-    const s = setup({ [STARTUP]: registering(option), [BASIC]: frontEnd().exports });
+    const s = setup({ [STARTUP]: registering([], [option]), [BASIC]: frontEnd().exports });
     s.r.session(withStartup("blockr.test"));
     await tick();
     s.r.options();
@@ -936,20 +924,6 @@ describe("the frontend and the plugins", () => {
   const STARTUP = "blockr.test/startup.js?v=1";
   const FRONT = "blockr.test/front.js?v=1";
 
-  // A startup module that registers the plugin classes and the board options
-  // given, as the package that ships them does.
-  function registering(classes: readonly PluginClass[], options: readonly Option[] = []) {
-    return {
-      api: 1,
-      default: {
-        initialize({ core }: { core: CoreApi }) {
-          for (const option of options) core.options.register(option);
-          for (const def of classes) core.plugins.register(def);
-        },
-      },
-    };
-  }
-
   // R's reply to hello with the startup module of blockr.test, which offers
   // the module of a frontend too, and an opening board that holds the plugins
   // given, and the board options given in place of the fixture's.
@@ -1024,6 +998,31 @@ describe("the frontend and the plugins", () => {
     await started({ [BASIC]: basic.exports }, empty);
 
     expect(basic.seen).toEqual([[undefined, ["warning", "error"], "light"]]);
+  });
+
+  test("hands core's basic frontend what the store dropped as each board opens, which another frontend hears from the store", async () => {
+    // A frontend that keeps what its render() gets of what the store dropped.
+    const keeping = () => {
+      const given: unknown[] = [];
+      return { given, exports: { api: 1, default: { render: (args: { dropped?: unknown }) => void given.push(args.dropped) } } };
+    };
+    const lacking = (json: JsonBoard, pkg: string): JsonBoard => ({ ...json, packages: { ...json.packages, [pkg]: "0.3.0" } });
+
+    const basic = keeping();
+    const s = await started({ [BASIC]: basic.exports }, { ...hello, board: lacking(hello.board, "blockr.dplyr") });
+    expect(basic.given).toEqual([[{ package: "blockr.dplyr", version: "0.3.0" }]]);
+
+    const opening = s.core.store.open(JSON.stringify(lacking(hello.board, "blockr.io")));
+    await tick();
+    s.r.answer();
+    await expect(opening).resolves.toEqual([{ package: "blockr.io", version: "0.3.0" }]);
+    expect(basic.given).toEqual([[{ package: "blockr.dplyr", version: "0.3.0" }], [{ package: "blockr.io", version: "0.3.0" }]]);
+
+    const front = keeping();
+    const frontend: PluginClass = { id: "blockr.test-grid_plugin", frontend: "blockr.test-front" };
+    const reply = replied({ grid });
+    await started({ [STARTUP]: registering([frontend]), [FRONT]: front.exports }, { ...reply, board: lacking(reply.board, "blockr.dplyr") });
+    expect(front.given).toEqual([undefined]);
   });
 
   test("shows why in the page's element in place of the frontend where a board option that it requires does not go onto the board", async () => {

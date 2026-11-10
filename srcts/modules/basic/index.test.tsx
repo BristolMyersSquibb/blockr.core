@@ -1,16 +1,19 @@
 // Core's basic frontend on the CoreApi for tests: the board of the fixture
 // hello, drawn by the frontend as the page draws it, with R played from the
 // protocol's fixtures, every block UI and renderer a stub that names what it
-// draws, and the user acting on the page.
+// draws, the plugins a test needs, and the user acting on the page.
 
 import { act } from "react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { HELLO, stubCore } from "../../stubs/index.ts";
 import type { StubCoreOptions } from "../../stubs/index.ts";
 import type { HelloReply } from "../../protocol/index.ts";
-import { choose, find, pick, press, texts, type } from "../../testing/inputs.ts";
+import type { PluginClass } from "../../store/index.ts";
+import { find, pick, picking, press, texts, type } from "../../testing/inputs.ts";
+import { pluginUi, registering } from "../../testing/plugins.ts";
 import { step } from "../../testing/react.ts";
-import type { Board } from "../../types/board.ts";
+import { withPlugins } from "../../testing/store.ts";
+import type { Board, JsonBoard, Plugin, PluginId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import * as basic from "./index.tsx";
 
@@ -105,6 +108,34 @@ async function menu(el: HTMLElement, name: string, action: string): Promise<void
 function dialog(el: HTMLElement): HTMLDialogElement {
   return find(el, "dialog[open]", HTMLDialogElement);
 }
+
+function toolbar(el: HTMLElement): HTMLElement {
+  return find(el, '[role="toolbar"]');
+}
+
+// The severity and the text of each notice that the page shows.
+function notices(el: HTMLElement): [string | null, string][] {
+  return [...el.querySelectorAll('ul[aria-label="Notices"] > li')].map((li) => [
+    li.getAttribute("data-severity"),
+    li.querySelector("span")?.textContent ?? "",
+  ]);
+}
+
+const plugin = (cls: PluginClass, name: string): Plugin => ({ class: cls.id, name, state: {} });
+
+// What the test gives core for a board that holds the plugins given, of the
+// classes given, which blockr.test registers.
+function withClasses(classes: readonly PluginClass[], plugins: Readonly<Record<PluginId, Plugin>>, hello = HELLO): StubCoreOptions {
+  return { hello: withPlugins(plugins, hello), startup: { "blockr.test": registering(classes) } };
+}
+
+// The text of the board that the page saves, as `edit` changes it.
+function savedAs(core: CoreApi, edit: (json: JsonBoard) => JsonBoard): string {
+  return JSON.stringify(edit(JSON.parse(core.store.save()) as JsonBoard));
+}
+
+// Renames the board that a JSON board holds.
+const renamed = (name: string) => (json: JsonBoard): JsonBoard => ({ ...json, board: { ...json.board, name } });
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -371,7 +402,7 @@ describe("the toolbar", () => {
     expect(find(el, "h1").textContent).toBe("Sepals");
   });
 
-  test("saves the board as a file that holds the store's text, named by the board's id and the time", async () => {
+  test("saves the board through core's own storage plugin, as a download of the store's text named by the board's id and the time", async () => {
     const { el, core } = await drawn();
     const blobs: Blob[] = [];
     const names: string[] = [];
@@ -391,30 +422,236 @@ describe("the toolbar", () => {
     expect(blobs[0]?.type).toBe("application/json");
   });
 
-  test("opens a file that the user picks, drawn as the page draws it, and says why the store refused one", async () => {
+  test("opens the file that the user picks through core's own storage plugin, drawn as the page draws it, and says why the store refused one", async () => {
     const page = await drawn();
-    const saved = JSON.parse(page.core.store.save()) as { board: Board };
-    const text = JSON.stringify({ ...saved, board: { ...saved.board, name: "Opened" } });
+    const text = savedAs(page.core, renamed("Opened"));
 
-    await step(() => {
-      choose(find(page.el, 'input[type="file"]', HTMLInputElement), new File([text], "board.json", { type: "application/json" }));
-    });
+    // Where the user picks no file, no board opens.
+    picking(undefined);
+    await click(button(page.el, "Open"));
+    await page.settled();
+    expect(page.board().name).toBe("Iris review");
+
+    vi.restoreAllMocks();
+    picking(new File([text], "board.json", { type: "application/json" }));
+    await click(button(page.el, "Open"));
     await page.settled();
     // Core starts again for the board, with a CoreApi of its own.
     expect(page.board().name).toBe("Opened");
     expect(find(page.el, "h1").textContent).toBe("Opened");
     expect(page.el.querySelectorAll("article")).toHaveLength(6);
+    expect(document.querySelectorAll('input[type="file"]')).toHaveLength(0);
 
-    await step(() => {
-      choose(find(page.el, 'input[type="file"]', HTMLInputElement), new File(["{}"], "board.json"));
-    });
+    vi.restoreAllMocks();
+    picking(new File(["{}"], "board.json"));
+    await click(button(page.el, "Open"));
     await page.settled();
     expect(page.board().name).toBe("Opened");
-    expect(find(page.el, '[role="alert"]').textContent).toContain("The store refused to open the board");
+    expect(notices(page.el)).toEqual([["error", expect.stringContaining("The store refused to open the board")]]);
+  });
+
+  test("saves and opens through the board's storage plugin, and says why it failed", async () => {
+    const saves: string[] = [];
+    let picked: string | null = null;
+    let down = false;
+    const session: PluginClass = {
+      id: "blockr.test-session_plugin",
+      storage: {
+        save(board) {
+          if (down) return Promise.reject(new Error("Connect is down."));
+          saves.push(board);
+          return Promise.resolve();
+        },
+        open: () => (down ? Promise.reject(new Error("Connect is down.")) : Promise.resolve(picked)),
+      },
+    };
+    const page = await drawn(withClasses([session], { session: plugin(session, "Session") }));
+    // The plugin's class has no ui, so the toolbar has no button for it.
+    expect(buttons(toolbar(page.el))).not.toContain("Session");
+
+    await click(button(page.el, "Save"));
+    expect(saves).toEqual([page.core.store.save()]);
+
+    // Where the storage gives no board, none opens.
+    await click(button(page.el, "Open"));
+    await page.settled();
+    expect(page.board().name).toBe("Iris review");
+
+    picked = savedAs(page.core, renamed("Opened"));
+    await click(button(page.el, "Open"));
+    await page.settled();
+    expect(page.board().name).toBe("Opened");
+
+    down = true;
+    await click(button(page.el, "Save"));
+    await click(button(page.el, "Open"));
+    await page.settled();
+    expect(notices(page.el)).toEqual([
+      ["error", "Connect is down."],
+      ["error", "Connect is down."],
+    ]);
   });
 });
 
+describe("a plugin", () => {
+  const notes: PluginClass = { id: "blockr.test-notes_plugin", ui: "blockr.test-notes" };
+  // A class whose plugins run from its start alone, with no place on the
+  // screen.
+  const bridge: PluginClass = { id: "blockr.test-bridge_plugin", start: () => undefined };
+
+  test("whose class has a ui shows in a drawer of its own, which a button of the toolbar opens, one at a time", async () => {
+    const ui = pluginUi();
+    const page = await drawn({
+      ...withClasses([notes, bridge], { todo: plugin(notes, "To do"), bridge: plugin(bridge, "Bridge"), later: plugin(notes, "Later") }),
+      modules: { "blockr.test-notes": ui.exports },
+    });
+    const opener = (name: string): HTMLButtonElement => button(toolbar(page.el), name);
+    expect(buttons(toolbar(page.el)).slice(-3)).toEqual(["Open", "To do", "Later"]);
+    expect(page.el.querySelector("aside")).toBeNull();
+
+    await click(opener("To do"));
+    await page.settled();
+    const drawer = find(page.el, 'aside[aria-label="To do"]');
+    // Core mounts the UI of the plugin's class in the drawer.
+    expect(ui.renders.map((render) => render.plugin)).toEqual(["todo"]);
+    expect(drawer.contains(ui.renders[0]?.el ?? null)).toBe(true);
+    expect(ui.renders[0]?.el.textContent).toBe("To do");
+    expect(opener("To do").getAttribute("aria-expanded")).toBe("true");
+    expect(opener("To do").getAttribute("aria-controls")).toBe(drawer.id);
+    // The board stays beside the drawer.
+    expect(page.el.querySelectorAll("article")).toHaveLength(6);
+
+    await click(opener("Later"));
+    await page.settled();
+    expect(page.el.querySelectorAll("aside")).toHaveLength(1);
+    expect(ui.renders.map((render) => render.plugin)).toEqual(["todo", "later"]);
+    expect(find(page.el, 'aside[aria-label="Later"]').contains(ui.renders[1]?.el ?? null)).toBe(true);
+    expect(ui.renders[0]?.signal.aborted).toBe(true);
+    expect(ui.cleanups()).toBe(1);
+    expect(opener("To do").getAttribute("aria-expanded")).toBe("false");
+
+    await click(button(find(page.el, "aside"), "Close"));
+    await page.settled();
+    expect(page.el.querySelector("aside")).toBeNull();
+    expect(ui.cleanups()).toBe(2);
+
+    // The button of the plugin whose drawer is open closes it.
+    await click(opener("To do"));
+    await click(opener("To do"));
+    await page.settled();
+    expect(page.el.querySelector("aside")).toBeNull();
+    expect(ui.cleanups()).toBe(3);
+  });
+});
+
+describe("which block has focus", () => {
+  test("is the block whose card the user last clicked into or moved the keyboard's focus into", async () => {
+    const { el, core } = await drawn();
+    expect(core.focus.get()).toBeNull();
+
+    await step(() => {
+      find(card(el, "Head"), '[aria-label="Output"]').dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    });
+    expect(core.focus.get()).toBe("b");
+
+    await step(() => {
+      find(card(el, "Merge"), 'button[aria-label="Actions of Merge"]').focus();
+    });
+    expect(core.focus.get()).toBe("c");
+
+    // Hovering over a card gives it no focus.
+    await step(() => {
+      card(el, "Iris").dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
+    });
+    expect(core.focus.get()).toBe("c");
+  });
+});
+
+// R's reply to hello whose opening board the store opens without what the
+// app cannot rebuild: the package blockr.dplyr, which R did not load, a block
+// of its filter block class, a plugin whose class no package registers, and a
+// value of a board option that no package registers.
+function droppingHello(): HelloReply {
+  const json = HELLO.board;
+  const filter = { registry_id: "blockr.dplyr-filter_block", version: 1, state: {}, name: "Filter", locked: null };
+  return withPlugins(
+    { gone: { class: "blockr.gone-gone_plugin", name: "Gone", state: {} } },
+    {
+      ...HELLO,
+      board: {
+        ...json,
+        packages: { ...json.packages, "blockr.dplyr": "0.3.0" },
+        board: {
+          ...json.board,
+          blocks: { ...json.board.blocks, x: filter },
+          options: { ...json.board.options, zoom: { value: 2, version: 1 } },
+        },
+      },
+    },
+  );
+}
+
 describe("what the user learns", () => {
+  test("is what the store dropped as the board opened, the opening board included", async () => {
+    const page = await drawn({ hello: droppingHello() });
+
+    expect(notices(page.el)).toEqual([
+      [
+        "warning",
+        [
+          "The board opened without what the app cannot rebuild:",
+          "- the package blockr.dplyr 0.3.0, which the board was saved with and the app does not load",
+          '- the block "x" (blockr.dplyr-filter_block, from blockr.dplyr)',
+          '- the plugin "gone" (blockr.gone-gone_plugin, from blockr.gone)',
+          '- the value of the board option "zoom"',
+        ].join("\n"),
+      ],
+    ]);
+    expect(find(page.el, '[data-severity="warning"]').getAttribute("role")).toBe("alert");
+
+    // A board that opens later is drawn by a frontend that starts again, which
+    // tells only what that board dropped.
+    picking(new File([savedAs(page.core, (json) => ({ ...json, packages: { ...json.packages, "blockr.io": "0.1.0" } }))], "board.json"));
+    await click(button(page.el, "Open"));
+    await page.settled();
+    expect(notices(page.el)).toEqual([
+      [
+        "warning",
+        "The board opened without what the app cannot rebuild:\n- the package blockr.io 0.1.0, which the board was saved with and the app does not load",
+      ],
+    ]);
+
+    vi.restoreAllMocks();
+    picking(new File([savedAs(page.core, renamed("Clean"))], "board.json"));
+    await click(button(page.el, "Open"));
+    await page.settled();
+    expect(page.board().name).toBe("Clean");
+    expect(notices(page.el)).toEqual([]);
+  });
+
+  test("is each note that a plugin sends, in the colour of its severity, until the user dismisses it", async () => {
+    const { el, core } = await drawn();
+
+    await step(() => {
+      core.notifications.notify({ message: "Saved to Connect.", severity: "message" });
+      core.notifications.notify({ message: "The token expires soon.", severity: "warning" });
+      core.notifications.notify({ message: "Not shared.", severity: "error" });
+    });
+    expect(notices(el)).toEqual([
+      ["message", "Saved to Connect."],
+      ["warning", "The token expires soon."],
+      ["error", "Not shared."],
+    ]);
+    expect(texts(el, 'ul[aria-label="Notices"] > li[role="alert"] span')).toEqual(["The token expires soon.", "Not shared."]);
+    expect(find(el, '[data-severity="message"]').getAttribute("role")).toBe("status");
+
+    await click(button(find(el, '[data-severity="message"]'), "Dismiss"));
+    expect(notices(el)).toEqual([
+      ["warning", "The token expires soon."],
+      ["error", "Not shared."],
+    ]);
+  });
+
   test("is which edit the store refused", async () => {
     const { el, board } = await drawn();
 
@@ -430,7 +667,7 @@ describe("what the user learns", () => {
     await click(button(dialog(el), "Close"));
 
     expect(Object.values(board().links)).not.toContainEqual({ from: "e", to: "e", input: "" });
-    expect(find(el, '[role="alert"]').textContent).toContain("The store rejected the delta");
+    expect(notices(el)).toEqual([["error", expect.stringContaining("The store rejected the delta")]]);
   });
 });
 
@@ -489,12 +726,18 @@ function lockedHello(lock: HelloReply["lock"]): HelloReply {
 }
 
 describe("a locked board", () => {
-  test("draws no control for what the board lock fixes, and the UI only of the blocks it leaves open", async () => {
-    const { el } = await drawn({ hello: lockedHello({ board: true, load: true }) });
+  const notes: PluginClass = { id: "blockr.test-notes_plugin", ui: "blockr.test-notes" };
 
-    expect(buttons(find(el, '[role="toolbar"]'))).toEqual(["Undo", "Redo", "Save"]);
+  test("draws no control for what the board lock fixes, and the UI only of the blocks it leaves open", async () => {
+    const { el } = await drawn({
+      ...withClasses([notes], { todo: plugin(notes, "To do") }, lockedHello({ board: true, load: true })),
+      modules: { "blockr.test-notes": pluginUi().exports },
+    });
+
+    // The board options, the history, saving and the plugins stay, since no
+    // lock fixes them, and the load lock takes opening another board.
+    expect(buttons(toolbar(el))).toEqual(["Options", "Undo", "Redo", "Save", "To do"]);
     expect(el.querySelector('button[aria-label="Rename board"]')).toBeNull();
-    expect(el.querySelector('input[type="file"]')).toBeNull();
     // No card has a menu.
     expect(el.querySelectorAll("article button")).toHaveLength(0);
 
@@ -503,19 +746,22 @@ describe("a locked board", () => {
     expect(card(el, "Iris").textContent).toContain("Output of a");
   });
 
+  test("under the board lock alone, keeps opening another board, and sets the board options", async () => {
+    const { el, board, settled } = await drawn({ hello: lockedHello({ board: true, load: false }) });
+    expect(buttons(toolbar(el))).toEqual(["Options", "Undo", "Redo", "Save", "Open"]);
+
+    await click(button(el, "Options"));
+    await settled();
+    await step(() => {
+      pick(find(dialog(el), 'section[aria-label="Theme options"] select', HTMLSelectElement), "dark");
+    });
+    expect(board().options.dark_mode).toBe("dark");
+  });
+
   test("under the load lock alone, draws every control but the one for opening a board", async () => {
     const { el } = await drawn({ hello: lockedHello({ board: false, load: true }) });
 
-    expect(buttons(find(el, '[role="toolbar"]'))).toEqual([
-      "Add block",
-      "Links",
-      "Stacks",
-      "Options",
-      "Undo",
-      "Redo",
-      "Save",
-    ]);
-    expect(el.querySelector('input[type="file"]')).toBeNull();
+    expect(buttons(toolbar(el))).toEqual(["Add block", "Links", "Stacks", "Options", "Undo", "Redo", "Save"]);
     expect(el.querySelector('button[aria-label="Rename board"]')).not.toBeNull();
     expect(card(el, "Iris").querySelector("button")).not.toBeNull();
     expect(card(el, "Iris").textContent).toContain("UI of a");

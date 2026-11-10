@@ -51,6 +51,7 @@
     monospace;
     --bc-color-red-500: oklch(63.7% .237 25.331);
     --bc-color-red-600: oklch(57.7% .245 27.325);
+    --bc-color-amber-500: oklch(76.9% .188 70.08);
     --bc-color-amber-600: oklch(66.6% .179 58.318);
     --bc-color-green-600: oklch(62.7% .194 149.214);
     --bc-color-blue-500: oklch(62.3% .214 259.815);
@@ -60,6 +61,7 @@
     --bc-color-black: #000;
     --bc-color-white: #fff;
     --bc-spacing: .25rem;
+    --bc-container-md: 28rem;
     --bc-container-xl: 36rem;
     --bc-text-xs: .75rem;
     --bc-text-xs--line-height: calc(1 / .75);
@@ -106,6 +108,7 @@
 
   :root, :host {
     --bc-color-border-danger: var(--bc-color-red-500);
+    --bc-color-border-warning: var(--bc-color-amber-500);
     --bc-color-border-accent: var(--bc-color-blue-500);
     --bc-color-bg-accent: var(--bc-color-blue-600);
     --bc-color-bg-subtle: currentColor;
@@ -308,6 +311,10 @@
   flex-wrap: wrap;
 }
 
+.bc\:content-start {
+  align-content: flex-start;
+}
+
 .bc\:items-center {
   align-items: center;
 }
@@ -425,6 +432,10 @@
   .bc\:border-border-default\/40 {
     border-color: color-mix(in oklab, var(--bc-color-border-default) 40%, transparent);
   }
+}
+
+.bc\:border-border-warning {
+  border-color: var(--bc-color-border-warning);
 }
 
 .bc\:bg-bg-accent {
@@ -721,8 +732,46 @@
   font-weight: var(--bc-font-weight-semibold);
 }
 
+.bc\:aria-expanded\:border-border-accent[aria-expanded="true"] {
+  border-color: var(--bc-color-border-accent);
+}
+
+.bc\:aria-expanded\:bg-bg-subtle[aria-expanded="true"] {
+  background-color: var(--bc-color-bg-subtle);
+}
+
 .bc\:aria-invalid\:border-border-danger[aria-invalid="true"] {
   border-color: var(--bc-color-border-danger);
+}
+
+@media (min-width: 48rem) {
+  .bc\:md\:sticky {
+    position: sticky;
+  }
+
+  .bc\:md\:top-4 {
+    top: calc(var(--bc-spacing) * 4);
+  }
+
+  .bc\:md\:max-h-\[calc\(100dvh-2rem\)\] {
+    max-height: calc(100dvh - 2rem);
+  }
+
+  .bc\:md\:w-md {
+    width: var(--bc-container-md);
+  }
+
+  .bc\:md\:shrink-0 {
+    flex-shrink: 0;
+  }
+
+  .bc\:md\:flex-row-reverse {
+    flex-direction: row-reverse;
+  }
+
+  .bc\:md\:items-start {
+    align-items: flex-start;
+  }
 }
 
 .bc\:dark\:bg-gray-900:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
