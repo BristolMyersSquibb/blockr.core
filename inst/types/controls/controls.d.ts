@@ -6,9 +6,11 @@ export interface NumberInput {
 }
 export interface Select {
     setChoices(choices: readonly Choice[]): void;
+    setOutdated(outdated: boolean): void;
 }
 export interface Checklist {
     setChoices(choices: readonly string[]): void;
+    setOutdated(outdated: boolean): void;
 }
 export interface Controls<K extends string = string> {
     readonly el: HTMLElement;

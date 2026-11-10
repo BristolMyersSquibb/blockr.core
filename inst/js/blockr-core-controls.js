@@ -129,10 +129,24 @@ function controls(host, signal) {
   }
   function select(key, options) {
     let choices = options.choices;
-    input(key, (bound) => /* @__PURE__ */ jsx(inputs.Select, { bound, label: options.label, placeholder: options.placeholder, choices }));
+    let outdated = false;
+    input(key, (bound) => /* @__PURE__ */ jsx(
+      inputs.Select,
+      {
+        bound,
+        label: options.label,
+        placeholder: options.placeholder,
+        choices,
+        outdated
+      }
+    ));
     return {
       setChoices(next) {
         choices = next;
+        redraw();
+      },
+      setOutdated(next) {
+        outdated = next;
         redraw();
       }
     };
@@ -142,6 +156,7 @@ function controls(host, signal) {
   }
   function checklist(key, options) {
     let choices = options.choices;
+    let outdated = false;
     input(key, (bound) => /* @__PURE__ */ jsx(
       inputs.Checklist,
       {
@@ -149,12 +164,17 @@ function controls(host, signal) {
         legend: options.legend,
         choices,
         empty: options.empty,
-        ordered: options.ordered
+        ordered: options.ordered,
+        outdated
       }
     ));
     return {
       setChoices(next) {
         choices = next;
+        redraw();
+      },
+      setOutdated(next) {
+        outdated = next;
         redraw();
       }
     };

@@ -221,13 +221,14 @@ function Rows({ host }: { host: OptionHost<number> }): ReactElement {
   return <NumberInput bound={useValue(host)} label="Preview rows" min={1} />;
 }
 
-function Conditions({ host }: { host: OptionHost<string[]> }): ReactElement {
+function Conditions({ host, outdated }: { host: OptionHost<string[]>; outdated?: boolean }): ReactElement {
   return (
     <Checklist
       bound={useValue(host)}
       legend="Message types to display"
       choices={["message", "warning", "error"]}
       ordered
+      outdated={outdated}
     />
   );
 }
@@ -237,8 +238,24 @@ const modes: readonly Choice[] = [
   { value: "dark", label: "Dark" },
 ];
 
-function Mode({ host, choices }: { host: OptionHost<string>; choices?: readonly Choice[] }): ReactElement {
-  return <Select bound={useValue(host)} label="Light/dark mode" placeholder="Choose a mode" choices={choices} />;
+function Mode({
+  host,
+  choices,
+  outdated,
+}: {
+  host: OptionHost<string>;
+  choices?: readonly Choice[];
+  outdated?: boolean;
+}): ReactElement {
+  return (
+    <Select
+      bound={useValue(host)}
+      label="Light/dark mode"
+      placeholder="Choose a mode"
+      choices={choices}
+      outdated={outdated}
+    />
+  );
 }
 
 describe("the inputs of a board option's UI", () => {
@@ -295,6 +312,20 @@ describe("the inputs of a board option's UI", () => {
     expect(texts(el, "label")).toEqual(["message", "warning", "error"]);
   });
 
+  test("keep outdated choices on screen, and mark no string that they lack until they are current", () => {
+    const host = stubOptionHost<string[]>({ option: "show_conditions", value: ["error", "debug"] });
+    const { el, redraw } = draw(<Conditions host={host} outdated />);
+    const debug = find(el, 'input[value="debug"]', HTMLInputElement);
+
+    expect(texts(el, "label")).toEqual(["message", "warning", "error", "debug"]);
+    expect([debug.checked, debug.getAttribute("aria-invalid")]).toEqual([true, "false"]);
+
+    redraw(<Conditions host={host} />);
+    expect(texts(el, "label")).toEqual(["message", "warning", "error", "debug (not available)"]);
+    expect(debug.getAttribute("aria-invalid")).toBe("true");
+    expect(host.submitted).toEqual([]);
+  });
+
   test("show a mode that the choices lack as it is until they are known, and as missing while they lack it", () => {
     const host = stubOptionHost<string>({ option: "dark_mode", value: "auto" });
     const { el, redraw } = draw(<Mode host={host} />);
@@ -307,6 +338,18 @@ describe("the inputs of a board option's UI", () => {
 
     redraw(<Mode host={host} choices={[...modes, { value: "auto", label: "Auto" }]} />);
     expect(shown()).toEqual(["auto", ["Light", "Dark", "Auto"], "false"]);
+    expect(host.submitted).toEqual([]);
+  });
+
+  test("keep outdated choices on screen, and show a mode that they lack as it is until they are current", () => {
+    const host = stubOptionHost<string>({ option: "dark_mode", value: "auto" });
+    const { el, redraw } = draw(<Mode host={host} choices={modes} outdated />);
+    const select = find(el, "select", HTMLSelectElement);
+    const shown = () => [select.value, texts(select, "option"), select.getAttribute("aria-invalid")];
+    expect(shown()).toEqual(["auto", ["Light", "Dark", "auto"], "false"]);
+
+    redraw(<Mode host={host} choices={modes} />);
+    expect(shown()).toEqual(["auto", ["Light", "Dark", "auto (not available)"], "true"]);
     expect(host.submitted).toEqual([]);
   });
 

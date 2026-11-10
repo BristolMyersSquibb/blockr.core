@@ -127,22 +127,27 @@ export function NumberInput({
 // request answers, and shows a value meanwhile as it is.
 // Once they are known, it shows a value that they lack, such as a column that
 // the data no longer has, as missing, and marks itself invalid.
+// While it is `outdated`, as while the request that gives its choices asks
+// again, the choices may be for older data.
+// It then keeps them on screen, and shows a value that they lack as it is.
 // So its choices must list every value it takes, not a part of them.
 export function Select({
   bound,
   label,
   placeholder,
   choices,
+  outdated = false,
 }: {
   bound: Bound;
   label: string;
   placeholder: string;
   choices?: readonly Choice[];
+  outdated?: boolean;
 }): ReactElement {
   const current = typeof bound.value === "string" ? bound.value : undefined;
   const known = choices ?? [];
   const lacked = current !== undefined && !known.some((choice) => choice.value === current);
-  const invalid = lacked && choices !== undefined;
+  const invalid = lacked && choices !== undefined && !outdated;
   const shown = lacked ? [...known, { value: current, label: invalid ? missing(current) : current }] : known;
   return (
     <>
@@ -197,6 +202,9 @@ export function Checkbox({ bound, label }: { bound: Bound; label: string }): Rea
 // It shows a string the value holds and the choices lack,
 // such as a column only one input has, so that the user can clear it,
 // and marks it as missing once the choices are known.
+// While it is `outdated`, as while the request that gives its choices asks
+// again, the choices may be for older data.
+// It then keeps them on screen, and marks no string.
 // So its choices must list every string it takes, not a part of them.
 // It submits the checked strings in the order the user checked them,
 // after those the value holds, or where `ordered`, in the order of the
@@ -209,12 +217,14 @@ export function Checklist({
   choices,
   empty,
   ordered = false,
+  outdated = false,
 }: {
   bound: Bound;
   legend: string;
   choices?: readonly string[];
   empty?: string;
   ordered?: boolean;
+  outdated?: boolean;
 }): ReactElement {
   const held = strings(bound.value);
   const known = choices ?? [];
@@ -237,7 +247,7 @@ export function Checklist({
       <legend className={styles.legend}>{legend}</legend>
       <div className={styles.list}>
         {shown.map((value) => {
-          const invalid = choices !== undefined && !known.includes(value);
+          const invalid = choices !== undefined && !outdated && !known.includes(value);
           return (
             <label key={value} className={styles.check}>
               <input

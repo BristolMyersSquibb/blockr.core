@@ -9213,12 +9213,13 @@ function Select({
   bound,
   label,
   placeholder,
-  choices
+  choices,
+  outdated = false
 }) {
   const current2 = typeof bound.value === "string" ? bound.value : void 0;
   const known = choices ?? [];
   const lacked = current2 !== void 0 && !known.some((choice) => choice.value === current2);
-  const invalid = lacked && choices !== void 0;
+  const invalid = lacked && choices !== void 0 && !outdated;
   const shown2 = lacked ? [...known, { value: current2, label: invalid ? missing(current2) : current2 }] : known;
   return /* @__PURE__ */ jsxs(Fragment, { children: [
     /* @__PURE__ */ jsx(Field, { label, children: /* @__PURE__ */ jsxs(
@@ -9244,7 +9245,8 @@ function Checklist({
   legend,
   choices,
   empty: empty2,
-  ordered = false
+  ordered = false,
+  outdated = false
 }) {
   const held2 = strings(bound.value);
   const known = choices ?? [];
@@ -9260,7 +9262,7 @@ function Checklist({
     /* @__PURE__ */ jsx("legend", { className: styles.legend, children: legend }),
     /* @__PURE__ */ jsxs("div", { className: styles.list, children: [
       shown2.map((value2) => {
-        const invalid = choices !== void 0 && !known.includes(value2);
+        const invalid = choices !== void 0 && !outdated && !known.includes(value2);
         return /* @__PURE__ */ jsxs("label", { className: styles.check, children: [
           /* @__PURE__ */ jsx(
             "input",
