@@ -236,12 +236,28 @@ test_that("serve() refuses data that R cannot bind to the block's inputs", {
     "The block has no inputs, so it takes no data",
     class = "serve_data_invalid"
   )
+})
 
-  expect_error(
-    serve(new_head_block(), n = 1, data = list(data = datasets::BOD)),
-    "and it was given both",
-    class = "serve_data_invalid"
+test_that("serve() ignores `...` where `data` is given, with a warning", {
+
+  expect_warning(
+    app <- serve(
+      new_head_block(),
+      n = 1,
+      datasets::BOD,
+      data = list(data = datasets::BOD)
+    ),
+    paste0(
+      "R takes the block's data from `data`, and ignores `n` and an unnamed ",
+      "argument in `...`."
+    ),
+    fixed = TRUE,
+    class = "serve_dots_ignored"
   )
+
+  reply <- served_replies(app, hello_message())[[1L]]
+
+  expect_identical(reply$bound, "data")
 })
 
 test_that("the page names the import map first and starts the client", {

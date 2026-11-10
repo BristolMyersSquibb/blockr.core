@@ -18,7 +18,8 @@ serve(x, ...)
 \arguments{
 \item{x}{A board, the path of a JSON board, or a block}
 
-\item{...}{For a block, its data, where \code{data} is empty}
+\item{...}{For a block, its data where \code{data} is empty.
+R ignores it otherwise, with a warning.}
 
 \item{data}{The block's data, a list by input}
 }

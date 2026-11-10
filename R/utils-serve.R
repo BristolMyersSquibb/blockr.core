@@ -33,7 +33,8 @@
 #' `serve(new_rbind_block(), a = iris, b = mtcars)`.
 #'
 #' @param x A board, the path of a JSON board, or a block
-#' @param ... For a block, its data, where `data` is empty
+#' @param ... For a block, its data where `data` is empty.
+#'   R ignores it otherwise, with a warning.
 #'
 #' @examples
 #' if (interactive()) {
@@ -83,15 +84,16 @@ serve.character <- function(x, ...) {
 #' @export
 serve.block <- function(x, ..., data = list()) {
 
-  if (...length() && length(data)) {
-    blockr_abort(
-      "R takes a block's data from `data`, or from `...` where `data` is ",
-      "empty, and it was given both.",
-      class = "serve_data_invalid"
-    )
-  }
+  dots <- dots_names(substitute(list(...)))
 
-  if (...length()) {
+  if (length(dots) && length(data)) {
+    dots <- arg_labels(dots)
+    blockr_warn(
+      "R takes the block's data from `data`, and ignores {dots} in `...`. ",
+      "It takes data from `...` only where `data` is empty.",
+      class = "serve_dots_ignored"
+    )
+  } else if (length(dots)) {
     data <- list(...)
   }
 
@@ -180,13 +182,11 @@ page_script <- function(runtime, alone = FALSE) {
 # The error says where each argument of today's `serve()` went.
 check_board_args <- function(args, what) {
 
-  args <- as.list(args)[-1L]
+  nms <- dots_names(args)
 
-  if (!length(args)) {
+  if (!length(nms)) {
     return(invisible())
   }
-
-  nms <- coal(names(args), character(length(args)), fail_all = FALSE)
 
   moved <- c(
     id = "A board holds its ID, which `new_board()` takes as `id`.",
@@ -202,9 +202,7 @@ check_board_args <- function(args, what) {
   )
 
   moved <- moved[intersect(names(moved), nms)]
-
-  # The arguments as the error names them.
-  nms <- ifelse(nzchar(nms), paste0("`", nms, "`"), "an unnamed argument")
+  nms <- arg_labels(nms)
 
   blockr_abort(
     "For {what}, `serve()` takes no argument but `x`, and it was given ",
@@ -212,6 +210,19 @@ check_board_args <- function(args, what) {
     if (length(moved)) paste0(" ", paste(moved, collapse = " ")) else "",
     class = "serve_args_invalid"
   )
+}
+
+# The names of the arguments that the call `list(...)` holds, unevaluated,
+# with "" for an argument that has none.
+dots_names <- function(call) {
+  args <- as.list(call)[-1L]
+  coal(names(args), character(length(args)), fail_all = FALSE)
+}
+
+# The arguments of the names given, as a message names them: each name in
+# backticks, or "an unnamed argument" for an argument that has none.
+arg_labels <- function(nms) {
+  ifelse(nzchar(nms), paste0("`", nms, "`"), "an unnamed argument")
 }
 
 # Checks the data that R binds to the inputs of a block that `serve()` serves
