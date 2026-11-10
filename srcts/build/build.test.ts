@@ -141,7 +141,9 @@ test("keeps core's utilities under its prefix and outside layers, without Prefli
   const css = await stylesheet(join(root, "test.css"));
 
   expect(css).toMatch(/^\.bc\\:flex \{/m);
-  expect(css).toMatch(/^\.bc\\:bg-blue-500 \{\n {2}background-color: var\(--bc-color-blue-500\);/m);
+  // Tailwind CSS writes a utility in one rule with others of the same
+  // declarations, such as a colour's own with that colour's at an opacity.
+  expect(css).toMatch(/^\.bc\\:bg-blue-500(, [^{]+)? \{\n {2}background-color: var\(--bc-color-blue-500\);/m);
   expect(css).toMatch(/@layer theme \{\n {2}:root, :host \{\n[^}]*\n {4}--bc-color-blue-500: /);
   expect(css).not.toMatch(/^\s*\.flex \{/m);
   expect(css).not.toContain("@layer utilities");

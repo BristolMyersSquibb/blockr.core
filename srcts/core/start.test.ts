@@ -1344,7 +1344,6 @@ describe("a block that serve() serves alone", () => {
     const core = await s.started.ready;
 
     expect(core.store.board().name).toBe(helloBlock.board.board.name);
-    expect(Object.keys(core.store.board().options)).toEqual(Object.keys(helloBlock.board.board.options));
     expect(drawn).toEqual([{ core, sent: 0 }]);
     expect(s.imported).toEqual(["blockr.session/startup.js?v=1"]);
 
@@ -1352,5 +1351,10 @@ describe("a block that serve() serves alone", () => {
     // by the input alone.
     await tick(100);
     expect(s.r.evaluations().map((request) => request.recipe.inputs)).toEqual([[{ input: "data" }]]);
+
+    // The board takes dark_mode, which switches the page's theme, as every
+    // board does, but not show_conditions, which only the basic frontend
+    // requires.
+    expect(Object.keys(core.store.board().options).sort()).toEqual(["dark_mode", "n_rows"]);
   });
 });

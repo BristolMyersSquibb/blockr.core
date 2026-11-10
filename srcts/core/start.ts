@@ -33,7 +33,9 @@
 // Core then starts in the same order, with three differences:
 // - In step 4, it opens the board that R sent, whatever board a startup
 //   module resolves with.
-// - In step 5, it adds no board options of core's basic frontend.
+// - In step 5, it adds no board options for core's basic frontend. The board
+//   still takes dark_mode, as every board does, since its onChange() switches
+//   the page's theme (./core.ts).
 // - In step 6, it imports no frontend, but draws the block in its card, which
 //   demands the block, and starts the scheduler once the card has mounted the
 //   block.

@@ -2551,7 +2551,7 @@ function createScheduler(options) {
       throw error;
     }
   }
-  const opened2 = E((next) => {
+  const opened = E((next) => {
     registry.value = store.blockRegistry();
     board.value = next;
     revisions.value = opening(graph.value, revision);
@@ -2776,7 +2776,7 @@ function createScheduler(options) {
   if (!gated) {
     demanding(++ids2, "blockr.core", (all) => Object.keys(all.blocks), 0);
   }
-  if (store.hasBoard()) opened2(store.board());
+  if (store.hasBoard()) opened(store.board());
   let heard = /* @__PURE__ */ new Map();
   const dispose = x(() => {
     const now = statuses.value;
@@ -2802,7 +2802,7 @@ function createScheduler(options) {
     if (state2.value !== planned) schedule();
   });
   const offStore = store.subscribe((change, next) => {
-    if ("opened" in change || board.peek() === void 0) opened2(next);
+    if ("opened" in change || board.peek() === void 0) opened(next);
     else applied(change.delta, next);
   });
   function stop() {
@@ -7269,15 +7269,15 @@ function createStore(options = {}) {
       opening2 = true;
       try {
         const { json, reply } = jsonOf(given);
-        const opened2 = build(json, reply);
+        const opened = build(json, reply);
         guard2();
         busy = true;
         try {
-          board.value = opened2.board;
+          board.value = opened.board;
           const step2 = ++lastStep;
-          for (const key of everyTarget(opened2.board)) edits.set(key, step2);
-          announce2({ opened: opened2.board, dropped: opened2.dropped }, opened2.board);
-          return opened2.dropped;
+          for (const key of everyTarget(opened.board)) edits.set(key, step2);
+          announce2({ opened: opened.board, dropped: opened.dropped }, opened.board);
+          return opened.dropped;
         } finally {
           busy = false;
         }
@@ -7489,7 +7489,7 @@ function runPlugins(deps) {
     stops.push(kept.stop);
     return kept.added;
   }
-  function opened2(plugins) {
+  function opened(plugins) {
     for (const [id2, plugin] of Object.entries(plugins)) {
       const def = classOfId(plugin.class);
       if (def?.options !== void 0) added.set(id2, keep(def.options, `the plugin class "${def.id}"`));
@@ -7499,7 +7499,7 @@ function runPlugins(deps) {
     }
   }
   const offStore = store.subscribe((change, board) => {
-    if ("opened" in change) opened2(board.plugins);
+    if ("opened" in change) opened(board.plugins);
   });
   onAbort(replaced, () => {
     offStore();
@@ -7805,15 +7805,15 @@ function createCore(parts) {
   };
   let heard = {};
   store.subscribe((change, board) => {
-    const opened2 = "opened" in change;
-    if (board.options !== heard || opened2) {
-      const before = opened2 ? {} : heard;
+    const opened = "opened" in change;
+    if (board.options !== heard || opened) {
+      const before = opened ? {} : heard;
       heard = board.options;
       for (const [id2, value2] of Object.entries(board.options)) {
         if (!jsonEqual(own(before, id2), value2)) changed(id2, value2);
       }
     }
-    if (opened2 || (change.delta.options?.unset?.length ?? 0) > 0) {
+    if (opened || (change.delta.options?.unset?.length ?? 0) > 0) {
       const lacking = Object.values(store.options.registered()).filter((def) => def.onChange !== void 0 && !Object.hasOwn(board.options, def.id)).map((def) => def.id);
       if (lacking.length > 0) void mounts.addOptions(lacking, "its onChange");
     }
@@ -9067,7 +9067,7 @@ function AloneCard({ core, id: id2 }) {
   const name3 = useBlockName(core, id2);
   const status = useStatus(core, id2);
   const shown2 = useShown(status);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(OPEN_AT_START);
   const panel = useId();
   const mountUi = useCallback((el) => core.mountBlock(el, id2), [core, id2]);
   const mountOutput2 = useCallback((el) => core.mountOutput(el, id2), [core, id2]);
@@ -9075,12 +9075,12 @@ function AloneCard({ core, id: id2 }) {
   const replied2 = status !== void 0 && status.evaluated !== null;
   const current2 = status?.status === "ready" && !status.running;
   const settled2 = status !== void 0 && status === shown2 && !status.running;
-  const messages = shown2 === void 0 ? [] : opened(shown2);
+  const listed = shown2 === void 0 ? [] : listedOf(shown2).filter((condition) => open.has(condition.severity));
   return /* @__PURE__ */ jsxs(
     "article",
     {
       "aria-label": name3,
-      className: "bc:mx-auto bc:my-4 bc:grid bc:max-w-5xl bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-subtle bc:p-3 bc:font-sans bc:text-gray-900",
+      className: "bc:mx-auto bc:my-4 bc:grid bc:max-w-5xl bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-subtle bc:p-3 bc:font-sans bc:text-gray-900 bc:dark:text-gray-100",
       children: [
         /* @__PURE__ */ jsx2("header", { children: /* @__PURE__ */ jsx2("h1", { className: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold", children: name3 }) }),
         inputs ? /* @__PURE__ */ jsx2(Mounted, { mount: mountUi, label: "Inputs", className: "bc:min-w-0" }) : null,
@@ -9103,15 +9103,17 @@ function AloneCard({ core, id: id2 }) {
                 {
                   "aria-busy": status?.running === true,
                   "data-status": shown2?.status,
-                  className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:text-center bc:font-mono bc:text-xs bc:transition-opacity ${settled2 ? "" : "bc:opacity-50"}`,
+                  className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:transition-opacity ${settled2 ? "" : "bc:opacity-50"}`,
                   children: shown2 === void 0 ? null : /* @__PURE__ */ jsx2(
                     StatusLine,
                     {
                       status: shown2,
                       panel,
                       open,
-                      toggle: () => {
-                        setOpen(!open);
+                      toggle: (severity) => {
+                        const next = new Set(open);
+                        if (!next.delete(severity)) next.add(severity);
+                        setOpen(next);
                       }
                     }
                   )
@@ -9120,56 +9122,110 @@ function AloneCard({ core, id: id2 }) {
             ]
           }
         ),
-        open && messages.length > 0 ? /* @__PURE__ */ jsx2(
-          "ul",
-          {
-            id: panel,
-            "aria-label": shown2?.status === "ready" ? "Warnings" : "Errors",
-            className: "bc:m-0 bc:grid bc:list-none bc:gap-1 bc:p-0 bc:font-mono bc:text-xs bc:whitespace-pre-wrap",
-            children: messages.map((condition, i2) => /* @__PURE__ */ jsx2("li", { className: condition.severity === "error" ? "bc:text-text-danger" : "bc:text-text-warning", children: condition.message }, i2))
-          }
-        ) : null
+        listed.length > 0 ? /* @__PURE__ */ jsx2("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map((condition, i2) => /* @__PURE__ */ jsx2(Banner, { condition }, i2)) }) : null
       ]
     }
   );
 }
+var MARKS = {
+  error: {
+    label: "Error",
+    noun: "error",
+    text: "bc:text-text-danger",
+    tint: "bc:bg-red-500/10",
+    border: "bc:border-border-danger"
+  },
+  warning: {
+    label: "Warning",
+    noun: "warning",
+    text: "bc:text-text-warning",
+    tint: "bc:bg-amber-500/10",
+    border: "bc:border-amber-500"
+  },
+  message: {
+    label: "Message",
+    noun: "message",
+    text: "bc:text-blue-600 bc:dark:text-blue-400",
+    tint: "bc:bg-blue-500/10",
+    border: "bc:border-border-accent"
+  }
+};
 function StatusLine({
   status,
   panel,
   open,
   toggle
 }) {
-  const opens = (label, tone) => /* @__PURE__ */ jsx2(
-    "button",
+  if (status.status === "waiting") {
+    return /* @__PURE__ */ jsx2("span", { className: "bc:text-text-muted", children: status.conditions[0]?.message });
+  }
+  const pills = ["error", "warning", "message"].flatMap((severity) => {
+    const n2 = status.conditions.filter((condition) => condition.severity === severity).length;
+    if (n2 === 0) return [];
+    const mark = MARKS[severity];
+    return [
+      /* @__PURE__ */ jsxs(
+        "button",
+        {
+          type: "button",
+          "aria-expanded": open.has(severity),
+          "aria-controls": panel,
+          onClick: () => {
+            toggle(severity);
+          },
+          className: `bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`,
+          children: [
+            /* @__PURE__ */ jsx2(SeverityIcon, { severity }),
+            severity === "error" ? mark.noun : `${String(n2)} ${mark.noun}${n2 === 1 ? "" : "s"}`
+          ]
+        },
+        severity
+      )
+    ];
+  });
+  return /* @__PURE__ */ jsxs("span", { className: "bc:inline-flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2", children: [
+    status.status === "ready" && status.summary !== null ? /* @__PURE__ */ jsx2("span", { className: "bc:text-text-muted", children: status.summary }) : null,
+    pills
+  ] });
+}
+function Banner({ condition }) {
+  const mark = MARKS[condition.severity];
+  return /* @__PURE__ */ jsxs(
+    "li",
     {
-      type: "button",
-      "aria-expanded": open,
-      "aria-controls": panel,
-      className: `bc:cursor-pointer bc:border-0 bc:bg-transparent bc:p-0 bc:font-mono bc:text-xs bc:underline-offset-2 bc:hover:underline ${tone}`,
-      onClick: toggle,
-      children: label
+      "data-severity": condition.severity,
+      className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`,
+      children: [
+        /* @__PURE__ */ jsx2("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx2(SeverityIcon, { severity: condition.severity }) }),
+        /* @__PURE__ */ jsxs("span", { className: "bc:grid bc:min-w-0 bc:gap-0.5", children: [
+          /* @__PURE__ */ jsx2("span", { className: `bc:font-sans bc:text-xs bc:font-semibold ${mark.text}`, children: mark.label }),
+          /* @__PURE__ */ jsx2("span", { className: "bc:font-mono bc:text-xs bc:whitespace-pre-wrap", children: condition.message })
+        ] })
+      ]
     }
   );
-  switch (status.status) {
-    case "ready": {
-      const warnings = status.conditions.filter((condition) => condition.severity === "warning").length;
-      return /* @__PURE__ */ jsxs("span", { className: "bc:text-text-muted", children: [
-        status.summary,
-        warnings === 0 ? null : /* @__PURE__ */ jsxs(Fragment, { children: [
-          status.summary === null ? null : " \xB7 ",
-          opens(`${String(warnings)} ${warnings === 1 ? "warning" : "warnings"}`, "bc:text-text-warning")
-        ] })
-      ] });
+}
+function SeverityIcon({ severity }) {
+  return /* @__PURE__ */ jsx2(
+    "svg",
+    {
+      "aria-hidden": "true",
+      viewBox: "0 0 16 16",
+      className: "bc:size-3 bc:shrink-0",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: 1.6,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      children: severity === "warning" ? /* @__PURE__ */ jsxs(Fragment, { children: [
+        /* @__PURE__ */ jsx2("path", { d: "M8 1.8 14.6 13.6H1.4Z" }),
+        /* @__PURE__ */ jsx2("path", { d: "M8 6.2v3.2M8 11.6v.1" })
+      ] }) : /* @__PURE__ */ jsxs(Fragment, { children: [
+        /* @__PURE__ */ jsx2("circle", { cx: "8", cy: "8", r: "6.4" }),
+        /* @__PURE__ */ jsx2("path", { d: severity === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1" })
+      ] })
     }
-    case "failed":
-      return opens(firstLine(errorsOf(status)[0]), "bc:text-text-danger");
-    case "invalid":
-      return /* @__PURE__ */ jsx2("span", { className: "bc:text-text-warning", children: firstLine(errorsOf(status)[0]) });
-    case "waiting":
-      return /* @__PURE__ */ jsx2("span", { className: "bc:text-text-muted", children: status.conditions[0]?.message });
-    default:
-      return null;
-  }
+  );
 }
 function useShown(status) {
   const [kept, setKept] = useState(void 0);
@@ -9177,17 +9233,9 @@ function useShown(status) {
   if (now !== void 0 && now !== kept) setKept(now);
   return now ?? kept;
 }
-function opened(status) {
-  if (status.status === "ready") return status.conditions.filter((condition) => condition.severity === "warning");
-  if (status.status === "failed") return errorsOf(status);
-  return [];
-}
-function errorsOf(status) {
-  const errors = status.conditions.filter((condition) => condition.severity === "error");
-  return errors.length > 0 ? errors : status.conditions;
-}
-function firstLine(condition) {
-  return condition?.message.split("\n", 1)[0] ?? "";
+var OPEN_AT_START = /* @__PURE__ */ new Set(["error"]);
+function listedOf(status) {
+  return status.status === "waiting" ? [] : status.conditions;
 }
 function useBlockName(core, id2) {
   const subscribe = useCallback(

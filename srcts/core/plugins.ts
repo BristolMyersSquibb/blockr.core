@@ -7,8 +7,8 @@
 //    again each that a delta removes, so that the board holds the value of
 //    every board option that a plugin requires, as it holds those of a
 //    mounted module (../mount/block.ts). For a block that serve() serves
-//    alone, which core's basic frontend does not draw, core adds none of the
-//    basic frontend's.
+//    alone, which core's basic frontend does not draw, core adds none of them
+//    for the basic frontend.
 // 2. Core draws the board with its frontend, the plugin whose class has
 //    `frontend`, or core's basic frontend where the board holds none, once the
 //    board options that the frontend's class names are on the board

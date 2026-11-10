@@ -7,18 +7,22 @@
 // - The block's UI, which core mounts where the board lock leaves the block
 //   open, as the store's locked() says.
 // - The block's output, as R's chosen renderer draws it, which core mounts.
-// - The footer, one centred line of the block's status:
-//   - A ready block shows its summary, with the count of its warnings after
-//     it, as "<data.frame> [0 × 5] · 1 warning".
-//   - A failed block shows the first line of R's error, in red.
-//   - A waiting block shows why it waits, and an invalid block why its state
-//     cannot run.
-//   The count of warnings and the error each open to their full messages,
-//   below the output.
+// - The footer, one centred line of the block's status: a ready block's
+//   summary, or why a waiting block waits, and a pill for each severity of the
+//   conditions of R's reply. The pill of the errors reads "error", and those of
+//   the warnings and the messages count them, as "2 warnings". The footer
+//   writes out no message of R's, which may be of any length.
+// - The banners of the conditions whose pills are open, in the order R raised
+//   them: each condition in full, in the colour of its severity. Each pill
+//   opens and closes its banners, and keeps its state when R evaluates the
+//   block again. The pill of the errors is open from the start, so that a
+//   failed block shows its error at once.
 // While R evaluates the block, the footer and the output dim, and keep what
 // they show. The output also dims while the block is not ready, and keeps the
-// last output that it drew. The card shows conditions in its footer alone,
-// and never as toasts.
+// last output that it drew. The card shows conditions in its footer and its
+// banners alone, and never as toasts.
+// The card draws in the page's theme, which the board option dark_mode
+// switches, as on every page that core starts.
 // Core asks R for an output only once the output's element measures more than
 // 0 by 0, and R draws a plot at that size. So the card gives the output a
 // height of its own from the block's first reply on, which the user may drag
@@ -36,6 +40,8 @@ import type { BlockStatus } from "../scheduler/index.ts";
 import type { BlockId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import { own } from "../util/index.ts";
+
+type Severity = Condition["severity"];
 
 // The owner of the card's demand.
 export const OWNER = "blockr.core";
@@ -79,7 +85,7 @@ function AloneCard({ core, id }: { core: CardCore; id: BlockId }): ReactElement 
   const name = useBlockName(core, id);
   const status = useStatus(core, id);
   const shown = useShown(status);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<ReadonlySet<Severity>>(OPEN_AT_START);
   const panel = useId();
 
   const mountUi = useCallback((el: HTMLElement) => core.mountBlock(el, id), [core, id]);
@@ -89,12 +95,12 @@ function AloneCard({ core, id }: { core: CardCore; id: BlockId }): ReactElement 
   const replied = status !== undefined && status.evaluated !== null;
   const current = status?.status === "ready" && !status.running;
   const settled = status !== undefined && status === shown && !status.running;
-  const messages = shown === undefined ? [] : opened(shown);
+  const listed = shown === undefined ? [] : listedOf(shown).filter((condition) => open.has(condition.severity));
 
   return (
     <article
       aria-label={name}
-      className="bc:mx-auto bc:my-4 bc:grid bc:max-w-5xl bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-subtle bc:p-3 bc:font-sans bc:text-gray-900"
+      className="bc:mx-auto bc:my-4 bc:grid bc:max-w-5xl bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-subtle bc:p-3 bc:font-sans bc:text-gray-900 bc:dark:text-gray-100"
     >
       <header>
         <h1 className="bc:m-0 bc:font-sans bc:text-base bc:font-semibold">{name}</h1>
@@ -114,7 +120,7 @@ function AloneCard({ core, id }: { core: CardCore; id: BlockId }): ReactElement 
         <footer
           aria-busy={status?.running === true}
           data-status={shown?.status}
-          className={`bc:min-h-4 bc:shrink-0 bc:px-5 bc:text-center bc:font-mono bc:text-xs bc:transition-opacity ${
+          className={`bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:transition-opacity ${
             settled ? "" : "bc:opacity-50"
           }`}
         >
@@ -123,23 +129,19 @@ function AloneCard({ core, id }: { core: CardCore; id: BlockId }): ReactElement 
               status={shown}
               panel={panel}
               open={open}
-              toggle={() => {
-                setOpen(!open);
+              toggle={(severity) => {
+                const next = new Set(open);
+                if (!next.delete(severity)) next.add(severity);
+                setOpen(next);
               }}
             />
           )}
         </footer>
       </div>
-      {open && messages.length > 0 ? (
-        <ul
-          id={panel}
-          aria-label={shown?.status === "ready" ? "Warnings" : "Errors"}
-          className="bc:m-0 bc:grid bc:list-none bc:gap-1 bc:p-0 bc:font-mono bc:text-xs bc:whitespace-pre-wrap"
-        >
-          {messages.map((condition, i) => (
-            <li key={i} className={condition.severity === "error" ? "bc:text-text-danger" : "bc:text-text-warning"}>
-              {condition.message}
-            </li>
+      {listed.length > 0 ? (
+        <ul id={panel} aria-label="Conditions" className="bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0">
+          {listed.map((condition, i) => (
+            <Banner key={i} condition={condition} />
           ))}
         </ul>
       ) : null}
@@ -147,7 +149,37 @@ function AloneCard({ core, id }: { core: CardCore; id: BlockId }): ReactElement 
   );
 }
 
-// The line of the footer for a status that has one.
+// How the card marks a condition of each severity, in its pill and in its
+// banner: in the theme's danger colour for an error, its warning colour for a
+// warning, and its accent, blue, for a message.
+const MARKS: Readonly<Record<Severity, { label: string; noun: string; text: string; tint: string; border: string }>> = {
+  error: {
+    label: "Error",
+    noun: "error",
+    text: "bc:text-text-danger",
+    tint: "bc:bg-red-500/10",
+    border: "bc:border-border-danger",
+  },
+  warning: {
+    label: "Warning",
+    noun: "warning",
+    text: "bc:text-text-warning",
+    tint: "bc:bg-amber-500/10",
+    border: "bc:border-amber-500",
+  },
+  message: {
+    label: "Message",
+    noun: "message",
+    text: "bc:text-blue-600 bc:dark:text-blue-400",
+    tint: "bc:bg-blue-500/10",
+    border: "bc:border-border-accent",
+  },
+};
+
+// The line of the footer for a status that has one: a ready block's summary,
+// or why a waiting block waits, and a pill for each severity of the conditions
+// of R's reply. The pill of the errors reads "error", and those of the
+// warnings and the messages count them.
 function StatusLine({
   status,
   panel,
@@ -156,45 +188,90 @@ function StatusLine({
 }: {
   status: BlockStatus;
   panel: string;
-  open: boolean;
-  toggle: () => void;
+  open: ReadonlySet<Severity>;
+  toggle: (severity: Severity) => void;
 }): ReactElement | null {
-  const opens = (label: string, tone: string): ReactElement => (
-    <button
-      type="button"
-      aria-expanded={open}
-      aria-controls={panel}
-      className={`bc:cursor-pointer bc:border-0 bc:bg-transparent bc:p-0 bc:font-mono bc:text-xs bc:underline-offset-2 bc:hover:underline ${tone}`}
-      onClick={toggle}
-    >
-      {label}
-    </button>
-  );
-
-  switch (status.status) {
-    case "ready": {
-      const warnings = status.conditions.filter((condition) => condition.severity === "warning").length;
-      return (
-        <span className="bc:text-text-muted">
-          {status.summary}
-          {warnings === 0 ? null : (
-            <>
-              {status.summary === null ? null : " · "}
-              {opens(`${String(warnings)} ${warnings === 1 ? "warning" : "warnings"}`, "bc:text-text-warning")}
-            </>
-          )}
-        </span>
-      );
-    }
-    case "failed":
-      return opens(firstLine(errorsOf(status)[0]), "bc:text-text-danger");
-    case "invalid":
-      return <span className="bc:text-text-warning">{firstLine(errorsOf(status)[0])}</span>;
-    case "waiting":
-      return <span className="bc:text-text-muted">{status.conditions[0]?.message}</span>;
-    default:
-      return null;
+  if (status.status === "waiting") {
+    return <span className="bc:text-text-muted">{status.conditions[0]?.message}</span>;
   }
+
+  const pills = (["error", "warning", "message"] as const).flatMap((severity) => {
+    const n = status.conditions.filter((condition) => condition.severity === severity).length;
+    if (n === 0) return [];
+    const mark = MARKS[severity];
+    return [
+      <button
+        key={severity}
+        type="button"
+        aria-expanded={open.has(severity)}
+        aria-controls={panel}
+        onClick={() => {
+          toggle(severity);
+        }}
+        className={`bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`}
+      >
+        <SeverityIcon severity={severity} />
+        {severity === "error" ? mark.noun : `${String(n)} ${mark.noun}${n === 1 ? "" : "s"}`}
+      </button>,
+    ];
+  });
+
+  return (
+    <span className="bc:inline-flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2">
+      {status.status === "ready" && status.summary !== null ? <span className="bc:text-text-muted">{status.summary}</span> : null}
+      {pills}
+    </span>
+  );
+}
+
+// A condition in full, as a banner in the colour of its severity, with the
+// severity's icon and name.
+function Banner({ condition }: { condition: Condition }): ReactElement {
+  const mark = MARKS[condition.severity];
+  return (
+    <li
+      data-severity={condition.severity}
+      className={`bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`}
+    >
+      <span className={`bc:mt-0.5 ${mark.text}`}>
+        <SeverityIcon severity={condition.severity} />
+      </span>
+      <span className="bc:grid bc:min-w-0 bc:gap-0.5">
+        <span className={`bc:font-sans bc:text-xs bc:font-semibold ${mark.text}`}>{mark.label}</span>
+        <span className="bc:font-mono bc:text-xs bc:whitespace-pre-wrap">{condition.message}</span>
+      </span>
+    </li>
+  );
+}
+
+// The icon of a severity, drawn in the colour of the text around it: a cross in
+// a circle for an error, an exclamation mark in a triangle for a warning, and
+// an i in a circle for a message.
+function SeverityIcon({ severity }: { severity: Severity }): ReactElement {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 16 16"
+      className="bc:size-3 bc:shrink-0"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {severity === "warning" ? (
+        <>
+          <path d="M8 1.8 14.6 13.6H1.4Z" />
+          <path d="M8 6.2v3.2M8 11.6v.1" />
+        </>
+      ) : (
+        <>
+          <circle cx="8" cy="8" r="6.4" />
+          <path d={severity === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1"} />
+        </>
+      )}
+    </svg>
+  );
 }
 
 // The status that the footer shows: the block's, where it has a line of its
@@ -208,21 +285,14 @@ function useShown(status: BlockStatus | undefined): BlockStatus | undefined {
   return now ?? kept;
 }
 
-// The conditions that the footer's line opens to: a ready block's warnings,
-// and a failed block's errors.
-function opened(status: BlockStatus): readonly Condition[] {
-  if (status.status === "ready") return status.conditions.filter((condition) => condition.severity === "warning");
-  if (status.status === "failed") return errorsOf(status);
-  return [];
-}
+// The severities whose banners are open as the card starts: the errors, since
+// their pill names no more of them than their severity.
+const OPEN_AT_START: ReadonlySet<Severity> = new Set<Severity>(["error"]);
 
-function errorsOf(status: BlockStatus): readonly Condition[] {
-  const errors = status.conditions.filter((condition) => condition.severity === "error");
-  return errors.length > 0 ? errors : status.conditions;
-}
-
-function firstLine(condition: Condition | undefined): string {
-  return condition?.message.split("\n", 1)[0] ?? "";
+// The conditions that the footer opens to, in the order R raised them: those
+// of R's reply, which a waiting block has none of.
+function listedOf(status: BlockStatus): readonly Condition[] {
+  return status.status === "waiting" ? [] : status.conditions;
 }
 
 // The block's name, which the store keeps until a change renames the block.
