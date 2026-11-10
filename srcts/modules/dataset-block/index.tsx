@@ -2,7 +2,7 @@
 // package ships, which the request datasets gives.
 
 import type { ReactElement } from "react";
-import { choicesOf, strings } from "../../binding/index.ts";
+import { asChoices, strings } from "../../binding/index.ts";
 import { reactModule, Select, Stack, useRequest, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
@@ -21,7 +21,7 @@ function DatasetBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
         bound={useValue(host, "dataset")}
         label="Dataset"
         placeholder="Choose a dataset"
-        choices={datasets === undefined ? undefined : choicesOf(strings(datasets))}
+        choices={datasets === undefined ? undefined : asChoices(strings(datasets))}
       />
     </Stack>
   );

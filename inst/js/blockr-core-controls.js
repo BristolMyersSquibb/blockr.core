@@ -178,10 +178,10 @@ function Slot({ node }) {
 }
 
 // srcts/controls/index.ts
-import { choicesOf, PAUSE, strings } from "@blockr/core/binding";
+import { asChoices, PAUSE, strings } from "@blockr/core/binding";
 export {
   PAUSE,
-  choicesOf,
+  asChoices,
   controls,
   strings,
   styles
