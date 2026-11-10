@@ -32,6 +32,22 @@
 #' So each entry needs a name, as in
 #' `serve(new_rbind_block(), a = iris, b = mtcars)`.
 #'
+#' @section End-to-end tests:
+#' In Shiny's test mode, as the package shinytest2 starts an app, the app gives
+#' end-to-end tests what they check.
+#' R exports `result` through [shiny::exportTestValues()], which a test reads
+#' with `AppDriver$get_values(export = TRUE)`.
+#' For a board, `result` holds the latest result of each block, by block ID.
+#' For a block that `serve()` serves alone, `result` is the block's result.
+#' R holds no result of a block whose latest evaluation failed, so `result`
+#' leaves that block out.
+#' The client holds the board and each block's status.
+#' So the page puts the object `blockrTest` on `window`, which a test reads
+#' with `AppDriver$get_js()`.
+#' Its function `board()` gives a copy of the board that the client holds, and
+#' its function `statuses()` gives each block's status by block ID, as in
+#' `app$get_js("blockrTest.statuses()")`.
+#'
 #' @param x A board, the path of a JSON board, or a block
 #' @param ... For a block, its data where `data` is empty.
 #'   R ignores it otherwise, with a warning.
@@ -108,6 +124,9 @@ serve.block <- function(x, ..., data = list()) {
 # R writes or reads the opening board here, as `serve()` is called, rather than
 # as a session starts, and so reads it for the locks.
 # Every session's evaluator holds its evaluations to what R read.
+# The server function exports the latest results of the session's evaluator
+# for end-to-end tests.
+# Shiny answers for exported values only in test mode.
 serve_app <- function(board, data = list(), alone = FALSE) {
 
   force(board)
@@ -120,12 +139,31 @@ serve_app <- function(board, data = list(), alone = FALSE) {
 
       ev <- new_evaluator(board, data, lock)
 
+      shiny::exportTestValues(result = latest_results(ev, alone))
+
       shiny_transport(
         function(message, send) receive_requests(ev, message, send),
         session
       )
     }
   )
+}
+
+# The latest result of each block that the evaluator holds one for, by block
+# ID, as R exports them for end-to-end tests.
+# For a block that `serve()` serves alone, it is that block's result,
+# or `NULL` before R holds one.
+# R holds no result of a block whose latest evaluation failed.
+latest_results <- function(ev, alone = FALSE) {
+
+  ids <- ls(ev$results, all.names = TRUE)
+  res <- lst_xtr(mget(ids, envir = ev$results), "result")
+
+  if (alone) {
+    return(if (length(res)) res[[1L]])
+  }
+
+  res
 }
 
 # The page of the app that `serve()` returns, which holds no Bootstrap.
@@ -136,7 +174,10 @@ serve_app <- function(board, data = list(), alone = FALSE) {
 # in, and the module script that starts the client with `startPage()`.
 # R makes the page for each request, so that its URLs name the files that R
 # serves now.
-serve_page <- function(alone = FALSE) {
+# In Shiny's test mode, as shinytest2 starts an app, the client puts
+# `blockrTest` on the page's `window`, for end-to-end tests to read.
+serve_page <- function(alone = FALSE,
+                       test = isTRUE(shiny::getShinyOption("testmode"))) {
 
   runtime <- served_module(core_runtime())
 
@@ -148,7 +189,7 @@ serve_page <- function(alone = FALSE) {
     shiny::tags$div(id = "blockr-page"),
     shiny::tags$script(
       type = "module",
-      shiny::HTML(page_script(runtime[["module"]], alone))
+      shiny::HTML(page_script(runtime[["module"]], alone, test))
     )
   )
 }
@@ -166,11 +207,13 @@ import_map_dependency <- function() {
 # The module script that imports `startPage()` from core's runtime, at the URL
 # given, and starts the client in the page's element.
 # The client draws a block that `serve()` serves alone where `alone` is `TRUE`.
-page_script <- function(runtime, alone = FALSE) {
+# It puts `blockrTest` on `window` where `test` is `TRUE`.
+page_script <- function(runtime, alone = FALSE, test = FALSE) {
   paste0(
     "import { startPage } from \"./", runtime, "\";\n",
     "startPage({ el: document.getElementById(\"blockr-page\")",
     if (alone) ", alone: true" else "",
+    if (test) ", test: true" else "",
     " });\n"
   )
 }

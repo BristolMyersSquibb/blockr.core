@@ -356,6 +356,9 @@
   Once its choices are known, a `Select` shows a value that they lack as missing, as `wt (not available)`, and marks itself invalid, and a `Checklist` marks such a string the same way while the user can still clear it.
   Neither submits anything, so the state stays as the user left it.
   The scatter block fails where its data lacks one of its columns, rather than draw `x` against the row index where only `y` is missing (#542).
+* In Shiny's test mode, as the package shinytest2 starts an app, the app that `serve()` returns gives end-to-end tests what they check, which `blockr_test_exports()` gave until now.
+  R exports each block's latest result through `exportTestValues()` as `result`: a list by block ID for a board, and the block's result for a block that `serve()` serves alone.
+  The page puts `blockrTest` on `window`, whose `board()` gives a copy of the board that the client holds, and whose `statuses()` gives each block's status by block ID, for `AppDriver$get_js()` to read (#443).
 
 # blockr.core 0.1.4
 

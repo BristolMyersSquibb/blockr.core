@@ -9043,6 +9043,30 @@ function asStartupModule(exports, module, pkg) {
   return mod;
 }
 
+// srcts/page/blockr-test.ts
+function blockrTest(core) {
+  const open = () => {
+    const now = core();
+    return now?.store.hasBoard() === true ? now : void 0;
+  };
+  return {
+    board() {
+      const now = open();
+      return now === void 0 ? null : structuredClone(now.store.board());
+    },
+    statuses() {
+      const now = open();
+      if (now === void 0) return {};
+      return Object.fromEntries(
+        Object.keys(now.store.board().blocks).flatMap((id2) => {
+          const status = now.scheduler.status(id2);
+          return status === void 0 ? [] : [[id2, structuredClone(status)]];
+        })
+      );
+    }
+  };
+}
+
 // srcts/page/card.tsx
 import { useCallback, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
@@ -9287,7 +9311,7 @@ function Mounted({
 function startPage(options) {
   const { el } = options;
   el.replaceChildren(loadingNote());
-  return start({
+  const started = start({
     transport: options.transport ?? shinyTransport(),
     ...options.loader === void 0 ? {} : { loader: options.loader },
     ...options.measure === void 0 ? {} : { measure: options.measure },
@@ -9307,6 +9331,10 @@ function startPage(options) {
       report(error);
     }
   });
+  if (options.test === true) {
+    window.blockrTest = blockrTest(() => started.core());
+  }
+  return started;
 }
 function reloadBanner(changed) {
   const id2 = "blockr-core-reload";

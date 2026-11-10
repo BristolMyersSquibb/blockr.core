@@ -2,6 +2,9 @@
 # and binary frames sent, in their order, the data objects registered and the
 # reconnect allowed, so that a test can read what R sent the client and play
 # the client's HTTP requests.
+# It also keeps what the server function exports for end-to-end tests,
+# as Shiny keeps it: each value's expression with the environment to evaluate
+# it in, by name.
 transport_session <- function() {
 
   session <- shiny::MockShinySession$new()
@@ -9,6 +12,7 @@ transport_session <- function() {
   session$sent <- list()
   session$data_objs <- list()
   session$reconnect <- NULL
+  session$exports <- list()
 
   session$sendCustomMessage <- function(type, message) {
     session$sent[[length(session$sent) + 1L]] <- list(
@@ -32,6 +36,18 @@ transport_session <- function() {
 
   session$allowReconnect <- function(value) {
     session$reconnect <- value
+  }
+
+  session$exportTestValues <- function(..., quoted_ = FALSE,
+                                       env_ = parent.frame()) {
+
+    exprs <- if (quoted_) list(...) else eval(substitute(alist(...)))
+
+    for (nm in names(exprs)) {
+      session$exports[[nm]] <- list(expr = exprs[[nm]], env = env_)
+    }
+
+    invisible()
   }
 
   session
@@ -146,10 +162,9 @@ transport_input <- function(bytes) {
 # transport carries them, and runs what R queued for each.
 # It gives the replies that R sent, in their order, after the message that
 # starts the session on the client.
-served_replies <- function(app, ...) {
+served_replies <- function(app, ..., session = transport_session()) {
 
   replies <- list()
-  session <- transport_session()
 
   shiny::testServer(
     app,
@@ -173,4 +188,15 @@ served_replies <- function(app, ...) {
   )
 
   replies
+}
+
+# Runs the server function of an app that serve() returned as
+# `served_replies()` does, and gives what the app exports for end-to-end tests
+# once R has answered the messages, by name, as Shiny gives it in test mode.
+served_exports <- function(app, ...) {
+
+  session <- transport_session()
+  served_replies(app, ..., session = session)
+
+  lapply(session$exports, function(x) eval(x$expr, x$env))
 }

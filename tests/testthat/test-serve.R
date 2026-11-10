@@ -286,3 +286,95 @@ test_that("the page names the import map first and starts the client", {
 
   expect_match(page$html, "\"blockr-page\"), alone: true });", fixed = TRUE)
 })
+
+test_that("in Shiny's test mode, the page has the client put out blockrTest", {
+
+  expect_no_match(
+    htmltools::renderTags(serve_page())$html,
+    "test: true",
+    fixed = TRUE
+  )
+
+  old <- shiny::getShinyOption("testmode")
+  shiny::shinyOptions(testmode = TRUE)
+  withr::defer(shiny::shinyOptions(testmode = old))
+
+  expect_match(
+    htmltools::renderTags(serve_page())$html,
+    "\"blockr-page\"), test: true });",
+    fixed = TRUE
+  )
+  expect_match(
+    htmltools::renderTags(serve_page(alone = TRUE))$html,
+    "\"blockr-page\"), alone: true, test: true });",
+    fixed = TRUE
+  )
+})
+
+test_that("the app exports the latest result of each block for e2e tests", {
+
+  # The recipe of the sample board's dataset block a with the dataset given.
+  dataset_recipe <- function(dataset) {
+    utils::modifyList(sample_recipe("a"), list(state = list(dataset = dataset)))
+  }
+
+  app <- serve(served_board())
+
+  exports <- served_exports(
+    app,
+    hello_message(),
+    list(
+      evaluate_request("2", "a", 1L, sample_recipe("a")),
+      evaluate_request("3", "a", 2L, dataset_recipe("mtcars")),
+      evaluate_request(
+        "4",
+        "b",
+        1L,
+        sample_recipe("b", list(read_of("a", 2L, "data")))
+      )
+    )
+  )
+
+  # The result of the latest evaluation of a, its second.
+  expect_identical(
+    exports$result,
+    list(a = datasets::mtcars, b = utils::head(datasets::mtcars))
+  )
+
+  # R holds no result of a block whose latest evaluation failed, so the
+  # export leaves the block out.
+  exports <- served_exports(
+    app,
+    hello_message(),
+    list(
+      evaluate_request("2", "a", 1L, sample_recipe("a")),
+      evaluate_request("3", "a", 2L, dataset_recipe("no_such_dataset"))
+    )
+  )
+
+  expect_named(exports$result, character())
+})
+
+test_that("the app of a block served alone exports the block's result", {
+
+  app <- serve(new_head_block(), data = list(data = datasets::mtcars))
+  block <- names(served_replies(app, hello_message())[[1L]]$board$board$blocks)
+
+  # Before R holds a result of the block, there is none to export.
+  expect_null(served_exports(app, hello_message())$result)
+
+  exports <- served_exports(
+    app,
+    hello_message(),
+    list(
+      evaluate_request(
+        "2",
+        block,
+        1L,
+        sample_recipe("b", list(list(input = "data")))
+      )
+    )
+  )
+
+  expect_identical(exports$result, utils::head(datasets::mtcars))
+})

@@ -8,6 +8,8 @@
 // that a loader resolves. Where core cannot start, or R now runs other
 // versions of packages than the page loaded, the element tells the user to
 // reload the page.
+// In Shiny's test mode, the page puts `blockrTest` on `window`, through which
+// end-to-end tests read the board and each block's status (./blockr-test.ts).
 
 import { showError } from "../mount/index.ts";
 import type { LoaderOptions, Measure } from "../mount/index.ts";
@@ -17,6 +19,7 @@ import { shinyTransport } from "../transport/index.ts";
 import { report } from "../util/index.ts";
 import { loadingNote, pageFrontEnds, start } from "../core/index.ts";
 import type { Changed, Started } from "../core/index.ts";
+import { blockrTest } from "./blockr-test.ts";
 import { drawCard } from "./card.tsx";
 
 export interface PageOptions {
@@ -32,12 +35,16 @@ export interface PageOptions {
   // Whether the page serves a block alone, as serve() serves one, which core
   // draws in its card rather than with a frontend.
   readonly alone?: boolean;
+  // Whether Shiny runs the app in test mode, as shinytest2 starts it.
+  // The page then puts `blockrTest` on `window` for end-to-end tests to read
+  // (./blockr-test.ts).
+  readonly test?: boolean;
 }
 
 export function startPage(options: PageOptions): Started {
   const { el } = options;
   el.replaceChildren(loadingNote());
-  return start({
+  const started = start({
     transport: options.transport ?? shinyTransport(),
     ...(options.loader === undefined ? {} : { loader: options.loader }),
     ...(options.measure === undefined ? {} : { measure: options.measure }),
@@ -57,6 +64,10 @@ export function startPage(options: PageOptions): Started {
       report(error);
     },
   });
+  if (options.test === true) {
+    window.blockrTest = blockrTest(() => started.core());
+  }
+  return started;
 }
 
 // Tells the user that R now runs other versions of packages than the page
