@@ -127,6 +127,7 @@ export function NumberInput({
 // request answers, and shows a value meanwhile as it is.
 // Once they are known, it shows a value that they lack, such as a column that
 // the data no longer has, as missing, and marks itself invalid.
+// So its choices must list every value it takes, not a part of them.
 export function Select({
   bound,
   label,
@@ -196,6 +197,7 @@ export function Checkbox({ bound, label }: { bound: Bound; label: string }): Rea
 // It shows a string the value holds and the choices lack,
 // such as a column only one input has, so that the user can clear it,
 // and marks it as missing once the choices are known.
+// So its choices must list every string it takes, not a part of them.
 // It submits the checked strings in the order the user checked them,
 // after those the value holds, or where `ordered`, in the order of the
 // choices, as for severities.
