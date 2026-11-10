@@ -9,7 +9,7 @@ import type { EvaluateRequest, HelloReply, Reply, Request, Transport, TransportL
 import { coreOptions } from "../options/index.ts";
 import type { Option, PluginClass } from "../store/index.ts";
 import { reports } from "../testing/reports.ts";
-import { hello, withPlugins } from "../testing/store.ts";
+import { hello, reply, withPlugins } from "../testing/store.ts";
 import { startPage } from "../page/index.ts";
 import type { JsonBoard, Plugin, PluginId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
@@ -1307,5 +1307,54 @@ describe("a later session", () => {
     expect(changes).toEqual([changed, changed]);
     expect(events).toEqual(["1.0.0 starts, board open: false", "1.0.0 done", "1.0.0 starts, board open: false", "1.0.0 done"]);
     expect(s.imported.filter((url) => url.endsWith("?v=2"))).toEqual([]);
+  });
+});
+
+describe("a block that serve() serves alone", () => {
+  // The reply to the hello of an app that serves the head block alone, with
+  // R binding its input data, whose startup module of blockr.session names
+  // another board to open.
+  const helloBlock = reply("hello-block") as HelloReply;
+  const named = { ...helloBlock.board, board: { ...helloBlock.board.board, id: "named_board", name: "From the URL" } };
+  const withSession: HelloReply = {
+    ...helloBlock,
+    packages: { ...helloBlock.packages, "blockr.session": "1.0.0" },
+    startup_modules: [{ package: "blockr.session", module: "blockr.session/startup.js?v=1" }],
+  };
+
+  test("opens R's board, adds no board options of core's basic frontend, and draws the block in its card before the scheduler sends", async () => {
+    const drawn: { core: CoreApi; sent: number }[] = [];
+    const s = setup(
+      { "blockr.session/startup.js?v=1": startup("blockr.session", [], () => JSON.stringify(named)) },
+      {
+        alone: true,
+        frontEnds: {
+          prepare: () => Promise.reject(new Error("Core prepares no frontend.")),
+          render: () => Promise.reject(new Error("Core renders no frontend.")),
+          card(core) {
+            drawn.push({ core, sent: s.r.evaluations().length });
+            core.scheduler.demand("blockr.core", Object.keys(core.store.board().blocks));
+          },
+        },
+      },
+    );
+    s.r.session(withSession);
+    await tick();
+    s.r.options();
+    const core = await s.started.ready;
+
+    expect(core.store.board().name).toBe(helloBlock.board.board.name);
+    expect(drawn).toEqual([{ core, sent: 0 }]);
+    expect(s.imported).toEqual(["blockr.session/startup.js?v=1"]);
+
+    // The scheduler sends what the card demands, naming the input that R binds
+    // by the input alone.
+    await tick(100);
+    expect(s.r.evaluations().map((request) => request.recipe.inputs)).toEqual([[{ input: "data" }]]);
+
+    // The board takes dark_mode, which switches the page's theme, as every
+    // board does, but not show_conditions, which only the basic frontend
+    // requires.
+    expect(Object.keys(core.store.board().options).sort()).toEqual(["dark_mode", "n_rows"]);
   });
 });

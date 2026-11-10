@@ -29,6 +29,7 @@ export interface RunningDeps {
     readonly keepOptions: Mounts["keepOptions"];
     readonly core: () => CoreApi;
     readonly signal?: AbortSignal;
+    readonly alone?: boolean;
 }
 export declare function runPlugins(deps: RunningDeps): RunningPlugins;
 export {};

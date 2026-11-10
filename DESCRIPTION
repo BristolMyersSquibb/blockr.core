@@ -39,6 +39,7 @@ Roxygen: list(markdown = TRUE, roclets = c("collate", "namespace", "rd",
     "blockr.core::block_registration_roclet"))
 Imports:
     shiny (>= 1.14.0),
+    htmltools,
     bsicons,
     datasets,
     grDevices,

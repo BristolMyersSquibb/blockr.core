@@ -140,3 +140,37 @@ transport_input <- function(bytes) {
     }
   )
 }
+
+# Runs the server function of an app that serve() returned in a test session,
+# sends it the client's messages in turn, each a list of requests, as the
+# transport carries them, and runs what R queued for each.
+# It gives the replies that R sent, in their order, after the message that
+# starts the session on the client.
+served_replies <- function(app, ...) {
+
+  replies <- list()
+  session <- transport_session()
+
+  shiny::testServer(
+    app,
+    {
+      session$flushReact()
+
+      for (message in list(...)) {
+
+        session$setInputs(blockr = unclass(encode_message(message)))
+
+        while (!later::loop_empty()) {
+          later::run_now()
+        }
+      }
+
+      for (sent in transport_sent(session)[-1L]) {
+        replies <<- c(replies, decode_message(sent))
+      }
+    },
+    session = session
+  )
+
+  replies
+}
