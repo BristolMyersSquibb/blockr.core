@@ -1,6 +1,6 @@
 // Patches, the changes to the board's plugins and inside their state,
 // applied as JSON Patch applies its `add`, `remove` and `replace` (RFC 6902):
-// at a path from the board's top, without knowing the state's structure.
+// at a path from the board's root, without knowing the state's structure.
 // A patch copies only the objects and arrays along its path,
 // so that the new board shares the rest with the old one,
 // and returns the patch that takes it back, which undo applies.
@@ -17,7 +17,7 @@ import type { Patch } from "./delta.ts";
 
 // The segments of a JSON Pointer, its reference tokens in RFC 6901, reading
 // "~1" as "/" and "~0" as "~", as "/plugins/dock" gives ["plugins", "dock"].
-// They are undefined where the text is no pointer below the board's top: where
+// They are undefined where the text is no pointer below the board's root: where
 // it is empty, does not start with "/", or holds a "~" that escapes nothing.
 export function segmentsFromPath(path: string): string[] | undefined {
   if (!path.startsWith("/")) return undefined;
@@ -29,8 +29,8 @@ export function segmentsFromPath(path: string): string[] | undefined {
 // The plugin that a path leads into, "dag" for "/plugins/dag/state/positions/a"
 // and for "/plugins/dag", or undefined where it leads into no plugin.
 export function pluginIdFromPath(path: string): string | undefined {
-  const [top, plugin] = segmentsFromPath(path) ?? [];
-  return top === "plugins" ? plugin : undefined;
+  const [boardProperty, plugin] = segmentsFromPath(path) ?? [];
+  return boardProperty === "plugins" ? plugin : undefined;
 }
 
 // The JSON Pointer to the segments.
@@ -66,7 +66,7 @@ export function malformed(patch: unknown): string[] {
     problems.push(`has the op ${JSON.stringify(op)}, where it takes "add", "remove" or "replace"`);
   }
   if (typeof path !== "string" || segmentsFromPath(path) === undefined) {
-    problems.push(`has the path ${JSON.stringify(path)}, which is no JSON Pointer below the board's top`);
+    problems.push(`has the path ${JSON.stringify(path)}, which is no JSON Pointer below the board's root`);
   }
   if ((op === "add" || op === "replace") && patch.value === undefined) {
     problems.push("has no value");
@@ -116,7 +116,7 @@ interface Step {
   readonly place?: string | null;
 }
 
-// The patch applied below `at`, which `done` leads to from the board's top.
+// The patch applied below `at`, which `done` leads to from the board's root.
 function step(
   at: unknown,
   segments: readonly string[],

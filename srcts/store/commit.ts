@@ -220,17 +220,17 @@ function patch(
 // No patch adds, removes or replaces a plugin, since the app's opening board
 // sets the plugins that a board holds.
 function outside(segments: readonly string[], op: Patch["op"]): string | undefined {
-  const [top, plugin, property] = segments;
-  if (top !== "plugins") return `changes "${top ?? ""}", where a patch changes the board's plugins alone`;
+  const [boardProperty, plugin, pluginProperty] = segments;
+  if (boardProperty !== "plugins") return `changes "${boardProperty ?? ""}", where a patch changes the board's plugins alone`;
   if (plugin === undefined) return "changes the board's plugins as a whole, where a patch changes one plugin";
-  if (property === undefined) {
+  if (pluginProperty === undefined) {
     return `changes the plugin "${plugin}" as a whole, where a patch changes a plugin's name or its state, since the app's opening board sets the plugins that a board holds`;
   }
-  if (property !== "name" && property !== "state") {
-    return `changes "${property}" of the plugin "${plugin}", where a patch below a plugin changes its name or its state`;
+  if (pluginProperty !== "name" && pluginProperty !== "state") {
+    return `changes "${pluginProperty}" of the plugin "${plugin}", where a patch below a plugin changes its name or its state`;
   }
   if (segments.length === 3 && op === "remove") {
-    return `removes the ${property} of the plugin "${plugin}", which a plugin always holds`;
+    return `removes the ${pluginProperty} of the plugin "${plugin}", which a plugin always holds`;
   }
   return undefined;
 }

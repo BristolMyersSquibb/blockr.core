@@ -37,7 +37,7 @@ describe("pointers", () => {
     expect(segmentsFromPath("/views/")).toEqual(["views", ""]);
   });
 
-  test("are none for a path that does not start at the board's top, or escapes nothing", () => {
+  test("are none for a path that does not start at the board's root, or escapes nothing", () => {
     expect(segmentsFromPath("")).toBeUndefined();
     expect(segmentsFromPath("views/main")).toBeUndefined();
     expect(segmentsFromPath("/views/a~2")).toBeUndefined();
@@ -167,7 +167,7 @@ describe("the shape of a patch", () => {
       'holds "from", which a patch does not keep',
     ]);
     expect(malformed({ op: "replace", path: "views" })).toEqual([
-      'has the path "views", which is no JSON Pointer below the board\'s top',
+      'has the path "views", which is no JSON Pointer below the board\'s root',
       "has no value",
     ]);
   });

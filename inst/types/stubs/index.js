@@ -6066,8 +6066,8 @@ function segmentsFromPath(path) {
   return segments.map((segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~"));
 }
 function pluginIdFromPath(path) {
-  const [top, plugin] = segmentsFromPath(path) ?? [];
-  return top === "plugins" ? plugin : void 0;
+  const [boardProperty, plugin] = segmentsFromPath(path) ?? [];
+  return boardProperty === "plugins" ? plugin : void 0;
 }
 function pathFromSegments(segments) {
   return segments.map((segment) => `/${segment.replaceAll("~", "~0").replaceAll("/", "~1")}`).join("");
@@ -6088,7 +6088,7 @@ function malformed(patch2) {
     problems.push(`has the op ${JSON.stringify(op)}, where it takes "add", "remove" or "replace"`);
   }
   if (typeof path !== "string" || segmentsFromPath(path) === void 0) {
-    problems.push(`has the path ${JSON.stringify(path)}, which is no JSON Pointer below the board's top`);
+    problems.push(`has the path ${JSON.stringify(path)}, which is no JSON Pointer below the board's root`);
   }
   if ((op === "add" || op === "replace") && patch2.value === void 0) {
     problems.push("has no value");
@@ -6312,17 +6312,17 @@ function patch(board, patches2, placed, failures) {
   return { board: next, inverse, places, plugins };
 }
 function outside(segments, op) {
-  const [top, plugin, property] = segments;
-  if (top !== "plugins") return `changes "${top ?? ""}", where a patch changes the board's plugins alone`;
+  const [boardProperty, plugin, pluginProperty] = segments;
+  if (boardProperty !== "plugins") return `changes "${boardProperty ?? ""}", where a patch changes the board's plugins alone`;
   if (plugin === void 0) return "changes the board's plugins as a whole, where a patch changes one plugin";
-  if (property === void 0) {
+  if (pluginProperty === void 0) {
     return `changes the plugin "${plugin}" as a whole, where a patch changes a plugin's name or its state, since the app's opening board sets the plugins that a board holds`;
   }
-  if (property !== "name" && property !== "state") {
-    return `changes "${property}" of the plugin "${plugin}", where a patch below a plugin changes its name or its state`;
+  if (pluginProperty !== "name" && pluginProperty !== "state") {
+    return `changes "${pluginProperty}" of the plugin "${plugin}", where a patch below a plugin changes its name or its state`;
   }
   if (segments.length === 3 && op === "remove") {
-    return `removes the ${property} of the plugin "${plugin}", which a plugin always holds`;
+    return `removes the ${pluginProperty} of the plugin "${plugin}", which a plugin always holds`;
   }
   return void 0;
 }
@@ -6562,8 +6562,8 @@ function misplaced(cls, id2, patches2) {
       continue;
     }
     const { path } = patch2;
-    const [top, plugin, property] = segmentsFromPath(path) ?? [];
-    if (top !== "plugins" || plugin !== id2 || property !== "state") {
+    const [boardProperty, plugin, pluginProperty] = segmentsFromPath(path) ?? [];
+    if (boardProperty !== "plugins" || plugin !== id2 || pluginProperty !== "state") {
       failures.push(`${of} with a patch at "${path}", outside that plugin's state.`);
     }
   }
@@ -6628,8 +6628,8 @@ function lockFailures(before, inverse) {
   }
   if (inverse.name !== void 0) failures.push("The board lock refuses to rename the board.");
   const renamed = (inverse.patches ?? []).flatMap((patch2) => {
-    const [, plugin, property] = segmentsFromPath(patch2.path) ?? [];
-    return plugin === void 0 || property === "state" ? [] : [plugin];
+    const [, plugin, pluginProperty] = segmentsFromPath(patch2.path) ?? [];
+    return plugin === void 0 || pluginProperty === "state" ? [] : [plugin];
   });
   refuse("rename", "plugin", "plugins", [...new Set(renamed)]);
   return failures;

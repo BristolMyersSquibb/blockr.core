@@ -116,8 +116,8 @@ function misplaced(cls: string, id: PluginId, patches: unknown): string[] {
       continue;
     }
     const { path } = patch as Patch;
-    const [top, plugin, property] = segmentsFromPath(path) ?? [];
-    if (top !== "plugins" || plugin !== id || property !== "state") {
+    const [boardProperty, plugin, pluginProperty] = segmentsFromPath(path) ?? [];
+    if (boardProperty !== "plugins" || plugin !== id || pluginProperty !== "state") {
       failures.push(`${of} with a patch at "${path}", outside that plugin's state.`);
     }
   }

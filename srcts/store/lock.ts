@@ -72,8 +72,8 @@ export function lockFailures(before: Board, inverse: Delta): string[] {
   // A patch changes a plugin's name or its state, and only the plugin locks
   // what sits in its state.
   const renamed = (inverse.patches ?? []).flatMap((patch) => {
-    const [, plugin, property] = segmentsFromPath(patch.path) ?? [];
-    return plugin === undefined || property === "state" ? [] : [plugin];
+    const [, plugin, pluginProperty] = segmentsFromPath(patch.path) ?? [];
+    return plugin === undefined || pluginProperty === "state" ? [] : [plugin];
   });
   refuse("rename", "plugin", "plugins", [...new Set(renamed)]);
 
