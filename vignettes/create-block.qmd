@@ -529,6 +529,9 @@ The SDK holds these:
 - The inputs `Checkbox`, `Checklist`, `Field`, `NumberInput`, `Select`, `Stack` and `TextInput`, each on one bound value.
 - For the renderers of output classes, the function `outputRenderer()` and the hook `useOutput()`.
 
+A `Select` or a `Checklist` whose choices a request gives takes them as `undefined` until the request answers, since an empty array says that there are none.
+Once they are known, the input shows a value that they lack, such as a column that the data no longer has, as missing, and submits nothing, so that the state stays as the user left it.
+
 The state's type sits in `state.ts`, from which the package's build writes the JSON Schema:
 
 ```ts
@@ -647,6 +650,8 @@ export default {
   },
 };
 ```
+
+A select or a checklist of the controls has no choices until the module gives them, in its options or through `setChoices()` once a request answers.
 
 A widget of a package's own binds to a state arg through `bind()` of `@blockr/core/binding`, which keeps the contract's rules without React.
 A package that builds nothing writes the schema of the state by hand.

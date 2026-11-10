@@ -61,10 +61,19 @@ export interface Controls<K extends string = string> {
   number(key: K, options: { label: string; min?: number }): NumberInput;
   // A select of one string, which shows `placeholder` while the value is
   // unset.
+  // It takes no choices until they are given, here or through setChoices(),
+  // and shows a value meanwhile as it is.
+  // Once they are, it shows a value that they lack as missing,
+  // and marks itself invalid.
+  // So its choices must list every value it takes, not a part of them.
   select(key: K, options: { label: string; placeholder: string; choices?: readonly Choice[] }): Select;
   checkbox(key: K, options: { label: string }): void;
   // A checkbox for each string that an array may hold,
   // which says `empty` once its choices are known and there are none.
+  // It takes no choices until they are given, here or through setChoices(),
+  // and shows a string the value holds and they lack,
+  // marked as missing once they are given, so that the user can clear it.
+  // So its choices must list every string it takes, not a part of them.
   // It submits the checked strings in the order the user checked them,
   // after those the value holds, or where `ordered`, in the order of the
   // choices, as for severities.
@@ -223,7 +232,7 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
   }
 
   function select(key: string, options: { label: string; placeholder: string; choices?: readonly Choice[] }): Select {
-    let choices = options.choices ?? [];
+    let choices = options.choices;
     input(key, (bound) => (
       <inputs.Select bound={bound} label={options.label} placeholder={options.placeholder} choices={choices} />
     ));

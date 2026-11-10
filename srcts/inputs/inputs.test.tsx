@@ -7,6 +7,7 @@ import type { ReactElement } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { PAUSE } from "../binding/index.ts";
+import type { Choice } from "../binding/index.ts";
 import { useRequest, useValue } from "../react/index.ts";
 import { stubBlockHost, stubOptionHost } from "../stubs/index.ts";
 import type { BlockFixture, StubBlockHost } from "../stubs/index.ts";
@@ -230,18 +231,13 @@ function Conditions({ host }: { host: OptionHost<string[]> }): ReactElement {
   );
 }
 
-function Mode({ host }: { host: OptionHost<string> }): ReactElement {
-  return (
-    <Select
-      bound={useValue(host)}
-      label="Light/dark mode"
-      placeholder="Choose a mode"
-      choices={[
-        { value: "light", label: "Light" },
-        { value: "dark", label: "Dark" },
-      ]}
-    />
-  );
+const modes: readonly Choice[] = [
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+];
+
+function Mode({ host, choices }: { host: OptionHost<string>; choices?: readonly Choice[] }): ReactElement {
+  return <Select bound={useValue(host)} label="Light/dark mode" placeholder="Choose a mode" choices={choices} />;
 }
 
 describe("the inputs of a board option's UI", () => {
@@ -280,9 +276,42 @@ describe("the inputs of a board option's UI", () => {
     expect(host.submitted).toEqual([["message", "error"]]);
   });
 
+  test("show a string that the choices lack as missing, and let the user clear it", async () => {
+    const host = stubOptionHost<string[]>({ option: "show_conditions", value: ["error", "debug"] });
+    const { el } = draw(<Conditions host={host} />);
+    const debug = find(el, 'input[value="debug"]', HTMLInputElement);
+
+    expect(texts(el, "label")).toEqual(["message", "warning", "error", "debug (not available)"]);
+    expect([debug.checked, debug.getAttribute("aria-invalid")]).toEqual([true, "true"]);
+    expect(find(el, 'input[value="error"]').getAttribute("aria-invalid")).toBe("false");
+
+    await act(async () => {
+      toggle(debug);
+      await Promise.resolve();
+    });
+
+    expect(host.submitted).toEqual([["error"]]);
+    expect(texts(el, "label")).toEqual(["message", "warning", "error"]);
+  });
+
+  test("show a mode that the choices lack as it is until they are known, and as missing while they lack it", () => {
+    const host = stubOptionHost<string>({ option: "dark_mode", value: "auto" });
+    const { el, redraw } = draw(<Mode host={host} />);
+    const select = find(el, "select", HTMLSelectElement);
+    const shown = () => [select.value, texts(select, "option"), select.getAttribute("aria-invalid")];
+    expect(shown()).toEqual(["auto", ["auto"], "false"]);
+
+    redraw(<Mode host={host} choices={modes} />);
+    expect(shown()).toEqual(["auto", ["Light", "Dark", "auto (not available)"], "true"]);
+
+    redraw(<Mode host={host} choices={[...modes, { value: "auto", label: "Auto" }]} />);
+    expect(shown()).toEqual(["auto", ["Light", "Dark", "Auto"], "false"]);
+    expect(host.submitted).toEqual([]);
+  });
+
   test("submit the mode the user picks", () => {
     const host = stubOptionHost<string>({ option: "dark_mode", value: "light" });
-    const { el } = draw(<Mode host={host} />);
+    const { el } = draw(<Mode host={host} choices={modes} />);
 
     act(() => {
       pick(find(el, "select", HTMLSelectElement), "dark");

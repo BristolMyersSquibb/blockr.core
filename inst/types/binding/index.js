@@ -159,7 +159,7 @@ function sourceOf(host) {
     request: (name, args, opts) => host.request(name, args, opts)
   };
 }
-function choicesOf(values) {
+function asChoices(values) {
   return values.map((value) => ({ value, label: value }));
 }
 function strings(value) {
@@ -167,8 +167,8 @@ function strings(value) {
 }
 export {
   PAUSE,
+  asChoices,
   bind,
-  choicesOf,
   follow,
   strings
 };

@@ -1,5 +1,5 @@
 // srcts/modules/dataset-block/index.tsx
-import { choicesOf, strings } from "@blockr/core/binding";
+import { asChoices, strings } from "@blockr/core/binding";
 import { reactModule, Select, Stack, useRequest, useValue } from "@blockr/core/react";
 import { jsx } from "react/jsx-runtime";
 var api = 1;
@@ -12,7 +12,7 @@ function DatasetBlock({ host }) {
       bound: useValue(host, "dataset"),
       label: "Dataset",
       placeholder: "Choose a dataset",
-      choices: choicesOf(strings(datasets))
+      choices: datasets === void 0 ? void 0 : asChoices(strings(datasets))
     }
   ) });
 }

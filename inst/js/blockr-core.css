@@ -830,6 +830,10 @@
   border-color: var(--bc-color-border-danger);
 }
 
+.bc\:aria-invalid\:accent-border-danger[aria-invalid="true"] {
+  accent-color: var(--bc-color-border-danger);
+}
+
 @media (min-width: 48rem) {
   .bc\:md\:sticky {
     position: sticky;

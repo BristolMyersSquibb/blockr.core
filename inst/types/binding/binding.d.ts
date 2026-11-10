@@ -29,5 +29,5 @@ export interface Choice {
     readonly value: string;
     readonly label: string;
 }
-export declare function choicesOf(values: readonly string[]): readonly Choice[];
+export declare function asChoices(values: readonly string[]): readonly Choice[];
 export declare function strings(value: unknown): readonly string[];

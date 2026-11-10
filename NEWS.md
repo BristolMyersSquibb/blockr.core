@@ -351,6 +351,11 @@
   Where a board option that a block's UI module, a renderer or a board option's UI names does not go onto the board, as where its default fails, core shows why in the element in place of what would draw there, and reports it, naming the board option and what requires it.
   A renderer that has drawn keeps its output and gets the error through its host's `error()`, and core asks R for no output until the board holds a value.
   Plugins read a board option's value from the board through `core.options.value()` (#508).
+* The input `Select` of core's React SDK takes its choices as `undefined` until they are known, as `Checklist` does.
+  The scatter and dataset blocks pass `undefined` until their requests answer, and a select of `controls()` has no choices until the module gives them.
+  Once its choices are known, a `Select` shows a value that they lack as missing, as `wt (not available)`, and marks itself invalid, and a `Checklist` marks such a string the same way while the user can still clear it.
+  Neither submits anything, so the state stays as the user left it.
+  The scatter block fails where its data lacks one of its columns, rather than draw `x` against the row index where only `y` is missing (#542).
 
 # blockr.core 0.1.4
 
