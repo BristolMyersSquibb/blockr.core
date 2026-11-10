@@ -10,6 +10,7 @@ export interface FrontEnds {
         readonly plugin: PluginId | undefined;
     }, loader: Loader, signal: AbortSignal): Promise<void>;
     render(core: CoreApi, signal: AbortSignal, failures: readonly string[]): Promise<void>;
+    card?(core: CoreApi, signal: AbortSignal): void;
 }
 export interface Changed {
     readonly package: string;
@@ -21,6 +22,7 @@ export interface StartOptions {
     readonly loader?: Omit<LoaderOptions, "modules" | "changed">;
     readonly options: (core: Pick<CoreApi, "blockrOption">) => readonly Option[];
     readonly frontEnds?: FrontEnds;
+    readonly alone?: boolean;
     readonly measure?: Measure;
     readonly reload?: (changed: readonly Changed[]) => void;
     readonly fail?: (error: Error) => void;

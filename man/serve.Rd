@@ -2,22 +2,83 @@
 % Please edit documentation in R/utils-serve.R
 \name{serve}
 \alias{serve}
-\title{Serve object}
+\alias{serve.board}
+\alias{serve.character}
+\alias{serve.block}
+\title{Serve a board or a block}
 \usage{
 serve(x, ...)
+
+\method{serve}{board}(x, ...)
+
+\method{serve}{character}(x, ...)
+
+\method{serve}{block}(x, ..., data = list())
 }
 \arguments{
-\item{x}{Object}
+\item{x}{A board, the path of a JSON board, or a block}
 
-\item{...}{Generic consistency}
+\item{...}{For a block, its data, where \code{data} is empty}
+
+\item{data}{The block's data, a list by input}
 }
 \value{
-A \code{serve()} method is expected to return an app, such as the result
-of a call to \code{\link[shiny:shinyApp]{shiny::shinyApp()}}.
+A Shiny app, as \code{\link[shiny:shinyApp]{shiny::shinyApp()}} returns it.
 }
 \description{
-Intended as entry point to start up an app, the generic function \code{serve()}
-dispatches on the object to serve, such as an entire board or a single block
-(for previewing it during block development). No methods are currently
-provided.
+The generic \code{serve()} starts an app, as an app script does at its top level.
+Its methods take a board, the path of a JSON board, or a single block, and
+return a Shiny app.
+The app's page holds core's client, which draws the board with the board's
+frontend, or with core's basic frontend where the board holds none.
+The app's server function hands what the client sends to the evaluator of
+the session, which evaluates the blocks.
+}
+\details{
+For a board, R writes the board's JSON once, as \code{serve()} is called, and
+sends it to the client as each session starts.
+So a board that R cannot write as JSON fails as the script runs (see
+\code{\link[=blockr_ser]{blockr_ser()}}).
+For the path of a JSON board, R reads only the file's format, and sends the
+file's text as it is, for the client to open.
+It loads no package for the file.
+The board's ID, its plugins and its board options come from the board (see
+\code{\link[=new_board]{new_board()}}), and the client reads the query of the page's URL itself.
+Where the board lock and the load lock are both on, R reads the board's
+blocks and links once, as \code{serve()} is called, and holds every evaluation
+to them.
+
+A single block is served alone, with fixed data and no board around it, so
+that its developer can try it out.
+The page shows the block in a card of its own: its name, its UI, its output
+and a line of its status.
+R keeps the data for the process, and binds each entry to the block's input
+of that name.
+For a variadic block, an entry whose name is none of the block's inputs
+goes into the block's \code{...}, under that name.
+So each entry needs a name, as in
+\code{serve(new_rbind_block(), a = iris, b = mtcars)}.
+}
+\examples{
+if (interactive()) {
+  serve(
+    new_board(
+      blocks = c(
+        a = new_dataset_block("BOD"),
+        b = new_dataset_block("ChickWeight"),
+        c = new_merge_block("Time")
+      ),
+      links = c(
+        ac = new_link("a", "c", "x"),
+        bc = new_link("b", "c", "y")
+      )
+    )
+  )
+
+  serve(
+    new_merge_block("Time"),
+    data = list(x = datasets::BOD, y = datasets::ChickWeight)
+  )
+}
+
 }

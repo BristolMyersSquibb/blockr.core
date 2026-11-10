@@ -7467,7 +7467,7 @@ function runPlugins(deps) {
       const def = classOfId(plugin.class);
       if (def?.options !== void 0) added.set(id2, keep(def.options, `the plugin class "${def.id}"`));
     }
-    if (inRole(plugins, classOfId, "frontend").length === 0) {
+    if (deps.alone !== true && inRole(plugins, classOfId, "frontend").length === 0) {
       basic = keep(BASIC_FRONTEND.options, "core's basic frontend");
     }
   }
@@ -7737,7 +7737,8 @@ function createCore(parts) {
     loader,
     keepOptions: (ids2, by, failed3) => mounts.keepOptions(ids2, by, failed3),
     core: () => api,
-    ...parts.signal === void 0 ? {} : { signal: parts.signal }
+    ...parts.signal === void 0 ? {} : { signal: parts.signal },
+    ...parts.alone === true ? { alone: true } : {}
   });
   const api = {
     store,
@@ -8660,6 +8661,7 @@ function attempt2(command2, fn) {
 var CAPABILITIES = ["cancel", "interrupt", "progress"];
 function start(options) {
   const page = new AbortController();
+  const alone = options.alone === true;
   const fail = options.fail ?? ((error) => {
     report(error);
   });
@@ -8805,6 +8807,7 @@ function start(options) {
       lock: (first ?? reply).lock,
       renderers: () => latest?.renderers ?? {},
       signal,
+      alone,
       ...options.measure === void 0 ? {} : { measure: options.measure }
     });
     running2 = { store, scheduler, core, controller };
@@ -8812,7 +8815,7 @@ function start(options) {
     let dropped = [];
     let failure;
     if (later === void 0) {
-      const instead = chosen(reply, named2);
+      const instead = alone ? void 0 : chosen(reply, named2);
       if (instead === void 0) {
         dropped = await store.open(reply);
       } else {
@@ -8836,19 +8839,27 @@ function start(options) {
         }
       }
     }
-    const front = plugins.frontend();
-    const [failures] = await Promise.all([
-      front.added,
-      options.frontEnds?.prepare(
-        { id: front.module, source: own(latest?.modules ?? {}, front.module), plugin: front.plugin },
-        loader,
-        signal
-      )
-    ]);
-    try {
-      await options.frontEnds?.render(core, signal, failures);
-    } finally {
-      scheduler.start();
+    if (alone) {
+      try {
+        options.frontEnds?.card?.(core, signal);
+      } finally {
+        scheduler.start();
+      }
+    } else {
+      const front = plugins.frontend();
+      const [failures] = await Promise.all([
+        front.added,
+        options.frontEnds?.prepare(
+          { id: front.module, source: own(latest?.modules ?? {}, front.module), plugin: front.plugin },
+          loader,
+          signal
+        )
+      ]);
+      try {
+        await options.frontEnds?.render(core, signal, failures);
+      } finally {
+        scheduler.start();
+      }
     }
     await plugins.start();
     if (failure !== void 0) throw failure;

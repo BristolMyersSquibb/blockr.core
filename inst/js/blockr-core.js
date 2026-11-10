@@ -2551,7 +2551,7 @@ function createScheduler(options) {
       throw error;
     }
   }
-  const opened = E((next) => {
+  const opened2 = E((next) => {
     registry.value = store.blockRegistry();
     board.value = next;
     revisions.value = opening(graph.value, revision);
@@ -2776,7 +2776,7 @@ function createScheduler(options) {
   if (!gated) {
     demanding(++ids2, "blockr.core", (all) => Object.keys(all.blocks), 0);
   }
-  if (store.hasBoard()) opened(store.board());
+  if (store.hasBoard()) opened2(store.board());
   let heard = /* @__PURE__ */ new Map();
   const dispose = x(() => {
     const now = statuses.value;
@@ -2802,7 +2802,7 @@ function createScheduler(options) {
     if (state2.value !== planned) schedule();
   });
   const offStore = store.subscribe((change, next) => {
-    if ("opened" in change || board.peek() === void 0) opened(next);
+    if ("opened" in change || board.peek() === void 0) opened2(next);
     else applied(change.delta, next);
   });
   function stop() {
@@ -7269,15 +7269,15 @@ function createStore(options = {}) {
       opening2 = true;
       try {
         const { json, reply } = jsonOf(given);
-        const opened = build(json, reply);
+        const opened2 = build(json, reply);
         guard2();
         busy = true;
         try {
-          board.value = opened.board;
+          board.value = opened2.board;
           const step2 = ++lastStep;
-          for (const key of everyTarget(opened.board)) edits.set(key, step2);
-          announce2({ opened: opened.board, dropped: opened.dropped }, opened.board);
-          return opened.dropped;
+          for (const key of everyTarget(opened2.board)) edits.set(key, step2);
+          announce2({ opened: opened2.board, dropped: opened2.dropped }, opened2.board);
+          return opened2.dropped;
         } finally {
           busy = false;
         }
@@ -7489,17 +7489,17 @@ function runPlugins(deps) {
     stops.push(kept.stop);
     return kept.added;
   }
-  function opened(plugins) {
+  function opened2(plugins) {
     for (const [id2, plugin] of Object.entries(plugins)) {
       const def = classOfId(plugin.class);
       if (def?.options !== void 0) added.set(id2, keep(def.options, `the plugin class "${def.id}"`));
     }
-    if (inRole(plugins, classOfId, "frontend").length === 0) {
+    if (deps.alone !== true && inRole(plugins, classOfId, "frontend").length === 0) {
       basic = keep(BASIC_FRONTEND.options, "core's basic frontend");
     }
   }
   const offStore = store.subscribe((change, board) => {
-    if ("opened" in change) opened(board.plugins);
+    if ("opened" in change) opened2(board.plugins);
   });
   onAbort(replaced, () => {
     offStore();
@@ -7764,7 +7764,8 @@ function createCore(parts) {
     loader,
     keepOptions: (ids2, by, failed2) => mounts.keepOptions(ids2, by, failed2),
     core: () => api,
-    ...parts.signal === void 0 ? {} : { signal: parts.signal }
+    ...parts.signal === void 0 ? {} : { signal: parts.signal },
+    ...parts.alone === true ? { alone: true } : {}
   });
   const api = {
     store,
@@ -7804,15 +7805,15 @@ function createCore(parts) {
   };
   let heard = {};
   store.subscribe((change, board) => {
-    const opened = "opened" in change;
-    if (board.options !== heard || opened) {
-      const before = opened ? {} : heard;
+    const opened2 = "opened" in change;
+    if (board.options !== heard || opened2) {
+      const before = opened2 ? {} : heard;
       heard = board.options;
       for (const [id2, value2] of Object.entries(board.options)) {
         if (!jsonEqual(own(before, id2), value2)) changed(id2, value2);
       }
     }
-    if (opened || (change.delta.options?.unset?.length ?? 0) > 0) {
+    if (opened2 || (change.delta.options?.unset?.length ?? 0) > 0) {
       const lacking = Object.values(store.options.registered()).filter((def) => def.onChange !== void 0 && !Object.hasOwn(board.options, def.id)).map((def) => def.id);
       if (lacking.length > 0) void mounts.addOptions(lacking, "its onChange");
     }
@@ -8687,6 +8688,7 @@ function attempt2(command2, fn) {
 var CAPABILITIES = ["cancel", "interrupt", "progress"];
 function start(options) {
   const page = new AbortController();
+  const alone = options.alone === true;
   const fail = options.fail ?? ((error) => {
     report(error);
   });
@@ -8832,6 +8834,7 @@ function start(options) {
       lock: (first ?? reply).lock,
       renderers: () => latest?.renderers ?? {},
       signal,
+      alone,
       ...options.measure === void 0 ? {} : { measure: options.measure }
     });
     running2 = { store, scheduler, core, controller };
@@ -8839,7 +8842,7 @@ function start(options) {
     let dropped = [];
     let failure;
     if (later === void 0) {
-      const instead = chosen(reply, named2);
+      const instead = alone ? void 0 : chosen(reply, named2);
       if (instead === void 0) {
         dropped = await store.open(reply);
       } else {
@@ -8863,19 +8866,27 @@ function start(options) {
         }
       }
     }
-    const front = plugins.frontend();
-    const [failures] = await Promise.all([
-      front.added,
-      options.frontEnds?.prepare(
-        { id: front.module, source: own(latest?.modules ?? {}, front.module), plugin: front.plugin },
-        loader,
-        signal
-      )
-    ]);
-    try {
-      await options.frontEnds?.render(core, signal, failures);
-    } finally {
-      scheduler.start();
+    if (alone) {
+      try {
+        options.frontEnds?.card?.(core, signal);
+      } finally {
+        scheduler.start();
+      }
+    } else {
+      const front = plugins.frontend();
+      const [failures] = await Promise.all([
+        front.added,
+        options.frontEnds?.prepare(
+          { id: front.module, source: own(latest?.modules ?? {}, front.module), plugin: front.plugin },
+          loader,
+          signal
+        )
+      ]);
+      try {
+        await options.frontEnds?.render(core, signal, failures);
+      } finally {
+        scheduler.start();
+      }
     }
     await plugins.start();
     if (failure !== void 0) throw failure;
@@ -9022,6 +9033,198 @@ function asStartupModule(exports, module, pkg) {
   return mod;
 }
 
+// srcts/page/card.tsx
+import { useCallback, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
+import { Fragment, jsx as jsx2, jsxs } from "react/jsx-runtime";
+var OWNER = "blockr.core";
+function drawCard(el, core, signal) {
+  if (signal.aborted) return;
+  const ids2 = Object.keys(core.store.board().blocks);
+  const [id2] = ids2;
+  if (id2 === void 0 || ids2.length > 1) {
+    showError(el, `A block that serve() serves alone comes as a board of one block, and this board holds ${String(ids2.length)}.`);
+    return;
+  }
+  const demand = core.scheduler.demand(OWNER, [id2]);
+  el.replaceChildren();
+  const root = createRoot(el);
+  flushSync(() => {
+    root.render(/* @__PURE__ */ jsx2(AloneCard, { core, id: id2 }));
+  });
+  signal.addEventListener(
+    "abort",
+    () => {
+      demand.release();
+      root.unmount();
+      el.replaceChildren(loadingNote());
+    },
+    { once: true }
+  );
+}
+function AloneCard({ core, id: id2 }) {
+  const name3 = useBlockName(core, id2);
+  const status = useStatus(core, id2);
+  const shown2 = useShown(status);
+  const [open, setOpen] = useState(false);
+  const panel = useId();
+  const mountUi = useCallback((el) => core.mountBlock(el, id2), [core, id2]);
+  const mountOutput2 = useCallback((el) => core.mountOutput(el, id2), [core, id2]);
+  const inputs = !core.store.locked(id2);
+  const replied2 = status !== void 0 && status.evaluated !== null;
+  const current2 = status?.status === "ready" && !status.running;
+  const settled2 = status !== void 0 && status === shown2 && !status.running;
+  const messages = shown2 === void 0 ? [] : opened(shown2);
+  return /* @__PURE__ */ jsxs(
+    "article",
+    {
+      "aria-label": name3,
+      className: "bc:mx-auto bc:my-4 bc:grid bc:max-w-5xl bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-subtle bc:p-3 bc:font-sans bc:text-gray-900",
+      children: [
+        /* @__PURE__ */ jsx2("header", { children: /* @__PURE__ */ jsx2("h1", { className: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold", children: name3 }) }),
+        inputs ? /* @__PURE__ */ jsx2(Mounted, { mount: mountUi, label: "Inputs", className: "bc:min-w-0" }) : null,
+        /* @__PURE__ */ jsxs(
+          "div",
+          {
+            className: `bc:min-w-0 ${replied2 ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`,
+            children: [
+              /* @__PURE__ */ jsx2(
+                Mounted,
+                {
+                  mount: mountOutput2,
+                  label: "Output",
+                  data: { "data-current": String(current2) },
+                  className: `bc:min-w-0 bc:transition-opacity ${current2 ? "" : "bc:opacity-50 bc:grayscale"} ${replied2 ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"}`
+                }
+              ),
+              /* @__PURE__ */ jsx2(
+                "footer",
+                {
+                  "aria-busy": status?.running === true,
+                  "data-status": shown2?.status,
+                  className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:text-center bc:font-mono bc:text-xs bc:transition-opacity ${settled2 ? "" : "bc:opacity-50"}`,
+                  children: shown2 === void 0 ? null : /* @__PURE__ */ jsx2(
+                    StatusLine,
+                    {
+                      status: shown2,
+                      panel,
+                      open,
+                      toggle: () => {
+                        setOpen(!open);
+                      }
+                    }
+                  )
+                }
+              )
+            ]
+          }
+        ),
+        open && messages.length > 0 ? /* @__PURE__ */ jsx2(
+          "ul",
+          {
+            id: panel,
+            "aria-label": shown2?.status === "ready" ? "Warnings" : "Errors",
+            className: "bc:m-0 bc:grid bc:list-none bc:gap-1 bc:p-0 bc:font-mono bc:text-xs bc:whitespace-pre-wrap",
+            children: messages.map((condition, i2) => /* @__PURE__ */ jsx2("li", { className: condition.severity === "error" ? "bc:text-text-danger" : "bc:text-text-warning", children: condition.message }, i2))
+          }
+        ) : null
+      ]
+    }
+  );
+}
+function StatusLine({
+  status,
+  panel,
+  open,
+  toggle
+}) {
+  const opens = (label, tone) => /* @__PURE__ */ jsx2(
+    "button",
+    {
+      type: "button",
+      "aria-expanded": open,
+      "aria-controls": panel,
+      className: `bc:cursor-pointer bc:border-0 bc:bg-transparent bc:p-0 bc:font-mono bc:text-xs bc:underline-offset-2 bc:hover:underline ${tone}`,
+      onClick: toggle,
+      children: label
+    }
+  );
+  switch (status.status) {
+    case "ready": {
+      const warnings = status.conditions.filter((condition) => condition.severity === "warning").length;
+      return /* @__PURE__ */ jsxs("span", { className: "bc:text-text-muted", children: [
+        status.summary,
+        warnings === 0 ? null : /* @__PURE__ */ jsxs(Fragment, { children: [
+          status.summary === null ? null : " \xB7 ",
+          opens(`${String(warnings)} ${warnings === 1 ? "warning" : "warnings"}`, "bc:text-text-warning")
+        ] })
+      ] });
+    }
+    case "failed":
+      return opens(firstLine(errorsOf(status)[0]), "bc:text-text-danger");
+    case "invalid":
+      return /* @__PURE__ */ jsx2("span", { className: "bc:text-text-warning", children: firstLine(errorsOf(status)[0]) });
+    case "waiting":
+      return /* @__PURE__ */ jsx2("span", { className: "bc:text-text-muted", children: status.conditions[0]?.message });
+    default:
+      return null;
+  }
+}
+function useShown(status) {
+  const [kept, setKept] = useState(void 0);
+  const now = status !== void 0 && status.status !== "stale" && status.status !== "unevaluated" ? status : void 0;
+  if (now !== void 0 && now !== kept) setKept(now);
+  return now ?? kept;
+}
+function opened(status) {
+  if (status.status === "ready") return status.conditions.filter((condition) => condition.severity === "warning");
+  if (status.status === "failed") return errorsOf(status);
+  return [];
+}
+function errorsOf(status) {
+  const errors = status.conditions.filter((condition) => condition.severity === "error");
+  return errors.length > 0 ? errors : status.conditions;
+}
+function firstLine(condition) {
+  return condition?.message.split("\n", 1)[0] ?? "";
+}
+function useBlockName(core, id2) {
+  const subscribe = useCallback(
+    (notify) => core.store.subscribe(() => {
+      notify();
+    }),
+    [core]
+  );
+  return useSyncExternalStore(subscribe, () => own(core.store.board().blocks, id2)?.name ?? id2);
+}
+function useStatus(core, id2) {
+  const subscribe = useCallback(
+    (notify) => core.scheduler.subscribe((changed) => {
+      if (changed.includes(id2)) notify();
+    }),
+    [core, id2]
+  );
+  return useSyncExternalStore(subscribe, () => core.scheduler.status(id2));
+}
+function Mounted({
+  mount,
+  label,
+  className,
+  data
+}) {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (el === null) return;
+    const cleanup = mount(el);
+    return () => {
+      queueMicrotask(cleanup);
+    };
+  }, [mount]);
+  return /* @__PURE__ */ jsx2("div", { ref, role: "region", "aria-label": label, className, ...data });
+}
+
 // srcts/page/page.ts
 function startPage(options) {
   const { el } = options;
@@ -9031,7 +9234,13 @@ function startPage(options) {
     ...options.loader === void 0 ? {} : { loader: options.loader },
     ...options.measure === void 0 ? {} : { measure: options.measure },
     options: coreOptions,
-    frontEnds: pageFrontEnds(el),
+    frontEnds: {
+      ...pageFrontEnds(el),
+      card(core, signal) {
+        drawCard(el, core, signal);
+      }
+    },
+    ...options.alone === true ? { alone: true } : {},
     reload(changed) {
       reloadBanner(changed);
     },

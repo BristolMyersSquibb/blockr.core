@@ -16,6 +16,7 @@ export interface CoreParts {
     readonly renderers: () => Readonly<Record<string, Renderer>>;
     readonly measure?: Measure;
     readonly signal?: AbortSignal;
+    readonly alone?: boolean;
 }
 export interface Core {
     readonly api: CoreApi;

@@ -61,6 +61,7 @@
     --bc-color-white: #fff;
     --bc-spacing: .25rem;
     --bc-container-xl: 36rem;
+    --bc-container-5xl: 64rem;
     --bc-text-xs: .75rem;
     --bc-text-xs--line-height: calc(1 / .75);
     --bc-text-sm: .875rem;
@@ -152,6 +153,14 @@
 
 .bc\:m-0 {
   margin: 0;
+}
+
+.bc\:mx-auto {
+  margin-inline: auto;
+}
+
+.bc\:my-4 {
+  margin-block: calc(var(--bc-spacing) * 4);
 }
 
 .bc\:mt-1 {
@@ -246,6 +255,10 @@
 
 .bc\:w-full {
   width: 100%;
+}
+
+.bc\:max-w-5xl {
+  max-width: var(--bc-container-5xl);
 }
 
 .bc\:max-w-none {
@@ -638,6 +651,10 @@
   font-variant-numeric: var(--tw-ordinal, ) var(--tw-slashed-zero, ) var(--tw-numeric-figure, ) var(--tw-numeric-spacing, ) var(--tw-numeric-fraction, );
 }
 
+.bc\:underline-offset-2 {
+  text-underline-offset: 2px;
+}
+
 .bc\:accent-bg-accent {
   accent-color: var(--bc-color-bg-accent);
 }
@@ -688,6 +705,10 @@
 @media (hover: hover) {
   .bc\:hover\:bg-bg-subtle:hover {
     background-color: var(--bc-color-bg-subtle);
+  }
+
+  .bc\:hover\:underline:hover {
+    text-decoration-line: underline;
   }
 }
 

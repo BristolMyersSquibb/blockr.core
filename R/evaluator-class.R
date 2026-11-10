@@ -55,8 +55,7 @@
 # running a queued request, stopping one that has started,
 # and dropping results.
 # The rest is the protocol, which every evaluator shares.
-new_evaluator <- function(board, data = list(),
-                          lock = lock_board(board, data)) {
+new_evaluator <- function(board, data = list(), lock = NULL) {
 
   if (missing(board) || is.null(board)) {
     blockr_abort(

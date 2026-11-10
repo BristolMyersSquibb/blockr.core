@@ -55,6 +55,9 @@ export interface CoreParts {
   // and what core keeps of outputs and answers, while the outputs' events
   // reach nobody more.
   readonly signal?: AbortSignal;
+  // Whether the board is a block that serve() serves alone, which no frontend
+  // draws (./start.ts).
+  readonly alone?: boolean;
 }
 
 // What core makes for one board: CoreApi, and what draws and starts the
@@ -115,6 +118,7 @@ export function createCore(parts: CoreParts): Core {
     keepOptions: (ids, by, failed) => mounts.keepOptions(ids, by, failed),
     core: () => api,
     ...(parts.signal === undefined ? {} : { signal: parts.signal }),
+    ...(parts.alone === true ? { alone: true } : {}),
   });
 
   const api: CoreApi = {
