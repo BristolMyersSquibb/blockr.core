@@ -21,7 +21,7 @@ function DatasetBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
         bound={useValue(host, "dataset")}
         label="Dataset"
         placeholder="Choose a dataset"
-        choices={choicesOf(strings(datasets))}
+        choices={datasets === undefined ? undefined : choicesOf(strings(datasets))}
       />
     </Stack>
   );

@@ -80,6 +80,23 @@ describe("the controls of a block's UI", () => {
     expect(texts(ui.el, "label > span, p, legend")).toEqual(["Label", "A line of the module's own", "By columns"]);
   });
 
+  test("show a value as it is until a select's choices are given, and as missing where they lack it", () => {
+    const host = stubBlockHost<Form>(fixture, { state: form({ direction: "middle" }) });
+    const ui = controls(host, abort.signal);
+    const direction = ui.select("direction", { label: "Direction", placeholder: "Choose an end" });
+    const select = find(ui.el, "select", HTMLSelectElement);
+    const shown = () => [select.value, texts(select, "option"), select.getAttribute("aria-invalid")];
+    expect(shown()).toEqual(["middle", ["middle"], "false"]);
+
+    direction.setChoices([
+      { value: "head", label: "Head" },
+      { value: "tail", label: "Tail" },
+    ]);
+
+    expect(shown()).toEqual(["middle", ["Head", "Tail", "middle (not available)"], "true"]);
+    expect(host.submitted).toEqual([]);
+  });
+
   test("submit typing once the user pauses or presses Enter, and keep it while the state changes", async () => {
     const { host, label, direction } = drawn();
 

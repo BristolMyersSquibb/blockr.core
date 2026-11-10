@@ -25,8 +25,8 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-async function mounted(state: State) {
-  const host = stubBlockHost<State>(fixture, { state });
+async function mounted(state: State, requests = fixture.requests) {
+  const host = stubBlockHost<State>({ ...fixture, requests }, { state });
   const view = await mountOnPage(scatter, host);
   const [x, y] = view.el.querySelectorAll("select");
   if (x === undefined || y === undefined) throw new Error("Found no selects.");
@@ -50,6 +50,22 @@ test("never picks a column once the columns arrive", async () => {
 
   expect([x.value, y.value]).toEqual(["", ""]);
   expect(texts(x, "option")).toEqual(["Choose a column", ...columns]);
+  expect(host.submitted).toEqual([]);
+});
+
+test("shows a column that its input lacks as it is until the columns arrive, then as missing", async () => {
+  const unanswered = await mounted({ x: "wt", y: "Sepal.Width" }, []);
+  await settle();
+  expect([texts(unanswered.x, "option"), unanswered.x.getAttribute("aria-invalid")]).toEqual([["wt"], "false"]);
+
+  const { host, x, y } = await mounted({ x: "wt", y: "Sepal.Width" });
+  await settle();
+  expect([x.value, texts(x, "option"), x.getAttribute("aria-invalid")]).toEqual([
+    "wt",
+    [...columns, "wt (not available)"],
+    "true",
+  ]);
+  expect([y.value, texts(y, "option"), y.getAttribute("aria-invalid")]).toEqual(["Sepal.Width", columns, "false"]);
   expect(host.submitted).toEqual([]);
 });
 

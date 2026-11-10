@@ -56,6 +56,40 @@ test_that("a scatter block captures the plot it draws", {
   )
 })
 
+test_that("a scatter block names the columns its data lacks in its error", {
+
+  res <- evaluate_block(scatter_block, list(x = "wt", y = "mpg"),
+                        list(data = "a"), list(a = datasets::iris))
+
+  expect_identical(res[["status"]], "error")
+  expect_null(res[["result"]])
+  expect_length(res[["conditions"]], 1L)
+
+  cnd <- res[["conditions"]][[1L]]
+
+  expect_identical(cnd[["phase"]], "block_eval")
+  expect_contains(cnd[["class"]], "scatter_block_columns_missing")
+  expect_identical(cnd[["message"]],
+                   "The data has no columns \"wt\" and \"mpg\".")
+
+  res <- evaluate_block(scatter_block, list(x = "Sepal.Length", y = "wt"),
+                        list(data = "a"), list(a = datasets::iris))
+
+  expect_identical(res[["conditions"]][[1L]][["message"]],
+                   "The data has no column \"wt\".")
+
+  res <- evaluate_block(scatter_block, list(x = "wt", y = "wt"),
+                        list(data = "a"), list(a = datasets::iris))
+
+  expect_identical(res[["conditions"]][[1L]][["message"]],
+                   "The data has no column \"wt\".")
+
+  res <- evaluate_block(scatter_block, list(x = "wt", y = "mpg"),
+                        list(data = "a"), list(a = datasets::mtcars))
+
+  expect_identical(res[["status"]], "ok")
+})
+
 test_that("the scatter block's fixture", {
   expect_block_fixture(
     scatter_block,

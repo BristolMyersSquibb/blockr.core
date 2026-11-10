@@ -11,7 +11,8 @@ import type { State } from "./state.ts";
 export const api = 1;
 
 function ScatterBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
-  const columns = choicesOf(strings(useRequest(host, "columns").answer));
+  const answer = useRequest(host, "columns").answer;
+  const columns = answer === undefined ? undefined : choicesOf(strings(answer));
   return (
     <Stack>
       <Select bound={useValue(host, "x")} label="X-axis" placeholder="Choose a column" choices={columns} />

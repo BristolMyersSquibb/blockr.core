@@ -12,7 +12,7 @@ function DatasetBlock({ host }) {
       bound: useValue(host, "dataset"),
       label: "Dataset",
       placeholder: "Choose a dataset",
-      choices: choicesOf(strings(datasets))
+      choices: datasets === void 0 ? void 0 : choicesOf(strings(datasets))
     }
   ) });
 }
