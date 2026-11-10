@@ -23,7 +23,8 @@ export function placed(core: Pick<CoreApi, "plugins">): readonly (readonly [Plug
 }
 
 // The section of each plugin that the frontend shows, beside the board where
-// the page is wide enough, staying in view as the board scrolls, and above it
+// the page is wide enough, in a column that takes a third of the page's width
+// and no less than 28rem, staying in view as the board scrolls, and above it
 // otherwise. It draws nothing where the frontend shows no plugin.
 export function Plugins(): ReactElement | null {
   const { core } = useFrontEnd();
@@ -32,7 +33,7 @@ export function Plugins(): ReactElement | null {
   return (
     <aside
       aria-label="Plugins"
-      className="bc:grid bc:min-w-0 bc:content-start bc:gap-4 bc:md:sticky bc:md:top-4 bc:md:max-h-[calc(100dvh-2rem)] bc:md:w-md bc:md:shrink-0 bc:md:overflow-auto"
+      className="bc:grid bc:min-w-0 bc:content-start bc:gap-4 bc:md:sticky bc:md:top-4 bc:md:max-h-[calc(100dvh-2rem)] bc:md:w-1/3 bc:md:min-w-md bc:md:shrink-0 bc:md:overflow-auto"
     >
       {shown.map(([id, plugin]) => (
         <PluginSection key={id} id={id} plugin={plugin} />

@@ -748,8 +748,12 @@
     max-height: calc(100dvh - 2rem);
   }
 
-  .bc\:md\:w-md {
-    width: var(--bc-container-md);
+  .bc\:md\:w-1\/3 {
+    width: 33.3333%;
+  }
+
+  .bc\:md\:min-w-md {
+    min-width: var(--bc-container-md);
   }
 
   .bc\:md\:shrink-0 {

@@ -817,7 +817,7 @@ function Plugins() {
     "aside",
     {
       "aria-label": "Plugins",
-      className: "bc:grid bc:min-w-0 bc:content-start bc:gap-4 bc:md:sticky bc:md:top-4 bc:md:max-h-[calc(100dvh-2rem)] bc:md:w-md bc:md:shrink-0 bc:md:overflow-auto",
+      className: "bc:grid bc:min-w-0 bc:content-start bc:gap-4 bc:md:sticky bc:md:top-4 bc:md:max-h-[calc(100dvh-2rem)] bc:md:w-1/3 bc:md:min-w-md bc:md:shrink-0 bc:md:overflow-auto",
       children: shown.map(([id2, plugin]) => /* @__PURE__ */ jsx6(PluginSection, { id: id2, plugin }, id2))
     }
   );
