@@ -54,13 +54,11 @@ function FileBrowserBlock({ host }) {
     args: { ...volume === void 0 ? {} : { volume }, path: dirs.join("/") },
     reads: shared ?? null
   });
-  const [left, setLeft] = useState(null);
-  const loading = listed === left || listed.answer === void 0 && listed.error === null;
+  const loading = listed.loading;
   const listing2 = listed.error === null ? asListing(listed.answer) : { dirs: [], files: [] };
   const error = (loading ? null : listed.error) ?? file.error;
   const go = (next) => {
     if (next.volume === volume && jsonEqual(next.dirs, dirs)) return;
-    setLeft(listed);
     setPlace(next);
   };
   const names = Object.keys(volumes);

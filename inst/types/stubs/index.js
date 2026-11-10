@@ -9300,7 +9300,7 @@ function useTyped(bound) {
 }
 
 // srcts/react/hooks.ts
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState as useState2, useSyncExternalStore } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState as useState2, useSyncExternalStore } from "react";
 function useValue(host, key) {
   const name2 = key ?? ("option" in host ? host.option : "");
   const [value2, setValue] = useState2(() => held(host, name2));

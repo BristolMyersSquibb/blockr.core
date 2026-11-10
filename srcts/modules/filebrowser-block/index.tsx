@@ -10,7 +10,7 @@
 import { Fragment, useState } from "react";
 import type { ReactElement } from "react";
 import { Field, reactModule, Stack, useRequest, useValue } from "../../react/index.ts";
-import type { Answered, ModuleProps } from "../../react/index.ts";
+import type { ModuleProps } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
 import type { Json } from "../../types/json.ts";
@@ -59,17 +59,15 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
     args: { ...(volume === undefined ? {} : { volume }), path: dirs.join("/") },
     reads: shared ?? null,
   });
-  // What R answered for the place the browser left,
-  // which the browser no longer shows.
-  const [left, setLeft] = useState<Answered | null>(null);
-  const loading = listed === left || (listed.answer === undefined && listed.error === null);
+  // While R lists the place, the last listing is of another place,
+  // or of the place before the volumes changed.
+  const loading = listed.loading;
   const listing = listed.error === null ? asListing(listed.answer) : { dirs: [], files: [] };
   const error = (loading ? null : listed.error) ?? file.error;
 
   // Shows another place, which it asks R to list.
   const go = (next: Place): void => {
     if (next.volume === volume && jsonEqual(next.dirs, dirs)) return;
-    setLeft(listed);
     setPlace(next);
   };
 

@@ -101,6 +101,7 @@ function follow(host, name, options) {
     latest?.abort();
     const controller = new AbortController();
     latest = controller;
+    options.loading?.();
     source.request(name, options.args?.() ?? {}, { signal: controller.signal }).then(
       (answer) => {
         if (latest === controller && !controller.signal.aborted) options.answer(answer);

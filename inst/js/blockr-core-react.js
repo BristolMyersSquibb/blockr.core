@@ -1,5 +1,5 @@
 // srcts/react/hooks.ts
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { bind, follow } from "@blockr/core/binding";
 
 // srcts/util/util.ts
@@ -72,18 +72,21 @@ function useValue(host, key) {
   );
 }
 function useRequest(host, name, options = {}) {
-  const [answered, setAnswered] = useState({ answer: void 0, error: null });
+  const [answered, setAnswered] = useState({ answer: void 0, error: null, loading: true });
   const reads = JSON.stringify([options.args ?? {}, options.reads ?? null]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const [args, extra] = JSON.parse(reads);
     const followed = follow(host, name, {
       args: () => args,
       reads: () => extra,
+      loading: () => {
+        setAnswered((last) => last.loading ? last : { ...last, loading: true });
+      },
       answer: (answer) => {
-        setAnswered({ answer, error: null });
+        setAnswered({ answer, error: null, loading: false });
       },
       failed: (failure) => {
-        setAnswered((last) => ({ answer: last.answer, error: messageOf(failure) }));
+        setAnswered((last) => ({ answer: last.answer, error: messageOf(failure), loading: false }));
       }
     });
     return () => {

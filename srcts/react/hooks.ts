@@ -5,7 +5,7 @@
 // so that it meets the contract of a block's UI as every bound control does,
 // and follows the requests it shows the answers of.
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { bind, follow } from "../binding/index.ts";
 import type { Binding } from "../binding/index.ts";
 import type { Condition } from "../protocol/index.ts";
@@ -109,10 +109,17 @@ export function useValue(host: BlockHost | OptionHost, key?: string): Bound {
 }
 
 // The last answer of a request, which stays while the request is asked
-// again, and why the latest request failed, if it did.
+// again, why the latest request failed, if it did,
+// and whether the request is being asked.
+// The answer is for older data while the request is being asked,
+// and once an ask failed,
+// such as for the block's inputs before their revisions changed.
 export interface Answered {
   readonly answer: Json | Blob | undefined;
   readonly error: string | null;
+  // True from each ask until its answer or its failure,
+  // as an output host's loading() is while core asks R for a newer output.
+  readonly loading: boolean;
 }
 
 export interface RequestOptions {
@@ -128,19 +135,27 @@ export interface RequestOptions {
 export function useRequest<S extends State>(host: BlockHost<S>, name: string, options?: RequestOptions): Answered;
 export function useRequest<V extends Json>(host: OptionHost<V>, name: string, options?: RequestOptions): Answered;
 export function useRequest(host: BlockHost | OptionHost, name: string, options: RequestOptions = {}): Answered {
-  const [answered, setAnswered] = useState<Answered>({ answer: undefined, error: null });
+  // The request is asked as the component mounts, so it is loading from the
+  // start.
+  const [answered, setAnswered] = useState<Answered>({ answer: undefined, error: null, loading: true });
   const reads = JSON.stringify([options.args ?? {}, options.reads ?? null]);
 
-  useEffect(() => {
+  // The request is asked again before the browser paints,
+  // so that no frame shows the answer for the last parameters
+  // with `loading` false.
+  useLayoutEffect(() => {
     const [args, extra] = JSON.parse(reads) as [Readonly<Record<string, Json>>, Json];
     const followed = follow(host, name, {
       args: () => args,
       reads: () => extra,
+      loading: () => {
+        setAnswered((last) => (last.loading ? last : { ...last, loading: true }));
+      },
       answer: (answer) => {
-        setAnswered({ answer, error: null });
+        setAnswered({ answer, error: null, loading: false });
       },
       failed: (failure) => {
-        setAnswered((last) => ({ answer: last.answer, error: messageOf(failure) }));
+        setAnswered((last) => ({ answer: last.answer, error: messageOf(failure), loading: false }));
       },
     });
     return () => {

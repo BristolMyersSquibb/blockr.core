@@ -13,6 +13,7 @@ import { stubBlockHost, stubOptionHost } from "../stubs/index.ts";
 import type { BlockFixture, StubBlockHost } from "../stubs/index.ts";
 import { find, pick, press, texts, toggle, type } from "../testing/inputs.ts";
 import "../testing/react.ts";
+import { holdRequests } from "../testing/requests.ts";
 import type { BlockHost, OptionHost } from "../types/hosts.ts";
 import { Checkbox, Checklist, NumberInput, Select, Stack, TextInput } from "./index.ts";
 
@@ -323,8 +324,12 @@ describe("the inputs of a board option's UI", () => {
 
 describe("useRequest()", () => {
   function Names({ host, pattern }: { host: OptionHost<string>; pattern: string }): ReactElement {
-    const { answer, error } = useRequest(host, "list", { args: { pattern } });
-    return <p title={error ?? ""}>{JSON.stringify(answer ?? null)}</p>;
+    const { answer, error, loading } = useRequest(host, "list", { args: { pattern } });
+    return (
+      <p title={error ?? ""} aria-busy={loading}>
+        {JSON.stringify(answer ?? null)}
+      </p>
+    );
   }
 
   test("asks again as its parameters change, and keeps the last answer where a request fails", async () => {
@@ -343,5 +348,38 @@ describe("useRequest()", () => {
     expect(host.requested.map((call) => call.args)).toEqual([{ pattern: "a" }, { pattern: "b" }]);
     expect(find(el, "p").textContent).toBe('["a.csv"]');
     expect(find(el, "p").title).toContain('No answer is given for the request "list"');
+  });
+
+  test("is loading from each ask until its answer or its failure, and keeps the last answer and error meanwhile", async () => {
+    const host = stubOptionHost<string>({
+      option: "data_dir",
+      value: "/data",
+      requests: [{ name: "list", args: { pattern: "a" }, answer: ["a.csv"] }],
+    });
+    const release = holdRequests(host);
+    const { el, redraw } = draw(<Names host={host} pattern="a" />);
+    const shown = () => {
+      const p = find(el, "p");
+      return [p.textContent, p.getAttribute("aria-busy"), p.title === "" ? null : "failed"];
+    };
+    expect(shown()).toEqual(["null", "true", null]);
+
+    release();
+    await wait(0);
+    expect(shown()).toEqual(['["a.csv"]', "false", null]);
+
+    redraw(<Names host={host} pattern="b" />);
+    expect(shown()).toEqual(['["a.csv"]', "true", null]);
+
+    release();
+    await wait(0);
+    expect(shown()).toEqual(['["a.csv"]', "false", "failed"]);
+
+    redraw(<Names host={host} pattern="a" />);
+    expect(shown()).toEqual(['["a.csv"]', "true", "failed"]);
+
+    release();
+    await wait(0);
+    expect(shown()).toEqual(['["a.csv"]', "false", null]);
   });
 });
