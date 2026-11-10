@@ -21,7 +21,10 @@ test_that("a scatter block captures the plot it draws", {
   expect_identical(res[["status"]], "ok")
   expect_identical(
     res[["expr"]],
-    quote(plot(a[["Time"]], a[["demand"]], xlab = "Time", ylab = "demand"))
+    quote(
+      plot(a[, "Time", drop = TRUE], a[, "demand", drop = TRUE],
+           xlab = "Time", ylab = "demand")
+    )
   )
   expect_s3_class(res[["result"]], "captured_plot")
 
@@ -56,38 +59,32 @@ test_that("a scatter block captures the plot it draws", {
   )
 })
 
-test_that("a scatter block names the columns its data lacks in its error", {
+test_that("a scatter block fails where its data lacks a column", {
 
-  res <- evaluate_block(scatter_block, list(x = "wt", y = "mpg"),
-                        list(data = "a"), list(a = datasets::iris))
+  for (axes in list(c("wt", "mpg"), c("wt", "Sepal.Width"),
+                    c("Sepal.Length", "mpg"))) {
 
-  expect_identical(res[["status"]], "error")
-  expect_null(res[["result"]])
-  expect_length(res[["conditions"]], 1L)
+    res <- evaluate_block(scatter_block, list(x = axes[1L], y = axes[2L]),
+                          list(data = "a"), list(a = datasets::iris))
 
-  cnd <- res[["conditions"]][[1L]]
-
-  expect_identical(cnd[["phase"]], "block_eval")
-  expect_contains(cnd[["class"]], "scatter_block_columns_missing")
-  expect_identical(cnd[["message"]],
-                   "The data has no columns \"wt\" and \"mpg\".")
-
-  res <- evaluate_block(scatter_block, list(x = "Sepal.Length", y = "wt"),
-                        list(data = "a"), list(a = datasets::iris))
-
-  expect_identical(res[["conditions"]][[1L]][["message"]],
-                   "The data has no column \"wt\".")
-
-  res <- evaluate_block(scatter_block, list(x = "wt", y = "wt"),
-                        list(data = "a"), list(a = datasets::iris))
-
-  expect_identical(res[["conditions"]][[1L]][["message"]],
-                   "The data has no column \"wt\".")
+    expect_identical(res[["status"]], "error")
+    expect_identical(res[["conditions"]][[1L]][["phase"]], "block_eval")
+    expect_identical(res[["conditions"]][[1L]][["message"]],
+                     "undefined columns selected")
+  }
 
   res <- evaluate_block(scatter_block, list(x = "wt", y = "mpg"),
                         list(data = "a"), list(a = datasets::mtcars))
 
   expect_identical(res[["status"]], "ok")
+
+  skip_if_not_installed("tibble")
+
+  res <- evaluate_block(scatter_block, list(x = "Time", y = "mpg"),
+                        list(data = "a"),
+                        list(a = tibble::as_tibble(datasets::BOD)))
+
+  expect_identical(res[["status"]], "error")
 })
 
 test_that("the scatter block's fixture", {

@@ -17,7 +17,18 @@ scatter_block <- new_block_class(
     if (!isTRUE(nzchar(x)) || !isTRUE(nzchar(y))) {
       blockr_invalid("Choose a column for each axis.")
     }
-    bbquote(plot(.(data)[[.(x)]], .(data)[[.(y)]], xlab = .(x), ylab = .(y)))
+    # Each column is taken with `[`, which fails on one the data lacks, where
+    # `[[` gives `NULL`, from which `plot()` draws the other column against
+    # the row index.
+    # A tibble drops to the column only with `drop = TRUE`.
+    bbquote(
+      plot(
+        .(data)[, .(x), drop = TRUE],
+        .(data)[, .(y), drop = TRUE],
+        xlab = .(x),
+        ylab = .(y)
+      )
+    )
   },
   ui = js_module("js/scatter-block.js"),
   requests = list(columns = function(data) colnames(data)),
@@ -43,11 +54,9 @@ scatter_block <- new_block_class(
 #' The block's data input `data` is checked to be a data frame.
 #' Its state args `x` and `y` have no defaults, so a new block leaves them
 #' unset and is `invalid` until something sets both. Its UI asks R for the
-#' input's columns through the request `columns`.
-#' The block's [block_eval()] method fails with an error that names the
-#' columns that `x` and `y` give and the data lacks.
-#' Otherwise it runs the block expression with [capture_plot()], so that its
-#' result is the plot it draws, which shows through [as_plot_output()].
+#' input's columns through the request `columns`. The block's [block_eval()]
+#' method runs the block expression with [capture_plot()], so that its result
+#' is the plot it draws, which shows through [as_plot_output()].
 #'
 #' @param x,y Columns to place on respective axes
 #' @inheritParams new_head_block
@@ -85,18 +94,5 @@ new_scatter_block <- block_constructor(scatter_block)
 
 #' @export
 block_eval.scatter_block <- function(x, expr, env, ...) {
-
-  # The block's one data input is the one result that `env` binds.
-  data <- as.list(env, all.names = TRUE)[[1L]]
-  missing <- setdiff(c(x[["x"]], x[["y"]]), colnames(data))
-
-  if (length(missing)) {
-    blockr_abort(
-      "The data has no {qty(missing)}column{?s} ",
-      "{paste_enum(missing, quotes = '\"')}.",
-      class = "scatter_block_columns_missing"
-    )
-  }
-
   capture_plot(expr, env)
 }

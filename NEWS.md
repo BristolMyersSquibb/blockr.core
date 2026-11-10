@@ -349,7 +349,7 @@
   The scatter and dataset blocks pass `undefined` until their requests answer, and a select of `controls()` has no choices until the module gives them.
   Once its choices are known, a `Select` shows a value that they lack as missing, as `wt (not available)`, and marks itself invalid, and a `Checklist` marks such a string the same way while the user can still clear it.
   Neither submits anything, so the state stays as the user left it.
-  The scatter block fails with an error that names the columns that its data lacks, as `The data has no column "wt".`, in place of base R's error, or of a plot of `x` against the row index where only `y` is missing (#542).
+  The scatter block fails where its data lacks one of its columns, rather than draw `x` against the row index where only `y` is missing (#542).
 
 # blockr.core 0.1.4
 

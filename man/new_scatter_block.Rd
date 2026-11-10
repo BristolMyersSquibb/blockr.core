@@ -44,11 +44,9 @@ required.
 The block's data input \code{data} is checked to be a data frame.
 Its state args \code{x} and \code{y} have no defaults, so a new block leaves them
 unset and is \code{invalid} until something sets both. Its UI asks R for the
-input's columns through the request \code{columns}.
-The block's \code{\link[=block_eval]{block_eval()}} method fails with an error that names the
-columns that \code{x} and \code{y} give and the data lacks.
-Otherwise it runs the block expression with \code{\link[=capture_plot]{capture_plot()}}, so that its
-result is the plot it draws, which shows through \code{\link[=as_plot_output]{as_plot_output()}}.
+input's columns through the request \code{columns}. The block's \code{\link[=block_eval]{block_eval()}}
+method runs the block expression with \code{\link[=capture_plot]{capture_plot()}}, so that its result
+is the plot it draws, which shows through \code{\link[=as_plot_output]{as_plot_output()}}.
 }
 
 \examples{
