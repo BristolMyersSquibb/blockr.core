@@ -84,10 +84,10 @@ export interface HelloReply {
   // Where each module that packages offer each other is served,
   // by the module's id, those of plugin classes among them.
   modules: Record<string, { module: string; css?: string }>;
-  // The version of the state of each plugin class that a loaded package gives
-  // one through its method of R's `plugin_version()`, by the class's id. A
-  // plugin class that it lacks is at version 1.
-  plugin_versions: Record<PluginClassId, number>;
+  // The app's plugins, which run on every board that the app opens, each
+  // under the id of its class, in the order of the rows that `serve()` takes,
+  // and none for a block that `serve()` serves alone.
+  plugins: Record<PluginClassId, Plugin>;
   // The version of the shape of each board option's value that a loaded
   // package gives one through its method of R's `board_option_version()`, by
   // the board option's id. A board option that it lacks is at version 1.
@@ -103,6 +103,15 @@ export interface HelloReply {
   // For a block that `serve()` serves alone, the inputs that R binds itself
   // to the data it was given, which the client counts as linked.
   bound?: string[];
+}
+
+// One of the app's plugins, under the id of its class in the reply to `hello`:
+// the name of its class, which titles its panel, as "Document", and the
+// version of its class's state, which the class's method of R's
+// `plugin_version()` gives, 1 for a class without one.
+export interface Plugin {
+  name: string;
+  version: number;
 }
 
 // A renderer that the app names for a board option, which draws the board

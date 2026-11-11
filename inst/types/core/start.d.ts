@@ -1,14 +1,17 @@
 import type { Loader, LoaderOptions, Measure, Source } from "../mount/index.ts";
 import type { Transport } from "../protocol/index.ts";
 import type { Option } from "../store/index.ts";
-import type { PluginId } from "../types/board.ts";
+import type { PluginClassId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
+export type Front = {
+    readonly id: string;
+    readonly source: Source | undefined;
+    readonly plugin: PluginClassId;
+} | {
+    readonly none: string;
+};
 export interface FrontEnds {
-    prepare(front: {
-        readonly id: string;
-        readonly source: Source | undefined;
-        readonly plugin: PluginId | undefined;
-    }, loader: Loader, signal: AbortSignal): Promise<void>;
+    prepare(front: Front, loader: Loader, signal: AbortSignal): Promise<void>;
     render(core: CoreApi, signal: AbortSignal, failures: readonly string[]): Promise<void>;
     card?(core: CoreApi, signal: AbortSignal): void;
 }

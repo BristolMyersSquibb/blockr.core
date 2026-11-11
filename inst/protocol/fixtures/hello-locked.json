@@ -113,7 +113,10 @@
             "css": "blockr.core/basic.css?v=6a9b2c4e"
           }
         },
-        "plugin_versions": {},
+        "plugins": {
+          "blockr.core-basic_frontend_plugin": { "name": "Basic frontend", "version": 1 },
+          "blockr.core-file_storage_plugin": { "name": "File storage", "version": 1 }
+        },
         "option_versions": {},
         "renderers": {},
         "lock": { "board": true, "load": true },

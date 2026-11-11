@@ -165,7 +165,7 @@ describe("revisions", () => {
     const { store, scheduler } = await setup(
       {},
       {
-        reply: withPlugins({ zoom: { class: "test.pkg-zoom_plugin", name: "Zoom", state: { zoom: 1 } } }),
+        reply: withPlugins({ "test.pkg-zoom_plugin": { name: "Zoom", state: { zoom: 1 } } }),
         prepare: (store) =>
           store.plugins.register({
             id: "test.pkg-zoom_plugin",
@@ -186,7 +186,7 @@ describe("revisions", () => {
     store.apply({ stacks: { mod: { s1: { name: "Inputs" } } } });
     store.apply({ options: { set: { n_rows: 20 } } });
     store.apply({ name: "Renamed" });
-    store.apply({ patches: [{ op: "replace", path: "/plugins/zoom/state/zoom", value: 2 }] });
+    store.apply({ patches: [{ op: "replace", path: "/plugins/test.pkg-zoom_plugin/zoom", value: 2 }] });
 
     expect(blockRevisions(scheduler)).toEqual(before);
   });

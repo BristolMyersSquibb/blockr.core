@@ -1,8 +1,8 @@
 // What packages register with the store, from their startup modules, before
 // it opens a board: plugin classes, board options and the migrations of their
 // block classes' states.
-// A plugin class is registered under its id, `{pkg}-{name}_plugin`, as R names
-// the class.
+// A plugin class is registered under its id, `{pkg}-{id}`, as R names the
+// class.
 // A plugin class, a board option id or a block class's migration registered
 // twice fails.
 
@@ -12,7 +12,6 @@ import type {
   Board,
   OptionId,
   PluginClassId,
-  PluginId,
   RegistryId,
 } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
@@ -27,56 +26,58 @@ import type { Delta, Patch } from "./delta.ts";
 // at the id.
 // A class sets any mix of its members, or none of `ui`, `frontend` and
 // `storage`, as a plugin without a place on the screen does.
-// The store reads `state`, `update` and `migrate`, and tells a frontend and a
-// storage plugin by `frontend` and `storage`, of which a board holds at most
-// one each.
-// Core reads the rest.
+// The store reads `state`, `update` and `migrate`, and core tells a frontend
+// and a storage plugin by `frontend` and `storage`, of which an app runs one
+// and one at most, and reads the rest.
+// An app runs at most one plugin of each class, so a plugin is named by the id
+// of its class.
 // What sits inside a plugin's state is the class's own design, and the store
 // applies patches to it without knowing that design.
 export interface PluginClass {
   // As "blockr.dag-dag_plugin".
   readonly id: PluginClassId;
-  // The board options its plugins require, which core adds to the board, each
-  // with its default where the board lacks it, as a board opens with one of
-  // its plugins, before it starts the plugin or mounts its UI.
+  // The board options its plugin requires, which core adds to the board, each
+  // with its default where the board lacks it, as a board opens in an app that
+  // runs the plugin, before it starts the plugin or mounts its UI.
   readonly options?: readonly OptionId[];
-  // What each of its plugins keeps in the board: the schema of the state, with
+  // What its plugin keeps in the board: the schema of the state, with
   // descriptions and examples for a model, against which the store checks the
-  // state after every change, and the state that a plugin of the app's
-  // opening board starts with on a board that opens without it.
-  // The plugins of a class without one each keep an empty object.
+  // state after every change, and the state that the plugin starts with on a
+  // board that opens without it.
+  // The board holds nothing for the plugin of a class without one.
   readonly state?: { readonly schema: JsonSchema; readonly default: Json };
-  // The patches to the state of the plugin `plugin` that follow from a change,
-  // such as removing a removed block's position from the DAG's positions.
-  // The store calls it once for each plugin of the class that the board holds
-  // before the change, with every change it applies, and applies what it
-  // returns in the same step.
+  // The patches to the state of the class's plugin, which `plugin` names by
+  // the class's id, that follow from a change, such as removing a removed
+  // block's position from the DAG's positions.
+  // The store calls it where the board holds the plugin's state before the
+  // change, with every change it applies, and applies what it returns in the
+  // same step.
   // It gets the delta, as expanded so far, and the board before the delta,
   // so that it sees what the delta removes.
   // It reads nothing else: it calls no R and reads nothing on screen, so that
   // every peer that applies a change computes the same patches.
   // It mints an id only into the step it is part of.
-  update?(delta: Delta, board: Board, plugin: PluginId): readonly Patch[];
-  // Converts a plugin's state, as a JSON board holds it, from the version of
+  update?(delta: Delta, board: Board, plugin: PluginClassId): readonly Patch[];
+  // Converts the plugin's state, as a JSON board holds it, from the version of
   // the class that the board records to the one that R's `plugin_version()`
   // gives, and returns it as the board then holds it, so that what it leaves
   // out is gone.
   // The store calls it as it opens a board whose recorded version of the class
-  // is below R's, with that version, for each plugin of the class.
+  // is below R's, with that version.
   migrate?(state: Json, version: number): Json;
-  // The module that every frontend places, once for each plugin of the class,
-  // through CoreApi's mountPlugin(), by the module's id, as "blockr.dag-dag".
+  // The module that every frontend places for the class's plugin, through
+  // CoreApi's mountPlugin(), by the module's id, as "blockr.dag-dag".
   readonly ui?: string;
   // A frontend's: the module that draws the page, by its id, as
   // "blockr.dock-dock", which core calls with the page's element.
   readonly frontend?: string;
   // A storage plugin's: what every frontend's save and open controls call.
   readonly storage?: Storage;
-  // What runs while the open board holds the plugin, until the signal aborts,
-  // which it does as the next board opens. Core calls it for each plugin of
-  // the class once the frontend has drawn the board. It may return a cleanup,
-  // which core runs as the signal aborts.
-  start?(args: { readonly core: CoreApi; readonly plugin: PluginId; readonly signal: AbortSignal }): (() => void) | undefined;
+  // What runs while the plugin runs on the open board, until the signal
+  // aborts, which it does as the next board opens. Core calls it once the
+  // frontend has drawn the board, with the id of the class, which names the
+  // plugin. It may return a cleanup, which core runs as the signal aborts.
+  start?(args: { readonly core: CoreApi; readonly plugin: PluginClassId; readonly signal: AbortSignal }): (() => void) | undefined;
 }
 
 // What a storage plugin saves boards and opens them through.

@@ -1,5 +1,5 @@
 import type { HelloReply } from "../protocol/index.ts";
-import type { BlockId, Board, JsonBoard, PluginId, RegistryId } from "../types/board.ts";
+import type { BlockId, Board, JsonBoard, PluginClassId, RegistryId } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import type { Delta, Origin } from "./delta.ts";
 import type { Dropped } from "./open.ts";
@@ -33,7 +33,7 @@ export interface Store {
     editId(of: {
         readonly block: BlockId;
     } | {
-        readonly plugin: PluginId;
+        readonly plugin: PluginClassId;
     }): number | undefined;
 }
 export interface StoreOptions {

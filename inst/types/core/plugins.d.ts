@@ -1,26 +1,21 @@
 import type { Loader, Mounts } from "../mount/index.ts";
+import type { Plugin } from "../protocol/index.ts";
 import type { PluginClass, Storage, Store } from "../store/index.ts";
-import type { Plugin, PluginId } from "../types/board.ts";
+import type { PluginClassId } from "../types/board.ts";
 import type { CoreApi, PluginModule } from "../types/core-api.ts";
-export declare const BASIC_FRONTEND: {
-    readonly frontend: "blockr.core-basic";
-    readonly options: readonly ["show_conditions", "dark_mode"];
-};
-type PluginArgs = Parameters<PluginModule["render"]>[0];
-export type FrontendArgs = Omit<PluginArgs, "plugin"> & {
-    plugin?: PluginId;
-};
+export declare function corePluginClasses(): readonly PluginClass[];
+export type PluginArgs = Parameters<PluginModule["render"]>[0];
 export interface Frontend {
     readonly module: string;
-    readonly plugin: PluginId | undefined;
+    readonly plugin: PluginClassId;
     readonly added: Promise<readonly string[]>;
 }
 export interface RunningPlugins {
-    running(): Readonly<Record<PluginId, Plugin>>;
-    pluginClass(plugin: PluginId): PluginClass;
-    storage(): Storage;
-    mountPlugin(el: HTMLElement, plugin: PluginId): () => void;
-    frontend(): Frontend;
+    running(): Readonly<Record<PluginClassId, Plugin>>;
+    pluginClass(plugin: PluginClassId): PluginClass;
+    storage(): Storage | undefined;
+    mountPlugin(el: HTMLElement, plugin: PluginClassId): () => void;
+    frontend(): Frontend | undefined;
     start(): Promise<void>;
 }
 export interface RunningDeps {
@@ -28,8 +23,7 @@ export interface RunningDeps {
     readonly loader: Loader;
     readonly keepOptions: Mounts["keepOptions"];
     readonly core: () => CoreApi;
+    readonly plugins: Readonly<Record<PluginClassId, Plugin>>;
     readonly signal?: AbortSignal;
-    readonly alone?: boolean;
 }
 export declare function runPlugins(deps: RunningDeps): RunningPlugins;
-export {};

@@ -1,6 +1,8 @@
 // Core's basic frontend, blockr.core-basic, as Drawing the board has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#cores-basic-frontend).
-// It draws every board that holds no frontend.
+// An app runs it, as the plugin of the class
+// blockr.core-basic_frontend_plugin, unless another of its plugins is a
+// frontend, and it draws every board that the app opens.
 // It does what today's frontend does wherever core's commands and store do
 // the work, so it only draws. It works on the board through CoreApi alone,
 // and shows each plugin whose class has a `ui` beside the board, reading no

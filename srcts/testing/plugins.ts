@@ -3,7 +3,7 @@
 // what core mounts it with.
 
 import type { Option, PluginClass } from "../store/index.ts";
-import type { PluginId } from "../types/board.ts";
+import type { PluginClassId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 
 // A startup module that registers the plugin classes and the board options
@@ -21,9 +21,9 @@ export function registering(classes: readonly PluginClass[], options: readonly O
 }
 
 // The UI module of a plugin class, which writes the name of the plugin it
-// draws and keeps what each render() gets.
+// draws, as the app runs it, and keeps what each render() gets.
 export function pluginUi() {
-  const renders: { el: HTMLElement; core: CoreApi; plugin: PluginId; signal: AbortSignal }[] = [];
+  const renders: { el: HTMLElement; core: CoreApi; plugin: PluginClassId; signal: AbortSignal }[] = [];
   let cleanups = 0;
   return {
     renders,
@@ -31,9 +31,9 @@ export function pluginUi() {
     exports: {
       api: 1,
       default: {
-        render(args: { el: HTMLElement; core: CoreApi; plugin: PluginId; signal: AbortSignal }) {
+        render(args: { el: HTMLElement; core: CoreApi; plugin: PluginClassId; signal: AbortSignal }) {
           renders.push(args);
-          args.el.textContent = args.core.store.board().plugins[args.plugin]?.name ?? "";
+          args.el.textContent = args.core.plugins.running()[args.plugin]?.name ?? "";
           return () => {
             cleanups++;
           };

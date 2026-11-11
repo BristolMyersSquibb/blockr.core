@@ -1,5 +1,5 @@
 {
-  "description": "The handshake of an app whose script loaded blockr.test, a package that declares a startup module and two modules that it offers others, and that gives the state of its plugin class blockr.test-grid_plugin version 2, through its method of plugin_version(), and its board option grid_gap version 2, through its method of board_option_version(). The app names two renderers of blockr.test in the blockr option renderers, one for table outputs, which R sends with each table output and in the entry of each block class whose outputs are tables, and one for the board option dark_mode, which it sends here. Neither of the script's block classes names a coercion, so their outputs are text, and their entries name core's renderer of text outputs. Beside it, the script registered two block classes of its own and built an empty board that holds one plugin, of the class blockr.test-grid_plugin. The plugin takes its id, grid, from its class. R sends the board as a JSON board, with the id it drew and the version of the plugin's class. R loads no package for the handshake, so its reply says what the script loaded. R builds the properties that say so from what is registered and declared, and building them builds no block. They give the version of each package that the reply names, here blockr.core and blockr.test, since a class from no package names none, the version that blockr.test gives its plugin class grid_plugin, under the class's id, which names the package whose namespace holds the method, and the version that it gives its board option grid_gap. The fixture leaves out what core declares, so the modules lack core's basic frontend. R serves each file at a URL that holds a hash of its content: a package's file under the package's name, at its path in the package, with the hash in the query, and a file from no package under blockr-modules, in a directory named by the hash. It writes the starting state of the letters block by the schema that the block's module ships, so that columns, a vector of length one, is an array, and that of the count block, whose module ships no schema, bare.",
+  "description": "The handshake of an app whose script loaded blockr.test, a package that declares a startup module and two modules that it offers others, that lists its plugin class blockr.test-grid_plugin, a frontend named Grid, and that gives the state of that class version 2, through its method of plugin_version(), and its board option grid_gap version 2, through its method of board_option_version(). The app names two renderers of blockr.test in the blockr option renderers, one for table outputs, which R sends with each table output and in the entry of each block class whose outputs are tables, and one for the board option dark_mode, which it sends here. Neither of the script's block classes names a coercion, so their outputs are text, and their entries name core's renderer of text outputs. Beside it, the script registered two block classes of its own and built an empty board that holds the state of one plugin, of the class blockr.test-grid_plugin, under the id of its class. R sends the board as a JSON board, with the id it drew and the version of the plugin's class. The script passes serve() no plugins, so the app runs the plugin of every class that an available package lists, each under the id of its class with its class's name and version: core's storage plugin, and blockr.test's frontend, in place of core's basic frontend. R loads no package for the handshake, so its reply says what the script loaded. R builds the properties that say so from what is registered and declared, and building them builds no block. They give the version of each package that the reply names, here blockr.core and blockr.test, since a class from no package names none, and the version that blockr.test gives its board option grid_gap. The fixture leaves out what core declares, so the modules lack core's basic frontend. R serves each file at a URL that holds a hash of its content: a package's file under the package's name, at its path in the package, with the hash in the query, and a file from no package under blockr-modules, in a directory named by the hash. It writes the starting state of the letters block by the schema that the block's module ships, so that columns, a vector of length one, is an array, and that of the count block, whose module ships no schema, bare.",
   "client": [
     {
       "id": "1",
@@ -114,7 +114,10 @@
             "module": "blockr.test/js/picker.js?v=42980521"
           }
         },
-        "plugin_versions": { "blockr.test-grid_plugin": 2 },
+        "plugins": {
+          "blockr.core-file_storage_plugin": { "name": "File storage", "version": 1 },
+          "blockr.test-grid_plugin": { "name": "Grid", "version": 2 }
+        },
         "option_versions": { "grid_gap": 2 },
         "renderers": {
           "blockr.test-dark": {
@@ -135,11 +138,7 @@
             "stacks": {},
             "options": {},
             "plugins": {
-              "grid": {
-                "class": "blockr.test-grid_plugin",
-                "name": "Grid",
-                "state": {}
-              }
+              "blockr.test-grid_plugin": { "columns": 2 }
             }
           }
         }

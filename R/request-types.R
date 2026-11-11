@@ -28,9 +28,10 @@
 #' * The type `plugin`, a plugin's request,
 #'   which a plugin sends through `CoreApi.request()` in the client.
 #'   R finds it among the requests that `plugin_requests()` returns for the
-#'   plugin class whose ID `plugin` names, as `blockr.md-md_plugin`.
-#'   R calls the method on an object of class `c("{name}_plugin", "plugin")`,
-#'   which it makes from the ID, as `c("md_plugin", "plugin")`.
+#'   plugin class whose ID `plugin` names, as `blockr.md-md_plugin`, which an
+#'   available package lists (see [available_plugins()]).
+#'   R calls the method on the plugin that the class's constructor makes,
+#'   called without args.
 #'
 #' No package adds a type of its own,
 #' and R replies `error` to a request of a type that is not core's.
@@ -60,8 +61,8 @@
 #' R runs a plugin's request on a locked board as on any other.
 #'
 #' @param x A board option, for `board_option_requests()`, and for
-#'   `plugin_requests()`, a plugin, which R makes from the ID of the plugin's
-#'   class as an object of class `c("{name}_plugin", "plugin")`
+#'   `plugin_requests()`, a plugin, which the constructor of the plugin's class
+#'   makes
 #' @param ... Generic consistency
 #'
 #' @examples
@@ -165,7 +166,7 @@ request_call.option_request <- function(x, reads, ...) {
 }
 
 # A plugin's request, which R finds by the ID of the plugin's class among the
-# requests of the class.
+# requests of the class, which an available package lists.
 # Its function gets the blocks that the request reads in `reads`, each with its
 # result and its block expression alone, and the request's body in `file`.
 #' @export
@@ -173,7 +174,17 @@ request_call.plugin_request <- function(x, reads, ...) {
 
   plugin <- x[["plugin"]]
   name <- x[["name"]]
-  fun <- plugin_class_requests(plugin)[[name]]
+  available <- available_plugin_classes()
+
+  if (!plugin %in% names(available)) {
+    blockr_abort(
+      "No available package lists plugin class {plugin}, so R has no request ",
+      "{name} of it.",
+      class = "plugin_request_unknown"
+    )
+  }
+
+  fun <- plugin_class_requests(plugin, available)[[name]]
 
   if (!is.function(fun)) {
     blockr_abort(

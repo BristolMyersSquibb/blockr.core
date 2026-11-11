@@ -1,27 +1,31 @@
-// A plugin's request, as CoreApi.request() sends it, with a board that holds
-// the plugins the test gives, and a scheduler whose evaluations and replies the
-// test gives.
+// A plugin's request, as CoreApi.request() sends it for one of the app's
+// plugins that run, which the test gives, by the id of the plugin's class, with
+// a scheduler whose evaluations and replies the test gives.
 
 import { describe, expect, test } from "vitest";
-import type { Reply } from "../protocol/index.ts";
+import type { Plugin, Reply } from "../protocol/index.ts";
 import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
 import { READY } from "../stubs/index.ts";
-import type { BlockId, Board } from "../types/board.ts";
+import type { BlockId, PluginClassId } from "../types/board.ts";
 import { RequestError } from "../mount/index.ts";
 import { pluginRequest } from "./index.ts";
 
 type Sent = Parameters<Scheduler["request"]>[0];
 type Options = Parameters<Scheduler["request"]>[1];
 
-// The board's plugins: blockr.code's, and a document of blockr.md.
-const PLUGINS: Board["plugins"] = {
-  code: { class: "blockr.code-code_plugin", name: "Code", state: {} },
-  report: { class: "blockr.md-md_plugin", name: "Report", state: { content: "# Report" } },
+const CODE = "blockr.code-code_plugin";
+const DOCUMENT = "blockr.md-md_plugin";
+
+// The app's plugins that run: blockr.code's, and blockr.md's document, by the
+// ids of their classes.
+const RUNNING: Readonly<Record<PluginClassId, Plugin>> = {
+  [CODE]: { name: "Code", version: 1 },
+  [DOCUMENT]: { name: "Document", version: 1 },
 };
 
-// A board that holds the plugins above, and a scheduler that holds the blocks
-// a and b at the statuses given, has them evaluated as the test says, and
-// replies to each request in turn with the replies given.
+// The plugins above, which run, and a scheduler that holds the blocks a and b
+// at the statuses given, has them evaluated as the test says, and replies to
+// each request in turn with the replies given.
 function setup(replies: Reply[], statuses: Record<BlockId, BlockStatus> = { a: READY, b: { ...READY, revision: 3, evaluated: 3 } }) {
   const sent: Sent[] = [];
   const options: Options[] = [];
@@ -41,8 +45,8 @@ function setup(replies: Reply[], statuses: Record<BlockId, BlockStatus> = { a: R
       return Promise.resolve({ reply, body: null });
     },
   };
-  const store = { board: () => ({ plugins: PLUGINS }) as Board };
-  return { deps: { store, scheduler }, sent, options, evaluated };
+  const plugins = { running: () => RUNNING };
+  return { deps: { plugins, scheduler }, sent, options, evaluated };
 }
 
 const ok = (value: unknown): Reply => ({ id: "1", status: "ok", value: value as never });
@@ -50,7 +54,7 @@ const ok = (value: unknown): Reply => ({ id: "1", status: "ok", value: value as 
 describe("a plugin's request", () => {
   test("has the blocks it reads evaluated first, and goes to R with their revisions and the plugin's class", async () => {
     const s = setup([ok(["a <- 1"])]);
-    await expect(pluginRequest(s.deps, "code", "script", {}, { reads: ["a", "b", "a"] })).resolves.toEqual(["a <- 1"]);
+    await expect(pluginRequest(s.deps, CODE, "script", {}, { reads: ["a", "b", "a"] })).resolves.toEqual(["a <- 1"]);
 
     expect(s.evaluated).toEqual([["a", "b"]]);
     expect(s.sent).toEqual([
@@ -69,7 +73,7 @@ describe("a plugin's request", () => {
     const s = setup([ok(null)]);
     const file = new File(["# Report"], "report.md", { type: "text/markdown" });
     const progress = (): void => undefined;
-    await pluginRequest(s.deps, "report", "html", { content: "# Report" }, { file, progress });
+    await pluginRequest(s.deps, DOCUMENT, "html", { content: "# Report" }, { file, progress });
 
     expect(s.evaluated).toEqual([]);
     expect(s.sent).toEqual([
@@ -82,17 +86,17 @@ describe("a plugin's request", () => {
   test("asks again where R replies missing, and gives up after a few attempts", async () => {
     const missing: Reply = { id: "1", status: "missing", missing: [{ block: "a", revision: 1 }] };
     const s = setup([missing, ok("done")]);
-    await expect(pluginRequest(s.deps, "code", "script", {}, { reads: ["a"] })).resolves.toBe("done");
+    await expect(pluginRequest(s.deps, CODE, "script", {}, { reads: ["a"] })).resolves.toBe("done");
     expect(s.evaluated).toHaveLength(2);
 
     const again = setup([missing, missing, missing]);
-    await expect(pluginRequest(again.deps, "code", "script", {}, { reads: ["a"] })).rejects.toMatchObject({ status: "missing" });
+    await expect(pluginRequest(again.deps, CODE, "script", {}, { reads: ["a"] })).rejects.toMatchObject({ status: "missing" });
   });
 
   test("rejects with the statuses of the blocks it reads that are not ready, and does not go to R", async () => {
     const failed: BlockStatus = { ...READY, status: "failed" };
     const s = setup([], { a: READY, b: failed });
-    const sent = pluginRequest(s.deps, "code", "script", {}, { reads: ["a", "b"] });
+    const sent = pluginRequest(s.deps, CODE, "script", {}, { reads: ["a", "b"] });
     await expect(sent).rejects.toBeInstanceOf(RequestError);
     await expect(sent).rejects.toMatchObject({ blocks: [{ block: "b", status: failed }] });
     expect(s.sent).toEqual([]);
@@ -101,18 +105,25 @@ describe("a plugin's request", () => {
   test("rejects with the reply's status and conditions", async () => {
     const condition = { severity: "error" as const, class: ["simpleError", "error", "condition"], phase: "request" as const, message: "no" };
     const s = setup([{ id: "1", status: "error", conditions: [condition] }]);
-    const sent = pluginRequest(s.deps, "code", "script", {}, {});
+    const sent = pluginRequest(s.deps, CODE, "script", {}, {});
     await expect(sent).rejects.toMatchObject({ status: "error", conditions: [condition] });
-    await expect(sent).rejects.toThrow('R replied error to the request "script" of the plugin "code".');
+    await expect(sent).rejects.toThrow('R replied error to the request "script" of the plugin "blockr.code-code_plugin".');
   });
 
   test.each([
-    ["no plugin", "", "script", {}, {}, "names the plugin by its id"],
-    ["a plugin that the board lacks", "dag", "script", {}, {}, 'The board holds no plugin "dag"'],
-    ["a plugin's class in place of its id", "blockr.code-code_plugin", "script", {}, {}, "The board holds no plugin"],
-    ["no name", "code", "", {}, {}, 'A request of the plugin "code" is named by a non-empty string'],
-    ["args that are no object", "code", "script", [], {}, "are an object"],
-    ["a block that the board lacks", "code", "script", {}, { reads: ["z"] }, 'reads the block "z", which the board lacks'],
+    ["no plugin", "", "script", {}, {}, "names the plugin by the id of its class"],
+    [
+      "a plugin that the app does not run",
+      "blockr.dag-dag_plugin",
+      "script",
+      {},
+      {},
+      'The app runs no plugin "blockr.dag-dag_plugin" on the open board, so its request did not go to R.',
+    ],
+    ["a name in place of the id of the plugin's class", "code", "script", {}, {}, 'The app runs no plugin "code"'],
+    ["no name", CODE, "", {}, {}, 'A request of the plugin "blockr.code-code_plugin" is named by a non-empty string'],
+    ["args that are no object", CODE, "script", [], {}, "are an object"],
+    ["a block that the board lacks", CODE, "script", {}, { reads: ["z"] }, 'reads the block "z", which the board lacks'],
   ])("refuses %s", async (_, plugin, name, args, opts, message) => {
     const s = setup([]);
     await expect(pluginRequest(s.deps, plugin, name, args as never, opts)).rejects.toThrow(message);

@@ -22,7 +22,7 @@ declared_modules <- new.env()
 #' replaces it, as when a package is loaded again.
 #'
 #' The module that a plugin class names, such as the UI that every frontend
-#' places for each of its plugins, is such a module, which the class names by
+#' places for the class's plugin, is such a module, which the class names by
 #' its ID in JavaScript (see [new_plugin()]).
 #' Core declares its basic frontend the same way, as `blockr.core-basic`,
 #' which draws the board.
@@ -30,17 +30,16 @@ declared_modules <- new.env()
 #' Next to its startup module, a package puts a JSON Schema for each plugin
 #' class and each board option that it registers, in a file of its own, as a
 #' block class's UI module ships the schema of the block's state next to it.
-#' The schema of the state of the plugins of the class `{pkg}-{name}_plugin`
-#' goes in `{name}_plugin.schema.json`, and that of the value of the board
-#' option `{id}` in `{id}_option.schema.json`, each named by the class in R of
-#' the plugins or of the board option, on which [plugin_version()] and
-#' [board_option_version()] dispatch.
+#' The schema of the state of the plugins of the class `{pkg}-{id}` goes in
+#' `{id}.schema.json`, named by the id of the class, and that of the value of
+#' the board option `{id}` in `{id}_option.schema.json`, named by the class in
+#' R of the board option, on which [board_option_version()] dispatches.
 #' So blockr.dag might put the schema of the class `blockr.dag-dag_plugin` in
 #' `dag_plugin.schema.json`, and that of a board option `grid_gap` in
 #' `grid_gap_option.schema.json`.
 #' R finds the schema of a plugin's state next to the startup module of the
-#' package that its class's ID names, whatever ID the plugin has on a board,
-#' and the schema of a board option's value next to that of any package.
+#' package that its class's ID names, and the schema of a board option's value
+#' next to that of any package.
 #' R shapes the board that an app script builds by them, as it does by core's
 #' schema of the board (see [blockr_ser()]), so that a value of length one stays
 #' an array where a schema has one.
@@ -199,8 +198,8 @@ core_runtime <- function() {
 }
 
 # The JSON Schema of the state of the plugins of the class with the ID `id`,
-# `{pkg}-{name}_plugin`, in `{name}_plugin.schema.json` next to the startup
-# module of the package `{pkg}`, or `NULL` where there is none.
+# `{pkg}-{id}`, in `{id}.schema.json` next to the startup module of the package
+# `{pkg}`, or `NULL` where there is none.
 plugin_class_schema <- function(id) {
 
   for (entry in schema_modules()) {

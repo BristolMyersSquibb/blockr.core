@@ -2,101 +2,128 @@
 % Please edit documentation in R/plugin-class.R
 \name{new_plugin}
 \alias{new_plugin}
+\alias{new_basic_frontend_plugin}
+\alias{new_file_storage_plugin}
 \alias{is_plugin}
-\alias{plugin_name}
 \alias{plugin_class_id}
 \alias{plugin_state}
-\alias{default_plugin_name}
 \alias{plugin_version}
 \alias{plugin_version.plugin}
+\alias{available_plugins}
 \title{Plugins}
 \usage{
-new_plugin(state = list(), plugin_name = NULL, class = character())
+new_plugin(state = list(), id, class = id)
+
+new_basic_frontend_plugin()
+
+new_file_storage_plugin()
 
 is_plugin(x)
-
-plugin_name(x)
 
 plugin_class_id(x)
 
 plugin_state(x)
 
-default_plugin_name(class)
-
 plugin_version(x, ...)
 
 \method{plugin_version}{plugin}(x, ...)
+
+available_plugins()
 }
 \arguments{
 \item{state}{The plugin's state, the args of its constructor, as a list by
 name}
 
-\item{plugin_name}{The plugin's name, which titles its panel, made from the
-name of its class where it is \code{NULL}, as \code{"Dag"} for \code{dag_plugin}}
+\item{id}{The id of the plugin's class without its package, named as
+\verb{\{name\}_plugin}, as \code{"dag_plugin"}}
 
 \item{class}{The plugin's class vector without \code{"plugin"}, its own class
-first, as \code{"dag_plugin"} or \code{c("dock_plugin", "frontend_plugin")}}
+first, as \code{c("dock_plugin", "frontend_plugin")}, which defaults to \code{id}}
 
 \item{x}{Plugin}
 
 \item{...}{Generic consistency}
 }
 \value{
-The constructor \code{new_plugin()} returns a \code{plugin} object, and
-\code{is_plugin()} a scalar logical. Of the getters, \code{plugin_name()} returns a
-string, \code{plugin_class_id()} the id of the plugin's class, a string, and
-\code{plugin_state()} the state, a list by name. The generic \code{plugin_version()}
-returns a whole number.
+The constructors \code{new_plugin()}, \code{new_basic_frontend_plugin()} and
+\code{new_file_storage_plugin()} return a \code{plugin} object, and \code{is_plugin()} a
+scalar logical. Of the getters, \code{plugin_class_id()} returns the id of the
+plugin's class in full, a string, and \code{plugin_state()} the state, a list by
+name. The generic \code{plugin_version()} returns a whole number, and
+\code{available_plugins()} a data frame with a row for each plugin class.
 }
 \description{
 A plugin extends a board as a whole, such as a frontend that draws the page,
 the DAG or a document of \code{blockr.md}, and is core's one way to extend a board
 besides block classes.
-A board holds its plugins (see \code{\link[=new_board]{new_board()}}), each with its state, which
-the board keeps as it keeps a block's state.
-A package's constructor \verb{new_\{name\}_plugin()} returns a plugin made by
-\code{new_plugin()}, of class \code{c("{name}_plugin", ..., "plugin")}.
-The constructor's args are the plugin's state, such as the positions of the
-DAG, which it passes to \code{new_plugin()} as a list, and its \code{plugin_name}
-gives the plugin's name, as \code{block_name} gives a block's.
+An app runs at most one plugin of each plugin class, and the app says which
+plugins run, not the board: \code{\link[=serve]{serve()}} takes them in \code{plugins}, as rows that
+give each plugin's class by its package and its id.
+So a plugin is identified by the id of its class, and named by its class.
 }
 \details{
-The id of a plugin's class is \verb{\{pkg\}-\{name\}_plugin}, as
+A plugin object holds the state that a plugin gives the board that an app
+script builds, as a block holds its state, and \code{\link[=new_board]{new_board()}} takes such
+objects in \code{plugins} for their state alone.
+A package's constructor \verb{new_\{name\}_plugin()} returns one, made by
+\code{new_plugin()}, of class \code{c("{name}_plugin", ..., "plugin")}.
+The constructor's args are the plugin's state, such as the positions of the
+DAG, which it passes to \code{new_plugin()} as a list by name, followed by the id
+of the plugin's class, as \code{new_plugin(list(positions = positions), "dag_plugin")}.
+The class vector, \code{class}, defaults to the id, and serves S3 dispatch alone.
+
+The id of a plugin's class in full is \code{{pkg}-{id}}, as
 \code{blockr.dag-dag_plugin}, where the package is the one that the constructor
 lives in, since that package defines the class in JavaScript, where its
 startup module registers the class under that id (see
 \code{\link[=register_startup_module]{register_startup_module()}}).
 So an app script defines no plugin class, and \code{new_plugin()} raises an error
 where the constructor that calls it lives outside a package.
+A package lists each of its plugin classes with its id, its constructor and
+its name, the human-readable form of its id, such as "Document" for
+\code{md_plugin}, which titles the plugin's panel.
+The function \code{available_plugins()} gives the plugin classes that the
+available packages list, as a data frame with a row for each class, with
+its package in \code{package}, its id in \code{id} and its name in \code{name}.
+Until other packages list their own, it gives core's classes alone.
 
 Core defines two plugin classes beside \code{plugin}, since every page relies on
 what each does: \code{frontend_plugin}, the class of a plugin that draws the page,
 and \code{storage_plugin}, the class of a plugin through which every frontend
 saves boards and opens them.
 A package's class extends one of them or \code{plugin} itself, as
-\code{c("session_plugin", "storage_plugin", "plugin")}, and a board holds at most
-one frontend and one storage plugin.
+\code{c("session_plugin", "storage_plugin", "plugin")}.
+Core's own plugins do so too, and neither keeps any state.
+Its basic frontend, which \code{new_basic_frontend_plugin()} makes, is of class
+\code{c("basic_frontend_plugin", "frontend_plugin", "plugin")}.
+Its storage plugin, which \code{new_file_storage_plugin()} makes, is of class
+\code{c("file_storage_plugin", "storage_plugin", "plugin")}, and saves a board as
+a download and opens an upload.
 
 The version of a plugin class is the version of the shape of its plugins'
 state, a whole number from 1, which the class's method of \code{plugin_version()}
 gives, and which is 1 for a class without one.
 A package raises it as it changes that shape, so that the client migrates
 the state of a plugin that a JSON board holds at an older version.
-R calls the method on an object of class \code{c("{name}_plugin", "plugin")},
-which it makes from the class's id, and sends the version of each class that
-a method gives one in its reply to \code{hello}.
+R calls the method on the plugin that the class's constructor makes, called
+without args, and sends the version of the class of each of the app's
+plugins in its reply to \code{hello}.
 A plugin class that needs R gives its requests through its method of
-\code{\link[=plugin_requests]{plugin_requests()}}, which R calls on such an object too.
+\code{\link[=plugin_requests]{plugin_requests()}}, which R calls on such a plugin too.
 }
 \examples{
 \dontrun{
 # In a package such as blockr.dag, whose plugin class is
 # blockr.dag-dag_plugin
-new_dag_plugin <- function(positions = list(), plugin_name = "DAG") {
-  new_plugin(list(positions = positions), plugin_name, "dag_plugin")
+new_dag_plugin <- function(positions = list()) {
+  new_plugin(list(positions = positions), "dag_plugin")
 }
 
 plugin_version.dag_plugin <- function(x, ...) 2L
 }
+
+available_plugins()
+
+plugin_class_id(new_basic_frontend_plugin())
 
 }

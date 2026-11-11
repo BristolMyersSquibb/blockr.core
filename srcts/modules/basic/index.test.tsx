@@ -12,8 +12,9 @@ import type { PluginClass } from "../../store/index.ts";
 import { find, pick, picking, press, texts, type } from "../../testing/inputs.ts";
 import { pluginUi, registering } from "../../testing/plugins.ts";
 import { step } from "../../testing/react.ts";
-import { withPlugins } from "../../testing/store.ts";
-import type { Board, JsonBoard, Plugin, PluginId } from "../../types/board.ts";
+import { withoutPlugins, withPlugins } from "../../testing/store.ts";
+import type { GivenPlugin } from "../../testing/store.ts";
+import type { Board, JsonBoard, PluginClassId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import * as basic from "./index.tsx";
 
@@ -136,11 +137,21 @@ function notices(el: HTMLElement): [string | null, string][] {
   ]);
 }
 
-const plugin = (cls: PluginClass, name: string): Plugin => ({ class: cls.id, name, state: {} });
+// The class of core's own storage plugin, which the app of the fixture hello
+// runs.
+const FILE_STORAGE = "blockr.core-file_storage_plugin";
 
-// What the test gives core for a board that holds the plugins given, of the
+// The app's plugin of the class given, with the name given, as the reply names
+// it.
+const plugin = (cls: PluginClass, name: string): Readonly<Record<PluginClassId, GivenPlugin>> => ({ [cls.id]: { name } });
+
+// What the test gives core for an app that runs the plugins given, of the
 // classes given, which blockr.test registers.
-function withClasses(classes: readonly PluginClass[], plugins: Readonly<Record<PluginId, Plugin>>, hello = HELLO): StubCoreOptions {
+function withClasses(
+  classes: readonly PluginClass[],
+  plugins: Readonly<Record<PluginClassId, GivenPlugin>>,
+  hello = HELLO,
+): StubCoreOptions {
   return { hello: withPlugins(plugins, hello), startup: { "blockr.test": registering(classes) } };
 }
 
@@ -560,7 +571,7 @@ describe("the toolbar", () => {
     expect(notices(page.el)).toEqual([["error", expect.stringContaining("The store refused to open the board")]]);
   });
 
-  test("saves and opens through the board's storage plugin, and says why it failed", async () => {
+  test("saves and opens through the app's storage plugin, and says why it failed", async () => {
     const saves: string[] = [];
     let picked: string | null = null;
     let down = false;
@@ -575,7 +586,8 @@ describe("the toolbar", () => {
         open: () => (down ? Promise.reject(new Error("Connect is down.")) : Promise.resolve(picked)),
       },
     };
-    const page = await drawn(withClasses([session], { session: plugin(session, "Session") }));
+    // An app whose storage plugin takes the place of core's own.
+    const page = await drawn(withClasses([session], plugin(session, "Session"), withoutPlugins(HELLO, FILE_STORAGE)));
     // The plugin's class has no ui, so the page shows no section for it.
     expect(page.el.querySelector("aside")).toBeNull();
 
@@ -601,30 +613,45 @@ describe("the toolbar", () => {
       ["error", "Connect is down."],
     ]);
   });
+
+  test("draws no control for saving the board or opening another where the app runs no storage plugin", async () => {
+    const page = await drawn({ hello: withoutPlugins(HELLO, FILE_STORAGE) });
+
+    expect(page.core.plugins.storage()).toBeUndefined();
+    expect(buttons(toolbar(page.el))).toEqual(["Add block", "Links", "Stacks", "Options", "Undo", "Redo"]);
+  });
 });
 
 describe("a plugin", () => {
   const notes: PluginClass = { id: "blockr.test-notes_plugin", ui: "blockr.test-notes" };
-  // A class whose plugins run from its start alone, with no place on the
+  // A class whose plugin draws with the module of the notes' class.
+  const later: PluginClass = { id: "blockr.test-later_plugin", ui: "blockr.test-notes" };
+  // A class whose plugin runs from its start alone, with no place on the
   // screen.
   const bridge: PluginClass = { id: "blockr.test-bridge_plugin", start: () => undefined };
 
   test("whose class has a ui shows beside the board in a section of its own, which the user collapses without core unmounting its UI", async () => {
     const ui = pluginUi();
     const page = await drawn({
-      ...withClasses([notes, bridge], { todo: plugin(notes, "To do"), bridge: plugin(bridge, "Bridge"), later: plugin(notes, "Later") }),
+      ...withClasses([notes, bridge, later], {
+        ...plugin(notes, "To do"),
+        ...plugin(bridge, "Bridge"),
+        ...plugin(later, "Later"),
+      }),
       modules: { "blockr.test-notes": ui.exports },
     });
     const sections = (): HTMLDetailsElement[] => [...find(page.el, 'aside[aria-label="Plugins"]').querySelectorAll("details")];
     const shown = () => sections().map((section) => [section.querySelector("summary")?.textContent, section.open]);
 
-    // Each section starts open, in the order of the board's plugins, and core
-    // mounts the UI of the plugin's class in it. The board stays beside them.
+    // Each section starts open, in the order of the app's plugins, titled by
+    // the name of the plugin's class, and core mounts the UI of the class in
+    // it. Core's own plugins have no UI, and so no section. The board stays
+    // beside them.
     expect(shown()).toEqual([
       ["To do", true],
       ["Later", true],
     ]);
-    expect(ui.renders.map((render) => render.plugin)).toEqual(["todo", "later"]);
+    expect(ui.renders.map((render) => render.plugin)).toEqual([notes.id, later.id]);
     expect(sections()[0]?.contains(ui.renders[0]?.el ?? null)).toBe(true);
     expect(ui.renders[0]?.el.textContent).toBe("To do");
     expect(page.el.querySelectorAll("article")).toHaveLength(6);
@@ -679,13 +706,13 @@ describe("which block has focus", () => {
 
 // R's reply to hello whose opening board the store opens without what the
 // app cannot rebuild: the package blockr.dplyr, which R did not load, a block
-// of its filter block class, a plugin whose class no package registers, and a
-// value of a board option that no package registers.
+// of its filter block class, the state of a plugin of the app whose class no
+// package registers, and a value of a board option that no package registers.
 function droppingHello(): HelloReply {
   const json = HELLO.board;
   const filter = { registry_id: "blockr.dplyr-filter_block", version: 1, state: {}, name: "Filter", locked: null };
   return withPlugins(
-    { gone: { class: "blockr.gone-gone_plugin", name: "Gone", state: {} } },
+    { "blockr.gone-gone_plugin": { name: "Gone", state: {} } },
     {
       ...HELLO,
       board: {
@@ -712,7 +739,7 @@ describe("what the user learns", () => {
           "The board opened without:",
           "- package blockr.dplyr 0.3.0",
           '- block "x" (blockr.dplyr-filter_block)',
-          '- plugin "gone" (blockr.gone-gone_plugin)',
+          '- plugin "blockr.gone-gone_plugin"',
           '- board option "zoom"',
         ].join("\n"),
       ],
@@ -835,7 +862,7 @@ describe("a locked board", () => {
 
   test("draws no control for what the board lock fixes, and the UI only of the blocks it leaves open", async () => {
     const { el } = await drawn({
-      ...withClasses([notes], { todo: plugin(notes, "To do") }, lockedHello({ board: true, load: true })),
+      ...withClasses([notes], plugin(notes, "To do"), lockedHello({ board: true, load: true })),
       modules: { "blockr.test-notes": pluginUi().exports },
     });
 

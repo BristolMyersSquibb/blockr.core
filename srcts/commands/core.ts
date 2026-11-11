@@ -24,7 +24,7 @@ import type {
   BlockId,
   Board,
   LinkId,
-  PluginId,
+  PluginClassId,
   RegistryId,
   Stack,
   StackId,
@@ -516,21 +516,24 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
   ];
 
   const plugins = [
-    command<{ readonly plugin: PluginId; readonly patches: readonly StatePatch[] }>({
+    command<{ readonly plugin: PluginClassId; readonly patches: readonly StatePatch[] }>({
       id: "blockr.core-set_plugin_state",
       label: "Set plugin state",
       description:
         "Changes a plugin's state by patches at paths within that state, as JSON Patch has them, which the schema of the plugin's class types. It is not enabled on a locked board, where only the commands of a plugin's class know what the plugin locks.",
       args: object(
         {
-          plugin: { ...schemas.pluginId, description: "The plugin whose state the patches change." },
+          plugin: {
+            ...schemas.pluginClassId,
+            description: "The id of the class of the plugin whose state the patches change.",
+          },
           patches: schemas.statePatches,
         },
         ["plugin", "patches"],
       ),
       enabled: (board, { plugin }) => options.locked !== true && Object.hasOwn(board.plugins, plugin),
       run: (_board, { plugin, patches }) => ({
-        patches: patches.map((patch) => ({ ...patch, path: `${pathFromSegments(["plugins", plugin, "state"])}${patch.path}` })),
+        patches: patches.map((patch) => ({ ...patch, path: `${pathFromSegments(["plugins", plugin])}${patch.path}` })),
       }),
     }),
   ];

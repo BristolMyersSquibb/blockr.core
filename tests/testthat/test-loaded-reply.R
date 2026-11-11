@@ -9,8 +9,8 @@ test_that("R tells the client what it loaded in the properties of its reply", {
 
   expect_named(
     reply,
-    c("packages", "block_registry", "startup_modules", "modules",
-      "plugin_versions", "option_versions", "renderers")
+    c("packages", "block_registry", "startup_modules", "modules", "plugins",
+      "option_versions", "renderers")
   )
   expect_identical(
     json(reply$packages),
@@ -193,40 +193,28 @@ test_that("R says where it serves what packages declare", {
   expect_match(reply$modules[["blockr.test-picker"]]$module, url("picker.js"))
 })
 
-test_that("R gives the version of each plugin class that a package versions", {
+test_that("R gives the app's plugins with their classes' names and versions", {
 
   expect_identical(
-    json(declared_fields()$plugin_versions),
-    "{\"blockr.test-grid_plugin\":2}"
-  )
-  expect_identical(json(plugin_versions()), "{}")
-
-  # By the class's id, whose package is the one whose namespace holds the
-  # method, which names the package among those of the reply
-  local_plugin_version("dag_plugin", 3L, "blockr.one")
-  local_versions(blockr.one = "1.2.0")
-
-  expect_identical(plugin_versions(), list(`blockr.one-dag_plugin` = 3L))
-  expect_identical(loaded_reply()$packages$blockr.one, "1.2.0")
-
-  # A method that an app script defines, from no namespace, gives no version
-  method <- function(x, ...) 2L
-  environment(method) <- globalenv()
-  ns <- asNamespace("blockr.core")
-  registerS3method("plugin_version", "mine_plugin", method, envir = ns)
-  withr::defer(
-    rm(
-      list = "plugin_version.mine_plugin",
-      envir = get(".__S3MethodsTable__.", envir = ns)
+    json(declared_fields()$plugins),
+    paste0(
+      "{\"blockr.core-file_storage_plugin\":",
+      "{\"name\":\"File storage\",\"version\":1},",
+      "\"blockr.test-grid_plugin\":{\"name\":\"Grid\",\"version\":2}}"
     )
   )
+  expect_identical(json(loaded_reply()$plugins), "{}")
 
-  expect_identical(plugin_versions(), list(`blockr.one-dag_plugin` = 3L))
+  # The package that the id of each plugin's class names is among those of
+  # the reply
+  local_versions(blockr.one = "1.2.0")
 
-  # A method that gives no version fails as R builds the reply
-  local_plugin_version("bad_plugin", 0L, "blockr.bad")
+  reply <- loaded_reply(
+    list(`blockr.one-dag_plugin` = list(name = "DAG", version = 3L))
+  )
 
-  expect_error(plugin_versions(), class = "plugin_version_invalid")
+  expect_identical(reply$packages$blockr.one, "1.2.0")
+  expect_false("plugin_versions" %in% names(reply))
 })
 
 test_that("R gives the version of each board option that a package versions", {

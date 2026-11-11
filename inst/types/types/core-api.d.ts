@@ -1,8 +1,8 @@
 import type { Commands } from "../commands/index.ts";
-import type { Lock } from "../protocol/index.ts";
+import type { Lock, Plugin } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Options, PluginClass, Storage, Store } from "../store/index.ts";
-import type { BlockId, OptionId, Plugin, PluginId, RegistryId } from "./board.ts";
+import type { BlockId, OptionId, PluginClassId, RegistryId } from "./board.ts";
 import type { Rendered } from "./hosts.ts";
 import type { Json } from "./json.ts";
 import type { RegistryEntry } from "./registry.ts";
@@ -16,9 +16,9 @@ export interface CoreApi {
     };
     readonly plugins: {
         register(def: PluginClass): () => void;
-        running(): Readonly<Record<PluginId, Plugin>>;
-        pluginClass(plugin: PluginId): PluginClass;
-        storage(): Storage;
+        running(): Readonly<Record<PluginClassId, Plugin>>;
+        pluginClass(plugin: PluginClassId): PluginClass;
+        storage(): Storage | undefined;
     };
     readonly lock: Lock;
     readonly outputEvents: OutputEvents;
@@ -31,13 +31,13 @@ export interface CoreApi {
         set(block: BlockId | null): void;
         subscribe(fn: (block: BlockId | null) => void): () => void;
     };
-    request<T = Json>(plugin: PluginId, name: string, args?: Readonly<Record<string, Json>>, opts?: RequestOpts): Promise<T | Blob>;
+    request<T = Json>(plugin: PluginClassId, name: string, args?: Readonly<Record<string, Json>>, opts?: RequestOpts): Promise<T | Blob>;
     module<T = unknown>(id: string): Promise<T>;
     blockrOption(name: string): Promise<Json | undefined>;
     mountBlock(el: HTMLElement, block: BlockId): () => void;
     mountOutput(el: HTMLElement, block: BlockId): () => void;
     mountOption(el: HTMLElement, option: OptionId): () => void;
-    mountPlugin(el: HTMLElement, plugin: PluginId): () => void;
+    mountPlugin(el: HTMLElement, plugin: PluginClassId): () => void;
 }
 export interface Note {
     readonly message: string;
@@ -47,7 +47,7 @@ export interface PluginModule {
     render(args: {
         el: HTMLElement;
         core: CoreApi;
-        plugin: PluginId;
+        plugin: PluginClassId;
         signal: AbortSignal;
     }): Rendered;
 }

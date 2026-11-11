@@ -1,15 +1,17 @@
 // Drawing frontends in the page's element, as core draws each board that it
-// opens with its frontend
+// opens with the app's frontend
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#opening-a-board):
-// - Once the store has opened a board, core imports the module of its
-//   frontend: the `frontend` of the class of the board's plugin that is one,
-//   or core's basic frontend where the board holds none.
+// - Once the store has opened a board, core imports the module of the app's
+//   frontend: the `frontend` of the class of the app's plugin that is one,
+//   core's basic frontend among them. Where the app runs no frontend, as where
+//   no package registers the class of the frontend that R names, the element
+//   shows why in place of the board.
 // - Once the board options that the frontend requires are on the board, core
-//   calls the frontend's render() with the element, CoreApi, the plugin's id
-//   and a signal, which aborts as the next board opens, since core starts
-//   again for that board. Core's basic frontend, which no board holds, gets no
-//   plugin's id. Where a board option that the frontend requires did not go
-//   onto the board, the element shows why in place of the frontend.
+//   calls the frontend's render() with the element, CoreApi, the id of the
+//   frontend's class and a signal, which aborts as the next board opens, since
+//   core starts again for that board. Where a board option that the frontend
+//   requires did not go onto the board, the element shows why in place of the
+//   frontend.
 // - As the signal aborts, core runs the cleanup that render() returned, and the
 //   element says that the board is loading until the next frontend draws.
 // A frontend releases what it holds as its signal aborts, as a module does as
@@ -17,10 +19,10 @@
 // and drops the rest of what it ran for the board.
 
 import { attempt, ModuleError, mountableModule, showError } from "../mount/index.ts";
-import type { PluginId } from "../types/board.ts";
+import type { PluginClassId } from "../types/board.ts";
 import type { Rendered } from "../types/hosts.ts";
 import { errorMessage, packageFromId, report } from "../util/index.ts";
-import type { FrontendArgs } from "./plugins.ts";
+import type { PluginArgs } from "./plugins.ts";
 import type { FrontEnds } from "./start.ts";
 
 interface Drawn {
@@ -42,14 +44,16 @@ export function loadingNote(): HTMLElement {
 // The frontends of the page, drawn in the element.
 export function pageFrontEnds(el: HTMLElement): FrontEnds {
   let drawn: Drawn | undefined;
+  // The frontend that prepare() imported, or why the app runs none.
   let next:
     | {
         id: string;
         module: string;
-        plugin: PluginId | undefined;
-        render?: (args: FrontendArgs) => Rendered;
+        plugin: PluginClassId;
+        render?: (args: PluginArgs) => Rendered;
         error?: unknown;
       }
+    | { none: string }
     | undefined;
 
   function end(): void {
@@ -64,6 +68,12 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
 
   return {
     async prepare(front, loader, signal) {
+      if ("none" in front) {
+        if (signal.aborted) return;
+        end();
+        next = front;
+        return;
+      }
       let prepared: NonNullable<typeof next>;
       const { id, source, plugin } = front;
       const pkg = packageFromId(id);
@@ -71,7 +81,7 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
         prepared = { id, module: id, plugin, error: new Error(`R serves no module ${id}, the frontend that draws the board.`) };
       } else {
         try {
-          const mod = mountableModule<FrontendArgs>(await loader.load(source, pkg), source.module, pkg);
+          const mod = mountableModule<PluginArgs>(await loader.load(source, pkg), source.module, pkg);
           prepared = { id, module: source.module, plugin, render: mod.render.bind(mod) };
         } catch (error) {
           prepared = { id, module: source.module, plugin, error };
@@ -87,6 +97,11 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
       next = undefined;
       if (prepared === undefined) return;
       el.replaceChildren();
+      if ("none" in prepared) {
+        showError(el, prepared.none);
+        report(new Error(prepared.none));
+        return;
+      }
       if (failures.length > 0) {
         showError(el, failures.join("\n"));
         return;
@@ -110,13 +125,7 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
       };
       drawn = current;
       try {
-        const { plugin } = prepared;
-        const rendered = await prepared.render({
-          el,
-          core,
-          signal: controller.signal,
-          ...(plugin === undefined ? {} : { plugin }),
-        });
+        const rendered = await prepared.render({ el, core, plugin: prepared.plugin, signal: controller.signal });
         if (typeof rendered !== "function") return;
         if (controller.signal.aborted) attempt(rendered);
         else current.cleanup = rendered;

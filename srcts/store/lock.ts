@@ -3,14 +3,14 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.11#the-board-lock).
 // Under the board lock, the store refuses every change but three: one to the
 // state of a block that the board lock leaves open, one to a board option's
-// value, and one inside a plugin's state, which the plugin locks itself. So
-// the board lock fixes the board's blocks and links, its name, every block's
-// name and lock, its stacks and the names of its plugins.
+// value, and one to a plugin's state, which the plugin locks itself. So the
+// board lock fixes the board's blocks and links, its name, every block's name
+// and lock, and its stacks, while the app sets the plugins that run, whose
+// names are their classes'.
 
 import type { BlockId, Board } from "../types/board.ts";
 import { own, quoted } from "../util/index.ts";
 import type { Delta } from "./delta.ts";
-import { segmentsFromPath } from "./patch.ts";
 
 // Whether a lock fixes a block's state: the board lock is on, and the block's
 // `locked` is not false, so that a block whose `locked` is null follows the
@@ -69,13 +69,6 @@ export function lockFailures(before: Board, inverse: Delta): string[] {
 
   if (inverse.name !== undefined) failures.push("The board lock refuses to rename the board.");
 
-  // A patch changes a plugin's name or its state, and only the plugin locks
-  // what sits in its state.
-  const renamed = (inverse.patches ?? []).flatMap((patch) => {
-    const [, plugin, pluginProperty] = segmentsFromPath(patch.path) ?? [];
-    return plugin === undefined || pluginProperty === "state" ? [] : [plugin];
-  });
-  refuse("rename", "plugin", "plugins", [...new Set(renamed)]);
-
+  // A patch changes a plugin's state alone, which only the plugin locks.
   return failures;
 }

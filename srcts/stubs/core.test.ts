@@ -96,10 +96,10 @@ describe("the CoreApi for tests", () => {
   });
 
   test("answers a plugin's requests with what the test gives, and reads the blockr options that R holds", async () => {
-    // The board holds the plugin of blockr.code, whose startup module
-    // registers its class.
+    // The app runs the plugin of blockr.code, whose startup module registers
+    // its class.
     const { core } = await stubCore({
-      hello: withPlugins({ code: { class: "blockr.code-code_plugin", name: "Code", state: {} } }),
+      hello: withPlugins({ "blockr.code-code_plugin": { name: "Code" } }),
       startup: {
         "blockr.code": {
           api: 1,
@@ -115,9 +115,9 @@ describe("the CoreApi for tests", () => {
         request.kind === "request" && request.type === "plugin" && request.name === "script" ? ["a <- 1"] : undefined,
     });
 
-    await expect(core.request("code", "script", {}, { reads: ["a"] })).resolves.toEqual(["a <- 1"]);
-    await expect(core.request("code", "other")).rejects.toThrow("R replied error");
-    await expect(core.request("dag", "script")).rejects.toThrow('The board holds no plugin "dag"');
+    await expect(core.request("blockr.code-code_plugin", "script", {}, { reads: ["a"] })).resolves.toEqual(["a <- 1"]);
+    await expect(core.request("blockr.code-code_plugin", "other")).rejects.toThrow("R replied error");
+    await expect(core.request("blockr.dag-dag_plugin", "script")).rejects.toThrow('The app runs no plugin "blockr.dag-dag_plugin"');
     await expect(core.blockrOption("n_rows")).resolves.toBe(25);
     await expect(core.blockrOption("gate_visibility")).resolves.toBeUndefined();
   });
@@ -173,18 +173,23 @@ describe("the CoreApi for tests", () => {
     expect(changes).toEqual([1, 2]);
   });
 
-  test("runs the board's plugins, of the classes that a startup module of the test registers, and draws the board with its frontend, given by its module's id", async () => {
+  test("runs the app's plugins, of the classes that a startup module of the test registers, and draws the board with the app's frontend, given by its module's id", async () => {
     const el = document.createElement("div");
     const events: string[] = [];
     const started = ({ plugin }: { plugin: string }): undefined => {
       events.push(`${plugin} starts`);
     };
+    // An app whose frontend takes the place of core's basic frontend.
+    const rest = Object.fromEntries(Object.entries(HELLO.plugins).filter(([id]) => id !== "blockr.core-basic_frontend_plugin"));
     const s = await stubCore({
       el,
-      hello: withPlugins({
-        grid: { class: "blockr.test-grid_plugin", name: "Grid", state: {} },
-        notes: { class: "blockr.test-notes_plugin", name: "Notes", state: {} },
-      }),
+      hello: withPlugins(
+        {
+          "blockr.test-grid_plugin": { name: "Grid" },
+          "blockr.test-notes_plugin": { name: "Notes" },
+        },
+        { ...HELLO, plugins: rest },
+      ),
       startup: {
         "blockr.test": {
           api: 1,
@@ -202,7 +207,7 @@ describe("the CoreApi for tests", () => {
           default: {
             render({ el: at, core, plugin }: { el: HTMLElement; core: CoreApi; plugin: string }) {
               events.push(`${plugin} draws`);
-              core.mountPlugin(at.appendChild(document.createElement("section")), "notes");
+              core.mountPlugin(at.appendChild(document.createElement("section")), "blockr.test-notes_plugin");
             },
           },
         },
@@ -218,8 +223,12 @@ describe("the CoreApi for tests", () => {
     });
     await s.settled();
 
-    expect(events).toEqual(["grid draws", "grid starts", "notes starts"]);
-    expect(el.textContent).toBe("The panel of notes");
+    expect(events).toEqual([
+      "blockr.test-grid_plugin draws",
+      "blockr.test-grid_plugin starts",
+      "blockr.test-notes_plugin starts",
+    ]);
+    expect(el.textContent).toBe("The panel of blockr.test-notes_plugin");
     s.stop();
   });
 

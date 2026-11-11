@@ -12,14 +12,15 @@
 import { useCallback } from "react";
 import type { ReactElement } from "react";
 import { Mounted } from "../../card/index.ts";
-import type { Plugin, PluginId } from "../../types/board.ts";
+import type { Plugin } from "../../protocol/index.ts";
+import type { PluginClassId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import { useFrontEnd } from "./context.ts";
 import { classes } from "./ui.tsx";
 
-// The plugins that the frontend shows, in the order of the board's plugins:
-// those that run whose class has a `ui`.
-export function placed(core: Pick<CoreApi, "plugins">): readonly (readonly [PluginId, Plugin])[] {
+// The plugins that the frontend shows, in the order of the app's plugins: those
+// that run whose class has a `ui`, each by the id of its class.
+export function placed(core: Pick<CoreApi, "plugins">): readonly (readonly [PluginClassId, Plugin])[] {
   return Object.entries(core.plugins.running()).filter(([id]) => core.plugins.pluginClass(id).ui !== undefined);
 }
 
@@ -43,7 +44,7 @@ export function Plugins(): ReactElement | null {
   );
 }
 
-function PluginSection({ id, plugin }: { id: PluginId; plugin: Plugin }): ReactElement {
+function PluginSection({ id, plugin }: { id: PluginClassId; plugin: Plugin }): ReactElement {
   const { core } = useFrontEnd();
   const mount = useCallback((el: HTMLElement) => core.mountPlugin(el, id), [core, id]);
   return (

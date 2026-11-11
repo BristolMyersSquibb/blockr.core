@@ -1,22 +1,22 @@
-// Running the plugins of the open board, as Running a plugin has it
-// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#running-a-plugin):
+// Running the app's plugins on the open board, as Running a plugin has it
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#running-a-plugin).
+// The app's plugins are those that R names in its reply to `hello`, each under
+// the id of its class, and they run on every board that the app opens, as far
+// as a package registers their classes:
 // 1. As the store opens the board, core adds to the board the board options
-//    that the class of each of its plugins names in `options`, and those of
-//    core's basic frontend where the board holds no frontend, each with its
+//    that the class of each plugin that runs names in `options`, each with its
 //    default where the board lacks it. Until the next board opens, it adds
 //    again each that a delta removes, so that the board holds the value of
 //    every board option that a plugin requires, as it holds those of a
 //    mounted module (../mount/block.ts). For a block that serve() serves
-//    alone, which core's basic frontend does not draw, core adds none of them
-//    for the basic frontend.
-// 2. Core draws the board with its frontend, the plugin whose class has
-//    `frontend`, or core's basic frontend where the board holds none, once the
-//    board options that the frontend's class names are on the board
-//    (./start.ts).
+//    alone, the app runs no plugin, so core adds none of them.
+// 2. Core draws the board with the app's frontend, the plugin that runs whose
+//    class has `frontend`, once the board options that its class names are on
+//    the board (./start.ts).
 // 3. Once the frontend's render() has returned, core calls the `start` of each
-//    plugin whose class has one, in the order of the board's plugins, with
-//    CoreApi, the plugin's id and a signal, once the board options that the
-//    class names are on the board.
+//    plugin that runs whose class has one, in the order of the app's plugins,
+//    with CoreApi, the id of the plugin's class and a signal, once the board
+//    options that the class names are on the board.
 // 4. As the next board opens, core aborts each plugin's signal and runs the
 //    cleanup that its `start` returned.
 // Where a board option that a class names does not go onto the board, as where
@@ -31,48 +31,63 @@
 
 import { attempt, ModuleError, mountableModule, onAbort, REPLACED, showError } from "../mount/index.ts";
 import type { Loader, Mounts } from "../mount/index.ts";
+import type { Plugin } from "../protocol/index.ts";
+import { coreStorage } from "../storage/index.ts";
 import { inRole } from "../store/index.ts";
 import type { PluginClass, Storage, Store } from "../store/index.ts";
-import { coreStorage } from "../storage/index.ts";
-import type { OptionId, Plugin, PluginClassId, PluginId } from "../types/board.ts";
+import type { OptionId, PluginClassId } from "../types/board.ts";
 import type { CoreApi, PluginModule } from "../types/core-api.ts";
 import { errorMessage, own, packageFromId, report } from "../util/index.ts";
 
-// Core's basic frontend, which draws every board that holds no frontend. No
-// board holds it, and it keeps no state. It requires the severities of the
-// conditions that its cards show and the theme that it draws in.
-export const BASIC_FRONTEND = {
-  frontend: "blockr.core-basic",
-  options: ["show_conditions", "dark_mode"],
-} as const satisfies Pick<PluginClass, "frontend" | "options">;
+// The classes of core's own plugins, which core registers as it starts, before
+// any startup module runs, under the ids that R lists them by: its basic
+// frontend, whose module draws the page and which requires the severities of
+// the conditions that its cards show and the theme that it draws in, and its
+// storage plugin, which saves a board as a download and opens an upload.
+// Neither keeps state, so the board holds nothing for either. The storage
+// reaches for the page's document only as a frontend calls it.
+export function corePluginClasses(): readonly PluginClass[] {
+  return [
+    {
+      id: "blockr.core-basic_frontend_plugin",
+      frontend: "blockr.core-basic",
+      options: ["show_conditions", "dark_mode"],
+    },
+    {
+      id: "blockr.core-file_storage_plugin",
+      storage: {
+        save: (board) => coreStorage().save(board),
+        open: () => coreStorage().open(),
+      },
+    },
+  ];
+}
 
-// What the render() of a plugin's module gets.
-type PluginArgs = Parameters<PluginModule["render"]>[0];
-
-// What a frontend's render() gets: what a plugin's module gets, but for core's
-// basic frontend, which no board holds, and so gets no plugin's id.
-export type FrontendArgs = Omit<PluginArgs, "plugin"> & { plugin?: PluginId };
+// What the render() of a plugin's module gets, a frontend's among them.
+export type PluginArgs = Parameters<PluginModule["render"]>[0];
 
 // The frontend that draws the open board.
 export interface Frontend {
-  // The id of its module: its class's `frontend`, or "blockr.core-basic".
+  // The id of its module, its class's `frontend`.
   readonly module: string;
-  // The plugin that it is, or undefined for core's basic frontend.
-  readonly plugin: PluginId | undefined;
+  // The id of its class, which names the plugin that it is.
+  readonly plugin: PluginClassId;
   // Resolves with why board options that it requires did not go onto the
   // board, once those that do are on it.
   readonly added: Promise<readonly string[]>;
 }
 
-// What core runs for the plugins of the open board: the members of CoreApi
-// that reach them, and what starts them, which core calls as the board opens.
+// What core runs for the app's plugins on the open board: the members of
+// CoreApi that reach them, and what starts them, which core calls as the board
+// opens.
 export interface RunningPlugins {
-  running(): Readonly<Record<PluginId, Plugin>>;
-  pluginClass(plugin: PluginId): PluginClass;
-  storage(): Storage;
-  mountPlugin(el: HTMLElement, plugin: PluginId): () => void;
-  // The frontend that draws the open board.
-  frontend(): Frontend;
+  running(): Readonly<Record<PluginClassId, Plugin>>;
+  pluginClass(plugin: PluginClassId): PluginClass;
+  storage(): Storage | undefined;
+  mountPlugin(el: HTMLElement, plugin: PluginClassId): () => void;
+  // The frontend that draws the open board, or undefined where no plugin that
+  // runs is one, as for a block that serve() serves alone.
+  frontend(): Frontend | undefined;
   // Calls the `start` of each plugin whose class has one, as step 3 above has
   // it, and resolves once it has called each, once.
   start(): Promise<void>;
@@ -85,14 +100,13 @@ export interface RunningDeps {
   // The CoreApi that the plugins get, which core makes with what runPlugins()
   // returns.
   readonly core: () => CoreApi;
+  // The app's plugins, from R's reply to `hello`, by the ids of their classes.
+  readonly plugins: Readonly<Record<PluginClassId, Plugin>>;
   // Aborts as the next board opens, which ends what core runs for the plugins.
   readonly signal?: AbortSignal;
-  // Whether the board is a block that serve() serves alone, which no frontend
-  // draws.
-  readonly alone?: boolean;
 }
 
-const NONE: Readonly<Record<PluginId, Plugin>> = Object.freeze({});
+const NONE: Readonly<Record<PluginClassId, Plugin>> = Object.freeze({});
 const NOTHING_FAILED: Promise<readonly string[]> = Promise.resolve([]);
 
 export function runPlugins(deps: RunningDeps): RunningPlugins {
@@ -102,11 +116,9 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
   const registeredClass = (id: PluginClassId): PluginClass | undefined => own(store.plugins.registered(), id);
 
   // Why board options that the class of each plugin names did not go onto the
-  // board, by the plugin's id, and why those of core's basic frontend did not,
-  // where it draws the board. Each resolves once the board options that do go
-  // onto the board are on it.
-  const added = new Map<PluginId, Promise<readonly string[]>>();
-  let basic = NOTHING_FAILED;
+  // board, by the id of the plugin's class. Each resolves once the board
+  // options that do go onto the board are on it.
+  const added = new Map<PluginClassId, Promise<readonly string[]>>();
   // What stops keeping the board options on the board, as the next board
   // opens.
   const stops: (() => void)[] = [];
@@ -118,73 +130,58 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
     return kept.added;
   }
 
-  function opened(plugins: Readonly<Record<PluginId, Plugin>>): void {
-    for (const [id, plugin] of Object.entries(plugins)) {
-      const def = registeredClass(plugin.class);
-      if (def?.options !== undefined) added.set(id, keep(def.options, `the plugin class "${def.id}"`));
-    }
-    if (deps.alone !== true && inRole(plugins, registeredClass, "frontend").length === 0) {
-      basic = keep(BASIC_FRONTEND.options, "core's basic frontend");
+  function opened(): void {
+    for (const id of Object.keys(running())) {
+      const def = registeredClass(id);
+      if (def?.options !== undefined) added.set(id, keep(def.options, `the plugin class "${id}"`));
     }
   }
 
-  const offStore = store.subscribe((change, board) => {
-    if ("opened" in change) opened(board.plugins);
+  const offStore = store.subscribe((change) => {
+    if ("opened" in change) opened();
   });
   onAbort(replaced, () => {
     offStore();
     for (const stop of stops.splice(0)) stop();
   });
 
-  // The plugins that run, as running() last gave them, with what it gave them
-  // from.
+  // The plugins that run, as running() last gave them, with the classes that
+  // it gave them from.
   let memo:
     | {
-        readonly plugins: Readonly<Record<PluginId, Plugin>>;
         readonly classes: Readonly<Record<PluginClassId, PluginClass>>;
-        readonly running: Readonly<Record<PluginId, Plugin>>;
+        readonly running: Readonly<Record<PluginClassId, Plugin>>;
       }
     | undefined;
 
-  function running(): Readonly<Record<PluginId, Plugin>> {
+  // The app's plugins whose classes a package registers, which run once the
+  // store has opened a board, since every package registers its classes
+  // before.
+  function running(): Readonly<Record<PluginClassId, Plugin>> {
     if (!store.hasBoard()) return NONE;
-    const { plugins } = store.board();
     const classes = store.plugins.registered();
-    if (memo?.plugins !== plugins || memo.classes !== classes) {
-      const kept = Object.entries(plugins).filter(([, plugin]) => Object.hasOwn(classes, plugin.class));
-      memo = {
-        plugins,
-        classes,
-        running: kept.length === Object.keys(plugins).length ? plugins : Object.freeze(Object.fromEntries(kept)),
-      };
+    if (memo?.classes !== classes) {
+      const kept = Object.entries(deps.plugins).filter(([id]) => Object.hasOwn(classes, id));
+      memo = { classes, running: Object.freeze(Object.fromEntries(kept)) };
     }
     return memo.running;
   }
 
-  function pluginClass(plugin: PluginId): PluginClass {
-    const found = own(running(), plugin);
-    const def = found === undefined ? undefined : registeredClass(found.class);
-    if (def === undefined) throw new Error(`The open board runs no plugin "${plugin}".`);
+  function pluginClass(plugin: PluginClassId): PluginClass {
+    const def = Object.hasOwn(running(), plugin) ? registeredClass(plugin) : undefined;
+    if (def === undefined) throw new Error(`The app runs no plugin "${plugin}" on the open board.`);
     return def;
   }
 
-  // Core's own storage plugin's, made once something asks for it, since it
-  // reaches for the page's document.
-  let ownStorage: Storage | undefined;
-  function storage(): Storage {
+  function storage(): Storage | undefined {
     const [id] = inRole(running(), registeredClass, "storage");
-    const given = id === undefined ? undefined : pluginClass(id).storage;
-    if (given !== undefined) return given;
-    ownStorage ??= coreStorage();
-    return ownStorage;
+    return id === undefined ? undefined : pluginClass(id).storage;
   }
 
-  function frontend(): Frontend {
+  function frontend(): Frontend | undefined {
     const [id] = inRole(running(), registeredClass, "frontend");
     const module = id === undefined ? undefined : pluginClass(id).frontend;
-    if (id === undefined || module === undefined) {
-      return { module: BASIC_FRONTEND.frontend, plugin: undefined, added: basic };
-    }
+    if (id === undefined || module === undefined) return undefined;
     return { module, plugin: id, added: added.get(id) ?? NOTHING_FAILED };
   }
 
@@ -192,8 +189,8 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
   async function start(): Promise<void> {
     if (started) return;
     started = true;
-    const starting = Object.entries(running()).flatMap(([id, plugin]) => {
-      const def = registeredClass(plugin.class);
+    const starting = Object.keys(running()).flatMap((id) => {
+      const def = registeredClass(id);
       return def?.start === undefined ? [] : [{ id, def }];
     });
     const failures = await Promise.all(starting.map(({ id }) => added.get(id) ?? NOTHING_FAILED));
@@ -202,7 +199,7 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
       if ((failures[i] ?? []).length > 0) {
         report(
           new Error(
-            `The plugin "${id}" does not start, since board options that its class "${def.id}" requires did not go onto the board.`,
+            `The plugin "${id}" does not start, since board options that its class requires did not go onto the board.`,
           ),
         );
         return;
@@ -213,7 +210,7 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
 
   // Calls the plugin's `start`, and as the next board opens aborts its signal
   // and runs the cleanup that `start` returned.
-  function launch(id: PluginId, def: PluginClass): void {
+  function launch(id: PluginClassId, def: PluginClass): void {
     const controller = new AbortController();
     let cleanup: (() => void) | undefined;
     onAbort(replaced, () => {
@@ -224,7 +221,7 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
     try {
       returned = def.start?.({ core: deps.core(), plugin: id, signal: controller.signal });
     } catch (error) {
-      report(new Error(`The start of the plugin class "${def.id}" failed for the plugin "${id}": ${errorMessage(error)}`, { cause: error }));
+      report(new Error(`The start of the plugin class "${id}" failed: ${errorMessage(error)}`, { cause: error }));
       return;
     }
     if (typeof returned !== "function") return;
@@ -233,12 +230,12 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
     else cleanup = given;
   }
 
-  function mountPlugin(el: HTMLElement, plugin: PluginId): () => void {
+  function mountPlugin(el: HTMLElement, plugin: PluginClassId): () => void {
     if (replaced.aborted) throw new Error(REPLACED);
     const def = pluginClass(plugin);
     const { ui } = def;
     if (ui === undefined) {
-      throw new Error(`The class "${def.id}" of the plugin "${plugin}" has no ui to mount.`);
+      throw new Error(`The class of the plugin "${plugin}" has no ui to mount.`);
     }
     const pkg = packageFromId(ui);
 
@@ -283,7 +280,7 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
       // Where a board option that the class names does not go onto the board,
       // the element shows why in place of the module, which core has
       // reported. A module that has drawn ends then.
-      const kept = keepOptions(def.options ?? [], `the plugin class "${def.id}"`, (failures) => {
+      const kept = keepOptions(def.options ?? [], `the plugin class "${plugin}"`, (failures) => {
         if (ended()) return;
         end();
         showError(el, failures.join("\n"));

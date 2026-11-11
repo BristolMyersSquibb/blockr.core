@@ -4,26 +4,27 @@
 // 1. The protocol's client sends each session's hello as R starts the session.
 // 2. Once R has answered the first, core asks R for the blockr options that its
 //    scheduler reads and for rand_id, the shape of the ids that its commands
-//    mint, and creates for the board that it opens the store, the command
-//    registry with core's board options, the scheduler and CoreApi.
+//    mint, and creates for the board that it opens the store, with the classes
+//    of core's own plugins, its basic frontend and its storage plugin, the
+//    command registry with core's board options, the scheduler and CoreApi.
 // 3. It initializes the startup module of every package that R has loaded, one
 //    at a time in R's order, awaiting each initialize(). It names one that
 //    fails and carries on.
 // 4. It opens the board that R sent, or in its place the one that a startup
 //    module resolves with, unless the load lock is on or two startup modules
-//    resolve with one, where it keeps R's and names the packages. A board that
-//    a startup module names holds the plugins of the board that R sent, each
-//    with the state that the named board gives it.
+//    resolve with one, where it keeps R's and names the packages. Either board
+//    runs the app's plugins, which R names in its reply, each with the state
+//    that the board holds for it.
 // 5. As the store opens the board, core adds to it the board options that the
-//    classes of its plugins require, and those of core's basic frontend where
-//    the board holds no frontend (./plugins.ts).
-// 6. Once the board is open, core imports the module of its frontend, the
-//    plugin whose class has `frontend`, or of core's basic frontend where the
-//    board holds none. Once the board options that the frontend requires are
-//    on the board, core calls the frontend's render(), and starts the
-//    scheduler once render() has returned, so that the scheduler sends R
-//    nothing before. It then sends, through `notifications`, the note that
-//    names what the store dropped, which the frontend shows.
+//    classes of the app's plugins require (./plugins.ts).
+// 6. Once the board is open, core imports the module of the app's frontend,
+//    the plugin that runs whose class has `frontend`, such as core's basic
+//    frontend. Once the board options that the frontend requires are on the
+//    board, core calls the frontend's render(), and starts the scheduler once
+//    render() has returned, so that the scheduler sends R nothing before. It
+//    then sends, through `notifications`, the note that names what the store
+//    dropped, which the frontend shows. Where the app runs no frontend, the
+//    page shows why in place of the board.
 // 7. Core then calls the start of each plugin whose class has one, so that
 //    what the frontend first shows comes before what the plugins ask for as
 //    they start.
@@ -34,9 +35,10 @@
 // Core then starts in the same order, with three differences:
 // - In step 4, it opens the board that R sent, whatever board a startup
 //   module resolves with.
-// - In step 5, it adds no board options for core's basic frontend. The board
-//   still takes dark_mode, as every board does, since its onChange() switches
-//   the page's theme (./core.ts).
+// - In step 5, it adds no board options for plugins, since R names no plugin
+//   for a block that serve() serves alone. The board still takes dark_mode, as
+//   every board does, since its onChange() switches the page's theme
+//   (./core.ts).
 // - In step 6, it imports no frontend, but draws the block in its card, which
 //   demands the block, and starts the scheduler once the card has mounted the
 //   block.
@@ -88,36 +90,38 @@ import { counter, createScheduler } from "../scheduler/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import { createStore, StoreError } from "../store/index.ts";
 import type { Dropped, Option, Store } from "../store/index.ts";
-import type { PluginId } from "../types/board.ts";
+import type { PluginClassId } from "../types/board.ts";
 import type { CoreApi, Note } from "../types/core-api.ts";
 import { asError, errorMessage, isObject, own, quoted, report } from "../util/index.ts";
 import { createBlockrOptions } from "./blockr-options.ts";
 import { createCore } from "./core.ts";
+import { corePluginClasses } from "./plugins.ts";
 
 // The capabilities that core's client speaks.
 const CAPABILITIES: Capability[] = ["cancel", "interrupt", "progress"];
 
+// The frontend that draws a board that opens: the id of its module, from where
+// R serves the module, which is undefined where R serves no such module, and
+// the id of the frontend's class, which names the plugin that it is. Or, where
+// the app runs no frontend, why, which the page shows in place of the board.
+export type Front =
+  | { readonly id: string; readonly source: Source | undefined; readonly plugin: PluginClassId }
+  | { readonly none: string };
+
 // What draws the frontends of the boards that open, which the page gives, and
 // a CoreApi for tests may leave out.
 export interface FrontEnds {
-  // Imports the module of the frontend, by the module's id, from where R
-  // serves it, which is undefined where R serves no such module, and ends the
-  // frontend on the page, if any. Core calls it once the store has opened a
-  // board. The plugin is the board's plugin that the frontend is, and is
-  // undefined for core's basic frontend, which no board holds. Where the
-  // signal has aborted by the time the module has loaded, as another board
-  // opened meanwhile, it leaves the page to that board.
-  prepare(
-    front: { readonly id: string; readonly source: Source | undefined; readonly plugin: PluginId | undefined },
-    loader: Loader,
-    signal: AbortSignal,
-  ): Promise<void>;
+  // Imports the module of the frontend and ends the frontend on the page, if
+  // any. Core calls it once the store has opened a board. Where the signal has
+  // aborted by the time the module has loaded, as another board opened
+  // meanwhile, it leaves the page to that board.
+  prepare(front: Front, loader: Loader, signal: AbortSignal): Promise<void>;
   // Calls the render() of the frontend that prepare() imported, with the
-  // element, CoreApi, the plugin's id and a signal, and resolves once render()
-  // has returned or resolved. Where board options that the frontend requires
-  // did not go onto the board, it shows why in the element instead, and calls
-  // no render(). The frontend ends as the signal aborts, as the next board
-  // opens.
+  // element, CoreApi, the id of the frontend's class and a signal, and
+  // resolves once render() has returned or resolved. Where board options that
+  // the frontend requires did not go onto the board, or the app runs no
+  // frontend, it shows why in the element instead, and calls no render(). The
+  // frontend ends as the signal aborts, as the next board opens.
   render(core: CoreApi, signal: AbortSignal, failures: readonly string[]): Promise<void>;
   // Draws the board's one block in its card, for a block that serve() serves
   // alone, and returns once the card has mounted the block. The card ends as
@@ -320,7 +324,7 @@ export function start(options: StartOptions): Started {
   // ends. It initializes the startup modules with that CoreApi and signal,
   // opens the board in the store, draws it with its frontend, starts the
   // scheduler, sends the note that names what the store dropped, then starts
-  // the board's plugins, and resolves with CoreApi and what the store dropped.
+  // the app's plugins, and resolves with CoreApi and what the store dropped.
   async function boot(reply: HelloReply, later: Later | undefined): Promise<{ core: CoreApi; dropped: Dropped[] }> {
     // The opening ends as the next board opens, or as the page stops.
     const controller = new AbortController();
@@ -351,6 +355,7 @@ export function start(options: StartOptions): Started {
     ]);
 
     const store: Store = createStore({ hello: reply, signal });
+    for (const def of corePluginClasses()) store.plugins.register(def);
     const commands = createCommands(store, { signal, lock: reply.lock, randId });
     for (const option of options.options({ blockrOption: (name) => blockrOptions.read(name) })) {
       store.options.register(option);
@@ -378,8 +383,8 @@ export function start(options: StartOptions): Started {
       blockrOptions,
       lock: (first ?? reply).lock,
       renderers: () => latest?.renderers ?? {},
+      plugins: reply.plugins,
       signal,
-      alone,
       ...(options.measure === undefined ? {} : { measure: options.measure }),
     });
     running = { store, scheduler, core, controller };
@@ -425,9 +430,11 @@ export function start(options: StartOptions): Started {
       // that it requires go onto the board.
       const front = plugins.frontend();
       const [failures] = await Promise.all([
-        front.added,
+        front?.added ?? [],
         options.frontEnds?.prepare(
-          { id: front.module, source: own(latest?.modules ?? {}, front.module), plugin: front.plugin },
+          front === undefined
+            ? { none: noFrontend(reply, core) }
+            : { id: front.module, source: own(latest?.modules ?? {}, front.module), plugin: front.plugin },
           loader,
           signal,
         ),
@@ -490,7 +497,7 @@ export function start(options: StartOptions): Started {
 
   // The text of the board that a startup module named in place of the board
   // that R sent, or undefined where core opens R's. The store opens it with
-  // the reply, so that it holds the plugins of the board that R sent.
+  // the reply, so that it runs the app's plugins, which the reply names.
   function chosen(reply: HelloReply, named: readonly { package: string; text: string }[]): string | undefined {
     const [only, ...more] = named;
     if (only === undefined) return undefined;
@@ -585,6 +592,17 @@ function helloError(reply: Reply): Error | undefined {
   return undefined;
 }
 
+// Why the app runs no frontend, which the page shows in place of the board: no
+// plugin that the reply names is a frontend whose class a package registered.
+function noFrontend(reply: HelloReply, core: CoreApi): string {
+  const missing = Object.keys(reply.plugins).filter((id) => !Object.hasOwn(core.plugins.running(), id));
+  const why =
+    missing.length === 0
+      ? "none of the app's plugins is a frontend"
+      : `no package registered the ${missing.length === 1 ? "class" : "classes"} of the app's ${missing.length === 1 ? "plugin" : "plugins"} ${quoted(missing)}`;
+  return `The app runs no frontend that draws the board, since ${why}.`;
+}
+
 // The packages that a reply names at another version than the page loaded.
 function changedPackages(loaded: ReadonlyMap<string, string>, reply: HelloReply): Changed[] {
   return Object.entries(reply.packages).flatMap(([pkg, now]) => {
@@ -610,7 +628,7 @@ function droppedNote(dropped: readonly Dropped[]): Note {
   const lines = dropped.map((item) => {
     if ("option" in item) return `- board option "${item.option}"`;
     if ("block" in item) return `- block "${item.block}" (${item.registry_id})`;
-    if ("plugin" in item) return `- plugin "${item.plugin}" (${item.class})`;
+    if ("plugin" in item) return `- plugin "${item.plugin}"`;
     return `- package ${item.package} ${item.version}`;
   });
   return { message: ["The board opened without:", ...lines].join("\n"), severity: "warning" };

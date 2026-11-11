@@ -1,6 +1,6 @@
 // A plugin's request, which code in the client sends through
-// `CoreApi.request()` for a plugin of the board, and the method of R's
-// plugin_requests() for the plugin's class answers
+// `CoreApi.request()` for one of the app's plugins that runs, by the id of its
+// class, and the method of R's plugin_requests() for the class answers
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#a-plugins-requests):
 // 1. Core has the blocks that the request reads evaluated first, even where
 //    nothing demands them, and sends the request only once each reads ready.
@@ -14,12 +14,12 @@
 
 import type { BlockRevision } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
-import type { Store } from "../store/index.ts";
-import type { BlockId, PluginId } from "../types/board.ts";
+import type { BlockId, PluginClassId } from "../types/board.ts";
 import type { RequestOpts } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { isObject, own, quoted } from "../util/index.ts";
 import { RequestError } from "../mount/index.ts";
+import type { RunningPlugins } from "./plugins.ts";
 
 // How many times a request asks R before it gives up on results that R keeps
 // lacking, which only a fault in R causes once the scheduler has had the
@@ -27,25 +27,25 @@ import { RequestError } from "../mount/index.ts";
 const ATTEMPTS = 3;
 
 export interface PluginRequestDeps {
-  readonly store: Pick<Store, "board">;
+  readonly plugins: Pick<RunningPlugins, "running">;
   readonly scheduler: Pick<Scheduler, "evaluate" | "request" | "status">;
 }
 
-// Sends the request `name` of the board's plugin `plugin`, and resolves with
-// its answer as R writes it, or with the File of a download.
+// Sends the request `name` of the plugin that runs whose class has the id
+// `plugin`, and resolves with its answer as R writes it, or with the File of a
+// download.
 export async function pluginRequest(
   deps: PluginRequestDeps,
-  plugin: PluginId,
+  plugin: PluginClassId,
   name: string,
   args: Readonly<Record<string, Json>>,
   opts: RequestOpts,
 ): Promise<Json | Blob> {
   if (typeof plugin !== "string" || plugin === "") {
-    throw new TypeError("A plugin's request names the plugin by its id, a non-empty string.");
+    throw new TypeError("A plugin's request names the plugin by the id of its class, a non-empty string.");
   }
-  const held = own(deps.store.board().plugins, plugin);
-  if (held === undefined) {
-    throw new Error(`The board holds no plugin "${plugin}", so its request did not go to R.`);
+  if (!Object.hasOwn(deps.plugins.running(), plugin)) {
+    throw new Error(`The app runs no plugin "${plugin}" on the open board, so its request did not go to R.`);
   }
   if (typeof name !== "string" || name === "") {
     throw new TypeError(`A request of the plugin "${plugin}" is named by a non-empty string.`);
@@ -62,7 +62,7 @@ export async function pluginRequest(
   for (let attempt = 1; ; attempt++) {
     const revisions = await evaluateReads(deps, what, reads, opts.signal);
     const { reply, body } = await deps.scheduler.request(
-      { kind: "request", type: "plugin", plugin: held.class, name, args: { ...args }, reads: revisions },
+      { kind: "request", type: "plugin", plugin, name, args: { ...args }, reads: revisions },
       {
         ...(opts.file === undefined ? {} : { body: opts.file }),
         ...(opts.signal === undefined ? {} : { signal: opts.signal }),

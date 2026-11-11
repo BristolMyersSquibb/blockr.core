@@ -1,7 +1,7 @@
 // Deltas, the one shape in which every change to the board travels,
 // whoever makes it: core's objects, the board options and the board's
 // name in the `add`, `mod` and `rm` shape of today's board updates in R,
-// and the board's plugins by patches at nested paths.
+// and the state of the board's plugins by patches at nested paths.
 
 import type {
   Block,
@@ -75,13 +75,13 @@ export interface BlockMod {
   readonly locked?: boolean | null;
 }
 
-// A change to the board's plugins, in the shape of a JSON Patch operation
-// (RFC 6902): its path is a JSON Pointer from the board's root, under
-// "/plugins", whose second segment names the plugin.
-// A patch below the plugin's own path changes the plugin's name or its state,
-// as "/plugins/dag/state/positions/a" moves a block in the DAG, and none sets
-// or removes a whole plugin, since the app's opening board sets the plugins
-// that a board holds.
+// A change to the state of the board's plugins, in the shape of a JSON Patch
+// operation (RFC 6902): its path is a JSON Pointer from the board's root, under
+// "/plugins", whose second segment names the plugin by the id of its class.
+// A patch at or below the plugin's own path changes the plugin's state, as
+// "/plugins/blockr.dag-dag_plugin/positions/a" moves a block in the DAG, and
+// none adds or removes what the board holds for a plugin, since the app sets
+// the plugins that run.
 // A patch names the edit id of the plugin that it was built on,
 // which a command leaves out and the command registry fills in.
 export interface Patch {

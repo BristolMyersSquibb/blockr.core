@@ -37,7 +37,8 @@ function renameB(
 }
 
 // A plugin class that keeps a position for each block, as the DAG keeps one,
-// and the command of its package that changes one, for the plugin "placed".
+// and the command of its package that changes one, for the plugin of the
+// class, which the id of the class names.
 const placed: PluginClass = {
   id: "test.pkg-placed_plugin",
   state: {
@@ -64,7 +65,7 @@ const move: Command<{ readonly id: string; readonly x: number }> = {
     additionalProperties: false,
   },
   run: (_board, { id, x }) => ({
-    patches: [{ op: "add", path: `/plugins/placed/state/positions/${id}`, value: { x } }],
+    patches: [{ op: "add", path: `/plugins/test.pkg-placed_plugin/positions/${id}`, value: { x } }],
   }),
 };
 
@@ -375,7 +376,7 @@ describe("planning", () => {
   test("fills in the edit id of the plugin that each patch changes", async () => {
     const store = await openedStore(
       (store) => store.plugins.register(placed),
-      withPlugins({ placed: { class: placed.id, name: "Placed", state: { positions: {} } } }),
+      withPlugins({ [placed.id]: { name: "Placed", state: { positions: {} } } }),
     );
     const commands = createCommands(store);
     commands.register(move);
@@ -387,9 +388,9 @@ describe("planning", () => {
         patches: [
           {
             op: "add",
-            path: "/plugins/placed/state/positions/a",
+            path: "/plugins/test.pkg-placed_plugin/positions/a",
             value: { x: 2 },
-            edit: store.editId({ plugin: "placed" }),
+            edit: store.editId({ plugin: placed.id }),
           },
         ],
       },
@@ -398,7 +399,7 @@ describe("planning", () => {
     await commands.run("test.pkg-move", { id: "a", x: 3 });
     expect(() => {
       store.apply(planned, "assistant");
-    }).toThrow(/The delta was built on edit \d+ of the plugin "placed", which another edit has replaced/);
+    }).toThrow(/The delta was built on edit \d+ of the plugin "test\.pkg-placed_plugin", which another edit has replaced/);
   });
 
   test("keeps the edit ids that a command names itself", async () => {

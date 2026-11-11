@@ -461,7 +461,8 @@ test_that("R logs every condition that it sends, naming what it concerns", {
     messages[[5L]],
     paste(
       "Request x of plugin class blockr.notes-notes_plugin:",
-      "Plugin class blockr.notes-notes_plugin has no request x."
+      "No available package lists plugin class blockr.notes-notes_plugin, so",
+      "R has no request x of it."
     )
   )
 
@@ -1247,6 +1248,10 @@ test_that("the page hears why R sent no reply too large for a message", {
 test_that("R calls a plugin's request with its args, reads and body", {
 
   got <- NULL
+
+  local_plugin_classes(
+    Notes = plugin_ctor(function() NULL, "notes_plugin", "blockr.notes")
+  )
 
   testthat::local_mocked_s3_method(
     "plugin_requests",

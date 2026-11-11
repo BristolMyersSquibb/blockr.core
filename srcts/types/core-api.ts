@@ -8,10 +8,10 @@
 // module of a plugin, which gets CoreApi.
 
 import type { Commands } from "../commands/index.ts";
-import type { Lock } from "../protocol/index.ts";
+import type { Lock, Plugin } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Options, PluginClass, Storage, Store } from "../store/index.ts";
-import type { BlockId, OptionId, Plugin, PluginId, RegistryId } from "./board.ts";
+import type { BlockId, OptionId, PluginClassId, RegistryId } from "./board.ts";
 import type { Rendered } from "./hosts.ts";
 import type { Json } from "./json.ts";
 import type { RegistryEntry } from "./registry.ts";
@@ -35,24 +35,25 @@ export interface CoreApi {
   readonly options: Options & {
     value(option: OptionId): Json | undefined;
   };
-  // The plugin classes that packages define, and the plugins of the open
-  // board, which run while it is open
+  // The plugin classes that packages define, and the app's plugins, which
+  // run on every board that the app opens, each named by the id of its class
   // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#running-a-plugin).
   readonly plugins: {
     // Registers a plugin class under the class's id, as a package's startup
     // module does, and returns what unregisters it.
     register(def: PluginClass): () => void;
-    // The plugins of the open board whose classes are registered, by id. It
-    // returns the same object until the board's plugins change, and an empty
-    // one while no board is open.
-    running(): Readonly<Record<PluginId, Plugin>>;
+    // The app's plugins whose classes are registered, by the ids of their
+    // classes, each with its class's name, as R's reply to `hello` names
+    // them. It returns the same object until the registered classes change,
+    // and an empty one while no board is open.
+    running(): Readonly<Record<PluginClassId, Plugin>>;
     // The definition of the class of a plugin that runs. It throws for a
-    // plugin that the open board does not run.
-    pluginClass(plugin: PluginId): PluginClass;
-    // What a frontend's save and open controls call: the storage of the open
-    // board's storage plugin, or core's own, which saves a board as a download
-    // and opens an upload, where the board holds no storage plugin.
-    storage(): Storage;
+    // plugin that the app does not run.
+    pluginClass(plugin: PluginClassId): PluginClass;
+    // What a frontend's save and open controls call: the storage of the app's
+    // storage plugin, or undefined where the app runs none, where a frontend
+    // draws neither control.
+    storage(): Storage | undefined;
   };
   // The locks that the app sets, from R's reply to `hello`: whether the board
   // lock and the load lock are on. The store's locked() says which blocks the
@@ -83,11 +84,11 @@ export interface CoreApi {
     // the block with focus leaves the board, which leaves no block with focus.
     subscribe(fn: (block: BlockId | null) => void): () => void;
   };
-  // A request of a plugin of the board, by the plugin's id, which the method
-  // of R's plugin_requests() for the plugin's class answers. Its args go to
+  // A request of a plugin that runs, by the id of the plugin's class, which
+  // the method of R's plugin_requests() for the class answers. Its args go to
   // the request's function by name. Core has the blocks that it reads
   // evaluated first, and keeps none of its answers, since it may write.
-  request<T = Json>(plugin: PluginId, name: string, args?: Readonly<Record<string, Json>>, opts?: RequestOpts): Promise<T | Blob>;
+  request<T = Json>(plugin: PluginClassId, name: string, args?: Readonly<Record<string, Json>>, opts?: RequestOpts): Promise<T | Blob>;
   // A module another package offers, by id.
   module<T = unknown>(id: string): Promise<T>;
   // A blockr option as R sent it, asked of R once per page, or undefined where
@@ -102,11 +103,11 @@ export interface CoreApi {
   mountBlock(el: HTMLElement, block: BlockId): () => void;
   mountOutput(el: HTMLElement, block: BlockId): () => void;
   mountOption(el: HTMLElement, option: OptionId): () => void;
-  // The `ui` module of the class of a plugin that runs, mounted in the element
-  // that a frontend places the plugin in, once for each plugin, until the
-  // cleanup that the call returns runs. It throws for a plugin that the open
-  // board does not run, or whose class has no `ui`.
-  mountPlugin(el: HTMLElement, plugin: PluginId): () => void;
+  // The `ui` module of the class of a plugin that runs, by the id of the
+  // class, mounted in the element that a frontend places the plugin in, until
+  // the cleanup that the call returns runs. It throws for a plugin that the
+  // app does not run, or whose class has no `ui`.
+  mountPlugin(el: HTMLElement, plugin: PluginClassId): () => void;
 }
 
 // A note that a plugin sends, which the frontend draws.
@@ -119,13 +120,14 @@ export interface Note {
 // was built against, as `export const api = 1`: the `ui` of a plugin class,
 // which a frontend places with mountPlugin(), or its `frontend`, which draws
 // the page. Core calls render() with the element to draw in, CoreApi, the id
-// of the plugin it draws and a signal, which it aborts when it unmounts the
-// module, as the contract of a block's UI has it with a host in place of
-// CoreApi (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#plugin-classes).
-// So one module draws each plugin of its class, each from its own state. The
-// render() function may be async and may return its cleanup.
+// of the class of the plugin it draws and a signal, which it aborts when it
+// unmounts the module, as the contract of a block's UI has it with a host in
+// place of CoreApi (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#plugin-classes).
+// So one module draws the plugin of its class, from the state that the board
+// holds under that id, and never names its own id. The render() function may
+// be async and may return its cleanup.
 export interface PluginModule {
-  render(args: { el: HTMLElement; core: CoreApi; plugin: PluginId; signal: AbortSignal }): Rendered;
+  render(args: { el: HTMLElement; core: CoreApi; plugin: PluginClassId; signal: AbortSignal }): Rendered;
 }
 
 export type BlockRegistry = Readonly<Record<RegistryId, RegistryEntry>>;

@@ -2,18 +2,21 @@
 // as the text of a file or as the opening board that R sends with its reply to
 // `hello`.
 // Every board goes the same way, so that it ends as the same board whichever
-// way it came in:
-// 1. The store keeps the board's plugins that the app's opening board, the
-//    board of the reply to `hello`, holds under the same id and of the same
-//    class, and drops and names the others, since the app's opening board
-//    sets which plugins run.
+// way it came in, with the app's plugins, which the reply to `hello` names and
+// which run on every board that the app opens, the opening board among them:
+// 1. The store keeps the state that the board holds for each of the app's
+//    plugins whose class a package registers and has `state`, under the id of
+//    the plugin's class. It drops every other state, and names each plugin
+//    whose state it drops, since the app runs no plugin of its class or no
+//    package registers the class, but for the state that the board holds for
+//    a plugin of the app whose class keeps none, which goes unnamed.
 // 2. It migrates what the JSON board holds in an older shape, by the versions
 //    of the shapes that it records: the states of the plugins it keeps, the
 //    states of the blocks and the values of the board options.
 // 3. It drops and names each block whose class the block registry lacks, and
 //    each board option value that no package registers.
-// 4. It gives the board each other plugin of the app's opening board, with
-//    its class's default state.
+// 4. It gives each other plugin of the app whose class has `state` its class's
+//    default state.
 // 5. It refuses the board where it fails a check, naming every failure, as
 //    where a block's state, a plugin's state or a board option's value fails
 //    its schema.
@@ -22,7 +25,7 @@
 // plugins among them (../core/plugins.ts).
 
 import type { HelloReply } from "../protocol/index.ts";
-import type { Board, JsonBoard, OptionId, Plugin, PluginId } from "../types/board.ts";
+import type { Board, JsonBoard, OptionId, PluginClassId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import {
   errorMessage,
@@ -37,7 +40,7 @@ import { check } from "./check.ts";
 import { commit } from "./commit.ts";
 import { StoreError } from "./error.ts";
 import { expand } from "./expand.ts";
-import { appPlugins, keptPlugins } from "./plugins.ts";
+import { appPlugins, droppedPlugins, keptPlugins } from "./plugins.ts";
 import type { Registrations } from "./registrations.ts";
 
 // The highest format of a JSON board that this client reads and writes.
@@ -55,10 +58,9 @@ const PROPERTIES: readonly string[] = ["id", "name", ...COLLECTIONS];
 // the version the JSON board records, so that the user learns what to install.
 // It names each block whose class the block registry lacks, with the package
 // to install where the registry id of the block's class gives one.
-// It names each plugin that the app does not run, since the app's opening
-// board holds no plugin under its id and of its class, or since no package
-// registers its class, with the package that the id of its class gives, if
-// any.
+// It names each plugin whose state it drops, since the app runs no plugin of
+// its class or no package registers the class, by the id of its class, with
+// the package that the id gives, if any.
 // It names each board option that no package registers, by the board
 // option's id, and drops its value.
 export type Dropped =
@@ -69,8 +71,7 @@ export type Dropped =
       readonly package: string | null;
     }
   | {
-      readonly plugin: PluginId;
-      readonly class: string;
+      readonly plugin: PluginClassId;
       readonly package: string | null;
     }
   | { readonly option: OptionId };
@@ -162,12 +163,12 @@ function unversioned(board: JsonBoard["board"]): Board {
 
 // The board with what the JSON board holds in an older shape converted to
 // today's: the state of each plugin whose class a package registers and whose
-// version the JSON board records below the one R gives, by the class's
-// `migrate`, the state of each block whose version is below its class's, by
-// the class's migration, and the value of each board option whose version is
-// below the one R gives, by the board option's `migrate`.
-// R gives version 1 for a plugin class or a board option that it names no
-// version of.
+// version the JSON board records below the one that the app's plugin of the
+// class carries in the reply to `hello`, by the class's `migrate`, the state of
+// each block whose version is below its class's, by the class's migration, and
+// the value of each board option whose version is below the one R gives, by
+// the board option's `migrate`.
+// R gives version 1 for a board option that it names no version of.
 // A class or a board option without a migration keeps what the board holds,
 // and so does a plugin class whose version the JSON board records none of,
 // since its writer knew no version of it.
@@ -181,7 +182,7 @@ function unversioned(board: JsonBoard["board"]): Board {
 function migrate(
   board: Board,
   json: JsonBoard["board"],
-  reply: Pick<HelloReply, "block_registry" | "plugin_versions" | "option_versions">,
+  reply: Pick<HelloReply, "block_registry" | "plugins" | "option_versions">,
   registrations: Registrations,
 ): Board {
   const failures = new Set<string>();
@@ -190,25 +191,24 @@ function migrate(
   const changed = new Set<string>();
 
   const plugins = Object.fromEntries(
-    Object.entries(board.plugins).map(([id, plugin]) => {
-      const cls = pluginClassId(plugin);
-      const def = cls === undefined ? undefined : registrations.plugin(cls)?.def;
-      if (cls === undefined || def === undefined) return [id, plugin];
+    Object.entries(board.plugins).map(([cls, state]) => {
+      const def = registrations.plugin(cls)?.def;
+      if (def === undefined) return [cls, state];
       const from = own(json.versions, cls);
-      const to = own(reply.plugin_versions, cls) ?? 1;
-      if (from === undefined || from === to) return [id, plugin];
+      const to = own(reply.plugins, cls)?.version ?? 1;
+      if (from === undefined || from === to) return [cls, state];
       if (from > to) {
         failures.add(
           `The board records version ${String(from)} of the plugin class "${cls}", while R gives version ${String(to)}.`,
         );
-        return [id, plugin];
+        return [cls, state];
       }
-      if (def.migrate === undefined) return [id, plugin];
+      if (def.migrate === undefined) return [cls, state];
       changed.add("plugins");
-      const state = migratedValue(`The migration of the plugin class "${cls}"`, () =>
-        def.migrate?.(frozenCopy(plugin.state), from),
-      );
-      return [id, { ...plugin, state }];
+      return [
+        cls,
+        migratedValue(`The migration of the plugin class "${cls}"`, () => def.migrate?.(frozenCopy(state), from)),
+      ];
     }),
   );
 
@@ -282,27 +282,25 @@ function migratedValue(what: string, fn: () => unknown): Json {
 }
 
 // The board that a JSON board opens to, with what the reply to `hello` holds,
-// the block registry, the versions of the plugin classes and of the board
-// options' values, the opening board, whose plugins are the plugins of every
-// board that opens in the app, and the versions of the packages that R
-// loaded, with what opening it dropped, or a StoreError naming what refused
-// it.
-// The board options that core's basic frontend requires come after,
-// since a default may have to wait (see required()).
+// the block registry, the app's plugins, which run on every board that opens in
+// the app, each with the version of its class, the versions of the board
+// options' values, and the versions of the packages that R loaded, with what
+// opening it dropped, or a StoreError naming what refused it.
+// The board options that the classes of the app's plugins require come after,
+// since a default may have to wait (../core/plugins.ts).
 export function openJsonBoard(
   json: JsonBoard,
-  reply: Pick<HelloReply, "packages" | "block_registry" | "plugin_versions" | "option_versions" | "board">,
+  reply: Pick<HelloReply, "packages" | "block_registry" | "plugins" | "option_versions">,
   registrations: Registrations,
 ): { board: Board; dropped: Dropped[] } {
-  const opening = openingPlugins(reply.board);
   const registeredClass = (id: string) => registrations.plugin(id)?.def;
   const read = unversioned(json.board);
 
-  const held = keptPlugins(read.plugins, opening, registeredClass);
-  const plugins: Dropped[] = Object.entries(read.plugins).flatMap(([id, plugin]) => {
-    const cls = pluginClassId(plugin);
-    return cls === undefined || Object.hasOwn(held, id) ? [] : [{ plugin: id, class: cls, package: packageFromId(cls) }];
-  });
+  const held = keptPlugins(read.plugins, reply.plugins, registeredClass);
+  const plugins: Dropped[] = droppedPlugins(read.plugins, reply.plugins, registeredClass).map((id) => ({
+    plugin: id,
+    package: packageFromId(id),
+  }));
 
   const migrated = migrate({ ...read, plugins: held }, json.board, reply, registrations);
 
@@ -318,7 +316,7 @@ export function openJsonBoard(
   const options: Dropped[] = unclaimed.map((id) => ({ option: id }));
 
   const kept = remove({ ...migrated, options: without(migrated.options, unclaimed) }, gone, registrations);
-  const board: Board = { ...kept, plugins: appPlugins(kept.plugins, opening, registeredClass) };
+  const board: Board = { ...kept, plugins: appPlugins(kept.plugins, reply.plugins, registeredClass) };
 
   const failures = check(board, reply.block_registry, registrations);
   if (failures.length > 0) throw new StoreError(refused, failures);
@@ -328,27 +326,6 @@ export function openJsonBoard(
     .map(([pkg, version]) => ({ package: pkg, version }));
 
   return { board, dropped: [...packages, ...blocks, ...plugins, ...options] };
-}
-
-// The id of a plugin's class, or undefined where what the board holds is no
-// plugin that names its class, which the board's checks refuse.
-function pluginClassId(plugin: unknown): string | undefined {
-  return isObject(plugin) && typeof plugin.class === "string" ? plugin.class : undefined;
-}
-
-// The plugins of the app's opening board, which every board that opens in the
-// app holds, or none where R sent no board that holds its plugins in an
-// object by id.
-// It keeps each that names its class, whatever else it holds, so that the
-// store refuses one that is no plugin as it opens the opening board itself.
-function openingPlugins(opening: JsonBoard | undefined): Readonly<Record<PluginId, Plugin>> {
-  const plugins: unknown = isObject(opening) && isObject(opening.board) ? opening.board.plugins : undefined;
-  if (!isObject(plugins)) return {};
-  return Object.fromEntries(
-    Object.entries(plugins).filter(
-      (entry): entry is [string, Plugin] => isObject(entry[1]) && typeof entry[1].class === "string",
-    ),
-  );
 }
 
 // The board without the blocks, removed as a delta removes them, so that what

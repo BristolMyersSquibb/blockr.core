@@ -9,9 +9,9 @@
 \usage{
 serve(x, ...)
 
-\method{serve}{board}(x, ...)
+\method{serve}{board}(x, ..., plugins = available_plugins())
 
-\method{serve}{character}(x, ...)
+\method{serve}{character}(x, ..., plugins = available_plugins())
 
 \method{serve}{block}(x, ..., data = list())
 }
@@ -20,6 +20,10 @@ serve(x, ...)
 
 \item{...}{For a block, its data where \code{data} is empty.
 R ignores it otherwise, with a warning.}
+
+\item{plugins}{The plugins that the app runs, as rows with the package of
+each plugin's class in \code{package} and the class's id in \code{id}, such as those
+of \code{\link[=available_plugins]{available_plugins()}}, or as the path of a YAML file that lists them}
 
 \item{data}{The block's data, a list by input}
 }
@@ -30,12 +34,42 @@ A Shiny app, as \code{\link[shiny:shinyApp]{shiny::shinyApp()}} returns it.
 The generic \code{serve()} starts an app, as an app script does at its top level.
 Its methods take a board, the path of a JSON board, or a single block, and
 return a Shiny app.
-The app's page holds core's client, which draws the board with the board's
-frontend, or with core's basic frontend where the board holds none.
+The app's page holds core's client, which draws the board with the app's
+frontend.
 The app's server function hands what the client sends to the evaluator of
 the session, which evaluates the blocks.
 }
 \details{
+Which plugins run is the app's choice, never a board's.
+The methods for a board and for a path take the app's plugins in \code{plugins},
+which run on every board that the app opens, the opening board among them,
+each with the state that the board holds for it.
+They default to every plugin class that an available package lists, as
+\code{\link[=available_plugins]{available_plugins()}} gives them.
+A script narrows them with plain R, as
+\code{subset(available_plugins(), package != "blockr.session")} runs every
+plugin but those of blockr.session, or gives the path of a YAML file that
+lists packages and, for each, the ids of the plugin classes to run, all of
+them where it lists none:
+
+\if{html}{\out{<div class="sourceCode yaml">}}\preformatted{- blockr.core:
+  - basic_frontend_plugin
+- blockr.dag
+}\if{html}{\out{</div>}}
+
+R reads the file into the same rows, and a package that the file leaves out
+runs no plugin.
+Core's basic frontend runs only where no other row is a frontend, and core's
+storage plugin only where no other row is a storage plugin (see
+\code{\link[=new_plugin]{new_plugin()}}).
+A row that names a class that no available package lists stops the app,
+naming it, and so do rows that name one class twice, or that then hold no
+frontend, two frontends or two storage plugins.
+A board that the script builds gives only the state of its plugins, and a
+board with a plugin of a class that the app does not run stops the app too,
+naming the class.
+A block that \code{serve()} serves alone runs no plugin.
+
 For a board, R writes the board's JSON once, as \code{serve()} is called, and
 sends it to the client as each session starts.
 So a board that R cannot write as JSON fails as the script runs (see
@@ -55,8 +89,9 @@ and the evaluator know a block's class by its registry ID alone.
 For the path of a JSON board, R reads only the file's format, and sends the
 file's text as it is, for the client to open.
 It loads no package for the file.
-The board's ID, its plugins and its board options come from the board (see
-\code{\link[=new_board]{new_board()}}), and the client reads the query of the page's URL itself.
+The board's ID, the state of its plugins and its board options come from
+the board (see \code{\link[=new_board]{new_board()}}), and the client reads the query of the page's
+URL itself.
 Where the board lock and the load lock are both on, R reads the board's
 blocks and links once, as \code{serve()} is called, and holds every evaluation
 to them.
