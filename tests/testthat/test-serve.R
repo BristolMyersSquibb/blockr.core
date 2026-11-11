@@ -113,24 +113,34 @@ test_that("serve() reads the opening board for the locks as it is called", {
 
   expect_error(serve(path), class = "locked_board_unreadable")
 
-  # Every session holds its evaluations to the lock that R read.
+  # Every session holds its evaluations to the lock that R read, and R logs
+  # the error that it replies.
   app <- serve(served_board())
 
-  replies <- served_replies(
-    app,
-    hello_message(),
-    list(
-      evaluate_request(
-        "2",
-        "a",
-        1L,
-        list(
-          registry_id = "blockr.core-dataset_block",
-          state = list(dataset = "iris", package = "datasets"),
-          inputs = list()
+  withr::local_options(
+    blockr.logger = cnd_logger,
+    blockr.log_level = "error",
+    width = 500L
+  )
+
+  expect_warning(
+    replies <- served_replies(
+      app,
+      hello_message(),
+      list(
+        evaluate_request(
+          "2",
+          "a",
+          1L,
+          list(
+            registry_id = "blockr.core-dataset_block",
+            state = list(dataset = "iris", package = "datasets"),
+            inputs = list()
+          )
         )
       )
-    )
+    ),
+    "Block a at revision 1: The board lock fixes the state of block \"a\""
   )
 
   expect_identical(replies[[1L]]$lock, list(board = TRUE, load = TRUE))
@@ -353,13 +363,22 @@ test_that("the app exports the latest result of each block for e2e tests", {
 
   # R holds no result of a block whose latest evaluation failed, so the
   # export leaves the block out.
-  exports <- served_exports(
-    app,
-    hello_message(),
-    list(
-      evaluate_request("2", "a", 1L, sample_recipe("a")),
-      evaluate_request("3", "a", 2L, dataset_recipe("no_such_dataset"))
-    )
+  withr::local_options(
+    blockr.logger = cnd_logger,
+    blockr.log_level = "error",
+    width = 500L
+  )
+
+  expect_warning(
+    exports <- served_exports(
+      app,
+      hello_message(),
+      list(
+        evaluate_request("2", "a", 1L, sample_recipe("a")),
+        evaluate_request("3", "a", 2L, dataset_recipe("no_such_dataset"))
+      )
+    ),
+    "Block a at revision 2: 'no_such_dataset' is not an exported object"
   )
 
   expect_named(exports$result, character())

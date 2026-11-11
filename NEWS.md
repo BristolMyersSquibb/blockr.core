@@ -374,6 +374,10 @@
   The record's severity is the line's level, and its attributes are the package, as `blockr.package.name`, and the `attributes` that `write_log()` takes.
   Where no OpenTelemetry SDK exports logs, `otel_logger()` writes as `cat_logger()` does.
   A deployment picks it by setting the blockr option `logger` to `otel_logger` (#550).
+* R logs every condition that it sends in a reply, of an evaluation, an output or a request, at the level of its severity: a message at info, a warning at warn and an error at error.
+  Each line names the block and its revision, as in `Block a at revision 3: NAs introduced by coercion`.
+  Its record holds them as `blockr.block.id` and `blockr.block.revision` as well.
+  A line about a request that names no block names the request instead (#550).
 
 # blockr.core 0.1.4
 
