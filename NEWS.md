@@ -366,6 +366,22 @@
   The pill of the errors is open from the start, so that a failed block shows its error at once.
   A card grays out its output alone while its block is not ready, so that the pills keep the colors of their severities.
   Neither kind of card leaves room for the output until the block is first ready, so that a block that fails at once shows its footer and its banners alone, as a waiting block does, rather than at the foot of an empty box (#547).
+* The logger that the blockr option `logger` picks gets the message as written, its level, its package, `asis` and `attributes`.
+  Until now, it got one finished line.
+  So `cat_logger()` and `cnd_logger()` put the level, the time and the package in front of the message themselves, and wrap it, as `write_log()` did.
+  A logger written elsewhere has to take the new arguments as well.
+  The new `otel_logger()` writes each line through `otel::log()` as an OpenTelemetry record.
+  The record's severity is the line's level, and its attributes are the package, as `blockr.package.name`, and the `attributes` that `write_log()` takes.
+  Where the blockr option `logger` names no logger, core picks `otel_logger()` where OpenTelemetry has set up an exporter of logs, as the environment variable `OTEL_LOGS_EXPORTER` does, and `cat_logger()` otherwise.
+  Where it names `otel_logger()` and no exporter is set up, writing a line fails, and so does `serve()` (#550).
+* Only the blockr option `log_level` drops a line: OpenTelemetry's own level, `OTEL_LOG_LEVEL`, drops none of core's records.
+  Core works out the logger, the level and the blockr options `log_time` and `log_mem` each when it first needs them, and keeps them for the process, so that writing a line reads no option.
+  As it starts an app, `serve()` drops what core keeps and works out the logger afresh.
+  After a change to one of these blockr options, as in a test, the new `reset_logging()` has core work them out again (#550).
+* R logs every condition that it sends in a reply, of an evaluation, an output or a request, at the level of its severity: a message at info, a warning at warn and an error at error.
+  Each line names the block and its revision, as in `Block a at revision 3: NAs introduced by coercion`.
+  Its record holds them as `blockr.block.id` and `blockr.block.revision` as well.
+  A line about a request that names no block names the request instead (#550).
 
 # blockr.core 0.1.4
 

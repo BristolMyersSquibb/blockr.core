@@ -393,6 +393,94 @@ test_that("R sends every condition and all output of an evaluation", {
   expect_identical(utf8_text("\xff"), "?")
 })
 
+test_that("R logs every condition that it sends, naming what it concerns", {
+
+  local_block_class(static_block, "blockr.core-static_block")
+
+  cls <- new_block_class(
+    "list_block",
+    expr = function() quote(list(1, 2)),
+    ui = js_module("list-block.js", package = NULL),
+    output = as_table_output
+  )
+
+  local_block_class(cls, "list_block")
+
+  session <- local_evaluator()
+
+  hold_result(
+    session, "k", 14L,
+    recipe = list(registry_id = "list_block", state = obj(), inputs = list())
+  )
+
+  noisy <- list(
+    registry_id = "blockr.core-static_block",
+    state = list(expression = "{ message('m'); warning('w'); stop('e') }"),
+    inputs = list()
+  )
+
+  session$receive(
+    list(
+      evaluate_request("2", "s", 1L, noisy),
+      list(id = "3", kind = "nonsense"),
+      list(
+        id = "4",
+        kind = "request",
+        type = "plugin",
+        plugin = "blockr.notes-notes_plugin",
+        name = "x",
+        args = obj(),
+        reads = list()
+      ),
+      output_request("5", "k", 14L)
+    )
+  )
+
+  session$run()
+
+  logged <- session$logged
+
+  expect_identical(
+    chr_xtr(logged, "level"),
+    c("error", "info", "warn", "error", "error", "error")
+  )
+
+  messages <- chr_xtr(logged, "message")
+
+  expect_identical(
+    messages[1:4],
+    c(
+      "Request 3: R reads no request of kind \"nonsense\".",
+      "Block s at revision 1: m",
+      "Block s at revision 1: w",
+      "Block s at revision 1: e"
+    )
+  )
+
+  expect_identical(
+    messages[[5L]],
+    paste(
+      "Request x of plugin class blockr.notes-notes_plugin:",
+      "Plugin class blockr.notes-notes_plugin has no request x."
+    )
+  )
+
+  expect_match(messages[[6L]], "^Block k at revision 14: .*as_table_output")
+
+  expect_identical(
+    lst_xtr(logged, "attributes"),
+    c(
+      list(list()),
+      rep(
+        list(list(blockr.block.id = "s", blockr.block.revision = 1L)),
+        3L
+      ),
+      list(list()),
+      list(list(blockr.block.id = "k", blockr.block.revision = 14L))
+    )
+  )
+})
+
 test_that("R makes a block's output, as the fixtures of outputs have it", {
 
   local_fixture_renderer_urls()
@@ -941,6 +1029,7 @@ test_that("R replies error where answering a request fails in R", {
     blockr.log_level = "error",
     width = 500L
   )
+  local_reset_logging()
 
   session$receive(list(list(id = "2", kind = "blockr_options", names = "a")))
 
@@ -971,6 +1060,7 @@ test_that("R replies error where it cannot send a reply", {
     blockr.log_level = "error",
     width = 500L
   )
+  local_reset_logging()
 
   ev <- new_evaluator(board = obj())
   receive_requests(ev, hello_message(), function(message) NULL)
@@ -1000,6 +1090,7 @@ test_that("R replies error in place of a reply too large to send", {
     blockr.log_level = "warn",
     width = 500L
   )
+  local_reset_logging()
 
   session$send <- function(message) {
     if (identical(message[[1L]][["status"]], "ok")) {
@@ -1035,6 +1126,7 @@ test_that("R replies error in place of a reply too large to send", {
 
   # Logged as a warning, which a log level of error leaves out.
   withr::local_options(blockr.log_level = "error")
+  local_reset_logging()
 
   session$receive(list(evaluate_request("22", "a", 3L, sample_recipe("a"))))
 
@@ -1045,6 +1137,7 @@ test_that("R replies error in place of a reply too large to send", {
 test_that("the Shiny transport carries the evaluator's replies and bodies", {
 
   withr::local_options(blockr.log_level = "error")
+  local_reset_logging()
 
   ev <- new_evaluator(board = list(blocks = list()))
 
@@ -1104,6 +1197,7 @@ test_that("the page hears why R sent no reply too large for a message", {
     blockr.log_level = "error",
     blockr.max_message_size = 40000
   )
+  local_reset_logging()
 
   local_block_class(static_block, "blockr.core-static_block")
 
