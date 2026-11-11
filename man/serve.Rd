@@ -60,6 +60,24 @@ goes into the block's \code{...}, under that name.
 So each entry needs a name, as in
 \code{serve(new_rbind_block(), a = iris, b = mtcars)}.
 }
+\section{End-to-end tests}{
+
+In Shiny's test mode, as the package shinytest2 starts an app, the app gives
+end-to-end tests what they check.
+R exports \code{result} through \code{\link[shiny:exportTestValues]{shiny::exportTestValues()}}, which a test reads
+with \code{AppDriver$get_values(export = TRUE)}.
+For a board, \code{result} holds the latest result of each block, by block ID.
+For a block that \code{serve()} serves alone, \code{result} is the block's result.
+R holds no result of a block whose latest evaluation failed, so \code{result}
+leaves that block out.
+The client holds the board and each block's status.
+So the page puts the object \code{blockrTest} on \code{window}, which a test reads
+with \code{AppDriver$get_js()}.
+Its function \code{board()} gives a copy of the board that the client holds, and
+its function \code{statuses()} gives each block's status by block ID, as in
+\code{app$get_js("blockrTest.statuses()")}.
+}
+
 \examples{
 if (interactive()) {
   serve(
