@@ -360,10 +360,10 @@ output_coercion.block_output <- function(x, ...) {
 # namespace: those that packages register, and those that an app script
 # defines.
 # Where `packages` is given, those of other packages stay out (see
-# `offered_method_classes()`).
+# `method_classes()`).
 output_coercions <- function(packages = NULL) {
 
-  classes <- offered_method_classes("output_coercion", packages)
+  classes <- method_classes("output_coercion", packages)
   classes <- set_names(nm = setdiff(classes, "block_output"))
 
   res <- lapply(classes, function(cls) {

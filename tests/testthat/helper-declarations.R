@@ -13,6 +13,13 @@ local_declared <- function(env, frame = parent.frame()) {
   )
 }
 
+# The rows of `available_blocks()` for core's block classes, as an app that
+# offers core's classes alone gives them to `serve()` in `block_classes`.
+core_block_rows <- function() {
+  rows <- available_blocks()
+  rows[rows[["package"]] == "blockr.core", ]
+}
+
 test_module <- function(path, package = "blockr.test") {
   js_module(path, package = package)
 }

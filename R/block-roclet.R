@@ -2,8 +2,11 @@
 #'
 #' A custom roxygen2 roclet that turns block registration metadata, declared as
 #' tags on block constructors, into a YAML registry (`inst/registry/blocks.yml`)
-#' that R reads for each package that an app offers, as [serve()] starts the
-#' app (see [register_block()]). It runs alongside the
+#' that [available_blocks()] reads, as [serve()] starts an app (see
+#' [register_block()]). Each entry gives the id of the class that its
+#' constructor makes, which the roclet reads off the loaded package, since
+#' nothing ties a class's id to its constructor's name (see
+#' [new_block_class()]). It runs alongside the
 #' standard roclets during [roxygen2::roxygenise()] (or `devtools::document()`)
 #' for any package that lists `blockr.core::block_registration_roclet` in the
 #' `Roxygen` field of its `DESCRIPTION`.
@@ -135,7 +138,10 @@ roclet_process.roclet_block_registration <- function(x, blocks, env,
       next
     }
 
-    entries[[block_roclet_ctor(block)]] <- block_roclet_entry(block, base_url)
+    ctor <- block_roclet_ctor(block)
+    entry <- block_roclet_entry(block, base_url)
+
+    entries[[ctor]] <- c(list(id = block_roclet_id(block, ctor, env)), entry)
   }
 
   entries
@@ -202,6 +208,26 @@ block_roclet_ctor <- function(block) {
   }
 
   name
+}
+
+# The id of the block class that a documented constructor makes, read off the
+# constructor in the loaded package, since nothing ties a class's id to its
+# constructor's name.
+block_roclet_id <- function(block, ctor, env) {
+
+  fun <- get0(ctor, envir = env, inherits = FALSE)
+
+  if (!inherits(fun, "block_constructor")) {
+    block_roclet_abort(
+      roxygen2::block_get_tag(block, "block"),
+      paste0(
+        "The object `", ctor, "` that `@block` documents is no block ",
+        "constructor made by `block_constructor()`."
+      )
+    )
+  }
+
+  constructor_class(fun)[["id"]]
 }
 
 block_roclet_entry <- function(block, base_url) {

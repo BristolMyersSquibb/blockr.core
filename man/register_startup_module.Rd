@@ -63,17 +63,15 @@ R reads nothing else out of them.
 Core puts the schemas of its own board options next to its runtime in the
 same way, as \code{n_rows_option.schema.json}.
 
-R keeps the startup modules in the order in which packages declare them,
-which is the order in which their namespaces load, since R runs the
-\code{.onLoad()} of the packages a namespace imports before its own, so that a
-package's comes after those of the packages its NAMESPACE imports, and the
-client initializes them one at a time in that order. A package relies on
-the order only for the packages its NAMESPACE imports, since R loads a
-package that its DESCRIPTION alone names only once something asks for it,
-and declaring a startup module again keeps its place.
+R sends the startup modules of the packages that an app uses in the order
+of the packages' dependencies, which their DESCRIPTION files give, so that a
+package's comes after those of the packages that it requires, directly or
+through others, and in the order of their names where that leaves two
+unordered (see \code{\link[=serve]{serve()}}).
+The client initializes them one at a time in that order.
 
 R tells the client where it serves each module that a package the app
-offers declares (see \code{\link[=serve]{serve()}}), those of plugin classes included, in its
+uses declares (see \code{\link[=serve]{serve()}}), those of plugin classes included, in its
 reply to \code{hello}, with the versions of the packages they come from, and
 where it serves a renderer's module in each output that the renderer draws
 (see \code{\link[=new_renderer]{new_renderer()}}).

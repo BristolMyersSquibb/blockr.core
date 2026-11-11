@@ -61,9 +61,10 @@ method_packages <- function(generic) {
 
 # The classes of the methods of `generic` that R finds from core's namespace,
 # those that packages register and those that an app script defines.
-# Where `packages` is given, only those whose method a package among them
-# defines, or an app script (see `method_packages()`).
-offered_method_classes <- function(generic, packages = NULL) {
+# Where `packages` is given, as the packages that an app uses, only those whose
+# method a package among them defines, or an app script (see
+# `method_packages()`).
+method_classes <- function(generic, packages = NULL) {
 
   pkgs <- method_packages(generic)
 
@@ -88,6 +89,36 @@ package_system_file <- function(..., package) {
   }
 
   fun(..., package = package)
+}
+
+# Whether `pkgload::load_all()` loaded a package's namespace, which pkgload
+# marks.
+is_dev_namespace <- function(pkg) {
+  exists(".__DEVTOOLS__", envir = asNamespace(pkg), inherits = FALSE)
+}
+
+# The packages in the order of their dependencies, which their DESCRIPTION
+# files give, each after those that it requires, directly or through others,
+# and in the order of their names where that leaves two unordered.
+package_order <- function(packages) {
+
+  todo <- sort(unique(packages), method = "radix")
+  needs <- lapply(
+    set_names(nm = todo),
+    function(x) intersect(dependency_closure(installed_dependencies(x)), todo)
+  )
+  res <- character()
+
+  while (length(todo)) {
+
+    ready <- todo[lgl_ply(todo, function(x) all(needs[[x]] %in% res))]
+    nxt <- if (length(ready)) ready[1L] else todo[1L]
+
+    res <- c(res, nxt)
+    todo <- todo[todo != nxt]
+  }
+
+  res
 }
 
 #' @rdname set_names

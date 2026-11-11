@@ -36,6 +36,7 @@ local_load_all_package <- function(frame = parent.frame()) {
     ),
     `inst/registry/blocks.yml` = c(
       "new_probe_block:",
+      "  id: probe_block",
       "  name: Probe",
       "  description: Probes the registry",
       "  category: input"

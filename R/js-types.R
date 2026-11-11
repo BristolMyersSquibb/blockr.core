@@ -79,8 +79,15 @@ install_js_types <- function(path = ".") {
 # The packages that the DESCRIPTION at `desc` names in its Depends and
 # Imports, with those that these name in theirs, as installed.
 hard_dependencies <- function(desc) {
+  dependency_closure(
+    dependency_names(read.dcf(desc, c("Depends", "Imports")))
+  )
+}
 
-  todo <- dependency_names(read.dcf(desc, c("Depends", "Imports")))
+# The packages `todo`, with those that they name in their Depends and
+# Imports, and those that these name in theirs, as installed.
+dependency_closure <- function(todo) {
+
   seen <- character()
 
   while (length(todo)) {
@@ -91,8 +98,9 @@ hard_dependencies <- function(desc) {
   seen
 }
 
-# The packages that an installed package names in its Depends and Imports,
-# none for a package that is not installed.
+# The packages that a package names in its Depends and Imports, that of its
+# loaded namespace, as `pkgload::load_all()` loads one from its source, or else
+# as installed, none for a package that is neither.
 installed_dependencies <- function(pkg) {
 
   fields <- suppressWarnings(

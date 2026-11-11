@@ -30,7 +30,7 @@
 # which a later `hello` drops.
 #
 # The reply to `hello` tells the client of what the `packages` that the app
-# offers declare, core always among them (see `loaded_reply()`).
+# uses declare, core always among them (see `loaded_reply()`).
 #
 # The results live in an environment keyed by block id.
 # For each block that R evaluated, it holds the revision,

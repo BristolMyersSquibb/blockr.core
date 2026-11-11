@@ -23,17 +23,38 @@ block_registry <- new.env()
 #'
 #' Which block classes an app offers is the app's choice, and loading a package
 #' registers none.
-#' Each method of [serve()] takes the packages that the app offers in
-#' `packages`, core always among them.
-#' As the app starts, R loads each, reads the block classes that its
-#' `inst/registry/blocks.yml` lists, which the [block_registration_roclet()]
-#' writes, and fills the block registry with them.
-#' Core's own are narrowed by the blockr option `core_blocks`, which names the
-#' classes to offer, as `"head_block"`, or is `"all"`.
-#' A package that lists two constructors whose classes give one registry id
-#' stops the app.
+#' Each method of [serve()] takes them in `block_classes`, which defaults to
+#' `available_blocks()`: a data frame with a row for each block class of each
+#' available package, with the class's package in `package` and its id in
+#' `id`, and its name, description and category beside them.
+#' A package is available where it is installed and depends on blockr.core, or
+#' where `pkgload::load_all()` loaded it, and it lists block classes in its
+#' `inst/registry/blocks.yml`, which the [block_registration_roclet()] writes.
+#' Reading the files loads no package.
+#' A script narrows the rows with plain R, as
+#' `subset(available_blocks(), package != "blockr.ggplot")` offers every class
+#' but those of blockr.ggplot, or gives the path of a YAML file that lists
+#' packages and, for each, the ids of the classes to offer, all of them where
+#' it lists none:
+#'
+#' ```yaml
+#' - blockr.core:
+#'   - dataset_block
+#'   - head_block
+#' - blockr.dplyr
+#' ```
+#'
+#' R reads the file into the same rows, and a package that the file leaves out
+#' offers nothing.
+#' As the app starts, R loads the packages of the rows and fills the block
+#' registry with their classes, in place of the classes of packages that an
+#' earlier app of the process offered.
+#' A row whose package is not available, or whose class its package does not
+#' list, stops the app, naming the row, and so does a package that lists two
+#' constructors whose classes give one registry id.
 #' An app script registers the block classes that it defines itself, with
-#' `register_block()` or `register_blocks()`.
+#' `register_block()` or `register_blocks()`, which `block_classes` leaves as
+#' they are.
 #'
 #' An entry holds, beside the metadata, the block class, its constructor, its
 #' data inputs, its UI module and the JSON Schema of the block's state that the
@@ -62,10 +83,10 @@ block_registry <- new.env()
 #' Blocks can be registered (i.e. added to the registry) via `register_block()`
 #' with scalar-valued arguments and `register_blocks()`, where arguments may be
 #' vector-valued, while de-registration (or removal) is handled via
-#' `unregister_blocks()`. A listing of all available blocks can be created as
-#' `list_blocks()`, which will return registry IDs and `available_blocks()`,
-#' which provides a set of (named) `block_registry_entry` objects. Finally,
-#' block construction via a registry ID is available as `create_block()`.
+#' `unregister_blocks()`. The registry IDs of the registered classes come from
+#' `list_blocks()`, while `available_blocks()` lists the block classes of the
+#' available packages, which an app may offer. Finally, block construction via
+#' a registry ID is available as `create_block()`.
 #'
 #' @param ctor Block constructor, made by [block_constructor()]
 #' @param name,description Metadata describing the block
@@ -111,8 +132,8 @@ block_registry <- new.env()
 #' @return `register_block()` and `register_blocks()` are invoked for their side
 #' effects and return `block_registry_entry` object(s) invisibly, while
 #' `unregister_blocks()` returns `NULL` (invisibly).
-#' Listing via `list_blocks()` returns a character vector and a list of
-#' `block_registry_entry` object(s) for `available_blocks()`. Block
+#' Listing via `list_blocks()` returns a character vector, and
+#' `available_blocks()` a data frame with a row for each class. Block
 #' construction via `create_block()` returns a newly instantiated `block`
 #' object, and the lookup `registry_id_from_block()` returns the registry id
 #' that a block's class gives, a string. A block's argument specification is
@@ -465,7 +486,28 @@ get_registry_entry <- function(uid) {
 #' @rdname register_block
 #' @export
 available_blocks <- function() {
-  lapply(set_names(nm = list_blocks()), get_registry_entry)
+
+  rows <- lapply(available_block_packages(), package_block_rows)
+
+  res <- do.call(rbind, c(list(block_rows()), rows))
+  rownames(res) <- NULL
+
+  res
+}
+
+# Block classes as `available_blocks()` gives them, one row each, with the
+# class's package in `package` and its id in `id`, and its name, description
+# and category.
+block_rows <- function(package = character(), id = character(),
+                       name = character(), description = character(),
+                       category = character()) {
+  data.frame(
+    package = package,
+    id = id,
+    name = name,
+    description = description,
+    category = category
+  )
 }
 
 #' @param id Block ID as reported by `list_blocks()`
@@ -475,104 +517,260 @@ create_block <- function(id, ...) {
   get_registry_entry(id)[["constructor"]](...)
 }
 
-# Fills the block registry from the packages that an app offers, as `serve()`
-# starts the app, and gives the packages, core first among them.
-# R loads each package, and registers the block classes that it lists in its
-# `inst/registry/blocks.yml`, those of core narrowed by the blockr option
-# `core_blocks`.
-# A package that is not installed stops the app before R loads any.
-fill_block_registry <- function(packages = character()) {
+# The entries of the block registry by registry id.
+registry_entries <- function() {
+  lapply(set_names(nm = list_blocks()), get_registry_entry)
+}
 
-  if (!is.character(packages) || anyNA(packages) || !all(nzchar(packages))) {
-    blockr_abort(
-      "The packages that an app offers are expected to be a character ",
-      "vector of package names, as in `packages = \"blockr.dplyr\"`.",
-      class = "serve_packages_invalid"
+# The packages whose block classes an app may offer, by name: those that ship
+# a `registry/blocks.yml` and depend on blockr.core, core itself among them,
+# whether installed or loaded by `pkgload::load_all()`, which puts a package in
+# no library.
+# A package whose file lists no block class gives `available_blocks()` no row.
+available_block_packages <- function() {
+
+  installed <- unlst(
+    lapply(
+      .libPaths(),
+      function(lib) {
+        pkgs <- list.files(lib)
+        pkgs[file.exists(file.path(lib, pkgs, "registry", "blocks.yml"))]
+      }
     )
+  )
+
+  dev <- Filter(is_dev_namespace, loadedNamespaces())
+  pkgs <- unique(c(installed, dev))
+
+  sort(pkgs[lgl_ply(pkgs, depends_on_core)])
+}
+
+depends_on_core <- function(pkg) {
+  identical(pkg, "blockr.core") ||
+    "blockr.core" %in% installed_dependencies(pkg)
+}
+
+# The block classes that a package lists, as rows of `available_blocks()`.
+package_block_rows <- function(package) {
+
+  entries <- package_yaml_blocks(package)
+
+  block_rows(
+    package = rep(package, length(entries)),
+    id = chr_xtr(entries, "id"),
+    name = chr_xtr(entries, "name"),
+    description = chr_xtr(entries, "description"),
+    category = chr_xtr(entries, "category")
+  )
+}
+
+# The block classes that a package lists in its `inst/registry/blocks.yml`,
+# which the roclet writes from its `@block` tags, by constructor, each with the
+# id of its class, or none where it ships no such file.
+package_yaml_blocks <- function(package) {
+
+  file <- package_file("registry/blocks.yml", package)
+
+  if (!nzchar(file)) {
+    return(list())
   }
 
-  packages <- unique(c("blockr.core", packages))
-  missing <- packages[!lgl_ply(packages, is_installed_pkg)]
+  entries <- coal(yaml::read_yaml(file), list(), fail_all = FALSE)
+  ids <- lst_xtr(entries, "id")
+  missing <- names(entries)[!lgl_ply(ids, is_nonempty_string)]
 
   if (length(missing)) {
     blockr_abort(
-      "{qty(missing)}Package{?s} {missing}, which the app offers in ",
-      "`packages`, {?is/are} not installed.",
-      class = "serve_packages_missing"
+      "Package {package} lists {qty(missing)}block constructor{?s} {missing} ",
+      "without the id of {?its/their} class, as a `blocks.yml` does that the ",
+      "roclet wrote before it wrote ids.",
+      class = "package_blocks_invalid"
     )
   }
 
+  entries
+}
+
+# Fills the block registry with the block classes that an app offers, as
+# `serve()` starts the app, and gives the packages of these classes.
+# R loads each of these packages and registers its classes in place of those
+# of every package that the registry holds, as an earlier app of the process
+# may have offered others, while the classes that an app script registered
+# stay.
+fill_block_registry <- function(block_classes = available_blocks()) {
+
+  rows <- offered_block_classes(block_classes)
+  packages <- unique(rows[["package"]])
+
+  unregister_blocks(package_registry_ids())
+
   for (pkg in packages) {
     loadNamespace(pkg)
-    register_yaml_blocks(
-      pkg,
-      if (identical(pkg, "blockr.core")) offered_core_blocks() else "all"
-    )
+    register_yaml_blocks(pkg, rows[["id"]][rows[["package"]] == pkg])
   }
 
   packages
 }
 
-# Whether R finds the package, installed or loaded, as `pkgload::load_all()`
-# loads one.
-is_installed_pkg <- function(pkg) {
-  length(find.package(pkg, quiet = TRUE)) > 0L
+# The registry ids of the block classes from packages that the block registry
+# holds.
+package_registry_ids <- function() {
+  Filter(
+    function(id) not_null(get_registry_entry(id)[["block_class"]][["package"]]),
+    list_blocks()
+  )
 }
 
-# The constructors of core's block classes that an app offers, by the blockr
-# option `core_blocks`, which names the classes, as `"head_block"`, or is
-# `"all"`.
-offered_core_blocks <- function(which = blockr_option("core_blocks", "all")) {
+# The block classes that an app offers, as `serve()` takes them in
+# `block_classes`, as rows with the class's package in `package` and its id in
+# `id`: those of a data frame, or those that a YAML file at the path lists.
+# Each names a class that an available package lists, and a row that names
+# none stops the app.
+offered_block_classes <- function(block_classes,
+                                  available = available_blocks()) {
 
-  if (identical(which, "all")) {
-    return(which)
+  rows <- if (is_string(block_classes)) {
+    yaml_block_classes(block_classes, available)
+  } else {
+    frame_block_classes(block_classes)
   }
 
-  paste0("new_", which)
+  rows <- unique(rows)
+  rownames(rows) <- NULL
+
+  check_block_class_packages(rows[["package"]], available)
+
+  key <- function(x) paste(x[["package"]], x[["id"]], sep = "\r")
+  unknown <- !key(rows) %in% key(available)
+  rows_unknown <- paste(rows[["id"]], "of", rows[["package"]])[unknown]
+
+  if (length(rows_unknown)) {
+    blockr_abort(
+      "The app offers {qty(rows_unknown)}block class{?es} {rows_unknown}, ",
+      "which {?its/their} package{?s} {?does/do} not list.",
+      class = "block_classes_unknown"
+    )
+  }
+
+  rows
+}
+
+frame_block_classes <- function(x) {
+
+  valid <- is.data.frame(x) && all(c("package", "id") %in% names(x)) &&
+    is.character(x[["package"]]) && is.character(x[["id"]]) &&
+    !anyNA(x[["package"]]) && !anyNA(x[["id"]])
+
+  if (!valid) {
+    blockr_abort(
+      "The block classes that an app offers are expected as a data frame ",
+      "with the character columns `package` and `id`, as ",
+      "`available_blocks()` gives, or as the path of a YAML file.",
+      class = "block_classes_invalid"
+    )
+  }
+
+  data.frame(package = x[["package"]], id = x[["id"]])
+}
+
+# The rows of a YAML file that lists packages and, for each, the ids of the
+# block classes to offer, or none for all that the package lists, as the
+# example in `?register_block` shows.
+yaml_block_classes <- function(path, available) {
+
+  if (is.na(path) || !file.exists(path) || dir.exists(path)) {
+    blockr_abort(
+      "There is no file {path} that lists the block classes of an app.",
+      class = "block_classes_invalid"
+    )
+  }
+
+  items <- tryCatch(
+    yaml::read_yaml(path),
+    error = function(e) {
+      blockr_abort(
+        "The file {path} holds no YAML: {conditionMessage(e)}",
+        class = "block_classes_invalid"
+      )
+    }
+  )
+
+  # A list of package names alone reads as a character vector
+  items <- as.list(coal(items, list(), fail_all = FALSE))
+
+  listed <- if (is.null(names(items))) {
+    lapply(items, yaml_block_class_item)
+  }
+
+  if (!is.list(listed) || !all(lgl_ply(listed, is.list))) {
+    blockr_abort(
+      "The file {path} is expected to list packages, each as its name or as ",
+      "its name with the ids of the block classes to offer.",
+      class = "block_classes_invalid"
+    )
+  }
+
+  packages <- chr_xtr(listed, "package")
+  check_block_class_packages(packages, available)
+
+  do.call(
+    rbind,
+    c(
+      list(data.frame(package = character(), id = character())),
+      lapply(
+        listed,
+        function(x) {
+          ids <- coal(
+            x[["ids"]],
+            available[["id"]][available[["package"]] == x[["package"]]],
+            fail_all = FALSE
+          )
+          data.frame(package = rep(x[["package"]], length(ids)), id = ids)
+        }
+      )
+    )
+  )
+}
+
+# A package that a YAML file of block classes lists, as its name, or as its
+# name with the ids of its classes to offer, or `NULL` for anything else.
+yaml_block_class_item <- function(x) {
+
+  if (is_nonempty_string(x)) {
+    return(list(package = x, ids = NULL))
+  }
+
+  valid <- is.list(x) && length(x) == 1L && is_nonempty_string(names(x)) &&
+    (is.null(x[[1L]]) || (is.character(x[[1L]]) && !anyNA(x[[1L]])))
+
+  if (valid) list(package = names(x), ids = x[[1L]])
+}
+
+check_block_class_packages <- function(packages, available) {
+
+  missing <- setdiff(packages, available[["package"]])
+
+  if (length(missing)) {
+    blockr_abort(
+      "{qty(missing)}Package{?s} {missing}, whose block classes the app ",
+      "offers, {?is/are} not available (see `available_blocks()`).",
+      class = "block_classes_unavailable"
+    )
+  }
+
+  invisible()
 }
 
 # Registers the block classes that a package lists in its
-# `inst/registry/blocks.yml`, which the roclet writes from its `@block` tags,
-# or those of them whose constructors `which` names.
+# `inst/registry/blocks.yml`, or those of them whose ids `ids` gives.
 # A package that lists none registers none.
-register_yaml_blocks <- function(package, which = "all") {
+register_yaml_blocks <- function(package, ids = NULL) {
 
-  file <- package_file("registry/blocks.yml", package)
+  entries <- package_yaml_blocks(package)
 
-  if (!nzchar(file)) {
-    return(invisible())
+  if (not_null(ids)) {
+    entries <- entries[chr_xtr(entries, "id") %in% ids]
   }
-
-  entries <- yaml::read_yaml(file)
-
-  if (identical(which, "all")) {
-
-    which <- names(entries)
-
-  } else {
-
-    unknown <- setdiff(which, names(entries))
-
-    if (length(unknown)) {
-      blockr_abort(
-        "Package {package} declares no {qty(unknown)}block constructor{?s} ",
-        "{unknown}.",
-        class = "package_blocks_invalid"
-      )
-    }
-
-    dups <- unique(which[duplicated(which)])
-
-    if (length(dups)) {
-      blockr_abort(
-        "Expecting `which` to name each block constructor once, but {dups} ",
-        "{?is/are} named more than once.",
-        class = "package_blocks_invalid"
-      )
-    }
-  }
-
-  entries <- entries[which]
 
   if (!length(entries)) {
     return(invisible())
@@ -585,7 +783,7 @@ register_yaml_blocks <- function(package, which = "all") {
     mode = "function"
   )
 
-  check_package_registry_ids(ctors, package)
+  check_package_registry_ids(ctors, package, chr_xtr(entries, "id"))
 
   register_blocks(
     ctors,
@@ -603,11 +801,26 @@ register_yaml_blocks <- function(package, which = "all") {
   )
 }
 
-# Registering the block classes of a package refuses two constructors whose
-# classes give one registry id, since the second would replace the first.
-check_package_registry_ids <- function(ctors, package) {
+# Registering the block classes of a package refuses a constructor whose class
+# has another id than the one that the package's `blocks.yml` gives it, as one
+# whose class changed since the roclet wrote the file, and two constructors
+# whose classes give one registry id, since the second would replace the
+# first.
+check_package_registry_ids <- function(ctors, package, ids) {
 
-  ids <- chr_ply(lapply(ctors, constructor_class), class_registry_id)
+  classes <- lapply(ctors, constructor_class)
+  stale <- names(ctors)[chr_xtr(classes, "id") != ids]
+
+  if (length(stale)) {
+    blockr_abort(
+      "Package {package} lists {qty(stale)}block constructor{?s} {stale} ",
+      "under another id than {?its/their} class gives, as its `blocks.yml` ",
+      "predates a change of the class.",
+      class = "package_blocks_invalid"
+    )
+  }
+
+  ids <- chr_ply(classes, class_registry_id)
   id <- ids[duplicated(ids)][1L]
   same <- names(ctors)[ids %in% id]
 

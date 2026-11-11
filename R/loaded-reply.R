@@ -1,4 +1,4 @@
-# What R tells the client about the packages that the app offers, in its
+# What R tells the client about the packages that the app uses, in its
 # reply to `hello`, for neither side to edit: the block registry's entries,
 # each with the renderer of its class's outputs, where R serves the startup
 # modules and the modules that packages offer each other, the versions of the
@@ -6,9 +6,11 @@
 # renderers that the app names for board options, and the versions of the
 # packages that all of these come from.
 # R loads no package for it.
-# As the app started, `serve()` loaded the packages that the app offers, core
-# always among them, and filled the block registry from them, beside the block
-# classes of the app script and of its board.
+# As the app started, `serve()` filled the block registry with the block
+# classes that the app offers, beside those of the app script and of its board,
+# and loaded their packages, which the app uses, with core and the packages of
+# its plugins, in `packages`, in the order of their dependencies, in which R
+# sends their startup modules.
 # Loading the packages declared their modules and registered their methods.
 # What another package declares or registers, such as one that a block's code
 # loads, stays out, and so do the output coercions that it gives, while an app
@@ -20,12 +22,13 @@
 # Building them builds no block.
 loaded_reply <- function(packages = "blockr.core") {
 
-  offered <- function(x) isTRUE(x[["package"]] %in% packages)
+  used <- function(x) isTRUE(x[["package"]] %in% packages)
 
-  entries <- available_blocks()
-  startup <- Filter(offered, startup_modules())
+  entries <- registry_entries()
+  startup <- Filter(used, startup_modules())
+  startup <- startup[order(match(chr_xtr(startup, "package"), packages))]
   modules <- Filter(
-    offered,
+    used,
     lapply(set_names(nm = list_modules()), get_module)
   )
   plugins <- plugin_versions(packages)

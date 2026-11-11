@@ -338,7 +338,7 @@ test_that("R names the renderers that the app names for board options", {
   expect_identical(json(loaded_reply()$renderers), "{}")
 })
 
-test_that("R keeps the startup modules in the order packages declare them", {
+test_that("R sends the startup modules in the order of the packages", {
 
   dir <- withr::local_tempdir()
   local_empty_declarations()
@@ -356,13 +356,18 @@ test_that("R keeps the startup modules in the order packages declare them", {
     register_startup_module(js_module("js/startup.js", package = pkg))
   }
 
-  # In the order in which the packages declared them, whatever the order in
-  # which the app names them
+  # In the order of the packages that the app uses, which `serve()` gives by
+  # their dependencies, whatever the order in which they declared them
   reply <- loaded_reply(c("blockr.dag", "blockr.dock", "blockr.ui"))
 
   expect_identical(
     chr_xtr(reply$startup_modules, "package"),
-    c("blockr.ui", "blockr.dock", "blockr.dag")
+    c("blockr.dag", "blockr.dock", "blockr.ui")
+  )
+  expect_identical(
+    chr_xtr(loaded_reply(c("blockr.dock", "blockr.ui"))$startup_modules,
+            "package"),
+    c("blockr.dock", "blockr.ui")
   )
   expect_identical(
     json(reply$packages),
@@ -373,7 +378,29 @@ test_that("R keeps the startup modules in the order packages declare them", {
   )
 })
 
-test_that("R tells the client of what the packages it offers declare alone", {
+test_that("serve() orders the packages by their dependencies, then by name", {
+
+  # The cli package imports utils, so utils comes first, though cli comes
+  # first by name, and core, which imports cli, comes after both
+  expect_identical(
+    package_order(c("blockr.core", "utils", "cli")),
+    c("utils", "cli", "blockr.core")
+  )
+
+  # Packages that require none of each other come by name
+  expect_identical(
+    package_order(c("tools", "grDevices", "tools")),
+    c("grDevices", "tools")
+  )
+
+  # The DESCRIPTION of a package that load_all() loaded is in its source
+  local_load_all_package()
+
+  expect_identical(installed_dependencies("regprobe"), "blockr.core")
+  expect_identical(installed_dependencies("blockr.absent"), character())
+})
+
+test_that("R tells the client of what the packages it uses declare alone", {
 
   dir <- withr::local_tempdir()
   write_declared_files(dir)
@@ -381,17 +408,17 @@ test_that("R tells the client of what the packages it offers declare alone", {
   local_empty_declarations()
   local_declared_package(dir)
 
-  offered <- loaded_reply(c("blockr.core", "blockr.test"))
+  used <- loaded_reply(c("blockr.core", "blockr.test"))
 
-  expect_identical(chr_xtr(offered$startup_modules, "package"), "blockr.test")
-  expect_named(offered$modules, c("blockr.test-grid", "blockr.test-picker"))
+  expect_identical(chr_xtr(used$startup_modules, "package"), "blockr.test")
+  expect_named(used$modules, c("blockr.test-grid", "blockr.test-picker"))
   expect_identical(
-    json(offered$plugin_versions),
+    json(used$plugin_versions),
     "{\"blockr.test-grid_plugin\":2}"
   )
-  expect_identical(json(offered$option_versions), "{\"grid_gap\":2}")
+  expect_identical(json(used$option_versions), "{\"grid_gap\":2}")
 
-  # What a package that the app does not offer declares and registers stays
+  # What a package that the app does not use declares and registers stays
   # out, such as that of a package that a block's code loads
   alone <- loaded_reply()
 
@@ -402,7 +429,7 @@ test_that("R tells the client of what the packages it offers declare alone", {
   expect_false("blockr.test" %in% names(alone$packages))
 })
 
-test_that("R takes the output coercions of the packages that it offers", {
+test_that("R takes the output coercions of the packages that the app uses", {
 
   ns <- asNamespace("blockr.core")
   table <- get(".__S3MethodsTable__.", envir = ns)
@@ -428,11 +455,11 @@ test_that("R takes the output coercions of the packages that it offers", {
   expect_contains(names(output_coercions()), names(methods))
 
   # Core's own and an app script's count, while another package's stays out
-  # where the app does not offer it
-  offered <- names(output_coercions("blockr.core"))
+  # where the app does not use it
+  used <- names(output_coercions("blockr.core"))
 
-  expect_contains(offered, c("table_output", "script_output"))
-  expect_false("other_output" %in% offered)
+  expect_contains(used, c("table_output", "script_output"))
+  expect_false("other_output" %in% used)
   expect_contains(
     names(output_coercions(c("blockr.core", "blockr.other"))),
     "other_output"

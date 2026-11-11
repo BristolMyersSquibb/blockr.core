@@ -9,11 +9,11 @@
 \usage{
 serve(x, ...)
 
-\method{serve}{board}(x, ..., packages = character())
+\method{serve}{board}(x, ..., block_classes = available_blocks())
 
-\method{serve}{character}(x, ..., packages = character())
+\method{serve}{character}(x, ..., block_classes = available_blocks())
 
-\method{serve}{block}(x, ..., data = list(), packages = character())
+\method{serve}{block}(x, ..., data = list(), block_classes = available_blocks())
 }
 \arguments{
 \item{x}{A board, the path of a JSON board, or a block}
@@ -21,8 +21,9 @@ serve(x, ...)
 \item{...}{For a block, its data where \code{data} is empty.
 R ignores it otherwise, with a warning.}
 
-\item{packages}{The names of the packages whose block classes and modules
-the app offers, beside core's}
+\item{block_classes}{The block classes that the app offers, as rows with
+the class's package in \code{package} and its id in \code{id}, such as those of
+\code{\link[=available_blocks]{available_blocks()}}, or as the path of a YAML file that lists them}
 
 \item{data}{The block's data, a list by input}
 }
@@ -39,16 +40,25 @@ The app's server function hands what the client sends to the evaluator of
 the session, which evaluates the blocks.
 }
 \details{
-Which block classes and modules an app offers is the app's choice, never a
-board's, and loading a package registers no block class.
-Each method takes in \code{packages} the packages that the app offers, core
-always among them, as in \code{serve(new_board(), packages = "blockr.dplyr")}.
-As \code{serve()} is called, R loads each, and fills the block registry with the
-block classes that it lists (see \code{\link[=register_block]{register_block()}}).
-A package that is not installed stops the app, naming the package.
-R tells the client of the block registry, and of the startup modules, the
-modules, the plugin classes and the board options of these packages alone,
-whatever a block's code loads later.
+Which block classes an app offers is the app's choice, never a board's, and
+loading a package registers no block class.
+Each method takes them in \code{block_classes}, which defaults to every block
+class of every available package, as \code{\link[=available_blocks]{available_blocks()}} gives them.
+A script narrows them with plain R, as
+\code{subset(available_blocks(), package != "blockr.ggplot")} offers every class
+but those of blockr.ggplot, or gives the path of a YAML file that lists them
+(see \code{\link[=register_block]{register_block()}}).
+As \code{serve()} is called, R loads the packages of these classes, and fills the
+block registry with them.
+A class that no available package lists stops the app, naming it.
+The packages that the app uses are core, those of the block classes in the
+block registry, whether the app offers them or R registers them from the
+board (below), and those of the board's plugins.
+R tells the client of the startup modules, the modules, the plugin classes
+and the board options of these packages alone, whatever a block's code
+loads later, and orders the startup modules by the packages' dependencies,
+which their DESCRIPTION files give, and by name where those leave two
+unordered.
 
 For a board, R writes the board's JSON once, as \code{serve()} is called, and
 sends it to the client as each session starts.

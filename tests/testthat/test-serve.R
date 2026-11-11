@@ -74,34 +74,43 @@ test_that("serve() registers the board's classes that the registry lacks", {
   expect_identical(get_registry_entry("blockr.core-head_block"), head)
 })
 
-test_that("serve() fills the block registry from the packages it offers", {
+test_that("serve() fills the block registry with the classes the app offers", {
 
   local_declared(block_registry)
   unregister_blocks()
 
+  # Every available class by default, beside the classes of the board
   serve(served_board())
 
-  # Core's own, which core always offers, beside the classes of the board
   expect_contains(
     list_blocks(),
     c("blockr.core-merge_block", "blockr.core-csv_block")
   )
 
-  # Each method takes the packages that the app offers, and refuses one that
-  # is not installed as it is called
+  # Each method takes the classes that the app offers, and refuses one that no
+  # available package lists as it is called
   path <- withr::local_tempfile(fileext = ".json")
   writeLines(unclass(encode_message(proto_served_file())), path)
 
+  rows <- core_block_rows()
+  absent <- data.frame(package = "blockr.absent", id = "absent_block")
+
   for (x in list(served_board(), path, new_static_block("datasets::BOD"))) {
+
+    serve(x, block_classes = rows[rows[["id"]] == "csv_block", ])
+
+    expect_contains(list_blocks(), "blockr.core-csv_block")
+    expect_false("blockr.core-merge_block" %in% list_blocks())
+
     expect_error(
-      serve(x, packages = "blockr.absent"),
-      "Package blockr.absent, which the app offers in `packages`, is not ",
-      class = "serve_packages_missing"
+      serve(x, block_classes = absent),
+      "Package blockr.absent, whose block classes the app offers, is not ",
+      class = "block_classes_unavailable"
     )
   }
 })
 
-test_that("the app's sessions tell of what the packages it offers declare", {
+test_that("the app's sessions tell of what the packages it uses declare", {
 
   dir <- withr::local_tempdir()
   write_declared_files(dir)
@@ -109,8 +118,8 @@ test_that("the app's sessions tell of what the packages it offers declare", {
   local_empty_declarations()
   local_declared_package(dir)
 
-  # An app that offers core alone tells of nothing of blockr.test's, which its
-  # script loaded
+  # An app whose block classes and plugins are all core's tells of nothing of
+  # blockr.test's, which its script loaded
   reply <- served_replies(serve(served_board()), hello_message())[[1L]]
 
   expect_length(reply$startup_modules, 0L)
@@ -118,6 +127,29 @@ test_that("the app's sessions tell of what the packages it offers declare", {
   expect_length(reply$plugin_versions, 0L)
   expect_length(reply$option_versions, 0L)
   expect_contains(names(reply$block_registry), "blockr.core-head_block")
+
+  # A plugin of blockr.test's on the board makes the app use blockr.test
+  new_grid_plugin <- function() new_plugin(list(), "Grid", "grid_plugin")
+  environment(new_grid_plugin) <- list2env(
+    list(.packageName = "blockr.test"),
+    parent = asNamespace("blockr.core")
+  )
+
+  board <- new_board(
+    c(a = new_dataset_block("BOD")),
+    plugins = list(grid = new_grid_plugin()),
+    id = "grid_board"
+  )
+
+  reply <- served_replies(serve(board), hello_message())[[1L]]
+
+  expect_identical(
+    chr_xtr(reply$startup_modules, "package"),
+    "blockr.test"
+  )
+  expect_named(reply$modules, c("blockr.test-grid", "blockr.test-picker"))
+  expect_named(reply$plugin_versions, "blockr.test-grid_plugin")
+  expect_named(reply$option_versions, "grid_gap")
 })
 
 test_that("serve() registers the class of a block that it serves alone", {
@@ -148,15 +180,25 @@ test_that("serve() replaces a class from outside a package that differs", {
   expect_identical(get_registry_entry("note_block")$block_class, new)
 
   # A class from a package keeps the entry under its id, which its package
-  # registers
-  held <- note_class(package = "blockr.core")
-  register_block(block_constructor(held), "Note", "A note")
+  # lists among the classes that the app offers
+  local_load_all_package()
 
-  serve(new_board(c(a = block_constructor(note_class(TRUE, "blockr.core"))())))
+  rows <- available_blocks()
+  other <- test_block_class(
+    "probe_block",
+    expr = function(n = 1L) bbquote(seq_len(.(n))),
+    ui = js_module("probe-block.js", package = NULL),
+    package = "regprobe"
+  )
+
+  serve(
+    new_board(c(a = block_constructor(other)())),
+    block_classes = rows[rows[["package"]] == "regprobe", ]
+  )
 
   expect_identical(
-    get_registry_entry("blockr.core-note_block")$block_class,
-    held
+    get_registry_entry("regprobe-probe_block")$block_class,
+    get("probe_block", envir = asNamespace("regprobe"))
   )
 })
 
@@ -182,9 +224,9 @@ test_that("serve() takes nothing but the board, and says where the rest went", {
   expect_error(
     serve(board, id = "my_board"),
     paste0(
-      "For a board, `serve()` takes no argument but `x` and `packages`, and ",
-      "it was given `id`. A board holds its ID, which `new_board()` takes as ",
-      "`id`."
+      "For a board, `serve()` takes no argument but `x` and `block_classes`, ",
+      "and it was given `id`. A board holds its ID, which `new_board()` takes ",
+      "as `id`."
     ),
     fixed = TRUE,
     class = "serve_args_invalid"

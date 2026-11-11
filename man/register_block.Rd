@@ -91,8 +91,8 @@ discovery}
 \code{register_block()} and \code{register_blocks()} are invoked for their side
 effects and return \code{block_registry_entry} object(s) invisibly, while
 \code{unregister_blocks()} returns \code{NULL} (invisibly).
-Listing via \code{list_blocks()} returns a character vector and a list of
-\code{block_registry_entry} object(s) for \code{available_blocks()}. Block
+Listing via \code{list_blocks()} returns a character vector, and
+\code{available_blocks()} a data frame with a row for each class. Block
 construction via \code{create_block()} returns a newly instantiated \code{block}
 object, and the lookup \code{registry_id_from_block()} returns the registry id
 that a block's class gives, a string. A block's argument specification is
@@ -121,17 +121,37 @@ block's class, whether or not the block registry holds the class.
 
 Which block classes an app offers is the app's choice, and loading a package
 registers none.
-Each method of \code{\link[=serve]{serve()}} takes the packages that the app offers in
-\code{packages}, core always among them.
-As the app starts, R loads each, reads the block classes that its
-\code{inst/registry/blocks.yml} lists, which the \code{\link[=block_registration_roclet]{block_registration_roclet()}}
-writes, and fills the block registry with them.
-Core's own are narrowed by the blockr option \code{core_blocks}, which names the
-classes to offer, as \code{"head_block"}, or is \code{"all"}.
-A package that lists two constructors whose classes give one registry id
-stops the app.
+Each method of \code{\link[=serve]{serve()}} takes them in \code{block_classes}, which defaults to
+\code{available_blocks()}: a data frame with a row for each block class of each
+available package, with the class's package in \code{package} and its id in
+\code{id}, and its name, description and category beside them.
+A package is available where it is installed and depends on blockr.core, or
+where \code{pkgload::load_all()} loaded it, and it lists block classes in its
+\code{inst/registry/blocks.yml}, which the \code{\link[=block_registration_roclet]{block_registration_roclet()}} writes.
+Reading the files loads no package.
+A script narrows the rows with plain R, as
+\code{subset(available_blocks(), package != "blockr.ggplot")} offers every class
+but those of blockr.ggplot, or gives the path of a YAML file that lists
+packages and, for each, the ids of the classes to offer, all of them where
+it lists none:
+
+\if{html}{\out{<div class="sourceCode yaml">}}\preformatted{- blockr.core:
+  - dataset_block
+  - head_block
+- blockr.dplyr
+}\if{html}{\out{</div>}}
+
+R reads the file into the same rows, and a package that the file leaves out
+offers nothing.
+As the app starts, R loads the packages of the rows and fills the block
+registry with their classes, in place of the classes of packages that an
+earlier app of the process offered.
+A row whose package is not available, or whose class its package does not
+list, stops the app, naming the row, and so does a package that lists two
+constructors whose classes give one registry id.
 An app script registers the block classes that it defines itself, with
-\code{register_block()} or \code{register_blocks()}.
+\code{register_block()} or \code{register_blocks()}, which \code{block_classes} leaves as
+they are.
 
 An entry holds, beside the metadata, the block class, its constructor, its
 data inputs, its UI module and the JSON Schema of the block's state that the
@@ -160,10 +180,10 @@ either.
 Blocks can be registered (i.e. added to the registry) via \code{register_block()}
 with scalar-valued arguments and \code{register_blocks()}, where arguments may be
 vector-valued, while de-registration (or removal) is handled via
-\code{unregister_blocks()}. A listing of all available blocks can be created as
-\code{list_blocks()}, which will return registry IDs and \code{available_blocks()},
-which provides a set of (named) \code{block_registry_entry} objects. Finally,
-block construction via a registry ID is available as \code{create_block()}.
+\code{unregister_blocks()}. The registry IDs of the registered classes come from
+\code{list_blocks()}, while \code{available_blocks()} lists the block classes of the
+available packages, which an app may offer. Finally, block construction via
+a registry ID is available as \code{create_block()}.
 }
 \examples{
 new_identity_block <- block_constructor(

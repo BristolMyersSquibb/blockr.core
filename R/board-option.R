@@ -138,10 +138,10 @@ option_version <- function(id) {
 
 # The version of each board option that a method of `board_option_version()`
 # gives one, by ID, as R sends them in its reply to `hello`, from the
-# `packages` given and an app script (see `offered_method_classes()`).
+# `packages` given and an app script (see `method_classes()`).
 option_versions <- function(packages = NULL) {
 
-  classes <- offered_method_classes("board_option_version", packages)
+  classes <- method_classes("board_option_version", packages)
   classes <- grep("_option$", setdiff(classes, "board_option"), value = TRUE)
   ids <- sub("_option$", "", classes)
 

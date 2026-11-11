@@ -9,7 +9,7 @@ test_that("registry", {
   expect_s3_class(entry, "block_registry_entry")
   expect_identical(entry$id, "head_block")
   expect_true("head_block" %in% list_blocks())
-  expect_identical(available_blocks()[["head_block"]], entry)
+  expect_identical(get_registry_entry("head_block"), entry)
 
   expect_identical(entry$block_class, head_class)
   expect_identical(entry$constructor, new_class_head_block)
@@ -52,7 +52,7 @@ test_that("registry", {
     "block_registry_entry"
   )
 
-  expect_identical(available_blocks()[["head_block"]]$description, "Last rows")
+  expect_identical(get_registry_entry("head_block")$description, "Last rows")
 
   expect_error(
     register_block(function() NULL, "Head", "First rows"),
@@ -170,23 +170,38 @@ test_that("a package's constructors give one registry id each", {
   memo <- test_block_class("memo_block", expr = expr, ui = ui,
                            package = "blockr.pkg")
 
+  ctors <- list(
+    new_note_block = block_constructor(note),
+    new_memo_block = block_constructor(memo)
+  )
+
   expect_null(
     check_package_registry_ids(
-      list(new_note_block = block_constructor(note),
-           new_memo_block = block_constructor(memo)),
-      "blockr.pkg"
+      ctors,
+      "blockr.pkg",
+      c("note_block", "memo_block")
     )
   )
 
   expect_error(
     check_package_registry_ids(
-      list(new_note_block = block_constructor(note),
-           new_memo_block = block_constructor(memo),
-           new_text_block = block_constructor(again)),
-      "blockr.pkg"
+      c(ctors, list(new_text_block = block_constructor(again))),
+      "blockr.pkg",
+      c("note_block", "memo_block", "note_block")
     ),
     class = "package_blocks_invalid",
     regexp = "new_note_block and new_text_block.+blockr.pkg-note_block"
+  )
+
+  # The ids that the package lists are those of the classes
+  expect_error(
+    check_package_registry_ids(
+      ctors,
+      "blockr.pkg",
+      c("note_block", "other_block")
+    ),
+    class = "package_blocks_invalid",
+    regexp = "new_memo_block under another id"
   )
 })
 
@@ -302,7 +317,32 @@ test_that("loading core registers none of its block classes", {
   expect_identical(list_blocks(), character())
 })
 
-test_that("an app offers core's built-in blocks, as core_blocks narrows them", {
+test_that("available_blocks() lists the classes of the available packages", {
+
+  rows <- available_blocks()
+
+  expect_s3_class(rows, "data.frame")
+  expect_named(rows, c("package", "id", "name", "description", "category"))
+
+  core <- rows[rows[["package"]] == "blockr.core", ]
+
+  expect_setequal(
+    core[["id"]],
+    c("csv_block", "dataset_block", "filebrowser_block", "glue_block",
+      "head_block", "merge_block", "rbind_block", "scatter_block",
+      "subset_block", "upload_block")
+  )
+
+  head <- core[core[["id"]] == "head_block", ]
+
+  expect_identical(head[["name"]], "head/tail block")
+  expect_identical(head[["category"]], "transform")
+
+  # Every available package depends on core
+  expect_true(all(lgl_ply(unique(rows[["package"]]), depends_on_core)))
+})
+
+test_that("an app offers the block classes that `block_classes` gives", {
 
   local_declared(block_registry)
   unregister_blocks()
@@ -314,10 +354,10 @@ test_that("an app offers core's built-in blocks, as core_blocks narrows them", {
       "subset_block", "upload_block")
   )
 
-  expect_identical(fill_block_registry(), "blockr.core")
+  expect_identical(fill_block_registry(core_block_rows()), "blockr.core")
   expect_setequal(list_blocks(), ids)
 
-  entries <- available_blocks()[ids]
+  entries <- registry_entries()[ids]
 
   expect_identical(unique(chr_xtr(entries, "package")), "blockr.core")
 
@@ -344,56 +384,92 @@ test_that("an app offers core's built-in blocks, as core_blocks narrows them", {
   expect_identical(registry_id_from_block(new_fixed_block()),
                    "blockr.core-fixed_block")
 
-  # The blockr option core_blocks names the classes to offer
-  unregister_blocks()
-  withr::local_options(blockr.core_blocks = c("dataset_block", "head_block"))
+  # Rows narrow them, whatever else they hold, in place of the classes of
+  # packages that an earlier app offered, while a script's classes stay
+  register_block(new_class_head_block, "Head", "First rows")
 
-  fill_block_registry()
+  rows <- core_block_rows()
+  rows <- rows[rows[["id"]] %in% c("dataset_block", "head_block"), ]
 
+  expect_identical(fill_block_registry(rbind(rows, rows)), "blockr.core")
   expect_setequal(
     list_blocks(),
-    c("blockr.core-dataset_block", "blockr.core-head_block")
+    c("blockr.core-dataset_block", "blockr.core-head_block", "head_block")
   )
 
-  withr::local_options(blockr.core_blocks = "no_block")
+  # A YAML file lists packages, each with the ids of its classes to offer, or
+  # alone for all of them, and a package that it leaves out offers nothing
+  file <- withr::local_tempfile(fileext = ".yml")
 
-  expect_error(
-    fill_block_registry(),
-    "Package blockr.core declares no block constructor new_no_block.",
-    fixed = TRUE,
-    class = "package_blocks_invalid"
-  )
+  writeLines(c("- blockr.core:", "  - glue_block"), file)
+  fill_block_registry(file)
 
-  withr::local_options(blockr.core_blocks = c("head_block", "head_block"))
+  expect_setequal(list_blocks(), c("blockr.core-glue_block", "head_block"))
 
-  expect_error(fill_block_registry(), class = "package_blocks_invalid")
+  writeLines("- blockr.core", file)
+  fill_block_registry(file)
+
+  expect_setequal(list_blocks(), c(ids, "head_block"))
+
+  writeLines(character(), file)
+
+  expect_identical(fill_block_registry(file), character())
+  expect_identical(list_blocks(), "head_block")
 })
 
-test_that("an app offers the packages it names, each one installed", {
+test_that("a block class that no available package lists stops the app", {
 
   local_declared(block_registry)
 
-  # Core always among them, first
-  expect_identical(
-    fill_block_registry(c("utils", "blockr.core")),
-    c("blockr.core", "utils")
+  expect_error(
+    fill_block_registry(
+      data.frame(package = c("blockr.absent", "blockr.gone"), id = "x_block")
+    ),
+    paste0(
+      "Packages blockr.absent and blockr.gone, whose block classes the app ",
+      "offers, are not available (see `available_blocks()`)."
+    ),
+    fixed = TRUE,
+    class = "block_classes_unavailable"
   )
 
   expect_error(
-    fill_block_registry(c("blockr.absent", "utils", "blockr.gone")),
+    fill_block_registry(
+      data.frame(package = "blockr.core", id = c("no_block", "head_block"))
+    ),
     paste0(
-      "Packages blockr.absent and blockr.gone, which the app offers in ",
-      "`packages`, are not installed."
+      "The app offers block class no_block of blockr.core, which its package ",
+      "does not list."
     ),
     fixed = TRUE,
-    class = "serve_packages_missing"
+    class = "block_classes_unknown"
   )
 
-  for (packages in list(NULL, NA_character_, "", 1L)) {
-    expect_error(
-      fill_block_registry(packages),
-      class = "serve_packages_invalid"
-    )
+  file <- withr::local_tempfile(fileext = ".yml")
+
+  writeLines(c("- blockr.core", "- blockr.absent"), file)
+  expect_error(fill_block_registry(file), class = "block_classes_unavailable")
+
+  writeLines(c("- blockr.core:", "  - no_block"), file)
+  expect_error(fill_block_registry(file), class = "block_classes_unknown")
+
+  # A file that lists no packages, as a map, and one that holds no YAML
+  for (lines in list("blockr.core: head_block", "- [")) {
+    writeLines(lines, file)
+    expect_error(fill_block_registry(file), class = "block_classes_invalid")
+  }
+
+  # A string is a path, so that a package's name gives no file
+  invalid <- list(
+    NULL, "blockr.core", NA_character_, 1L,
+    list(package = "blockr.core", id = "head_block"),
+    data.frame(package = "blockr.core"),
+    data.frame(package = NA_character_, id = "head_block"),
+    data.frame(package = "blockr.core", id = 1L)
+  )
+
+  for (x in invalid) {
+    expect_error(fill_block_registry(x), class = "block_classes_invalid")
   }
 })
 
@@ -402,11 +478,37 @@ test_that("an app offers the classes of a package that load_all() loads", {
   local_declared(block_registry)
   local_load_all_package()
 
-  expect_identical(
-    fill_block_registry("regprobe"),
-    c("blockr.core", "regprobe")
-  )
+  rows <- available_blocks()
+  probe <- rows[rows[["package"]] == "regprobe", ]
+
+  expect_identical(probe[["id"]], "probe_block")
+  expect_identical(probe[["name"]], "Probe")
+
+  expect_identical(fill_block_registry(probe), "regprobe")
   expect_identical(get_registry_entry("regprobe-probe_block")$name, "Probe")
+})
+
+test_that("a package's `blocks.yml` gives the id of each class it lists", {
+
+  local_declared(block_registry)
+
+  file <- file.path(local_load_all_package(), "inst", "registry", "blocks.yml")
+  entry <- c("  name: Probe", "  description: Probes", "  category: input")
+
+  # An id that the class does not give, as the class changed since the roclet
+  # wrote the file
+  writeLines(c("new_probe_block:", "  id: other_block", entry), file)
+
+  expect_error(
+    fill_block_registry(data.frame(package = "regprobe", id = "other_block")),
+    "Package regprobe lists block constructor new_probe_block under another ",
+    class = "package_blocks_invalid"
+  )
+
+  # None, as the roclet wrote none before it wrote ids
+  writeLines(c("new_probe_block:", entry), file)
+
+  expect_error(available_blocks(), class = "package_blocks_invalid")
 })
 
 test_that("YAML examples of an array type are lists", {
