@@ -15,14 +15,14 @@ export type Role = "frontend" | "storage";
 export const ROLES: readonly Role[] = ["frontend", "storage"];
 
 // The plugins of the board in each role, by the ids of the plugins, of the
-// classes that `classOf` gives.
+// classes that `registeredClass` gives.
 export function inRole(
   plugins: Readonly<Record<PluginId, Plugin>>,
-  classOf: (id: PluginClassId) => PluginClass | undefined,
+  registeredClass: (id: PluginClassId) => PluginClass | undefined,
   role: Role,
 ): PluginId[] {
   return Object.entries(plugins)
-    .filter(([, plugin]) => classOf(plugin.class)?.[role] !== undefined)
+    .filter(([, plugin]) => registeredClass(plugin.class)?.[role] !== undefined)
     .map(([id]) => id);
 }
 
@@ -38,7 +38,7 @@ export function defaultState(def: PluginClass): Json {
 export function keptPlugins(
   board: Readonly<Record<PluginId, unknown>>,
   opening: Readonly<Record<PluginId, Plugin>>,
-  classOf: (id: PluginClassId) => PluginClass | undefined,
+  registeredClass: (id: PluginClassId) => PluginClass | undefined,
 ): Record<PluginId, Plugin> {
   return Object.fromEntries(
     Object.entries(board).filter(
@@ -46,7 +46,7 @@ export function keptPlugins(
         isObject(entry[1]) &&
         typeof entry[1].class === "string" &&
         own(opening, entry[0])?.class === entry[1].class &&
-        classOf(entry[1].class) !== undefined,
+        registeredClass(entry[1].class) !== undefined,
     ),
   );
 }
@@ -59,13 +59,13 @@ export function keptPlugins(
 export function appPlugins(
   board: Readonly<Record<PluginId, unknown>>,
   opening: Readonly<Record<PluginId, Plugin>>,
-  classOf: (id: PluginClassId) => PluginClass | undefined,
+  registeredClass: (id: PluginClassId) => PluginClass | undefined,
 ): Record<PluginId, Plugin> {
-  const kept = keptPlugins(board, opening, classOf);
+  const kept = keptPlugins(board, opening, registeredClass);
   const plugins: Record<PluginId, Plugin> = {};
 
   for (const [id, plugin] of Object.entries(opening)) {
-    const def = classOf(plugin.class);
+    const def = registeredClass(plugin.class);
     if (def === undefined) continue;
     plugins[id] = own(kept, id) ?? { class: plugin.class, name: plugin.name, state: defaultState(def) };
   }

@@ -37,7 +37,7 @@ export interface Plan {
     readonly idleSince: number | undefined;
     readonly wakeAt: number | undefined;
 }
-export declare function planOf(input: {
+export declare function evaluationPlan(input: {
     readonly graph: Graph;
     readonly revisions: ReadonlyMap<BlockId, number>;
     readonly statuses: ReadonlyMap<BlockId, BlockStatus>;

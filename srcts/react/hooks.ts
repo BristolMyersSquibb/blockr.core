@@ -12,7 +12,7 @@ import type { Condition } from "../protocol/index.ts";
 import type { OptionId } from "../types/board.ts";
 import type { BlockHost, OptionHost, OutputHost, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
-import { messageOf, own } from "../util/index.ts";
+import { errorMessage, own } from "../util/index.ts";
 
 // What an output host holds at one moment.
 export interface OutputSnapshot {
@@ -32,11 +32,11 @@ const snapshots = new WeakMap<OutputHost, OutputSnapshot>();
 // again as the host announces "output".
 export function useOutput(host: OutputHost): OutputSnapshot {
   const subscribe = useCallback((notify: () => void) => host.on("output", notify), [host]);
-  const read = useCallback(() => snapshotOf(host), [host]);
+  const read = useCallback(() => outputSnapshot(host), [host]);
   return useSyncExternalStore(subscribe, read);
 }
 
-function snapshotOf(host: OutputHost): OutputSnapshot {
+function outputSnapshot(host: OutputHost): OutputSnapshot {
   const next: OutputSnapshot = {
     output: host.output(),
     body: host.body(),
@@ -81,7 +81,7 @@ export function useValue(host: BlockHost | OptionHost, key?: string): Bound {
   useLayoutEffect(() => {
     const bound = bind(host as BlockHost, name, setValue, {
       settled: (refused) => {
-        setError(refused === null ? null : messageOf(refused));
+        setError(refused === null ? null : errorMessage(refused));
       },
     });
     binding.current = bound;
@@ -155,7 +155,7 @@ export function useRequest(host: BlockHost | OptionHost, name: string, options: 
         setAnswered({ answer, error: null, loading: false });
       },
       failed: (failure) => {
-        setAnswered((last) => ({ answer: last.answer, error: messageOf(failure), loading: false }));
+        setAnswered((last) => ({ answer: last.answer, error: errorMessage(failure), loading: false }));
       },
     });
     return () => {

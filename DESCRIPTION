@@ -71,6 +71,7 @@ Suggests:
     typedjson,
     spelling,
     chromote,
+    shinytest2,
     callr,
     httpuv,
     thematic,

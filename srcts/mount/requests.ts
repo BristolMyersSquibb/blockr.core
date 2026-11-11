@@ -89,7 +89,7 @@ export async function blockRequest(
   const what = `The request "${name}" of block "${block}"`;
 
   for (let attempt = 1; ; attempt++) {
-    const reads = await readsOf(deps, block, entry, name, spec.inputs, opts.signal);
+    const reads = await evaluateReads(deps, block, entry, name, spec.inputs, opts.signal);
     if (!deps.bound()) throw deps.unboundError();
 
     // The state and the board options, as the board holds them once the
@@ -156,7 +156,7 @@ export async function blockRequest(
 // input it reads has no link or could not be evaluated. A request that names
 // `...` reads each input of a variadic block that is none of its class's
 // inputs of fixed names.
-async function readsOf(
+async function evaluateReads(
   deps: RequestDeps,
   block: BlockId,
   entry: RegistryEntry,

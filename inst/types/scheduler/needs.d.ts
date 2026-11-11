@@ -4,4 +4,4 @@ export interface Need {
     readonly blocks: Iterable<BlockId>;
     readonly priority: number;
 }
-export declare function needsOf(graph: Graph, needs: Iterable<Need>): Map<BlockId, number>;
+export declare function neededBlocks(graph: Graph, needs: Iterable<Need>): Map<BlockId, number>;

@@ -18,7 +18,7 @@ import type {
 import type { CoreApi } from "../types/core-api.ts";
 import type { OptionModule } from "../types/hosts.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
-import { compile, isObject, packageOf } from "../util/index.ts";
+import { compile, isObject, packageFromId } from "../util/index.ts";
 import type { Validate } from "../util/index.ts";
 import type { Delta, Patch } from "./delta.ts";
 
@@ -299,6 +299,6 @@ export function createRegistrations(): Registrations {
 // Whether an id is named as R names a plugin class, `{pkg}-{name}_plugin`:
 // a package name, a dash, and a name that ends in `_plugin`.
 export function isPluginClassId(id: string): boolean {
-  const pkg = packageOf(id);
+  const pkg = packageFromId(id);
   return pkg !== null && /^.+_plugin$/.test(id.slice(pkg.length + 1));
 }

@@ -9,21 +9,21 @@ export type Item = { readonly stack: StackId; readonly blocks: readonly BlockId[
 
 // The items that the frontend draws, top to bottom. A stack without blocks
 // comes last, so that the user still sees it and can fill or remove it.
-export function itemsOf(board: Pick<Board, "blocks" | "stacks">): Item[] {
-  const stackOf = new Map<BlockId, StackId>();
+export function layoutItems(board: Pick<Board, "blocks" | "stacks">): Item[] {
+  const stackByBlock = new Map<BlockId, StackId>();
   for (const [id, stack] of Object.entries(board.stacks)) {
-    for (const block of stack.blocks) stackOf.set(block, id);
+    for (const block of stack.blocks) stackByBlock.set(block, id);
   }
 
   const items: Item[] = [];
   const placed = new Set<StackId>();
   for (const block of Object.keys(board.blocks)) {
-    const stack = stackOf.get(block);
+    const stack = stackByBlock.get(block);
     if (stack === undefined) {
       items.push({ block });
     } else if (!placed.has(stack)) {
       placed.add(stack);
-      items.push({ stack, blocks: blocksOf(board, stack) });
+      items.push({ stack, blocks: stackBlocks(board, stack) });
     }
   }
   for (const stack of Object.keys(board.stacks)) {
@@ -32,6 +32,6 @@ export function itemsOf(board: Pick<Board, "blocks" | "stacks">): Item[] {
   return items;
 }
 
-function blocksOf(board: Pick<Board, "blocks" | "stacks">, stack: StackId): BlockId[] {
+function stackBlocks(board: Pick<Board, "blocks" | "stacks">, stack: StackId): BlockId[] {
   return (board.stacks[stack]?.blocks ?? []).filter((block) => Object.hasOwn(board.blocks, block));
 }

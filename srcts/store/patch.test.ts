@@ -5,7 +5,7 @@
 
 import { describe, expect, test } from "vitest";
 import type { Patch } from "./delta.ts";
-import { applyPatch, malformed, overlap, pathOf, pointer } from "./patch.ts";
+import { applyPatch, malformed, overlap, pathFromSegments, segmentsFromPath } from "./patch.ts";
 
 const board = {
   views: { main: { title: "Main", panels: ["a", "b"] } },
@@ -14,9 +14,9 @@ const board = {
 
 // The board after the patch, with the patch that takes it back, or the failure.
 function apply(patch: Patch, on: Readonly<Record<string, unknown>> = board) {
-  const parts = pointer(patch.path);
-  if (parts === undefined) throw new Error(`No pointer: ${patch.path}`);
-  return applyPatch(on, patch, parts);
+  const segments = segmentsFromPath(patch.path);
+  if (segments === undefined) throw new Error(`No pointer: ${patch.path}`);
+  return applyPatch(on, patch, segments);
 }
 
 // Applies the patch and then its inverse, which gives the board back.
@@ -31,16 +31,16 @@ function roundTrip(patch: Patch): Readonly<Record<string, unknown>> {
 
 describe("pointers", () => {
   test("read and write the parts of a path, escaping / and ~", () => {
-    expect(pointer("/views/main/panels/0")).toEqual(["views", "main", "panels", "0"]);
-    expect(pointer("/plugins/blockr.dag-dag/a~1b~0c")).toEqual(["plugins", "blockr.dag-dag", "a/b~c"]);
-    expect(pathOf(["plugins", "a/b~c"])).toBe("/plugins/a~1b~0c");
-    expect(pointer("/views/")).toEqual(["views", ""]);
+    expect(segmentsFromPath("/views/main/panels/0")).toEqual(["views", "main", "panels", "0"]);
+    expect(segmentsFromPath("/plugins/blockr.dag-dag/a~1b~0c")).toEqual(["plugins", "blockr.dag-dag", "a/b~c"]);
+    expect(pathFromSegments(["plugins", "a/b~c"])).toBe("/plugins/a~1b~0c");
+    expect(segmentsFromPath("/views/")).toEqual(["views", ""]);
   });
 
-  test("are none for a path that does not start at the board's top, or escapes nothing", () => {
-    expect(pointer("")).toBeUndefined();
-    expect(pointer("views/main")).toBeUndefined();
-    expect(pointer("/views/a~2")).toBeUndefined();
+  test("are none for a path that does not start at the board's root, or escapes nothing", () => {
+    expect(segmentsFromPath("")).toBeUndefined();
+    expect(segmentsFromPath("views/main")).toBeUndefined();
+    expect(segmentsFromPath("/views/a~2")).toBeUndefined();
   });
 
   test("overlap where one path lies at or under the other", () => {
@@ -167,7 +167,7 @@ describe("the shape of a patch", () => {
       'holds "from", which a patch does not keep',
     ]);
     expect(malformed({ op: "replace", path: "views" })).toEqual([
-      'has the path "views", which is no JSON Pointer below the board\'s top',
+      'has the path "views", which is no JSON Pointer below the board\'s root',
       "has no value",
     ]);
   });

@@ -288,7 +288,7 @@
   Once the frontend's `render()` has returned, core calls the `start` of each plugin's class, in the order of the board's plugins, and as the next board opens it aborts the plugin's signal and runs the cleanup that `start` returned.
   As a board opens, core adds to it the board options that the classes of its plugins name in `options`, and those of core's basic frontend where it draws the board, each with its default where the board lacks it, so that the store no longer writes `show_conditions` and `dark_mode` into every board.
   Where such a board option does not go onto the board, nothing that requires it draws or runs: the element of the frontend or of the plugin's UI shows why, and core calls no `start` of the plugin and reports why.
-  The `plugins` of `CoreApi` gain `running()`, the open board's plugins, `classOf()`, the class of one of them, and `storage()`, the storage of the board's storage plugin, or that of core's own, which saves a board as a download and opens an upload, where the board holds none.
+  The `plugins` of `CoreApi` gain `running()`, the open board's plugins, `pluginClass()`, the class of one of them, and `storage()`, the storage of the board's storage plugin, or that of core's own, which saves a board as a download and opens an upload, where the board holds none.
   Beside them, `CoreApi` gains `notifications`, which hands each note that a plugin sends to the frontend, and `focus`, the block that has focus, which goes back to none where that block leaves the board.
   The `CoreApi` for tests runs the board's plugins as the page does, and serves a module that a test gives by its id, such as a plugin's UI (#506).
 * Core's basic frontend saves and opens a board through `core.plugins.storage()`: the board's storage plugin, or core's own, which saves the board as a download and opens an upload, where the board holds none.
@@ -356,6 +356,16 @@
   Once its choices are known, a `Select` shows a value that they lack as missing, as `wt (not available)`, and marks itself invalid, and a `Checklist` marks such a string the same way while the user can still clear it.
   Neither submits anything, so the state stays as the user left it.
   The scatter block fails where its data lacks one of its columns, rather than draw `x` against the row index where only `y` is missing (#542).
+* In Shiny's test mode, as the package shinytest2 starts an app, the app that `serve()` returns gives end-to-end tests what they check, which `blockr_test_exports()` gave until now.
+  R exports each block's latest result through `exportTestValues()` as `result`: a list by block ID for a board, and the block's result for a block that `serve()` serves alone.
+  The page puts `blockrTest` on `window`, whose `board()` gives a copy of the board that the client holds, and whose `statuses()` gives each block's status by block ID, for `AppDriver$get_js()` to read (#443).
+* The cards of core's basic frontend show their block's status as the card of a block that `serve()` serves alone does, in place of the summary below the output and the list of conditions.
+  A footer, one centered line under the output, shows a ready block's summary, or why a waiting block waits, and a pill for each severity of the conditions of R's reply that the board option `show_conditions` names.
+  The pill of the errors reads `error`, and those of the warnings and the messages count them.
+  Each pill opens and closes the banners of its conditions below the output, each condition in full, in the color of its severity and in the order R raised them.
+  The pill of the errors is open from the start, so that a failed block shows its error at once.
+  A card grays out its output alone while its block is not ready, so that the pills keep the colors of their severities.
+  Neither kind of card leaves room for the output until the block is first ready, so that a block that fails at once shows its footer and its banners alone, as a waiting block does, rather than at the foot of an empty box (#547).
 
 # blockr.core 0.1.4
 

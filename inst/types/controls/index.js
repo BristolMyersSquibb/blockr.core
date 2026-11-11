@@ -7,7 +7,7 @@ import { createRoot } from "react-dom/client";
 function own(record, key) {
   return Object.hasOwn(record, key) ? record[key] : void 0;
 }
-function messageOf(error) {
+function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
 function isObject(x) {
@@ -28,7 +28,7 @@ function jsonEqual(a, b) {
 // srcts/binding/binding.ts
 var PAUSE = 500;
 function bind(host, key, show, options = {}) {
-  const source = sourceOf(host);
+  const source = createSource(host);
   source.check(key);
   let shown;
   let typed;
@@ -93,7 +93,7 @@ function bind(host, key, show, options = {}) {
   };
 }
 function follow(host, name, options) {
-  const source = sourceOf(host);
+  const source = createSource(host);
   let asked;
   let latest;
   let released = false;
@@ -135,7 +135,7 @@ function follow(host, name, options) {
     }
   };
 }
-function sourceOf(host) {
+function createSource(host) {
   if ("option" in host) {
     const check = (key) => {
       if (key !== host.option) {
@@ -445,7 +445,7 @@ function controls(host, signal) {
       },
       {
         settled: (refused) => {
-          refusal = refused === null ? null : messageOf(refused);
+          refusal = refused === null ? null : errorMessage(refused);
           redraw();
         }
       }
@@ -468,7 +468,7 @@ function controls(host, signal) {
     );
   }
   function alert(next) {
-    error = next === null ? null : messageOf(next);
+    error = next === null ? null : errorMessage(next);
     redraw();
   }
   function get(key) {

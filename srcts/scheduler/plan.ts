@@ -62,7 +62,7 @@ export interface Plan {
   readonly wakeAt: number | undefined;
 }
 
-export function planOf(input: {
+export function evaluationPlan(input: {
   readonly graph: Graph;
   readonly revisions: ReadonlyMap<BlockId, number>;
   readonly statuses: ReadonlyMap<BlockId, BlockStatus>;
@@ -97,7 +97,7 @@ export function planOf(input: {
   // The evaluation priority an evaluation has now. It is that of what needs
   // its block, or -1 for evaluation in the background. It is undefined where
   // nothing needs the block any more.
-  const priorityOf = (evaluation: Sent): number | undefined =>
+  const evaluationPriority = (evaluation: Sent): number | undefined =>
     evaluation.oneTime !== undefined
       ? evaluation.oneTime.priority
       : (needs.get(evaluation.block) ?? (evaluation.background ? -1 : undefined));
@@ -134,7 +134,7 @@ export function planOf(input: {
     }
     for (const other of sent) {
       if (other.id <= evaluation.id) continue;
-      if ((priorityOf(other) ?? -Infinity) > priority) {
+      if ((evaluationPriority(other) ?? -Infinity) > priority) {
         since = Math.min(since ?? other.at, other.at);
       }
     }
@@ -175,7 +175,7 @@ export function planOf(input: {
       drop(evaluation);
       continue;
     }
-    const priority = priorityOf(evaluation);
+    const priority = evaluationPriority(evaluation);
     if (priority === undefined) {
       if (evaluation.id !== oldest) drop(evaluation);
       continue;
@@ -240,7 +240,7 @@ export function planOf(input: {
   // nothing needs, one at a time, at -1.
   const busy =
     asked.length > 0 ||
-    sent.some((evaluation) => (priorityOf(evaluation) ?? 0) >= 0) ||
+    sent.some((evaluation) => (evaluationPriority(evaluation) ?? 0) >= 0) ||
     queued.some((item) => item.priority >= 0);
 
   let idleSince = input.idleSince;

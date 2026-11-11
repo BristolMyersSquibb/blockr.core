@@ -6,7 +6,7 @@ import type { Board } from "../types/board.ts";
 
 // A board of the blocks given, each by id with its class's name, and of the
 // links given, each by id as [from, to, input].
-export function boardOf(
+export function createBoard(
   blocks: Readonly<Record<string, string>>,
   links: Readonly<Record<string, readonly [string, string, string]>> = {},
 ): Board {
@@ -32,7 +32,7 @@ export function boardOf(
 // - The dataset a feeds the head b, the subset d and the scatter f.
 // - The merge c takes a as x and b as y.
 // - The variadic rbind e binds b and d, in that order.
-export const sample: Board = boardOf(
+export const sample: Board = createBoard(
   {
     a: "dataset_block",
     b: "head_block",

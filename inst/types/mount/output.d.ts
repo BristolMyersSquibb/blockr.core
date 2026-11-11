@@ -53,7 +53,7 @@ export interface OutputDeps {
     readonly keepOptions: (ids: readonly OptionId[], by: string, failed: (failures: readonly string[]) => void) => {
         readonly stop: () => void;
     };
-    readonly defaultsOf: (ids: readonly OptionId[], by: string) => Promise<Readonly<Record<OptionId, Json>>>;
+    readonly resolveDefaults: (ids: readonly OptionId[], by: string) => Promise<Readonly<Record<OptionId, Json>>>;
     readonly emit: (event: OutputEvent) => void;
 }
 export declare function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): () => void;

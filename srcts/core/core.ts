@@ -142,7 +142,7 @@ export function createCore(parts: CoreParts): Core {
     plugins: {
       register: (def) => store.plugins.register(def),
       running: () => plugins.running(),
-      classOf: (plugin) => plugins.classOf(plugin),
+      pluginClass: (plugin) => plugins.pluginClass(plugin),
       storage: () => plugins.storage(),
     },
     lock: parts.lock,

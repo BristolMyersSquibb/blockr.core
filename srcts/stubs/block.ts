@@ -14,7 +14,7 @@ import type { BlockId, OptionId, RegistryId } from "../types/board.ts";
 import type { BlockContext, BlockHost, HostRequestOpts, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import { asError, isObject, jsonEqual, own } from "../util/index.ts";
-import { announcer, contextOf } from "./util.ts";
+import { announcer, stubBlockContext } from "./util.ts";
 
 // A block class's fixture file: the states that a block of the class may
 // hold, each as the block holds it, and what the class's requests answered in
@@ -70,7 +70,7 @@ export function stubBlockHost<S extends State = State>(
   options: StubBlockHostOptions<S> = {},
 ): StubBlockHost<S> {
   let state = (options.state ?? fixture.states[0] ?? {}) as S;
-  let context = contextOf(options.context);
+  let context = stubBlockContext(options.context);
   const submitted: S[] = [];
   const requested: { name: string; args: Readonly<Record<string, Json>>; file?: File }[] = [];
   const evaluated: Record<string, Json>[] = [];
@@ -149,7 +149,7 @@ export function stubBlockHost<S extends State = State>(
       on.announce("state");
     },
     setContext(changes) {
-      context = contextOf({ ...context, ...changes });
+      context = stubBlockContext({ ...context, ...changes });
       on.announce("context");
     },
   };

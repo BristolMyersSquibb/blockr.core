@@ -57,7 +57,7 @@ export interface Next {
 // without parameters leaves out the blocks that the board lacks, and rejects
 // where that leaves none. One with parameters rejects where it names no block,
 // a block that the board lacks, or a block that reads waiting.
-export function oneTimeOf(
+export function createOneTime(
   blocks: readonly BlockId[],
   params: Record<string, Json> | undefined,
   priority: number,
@@ -220,7 +220,7 @@ export function neededBy(oneTimes: ReadonlyMap<number, OneTime>, graph: Graph): 
 
 // The evaluations of blocks that one-time evaluations with parameters wait for
 // and that are not sent yet.
-export function pendingOf(oneTimes: ReadonlyMap<number, OneTime>): Pending[] {
+export function pendingEvaluations(oneTimes: ReadonlyMap<number, OneTime>): Pending[] {
   const pending: Pending[] = [];
   for (const [id, oneTime] of oneTimes) {
     if (!("params" in oneTime)) continue;

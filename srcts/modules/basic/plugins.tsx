@@ -11,15 +11,16 @@
 
 import { useCallback } from "react";
 import type { ReactElement } from "react";
+import { Mounted } from "../../card/index.ts";
 import type { Plugin, PluginId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import { useFrontEnd } from "./context.ts";
-import { classes, Mounted } from "./ui.tsx";
+import { classes } from "./ui.tsx";
 
 // The plugins that the frontend shows, in the order of the board's plugins:
 // those that run whose class has a `ui`.
 export function placed(core: Pick<CoreApi, "plugins">): readonly (readonly [PluginId, Plugin])[] {
-  return Object.entries(core.plugins.running()).filter(([id]) => core.plugins.classOf(id).ui !== undefined);
+  return Object.entries(core.plugins.running()).filter(([id]) => core.plugins.pluginClass(id).ui !== undefined);
 }
 
 // The section of each plugin that the frontend shows, beside the board where

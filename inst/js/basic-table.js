@@ -7,7 +7,7 @@ var NUMBERS = /* @__PURE__ */ new Set(["numeric", "integer"]);
 function isNumber(column) {
   return NUMBERS.has(column.class);
 }
-function pageOf(table, params, nRows) {
+function tablePage(table, params, nRows) {
   const rows = table.rows.length;
   const size = params.page_size ?? (nRows === void 0 ? Math.max(rows, 1) : asCount(nRows));
   const page = params.page ?? 1;
@@ -35,12 +35,12 @@ function paramsFor(page, sort, params) {
   const asked = {};
   if (page > 1) asked.page = page;
   if (params.page_size !== void 0) asked.page_size = params.page_size;
-  if (sort !== void 0) asked.sort = sortOf(sort.column, sort.desc === true);
+  if (sort !== void 0) asked.sort = createSort(sort.column, sort.desc === true);
   return asked;
 }
 function nextSort(sort, column) {
-  if (sort?.column !== column) return sortOf(column, false);
-  return sort.desc === true ? void 0 : sortOf(column, true);
+  if (sort?.column !== column) return createSort(column, false);
+  return sort.desc === true ? void 0 : createSort(column, true);
 }
 function sortedColumn(table, sort) {
   return sort === void 0 ? -1 : table.columns.findIndex((column) => column.name === sort.column);
@@ -55,7 +55,7 @@ function cellText(value) {
   if (typeof value === "boolean") return value ? "TRUE" : "FALSE";
   return typeof value === "object" ? JSON.stringify(value) : String(value);
 }
-function sortOf(column, desc) {
+function createSort(column, desc) {
   return desc ? { column, desc: true } : { column };
 }
 function count(n) {
@@ -71,7 +71,7 @@ import { jsx, jsxs } from "react/jsx-runtime";
 var api = 1;
 var basic_table_default = outputRenderer(Table, { options: ["n_rows"] });
 function Table({ output, params, options, error, host }) {
-  const page = pageOf(output, params, options.n_rows);
+  const page = tablePage(output, params, options.n_rows);
   const sorted = sortedColumn(output, params.sort);
   const ask = (to, sort) => {
     host.setParams(paramsFor(to, sort, params));

@@ -14,7 +14,7 @@ export interface Need {
 // The blocks needed, with everything upstream of them. Each block takes the
 // highest evaluation priority of anything that needs it: itself or a block
 // downstream of it. Blocks that the board lacks are passed over.
-export function needsOf(graph: Graph, needs: Iterable<Need>): Map<BlockId, number> {
+export function neededBlocks(graph: Graph, needs: Iterable<Need>): Map<BlockId, number> {
   const onBoard = new Set(graph.order);
   const found = new Map<BlockId, number>();
   const raise = (id: BlockId, priority: number) => {

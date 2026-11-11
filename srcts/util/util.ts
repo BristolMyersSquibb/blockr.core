@@ -13,7 +13,7 @@ export function own<T>(
 }
 
 // What an error says, without the name of its class.
-export function messageOf(error: unknown): string {
+export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
@@ -134,7 +134,7 @@ export function pathText(path: readonly string[]): string {
 // The package that an id names, "blockr.dag" for "blockr.dag-dag" or
 // "blockr.core-head_block", or null where it names none, as a block class
 // defined outside a package does.
-export function packageOf(id: string): string | null {
+export function packageFromId(id: string): string | null {
   const at = id.indexOf("-");
   if (at < 0) return null;
   const pkg = id.slice(0, at);

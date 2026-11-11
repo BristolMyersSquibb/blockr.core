@@ -18,7 +18,7 @@ export const READY: BlockStatus = Object.freeze({
 
 // A block's context, a ready block named "Block" with no linked inputs and no
 // board options, but for what is given.
-export function contextOf(given: Partial<BlockContext> = {}): BlockContext {
+export function stubBlockContext(given: Partial<BlockContext> = {}): BlockContext {
   return Object.freeze({
     name: given.name ?? "Block",
     status: given.status ?? READY,

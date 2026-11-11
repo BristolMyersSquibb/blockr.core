@@ -24,7 +24,7 @@ function sample(i: number) {
   return found;
 }
 
-function outputOf(i: number): Json {
+function sampleOutput(i: number): Json {
   return sample(i).output as unknown as Json;
 }
 
@@ -42,7 +42,7 @@ const error: Condition = {
 async function mounted(i: number, options: StubOutputHostOptions & { waiting?: boolean } = {}) {
   const { params, options: values } = sample(i);
   const host = stubOutputHost({
-    output: outputOf(i),
+    output: sampleOutput(i),
     params,
     options: values,
     fixtures: fixtures as unknown as OutputFixtures,
@@ -232,7 +232,7 @@ describe("sorting", () => {
       species.querySelector("button")?.click();
     });
     await step(() => {
-      table.host.setOutput(outputOf(0), null, { sort: { column: "Species" } });
+      table.host.setOutput(sampleOutput(0), null, { sort: { column: "Species" } });
     });
     expect(species.getAttribute("aria-sort")).toBe("ascending");
     expect(species.textContent).toContain("↑");
@@ -241,7 +241,7 @@ describe("sorting", () => {
       species.querySelector("button")?.click();
     });
     await step(() => {
-      table.host.setOutput(outputOf(0), null, { sort: { column: "Species", desc: true } });
+      table.host.setOutput(sampleOutput(0), null, { sort: { column: "Species", desc: true } });
     });
     expect(species.getAttribute("aria-sort")).toBe("descending");
     expect(species.textContent).toContain("↓");
@@ -260,7 +260,7 @@ describe("sorting", () => {
     expect(table.header("Wind").getAttribute("aria-sort")).toBe("none");
 
     await step(() => {
-      table.host.setOutput(outputOf(1), null, { page: 3, sort: { column: "Wind" } });
+      table.host.setOutput(sampleOutput(1), null, { page: 3, sort: { column: "Wind" } });
     });
 
     expect(table.header("Ozone")).toBe(ozone);
@@ -283,7 +283,7 @@ describe("while core asks R for an output", () => {
     expect(table.el.querySelector("table")?.closest(".bc\\:opacity-60")).not.toBeNull();
 
     await step(() => {
-      table.host.setOutput(outputOf(0), null, { page: 2 });
+      table.host.setOutput(sampleOutput(0), null, { page: 2 });
     });
     expect(busy?.getAttribute("aria-busy")).toBe("false");
     expect(table.el.querySelector("table")?.closest(".bc\\:opacity-60")).toBeNull();
@@ -337,7 +337,7 @@ test("leaves its element empty once unmounted, and draws nothing more", async ()
     table.unmount();
   });
   await step(() => {
-    table.host.setOutput(outputOf(2));
+    table.host.setOutput(sampleOutput(2));
   });
   expect(table.el.childNodes).toHaveLength(0);
 });

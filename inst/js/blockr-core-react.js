@@ -6,7 +6,7 @@ import { bind, follow } from "@blockr/core/binding";
 function own(record, key) {
   return Object.hasOwn(record, key) ? record[key] : void 0;
 }
-function messageOf(error) {
+function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
 function report(error) {
@@ -19,10 +19,10 @@ function report(error) {
 var snapshots = /* @__PURE__ */ new WeakMap();
 function useOutput(host) {
   const subscribe = useCallback((notify) => host.on("output", notify), [host]);
-  const read = useCallback(() => snapshotOf(host), [host]);
+  const read = useCallback(() => outputSnapshot(host), [host]);
   return useSyncExternalStore(subscribe, read);
 }
-function snapshotOf(host) {
+function outputSnapshot(host) {
   const next = {
     output: host.output(),
     body: host.body(),
@@ -46,7 +46,7 @@ function useValue(host, key) {
   useLayoutEffect(() => {
     const bound = bind(host, name, setValue, {
       settled: (refused) => {
-        setError(refused === null ? null : messageOf(refused));
+        setError(refused === null ? null : errorMessage(refused));
       }
     });
     binding.current = bound;
@@ -86,7 +86,7 @@ function useRequest(host, name, options = {}) {
         setAnswered({ answer, error: null, loading: false });
       },
       failed: (failure) => {
-        setAnswered((last) => ({ answer: last.answer, error: messageOf(failure), loading: false }));
+        setAnswered((last) => ({ answer: last.answer, error: errorMessage(failure), loading: false }));
       }
     });
     return () => {
@@ -162,7 +162,7 @@ function Alert({ message }) {
 var Boundary = class extends Component {
   state = { failed: null };
   static getDerivedStateFromError(error) {
-    return { failed: messageOf(error) };
+    return { failed: errorMessage(error) };
   }
   componentDidCatch(error) {
     report(error);

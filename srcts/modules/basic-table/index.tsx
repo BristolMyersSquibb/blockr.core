@@ -19,12 +19,12 @@ import {
   cellText,
   isNumber,
   nextSort,
-  pageOf,
   pageText,
   paramsFor,
   retry,
   rowsText,
   sortedColumn,
+  tablePage,
 } from "./table.ts";
 import type { Page, Sort } from "./table.ts";
 
@@ -33,7 +33,7 @@ export const api = 1;
 export default outputRenderer<TableOutput, TableParams>(Table, { options: ["n_rows"] });
 
 function Table({ output, params, options, error, host }: OutputProps<TableOutput, TableParams>): ReactElement {
-  const page = pageOf(output, params, options.n_rows);
+  const page = tablePage(output, params, options.n_rows);
   const sorted = sortedColumn(output, params.sort);
   const ask = (to: number, sort: Sort | undefined): void => {
     host.setParams(paramsFor(to, sort, params));

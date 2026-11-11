@@ -25,12 +25,12 @@ import type { HelloReply } from "../protocol/index.ts";
 import type { Board, JsonBoard, OptionId, Plugin, PluginId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import {
+  errorMessage,
   frozenCopy,
   isObject,
   listing,
-  messageOf,
   own,
-  packageOf,
+  packageFromId,
   without,
 } from "../util/index.ts";
 import { check } from "./check.ts";
@@ -82,7 +82,7 @@ export function parse(text: string): unknown {
   try {
     return JSON.parse(text);
   } catch (error) {
-    throw new StoreError(refused, [`The text holds no JSON: ${messageOf(error)}`]);
+    throw new StoreError(refused, [`The text holds no JSON: ${errorMessage(error)}`]);
   }
 }
 
@@ -191,7 +191,7 @@ function migrate(
 
   const plugins = Object.fromEntries(
     Object.entries(board.plugins).map(([id, plugin]) => {
-      const cls = classOf(plugin);
+      const cls = pluginClassId(plugin);
       const def = cls === undefined ? undefined : registrations.plugin(cls)?.def;
       if (cls === undefined || def === undefined) return [id, plugin];
       const from = own(json.versions, cls);
@@ -275,7 +275,7 @@ function migratedValue(what: string, fn: () => unknown): Json {
   try {
     out = fn();
   } catch (error) {
-    throw new StoreError(refused, [`${what} failed: ${messageOf(error)}`]);
+    throw new StoreError(refused, [`${what} failed: ${errorMessage(error)}`]);
   }
   if (out === undefined) throw new StoreError(refused, [`${what} returned nothing.`]);
   return frozenCopy(out as Json);
@@ -295,13 +295,13 @@ export function openJsonBoard(
   registrations: Registrations,
 ): { board: Board; dropped: Dropped[] } {
   const opening = openingPlugins(reply.board);
-  const pluginClass = (id: string) => registrations.plugin(id)?.def;
+  const registeredClass = (id: string) => registrations.plugin(id)?.def;
   const read = unversioned(json.board);
 
-  const held = keptPlugins(read.plugins, opening, pluginClass);
+  const held = keptPlugins(read.plugins, opening, registeredClass);
   const plugins: Dropped[] = Object.entries(read.plugins).flatMap(([id, plugin]) => {
-    const cls = classOf(plugin);
-    return cls === undefined || Object.hasOwn(held, id) ? [] : [{ plugin: id, class: cls, package: packageOf(cls) }];
+    const cls = pluginClassId(plugin);
+    return cls === undefined || Object.hasOwn(held, id) ? [] : [{ plugin: id, class: cls, package: packageFromId(cls) }];
   });
 
   const migrated = migrate({ ...read, plugins: held }, json.board, reply, registrations);
@@ -311,14 +311,14 @@ export function openJsonBoard(
     .map(([id]) => id);
   const blocks: Dropped[] = gone.map((id) => {
     const registryId = migrated.blocks[id]?.registry_id ?? "";
-    return { block: id, registry_id: registryId, package: packageOf(registryId) };
+    return { block: id, registry_id: registryId, package: packageFromId(registryId) };
   });
 
   const unclaimed = Object.keys(migrated.options).filter((id) => registrations.option(id) === undefined);
   const options: Dropped[] = unclaimed.map((id) => ({ option: id }));
 
   const kept = remove({ ...migrated, options: without(migrated.options, unclaimed) }, gone, registrations);
-  const board: Board = { ...kept, plugins: appPlugins(kept.plugins, opening, pluginClass) };
+  const board: Board = { ...kept, plugins: appPlugins(kept.plugins, opening, registeredClass) };
 
   const failures = check(board, reply.block_registry, registrations);
   if (failures.length > 0) throw new StoreError(refused, failures);
@@ -332,7 +332,7 @@ export function openJsonBoard(
 
 // The id of a plugin's class, or undefined where what the board holds is no
 // plugin that names its class, which the board's checks refuse.
-function classOf(plugin: unknown): string | undefined {
+function pluginClassId(plugin: unknown): string | undefined {
   return isObject(plugin) && typeof plugin.class === "string" ? plugin.class : undefined;
 }
 

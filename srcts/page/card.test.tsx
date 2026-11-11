@@ -15,7 +15,7 @@ import type { CardCore } from "./card.tsx";
 
 const HEAD: Block = { registry_id: "blockr.core-head_block", state: { n: 6, direction: "head" }, name: "Head", locked: null };
 
-function boardOf(blocks: Board["blocks"]): Board {
+function createBoard(blocks: Board["blocks"]): Board {
   return { id: "quick_wren", name: "Quick wren", blocks, links: {}, stacks: {}, options: {}, plugins: {} };
 }
 
@@ -28,7 +28,7 @@ const UNEVALUATED: BlockStatus = { ...READY, status: "unevaluated", evaluated: n
 // What the card reads of CoreApi, played: the board given, the block's
 // status, which the test sets, the demands that the card makes, and what the
 // mounts draw and end.
-function played(board: Board = boardOf({ b: HEAD }), locked = false) {
+function played(board: Board = createBoard({ b: HEAD }), locked = false) {
   let status: BlockStatus | undefined = UNEVALUATED;
   const listeners = new Set<(changed: readonly string[]) => void>();
   const demands: { owner: string; blocks: string[]; released: boolean }[] = [];
@@ -100,6 +100,13 @@ function draw(core: CardCore): { el: HTMLElement; controller: AbortController } 
 const footer = (el: HTMLElement): HTMLElement => find(el, "footer");
 const output = (el: HTMLElement): HTMLElement => find(el, '[aria-label="Output"]');
 
+// The output's box, whose last line is the footer.
+function box(el: HTMLElement): HTMLElement {
+  const found = footer(el).parentElement;
+  if (found === null) throw new Error("Found no box around the footer.");
+  return found;
+}
+
 // The footer's line: the summary, where it shows one, and the text of each
 // pill.
 const line = (el: HTMLElement): string[] => texts(footer(el), "span > span, button");
@@ -139,14 +146,14 @@ describe("the card of a block that serve() serves alone", () => {
     expect(output(el).textContent).toBe("Output of b");
     expect(r.events).toEqual(["UI of b mounts", "output of b mounts"]);
     expect(r.demands).toEqual([{ owner: OWNER, blocks: ["b"], released: false }]);
-    // Nothing to show before the block's first reply, so the output has no
-    // height, and R draws nothing for it yet.
+    // Nothing to show before the block first reads ready, so the output has
+    // no height, and R draws nothing for it yet.
     expect(footer(el).textContent).toBe("");
     expect(output(el).className).toContain("bc:h-0");
   });
 
   test("mounts no UI where the board lock fixes the block", () => {
-    const r = played(boardOf({ b: HEAD }), true);
+    const r = played(createBoard({ b: HEAD }), true);
     const { el } = draw(r.core);
 
     expect(el.querySelector('[aria-label="Inputs"]')).toBeNull();
@@ -261,6 +268,39 @@ describe("the card of a block that serve() serves alone", () => {
     expect(output(el).dataset.current).toBe("true");
   });
 
+  test("gives the output a height of its own from the first time the block reads ready on, and keeps it", async () => {
+    const r = played();
+    const { el } = draw(r.core);
+
+    // A block that fails or reads invalid at once has nothing to draw, so the
+    // card shows its footer and its banners alone.
+    await r.set({ status: "failed", conditions: [condition("error", "object 'Sepal' not found")] });
+    expect(output(el).className).toContain("bc:h-0");
+    expect(box(el).className).not.toContain("bc:h-96");
+    expect(line(el)).toEqual(["error"]);
+    expect(banners(el)).toEqual([["error", "object 'Sepal' not found"]]);
+    await r.set({ status: "invalid", revision: 2, evaluated: 2, conditions: [condition("error", "Save to write the file.")] });
+    expect(output(el).className).toContain("bc:h-0");
+
+    await r.set({ revision: 3, evaluated: 3, summary: "<data.frame> [6 × 5]" });
+    expect(output(el).className).toContain("bc:flex-1");
+    expect(box(el).className).toContain("bc:h-96");
+
+    // Core keeps drawing the last output as the block fails or waits, so the
+    // output keeps its height, greyed out.
+    await r.set({ status: "failed", revision: 4, evaluated: 4, conditions: [condition("error", "object 'Petal' not found")] });
+    expect(output(el).className).toContain("bc:flex-1");
+    expect(output(el).className).toContain("bc:grayscale");
+    await r.set({
+      status: "waiting",
+      revision: 5,
+      evaluated: 4,
+      conditions: [{ ...condition("message", 'This block is waiting for its input "data" to be linked.'), phase: "status" }],
+    });
+    expect(output(el).className).toContain("bc:flex-1");
+    expect(box(el).className).toContain("bc:h-96");
+  });
+
   test("ends the card and its mounts, and releases its demand, as the signal aborts", async () => {
     const r = played();
     const { el, controller } = draw(r.core);
@@ -278,7 +318,7 @@ describe("the card of a block that serve() serves alone", () => {
   test("says so in the element where the board holds no block or several", () => {
     const boards: Board["blocks"][] = [{}, { a: HEAD, b: HEAD }];
     for (const blocks of boards) {
-      const r = played(boardOf(blocks));
+      const r = played(createBoard(blocks));
       const { el } = draw(r.core);
 
       expect(find(el, '[role="alert"]').textContent).toContain("A block that serve() serves alone comes as a board of one block");

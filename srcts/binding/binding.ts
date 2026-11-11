@@ -110,7 +110,7 @@ export function bind(
   show: (value: Json | undefined) => void,
   options: BindOptions = {},
 ): Binding {
-  const source = sourceOf(host);
+  const source = createSource(host);
   source.check(key);
 
   // The value the control last showed, what the user typed while the
@@ -191,7 +191,7 @@ export function bind(
 // giving the last one asked up,
 // and calls `loading` each time it asks.
 export function follow(host: BlockHost | OptionHost, name: string, options: FollowOptions): Followed {
-  const source = sourceOf(host);
+  const source = createSource(host);
 
   let asked: string | undefined;
   let latest: AbortController | undefined;
@@ -254,7 +254,7 @@ interface Source {
   request(name: string, args: Readonly<Record<string, Json>>, opts: HostRequestOpts): Promise<Json | Blob>;
 }
 
-function sourceOf(host: BlockHost | OptionHost): Source {
+function createSource(host: BlockHost | OptionHost): Source {
   if ("option" in host) {
     const check = (key: string): void => {
       if (key !== host.option) {

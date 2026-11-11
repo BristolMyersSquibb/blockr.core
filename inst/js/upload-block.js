@@ -19,7 +19,7 @@ var styles = {
 };
 
 // srcts/util/util.ts
-function messageOf(error) {
+function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
@@ -47,7 +47,7 @@ function UploadBlock({ host }) {
       if (kept === void 0) throw new Error(`R kept ${file.name} but gave no path for it.`);
       await path.commit(kept);
     } catch (error2) {
-      if (!controller.signal.aborted) setFailed(messageOf(error2));
+      if (!controller.signal.aborted) setFailed(errorMessage(error2));
     } finally {
       setUploading(null);
     }
