@@ -287,6 +287,7 @@ test_that("the renderer the app names for an output class is in the entry", {
     blockr.renderers = list(table_output = preview),
     blockr.log_level = "error"
   )
+  local_logging()
 
   head <- get_registry_entry("blockr.core-head_block")
 
@@ -360,6 +361,7 @@ test_that("building what R tells the client builds no block", {
   )
 
   withr::local_options(blockr.log_level = "error")
+  local_logging()
 
   expect_no_error(reply <- loaded_reply())
   expect_setequal(names(reply$block_registry), list_blocks())

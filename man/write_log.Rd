@@ -16,6 +16,7 @@
 \alias{debug_log_level}
 \alias{trace_log_level}
 \alias{get_log_level}
+\alias{reset_logging}
 \alias{cnd_logger}
 \alias{cat_logger}
 \alias{otel_logger}
@@ -59,6 +60,8 @@ trace_log_level
 
 get_log_level()
 
+reset_logging()
+
 cnd_logger(msg, level, pkg, asis, attributes)
 
 cat_logger(msg, level, pkg, asis, attributes)
@@ -88,8 +91,9 @@ otel_logger(msg, level, pkg, asis, attributes)
 Logging function \code{write_log()}, wrappers \verb{log_*()} and loggers
 provided as \code{cnd_logger()}, \code{cat_logger()} and \code{otel_logger()} all return
 \code{NULL} invisibly and are called for their side effect of emitting a
-message. Helpers \code{as_log_level()} and \code{get_log_level()} return a
-scalar-valued ordered factor.
+message, as does \code{reset_logging()} for its side effect. Helpers
+\code{as_log_level()} and \code{get_log_level()} return a scalar-valued ordered
+factor.
 }
 \description{
 Internally used infrastructure for emitting log messages is exported, hoping
@@ -102,7 +106,12 @@ the message level is greater or equal to the currently set value.
 }
 \details{
 The blockr option \code{logger} picks the logger, the function that writes each
-line out, and is \code{cat_logger()} unless it names another.
+line out.
+Where it names none, core picks \code{otel_logger()} where OpenTelemetry has set
+up an exporter of logs, as the environment variable \code{OTEL_LOGS_EXPORTER}
+does, and \code{cat_logger()} otherwise.
+Where it names \code{otel_logger()} and OpenTelemetry has set up no exporter,
+writing a line fails.
 The function \code{write_log()} calls the logger with the message as written,
 its level, its package, \code{asis} and \code{attributes}.
 Both \code{cat_logger()} and \code{cnd_logger()} put the level, the time and the
@@ -113,11 +122,18 @@ Then \code{cat_logger()} writes an error to standard error and any other line to
 standard output.
 The other, \code{cnd_logger()}, signals an error or a warning as a warning and
 any other line as a message.
-The logger \code{otel_logger()} writes each line through \code{\link[otel:log]{otel::log()}} instead,
-with its level as the record's severity.
+The logger \code{otel_logger()} writes each line as a record through
+\code{\link[otel:log]{otel::log()}}, with its level as the record's severity.
 The record's attributes are the package, as \code{blockr.package.name}, and
 \code{attributes}.
-Where no OpenTelemetry SDK exports logs of that level, \code{otel_logger()}
-writes as \code{cat_logger()} does, so that no line is lost.
+Only the level that \code{get_log_level()} returns drops a line: OpenTelemetry's
+own level, as the environment variable \code{OTEL_LOG_LEVEL} sets it, drops none
+of these records.
 Every logger stops with an error at the level "fatal".
+
+Core works out the logger, the level and the blockr options \code{log_time} and
+\code{log_mem} as it writes its first line, and keeps them for the process.
+So does \code{\link[=serve]{serve()}}, afresh, as it starts an app.
+After a change to one of these blockr options, as in a test, call
+\code{reset_logging()}, so that core works them out again for the next line.
 }

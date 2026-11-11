@@ -127,7 +127,13 @@ serve.block <- function(x, ..., data = list()) {
 # The server function exports the latest results of the session's evaluator
 # for end-to-end tests.
 # Shiny answers for exported values only in test mode.
+# Core works out its logging afresh, so that the app logs as its script set the
+# blockr options, whatever core logged before, and so that a logger that
+# cannot work stops the app here (see `write_log()`).
 serve_app <- function(board, data = list(), alone = FALSE) {
+
+  reset_logging()
+  log_setup()
 
   force(board)
 

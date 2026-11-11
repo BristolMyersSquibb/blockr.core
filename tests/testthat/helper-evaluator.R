@@ -30,6 +30,9 @@ local_evaluator <- function(board = list(blocks = list()), data = list(),
     .local_envir = frame
   )
 
+  reset_logging()
+  withr::defer(reset_logging(), envir = frame)
+
   session$evaluator <- new_evaluator(board = board, data = data, lock = lock)
 
   session$send <- function(message) {
