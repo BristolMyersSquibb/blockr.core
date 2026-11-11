@@ -1249,9 +1249,11 @@ local_declared_package <- function(dir, frame = parent.frame()) {
 # the metadata that registration takes, where icons stand in for the drawings
 # of bsicons, as the protocol's fixtures have them, so that the fixture does
 # not change with bsicons.
+# Linting skips the calls of test_block_class(), a helper of another file,
+# which lintr does not see.
 register_script_blocks <- function(dir) {
 
-  letters_block <- new_block_class(
+  letters_block <- test_block_class( # nolint: object_usage_linter.
     "letters_block",
     inputs = "data",
     expr = function(columns = "x", sep = ",") {
@@ -1275,7 +1277,7 @@ register_script_blocks <- function(dir) {
     )
   )
 
-  count_block <- new_block_class(
+  count_block <- test_block_class( # nolint: object_usage_linter.
     "count_block",
     expr = function(n = 3L) bbquote(seq_len(.(n))),
     ui = js_module(file.path(dir, "app", "count-block.js"), package = NULL)

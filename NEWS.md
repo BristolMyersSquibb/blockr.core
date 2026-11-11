@@ -382,6 +382,17 @@
   Each line names the block and its revision, as in `Block a at revision 3: NAs introduced by coercion`.
   Its record holds them as `blockr.block.id` and `blockr.block.revision` as well.
   A line about a request that names no block names the request instead (#550).
+* A block class's registry id comes from the class alone.
+  The `new_block_class()` function takes the class's own `id` in place of `name`, and records the package whose code calls it, while a class that an app script defines records none.
+  The registry id is `{pkg}-{id}`, from that package and the class's id, or the id alone for a class that records no package, and the class's id leads the class vector of its blocks for S3 dispatch alone.
+  A class's id may hold no `-`, since a registry id splits at its first `-`.
+  The `register_block()` function loses `uid` and `package`, and takes the constructor itself rather than its name.
+  The `register_package_blocks()` function looks up each constructor in the package's namespace, and refuses two whose classes give one registry id.
+  The `registry_id_from_block()` function reads the id from the block's class, whether or not the block registry holds the class.
+  The `blockr_ser()` function reads a block's registry id, the version of its state and the schema of its state from its class, and registers no class.
+  Before it writes a board, `serve()` registers the class of each block that the block registry lacks, under the id that the class gives.
+  So core's static and fixed blocks have the ids `blockr.core-static_block` and `blockr.core-fixed_block`, where they had `static_block` and `fixed_block`.
+  A class from outside a package replaces another class that the block registry holds under its id, so that a script that redefines a class and serves again runs the new definition, and a board with blocks of two such classes of one id fails (#559).
 
 # blockr.core 0.1.4
 

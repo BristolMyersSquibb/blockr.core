@@ -3,6 +3,9 @@ test_that("a block class holds its properties", {
   expect_true(is_block_class(head_class))
   expect_false(is_block_class(new_class_head_block()))
 
+  # R identifies the class by its id, which leads the class vector for S3
+  # dispatch
+  expect_identical(head_class$id, "head_block")
   expect_identical(head_class$class, c("head_block", "block"))
   expect_identical(class_inputs(head_class), "data")
   expect_identical(class_state_args(head_class), c("n", "direction"))
@@ -45,7 +48,19 @@ test_that("new_block_class() checks a class once", {
 
   expect_error(
     new_block_class(1, "data", expr, ui),
-    class = "block_class_name_invalid"
+    class = "block_class_id_invalid"
+  )
+
+  expect_error(
+    new_block_class("", "data", expr, ui),
+    class = "block_class_id_invalid"
+  )
+
+  # A registry id splits at its first `-`, so a class's id holds none
+  expect_error(
+    new_block_class("my-block", "data", expr, ui),
+    class = "block_class_id_invalid",
+    regexp = "my-block"
   )
 
   expect_error(
@@ -438,6 +453,51 @@ test_that("a block's board options are those its requests read", {
   expect_length(board_options(new_class_head_block()), 0L)
 })
 
+test_that("a block class records the package whose code defines it", {
+
+  expect_identical(head_block$package, "blockr.core")
+
+  expect_identical(
+    test_block_class(
+      "x_block",
+      expr = function() "datasets::iris",
+      ui = js_module("x.js", package = NULL),
+      package = "blockr.pkg"
+    )$package,
+    "blockr.pkg"
+  )
+
+  # An app script's class records none, as where Shiny sources an app.R into
+  # an environment of its own
+  cls <- evalq(
+    blockr.core::new_block_class(
+      "x_block",
+      expr = function() "datasets::iris",
+      ui = blockr.core::js_module("x.js", package = NULL)
+    ),
+    new.env(parent = globalenv())
+  )
+
+  expect_null(cls$package)
+  expect_identical(registry_id_from_block(cls), "x_block")
+})
+
+test_that("each of core's block classes gives its id from its name", {
+
+  ns <- asNamespace("blockr.core")
+  classes <- Filter(is_block_class, mget(ls(ns, pattern = "_block$"), ns))
+
+  # Each is named as its constructor without `new_`
+  for (name in names(classes)) {
+    ctor <- get(paste0("new_", name), ns)
+    expect_identical(constructor_class(ctor), classes[[name]])
+    expect_identical(
+      registry_id_from_block(classes[[name]]),
+      paste0("blockr.core-", name)
+    )
+  }
+})
+
 test_that("each of core's block classes ships its UI module and its schema", {
 
   ns <- asNamespace("blockr.core")
@@ -446,7 +506,7 @@ test_that("each of core's block classes ships its UI module and its schema", {
   expect_length(classes, 12L)
 
   for (cls in classes) {
-    expect_true(nzchar(module_file(cls[["ui"]])), info = cls[["class"]][1L])
+    expect_true(nzchar(module_file(cls[["ui"]])), info = cls[["id"]])
     expect_setequal(
       names(class_schema(cls)[["properties"]]),
       class_state_args(cls)

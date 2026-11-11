@@ -12,6 +12,18 @@
 #' sends it to the client as each session starts.
 #' So a board that R cannot write as JSON fails as the script runs (see
 #' [blockr_ser()]).
+#' Before it writes the board, R registers the class of each block on the
+#' board that the block registry lacks, under the registry ID that the class
+#' gives (see [register_block()]).
+#' So every block on the served board runs, and so does a block that `serve()`
+#' serves alone.
+#' A class from a package keeps its package's ID, so that a board saved from
+#' the app opens in an app that offers the package.
+#' A class from outside a package, whose registry ID is its id alone,
+#' replaces another class that the registry holds under that ID, so that a
+#' script that redefines a class and serves again runs the new definition.
+#' A board with blocks of two such classes of one id fails, since the client
+#' and the evaluator know a block's class by its registry ID alone.
 #' For the path of a JSON board, R reads only the file's format, and sends the
 #' file's text as it is, for the client to open.
 #' It loads no package for the file.
@@ -85,6 +97,7 @@ serve <- function(x, ...) {
 #' @export
 serve.board <- function(x, ...) {
   check_board_args(substitute(list(...)), "a board")
+  register_board_classes(x)
   serve_app(encode_message(blockr_ser(x)))
 }
 
@@ -115,7 +128,68 @@ serve.block <- function(x, ..., data = list()) {
 
   check_block_data(x, data)
 
-  serve_app(encode_message(blockr_ser(new_board(x))), data, alone = TRUE)
+  board <- new_board(x)
+  register_board_classes(board)
+
+  serve_app(encode_message(blockr_ser(board)), data, alone = TRUE)
+}
+
+# Registers the class of each block on a board that the block registry lacks,
+# under the registry id that the class gives, so that every block on the
+# served board runs. A class from a package keeps its package's id. Core's
+# static and fixed blocks get theirs this way, since core does not register
+# them as it loads.
+# A class from outside a package has no package that checks the ids of its
+# classes, so R checks it here. It replaces another class that the registry
+# holds under its id, as a class does that the script has redefined since an
+# earlier `serve()`, and two such classes of one id on a board fail.
+register_board_classes <- function(board) {
+
+  classes <- lapply(as.list(board_blocks(board)), block_class)
+
+  check_outside_classes(classes)
+
+  for (cls in classes) {
+
+    id <- class_registry_id(cls)
+    old <- if (id %in% list_blocks()) get_registry_entry(id)[["block_class"]]
+
+    if (is.null(old) || (is.null(cls[["package"]]) && !identical(old, cls))) {
+      register_block(
+        block_constructor(cls),
+        default_block_name(cls[["class"]]),
+        "",
+        overwrite = TRUE
+      )
+    }
+  }
+
+  invisible()
+}
+
+# Two classes from outside a package with one id give one registry id, the
+# class id, under which the client and the evaluator know only one class. The
+# classes are given by block id.
+check_outside_classes <- function(classes) {
+
+  outside <- lgl_ply(classes, function(cls) is.null(cls[["package"]]))
+  ids <- chr_ply(classes, class_registry_id)
+
+  for (id in unique(ids[outside])) {
+
+    same <- classes[outside & ids == id]
+    other <- names(same)[!lgl_ply(same, identical, same[[1L]])]
+
+    if (length(other)) {
+      blockr_abort(
+        "Blocks {names(same)[1L]} and {other[1L]} are of two classes with the ",
+        "id {id}, defined outside a package, which give one registry id.",
+        class = "board_blocks_invalid"
+      )
+    }
+  }
+
+  invisible()
 }
 
 # The app that `serve()` returns, for the opening board given as JSON, and

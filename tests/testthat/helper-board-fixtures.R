@@ -26,7 +26,7 @@ board_fixture <- function(name) {
 # There, only the schema of the join block's state exists, since no test loads
 # a module.
 fixture_classes <- list(
-  letters = new_block_class(
+  letters = test_block_class(
     "letters_block",
     expr = function(n = 3L) {
       bbquote(data.frame(x = letters[seq_len(.(n))]))
@@ -36,7 +36,7 @@ fixture_classes <- list(
       package = NULL
     )
   ),
-  join = new_block_class(
+  join = test_block_class(
     "join_block",
     inputs = c("x", "y"),
     expr = function(by = character(), all_x = FALSE) {
@@ -154,7 +154,7 @@ fixture_plugins <- list(
 # blockr.test/, as it would install them, at the version 0.1.0.
 # Its method of `plugin_version()` gives that class version 2.
 # The block registry and what packages declare are restored once `frame` ends,
-# so that the classes that writing a fixture registers go too.
+# so that the classes that serving a fixture registers go too.
 local_fixture_package <- function(frame = parent.frame()) {
 
   envs <- list(block_registry, declared_modules, declared_startup_modules)

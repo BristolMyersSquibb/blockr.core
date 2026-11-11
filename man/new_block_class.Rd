@@ -14,7 +14,7 @@
 \title{Block classes}
 \usage{
 new_block_class(
-  name,
+  id,
   inputs = NULL,
   expr,
   ui,
@@ -42,8 +42,8 @@ is_blocks(x)
 as_blocks(x, ...)
 }
 \arguments{
-\item{name}{Class name, which leads the class vector of every block of the
-class}
+\item{id}{Class id, from which the class's registry id comes, which leads
+the class vector of every block of the class and holds no \code{-}}
 
 \item{inputs}{Data inputs, as a character vector of names, a list of formals
 or a function of them}
@@ -97,6 +97,21 @@ package exports both: the class, from whose properties another class can
 be built, and the constructor.
 }
 \details{
+A class has an id of its own, which \code{new_block_class()} takes and by which R
+identifies the class.
+The id also leads the class vector of every block of the class, which
+serves S3 dispatch alone.
+A class records the package whose code calls \code{new_block_class()},
+as \code{js_module()} records the package of a module.
+A class that an app script defines records no package.
+The class's registry id is \code{{pkg}-{id}}, from that package and the class's
+id, as \code{blockr.core-head_block}, or the id alone where the class records no
+package (see \code{\link[=register_block]{register_block()}}).
+A class's id may therefore hold no \code{-}, since a registry id splits at its
+first \code{-}.
+Otherwise a script's class with the id \code{my-block} would read as one from a
+package \code{my}.
+
 Every class has an \code{expr}, a function whose formals are the state args and
 whose body checks them, as a constructor checks its args, and returns what
 interpolation makes the block expression from (see \code{\link[=interpolate]{interpolate()}}): a call,
@@ -158,7 +173,7 @@ and no \code{...}, so a misspelled state arg fails as an unused argument. It
 calls \code{expr} with its args and returns a block, a list of the state that
 the checks in \code{expr} left in the frame it ran in, which leaves out an arg
 that is still unset. A block holds its name, which defaults to one made
-from its class's name by \code{default_block_name()}, and its lock, \code{locked},
+from its class's id by \code{default_block_name()}, and its lock, \code{locked},
 which fixes the block's state where the board lock is on: \code{TRUE} locks the
 block, \code{FALSE} leaves it open, and \code{NA}, the default, follows the board
 lock, which then locks it (see \link{locked-board}). A block refers to its

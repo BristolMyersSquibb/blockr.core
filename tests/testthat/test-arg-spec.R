@@ -89,20 +89,19 @@ test_that("deprecated block_arg aliases warn once and forward", {
     class = "deprecated_arg_spec"
   )
 
-  withr::defer(unregister_blocks("ut_dep_arg"))
+  local_declared(block_registry)
 
   expect_warning(
     register_block(
       new_class_head_block,
       name = "t",
       description = "t",
-      uid = "ut_dep_arg",
       arguments = new_block_args(direction = "head or tail")
     ),
     class = "deprecated_arg_spec"
   )
 
-  expect_true("ut_dep_arg" %in% list_blocks())
+  expect_true("head_block" %in% list_blocks())
 })
 
 test_that("bare and empty arguments normalize without warning", {
@@ -171,12 +170,13 @@ test_that("block-level examples supersede the per-argument assembly", {
 
 test_that("registration hard-validates the structured spec form", {
 
+  blks <- list_blocks()
+
   expect_error(
     register_block(
       new_class_head_block,
       name = "t",
       description = "t",
-      uid = "ut_head_bad_arg",
       arguments = new_arg_specs(not_a_formal = new_arg_spec("x"))
     ),
     class = "block_arg_unknown"
@@ -187,7 +187,6 @@ test_that("registration hard-validates the structured spec form", {
       new_class_head_block,
       name = "t",
       description = "t",
-      uid = "ut_head_bad_example",
       arguments = new_arg_specs(
         direction = new_arg_spec("end", example = "sideways")
       )
@@ -195,8 +194,7 @@ test_that("registration hard-validates the structured spec form", {
     class = "block_example_invalid"
   )
 
-  expect_false("ut_head_bad_arg" %in% list_blocks())
-  expect_false("ut_head_bad_example" %in% list_blocks())
+  expect_identical(list_blocks(), blks)
 })
 
 test_that("registration validates worked examples against declared types", {
@@ -215,16 +213,13 @@ test_that("registration validates worked examples against declared types", {
     operator   = arg_enum(c("&", "|"))
   )
 
-  withr::defer(
-    if ("stateful_block" %in% list_blocks()) unregister_blocks("stateful_block")
-  )
+  local_declared(block_registry)
 
   expect_no_error(
     register_block(
       new_stateful_block,
       name = "Stateful",
       description = "d",
-      uid = "stateful_block",
       arguments = new_arg_specs(
         state = new_arg_spec(
           "the state",
@@ -244,7 +239,6 @@ test_that("registration validates worked examples against declared types", {
       new_stateful_block,
       name = "Stateful",
       description = "d",
-      uid = "stateful_block",
       overwrite = TRUE,
       arguments = new_arg_specs(
         state = new_arg_spec(
@@ -263,7 +257,6 @@ test_that("registration validates worked examples against declared types", {
       new_stateful_block,
       name = "Stateful",
       description = "d",
-      uid = "stateful_block",
       overwrite = TRUE,
       arguments = new_arg_specs(
         state = new_arg_spec("the state", type = list(type = "frobnicate"))
@@ -275,14 +268,13 @@ test_that("registration validates worked examples against declared types", {
 
 test_that("block-level examples validate without a user-supplied spec", {
 
-  withr::defer(unregister_blocks("ut_ex_only"))
+  local_declared(block_registry)
 
   expect_no_error(
     register_block(
       new_class_head_block,
       name = "t",
       description = "t",
-      uid = "ut_ex_only",
       examples = list(list(n = 3L, direction = "tail"))
     )
   )
@@ -292,7 +284,6 @@ test_that("block-level examples validate without a user-supplied spec", {
       new_class_merge_block,
       name = "t",
       description = "t",
-      uid = "ut_ex_only_bad",
       examples = list(list(by = 1, sideways = TRUE))
     ),
     class = "block_example_unknown"
@@ -303,7 +294,6 @@ test_that("block-level examples validate without a user-supplied spec", {
       new_class_head_block,
       name = "t",
       description = "t",
-      uid = "ut_ex_only_bad",
       examples = list(list(direction = "sideways"))
     ),
     class = "block_example_invalid"

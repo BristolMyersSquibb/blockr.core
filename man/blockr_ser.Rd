@@ -68,8 +68,9 @@ board itself.
 A JSON board holds the board under \code{board}, with two things beside it:
 \code{format}, the version of the format, and \code{packages}, the version of each
 package that the board's content comes from, by package.
-Those are the packages of the plugins' classes, each the package that the
-ID of the class names, and the packages of the blocks' classes.
+Those are the packages that the IDs of the plugins' classes and of the
+blocks' classes name, each the part of the ID before its first \code{-}.
+The ID of a block class that an app script defines names no package.
 The board holds its \code{id} and \code{name}, and its blocks, links, stacks and
 plugins, each by ID, in their order.
 In \code{versions}, it holds the version of each plugin class whose plugins it
@@ -89,13 +90,13 @@ board.
 A stack is written with its name, its blocks and its color, which is \code{null}
 for a stack without one.
 
-A block is written by the registry ID of its class, with its state, its
-name and its lock, \code{locked}, which a block whose lock is \code{NA} holds as
-\code{null}.
-Where the block registry holds no entry for its class, writing the block
-registers the class, as a class from outside a package, under its name.
-So a class defined in an app script is registered before any session
-evaluates a block of it.
+A block is written by the registry ID that its class gives (see
+\code{\link[=register_block]{register_block()}}), with its state, its name and its lock, \code{locked}, which
+a block whose lock is \code{NA} holds as \code{null}.
+R reads the ID, the version of the block's state and the schema of the
+state from the block's class.
+It reads nothing from the block registry, so writing a board registers no
+class (see \code{\link[=serve]{serve()}}).
 
 Core's objects are written by the JSON Schema of a JSON board, which core
 generates from its TypeScript types, so that a stack's blocks stay an array
@@ -135,7 +136,5 @@ board <- new_board(
 )
 
 str(blockr_ser(board))
-
-unregister_blocks("identity_block")
 
 }

@@ -243,21 +243,14 @@ pptx_type <- paste0(
   "vnd.openxmlformats-officedocument.presentationml.presentation"
 )
 
-# Registers a block class under the registry id given, as a package does,
-# for the duration of `frame`.
-local_block_class <- function(cls, id, frame = parent.frame()) {
+# Registers a block class under the registry id that the class gives, as a
+# package or an app script does, for the duration of `frame`.
+local_block_class <- function(cls, frame = parent.frame()) {
 
-  name <- cls[["class"]][1L]
+  id <- cls[["id"]]
+  entry <- register_block(block_constructor(cls), id, paste("A", id))
 
-  register_block(block_constructor(cls), name, paste("A", name))
-
-  entry <- get_registry_entry(name)
-  entry[["id"]] <- id
-
-  rm(list = name, envir = block_registry)
-  assign(id, entry, envir = block_registry)
-
-  withr::defer(unregister_blocks(id), envir = frame)
+  withr::defer(unregister_blocks(entry[["id"]]), envir = frame)
 
   invisible(entry)
 }
@@ -266,14 +259,15 @@ local_block_class <- function(cls, id, frame = parent.frame()) {
 # whose block expression is its input's result here,
 # and which writes in manual mode only when its save button passes `save`,
 # as its block_eval() method has it.
-write_block_class <- new_block_class(
+write_block_class <- test_block_class(
   "write_block",
   inputs = "...",
   expr = function(directory = "", filename = "", format = "csv",
                   auto_write = FALSE, args = list()) {
     bbquote(identity(...))
   },
-  ui = js_module("write-block.js", package = NULL)
+  ui = js_module("write-block.js", package = NULL),
+  package = "blockr.io"
 )
 
 # Registers the write block of blockr.io, with its block_eval() method,
@@ -292,12 +286,12 @@ local_write_block <- function(frame = parent.frame()) {
     frame = frame
   )
 
-  local_block_class(write_block_class, "blockr.io-write_block", frame)
+  local_block_class(write_block_class, frame)
 }
 
 # A block class whose outputs are charts,
 # of the output class that `local_chart_output()` registers.
-chart_block_class <- new_block_class(
+chart_block_class <- test_block_class(
   "chart_block",
   inputs = "data",
   expr = function() bbquote(.(data)),
@@ -337,12 +331,12 @@ local_chart_output <- function(frame = parent.frame()) {
     frame = frame
   )
 
-  local_block_class(chart_block_class, "chart_block", frame)
+  local_block_class(chart_block_class, frame)
 }
 
 # A block class whose result is a table with labelled columns,
 # as an ADaM table has them.
-adsl_block_class <- new_block_class(
+adsl_block_class <- test_block_class(
   "adsl_block",
   expr = function() {
     paste(
@@ -361,7 +355,7 @@ adsl_block_class <- new_block_class(
 
 # Registers the block class of labelled tables for the duration of `frame`.
 local_labelled_block <- function(frame = parent.frame()) {
-  local_block_class(adsl_block_class, "adsl_block", frame)
+  local_block_class(adsl_block_class, frame)
 }
 
 # The table preview of blockr.ui,

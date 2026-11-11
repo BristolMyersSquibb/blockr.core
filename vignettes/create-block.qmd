@@ -61,7 +61,7 @@ head_block <- new_block_class(
 
 Each argument of `new_block_class()` has one job:
 
-- The argument `name` gives the class's name, which leads the class vector of every block of the class.
+- The argument `id` gives the class's id, from which its registry ID comes (see "Registration" below), and which leads the class vector of every block of the class, for S3 dispatch alone.
 - The argument `inputs` gives the __data inputs__, the results of the blocks upstream, which links bind. Given as a function, its formals name the inputs and its body checks them.
 - The argument `expr` builds the block's R code. Its formals are the __state args__, whose values a user sets through the block's UI, and its body checks them. It returns what interpolation makes the __block expression__ from, the code that R evaluates for the block.
 - The argument `ui` names the module that draws the block's UI in the browser, by its path in the package's `inst/`.
@@ -681,7 +681,10 @@ A class defined outside a package, such as in an app script, names a module besi
 
 ## Registration
 
-A package registers its block classes in the __block registry__, under a __registry ID__ `{pkg}-{name}`, such as `blockr.core-head_block`.
+A package registers its block classes in the __block registry__, under a __registry ID__ `{pkg}-{id}`, such as `blockr.core-head_block`.
+The class gives its registry ID: `{pkg}` is the package whose code calls `new_block_class()`, and `{id}` is the id that the class takes.
+So renaming a constructor leaves the registry ID as it is, while changing a class's id changes it, and boards saved before then no longer find the class.
+A class's id holds no `-`, since a registry ID splits at its first `-`.
 The registry holds each class with its metadata, so that R evaluates a block, and resolves a request, without building a block.
 R sends the client each class's entry, with its data inputs, its module, the schema of its state, the state a new block starts with, its arg specs and its requests.
 
@@ -720,8 +723,8 @@ A package builds its classes while R installs it, as R sources its files.
 A class that names a function of its own package, such as a request, finds that function only once R has sourced the file that defines it.
 An `@include` tag, from which roxygen writes the `Collate` field, makes R source that file first.
 
-Registration reads the class from its constructor, and a class defined outside a package is registered with the constructor as a function.
-Its registry ID is then the class's name alone:
+Registration reads the class from its constructor.
+A class defined outside a package, such as in an app script, records no package, and its registry ID is the class's id alone:
 
 ```{r}
 register_block(new_head_block, "Head", "Keeps the first or last rows")

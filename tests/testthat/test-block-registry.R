@@ -27,8 +27,14 @@ test_that("registry", {
 
   expect_identical(registry_id_from_block(new_class_head_block()), "head_block")
   expect_identical(registry_id_from_block(head_class), "head_block")
-  expect_identical(registry_id_from_block(new_class_merge_block()), character())
-  expect_identical(registry_id_from_block(new_static_block()), character())
+
+  # The class gives the id, whether or not the block registry holds it
+  expect_identical(registry_id_from_block(new_class_merge_block()),
+                   "merge_block")
+  expect_identical(registry_id_from_block(new_static_block()),
+                   "blockr.core-static_block")
+
+  expect_error(registry_id_from_block(list()), class = "block_class_invalid")
 
   blk <- create_block("head_block", n = 2L)
 
@@ -38,11 +44,6 @@ test_that("registry", {
     register_block(new_class_head_block, "Head", "First rows"),
     class = "block_already_in_registry",
     regexp = "overwrite = TRUE"
-  )
-
-  expect_error(
-    register_block(new_class_head_block, "Head", "First rows", uid = "other"),
-    class = "block_class_in_registry"
   )
 
   expect_s3_class(
@@ -63,22 +64,10 @@ test_that("registry", {
     class = "block_constructor_invalid"
   )
 
-  # A constructor given by name needs its package, and one given as a function
-  # takes none
+  # A constructor is given as itself, never by name
   expect_error(
     register_block("new_class_head_block", "Head", "First rows"),
-    class = "block_package_invalid"
-  )
-
-  expect_error(
-    register_block(new_class_head_block, "Head", "First rows",
-                   package = "blockr.core"),
-    class = "block_package_invalid"
-  )
-
-  expect_error(
-    register_block(new_class_merge_block, "Merge", "Merge", uid = "a-b"),
-    class = "registry_id_invalid"
+    class = "block_constructor_invalid"
   )
 
   expect_error(
@@ -116,7 +105,7 @@ test_that("registry", {
   unregister_blocks("head_block")
 
   expect_false("head_block" %in% list_blocks())
-  expect_identical(registry_id_from_block(new_class_head_block()), character())
+  expect_identical(registry_id_from_block(new_class_head_block()), "head_block")
 
   expect_error(create_block("head_block"), class = "registry_id_unknown")
   expect_error(create_block(1), class = "registry_id_unknown")
@@ -129,15 +118,76 @@ test_that("registry", {
   expect_error(default_icon(1), class = "block_category_invalid")
 })
 
-test_that("a constructor registered by name comes with its package", {
+test_that("a block class's registry id comes from the class alone", {
 
-  expect_identical(registry_id("head_block", "blockr.pkg"),
-                   "blockr.pkg-head_block")
-  expect_identical(registry_id("head_block", NULL), "head_block")
+  local_declared(block_registry)
 
-  expect_error(registry_id("head-block", NULL), class = "registry_id_invalid")
-  expect_error(registry_id("", "blockr.pkg"), class = "registry_id_invalid")
-  expect_error(registry_id(1, NULL), class = "registry_id_invalid")
+  expr <- function(n = 1L) bbquote(seq_len(.(n)))
+  ui <- js_module("count-block.js", package = NULL)
+
+  pkg <- test_block_class("count_block", expr = expr, ui = ui,
+                          package = "blockr.pkg")
+  script <- test_block_class("count_block", expr = expr, ui = ui)
+
+  expect_identical(pkg$package, "blockr.pkg")
+  expect_null(script$package)
+
+  # The package that defines the class names it, so a class of one id gives
+  # another registry id in each package, and its id alone outside a package
+  expect_identical(registry_id_from_block(pkg), "blockr.pkg-count_block")
+  expect_identical(registry_id_from_block(script), "count_block")
+
+  entry <- register_block(block_constructor(pkg), "Count", "Counts up")
+
+  expect_identical(entry$id, "blockr.pkg-count_block")
+  expect_identical(entry$package, "blockr.pkg")
+
+  # Another constructor of the class takes the same id, whatever its name
+  new_counter_block <- block_constructor(pkg)
+
+  expect_error(
+    register_block(new_counter_block, "Counter", "Counts up"),
+    class = "block_already_in_registry"
+  )
+
+  expect_identical(
+    register_block(block_constructor(script), "Count", "Counts up")$id,
+    "count_block"
+  )
+
+  expect_null(get_registry_entry("count_block")$package)
+})
+
+test_that("a package's constructors give one registry id each", {
+
+  expr <- function() bbquote(NULL)
+  ui <- js_module("note-block.js", package = NULL)
+
+  note <- test_block_class("note_block", expr = expr, ui = ui,
+                           package = "blockr.pkg")
+  again <- test_block_class("note_block", expr = expr, ui = ui,
+                            package = "blockr.pkg")
+  memo <- test_block_class("memo_block", expr = expr, ui = ui,
+                           package = "blockr.pkg")
+
+  expect_null(
+    check_package_registry_ids(
+      list(new_note_block = block_constructor(note),
+           new_memo_block = block_constructor(memo)),
+      "blockr.pkg"
+    )
+  )
+
+  expect_error(
+    check_package_registry_ids(
+      list(new_note_block = block_constructor(note),
+           new_memo_block = block_constructor(memo),
+           new_text_block = block_constructor(again)),
+      "blockr.pkg"
+    ),
+    class = "package_blocks_invalid",
+    regexp = "new_note_block and new_text_block.+blockr.pkg-note_block"
+  )
 })
 
 test_that("the arg specs default to every state arg", {
@@ -164,7 +214,7 @@ test_that("registration reads the schema the module ships", {
     file.path(dir, "head.schema.json")
   )
 
-  cls <- new_block_class(
+  cls <- test_block_class(
     "schema_block",
     inputs = "data",
     expr = function(n = 6L) bbquote(utils::head(.(data), n = .(n))),
@@ -203,7 +253,7 @@ test_that("registration reads the schema the module ships", {
 
 test_that("a registry entry's board options are those its requests read", {
 
-  cls <- new_block_class(
+  cls <- test_block_class(
     "opts_block",
     inputs = "data",
     expr = function() bbquote(.(data)),
@@ -268,8 +318,14 @@ test_that("core registers its built-in blocks as it loads", {
     )
   )
 
-  expect_identical(registry_id_from_block(new_static_block()), character())
-  expect_identical(registry_id_from_block(new_fixed_block()), character())
+  # Core registers neither its static nor its fixed block, whose classes give
+  # their ids all the same
+  expect_false(any(c("blockr.core-static_block", "blockr.core-fixed_block") %in%
+                     list_blocks()))
+  expect_identical(registry_id_from_block(new_static_block()),
+                   "blockr.core-static_block")
+  expect_identical(registry_id_from_block(new_fixed_block()),
+                   "blockr.core-fixed_block")
 
   entry <- register_package_blocks(package = "blockr.core",
                                    which = "new_dataset_block")

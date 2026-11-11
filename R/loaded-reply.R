@@ -72,7 +72,7 @@ package_versions <- function(packages) {
 # either form.
 registry_entry_reply <- function(x, renderer = NULL) {
 
-  what <- paste("Block class", x[["block_class"]][["class"]][1L])
+  what <- paste("Block class", x[["block_class"]][["id"]])
 
   c(
     list(
@@ -139,7 +139,7 @@ entry_state <- function(x) {
 
   what <- paste(
     "The state a new block of class",
-    x[["block_class"]][["class"]][1L],
+    x[["block_class"]][["id"]],
     "starts with"
   )
 

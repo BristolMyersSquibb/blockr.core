@@ -1,23 +1,3 @@
-# A block class from outside a package, whose UI module sits in `dir`, with
-# the schema of its state beside it where `schema` gives one.
-outside_class <- function(name, expr, dir, schema = NULL, inputs = NULL,
-                          version = 1L) {
-
-  module <- file.path(dir, paste0(gsub("_", "-", name), ".js"))
-
-  if (not_null(schema)) {
-    writeLines(schema, sub("\\.js$", ".schema.json", module))
-  }
-
-  new_block_class(
-    name,
-    inputs = inputs,
-    expr = expr,
-    ui = js_module(module, package = NULL),
-    version = version
-  )
-}
-
 test_that("a board is written as a JSON board", {
 
   local_declared(block_registry)
@@ -205,42 +185,54 @@ test_that("a block's state is written by the schema its class's UI ships", {
   )
 })
 
-test_that("a block class is registered from its blocks", {
+test_that("writing a board reads each block's class and registers none", {
 
   local_declared(block_registry)
 
-  dir <- withr::local_tempdir()
+  cls <- outside_class(
+    "note_block",
+    function(text = "") bbquote(.(text)),
+    withr::local_tempdir()
+  )
 
-  cls <- outside_class("note_block", function(text = "") bbquote(.(text)), dir)
   new_note_block <- block_constructor(cls)
-
-  expect_false("note_block" %in% list_blocks())
 
   res <- blockr_ser(new_board(c(a = new_note_block("Hi"))))$board
 
   expect_identical(res$blocks$a$registry_id, "note_block")
-  expect_identical(registry_id_from_block(cls), "note_block")
-
-  entry <- get_registry_entry("note_block")
-
-  expect_identical(entry$name, "Note")
-  expect_null(entry$package)
-
-  # A class registered already keeps its entry
-  unregister_blocks("note_block")
-  register_block(new_note_block, "Notes", "Free text", uid = "text_note")
-
-  res <- blockr_ser(new_board(c(a = new_note_block("Hi"))))$board
-
-  expect_identical(res$blocks$a$registry_id, "text_note")
   expect_false("note_block" %in% list_blocks())
 
-  # Another class of the same name takes no entry from it
-  other <- outside_class("text_note", function() bbquote(NULL), dir)
+  # The block's own class gives the version and the schema of its state, not
+  # the class that the block registry holds under the block's registry id
+  register_block(new_note_block, "Notes", "Free text")
 
-  expect_error(
-    blockr_ser(new_board(c(a = block_constructor(other)()))),
-    class = "block_already_in_registry"
+  newer <- outside_class(
+    "note_block",
+    function(tags = character()) bbquote(.(tags)),
+    withr::local_tempdir(),
+    schema = '{
+      "type": "object",
+      "properties": {
+        "tags": { "type": "array", "items": { "type": "string" } }
+      }
+    }',
+    version = 2L
+  )
+
+  board <- new_board(c(a = block_constructor(newer)(tags = "x")))
+  res <- read_json_strictly(encode_message(blockr_ser(board)))$board
+
+  expect_identical(
+    res$blocks$a,
+    read_json_strictly(
+      '{
+        "registry_id": "note_block",
+        "version": 2,
+        "state": { "tags": ["x"] },
+        "name": "Note",
+        "locked": null
+      }'
+    )
   )
 })
 
@@ -554,13 +546,8 @@ test_that("a JSON board records the package and version of each plugin class", {
     list(`blockr.one-dag_plugin` = 3L, `blockr.two-md_plugin` = 1L)
   )
 
-  # The package of a block's class is the one its registry entry names
-  local_mocked_bindings(
-    get_registry_entry = function(uid) {
-      list(package = if (startsWith(uid, "blockr.two-")) "blockr.two")
-    }
-  )
-
+  # The package of a block's class is the one its registry id names, and the
+  # id of a class that an app script defines names none
   blocks <- list(
     a = list(registry_id = "blockr.two-tag_block"),
     b = list(registry_id = "note_block")

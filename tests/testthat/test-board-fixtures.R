@@ -23,15 +23,20 @@ test_that("R writes the JSON board of every fixture as the fixture holds it", {
   }
 })
 
-test_that("R registers the classes of a fixture from its blocks", {
+test_that("serving a fixture registers its classes, and writing it does not", {
 
   local_fixture_package()
 
   board <- board_fixture_values()$board$board
+  ids <- c("letters_block", "join_block")
 
-  expect_false(any(c("letters_block", "join_block") %in% list_blocks()))
+  expect_false(any(ids %in% list_blocks()))
 
   blockr_ser(board)
 
-  expect_true(all(c("letters_block", "join_block") %in% list_blocks()))
+  expect_false(any(ids %in% list_blocks()))
+
+  serve(board)
+
+  expect_true(all(ids %in% list_blocks()))
 })
