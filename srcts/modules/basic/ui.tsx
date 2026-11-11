@@ -1,6 +1,5 @@
 // The pieces that the basic frontend draws with: its buttons, dialogs and
-// menus, an inline field that renames, and the element in which core mounts a
-// module.
+// menus, and an inline field that renames.
 // They are styled with Tailwind CSS under core's prefix. Their colours, fonts
 // and radii come from the variables of core's theme. Core's stylesheet leaves
 // out Tailwind's reset of the page, and a browser passes its font and colour
@@ -193,32 +192,4 @@ export function NameField({
       }}
     />
   );
-}
-
-// The element in which core mounts a module, as `mount` does it, until the
-// component goes.
-// Core's cleanup runs once React has finished the work in which the component
-// went. A module written in React then unmounts its own root at once, before
-// core empties the element. Within that work, React would put the unmount off
-// until after core had emptied the element, and then fail to remove what it
-// drew.
-export function Mounted({
-  mount,
-  label,
-  className,
-}: {
-  mount: (el: HTMLElement) => () => void;
-  label?: string;
-  className?: string;
-}): ReactElement {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (el === null) return;
-    const cleanup = mount(el);
-    return () => {
-      queueMicrotask(cleanup);
-    };
-  }, [mount]);
-  return <div ref={ref} aria-label={label} className={className} />;
 }

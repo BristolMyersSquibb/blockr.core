@@ -11,10 +11,11 @@
 
 import { useCallback } from "react";
 import type { ReactElement } from "react";
+import { Mounted } from "../../card/index.ts";
 import type { Plugin, PluginId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import { useFrontEnd } from "./context.ts";
-import { classes, Mounted } from "./ui.tsx";
+import { classes } from "./ui.tsx";
 
 // The plugins that the frontend shows, in the order of the board's plugins:
 // those that run whose class has a `ui`.

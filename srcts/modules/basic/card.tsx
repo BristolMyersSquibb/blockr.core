@@ -4,19 +4,27 @@
 // A card shows these, top to bottom:
 // - The block's name, its class and its status, and a menu to rename or
 //   remove the block or to add a block before or after it.
-// - The block's UI and its output, which core mounts, with the summary of the
-//   block's result below the output.
-// - The conditions of the block's latest evaluation, of the severities that
-//   the board option show_conditions names.
+// - The block's UI and its output, which core mounts.
+// - The footer, the last line of the output's box, which shows the block's
+//   status in one centred line, with a pill for each severity of the
+//   conditions of R's reply that the board option show_conditions names.
+// - The banners of the conditions whose pills are open.
+// The footer and the banners are those of srcts/card, which the card of a
+// block that serve() serves alone draws as well.
 //
 // Core keeps drawing a block's last output whatever the block's status. So
 // the card greys the output out while the block is not ready.
-// Core asks R for an output only once the output's element measures more than
-// 0 by 0, and R draws a plot at that size. So the card gives the output a
-// height of its own, which the user may drag to another. The handle sits at
-// the end of the summary's line, clear of the output's own controls. The card
-// does so from the block's first reply on, since there is nothing to draw
-// before.
+// It greys out the output alone, and not the footer, so that the pills keep
+// the colours of their severities.
+// Core asks R for an output only once the block reads ready and the output's
+// element measures more than 0 by 0, and R draws a plot at that size.
+// So the card gives the output a height of its own from the first time the
+// block reads ready on, which the user may drag to another.
+// Before then there is nothing to draw, and the card of a block that fails or
+// reads invalid at once shows the footer and the banners alone, as that of a
+// waiting block does.
+// The handle sits at the end of the footer, clear of the output's own
+// controls.
 // The card always shows the block's UI and its output, with no toggles to
 // hide them, which a frontend built on core's may add.
 // The card gives its block focus as the user moves into it, by a click or by
@@ -28,14 +36,14 @@
 
 import { memo, useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
+import { Banners, Footer, Mounted, useFooter, useSized, useStatus } from "../../card/index.ts";
 import type { Condition } from "../../protocol/index.ts";
 import type { BlockStatus, Status } from "../../scheduler/index.ts";
 import type { Block, BlockId, Stack } from "../../types/board.ts";
 import { own } from "../../util/index.ts";
 import { runCommand, useFrontEnd } from "./context.ts";
-import { useStatus } from "./hooks.ts";
 import type { AddMode } from "./picker.tsx";
-import { classes, Menu, Mounted, NameField } from "./ui.tsx";
+import { classes, Menu, NameField } from "./ui.tsx";
 
 type Severity = Condition["severity"];
 
@@ -60,6 +68,8 @@ export const BlockCard = memo(function BlockCard({
   const front = useFrontEnd();
   const { core, inView } = front;
   const status = useStatus(core, id);
+  const footer = useFooter(status, severities);
+  const sized = useSized(status);
   const [renaming, setRenaming] = useState(false);
   const ref = useRef<HTMLElement>(null);
 
@@ -78,7 +88,6 @@ export const BlockCard = memo(function BlockCard({
   const inputs = !core.store.locked(id);
   const entry = own(core.blockRegistry(), block.registry_id);
   const ready = status?.status === "ready";
-  const replied = status !== undefined && status.evaluated !== null;
 
   return (
     <article
@@ -142,26 +151,19 @@ export const BlockCard = memo(function BlockCard({
       </header>
       {inputs ? <Mounted mount={mountUi} label="Inputs" className="bc:min-w-0" /> : null}
       <div
-        role="region"
-        aria-label="Output"
-        data-ready={ready}
-        className={`bc:min-w-0 bc:transition-opacity ${ready ? "" : "bc:opacity-50 bc:grayscale"} ${
-          replied ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""
-        }`}
+        className={`bc:min-w-0 ${sized ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`}
       >
         <Mounted
           mount={mountOutput}
-          className={replied ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"}
+          label="Output"
+          data={{ "data-ready": String(ready) }}
+          className={`bc:min-w-0 bc:transition-opacity ${ready ? "" : "bc:opacity-50 bc:grayscale"} ${
+            sized ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"
+          }`}
         />
-        {/* The line of the summary, the last of the box, whose end holds the
-            handle, so it keeps a line's height without a summary too. */}
-        {replied ? (
-          <p className="bc:m-0 bc:min-h-4 bc:shrink-0 bc:px-5 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted">
-            {status.summary}
-          </p>
-        ) : null}
+        <Footer {...footer} />
       </div>
-      <Conditions status={status} severities={severities} />
+      <Banners {...footer} />
     </article>
   );
 });
@@ -207,27 +209,5 @@ function StatusBadge({ status }: { status: BlockStatus | undefined }): ReactElem
       <span aria-hidden="true" className={`bc:size-2 bc:rounded-full bc:bg-current ${status.running ? "bc:animate-pulse" : ""}`} />
       {status.running ? `${status.status}, running` : status.status}
     </span>
-  );
-}
-
-const SEVERITY_TONES: Readonly<Record<Severity, string>> = {
-  error: "bc:text-text-danger",
-  warning: "bc:text-text-warning",
-  message: "bc:text-text-muted",
-};
-
-// The conditions of the block's latest evaluation of the severities given.
-function Conditions({ status, severities }: { status: BlockStatus | undefined; severities: readonly Severity[] }): ReactElement | null {
-  if (status === undefined) return null;
-  const shown = status.conditions.filter((condition) => severities.includes(condition.severity));
-  if (shown.length === 0) return null;
-  return (
-    <ul aria-label="Conditions" className="bc:m-0 bc:grid bc:list-none bc:gap-1 bc:p-0 bc:text-sm">
-      {shown.map((condition, i) => (
-        <li key={i} data-severity={condition.severity} className={`bc:whitespace-pre-wrap ${SEVERITY_TONES[condition.severity]}`}>
-          <span className="bc:font-medium">{condition.severity}:</span> {condition.message}
-        </li>
-      ))}
-    </ul>
   );
 }

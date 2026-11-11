@@ -9044,98 +9044,43 @@ function asStartupModule(exports, module, pkg) {
 }
 
 // srcts/page/card.tsx
-import { useCallback, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback as useCallback3, useSyncExternalStore as useSyncExternalStore2 } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
+
+// srcts/card/footer.tsx
+import { useCallback, useId, useState } from "react";
 import { Fragment, jsx as jsx2, jsxs } from "react/jsx-runtime";
-var OWNER = "blockr.core";
-function drawCard(el, core, signal) {
-  if (signal.aborted) return;
-  const ids2 = Object.keys(core.store.board().blocks);
-  const [id2] = ids2;
-  if (id2 === void 0 || ids2.length > 1) {
-    showError(el, `A block that serve() serves alone comes as a board of one block, and this board holds ${String(ids2.length)}.`);
-    return;
-  }
-  const demand = core.scheduler.demand(OWNER, [id2]);
-  el.replaceChildren();
-  const root = createRoot(el);
-  flushSync(() => {
-    root.render(/* @__PURE__ */ jsx2(AloneCard, { core, id: id2 }));
-  });
-  signal.addEventListener(
-    "abort",
-    () => {
-      demand.release();
-      root.unmount();
-      el.replaceChildren(loadingNote());
-    },
-    { once: true }
-  );
-}
-function AloneCard({ core, id: id2 }) {
-  const name3 = useBlockName(core, id2);
-  const status = useStatus(core, id2);
+var SEVERITIES3 = ["error", "warning", "message"];
+function useFooter(status, severities = SEVERITIES3) {
   const shown2 = useShown(status);
   const [open, setOpen] = useState(OPEN_AT_START);
   const panel = useId();
-  const mountUi = useCallback((el) => core.mountBlock(el, id2), [core, id2]);
-  const mountOutput2 = useCallback((el) => core.mountOutput(el, id2), [core, id2]);
-  const inputs = !core.store.locked(id2);
-  const replied2 = status !== void 0 && status.evaluated !== null;
-  const current2 = status?.status === "ready" && !status.running;
+  const toggle = useCallback((severity) => {
+    setOpen((was) => {
+      const next = new Set(was);
+      if (!next.delete(severity)) next.add(severity);
+      return next;
+    });
+  }, []);
+  return { status, shown: shown2, severities, open, toggle, panel };
+}
+function Footer({ status, shown: shown2, severities, open, toggle, panel }) {
   const settled2 = status !== void 0 && status === shown2 && !status.running;
-  const listed = shown2 === void 0 ? [] : listedOf(shown2).filter((condition) => open.has(condition.severity));
-  return /* @__PURE__ */ jsxs(
-    "article",
+  return /* @__PURE__ */ jsx2(
+    "footer",
     {
-      "aria-label": name3,
-      className: "bc:mx-auto bc:my-4 bc:grid bc:max-w-5xl bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-subtle bc:p-3 bc:font-sans bc:text-gray-900 bc:dark:text-gray-100",
-      children: [
-        /* @__PURE__ */ jsx2("header", { children: /* @__PURE__ */ jsx2("h1", { className: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold", children: name3 }) }),
-        inputs ? /* @__PURE__ */ jsx2(Mounted, { mount: mountUi, label: "Inputs", className: "bc:min-w-0" }) : null,
-        /* @__PURE__ */ jsxs(
-          "div",
-          {
-            className: `bc:min-w-0 ${replied2 ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`,
-            children: [
-              /* @__PURE__ */ jsx2(
-                Mounted,
-                {
-                  mount: mountOutput2,
-                  label: "Output",
-                  data: { "data-current": String(current2) },
-                  className: `bc:min-w-0 bc:transition-opacity ${current2 ? "" : "bc:opacity-50 bc:grayscale"} ${replied2 ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"}`
-                }
-              ),
-              /* @__PURE__ */ jsx2(
-                "footer",
-                {
-                  "aria-busy": status?.running === true,
-                  "data-status": shown2?.status,
-                  className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:transition-opacity ${settled2 ? "" : "bc:opacity-50"}`,
-                  children: shown2 === void 0 ? null : /* @__PURE__ */ jsx2(
-                    StatusLine,
-                    {
-                      status: shown2,
-                      panel,
-                      open,
-                      toggle: (severity) => {
-                        const next = new Set(open);
-                        if (!next.delete(severity)) next.add(severity);
-                        setOpen(next);
-                      }
-                    }
-                  )
-                }
-              )
-            ]
-          }
-        ),
-        listed.length > 0 ? /* @__PURE__ */ jsx2("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map((condition, i2) => /* @__PURE__ */ jsx2(Banner, { condition }, i2)) }) : null
-      ]
+      "aria-busy": status?.running === true,
+      "data-status": shown2?.status,
+      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:transition-opacity ${settled2 ? "" : "bc:opacity-50"}`,
+      children: shown2 === void 0 ? null : /* @__PURE__ */ jsx2(StatusLine, { status: shown2, severities, panel, open, toggle })
     }
   );
+}
+function Banners({ shown: shown2, severities, open, panel }) {
+  const listed = shown2 === void 0 ? [] : listedOf(shown2).filter((condition) => severities.includes(condition.severity) && open.has(condition.severity));
+  if (listed.length === 0) return null;
+  return /* @__PURE__ */ jsx2("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map((condition, i2) => /* @__PURE__ */ jsx2(Banner, { condition }, i2)) });
 }
 var MARKS = {
   error: {
@@ -9162,6 +9107,7 @@ var MARKS = {
 };
 function StatusLine({
   status,
+  severities,
   panel,
   open,
   toggle
@@ -9169,7 +9115,7 @@ function StatusLine({
   if (status.status === "waiting") {
     return /* @__PURE__ */ jsx2("span", { className: "bc:text-text-muted", children: status.conditions[0]?.message });
   }
-  const pills = ["error", "warning", "message"].flatMap((severity) => {
+  const pills = SEVERITIES3.filter((severity) => severities.includes(severity)).flatMap((severity) => {
     const n2 = status.conditions.filter((condition) => condition.severity === severity).length;
     if (n2 === 0) return [];
     const mark = MARKS[severity];
@@ -9247,24 +9193,10 @@ var OPEN_AT_START = /* @__PURE__ */ new Set(["error"]);
 function listedOf(status) {
   return status.status === "waiting" ? [] : status.conditions;
 }
-function useBlockName(core, id2) {
-  const subscribe = useCallback(
-    (notify) => core.store.subscribe(() => {
-      notify();
-    }),
-    [core]
-  );
-  return useSyncExternalStore(subscribe, () => own(core.store.board().blocks, id2)?.name ?? id2);
-}
-function useStatus(core, id2) {
-  const subscribe = useCallback(
-    (notify) => core.scheduler.subscribe((changed) => {
-      if (changed.includes(id2)) notify();
-    }),
-    [core, id2]
-  );
-  return useSyncExternalStore(subscribe, () => core.scheduler.status(id2));
-}
+
+// srcts/card/mounted.tsx
+import { useLayoutEffect, useRef } from "react";
+import { jsx as jsx3 } from "react/jsx-runtime";
 function Mounted({
   mount,
   label,
@@ -9280,7 +9212,102 @@ function Mounted({
       queueMicrotask(cleanup);
     };
   }, [mount]);
-  return /* @__PURE__ */ jsx2("div", { ref, role: "region", "aria-label": label, className, ...data });
+  return /* @__PURE__ */ jsx3("div", { ref, role: label === void 0 ? void 0 : "region", "aria-label": label, className, ...data });
+}
+
+// srcts/card/status.ts
+import { useCallback as useCallback2, useState as useState2, useSyncExternalStore } from "react";
+function useStatus(core, block) {
+  const subscribe = useCallback2(
+    (notify) => core.scheduler.subscribe((changed) => {
+      if (changed.includes(block)) notify();
+    }),
+    [core, block]
+  );
+  return useSyncExternalStore(subscribe, () => core.scheduler.status(block));
+}
+function useSized(status) {
+  const ready = status?.status === "ready";
+  const [sized, setSized] = useState2(ready);
+  if (ready && !sized) setSized(true);
+  return sized || ready;
+}
+
+// srcts/page/card.tsx
+import { jsx as jsx4, jsxs as jsxs2 } from "react/jsx-runtime";
+var OWNER = "blockr.core";
+function drawCard(el, core, signal) {
+  if (signal.aborted) return;
+  const ids2 = Object.keys(core.store.board().blocks);
+  const [id2] = ids2;
+  if (id2 === void 0 || ids2.length > 1) {
+    showError(el, `A block that serve() serves alone comes as a board of one block, and this board holds ${String(ids2.length)}.`);
+    return;
+  }
+  const demand = core.scheduler.demand(OWNER, [id2]);
+  el.replaceChildren();
+  const root = createRoot(el);
+  flushSync(() => {
+    root.render(/* @__PURE__ */ jsx4(AloneCard, { core, id: id2 }));
+  });
+  signal.addEventListener(
+    "abort",
+    () => {
+      demand.release();
+      root.unmount();
+      el.replaceChildren(loadingNote());
+    },
+    { once: true }
+  );
+}
+function AloneCard({ core, id: id2 }) {
+  const name3 = useBlockName(core, id2);
+  const status = useStatus(core, id2);
+  const footer = useFooter(status);
+  const sized = useSized(status);
+  const mountUi = useCallback3((el) => core.mountBlock(el, id2), [core, id2]);
+  const mountOutput2 = useCallback3((el) => core.mountOutput(el, id2), [core, id2]);
+  const inputs = !core.store.locked(id2);
+  const current2 = status?.status === "ready" && !status.running;
+  return /* @__PURE__ */ jsxs2(
+    "article",
+    {
+      "aria-label": name3,
+      className: "bc:mx-auto bc:my-4 bc:grid bc:max-w-5xl bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-subtle bc:p-3 bc:font-sans bc:text-gray-900 bc:dark:text-gray-100",
+      children: [
+        /* @__PURE__ */ jsx4("header", { children: /* @__PURE__ */ jsx4("h1", { className: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold", children: name3 }) }),
+        inputs ? /* @__PURE__ */ jsx4(Mounted, { mount: mountUi, label: "Inputs", className: "bc:min-w-0" }) : null,
+        /* @__PURE__ */ jsxs2(
+          "div",
+          {
+            className: `bc:min-w-0 ${sized ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`,
+            children: [
+              /* @__PURE__ */ jsx4(
+                Mounted,
+                {
+                  mount: mountOutput2,
+                  label: "Output",
+                  data: { "data-current": String(current2) },
+                  className: `bc:min-w-0 bc:transition-opacity ${current2 ? "" : "bc:opacity-50 bc:grayscale"} ${sized ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"}`
+                }
+              ),
+              /* @__PURE__ */ jsx4(Footer, { ...footer })
+            ]
+          }
+        ),
+        /* @__PURE__ */ jsx4(Banners, { ...footer })
+      ]
+    }
+  );
+}
+function useBlockName(core, id2) {
+  const subscribe = useCallback3(
+    (notify) => core.store.subscribe(() => {
+      notify();
+    }),
+    [core]
+  );
+  return useSyncExternalStore2(subscribe, () => own(core.store.board().blocks, id2)?.name ?? id2);
 }
 
 // srcts/page/page.ts
