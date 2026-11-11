@@ -89,14 +89,13 @@ test_that("core's basic frontend and storage plugin keep no state", {
   expect_length(plugin_state(storage), 0L)
 })
 
-test_that("available_plugins() gives core's plugin classes, each with a name", {
+test_that("available_plugins() gives core's plugin classes by package and id", {
 
   expect_identical(
     available_plugins(),
     data.frame(
       package = c("blockr.core", "blockr.core"),
-      id = c("basic_frontend_plugin", "file_storage_plugin"),
-      name = c("Basic frontend", "File storage")
+      id = c("basic_frontend_plugin", "file_storage_plugin")
     )
   )
 
@@ -104,12 +103,14 @@ test_that("available_plugins() gives core's plugin classes, each with a name", {
 
   expect_identical(
     available_plugins()[3L, ],
-    data.frame(
-      package = "blockr.test",
-      id = "notes_plugin",
-      name = "Notes",
-      row.names = 3L
-    )
+    data.frame(package = "blockr.test", id = "notes_plugin", row.names = 3L)
+  )
+
+  # A class's name stays with its package's listing, which the app's plugins
+  # take it from
+  expect_identical(
+    app_plugins(available_plugins())[["blockr.test-notes_plugin"]]$name,
+    "Notes"
   )
 })
 

@@ -31,7 +31,8 @@
 #' `md_plugin`, which titles the plugin's panel.
 #' The function `available_plugins()` gives the plugin classes that the
 #' available packages list, as a data frame with a row for each class, with
-#' its package in `package`, its id in `id` and its name in `name`.
+#' its package in `package` and its id in `id`, which identify the class.
+#' The rest of a class, such as its name, stays with its package's listing.
 #' Until other packages list their own, it gives core's classes alone.
 #'
 #' Core defines two plugin classes beside `plugin`, since every page relies on
@@ -256,8 +257,7 @@ available_plugins <- function() {
 
   data.frame(
     package = chr_xtr(classes, "package"),
-    id = chr_xtr(classes, "id"),
-    name = chr_xtr(classes, "name")
+    id = chr_xtr(classes, "id")
   )
 }
 

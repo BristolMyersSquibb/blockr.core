@@ -84,7 +84,8 @@ its name, the human-readable form of its id, such as "Document" for
 \code{md_plugin}, which titles the plugin's panel.
 The function \code{available_plugins()} gives the plugin classes that the
 available packages list, as a data frame with a row for each class, with
-its package in \code{package}, its id in \code{id} and its name in \code{name}.
+its package in \code{package} and its id in \code{id}, which identify the class.
+The rest of a class, such as its name, stays with its package's listing.
 Until other packages list their own, it gives core's classes alone.
 
 Core defines two plugin classes beside \code{plugin}, since every page relies on
