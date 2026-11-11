@@ -46,15 +46,21 @@ block_registry <- new.env()
 #'
 #' R reads the file into the same rows, and a package that the file leaves out
 #' offers nothing.
-#' As the app starts, R loads the packages of the rows and fills the block
-#' registry with their classes, in place of the classes of packages that an
-#' earlier app of the process offered.
 #' A row whose package is not available, or whose class its package does not
 #' list, stops the app, naming the row, and so does a package that lists two
 #' constructors whose classes give one registry id.
-#' An app script registers the block classes that it defines itself, with
-#' `register_block()` or `register_blocks()`, which `block_classes` leaves as
-#' they are.
+#'
+#' Each app holds a block registry of its own, which `serve()` builds as it is
+#' called, and which the app's sessions read alone.
+#' R loads the packages of the rows and registers their classes in it.
+#' An app script registers the block classes that it defines itself in the
+#' block registry of the R process, with `register_block()` or
+#' `register_blocks()`.
+#' Every app that the script serves after that holds them, whatever its
+#' `block_classes`, and a class that the script registers under the registry
+#' id of a row's class takes that class's place.
+#' So a later `serve()` or `register_block()` changes no app that `serve()`
+#' built before.
 #'
 #' An entry holds, beside the metadata, the block class, its constructor, its
 #' data inputs, its UI module and the JSON Schema of the block's state that the
@@ -83,10 +89,11 @@ block_registry <- new.env()
 #' Blocks can be registered (i.e. added to the registry) via `register_block()`
 #' with scalar-valued arguments and `register_blocks()`, where arguments may be
 #' vector-valued, while de-registration (or removal) is handled via
-#' `unregister_blocks()`. The registry IDs of the registered classes come from
-#' `list_blocks()`, while `available_blocks()` lists the block classes of the
-#' available packages, which an app may offer. Finally, block construction via
-#' a registry ID is available as `create_block()`.
+#' `unregister_blocks()`, all in the block registry of the process. The
+#' registry IDs of the registered classes come from `list_blocks()`, while
+#' `available_blocks()` lists the block classes of the available packages,
+#' which an app may offer. Finally, block construction via a registry ID is
+#' available as `create_block()`.
 #'
 #' @param ctor Block constructor, made by [block_constructor()]
 #' @param name,description Metadata describing the block
@@ -144,6 +151,19 @@ register_block <- function(ctor, name, description, category = NULL,
                            icon = NULL, arguments = NULL, details = NULL,
                            link = NULL, guidance = NULL, examples = list(),
                            keywords = NULL, overwrite = FALSE) {
+
+  add_block_entry(
+    block_registry, ctor, name, description, category, icon, arguments,
+    details, link, guidance, examples, keywords, overwrite
+  )
+}
+
+# Registers a block class in `registry`, as `register_block()` does in the
+# block registry of the process, and `serve()` in an app's.
+add_block_entry <- function(registry, ctor, name, description, category = NULL,
+                            icon = NULL, arguments = NULL, details = NULL,
+                            link = NULL, guidance = NULL, examples = list(),
+                            keywords = NULL, overwrite = FALSE) {
 
   if (is.null(category)) {
     category <- default_category()
@@ -213,7 +233,7 @@ register_block <- function(ctor, name, description, category = NULL,
     validate_block_spec(arguments, examples, cls, check_names = user_spec)
   }
 
-  if (id %in% list_blocks() && !isTRUE(overwrite)) {
+  if (exists(id, envir = registry, inherits = FALSE) && !isTRUE(overwrite)) {
     blockr_abort(
       "Block {id} already exists. Set `overwrite = TRUE` to replace it, ",
       "or remove it first with `unregister_blocks(\"{id}\")`.",
@@ -247,7 +267,7 @@ register_block <- function(ctor, name, description, category = NULL,
     state = state
   )
 
-  assign(id, entry, envir = block_registry)
+  assign(id, entry, envir = registry)
 
   invisible(entry)
 }
@@ -469,9 +489,9 @@ register_blocks <- function(...) {
   )
 }
 
-get_registry_entry <- function(uid) {
+get_registry_entry <- function(uid, registry = block_registry) {
 
-  res <- if (is_string(uid)) get0(uid, envir = block_registry, inherits = FALSE)
+  res <- if (is_string(uid)) get0(uid, envir = registry, inherits = FALSE)
 
   if (!is_registry_entry(res)) {
     blockr_abort(
@@ -517,9 +537,9 @@ create_block <- function(id, ...) {
   get_registry_entry(id)[["constructor"]](...)
 }
 
-# The entries of the block registry by registry id.
-registry_entries <- function() {
-  lapply(set_names(nm = list_blocks()), get_registry_entry)
+# The entries of a block registry by registry id, the process's by default.
+registry_entries <- function(registry = block_registry) {
+  lapply(set_names(nm = ls(envir = registry)), get_registry_entry, registry)
 }
 
 # The packages whose block classes an app may offer, by name: those that ship
@@ -591,34 +611,31 @@ package_yaml_blocks <- function(package) {
   entries
 }
 
-# Fills the block registry with the block classes that an app offers, as
-# `serve()` starts the app, and gives the packages of these classes.
-# R loads each of these packages and registers its classes in place of those
-# of every package that the registry holds, as an earlier app of the process
-# may have offered others, while the classes that an app script registered
-# stay.
-fill_block_registry <- function(block_classes = available_blocks()) {
+# The block registry of an app, which `serve()` builds as it starts the app,
+# and which the app's sessions read alone.
+# It holds the block classes that the app offers, as `block_classes` gives
+# them, whose packages R loads, the classes that the app script registered in
+# the block registry of the process, each in place of a row's class of the
+# same registry id, and the classes of the blocks on `board` that it lacks
+# (see `register_board_classes()`).
+app_block_registry <- function(block_classes = available_blocks(),
+                               board = NULL) {
 
   rows <- offered_block_classes(block_classes)
-  packages <- unique(rows[["package"]])
+  registry <- new.env(parent = emptyenv())
 
-  unregister_blocks(package_registry_ids())
-
-  for (pkg in packages) {
+  for (pkg in unique(rows[["package"]])) {
     loadNamespace(pkg)
-    register_yaml_blocks(pkg, rows[["id"]][rows[["package"]] == pkg])
+    register_yaml_blocks(pkg, registry, rows[["id"]][rows[["package"]] == pkg])
   }
 
-  packages
-}
+  list2env(as.list(block_registry, all.names = TRUE), registry)
 
-# The registry ids of the block classes from packages that the block registry
-# holds.
-package_registry_ids <- function() {
-  Filter(
-    function(id) not_null(get_registry_entry(id)[["block_class"]][["package"]]),
-    list_blocks()
-  )
+  if (not_null(board)) {
+    register_board_classes(board, registry)
+  }
+
+  registry
 }
 
 # The block classes that an app offers, as `serve()` takes them in
@@ -762,9 +779,10 @@ check_block_class_packages <- function(packages, available) {
 }
 
 # Registers the block classes that a package lists in its
-# `inst/registry/blocks.yml`, or those of them whose ids `ids` gives.
+# `inst/registry/blocks.yml` in `registry`, or those of them whose ids `ids`
+# gives.
 # A package that lists none registers none.
-register_yaml_blocks <- function(package, ids = NULL) {
+register_yaml_blocks <- function(package, registry, ids = NULL) {
 
   entries <- package_yaml_blocks(package)
 
@@ -785,19 +803,22 @@ register_yaml_blocks <- function(package, ids = NULL) {
 
   check_package_registry_ids(ctors, package, chr_xtr(entries, "id"))
 
-  register_blocks(
-    ctors,
-    name = chr_xtr(entries, "name"),
-    description = chr_xtr(entries, "description"),
-    details = lapply(entries, `[[`, "details"),
-    link = lapply(entries, `[[`, "link"),
-    category = chr_xtr(entries, "category"),
-    icon = lapply(entries, `[[`, "icon"),
-    guidance = lapply(entries, `[[`, "guidance"),
-    keywords = lapply(entries, `[[`, "keywords"),
-    arguments = lapply(entries, yaml_block_arguments),
-    examples = lapply(entries, yaml_block_examples),
-    overwrite = TRUE
+  invisible(
+    Map(
+      add_block_entry,
+      ctor = ctors,
+      name = chr_xtr(entries, "name"),
+      description = chr_xtr(entries, "description"),
+      details = lapply(entries, `[[`, "details"),
+      link = lapply(entries, `[[`, "link"),
+      category = chr_xtr(entries, "category"),
+      icon = lapply(entries, `[[`, "icon"),
+      guidance = lapply(entries, `[[`, "guidance"),
+      keywords = lapply(entries, `[[`, "keywords"),
+      arguments = lapply(entries, yaml_block_arguments),
+      examples = lapply(entries, yaml_block_examples),
+      MoreArgs = list(registry = registry, overwrite = TRUE)
+    )
   )
 }
 

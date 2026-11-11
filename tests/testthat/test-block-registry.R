@@ -354,10 +354,11 @@ test_that("an app offers the block classes that `block_classes` gives", {
       "subset_block", "upload_block")
   )
 
-  expect_identical(fill_block_registry(core_block_rows()), "blockr.core")
-  expect_setequal(list_blocks(), ids)
+  registry <- app_block_registry(core_block_rows())
 
-  entries <- registry_entries()[ids]
+  expect_setequal(ls(registry), ids)
+
+  entries <- registry_entries(registry)[ids]
 
   expect_identical(unique(chr_xtr(entries, "package")), "blockr.core")
 
@@ -378,51 +379,64 @@ test_that("an app offers the block classes that `block_classes` gives", {
   # Core lists neither its static nor its fixed block, whose classes give their
   # ids all the same
   expect_false(any(c("blockr.core-static_block", "blockr.core-fixed_block") %in%
-                     list_blocks()))
+                     ls(registry)))
   expect_identical(registry_id_from_block(new_static_block()),
                    "blockr.core-static_block")
   expect_identical(registry_id_from_block(new_fixed_block()),
                    "blockr.core-fixed_block")
 
-  # Rows narrow them, whatever else they hold, in place of the classes of
-  # packages that an earlier app offered, while a script's classes stay
+  # Each app holds a registry of its own, and the block registry of the
+  # process none of its classes
+  expect_length(list_blocks(), 0L)
+
+  # Rows narrow them, whatever else they hold, while the classes that the
+  # script registers in the block registry of the process join them
   register_block(new_class_head_block, "Head", "First rows")
 
   rows <- core_block_rows()
   rows <- rows[rows[["id"]] %in% c("dataset_block", "head_block"), ]
 
-  expect_identical(fill_block_registry(rbind(rows, rows)), "blockr.core")
   expect_setequal(
-    list_blocks(),
+    ls(app_block_registry(rbind(rows, rows))),
     c("blockr.core-dataset_block", "blockr.core-head_block", "head_block")
   )
+  expect_identical(list_blocks(), "head_block")
+
+  # A class that the script registers under the registry id of a row's class
+  # takes that class's place
+  register_block(new_head_block, "First rows", "The script's head block")
+
+  expect_identical(
+    get_registry_entry("blockr.core-head_block", app_block_registry(rows)),
+    get_registry_entry("blockr.core-head_block")
+  )
+
+  unregister_blocks("blockr.core-head_block")
 
   # A YAML file lists packages, each with the ids of its classes to offer, or
   # alone for all of them, and a package that it leaves out offers nothing
   file <- withr::local_tempfile(fileext = ".yml")
 
   writeLines(c("- blockr.core:", "  - glue_block"), file)
-  fill_block_registry(file)
 
-  expect_setequal(list_blocks(), c("blockr.core-glue_block", "head_block"))
+  expect_setequal(
+    ls(app_block_registry(file)),
+    c("blockr.core-glue_block", "head_block")
+  )
 
   writeLines("- blockr.core", file)
-  fill_block_registry(file)
 
-  expect_setequal(list_blocks(), c(ids, "head_block"))
+  expect_setequal(ls(app_block_registry(file)), c(ids, "head_block"))
 
   writeLines(character(), file)
 
-  expect_identical(fill_block_registry(file), character())
-  expect_identical(list_blocks(), "head_block")
+  expect_identical(ls(app_block_registry(file)), "head_block")
 })
 
 test_that("a block class that no available package lists stops the app", {
 
-  local_declared(block_registry)
-
   expect_error(
-    fill_block_registry(
+    app_block_registry(
       data.frame(package = c("blockr.absent", "blockr.gone"), id = "x_block")
     ),
     paste0(
@@ -434,7 +448,7 @@ test_that("a block class that no available package lists stops the app", {
   )
 
   expect_error(
-    fill_block_registry(
+    app_block_registry(
       data.frame(package = "blockr.core", id = c("no_block", "head_block"))
     ),
     paste0(
@@ -448,15 +462,15 @@ test_that("a block class that no available package lists stops the app", {
   file <- withr::local_tempfile(fileext = ".yml")
 
   writeLines(c("- blockr.core", "- blockr.absent"), file)
-  expect_error(fill_block_registry(file), class = "block_classes_unavailable")
+  expect_error(app_block_registry(file), class = "block_classes_unavailable")
 
   writeLines(c("- blockr.core:", "  - no_block"), file)
-  expect_error(fill_block_registry(file), class = "block_classes_unknown")
+  expect_error(app_block_registry(file), class = "block_classes_unknown")
 
   # A file that lists no packages, as a map, and one that holds no YAML
   for (lines in list("blockr.core: head_block", "- [")) {
     writeLines(lines, file)
-    expect_error(fill_block_registry(file), class = "block_classes_invalid")
+    expect_error(app_block_registry(file), class = "block_classes_invalid")
   }
 
   # A string is a path, so that a package's name gives no file
@@ -469,13 +483,12 @@ test_that("a block class that no available package lists stops the app", {
   )
 
   for (x in invalid) {
-    expect_error(fill_block_registry(x), class = "block_classes_invalid")
+    expect_error(app_block_registry(x), class = "block_classes_invalid")
   }
 })
 
 test_that("an app offers the classes of a package that load_all() loads", {
 
-  local_declared(block_registry)
   local_load_all_package()
 
   rows <- available_blocks()
@@ -484,13 +497,13 @@ test_that("an app offers the classes of a package that load_all() loads", {
   expect_identical(probe[["id"]], "probe_block")
   expect_identical(probe[["name"]], "Probe")
 
-  expect_identical(fill_block_registry(probe), "regprobe")
-  expect_identical(get_registry_entry("regprobe-probe_block")$name, "Probe")
+  expect_identical(
+    get_registry_entry("regprobe-probe_block", app_block_registry(probe))$name,
+    "Probe"
+  )
 })
 
 test_that("a package's `blocks.yml` gives the id of each class it lists", {
-
-  local_declared(block_registry)
 
   file <- file.path(local_load_all_package(), "inst", "registry", "blocks.yml")
   entry <- c("  name: Probe", "  description: Probes", "  category: input")
@@ -500,7 +513,7 @@ test_that("a package's `blocks.yml` gives the id of each class it lists", {
   writeLines(c("new_probe_block:", "  id: other_block", entry), file)
 
   expect_error(
-    fill_block_registry(data.frame(package = "regprobe", id = "other_block")),
+    app_block_registry(data.frame(package = "regprobe", id = "other_block")),
     "Package regprobe lists block constructor new_probe_block under another ",
     class = "package_blocks_invalid"
   )

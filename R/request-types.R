@@ -100,6 +100,8 @@ NULL
 # The results that the request reads come in `reads`, by block ID, each a list
 # of the block's `result`, its block expression `expr` and, where R made an
 # output from the result, the class vector of the latest output in `output`.
+# A request of a block class reads the class from the app's block registry,
+# which R hands it in `registry`.
 # Core keeps the generic to itself, since no package adds a type.
 # R reads no request of another type, so the generic needs no default method.
 request_call <- function(x, reads, ...) {
@@ -107,9 +109,9 @@ request_call <- function(x, reads, ...) {
 }
 
 #' @export
-request_call.block_class_request <- function(x, reads, ...) {
+request_call.block_class_request <- function(x, reads, registry, ...) {
 
-  entry <- get_registry_entry(x[["registry_id"]])
+  entry <- get_registry_entry(x[["registry_id"]], registry)
   bound <- bind_inputs(x[["reads"]], reads, entry[["inputs"]])
   args <- x[["args"]]
 
@@ -123,7 +125,8 @@ request_call.block_class_request <- function(x, reads, ...) {
     x[["name"]],
     input_values(bound),
     args,
-    x[["options"]]
+    x[["options"]],
+    registry
   )
 }
 

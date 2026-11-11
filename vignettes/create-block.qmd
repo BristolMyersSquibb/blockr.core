@@ -681,7 +681,7 @@ A class defined outside a package, such as in an app script, names a module besi
 
 ## Registration
 
-A package registers its block classes in the __block registry__, under a __registry ID__ `{pkg}-{id}`, such as `blockr.core-head_block`.
+Each app holds the block classes that it offers in a __block registry__ of its own, under a __registry ID__ `{pkg}-{id}`, such as `blockr.core-head_block`.
 The class gives its registry ID: `{pkg}` is the package whose code calls `new_block_class()`, and `{id}` is the id that the class takes.
 So renaming a constructor leaves the registry ID as it is, while changing a class's id changes it, and boards saved before then no longer find the class.
 A class's id holds no `-`, since a registry ID splits at its first `-`.

@@ -143,15 +143,21 @@ it lists none:
 
 R reads the file into the same rows, and a package that the file leaves out
 offers nothing.
-As the app starts, R loads the packages of the rows and fills the block
-registry with their classes, in place of the classes of packages that an
-earlier app of the process offered.
 A row whose package is not available, or whose class its package does not
 list, stops the app, naming the row, and so does a package that lists two
 constructors whose classes give one registry id.
-An app script registers the block classes that it defines itself, with
-\code{register_block()} or \code{register_blocks()}, which \code{block_classes} leaves as
-they are.
+
+Each app holds a block registry of its own, which \code{serve()} builds as it is
+called, and which the app's sessions read alone.
+R loads the packages of the rows and registers their classes in it.
+An app script registers the block classes that it defines itself in the
+block registry of the R process, with \code{register_block()} or
+\code{register_blocks()}.
+Every app that the script serves after that holds them, whatever its
+\code{block_classes}, and a class that the script registers under the registry
+id of a row's class takes that class's place.
+So a later \code{serve()} or \code{register_block()} changes no app that \code{serve()}
+built before.
 
 An entry holds, beside the metadata, the block class, its constructor, its
 data inputs, its UI module and the JSON Schema of the block's state that the
@@ -180,10 +186,11 @@ either.
 Blocks can be registered (i.e. added to the registry) via \code{register_block()}
 with scalar-valued arguments and \code{register_blocks()}, where arguments may be
 vector-valued, while de-registration (or removal) is handled via
-\code{unregister_blocks()}. The registry IDs of the registered classes come from
-\code{list_blocks()}, while \code{available_blocks()} lists the block classes of the
-available packages, which an app may offer. Finally, block construction via
-a registry ID is available as \code{create_block()}.
+\code{unregister_blocks()}, all in the block registry of the process. The
+registry IDs of the registered classes come from \code{list_blocks()}, while
+\code{available_blocks()} lists the block classes of the available packages,
+which an app may offer. Finally, block construction via a registry ID is
+available as \code{create_block()}.
 }
 \examples{
 new_identity_block <- block_constructor(

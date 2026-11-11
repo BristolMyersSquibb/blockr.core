@@ -16,12 +16,15 @@
 #' `subset(available_blocks(), package != "blockr.ggplot")` offers every class
 #' but those of blockr.ggplot, or gives the path of a YAML file that lists them
 #' (see [register_block()]).
-#' As `serve()` is called, R loads the packages of these classes, and fills the
-#' block registry with them.
+#' As `serve()` is called, R loads the packages of these classes and builds the
+#' app's own block registry from them, from the classes that the app script
+#' registered (see [register_block()]) and from the board (below).
+#' The app's sessions read that registry alone, so a later `serve()` or
+#' `register_block()` changes no app that `serve()` built before.
 #' A class that no available package lists stops the app, naming it.
 #' The packages that the app uses are core, those of the block classes in the
-#' block registry, whether the app offers them or R registers them from the
-#' board (below), and those of the board's plugins.
+#' app's block registry, whether the app offers them or R registers them from
+#' the board, and those of the board's plugins.
 #' R tells the client of the startup modules, the modules, the plugin classes
 #' and the board options of these packages alone, whatever a block's code
 #' loads later, and orders the startup modules by the packages' dependencies,
@@ -33,15 +36,16 @@
 #' So a board that R cannot write as JSON fails as the script runs (see
 #' [blockr_ser()]).
 #' Before it writes the board, R registers the class of each block on the
-#' board that the block registry lacks, under the registry ID that the class
-#' gives (see [register_block()]).
+#' board that the app's block registry lacks, under the registry ID that the
+#' class gives (see [register_block()]).
 #' So every block on the served board runs, and so does a block that `serve()`
 #' serves alone.
 #' A class from a package keeps its package's ID, so that a board saved from
 #' the app opens in an app that offers the package.
 #' A class from outside a package, whose registry ID is its id alone,
-#' replaces another class that the registry holds under that ID, so that a
-#' script that redefines a class and serves again runs the new definition.
+#' replaces another class that the script registered under that ID, so that a
+#' script that redefines a class after it registered it runs the new
+#' definition.
 #' A board with blocks of two such classes of one id fails, since the client
 #' and the evaluator know a block's class by its registry ID alone.
 #' For the path of a JSON board, R reads only the file's format, and sends the
@@ -120,11 +124,11 @@ serve <- function(x, ...) {
 #' @export
 serve.board <- function(x, ..., block_classes = available_blocks()) {
   check_board_args(substitute(list(...)), "a board")
-  fill_block_registry(block_classes)
-  register_board_classes(x)
+  registry <- app_block_registry(block_classes, x)
   serve_app(
     encode_message(blockr_ser(x)),
-    packages = used_packages(board_plugin_packages(x))
+    registry,
+    plugins = board_plugin_packages(x)
   )
 }
 
@@ -132,8 +136,8 @@ serve.board <- function(x, ..., block_classes = available_blocks()) {
 #' @export
 serve.character <- function(x, ..., block_classes = available_blocks()) {
   check_board_args(substitute(list(...)), "the path of a JSON board")
-  fill_block_registry(block_classes)
-  serve_app(read_board_json(x), packages = used_packages())
+  registry <- app_block_registry(block_classes)
+  serve_app(read_board_json(x), registry)
 }
 
 #' @param data The block's data, a list by input
@@ -157,25 +161,18 @@ serve.block <- function(x, ..., data = list(),
 
   check_block_data(x, data)
 
-  fill_block_registry(block_classes)
-
   board <- new_board(x)
-  register_board_classes(board)
+  registry <- app_block_registry(block_classes, board)
 
-  serve_app(
-    encode_message(blockr_ser(board)),
-    data,
-    alone = TRUE,
-    packages = used_packages()
-  )
+  serve_app(encode_message(blockr_ser(board)), registry, data, alone = TRUE)
 }
 
 # The packages that an app uses, in the order of their dependencies (see
-# `package_order()`): core, those of the block classes in the block registry,
-# and those of the app's plugins, `plugins`.
-used_packages <- function(plugins = character()) {
+# `package_order()`): core, those of the block classes in the app's block
+# registry, `registry`, and those of the app's plugins, `plugins`.
+used_packages <- function(registry, plugins = character()) {
 
-  classes <- lapply(registry_entries(), function(x) x[["block_class"]])
+  classes <- lapply(registry_entries(registry), function(x) x[["block_class"]])
 
   package_order(
     c("blockr.core", unlst(lapply(classes, `[[`, "package")), plugins)
@@ -187,16 +184,16 @@ board_plugin_packages <- function(board) {
   id_package(chr_ply(board_plugins(board), plugin_class_id))
 }
 
-# Registers the class of each block on a board that the block registry lacks,
-# under the registry id that the class gives, so that every block on the
-# served board runs. A class from a package keeps its package's id. Core's
-# static and fixed blocks get theirs this way, since core does not register
-# them as it loads.
+# Registers the class of each block on a board that an app's block registry,
+# `registry`, lacks, under the registry id that the class gives, so that every
+# block on the served board runs. A class from a package keeps its package's
+# id. Core's static and fixed blocks get theirs this way, since core does not
+# register them as it loads.
 # A class from outside a package has no package that checks the ids of its
 # classes, so R checks it here. It replaces another class that the registry
-# holds under its id, as a class does that the script has redefined since an
-# earlier `serve()`, and two such classes of one id on a board fail.
-register_board_classes <- function(board) {
+# holds under its id, as a class does that the script redefined after it
+# registered it, and two such classes of one id on a board fail.
+register_board_classes <- function(board, registry) {
 
   classes <- lapply(as.list(board_blocks(board)), block_class)
 
@@ -205,10 +202,11 @@ register_board_classes <- function(board) {
   for (cls in classes) {
 
     id <- class_registry_id(cls)
-    old <- if (id %in% list_blocks()) get_registry_entry(id)[["block_class"]]
+    old <- get0(id, envir = registry, inherits = FALSE)[["block_class"]]
 
     if (is.null(old) || (is.null(cls[["package"]]) && !identical(old, cls))) {
-      register_block(
+      add_block_entry(
+        registry,
         block_constructor(cls),
         default_block_name(cls[["class"]]),
         "",
@@ -248,8 +246,9 @@ check_outside_classes <- function(classes) {
 # The app that `serve()` returns, for the opening board given as JSON, and
 # for a block that `serve()` serves alone, with the data that R binds to the
 # block's inputs.
-# Each session's evaluator tells the client of what the packages that the app
-# uses declare.
+# Each session's evaluator reads the app's block registry, `registry`, alone,
+# and tells the client of what the packages that the app uses declare, those
+# of its block classes and of its plugins, `plugins`.
 # R writes or reads the opening board here, as `serve()` is called, rather than
 # as a session starts, and so reads it for the locks.
 # Every session's evaluator holds its evaluations to what R read.
@@ -260,21 +259,22 @@ check_outside_classes <- function(classes) {
 # set the blockr options, whatever core logged before.
 # It works out the logger afresh, so that a logger that cannot work stops the
 # app here (see `write_log()`).
-serve_app <- function(board, data = list(), alone = FALSE,
-                      packages = "blockr.core") {
+serve_app <- function(board, registry, data = list(), alone = FALSE,
+                      plugins = character()) {
 
   reset_logging()
   get_logger()
 
   force(board)
 
-  lock <- lock_board(board, data)
+  packages <- used_packages(registry, plugins)
+  lock <- lock_board(board, data, registry)
 
   shiny::shinyApp(
     ui = function(req) serve_page(alone),
     server = function(input, output, session) {
 
-      ev <- new_evaluator(board, data, lock, packages)
+      ev <- new_evaluator(board, data, lock, packages, registry)
 
       shiny::exportTestValues(result = latest_results(ev, alone))
 

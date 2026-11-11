@@ -38,8 +38,6 @@ test_that("serve() serves a board, whose JSON R writes as serve() is called", {
 
 test_that("serve() registers the board's classes that the registry lacks", {
 
-  local_declared(block_registry)
-
   cls <- test_block_class(
     "note_block",
     expr = function(text = "") bbquote(.(text)),
@@ -57,33 +55,30 @@ test_that("serve() registers the board's classes that the registry lacks", {
   ids <- c("note_block", "blockr.core-static_block")
   head <- get_registry_entry("blockr.core-head_block")
 
-  expect_false(any(ids %in% list_blocks()))
-
-  serve(board)
+  registry <- served_registry(serve(board))
 
   # Each under the id that its class gives, so that a class from a package
-  # keeps its package's id
-  expect_contains(list_blocks(), ids)
-  expect_identical(get_registry_entry("note_block")$name, "Note")
+  # keeps its package's id, in the app's block registry alone
+  expect_contains(ls(registry), ids)
+  expect_false(any(ids %in% list_blocks()))
+  expect_identical(get_registry_entry("note_block", registry)$name, "Note")
   expect_identical(
-    get_registry_entry("blockr.core-static_block")$package,
+    get_registry_entry("blockr.core-static_block", registry)$package,
     "blockr.core"
   )
 
   # A class that the block registry holds keeps its entry
-  expect_identical(get_registry_entry("blockr.core-head_block"), head)
+  expect_identical(get_registry_entry("blockr.core-head_block", registry), head)
 })
 
-test_that("serve() fills the block registry with the classes the app offers", {
+test_that("serve() builds the app's block registry of the classes it offers", {
 
   local_declared(block_registry)
   unregister_blocks()
 
   # Every available class by default, beside the classes of the board
-  serve(served_board())
-
   expect_contains(
-    list_blocks(),
+    ls(served_registry(serve(served_board()))),
     c("blockr.core-merge_block", "blockr.core-csv_block")
   )
 
@@ -97,10 +92,12 @@ test_that("serve() fills the block registry with the classes the app offers", {
 
   for (x in list(served_board(), path, new_static_block("datasets::BOD"))) {
 
-    serve(x, block_classes = rows[rows[["id"]] == "csv_block", ])
+    registry <- served_registry(
+      serve(x, block_classes = rows[rows[["id"]] == "csv_block", ])
+    )
 
-    expect_contains(list_blocks(), "blockr.core-csv_block")
-    expect_false("blockr.core-merge_block" %in% list_blocks())
+    expect_contains(ls(registry), "blockr.core-csv_block")
+    expect_false("blockr.core-merge_block" %in% ls(registry))
 
     expect_error(
       serve(x, block_classes = absent),
@@ -108,6 +105,78 @@ test_that("serve() fills the block registry with the classes the app offers", {
       class = "block_classes_unavailable"
     )
   }
+
+  # The block registry of the process holds none of the apps' classes
+  expect_length(list_blocks(), 0L)
+})
+
+test_that("an app's sessions read the block registry that serve() built", {
+
+  local_declared(block_registry)
+  unregister_blocks()
+
+  rows <- core_block_rows()
+  app <- serve(served_board(), block_classes = rows)
+
+  # A later register_block() or serve() leaves the app as it was, while the
+  # later app holds the class that the script registered
+  dir <- withr::local_tempdir()
+  module <- file.path(dir, "note-block.js")
+  writeLines("export default function mount() {}", module)
+
+  note <- outside_class("note_block", function(text = "") bbquote(.(text)), dir)
+  register_block(block_constructor(note), "Note", "A note")
+
+  later <- serve(
+    served_board(),
+    block_classes = rows[rows[["id"]] %in% c("dataset_block", "head_block"), ]
+  )
+
+  expect_setequal(
+    names(served_replies(app, hello_message())[[1L]]$block_registry),
+    paste0("blockr.core-", rows[["id"]])
+  )
+  expect_setequal(
+    names(served_replies(later, hello_message())[[1L]]$block_registry),
+    c("blockr.core-dataset_block", "blockr.core-head_block", "note_block")
+  )
+
+  # The app evaluates its blocks, answers their requests and makes their
+  # outputs by its registry, whose classes the block registry of the process
+  # lacks
+  replies <- served_replies(
+    app,
+    hello_message(),
+    list(
+      evaluate_request("2", "a", 1L, sample_recipe("a")),
+      list(
+        id = "3", kind = "request", type = "block_class",
+        registry_id = "blockr.core-head_block", block = "b", name = "n_max",
+        args = obj(), reads = list(read_of("a", 1L, "data"))
+      ),
+      output_request("4", "a", 1L, params = list(page_size = 5L))
+    )
+  )
+
+  expect_identical(chr_xtr(replies[-1L], "status"), c("ok", "ok", "ok"))
+  expect_identical(replies[[3L]]$value, 150L)
+
+  # So does the board lock, which R reads from the opening board as serve() is
+  # called where the load lock is on too, and otherwise from each block's first
+  # evaluation
+  withr::local_options(blockr.locked = TRUE, blockr.lock_load = TRUE)
+
+  expect_no_error(serve(served_board(), block_classes = rows))
+
+  withr::local_options(blockr.lock_load = FALSE)
+
+  replies <- served_replies(
+    serve(served_board(), block_classes = rows),
+    hello_message(),
+    list(evaluate_request("2", "a", 1L, sample_recipe("a")))
+  )
+
+  expect_identical(replies[[2L]]$status, "ok")
 })
 
 test_that("the app's sessions tell of what the packages it uses declare", {
@@ -154,13 +223,10 @@ test_that("the app's sessions tell of what the packages it uses declare", {
 
 test_that("serve() registers the class of a block that it serves alone", {
 
-  local_declared(block_registry)
+  registry <- served_registry(serve(new_static_block("datasets::BOD")))
 
+  expect_true("blockr.core-static_block" %in% ls(registry))
   expect_false("blockr.core-static_block" %in% list_blocks())
-
-  serve(new_static_block("datasets::BOD"))
-
-  expect_true("blockr.core-static_block" %in% list_blocks())
 })
 
 test_that("serve() replaces a class from outside a package that differs", {
@@ -170,17 +236,28 @@ test_that("serve() replaces a class from outside a package that differs", {
   old <- note_class()
   new <- note_class(n = TRUE)
 
-  serve(new_board(c(a = block_constructor(old)())))
+  # As when a script redefines a class after it registered it
+  register_block(block_constructor(old), "Note", "A note")
 
+  registry <- served_registry(serve(new_board(c(a = block_constructor(new)()))))
+
+  expect_identical(get_registry_entry("note_block", registry)$block_class, new)
   expect_identical(get_registry_entry("note_block")$block_class, old)
 
-  # As when a script redefines the class and serves again
-  serve(new_board(c(a = block_constructor(new)())))
+  # A class from a package keeps the entry under its id, which the script
+  # registered
+  held <- note_class(package = "blockr.core")
+  register_block(block_constructor(held), "Note", "A note")
 
-  expect_identical(get_registry_entry("note_block")$block_class, new)
+  other <- block_constructor(note_class(TRUE, "blockr.core"))
+  registry <- served_registry(serve(new_board(c(a = other()))))
 
-  # A class from a package keeps the entry under its id, which its package
-  # lists among the classes that the app offers
+  expect_identical(
+    get_registry_entry("blockr.core-note_block", registry)$block_class,
+    held
+  )
+
+  # And one that its package lists among the classes that the app offers
   local_load_all_package()
 
   rows <- available_blocks()
@@ -191,20 +268,20 @@ test_that("serve() replaces a class from outside a package that differs", {
     package = "regprobe"
   )
 
-  serve(
-    new_board(c(a = block_constructor(other)())),
-    block_classes = rows[rows[["package"]] == "regprobe", ]
+  registry <- served_registry(
+    serve(
+      new_board(c(a = block_constructor(other)())),
+      block_classes = rows[rows[["package"]] == "regprobe", ]
+    )
   )
 
   expect_identical(
-    get_registry_entry("regprobe-probe_block")$block_class,
+    get_registry_entry("regprobe-probe_block", registry)$block_class,
     get("probe_block", envir = asNamespace("regprobe"))
   )
 })
 
 test_that("serve() refuses two classes of one id from outside a package", {
-
-  local_declared(block_registry)
 
   one <- block_constructor(note_class())
   two <- block_constructor(note_class(n = TRUE))
@@ -212,9 +289,6 @@ test_that("serve() refuses two classes of one id from outside a package", {
   board <- new_board(c(a = one(), b = one(), c = two()))
 
   expect_error(serve(board), "Blocks a and c", class = "board_blocks_invalid")
-
-  # It fails before it registers any class
-  expect_false("note_block" %in% list_blocks())
 })
 
 test_that("serve() takes nothing but the board, and says where the rest went", {

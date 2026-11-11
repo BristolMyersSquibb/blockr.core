@@ -48,12 +48,15 @@ A script narrows them with plain R, as
 \code{subset(available_blocks(), package != "blockr.ggplot")} offers every class
 but those of blockr.ggplot, or gives the path of a YAML file that lists them
 (see \code{\link[=register_block]{register_block()}}).
-As \code{serve()} is called, R loads the packages of these classes, and fills the
-block registry with them.
+As \code{serve()} is called, R loads the packages of these classes and builds the
+app's own block registry from them, from the classes that the app script
+registered (see \code{\link[=register_block]{register_block()}}) and from the board (below).
+The app's sessions read that registry alone, so a later \code{serve()} or
+\code{register_block()} changes no app that \code{serve()} built before.
 A class that no available package lists stops the app, naming it.
 The packages that the app uses are core, those of the block classes in the
-block registry, whether the app offers them or R registers them from the
-board (below), and those of the board's plugins.
+app's block registry, whether the app offers them or R registers them from
+the board, and those of the board's plugins.
 R tells the client of the startup modules, the modules, the plugin classes
 and the board options of these packages alone, whatever a block's code
 loads later, and orders the startup modules by the packages' dependencies,
@@ -65,15 +68,16 @@ sends it to the client as each session starts.
 So a board that R cannot write as JSON fails as the script runs (see
 \code{\link[=blockr_ser]{blockr_ser()}}).
 Before it writes the board, R registers the class of each block on the
-board that the block registry lacks, under the registry ID that the class
-gives (see \code{\link[=register_block]{register_block()}}).
+board that the app's block registry lacks, under the registry ID that the
+class gives (see \code{\link[=register_block]{register_block()}}).
 So every block on the served board runs, and so does a block that \code{serve()}
 serves alone.
 A class from a package keeps its package's ID, so that a board saved from
 the app opens in an app that offers the package.
 A class from outside a package, whose registry ID is its id alone,
-replaces another class that the registry holds under that ID, so that a
-script that redefines a class and serves again runs the new definition.
+replaces another class that the script registered under that ID, so that a
+script that redefines a class after it registered it runs the new
+definition.
 A board with blocks of two such classes of one id fails, since the client
 and the evaluator know a block's class by its registry ID alone.
 For the path of a JSON board, R reads only the file's format, and sends the

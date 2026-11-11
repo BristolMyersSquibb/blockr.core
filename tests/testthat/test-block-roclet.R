@@ -316,10 +316,10 @@ test_that("YAML arguments become an arg_specs collection, examples included", {
 
 test_that("a package that ships no YAML registry registers no block class", {
 
-  before <- list_blocks()
+  registry <- new.env()
 
-  expect_invisible(register_yaml_blocks("utils"))
-  expect_identical(list_blocks(), before)
+  expect_invisible(register_yaml_blocks("utils", registry))
+  expect_length(ls(registry), 0L)
 })
 
 test_that("the shipped core registry is complete", {

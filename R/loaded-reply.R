@@ -20,11 +20,11 @@
 # inst/protocol/README.md, as R values that `encode_message()` writes as the
 # reply's JSON.
 # Building them builds no block.
-loaded_reply <- function(packages = "blockr.core") {
+loaded_reply <- function(packages = "blockr.core", registry = block_registry) {
 
   used <- function(x) isTRUE(x[["package"]] %in% packages)
 
-  entries <- registry_entries()
+  entries <- registry_entries(registry)
   startup <- Filter(used, startup_modules())
   startup <- startup[order(match(chr_xtr(startup, "package"), packages))]
   modules <- Filter(

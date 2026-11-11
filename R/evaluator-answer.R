@@ -83,7 +83,7 @@ answer_evaluate <- function(ev, job) {
 
   entry <- coal(
     locked[["entry"]],
-    get_registry_entry(recipe[["registry_id"]]),
+    get_registry_entry(recipe[["registry_id"]], ev$registry),
     fail_all = FALSE
   )
   cls <- entry[["block_class"]]
@@ -156,7 +156,7 @@ answer_output <- function(ev, job) {
     return(missing_reply(job[["id"]], list(out)))
   }
 
-  cls <- get_registry_entry(held[["registry_id"]])[["block_class"]]
+  cls <- get_registry_entry(held[["registry_id"]], ev$registry)[["block_class"]]
   coercion <- coal(cls[["output"]], as_text_output, fail_all = FALSE)
 
   made <- run_phase(
@@ -210,7 +210,11 @@ answer_object_request <- function(ev, job) {
     return(missing_reply(job[["id"]], lacking))
   }
 
-  call <- request_call(req, held_reads(ev, req[["reads"]]))
+  call <- request_call(
+    req,
+    held_reads(ev, req[["reads"]]),
+    registry = ev$registry
+  )
 
   answer_call(job[["id"]], call, call[["volatile"]])
 }
