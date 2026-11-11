@@ -36,6 +36,55 @@ test_that("serve() serves a board, whose JSON R writes as serve() is called", {
   )
 })
 
+test_that("serve() registers the board's classes that the registry lacks", {
+
+  local_declared(block_registry)
+
+  cls <- test_block_class(
+    "note_block",
+    expr = function(text = "") bbquote(.(text)),
+    ui = js_module("note-block.js", package = NULL)
+  )
+
+  board <- new_board(
+    c(
+      a = block_constructor(cls)("Hi"),
+      b = new_static_block("datasets::BOD"),
+      c = new_head_block()
+    )
+  )
+
+  ids <- c("note_block", "blockr.core-static_block")
+  head <- get_registry_entry("blockr.core-head_block")
+
+  expect_false(any(ids %in% list_blocks()))
+
+  serve(board)
+
+  # Each under the id that its class gives, so that a class from a package
+  # keeps its package's id
+  expect_contains(list_blocks(), ids)
+  expect_identical(get_registry_entry("note_block")$name, "Note")
+  expect_identical(
+    get_registry_entry("blockr.core-static_block")$package,
+    "blockr.core"
+  )
+
+  # A class that the block registry holds keeps its entry
+  expect_identical(get_registry_entry("blockr.core-head_block"), head)
+})
+
+test_that("serve() registers the class of a block that it serves alone", {
+
+  local_declared(block_registry)
+
+  expect_false("blockr.core-static_block" %in% list_blocks())
+
+  serve(new_static_block("datasets::BOD"))
+
+  expect_true("blockr.core-static_block" %in% list_blocks())
+})
+
 test_that("serve() takes nothing but the board, and says where the rest went", {
 
   board <- served_board()

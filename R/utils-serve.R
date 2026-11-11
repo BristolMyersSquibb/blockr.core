@@ -12,6 +12,13 @@
 #' sends it to the client as each session starts.
 #' So a board that R cannot write as JSON fails as the script runs (see
 #' [blockr_ser()]).
+#' Before it writes the board, R registers the class of each block on the
+#' board that the block registry lacks, under the registry ID that the class
+#' gives (see [register_block()]).
+#' So every block on the served board runs, and so does a block that `serve()`
+#' serves alone.
+#' A class from a package keeps its package's ID, so that a board saved from
+#' the app opens in an app that offers the package.
 #' For the path of a JSON board, R reads only the file's format, and sends the
 #' file's text as it is, for the client to open.
 #' It loads no package for the file.
@@ -85,6 +92,7 @@ serve <- function(x, ...) {
 #' @export
 serve.board <- function(x, ...) {
   check_board_args(substitute(list(...)), "a board")
+  register_board_classes(x)
   serve_app(encode_message(blockr_ser(x)))
 }
 
@@ -115,7 +123,30 @@ serve.block <- function(x, ..., data = list()) {
 
   check_block_data(x, data)
 
-  serve_app(encode_message(blockr_ser(new_board(x))), data, alone = TRUE)
+  board <- new_board(x)
+  register_board_classes(board)
+
+  serve_app(encode_message(blockr_ser(board)), data, alone = TRUE)
+}
+
+# Registers the class of each block on a board that the block registry lacks,
+# under the registry id that the class gives, so that every block on the
+# served board runs. A class from a package keeps its package's id. Core's
+# static and fixed blocks get theirs this way, since core does not register
+# them as it loads.
+register_board_classes <- function(board) {
+
+  for (cls in lapply(as.list(board_blocks(board)), block_class)) {
+    if (!class_registry_id(cls) %in% list_blocks()) {
+      register_block(
+        block_constructor(cls),
+        default_block_name(cls[["class"]]),
+        ""
+      )
+    }
+  }
+
+  invisible()
 }
 
 # The app that `serve()` returns, for the opening board given as JSON, and

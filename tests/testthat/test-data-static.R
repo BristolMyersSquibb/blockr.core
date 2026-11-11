@@ -12,7 +12,10 @@ test_that("static block constructor", {
   expect_error(new_static_block("datasets::"), "unexpected")
   expect_error(new_static_block("a; b"), "not of length one")
 
-  expect_identical(registry_id_from_block(blk), character())
+  # The class gives its registry id, though core does not register the class
+  # as it loads
+  expect_false("blockr.core-static_block" %in% list_blocks())
+  expect_identical(registry_id_from_block(blk), "blockr.core-static_block")
 })
 
 test_that("a static block evaluates its expression", {

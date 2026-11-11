@@ -40,6 +40,13 @@ For a board, R writes the board's JSON once, as \code{serve()} is called, and
 sends it to the client as each session starts.
 So a board that R cannot write as JSON fails as the script runs (see
 \code{\link[=blockr_ser]{blockr_ser()}}).
+Before it writes the board, R registers the class of each block on the
+board that the block registry lacks, under the registry ID that the class
+gives (see \code{\link[=register_block]{register_block()}}).
+So every block on the served board runs, and so does a block that \code{serve()}
+serves alone.
+A class from a package keeps its package's ID, so that a board saved from
+the app opens in an app that offers the package.
 For the path of a JSON board, R reads only the file's format, and sends the
 file's text as it is, for the client to open.
 It loads no package for the file.

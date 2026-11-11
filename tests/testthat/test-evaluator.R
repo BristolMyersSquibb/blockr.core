@@ -282,13 +282,13 @@ test_that("an evaluation that fails leaves R no result of its block", {
 
 test_that("a summary that is no string replies ok, and R keeps the result", {
 
-  cls <- new_block_class(
+  cls <- test_block_class(
     "odd_block",
     expr = function() quote(structure(1, class = "odd_result")),
     ui = js_module("odd-block.js", package = NULL)
   )
 
-  local_block_class(cls, "odd_block")
+  local_block_class(cls)
 
   testthat::local_mocked_s3_method(
     "result_summary",
@@ -366,7 +366,7 @@ test_that("R sends every condition and all output of an evaluation", {
     inputs = list()
   )
 
-  local_block_class(static_block, "blockr.core-static_block")
+  local_block_class(static_block)
 
   sinks <- sink.number()
   messages <- sink.number(type = "message")
@@ -413,14 +413,14 @@ test_that("R makes a block's output, as the fixtures of outputs have it", {
 
 test_that("an output that fails replies error with the phase output", {
 
-  cls <- new_block_class(
+  cls <- test_block_class(
     "list_block",
     expr = function() quote(list(1, 2)),
     ui = js_module("list-block.js", package = NULL),
     output = as_table_output
   )
 
-  local_block_class(cls, "list_block")
+  local_block_class(cls)
 
   session <- local_evaluator()
 
@@ -1105,7 +1105,7 @@ test_that("the page hears why R sent no reply too large for a message", {
     blockr.max_message_size = 40000
   )
 
-  local_block_class(static_block, "blockr.core-static_block")
+  local_block_class(static_block)
 
   ev <- new_evaluator(board = list(blocks = list()))
 

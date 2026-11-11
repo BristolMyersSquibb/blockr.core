@@ -16,8 +16,9 @@
 #' A JSON board holds the board under `board`, with two things beside it:
 #' `format`, the version of the format, and `packages`, the version of each
 #' package that the board's content comes from, by package.
-#' Those are the packages of the plugins' classes, each the package that the
-#' ID of the class names, and the packages of the blocks' classes.
+#' Those are the packages that the IDs of the plugins' classes and of the
+#' blocks' classes name, each the part of the ID before its first `-`.
+#' The ID of a block class that an app script defines names no package.
 #' The board holds its `id` and `name`, and its blocks, links, stacks and
 #' plugins, each by ID, in their order.
 #' In `versions`, it holds the version of each plugin class whose plugins it
@@ -37,13 +38,13 @@
 #' A stack is written with its name, its blocks and its color, which is `null`
 #' for a stack without one.
 #'
-#' A block is written by the registry ID of its class, with its state, its
-#' name and its lock, `locked`, which a block whose lock is `NA` holds as
-#' `null`.
-#' Where the block registry holds no entry for its class, writing the block
-#' registers the class, as a class from outside a package, under its name.
-#' So a class defined in an app script is registered before any session
-#' evaluates a block of it.
+#' A block is written by the registry ID that its class gives (see
+#' [register_block()]), with its state, its name and its lock, `locked`, which
+#' a block whose lock is `NA` holds as `null`.
+#' R reads the ID, the version of the block's state and the schema of the
+#' state from the block's class.
+#' It reads nothing from the block registry, so writing a board registers no
+#' class (see [serve()]).
 #'
 #' Core's objects are written by the JSON Schema of a JSON board, which core
 #' generates from its TypeScript types, so that a stack's blocks stay an array
@@ -86,8 +87,6 @@
 #'
 #' str(blockr_ser(board))
 #'
-#' unregister_blocks("identity_block")
-#'
 #' @return For a board, `blockr_ser()` returns the board as a JSON board, as a
 #' list that R's JSON writers write as its JSON.
 #' Its methods for the parts of a board return what the board holds in their
@@ -103,12 +102,13 @@ blockr_ser <- function(x, ...) {
 blockr_ser.board <- function(x, ...) {
 
   plugins <- board_plugins(x)
+  blocks <- board_blocks(x)
 
   board <- list(
     id = board_id(x),
     versions = plugin_versions_of(plugins),
     name = board_name(x),
-    blocks = blockr_ser(board_blocks(x)),
+    blocks = blockr_ser(blocks),
     links = blockr_ser(board_links(x)),
     stacks = blockr_ser(board_stacks(x)),
     options = blockr_ser(board_options(x)),
@@ -120,7 +120,8 @@ blockr_ser.board <- function(x, ...) {
       format = board_json_format(),
       packages = board_packages(board),
       board = board
-    )
+    ),
+    lapply(as.list(blocks), block_class)
   )
 }
 
@@ -134,11 +135,11 @@ blockr_ser.blocks <- function(x, ...) {
 #' @export
 blockr_ser.block <- function(x, ...) {
 
-  entry <- class_registry_entry(block_class(x))
+  cls <- block_class(x)
 
   list(
-    registry_id = entry[["id"]],
-    version = entry[["block_class"]][["version"]],
+    registry_id = class_registry_id(cls),
+    version = cls[["version"]],
     state = plain_value(
       block_state(x),
       paste0("The state of block \"", block_name(x), "\"")
@@ -222,21 +223,19 @@ ser_collection <- function(x) {
 }
 
 # The packages that a board's content comes from, with their versions, as a
-# JSON board records them: the package of each plugin's class, which the ID of
-# the class names, and the package of each block's class.
+# JSON board records them: the packages that the IDs of the plugins' classes
+# and of the blocks' classes name. The ID of a block class that an app script
+# defines names none.
 board_packages <- function(board) {
 
-  plugins <- lapply(
-    board[["plugins"]],
-    function(plg) id_package(plg[["class"]])
+  packages <- id_package(
+    c(
+      chr_xtr(board[["plugins"]], "class"),
+      chr_xtr(board[["blocks"]], "registry_id")
+    )
   )
 
-  blocks <- lapply(
-    board[["blocks"]],
-    function(blk) get_registry_entry(blk[["registry_id"]])[["package"]]
-  )
-
-  package_versions(unlst(c(plugins, blocks)))
+  package_versions(packages[!is.na(packages)])
 }
 
 # The version of each class of the plugins, by the class's ID, in the order in
@@ -246,19 +245,6 @@ plugin_versions_of <- function(plugins) {
   ids <- unique(chr_ply(plugins, plugin_class_id))
 
   as_json_object(set_names(lapply(ids, plugin_class_version), ids))
-}
-
-# The block registry's entry for a block class, which registers the class
-# where no entry holds it, as a class from outside a package, under its name.
-class_registry_entry <- function(cls) {
-
-  id <- registry_id_from_block(cls)
-
-  if (length(id)) {
-    return(get_registry_entry(id[1L]))
-  }
-
-  register_block(block_constructor(cls), default_block_name(cls[["class"]]), "")
 }
 
 # A value as a board's JSON holds it: `NULL`, a vector of logicals, numbers or
@@ -327,8 +313,9 @@ unplain_kind <- function(x) {
 # startup modules of packages, each in a file named by the class in R of the
 # plugin or of the board option, core's objects by the schema of a JSON board,
 # once each board option's value is recorded with its version, and each block's
-# state by the schema that its class's UI ships.
-shape_json_board <- function(x) {
+# state by the schema that its class's UI ships. The block classes are given
+# in `classes`, by block ID.
+shape_json_board <- function(x, classes) {
 
   x[["board"]][["options"]] <- shape_option_values(x[["board"]][["options"]])
 
@@ -340,8 +327,10 @@ shape_json_board <- function(x) {
 
   x <- shape_by_schema(x, json_board_schema())
 
+  blocks <- x[["board"]][["blocks"]]
+
   x[["board"]][["blocks"]] <- as_json_object(
-    lapply(x[["board"]][["blocks"]], shape_block_state)
+    Map(shape_block_state, blocks, classes[names(blocks)])
   )
 
   x
@@ -367,9 +356,8 @@ json_board_schema <- function() {
   )
 }
 
-shape_block_state <- function(x) {
-  entry <- get_registry_entry(x[["registry_id"]])
-  x["state"] <- list(shape_by_schema(x[["state"]], entry[["schema"]]))
+shape_block_state <- function(x, cls) {
+  x["state"] <- list(shape_by_schema(x[["state"]], class_schema(cls)))
   x
 }
 

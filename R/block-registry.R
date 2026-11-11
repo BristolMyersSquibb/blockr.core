@@ -8,16 +8,20 @@ block_registry <- new.env()
 #' block, and resolves its class's requests, without building a block. A block
 #' class is registered by its constructor, made by [block_constructor()], from
 #' which registration reads the class, and the registry keeps one entry per
-#' class, which `registry_id_from_block()` finds by the class a block refers
-#' to.
+#' class.
 #'
-#' A registry id is `{pkg}-{name}`, such as `blockr.core-head_block`, for a
-#' constructor registered by name, which comes with its package, where the
-#' name defaults to the constructor's name without `new_` and `uid` sets it,
-#' for a package that renames a constructor and wants its saved boards to keep
-#' working. A constructor registered as a function is from no package, and its
-#' id is its name alone, which defaults to the name of its class, and which may
-#' not hold a `-`, so that it cannot equal a package's.
+#' A block class's registry id comes from the class alone.
+#' It is `{pkg}-{name}`, such as `blockr.core-head_block`,
+#' where `{pkg}` is the package whose code defines the class
+#' and `{name}` is the class's name (see [new_block_class()]).
+#' A class that an app script defines records no package,
+#' and its registry id is its name alone.
+#' So renaming a constructor leaves the registry id as it is,
+#' while renaming a class changes it.
+#' The `registry_id_from_block()` function reads the registry id from a
+#' block's class, whether or not the block registry holds the class.
+#' Registering the block classes of a package with `register_package_blocks()`
+#' refuses two constructors whose classes give one registry id.
 #'
 #' An entry holds, beside the metadata, the block class, its constructor, its
 #' data inputs, its UI module and the JSON Schema of the block's state that the
@@ -51,9 +55,8 @@ block_registry <- new.env()
 #' which provides a set of (named) `block_registry_entry` objects. Finally,
 #' block construction via a registry ID is available as `create_block()`.
 #'
-#' @param ctor Block constructor, made by [block_constructor()], or its name
+#' @param ctor Block constructor, made by [block_constructor()]
 #' @param name,description Metadata describing the block
-#' @param uid The name part of the registry id
 #' @param category Useful to sort blocks by topics. If not specified,
 #'   blocks are uncategorized.
 #' @param icon Icon
@@ -70,7 +73,6 @@ block_registry <- new.env()
 #'   assembly
 #' @param keywords Optional character vector of free-text search terms for block
 #'   discovery
-#' @param package Package where constructor is defined (or `NULL`)
 #' @param overwrite Overwrite existing entry
 #'
 #' @examples
@@ -102,17 +104,15 @@ block_registry <- new.env()
 #' Listing via `list_blocks()` returns a character vector and a list of
 #' `block_registry_entry` object(s) for `available_blocks()`. Block
 #' construction via `create_block()` returns a newly instantiated `block`
-#' object, and the lookup `registry_id_from_block()` returns the registry id of
-#' a block's class, or an empty character vector for a class that is not
-#' registered. A block's argument specification is built and
-#' read with [new_arg_spec()] and friends.
+#' object, and the lookup `registry_id_from_block()` returns the registry id
+#' that a block's class gives, a string. A block's argument specification is
+#' built and read with [new_arg_spec()] and friends.
 #'
 #' @export
-register_block <- function(ctor, name, description, uid = NULL,
-                           category = NULL, icon = NULL, arguments = NULL,
-                           details = NULL, link = NULL, guidance = NULL,
-                           examples = list(), keywords = NULL,
-                           package = NULL, overwrite = FALSE) {
+register_block <- function(ctor, name, description, category = NULL,
+                           icon = NULL, arguments = NULL, details = NULL,
+                           link = NULL, guidance = NULL, examples = list(),
+                           keywords = NULL, overwrite = FALSE) {
 
   if (is.null(category)) {
     category <- default_category()
@@ -165,39 +165,8 @@ register_block <- function(ctor, name, description, uid = NULL,
     icon <- as.character(bsicons::bs_icon(icon))
   }
 
-  if (is_string(ctor)) {
-
-    if (!is_string(package)) {
-      blockr_abort(
-        "Constructor {ctor} is given by name, so `package` is expected to be ",
-        "the name of its package.",
-        class = "block_package_invalid"
-      )
-    }
-
-    uid <- coal(uid, sub("^new_", "", ctor), fail_all = FALSE)
-    ctor <- get(ctor, asNamespace(package), mode = "function")
-
-  } else {
-
-    if (!is.function(ctor)) {
-      blockr_abort(
-        "Expecting a block constructor to be a function or the name of one.",
-        class = "block_constructor_invalid"
-      )
-    }
-
-    if (not_null(package)) {
-      blockr_abort(
-        "A constructor given as a function is from no package, so `package` ",
-        "is expected to be `NULL`.",
-        class = "block_package_invalid"
-      )
-    }
-  }
-
   cls <- constructor_class(ctor)
-  id <- registry_id(coal(uid, cls[["class"]][1L], fail_all = FALSE), package)
+  id <- class_registry_id(cls)
 
   if (is.null(arguments)) {
     arguments <- default_arg_specs(class_state_args(cls))
@@ -221,15 +190,6 @@ register_block <- function(ctor, name, description, uid = NULL,
     )
   }
 
-  other <- setdiff(registry_id_from_block(cls), id)
-
-  if (length(other)) {
-    blockr_abort(
-      "Block class {cls[['class']][1L]} is registered already, as {other}.",
-      class = "block_class_in_registry"
-    )
-  }
-
   state <- expr_state(cls, list())
 
   check_sent_values(cls, state, arguments)
@@ -246,7 +206,7 @@ register_block <- function(ctor, name, description, uid = NULL,
     icon = icon,
     arguments = arguments,
     examples = examples,
-    package = package,
+    package = cls[["package"]],
     constructor = ctor,
     block_class = cls,
     inputs = class_inputs(cls),
@@ -283,28 +243,19 @@ check_sent_values <- function(cls, state, arguments) {
   invisible()
 }
 
-registry_id <- function(name, package) {
+# A block class's registry id, `{pkg}-{name}`, from the package that the class
+# records and the class's name, or the name alone for a class that records no
+# package, as one that an app script defines.
+class_registry_id <- function(cls) {
 
-  if (!is_string(name) || !nzchar(name)) {
-    blockr_abort(
-      "The name part of a registry id is expected to be a non-empty string.",
-      class = "registry_id_invalid"
-    )
+  name <- cls[["class"]][1L]
+  package <- cls[["package"]]
+
+  if (is.null(package)) {
+    return(name)
   }
 
-  if (not_null(package)) {
-    return(paste0(package, "-", name))
-  }
-
-  if (grepl("-", name, fixed = TRUE)) {
-    blockr_abort(
-      "The registry id {name} of a block class from no package may not ",
-      "hold a `-`.",
-      class = "registry_id_invalid"
-    )
-  }
-
-  name
+  paste0(package, "-", name)
 }
 
 class_schema <- function(cls) {
@@ -446,17 +397,17 @@ registry_id_from_block <- function(block) {
 
   cls <- if (is_block_class(block)) block else block_class(block)
 
-  if (is.null(cls)) {
-    return(character())
+  if (!is_block_class(cls)) {
+    blockr_abort(
+      "Expecting a block or a block class.",
+      class = "block_class_invalid"
+    )
   }
 
-  ids <- list_blocks()
-  hits <- lgl_ply(lst_xtr(lapply(ids, get_registry_entry), "block_class"),
-                  identical, cls)
-
-  ids[hits]
+  class_registry_id(cls)
 }
 
+#' @param uid Registry ids of the entries to remove
 #' @rdname register_block
 #' @export
 unregister_blocks <- function(uid = list_blocks()) {
@@ -517,6 +468,8 @@ create_block <- function(id, ...) {
 #' @param which Character vector of block constructor names to register (or
 #'   `"all"`), keying into the YAML registry generated by the
 #'   [block_registration_roclet()]
+#' @param package Package whose YAML registry to read, in whose namespace
+#'   R finds each constructor
 #'
 #' @rdname register_block
 #' @export
@@ -560,8 +513,17 @@ register_package_blocks <- function(which = "all", package = pkg_name(),
 
   entries <- entries[which]
 
+  ctors <- lapply(
+    set_names(nm = names(entries)),
+    get,
+    envir = asNamespace(package),
+    mode = "function"
+  )
+
+  check_package_registry_ids(ctors, package)
+
   register_blocks(
-    names(entries),
+    ctors,
     name = chr_xtr(entries, "name"),
     description = chr_xtr(entries, "description"),
     details = lapply(entries, `[[`, "details"),
@@ -572,9 +534,27 @@ register_package_blocks <- function(which = "all", package = pkg_name(),
     keywords = lapply(entries, `[[`, "keywords"),
     arguments = lapply(entries, yaml_block_arguments),
     examples = lapply(entries, yaml_block_examples),
-    package = package,
     overwrite = overwrite
   )
+}
+
+# Registering the block classes of a package refuses two constructors whose
+# classes give one registry id, since the second would replace the first.
+check_package_registry_ids <- function(ctors, package) {
+
+  ids <- chr_ply(lapply(ctors, constructor_class), class_registry_id)
+  id <- ids[duplicated(ids)][1L]
+  same <- names(ctors)[ids %in% id]
+
+  if (length(same)) {
+    blockr_abort(
+      "Package {package} declares block constructors {same}, whose classes ",
+      "give one registry id, {id}.",
+      class = "package_blocks_invalid"
+    )
+  }
+
+  invisible()
 }
 
 yaml_block_examples <- function(entry) {

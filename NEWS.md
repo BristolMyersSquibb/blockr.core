@@ -366,6 +366,16 @@
   The pill of the errors is open from the start, so that a failed block shows its error at once.
   A card grays out its output alone while its block is not ready, so that the pills keep the colors of their severities.
   Neither kind of card leaves room for the output until the block is first ready, so that a block that fails at once shows its footer and its banners alone, as a waiting block does, rather than at the foot of an empty box (#547).
+* A block class's registry id comes from the class alone.
+  The `new_block_class()` function records the package whose code calls it, and a class that an app script defines records none.
+  The id is `{pkg}-{name}`, from that package and the class's name, or the name alone for a class that records no package.
+  A class's name may hold no `-`, since an id splits at its first `-`.
+  The `register_block()` function loses `uid` and `package`, and takes the constructor itself rather than its name.
+  The `register_package_blocks()` function looks up each constructor in the package's namespace, and refuses two whose classes give one registry id.
+  The `registry_id_from_block()` function reads the id from the block's class, whether or not the block registry holds the class.
+  The `blockr_ser()` function reads a block's registry id, the version of its state and the schema of its state from its class, and registers no class.
+  Before it writes a board, `serve()` registers the class of each block that the block registry lacks, under the id that the class gives.
+  So core's static and fixed blocks have the ids `blockr.core-static_block` and `blockr.core-fixed_block`, where they had `static_block` and `fixed_block` (#559).
 
 # blockr.core 0.1.4
 

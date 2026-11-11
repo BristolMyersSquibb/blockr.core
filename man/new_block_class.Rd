@@ -43,7 +43,7 @@ as_blocks(x, ...)
 }
 \arguments{
 \item{name}{Class name, which leads the class vector of every block of the
-class}
+class and holds no \code{-}}
 
 \item{inputs}{Data inputs, as a character vector of names, a list of formals
 or a function of them}
@@ -97,6 +97,17 @@ package exports both: the class, from whose properties another class can
 be built, and the constructor.
 }
 \details{
+A class records the package whose code calls \code{new_block_class()},
+as \code{js_module()} records the package of a module.
+A class that an app script defines records no package.
+The class's registry id is \code{{pkg}-{name}}, from that package and the
+class's name, as \code{blockr.core-head_block}, or the name alone where the
+class records no package (see \code{\link[=register_block]{register_block()}}).
+A class's name may therefore hold no \code{-}, since a registry id splits at its
+first \code{-}.
+Otherwise a script's class named \code{my-block} would read as one from a
+package \code{my}.
+
 Every class has an \code{expr}, a function whose formals are the state args and
 whose body checks them, as a constructor checks its args, and returns what
 interpolation makes the block expression from (see \code{\link[=interpolate]{interpolate()}}): a call,

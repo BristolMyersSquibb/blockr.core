@@ -16,7 +16,10 @@ test_that("fixed block constructor", {
   expect_error(new_fixed_block("x <- 2L; utils::head(data, x)"),
                "not of length one")
 
-  expect_identical(registry_id_from_block(blk), character())
+  # The class gives its registry id, though core does not register the class
+  # as it loads
+  expect_false("blockr.core-fixed_block" %in% list_blocks())
+  expect_identical(registry_id_from_block(blk), "blockr.core-fixed_block")
 })
 
 test_that("a fixed block calls a function of its input", {

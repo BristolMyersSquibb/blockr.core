@@ -142,16 +142,17 @@ test_that("with both locks, R builds a locked block's expression once", {
 
   calls <- 0L
 
-  cls <- new_block_class(
+  cls <- test_block_class(
     "counted_block",
     expr = function(n = 1L) {
       calls <<- calls + 1L
       bbquote(seq_len(.(n)))
     },
-    ui = js_module("counted-block.js", package = NULL)
+    ui = js_module("counted-block.js", package = NULL),
+    package = "blockr.test"
   )
 
-  local_block_class(cls, "blockr.test-counted_block")
+  local_block_class(cls)
 
   board <- proto_json_board(
     obj(

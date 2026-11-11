@@ -207,9 +207,14 @@ default_plugin_id <- function(x) {
 }
 
 # The package that each ID names, as `blockr.dag` for `blockr.dag-dag_plugin`,
-# the part before the first `-`.
+# the part before the first `-`. An ID without a `-` names no package, as that
+# of a block class that an app script defines, and gives `NA`.
 id_package <- function(ids) {
-  sub("-.*$", "", ids)
+
+  res <- sub("-.*$", "", ids)
+  res[!grepl("-", ids, fixed = TRUE)] <- NA_character_
+
+  res
 }
 
 # The class that each ID names, as `dag_plugin` for `blockr.dag-dag_plugin`,
