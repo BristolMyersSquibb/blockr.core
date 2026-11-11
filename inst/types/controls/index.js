@@ -242,18 +242,16 @@ function NumberInput({
   const [text, typed] = useTyped(bound);
   const shown = text ?? (typeof bound.value === "number" ? String(bound.value) : "");
   const largest = outdated ? void 0 : max;
-  const [kept, setKept] = useState(null);
-  if (kept !== null && (kept.min !== min || kept.max !== largest)) setKept(null);
   const read = (input) => {
     const trimmed = input.trim();
     if (trimmed === "") return {};
     const value = Number(trimmed);
     if (!Number.isInteger(value)) return { reason: `${trimmed} is not a whole number.` };
     if (min !== void 0 && value < min) {
-      return { reason: `${trimmed} is less than ${String(min)}, the least it takes.` };
+      return { reason: `${trimmed} is below the minimum of ${String(min)}.` };
     }
     if (largest !== void 0 && value > largest) {
-      return { reason: `${trimmed} is more than ${String(largest)}, the most it takes.` };
+      return { reason: `${trimmed} is above the maximum of ${String(largest)}.` };
     }
     return { value };
   };
@@ -262,14 +260,12 @@ function NumberInput({
       bound.flush();
       return;
     }
-    const { value, reason: reason2 } = read(text);
+    const { value } = read(text);
     bound.type(value);
     bound.flush();
-    if (value !== void 0) return;
-    typed(null);
-    setKept(reason2 === void 0 ? null : { reason: reason2, min, max: largest });
+    if (value === void 0) typed(null);
   };
-  const reason = text !== null ? read(text).reason : kept?.reason ?? read(shown).reason;
+  const checked = read(shown);
   return /* @__PURE__ */ jsxs(Fragment, { children: [
     /* @__PURE__ */ jsx(Field, { label, children: /* @__PURE__ */ jsx(
       "input",
@@ -281,10 +277,9 @@ function NumberInput({
         required: true,
         className: styles.box,
         value: shown,
-        "aria-invalid": read(shown).value === void 0,
+        "aria-invalid": checked.value === void 0,
         onChange: (event) => {
           typed(event.target.value);
-          setKept(null);
           bound.type(read(event.target.value).value);
         },
         onKeyDown: (event) => {
@@ -293,7 +288,7 @@ function NumberInput({
         onBlur: settle
       }
     ) }),
-    /* @__PURE__ */ jsx(Refusal, { error: reason ?? bound.error })
+    /* @__PURE__ */ jsx(Refusal, { error: checked.reason ?? bound.error })
   ] });
 }
 function Select({

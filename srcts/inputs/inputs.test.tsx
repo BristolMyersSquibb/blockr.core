@@ -318,8 +318,8 @@ describe("the inputs of a board option's UI", () => {
       shown.push(said());
     }
     expect(shown).toEqual([
-      ["true", "50 is more than 30, the most it takes."],
-      ["true", "0 is less than 1, the least it takes."],
+      ["true", "50 is above the maximum of 30."],
+      ["true", "0 is below the minimum of 1."],
       ["true", "2.5 is not a whole number."],
       ["true", null],
       ["false", null],
@@ -328,23 +328,31 @@ describe("the inputs of a board option's UI", () => {
     expect(host.submitted).toEqual([20]);
   });
 
-  test("go back to the state in place of a number outside the range on Enter and as the user leaves, saying why until the user types again or the range changes", async () => {
+  test("say why the state does not fit, as once the most shrank", () => {
     const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
     const { el, redraw } = draw(<Rows host={host} max={30} />);
+    const said = () => el.querySelector('[role="alert"]')?.textContent ?? null;
+    expect(said()).toBeNull();
+
+    redraw(<Rows host={host} max={20} />);
+    expect(said()).toBe("25 is above the maximum of 20.");
+    expect(host.submitted).toEqual([]);
+  });
+
+  test("go back to the state in place of a number outside the range on Enter and as the user leaves, which clears what it said", async () => {
+    const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
+    const { el } = draw(<Rows host={host} max={30} />);
     const input = find(el, "input", HTMLInputElement);
     const shown = () => [input.value, el.querySelector('[role="alert"]')?.textContent ?? null];
 
     act(() => {
       type(input, "50");
     });
+    expect(shown()).toEqual(["50", "50 is above the maximum of 30."]);
     act(() => {
       press(input, "Enter");
     });
-    expect(shown()).toEqual(["25", "50 is more than 30, the most it takes."]);
-    act(() => {
-      type(input, "2");
-    });
-    expect(shown()).toEqual(["2", null]);
+    expect(shown()).toEqual(["25", null]);
 
     act(() => {
       type(input, "60");
@@ -352,8 +360,6 @@ describe("the inputs of a board option's UI", () => {
     act(() => {
       input.blur();
     });
-    expect(shown()).toEqual(["25", "60 is more than 30, the most it takes."]);
-    redraw(<Rows host={host} max={100} />);
     expect(shown()).toEqual(["25", null]);
     await wait(PAUSE);
     expect(host.submitted).toEqual([]);

@@ -80,8 +80,7 @@ export function TextInput({
 // against the range as it is then, since the range may have changed after
 // the user typed the number, as once a request answers for newer data,
 // and submits the number where it fits.
-// Otherwise it shows the state again, and goes on saying why it did not take
-// the number until the user types again or the range changes.
+// Otherwise it shows the state again.
 // It does not go back while the user types,
 // since typing passes through numbers outside the range,
 // such as an empty field on the way to a new number.
@@ -105,18 +104,16 @@ export function NumberInput({
   const [text, typed] = useTyped(bound);
   const shown = text ?? (typeof bound.value === "number" ? String(bound.value) : "");
   const largest = outdated ? undefined : max;
-  const [kept, setKept] = useState<Kept | null>(null);
-  if (kept !== null && (kept.min !== min || kept.max !== largest)) setKept(null);
   const read = (input: string): Read => {
     const trimmed = input.trim();
     if (trimmed === "") return {};
     const value = Number(trimmed);
     if (!Number.isInteger(value)) return { reason: `${trimmed} is not a whole number.` };
     if (min !== undefined && value < min) {
-      return { reason: `${trimmed} is less than ${String(min)}, the least it takes.` };
+      return { reason: `${trimmed} is below the minimum of ${String(min)}.` };
     }
     if (largest !== undefined && value > largest) {
-      return { reason: `${trimmed} is more than ${String(largest)}, the most it takes.` };
+      return { reason: `${trimmed} is above the maximum of ${String(largest)}.` };
     }
     return { value };
   };
@@ -128,17 +125,12 @@ export function NumberInput({
       bound.flush();
       return;
     }
-    const { value, reason } = read(text);
+    const { value } = read(text);
     bound.type(value);
     bound.flush();
-    if (value !== undefined) return;
-    typed(null);
-    setKept(reason === undefined ? null : { reason, min, max: largest });
+    if (value === undefined) typed(null);
   };
-  // Why it does not take the number the user is typing,
-  // or the one it showed the state again in place of,
-  // or the state it shows.
-  const reason = text !== null ? read(text).reason : (kept?.reason ?? read(shown).reason);
+  const checked = read(shown);
   return (
     <>
       <Field label={label}>
@@ -150,10 +142,9 @@ export function NumberInput({
           required
           className={styles.box}
           value={shown}
-          aria-invalid={read(shown).value === undefined}
+          aria-invalid={checked.value === undefined}
           onChange={(event) => {
             typed(event.target.value);
-            setKept(null);
             bound.type(read(event.target.value).value);
           }}
           onKeyDown={(event) => {
@@ -162,7 +153,7 @@ export function NumberInput({
           onBlur={settle}
         />
       </Field>
-      <Refusal error={reason ?? bound.error} />
+      <Refusal error={checked.reason ?? bound.error} />
     </>
   );
 }
@@ -172,15 +163,6 @@ export function NumberInput({
 interface Read {
   readonly value?: number;
   readonly reason?: string;
-}
-
-// Why a number input showed the state again in place of a number it did not
-// take, and the range it checked the number against,
-// which it says until the user types again or the range changes.
-interface Kept {
-  readonly reason: string;
-  readonly min: number | undefined;
-  readonly max: number | undefined;
 }
 
 // A select of one string, which shows `placeholder` while the value is unset.
