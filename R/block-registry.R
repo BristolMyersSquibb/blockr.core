@@ -595,20 +595,7 @@ package_yaml_blocks <- function(package) {
     return(list())
   }
 
-  entries <- coal(yaml::read_yaml(file), list(), fail_all = FALSE)
-  ids <- lst_xtr(entries, "id")
-  missing <- names(entries)[!lgl_ply(ids, is_nonempty_string)]
-
-  if (length(missing)) {
-    blockr_abort(
-      "Package {package} lists {qty(missing)}block constructor{?s} {missing} ",
-      "without the id of {?its/their} class, as a `blocks.yml` does that the ",
-      "roclet wrote before it wrote ids.",
-      class = "package_blocks_invalid"
-    )
-  }
-
-  entries
+  coal(yaml::read_yaml(file), list(), fail_all = FALSE)
 }
 
 # The block registry of an app, which `serve()` builds as it starts the app,
@@ -801,7 +788,7 @@ register_yaml_blocks <- function(package, registry, ids = NULL) {
     mode = "function"
   )
 
-  check_package_registry_ids(ctors, package, chr_xtr(entries, "id"))
+  check_package_registry_ids(ctors, package)
 
   invisible(
     Map(
@@ -822,26 +809,11 @@ register_yaml_blocks <- function(package, registry, ids = NULL) {
   )
 }
 
-# Registering the block classes of a package refuses a constructor whose class
-# has another id than the one that the package's `blocks.yml` gives it, as one
-# whose class changed since the roclet wrote the file, and two constructors
-# whose classes give one registry id, since the second would replace the
-# first.
-check_package_registry_ids <- function(ctors, package, ids) {
+# Registering the block classes of a package refuses two constructors whose
+# classes give one registry id, since the second would replace the first.
+check_package_registry_ids <- function(ctors, package) {
 
-  classes <- lapply(ctors, constructor_class)
-  stale <- names(ctors)[chr_xtr(classes, "id") != ids]
-
-  if (length(stale)) {
-    blockr_abort(
-      "Package {package} lists {qty(stale)}block constructor{?s} {stale} ",
-      "under another id than {?its/their} class gives, as its `blocks.yml` ",
-      "predates a change of the class.",
-      class = "package_blocks_invalid"
-    )
-  }
-
-  ids <- chr_ply(classes, class_registry_id)
+  ids <- chr_ply(lapply(ctors, constructor_class), class_registry_id)
   id <- ids[duplicated(ids)][1L]
   same <- names(ctors)[ids %in% id]
 

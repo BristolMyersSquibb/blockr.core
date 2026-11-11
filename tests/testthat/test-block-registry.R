@@ -170,38 +170,23 @@ test_that("a package's constructors give one registry id each", {
   memo <- test_block_class("memo_block", expr = expr, ui = ui,
                            package = "blockr.pkg")
 
-  ctors <- list(
-    new_note_block = block_constructor(note),
-    new_memo_block = block_constructor(memo)
-  )
-
   expect_null(
     check_package_registry_ids(
-      ctors,
-      "blockr.pkg",
-      c("note_block", "memo_block")
+      list(new_note_block = block_constructor(note),
+           new_memo_block = block_constructor(memo)),
+      "blockr.pkg"
     )
   )
 
   expect_error(
     check_package_registry_ids(
-      c(ctors, list(new_text_block = block_constructor(again))),
-      "blockr.pkg",
-      c("note_block", "memo_block", "note_block")
+      list(new_note_block = block_constructor(note),
+           new_memo_block = block_constructor(memo),
+           new_text_block = block_constructor(again)),
+      "blockr.pkg"
     ),
     class = "package_blocks_invalid",
     regexp = "new_note_block and new_text_block.+blockr.pkg-note_block"
-  )
-
-  # The ids that the package lists are those of the classes
-  expect_error(
-    check_package_registry_ids(
-      ctors,
-      "blockr.pkg",
-      c("note_block", "other_block")
-    ),
-    class = "package_blocks_invalid",
-    regexp = "new_memo_block under another id"
   )
 })
 
@@ -501,27 +486,6 @@ test_that("an app offers the classes of a package that load_all() loads", {
     get_registry_entry("regprobe-probe_block", app_block_registry(probe))$name,
     "Probe"
   )
-})
-
-test_that("a package's `blocks.yml` gives the id of each class it lists", {
-
-  file <- file.path(local_load_all_package(), "inst", "registry", "blocks.yml")
-  entry <- c("  name: Probe", "  description: Probes", "  category: input")
-
-  # An id that the class does not give, as the class changed since the roclet
-  # wrote the file
-  writeLines(c("new_probe_block:", "  id: other_block", entry), file)
-
-  expect_error(
-    app_block_registry(data.frame(package = "regprobe", id = "other_block")),
-    "Package regprobe lists block constructor new_probe_block under another ",
-    class = "package_blocks_invalid"
-  )
-
-  # None, as the roclet wrote none before it wrote ids
-  writeLines(c("new_probe_block:", entry), file)
-
-  expect_error(available_blocks(), class = "package_blocks_invalid")
 })
 
 test_that("YAML examples of an array type are lists", {
