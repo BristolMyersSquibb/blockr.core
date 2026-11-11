@@ -74,6 +74,21 @@ function card(el: HTMLElement, name: string): HTMLElement {
   return find(el, `article[aria-label="${name}"]`);
 }
 
+// The status that the badge in a card's header shows.
+const badge = (card: HTMLElement): string => find(card, "header [data-status]").textContent;
+
+// The line of a card's footer: the summary, where it shows one, and the text
+// of each pill.
+const line = (card: HTMLElement): string[] => texts(find(card, "footer"), "span > span, button");
+
+// The severity and the message of each banner that a card shows, in order.
+function banners(card: HTMLElement): string[][] {
+  return [...card.querySelectorAll('ul[aria-label="Conditions"] li')].map((li) => [
+    li.getAttribute("data-severity") ?? "",
+    li.querySelector("span > span:last-child")?.textContent ?? "",
+  ]);
+}
+
 // The button whose text is the one given, in `el`.
 function button(el: ParentNode, text: string): HTMLButtonElement {
   const found = [...el.querySelectorAll("button")].find((b) => b.textContent.trim() === text);
@@ -179,12 +194,12 @@ describe("the page", () => {
     }
     expect(card(el, "Head").textContent).toContain("UI of b");
     expect(card(el, "Head").textContent).toContain("Output of b");
-    expect(find(card(el, "Head"), "[data-status]").textContent).toBe("ready");
+    expect(badge(card(el, "Head"))).toBe("ready");
   });
 });
 
 describe("a card", () => {
-  test("shows its block's status, its summary and the conditions of the severities that show_conditions names", async () => {
+  test("shows its block's status in its header, and in its footer its summary and a pill for each severity that show_conditions names, which opens its banners", async () => {
     const { el, core } = await drawn({
       evaluate: (request) =>
         request.block === "b"
@@ -199,35 +214,111 @@ describe("a card", () => {
     });
 
     const head = card(el, "Head");
-    // The summary is the last line of the output's box, whose end holds the
+    expect(badge(head)).toBe("ready");
+    // The footer is the last line of the output's box, whose end holds the
     // handle that resizes the box.
-    expect(find(head, '[aria-label="Output"]').lastElementChild?.textContent).toBe("<data.frame> [6 × 5]");
-    // The board holds show_conditions at warnings and errors.
-    expect(texts(head, "[data-severity]")).toEqual(["warning: Few rows"]);
+    const footer = find(head, "footer");
+    expect(footer.parentElement?.firstElementChild).toBe(find(head, '[aria-label="Output"]'));
+    expect(footer.parentElement?.lastElementChild).toBe(footer);
+    // The board holds show_conditions at warnings and errors, so the footer
+    // shows no pill for the message.
+    expect(line(head)).toEqual(["<data.frame> [6 × 5]", "1 warning"]);
+    expect(banners(head)).toEqual([]);
 
+    await click(button(footer, "1 warning"));
+    expect(banners(card(el, "Head"))).toEqual([["warning", "Few rows"]]);
+
+    // The banners of a severity go with its pill, as show_conditions leaves
+    // the severity out.
     await step(() => {
       core.store.apply({ options: { set: { show_conditions: ["message"] } } });
     });
-    expect(texts(card(el, "Head"), "[data-severity]")).toEqual(["message: Took the head"]);
+    expect(line(card(el, "Head"))).toEqual(["<data.frame> [6 × 5]", "1 message"]);
+    expect(banners(card(el, "Head"))).toEqual([]);
+
+    await click(button(find(card(el, "Head"), "footer"), "1 message"));
+    expect(banners(card(el, "Head"))).toEqual([["message", "Took the head"]]);
   });
 
-  test("greys its output out while its block is not ready", async () => {
-    const { el, core } = await drawn({
+  test("greys its output out while its block is not ready, but not its footer, which shows a failed block's error and why a block waits", async () => {
+    let fails = false;
+    const { el, core, settled } = await drawn({
       evaluate: (request) =>
-        request.block === "b"
+        request.block === "b" && fails
+          ? { status: "error", conditions: [{ severity: "error", class: ["simpleError", "error", "condition"], phase: "expr", message: "No rows" }] }
+          : undefined,
+    });
+    expect(badge(card(el, "Head"))).toBe("ready");
+
+    // The user changes the block's state, and R fails to evaluate it.
+    fails = true;
+    await step(() => {
+      core.store.apply({ blocks: { mod: { b: { state: { n: 0, direction: "head" } } } } });
+    });
+    await settled();
+
+    expect(find(card(el, "Iris"), '[aria-label="Output"]').dataset.ready).toBe("true");
+    const head = card(el, "Head");
+    expect(badge(head)).toBe("failed");
+    expect(find(head, '[aria-label="Output"]').dataset.ready).toBe("false");
+    expect(find(head, '[aria-label="Output"]').className).toContain("bc:opacity-50");
+    expect(find(head, '[aria-label="Output"]').className).toContain("bc:grayscale");
+    // Core keeps drawing the last output, which keeps its height.
+    expect(find(head, '[aria-label="Output"]').className).toContain("bc:flex-1");
+    expect(find(head, '[aria-label="Output"]').textContent).toBe("Output of b");
+    // The pill of the errors keeps the colour of its severity, and its banner
+    // is open from the start.
+    expect(find(head, "footer").closest('[class*="bc:grayscale"]')).toBeNull();
+    expect(line(head)).toEqual(["error"]);
+    expect(banners(head)).toEqual([["error", "No rows"]]);
+
+    // The blocks downstream of a failed block wait on it, and their footers
+    // say why, whatever show_conditions names.
+    expect(core.scheduler.status("c")?.status).toBe("waiting");
+    const why = core.scheduler.status("c")?.conditions[0]?.message;
+    expect(why).toMatch(/^This block is waiting for/);
+    expect(badge(card(el, "Merge"))).toBe("waiting");
+    expect(find(card(el, "Merge"), "footer").textContent).toBe(why);
+
+    // Where show_conditions leaves out the errors, the footer shows no pill
+    // for the error, and no banner.
+    await step(() => {
+      core.store.apply({ options: { set: { show_conditions: ["warning"] } } });
+    });
+    expect(line(card(el, "Head"))).toEqual([]);
+    expect(banners(card(el, "Head"))).toEqual([]);
+  });
+
+  test("leaves no room for an output until its block first reads ready, so that a block that fails at once shows its footer alone, as one that waits does", async () => {
+    let fails = true;
+    const { el, core, settled } = await drawn({
+      evaluate: (request) =>
+        request.block === "b" && fails
           ? { status: "error", conditions: [{ severity: "error", class: ["simpleError", "error", "condition"], phase: "expr", message: "No rows" }] }
           : undefined,
     });
 
-    expect(find(card(el, "Iris"), '[aria-label="Output"]').dataset.ready).toBe("true");
-    expect(find(card(el, "Head"), "[data-status]").textContent).toBe("failed");
-    expect(find(card(el, "Head"), '[aria-label="Output"]').dataset.ready).toBe("false");
-    expect(find(card(el, "Head"), '[aria-label="Output"]').className).toContain("bc:opacity-50");
-    expect(texts(card(el, "Head"), "[data-severity]")).toEqual(["error: No rows"]);
+    const output = (name: string): HTMLElement => find(card(el, name), '[aria-label="Output"]');
+    expect(badge(card(el, "Head"))).toBe("failed");
+    expect(output("Head").className).toContain("bc:h-0");
+    expect(output("Head").parentElement?.className).not.toContain("bc:h-96");
+    expect(line(card(el, "Head"))).toEqual(["error"]);
+    expect(banners(card(el, "Head"))).toEqual([["error", "No rows"]]);
+    expect(badge(card(el, "Merge"))).toBe("waiting");
+    expect(output("Merge").className).toContain("bc:h-0");
 
-    // The blocks downstream of a failed block wait on it.
-    expect(core.scheduler.status("c")?.status).toBe("waiting");
-    expect(find(card(el, "Merge"), "[data-status]").textContent).toBe("waiting");
+    // The user changes the block's state, and R evaluates it.
+    fails = false;
+    await step(() => {
+      core.store.apply({ blocks: { mod: { b: { state: { n: 3, direction: "head" } } } } });
+    });
+    await settled();
+
+    expect(badge(card(el, "Head"))).toBe("ready");
+    expect(output("Head").className).toContain("bc:flex-1");
+    expect(output("Head").parentElement?.className).toContain("bc:h-96");
+    expect(badge(card(el, "Merge"))).toBe("ready");
+    expect(output("Merge").className).toContain("bc:flex-1");
   });
 
   test("renames and removes its block from its menu, through core's commands", async () => {
